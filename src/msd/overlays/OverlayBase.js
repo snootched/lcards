@@ -57,7 +57,7 @@ export class OverlayBase extends BaseRenderer {
       renderCount: 0,
       updateCount: 0,
       lastRender: null,
-      lastUpdate: null
+      lastUpdate: /** @type {number|null} */ (null)
     };
 
     lcardsLog.trace(`[${this.rendererName}] Instance created for overlay:`, overlay.id);
@@ -367,7 +367,7 @@ export class OverlayBase extends BaseRenderer {
    * - ButtonOverlay: Returns the entire button group
    * - LineOverlay: Returns the <line> or <path> element
    *
-   * @returns {Element} The element to animate by default
+   * @returns {Element|null} The element to animate by default (null before render)
    */
   getDefaultAnimationTarget() {
     // Base implementation: return the root element

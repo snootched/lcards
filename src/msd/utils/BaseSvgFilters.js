@@ -25,7 +25,7 @@ function resolveFilterColor(rawColor, element) {
  * Generate SVG filter primitive element from filter config
  * @param {Object} filter - Filter configuration {mode, type, value}
  * @param {string} inputSource - Input for this primitive (e.g., 'SourceGraphic', 'result1')
- * @param {string} resultName - Result name for this primitive's output
+ * @param {string|null} resultName - Result name for this primitive's output (null for the last one)
  * @param {Element} [contextElement] - Element used to scope theme/CSS-var color resolution
  * @returns {SVGElement|null} SVG filter primitive element (DOM node)
  * @private
@@ -283,7 +283,7 @@ function expandCompoundFilters(svgFilters) {
 /**
  * Apply filters to a base SVG element (typically #msd-base-content group)
  * Handles both CSS filters and SVG filter primitives
- * @param {HTMLElement} svgElement - The SVG element/group to apply filters to
+ * @param {HTMLElement|SVGElement} svgElement - The SVG element/group to apply filters to
  * @param {Array|Object} filters - Filter array [{mode, type, value}] or legacy object {opacity, blur, etc.}
  * @param {number} [transition] - Transition duration in milliseconds (optional)
  */
@@ -313,7 +313,7 @@ export function applyBaseSvgFilters(svgElement, filters, transition) {
   }
 
   // Generate CSS filter string
-  const useNormalized = transition && transition > 0;
+  const useNormalized = !!(transition && transition > 0);
   const cssFilterString = cssFilters.length > 0 ? generateFilterString(cssFilters, useNormalized) : '';
 
   // Handle SVG filters
@@ -394,7 +394,9 @@ export function applyBaseSvgFilters(svgElement, filters, transition) {
   if (transition && transition > 0) {
     // Force a reflow to ensure transition is set before filter changes
     svgElement.style.transition = '';
-    void svgElement.offsetHeight; // Force reflow
+    // Force reflow. getBoundingClientRect() works on SVG too; offsetHeight is
+    // undefined on an SVG <g>, so it never forced anything there.
+    void svgElement.getBoundingClientRect();
 
     svgElement.style.transition = `filter ${transition}ms ease-in-out`;
 
@@ -435,7 +437,7 @@ export function applyBaseSvgFilters(svgElement, filters, transition) {
 
 /**
  * Transition from current filters to new filters
- * @param {HTMLElement} svgElement - The SVG element
+ * @param {HTMLElement|SVGElement} svgElement - The SVG element
  * @param {Array|Object} newFilters - New filter array or legacy object
  * @param {number} [duration=1000] - Transition duration in milliseconds
  * @returns {Promise} Resolves when transition completes
@@ -444,7 +446,7 @@ export function transitionBaseSvgFilters(svgElement, newFilters, duration = 1000
   return new Promise((resolve) => {
     if (!svgElement) {
       lcardsLog.warn('[BaseSvgFilters] No SVG element provided');
-      resolve();
+      resolve(undefined);
       return;
     }
 
@@ -456,14 +458,14 @@ export function transitionBaseSvgFilters(svgElement, newFilters, duration = 1000
     // Resolve after transition completes
     setTimeout(() => {
       lcardsLog.trace('[BaseSvgFilters] Transition complete');
-      resolve();
+      resolve(undefined);
     }, duration);
   });
 }
 
 /**
  * Clear all filters from a base SVG element
- * @param {HTMLElement} svgElement - The SVG element
+ * @param {HTMLElement|SVGElement} svgElement - The SVG element
  * @param {number} [transition] - Optional transition duration in milliseconds
  */
 export function clearBaseSvgFilters(svgElement, transition) {
@@ -499,7 +501,7 @@ export function clearBaseSvgFilters(svgElement, transition) {
 /**
  * Get current computed filter values from an element
  * This is useful for debugging and state inspection
- * @param {HTMLElement} svgElement - The SVG element
+ * @param {HTMLElement|SVGElement} svgElement - The SVG element
  * @returns {string} Current filter string
  */
 export function getCurrentFilters(svgElement) {

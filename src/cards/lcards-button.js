@@ -1252,7 +1252,8 @@ export class LCARdSButton extends LCARdSCard {
 
         // Wait for next frame to ensure SVG is fully rendered in shadow DOM
         requestAnimationFrame(() => {
-            this._processedSegments.forEach(segment => {
+            // ?. : a config change can clear the segments before this frame runs
+            this._processedSegments?.forEach(segment => {
                 // Skip segments without animations
                 if (!segment.animations || segment.animations.length === 0) {
                     return;
@@ -1525,7 +1526,7 @@ export class LCARdSButton extends LCARdSCard {
             // animations re-play on the fresh elements.
             if (existingScope && existingScope.element !== svgContainer) {
                 lcardsLog.debug(`[LCARdSButton] SVG re-rendered — resetting component animation scopes for re-play`);
-                this._componentAnimations.forEach((_, index) => {
+                this._componentAnimations?.forEach((_, index) => {
                     const scopeKey = `${cardId}:segment:component-${index}`;
                     const scope = animationManager.scopes?.get(scopeKey);
                     if (scope) {
@@ -1552,7 +1553,7 @@ export class LCARdSButton extends LCARdSCard {
 
             // Register each animation as a named component-N segment so
             // AnimationManager can manage triggers, scoping, and on_load firing.
-            this._componentAnimations.forEach((anim, index) => {
+            this._componentAnimations?.forEach((anim, index) => {
                 animationManager.registerSegmentAnimations(
                     cardId,
                     `component-${index}`,
@@ -1563,9 +1564,9 @@ export class LCARdSButton extends LCARdSCard {
 
             this._componentAnimationsRegistered = true;
 
-            lcardsLog.debug(`[LCARdSButton] Registered ${this._componentAnimations.length} component animation(s)`, {
+            lcardsLog.debug(`[LCARdSButton] Registered ${this._componentAnimations?.length} component animation(s)`, {
                 cardId,
-                targets: this._componentAnimations.map(a => a.target ?? 'self')
+                targets: this._componentAnimations?.map(a => a.target ?? 'self')
             });
         });
     }
@@ -2288,7 +2289,7 @@ export class LCARdSButton extends LCARdSCard {
         // cycle (e.g., HA view switch).  Use updateComplete so the shadow DOM is fully
         // rendered before we attempt to start the RAF loop.
         if (this._backgroundRenderer) {
-            this.updateComplete.then(() => this._backgroundRenderer.resume());
+            this.updateComplete.then(() => this._backgroundRenderer?.resume());
         }
 
         // CRITICAL: Re-resolve styles now that StylePresetManager is available
@@ -2462,7 +2463,7 @@ export class LCARdSButton extends LCARdSCard {
         // Only re-attach actions if we have relevant changes and actions are initialized
         // This prevents excessive re-attachment on every render
         if (this._actionsInitialized) {
-            const buttonElement = this.shadowRoot.querySelector('[data-overlay-id="button"]');
+            const buttonElement = this.shadowRoot?.querySelector('[data-overlay-id="button"]');
 
             // Check if the button element exists and if we need to re-attach
             // (Lit recreates SVG on every render, so we need to re-attach)
@@ -3435,7 +3436,7 @@ export class LCARdSButton extends LCARdSCard {
         }
 
         // Find the button group element in shadow DOM
-        const buttonElement = this.shadowRoot.querySelector('[data-overlay-id="button"]');
+        const buttonElement = this.shadowRoot?.querySelector('[data-overlay-id="button"]');
 
         if (!buttonElement) {
             lcardsLog.trace(`[LCARdSButton] Button element not found yet`);
@@ -3768,6 +3769,7 @@ export class LCARdSButton extends LCARdSCard {
      * @param {Object} iconConfig - Processed icon configuration
      * @param {number} buttonWidth - Button width
      * @param {number} buttonHeight - Button height
+     * @param {string|null} [shapeClipId] - clip-path id for rounded/lozenge shapes
      * @returns {Object} { markup: string, widthUsed: number } - Icon markup and horizontal space used
      * @protected
      */
@@ -3793,6 +3795,7 @@ export class LCARdSButton extends LCARdSCard {
     /**
      * Generate icon markup for top/bottom area-based positioning with horizontal divider
      * @private
+     * @param {*} [shapeClipId]
      */
     _generateIconMarkupTopBottom(iconConfig, buttonWidth, buttonHeight, area, shapeClipId = null) {
         if (!iconConfig) return { markup: '', widthUsed: 0 };
@@ -3946,6 +3949,7 @@ export class LCARdSButton extends LCARdSCard {
      * LEGACY: Generate icon markup for left/right area-based positioning
      * @deprecated - Will be replaced by _generateAreaBasedIconMarkup with proper icon.position support
      * @private
+     * @param {*} [shapeClipId]
      */
     _generateIconMarkup(iconConfig, buttonWidth, buttonHeight, position, shapeClipId = null) {
         if (!iconConfig) return { markup: '', widthUsed: 0 };

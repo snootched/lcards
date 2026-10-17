@@ -99,7 +99,7 @@ export class LineOverlay extends OverlayBase {
    * @param {Object} anchors
    * @param {number[]|null} [anchor]
    * @param {number[]|null} [anchor2]
-   * @returns {{anchor: number[], anchor2: number[], pathResult: object}|null}
+   * @returns {{anchor: number[]|null, anchor2: number[]|null, pathResult: object}|null}
    */
   resolveRoute(overlay, anchors, anchor = this._resolveAnchor(overlay, anchors), anchor2 = this._resolveAttachTo(overlay, anchors)) {
     if (!this.routerCore) return null;

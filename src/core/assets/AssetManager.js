@@ -613,7 +613,7 @@ export class AssetManager extends BaseService {
       key = source.replace('builtin:', '');
     } else if (source.startsWith('/local/') || source.startsWith('http')) {
       // External/user SVGs: derive key from filename
-      key = source.split('/').pop().replace('.svg', '');
+      key = /** @type {string} */ (source.split('/').pop()).replace('.svg', '');
       url = source;
 
       // Auto-register if not already registered

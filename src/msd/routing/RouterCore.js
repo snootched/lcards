@@ -2912,8 +2912,8 @@ export class RouterCore {
    * principled meaning as a distance at THIS corridor.
    * @param {object[]} chainChannels
    * @param {string} lineId
-   * @param {number[]} rawA
-   * @param {number[]} rawB
+   * @param {number[]|null} rawA - null skips the assignment (returns null)
+   * @param {number[]|null} rawB
    * @returns {Map<string, {side:number, lean:number, offsetRel:number, k:number, grounded:boolean}>|null}
    * @private
    */
@@ -3227,6 +3227,11 @@ export class RouterCore {
     return lineA < lineB ? -1 : lineA > lineB ? 1 : 0;
   }
 
+  /**
+   * @param {object} corridor
+   * @param {string} lineId
+   * @param {Map<string, {side:number, lean:number, offsetRel:number, k:number, grounded:boolean}>|null} [chainSideHint]
+   */
   _trunkLaneAssignment(corridor, lineId, chainSideHint = null) {
     // Always read the LIVE registry row — corridor may be a stale spread
     // copy (see _discoverTrunkCandidates) or a bare config-channel object
@@ -3677,6 +3682,7 @@ export class RouterCore {
     // registration has no such ordering concern (every qualifying run gets
     // its own independent entry, never competes with a sibling run for the
     // same slot) and stays exactly as before.
+    /** @type {Array<{idx: number, a: number[], b: number[], horizontal: boolean, length: number, cornerInfo: object|null}> | null} */
     const trunkCandidates = touchedTrunks ? [] : null;
     for (let i = 1; i < compacted.length; i++) {
       const a = compacted[i - 1], b = compacted[i];
@@ -3699,7 +3705,8 @@ export class RouterCore {
           : null;
         trunkCandidates.push({ idx, a, b, horizontal, length, cornerInfo });
       }
-      if (this._crossingAvoidEnabled && length >= this._crossingMinLength) {
+      // touchedCrossingIds is non-null exactly when _crossingAvoidEnabled (set above).
+      if (touchedCrossingIds && length >= this._crossingMinLength) {
         touchedCrossingIds.add(`cross:${lineId}:${idx}`);
         // trimLo/trimHi are keyed to the NORMALIZED x1/y1 (low) and x2/y2
         // (high) ends _registerCrossingSegment stores — not run-traversal
@@ -3878,6 +3885,9 @@ export class RouterCore {
    * @param {number[]} b
    * @param {boolean} horizontal
    * @param {Set<object>|null} touchedTrunks - rows already claimed by this scan; the matched/created row is added
+   * @param {{joined: boolean}|null} [foreignJoinFlag] - set to joined:true when this line joins another line's trunk
+   * @param {number[]|null} [rawA] - the line's true start anchor
+   * @param {number[]|null} [rawB] - the line's true end anchor
    * @param {{lo: object|null, hi: object|null}|null} [cornerInfo] - this run's own
    *   resolved corner geometry at each end (from _registerLineSegments'
    *   cornerGeomAt), stored on the member tuple for _matchedTrunkCorner/
@@ -4659,6 +4669,8 @@ export class RouterCore {
    * @param {number} lineSpacing - that channel's line_spacing
    * @param {object} firstHint - the true hint governing departure from `from`
    * @param {object} lastHint - the true hint governing arrival at `to`
+   * @param {object} chan - the corridor being entered
+   * @param {object[]|null} [bundleEntryHints] - collects reverse-curve hints for the bundle entry
    * @private
    */
   _pushBundledApproachLegs(legs, stubReq, from, to, horizontal, laneIndex, laneCount, lineSpacing, firstHint, lastHint, chan, bundleEntryHints = null) {
@@ -6960,6 +6972,12 @@ export class RouterCore {
     return out;
   }
 
+  /**
+   * @param {number[]} p
+   * @param {string|null} askingLineId
+   * @param {number} [askingWidth]
+   * @param {Set<string>|null} [excludeLineIds]
+   */
   _distanceToNearestOtherLineSegment(p, askingLineId, askingWidth = 0, excludeLineIds = null) {
     let best = Infinity;
     for (const seg of this._crossings) {
@@ -7056,7 +7074,7 @@ export class RouterCore {
       const cross = vIn[0] * vOut[1] - vIn[1] * vOut[0];
       const dot = vIn[0] * vOut[0] + vIn[1] * vOut[1];
       const isStraightThrough = cross === 0 && dot > 0;
-      const target = (perCornerRadius && perCornerRadius[i - 1] != null) ? perCornerRadius[i - 1] : radiusGlobal;
+      const target = (perCornerRadius && perCornerRadius[i - 1] != null) ? /** @type {number} */ (perCornerRadius[i - 1]) : radiusGlobal;
       let r = isStraightThrough ? 0 : Math.min(target, lenIn / 2, lenOut / 2);
       // Clamp against bulging into another line's own registered path.
       // Corner rounding is otherwise entirely blind to other lines'

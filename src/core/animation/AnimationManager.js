@@ -435,6 +435,7 @@ export class AnimationManager extends BaseService {
    *
    * @param {string} overlayId - Overlay identifier
    * @param {Object} animDef - Animation definition
+   * @param {{batchShouldFire?: boolean|null}} [options] - batchShouldFire: precomputed on_load decision for a batch
    */
   async registerAnimation(overlayId, animDef, { batchShouldFire = null } = {}) {
     // Respect the enabled flag — false suppresses registration entirely

@@ -181,8 +181,8 @@ export class DataSourceManager extends BaseService {
    */
   _whenConnected() {
     if (this.hass?.connection) return Promise.resolve();
-    this._connectedWaiters ??= [];
-    return new Promise(resolve => this._connectedWaiters.push(resolve));
+    const waiters = (this._connectedWaiters ??= []);
+    return new Promise(resolve => waiters.push(resolve));
   }
 
   /**

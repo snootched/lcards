@@ -32,6 +32,7 @@ import { compareThreshold, compareBetween } from './comparison-utils.js';
  * @returns {string|undefined} Matched color value, or undefined if no range matches
  */
 function _rangeKey(value, colorConfig) {
+    /** @type {Array<{type: string, key: string, threshold?: number, lo?: number, hi?: number, width?: number}>} */
     const candidates = [];
 
     for (const key of Object.keys(colorConfig)) {
@@ -82,9 +83,10 @@ function _rangeKey(value, colorConfig) {
         if (typePriority[a.type] !== typePriority[b.type]) {
             return typePriority[a.type] - typePriority[b.type];
         }
-        if (a.type === 'between') return a.width - b.width;
-        if (a.type === 'above')   return b.threshold - a.threshold;
-        if (a.type === 'below')   return a.threshold - b.threshold;
+        // Each type always carries its own fields (width for between, threshold otherwise).
+        if (a.type === 'between') return /** @type {number} */ (a.width) - /** @type {number} */ (b.width);
+        if (a.type === 'above')   return /** @type {number} */ (b.threshold) - /** @type {number} */ (a.threshold);
+        if (a.type === 'below')   return /** @type {number} */ (a.threshold) - /** @type {number} */ (b.threshold);
         return 0;
     });
 

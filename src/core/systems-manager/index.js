@@ -127,7 +127,7 @@ export class CoreSystemsManager {
           }
           // Save old state before updating
           if (oldState) {
-            this._oldEntityStates.set(entityId, oldState);
+            this._oldEntityStates?.set(entityId, oldState);
           }
           this._entityStates.set(entityId, newState);
         }
@@ -141,7 +141,7 @@ export class CoreSystemsManager {
       // All subscriber callbacks are synchronous, so old states can be
       // released immediately — no timer needed.
       changedEntities.forEach(entityId => {
-        this._oldEntityStates.delete(entityId);
+        this._oldEntityStates?.delete(entityId);
       });
     }
 

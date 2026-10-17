@@ -286,7 +286,7 @@ export class ErrorFormatter {
    *
    * @private
    * @param {Object} error - Error object
-   * @returns {string} Suggestion
+   * @returns {string|null} Suggestion, or null when there is none for this error type
    */
   _getSuggestion(error) {
     const template = this.suggestions.get(error.type);

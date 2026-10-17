@@ -14,7 +14,7 @@ import yaml from 'js-yaml';
 
 /** A data source name: the given one, else the entity's object id. */
 function sourceName(name, entity) {
-  return name || String(entity ?? '').split('.').pop().replace(/[^a-z0-9_]/gi, '_') || 'source';
+  return name || /** @type {string} */ (String(entity ?? '').split('.').pop()).replace(/[^a-z0-9_]/gi, '_') || 'source';
 }
 
 /**

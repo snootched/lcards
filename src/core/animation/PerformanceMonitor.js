@@ -74,7 +74,7 @@ export class AnimationPerformanceMonitor {
       this.currentFPS = Math.round(1000 / avg);
 
       // Only check thresholds after settle period
-      const elapsed = performance.now() - this._startTime;
+      const elapsed = performance.now() - (this._startTime ?? 0); // null (not started) acted as 0
       if (elapsed >= this._settleMs) {
         this._checkPerformance();
       }

@@ -106,7 +106,7 @@ export class ProcessorManager {
 
     lcardsLog.debug(
       `[ProcessorManager] ✓ Initialized ${this.processors.size} processors, ` +
-      `execution order: ${this._executionOrder.join(' → ')}`
+      `execution order: ${(this._executionOrder ?? []).join(' → ')}`
     );
   }
 
@@ -239,7 +239,8 @@ export class ProcessorManager {
   process(value, timestamp, mainBuffer) {
     lcardsLog.trace(`[ProcessorManager] process() called with value=${value}, timestamp=${timestamp}`);
 
-    if (!this._executionOrderValid) {
+    const order = this._executionOrder;
+    if (!this._executionOrderValid || !order) {
       lcardsLog.warn('[ProcessorManager] Execution order not valid, skipping processing');
       return {};
     }
@@ -247,11 +248,11 @@ export class ProcessorManager {
     const startTime = performance.now();
     const results = {};
 
-    lcardsLog.trace(`[ProcessorManager] Processing through ${this._executionOrder.length} processors: ${this._executionOrder.join(', ')}`);
+    lcardsLog.trace(`[ProcessorManager] Processing through ${order.length} processors: ${order.join(', ')}`);
 
     try {
       // Execute processors in dependency order
-      this._executionOrder.forEach(key => {
+      order.forEach(key => {
         const processor = this.processors.get(key);
         const buffer = this.processorBuffers.get(key);
 

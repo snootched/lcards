@@ -18,6 +18,11 @@ import { ShapeOverlay } from '../overlays/ShapeOverlay.js';
 import { resolveColor } from '../../core/themes/resolve-color.js';
 
 export class AdvancedRenderer {
+  /**
+   * @param {Element} mountEl
+   * @param {object} routerCore
+   * @param {object|null} [coordinator] - the MsdCardCoordinator (acts as systems manager)
+   */
   constructor(mountEl, routerCore, coordinator = null) {
     this.mountEl = mountEl;
     this.routerCore = routerCore;
@@ -87,6 +92,7 @@ export class AdvancedRenderer {
     };
 
     // Pass 1: render overlays that others may depend on (currently empty)
+    /** @type {Set<string>} */
     const earlyTypes = new Set([]);
     let svgMarkupAccum = '';
     let processedCount = 0;
@@ -429,7 +435,7 @@ export class AdvancedRenderer {
     this.overlayRenderers.clear();
     this.overlayElementCache.clear();
     this.overlayElements.clear();
-    this.attachmentManager = null;
+    this.attachmentManager = /** @type {any} */ (null); // released on destroy
     this.lastRenderArgs = null;
     lcardsLog.debug('[AdvancedRenderer] Destroyed — all overlay renderers cleaned up');
   }
@@ -735,6 +741,7 @@ export class AdvancedRenderer {
   // NEW: resolve which attachment point to use based on side keyword
   // If side is not specified (empty), auto-determine best side based on line anchor position
   // Returns: { point: [x, y], side: 'left'|'right'|'top'|'bottom'|etc }
+  /** @param {any} points @param {string} side @param {number[]|null} [lineAnchor] */
   _resolveOverlayAttachmentPoint(points, side, lineAnchor = null) {
     if (!points) return { point: null, side: null };
 

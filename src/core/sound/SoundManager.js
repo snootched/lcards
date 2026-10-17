@@ -1283,10 +1283,11 @@ export class SoundManager extends BaseService {
     }
 
     try {
-      if (!this._audioCache.has(assetKey)) {
-        this._audioCache.set(assetKey, new Audio(url));
+      let audio = this._audioCache.get(assetKey);
+      if (!audio) {
+        audio = new Audio(url);
+        this._audioCache.set(assetKey, audio);
       }
-      const audio = this._audioCache.get(assetKey);
       audio.volume = this._getVolume();
       audio.currentTime = 0;
       audio.play().catch(() => {}); // Suppress AbortError from rapid replays

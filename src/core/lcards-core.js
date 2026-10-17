@@ -342,7 +342,7 @@ class LCARdSCore {
             // block core initialisation — cards render with theme defaults first, then
             // re-render via the lcards:theme-overrides-changed event once overrides arrive.
             this.integrationService.onReady().then(() => {
-                return this.themeManager.loadOverrides();
+                return this.themeManager?.loadOverrides();
             }).then(() => {
                 lcardsLog.debug('[LCARdSCore] ✅ Theme overrides loaded from scoped storage');
             }).catch(err => {
@@ -353,7 +353,7 @@ class LCARdSCore {
             // The service starts with built-in defaults / localStorage cache so cards
             // are never blocked on this.
             this.integrationService.onReady().then(() => {
-                return this.connectionOverlayService.initialize();
+                return this.connectionOverlayService?.initialize();
             }).catch(err => {
                 lcardsLog.warn('[LCARdSCore] ConnectionOverlayService config load failed:', err);
             });
@@ -388,18 +388,20 @@ class LCARdSCore {
             }
 
             lcardsLog.info('[LCARdSCore] ✅ Core systems initialized successfully');
-            this.soundManager.ensureReady().then(() => {
+            this.soundManager?.ensureReady().then(() => {
                 // window flag clears on any true page load (including hard refresh) but survives
                 // SPA navigation and module re-init, so system_ready only plays once per page load
                 if (!/** @type {any} */ (window)._lcardsSystemReadyPlayed) {
                     /** @type {any} */ (window)._lcardsSystemReadyPlayed = true;
-                    this.soundManager.play('system_ready');
+                    this.soundManager?.play('system_ready');
                 }
             });
 
         } catch (error) {
             lcardsLog.error('[LCARdSCore] ❌ Core initialization failed:', error);
-            this.soundManager.play('error');
+            // ?. : init can fail before the sound manager exists, and a TypeError here
+            // would replace the real error being rethrown below.
+            this.soundManager?.play('error');
             this._coreInitialized = false;
             throw error;
         }
@@ -446,6 +448,7 @@ class LCARdSCore {
     async _registerCardInternal(cardId, card, config) {
         lcardsLog.debug(`[LCARdSCore] Registering card: ${cardId}`);
 
+        if (!this.systemsManager) throw new Error('[LCARdSCore] Cannot register a card before the core is initialized');
         // Create card context via SystemsManager
         const systemsContext = this.systemsManager.registerCard(cardId, card, config);
 
@@ -467,9 +470,9 @@ class LCARdSCore {
             componentManager: this.componentManager,
 
             // Convenience methods - prefer SystemsManager for entity access (has caching)
-            getEntityState: (entityId) => this.systemsManager.getEntityState(entityId),
-            subscribeToEntity: (entityId, callback) => this.systemsManager.subscribeToEntity(entityId, callback, cardId),
-            unsubscribeFromEntity: (entityId, callback) => this.systemsManager.unsubscribeFromEntity(entityId, callback),
+            getEntityState: (entityId) => this.systemsManager?.getEntityState(entityId),
+            subscribeToEntity: (entityId, callback) => this.systemsManager?.subscribeToEntity(entityId, callback, cardId),
+            unsubscribeFromEntity: (entityId, callback) => this.systemsManager?.unsubscribeFromEntity(entityId, callback),
 
             // Data source methods (for advanced use cases)
             subscribeToDataSource: (entityId, callback) => /** @type {any} */ (this.dataSourceManager)?.subscribeToEntity(entityId, callback),
@@ -478,7 +481,7 @@ class LCARdSCore {
             // Rules methods (for advanced rule-based overlays)
             addRule: (rule) => /** @type {any} */ (this.rulesManager)?.addRule(rule),
             removeRule: (ruleId) => /** @type {any} */ (this.rulesManager)?.removeRule(ruleId),
-            evaluateRules: () => /** @type {any} */ (this.rulesManager)?.evaluateAll((entityId) => this.systemsManager.getEntityState(entityId)),
+            evaluateRules: () => /** @type {any} */ (this.rulesManager)?.evaluateAll((entityId) => this.systemsManager?.getEntityState(entityId)),
 
             // Lifecycle
             destroy: () => this.unregisterCard(cardId)
@@ -832,7 +835,7 @@ class LCARdSCore {
     destroy() {
         lcardsLog.info('[LCARdSCore] 🚨 Destroying core systems...');
 
-        clearInterval(this._globalHassTimer);
+        clearInterval(this._globalHassTimer ?? undefined);
         this._globalHassTimer = null;
 
         // Unregister all cards

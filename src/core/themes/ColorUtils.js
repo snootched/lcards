@@ -241,7 +241,7 @@ export class ColorUtils {
    *
    * @overload
    * @param {string} value
-   * @param {string} [defaultValue]
+   * @param {string|null} [defaultValue]
    * @param {Element|null} [element]
    * @param {number} [_depth] - internal: recursion depth
    * @returns {string}
@@ -249,7 +249,7 @@ export class ColorUtils {
   /**
    * @overload
    * @param {string[]} value
-   * @param {string} [defaultValue]
+   * @param {string|null} [defaultValue]
    * @param {Element|null} [element]
    * @param {number} [_depth] - internal: recursion depth
    * @returns {string[]}
@@ -447,7 +447,7 @@ export class ColorUtils {
    * ColorUtils.rgbToHsl(255, 153, 0) // Returns approximately [36, 100, 50]
    */
   static rgbToHsl(r, g, b) {
-    return this._rgbToHsl([r, g, b]);
+    return /** @type {number[]} */ (this._rgbToHsl([r, g, b])); // non-null input
   }
 
   /**
@@ -547,13 +547,15 @@ export class ColorUtils {
     const q = v * (1 - f * s);
     const t = v * (1 - (1 - f) * s);
 
-    switch (i % 6) {
+    // Wrap into 0..5 so a negative hue lands on a sector (JS % keeps the sign;
+    // -30° used to fall through every case and return NaN).
+    switch (((i % 6) + 6) % 6) {
       case 0: r = v; g = t; b = p; break;
       case 1: r = q; g = v; b = p; break;
       case 2: r = p; g = v; b = t; break;
       case 3: r = p; g = q; b = v; break;
       case 4: r = t; g = p; b = v; break;
-      case 5: r = v; g = p; b = q; break;
+      default: r = v; g = p; b = q; break; // 5
     }
 
     return [
@@ -704,7 +706,8 @@ export class ColorUtils {
 
   /** @private Re-apply a source alpha to a hex result. */
   static _withAlpha(hex, alpha) {
-    return alpha !== null ? this._formatRgb(this._parseColor(hex), alpha) : hex;
+    // `hex` is our own '#rrggbb' output, so it always parses.
+    return alpha !== null ? this._formatRgb(/** @type {number[]} */ (this._parseColor(hex)), alpha) : hex;
   }
 
   /**
@@ -735,7 +738,8 @@ export class ColorUtils {
     // can then parse on a recursive call.
     if (typeof document !== 'undefined' && (typeof CSS === 'undefined' || CSS.supports?.('color', color))) {
       try {
-        const ctx = (ColorUtils._probeCtx ??= document.createElement('canvas').getContext('2d'));
+        // A fresh canvas always has a 2D context.
+        const ctx = (ColorUtils._probeCtx ??= /** @type {CanvasRenderingContext2D} */ (document.createElement('canvas').getContext('2d')));
         ctx.fillStyle = '#000000';
         ctx.fillStyle = color;
         const normalized = ctx.fillStyle;
@@ -768,7 +772,7 @@ export class ColorUtils {
    * Convert RGB to HSL
    *
    * @private
-   * @param {Array<number>} rgb - [r, g, b] values (0-255)
+   * @param {Array<number>|null} rgb - [r, g, b] values (0-255); null returns null
    * @returns {Array<number>|null} [h, s, l] where h=0-360, s=0-100, l=0-100
    */
   static _rgbToHsl(rgb) {
@@ -797,7 +801,7 @@ export class ColorUtils {
         case g:
           h = ((b - r) / d + 2) / 6;
           break;
-        case b:
+        default: // max === b
           h = ((r - g) / d + 4) / 6;
           break;
       }

@@ -452,6 +452,7 @@ export class LCARdSActionHandler {
     /**
      * Execute action configuration
      * @private
+     * @param {*} [defaultEntity]
      */
     _executeAction(actionConfig, hass, element, defaultEntity = null) {
         if (!actionConfig || !hass) {

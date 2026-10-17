@@ -103,7 +103,7 @@ export function loadImage(url) {
     // URLs may carry an expiring signed token, so AssetManager owns its own short-lived
     // cache for those and re-resolves on expiry; this cache just dedupes concurrent loads.
     if (url.startsWith('media-source://')) {
-        if (_cache.has(url)) return _cache.get(url);
+        if (_cache.has(url)) return /** @type {Promise<HTMLImageElement>} */ (_cache.get(url));
 
         const mediaSourceId = url;
         const p = _resolveMediaSource(mediaSourceId).then((resolvedUrl) => {
@@ -125,7 +125,7 @@ export function loadImage(url) {
         );
     }
 
-    if (_cache.has(url)) return _cache.get(url);
+    if (_cache.has(url)) return /** @type {Promise<HTMLImageElement>} */ (_cache.get(url));
 
     const p = _loadImageElement(url);
     _cache.set(url, p);

@@ -56,6 +56,12 @@ export class PlasmaTextureEffect extends BaseTextureEffect {
      */
     constructor(config = {}) {
         super(/** @type {any} */ (config));
+        /** @type {HTMLCanvasElement} offscreen buffer, created by _ensureBuffer() before any use */
+        this._offCanvas = /** @type {any} */ (null);
+        /** @type {CanvasRenderingContext2D} its 2D context */
+        this._offCtx = /** @type {any} */ (null);
+        /** @type {ImageData} its pixel buffer */
+        this._imgData = /** @type {any} */ (null);
         const _resolve = (c) => resolveColor(c, { concrete: true });
         this._colorA  = parseColorToRgba(_resolve(config.color_a ?? 'rgba(80,0,255,0.9)'),  'rgba(80,0,255,0.9)');
         this._colorB  = parseColorToRgba(_resolve(config.color_b ?? 'rgba(255,40,120,0.9)'), 'rgba(255,40,120,0.9)');
@@ -96,7 +102,7 @@ export class PlasmaTextureEffect extends BaseTextureEffect {
         this._offCanvas        = document.createElement('canvas');
         this._offCanvas.width  = w;
         this._offCanvas.height = h;
-        this._offCtx   = this._offCanvas.getContext('2d');
+        this._offCtx   = /** @type {CanvasRenderingContext2D} */ (this._offCanvas.getContext('2d'));
         this._imgData  = this._offCtx.createImageData(w, h);
     }
 

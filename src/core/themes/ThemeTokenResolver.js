@@ -632,6 +632,7 @@ export class ThemeTokenResolver {
  * Global token resolver instance
  * Initialized by MSD system on startup
  */
+/** @type {ThemeTokenResolver | null} */
 export let themeTokenResolver = null;
 
 /**

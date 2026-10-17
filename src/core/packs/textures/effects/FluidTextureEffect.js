@@ -50,6 +50,12 @@ export class FluidTextureEffect extends BaseTextureEffect {
      */
     constructor(config = {}) {
         super(/** @type {any} */ (config));
+        /** @type {HTMLCanvasElement} offscreen buffer, created by _ensureBuffer() before any use */
+        this._offCanvas = /** @type {any} */ (null);
+        /** @type {CanvasRenderingContext2D} its 2D context */
+        this._offCtx = /** @type {any} */ (null);
+        /** @type {ImageData} its pixel buffer */
+        this._imgData = /** @type {any} */ (null);
         const _resolve = (c) => resolveColor(c, { concrete: true });
         this._color    = parseColorToRgba(_resolve(config.color ?? 'rgba(100,180,255,0.8)'), 'rgba(100,180,255,0.8)');
         this._freq     = config.base_frequency   ?? 0.010;
@@ -90,7 +96,7 @@ export class FluidTextureEffect extends BaseTextureEffect {
         this._offCanvas        = document.createElement('canvas');
         this._offCanvas.width  = w;
         this._offCanvas.height = h;
-        this._offCtx   = this._offCanvas.getContext('2d');
+        this._offCtx   = /** @type {CanvasRenderingContext2D} */ (this._offCanvas.getContext('2d'));
         this._imgData  = this._offCtx.createImageData(w, h);
     }
 

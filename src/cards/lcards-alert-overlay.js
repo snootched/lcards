@@ -212,7 +212,7 @@ export class LCARdSAlertOverlay extends LitElement {
     disconnectedCallback() {
         super.disconnectedCallback();
 
-        clearInterval(this._editModePoller);
+        clearInterval(this._editModePoller ?? undefined);
         this._editModePoller = null;
 
         if (this._isSuppressed) {
@@ -509,6 +509,7 @@ export class LCARdSAlertOverlay extends LitElement {
      * @private
      */
     _promoteLegacyBackdrop(backdrop) {
+        /** @type {{backdrop: object|null, color: object|null, canvas: object|null}} */
         const result = { backdrop: null, color: null, canvas: null };
         if (backdrop.blur) {
             result.backdrop = { preset: 'blur', amount: backdrop.blur };

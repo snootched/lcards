@@ -71,6 +71,7 @@ async function loadAllLayers(userConfig) {
 }
 
 async function processSinglePass(layers) {
+  /** @type {Record<string, any>} the merged MSD config, filled in layer by layer */
   const merged = {
     version: 1,
     anchors: {},
@@ -114,6 +115,7 @@ async function processSinglePass(layers) {
   };
 
   // Track theme information
+  /** @type {Record<string, any>} */
   let themeProvenance = {
     active_theme: null,
     source_pack: null,
@@ -128,7 +130,7 @@ async function processSinglePass(layers) {
   const packInfo = {
     builtin: /** @type {any[]} */ ([]),
     external: /** @type {any[]} */ ([]),
-    failed: []
+    failed: /** @type {any[]} */ ([])
   };
 
   // Process each layer in priority order

@@ -248,7 +248,7 @@ export class TriggerManager {
         });
       });
 
-      this._entitySubscriptions.push(unsubscribe);
+      this._entitySubscriptions?.push(unsubscribe);
       lcardsLog.debug(`[TriggerManager] ✅ Subscribed to entity: ${entityId} for overlay: ${this.overlayId}`);
     });
 

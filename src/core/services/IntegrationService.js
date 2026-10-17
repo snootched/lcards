@@ -205,7 +205,7 @@ export class IntegrationService extends BaseService {
      */
     _finishProbe() {
         this._probeComplete = true;
-        this._readyResolve?.();
+        this._readyResolve?.(undefined);
     }
 
     // -----------------------------------------------------------------------

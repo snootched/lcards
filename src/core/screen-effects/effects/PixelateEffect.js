@@ -61,7 +61,7 @@ export function PixelateEffect(canvas, params = {}) {
             canvas.height = ph;
         }
 
-        const ctx = canvas.getContext('2d');
+        const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
         ctx.clearRect(0, 0, pw, ph);
 
         for (let y = 0; y < ph; y += pixelSize) {

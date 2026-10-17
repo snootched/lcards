@@ -50,8 +50,8 @@ export function findSvgAnchors(svgContent) {
     svgRoot.querySelectorAll('circle[id]').forEach(el => {
       const id = el.id;
       if (id.startsWith('__') || id.startsWith('msd-internal-')) return;
-      const cx = parseFloat(el.getAttribute('cx'));
-      const cy = parseFloat(el.getAttribute('cy'));
+      const cx = parseFloat(el.getAttribute('cx') ?? '');
+      const cy = parseFloat(el.getAttribute('cy') ?? '');
       if (Number.isFinite(cx) && Number.isFinite(cy)) {
         anchors[id] = resolvePoint(el, cx, cy);
       }
@@ -60,8 +60,8 @@ export function findSvgAnchors(svgContent) {
     svgRoot.querySelectorAll('ellipse[id]').forEach(el => {
       const id = el.id;
       if (id.startsWith('__') || id.startsWith('msd-internal-')) return;
-      const cx = parseFloat(el.getAttribute('cx'));
-      const cy = parseFloat(el.getAttribute('cy'));
+      const cx = parseFloat(el.getAttribute('cx') ?? '');
+      const cy = parseFloat(el.getAttribute('cy') ?? '');
       if (Number.isFinite(cx) && Number.isFinite(cy)) {
         anchors[id] = resolvePoint(el, cx, cy);
       }
@@ -70,8 +70,8 @@ export function findSvgAnchors(svgContent) {
     svgRoot.querySelectorAll('text[id]').forEach(el => {
       const id = el.id;
       if (id.startsWith('__') || id.startsWith('msd-internal-')) return;
-      const x = parseFloat(el.getAttribute('x'));
-      const y = parseFloat(el.getAttribute('y'));
+      const x = parseFloat(el.getAttribute('x') ?? '');
+      const y = parseFloat(el.getAttribute('y') ?? '');
       if (Number.isFinite(x) && Number.isFinite(y)) {
         anchors[id] = resolvePoint(el, x, y);
       }
@@ -83,10 +83,10 @@ export function findSvgAnchors(svgContent) {
     svgRoot.querySelectorAll('rect[id]').forEach(el => {
       const id = el.id;
       if (id.startsWith('__') || id.startsWith('msd-internal-')) return;
-      const x = parseFloat(el.getAttribute('x')) || 0;
-      const y = parseFloat(el.getAttribute('y')) || 0;
-      const width = parseFloat(el.getAttribute('width'));
-      const height = parseFloat(el.getAttribute('height'));
+      const x = parseFloat(el.getAttribute('x') ?? '') || 0;
+      const y = parseFloat(el.getAttribute('y') ?? '') || 0;
+      const width = parseFloat(el.getAttribute('width') ?? '');
+      const height = parseFloat(el.getAttribute('height') ?? '');
       if (Number.isFinite(width) && Number.isFinite(height)) {
         anchors[id] = resolvePoint(el, x + width / 2, y + height / 2);
       }

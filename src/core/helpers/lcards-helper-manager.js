@@ -161,8 +161,8 @@ export class LCARdSHelperManager extends BaseService {
     this._valueCache.set(key, newValue);
 
     // Notify subscribers
-    if (this._subscriptions.has(key)) {
-      const callbacks = this._subscriptions.get(key);
+    const callbacks = this._subscriptions.get(key);
+    if (callbacks) {
       callbacks.forEach(callback => {
         try {
           callback(newValue, oldValue);
@@ -602,11 +602,11 @@ export class LCARdSHelperManager extends BaseService {
    * @returns {Function} Unsubscribe function
    */
   subscribeToHelper(key, callback) {
-    if (!this._subscriptions.has(key)) {
-      this._subscriptions.set(key, []);
+    let callbacks = this._subscriptions.get(key);
+    if (!callbacks) {
+      callbacks = [];
+      this._subscriptions.set(key, callbacks);
     }
-
-    const callbacks = this._subscriptions.get(key);
     callbacks.push(callback);
 
     lcardsLog.debug(`[HelperManager] Subscribed to helper: ${key}`);

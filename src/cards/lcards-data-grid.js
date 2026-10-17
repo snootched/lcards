@@ -816,7 +816,7 @@ export class LCARdSDataGrid extends LCARdSCard {
   /**
    * Default animation target: the grid element (all cells).
    * For one cell or row use a selector such as `.grid-cell[data-row="0"]`.
-   * @returns {Element}
+   * @returns {Element|null}
    */
   getDefaultAnimationTarget() {
     return this.renderRoot?.querySelector('.data-grid') || this.renderRoot?.querySelector('.data-grid-container');

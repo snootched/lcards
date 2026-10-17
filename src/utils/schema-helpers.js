@@ -207,7 +207,7 @@ export function getEffectiveLabel(propertySchema, path, explicitLabel) {
     if (propertySchema?.title) return propertySchema.title;
 
     // Format path as label
-    const lastKey = path.split('.').pop();
+    const lastKey = /** @type {string} */ (path.split('.').pop());
     return formatLabel(lastKey);
 }
 

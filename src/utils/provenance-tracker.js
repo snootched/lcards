@@ -40,7 +40,7 @@ export class ProvenanceTracker {
     this.data = {
       // Config layer provenance (from CoreConfigManager)
       config: {
-        merge_order: [],           // Layer precedence
+        merge_order: /** @type {string[]} */ ([]),           // Layer precedence
         field_sources: {},         // Field → layer mapping
         card_type: /** @type {any} */ (null),
         timestamp: /** @type {any} */ (null)
@@ -570,7 +570,7 @@ export class ProvenanceTracker {
    */
   clear() {
     this.data = {
-      config: { merge_order: [], field_sources: {}, card_type: null, timestamp: null },
+      config: { merge_order: /** @type {string[]} */ ([]), field_sources: {}, card_type: null, timestamp: null },
       theme_tokens: {},
       rule_patches: {},
       templates: {},

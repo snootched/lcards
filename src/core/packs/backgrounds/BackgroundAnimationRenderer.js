@@ -33,6 +33,7 @@ export class BackgroundAnimationRenderer {
     this.container = container;
     this.config = config;
     this.cardInstance = cardInstance; // Reference to card for theme token resolution
+    /** @type {import('./renderers/Canvas2DRenderer.js').Canvas2DRenderer | null} */
     this.renderer = null;
     this.canvas = null;
     /** @type {{ top: number, right: number, bottom: number, left: number }} */
@@ -337,6 +338,8 @@ export class BackgroundAnimationRenderer {
    * @returns {boolean} True if at least one effect was loaded
    */
   _loadEffects() {
+    const renderer = this.renderer;
+    if (!renderer) return false; // created in _init() before effects load
     // Use resolved effectConfigs (set by _resolveConfig)
     const effectConfigs = Array.isArray(this.effectConfigs) ? this.effectConfigs : [this.effectConfigs];
 
@@ -411,7 +414,7 @@ export class BackgroundAnimationRenderer {
                   };
 
                   const zoomEffect = new ZoomEffect(zoomConfig);
-                  this.renderer.addEffect(zoomEffect);
+                  renderer.addEffect(zoomEffect);
                   loadedEffects++;
                 });
               }
@@ -432,7 +435,7 @@ export class BackgroundAnimationRenderer {
                 };
 
                 const zoomEffect = new ZoomEffect(zoomConfig);
-                this.renderer.addEffect(zoomEffect);
+                renderer.addEffect(zoomEffect);
                 loadedEffects++;
               });
             }
@@ -440,7 +443,7 @@ export class BackgroundAnimationRenderer {
             // No zoom - add effects directly
             const effects = preset.createEffects(config, this.cardInstance);
             this._reactiveEffects.push({ rawConfig: effectConfig.config || {}, presetId, effects });
-            effects.forEach(effect => this.renderer.addEffect(effect));
+            effects.forEach(effect => renderer.addEffect(effect));
             loadedEffects += effects.length;
           }
         }

@@ -56,6 +56,7 @@ export const BACKGROUND_PRESETS = {
       example: "background_animation:\n  - preset: grid\n    config:\n      line_spacing: 40\n      color: 'rgba(255,153,102,0.3)'\n      major_row_interval: 5\n      major_col_interval: 5"
     },
 
+    /** @param {object} config @param {{getThemeToken?: Function}|null} [cardInstance] the card, for theme tokens */
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:grid] Creating grid effect');
 
@@ -119,6 +120,7 @@ export const BACKGROUND_PRESETS = {
       example: "background_animation:\n  - preset: grid-diagonal\n    config:\n      line_spacing: 30\n      color: 'rgba(255,153,102,0.25)'"
     },
 
+    /** @param {object} config @param {{getThemeToken?: Function}|null} [cardInstance] the card, for theme tokens */
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:grid-diagonal] Creating diagonal grid effect');
 
@@ -169,6 +171,7 @@ export const BACKGROUND_PRESETS = {
       example: "background_animation:\n  - preset: grid-hexagonal\n    config:\n      hex_radius: 40\n      color: 'rgba(255,153,102,0.3)'"
     },
 
+    /** @param {object} config @param {{getThemeToken?: Function}|null} [cardInstance] the card, for theme tokens */
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:grid-hexagonal] Creating hexagonal grid effect');
 
@@ -224,6 +227,7 @@ export const BACKGROUND_PRESETS = {
       example: 'background_animation:\n  - preset: starfield\n    config:\n      count: 200\n      scroll_speed_x: 30'
     },
 
+    /** @param {object} config @param {{getThemeToken?: Function}|null} [cardInstance] the card, for theme tokens */
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:starfield] Creating starfield effect');
 
@@ -287,6 +291,7 @@ export const BACKGROUND_PRESETS = {
       example: "background_animation:\n  - preset: nebula\n    config:\n      colors: ['#8000ff', '#ff0080']\n      cloud_count: 5"
     },
 
+    /** @param {object} config @param {{getThemeToken?: Function}|null} [cardInstance] the card, for theme tokens */
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:nebula] Creating nebula effect');
 
@@ -349,6 +354,7 @@ export const BACKGROUND_PRESETS = {
       tip: 'Lower Band Count + Cell Size for a blocky, retro-LCARS look; raise them for a smooth, photographic nebula look.'
     },
 
+    /** @param {object} config @param {{getThemeToken?: Function}|null} [cardInstance] the card, for theme tokens */
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:contour-field] Creating contour field effect');
 
@@ -412,6 +418,7 @@ export const BACKGROUND_PRESETS = {
       example: "background_animation:\n  - preset: cascade\n    config:\n      format: hex\n      speed_multiplier: 1.5"
     },
 
+    /** @param {object} config @param {{getThemeToken?: Function}|null} [cardInstance] the card, for theme tokens */
     createEffects(config = {}, cardInstance = null) {
       lcardsLog.debug('[Preset:cascade] Creating cascade effect');
 
@@ -471,6 +478,7 @@ export const BACKGROUND_PRESETS = {
       example: "background_animation:\n  - preset: level\n    config:\n      fill_pct: 65\n      color_a: 'rgba(0,200,100,0.7)'"
     },
 
+    /** @param {object} config @param {{getThemeToken?: Function}|null} [cardInstance] the card, for theme tokens */
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:level] Creating level effect');
 

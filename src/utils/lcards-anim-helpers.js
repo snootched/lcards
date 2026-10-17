@@ -705,6 +705,11 @@ function _migrateTransformAttrToStyle(element) {
 /**
  * Animates element(s) using anime.js with special handling for SVG animations.
  * Unchanged behavior, v4-native through window.lcards.anim.anime
+ *
+ * @param {object} scope - animation scope (root element, card id, ...)
+ * @param {object} options - animation definition
+ * @param {object|null} [hass]
+ * @param {((instance: any) => void)|null} [onInstanceCreated] - receives each created anime.js instance or CSS handle
  */
 export async function animateElement(scope, options, hass = null, onInstanceCreated = null) {
   const { type, targets, root = document, ...animOptions } = options;

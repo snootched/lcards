@@ -49,7 +49,7 @@ export class Canvas2DRenderer {
    */
   constructor(canvas, options = {}) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
+    this.ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
     this.effects = []; // Array of BaseEffect instances
     this._animationId = null;
     this._lastFrameTime = performance.now();

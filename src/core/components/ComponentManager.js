@@ -84,10 +84,12 @@ export class ComponentManager {
 
         // Infer type and categorize
         const type = this._inferComponentType(name, component);
-        if (!this.componentsByType.has(type)) {
-            this.componentsByType.set(type, new Map());
+        let byName = this.componentsByType.get(type);
+        if (!byName) {
+            byName = new Map();
+            this.componentsByType.set(type, byName);
         }
-        this.componentsByType.get(type).set(name, component);
+        byName.set(name, component);
 
         lcardsLog.trace(`[ComponentManager] Registered component: ${name} (type: ${type})`);
     }

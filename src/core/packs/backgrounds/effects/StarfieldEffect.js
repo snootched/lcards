@@ -47,6 +47,12 @@ export class StarfieldEffect extends BaseEffect {
    */
   constructor(config = {}) {
     super(/** @type {any} */ (config));
+    /** @type {any[]} */
+    this.stars = [];
+    /** @type {() => number} seeded RNG, set by _initRNG() before any use */
+    this._rng = /** @type {any} */ (null);
+    /** @type {Array<any>} built with the stars */
+    this._drawBuckets = /** @type {any} */ (null);
 
     // Star generation config
     this.seed = config.seed ?? 1;
@@ -279,6 +285,6 @@ export class StarfieldEffect extends BaseEffect {
    */
   destroy() {
     this.stars = [];
-    this._rng = null;
+    this._rng = /** @type {any} */ (null); // released; _initRNG() sets it again
   }
 }

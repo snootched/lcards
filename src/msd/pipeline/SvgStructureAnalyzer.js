@@ -63,7 +63,8 @@ function rasterizeToMaskData(svgContent, W, H) {
         const canvas = document.createElement('canvas');
         canvas.width = W;
         canvas.height = H;
-        const ctx = canvas.getContext('2d');
+        // A fresh canvas always has a 2D context.
+        const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
         // Known solid backdrop: anything drawn over it is foreground, no
         // color-distance/background-sampling needed (unlike a raster photo).
         ctx.fillStyle = '#000000';
@@ -227,8 +228,9 @@ function detectAnchors(mask, W, H) {
     { id: 'hull_center', ...centroid },
   ].filter(Boolean);
 
+  /** @type {Array<{id: string, x: number, y: number}>} */
   const anchors = [];
-  for (const a of raw) {
+  for (const a of /** @type {Array<{id: string, x: number, y: number}>} */ (raw)) {
     const dup = anchors.find((b) => Math.hypot(a.x - b.x, a.y - b.y) < 6);
     if (!dup) anchors.push(a);
   }
@@ -347,7 +349,7 @@ function largestConnectedComponent(mask, W, H) {
     visited[start] = 1;
     const component = [start];
     while (stack.length) {
-      const idx = stack.pop();
+      const idx = /** @type {number} */ (stack.pop()); // loop guard: stack is non-empty
       const x = idx % W, y = (idx / W) | 0;
       if (x > 0 && mask[idx - 1] === 1 && !visited[idx - 1]) { visited[idx - 1] = 1; stack.push(idx - 1); component.push(idx - 1); }
       if (x < W - 1 && mask[idx + 1] === 1 && !visited[idx + 1]) { visited[idx + 1] = 1; stack.push(idx + 1); component.push(idx + 1); }
@@ -712,7 +714,7 @@ export class SvgStructureAnalyzer {
     const a0 = closedPoints[seedPrevIdx], b0 = closedPoints[rotateStart];
     const seedPt = [a0[0] + (b0[0] - a0[0]) * seedFrac, a0[1] + (b0[1] - a0[1]) * seedFrac];
 
-    const sections = Array.from({ length: sectionCount }, () => []);
+    const sections = Array.from({ length: sectionCount }, () => /** @type {number[][]} */ ([]));
     let currentSlice = 0;
     sections[0].push(seedPt, closedPoints[rotateStart]);
     let cum = 0; // arc length walked since rotateStart, in this rotated frame - always increasing

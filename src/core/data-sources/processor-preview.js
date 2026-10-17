@@ -131,13 +131,15 @@ export function runProcessorPreview(entry, points, { entityState = null } = {}) 
     for (const key of order) {
       if (results[key] !== null && results[key] !== undefined) produced.add(key);
       for (const [name, v] of numericFields(key, results[key])) {
-        if (!byName.has(name)) {
+        let s = byName.get(name);
+        if (!s) {
           /** @type {PreviewSeries} */
-          const s = { name, points: [], axis: 0 };
+          const created = { name, points: [], axis: 0 };
+          s = created;
           byName.set(name, s);
           series.push(s);
         }
-        byName.get(name).points.push({ t: point.t, v });
+        s.points.push({ t: point.t, v });
       }
     }
   }

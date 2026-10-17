@@ -478,7 +478,7 @@ export class MsdCardCoordinator extends BaseService {
         allSvgGroups: Array.from(mountEl?.querySelectorAll('svg g') || []).map(g => g.id).filter(id => id)
       });
 
-      const baseSvgElement = mountEl?.querySelector('#__msd-base-content');
+      const baseSvgElement = /** @type {SVGElement | null} */ (mountEl?.querySelector('#__msd-base-content') ?? null);
 
       if (!baseSvgElement) {
         lcardsLog.warn('[MsdCardCoordinator] Cannot update base SVG filters - base content group not found');

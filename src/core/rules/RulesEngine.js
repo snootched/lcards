@@ -254,11 +254,13 @@ export class RulesEngine extends BaseService {
       changedEntityIds = [changedEntityIds];
     }
 
+    const index = this.dependencyIndex;
+    if (!index) return 0; // rules not indexed yet
     let affectedRules = 0;
 
     changedEntityIds.forEach(entityId => {
       // Direct entity/DataSource rule matches
-      const rules = this.dependencyIndex.entityToRules.get(entityId);
+      const rules = index.entityToRules.get(entityId);
       if (rules) {
         rules.forEach(ruleId => {
           if (!this.dirtyRules.has(ruleId)) {
@@ -272,7 +274,7 @@ export class RulesEngine extends BaseService {
       // If a DataSource changes, mark rules that depend on its transformations/aggregations
       if (this.dataSourceManager?.getSource(entityId)) {
         // Find rules that depend on this DataSource's transformations/aggregations
-        for (const [fullRef, ruleSet] of this.dependencyIndex.entityToRules) {
+        for (const [fullRef, ruleSet] of index.entityToRules) {
           if (fullRef.startsWith(`${entityId}.`)) {
             ruleSet.forEach(ruleId => {
               if (!this.dirtyRules.has(ruleId)) {
@@ -729,6 +731,7 @@ export class RulesEngine extends BaseService {
    * @param {Object} ruleApply - Rule 'apply' clause
    * @returns {Promise<Array<Object>>} Array of overlay patches with {id, style, ...}
    * @private
+   * @param {*} [contextOverlays]
    */
   async _resolveOverlaySelectors(ruleApply, contextOverlays = null) {  // ✨ CHANGED: Made async for template evaluation
     if (!ruleApply.overlays) return [];

@@ -33,6 +33,7 @@ import workerSource from './BorgAssimilationWorker.js?raw';
  */
 export function BorgAssimilationEffect(canvas, params = {}) {
     const parent = canvas.parentElement;
+    if (!parent) return () => {}; // effect canvas not mounted: nothing to attach a sibling to
     const W = parent?.clientWidth  || window.innerWidth;
     const H = parent?.clientHeight || window.innerHeight;
 

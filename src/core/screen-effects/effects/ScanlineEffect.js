@@ -57,7 +57,7 @@ export function ScanlineEffect(canvas, params = {}) {
         lastPw = pw;
         lastPh = ph;
 
-        const ctx = canvas.getContext('2d');
+        const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
         ctx.clearRect(0, 0, pw, ph);
 
         // Dark scanlines

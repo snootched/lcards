@@ -151,7 +151,7 @@ export class ScreenEffectManager extends BaseService {
      */
     get portal() {
         this._ensurePortal();
-        return this._portal;
+        return /** @type {HTMLDivElement} */ (this._portal); // created by _ensurePortal()
     }
 
     /**

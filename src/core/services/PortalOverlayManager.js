@@ -79,14 +79,14 @@ const POSITION_MAP = {
 /**
  * One open portal overlay (see show()).
  * @typedef {object} SlotState
- * @property {HTMLElement} [dismissEl]
- * @property {HTMLElement} [wrapperEl]
- * @property {HTMLElement} [contentContainer]
- * @property {HTMLElement} [contentElement]
- * @property {HTMLStyleElement} [portalStyleEl]
+ * @property {HTMLElement|null} [dismissEl]
+ * @property {HTMLElement|null} [wrapperEl]
+ * @property {HTMLElement|null} [contentContainer]
+ * @property {HTMLElement|null} [contentElement]
+ * @property {HTMLStyleElement|null} [portalStyleEl]
  * @property {boolean} [ownsSemSlots]
  * @property {object} [options]
- * @property {ReturnType<typeof setTimeout>} [durationTimer]
+ * @property {ReturnType<typeof setTimeout>|null} [durationTimer]
  */
 
 export class PortalOverlayManager extends BaseService {
@@ -273,6 +273,7 @@ export class PortalOverlayManager extends BaseService {
         }
 
         // ── Build slot state (before async card mount) ────────────────────────
+        /** @type {SlotState} */
         const slotState = {
             dismissEl,
             wrapperEl,

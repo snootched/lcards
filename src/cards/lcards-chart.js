@@ -177,6 +177,8 @@ export class LCARdSChart extends LCARdSCard {
     this._chartGeneration = 0; // Bumped on every init/teardown so a stale async init is dropped
     /** @type {import('../charts/chart-sources.js').ChartSeries[]} */
     this._series = [];
+    /** @type {Set<number>} series indexes that have delivered data (reset in _showPlaceholder) */
+    this._seriesLoaded = new Set();
     /** @type {Array<Array<{t: number, v: any}>|undefined>} Latest points per series */
     this._seriesPoints = [];
     this._dataArrived = false;

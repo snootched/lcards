@@ -67,6 +67,12 @@ export class ContourFieldEffect extends BaseEffect {
    */
   constructor(config = {}) {
     super(/** @type {any} */ (config));
+    /** @type {HTMLCanvasElement} offscreen buffer, created by _ensureBuffer() before any use */
+    this._offCanvas = /** @type {any} */ (null);
+    /** @type {CanvasRenderingContext2D} its 2D context */
+    this._offCtx = /** @type {any} */ (null);
+    /** @type {ImageData} its pixel buffer */
+    this._imgData = /** @type {any} */ (null);
 
     this.seed = config.seed ?? 1;
     this.noiseScale = config.noiseScale ?? 0.01;
@@ -146,7 +152,7 @@ export class ContourFieldEffect extends BaseEffect {
     this._offCanvas = document.createElement('canvas');
     this._offCanvas.width = bw;
     this._offCanvas.height = bh;
-    this._offCtx = this._offCanvas.getContext('2d');
+    this._offCtx = /** @type {CanvasRenderingContext2D} */ (this._offCanvas.getContext('2d'));
     this._imgData = this._offCtx.createImageData(bw, bh);
   }
 
@@ -433,9 +439,10 @@ export class ContourFieldEffect extends BaseEffect {
   }
 
   destroy() {
-    this._offCanvas = null;
-    this._offCtx = null;
-    this._imgData = null;
+    // Released; _ensureBuffer() recreates them before any further use.
+    this._offCanvas = /** @type {any} */ (null);
+    this._offCtx = /** @type {any} */ (null);
+    this._imgData = /** @type {any} */ (null);
     super.destroy();
   }
 }

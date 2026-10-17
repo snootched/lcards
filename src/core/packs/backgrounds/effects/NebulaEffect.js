@@ -47,6 +47,10 @@ export class NebulaEffect extends BaseEffect {
    */
   constructor(config = {}) {
     super(/** @type {any} */ (config));
+    /** @type {any[]} */
+    this.clouds = [];
+    /** @type {() => number} seeded RNG, set by _initRNG() before any use */
+    this._rng = /** @type {any} */ (null);
 
     // Cloud generation config
     this.seed = config.seed ?? 1;

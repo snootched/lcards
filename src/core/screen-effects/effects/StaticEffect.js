@@ -61,7 +61,7 @@ export function StaticEffect(canvas, params = {}) {
         if (!running) return;
         _syncSize();
 
-        const ctx = canvas.getContext('2d');
+        const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
         const img = ctx.createImageData(canvas.width, canvas.height);
         const d   = img.data;
 

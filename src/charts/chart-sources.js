@@ -67,7 +67,7 @@ export function normalizeChartSources(config) {
  * @returns {boolean}
  */
 export function seriesProducesArrays(series) {
-  return ARRAY_FUNCS.has(series.group_by?.func);
+  return ARRAY_FUNCS.has(series.group_by?.func ?? '');
 }
 
 /**

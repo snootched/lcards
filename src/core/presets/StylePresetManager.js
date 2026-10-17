@@ -177,8 +177,8 @@ export class StylePresetManager {
       initialized: this.initialized,
       packCount: this.loadedPacks.length,
       cacheSize: this.presetCache.size,
-      packDetails: [],
-      presetsByType: {},
+      packDetails: /** @type {any[]} */ ([]),
+      presetsByType: /** @type {Record<string, any>} */ ({}),
       universalPresets: {
         button: this._getUniversalButtonPresets()
       }

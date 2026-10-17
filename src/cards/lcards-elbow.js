@@ -155,6 +155,7 @@ export class LCARdSElbow extends LCARdSButton {
         super();
         this._elbowConfig = null;
         this._elbowGeometry = null;
+        /** @type {{horizontal: number|null, vertical: number|null, angle: number|null}} */
         this._themeBarDimensions = { horizontal: null, vertical: null, angle: null };
         this._themeEntityUnsubscribes = []; // Track subscriptions for cleanup
 
@@ -274,9 +275,7 @@ export class LCARdSElbow extends LCARdSButton {
         this._trackColorProvenance();
 
         // Call parent
-        if (super._onConfigUpdated) {
-            super._onConfigUpdated();
-        }
+        super._onConfigUpdated();
     }
 
     /**

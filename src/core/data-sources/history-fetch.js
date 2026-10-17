@@ -95,9 +95,9 @@ export async function fetchDataSourceHistory(hass, cfg, { hours = historySetting
       });
       const rows = statisticsData?.[cfg.entity];
       if (Array.isArray(rows) && rows.length) {
-        const points = rows
+        const points = /** @type {Array<{t: number, v: number}>} null values filtered out */ (rows
           .map(stat => ({ t: new Date(stat.start).getTime(), v: statisticValue(stat) }))
-          .filter(p => p.v !== null && Number.isFinite(p.t));
+          .filter(p => p.v !== null && Number.isFinite(p.t)));
         return { points, method: 'statistics' };
       }
     } catch (error) {

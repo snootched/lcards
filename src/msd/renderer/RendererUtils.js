@@ -35,7 +35,7 @@ export class RendererUtils {
 
   /**
    * Get the SVG container and its current transformation matrix
-   * @param {Element} containerElement - The SVG container element
+   * @param {Element|null} containerElement - The SVG container element (null returns null)
    * @returns {Object|null} Object with svg element and transformation info
    */
   static _getSvgTransformInfo(containerElement) {

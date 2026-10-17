@@ -51,7 +51,7 @@ export class RoundProcessor extends Processor {
       case 'floor':
         result = Math.floor(scaled);
         break;
-      case 'ceil':
+      default: // 'ceil' (the constructor rejects any other method)
         result = Math.ceil(scaled);
         break;
     }

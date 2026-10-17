@@ -1156,7 +1156,7 @@ export class LCARdSCard extends LCARdSNativeCard {
 
                 if (prevW === null ||
                     Math.abs(width  - prevW) >= 2 ||
-                    Math.abs(height - prevH) >= 2) {
+                    Math.abs(height - /** @type {number} */ (prevH)) >= 2) { // non-null when prevW is
 
                     // Update stored size
                     this._containerSize = { width, height };
@@ -1548,7 +1548,9 @@ export class LCARdSCard extends LCARdSNativeCard {
 
             try {
                 // Evaluate dirty rules to get patches
-                const ruleResults = await this._singletons.rulesEngine.evaluateDirty({
+                const rulesEngine = this._singletons?.rulesEngine;
+                if (!rulesEngine) return; // card torn down since the callback was registered
+                const ruleResults = await rulesEngine.evaluateDirty({
                     entity: this.config?.entity,  // Pass bound entity ID for JavaScript context
                     getEntity: (entityId) => {
                         const state = this.hass?.states?.[entityId];
@@ -2925,7 +2927,7 @@ export class LCARdSCard extends LCARdSNativeCard {
             const value = this.getThemeToken(tokenPath);
             if (value !== null && value !== undefined) {
                 // Extract property name from path (last segment)
-                const property = tokenPath.split('.').pop();
+                const property = /** @type {string} */ (tokenPath.split('.').pop());
                 resolved[property] = value;
             }
         });
@@ -3282,7 +3284,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * @param {Element[]} [options.borderElements] - Border path elements to apply stroke colour to
      * @param {Object} [options.borderHoverStyle] - Hover style object with borderColor
      * @param {Object} [options.borderPressedStyle] - Pressed style object with borderColor
-     * @param {Function} [options.getRestoreBorderColor] - Function returning border colour to restore on leave
+     * @param {Function|null} [options.getRestoreBorderColor] - Function returning border colour to restore on leave
      * @returns {Function} Cleanup function to remove all listeners
      * @protected
      *
@@ -3590,7 +3592,7 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Return unsubscribe function
         return () => {
-            this._entitySubscriptions.delete(unsubscribe);
+            this._entitySubscriptions?.delete(unsubscribe);
             unsubscribe();
         };
     }
@@ -3776,7 +3778,7 @@ export class LCARdSCard extends LCARdSNativeCard {
         // --- Datasource tracking ---
         if (this._singletons?.dataSourceManager && this._registeredDataSources) {
             this._registeredDataSources.forEach(sourceName => {
-                this._singletons.dataSourceManager.removeCardFromSource(
+                this._singletons?.dataSourceManager?.removeCardFromSource(
                     sourceName,
                     this._getDisplayId()
                 );
@@ -4825,7 +4827,7 @@ export class LCARdSCard extends LCARdSNativeCard {
                 if (this._actionHandler && (segment.tap_action || segment.hold_action || segment.double_tap_action)) {
                     const cleanup = this._attachSegmentActions(element, segment);
                     if (cleanup) {
-                        this._segmentCleanups.push(cleanup);
+                        this._segmentCleanups?.push(cleanup);
                     }
                 }
             });

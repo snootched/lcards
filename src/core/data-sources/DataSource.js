@@ -714,7 +714,7 @@ export class DataSource {
    * Implements intelligent value change detection to reduce unnecessary updates
    * @private
    * @param {number} timestamp - Event timestamp in milliseconds
-   * @param {number} value - Numeric value to process
+   * @param {number|null} value - Numeric value to process (null counts as invalid)
    */
   _onRawEventValue(timestamp, value) {
     if (value === null) {
@@ -1300,7 +1300,9 @@ export class DataSource {
     if (!metadataConfig || typeof metadataConfig !== 'object') return;
 
     // Track which properties have been explicitly set by user
-    this._metadataOverrides = {};
+    /** @type {Record<string, boolean>} */
+    const overrides = {};
+    this._metadataOverrides = overrides;
 
     // Apply overrides for supported properties
     const supportedProperties = [
@@ -1316,7 +1318,7 @@ export class DataSource {
     supportedProperties.forEach(prop => {
       if (metadataConfig.hasOwnProperty(prop)) {
         this.metadata[prop] = metadataConfig[prop];
-        this._metadataOverrides[prop] = true; // Mark as user-overridden
+        overrides[prop] = true; // Mark as user-overridden
         lcardsLog.trace(`[DataSource] Metadata override: ${prop} = ${metadataConfig[prop]}`);
       }
     });

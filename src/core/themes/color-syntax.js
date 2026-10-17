@@ -260,16 +260,17 @@ function parseColorMix(value) {
     });
     if (parsed.some(p => !p.color)) return null;
 
-    let [p1, p2] = parsed.map(p => p.pct);
-    if (p1 === null && p2 === null) p1 = p2 = 0.5;
-    else if (p1 === null) p1 = 1 - p2;
-    else if (p2 === null) p2 = 1 - p1;
+    // A missing percentage is the complement of the other one; both missing is 50/50.
+    const [s1, s2] = parsed.map(p => p.pct);
+    let p1 = s1 ?? (s2 === null ? 0.5 : 1 - s2);
+    let p2 = s2 ?? (s1 === null ? 0.5 : 1 - s1);
     const sum = p1 + p2;
     if (sum <= 0) return null;
     const scale = Math.min(sum, 1);
     [p1, p2] = [p1 / sum, p2 / sum];
 
-    const [c1, c2] = parsed.map(p => p.color);
+    // Both parsed (checked above).
+    const [c1, c2] = /** @type {Array<{r: number, g: number, b: number, a: number}>} */ (parsed.map(p => p.color));
     const a = c1.a * p1 + c2.a * p2;
     const channel = (k) => (a === 0 ? 0 : Math.round((c1[k] * c1.a * p1 + c2[k] * c2.a * p2) / a));
     return { r: channel('r'), g: channel('g'), b: channel('b'), a: Math.round(a * scale * 1000) / 1000 };

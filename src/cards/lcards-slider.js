@@ -3302,16 +3302,16 @@ export class LCARdSSlider extends LCARdSButton {
      * @private
      */
     _updateFillGeometryFromValue() {
-        const el = this.shadowRoot.querySelector('[data-lcards-role="progress-fill"]');
+        const el = this.shadowRoot?.querySelector('[data-lcards-role="progress-fill"]');
         if (!el) return;
 
         const percent = this._calculateValuePercent(this._displayValue);
         const axis = el.getAttribute('data-fill-axis');
-        const sizeScale = parseFloat(el.getAttribute('data-fill-size-scale')) || 0;
-        const posBase = parseFloat(el.getAttribute('data-fill-pos-base')) || 0;
-        const posScale = parseFloat(el.getAttribute('data-fill-pos-scale')) || 0;
-        const fixedPos = parseFloat(el.getAttribute('data-fill-fixed-pos')) || 0;
-        const fixedSize = parseFloat(el.getAttribute('data-fill-fixed-size')) || 0;
+        const sizeScale = parseFloat(el.getAttribute('data-fill-size-scale') ?? '') || 0;
+        const posBase = parseFloat(el.getAttribute('data-fill-pos-base') ?? '') || 0;
+        const posScale = parseFloat(el.getAttribute('data-fill-pos-scale') ?? '') || 0;
+        const fixedPos = parseFloat(el.getAttribute('data-fill-fixed-pos') ?? '') || 0;
+        const fixedSize = parseFloat(el.getAttribute('data-fill-fixed-size') ?? '') || 0;
 
         const size = Math.max(0, sizeScale * percent);
         const pos = posBase + posScale * percent;
@@ -3323,8 +3323,8 @@ export class LCARdSSlider extends LCARdSButton {
         const height = isH ? fixedSize : size;
 
         if (el.tagName.toLowerCase() === 'path') {
-            const rStart = parseFloat(el.getAttribute('data-fill-radius-start')) || 0;
-            const rEnd = parseFloat(el.getAttribute('data-fill-radius-end')) || 0;
+            const rStart = parseFloat(el.getAttribute('data-fill-radius-start') ?? '') || 0;
+            const rEnd = parseFloat(el.getAttribute('data-fill-radius-end') ?? '') || 0;
             const corners = isH
                 ? { tl: rStart, tr: rEnd, br: rEnd, bl: rStart }
                 : { tl: rEnd, tr: rEnd, br: rStart, bl: rStart };
@@ -3346,7 +3346,7 @@ export class LCARdSSlider extends LCARdSButton {
      * @private
      */
     _updateValueIndicatorFromValue() {
-        const el = this.shadowRoot.querySelector('[data-lcards-role="value-indicator"]');
+        const el = this.shadowRoot?.querySelector('[data-lcards-role="value-indicator"]');
         if (!el) return;
 
         const percent = this._calculateValuePercent(this._displayValue);
@@ -3368,12 +3368,12 @@ export class LCARdSSlider extends LCARdSButton {
 
         const displayMin = this._displayConfig.min;
         const displayMax = this._displayConfig.max;
-        const markerEls = this.shadowRoot.querySelectorAll(
+        const markerEls = this.shadowRoot?.querySelectorAll(
             '[data-lcards-role="range-marker"], [data-lcards-role="range-marker-label"]'
         );
 
-        markerEls.forEach((el) => {
-            const idx = parseInt(el.getAttribute('data-marker-index'), 10);
+        markerEls?.forEach((el) => {
+            const idx = parseInt(el.getAttribute('data-marker-index') ?? '', 10);
             const dv = values[idx];
             if (dv === null || dv === undefined || Number.isNaN(dv)) return;
 
@@ -3392,9 +3392,9 @@ export class LCARdSSlider extends LCARdSButton {
      */
     _applyTransformFromCoefficients(el, percent) {
         const axis = el.getAttribute('data-pos-axis'); // 'x' | 'y' — which coordinate varies
-        const posBase = parseFloat(el.getAttribute('data-pos-base')) || 0;
-        const posScale = parseFloat(el.getAttribute('data-pos-scale')) || 0;
-        const fixed = parseFloat(el.getAttribute('data-pos-fixed')) || 0;
+        const posBase = parseFloat(el.getAttribute('data-pos-base') ?? '') || 0;
+        const posScale = parseFloat(el.getAttribute('data-pos-scale') ?? '') || 0;
+        const fixed = parseFloat(el.getAttribute('data-pos-fixed') ?? '') || 0;
         const rotation = el.getAttribute('data-pos-rotation') || '0';
 
         const pos = posBase + posScale * percent;

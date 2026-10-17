@@ -85,6 +85,7 @@ export class ChartSeriesFetcher {
     /** @type {Array<{series: any, raw: Array<{t:number,v:any}>, stop: (() => void)|null}>} */
     this._states = [];
     this._spanConfig = {};
+    /** @type {{start: number, end: number, duration: number, live: boolean} | null} set by start() */
     this._span = null;
     this._dirty = new Set();
     this._flushTimer = null;
@@ -122,8 +123,8 @@ export class ChartSeriesFetcher {
     }
     this._states = [];
     this._dirty.clear();
-    clearTimeout(this._flushTimer);
-    clearInterval(this._windowTimer);
+    clearTimeout(this._flushTimer ?? undefined);
+    clearInterval(this._windowTimer ?? undefined);
     this._flushTimer = null;
     this._windowTimer = null;
   }
@@ -139,7 +140,7 @@ export class ChartSeriesFetcher {
     if (!this._running) return;
     const next = computeSpan(this._spanConfig);
     const realigned = this._spanConfig.span?.start || this._spanConfig.span?.end;
-    if (realigned && next.start !== this._span.start) {
+    if (realigned && next.start !== this._span?.start) {
       // An aligned window rolled over (e.g. midnight): reload everything.
       const seriesList = this._states.map(s => s.series);
       this.start(seriesList, this._spanConfig);
@@ -182,6 +183,7 @@ export class ChartSeriesFetcher {
 
     const subscribe = async () => {
       const span = this._span;
+      if (!span) return; // stopped before the subscription ran
       const message = {
         type: 'history/stream',
         entity_ids: [series.entity],
@@ -252,6 +254,7 @@ export class ChartSeriesFetcher {
       const connection = this._getHass()?.connection;
       if (!connection || stopped) return;
       const span = this._span;
+      if (!span) return;
       try {
         const reply = await connection.sendMessagePromise({
           type: 'recorder/statistics_during_period',
@@ -318,7 +321,7 @@ export class ChartSeriesFetcher {
     }
 
     return () => {
-      clearTimeout(retry);
+      clearTimeout(retry ?? undefined);
       if (typeof unsubscribe === 'function') unsubscribe();
       else unsubscribe?.unsubscribe?.();
     };
@@ -344,6 +347,7 @@ export class ChartSeriesFetcher {
     if (!this._running) return;
     this._lastFlush = Date.now();
     const span = this._span;
+    if (!span) return;
     for (const index of this._dirty) {
       const state = this._states[index];
       if (!state) continue;

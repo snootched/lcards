@@ -93,6 +93,8 @@ test('kelvinToRgb: warm to cool', () => {
 test('hsToRgb', () => {
     assert.deepEqual(C.hsToRgb(0, 100), [255, 0, 0]);
     assert.deepEqual(C.hsToRgb(120, 50, 128), [64, 128, 64]);
+    // A negative hue wraps (it used to fall through every sector and return NaN).
+    assert.deepEqual(C.hsToRgb(-330, 100), C.hsToRgb(30, 100));
 });
 
 test('luminance, wcagContrast, contrastColor', () => {

@@ -568,7 +568,7 @@ export class LCARdSMSDCard extends LCARdSCard {
                         // Register non-card overlays (lines, labels, etc.) or non-LCARdS controls
                         // LCARdS cards will register themselves when created
                         // Register directly with SystemsManager (can't use _registerOverlayForRules - already used!)
-                        this._singletons.systemsManager.registerOverlay(overlay.id, {
+                        this._singletons?.systemsManager?.registerOverlay(overlay.id, {
                             id: overlay.id,
                             tags: ['msd-overlay', overlay.type],
                             sourceCardId: this._cardGuid
@@ -1019,7 +1019,8 @@ export class LCARdSMSDCard extends LCARdSCard {
             timestamp: new Date().toISOString(),
             hasHass: !!hass,
             cardGuid: this._cardGuid,
-            callerStack: new Error().stack.split('').slice(1, 4).map(line => line.trim()).join(' → ')
+            // split on lines (it was split('') into single characters)
+            callerStack: (new Error().stack ?? '').split('\n').slice(1, 4).map(line => line.trim()).join(' → ')
         });
 
         const oldHass = this._hass;

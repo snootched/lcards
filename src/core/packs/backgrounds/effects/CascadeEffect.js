@@ -104,8 +104,10 @@ export class CascadeEffect extends BaseEffect {
     this._cellHeight   = 0;
 
     // Per-row timing arrays (computed lazily)
-    this._rowDurations   = null;   // ms per row
-    this._rowPhaseOffsets = null;  // ms phase offset per row
+    /** @type {Float64Array} ms per row, built by the row setup before any draw */
+    this._rowDurations   = /** @type {any} */ (null);
+    /** @type {Float64Array} ms phase offset per row */
+    this._rowPhaseOffsets = /** @type {any} */ (null);
 
     // Resolved colours cache (refreshed each draw frame)
     this._resolvedStart = null;
@@ -445,8 +447,8 @@ export class CascadeEffect extends BaseEffect {
    */
   destroy() {
     this._cellData        = null;
-    this._rowDurations    = null;
-    this._rowPhaseOffsets = null;
+    this._rowDurations = /** @type {any} */ (null);
+    this._rowPhaseOffsets = /** @type {any} */ (null);
     super.destroy();
   }
 }

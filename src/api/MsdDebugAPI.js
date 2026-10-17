@@ -680,6 +680,7 @@ export class MsdDebugAPI {
          * @param {Object} options - Filter options
          * @param {boolean} options.includeDisabled - Include disabled rules (default: false)
          * @param {boolean} options.verbose - Include full rule details (default: false)
+         * @param {*} [cardId]
          * @returns {Array} Active rules
          *
          * @example
@@ -824,6 +825,7 @@ export class MsdDebugAPI {
          * scope info, active animations, and registered triggers.
          *
          * @param {string} overlayId - Overlay identifier
+         * @param {*} [cardId]
          * @returns {Object|null} Overlay animation state
          *
          * @example
@@ -855,6 +857,7 @@ export class MsdDebugAPI {
          * Returns details for a specific animation timeline.
          *
          * @param {string} timelineId - Timeline ID
+         * @param {*} [cardId]
          * @returns {Object|null} Timeline details
          *
          * @example
@@ -879,6 +882,7 @@ export class MsdDebugAPI {
          * @param {string} overlayId - Overlay identifier
          * @param {string} presetName - Animation preset name
          * @param {Object} [params] - Additional animation parameters
+         * @param {*} [cardId]
          * @returns {Object} Result object
          *
          * @example
@@ -936,6 +940,7 @@ export class MsdDebugAPI {
          * bounding box, type, and validation status.
          *
          * @param {string} overlayId - Overlay ID
+         * @param {*} [cardId]
          * @returns {Object|null} Overlay details
          *
          * @example
@@ -979,6 +984,7 @@ export class MsdDebugAPI {
          * Returns position and size from the resolved model.
          *
          * @param {string} overlayId - Overlay ID
+         * @param {*} [cardId]
          * @returns {Object|null} Bounding box derived from model {x, y, w, h}
          *
          * @example
@@ -1021,6 +1027,7 @@ export class MsdDebugAPI {
          * Queries the live SVG DOM for the rendered element's transform.
          *
          * @param {string} overlayId - Overlay ID
+         * @param {*} [cardId]
          * @returns {Object|null} Transform data
          *
          * @example
@@ -1090,6 +1097,7 @@ export class MsdDebugAPI {
          * Returns current data/state for an overlay.
          *
          * @param {string} overlayId - Overlay ID
+         * @param {*} [cardId]
          * @returns {*} Overlay state/data
          *
          * @example
@@ -1118,6 +1126,7 @@ export class MsdDebugAPI {
          * Returns all overlays matching the specified type.
          *
          * @param {string} type - Overlay type (e.g., 'button', 'text', 'status_grid')
+         * @param {*} [cardId]
          * @returns {Array} Matching overlays
          *
          * @example
@@ -1151,6 +1160,7 @@ export class MsdDebugAPI {
          * Returns all overlays that reference a specific entity ID.
          *
          * @param {string} entityId - Entity ID
+         * @param {*} [cardId]
          * @returns {Array} Overlays using this entity
          *
          * @example

@@ -793,7 +793,7 @@ export class LCARdSYamlEditor extends LitElement {
      * @private
      */
     _initializeEditor() {
-        const container = this.shadowRoot.getElementById('editor-mount');
+        const container = this.shadowRoot?.getElementById('editor-mount');
         if (!container) return;
 
         const extensions = [

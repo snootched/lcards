@@ -497,7 +497,7 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
     _handleDrag(event) {
         if (!this._dragging) return;
 
-        const handle = this.shadowRoot.querySelector(`.range-handle[data-type="${this._dragging.type}"]`);
+        const handle = this.shadowRoot?.querySelector(`.range-handle[data-type="${this._dragging.type}"]`);
         if (!handle) return;
 
         const bar = handle.closest('.range-bar');

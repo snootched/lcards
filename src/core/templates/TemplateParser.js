@@ -514,7 +514,7 @@ export class TemplateParser {
     if (/^\.\d+f$/.test(spec)) {
       return {
         type: 'float',
-        precision: parseInt(spec.match(/\d+/)[0]),
+        precision: parseInt(/** @type {RegExpMatchArray} */ (spec.match(/\d+/))[0]), // the test above guarantees digits
         options: {}
       };
     }

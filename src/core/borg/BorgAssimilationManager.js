@@ -203,7 +203,7 @@ export class BorgAssimilationManager extends BaseService {
                     }
                     if (timer !== null) { clearTimeout(timer); timer = null; }
                     this._introDismiss = null;
-                    resolve();
+                    resolve(undefined);
                 };
 
                 this._introDismiss = dismiss;

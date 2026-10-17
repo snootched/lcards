@@ -198,7 +198,7 @@ export function getNestedValue(obj, path) {
  */
 export function setNestedValue(obj, path, value) {
   const parts = path.split('.');
-  const lastPart = parts.pop();
+  const lastPart = /** @type {string} */ (parts.pop());
   let current = obj;
 
   // Create nested structure

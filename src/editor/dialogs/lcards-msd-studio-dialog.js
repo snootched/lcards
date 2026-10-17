@@ -823,7 +823,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _getCurrentZoomContainer() {
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this.shadowRoot?.querySelector('.preview-panel');
         if (!previewPanel) return null;
 
         return previewPanel.querySelector('.preview-scroll-container');
@@ -837,7 +837,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _initializeZoom() {
         lcardsLog.debug('[MSDStudio][ZOOM] _initializeZoom called');
 
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this.shadowRoot?.querySelector('.preview-panel');
         if (!previewPanel) {
             lcardsLog.warn('[MSDStudio] Preview panel not found for zoom initialization');
             return;
@@ -6452,7 +6452,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Get SVG rect and calculate position
         const rect = svg.getBoundingClientRect();
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this.shadowRoot?.querySelector('.preview-panel');
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -6592,7 +6592,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Get SVG rect and calculate position
         const rect = svg.getBoundingClientRect();
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this.shadowRoot?.querySelector('.preview-panel');
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -6731,7 +6731,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Get SVG rect and calculate position
         const rect = svg.getBoundingClientRect();
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this.shadowRoot?.querySelector('.preview-panel');
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -6880,7 +6880,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         lcardsLog.trace('[MSDStudio] ViewBox:', { viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight });
 
         const rect = svg.getBoundingClientRect();
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this.shadowRoot?.querySelector('.preview-panel');
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -7021,7 +7021,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
 
         const rect = svg.getBoundingClientRect();
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this.shadowRoot?.querySelector('.preview-panel');
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -7108,7 +7108,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (!trunks.length) return '';
 
         const rect = svg.getBoundingClientRect();
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this.shadowRoot?.querySelector('.preview-panel');
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -7204,7 +7204,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         const rect = svg.getBoundingClientRect();
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this.shadowRoot?.querySelector('.preview-panel');
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -7545,7 +7545,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const { msdCard, svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         const rect = svg.getBoundingClientRect();
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this.shadowRoot?.querySelector('.preview-panel');
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -7686,7 +7686,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // to adjust that many points anyway; the YAML tab is.
         if (selectedShape.points.length > MAX_INLINE_EDITABLE_SHAPE_POINTS) return '';
 
-        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        const livePreview = this.shadowRoot?.querySelector('lcards-msd-live-preview');
         if (!livePreview) return '';
         const livePreviewShadow = livePreview.shadowRoot;
         if (!livePreviewShadow) return '';
@@ -7703,7 +7703,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (!viewBox || viewBox.length !== 4) return '';
         const [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
         const rect = svg.getBoundingClientRect();
-        const panelRect = this.shadowRoot.querySelector('.preview-panel')?.getBoundingClientRect();
+        const panelRect = this.shadowRoot?.querySelector('.preview-panel')?.getBoundingClientRect();
         if (!panelRect) return '';
 
         const scale = Math.max(viewBoxWidth / rect.width, viewBoxHeight / rect.height);
@@ -7793,7 +7793,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         const rect = svg.getBoundingClientRect();
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this.shadowRoot?.querySelector('.preview-panel');
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -7909,7 +7909,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const allAnchors = { ...userAnchors, ...baseSvgAnchors };
 
         // Get coordinate conversion context (same as _renderRoutingPaths)
-        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        const livePreview = this.shadowRoot?.querySelector('lcards-msd-live-preview');
         if (!livePreview) return '';
 
         const livePreviewShadow = livePreview.shadowRoot;
@@ -7932,7 +7932,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         const [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
         const rect = svg.getBoundingClientRect();
-        const panelRect = this.shadowRoot.querySelector('.preview-panel')?.getBoundingClientRect();
+        const panelRect = this.shadowRoot?.querySelector('.preview-panel')?.getBoundingClientRect();
         if (!panelRect) return '';
 
         const scale = Math.max(viewBoxWidth / rect.width, viewBoxHeight / rect.height);
@@ -8147,7 +8147,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         const rect = svg.getBoundingClientRect();
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this.shadowRoot?.querySelector('.preview-panel');
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -8433,7 +8433,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (!selectedLine || !selectedLine.waypoints || selectedLine.waypoints.length === 0) return '';
 
         // Get coordinate conversion context
-        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        const livePreview = this.shadowRoot?.querySelector('lcards-msd-live-preview');
         if (!livePreview) return '';
 
         const livePreviewShadow = livePreview.shadowRoot;
@@ -8456,7 +8456,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         const [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
         const rect = svg.getBoundingClientRect();
-        const panelRect = this.shadowRoot.querySelector('.preview-panel')?.getBoundingClientRect();
+        const panelRect = this.shadowRoot?.querySelector('.preview-panel')?.getBoundingClientRect();
         if (!panelRect) return '';
 
         const scale = Math.max(viewBoxWidth / rect.width, viewBoxHeight / rect.height);
@@ -9046,7 +9046,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _convertLineToManual(lineId) {
         // Find the line in the rendered SVG to get its current path
-        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        const livePreview = this.shadowRoot?.querySelector('lcards-msd-live-preview');
         if (!livePreview) {
             lcardsLog.warn('[MSDStudio] Cannot convert to manual: preview not found');
             return;
@@ -9131,7 +9131,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Get SVG rect and calculate position
         const rect = svg.getBoundingClientRect();
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this.shadowRoot?.querySelector('.preview-panel');
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -9241,7 +9241,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Get SVG rect and calculate position helpers
         const rect = svg.getBoundingClientRect();
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this.shadowRoot?.querySelector('.preview-panel');
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -9589,7 +9589,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         const rect = svg.getBoundingClientRect();
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this.shadowRoot?.querySelector('.preview-panel');
         if (!previewPanel) return null;
         const panelRect = previewPanel.getBoundingClientRect();
 

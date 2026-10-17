@@ -719,7 +719,7 @@ export function formatThemeYaml({ name, mergeKeys, flat, modes }) {
     lines.push('  modes:');
     for (const mode of modeNames) {
       lines.push(`    ${mode}:`);
-      for (const [key, value] of Object.entries(modes[mode])) {
+      for (const [key, value] of Object.entries(/** @type {Record<string, any>} */ (modes)[mode])) {
         lines.push(`      ${key}: ${yamlScalar(value)}`);
       }
     }

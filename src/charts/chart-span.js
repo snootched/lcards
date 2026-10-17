@@ -98,7 +98,7 @@ export function endOfUnit(time, unit, weekStart = 1) {
  */
 export function computeSpan(config = {}, now = Date.now(), weekStart = 1) {
   const duration = Math.abs(parseDuration(config.graph_span ?? DEFAULT_GRAPH_SPAN)
-    ?? parseDuration(DEFAULT_GRAPH_SPAN));
+    ?? /** @type {number} */ (parseDuration(DEFAULT_GRAPH_SPAN)));
   const span = config.span ?? {};
 
   let start;

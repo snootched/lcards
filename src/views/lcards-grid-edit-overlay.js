@@ -157,9 +157,12 @@ export class LCARdSGridEditOverlay extends LitElement {
 
         this._selectedArea = null;
         this._renaming     = null;
+        /** @type {{axis: string, index: number} | null} */
         this._trackPopover = null;
         this._showSettings   = false;
+        /** @type {{r: number, c: number} | null} */
         this._selStart       = null;
+        /** @type {{r: number, c: number} | null} */
         this._selEnd         = null;
         this._selectionName  = '';
         this._showNameInput  = false;
@@ -173,6 +176,7 @@ export class LCARdSGridEditOverlay extends LitElement {
 
         // Measurement cache: _cells[r][c] = DOMRect relative to overlay
         this._cells = [];
+        /** @type {DOMRect | {left: number, top: number, width: number, height: number} | null} */
         this._overlayRect = null;
         this._measureScheduled = false;
 
@@ -1083,6 +1087,7 @@ export class LCARdSGridEditOverlay extends LitElement {
         const overlayRect = this.getBoundingClientRect();
         this._overlayRect = overlayRect;
 
+        /** @type {any[][]} */
         const newCells = [];
         const numRows = this.rows.length;
         const numCols = this.columns.length;
@@ -1266,6 +1271,7 @@ export class LCARdSGridEditOverlay extends LitElement {
     }
 
     _renderTrackPopover() {
+        if (!this._trackPopover) return nothing;
         const { axis, index } = this._trackPopover;
         const current = axis === 'col' ? this.columns[index] : this.rows[index];
         const label = axis === 'col' ? `Column ${index + 1}` : `Row ${index + 1}`;
@@ -1663,7 +1669,7 @@ export class LCARdSGridEditOverlay extends LitElement {
             el.style.left    = `${x}px`;
             el.style.width   = `${HANDLE_SIZE}px`;
             el.style.top     = `${gridTop}px`;
-            el.style.bottom  = `${this._overlayRect?.height - gridBottom}px`;
+            el.style.bottom  = `${(this._overlayRect?.height ?? NaN) - gridBottom}px`; // unset: NaNpx, ignored as before
         }
 
         for (let i = 0; i < this.rows.length - 1; i++) {
@@ -1677,7 +1683,7 @@ export class LCARdSGridEditOverlay extends LitElement {
             el.style.top     = `${y}px`;
             el.style.height  = `${HANDLE_SIZE}px`;
             el.style.left    = `${gridLeft}px`;
-            el.style.right   = `${this._overlayRect?.width - gridRight}px`;
+            el.style.right   = `${(this._overlayRect?.width ?? NaN) - gridRight}px`;
         }
     }
 
@@ -2414,7 +2420,7 @@ export class LCARdSGridEditOverlay extends LitElement {
     }
 
     _selMove(e) {
-        if (!this._selDrag) return;
+        if (!this._selDrag || !this._selStart || !this._selEnd) return;
         const hit = this._cellAtPoint(e.clientX, e.clientY);
         if (!hit) return;
         // Only allow extending the selection across currently-unoccupied cells
@@ -2477,6 +2483,7 @@ export class LCARdSGridEditOverlay extends LitElement {
             this._cancelSelection();
             return;
         }
+        if (!this._selStart || !this._selEnd) return;
         const { r: r1, c: c1 } = this._selStart;
         const { r: r2, c: c2 } = this._selEnd;
         const bounds = {

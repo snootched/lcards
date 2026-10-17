@@ -280,7 +280,8 @@ export class ThemeManager extends BaseService {
 
     return (property, fallback = null, context = {}) => {
       const tokenPath = `components.${componentType}.${property}`;
-      return this.resolver.resolve(tokenPath, fallback, context);
+      // Read live (a theme reload replaces the resolver); ?. only matters after destroy.
+      return this.resolver?.resolve(tokenPath, fallback, context);
     };
   }
 

@@ -145,7 +145,7 @@ const _storageIdCache = new Map();
  */
 async function resolveHelperStorageId(hass, entityId) {
   if (_storageIdCache.has(entityId)) {
-    return _storageIdCache.get(entityId);
+    return /** @type {string} */ (_storageIdCache.get(entityId));
   }
 
   try {

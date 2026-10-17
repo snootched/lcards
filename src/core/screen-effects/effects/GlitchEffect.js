@@ -59,7 +59,7 @@ export function GlitchEffect(canvas, params = {}) {
             canvas.height = ph;
         }
 
-        const ctx  = canvas.getContext('2d');
+        const ctx  = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
         const rows = Math.ceil(ph / bandHeight);
         ctx.clearRect(0, 0, pw, ph);
 
