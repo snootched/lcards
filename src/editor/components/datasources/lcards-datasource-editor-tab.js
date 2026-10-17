@@ -50,6 +50,7 @@ export class LCARdSDataSourceEditorTab extends LitElement {
     this._dialogMode = 'add';
     this._editingSource = null;
     this._browserOpen = false;
+    /** @type {import('lit/directives/ref.js').Ref<import('./lcards-datasource-browser.js').LCARdSDataSourceBrowser>} */
     this._browserRef = createRef();
   }
 
@@ -85,7 +86,6 @@ export class LCARdSDataSourceEditorTab extends LitElement {
   }
 
   render() {
-    // @ts-ignore - TS2339: auto-suppressed
     const cardSources = this.editor?.config?.data_sources || {};
     const cardSourceCount = Object.keys(cardSources).length;
 
@@ -179,8 +179,7 @@ export class LCARdSDataSourceEditorTab extends LitElement {
     // CRITICAL: Stop propagation to prevent bubbling to parent tab handlers
     event.stopPropagation();
 
-    // @ts-ignore - TS2339: auto-suppressed
-    const tab = event.target.activeTab?.getAttribute('value');
+    const tab = /** @type {HaTabGroupElement} */ (event.target).activeTab?.getAttribute('value');
     if (tab) {
       this._setActiveTab(tab);
     }
@@ -203,7 +202,6 @@ export class LCARdSDataSourceEditorTab extends LitElement {
     // Wait for browser to render, then select the datasource
     requestAnimationFrame(() => {
       if (this._browserRef.value) {
-        // @ts-ignore - TS2339: auto-suppressed
         this._browserRef.value.selectDataSource(sourceName);
       }
     });
@@ -219,7 +217,6 @@ export class LCARdSDataSourceEditorTab extends LitElement {
     this._activeSubTab = 'card';
 
     // Get the source config from card config
-    // @ts-ignore - TS2339: auto-suppressed
     const cardSources = this.editor?.config?.data_sources || {};
     const sourceConfig = cardSources[sourceName];
 
@@ -273,39 +270,30 @@ export class LCARdSDataSourceEditorTab extends LitElement {
     // We must directly assign to the config object, then trigger the update.
 
     // Create a new data_sources object without the deleted source
-    // @ts-ignore - TS2339: auto-suppressed
     const updatedDataSources = { ...(this.editor.config.data_sources || {}) };
 
     delete updatedDataSources[name];
 
     // Directly assign to config (bypassing _updateConfig's deep merge)
-    // @ts-ignore - TS2339: auto-suppressed
     this.editor.config.data_sources = updatedDataSources;
 
     // Now fire the config-changed event manually
-    // @ts-ignore - TS2339: auto-suppressed
     fireEvent(this.editor, 'config-changed', { config: this.editor.config });
 
     // Update YAML representation
-    // @ts-ignore - TS2339: auto-suppressed
     if (this.editor._yamlValue !== undefined) {
-      // @ts-ignore - TS2339: auto-suppressed
       this.editor._isUpdatingYaml = true;
       const { configToYaml } = await import('../../utils/yaml-utils.js');
-      // @ts-ignore - TS2339: auto-suppressed
       this.editor._yamlValue = configToYaml(this.editor.config);
       requestAnimationFrame(() => {
-        // @ts-ignore - TS2339: auto-suppressed
         this.editor._isUpdatingYaml = false;
       });
     }
 
     // Remove from tracking AFTER config update
-    // @ts-ignore - TS2339: auto-suppressed
     dsManager.removeCardFromSource(name, this.editor.config.id || this.editor._cardGuid);
 
     // Trigger re-render
-    // @ts-ignore - TS2339: auto-suppressed
     this.editor.requestUpdate();
     this.requestUpdate();
   }
@@ -314,21 +302,17 @@ export class LCARdSDataSourceEditorTab extends LitElement {
     const { name, config } = event.detail;
 
     // Update config via editor - read from editor.config to get the latest state
-    // @ts-ignore - TS2339: auto-suppressed
     const updatedDataSources = { ...(this.editor.config.data_sources || {}) };
     updatedDataSources[name] = config;
 
     // CRITICAL: Cannot use _setConfigValue because deepMerge doesn't delete nested properties
     // Must directly assign to config and fire change event
-    // @ts-ignore - TS2339: auto-suppressed
     this.editor.config = {
-      // @ts-ignore - TS2339: auto-suppressed
       ...this.editor.config,
       data_sources: updatedDataSources
     };
 
     // Fire config change event for HA
-    // @ts-ignore - TS2339: auto-suppressed
     fireEvent(this.editor, 'config-changed', { config: this.editor.config });
 
     // If new datasource, register with manager
@@ -339,7 +323,6 @@ export class LCARdSDataSourceEditorTab extends LitElement {
         dsManager.createDataSource(
           name,
           config,
-          // @ts-ignore - TS2339: auto-suppressed
           this.editor.config.id || this.editor._cardGuid,
           false  // Not auto-created
         );

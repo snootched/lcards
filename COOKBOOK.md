@@ -13,7 +13,7 @@ How we build, test, release and publish LCARdS: the recipes first, then the refe
 | Build | `npm run build` | Always this one (runs every validator). Writes `custom_components/lcards/lcards.js` + `chunks/` + `.br`/`.gz`. |
 | See it in HA | Ctrl+Shift+R in the browser | Hard refresh is required: the stub's old chunks are deleted on every build. |
 | Unit tests | `npm test` | All `tests/**/*.test.js`, about 700 tests, under a minute. |
-| Types | `npm run typecheck:check` | Fails only on errors not in `scripts/tsc-baseline.txt`. |
+| Types | `npm run typecheck` | Zero TypeScript errors or it fails (also inside `npm run build`). |
 | Browser tests | `npm run test:browser` | After `npm run build`. CI runs it too. |
 | Real HA | `npm run test:ha` | Local only; needs `.ha-token`. |
 | Docs | `npm run docs:serve` | Dev server with hot reload; live demos use the last `npm run build`. |
@@ -131,7 +131,7 @@ All in `.github/workflows/`.
 - Hassfest and HACS validation (the routine HACS check; these run nightly).
 - CSS variable lint.
 - Docs examples (strict), the schema description check and the em-dash check: seconds. The docs site build and its tests are in the Docs workflow.
-- **Tests and Typecheck:** `npm test`, `typecheck:check`, `build:integration`, `test:browser`.
+- **Tests and Typecheck:** `npm test`, `typecheck`, `build:integration`, `test:browser`.
 - Version format (`YYYY.MM.SEQ[-suffix]`).
 - Required files present.
 - Validate Build (`build:integration` and output checks), after the others pass.
@@ -153,8 +153,8 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 | `set-version` | inside build | `package.json` version into `manifest.json` (HA CalVer, no suffix) and `const.py`. |
 | `bump-version` | releasing | Strip `-dev.N` (promote), or advance SEQ (reset on a new month). |
 | `bump-version:dev` | each dev build | Next `-dev.N`, or `-dev.1` on the next base. |
-| `typecheck` | as needed | Full sorted TypeScript error list. |
-| `typecheck:check` | CI | Fails only on errors not in the baseline. After fixing some: `node scripts/check-typecheck-baseline.js --update`. |
+| `typecheck` | build, CI | Checks the generated element map is current, then `tsc`: zero errors or it fails. Runs inside `npm run build`. Rules and common fixes: `doc/development/typescript.md`. |
+| `types:elements` | as needed | Regenerate `src/types/elements.generated.d.ts` (one `HTMLElementTagNameMap` entry per registered custom element) after adding or renaming one. |
 
 **Validation** (all inside `build`)
 

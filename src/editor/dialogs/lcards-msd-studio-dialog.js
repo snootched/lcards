@@ -379,6 +379,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._waypointDragState = null;
         this._cornerRadiusDragState = null;
         this._showWaypointMarkers = true;  // Show waypoints by default for manual lines
+        /** Line form state: a line overlay config being edited (style.color may be a state-color object). @type {Record<string, any>} */
         this._lineFormData = {
             id: '',
             anchor: '',              // Source: anchor name or control ID
@@ -406,6 +407,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Shapes Tab State
         this._showShapeForm = false;
         this._editingShapeId = null;
+        /** Shape form state: a shape overlay config being edited. @type {Record<string, any>} */
         this._shapeFormData = {
             id: '',
             kind: 'rect',
@@ -486,6 +488,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             line_spacing: 8,
             discoverable: true
         };
+        /** @type {{ startPoint: number[] | null, currentPoint: number[] | null, drawing: boolean, tempRectElement: Element | null }} */
         this._drawChannelState = {
             startPoint: null,
             currentPoint: null,
@@ -769,7 +772,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const livePreview = this.shadowRoot?.querySelector('lcards-msd-live-preview');
         const container = livePreview?.shadowRoot?.querySelector('.preview-card-container');
         const msdCard = container?.querySelector('lcards-msd-card');
-        const baseContent = (msdCard?.shadowRoot || msdCard?.renderRoot)?.querySelector('#__msd-base-content');
+        const baseContent = /** @type {HTMLElement | null} */ ((msdCard?.shadowRoot || msdCard?.renderRoot)?.querySelector('#__msd-base-content'));
 
         if (baseContent) {
             baseContent.style.opacity = this._baseSvgPreviewDimmed ? '0.15' : '';
@@ -850,7 +853,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         lcardsLog.debug('[MSDStudio][ZOOM] Found scroll container');
 
         // Find the zoomable wrapper div (contains lcards-msd-live-preview)
-        const zoomableWrapper = container.querySelector('.msd-zoom-wrapper');
+        const zoomableWrapper = /** @type {HTMLElement | null} */ (container.querySelector('.msd-zoom-wrapper'));
         if (!zoomableWrapper) {
             lcardsLog.warn('[MSDStudio] Zoomable wrapper not found for zoom initialization');
             return;
@@ -900,9 +903,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 // Apply transform to the zoomable wrapper div
                 // This affects the entire preview including all MSD layers
                 const t = event.transform;
-                // @ts-ignore - TS2339: auto-suppressed
                 zoomableWrapper.style.transform = `translate(${t.x}px, ${t.y}px) scale(${t.k})`;
-                // @ts-ignore - TS2339: auto-suppressed
                 zoomableWrapper.style.transformOrigin = 'top left';
 
                 // Store full transform object (not just scale)
@@ -1168,8 +1169,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _handleMainTabChange(event) {
         event.stopPropagation();
-        // @ts-ignore - TS2339: auto-suppressed
-        const tabId = event.target.activeTab?.getAttribute('value');
+        const tabId = /** @type {HaTabGroupElement} */ (event.target).activeTab?.getAttribute('value');
         if (tabId) {
             this._setActiveTab(tabId);
         }
@@ -1355,7 +1355,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _handleCancel() {
         if (this._configHasChanges()) {
             // Show confirmation - only close if user confirms
-            // @ts-ignore - TS2339: auto-suppressed
             this._confirmAction('Discard unsaved changes?').then(confirmed => {
                 if (confirmed) {
                     lcardsLog.debug('[MSDStudio] Cancelled - changes discarded');
@@ -1607,11 +1606,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
     /**
      * Render grid settings popup (floating next to toolbar)
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderGridSettingsPopup() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._showGridSettings) return '';
 
         return html`
@@ -3061,14 +3059,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @param {string} [options.variant='danger'] - Confirm button variant
      * @returns {Promise<boolean>} True if confirmed, false if cancelled
      */
-    // @ts-ignore - TS2393: auto-suppressed
     async _showConfirmDialog(title, message, options = {}) {
         const { confirmLabel = 'Delete', variant = 'danger' } = options;
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.headerTitle = title;
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.open = true;
 
             const content = document.createElement('div');
@@ -3083,7 +3078,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
             cancelButton.textContent = 'Cancel';
             cancelButton.setAttribute('appearance', 'plain');
             cancelButton.addEventListener('click', () => {
-                // @ts-ignore - TS2339: auto-suppressed
                 dialog.open = false;
                 resolve(false);
             });
@@ -3094,7 +3088,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
             confirmButton.textContent = confirmLabel;
             confirmButton.setAttribute('variant', variant);
             confirmButton.addEventListener('click', () => {
-                // @ts-ignore - TS2339: auto-suppressed
                 dialog.open = false;
                 resolve(true);
             });
@@ -3180,7 +3173,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _handlePreviewDoubleClick(event) {
         const composedPath = event.composedPath();
-        const clickedElement = composedPath[0];
+        const clickedElement = /** @type {HTMLElement | SVGElement} */ (composedPath[0]);
 
         // Cancel pending single-click timer
         if (this._lineClickTimer) {
@@ -3198,20 +3191,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
 
         // Check if double-clicked on a line path element or hit area
-        // @ts-ignore - TS2339: auto-suppressed
         if ((clickedElement.tagName === 'path' && clickedElement.classList.contains('line-path')) ||
-            // @ts-ignore - TS2339: auto-suppressed
             (clickedElement.tagName === 'path' && clickedElement.classList.contains('line-hit-area'))) {
 
             // Get line ID
             let lineId;
-            // @ts-ignore - TS2339: auto-suppressed
             if (clickedElement.classList.contains('line-hit-area')) {
-                // @ts-ignore - TS2339: auto-suppressed
                 const visiblePath = clickedElement.nextElementSibling;
                 lineId = visiblePath?.getAttribute('data-line-id');
             } else {
-                // @ts-ignore - TS2339: auto-suppressed
                 lineId = clickedElement.getAttribute('data-line-id');
             }
 
@@ -3250,18 +3238,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // shape-path renders as <path> for polyline, <rect> for rect, <ellipse>
         // for circle — rect/circle have no separate hit-area (pointer-events:
         // all is set directly on the main element instead).
-        // @ts-ignore - TS2339: auto-suppressed
         if (clickedElement.classList?.contains('shape-path') ||
-            // @ts-ignore - TS2339: auto-suppressed
             (clickedElement.tagName === 'path' && clickedElement.classList.contains('shape-hit-area'))) {
             let shapeId;
-            // @ts-ignore - TS2339: auto-suppressed
             if (clickedElement.classList.contains('shape-hit-area')) {
-                // @ts-ignore - TS2339: auto-suppressed
                 const visiblePath = clickedElement.nextElementSibling;
                 shapeId = visiblePath?.getAttribute('data-shape-id');
             } else {
-                // @ts-ignore - TS2339: auto-suppressed
                 shapeId = clickedElement.getAttribute('data-shape-id');
             }
 
@@ -3291,37 +3274,28 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _handlePreviewClick(event) {
         // Get the actual clicked element through shadow DOM boundaries
         const composedPath = event.composedPath();
-        const clickedElement = composedPath[0];
+        const clickedElement = /** @type {HTMLElement | SVGElement} */ (composedPath[0]);
 
         lcardsLog.debug('[MSDStudioDialog] Preview click:', {
             mode: this._activeMode,
-            // @ts-ignore - TS2339: auto-suppressed
             tagName: clickedElement.tagName,
-            // @ts-ignore - TS2339: auto-suppressed
             classList: clickedElement.classList ? Array.from(clickedElement.classList) : [],
-            // @ts-ignore - TS2339: auto-suppressed
             dataset: clickedElement.dataset || {},
-            // @ts-ignore - TS2339: auto-suppressed
             hasAnchorName: clickedElement.hasAttribute?.('data-anchor-name')
         });
 
         // Check for line clicks in VIEW mode or ADD_WAYPOINT mode (for selection)
         if (this._activeMode === MODES.VIEW || this._activeMode === MODES.ADD_WAYPOINT) {
             // Check if clicked on a line path element or hit area
-            // @ts-ignore - TS2339: auto-suppressed
             if ((clickedElement.tagName === 'path' && clickedElement.classList.contains('line-path')) ||
-                // @ts-ignore - TS2339: auto-suppressed
                 (clickedElement.tagName === 'path' && clickedElement.classList.contains('line-hit-area'))) {
                 // For hit area, find the corresponding visible path to get line-id
                 let lineId;
-                // @ts-ignore - TS2339: auto-suppressed
                 if (clickedElement.classList.contains('line-hit-area')) {
                     // Hit area doesn't have data-line-id, so find the next sibling (visible path)
-                    // @ts-ignore - TS2339: auto-suppressed
                     const visiblePath = clickedElement.nextElementSibling;
                     lineId = visiblePath?.getAttribute('data-line-id');
                 } else {
-                    // @ts-ignore - TS2339: auto-suppressed
                     lineId = clickedElement.getAttribute('data-line-id');
                 }
                 if (lineId) {
@@ -3346,18 +3320,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
             // _renderInteractiveHitLayer/_renderShapeBboxItem — so only polyline
             // needs click-to-select here, since its vertex markers only render for
             // the selected shape).
-            // @ts-ignore - TS2339: auto-suppressed
             if ((clickedElement.tagName === 'path' && clickedElement.classList.contains('shape-path')) ||
-                // @ts-ignore - TS2339: auto-suppressed
                 (clickedElement.tagName === 'path' && clickedElement.classList.contains('shape-hit-area'))) {
                 let shapeId;
-                // @ts-ignore - TS2339: auto-suppressed
                 if (clickedElement.classList.contains('shape-hit-area')) {
-                    // @ts-ignore - TS2339: auto-suppressed
                     const visiblePath = clickedElement.nextElementSibling;
                     shapeId = visiblePath?.getAttribute('data-shape-id');
                 } else {
-                    // @ts-ignore - TS2339: auto-suppressed
                     shapeId = clickedElement.getAttribute('data-shape-id');
                 }
                 if (shapeId) {
@@ -3389,15 +3358,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Handle waypoint mode
         if (this._activeMode === MODES.ADD_WAYPOINT) {
             // Check if clicked on anchor marker (for named waypoint)
-            // @ts-ignore - TS2339: auto-suppressed
             const isAnchorMarker = clickedElement.classList?.contains('anchor-marker') ||
-                                   // @ts-ignore - TS2339: auto-suppressed
                                    clickedElement.classList?.contains('interactive-anchor') ||
-                                   // @ts-ignore - TS2339: auto-suppressed
                                    clickedElement.hasAttribute?.('data-anchor-name');
 
             if (isAnchorMarker) {
-                // @ts-ignore - TS2339: auto-suppressed
                 const anchorName = clickedElement.getAttribute('data-anchor-name');
                 if (anchorName && this._selectedLineId) {
                     this._addNamedWaypoint(anchorName);
@@ -3408,20 +3373,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             // Check if clicked on waypoint marker or corner-radius handle
             // (don't add new waypoint)
-            // @ts-ignore - TS2339: auto-suppressed
             if (clickedElement.classList?.contains('waypoint-marker') ||
-                // @ts-ignore - TS2339: auto-suppressed
                 clickedElement.classList?.contains('corner-radius-handle')) {
                 event.stopPropagation();
                 return;
             }
 
             // Check if clicked on empty canvas area (exit waypoint mode)
-            // @ts-ignore - TS2339: auto-suppressed
             const isEmptyArea = clickedElement.tagName === 'DIV' &&
-                               // @ts-ignore - TS2339: auto-suppressed
                                (clickedElement.classList.contains('preview-scroll-container') ||
-                                // @ts-ignore - TS2339: auto-suppressed
                                 clickedElement.classList.contains('preview-container'));
 
             if (isEmptyArea && !this._waypointDragInProgress && !this._cornerRadiusDragInProgress) {
@@ -3827,7 +3787,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const livePreviewShadow = livePreview?.shadowRoot;
         const cardContainer = livePreviewShadow?.querySelector('.preview-card-container');
         const msdCard = cardContainer?.querySelector('lcards-msd-card');
-        // @ts-ignore - TS2339: auto-suppressed
         const anchors = msdCard?._msdPipeline?.getResolvedModel()?.anchors || {};
 
         let currentPosition;
@@ -4158,7 +4117,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const livePreviewShadow = livePreview?.shadowRoot;
         const cardContainer = livePreviewShadow?.querySelector('.preview-card-container');
         const msdCard = cardContainer?.querySelector('lcards-msd-card');
-        // @ts-ignore - TS2339: auto-suppressed
         const anchors = msdCard?._msdPipeline?.getResolvedModel()?.anchors || {};
 
         let currentPosition;
@@ -5746,7 +5704,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _getPreviewCoordinatesWithPixels(event) {
-        const previewPanel = event.currentTarget;
+        const previewPanel = /** @type {HTMLElement} */ (event.currentTarget);
         const preview = this._getPreviewSvgAndViewBox();
         if (!preview) return null;
         const { svg, viewBoxX: vbX, viewBoxY: vbY, viewBoxWidth: vbWidth, viewBoxHeight: vbHeight } = preview;
@@ -5756,7 +5714,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const rect = svg.getBoundingClientRect();
 
         // Get preview panel rect
-        // @ts-ignore - TS2339: auto-suppressed
         const panelRect = previewPanel.getBoundingClientRect();
 
         // Calculate mouse position relative to SVG
@@ -5853,8 +5810,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * (viewBox-space) — shared by the click-click flow
      * (_handleDrawChannelClick) and the click-drag flow
      * (_handleDragEnd/_handlePreviewMouseDown).
-     * @param {[number, number]} startPoint - First corner
-     * @param {[number, number]} endPoint - Opposite corner
+     * @param {number[]} startPoint - First corner [x, y]
+     * @param {number[]} endPoint - Opposite corner [x, y]
      * @private
      */
     _finishDrawChannel(startPoint, endPoint) {
@@ -6027,7 +5984,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const msdCard = cardContainer.querySelector('lcards-msd-card');
         if (!msdCard) return;
 
-        // @ts-ignore - TS2339: auto-suppressed
         const msdShadow = msdCard.shadowRoot || msdCard.renderRoot;
         if (!msdShadow) return;
 
@@ -6409,7 +6365,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * helper below consistent with what's really on screen, including when
      * Auto mode resolves the viewBox from a base SVG whose native dimensions
      * aren't the historical 1920x1200/1920x1080 assumption.
-     * @returns {?{msdCard: Element, svg: SVGSVGElement, viewBoxX: number, viewBoxY: number, viewBoxWidth: number, viewBoxHeight: number}}
+     * @returns {?{msdCard: import('../../cards/lcards-msd.js').LCARdSMSDCard, svg: SVGSVGElement, viewBoxX: number, viewBoxY: number, viewBoxWidth: number, viewBoxHeight: number}}
      * @private
      */
     _getPreviewSvgAndViewBox() {
@@ -6421,7 +6377,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (!cardContainer) return null;
         const msdCard = cardContainer.querySelector('lcards-msd-card');
         if (!msdCard) return null;
-        // @ts-ignore - TS2339: auto-suppressed
         const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
         if (!shadowRoot) return null;
         const svg = shadowRoot.querySelector('svg');
@@ -6467,11 +6422,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
     /**
      * Render anchor highlight overlay
      * Shows pulsing highlight around selected anchor
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderAnchorHighlight() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._highlightedAnchor) return '';
 
         // Find the anchor in user-defined anchors first
@@ -6484,7 +6438,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
             anchorPosition = baseSvgAnchors[this._highlightedAnchor];
         }
 
-        // @ts-ignore - TS2322: auto-suppressed
         if (!anchorPosition || !Array.isArray(anchorPosition)) return '';
 
         const [vbX, vbY] = anchorPosition;
@@ -6494,14 +6447,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // For simplicity, we'll use a setTimeout approach to calculate after render
 
         const preview = this._getPreviewSvgAndViewBox();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!preview) return '';
         const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         // Get SVG rect and calculate position
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -6601,39 +6552,33 @@ export class LCARdSMSDStudioDialog extends LitElement {
     /**
      * Render control highlight overlay
      * Shows pulsing highlight around selected control
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderControlHighlight() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._highlightedControl) return '';
 
         // Find the control
         const controls = this._workingConfig.msd?.overlays || [];
         const control = controls.find(c => c.id === this._highlightedControl);
-        // @ts-ignore - TS2322: auto-suppressed
         if (!control) return '';
 
         // Get MSD card to access resolved model with complete anchors
         const preview = this._getPreviewSvgAndViewBox();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!preview) return '';
         const { msdCard, svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         // Resolve position - handle anchor-based positioning (string reference),
         // including control-to-control positioning (position_side).
-        // @ts-ignore - TS2339: auto-suppressed
         const highlightAnchors = msdCard._msdPipeline?.getResolvedModel()?.anchors || {};
         const resolvedPosition = this._resolveEditorControlPosition(control, highlightAnchors);
         if (!resolvedPosition) {
             lcardsLog.warn(`⚠️ [MSD Studio] Could not resolve position for control '${control.id}'`);
-            // @ts-ignore - TS2322: auto-suppressed
             return '';
         }
 
         // Get size - default to 100x100 if not specified
         const size = control.size || [100, 100];
-        // @ts-ignore - TS2322: auto-suppressed
         if (!Array.isArray(size)) return '';
 
         let [vbX, vbY] = resolvedPosition;
@@ -6648,7 +6593,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Get SVG rect and calculate position
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -6735,18 +6679,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
     /**
      * Render line highlight overlay
      * Shows pulsing highlight along selected line path
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderLineHighlight() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._highlightedLine) return '';
 
         // Find the line in overlays array
         const overlays = this._workingConfig.msd?.overlays || [];
         const lines = overlays.filter(o => o.type === 'line');
         const line = lines.find(l => l.id === this._highlightedLine);
-        // @ts-ignore - TS2322: auto-suppressed
         if (!line || !line.anchor || !line.attach_to) return '';
 
         // Get anchor positions
@@ -6777,7 +6719,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
             }
         }
 
-        // @ts-ignore - TS2322: auto-suppressed
         if (!startPos || !endPos) return '';
 
         const [startX, startY] = startPos;
@@ -6785,14 +6726,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Get SVG element and calculate pixel positions
         const preview = this._getPreviewSvgAndViewBox();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!preview) return '';
         const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         // Get SVG rect and calculate position
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -6904,11 +6843,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
     /**
      * Render persistent grid overlay
      * Shows coordinate grid when toggled on in Anchors tab
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderGridOverlay() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._showGrid) return '';
 
         lcardsLog.trace('[MSDStudio] _renderGridOverlay called, _showGrid:', this._showGrid);
@@ -6917,7 +6855,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const preview = this._getPreviewSvgAndViewBox();
         if (!preview) {
             lcardsLog.trace('[MSDStudio] Could not find preview SVG for grid overlay');
-            // @ts-ignore - TS2322: auto-suppressed
             return '';
         }
         const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
@@ -6944,7 +6881,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -7056,24 +6992,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * where lines are actually free to bend. Read-only — this cannot be
      * dragged or snapped to; RouterCore.resolvedGridResolution() reports
      * the same value _computeGrid's own A* search actually uses.
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderRoutingGridOverlay() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._showRoutingGrid) return '';
 
         const preview = this._getPreviewSvgAndViewBox();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!preview) return '';
         const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight, msdCard } = preview;
 
-        // @ts-ignore - TS2339: auto-suppressed
         const router = msdCard._msdPipeline?.coordinator?.router;
-        // @ts-ignore - TS2322: auto-suppressed
         if (!router || typeof router.resolvedGridResolution !== 'function') return '';
         const res = router.resolvedGridResolution();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!(res > 0)) return '';
 
         const gridColor = '#ffaa00';
@@ -7091,7 +7022,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -7162,29 +7092,23 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * the router's own live-grown ones). Read-only, debug-only: requested
      * live as a way to understand trunk bundling visually instead of
      * reading window.lcards.debug.msd.routing.trunks() payloads directly.
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderTrunksOverlay() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._showTrunks) return '';
 
         const preview = this._getPreviewSvgAndViewBox();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!preview) return '';
         const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight, msdCard } = preview;
 
-        // @ts-ignore - TS2339: auto-suppressed
         const router = msdCard._msdPipeline?.coordinator?.router;
-        // @ts-ignore - TS2322: auto-suppressed
         if (!router || typeof router.trunks !== 'function') return '';
         const trunks = router.trunks().filter(t => t.origin === 'discovered' && t.members.length > 0);
-        // @ts-ignore - TS2322: auto-suppressed
         if (!trunks.length) return '';
 
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -7261,11 +7185,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
     /**
      * Render persistent anchor markers
      * Shows all anchor positions when toggled on in Anchors tab
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderAnchorMarkers() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._showAnchorMarkers) return '';
 
         // Get all anchors (user + base_svg)
@@ -7273,18 +7196,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const baseSvgAnchors = this._getBaseSvgAnchors();
         const allAnchors = { ...userAnchors, ...baseSvgAnchors };
 
-        // @ts-ignore - TS2322: auto-suppressed
         if (Object.keys(allAnchors).length === 0) return '';
 
         // Get SVG for coordinate conversion
         const preview = this._getPreviewSvgAndViewBox();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!preview) return '';
         const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -7427,7 +7347,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @param {Object} coordCtx - Shared coordinate-transform context built once
      *   by _renderInteractiveHitLayer(): { rect, panelRect, scale, offsetX,
      *   offsetY, viewBoxX, viewBoxY, anchors }
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderControlBboxItem(control, coordCtx) {
@@ -7608,28 +7528,24 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * mostly-transparent lcards-elbow) an effective way to reach whatever is
      * visually beneath it — see _renderControlBboxItem()/_renderShapeBboxItem()
      * for the locked-item pointer-events:none handling.
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderInteractiveHitLayer() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._showBoundingBoxes) return '';
 
         const allOverlays = this._workingConfig.msd?.overlays || [];
         const controls = allOverlays.filter(o => o.type === 'control');
         const shapes = allOverlays.filter(o => o.type === 'shape' && (o.kind === 'rect' || o.kind === 'circle') && Array.isArray(o.position));
-        // @ts-ignore - TS2322: auto-suppressed
         if (controls.length === 0 && shapes.length === 0) return '';
 
         // Get SVG for coordinate conversion
         const preview = this._getPreviewSvgAndViewBox();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!preview) return '';
         const { msdCard, svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -7643,7 +7559,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const offsetY = (rect.height - renderedHeight) / 2;
 
         // Get all anchors from the card's resolved model (already merged base SVG + user-defined)
-        // @ts-ignore - TS2339: auto-suppressed
         const resolvedModel = msdCard._msdPipeline?.getResolvedModel?.();
         const anchors = resolvedModel?.anchors || {};
 
@@ -7681,20 +7596,17 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * _renderShapeVertexMarkers (smaller, diamond, its own CSS class) so it
      * can't be confused with — or accidentally matched by logic that checks
      * for — a real vertex marker.
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderShapeSegmentInsertMarkers() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._selectedShapeId) return '';
 
         const overlays = this._workingConfig.msd?.overlays || [];
         const selectedShape = overlays.find(o => o.id === this._selectedShapeId && o.type === 'shape' && o.kind === 'polyline');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!selectedShape || !Array.isArray(selectedShape.points) || selectedShape.points.length < 2) return '';
         // Locked polylines are immutable, not just their bbox — no insert-point
         // markers at all, matching the vertex markers' own lock gate below.
-        // @ts-ignore - TS2322: auto-suppressed
         if (selectedShape.locked) return '';
         // Same cap as _renderShapeVertexMarkers, same rationale (one interactive
         // marker per segment on top of one per vertex would double the DOM cost
@@ -7702,7 +7614,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (selectedShape.points.length > MAX_INLINE_EDITABLE_SHAPE_POINTS) return '';
 
         const vbToPixel = this._getViewBoxToPixelConverter();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!vbToPixel) return '';
 
         const points = selectedShape.points;
@@ -7753,22 +7664,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * — mirrors _renderWaypointMarkers exactly (same marker style/drag/double-
      * click-to-delete convention), operating on a shape's `points` instead of a
      * line's `waypoints`.
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderShapeVertexMarkers() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._selectedShapeId) return '';
 
         const overlays = this._workingConfig.msd?.overlays || [];
         const selectedShape = overlays.find(o => o.id === this._selectedShapeId && o.type === 'shape' && o.kind === 'polyline');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!selectedShape || !Array.isArray(selectedShape.points) || selectedShape.points.length === 0) return '';
         // Locked polylines are immutable, not just their bbox — disable drag AND
         // double-click-to-delete by not rendering any vertex markers at all
         // (rather than only guarding _handleShapeVertexMouseDown, which would
         // still leave double-click-delete reachable).
-        // @ts-ignore - TS2322: auto-suppressed
         if (selectedShape.locked) return '';
         // Same cap as _renderShapeFormGeometry's points-form gate, and for
         // the same reason: one interactive draggable marker <div> per point,
@@ -7779,32 +7687,23 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (selectedShape.points.length > MAX_INLINE_EDITABLE_SHAPE_POINTS) return '';
 
         const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!livePreview) return '';
         const livePreviewShadow = livePreview.shadowRoot;
-        // @ts-ignore - TS2322: auto-suppressed
         if (!livePreviewShadow) return '';
         const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!cardContainer) return '';
         const msdCard = cardContainer.querySelector('lcards-msd-card');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!msdCard) return '';
-        // @ts-ignore - TS2339: auto-suppressed
         const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        // @ts-ignore - TS2322: auto-suppressed
         if (!shadowRoot) return '';
         const svg = shadowRoot.querySelector('svg');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!svg) return '';
 
         const viewBox = svg.getAttribute('viewBox')?.split(' ').map(Number);
-        // @ts-ignore - TS2322: auto-suppressed
         if (!viewBox || viewBox.length !== 4) return '';
         const [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
         const rect = svg.getBoundingClientRect();
         const panelRect = this.shadowRoot.querySelector('.preview-panel')?.getBoundingClientRect();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!panelRect) return '';
 
         const scale = Math.max(viewBoxWidth / rect.width, viewBoxHeight / rect.height);
@@ -7866,11 +7765,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
     /**
      * Render persistent routing paths
      * Shows all line routing paths when toggled on in Lines tab
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderRoutingPaths() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._showRoutingPaths) return '';
 
         lcardsLog.trace('[MSDStudio] _renderRoutingPaths called, _showRoutingPaths:', this._showRoutingPaths);
@@ -7879,7 +7777,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const lines = overlays.filter(o => o.type === 'line');
         if (lines.length === 0) {
             lcardsLog.trace('[MSDStudio] No line overlays found');
-            // @ts-ignore - TS2322: auto-suppressed
             return '';
         }
 
@@ -7892,13 +7789,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Get SVG for coordinate conversion
         const preview = this._getPreviewSvgAndViewBox();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!preview) return '';
         const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -7998,16 +7893,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
     /**
      * Render line endpoint markers (TEST - adding coordinate conversion)
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderLineEndpointMarkers() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._showRoutingPaths) return '';
 
         const overlays = this._workingConfig.msd?.overlays || [];
         const lines = overlays.filter(o => o.type === 'line');
-        // @ts-ignore - TS2322: auto-suppressed
         if (lines.length === 0) return '';
 
         // Get anchors
@@ -8017,38 +7910,29 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Get coordinate conversion context (same as _renderRoutingPaths)
         const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!livePreview) return '';
 
         const livePreviewShadow = livePreview.shadowRoot;
-        // @ts-ignore - TS2322: auto-suppressed
         if (!livePreviewShadow) return '';
 
         const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!cardContainer) return '';
 
         const msdCard = cardContainer.querySelector('lcards-msd-card');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!msdCard) return '';
 
-        // @ts-ignore - TS2339: auto-suppressed
         const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        // @ts-ignore - TS2322: auto-suppressed
         if (!shadowRoot) return '';
 
         const svg = shadowRoot.querySelector('svg');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!svg) return '';
 
         const viewBox = svg.getAttribute('viewBox')?.split(' ').map(Number);
-        // @ts-ignore - TS2322: auto-suppressed
         if (!viewBox || viewBox.length !== 4) return '';
 
         const [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
         const rect = svg.getBoundingClientRect();
         const panelRect = this.shadowRoot.querySelector('.preview-panel')?.getBoundingClientRect();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!panelRect) return '';
 
         const scale = Math.max(viewBoxWidth / rect.width, viewBoxHeight / rect.height);
@@ -8147,16 +8031,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     const startOffset = endpointOffsets.get(`${line.id}:start`) || { dx: 0, dy: 0 };
                     const endOffset = endpointOffsets.get(`${line.id}:end`) || { dx: 0, dy: 0 };
 
-                    // Calculate drag position if applicable with zoom
+                    // Calculate drag position if applicable
                     let dragPixelX = 0, dragPixelY = 0;
                     if (isDragging && this._lineEndpointDragState.currentPos) {
                         const [dragX, dragY] = this._lineEndpointDragState.currentPos;
-                        let svgDragX = (dragX - viewBoxX) / scale + offsetX;
-                        let svgDragY = (dragY - viewBoxY) / scale + offsetY;
-                        // @ts-ignore - TS2552: auto-suppressed
-                        svgDragX = svgDragX * zoomK + zoomX;
-                        // @ts-ignore - TS2552: auto-suppressed
-                        svgDragY = svgDragY * zoomK + zoomY;
+                        // Same space as the start/end markers above (the CSS transform handles zoom).
+                        // This used undefined zoomK/zoomX/zoomY and threw on every drag frame.
+                        const svgDragX = (dragX - viewBoxX) / scale + offsetX;
+                        const svgDragY = (dragY - viewBoxY) / scale + offsetY;
                         dragPixelX = (rect.left - panelRect.left) + svgDragX;
                         dragPixelY = (rect.top - panelRect.top) + svgDragY;
                     }
@@ -8233,22 +8115,20 @@ export class LCARdSMSDStudioDialog extends LitElement {
     /**
      * Render attach point indicators during line endpoint drag
      * (Not needed - attachment points are controlled by property toggle in drag handlers)
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderDragAttachPoints() {
-        // @ts-ignore - TS2322: auto-suppressed
         return '';
     }
 
     /**
      * Render persistent routing channels overlay
      * Shows all routing channel areas when toggled on in Lines tab
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderChannelsOverlay() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._showRoutingChannels) return '';
 
         lcardsLog.trace('[MSDStudio] _renderChannelsOverlay called, _showRoutingChannels:', this._showRoutingChannels);
@@ -8256,7 +8136,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const channels = this._workingConfig.msd?.channels || {};
         if (Object.keys(channels).length === 0) {
             lcardsLog.trace('[MSDStudio] No channels found');
-            // @ts-ignore - TS2322: auto-suppressed
             return '';
         }
 
@@ -8264,13 +8143,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Get SVG for coordinate conversion
         const preview = this._getPreviewSvgAndViewBox();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!preview) return '';
         const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -8465,31 +8342,26 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * be confused with — or accidentally matched by logic that checks for — a
      * real waypoint marker (see the `.waypoint-marker` class check in
      * _handlePreviewClick's ADD_WAYPOINT branch).
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderWaypointInsertMarkers() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._showWaypointMarkers || !this._selectedLineId) return '';
 
         const overlays = this._workingConfig.msd?.overlays || [];
         const selectedLine = overlays.find(o => o.id === this._selectedLineId && o.type === 'line');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!selectedLine) return '';
 
         const start = this._resolvePositionWithSide(selectedLine.anchor, selectedLine.anchor_side);
-        // @ts-ignore - TS2322: auto-suppressed
         if (!start) return '';
         let endTarget = selectedLine.attach_to;
         if (Array.isArray(endTarget)) {
             endTarget = endTarget[endTarget.length - 1];
         }
         const end = this._resolvePositionWithSide(endTarget, selectedLine.attach_side);
-        // @ts-ignore - TS2322: auto-suppressed
         if (!end) return '';
 
         const vbToPixel = this._getViewBoxToPixelConverter();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!vbToPixel) return '';
 
         const userAnchors = this._workingConfig.msd?.anchors || {};
@@ -8548,54 +8420,43 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * Render waypoint markers for manual lines
      * Shows draggable circles at each waypoint position
      * Only shows markers for the selected line
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderWaypointMarkers() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._showWaypointMarkers || !this._selectedLineId) return '';
 
         const overlays = this._workingConfig.msd?.overlays || [];
         const selectedLine = overlays.find(o => o.id === this._selectedLineId);
 
         // Show markers only for selected line if it has waypoints
-        // @ts-ignore - TS2322: auto-suppressed
         if (!selectedLine || !selectedLine.waypoints || selectedLine.waypoints.length === 0) return '';
 
         // Get coordinate conversion context
         const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!livePreview) return '';
 
         const livePreviewShadow = livePreview.shadowRoot;
-        // @ts-ignore - TS2322: auto-suppressed
         if (!livePreviewShadow) return '';
 
         const cardContainer = livePreviewShadow.querySelector('.preview-card-container');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!cardContainer) return '';
 
         const msdCard = cardContainer.querySelector('lcards-msd-card');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!msdCard) return '';
 
-        // @ts-ignore - TS2339: auto-suppressed
         const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
-        // @ts-ignore - TS2322: auto-suppressed
         if (!shadowRoot) return '';
 
         const svg = shadowRoot.querySelector('svg');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!svg) return '';
 
         const viewBox = svg.getAttribute('viewBox')?.split(' ').map(Number);
-        // @ts-ignore - TS2322: auto-suppressed
         if (!viewBox || viewBox.length !== 4) return '';
 
         const [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
         const rect = svg.getBoundingClientRect();
         const panelRect = this.shadowRoot.querySelector('.preview-panel')?.getBoundingClientRect();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!panelRect) return '';
 
         const scale = Math.max(viewBoxWidth / rect.width, viewBoxHeight / rect.height);
@@ -8756,25 +8617,21 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * inherited value — NOT the router's post-clamp achieved radius; same
      * philosophy as the plain Corner Radius field, which also shows what
      * you asked for, not what a tight corner could actually use).
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderCornerRadiusHandles() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._showWaypointMarkers || !this._selectedLineId) return '';
 
         const overlays = this._workingConfig.msd?.overlays || [];
         const selectedLine = overlays.find(o => o.id === this._selectedLineId && o.type === 'line');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!selectedLine || selectedLine.route !== 'manual') return '';
         if ((selectedLine.corner_style || 'round') === 'miter') return '';
 
         const waypoints = Array.isArray(selectedLine.waypoints) ? selectedLine.waypoints : [];
-        // @ts-ignore - TS2322: auto-suppressed
         if (!waypoints.length) return '';
 
         const vbToPixel = this._getViewBoxToPixelConverter();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!vbToPixel) return '';
 
         const defaultRadius = Number(selectedLine.corner_radius ?? 34);
@@ -8788,7 +8645,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
             const handlePt = [geom.p[0] + radius * geom.bisectorUnit[0], geom.p[1] + radius * geom.bisectorUnit[1]];
             handles.push({ wpIndex, handlePt, radius });
         }
-        // @ts-ignore - TS2322: auto-suppressed
         if (!handles.length) return '';
 
         return html`
@@ -9013,6 +8869,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
 
         // Check if near an anchor (snap to anchor if within threshold)
+        /** @type {[number, number] | string} a point, or a named anchor once snapped */
         let waypointValue = [this._roundToPrecision(x), this._roundToPrecision(y)];
         const anchorThreshold = 30; // ViewBox units
         const userAnchors = this._workingConfig.msd?.anchors || {};
@@ -9026,7 +8883,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     const dist = Math.sqrt(Math.pow(x - ax, 2) + Math.pow(y - ay, 2));
                     if (dist < anchorThreshold) {
                         // Convert to named anchor waypoint
-                        // @ts-ignore - TS2322: auto-suppressed
                         waypointValue = anchorName;
                         lcardsLog.debug(`[MSDStudio] Waypoint ${waypointIndex} snapped to anchor: ${anchorName}`);
                         break;
@@ -9205,7 +9061,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const msdCard = cardContainer.querySelector('lcards-msd-card');
         if (!msdCard) return;
 
-        // @ts-ignore - TS2339: auto-suppressed
         const shadowRoot = msdCard.shadowRoot || msdCard.renderRoot;
         if (!shadowRoot) return;
 
@@ -9256,31 +9111,27 @@ export class LCARdSMSDStudioDialog extends LitElement {
     /**
      * Render channel highlight overlay
      * Shows pulsing highlight around selected channel
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderChannelHighlight() {
-        // @ts-ignore - TS2322: auto-suppressed
         if (!this._highlightedChannel) return '';
 
         // Find the channel
         const channels = this._workingConfig.msd?.channels || {};
         const channel = channels[this._highlightedChannel];
-        // @ts-ignore - TS2322: auto-suppressed
         if (!channel || !channel.bounds) return '';
 
         const [x, y, width, height] = channel.bounds;
 
         // Get SVG element and calculate pixel positions
         const preview = this._getPreviewSvgAndViewBox();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!preview) return '';
         const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         // Get SVG rect and calculate position
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -9367,16 +9218,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
     /**
      * Render connection attachment points overlay
      * Shows 9-point attachment grid for anchors and controls in connect line mode
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderAttachmentPointsOverlay() {
         // Don't show attachment points in waypoint mode to avoid conflicts with anchor selection
-        // @ts-ignore - TS2322: auto-suppressed
         if (this._activeMode === MODES.ADD_WAYPOINT) return '';
 
         // Show attachment points when in connect line mode OR when toggle is on
-        // @ts-ignore - TS2322: auto-suppressed
         if (this._activeMode !== MODES.CONNECT_LINE && !this._showAttachmentPoints) return '';
 
         // Get all anchors (user-defined + base SVG) and controls
@@ -9387,14 +9236,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Try to find the SVG to calculate pixel positions
         const preview = this._getPreviewSvgAndViewBox();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!preview) return '';
         const { svg, viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight } = preview;
 
         // Get SVG rect and calculate position helpers
         const rect = svg.getBoundingClientRect();
         const previewPanel = this.shadowRoot.querySelector('.preview-panel');
-        // @ts-ignore - TS2322: auto-suppressed
         if (!previewPanel) return '';
         const panelRect = previewPanel.getBoundingClientRect();
 
@@ -9695,13 +9542,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _handleAttachmentPointClick(e) {
         e.stopPropagation();
 
-        const target = e.currentTarget;
+        const target = /** @type {HTMLElement} */ (e.currentTarget);
         const connectionInfo = {
-            // @ts-ignore - TS2339: auto-suppressed
             type: target.dataset.connectionType,
-            // @ts-ignore - TS2339: auto-suppressed
             id: target.dataset.connectionId,
-            // @ts-ignore - TS2339: auto-suppressed
             point: target.dataset.connectionPoint,
             gap: 0
         };
@@ -9764,7 +9608,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
     _renderDrawChannelOverlay() {
         if (this._activeMode !== MODES.DRAW_CHANNEL || !this._drawChannelState.drawing) {
-            // @ts-ignore - TS2322: auto-suppressed
             return '';
         }
 
@@ -9789,11 +9632,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // rendered point outside the visible panel entirely once the viewBox is
         // larger than the panel's rendered pixel size (the common case).
         const vbToPixel = this._getViewBoxToPixelConverter();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!vbToPixel) return '';
 
-        const [startPx, startPy] = vbToPixel(...this._drawChannelState.startPoint);
-        const [currentPx, currentPy] = vbToPixel(...this._drawChannelState.currentPoint);
+        const [startPx, startPy] = vbToPixel(this._drawChannelState.startPoint[0], this._drawChannelState.startPoint[1]);
+        const [currentPx, currentPy] = vbToPixel(this._drawChannelState.currentPoint[0], this._drawChannelState.currentPoint[1]);
 
         const x = Math.min(startPx, currentPx);
         const y = Math.min(startPy, currentPy);
@@ -9834,7 +9676,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _renderPlaceControlOverlay() {
         if (this._activeMode !== MODES.PLACE_CONTROL || !this._placeControlDrawState.drawing) {
-            // @ts-ignore - TS2322: auto-suppressed
             return '';
         }
 
@@ -9849,11 +9690,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
 
         const vbToPixel = this._getViewBoxToPixelConverter();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!vbToPixel) return '';
 
-        const [startPx, startPy] = vbToPixel(...this._placeControlDrawState.startPoint);
-        const [currentPx, currentPy] = vbToPixel(...this._placeControlDrawState.currentPoint);
+        const [startPx, startPy] = vbToPixel(this._placeControlDrawState.startPoint[0], this._placeControlDrawState.startPoint[1]);
+        const [currentPx, currentPy] = vbToPixel(this._placeControlDrawState.currentPoint[0], this._placeControlDrawState.currentPoint[1]);
 
         const x = Math.min(startPx, currentPx);
         const y = Math.min(startPy, currentPy);
@@ -9942,7 +9782,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
     _renderDrawShapeOverlay() {
         if (this._activeMode !== MODES.DRAW_SHAPE || !this._drawShapeState.drawing) {
-            // @ts-ignore - TS2322: auto-suppressed
             return '';
         }
 
@@ -9956,7 +9795,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // points/currentPoint are viewBox-space (see _getViewBoxToPixelConverter's
         // docblock for why these can't be used directly as pixel positions).
         const vbToPixel = this._getViewBoxToPixelConverter();
-        // @ts-ignore - TS2322: auto-suppressed
         if (!vbToPixel) return '';
 
         if (kind === 'polyline') {
@@ -10705,8 +10543,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _handleControlFormTabChange(event) {
         event.stopPropagation();
-        // @ts-ignore - TS2339: auto-suppressed
-        const tabValue = event.target.activeTab?.getAttribute('value');
+        const tabValue = /** @type {HaTabGroupElement} */ (event.target).activeTab?.getAttribute('value');
         if (tabValue) {
             this._controlFormActiveSubtab = tabValue;
             this.requestUpdate();
@@ -11318,11 +11155,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             lcardsLog.trace('[MSDStudio] Creating preview card in tab:', { cardType, normalizedType });
 
+            /** @type {LovelaceCardElement | null} */
             let cardElement = null;
 
             // Try to create the card element
             if (customElements.get(normalizedType)) {
-                cardElement = document.createElement(normalizedType);
+                cardElement = /** @type {LovelaceCardElement} */ (document.createElement(normalizedType));
                 lcardsLog.trace('[MSDStudio] Preview card created via createElement:', normalizedType);
             } else {
                 // Card might not be registered yet
@@ -11332,7 +11170,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 await new Promise(resolve => setTimeout(resolve, 500));
 
                 if (customElements.get(normalizedType)) {
-                    cardElement = document.createElement(normalizedType);
+                    cardElement = /** @type {LovelaceCardElement} */ (document.createElement(normalizedType));
                 } else {
                     throw new Error(`Card type "${cardType}" not registered`);
                 }
@@ -11344,14 +11182,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             // Set HASS context first
             if (this.hass) {
-                // @ts-ignore - TS2339: auto-suppressed
                 cardElement.hass = this.hass;
             }
 
             // Set card configuration
-            // @ts-ignore - TS2339: auto-suppressed
             if (typeof cardElement.setConfig === 'function') {
-                // @ts-ignore - TS2339: auto-suppressed
                 cardElement.setConfig(cardConfig);
                 lcardsLog.trace('[MSDStudio] Preview card config set successfully');
             } else {
@@ -11536,11 +11371,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 : `hui-${cardType}-card`;
 
             // Try to get the custom element
-            const CardClass = window.customElements?.get(elementName);
+            const CardClass = /** @type {any} */ (window.customElements?.get(elementName)); // a card class: static getStubConfig()
 
-            // @ts-ignore - TS2339: auto-suppressed
             if (CardClass && typeof CardClass.getStubConfig === 'function') {
-                // @ts-ignore - TS2339: auto-suppressed
                 return CardClass.getStubConfig();
             }
         } catch (error) {
@@ -11652,11 +11485,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 : `hui-${cardType}-card`;
 
             // Try to get the card class and its stub config
-            const CardClass = customElements.get(elementName);
+            const CardClass = /** @type {any} */ (customElements.get(elementName)); // a card class: static getStubConfig()
 
-            // @ts-ignore - TS2339: auto-suppressed
             if (CardClass && typeof CardClass.getStubConfig === 'function') {
-                // @ts-ignore - TS2339: auto-suppressed
                 const stub = CardClass.getStubConfig();
                 lcardsLog.debug('[MSDStudio] Using card stub config from:', elementName, stub);
                 // Merge picked config with stub (picked takes precedence)
@@ -11745,22 +11576,17 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _getRealLovelace() {
         try {
+            /** @type {any} walks HA's shadow roots, so Element and ShadowRoot alternate */
             let root = document.querySelector('home-assistant');
-            // @ts-ignore - TS2740: auto-suppressed
             root = root && root.shadowRoot;
             root = root && root.querySelector('home-assistant-main');
-            // @ts-ignore - TS2740: auto-suppressed
             root = root && root.shadowRoot;
             root = root && root.querySelector('app-drawer-layout partial-panel-resolver, ha-drawer partial-panel-resolver');
-            // @ts-ignore - TS2322: auto-suppressed
             root = (root && root.shadowRoot) || root;
             root = root && root.querySelector('ha-panel-lovelace');
-            // @ts-ignore - TS2740: auto-suppressed
             root = root && root.shadowRoot;
             root = root && root.querySelector('hui-root');
-            // @ts-ignore - TS2339: auto-suppressed
             if (root && root.lovelace) {
-                // @ts-ignore - TS2339: auto-suppressed
                 return root.lovelace;
             }
         } catch (err) {
@@ -11821,34 +11647,28 @@ export class LCARdSMSDStudioDialog extends LitElement {
         }
 
         // Try from home-assistant element
-        const homeAssistant = document.querySelector('home-assistant');
+        const homeAssistant = /** @type {any} */ (document.querySelector('home-assistant')); // HA root: .lovelace when a dashboard is open
         if (homeAssistant) {
             // Try ha-panel-lovelace
             const panel = homeAssistant.shadowRoot
                 ?.querySelector('home-assistant-main')
                 ?.shadowRoot?.querySelector('ha-panel-lovelace');
 
-            // @ts-ignore - TS2339: auto-suppressed
             if (panel?.lovelace) {
                 lcardsLog.debug('[MSDStudio] Got Lovelace from ha-panel-lovelace');
-                // @ts-ignore - TS2339: auto-suppressed
                 return panel.lovelace;
             }
 
             // Try direct lovelace property
-            // @ts-ignore - TS2339: auto-suppressed
             if (homeAssistant.lovelace) {
                 lcardsLog.debug('[MSDStudio] Got Lovelace from home-assistant element');
-                // @ts-ignore - TS2339: auto-suppressed
                 return homeAssistant.lovelace;
             }
         }
 
         // Last resort: try window.lovelace (deprecated but may exist)
-        // @ts-ignore - TS2339: auto-suppressed
         if (window.lovelace) {
             lcardsLog.warn('[MSDStudio] Using deprecated window.lovelace');
-            // @ts-ignore - TS2339: auto-suppressed
             return window.lovelace;
         }
 
@@ -12148,15 +11968,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             lcardsLog.debug('[MSD Studio] Creating preview card:', { cardType, normalizedType });
 
+            /** @type {LovelaceCardElement | null} */
             let cardElement = null;
 
             // Try to create the card element
             if (window.customElements && window.customElements.get(normalizedType)) {
                 const CardClass = window.customElements.get(normalizedType);
-                cardElement = new CardClass();
+                cardElement = /** @type {LovelaceCardElement} */ (new CardClass());
                 lcardsLog.debug('[MSD Studio] Card created via customElements.get:', normalizedType);
             } else {
-                cardElement = document.createElement(normalizedType);
+                cardElement = /** @type {LovelaceCardElement} */ (document.createElement(normalizedType));
                 lcardsLog.debug('[MSD Studio] Card created via createElement:', normalizedType);
 
                 // Wait briefly for custom element to upgrade
@@ -12169,14 +11990,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             // Set HASS context first
             if (this.hass) {
-                // @ts-ignore - TS2339: auto-suppressed
                 cardElement.hass = this.hass;
             }
 
             // Set card configuration
-            // @ts-ignore - TS2339: auto-suppressed
             if (typeof cardElement.setConfig === 'function') {
-                // @ts-ignore - TS2339: auto-suppressed
                 cardElement.setConfig(cardConfig);
                 lcardsLog.debug('[MSD Studio] Card config set successfully');
             } else {
@@ -14550,7 +14368,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _openChannelForm() {
         this._editingChannelId = '';
-        // @ts-ignore - TS2739: auto-suppressed
         this._channelFormData = {
             id: '',
             mode: 'prefer',
@@ -14577,7 +14394,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
             const typeToMode = { 'bundling': 'prefer', 'avoiding': 'avoid', 'waypoint': 'force' };
             mode = typeToMode[channel.type] || 'prefer';
         }
-        // @ts-ignore - TS2739: auto-suppressed
         this._channelFormData = {
             id,
             mode: mode || 'prefer',
@@ -15260,8 +15076,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _handleShapeFormTabChange(event) {
         event.stopPropagation();
-        // @ts-ignore - TS2339: auto-suppressed
-        const tabId = event.target.activeTab?.getAttribute('value');
+        const tabId = /** @type {HaTabGroupElement} */ (event.target).activeTab?.getAttribute('value');
         if (tabId) {
             this._shapeFormActiveSubtab = tabId;
             this.requestUpdate();
@@ -16103,8 +15918,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         lcardsLog.trace('[MSDStudio] Waypoint drag start:', index);
         this._draggedWaypointIndex = index;
         e.dataTransfer.effectAllowed = 'move';
-        // @ts-ignore - TS2345: auto-suppressed
-        e.dataTransfer.setData('text/plain', index);
+        e.dataTransfer.setData('text/plain', String(index));
         this.requestUpdate();
     }
 
@@ -16177,8 +15991,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _handleLineFormTabChange(event) {
         event.stopPropagation();
-        // @ts-ignore - TS2339: auto-suppressed
-        const tabValue = event.target.activeTab?.getAttribute('value');
+        const tabValue = /** @type {HaTabGroupElement} */ (event.target).activeTab?.getAttribute('value');
         if (tabValue) {
             this._lineFormActiveSubtab = tabValue;
             this.requestUpdate();
@@ -16300,8 +16113,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _handleConnectLineClick(e) {
         // Get clicked element info from event
-        // @ts-ignore - TS2339: auto-suppressed
-        const clickedElement = e.target.closest('[data-connection-type]');
+        const clickedElement = /** @type {HTMLElement | null} */ (/** @type {HTMLElement} */ (e.target).closest('[data-connection-type]'));
         if (!clickedElement) {
             lcardsLog.debug('[MSDStudio] Connect line click on non-connection element');
             return;
@@ -17223,7 +17035,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * renders nothing. Backs `LineOverlay._createMarkerDefinition()`'s opt-in
      * `align: 'edge'` handling.
      * @param {'marker_start'|'marker_end'} markerKey
-     * @returns {TemplateResult}
+     * @returns {TemplateResult|string}
      * @private
      */
     _renderMarkerAlignField(markerKey) {
@@ -17287,9 +17099,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         @value-changed=${(e) => {
                             const markerType = e.detail.value;
                             if (markerType === 'none') {
-                                // @ts-ignore - TS2339: auto-suppressed
                                 const { marker_start, ...styleWithoutMarkerStart } = this._lineFormData.style || {};
-                                // @ts-ignore - TS2322: auto-suppressed
                                 this._lineFormData.style = styleWithoutMarkerStart;
                             } else {
                                 const existingSize = this._lineFormData.style?.marker_start?.size ?? 10;
@@ -18042,9 +17852,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     const value = e.target.value.trim();
                                     if (value === '') {
                                         // Remove stroke override
-                                        // @ts-ignore - TS2339: auto-suppressed
                                         const { stroke, ...styleWithoutStroke } = this._lineFormData.style || {};
-                                        // @ts-ignore - TS2322: auto-suppressed
                                         this._lineFormData.style = styleWithoutStroke;
                                     } else {
                                         this._lineFormData.style = { ...this._lineFormData.style, stroke: value };
@@ -18291,7 +18099,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Don't interfere with input fields.
         // Use composedPath()[0] to pierce shadow DOM boundaries and find the actual
         // element that received the keystroke (e.target is retargeted at shadow boundaries).
-        const composedTarget = e.composedPath?.()?.[0];
+        const composedTarget = /** @type {HTMLElement | undefined} */ (e.composedPath?.()?.[0]);
         const composedTag = composedTarget?.tagName?.toLowerCase() ?? '';
         if (
             composedTag === 'input' ||
@@ -18305,8 +18113,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             return;
         }
         // Fallback: also check the retargeted e.target for non-shadow cases
-        // @ts-ignore - TS2339: auto-suppressed
-        const targetTag = e.target?.tagName ?? '';
+        const targetTag = /** @type {HTMLElement | null} */ (e.target)?.tagName ?? '';
         if (targetTag === 'INPUT' || targetTag === 'TEXTAREA' || targetTag === 'SELECT' || targetTag === 'HA-TEXTFIELD') {
             return;
         }
@@ -18624,9 +18431,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.headerTitle = title;
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.open = true;
 
             const content = document.createElement('div');
@@ -18638,7 +18443,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
             closeButton.slot = 'footer';
             closeButton.textContent = 'OK';
             closeButton.addEventListener('click', () => {
-                // @ts-ignore - TS2339: auto-suppressed
                 dialog.open = false;
                 resolve();
             });

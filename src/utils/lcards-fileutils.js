@@ -1,9 +1,6 @@
 /**
- * @fileoverview File fetch and YAML parsing utilities.
- *
- * Helpers for fetching remote YAML files, parsing them via js-yaml, and
- * exposing a `window.jsyaml` shim for legacy callers that expect the library
- * on the global scope.
+ * @fileoverview SVG fetch/cache helpers, and the `window.jsyaml` shim for legacy
+ * callers that expect js-yaml on the global scope.
  *
  * @module utils/lcards-fileutils
  */
@@ -17,42 +14,6 @@ try {
     window.jsyaml = { load: jsyaml.load, dump: jsyaml.dump };
   }
 } catch {}
-
-/**
- * Fetch YAML content from a given URL.
- * @param {string} url - The URL of the YAML file.
- * @returns {Promise<string>} - A promise that resolves to the YAML content as a string.
- */
-export async function fetchYAML(url) {
-    try {
-        const response = await fetch(url);
-        if (response.ok) {
-            const yamlContent = await response.text();
-            //lcardsLog.debug(`Fetched yaml file ${url}`);
-
-            return yamlContent;
-        } //else {
-          //  throw new Error(`Error fetching YAML: ${response.status} ${response.statusText}`);
-        //}
-    } catch (error) {
-        lcardsLog.error('[fetchYAML] Error fetching YAML file ',error);
-        throw error;
-    }
-}
-
-// Function to read and parse the YAML file
-export async function readYamlFile(url) {
-    try {
-        const response = await fetchYAML(url);
-        const jsObject = jsyaml.load(response);
-        //await lcardsLog.info(`Processed YAML file: ${url}`);
-        //await lcardsLog.debug(jsObject);
-        return jsObject;
-    } catch (error) {
-        lcardsLog.error('[readYamlFile] Failed to parse YAML file',error.message);
-        throw error; // Re-throw the error after logging it
-    }
-}
 
 /**
  * Ensure the SVG cache exists on the window object.

@@ -342,7 +342,7 @@ export class LCARdSChart extends LCARdSCard {
 
   /**
    * Check for ancestor element, traversing shadow DOM boundaries
-   * @private
+   * @protected
    */
   _checkForAncestor(selectors) {
     let current = /** @type {Element | null} */ (this);

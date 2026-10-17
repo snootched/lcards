@@ -411,6 +411,7 @@ export default withMermaid(defineConfig({
               { text: 'Overview',         link: '/development/' },
               { text: 'Custom Card',      link: '/development/custom-card' },
               { text: 'Colour Resolution',        link: '/development/colour-resolution' },
+              { text: 'Type Checking',    link: '/development/typescript' },
               { text: 'Building an Editor', link: '/development/building-an-editor' },
               { text: 'Building a Pack',  link: '/development/building-a-pack' },
             ],

@@ -1525,7 +1525,7 @@ export class LCARdSSlider extends LCARdSButton {
      * @param {Object|string|null} rawValue - Raw color config: state-object or string
      * @param {string} [fallback=''] - Returned when rawValue is falsy or resolution yields nothing
      * @returns {string} Resolved concrete color string, or fallback
-     * @private
+     * @protected
      */
     _resolveColorValue(rawValue, fallback = '') {
         const result = super._resolveColorValue(rawValue, fallback);

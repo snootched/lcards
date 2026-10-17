@@ -865,7 +865,6 @@ export class AdvancedRenderer {
       lastVersion = this.routerCore._registryVersion;
       for (const ov of lineOverlays) {
         try {
-          // @ts-ignore - TS2339: resolveRoute is LineOverlay-specific, not on OverlayBase; compatible at runtime since lineOverlays is already filtered to type==='line'
           const resolved = (/** @type {any} */ (this._getRendererForOverlay(ov)))?.resolveRoute?.(ov, completeAnchors);
           if (!resolved) {
             // A line the discovery loop can't route is a line whose
@@ -912,7 +911,6 @@ export class AdvancedRenderer {
     // Line overlays use LineOverlay class (SVG-native, MSD-specific)
     if (overlay.type === 'line') {
       const lineOverlay = new LineOverlay(overlay, this.coordinator, this.routerCore);
-      // @ts-ignore - TS2322: LineOverlay extends OverlayBase; compatible at runtime
       this.overlayRenderers.set((/** @type {any} */ (overlay)).id, lineOverlay);
       return /** @type {any} */ (lineOverlay);
     }
@@ -924,7 +922,6 @@ export class AdvancedRenderer {
     // registration wired up.
     if (overlay.type === 'shape') {
       const shapeOverlay = new ShapeOverlay(overlay, this.coordinator, this.routerCore);
-      // @ts-ignore - TS2322: ShapeOverlay extends OverlayBase; compatible at runtime
       this.overlayRenderers.set((/** @type {any} */ (overlay)).id, shapeOverlay);
       return /** @type {any} */ (shapeOverlay);
     }

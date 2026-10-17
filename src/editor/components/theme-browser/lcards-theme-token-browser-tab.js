@@ -232,9 +232,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
       e.preventDefault();
       e.stopPropagation();
-      const searchInput = this.shadowRoot?.querySelector('.dialog-search');
+      const searchInput = /** @type {HTMLElement | null} */ (this.shadowRoot?.querySelector('.dialog-search'));
       if (searchInput) {
-        // @ts-ignore - TS2339: auto-suppressed
         searchInput.focus();
       }
       return;
@@ -1449,9 +1448,8 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       this._applyAllVarsFilters();
     }
     // Focus back on search input
-    const searchInput = this.shadowRoot?.querySelector('.dialog-search');
+    const searchInput = /** @type {HTMLElement | null} */ (this.shadowRoot?.querySelector('.dialog-search'));
     if (searchInput) {
-      // @ts-ignore - TS2339: auto-suppressed
       searchInput.focus();
     }
   }
@@ -2489,8 +2487,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     // CRITICAL: Stop propagation to prevent bubbling to parent tab handlers
     event.stopPropagation();
 
-    // @ts-ignore - TS2339: auto-suppressed
-    const view = event.target.activeTab?.getAttribute('value');
+    const view = /** @type {HaTabGroupElement} */ (event.target).activeTab?.getAttribute('value');
     if (view) {
       this._switchView(view);
     }
@@ -2542,8 +2539,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     // CRITICAL: Stop propagation to prevent bubbling to parent tab handlers
     event.stopPropagation();
 
-    // @ts-ignore - TS2339: auto-suppressed
-    const tab = event.target.activeTab?.getAttribute('value');
+    const tab = /** @type {HaTabGroupElement} */ (event.target).activeTab?.getAttribute('value');
     if (tab) {
       this._activeVizTab = tab;
       this.requestUpdate();
@@ -3300,11 +3296,11 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     }
 
     // Format additional settings for black_alert and hue anchor modes
+    /** @type {string | import('lit').TemplateResult} */
     let additionalSettings = '-';
 
     if (mode === 'black_alert' && transform.contrastEnhancement) {
       const ce = transform.contrastEnhancement;
-      // @ts-ignore - TS2322: auto-suppressed
       additionalSettings = html`
         <div style="font-size: 0.9em; line-height: 1.4;">
           <div><strong>Contrast:</strong> ${ce.enabled ? 'Enabled' : 'Disabled'}</div>
@@ -3315,7 +3311,6 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       `;
     } else if (transform.hueAnchor) {
       const ha = transform.hueAnchor;
-      // @ts-ignore - TS2322: auto-suppressed
       additionalSettings = html`
         <div style="font-size: 0.9em; line-height: 1.4;">
           <div><strong>Hue Anchor:</strong></div>

@@ -632,7 +632,7 @@ export function parseLayoutConfig(layout) {
  * @param {string[]} rows
  * @param {string[][]} areas
  * @param {string} gap
- * @param {object} [existingLayout={}] — preserved as-is (margin, padding, card_margin, etc.)
+ * @param {object} [existingLayout={}] - preserved as-is (margin, padding, card_margin, etc.)
  * @returns {object}
  */
 export function serializeLayoutConfig(columns, rows, areas, gap, existingLayout = {}) {

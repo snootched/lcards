@@ -99,8 +99,8 @@ jobs:
       - name: Run unit tests
         run: npm test
 
-      - name: Typecheck (fails only on errors not in scripts/tsc-baseline.txt)
-        run: npm run typecheck:check
+      - name: Typecheck (zero TypeScript errors)
+        run: npm run typecheck
 
       # Browser component tests run against the built bundle. Visual baselines
       # (test:visual) and real-HA tests (test:ha) stay local-only.

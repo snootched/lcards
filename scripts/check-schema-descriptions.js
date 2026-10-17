@@ -8,7 +8,7 @@
  * as `<tag>: <path>` (`[]` marks array items; anyOf/oneOf/allOf branches share
  * their parent's path). Properties that are `$ref`s or marked `deprecated` are
  * skipped. The list is compared against scripts/schema-description-baseline.txt,
- * the known backlog, the same way check-typecheck-baseline.js treats tsc.
+ * the known backlog.
  *
  *   node scripts/check-schema-descriptions.js           # check (npm run build, CI)
  *   node scripts/check-schema-descriptions.js --update  # rewrite the baseline

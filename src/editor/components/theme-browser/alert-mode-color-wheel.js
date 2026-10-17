@@ -234,7 +234,6 @@ export class AlertModeColorWheel extends LitElement {
    * Render interactive legend with clickable variable names
    */
   _renderInteractiveLegend() {
-    // @ts-ignore - TS2339: auto-suppressed
     if (!this.originalColors || this.originalColors.length === 0) {
       return html``;
     }
@@ -309,7 +308,6 @@ export class AlertModeColorWheel extends LitElement {
    * Render the anchor range visualization
    */
   _renderAnchorRange() {
-    // @ts-ignore - TS2339: auto-suppressed
     const { centerHue, range } = this.anchorConfig;
     const startHue = (centerHue - range + 360) % 360;
     const endHue = (centerHue + range) % 360;
@@ -335,7 +333,6 @@ export class AlertModeColorWheel extends LitElement {
    * Render hue shift target indicator
    */
   _renderHueShiftTarget() {
-    // @ts-ignore - TS2339: auto-suppressed
     const angle = (this.hueShift * Math.PI) / 180;
     const innerR = 105;
     const outerR = 125;
@@ -366,7 +363,6 @@ export class AlertModeColorWheel extends LitElement {
    * Render transformation arrows from original to transformed
    */
   _renderTransformationArrows() {
-    // @ts-ignore - TS2339: auto-suppressed
     if (this.originalColors.length !== this.transformedColors.length) {
       return '';
     }
@@ -377,9 +373,7 @@ export class AlertModeColorWheel extends LitElement {
           .filter(orig => !this.hiddenVariables.has(orig.varName))
           .map((orig, filteredIndex) => {
             // Find the actual index in the original array
-            // @ts-ignore - TS2339: auto-suppressed
             const actualIndex = this.originalColors.indexOf(orig);
-            // @ts-ignore - TS2339: auto-suppressed
             const transformed = this.transformedColors[actualIndex];
             const origPos = this._colorToPosition(orig.color);
             const transPos = this._colorToPosition(transformed.color);
@@ -444,7 +438,6 @@ ${colorData.color}</title>
     return svg`
       <g class="transformed-dots">
         ${this.transformedColors
-          // @ts-ignore - TS2339: auto-suppressed
           .filter((_, index) => !this.hiddenVariables.has(this.originalColors[index]?.varName))
           .map(colorData => {
             const pos = this._colorToPosition(colorData.color);

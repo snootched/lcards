@@ -30,7 +30,6 @@ import { resolveColor } from '../../core/themes/resolve-color.js';
 
 const VALID_KINDS = ['polyline', 'rect', 'circle'];
 
-// @ts-ignore - ShapeOverlay extends OverlayBase (type inference issues with duplicate base methods)
 export class ShapeOverlay extends OverlayBase {
   constructor(overlay, systemsManager, routerCore = null) {
     super(overlay, systemsManager);
@@ -440,7 +439,7 @@ export class ShapeOverlay extends OverlayBase {
 
   /**
    * Resolve a style property using token system with fallback
-   * @private
+   * @protected
    */
   _resolveStyleProperty(styleValue, tokenPath, resolveToken, fallback, context = {}) {
     if (styleValue !== undefined && styleValue !== null) {
@@ -524,7 +523,7 @@ export class ShapeOverlay extends OverlayBase {
 
   /**
    * Get scaling context for responsive token resolution
-   * @private
+   * @protected
    */
   _getScalingContext(viewBox) {
     return { viewBox };
@@ -695,7 +694,7 @@ export class ShapeOverlay extends OverlayBase {
 
   /**
    * Get renderer provenance information
-   * @private
+   * @protected
    */
   _getRendererProvenance(overlayId, metadata = {}) {
     return {

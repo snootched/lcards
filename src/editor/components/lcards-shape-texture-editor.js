@@ -122,12 +122,10 @@ export class LCARdSShapeTextureEditor extends LitElement {
     }
 
     _update(key, value) {
-        // @ts-ignore - TS2339: auto-suppressed
         this._emit({ ...(this.config || {}), [key]: value });
     }
 
     _updatePresetConfig(key, value) {
-        // @ts-ignore - TS2339: auto-suppressed
         const current = this.config || {};
         const cfg     = current.config || {};
         this._emit({ ...current, config: { ...cfg, [key]: value } });
@@ -136,12 +134,9 @@ export class LCARdSShapeTextureEditor extends LitElement {
     // ─── Render ───────────────────────────────────────────────────────────────
 
     render() {
-        // @ts-ignore - TS2339: auto-suppressed
         const enabled      = !!(this.config?.preset);
-        // @ts-ignore - TS2339: auto-suppressed
         const preset       = this.config?.preset || '';
         const presetDef    = CANVAS_TEXTURE_PRESETS[preset];
-        // @ts-ignore - TS2339: auto-suppressed
         const presetConfig = this.config?.config || {};
         const defaults     = presetDef?.defaults || {};
 
@@ -151,7 +146,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
             description: def.description
         }));
 
-        // @ts-ignore - TS2339: auto-suppressed
         const blendMode = this.config?.mix_blend_mode ?? 'normal';
         const blendHint = BLEND_MODE_OPTIONS.find(m => m.value === blendMode)?.hint ?? '';
 

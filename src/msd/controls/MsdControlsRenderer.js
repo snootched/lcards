@@ -913,7 +913,7 @@ export class MsdControlsRenderer {
       // wrong node (e.g. matches something unrelated nested inside the real
       // card's light DOM) and silently route hass through the wrong branch.
       // We already know exactly what we built; just remember it.
-      wrapper._msdCardElement = cardElement;
+      /** @type {any} */ (wrapper)._msdCardElement = cardElement;
 
       // Event isolation
       this._setupEventIsolation(wrapper, cardElement, overlay);

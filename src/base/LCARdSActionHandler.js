@@ -54,6 +54,7 @@ export class LCARdSActionHandler {
      * @param {string} options.entity - Default entity ID for actions (fallback if action.entity not specified)
      * @param {Object} [options.soundOverride] - Per-event sound override config
      * @param {boolean} [options.disableHover] - When true, suppresses pointer cursor and hover/leave animation handlers
+     * @param {Function} [options.getHass] - Returns the card's current hass at action time (falls back to `hass`)
      * @returns {Function} Cleanup function
      */
     setupActions(element, actions = {}, hass, options = /** @type {any} */ ({})) {

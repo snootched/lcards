@@ -23,7 +23,8 @@ const VIEW_TYPE_OPTION = {
 };
 
 customElements.whenDefined('hui-view-editor').then(() => {
-    const HuiViewEditor = customElements.get('hui-view-editor');
+    // HA's class, patched in place (it carries our marker property); untyped on purpose.
+    const HuiViewEditor = /** @type {any} */ (customElements.get('hui-view-editor'));
     if (!HuiViewEditor || HuiViewEditor.__lcardsViewTypePatched) return;
     HuiViewEditor.__lcardsViewTypePatched = true;
 

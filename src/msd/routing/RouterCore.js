@@ -77,6 +77,16 @@ function stubLengthFor(req) {
 }
 
 /**
+ * One rounded corner of a route: cornerRadii[k] belongs to pts[k + 1].
+ * @typedef {object} CornerRadius
+ * @property {number} index - point index of the corner
+ * @property {number} radius - corner radius actually used
+ * @property {number} lenIn - available length on the incoming leg
+ * @property {number} lenOut - available length on the outgoing leg
+ * @property {object} [reverseCurve] - set on a bundle-entry corner pair (see _applyReverseCurves)
+ */
+
+/**
  * Pure "reverse curve" (S-curve lane-change) geometry — two tangent
  * circular arcs of one shared radius connecting a flow-axis-aligned line
  * to a parallel one offset by `d` on the cross axis, the same construction
@@ -7015,11 +7025,12 @@ export class RouterCore {
    *   TARGET for the corner at `pts[i]` — everything below (room clamp,
    *   neighbor-clearance shrink, consecutive-corner scaling) still applies
    *   on top of it as a ceiling, exactly as it does for `radiusGlobal`.
-   * @returns {{ index: number, radius: number, lenIn: number, lenOut: number }[]}
+   * @returns {CornerRadius[]}
    * @private
    */
   _estimateCornerRadii(pts, radiusGlobal, routeId = null, ownWidth = 0, { skipNeighborClearance = false, perCornerRadius = null } = {}) {
     const arcMin = 1;
+    /** @type {CornerRadius[]} */
     const cornerRadii = [];
     for (let i = 1; i < pts.length - 1; i++) {
       const pPrev = pts[i - 1];
@@ -7242,7 +7253,7 @@ export class RouterCore {
    * geometry doesn't match the assumed flow/cross-axis-aligned shape —
    * that corner just renders exactly as it would without this feature.
    * @param {number[][]} pts
-   * @param {{index:number, radius:number, lenIn:number, lenOut:number}[]} cornerRadii
+   * @param {CornerRadius[]} cornerRadii
    * @param {{nudge:number[], mid:number[], channelId:string}[]} hints
    * @param {number} radiusGlobal - the configured corner_radius (target R)
    * @private

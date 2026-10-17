@@ -49,7 +49,7 @@ export class TemplateEvaluator {
    *
    * @abstract
    * @param {string} content - Template content to evaluate
-   * @returns {string} Evaluated content
+   * @returns {string | Promise<string>} Evaluated content (async evaluators return a Promise)
    * @throws {Error} If not implemented by subclass
    *
    * @example

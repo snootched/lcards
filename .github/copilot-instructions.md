@@ -118,7 +118,7 @@ zones:
 ```bash
 npm run build             # full validated build — use for ALL builds including dev/test
 npm run validate:css-vars # CSS variable linter (also runs inside `npm run build`)
-npm run typecheck         # TypeScript checks
+npm run typecheck         # TypeScript checks (zero errors; inside npm run build)
 ```
 
 **Critical**: After code changes, ALWAYS run `npm run build` before testing in Home Assistant. `npm run build` (via `vite build --mode integration`) writes directly to `custom_components/lcards/lcards.js` — no `dist/` output, no manual copy step if that directory is bind-mounted into your HA devcontainer.

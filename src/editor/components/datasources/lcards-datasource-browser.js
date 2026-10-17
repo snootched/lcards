@@ -39,6 +39,11 @@ export class LCARdSDataSourceBrowser extends LitElement {
 
   constructor() {
     super();
+    // Reactive properties (declared in static properties); typed here for the checker.
+    /** @type {any} */
+    this.hass;
+    /** @type {any} */
+    this.cardConfig;
     this.open = false;
     this._selectedNode = null;
     this._expandedNodes = new Set();
@@ -376,7 +381,6 @@ export class LCARdSDataSourceBrowser extends LitElement {
    * @private
    */
   _isCardLocalSource(sourceName) {
-    // @ts-ignore - TS2339: auto-suppressed
     const cardSources = this.cardConfig?.data_sources || {};
     return sourceName in cardSources;
   }
@@ -501,7 +505,6 @@ export class LCARdSDataSourceBrowser extends LitElement {
    * @private
    */
   _renderEntityDetail(data) {
-    // @ts-ignore - TS2339: auto-suppressed
     const entity = this.hass?.states?.[data.entityId];
 
     if (!entity) {

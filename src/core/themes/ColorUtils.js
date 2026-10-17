@@ -19,6 +19,9 @@ import { oklchToRgb } from './themeGeneratorCore.js';
  * Direct color values (hex, rgb) are computed at load time.
  */
 export class ColorUtils {
+  /** Lazily created 2D context used to normalise CSS colour names (see _parseColor). @type {CanvasRenderingContext2D | null | undefined} */
+  static _probeCtx;
+
   /**
    * Darken a color by percentage
    *
@@ -240,6 +243,7 @@ export class ColorUtils {
    * @param {string} value
    * @param {string} [defaultValue]
    * @param {Element|null} [element]
+   * @param {number} [_depth] - internal: recursion depth
    * @returns {string}
    */
   /**
@@ -247,6 +251,7 @@ export class ColorUtils {
    * @param {string[]} value
    * @param {string} [defaultValue]
    * @param {Element|null} [element]
+   * @param {number} [_depth] - internal: recursion depth
    * @returns {string[]}
    */
   /**
@@ -709,7 +714,7 @@ export class ColorUtils {
    * comma or space syntax, oklch), then any other CSS colour the browser can
    * normalise through a canvas (lab(), color(), concrete color-mix()).
    *
-   * @private
+   * @internal
    * @param {string} color - Color string
    * @returns {Array<number>|null} [r, g, b] or null if unparseable
    */

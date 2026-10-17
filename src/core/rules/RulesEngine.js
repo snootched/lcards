@@ -1552,8 +1552,8 @@ export class RulesEngine extends BaseService {
 
   /**
    * Add callback for when rules need re-evaluation (supports multiple MSD cards)
-   * @param {Function} callback - Re-evaluation callback function
-   * @returns {number} - Index of the added callback (for removal)
+   * @param {Function} callback - Re-evaluation callback function (keep the reference to remove it later)
+   * @returns {void}
    */
   setReEvaluationCallback(callback) {
     if (typeof callback !== 'function') {

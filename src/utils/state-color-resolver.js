@@ -204,6 +204,8 @@ export function resolveStateColor({ actualState, classifiedState, colorConfig, f
  * @param {string} options.classifiedState - The classified/mapped state
  * @param {Object} options.configPath - The config object to navigate (e.g., border.color)
  * @param {string|number|null} [options.fallback] - Optional fallback value
+ * @param {number} [options.numericState] - Numeric entity state, for numeric state-colour keys
+ * @param {string} [options.attributeState] - Attribute value, when the colour follows an attribute
  * @returns {string|number|null} The resolved color value or null if not found
  *
  * @example

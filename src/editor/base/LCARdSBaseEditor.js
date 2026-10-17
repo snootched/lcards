@@ -57,6 +57,7 @@ export class LCARdSBaseEditor extends LitElement {
         this._developerSubTab = 0;
     }
 
+    /** @returns {import('lit').CSSResultArray} */
     static get styles() {
         return [editorStyles, messageStyles, css`
             .main-engineering-hint {
@@ -1139,15 +1140,15 @@ export class LCARdSBaseEditor extends LitElement {
     /**
      * Build standard config tab structure with flexible field control
      *
-     * @param {Object} options - Config tab options
-     * @param {string} options.infoMessage - Info message at top of tab
-     * @param {Array} options.modeSections - Mode-specific sections (preset/component/svg)
-     * @param {Array} options.basicFields - Basic config fields (default: entity, id, tags)
-     * @param {boolean} options.showBasicSection - Show Basic Configuration section (default: true)
-     * @param {string} options.basicSectionHeader - Header for basic section (default: 'Basic Configuration')
-     * @param {string} options.basicSectionDescription - Description for basic section
-     * @param {string} options.basicSectionIcon - Icon for basic section (default: 'mdi:cog')
-     * @param {boolean} options.basicSectionExpanded - Expand basic section (default: true)
+     * @param {Object} [options] - Config tab options
+     * @param {string} [options.infoMessage] - Info message at top of tab
+     * @param {Array} [options.modeSections] - Mode-specific sections (preset/component/svg)
+     * @param {Array} [options.basicFields] - Basic config fields (default: entity, id, tags)
+     * @param {boolean} [options.showBasicSection] - Show Basic Configuration section (default: true)
+     * @param {string} [options.basicSectionHeader] - Header for basic section (default: 'Basic Configuration')
+     * @param {string} [options.basicSectionDescription] - Description for basic section
+     * @param {string} [options.basicSectionIcon] - Icon for basic section (default: 'mdi:cog')
+     * @param {boolean} [options.basicSectionExpanded] - Expand basic section (default: true)
      *
      * @returns {Array} Config tab definition
      *
@@ -1180,10 +1181,8 @@ export class LCARdSBaseEditor extends LitElement {
      *     });
      * }
      *
-     * @param {any} [options]
      * @protected
      */
-    // @ts-ignore - TS2740: auto-suppressed
     _buildConfigTab(options = {}) {
         const {
             infoMessage = 'Configure your LCARdS card settings.',

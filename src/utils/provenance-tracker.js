@@ -465,7 +465,7 @@ export class ProvenanceTracker {
       console.groupEnd();
 
       console.groupEnd();
-      return; // No return value when outputting to console
+      return undefined; // No return value when outputting to console
     }
 
     // Legacy string output (for backwards compatibility)

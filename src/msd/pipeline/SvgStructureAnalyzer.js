@@ -485,12 +485,14 @@ function blendTowardEllipse(points, roundness) {
   });
 }
 
+/** @returns {[number, number]} */
 function rasterToSvgPoint(x, y, viewBox, W, H) {
   const [vbX, vbY, vw, vh] = viewBox;
   return [vbX + (x * vw) / W, vbY + (y * vh) / H];
 }
 
 function anchorsFromMask(mask, W, H, viewBox) {
+  /** @type {Object<string, [number, number]>} */
   const result = {};
   for (const a of detectAnchors(mask, W, H)) {
     result[a.id] = rasterToSvgPoint(a.x, a.y, viewBox, W, H);

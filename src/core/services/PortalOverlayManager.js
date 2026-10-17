@@ -76,6 +76,19 @@ const POSITION_MAP = {
 // PortalOverlayManager
 // ---------------------------------------------------------------------------
 
+/**
+ * One open portal overlay (see show()).
+ * @typedef {object} SlotState
+ * @property {HTMLElement} [dismissEl]
+ * @property {HTMLElement} [wrapperEl]
+ * @property {HTMLElement} [contentContainer]
+ * @property {HTMLElement} [contentElement]
+ * @property {HTMLStyleElement} [portalStyleEl]
+ * @property {boolean} [ownsSemSlots]
+ * @property {object} [options]
+ * @property {ReturnType<typeof setTimeout>} [durationTimer]
+ */
+
 export class PortalOverlayManager extends BaseService {
 
     constructor() {
@@ -83,10 +96,7 @@ export class PortalOverlayManager extends BaseService {
 
         /**
          * Active named slots.
-         * Map<string, SlotState> where SlotState = {
-         *   dismissEl, wrapperEl, contentContainer, contentElement,
-         *   portalStyleEl, ownsSemSlots, options, durationTimer
-         * }
+         * @type {Map<string, SlotState>}
          */
         this._slots = new Map();
 
@@ -334,8 +344,8 @@ export class PortalOverlayManager extends BaseService {
      * Synchronously tear down a named slot.
      *
      * @param {string}  name
-     * @param {object}  opts
-     * @param {boolean} opts.releaseSemOccupied - Call sem.setOverlayOccupied(false) if
+     * @param {object}  [opts]
+     * @param {boolean} [opts.releaseSemOccupied] - Call sem.setOverlayOccupied(false) if
      *   this is the last slot.  Pass `false` when immediately replacing the slot.
      * @private
      */

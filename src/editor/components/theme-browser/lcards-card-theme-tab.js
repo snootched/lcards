@@ -167,7 +167,6 @@ export class LCARdSCardThemeTab extends LitElement {
     _load() {
         let card = null;
         try {
-            // @ts-ignore - window.lcards
             card = this.config ? window.lcards?.findCardByConfig?.(this.config) : null;
         } catch (error) {
             lcardsLog.debug('[CardThemeTab] No card for this config', { error: error?.message });
@@ -194,7 +193,6 @@ export class LCARdSCardThemeTab extends LitElement {
     render() {
         const tokens = cardTokens(this._provenance);
         const overridden = tokens.filter(t => t.overridden).length;
-        // @ts-ignore - window.lcards
         const theme = window.lcards?.core?.themeManager?.getActiveTheme?.();
         return html`
             ${renderLauncher({

@@ -28,6 +28,9 @@ export class LCARdSCardDataSourcesList extends LitElement {
 
   constructor() {
     super();
+    // Reactive properties (declared in static properties); typed here for the checker.
+    /** @type {any} */
+    this.config;
     this._expandedSources = new Set();
   }
 
@@ -40,7 +43,6 @@ export class LCARdSCardDataSourcesList extends LitElement {
   }
 
   render() {
-    // @ts-ignore - TS2339: auto-suppressed
     const datasources = this.config?.data_sources || {};
     const sourceKeys = Object.keys(datasources);
 

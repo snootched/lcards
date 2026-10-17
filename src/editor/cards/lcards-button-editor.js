@@ -39,7 +39,6 @@ import '../components/datasources/lcards-datasource-editor-tab.js';
 import '../components/templates/lcards-template-evaluation-tab.js';
 import '../components/provenance/lcards-provenance-tab.js';
 
-// @ts-ignore - TS2417: static side extends - getConfigElement signature
 export class LCARdSButtonEditor extends LCARdSBaseEditor {
 
     constructor() {
@@ -131,8 +130,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         if (wrapper) {
             // Step 2: Cross shadow boundary to get to hui-card-element-editor
             const shadowRoot = wrapper.getRootNode();
-            if (shadowRoot && shadowRoot !== document) {
-                // @ts-ignore - TS2339: auto-suppressed
+            if (shadowRoot instanceof ShadowRoot) {
                 const shadowHost = shadowRoot.host;
 
                 if (shadowHost) {
@@ -417,7 +415,6 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     _getConfigTabConfig() {
         const mode = this._getMode();
 
-        // @ts-ignore - TS2345: auto-suppressed
         const baseConfig = this._buildConfigTab({
             infoMessage: 'Configure the basic settings for your LCARdS button card. Select an entity to control or leave blank for a static button.',
             showBasicSection: false, // We'll add custom entity section below
@@ -915,7 +912,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                             linewrap
                             .value=${this.config.svg?.content || ''}
                             placeholder="<svg viewBox='0 0 100 100'>...</svg>"
-                            @value-changed=${/* @ts-ignore TS2339 */ (e) => { e.stopPropagation(); this.editor._setConfigValue('svg.content', e.detail.value); }}>
+                            @value-changed=${(e) => { e.stopPropagation(); this.editor._setConfigValue('svg.content', e.detail.value); }}>
                         </ha-code-editor>
                         <div class="helper-text">
                             ${discoveredIds.length > 0

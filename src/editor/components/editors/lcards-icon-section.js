@@ -573,7 +573,7 @@ export class LCARdSIconSection extends LitElement {
 
     /**
      * Handle custom state input change
-     * @param {Event} e
+     * @param {CustomEvent} e
      * @private
      */
     _handleCustomStateInput(e) {
@@ -763,9 +763,7 @@ export class LCARdSIconSection extends LitElement {
     async _showDialog(title, message, type = 'info') {
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
-            // @ts-ignore
             dialog.headerTitle = title;
-            // @ts-ignore
             dialog.open = true;
 
             const content = document.createElement('div');
@@ -777,7 +775,6 @@ export class LCARdSIconSection extends LitElement {
             closeButton.slot = 'footer';
             closeButton.textContent = 'OK';
             closeButton.addEventListener('click', () => {
-                // @ts-ignore
                 dialog.open = false;
                 resolve();
             });
@@ -791,9 +788,7 @@ export class LCARdSIconSection extends LitElement {
     async _showConfirmDialog(title, message) {
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
-            // @ts-ignore
             dialog.headerTitle = title;
-            // @ts-ignore
             dialog.open = true;
 
             const content = document.createElement('div');
@@ -806,7 +801,6 @@ export class LCARdSIconSection extends LitElement {
             cancelButton.textContent = 'Cancel';
             cancelButton.setAttribute('appearance', 'plain');
             cancelButton.addEventListener('click', () => {
-                // @ts-ignore
                 dialog.open = false;
                 resolve(false);
             });
@@ -815,7 +809,6 @@ export class LCARdSIconSection extends LitElement {
             confirmButton.textContent = 'Delete';
             confirmButton.setAttribute('variant', 'danger');
             confirmButton.addEventListener('click', () => {
-                // @ts-ignore
                 dialog.open = false;
                 resolve(true);
             });

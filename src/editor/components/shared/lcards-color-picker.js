@@ -1217,7 +1217,6 @@ export class LCARdSColorPicker extends LitElement {
      */
     _resolveMatchLightForPreview(value) {
         if (!value || (!value.includes('match-light') && !value.includes('match-brightness'))) return value;
-        // @ts-ignore - TS2339: auto-suppressed
         const entity = this.hass?.states?.[this.entityId];
 
         // Resolve match-brightness: replace with actual alpha value or remove if light is off
@@ -1722,7 +1721,7 @@ export class LCARdSColorPicker extends LitElement {
      */
     _handleBrightnessToggle(ev) {
         if (this.disabled) return;
-        this._applyBrightness = ev.target.checked;
+        this._applyBrightness = /** @type {HTMLInputElement} */ (ev.target).checked;
         // Re-emit with the inner colour value, wrapping/unwrapping as needed
         const { color } = this._parseIncomingValue(this.value);
         const baseColor = color || this._getCurrentDropdownValue();

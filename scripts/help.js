@@ -35,8 +35,8 @@ const CATEGORIES = [
     scripts: {
       build: { when: 'every build', desc: 'Full validated build: doc examples (strict), schema descriptions, docs em-dash check, CSS vars, HA compat, version sync, Vite integration build (minified, .br/.gz), asset copy. Use for ALL dev/test builds.' },
       'build:integration': { when: 'CI/release', desc: 'Vite build + asset copy only, skips validation/version-sync. CI/release only — never for dev.' },
-      typecheck: { when: 'as needed', desc: 'TypeScript checks across the whole src/ tree (full sorted list).' },
-      'typecheck:check': { when: 'CI/release', desc: 'Fails only on TypeScript errors not in scripts/tsc-baseline.txt (the CI gate). After fixing baseline errors: node scripts/check-typecheck-baseline.js --update.' },
+      typecheck: { when: 'build, CI', desc: 'TypeScript checks across src/: zero errors or it fails (also checks the generated element map). Runs inside build. Rules: doc/development/typescript.md.' },
+      'types:elements': { when: 'as needed', desc: 'Regenerate src/types/elements.generated.d.ts after adding or renaming a custom element.' },
       'build:validator': { when: 'as needed', desc: 'Bundle the config checker into one standalone file (doc/public/tools/lcards-validate.mjs; --out=<file>). Runs inside docs:build; the Release workflow attaches it.' },
       'build:skill': { when: 'as needed', desc: 'Package the user-facing Claude skill (skills/lcards/SKILL.md + schemas, registries, user docs, gallery, checker) as doc/public/tools/lcards-skill.zip (--out=<file>), the same skill as a Claude Code plugin (lcards-plugin.zip, --plugin-out=) and the channel\'s doc/public/marketplace.json (--marketplace-out=, named from DOCS_BASE). Runs inside docs:build; the Release workflow attaches both zips.' },
       'generate:llm-schema': { when: 'as needed', desc: 'Regenerates the published JSON Schemas (gitignored): doc/public/lcards-schema.json (everything) and doc/public/schema/ (index, per-card files, shared/). Runs inside docs:build and docs:serve.' },

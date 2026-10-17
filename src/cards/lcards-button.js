@@ -846,10 +846,10 @@ export class LCARdSButton extends LCARdSCard {
                     availableSegmentIds
                 );
 
-                this._processSegmentConfig(segmentsArray);
+                this._processButtonSegments(segmentsArray);
             } else if (Array.isArray(svgConfig.segments)) {
                 // Legacy array-based format - process directly
-                this._processSegmentConfig(svgConfig.segments);
+                this._processButtonSegments(svgConfig.segments);
             }
         }
     }
@@ -912,7 +912,7 @@ export class LCARdSButton extends LCARdSCard {
 
     /**
      * Check if a segment should be skipped (no config and no defaults)
-     * @private
+     * @protected
      * @param {Object} userConfig - User-provided segment configuration
      * @param {Object} defaultConfig - Default configuration
      * @returns {boolean} True if segment should be skipped
@@ -1086,8 +1086,7 @@ export class LCARdSButton extends LCARdSCard {
      * @protected
      * @param {Array} segments - Array of segment configurations
      */
-    // @ts-ignore — intentional signature difference from LCARdSCard._processSegmentConfig
-    _processSegmentConfig(segments) {
+    _processButtonSegments(segments) {
         if (!segments || !Array.isArray(segments) || segments.length === 0) {
             this._processedSegments = null;
             return;
@@ -1181,7 +1180,7 @@ export class LCARdSButton extends LCARdSCard {
      * Setup interactive segments in rendered SVG
      * Attaches event listeners and applies initial styles
      * Called in updated() lifecycle after SVG is in DOM
-     * @private
+     * @protected
      */
     _setupSegmentInteractivity() {
         if (!this._processedSegments || this._processedSegments.length === 0) {
@@ -1951,7 +1950,7 @@ export class LCARdSButton extends LCARdSCard {
     /**
      * Apply style object to SVG element
      * Handles fill, stroke, opacity, transform, etc.
-     * @private
+     * @protected
      * @param {SVGElement} element - Target SVG element
      * @param {Object} style - Style object to apply (already resolved from state objects)
      */
@@ -2686,7 +2685,7 @@ export class LCARdSButton extends LCARdSCard {
      * Extract hover and pressed interaction styles from resolved style
      * Stores background and border colors for dynamic application during mouse events
      * Priority: hover/pressed > entity state > default
-     * @private
+     * @protected
      * @param {Object} resolvedStyle - Resolved button style
      * @param {string} buttonState - Current classified button state (active/inactive/unavailable)
      * @param {string} actualEntityState - Actual entity state (on/off/heat/cool/etc.)

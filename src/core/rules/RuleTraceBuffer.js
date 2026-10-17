@@ -218,7 +218,7 @@ export class RuleTraceBuffer {
 const globalTraceBuffer = new RuleTraceBuffer();
 
 // Node.js and browser compatibility
-const debugNamespace = (typeof window !== 'undefined') ? window : global;
+const debugNamespace = (typeof window !== 'undefined') ? window : globalThis;
 if (debugNamespace) {
   debugNamespace.__msdRuleTrace = {
     buffer: globalTraceBuffer,

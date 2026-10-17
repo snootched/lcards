@@ -69,14 +69,11 @@ export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
 
     _openStudio() {
         const dialog = document.createElement('lcards-layout-studio-dialog');
-        // @ts-ignore - custom props
         dialog.hass = this.hass;
-        // @ts-ignore
         dialog.config = JSON.parse(JSON.stringify(this.config ?? {}));
         this._studioDialog = dialog;
 
         dialog.addEventListener('config-changed', (e) => {
-            // @ts-ignore
             const cfg = e.detail?.config;
             if (!cfg) return;
             this.config = cfg;

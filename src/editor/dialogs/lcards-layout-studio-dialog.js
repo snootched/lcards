@@ -239,7 +239,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
     _onGridPreviewChanged(ev) {
         ev.stopPropagation();
         const { columns, rows, gap } = ev.detail;
-        const grid = this._previewEl?.renderRoot?.querySelector('#grid-root');
+        const grid = /** @type {HTMLElement | null} */ (this._previewEl?.renderRoot?.querySelector('#grid-root'));
         if (!grid) return;
         if (columns) grid.style.gridTemplateColumns = columns.join(' ');
         if (rows)    grid.style.gridTemplateRows    = rows.join(' ');
@@ -660,29 +660,22 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         }
         this._pickerDialog?.remove();
         const dialog = document.createElement('ha-dialog');
-        // @ts-ignore - ha-dialog props
-        dialog.heading = 'Select a card';
+        dialog.headerTitle = 'Select a card';
         this._pickerDialog = dialog;
         mountDialogNearHomeAssistant(dialog, this);
-        // @ts-ignore
         dialog.open = true;
-        // @ts-ignore
         await dialog.updateComplete;
 
         const picker = document.createElement('hui-card-picker');
-        // @ts-ignore
         picker.hass = this.hass;
-        // @ts-ignore
         picker.lovelace = this._childLovelace();
         picker.style.cssText = 'padding:24px; display:block;';
         dialog.appendChild(picker);
         await new Promise(r => setTimeout(r, 80));
-        // @ts-ignore
         picker.requestUpdate?.();
 
         picker.addEventListener('config-changed', (e) => {
             const selected = e.detail?.config;
-            // @ts-ignore
             dialog.open = false;
             if (selected) onPick(JSON.parse(JSON.stringify(selected)));
         });

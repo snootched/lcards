@@ -48,7 +48,6 @@ import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.
 import { showInfoDialog } from '../../views/layout-edit-dialogs.js';
 import { elbowEditorZones } from './elbow-editor-zones.js';
 
-// @ts-ignore - TS2417: static side extends - getConfigElement signature
 export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
     static get properties() {
@@ -126,8 +125,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const wrapper = this.closest('.wrapper');
         if (wrapper) {
             const shadowRoot = wrapper.getRootNode();
-            if (shadowRoot && shadowRoot !== document) {
-                // @ts-ignore - TS2339: auto-suppressed
+            if (shadowRoot instanceof ShadowRoot) {
                 const shadowHost = shadowRoot.host;
                 if (shadowHost) {
                     const editorContainer = shadowHost.parentElement;
@@ -214,7 +212,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     /**
      * Get tab definitions for the elbow editor
      * @returns {Array<{label: string, content: Function}>}
-     * @private
+     * @protected
      */
     _getTabDefinitions() {
         return [
@@ -250,20 +248,10 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         // dialog visibly in the sidebar).
         if (!customElements.get('hui-card-picker')) {
             lcardsLog.warn('[ElbowEditor] hui-card-picker not loaded yet. Click "Add Card" on the dashboard once to prime it, then try again.');
-            // Show a transient notification via HA if possible
-            try {
-                const ha = document.querySelector('home-assistant');
-                // @ts-ignore - TS2339: auto-suppressed
-                if (ha?.showToast) {
-                    // @ts-ignore - TS2339: auto-suppressed
-                    ha.showToast({ message: 'Card picker loading… please try again in a moment.', duration: 3000 });
-                } else {
-                    showInfoDialog({
-                        title: 'Card picker not ready',
-                        message: 'Home Assistant hasn’t loaded its card picker yet. On any dashboard, click “Add card” once (you can cancel it), then come back and try again.',
-                    });
-                }
-            } catch (_) { /* ignore */ }
+            showInfoDialog({
+                title: 'Card picker not ready',
+                message: 'Home Assistant hasn’t loaded its card picker yet. On any dashboard, click “Add card” once (you can cancel it), then come back and try again.',
+            });
             return;
         }
 
@@ -274,34 +262,26 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         }
 
         const dialog = document.createElement('ha-dialog');
-        // @ts-ignore - TS2339: auto-suppressed
         dialog.headerTitle = 'Select Symbiont Card Type';
 
         this._symbioCardPickerDialogRef = dialog;
         mountDialogNearHomeAssistant(dialog, this);
-        // @ts-ignore - TS2339: auto-suppressed
         dialog.open = true;
 
-        // @ts-ignore - TS2339: auto-suppressed
         await dialog.updateComplete;
 
         const picker = document.createElement('hui-card-picker');
         // CRITICAL: set hass and lovelace BEFORE appending so firstUpdated has data
-        // @ts-ignore - TS2339: auto-suppressed
         picker.hass = this.hass;
-        // @ts-ignore - TS2339: auto-suppressed
         picker.lovelace = this._getSymbiontLovelace();
         picker.style.cssText = 'padding: 24px; display: block;';
         dialog.appendChild(picker);
 
         await new Promise(r => setTimeout(r, 100));
-        // @ts-ignore - TS2339: auto-suppressed
         picker.requestUpdate?.();
-        // @ts-ignore - TS2339: auto-suppressed
         if (picker.updateComplete) await picker.updateComplete;
 
         picker.addEventListener('config-changed', (e) => {
-            // @ts-ignore - TS2339: auto-suppressed
             const selectedConfig = e.detail?.config;
             lcardsLog.debug('[ElbowEditor] Symbiont card type selected:', selectedConfig?.type);
 
@@ -309,7 +289,6 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 detail: { config: selectedConfig }
             }));
 
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.open = false;
         });
 
@@ -354,7 +333,6 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         }
 
         const dialog = document.createElement('ha-dialog');
-        // @ts-ignore - TS2339: auto-suppressed
         dialog.headerTitle = `Edit: ${currentCard.type}`;
         dialog.setAttribute('prevent-scrim-close', '');
         this._symbioCardEditorDialogRef = dialog;
@@ -363,26 +341,19 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         container.style.cssText = 'padding: 16px; min-height: 300px; min-width: 420px; box-sizing: border-box;';
 
         const editor = document.createElement('hui-card-element-editor');
-        // @ts-ignore - TS2339: auto-suppressed
         editor.hass = this.hass;
-        // @ts-ignore - TS2339: auto-suppressed
         editor.lovelace = this._getSymbiontLovelace();
-        // @ts-ignore - TS2339: auto-suppressed
         editor.value = JSON.parse(JSON.stringify(currentCard));
 
         let tempConfig = JSON.parse(JSON.stringify(currentCard));
 
         editor.addEventListener('config-changed', (e) => {
-            // @ts-ignore - TS2339: auto-suppressed
             if (e.detail?.config && typeof e.detail.config === 'object' && e.detail.config.type) {
-                // @ts-ignore - TS2339: auto-suppressed
                 tempConfig = e.detail.config;
             }
         });
         editor.addEventListener('value-changed', (e) => {
-            // @ts-ignore - TS2339: auto-suppressed
             if (e.detail?.value && typeof e.detail.value === 'object' && e.detail.value.type) {
-                // @ts-ignore - TS2339: auto-suppressed
                 tempConfig = e.detail.value;
             }
         });
@@ -396,7 +367,6 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
         const cancelButton = document.createElement('ha-button');
         cancelButton.textContent = 'Cancel';
-        // @ts-ignore - TS2339: auto-suppressed
         cancelButton.addEventListener('click', () => { dialog.open = false; });
 
         const saveButton = document.createElement('ha-button');
@@ -406,7 +376,6 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 this._setConfigValue('symbiont.card', JSON.parse(JSON.stringify(tempConfig)));
                 lcardsLog.debug('[ElbowEditor] Symbiont card config saved from editor:', tempConfig.type);
             }
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.open = false;
         });
 
@@ -422,7 +391,6 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         });
 
         mountDialogNearHomeAssistant(dialog, this);
-        // @ts-ignore - TS2339: auto-suppressed
         setTimeout(() => { dialog.open = true; }, 10);
         lcardsLog.debug('[ElbowEditor] Opened symbiont card editor dialog for:', currentCard.type);
     }
@@ -505,7 +473,6 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             styleOptions.push({ value: 'segmented', label: 'Segmented (Picard-style double)' });
         }
 
-        // @ts-ignore - TS2345: auto-suppressed
         return [...this._buildConfigTab({
             infoMessage: 'Configure your LCARS elbow card. Elbows are positioned borders with rounded corners that create the iconic LCARS interface aesthetic.',
             modeSections: [

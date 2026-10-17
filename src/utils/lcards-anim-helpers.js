@@ -603,7 +603,7 @@ function _processAnimationMarkers(params, element, scope) {
  * anime.js-backed.
  * @param {HTMLElement|SVGElement} element - Element the CSS animation runs on
  * @param {number} baseDurationMs - The duration (ms) baked into element.style.animation at setup time
- * @returns {{completed: boolean, speed: number, revert: function, pause: function}}
+ * @returns {{completed: boolean, _speed: number, speed: number, revert: function, pause: function}}
  */
 function createCssAnimationHandle(element, baseDurationMs) {
   return {
@@ -674,7 +674,8 @@ function createCssAnimationHandle(element, baseDurationMs) {
  * @param {Element} element
  */
 function _migrateTransformAttrToStyle(element) {
-  if (!element || element.style.transform) return; // no element, or inline style already present (attribute already inert)
+  const style = /** @type {HTMLElement | SVGElement} */ (element)?.style;
+  if (!element || style.transform) return; // no element, or inline style already present (attribute already inert)
   const transformValue = element.getAttribute && element.getAttribute('transform');
   if (transformValue) {
     // CSS's <length> grammar requires a unit on any non-zero value — a bare
@@ -693,10 +694,10 @@ function _migrateTransformAttrToStyle(element) {
       const px = (v) => (v === undefined ? '0px' : /[a-z%]/i.test(v) ? v : `${v}px`);
       return `translateX(${px(x)}) translateY(${px(y)})`;
     });
-    element.style.transform = normalized;
+    style.transform = normalized;
     element.removeAttribute('transform');
     lcardsLog.debug('[_migrateTransformAttrToStyle] Migrated attribute to style', {
-      id: element.id, from: transformValue, attempted: normalized, readBack: element.style.transform
+      id: element.id, from: transformValue, attempted: normalized, readBack: style.transform
     });
   }
 }
@@ -925,7 +926,7 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
         // for a real anime.js instance.
         if (params._cssAnimation) {
           if (onInstanceCreated && typeof onInstanceCreated === 'function' && typeof params.duration === 'number') {
-            onInstanceCreated(createCssAnimationHandle(element, params.duration));
+            onInstanceCreated(createCssAnimationHandle(/** @type {HTMLElement | SVGElement} */ (element), params.duration));
           }
           continue;
         }

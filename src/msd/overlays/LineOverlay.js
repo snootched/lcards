@@ -34,7 +34,6 @@ import { resolveColor } from '../../core/themes/resolve-color.js';
  * - Segment colors
  * - Dash patterns
  */
-// @ts-ignore - LineOverlay extends OverlayBase (type inference issues with duplicate base methods)
 export class LineOverlay extends OverlayBase {
   constructor(overlay, systemsManager, routerCore = null) {
     super(overlay, systemsManager);
@@ -453,7 +452,7 @@ export class LineOverlay extends OverlayBase {
   /**
    * Resolve a style property using token system with fallback
    *
-   * @private
+   * @protected
    */
   _resolveStyleProperty(styleValue, tokenPath, resolveToken, fallback, context = {}) {
     if (styleValue !== undefined && styleValue !== null) {
@@ -546,7 +545,7 @@ export class LineOverlay extends OverlayBase {
   /**
    * Get scaling context for responsive token resolution
    *
-   * @private
+   * @protected
    */
   _getScalingContext(viewBox) {
     return { viewBox };
@@ -856,7 +855,7 @@ export class LineOverlay extends OverlayBase {
   /**
    * Get renderer provenance information
    *
-   * @private
+   * @protected
    */
   _getRendererProvenance(overlayId, metadata = {}) {
     return {

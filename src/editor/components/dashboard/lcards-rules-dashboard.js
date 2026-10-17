@@ -315,7 +315,6 @@ export class LCARdSRulesDashboard extends LitElement {
      * @private
      */
     _rows() {
-        // @ts-ignore - TS2339: auto-suppressed
         const config = this.editor?.config ?? {};
         const own = config.rules || [];
         const ownIds = new Set(own.map(r => r.id));
@@ -383,7 +382,6 @@ export class LCARdSRulesDashboard extends LitElement {
      */
     _isOwnedRule(rule) {
         if (rule._pending === 'removed') return false;
-        // @ts-ignore - TS2339: auto-suppressed
         const myRules = this.editor?.config?.rules || [];
         return myRules.some(r => r.id === rule.id);
     }
@@ -421,7 +419,6 @@ export class LCARdSRulesDashboard extends LitElement {
             message: "It's removed from this card's config. Cards keep its effect until the page is refreshed.",
         });
         if (!confirmed) return;
-        // @ts-ignore - TS2339: auto-suppressed
         const currentRules = this.editor?.config?.rules || [];
         this._applyRulesChange(currentRules.filter(r => r.id !== rule.id));
     }
@@ -431,7 +428,6 @@ export class LCARdSRulesDashboard extends LitElement {
      * @param {Object} rule - Rule to toggle
      */
     _handleToggleRule(rule) {
-        // @ts-ignore - TS2339: auto-suppressed
         const currentRules = this.editor?.config?.rules || [];
         const updatedRules = currentRules.map(r =>
             r.id === rule.id ? { ...r, enabled: !(r.enabled !== false) } : r
@@ -444,7 +440,6 @@ export class LCARdSRulesDashboard extends LitElement {
      * @param {Object} rule - Rule to move
      */
     _handleMoveUp(rule) {
-        // @ts-ignore - TS2339: auto-suppressed
         const currentRules = [...(this.editor?.config?.rules || [])];
         const idx = currentRules.findIndex(r => r.id === rule.id);
         if (idx <= 0) return;
@@ -457,7 +452,6 @@ export class LCARdSRulesDashboard extends LitElement {
      * @param {Object} rule - Rule to move
      */
     _handleMoveDown(rule) {
-        // @ts-ignore - TS2339: auto-suppressed
         const currentRules = [...(this.editor?.config?.rules || [])];
         const idx = currentRules.findIndex(r => r.id === rule.id);
         if (idx < 0 || idx >= currentRules.length - 1) return;
@@ -471,7 +465,6 @@ export class LCARdSRulesDashboard extends LitElement {
      */
     _handleRuleSave(event) {
         const savedRule = event.detail.rule;
-        // @ts-ignore - TS2339: auto-suppressed
         const currentRules = [...(this.editor?.config?.rules || [])];
 
         if (this._editMode === 'add') {
@@ -502,14 +495,11 @@ export class LCARdSRulesDashboard extends LitElement {
      * @private
      */
     _applyRulesChange(updatedRules) {
-        // @ts-ignore - TS2339: auto-suppressed
         if (!this.editor) return;
         // Note: we update editor.config directly here (replacement semantics, not deep merge)
         // because we always want to replace the rules array as a whole.
         // The fireEvent call causes HA to re-call setConfig, which handles validation/YAML sync.
-        // @ts-ignore - TS2339: auto-suppressed
         this.editor.config = { ...this.editor.config, rules: updatedRules };
-        // @ts-ignore - TS2339: auto-suppressed
         fireEvent(this.editor, 'config-changed', { config: this.editor.config });
         this.requestUpdate();
         // Look again once the card has rendered the new config (a new rule registers then)
@@ -763,7 +753,6 @@ export class LCARdSRulesDashboard extends LitElement {
             this._previewError = 'A rule needs an id.';
             return;
         }
-        // @ts-ignore - TS2339: auto-suppressed
         const rules = [...(this.editor?.config?.rules || [])];
         const index = rules.findIndex(r => r.id === this._previewRule.id);
         if (rule.id !== this._previewRule.id && rules.some(r => r.id === rule.id)) {

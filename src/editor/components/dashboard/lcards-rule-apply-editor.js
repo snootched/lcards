@@ -174,7 +174,6 @@ export class LCARdSRuleApplyEditor extends LitElement {
 
     /** Fire the YAML editor's pending change now (call before saving). */
     flush() {
-        // @ts-ignore - TS2339: lcards-yaml-editor
         this.renderRoot?.querySelector('lcards-yaml-editor')?.flush?.();
     }
 

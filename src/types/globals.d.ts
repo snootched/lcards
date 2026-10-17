@@ -48,6 +48,12 @@ declare global {
         _msdCardInstance: any;
         // Home Assistant global
         hass: any;
+        /** HA frontend: loads the card helpers (createCardElement, ...); set once HA's frontend is up. */
+        loadCardHelpers?: () => Promise<any>;
+        /** Legacy HA global some code paths still probe for the Lovelace config object. */
+        lovelace?: any;
+        /** HA frontend: custom dashboard strategies registered for the picker. */
+        customStrategies?: Array<{ type: string; strategyType?: string; name?: string; description?: string; documentationURL?: string }>;
     }
 }
 

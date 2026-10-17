@@ -1862,14 +1862,14 @@ export class LCARdSElbow extends LCARdSButton {
     _parseOuterCurveKeyword(value) {
         if (value === undefined) return undefined;
         const KEYWORDS = ['auto', 'arm_width', 'arm_height', 'arm_max', 'arm_min', 'arm_fill'];
-        if (KEYWORDS.includes(value)) return value;
+        if (typeof value === 'string' && KEYWORDS.includes(value)) return value;
         return this._parseDimPreservingCss(value);
     }
 
     _parseInnerCurveKeyword(value) {
         if (value === undefined) return undefined;
         const KEYWORDS = ['auto', 'arm_width', 'arm_height', 'arm_max', 'arm_min', 'arm_fill'];
-        if (KEYWORDS.includes(value)) return value;
+        if (typeof value === 'string' && KEYWORDS.includes(value)) return value;
         return this._parseDimPreservingCss(value);
     }
 

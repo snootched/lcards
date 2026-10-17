@@ -146,7 +146,6 @@ export class LCARdSRuleEditorDialog extends LitElement {
         } else if (!/^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(id)) {
             error = 'ID must start with a letter or _, then letters/digits/_ or -';
         } else if (this.mode === 'add') {
-            // @ts-ignore - TS2339: auto-suppressed
             const existing = this.editor?.config?.rules || [];
             if (existing.some(r => r.id === id)) {
                 error = `A rule with id "${id}" already exists`;
@@ -173,7 +172,6 @@ export class LCARdSRuleEditorDialog extends LitElement {
 
     _handleSave() {
         // Take the Apply YAML typed in the last moments (the editor waits for a typing pause)
-        // @ts-ignore - TS2339: lcards-rule-apply-editor
         this.renderRoot.querySelector('lcards-rule-apply-editor')?.flush?.();
         if (!this._validateId()) return;
 

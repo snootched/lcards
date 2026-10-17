@@ -218,7 +218,7 @@ export class LCARdSLayoutCard extends LitElement {
     }
 
     _placeCards() {
-        const grid = this.renderRoot?.querySelector('#grid-root');
+        const grid = /** @type {HTMLElement | null} */ (this.renderRoot?.querySelector('#grid-root'));
         if (!grid) return;
         grid.innerHTML = '';
 

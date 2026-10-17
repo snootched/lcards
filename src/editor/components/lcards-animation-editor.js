@@ -604,6 +604,9 @@ export class LCARdSAnimationEditor extends LitElement {
 
   constructor() {
     super();
+    // Reactive properties (declared in static properties); typed here for the checker.
+    /** @type {string|undefined} */
+    this.searchRootSelector;
         /** @type {any} */
         this.hass = undefined;
     /** @type {any} */

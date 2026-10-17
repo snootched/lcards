@@ -1132,7 +1132,6 @@ export class LCARdSCard extends LCARdSNativeCard {
         // where browser chrome (address bar) sliding in/out causes rapid small height changes.
         let _roDebounceTimer = null;
 
-        // @ts-ignore — ResizeObserver callback signature is correct; TS type inference quirk
         this._resizeObserver = new ResizeObserver(entries => {
             if (entries.length === 0) return;
 
@@ -4140,7 +4139,7 @@ export class LCARdSCard extends LCARdSNativeCard {
             lcardsLog.warn(`[LCARdSCard] Provenance tracker not initialized`);
             if (toConsole) {
                 console.warn('Provenance tracker not initialized');
-                return;
+                return undefined;
             }
             return 'Provenance tracker not initialized';
         }
@@ -4852,9 +4851,8 @@ export class LCARdSCard extends LCARdSNativeCard {
             if (prop === 'stroke-width') {
                 element.setAttribute('stroke-width', value);
             } else {
-                // @ts-ignore — both HTMLElement and SVGElement have .style;
                 // Element base type doesn't declare it but runtime always has it here.
-                element.style[prop] = value;
+                /** @type {HTMLElement | SVGElement} */ (element).style[prop] = value;
             }
         });
     }

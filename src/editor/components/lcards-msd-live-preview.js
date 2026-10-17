@@ -170,9 +170,8 @@ export class LCARdSMSDLivePreview extends LitElement {
      * Lifecycle: First update
      * Initialize preview card
      */
-    firstUpdated() {
-        // @ts-ignore - TS2554: auto-suppressed
-        super.firstUpdated();
+    firstUpdated(changedProperties) {
+        super.firstUpdated(changedProperties);
         // Initial preview render
         this._updatePreviewCard();
     }
@@ -208,7 +207,7 @@ export class LCARdSMSDLivePreview extends LitElement {
 
     /**
      * Force immediate preview refresh
-     * @private
+     * @internal
      */
     _forceRefresh() {
         if (this._debounceTimer) {
@@ -267,10 +266,8 @@ export class LCARdSMSDLivePreview extends LitElement {
 
             // CRITICAL: Set config and hass BEFORE appending
             // This ensures setConfig() is called before hass is set
-            // @ts-ignore - TS2339: auto-suppressed
             card.setConfig(previewConfig);
             if (this.hass) {
-                // @ts-ignore - TS2339: auto-suppressed
                 card.hass = this.hass;
             }
 
@@ -306,17 +303,14 @@ export class LCARdSMSDLivePreview extends LitElement {
      * set), or give up after a timeout (e.g. pipeline init failed - the card
      * itself already handles that error case and re-renders empty/error UI,
      * we just shouldn't hang forever waiting for a value that'll never come).
-     * @param {Element} card - The <lcards-msd-card> just appended
+     * @param {import('../../cards/lcards-msd.js').LCARdSMSDCard} card - The <lcards-msd-card> just appended
      * @param {number} [timeoutMs=5000]
      * @private
      */
     async _waitForPipelineReady(card, timeoutMs = 5000) {
         const start = Date.now();
-        // @ts-ignore - TS2339: auto-suppressed
         while (!card._msdPipeline && Date.now() - start < timeoutMs) {
-            // @ts-ignore - TS2339: auto-suppressed
             await card.updateComplete;
-            // @ts-ignore - TS2339: auto-suppressed
             if (card._msdPipeline) break;
             await new Promise((resolve) => setTimeout(resolve, 50));
         }

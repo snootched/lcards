@@ -20,9 +20,7 @@ import { mountDialogNearHomeAssistant } from '../utils/lcards-shared-helpers.js'
 export function showConfirmDeleteDialog({ title, message, confirmText = 'Delete' }) {
     return new Promise((resolve) => {
         const dialog = document.createElement('ha-dialog');
-        // @ts-ignore - ha-dialog properties not in HTMLElement type
         dialog.headerTitle = title;
-        // @ts-ignore - ha-dialog properties not in HTMLElement type
         dialog.open = true;
 
         const content = document.createElement('div');
@@ -36,7 +34,6 @@ export function showConfirmDeleteDialog({ title, message, confirmText = 'Delete'
         cancelButton.textContent = 'Cancel';
         cancelButton.setAttribute('appearance', 'plain');
         cancelButton.addEventListener('click', () => {
-            // @ts-ignore - ha-dialog properties not in HTMLElement type
             dialog.open = false;
             resolve(false);
         });
@@ -45,7 +42,6 @@ export function showConfirmDeleteDialog({ title, message, confirmText = 'Delete'
         confirmButton.textContent = confirmText;
         confirmButton.setAttribute('variant', 'danger');
         confirmButton.addEventListener('click', () => {
-            // @ts-ignore - ha-dialog properties not in HTMLElement type
             dialog.open = false;
             resolve(true);
         });
@@ -76,9 +72,7 @@ export function showConfirmDeleteDialog({ title, message, confirmText = 'Delete'
 export function showInfoDialog({ title, message }) {
     return new Promise((resolve) => {
         const dialog = document.createElement('ha-dialog');
-        // @ts-ignore - ha-dialog properties not in HTMLElement type
         dialog.headerTitle = title;
-        // @ts-ignore - ha-dialog properties not in HTMLElement type
         dialog.open = true;
 
         const content = document.createElement('div');
@@ -93,7 +87,6 @@ export function showInfoDialog({ title, message }) {
         okButton.setAttribute('slot', 'footer');
         okButton.setAttribute('variant', 'brand');
         okButton.addEventListener('click', () => {
-            // @ts-ignore - ha-dialog properties not in HTMLElement type
             dialog.open = false;
         });
         dialog.appendChild(okButton);
@@ -126,9 +119,7 @@ export function showPromptDialog({ title, message = '', label = '', value = '', 
             resolve(result);
         };
         const dialog = document.createElement('ha-dialog');
-        // @ts-ignore - ha-dialog properties not in HTMLElement type
         dialog.headerTitle = title;
-        // @ts-ignore - ha-dialog properties not in HTMLElement type
         dialog.open = true;
 
         const content = document.createElement('div');
@@ -143,17 +134,13 @@ export function showPromptDialog({ title, message = '', label = '', value = '', 
             content.appendChild(text);
         }
         const input = document.createElement('ha-input');
-        // @ts-ignore - ha-input properties not in HTMLElement type
         input.label = label;
-        // @ts-ignore
         input.value = value;
         content.appendChild(input);
         dialog.appendChild(content);
 
         const submit = () => {
-            // @ts-ignore
             const text = String(input.value ?? '').trim();
-            // @ts-ignore
             dialog.open = false;
             finish(text || null);
         };
@@ -163,7 +150,6 @@ export function showPromptDialog({ title, message = '', label = '', value = '', 
         cancelButton.textContent = 'Cancel';
         cancelButton.setAttribute('appearance', 'plain');
         cancelButton.addEventListener('click', () => {
-            // @ts-ignore
             dialog.open = false;
             finish(null);
         });
@@ -184,7 +170,6 @@ export function showPromptDialog({ title, message = '', label = '', value = '', 
         });
 
         mountDialogNearHomeAssistant(dialog);
-        // @ts-ignore
         setTimeout(() => input.focus?.(), 50);
     });
 }

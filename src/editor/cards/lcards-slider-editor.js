@@ -240,12 +240,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         // Show full orientation selector
         return FormField.renderField(this, 'style.track.orientation', {
             label: 'Orientation',
-            // @ts-ignore - TS2353: auto-suppressed
-            type: 'select',
-            options: [
-                { value: 'horizontal', label: 'Horizontal' },
-                { value: 'vertical', label: 'Vertical' }
-            ]
         });
     }
 
@@ -999,14 +993,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, `${basePath}.indicator.type`, {
                         label: 'Shape',
-                        // @ts-ignore - TS2353: auto-suppressed
-                        type: 'select',
-                        options: [
-                            { value: '', label: '(Inherit from gauge.indicator)' },
-                            { value: 'line', label: 'Line' },
-                            { value: 'round', label: 'Round (ellipse)' },
-                            { value: 'triangle', label: 'Triangle' }
-                        ],
                         helper: 'Defaults to style.gauge.indicator.type'
                     })}
 
@@ -1050,8 +1036,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, `${basePath}.indicator.border.enabled`, {
                         label: 'Show Border',
-                        // @ts-ignore - TS2353: auto-suppressed
-                        type: 'boolean',
                         helper: 'Outline border on the indicator shape'
                     })}
                     ${FormField.renderField(this, `${basePath}.indicator.border.width`, {
@@ -1090,8 +1074,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, `${basePath}.pill_style.stroke`, {
                         label: 'Show Outline',
-                        // @ts-ignore - TS2353: auto-suppressed
-                        type: 'boolean',
                         helper: 'Draw a border on the marker pill to distinguish it from neighbours'
                     })}
                     ${FormField.renderField(this, `${basePath}.pill_style.stroke_width`, {
@@ -1344,25 +1326,10 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                         ${FormField.renderField(this, 'style.gauge.progress_bar.align', {
                             label: 'Alignment',
                             helper: 'Cross-sectional alignment',
-                            // @ts-ignore - TS2353: auto-suppressed
-                            type: 'select',
-                            mode: 'dropdown',
-                            options: [
-                                { value: 'start', label: 'Start' },
-                                { value: 'middle', label: 'Middle' },
-                                { value: 'end', label: 'End' }
-                            ]
                         })}
                         ${FormField.renderField(this, 'style.gauge.progress_bar.layer', {
                             label: 'Layer',
                             helper: 'Render behind or in front of tick marks',
-                            // @ts-ignore - TS2353: auto-suppressed
-                            type: 'select',
-                            mode: 'dropdown',
-                            options: [
-                                { value: 'background', label: 'Behind ticks' },
-                                { value: 'foreground', label: 'In front of ticks' }
-                            ]
                         })}
                     </lcards-grid-layout>
 

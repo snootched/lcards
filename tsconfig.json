@@ -13,15 +13,19 @@
         "module": "ESNext",
         "moduleResolution": "bundler",
 
-        // Honour JSDoc types but don't require every variable to be typed
-        // (strict would produce too much noise in a JSDoc-only codebase)
+        // See doc/development/typescript.md for what each setting is for.
+        // Zero errors is enforced (npm run typecheck, inside npm run build and CI).
         "strict": false,
+        // Off on purpose: it would demand a type on every parameter TypeScript can't
+        // infer (~12,600 places), busywork with little bug-finding value in JS.
         "noImplicitAny": false,
 
-        // Catch real bugs without being pedantic
+        // Next planned step (flags possibly-null values used as objects).
         "strictNullChecks": false,
         "noUnusedLocals": false,
         "noUnusedParameters": false,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
 
         // Allow default imports from CommonJS modules (animejs, apexcharts, etc.)
         "allowSyntheticDefaultImports": true,

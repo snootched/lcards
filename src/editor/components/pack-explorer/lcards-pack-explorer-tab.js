@@ -37,6 +37,9 @@ export class LCARdSPackExplorerTab extends LitElement {
 
   constructor() {
     super();
+    // Reactive properties (declared in static properties); typed here for the checker.
+    /** @type {any} */
+    this.hass;
     this._selectedNode = null;
     this._expandedNodes = new Set();
     this._treeData = [];
@@ -450,7 +453,6 @@ export class LCARdSPackExplorerTab extends LitElement {
     super.updated(changedProps);
 
     // Rebuild tree data when hass changes
-    // @ts-ignore - TS2339: auto-suppressed
     if (changedProps.has('hass') && this.hass) {
       this._buildTreeData();
     }
@@ -1164,11 +1166,10 @@ export class LCARdSPackExplorerTab extends LitElement {
    * @private
    */
   _renderCardPreview(cacheKey, cardType, config, size) {
-    let card = this._cardPreviews.get(cacheKey);
+    let card = /** @type {LovelaceCardElement | undefined} */ (this._cardPreviews.get(cacheKey));
     if (!card) {
-      card = document.createElement(cardType);
+      card = /** @type {LovelaceCardElement} */ (document.createElement(cardType));
       try {
-        // @ts-ignore - card API
         card.setConfig({ type: `custom:${cardType}`, ...config });
       } catch (err) {
         lcardsLog.error('[PackExplorer] Failed to set config on preview card:', err);
@@ -1176,7 +1177,6 @@ export class LCARdSPackExplorerTab extends LitElement {
       }
       this._cardPreviews.set(cacheKey, card);
     }
-    // @ts-ignore - card API
     card.hass = this.hass;
     return html`
       <div class="preset-preview-container">

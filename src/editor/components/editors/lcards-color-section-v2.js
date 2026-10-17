@@ -609,7 +609,7 @@ export class LCARdSColorSectionV2 extends LitElement {
 
     /**
      * Handle custom state input change
-     * @param {Event} e - input event
+     * @param {CustomEvent} e - input event
      * @private
      */
     _handleCustomStateInput(e) {
@@ -670,7 +670,7 @@ export class LCARdSColorSectionV2 extends LitElement {
 
     /**
      * Handle range min/threshold input
-     * @param {Event} e
+     * @param {CustomEvent} e
      * @private
      */
     _handleRangeMinChange(e) {
@@ -680,7 +680,7 @@ export class LCARdSColorSectionV2 extends LitElement {
 
     /**
      * Handle range max input (between only)
-     * @param {Event} e
+     * @param {CustomEvent} e
      * @private
      */
     _handleRangeMaxChange(e) {
@@ -901,9 +901,7 @@ export class LCARdSColorSectionV2 extends LitElement {
     async _showDialog(title, message, type = 'info') {
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.headerTitle = title;
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.open = true;
 
             const content = document.createElement('div');
@@ -915,8 +913,7 @@ export class LCARdSColorSectionV2 extends LitElement {
             closeButton.slot = 'footer';
             closeButton.textContent = 'OK';
             closeButton.addEventListener('click', () => {
-                // @ts-ignore - TS2551: auto-suppressed
-                dialog.close();
+                dialog.open = false; // ha-dialog has no close(); the 'closed' listener removes it
                 resolve();
             });
 
@@ -940,9 +937,7 @@ export class LCARdSColorSectionV2 extends LitElement {
     async _showConfirmDialog(title, message) {
         return new Promise((resolve) => {
             const dialog = document.createElement('ha-dialog');
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.headerTitle = title;
-            // @ts-ignore - TS2339: auto-suppressed
             dialog.open = true;
 
             const content = document.createElement('div');
@@ -956,7 +951,6 @@ export class LCARdSColorSectionV2 extends LitElement {
             cancelButton.textContent = 'Cancel';
             cancelButton.setAttribute('appearance', 'plain');
             cancelButton.addEventListener('click', () => {
-                // @ts-ignore - TS2339: auto-suppressed
                 dialog.open = false;
                 resolve(false);
             });
@@ -966,7 +960,6 @@ export class LCARdSColorSectionV2 extends LitElement {
             confirmButton.textContent = 'Delete';
             confirmButton.setAttribute('variant', 'danger');
             confirmButton.addEventListener('click', () => {
-                // @ts-ignore - TS2339: auto-suppressed
                 dialog.open = false;
                 resolve(true);
             });

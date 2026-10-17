@@ -48,7 +48,7 @@ If the value names something from a registry (a preset, animation or background 
 ## 7. Check
 
 1. `npm run build` (strict doc examples incl. registry names, schema descriptions, CSS vars, HA compat, the bundle).
-2. `npm test`; `npm run typecheck:check`; `npm run test:browser` if rendering changed.
+2. `npm test`; `npm run typecheck` (zero errors); `npm run test:browser` if rendering changed.
 3. `npm run validate:config -- <a yaml using the key>`: no errors.
 4. `npm run docs:build` when docs changed (links, anchors); `npm run test:docs` for `yaml live` examples.
 5. If you filled description gaps, tighten the baseline: `npm run validate:schema-descriptions:update`.

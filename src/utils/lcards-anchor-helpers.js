@@ -138,6 +138,11 @@ export function getSvgContent(base_svg) {
   return registry.get(svgKey);
 }
 
+/**
+ * Read an SVG's viewBox attribute (fallback [0, 0, 400, 200]).
+ * @param {string} svgContent
+ * @returns {[number, number, number, number]}
+ */
 export function getSvgViewBox(svgContent) {
   const match = svgContent && svgContent.match(/viewBox="([0-9.\-]+)\s+([0-9.\-]+)\s+([0-9.\-]+)\s+([0-9.\-]+)"/);
   if (match) {

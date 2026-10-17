@@ -34,7 +34,6 @@ export class HATemplateEvaluator extends TemplateEvaluator {
    * // Conditional logic
    * await evaluate('{{states("light.living") == "on" ? "Active" : "Off"}}')
    */
-  // @ts-ignore - override with narrower signature than base TemplateEvaluator
   async evaluate(content) {
     if (!content || typeof content !== 'string') {
       return content;

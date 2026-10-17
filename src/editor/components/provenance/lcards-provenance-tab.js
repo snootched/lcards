@@ -500,7 +500,6 @@ export class LCARdSProvenanceTab extends LitElement {
      */
     async _loadProvenance() {
         try {
-            // @ts-ignore - window.lcards
             const card = this.config ? window.lcards?.findCardByConfig?.(this.config) : null;
             this._setCard(card && typeof card.getProvenance === 'function' ? card : null);
         } catch (error) {

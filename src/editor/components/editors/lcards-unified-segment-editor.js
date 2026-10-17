@@ -194,7 +194,6 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
     _deleteSegment(segmentId) {
         const newSegments = { ...this.segments };
         delete newSegments[segmentId];
-        // @ts-ignore - TS2339: auto-suppressed
         this.editor._setConfigValue(`${this._getBasePrefix()}.segments`, newSegments);
     }
 
@@ -212,7 +211,6 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
         if (segmentId) {
             const basePath = `svg.segments.${segmentId.trim()}`;
             // Create empty segment config to make it appear
-            // @ts-ignore - TS2339: auto-suppressed
             this.editor._setConfigValue(`${basePath}.tap_action`, { action: 'none' });
         }
     }
@@ -325,7 +323,6 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                         .animations=${defaultConfig.animations || []}
                         .cardElement=${this.editor._cardElement}
                         @animations-changed=${(e) => {
-                            // @ts-ignore - TS2339: auto-suppressed
                             this.editor._setConfigValue(`${basePath}.animations`, e.detail.value);
                         }}>
                     </lcards-animation-editor>
@@ -360,15 +357,12 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
         // Update each action
         ['tap_action', 'hold_action', 'double_tap_action'].forEach(key => {
             if (actions[key]?.action !== 'none') {
-                // @ts-ignore - TS2339: auto-suppressed
                 this.editor._setConfigValue(`${basePath}.${key}`, actions[key]);
             } else {
                 // Remove action if set to 'none'
-                // @ts-ignore - TS2339: auto-suppressed
                 const currentConfig = this.editor._getConfigValue(basePath) || {};
                 const updatedConfig = { ...currentConfig };
                 delete updatedConfig[key];
-                // @ts-ignore - TS2339: auto-suppressed
                 this.editor._setConfigValue(basePath, updatedConfig);
             }
         });
@@ -499,15 +493,12 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
         // Update each action
         ['tap_action', 'hold_action', 'double_tap_action'].forEach(key => {
             if (actions[key]?.action !== 'none') {
-                // @ts-ignore - TS2339: auto-suppressed
                 this.editor._setConfigValue(`${basePath}.${key}`, actions[key]);
             } else {
                 // Remove action if set to 'none'
-                // @ts-ignore - TS2339: auto-suppressed
                 const currentConfig = this.editor._getConfigValue(basePath) || {};
                 const updatedConfig = { ...currentConfig };
                 delete updatedConfig[key];
-                // @ts-ignore - TS2339: auto-suppressed
                 this.editor._setConfigValue(basePath, updatedConfig);
             }
         });
@@ -526,7 +517,6 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
 
         // Check if this card has component-level animations (system animations).
         // When it does, alert the user so they understand the context.
-        // @ts-ignore - TS2339: auto-suppressed
         const hasComponentAnimations = (this.editor._cardElement?._componentAnimations?.length ?? 0) > 0;
 
         return html`
@@ -554,7 +544,6 @@ export class LCARdSUnifiedSegmentEditor extends LitElement {
                     .animations=${animations}
                     .cardElement=${this.editor._cardElement}
                     @animations-changed=${(e) => {
-                        // @ts-ignore - TS2339: auto-suppressed
                         this.editor._setConfigValue(`${basePath}.animations`, e.detail.value);
                     }}>
                 </lcards-animation-editor>
