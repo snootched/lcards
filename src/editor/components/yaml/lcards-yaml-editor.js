@@ -783,6 +783,31 @@ export class LCARdSYamlEditor extends LitElement {
                 ".cm-scroller": {
                     overflow: "auto",
                     maxHeight: "600px"
+                },
+                // Search / go-to-line panels: CodeMirror draws their fields and buttons
+                // at 70% (labels 80%) of the editor font, far smaller than the rest of
+                // the editor UI. Full size, with room to click.
+                ".cm-panels": {
+                    fontSize: "14px"
+                },
+                ".cm-panels .cm-textfield, .cm-panels .cm-button, .cm-panels label": {
+                    fontSize: "14px"
+                },
+                ".cm-panels .cm-textfield": {
+                    padding: "4px 8px"
+                },
+                ".cm-panels .cm-button": {
+                    padding: "4px 12px"
+                },
+                ".cm-panel.cm-search": {
+                    padding: "6px 28px 8px 8px"
+                },
+                ".cm-panel.cm-search input, .cm-panel.cm-search button, .cm-panel.cm-search label": {
+                    fontSize: "14px"
+                },
+                ".cm-panel.cm-search [name=close]": {
+                    fontSize: "20px",
+                    top: "4px"
                 }
             }),
 

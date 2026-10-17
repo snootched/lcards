@@ -63,3 +63,26 @@ test('maximize fills the window from inside a transformed container', async ({ p
     expect(sizes.code).toBeGreaterThan(800);
     expect(sizes.restored).toBe(500); // back inside its container
 });
+
+// CodeMirror draws its search panel's fields and buttons at 70% (labels 80%) of the
+// editor font; ours are full size, matching the code.
+test('the search panel (Ctrl+F) uses the editor font size', async ({ page }) => {
+    await mountCase(page, 'button-lozenge');
+    await page.evaluate(async (yaml) => {
+        await customElements.get('lcards-button').getConfigElement();
+        await customElements.whenDefined('lcards-yaml-editor');
+        const editor = document.createElement('lcards-yaml-editor');
+        editor.id = 'yaml-under-test';
+        editor.value = yaml;
+        document.body.appendChild(editor);
+        await new Promise(r => setTimeout(r, 800));
+    }, YAML);
+    await page.locator('#yaml-under-test .cm-content').click();
+    await page.keyboard.press('Control+f');
+    const sizes = await page.locator('#yaml-under-test').evaluate((el) => {
+        const panel = el.shadowRoot.querySelector('.cm-search');
+        const size = (sel) => getComputedStyle(panel.querySelector(sel)).fontSize;
+        return { field: size('.cm-textfield'), button: size('.cm-button'), label: size('label') };
+    });
+    expect(sizes).toEqual({ field: '14px', button: '14px', label: '14px' });
+});
