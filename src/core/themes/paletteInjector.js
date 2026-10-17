@@ -113,7 +113,7 @@ export const GREEN_ALERT_PALETTE = {
  * all --lcards-* variables are available before any components render.
  *
  * @param {Object} [palette=GREEN_ALERT_PALETTE] - Palette to inject (defaults to green_alert)
- * @param {Element} [rootElement=document.documentElement] - Element to inject variables on
+ * @param {Element|null} [rootElement=document.documentElement] - Element to inject variables on
  */
 export function injectPalette(palette = GREEN_ALERT_PALETTE, rootElement = null) {
   if (typeof document === 'undefined') {
@@ -154,7 +154,7 @@ export function getPaletteColor(key, palette = GREEN_ALERT_PALETTE) {
  * Get CSS variable reference for palette color
  *
  * @param {string} key - Palette key (e.g., 'orange-medium')
- * @param {string} [fallback] - Optional fallback color
+ * @param {string|null} [fallback] - Optional fallback color
  * @returns {string} CSS var() expression
  *
  * @example
@@ -172,7 +172,7 @@ export function getPaletteCSSVar(key, fallback = null) {
 /**
  * Check if palette has been injected
  *
- * @param {Element} [rootElement=document.documentElement] - Element to check
+ * @param {Element|null} [rootElement=document.documentElement] - Element to check
  * @returns {boolean} True if palette variables are present
  */
 export function isPaletteInjected(rootElement = null) {
@@ -281,7 +281,7 @@ function baselineColor(value, element) {
  * Capture and store original --lcars-* color values from current theme
  * Should be called after theme is loaded to capture baseline colors
  *
- * @param {Element} root - Root element
+ * @param {Element|null} root - Root element
  * @returns {Object} Map of --lcars-* variable names to color values
  */
 export function captureOriginalColors(root = null) {
@@ -342,7 +342,7 @@ export function captureOriginalColors(root = null) {
  *
  * @param {string} mode - Alert mode ('green_alert', 'red_alert', etc.)
  * @param {Object} hass - Home Assistant instance (required for theme reload)
- * @param {Element} [rootElement] - Target element (default: document.documentElement)
+ * @param {Element|null} [rootElement] - Target element (default: document.documentElement)
  * @param {Object} [opts]
  * @param {string} [opts.transitionStyle='off'] - Transition effect
  * @param {Function|null} [opts.onApplied] - Called (and awaited) as soon as the palette

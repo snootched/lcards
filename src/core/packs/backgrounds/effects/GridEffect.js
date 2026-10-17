@@ -115,10 +115,11 @@ export class GridEffect extends BaseEffect {
     this.scrollSpeedY = config.scrollSpeedY ?? config.scroll_speed_y ?? 20;
 
     // Computed properties (will be set during first draw)
-    this._rowHeight = null;
-    this._colWidth = null;
-    this._totalRows = null;
-    this._totalCols = null;
+    // Set by _computeGridDimensions(); 0 until then (every use treats 0 like the old null)
+    this._rowHeight = 0;
+    this._colWidth = 0;
+    this._totalRows = 0;
+    this._totalCols = 0;
 
     // Track total scroll distance (never wraps) for infinite grid positioning
     this._totalScrollX = 0;

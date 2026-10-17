@@ -2066,7 +2066,7 @@ export class LCARdSElbow extends LCARdSButton {
     /**
      * Get the background color for the elbow (or a specific segment)
      * Uses state-aware color resolution with rule patch support
-     * @param {string} [segmentType] - Optional segment type ('outer' or 'inner' for segmented mode)
+     * @param {string|null} [segmentType] - Optional segment type ('outer' or 'inner' for segmented mode)
      * @param {Object} [segmentConfig] - Optional segment configuration object
      * @returns {string} CSS background color
      * @private

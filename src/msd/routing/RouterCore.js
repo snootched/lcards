@@ -1406,7 +1406,7 @@ export class RouterCore {
     // against a coordinate-identical neighbor below — an index-based
     // mapping to req.waypoints would silently misalign the moment either
     // happens.
-    const entries = [{ pt: [x1, y1], radius: null }];
+    const entries = [{ pt: [x1, y1], radius: /** @type {any} */ (null) }];
 
     // Add all waypoints (support both coordinate arrays and named anchors)
     for (const wp of waypoints) {
@@ -3571,10 +3571,10 @@ export class RouterCore {
    * whenever the member set shifts.
    * @param {string} lineId
    * @param {number[][]} pts
-   * @param {number[]} [rawA] - the line's true, un-stubbed start anchor
+   * @param {number[]|null} [rawA] - the line's true, un-stubbed start anchor
    *   (req.a) — used only to derive each trunk contribution's natural
    *   side (see _mergeOrRegisterTrunk), never for span/geometry.
-   * @param {number[]} [rawB] - the line's true, un-stubbed end/attach
+   * @param {number[]|null} [rawB] - the line's true, un-stubbed end/attach
    *   point (req.b), same purpose as rawA.
    * @param {Array<{index:number,radius:number}>|null} [cornerRadii] - this
    *   line's own resolved corner radii, straight from
@@ -6092,7 +6092,7 @@ export class RouterCore {
    * same-axis reversal, off-viewBox — all hard rejects, never "just cost
    * more").
    * @param {number[][]} pts
-   * @param {(i: number, j: number) => boolean} [isExempt] - when provided,
+   * @param {((i: number, j: number) => boolean)|null} [isExempt] - when provided,
    *   a would-be crossing between segment `i` (pts[i-1]->pts[i]) and
    *   segment `j` (pts[j-1]->pts[j]) is tolerated (not reported) if this
    *   returns true — used by _computeCorridorRouted to scope its force-
@@ -6394,7 +6394,7 @@ export class RouterCore {
    * visible to the cost-comparison decision in computePath.
    * @param {Array} pts - Route points
    * @param {Array} chans - Normalized channel/trunk objects to measure against
-   * @param {string} [routeId] - for debug logging only
+   * @param {string|null} [routeId] - for debug logging only
    * @returns {object} Channel delta with coverage stats
    * @private
    */
@@ -7015,7 +7015,7 @@ export class RouterCore {
    * precisely the cases corner-room refinement exists to fix.
    * @param {number[][]} pts
    * @param {number} radiusGlobal - target corner radius (viewBox units)
-   * @param {string} routeId - this line's own id (excluded from neighbor
+   * @param {string|null} routeId - this line's own id (excluded from neighbor
    *   clearance checks); when falsy, neighbor clearance is skipped
    *   regardless of `skipNeighborClearance` (mirrors the original inline
    *   `routeId` truthiness check)

@@ -386,7 +386,7 @@ export class LCARdSHelperManager extends BaseService {
       existing: 0,
       created: 0,
       failed: 0,
-      errors: []
+      errors: /** @type {any[]} */ ([])
     };
 
     const allHelpers = getAllHelpers();
@@ -662,7 +662,7 @@ export class LCARdSHelperManager extends BaseService {
   /**
    * Generate YAML configuration for helpers
    *
-   * @param {string} [category=null] - Optional category filter
+   * @param {string|null} [category=null] - Optional category filter
    * @returns {string} YAML configuration
    */
   generateYAML(category = null) {

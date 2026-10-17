@@ -125,7 +125,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
         label: sourceName,
         icon: 'mdi:database',
         data: dataSource,
-        children: []
+        children: /** @type {any[]} */ ([])
       };
 
       // Add entity node
@@ -148,7 +148,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
           label: `Processors (${dataSource.processorManager.processors.size})`,
           icon: 'mdi:cog-outline',
           data: Array.from(dataSource.processorManager.processors.entries()),
-          children: []
+          children: /** @type {any[]} */ ([])
         };
 
         let idx = 0;
@@ -159,7 +159,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
             label: `${key} (${processor.config.type})`,
             icon: 'mdi:function-variant',
             data: { key, processor, type: processor.config.type },
-            children: []
+            children: /** @type {any[]} */ ([])
           });
           idx++;
         });
@@ -174,7 +174,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
         label: 'Buffers',
         icon: 'mdi:database-outline',
         data: {},
-        children: []
+        children: /** @type {any[]} */ ([])
       };
 
       // Main buffer
@@ -185,7 +185,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
           label: `Main Buffer (${dataSource.buffer.size()} values)`,
           icon: 'mdi:database-outline',
           data: { buffer: dataSource.buffer, bufferType: 'main' },
-          children: []
+          children: /** @type {any[]} */ ([])
         });
       }
 
@@ -198,7 +198,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
             label: `${key} Buffer (${buffer.size()} values)`,
             icon: 'mdi:database-outline',
             data: { buffer, bufferType: key },
-            children: []
+            children: /** @type {any[]} */ ([])
           });
         });
       }

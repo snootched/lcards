@@ -276,7 +276,7 @@ export class CoreValidationService {
 
     const result = {
       valid: true,
-      errors: [],
+      errors: /** @type {any[]} */ ([]),
       warnings: [],
       data,
       schema: typeof schema === 'string' ? schema : 'inline'

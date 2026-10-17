@@ -440,7 +440,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         };
         this._shapeFormActiveSubtab = 'geometry';
         this._drawShapeState = {
-            kind: null,
+            kind: /** @type {any} */ (null),
             points: [],
             drawing: false,
             currentPoint: null
@@ -457,19 +457,19 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._selectedShapeIds = new Set();
         this._shapeDragState = {
             active: false,
-            shapeId: null,
-            startPos: null,
-            originalPos: null,
+            shapeId: /** @type {any} */ (null),
+            startPos: /** @type {any} */ (null),
+            originalPos: /** @type {any} */ (null),
             offsetX: 0,
             offsetY: 0
         };
         this._shapeResizeState = {
             active: false,
-            shapeId: null,
-            handle: null,
-            startPos: null,
-            startSize: null,
-            startPosition: null
+            shapeId: /** @type {any} */ (null),
+            handle: /** @type {any} */ (null),
+            startPos: /** @type {any} */ (null),
+            startSize: /** @type {any} */ (null),
+            startPosition: /** @type {any} */ (null)
         };
         this._shapeVertexDragState = null; // { shapeId, vertexIndex, startX, startY } while dragging
 
@@ -502,9 +502,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Drag State
         this._dragState = {
             active: false,
-            controlId: null,
-            startPos: null,
-            originalPos: null,
+            controlId: /** @type {any} */ (null),
+            startPos: /** @type {any} */ (null),
+            originalPos: /** @type {any} */ (null),
             offsetX: 0,
             offsetY: 0
         };
@@ -512,44 +512,44 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Resize State
         this._resizeState = {
             active: false,
-            controlId: null,
-            handle: null,  // 'tl', 't', 'tr', 'r', 'br', 'b', 'bl', 'l'
-            startPos: null,
-            startSize: null,
-            startPosition: null
+            controlId: /** @type {any} */ (null),
+            handle: /** @type {any} */ (null),  // 'tl', 't', 'tr', 'r', 'br', 'b', 'bl', 'l'
+            startPos: /** @type {any} */ (null),
+            startSize: /** @type {any} */ (null),
+            startPosition: /** @type {any} */ (null)
         };
 
         // Anchor Drag State
         this._anchorDragState = {
             active: false,
-            anchorName: null,
-            startPos: null,
-            originalPos: null
+            anchorName: /** @type {any} */ (null),
+            startPos: /** @type {any} */ (null),
+            originalPos: /** @type {any} */ (null)
         };
 
         // Channel Resize State
         this._channelResizeState = {
             active: false,
-            channelId: null,
-            handle: null,  // 'tl', 't', 'tr', 'r', 'br', 'b', 'bl', 'l'
-            startPos: null,
-            startBounds: null
+            channelId: /** @type {any} */ (null),
+            handle: /** @type {any} */ (null),  // 'tl', 't', 'tr', 'r', 'br', 'b', 'bl', 'l'
+            startPos: /** @type {any} */ (null),
+            startBounds: /** @type {any} */ (null)
         };
 
         // Channel Drag (move) State — mirrors _dragState (controls)
         this._channelDragState = {
             active: false,
-            channelId: null,
-            startPos: null,
-            startBounds: null
+            channelId: /** @type {any} */ (null),
+            startPos: /** @type {any} */ (null),
+            startBounds: /** @type {any} */ (null)
         };
 
         // Line Endpoint Drag State (TEST - for debugging)
         this._lineEndpointDragState = {
             active: false,
-            lineId: null,
-            endpoint: null,
-            startPos: null,
+            lineId: /** @type {any} */ (null),
+            endpoint: /** @type {any} */ (null),
+            startPos: /** @type {any} */ (null),
             originalTarget: null
         };
 
@@ -1107,12 +1107,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
             this._channelDrawDragCandidate = null;
         }
         if (this._activeMode !== MODES.CONNECT_LINE) {
-            this._connectLineState = { source: null, tempLineElement: null };
+            this._connectLineState = { source: /** @type {any} */ (null), tempLineElement: null };
         }
         // Leaving PLACE_CONTROL abandons any in-progress draw (mirrors
         // DRAW_CHANNEL) — the control is only created once the form is saved.
         if (this._activeMode !== MODES.PLACE_CONTROL) {
-            this._placeControlDrawState = { startPoint: null, currentPoint: null, drawing: false };
+            this._placeControlDrawState = { startPoint: /** @type {any} */ (null), currentPoint: null, drawing: false };
             this._controlDrawDragCandidate = null;
         }
         // Leaving DRAW_SHAPE abandons any in-progress points (same cancel-on-exit
@@ -1120,7 +1120,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // saved, so nothing is lost by discarding an unfinished draw.
         if (this._activeMode !== MODES.DRAW_SHAPE) {
             this._drawShapeState = {
-                kind: null,
+                kind: /** @type {any} */ (null),
                 points: [],
                 drawing: false,
                 currentPoint: null
@@ -1515,7 +1515,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                             if (this._drawShapeState.kind === btn.kind) {
                                                 // Same kind clicked again: toggle off (mirrors _setMode's own toggle-off + reset)
                                                 this._activeMode = MODES.VIEW;
-                                                this._drawShapeState = { kind: null, points: [], drawing: false, currentPoint: null };
+                                                this._drawShapeState = { kind: /** @type {any} */ (null), points: [], drawing: false, currentPoint: null };
                                             } else {
                                                 // Different kind: switch within DRAW_SHAPE, discard in-progress points
                                                 this._drawShapeState = { kind: btn.kind, points: [], drawing: false, currentPoint: null };
@@ -3919,9 +3919,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         this._dragState = {
             active: false,
-            controlId: null,
-            startPos: null,
-            originalPos: null,
+            controlId: /** @type {any} */ (null),
+            startPos: /** @type {any} */ (null),
+            originalPos: /** @type {any} */ (null),
             offsetX: 0,
             offsetY: 0
         };
@@ -4314,10 +4314,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._resizeState = {
             active: false,
             controlId: null,
-            handle: null,
-            startPos: null,
-            startSize: null,
-            startPosition: null
+            handle: /** @type {any} */ (null),
+            startPos: /** @type {any} */ (null),
+            startSize: /** @type {any} */ (null),
+            startPosition: /** @type {any} */ (null)
         };
 
         if (this._boundResizeMouseMove) {
@@ -4427,7 +4427,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (previewPanel) previewPanel.classList.remove('dragging');
 
         this._shapeDragState = {
-            active: false, shapeId: null, startPos: null, originalPos: null, offsetX: 0, offsetY: 0
+            active: false, shapeId: /** @type {any} */ (null), startPos: /** @type {any} */ (null), originalPos: /** @type {any} */ (null), offsetX: 0, offsetY: 0
         };
 
         if (this._boundShapeDragMouseMove) {
@@ -4600,7 +4600,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         lcardsLog.debug('[MSDStudio] Shape resize end:', this._shapeResizeState.shapeId);
 
         this._shapeResizeState = {
-            active: false, shapeId: null, handle: null, startPos: null, startSize: null, startPosition: null
+            active: false, shapeId: null, handle: /** @type {any} */ (null), startPos: /** @type {any} */ (null), startSize: null, startPosition: null
         };
 
         if (this._boundShapeResizeMouseMove) {
@@ -4860,7 +4860,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._anchorDragState = {
             active: false,
             anchorName: null,
-            startPos: null,
+            startPos: /** @type {any} */ (null),
             originalPos: null
         };
 
@@ -5032,9 +5032,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         this._channelDragState = {
             active: false,
-            channelId: null,
-            startPos: null,
-            startBounds: null
+            channelId: /** @type {any} */ (null),
+            startPos: /** @type {any} */ (null),
+            startBounds: /** @type {any} */ (null)
         };
 
         if (this._boundChannelDragMouseMove) {
@@ -5214,7 +5214,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             active: false,
             channelId: null,
             handle: null,
-            startPos: null,
+            startPos: /** @type {any} */ (null),
             startBounds: null
         };
 

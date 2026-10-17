@@ -1057,7 +1057,7 @@ export class ApexChartsAdapter {
     };
 
     const annotations = {
-      yaxis: [],
+      yaxis: /** @type {any[]} */ ([]),
       xaxis: [],
       points: []
     };

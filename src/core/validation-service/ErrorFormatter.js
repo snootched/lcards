@@ -316,7 +316,7 @@ export class ErrorFormatter {
    *
    * @param {string} type - Error type
    * @param {string} message - Message template
-   * @param {string} [suggestion] - Suggestion template
+   * @param {string|null} [suggestion] - Suggestion template
    */
   addTemplate(type, message, suggestion = null) {
     this.templates.set(type, message);

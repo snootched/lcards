@@ -89,7 +89,7 @@ async function processSinglePass(layers) {
       overlays: {},
       rules: {},
       animations: {},
-      merge_order: [],
+      merge_order: /** @type {any[]} */ ([]),
       // ✅ NEW: Theme provenance tracking
       theme: {
         active_theme: null,
@@ -126,8 +126,8 @@ async function processSinglePass(layers) {
 
   // Track pack loading
   const packInfo = {
-    builtin: [],
-    external: [],
+    builtin: /** @type {any[]} */ ([]),
+    external: /** @type {any[]} */ ([]),
     failed: []
   };
 

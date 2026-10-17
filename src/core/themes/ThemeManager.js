@@ -111,7 +111,7 @@ export class ThemeManager extends BaseService {
    *
    * @param {Array<Object>} packs - Loaded pack objects
    * @param {string} [requestedThemeId='lcards-default'] - Theme ID to activate
-   * @param {Element} [rootElement=null] - Root element for CSS variables
+   * @param {Element|null} [rootElement=null] - Root element for CSS variables
    * @returns {Promise<void>}
    */
   async initialize(packs, requestedThemeId = 'lcards-default', rootElement = null) {
@@ -156,7 +156,7 @@ export class ThemeManager extends BaseService {
    * Activate a specific theme
    *
    * @param {string} themeId - Theme ID to activate
-   * @param {Element} [rootElement=null] - Root element for CSS variables
+   * @param {Element|null} [rootElement=null] - Root element for CSS variables
    * @returns {Promise<void>}
    * @throws {Error} If theme not found or has no tokens
    */

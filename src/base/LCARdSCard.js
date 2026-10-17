@@ -1070,7 +1070,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * 2. Store size in this._containerSize = { width, height }
      * 3. Use the size values in their rendering logic
      *
-     * @param {Function} onResize - Optional callback: (width, height) => void
+     * @param {Function|null} onResize - Optional callback: (width, height) => void
      * @protected
      *
      * @example
@@ -1853,7 +1853,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * Supports both direct matching and mapped states
      *
      * @param {string} entityState - Raw entity state (on/off/playing/etc)
-     * @param {string} domain - Entity domain (light/media_player/etc) - optional
+     * @param {string|null} domain - Entity domain (light/media_player/etc) - optional
      * @returns {string} Mapped state (active/inactive/unavailable/unknown/custom)
      *
      * @example
@@ -2856,7 +2856,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      *
      * @param {string} tokenPath - Dot-notation path (e.g., 'colors.accent.primary')
      * @param {*} fallback - Fallback value if token not found
-     * @param {string|string[]} usedByField - Field(s) using this token (for provenance)
+     * @param {string|string[]|null} usedByField - Field(s) using this token (for provenance)
      * @returns {*} Token value or fallback
      */
     getThemeToken(tokenPath, fallback = null, usedByField = null) {
@@ -3048,7 +3048,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * _resolveColorValue(), which returns concrete colours.
      *
      * @param {Object|string} colorConfig - Color config (state object or plain string)
-     * @param {string} fallback - Fallback color if not resolved
+     * @param {string|null} fallback - Fallback color if not resolved
      * @returns {string|number|null} Resolved color value
      * @protected
      *
@@ -3518,7 +3518,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * Uses CoreSystemsManager for cached entity access when available,
      * falls back to direct HASS access for backwards compatibility.
      *
-     * @param {string} entityId - Entity ID (optional, defaults to card's entity)
+     * @param {string|null} entityId - Entity ID (optional, defaults to card's entity)
      * @returns {Object|null} Entity state or null
      */
     getEntityState(entityId = null) {
@@ -4035,7 +4035,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      * resolved settings originated from (defaults, presets, user overrides,
      * rules, theme tokens, etc.)
      *
-     * @param {string} [path] - Optional path to specific provenance data
+     * @param {string|null} [path] - Optional path to specific provenance data
      * @returns {any} Provenance data (full or at path)
      *
      * @example
@@ -4342,7 +4342,7 @@ export class LCARdSCard extends LCARdSNativeCard {
      *
      * This should be called after the SVG is rendered into the DOM.
      *
-     * @param {Element} [svgElement] - Optional SVG element to parse (defaults to this._componentSvg)
+     * @param {Element|null} [svgElement] - Optional SVG element to parse (defaults to this._componentSvg)
      * @protected
      *
      * @example

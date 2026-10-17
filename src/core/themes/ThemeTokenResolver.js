@@ -25,7 +25,7 @@ export class ThemeTokenResolver {
    * Create token resolver
    *
    * @param {Object} tokens - Theme token object
-   * @param {Element} [rootElement=null] - Root element for CSS variable access
+   * @param {Element|null} [rootElement=null] - Root element for CSS variable access
    */
   constructor(tokens, rootElement = null) {
     this.tokens = tokens || {};
@@ -638,7 +638,7 @@ export let themeTokenResolver = null;
  * Initialize global token resolver
  *
  * @param {Object} tokens - Theme tokens
- * @param {Element} [rootElement=null] - Root element for CSS variables
+ * @param {Element|null} [rootElement=null] - Root element for CSS variables
  */
 export function initializeTokenResolver(tokens, rootElement = null) {
   themeTokenResolver = new ThemeTokenResolver(tokens, rootElement);

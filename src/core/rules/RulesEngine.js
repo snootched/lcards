@@ -544,8 +544,8 @@ export class RulesEngine extends BaseService {
    *
    * @param {Object} rule - Rule to evaluate
    * @param {Function} getEntity - Function to get entity state
-   * @param {Array} contextOverlays - Overlays available during evaluation (for initial render)
-   * @param {string} boundEntity - Entity ID bound to the card (for JavaScript context)
+   * @param {Array|null} contextOverlays - Overlays available during evaluation (for initial render)
+   * @param {string|null} boundEntity - Entity ID bound to the card (for JavaScript context)
    * @returns {Promise<Object>} Evaluation result
    */
   async evaluateRule(rule, getEntity, contextOverlays = null, boundEntity = null) {  // ✨ CHANGED: Accept boundEntity
@@ -1049,7 +1049,7 @@ export class RulesEngine extends BaseService {
 
     const aggregated = {
       overlayPatches: [],
-      animations: [],
+      animations: /** @type {any[]} */ ([]),
       baseSvgUpdate: null  // ✅ NEW: Aggregate base_svg updates
     };
 

@@ -439,7 +439,7 @@ export class AdvancedRenderer {
    * @param {Object} overlay - Overlay configuration
    * @param {Object} anchors - Available anchors
    * @param {Element} container - Container element for measurements
-   * @param {Array} viewBox - ViewBox dimensions for proper scaling
+   * @param {Array|null} viewBox - ViewBox dimensions for proper scaling
    * @returns {Object|null} Attachment points object or null if not computable
    */
   computeAttachmentPointsForType(overlay, anchors, container, viewBox = null) {

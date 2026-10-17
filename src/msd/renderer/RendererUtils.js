@@ -71,7 +71,7 @@ export class RendererUtils {
    * @param {string} text - Text to measure
    * @param {string} font - CSS font string (e.g., "bold 16px Arial")
    * @param {boolean} useCache - Whether to use cached measurements
-   * @param {Element} containerElement - SVG container for coordinate transformation
+   * @param {Element|null} containerElement - SVG container for coordinate transformation
    * @returns {{width: number, height: number, ascent: number, descent: number}}
    */
   static measureText(text, font = "16px Arial", useCache = true, containerElement = null) {
@@ -159,7 +159,7 @@ export class RendererUtils {
    * @param {string} font - CSS font string
    * @param {number} lineHeight - Line height multiplier (default 1.2)
    * @param {boolean} useCache - Whether to use cached measurements
-   * @param {Element} containerElement - SVG container for coordinate transformation
+   * @param {Element|null} containerElement - SVG container for coordinate transformation
    * @returns {{width: number, height: number, lines: Array, lineMetrics: Array, _transformApplied: boolean, _adjustedFontSize: number}}
    */
   static measureMultilineText(text, font = "16px Arial", lineHeight = 1.2, useCache = true, containerElement = null) {
@@ -207,7 +207,7 @@ export class RendererUtils {
    * @param {string} font - CSS font string
    * @param {string} textAnchor - SVG text-anchor value ('start', 'middle', 'end')
    * @param {string} dominantBaseline - SVG dominant-baseline value
-   * @param {Element} containerElement - SVG container for coordinate transformation
+   * @param {Element|null} containerElement - SVG container for coordinate transformation
    * @returns {{left: number, right: number, top: number, bottom: number, width: number, height: number, centerX: number, centerY: number}}
    */
   static getTextBoundingBox(text, x, y, font = "16px Arial", textAnchor = 'start', dominantBaseline = 'auto', containerElement = null) {
@@ -253,7 +253,7 @@ export class RendererUtils {
    * @param {string} font - CSS font string
    * @param {string} textAnchor - SVG text-anchor value
    * @param {string} dominantBaseline - SVG dominant-baseline value
-   * @param {Element} containerElement - SVG container for coordinate transformation
+   * @param {Element|null} containerElement - SVG container for coordinate transformation
    * @returns {Object} Object with attachment points (top, bottom, left, right, etc.)
    */
   static getTextAttachmentPoints(text, x, y, font = "16px Arial", textAnchor = 'start', dominantBaseline = 'auto', containerElement = null) {

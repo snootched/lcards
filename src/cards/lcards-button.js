@@ -1370,7 +1370,7 @@ export class LCARdSButton extends LCARdSCard {
      * Stop segment animation via AnimationManager
      * @private
      * @param {string} segmentId - Segment identifier
-     * @param {string} [trigger] - Optional trigger to stop (stops all if not specified)
+     * @param {string|null} [trigger] - Optional trigger to stop (stops all if not specified)
      */
     _stopSegmentAnimation(segmentId, trigger = null) {
         const animationManager = this._singletons?.animationManager;
@@ -1628,8 +1628,8 @@ export class LCARdSButton extends LCARdSCard {
      *
      * @private
      * @param {Object} style - Style configuration object
-     * @param {string} interactionState - Interaction state (hover, pressed, or null)
-     * @param {string} entityState - Entity state (on, off, playing, etc. or null)
+     * @param {string|null} interactionState - Interaction state (hover, pressed, or null)
+     * @param {string|null} entityState - Entity state (on, off, playing, etc. or null)
      * @returns {Object} Resolved style object with concrete values
      *
      * @example

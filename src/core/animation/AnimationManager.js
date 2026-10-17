@@ -689,7 +689,7 @@ export class AnimationManager extends BaseService {
    * Used primarily to stop looping hover animations when pointer leaves
    *
    * @param {string} overlayId - Overlay identifier
-   * @param {string} [trigger] - Optional trigger type to stop (stops all if not specified)
+   * @param {string|null} [trigger] - Optional trigger type to stop (stops all if not specified)
    */
   stopAnimations(overlayId, trigger = null) {
     const resolved = this._resolveScopeFromOverlay(overlayId);
@@ -1733,7 +1733,7 @@ export class AnimationManager extends BaseService {
    *
    * @param {string} cardId - Card identifier
    * @param {string} segmentId - Segment identifier
-   * @param {string} [trigger] - Optional trigger type to stop (stops all if not specified)
+   * @param {string|null} [trigger] - Optional trigger type to stop (stops all if not specified)
    */
   stopSegmentAnimations(cardId, segmentId, trigger = null) {
     const scopeKey = `${cardId}:segment:${segmentId}`;

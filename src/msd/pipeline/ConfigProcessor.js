@@ -18,7 +18,7 @@ import { getSvgViewBox, resolveEffectiveViewBox } from '../../utils/lcards-ancho
  * Handles anchor extraction, viewBox resolution, and complete config building.
  *
  * @param {Object} userMsdConfig - User MSD configuration
- * @param {string} svgContent - SVG content string (for anchor extraction)
+ * @param {string|null} svgContent - SVG content string (for anchor extraction)
  * @returns {Promise<Object>} { mergedConfig, issues, provenance }
  */
 export async function processAndValidateConfig(userMsdConfig, svgContent = null) {

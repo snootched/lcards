@@ -493,7 +493,7 @@ export class LCARdSPackExplorerTab extends LitElement {
           label: `Themes (${pack.themeCount})`,
           icon: 'mdi:palette',
           data: { category: 'themes', packId: pack.id },
-          children: []
+          children: /** @type {any[]} */ ([])
         };
 
         // Add individual themes
@@ -532,7 +532,7 @@ export class LCARdSPackExplorerTab extends LitElement {
               label: `${type} (${presets.length})`,
               icon: 'mdi:tune-variant',
               data: { presetType: type, packId: pack.id },
-              children: []
+              children: /** @type {any[]} */ ([])
             };
 
             presets.forEach(preset => {
@@ -561,7 +561,7 @@ export class LCARdSPackExplorerTab extends LitElement {
           label: `Components (${componentsForPack.length})`,
           icon: 'mdi:puzzle',
           data: { category: 'components', packId: pack.id },
-          children: []
+          children: /** @type {any[]} */ ([])
         };
 
         componentsForPack.forEach(comp => {
@@ -605,7 +605,7 @@ export class LCARdSPackExplorerTab extends LitElement {
           label: `Animations (${animsForPack.length})`,
           icon: 'mdi:animation-play',
           data: { category: 'animations', packId: pack.id },
-          children: []
+          children: /** @type {any[]} */ ([])
         };
 
         animsForPack.forEach(anim => {
@@ -630,7 +630,7 @@ export class LCARdSPackExplorerTab extends LitElement {
           label: `SVG Assets (${svgAssets.length})`,
           icon: 'mdi:image-outline',
           data: { category: 'svg_assets', packId: pack.id },
-          children: []
+          children: /** @type {any[]} */ ([])
         };
 
         svgAssets.forEach(asset => {
@@ -655,7 +655,7 @@ export class LCARdSPackExplorerTab extends LitElement {
           label: `Font Assets (${fontAssets.length})`,
           icon: 'mdi:format-font',
           data: { category: 'font_assets', packId: pack.id },
-          children: []
+          children: /** @type {any[]} */ ([])
         };
 
         fontAssets.forEach(asset => {
@@ -680,7 +680,7 @@ export class LCARdSPackExplorerTab extends LitElement {
           label: `Audio Assets (${audioAssets.length})`,
           icon: 'mdi:volume-high',
           data: { category: 'audio_assets', packId: pack.id },
-          children: []
+          children: /** @type {any[]} */ ([])
         };
 
         audioAssets.forEach(asset => {
@@ -705,7 +705,7 @@ export class LCARdSPackExplorerTab extends LitElement {
           label: `Images (${imageAssets.length})`,
           icon: 'mdi:image-outline',
           data: { category: 'image_assets', packId: pack.id },
-          children: []
+          children: /** @type {any[]} */ ([])
         };
 
         imageAssets.forEach(asset => {
@@ -730,7 +730,7 @@ export class LCARdSPackExplorerTab extends LitElement {
           label: `Texture Presets (${textureEntries.length})`,
           icon: 'mdi:texture-box',
           data: { category: 'texture_presets', packId: pack.id },
-          children: []
+          children: /** @type {any[]} */ ([])
         };
 
         textureEntries.forEach(([key, preset]) => {

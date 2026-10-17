@@ -76,7 +76,7 @@ export class DataSourceManager extends BaseService {
    * Create or retrieve a datasource and track card usage
    * @param {string} name - Datasource identifier
    * @param {Object} config - Datasource configuration
-   * @param {string} [cardId] - Card identifier (e.g., this._cardGuid from LCARdSCard)
+   * @param {string|null} [cardId] - Card identifier (e.g., this._cardGuid from LCARdSCard)
    * @param {boolean} [autoCreated=false] - Whether auto-created vs. explicitly configured
    * @returns {Promise<DataSource>}
    */
@@ -519,7 +519,7 @@ export class DataSourceManager extends BaseService {
     const debugInfo = {
       sources: this.sources.size,
       entityIndex: this.entityIndex.size,
-      enhanced_sources: [],
+      enhanced_sources: /** @type {any[]} */ ([]),
       dot_notation_test: {}
     };
 

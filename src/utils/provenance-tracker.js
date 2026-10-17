@@ -42,8 +42,8 @@ export class ProvenanceTracker {
       config: {
         merge_order: [],           // Layer precedence
         field_sources: {},         // Field → layer mapping
-        card_type: null,
-        timestamp: null
+        card_type: /** @type {any} */ (null),
+        timestamp: /** @type {any} */ (null)
       },
 
       // Theme token resolution chains
@@ -285,7 +285,7 @@ export class ProvenanceTracker {
    * The config section includes both a flat field_sources map and a
    * hierarchical tree view for easier navigation.
    *
-   * @param {string} [path] - Optional path to specific provenance data
+   * @param {string|null} [path] - Optional path to specific provenance data
    * @returns {any} Provenance data (full or at path)
    *
    * @example

@@ -1228,7 +1228,7 @@ export function getAllHelpers() {
 /**
  * Generate YAML configuration for helpers
  *
- * @param {string} [category=null] - Optional category filter
+ * @param {string|null} [category=null] - Optional category filter
  * @returns {string} YAML configuration string
  *
  * @example

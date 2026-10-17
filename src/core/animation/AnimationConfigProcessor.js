@@ -28,7 +28,7 @@ export function processAnimationConfig(mergedConfig) {
     customPresets: {},
     overlayAnimations: new Map(), // overlayId -> animations[]
     timelines: {},
-    issues: [] // Validation issues
+    issues: /** @type {any[]} */ ([]) // Validation issues
   };
 
   try {

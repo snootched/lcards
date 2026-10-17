@@ -86,7 +86,7 @@ export class ScopedSettingsService extends BaseService {
      * @param {string}   key            - Setting key (see ScopedSettingsConstants.js)
      * @param {string[]} [scopes]       - Ordered list of scopes to check.
      *                                   Valid values: ``'device'``, ``'user'``, ``'global'``
-     * @param {Function} [globalFallback] - Optional sync/async function called when
+     * @param {Function|null} [globalFallback] - Optional sync/async function called when
      *                                   all scopes return null.
      * @returns {Promise<any>} Resolved value, or null if nothing found.
      */
@@ -172,7 +172,7 @@ export class ScopedSettingsService extends BaseService {
      * ("From: Global", "User override", etc.).
      *
      * @param {string}   key            - Setting key.
-     * @param {Function} [globalFallback] - Fallback for global miss.
+     * @param {Function|null} [globalFallback] - Fallback for global miss.
      * @returns {Promise<{device: any, user: any, global: any, resolved: any}>}
      */
     async readAllScopes(key, globalFallback = null, opts = {}) {

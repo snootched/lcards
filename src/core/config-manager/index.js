@@ -602,7 +602,7 @@ export class CoreConfigManager {
   _createProvenance(behavioral, theme, preset, component, user, cardType) {
     const provenance = {
       card_type: cardType,
-      merge_order: [],
+      merge_order: /** @type {any[]} */ ([]),
       field_sources: {},
       timestamp: Date.now()
     };
