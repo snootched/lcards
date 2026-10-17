@@ -86,3 +86,33 @@ test('the search panel (Ctrl+F) uses the editor font size', async ({ page }) => 
     });
     expect(sizes).toEqual({ field: '14px', button: '14px', label: '14px' });
 });
+
+// The "Options here" panel opens in every editor (discoverability). Hiding it used to be
+// remembered for all editors in localStorage; it is now per editor, and the old
+// setting is cleared.
+test('the options panel shows in every editor, even after it was hidden before', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('lcards-yaml-options-panel', '0'));
+    await mountCase(page, 'button-lozenge');
+    const state = await page.evaluate(async () => {
+        await customElements.get('lcards-button').getConfigElement();
+        await customElements.whenDefined('lcards-yaml-editor');
+        const schema = { type: 'object', properties: { name: { type: 'string', description: 'A name' } } };
+        const make = async () => {
+            const editor = document.createElement('lcards-yaml-editor');
+            editor.schema = schema;
+            editor.value = 'name: x\n';
+            document.body.appendChild(editor);
+            await new Promise(r => setTimeout(r, 600));
+            return editor;
+        };
+        const panel = (e) => !!e.shadowRoot.querySelector('lcards-yaml-options-panel');
+        const first = await make();
+        const shownFirst = panel(first);
+        first._toggleOptions();
+        await first.updateComplete;
+        const hiddenAfterToggle = !panel(first);
+        const second = await make();
+        return { shownFirst, hiddenAfterToggle, shownSecond: panel(second), stored: localStorage.getItem('lcards-yaml-options-panel') };
+    });
+    expect(state).toEqual({ shownFirst: true, hiddenAfterToggle: true, shownSecond: true, stored: null });
+});

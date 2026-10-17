@@ -40,7 +40,10 @@ import { panelAt, insertLinesFor, quoteIfNeeded } from '../../utils/yaml-options
 import { lenientParse } from '../../utils/yaml-schema-path.js';
 import './lcards-yaml-options-panel.js';
 
-const OPTIONS_PANEL_KEY = 'lcards-yaml-options-panel';
+// Hiding the "Options here" panel used to be remembered for every editor; it is now
+// per editor (each one opens with the panel showing, for discoverability). Clear the
+// old setting once so users who hid it see it again.
+try { localStorage.removeItem('lcards-yaml-options-panel'); } catch { /* storage blocked */ }
 
 export class LCARdSYamlEditor extends LitElement {
 
@@ -74,10 +77,7 @@ export class LCARdSYamlEditor extends LitElement {
         this.cardType = '';
         this._panel = null;
         this._panelTimer = null;
-        this._showOptions = true;
-        try {
-            this._showOptions = localStorage.getItem(OPTIONS_PANEL_KEY) !== '0';
-        } catch { /* storage blocked: keep default */ }
+        this._showOptions = true; // every editor opens with the options panel showing
     }
 
     static get styles() {
@@ -963,10 +963,7 @@ export class LCARdSYamlEditor extends LitElement {
 
     /** @private */
     _toggleOptions() {
-        this._showOptions = !this._showOptions;
-        try {
-            localStorage.setItem(OPTIONS_PANEL_KEY, this._showOptions ? '1' : '0');
-        } catch { /* storage blocked: session-only */ }
+        this._showOptions = !this._showOptions; // this editor only, not remembered
         if (this._showOptions) this._updatePanel();
     }
 
