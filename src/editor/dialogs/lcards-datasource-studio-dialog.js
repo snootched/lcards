@@ -95,6 +95,7 @@ export class LCARdSDataSourceStudioDialog extends LitElement {
                 /* Config | preview, as in the chart studio */
                 .studio-layout {
                     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                    grid-template-rows: minmax(0, 1fr); /* one row at every width (see studio-dialog-styles.js) */
                 }
 
                 .validation-errors {

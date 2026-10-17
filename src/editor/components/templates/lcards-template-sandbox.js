@@ -108,6 +108,7 @@ export class LCARdSTemplateSandbox extends LitElement {
         return [studioDialogStyles, messageStyles, css`
             .studio-layout {
                 grid-template-columns: minmax(320px, 1fr) minmax(300px, 1fr);
+                grid-template-rows: minmax(0, 1fr); /* one row at every width (see studio-dialog-styles.js) */
             }
 
             .tab-content {

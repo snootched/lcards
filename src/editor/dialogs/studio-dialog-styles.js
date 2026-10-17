@@ -297,7 +297,9 @@ export const studioDialogStyles = css`
         max-width: 500px;
     }
 
-    /* Responsive */
+    /* Responsive: the default 50/50 layout stacks. A studio that sets its own
+       grid-template-columns must set grid-template-rows too, or it keeps these
+       two rows beside its two columns (tests/editor/studio-layout-css.test.js). */
     @media (max-width: 1024px) {
         .studio-layout {
             grid-template-columns: 1fr;

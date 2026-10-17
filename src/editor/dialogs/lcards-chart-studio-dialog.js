@@ -234,6 +234,7 @@ export class LCARdSChartStudioDialog extends LitElement {
             /* Override studio layout for 40/60 split (more preview space for charts) */
             .studio-layout {
                 grid-template-columns: 40% 60%;
+                grid-template-rows: minmax(0, 1fr); /* one row at every width (see studio-dialog-styles.js) */
                 gap: 24px;
             }
 

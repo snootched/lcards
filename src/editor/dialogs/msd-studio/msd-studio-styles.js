@@ -201,6 +201,9 @@ export const msdStudioStyles = css`
        (shared studioDialogStyles defaults to 50/50) */
     .studio-layout {
         grid-template-columns: 33.3% 66.6%;
+        /* Set rows too: the shared sheet's <=1024px rule stacks into 1fr 1fr rows,
+           which with these two columns left an empty half-height second row. */
+        grid-template-rows: minmax(0, 1fr);
     }
 
     /* .preview-panel override - MSD needs plain overflow:hidden because

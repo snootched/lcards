@@ -173,6 +173,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
             .studio-layout {
                 grid-template-columns: minmax(280px, 38%) 1fr;
+                grid-template-rows: minmax(0, 1fr); /* one row at every width (see studio-dialog-styles.js) */
             }
 
             .left-head {
