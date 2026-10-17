@@ -36,7 +36,7 @@ const STORAGE_GROUPS = [
  * @param {string[]} keys
  */
 export function groupStorageKeys(keys) {
-  const settings = { id: 'settings', label: 'Settings', icon: 'mdi:database-cog', description: 'LCARdS-wide data. Use with care: deleting keys may reset service configuration.', keys: [] };
+  const settings = { id: 'settings', label: 'Settings', icon: 'mdi:database-cog', description: 'LCARdS-wide data. Use with care: deleting keys may reset service configuration.', keys: /** @type {string[]} */ ([]) };
   const others = STORAGE_GROUPS.map(g => ({ ...g, keys: /** @type {any[]} */ ([]) }));
   for (const key of keys) {
     const group = others.find(g => key.startsWith(g.prefix));

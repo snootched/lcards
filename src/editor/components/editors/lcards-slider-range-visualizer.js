@@ -501,12 +501,12 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
         if (!handle) return;
 
         const bar = handle.closest('.range-bar');
+        // Use the stored buffer range from drag start
+        const buffer = this._dragBufferRange;
+        if (!bar || !buffer) return;
         const rect = bar.getBoundingClientRect();
 
         const percent = ((event.clientX - rect.left) / rect.width) * 100;
-
-        // Use the stored buffer range from drag start
-        const buffer = this._dragBufferRange;
         const value = Math.round(buffer.min + (percent / 100) * buffer.range);
 
         const updates = {};

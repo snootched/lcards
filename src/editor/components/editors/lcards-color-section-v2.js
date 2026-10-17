@@ -914,7 +914,7 @@ export class LCARdSColorSectionV2 extends LitElement {
             closeButton.textContent = 'OK';
             closeButton.addEventListener('click', () => {
                 dialog.open = false; // ha-dialog has no close(); the 'closed' listener removes it
-                resolve();
+                resolve(undefined);
             });
 
             dialog.appendChild(closeButton);

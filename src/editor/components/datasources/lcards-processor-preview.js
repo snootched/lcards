@@ -209,13 +209,13 @@ export class LCARdSProcessorPreview extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    clearTimeout(this._timer);
+    clearTimeout(this._timer ?? undefined);
     this._chart?.destroy();
     this._chart = null;
   }
 
   _schedule() {
-    clearTimeout(this._timer);
+    clearTimeout(this._timer ?? undefined);
     this._timer = setTimeout(() => this._refresh(), 300);
   }
 

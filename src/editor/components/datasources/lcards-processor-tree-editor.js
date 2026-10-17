@@ -251,11 +251,13 @@ export class LCARdSProcessorTreeEditor extends LitElement {
   /** Processors under their input (input_source), numbered in execution order. */
   _renderTree(processing, order) {
     const keys = Object.keys(processing);
+    /** @type {Map<string, string[]>} */
     const children = new Map(keys.map(k => [k, []]));
     const roots = [];
     for (const key of keys) {
       const parent = processing[key]?.input_source;
-      if (parent && children.has(parent) && parent !== key) children.get(parent).push(key);
+      const siblings = parent && parent !== key ? children.get(parent) : undefined;
+      if (siblings) siblings.push(key);
       else roots.push(key);
     }
     const seen = new Set();
@@ -264,7 +266,7 @@ export class LCARdSProcessorTreeEditor extends LitElement {
       if (seen.has(key)) return; // cycles are reported above
       seen.add(key);
       rows.push({ key, depth });
-      for (const child of children.get(key)) walk(child, depth + 1);
+      for (const child of children.get(key) ?? []) walk(child, depth + 1);
     };
     roots.forEach(k => walk(k, 0));
     keys.filter(k => !seen.has(k)).forEach(k => walk(k, 0));

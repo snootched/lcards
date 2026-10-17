@@ -482,7 +482,7 @@ export class LCARdSPackExplorerTab extends LitElement {
         label: pack.id,
         icon: 'mdi:package-variant',
         data: pack,
-        children: []
+        children: /** @type {any[]} */ ([])
       };
 
       // Add themes category
@@ -519,7 +519,7 @@ export class LCARdSPackExplorerTab extends LitElement {
           label: `Presets (${pack.presetCount})`,
           icon: 'mdi:tune-variant',
           data: { category: 'presets', packId: pack.id },
-          children: []
+          children: /** @type {any[]} */ ([])
         };
 
         // Get presets grouped by type

@@ -1357,8 +1357,8 @@ export class LCARdSFilterEditor extends LitElement {
      */
     _handleDragStart(e, index) {
         this._draggedIndex = index;
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', String(index));
+        if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer?.setData('text/plain', String(index));
         this.requestUpdate();
     }
 
@@ -1370,7 +1370,7 @@ export class LCARdSFilterEditor extends LitElement {
     _handleDragEnd(e) {
         this._draggedIndex = null;
         // Remove drag-over class from all items
-        this.shadowRoot.querySelectorAll('.filter-item').forEach(item => {
+        this.shadowRoot?.querySelectorAll('.filter-item').forEach(item => {
             item.classList.remove('drag-over');
         });
         this.requestUpdate();
@@ -1384,14 +1384,14 @@ export class LCARdSFilterEditor extends LitElement {
      */
     _handleDragOver(e, index) {
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
 
         if (this._draggedIndex === null || this._draggedIndex === index) {
             return;
         }
 
         // Add drag-over visual indicator
-        const items = this.shadowRoot.querySelectorAll('.filter-item');
+        const items = this.shadowRoot?.querySelectorAll('.filter-item') ?? [];
         items.forEach(item => item.classList.remove('drag-over'));
         items[index]?.classList.add('drag-over');
     }
@@ -1437,7 +1437,7 @@ export class LCARdSFilterEditor extends LitElement {
         this._draggedIndex = null;
 
         // Remove drag-over class
-        this.shadowRoot.querySelectorAll('.filter-item').forEach(item => {
+        this.shadowRoot?.querySelectorAll('.filter-item').forEach(item => {
             item.classList.remove('drag-over');
         });
 

@@ -201,8 +201,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             this._symbioCardEditorDialogRef.remove();
             this._symbioCardEditorDialogRef = null;
         }
-        clearTimeout(this._yamlDebounceTimer);
-        clearTimeout(this._cssDebounceTimer);
+        clearTimeout(this._yamlDebounceTimer ?? undefined);
+        clearTimeout(this._cssDebounceTimer ?? undefined);
     }
 
     static get styles() {
@@ -1949,7 +1949,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                                 mode="yaml"
                                 @value-changed=${(e) => {
                                     const raw = e.detail.value;
-                                    clearTimeout(this._yamlDebounceTimer);
+                                    clearTimeout(this._yamlDebounceTimer ?? undefined);
                                     this._yamlDebounceTimer = setTimeout(() => {
                                         try {
                                             const parsed = yamlToConfig(raw);
@@ -2232,7 +2232,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                             .value=${symbiont.custom_style || ''}
                             @value-changed=${(e) => {
                                 const raw = e.detail.value;
-                                clearTimeout(this._cssDebounceTimer);
+                                clearTimeout(this._cssDebounceTimer ?? undefined);
                                 this._cssDebounceTimer = setTimeout(() => {
                                     this._setConfigValue('symbiont.custom_style', raw || undefined);
                                 }, 750);

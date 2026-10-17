@@ -119,7 +119,7 @@ export class LCARdSTemplateEditor extends LitElement {
             return { from, options: found.options, validFor: /^[\w.]*$/ };
         };
         this._view = new EditorView({
-            parent: this.renderRoot.querySelector('.mount'),
+            parent: this.renderRoot.querySelector('.mount') ?? undefined,
             state: EditorState.create({
                 doc: this.value ?? '',
                 extensions: [
@@ -154,13 +154,13 @@ export class LCARdSTemplateEditor extends LitElement {
 
     disconnectedCallback() {
         super.disconnectedCallback();
-        clearTimeout(this._timer);
+        clearTimeout(this._timer ?? undefined);
         this._view?.destroy();
         this._view = null;
     }
 
     _schedule() {
-        clearTimeout(this._timer);
+        clearTimeout(this._timer ?? undefined);
         this._timer = setTimeout(() => this._emit(), 300);
     }
 
@@ -174,7 +174,7 @@ export class LCARdSTemplateEditor extends LitElement {
     /** Send a change still waiting for the typing pause, now. */
     flush() {
         if (!this._timer) return;
-        clearTimeout(this._timer);
+        clearTimeout(this._timer ?? undefined);
         this._emit();
     }
 

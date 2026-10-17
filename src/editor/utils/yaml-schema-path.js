@@ -329,7 +329,7 @@ export function lenientParse(text, offset, parse) {
  * @returns {{ key: string, from: number, to: number }|null}
  */
 export function keySpanAt(lineText) {
-  const lead = lineText.match(/^[ ]*(?:-\s+)*/)[0].length;
+  const lead = /** @type {RegExpMatchArray} always matches (all parts optional) */ (lineText.match(/^[ ]*(?:-\s+)*/))[0].length;
   const m = KEY_RE.exec(lineText.slice(lead));
   if (!m) return null;
   const raw = m[1];

@@ -20,8 +20,8 @@
         // infer (~12,600 places), busywork with little bug-finding value in JS.
         "noImplicitAny": false,
 
-        // Next planned step (flags possibly-null values used as objects).
-        "strictNullChecks": false,
+        // Flags values that may be null/undefined where an object is used.
+        "strictNullChecks": true,
         "noUnusedLocals": false,
         "noUnusedParameters": false,
         "noImplicitReturns": true,

@@ -781,7 +781,7 @@ export class LCARdSYamlEditor extends LitElement {
 
     disconnectedCallback() {
         super.disconnectedCallback();
-        clearTimeout(this._panelTimer);
+        clearTimeout(this._panelTimer ?? undefined);
         if (this._editorView) {
             this._editorView.destroy();
             this._editorView = null;
@@ -962,11 +962,12 @@ export class LCARdSYamlEditor extends LitElement {
      * @private
      */
     _onEditorChange() {
+        if (!this._editorView) return; // only called from the view's own update listener
         const newValue = this._editorView.state.doc.toString();
 
         // Debounce the value-changed event to prevent mid-typing updates
         if (this._changeDebounceTimer) {
-            clearTimeout(this._changeDebounceTimer);
+            clearTimeout(this._changeDebounceTimer ?? undefined);
         }
 
         this._changeDebounceTimer = setTimeout(() => this._emitChange(), 1500); // Wait 1.5 seconds after last keystroke before notifying parent
@@ -990,7 +991,7 @@ export class LCARdSYamlEditor extends LitElement {
      */
     flush() {
         if (!this._changeDebounceTimer) return;
-        clearTimeout(this._changeDebounceTimer);
+        clearTimeout(this._changeDebounceTimer ?? undefined);
         this._emitChange();
     }
 
@@ -1000,7 +1001,7 @@ export class LCARdSYamlEditor extends LitElement {
      */
     _schedulePanel() {
         if (!this._showOptions || !this.schema) return;
-        clearTimeout(this._panelTimer);
+        clearTimeout(this._panelTimer ?? undefined);
         this._panelTimer = setTimeout(() => this._updatePanel(), 100);
     }
 

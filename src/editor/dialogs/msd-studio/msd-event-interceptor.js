@@ -21,9 +21,10 @@ export class MSDEventInterceptor {
         this._boundCardPickerHandler = null;
         this._boundDialogClosedHandler = null;
         this._boundElementEditorHandler = null;
+        /** @type {{active: boolean, timestamp: number, savedState: any}} */
         this._elementEditSession = {
             active: false,
-            timestamp: null,
+            timestamp: 0, // never; arithmetic treats it exactly like the old null
             savedState: null
         };
         this._lastElementEditorLogTime = 0;

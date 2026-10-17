@@ -776,7 +776,7 @@ export class LCARdSIconSection extends LitElement {
             closeButton.textContent = 'OK';
             closeButton.addEventListener('click', () => {
                 dialog.open = false;
-                resolve();
+                resolve(undefined);
             });
 
             dialog.appendChild(closeButton);

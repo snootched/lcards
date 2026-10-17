@@ -340,11 +340,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
         this._editingControlId = null;
         // Draw-on-canvas state for Place Control (2-click bbox, or
         // click-drag, mirroring _drawChannelState/_channelDrawDragCandidate)
+        /** @type {{startPoint: number[]|null, currentPoint: number[]|null, drawing: boolean}} */
         this._placeControlDrawState = {
             startPoint: null,
             currentPoint: null,
             drawing: false
         };
+        /** @type {any} pending mousedown-drag candidate */
         this._controlDrawDragCandidate = null;
         this._controlFormId = '';
         this._controlFormPosition = [0, 0];
@@ -395,12 +397,13 @@ export class LCARdSMSDStudioDialog extends LitElement {
             }
         };
         this._lineFormActiveSubtab = 'basic';
-        this._connectLineState = { source: null, tempLineElement: null };
+        this._connectLineState = { source: /** @type {any} */ (null), tempLineElement: null };
         this._selectedLineIds = new Set();
 
         // Bulk Style Edit — shared by Shapes and Lines tabs, only one bulk edit
         // (or single edit) dialog can be open at a time
         this._bulkEditKind = null;
+        /** @type {string[]|null} */
         this._bulkEditTargetIds = null;
         this._bulkEditSnapshot = null;
 
@@ -439,6 +442,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             }
         };
         this._shapeFormActiveSubtab = 'geometry';
+        /** @type {{kind: any, points: number[][], drawing: boolean, currentPoint: number[]|null}} */
         this._drawShapeState = {
             kind: /** @type {any} */ (null),
             points: [],
@@ -449,6 +453,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // separate from _drawShapeState so a plain click-then-click still
         // behaves exactly as before if no drag ever happens (see
         // _handlePreviewMouseDown/_handlePreviewMouseMove/_handleDragEnd).
+        /** @type {any} */
         this._shapeDrawDragCandidate = null;
         this._shieldBubbleState = this._defaultShieldBubbleState();
 
@@ -611,13 +616,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Load card picker asynchronously with delay
         // Delay allows HA to register hui-*-card elements first
         setTimeout(async () => {
+            const picker = this._cardPickerManager;
+            if (!picker) return; // studio closed before the delay ran
             try {
-                await this._cardPickerManager.ensureComponentsLoaded();
+                await picker.ensureComponentsLoaded();
             } catch (error) {
                 lcardsLog.debug('[MSDStudio] Warning: Could not load card picker components');
             }
 
-            if (this._cardPickerManager.isLoaded()) {
+            if (picker.isLoaded()) {
                 lcardsLog.debug('[MSDStudio] ✅ Card picker loaded successfully');
                 this.requestUpdate();
             } else {
@@ -670,7 +677,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     disconnectedCallback() {
         super.disconnectedCallback();
         if (this._previewUpdateTimer) {
-            clearTimeout(this._previewUpdateTimer);
+            clearTimeout(this._previewUpdateTimer ?? undefined);
         }
         if (this._previewReadyRafHandle) {
             cancelAnimationFrame(this._previewReadyRafHandle);
@@ -1099,7 +1106,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Clear any ongoing drawing/placement state
         if (this._activeMode !== MODES.DRAW_CHANNEL) {
             this._drawChannelState = {
-                startPoint: null,
+                startPoint: /** @type {any} */ (null),
                 currentPoint: null,
                 drawing: false,
                 tempRectElement: null
@@ -1205,7 +1212,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _schedulePreviewUpdate() {
         if (this._previewUpdateTimer) {
-            clearTimeout(this._previewUpdateTimer);
+            clearTimeout(this._previewUpdateTimer ?? undefined);
         }
 
         this._previewUpdateTimer = setTimeout(() => {
@@ -1778,10 +1785,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
             svgKey = source.replace('builtin:', '');
             isBuiltin = true;
         } else if (source.startsWith('/local/') || source.startsWith('/hacsfiles/') || source.startsWith('/lcards/')) {
-            svgKey = source.split('/').pop().replace('.svg', '');
+            svgKey = /** @type {string} */ (source.split('/').pop()).replace('.svg', '');
             isExternal = true;
         } else if (source.startsWith('http://') || source.startsWith('https://')) {
-            svgKey = source.split('/').pop().replace('.svg', '');
+            svgKey = /** @type {string} */ (source.split('/').pop()).replace('.svg', '');
             isExternal = true;
         } else if (source.startsWith('media-source://')) {
             // Registered/cached under the content ID itself, not a derived
@@ -2749,7 +2756,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _getBaseSvgAnchors() {
-        return getBaseSvgAnchors(this._workingConfig, this.shadowRoot);
+        return getBaseSvgAnchors(this._workingConfig, this._root);
     }
 
     /**
@@ -3177,7 +3184,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Cancel pending single-click timer
         if (this._lineClickTimer) {
-            clearTimeout(this._lineClickTimer);
+            clearTimeout(this._lineClickTimer ?? undefined);
             this._lineClickTimer = null;
         }
 
@@ -3230,7 +3237,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Cancel pending single-click timer for shapes
         if (this._shapeClickTimer) {
-            clearTimeout(this._shapeClickTimer);
+            clearTimeout(this._shapeClickTimer ?? undefined);
             this._shapeClickTimer = null;
         }
 
@@ -3301,7 +3308,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 if (lineId) {
                     // Use a delay to distinguish single-click from double-click
                     if (this._lineClickTimer) {
-                        clearTimeout(this._lineClickTimer);
+                        clearTimeout(this._lineClickTimer ?? undefined);
                         this._lineClickTimer = null;
                     }
 
@@ -3331,7 +3338,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 }
                 if (shapeId) {
                     if (this._shapeClickTimer) {
-                        clearTimeout(this._shapeClickTimer);
+                        clearTimeout(this._shapeClickTimer ?? undefined);
                         this._shapeClickTimer = null;
                     }
                     this._shapeClickTimer = setTimeout(() => {
@@ -3687,8 +3694,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * spot) falls back to the old fixed 100x100-centered-on-click behavior,
      * so simply clicking still works exactly as before for anyone who
      * doesn't want to bother drawing a size.
-     * @param {[number, number]} startPoint - First corner
-     * @param {[number, number]} endPoint - Opposite corner
+     * @param {number[]} startPoint - First corner [x, y]
+     * @param {number[]} endPoint - Opposite corner [x, y]
      * @private
      */
     _finishPlaceControl(startPoint, endPoint) {
@@ -3783,7 +3790,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Get current position
         // Get complete merged anchors from card's resolved model
-        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        const livePreview = this._root.querySelector('lcards-msd-live-preview');
         const livePreviewShadow = livePreview?.shadowRoot;
         const cardContainer = livePreviewShadow?.querySelector('.preview-card-container');
         const msdCard = cardContainer?.querySelector('lcards-msd-card');
@@ -3827,7 +3834,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         };
 
         // Add dragging class to preview panel
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this._root.querySelector('.preview-panel');
         if (previewPanel) {
             previewPanel.classList.add('dragging');
         }
@@ -3912,7 +3919,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         lcardsLog.debug('[MSDStudio] Drag end:', this._dragState.controlId);
 
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this._root.querySelector('.preview-panel');
         if (previewPanel) {
             previewPanel.classList.remove('dragging');
         }
@@ -4113,7 +4120,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Get current position and size
         // Get complete merged anchors from card's resolved model
-        const livePreview = this.shadowRoot.querySelector('lcards-msd-live-preview');
+        const livePreview = this._root.querySelector('lcards-msd-live-preview');
         const livePreviewShadow = livePreview?.shadowRoot;
         const cardContainer = livePreviewShadow?.querySelector('.preview-card-container');
         const msdCard = cardContainer?.querySelector('lcards-msd-card');
@@ -4372,7 +4379,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             offsetY: coords.y - currentPosition[1]
         };
 
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this._root.querySelector('.preview-panel');
         if (previewPanel) previewPanel.classList.add('dragging');
 
         // Self-contained document-level listeners — see _handleDragStart for why.
@@ -4423,7 +4430,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         lcardsLog.debug('[MSDStudio] Shape drag end:', this._shapeDragState.shapeId);
 
-        const previewPanel = this.shadowRoot.querySelector('.preview-panel');
+        const previewPanel = this._root.querySelector('.preview-panel');
         if (previewPanel) previewPanel.classList.remove('dragging');
 
         this._shapeDragState = {
@@ -5270,7 +5277,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _resolveControlPosition(control) {
-        return resolveControlPosition(control, this._workingConfig, this.shadowRoot);
+        return resolveControlPosition(control, this._workingConfig, this._root);
     }
 
     /**
@@ -5282,7 +5289,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @private
      */
     _resolvePositionWithSide(targetId, side) {
-        return resolvePositionWithSide(targetId, side, this._workingConfig, this.shadowRoot);
+        return resolvePositionWithSide(targetId, side, this._workingConfig, this._root);
     }
 
     /**
@@ -5623,7 +5630,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _getPreviewCoordinatesFromMouseEvent(event) {
         const zoomTransform = this._getZoomTransform();
-        return getPreviewCoordinatesFromMouseEvent(event, this.shadowRoot, this._workingConfig, zoomTransform);
+        return getPreviewCoordinatesFromMouseEvent(event, this._root, this._workingConfig, zoomTransform);
     }
 
     /**
@@ -5907,8 +5914,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * (viewBox-space) — shared by the click-click flow (_handleDrawShapeClick)
      * and the click-drag flow (_handleDragEnd/_handlePreviewMouseDown).
      * @param {string} kind - 'rect' or 'circle'
-     * @param {[number, number]} startPoint - First corner
-     * @param {[number, number]} endPoint - Opposite corner
+     * @param {number[]} startPoint - First corner [x, y]
+     * @param {number[]} endPoint - Opposite corner [x, y]
      * @private
      */
     _finishDrawShapeRect(kind, startPoint, endPoint) {
@@ -6142,7 +6149,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Clear any pending click timeout
         if (this._clickTimeout) {
-            clearTimeout(this._clickTimeout);
+            clearTimeout(this._clickTimeout ?? undefined);
             this._clickTimeout = null;
         }
 
@@ -6368,6 +6375,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
      * @returns {?{msdCard: import('../../cards/lcards-msd.js').LCARdSMSDCard, svg: SVGSVGElement, viewBoxX: number, viewBoxY: number, viewBoxWidth: number, viewBoxHeight: number}}
      * @private
      */
+    /**
+     * The shadow root, which exists once the dialog has rendered (every caller below
+     * runs from an event or a render, so after that).
+     * @returns {ShadowRoot}
+     */
+    get _root() {
+        return /** @type {ShadowRoot} */ (this.shadowRoot);
+    }
+
     _getPreviewSvgAndViewBox() {
         const livePreview = this.shadowRoot?.querySelector('lcards-msd-live-preview');
         if (!livePreview) return null;
@@ -8965,7 +8981,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Cancel any pending single-click waypoint creation
         if (this._clickTimeout) {
-            clearTimeout(this._clickTimeout);
+            clearTimeout(this._clickTimeout ?? undefined);
             this._clickTimeout = null;
         }
 
@@ -9634,7 +9650,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const vbToPixel = this._getViewBoxToPixelConverter();
         if (!vbToPixel) return '';
 
-        const [startPx, startPy] = vbToPixel(this._drawChannelState.startPoint[0], this._drawChannelState.startPoint[1]);
+        const start = this._drawChannelState.startPoint;
+        if (!start) return '';
+        const [startPx, startPy] = vbToPixel(start[0], start[1]);
         const [currentPx, currentPy] = vbToPixel(this._drawChannelState.currentPoint[0], this._drawChannelState.currentPoint[1]);
 
         const x = Math.min(startPx, currentPx);
@@ -9692,7 +9710,9 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const vbToPixel = this._getViewBoxToPixelConverter();
         if (!vbToPixel) return '';
 
-        const [startPx, startPy] = vbToPixel(this._placeControlDrawState.startPoint[0], this._placeControlDrawState.startPoint[1]);
+        const start = this._placeControlDrawState.startPoint;
+        if (!start) return '';
+        const [startPx, startPy] = vbToPixel(start[0], start[1]);
         const [currentPx, currentPy] = vbToPixel(this._placeControlDrawState.currentPoint[0], this._placeControlDrawState.currentPoint[1]);
 
         const x = Math.min(startPx, currentPx);
@@ -11152,6 +11172,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         try {
             const cardType = cardConfig.type;
             const normalizedType = normalizeHACardType(cardType);
+            if (!normalizedType) throw new Error(`No card type given (${cardType})`);
 
             lcardsLog.trace('[MSDStudio] Creating preview card in tab:', { cardType, normalizedType });
 
@@ -11965,6 +11986,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         try {
             const cardType = cardConfig.type;
             const normalizedType = normalizeHACardType(cardType);
+            if (!normalizedType) throw new Error(`No card type given (${cardType})`);
 
             lcardsLog.debug('[MSD Studio] Creating preview card:', { cardType, normalizedType });
 
@@ -11973,7 +11995,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             // Try to create the card element
             if (window.customElements && window.customElements.get(normalizedType)) {
-                const CardClass = window.customElements.get(normalizedType);
+                const CardClass = /** @type {CustomElementConstructor} */ (window.customElements.get(normalizedType));
                 cardElement = /** @type {LovelaceCardElement} */ (new CardClass());
                 lcardsLog.debug('[MSD Studio] Card created via customElements.get:', normalizedType);
             } else {
@@ -15858,7 +15880,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const isBulk = this._bulkEditKind === 'shape' && this._bulkEditTargetIds !== null;
         const isEditing = !!this._editingShapeId;
         const title = isBulk
-            ? `Bulk Edit Style: ${this._bulkEditTargetIds.length} shapes selected`
+            ? `Bulk Edit Style: ${this._bulkEditTargetIds?.length} shapes selected`
             : (isEditing ? `Edit Shape: ${this._shapeFormData.id}` : 'Add Shape');
 
         return html`
@@ -15873,7 +15895,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <div class="subform-config">
                         ${isBulk ? html`
                             <lcards-message type="info" style="margin-bottom: 12px;">
-                                Only fields you change below are applied; untouched fields are left as-is on each of the ${this._bulkEditTargetIds.length} selected shapes.
+                                Only fields you change below are applied; untouched fields are left as-is on each of the ${this._bulkEditTargetIds?.length} selected shapes.
                             </lcards-message>
                         ` : html`
                             <ha-tab-group @wa-tab-show=${this._handleShapeFormTabChange} class="subform-tabs">
@@ -15917,8 +15939,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
     _handleWaypointDragStart(e, index) {
         lcardsLog.trace('[MSDStudio] Waypoint drag start:', index);
         this._draggedWaypointIndex = index;
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', String(index));
+        if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer?.setData('text/plain', String(index));
         this.requestUpdate();
     }
 
@@ -15941,7 +15963,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
      */
     _handleWaypointDragOver(e, index) {
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
 
         if (this._draggedWaypointIndex === null || this._draggedWaypointIndex === index) {
             return;
@@ -15968,7 +15990,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
         // Reorder waypoints
         const waypoints = [...this._lineFormData.waypoints];
-        const [draggedItem] = waypoints.splice(dragIndex, 1);
+        const [draggedItem] = waypoints.splice(/** @type {number} */ (dragIndex), 1); // null returned above
         waypoints.splice(dropIndex, 0, draggedItem);
 
         this._lineFormData = {
@@ -16165,7 +16187,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const isBulk = this._bulkEditKind === 'line' && this._bulkEditTargetIds !== null;
         const isEditing = !!this._editingLineId;
         const title = isBulk
-            ? `Bulk Edit Style: ${this._bulkEditTargetIds.length} lines selected`
+            ? `Bulk Edit Style: ${this._bulkEditTargetIds?.length} lines selected`
             : (isEditing ? `Edit Line: ${this._lineFormData.id}` : 'Add Line');
 
         return html`
@@ -16183,7 +16205,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <div class="subform-config">
                         ${isBulk ? html`
                             <lcards-message type="info" style="margin-bottom: 12px;">
-                                Only fields you change below are applied; untouched fields are left as-is on each of the ${this._bulkEditTargetIds.length} selected lines.
+                                Only fields you change below are applied; untouched fields are left as-is on each of the ${this._bulkEditTargetIds?.length} selected lines.
                             </lcards-message>
                         ` : html`
                             <!-- Subtabs -->
@@ -18444,7 +18466,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             closeButton.textContent = 'OK';
             closeButton.addEventListener('click', () => {
                 dialog.open = false;
-                resolve();
+                resolve(undefined);
             });
 
             dialog.appendChild(closeButton);

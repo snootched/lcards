@@ -41,7 +41,7 @@ export class LCARdSAboutTab extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    clearTimeout(this._noticeTimer);
+    clearTimeout(this._noticeTimer ?? undefined);
   }
 
   updated(changed) {
@@ -70,7 +70,7 @@ export class LCARdSAboutTab extends LitElement {
 
   _flashNotice(text) {
     this._supportNotice = text;
-    clearTimeout(this._noticeTimer);
+    clearTimeout(this._noticeTimer ?? undefined);
     this._noticeTimer = setTimeout(() => { this._supportNotice = ''; }, 6000);
   }
 

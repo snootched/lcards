@@ -50,6 +50,7 @@ export const UNIT_GROUPS = [
 ];
 
 /** Select options for a unit picker ("Temperature: °C"), optionally limited to some unit codes. */
+/** @param {string[]|null} [only] - limit to these unit keys */
 export function unitOptions(only = null) {
   return UNIT_GROUPS.flatMap(g => g.units
     .filter(([value]) => !only || only.includes(value))

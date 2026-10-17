@@ -27,7 +27,7 @@ CI runs `npm run typecheck` on every push. There is no baseline: every error is 
 | `allowJs`, `checkJs`, `noEmit` | on | Check our JavaScript, write nothing. |
 | `noImplicitReturns` | on | A function that returns a value on some paths must return on all of them. |
 | `noFallthroughCasesInSwitch` | on | A `case` that falls into the next one is an error. |
-| `strictNullChecks` | off (for now) | Core code already passes it; it turns on once the editors do. Flags values that may be `null` or `undefined` where an object is used. |
+| `strictNullChecks` | on | Flags values that may be `null` or `undefined` where an object is used ("`el` is possibly null"). |
 | `noImplicitAny` | off, on purpose | It would demand a type on every parameter TypeScript can't infer (about 12,600 places). In a JavaScript codebase that's busywork with little bug-finding value. |
 
 ## Rules for New Code
@@ -83,7 +83,7 @@ A helper documented `@returns {TemplateResult}` that also returns `''` should sa
 
 ### A field that starts `null` and is filled in later
 
-Null checks (`strictNullChecks`, on for core code) need to know a field's real type. Pick the pattern that matches what the code does:
+Null checks (`strictNullChecks`) need to know a field's real type. Pick the pattern that matches what the code does:
 
 - **Can genuinely be `null` when used** (torn down, not set up yet): type it `X | null` and guard the use (`if (!this.x) return;` or `this.x?.method()`).
 - **Always set by a setup method before any use** (a canvas created in `_ensureBuffer()`, an RNG seeded in `_initRNG()`): declare the real type in the constructor and initialise with a cast, so every use stays unguarded:

@@ -284,7 +284,7 @@ export class LCARdSRulesDashboard extends LitElement {
 
     disconnectedCallback() {
         super.disconnectedCallback();
-        clearTimeout(this._refreshTimer);
+        clearTimeout(this._refreshTimer ?? undefined);
     }
 
     willUpdate() {
@@ -503,7 +503,7 @@ export class LCARdSRulesDashboard extends LitElement {
         fireEvent(this.editor, 'config-changed', { config: this.editor.config });
         this.requestUpdate();
         // Look again once the card has rendered the new config (a new rule registers then)
-        clearTimeout(this._refreshTimer);
+        clearTimeout(this._refreshTimer ?? undefined);
         this._refreshTimer = setTimeout(() => this.requestUpdate(), 1000);
     }
 

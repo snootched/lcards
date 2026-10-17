@@ -239,7 +239,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     disconnectedCallback() {
         super.disconnectedCallback();
-        clearTimeout(this._previewTimer);
+        clearTimeout(this._previewTimer ?? undefined);
     }
 
     /** @param {Map<string, unknown>} changed */
@@ -329,7 +329,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     /** Re-render and refresh the preview. @private */
     _changed() {
         this._workingConfig = { ...this._workingConfig };
-        clearTimeout(this._previewTimer);
+        clearTimeout(this._previewTimer ?? undefined);
         this._previewTimer = setTimeout(() => this._updatePreviewCard(), 300);
     }
 
@@ -848,6 +848,11 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
     }
 
     /** Number box bound to a config path. @private */
+    /**
+     * @param {string} path
+     * @param {string} label
+     * @param {{min?: number, max?: number, step?: number, unit?: string, fallback?: number|string}} [opts]
+     */
     _number(path, label, { min = 0, max = 1000, step = 1, unit = undefined, fallback = undefined } = {}) {
         return html`
             <ha-selector

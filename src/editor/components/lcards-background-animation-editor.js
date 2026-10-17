@@ -1877,24 +1877,24 @@ fill_pct: "[[[return entity.attributes.brightness / 2.55]]]"</pre>
 
   _handleDragStart(e, index) {
     this._draggedIndex = index;
-    e.dataTransfer.effectAllowed = 'move';
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/html', e.target.innerHTML);
   }
 
   _handleDragEnd(e) {
     this._draggedIndex = null;
     // Remove all drag-over classes
-    this.shadowRoot.querySelectorAll('.effect-item').forEach(item => {
+    this.shadowRoot?.querySelectorAll('.effect-item').forEach(item => {
       item.classList.remove('drag-over');
     });
   }
 
   _handleDragOver(e, index) {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
 
     // Add drag-over visual indicator
-    const items = this.shadowRoot.querySelectorAll('.effect-item');
+    const items = this.shadowRoot?.querySelectorAll('.effect-item') ?? [];
     items.forEach(item => item.classList.remove('drag-over'));
     items[index]?.classList.add('drag-over');
   }
@@ -1952,7 +1952,7 @@ fill_pct: "[[[return entity.attributes.brightness / 2.55]]]"</pre>
     this._draggedIndex = null;
 
     // Remove drag-over class
-    this.shadowRoot.querySelectorAll('.effect-item').forEach(item => {
+    this.shadowRoot?.querySelectorAll('.effect-item').forEach(item => {
       item.classList.remove('drag-over');
     });
 
@@ -1970,6 +1970,7 @@ fill_pct: "[[[return entity.attributes.brightness / 2.55]]]"</pre>
    *
    * @param {Array} effects - Updated effects array
    * @param {Object|string|null} inset - Canvas inset value (null = no inset / bare array form)
+   * @param {number} [fps] - Frame rate, when set
    */
   _emitChange(effects, inset, fps) {
     // fps arg: explicit value overrides; undefined = preserve whatever is in current config.

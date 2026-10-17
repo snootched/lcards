@@ -709,7 +709,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
      * @private
      */
     _isValidFieldName(name) {
-        return name && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
+        return Boolean(name) && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
     }
 
     /**
