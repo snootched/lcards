@@ -897,6 +897,26 @@ export const BUTTON_PRESETS = {
     }
   },
 
+  // =====================================
+  // PANEL FLAGGED - dark panel with a thin accent tick on its left edge (L029 number columns)
+  // =====================================
+  'panel-flagged': {
+    extends: 'button.panel-dark',
+    description: 'dark code panel with a thin accent flag on its left edge',
+    border: {
+      width: { top: 0, right: 0, bottom: 0, left: 6 },
+      color: {
+        default: 'theme:colors.ui.tertiary',
+        active: 'theme:colors.ui.tertiary',
+        inactive: 'theme:colors.card.buttonOff',
+        unavailable: 'theme:colors.card.buttonUnavailable'
+      }
+    },
+    text: {
+      label: { position: 'center-right' }
+    }
+  },
+
   'panel-dark': {
     extends: 'button.barrel',
     description: 'square-cornered panel with a code label; with an entity, the theme accent when on and the dark structure tone when off',

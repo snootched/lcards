@@ -778,6 +778,108 @@ export const elbowComponents = {
 
     // ============================================================================
     // FRAME VARIANTS - Full border around content area
+    'bar-slant-right': {
+        orientation: 'bar-slant-right',
+        features: ['simple'],
+        layout: {
+            position: 'header',
+            side: 'left'
+        },
+
+        /**
+         * Straight bar with a slanted right end (L029)
+         * The whole card is the bar (its height is the bar's thickness); the slant
+         * follows segment.diagonal_angle (90° = square end, 45° = a cut as long as
+         * the bar is thick).
+         *
+         * @param {Object} config - Path generator configuration
+         * @returns {string} SVG path string
+         */
+        pathGenerator: (config) => {
+            const { diagonalAngle = 45 } = config.geometry;
+            const { width, height } = config.container;
+            const angle = Math.min(90, Math.max(10, Number(diagonalAngle) || 45));
+            const off = Math.min(width / 2, height / Math.tan((angle * Math.PI) / 180));
+            return [[0, 0], [width, 0], [width - off, height], [0, height]].map(([x, y], k) => `${k ? 'L' : 'M'} ${x} ${y}`).join(' ') + ' Z';
+        },
+
+        metadata: {
+            type: 'elbow',
+            pack: 'core',
+            name: 'Bar Slant Right',
+            description: 'Straight bar with a slanted right end (L029)',
+            version: '1.0.0'
+        }
+    },
+
+    'bar-slant-left': {
+        orientation: 'bar-slant-left',
+        features: ['simple'],
+        layout: {
+            position: 'header',
+            side: 'left'
+        },
+
+        /**
+         * Straight bar with a slanted left end
+         * The whole card is the bar (its height is the bar's thickness); the slant
+         * follows segment.diagonal_angle (90° = square end, 45° = a cut as long as
+         * the bar is thick).
+         *
+         * @param {Object} config - Path generator configuration
+         * @returns {string} SVG path string
+         */
+        pathGenerator: (config) => {
+            const { diagonalAngle = 45 } = config.geometry;
+            const { width, height } = config.container;
+            const angle = Math.min(90, Math.max(10, Number(diagonalAngle) || 45));
+            const off = Math.min(width / 2, height / Math.tan((angle * Math.PI) / 180));
+            return [[off, 0], [width, 0], [width, height], [0, height]].map(([x, y], k) => `${k ? 'L' : 'M'} ${x} ${y}`).join(' ') + ' Z';
+        },
+
+        metadata: {
+            type: 'elbow',
+            pack: 'core',
+            name: 'Bar Slant Left',
+            description: 'Straight bar with a slanted left end',
+            version: '1.0.0'
+        }
+    },
+
+    'bar-parallelogram': {
+        orientation: 'bar-parallelogram',
+        features: ['simple'],
+        layout: {
+            position: 'header',
+            side: 'left'
+        },
+
+        /**
+         * Bar with both ends slanted the same way (a parallelogram)
+         * The whole card is the bar (its height is the bar's thickness); the slant
+         * follows segment.diagonal_angle (90° = square end, 45° = a cut as long as
+         * the bar is thick).
+         *
+         * @param {Object} config - Path generator configuration
+         * @returns {string} SVG path string
+         */
+        pathGenerator: (config) => {
+            const { diagonalAngle = 45 } = config.geometry;
+            const { width, height } = config.container;
+            const angle = Math.min(90, Math.max(10, Number(diagonalAngle) || 45));
+            const off = Math.min(width / 2, height / Math.tan((angle * Math.PI) / 180));
+            return [[off, 0], [width, 0], [width - off, height], [0, height]].map(([x, y], k) => `${k ? 'L' : 'M'} ${x} ${y}`).join(' ') + ' Z';
+        },
+
+        metadata: {
+            type: 'elbow',
+            pack: 'core',
+            name: 'Bar Parallelogram',
+            description: 'Bar with both ends slanted the same way (a parallelogram)',
+            version: '1.0.0'
+        }
+    },
+
     // ============================================================================
 
     /**

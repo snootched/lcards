@@ -143,6 +143,9 @@ Set via `elbow.type`. The type determines the corner position and shape of the L
 | `diagonal-cap-right` | Top-right with configurable diagonal cut on both corners | simple, segmented |
 | `diagonal-cap-footer-left` | Bottom-left with configurable diagonal cut on both corners | simple, segmented |
 | `diagonal-cap-footer-right` | Bottom-right with configurable diagonal cut on both corners | simple, segmented |
+| `bar-slant-right` | A straight bar (the whole card) with a slanted right end; the slant follows `segment.diagonal_angle` | simple |
+| `bar-slant-left` | The same, slanted on the left | simple |
+| `bar-parallelogram` | Both ends slanted the same way | simple |
 | `frame` | Full rectangular frame: 2–4 sided border with per-side widths and per-corner radii | simple, segmented |
 
 Every type, rendered:
@@ -205,7 +208,7 @@ Both styles side by side:
 | `outer_curve` | number / keyword | `"auto"` | Corner arc radius. See [Arc Radius Modes](#arc-radius-modes). |
 | `outer_curve_clamp` | `"card"` / `"none"` / number | `"card"` | Clamp behaviour. `"card"` = `min(card_w, card_h)` (default). `"none"` = no clamp (fix for paired elbow inconsistency). number = explicit px ceiling. |
 | `inner_curve` | number / keyword | - | Inner arc radius. Same keywords as `outer_curve` plus `"auto"` = `outer_curve / 2` (LCARS formula, default when omitted). |
-| `diagonal_angle` | number / `"theme"` | `45` | Diagonal cut angle in degrees (diagonal-cap elbow types only). Use `"theme"` to bind to `input_number.lcars_elbow_angle` |
+| `diagonal_angle` | number / `"theme"` | `45` | Cut angle in degrees for the diagonal-cap and bar-slant types (90 = square). Use `"theme"` to bind to `input_number.lcars_elbow_angle` |
 | `color` | string / object | - | Fill colour: [state map](../../core/colours.md) supported |
 
 ---

@@ -261,3 +261,17 @@ test('layout card with repeat() tracks: cards in every named area get a cell', a
     for (const w of pills) expect(w).toBeGreaterThan(150);
     await expectNoErrors(page);
 });
+
+test('elbow bar-slant-right: the bar is the whole card, slanted at the right end, with its label on it', async ({ page }) => {
+    const card = await mountCase(page, 'elbow-bar-slant', { width: '300' });
+    const info = () => card.evaluate(el => ({
+        d: el.shadowRoot.querySelector('path')?.getAttribute('d') ?? '',
+        text: [...el.shadowRoot.querySelectorAll('text')].map(t => t.textContent.trim()).join(' '),
+    }));
+    await expect.poll(async () => (await info()).text).toContain('LCARS');
+    const { d } = await info();
+    const pts = [...d.matchAll(/[ML] ([\d.]+) ([\d.]+)/g)].map(m => [Number(m[1]), Number(m[2])]);
+    expect(pts).toHaveLength(4);
+    expect(pts[1][0]).toBeGreaterThan(pts[2][0]); // top edge longer than the bottom: the right end is cut
+    await expectNoErrors(page);
+});

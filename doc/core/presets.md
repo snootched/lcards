@@ -64,6 +64,7 @@ These tables list every preset in the built-in packs (`src/core/packs/style-pres
 | `bar-label-capped-right` | Bar label rounded on the right, flat on the left |
 | `panel-light` | Square-cornered panel with a random LCARS label (light); with an entity, the theme accent when on and the dark structure tone when off |
 | `toggle-tab` | Dark square tab with a centred name; a coloured line along the top shows the state |
+| `panel-flagged` | Dark code panel with a thin accent flag on its left edge |
 | `panel-dark` | Square-cornered panel with a random LCARS label (dark); with an entity, the theme accent when on and the dark structure tone when off |
 
 Rendered:

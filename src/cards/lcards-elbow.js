@@ -1670,6 +1670,13 @@ export class LCARdSElbow extends LCARdSButton {
             return;
         }
 
+        // Bar types (bar-slant-*, bar-parallelogram): the whole card is the bar, so
+        // text sits on the bar itself rather than in an open area beside L-shaped arms.
+        if (String(this._elbowConfig?.type ?? '').startsWith('bar-')) {
+            this._zones.set('body', { bounds: { x: 0, y: 0, width, height } });
+            return;
+        }
+
         const component = this._getElbowComponent(this._elbowConfig?.type);
         const position  = component?.layout?.position || 'header';
         const side      = component?.layout?.side     || 'left';

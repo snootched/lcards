@@ -396,6 +396,13 @@ export function getElbowSchema(options = {}) {
                                     }
                                 }
                             },
+                            diagonal_angle: {
+                                oneOf: [
+                                    { type: 'number', minimum: 0, maximum: 90 },
+                                    { type: 'string', enum: ['theme', 'input_number.lcars_elbow_angle'] }
+                                ],
+                                description: "Cut angle in degrees for the diagonal-cap and bar-slant types (default 45; 90 = square). 'theme' binds to input_number.lcars_elbow_angle."
+                            },
                             outer_curve: {
                                 oneOf: [
                                     {

@@ -1,0 +1,10 @@
+# doc/cards/elbow/index.md (bar types): a slanted-end bar with a label on the bar itself
+type: custom:lcards-elbow
+elbow:
+  type: bar-slant-right
+  segment:
+    diagonal_angle: 60
+text:
+  label:
+    content: LCARS
+    position: center-left

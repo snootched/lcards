@@ -696,6 +696,91 @@ columns:
       color: theme:colors.ui.tertiary
 ```
 
+### Slanted bars
+
+Bars with a cut end, for labels and indicators (Titan console side panels). The elbow's `bar-slant-right`, `bar-slant-left` and `bar-parallelogram` types make the whole card one bar; `segment.diagonal_angle` sets the cut.
+
+```yaml live
+type: custom:lcards-layout-card
+layout:
+  height: 96px
+  grid-gap: 8px
+  grid-template-columns: 200px 120px
+  grid-template-rows: 44px 44px
+cards:
+  - type: custom:lcards-elbow
+    elbow: { type: bar-slant-right, segment: { color: theme:colors.ui.secondary } }
+    text: { label: { content: LCARS, position: center-left, font_size: 22, color: "var(--lcars-text-dark, black)" } }
+  - type: custom:lcards-elbow
+    elbow: { type: bar-parallelogram, segment: { color: theme:colors.ui.tertiary, diagonal_angle: 60 } }
+  - type: custom:lcards-elbow
+    elbow: { type: bar-slant-right, segment: { color: theme:colors.ui.primary } }
+    text: { label: { content: "47", position: center-left, font_size: 22, color: "var(--lcars-text-dark, black)" } }
+```
+
+### Flagged blocks
+
+Number blocks with a thin accent tick on the left, as in the Titan console's number columns: the `panel-flagged` preset.
+
+```yaml live
+type: custom:lcards-layout-card
+layout:
+  height: 150px
+  grid-gap: 6px
+  grid-template-columns: 140px
+  grid-template-rows: repeat(4, minmax(0, 1fr))
+cards:
+  - { type: custom:lcards-button, preset: panel-flagged, min_height: 0, text: { label: { content: "012" } } }
+  - { type: custom:lcards-button, preset: panel-flagged, min_height: 0, text: { label: { content: "330" } } }
+  - { type: custom:lcards-button, preset: panel-flagged, min_height: 0, entity: light.demo, tap_action: { action: toggle }, text: { label: { content: "436" } } }
+  - { type: custom:lcards-button, preset: panel-flagged, min_height: 0, text: { label: { content: "542" } } }
+```
+
+### Dot rows
+
+Rows of dots in groups, along the top or bottom edge of a frame (Titan.DS headers and footers). A text-only button with runs of `•`.
+
+```yaml live
+type: custom:lcards-button
+preset: text-only
+min_height: 24
+text:
+  label:
+    content: "•  •••  ••  •••••  •  ••  •••"
+    show: true
+    position: center-right
+    color: theme:colors.ui.secondary
+```
+
+### Fleet tiles
+
+A row of framed tiles, one per item, as in the Titan.DS fleet directory: a frame elbow per tile with its name and class; the thicker bottom bar can carry a state colour.
+
+```yaml live
+type: custom:lcards-layout-card
+layout:
+  height: 150px
+  grid-gap: 8px
+  grid-template-columns: repeat(3, minmax(0, 1fr))
+  grid-template-rows: minmax(0, 1fr)
+cards:
+  - type: custom:lcards-elbow
+    elbow: { type: frame, segment: { color: theme:colors.card.topColor }, frame: { bar_width: 4, bar_height: 18, outer_curve: 8 } }
+    text:
+      label: { content: NCC-1701-A, position: top-center, font_size: 14, color: theme:colors.ui.tertiary }
+      class: { content: CONSTITUTION, position: center, font_size: 18, color: theme:colors.ui.primary }
+  - type: custom:lcards-elbow
+    elbow: { type: frame, segment: { color: theme:colors.ui.secondary }, frame: { bar_width: 4, bar_height: 18, outer_curve: 8 } }
+    text:
+      label: { content: NCC-1701-C, position: top-center, font_size: 14, color: theme:colors.ui.tertiary }
+      class: { content: AMBASSADOR, position: center, font_size: 18, color: theme:colors.ui.primary }
+  - type: custom:lcards-elbow
+    elbow: { type: frame, segment: { color: theme:colors.card.topColor }, frame: { bar_width: 4, bar_height: 18, outer_curve: 8 } }
+    text:
+      label: { content: NCC-1701-E, position: top-center, font_size: 14, color: theme:colors.ui.tertiary }
+      class: { content: SOVEREIGN, position: center, font_size: 18, color: theme:colors.ui.primary }
+```
+
 ## Putting it together
 
 A screen is a [layout view](../cards/layout-view/) shaped by one of the [archetypes](#screen-archetypes), with patterns in its areas: for example a facing-sweeps header across the top, a code-block column and utility pills down the left, a nested frame with an MSD or chart in the centre, a toggle tab strip along the bottom. Or a portrait panel: a header bar with a title, a gauge bank, a selector strip. The [Dashboard Gallery](dashboard-gallery#built-from-the-design-guide) has six complete screens built this way, three per look, each from a different archetype.
