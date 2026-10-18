@@ -1,6 +1,6 @@
 # Picard console: a Titan.DS-style screen built from the patterns in
-# doc/getting-started/lcars-design.md. Utility pills down the far edge, a header sweep
-# whose leg matches the column of code blocks, a nested frame around a line-drawn ship,
+# doc/getting-started/lcars-design.md. Utility pills housed in a bracket frame, a concentric header
+# sweep whose leg matches the column of code blocks, a nested frame around a line-drawn ship,
 # a right number column, toggle tabs and gauges along the bottom, a footer sweep.
 # Every colour is a theme role (theme: tokens), so it follows the HA-LCARS theme.
 # Uses lcards_test_* helpers.
@@ -13,7 +13,7 @@ views:
       height: calc(100dvh - var(--header-height, 56px))
       padding: 12px
       grid-gap: 6px
-      grid-template-columns: 110px 220px minmax(0, 1fr) 140px
+      grid-template-columns: 130px 220px minmax(0, 1fr) 140px
       grid-template-rows: 90px minmax(0, 1fr) 56px 48px 48px
       grid-template-areas: |
         "pills top    top     top"
@@ -22,33 +22,36 @@ views:
         "pills nums   gauges  rnums"
         "pills bottom bottom  bottom"
     cards:
-      # Utility pills at the far edge, red alert at the bottom.
+      # Utility pills housed in a bracket frame (open on the left), red alert at the bottom.
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: pills
+        elbow:
+          type: frame
+          segment:
+            color: theme:colors.ui.secondary
+          frame:
+            bar_width: 14
+            bar_height: 36
+            outer_curve: 36
+            left:
+              enabled: false
       - type: custom:lcards-layout-card
         view_layout:
           grid-area: pills
         layout:
+          padding: 46px 22px 46px 4px
           grid-gap: 8px
           grid-template-columns: minmax(0, 1fr)
-          grid-template-rows: 32px 32px 32px minmax(0, 1fr) 32px
+          grid-template-rows: 26px 26px 26px minmax(0, 1fr) 26px
         cards:
+          - { type: custom:lcards-button, preset: lozenge, min_height: 26, text: { label: { content: ZOOM, show: true, position: center, color: theme:colors.ui.secondary } }, style: { card: { color: { background: { default: theme:colors.card.topColor } } } } }
+          - { type: custom:lcards-button, preset: lozenge, min_height: 26, text: { label: { content: ABOUT, show: true, position: center, color: theme:colors.ui.secondary } }, style: { card: { color: { background: { default: theme:colors.card.topColor } } } } }
+          - { type: custom:lcards-button, preset: lozenge, min_height: 26, text: { label: { content: DIMMER, show: true, position: center, color: theme:colors.ui.secondary } }, style: { card: { color: { background: { default: theme:colors.card.topColor } } } } }
+          - { type: custom:lcards-button, preset: text-only, min_height: 0 }
           - type: custom:lcards-button
             preset: lozenge
-            min_height: 32
-            text: { label: { content: ZOOM, show: true, position: center } }
-          - type: custom:lcards-button
-            preset: lozenge
-            min_height: 32
-            text: { label: { content: ABOUT, show: true, position: center } }
-          - type: custom:lcards-button
-            preset: lozenge
-            min_height: 32
-            text: { label: { content: DIMMER, show: true, position: center } }
-          - type: custom:lcards-button
-            preset: text-only
-            min_height: 0
-          - type: custom:lcards-button
-            preset: lozenge
-            min_height: 32
+            min_height: 26
             text: { label: { content: RED ALERT, show: true, position: center } }
             style:
               card:
@@ -59,16 +62,23 @@ views:
               action: perform-action
               perform_action: lcards.red_alert
 
-      # Header sweep: its leg is as wide as the number column below it.
+      # Header: a concentric sweep (thick outer, thin inner line); its leg is as wide as the code column.
       - type: custom:lcards-elbow
         view_layout:
           grid-area: top
         elbow:
           type: header-left
-          segment:
-            bar_width: 220
-            bar_height: 24
-            color: theme:colors.ui.secondary
+          style: segmented
+          segments:
+            gap: 6
+            outer_segment:
+              bar_width: 220
+              bar_height: 22
+              color: theme:colors.ui.secondary
+            inner_segment:
+              bar_width: 6
+              bar_height: 4
+              color: theme:colors.ui.primary
         text:
           title:
             content: U.S.S. TITAN · SYSTEMS

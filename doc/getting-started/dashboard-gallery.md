@@ -47,9 +47,9 @@ A shaped temperature slider, a humidity gauge, a status grid and a temperature h
 
 ## Security
 
-Door and light toggles whose labels follow their state, a [select menu](../cards/select-menu/) for the security mode, a D-pad stepping a value (a stand-in for a camera pan), a status grid and a decorative data block.
+Door and light toggles whose labels follow their state, a [select menu](../cards/select-menu/) for the security mode, a D-pad stepping a value (a stand-in for a camera pan), a status grid and a wall of sector tiles, one framed feed per sector with its live status.
 
-<video class="doc-video" src="/gallery/security.webm" poster="/gallery/security.webp" title="Security dashboard: toggle buttons, a mode selector, a status grid, a D-pad, a slider and a block of decorative LCARS numbers" autoplay loop muted playsinline></video>
+<video class="doc-video" src="/gallery/security.webm" poster="/gallery/security.webp" title="Security dashboard: toggle buttons, a mode selector, a status grid, a D-pad, a slider and four framed sector tiles with grid backgrounds and their status" autoplay loop muted playsinline></video>
 
 ::: details YAML
 <<< @/gallery/dashboards/security.yaml
@@ -95,7 +95,7 @@ Six screens composed from the [archetypes](lcars-design#screen-archetypes) and [
 
 ### Picard: display with side columns
 
-A Titan.DS-style console: utility pills with red alert down the far edge, a header sweep whose leg matches the [code-block](lcars-design#code-block-column) column, vertical gauges, a nested frame around a dimmed ship schematic, a right number column with a cascade, [toggle tabs](lcars-design#toggle-tab-strip) and gauges along the bottom.
+A Titan.DS-style console: small dark utility pills housed in a bracket frame with red alert at the bottom, a [concentric](lcars-design#concentric-sweep) header sweep whose leg matches the [code-block](lcars-design#code-block-column) column, vertical gauges, a nested frame around a dimmed ship schematic, a right number column with a cascade, [toggle tabs](lcars-design#toggle-tab-strip) and gauges along the bottom.
 
 <video class="doc-video" src="/gallery/picard-console.webm" poster="/gallery/picard-console.webp" title="Picard console: grey sweeps and columns of code blocks, red accents on the blocks and tabs that are on, a dimmed blue ship in a nested frame, vertical and horizontal gauges and a column of numbers" autoplay loop muted playsinline></video>
 
@@ -105,7 +105,7 @@ A Titan.DS-style console: utility pills with red alert down the far edge, a head
 
 ### Picard: display over controls
 
-A wide nested frame around a grey shuttle schematic, with a control deck under it: a [gauge bank](lcars-design#gauge-bank), a [tile wall](lcars-design#tile-wall), [readout rows](lcars-design#readout-rows) and a [selector strip](lcars-design#selector-strip).
+A concentric header sweep continued by a [segmented bar](lcars-design#segmented-bar-classic-arms) of codes, a wide nested frame around a grey shuttle schematic, and a control deck under it: a [gauge bank](lcars-design#gauge-bank), a [tile wall](lcars-design#tile-wall), [readout rows](lcars-design#readout-rows) and a [selector strip](lcars-design#selector-strip).
 
 <video class="doc-video" src="/gallery/picard-display.webm" poster="/gallery/picard-display.webp" title="Picard display: facing grey sweeps with a red title, a wide frame around a grey shuttlecraft schematic, four vertical gauges, four framed number tiles, three readout gauges and a mode selector" autoplay loop muted playsinline></video>
 
@@ -115,7 +115,7 @@ A wide nested frame around a grey shuttle schematic, with a control deck under i
 
 ### Picard: portrait panel
 
-For a phone or an upright tablet: a [header bar](lcars-design#header-bar-with-a-title) with the title, code blocks beside a condition readout, a tile wall, a gauge bank and toggle tabs. Recorded at 600 by 1000.
+For a phone or an upright tablet: a [header bar](lcars-design#header-bar-with-a-title) with the title, code blocks beside a condition readout, a tile wall, a gauge bank, toggle tabs and a segmented closing bar. Recorded at 600 by 1000.
 
 <video class="doc-video" src="/gallery/picard-portrait.webm" poster="/gallery/picard-portrait.webp" title="Picard portrait: a red MISSION OPS header bar, code blocks beside a condition readout, three framed number tiles, three vertical gauges and three toggle tabs" autoplay loop muted playsinline></video>
 
@@ -125,7 +125,7 @@ For a phone or an upright tablet: a [header bar](lcars-design#header-bar-with-a-
 
 ### Classic: sweep console
 
-The classic look: a thick header sweep, a sidebar of coloured blocks with code numbers, a [pill grid](lcars-design#pill-grid-classic) led by big numbers, control bars, a slider and a number cascade. The view sets `theme: LCARS Default`, so the roles come out in the TNG pastels whatever your profile theme is.
+The classic look: thick header and footer sweeps continued as [labelled segments](lcars-design#segmented-bar-classic-arms), a sidebar of coloured blocks with code numbers, a [pill grid](lcars-design#pill-grid-classic) led by big numbers, a slider over a strip of small pills, and a number cascade. The view sets `theme: LCARS Default`, so the roles come out in the TNG pastels whatever your profile theme is.
 
 <video class="doc-video" src="/gallery/tng-console.webm" poster="/gallery/tng-console.webp" title="TNG console: peach header sweep and blocks, rows of pastel pills led by large numbers, two control bars, a pill slider and a column of blue numbers" autoplay loop muted playsinline></video>
 
@@ -134,7 +134,7 @@ The classic look: a thick header sweep, a sidebar of coloured blocks with code n
 :::
 ### Classic: bracket screen
 
-DS9-style: a top and a bottom bar, a sidebar of coloured blocks with code numbers, a shuttlecraft cutaway in colour, a readout list and a row of pills. The view uses `theme: LCARS Zeldaar`.
+DS9-style: top and bottom bars broken into labelled segments, a sidebar of coloured blocks with code numbers, a shuttlecraft cutaway in colour, a readout list and a row of pills. The view uses `theme: LCARS Zeldaar`.
 
 <video class="doc-video" src="/gallery/ds9-bracket.webm" poster="/gallery/ds9-bracket.webp" title="DS9 bracket: violet top and bottom sweeps, a sidebar of violet, peach, rose and blue blocks, a colourful shuttlecraft cutaway, a system status list and a row of pills" autoplay loop muted playsinline></video>
 
@@ -144,7 +144,7 @@ DS9-style: a top and a bottom bar, a sidebar of coloured blocks with code number
 
 ### Classic: list
 
-Voyager-style: a [split header](lcars-design#split-header-classic) with a number cascade, a duty roster [list](lcars-design#list), a column of big numbers and pill groups. The view uses `theme: LCARS Nemesis Blue`.
+Voyager-style: a [split header](lcars-design#split-header-classic) whose two bars continue as segments, a number cascade, a duty roster [list](lcars-design#list), a column of big numbers and pill groups. The view uses `theme: LCARS Nemesis Blue`.
 
 <video class="doc-video" src="/gallery/voyager-roster.webm" poster="/gallery/voyager-roster.webp" title="Voyager roster: a tan upper sweep and a blue lower sweep, a duty roster in four coloured columns, a column of large numbers, a number cascade and a row of pills" autoplay loop muted playsinline></video>
 

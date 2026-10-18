@@ -51,12 +51,15 @@ Don't pick colours for an LCARS screen; pick **roles**, and let the theme supply
 - **Labels sit right-aligned**, usually at the bottom right of their block, in condensed capitals (the theme font). Numbers right-aligned in columns.
 - **One title, top right**, large, in the accent colour or white; a dim subtitle at the bottom right if you need one. Classic titles often read `NAME • NUMBER`.
 - **Numbers as texture.** Code-like numbers (`13-650`, `0099•06`) fill blocks and columns, and dense number cascades fill spare areas. Real readings and decorative numbers look alike; that's part of the look.
+- **A sweep is at least as wide as what it frames.** If a sweep's vertical bar is narrower than the column above it, it looks detached; close a narrow column with a segmented bar instead.
 - **Fill space with structure, not black.** If an area is empty, put blocks, a number cascade or a segmented bar in it.
 
 ## Picard
 
 - **Columns of small number blocks** down one or both sides: mostly structure tones, a few in the accent, some dark (inactive). See [code-block column](#code-block-column).
-- **A utility column of pills at the far edge** (zoom, settings, dimmer), with a red alert pill at the bottom.
+- **A utility column of small dark pills, housed inside a bracket frame** at the far edge (zoom, settings, dimmer), with a red alert pill at the bottom. See [utility pills](#utility-pills).
+- **Concentric sweeps**: a thick sweep with a thin line running parallel inside it, for headers and corners. See [concentric sweep](#concentric-sweep).
+- **Controls inside a wide arm**: a thick frame whose black inset holds a group of blocks. See [controls inside a wide arm](#controls-inside-a-wide-arm).
 - **Vertical gauges with tick scales** beside the number columns ([Picard and gauge sliders](../cards/slider-card/)).
 - **The main display is a schematic**: a line drawing with leader lines to labels, small accent highlights for faults ([MSD](../cards/msd/)).
 - **A strip of tabs and sliders along the bottom.** Tabs show their state as a line along the top ([`toggle-tab`](#toggle-tab-strip)).
@@ -69,6 +72,7 @@ Don't pick colours for an LCARS screen; pick **roles**, and let the theme supply
 - **A column of big numbers** (`20`, `008`, `358`) leads each group of pills.
 - **Bracket frames**: a top and a bottom bar with rounded ends, and a sidebar of stacked blocks with code numbers. See [bracket frame](#bracket-frame-classic).
 - **A split header**: two sweeps meeting across the top, with a thin segmented band in the gap between them.
+- **Segment the long arms.** A classic bar seldom runs unbroken across the screen: the sweep turns into a short bar, then segments of different lengths and roles carry labels. See [segmented bar](#segmented-bar-classic-arms).
 
 ## Motion and alerts
 
@@ -233,44 +237,136 @@ elbow:
 
 ### Utility pills
 
-The Picard edge column: small pills, with red alert at the bottom.
+The Picard edge column: small dark pills housed inside a bracket frame (a frame open on the outer side), with red alert at the bottom. The frame and the pills share one grid area; the pills' padding keeps them inside the frame.
 
 ```yaml live
 type: custom:lcards-layout-card
 layout:
-  height: 240px
-  grid-gap: 8px
-  grid-template-columns: 140px
-  grid-template-rows: 36px 36px 36px minmax(0, 1fr) 36px
+  height: 300px
+  grid-template-columns: 150px
+  grid-template-rows: minmax(0, 1fr)
+  grid-template-areas: |
+    "col"
 cards:
-  - type: custom:lcards-button
-    preset: lozenge
-    min_height: 36
-    text: { label: { content: ZOOM, show: true, position: center } }
-  - type: custom:lcards-button
-    preset: lozenge
-    min_height: 36
-    text: { label: { content: SETTINGS, show: true, position: center } }
-  - type: custom:lcards-button
-    preset: lozenge
-    min_height: 36
-    text: { label: { content: DIMMER, show: true, position: center } }
-  - type: custom:lcards-button
-    preset: text-only
-    min_height: 0
-  - type: custom:lcards-button
-    preset: lozenge
-    min_height: 36
-    text: { label: { content: RED ALERT, show: true, position: center } }
-    style:
-      card:
-        color:
-          background:
-            default: var(--lcars-alert-color, var(--lcards-orange-dark))
-    tap_action:
-      action: perform-action
-      perform_action: lcards.red_alert
+  - type: custom:lcards-elbow
+    view_layout: { grid-area: col }
+    elbow:
+      type: frame
+      segment: { color: theme:colors.ui.secondary }
+      frame:
+        bar_width: 14
+        bar_height: 36
+        outer_curve: 36
+        left: { enabled: false }
+  - type: custom:lcards-layout-card
+    view_layout: { grid-area: col }
+    layout:
+      padding: 46px 22px 46px 4px
+      grid-gap: 8px
+      grid-template-columns: minmax(0, 1fr)
+      grid-template-rows: 26px 26px 26px minmax(0, 1fr) 26px
+    cards:
+        - { type: custom:lcards-button, preset: lozenge, min_height: 26, text: { label: { content: ZOOM, show: true, position: center, color: theme:colors.ui.secondary } }, style: { card: { color: { background: { default: theme:colors.card.topColor } } } } }
+        - { type: custom:lcards-button, preset: lozenge, min_height: 26, text: { label: { content: SETTINGS, show: true, position: center, color: theme:colors.ui.secondary } }, style: { card: { color: { background: { default: theme:colors.card.topColor } } } } }
+        - { type: custom:lcards-button, preset: lozenge, min_height: 26, text: { label: { content: DIMMER, show: true, position: center, color: theme:colors.ui.secondary } }, style: { card: { color: { background: { default: theme:colors.card.topColor } } } } }
+        - { type: custom:lcards-button, preset: text-only, min_height: 0 }
+        - type: custom:lcards-button
+          preset: lozenge
+          min_height: 26
+          text: { label: { content: RED ALERT, show: true, position: center } }
+          style:
+            card:
+              color:
+                background:
+                  default: var(--lcars-alert-color, var(--lcards-orange-dark))
+          tap_action:
+            action: perform-action
+            perform_action: lcards.red_alert
 ```
+
+### Concentric sweep
+
+A thick sweep with a thin line running parallel inside it, the Picard header and corner shape. A segmented elbow: `outer_segment` is the sweep, `inner_segment` the line.
+
+```yaml live
+type: custom:lcards-elbow
+grid_options: { rows: 3 }
+elbow:
+  type: header-left
+  style: segmented
+  segments:
+    gap: 6
+    outer_segment: { bar_width: 140, bar_height: 24, color: theme:colors.ui.secondary }
+    inner_segment: { bar_width: 6, bar_height: 4, color: theme:colors.ui.primary }
+text:
+  title:
+    content: COURSE SELECT
+    position: bottom-right
+    color: theme:colors.ui.tertiary
+```
+
+### Controls inside a wide arm
+
+A thick frame whose black inset holds a group of controls, as in the Titan console side panels. The frame and a layout card share the area; the layout card's padding is a little more than the frame's bars.
+
+```yaml live
+type: custom:lcards-layout-card
+layout:
+  height: 220px
+  grid-template-columns: 260px
+  grid-template-rows: minmax(0, 1fr)
+  grid-template-areas: |
+    "arm"
+cards:
+  - type: custom:lcards-elbow
+    view_layout: { grid-area: arm }
+    elbow:
+      type: frame
+      segment: { color: theme:colors.ui.primary }
+      frame: { bar_width: 24, bar_height: 24, outer_curve: 40, inner_curve: 18 }
+  - type: custom:lcards-layout-card
+    view_layout: { grid-area: arm }
+    layout:
+      padding: 34px
+      grid-gap: 6px
+      grid-template-columns: 1fr 1fr
+      grid-template-rows: repeat(3, 34px)
+    cards:
+      - { type: custom:lcards-button, preset: panel-dark, min_height: 34, text: { label: { content: 6-3390, position: center-right } } }
+      - { type: custom:lcards-button, preset: panel-dark, min_height: 34, text: { label: { content: 60-1204, position: center-right } } }
+      - { type: custom:lcards-button, preset: panel-dark, min_height: 34, entity: light.demo, tap_action: { action: toggle }, text: { label: { content: 5-6549, position: center-right } } }
+      - { type: custom:lcards-button, preset: panel-dark, min_height: 34, text: { label: { content: 34-3719, position: center-right } } }
+      - { type: custom:lcards-button, preset: panel-dark, min_height: 34, text: { label: { content: 80-1932, position: center-right } } }
+      - { type: custom:lcards-button, preset: panel-dark, min_height: 34, text: { label: { content: 8-5300, position: center-right } } }
+```
+
+### Segmented bar (classic arms)
+
+Classic screens rarely run one unbroken bar across the screen: the sweep turns into a short bar, then the bar continues as segments of different lengths and roles, each with a label. Keep the elbow's area just wider than its vertical bar, and put the segments in a row the same height as the bar.
+
+```yaml live
+type: custom:lcards-layout-card
+layout:
+  height: 110px
+  grid-gap: 6px
+  grid-template-columns: 220px 3fr 1fr 4fr 2fr
+  grid-template-rows: 40px minmax(0, 1fr)
+  grid-template-areas: |
+    "corner s1 s2 s3 s4"
+    "corner .  .  .  ."
+cards:
+  - type: custom:lcards-elbow
+    view_layout: { grid-area: corner }
+    elbow:
+      type: header-left
+      segment: { bar_width: 140, bar_height: 40, color: theme:colors.ui.primary }
+  - { type: custom:lcards-button, preset: panel-light, min_height: 40, view_layout: { grid-area: s1 }, text: { label: { content: COURSE SELECT, position: bottom-right } } }
+  - { type: custom:lcards-button, preset: panel-light, min_height: 40, view_layout: { grid-area: s2 }, text: { label: { content: "541", position: bottom-right } }, style: { card: { color: { background: { default: theme:colors.ui.tertiary } } } } }
+  - { type: custom:lcards-button, preset: panel-light, min_height: 40, view_layout: { grid-area: s3 }, text: { label: { content: NAV REF, position: bottom-right } }, style: { card: { color: { background: { default: theme:colors.ui.secondary } } } } }
+  - { type: custom:lcards-button, preset: panel-light, min_height: 40, view_layout: { grid-area: s4 }, text: { label: { content: FLIGHT, position: bottom-right } } }
+```
+
+The same works for a Picard closing bar: thin segments (14 to 20 px) in structure tones, one in the accent.
 
 ### Status rows
 

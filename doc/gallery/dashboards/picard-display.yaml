@@ -19,31 +19,41 @@ views:
         "gauges  tiles   readout"
         "gauges  tiles   sel"
     cards:
-      # Facing sweeps: the title sits in the black between them.
+      # Header: a concentric sweep with the title, continued by a segmented bar of codes.
       - type: custom:lcards-elbow
         view_layout:
           grid-area: headl
         elbow:
           type: header-left
-          segment:
-            bar_width: 150
-            bar_height: 20
-            color: theme:colors.ui.secondary
+          style: segmented
+          segments:
+            gap: 6
+            outer_segment:
+              bar_width: 150
+              bar_height: 20
+              color: theme:colors.ui.secondary
+            inner_segment:
+              bar_width: 5
+              bar_height: 4
+              color: theme:colors.ui.primary
         text:
           title:
             content: DECK PLAN · SECTION 7
             position: bottom-right
             font_size: 28
             color: theme:colors.ui.tertiary
-      - type: custom:lcards-elbow
+      - type: custom:lcards-layout-card
         view_layout:
           grid-area: headr
-        elbow:
-          type: header-right
-          segment:
-            bar_width: 110
-            bar_height: 20
-            color: theme:colors.ui.primary
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 2fr 1fr 3fr 1fr
+          grid-template-rows: 20px
+        cards:
+          - { type: custom:lcards-button, preset: panel-dark, min_height: 20, text: { label: { content: "47-2201", position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 20, text: { label: { content: "08", position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-dark, min_height: 20, text: { label: { content: "NAVIGATIONAL REFERENCE", position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 20, text: { label: { content: "541", position: center-right } }, style: { card: { color: { background: { default: theme:colors.ui.tertiary } } } } }
 
       # The display: a nested frame around the ship, dimmed so it reads as data.
       - type: custom:lcards-elbow

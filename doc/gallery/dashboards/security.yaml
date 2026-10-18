@@ -1,5 +1,5 @@
 # Security: door and light controls, a security mode selector, a D-pad (here it
-# steps a helper, standing in for a camera pan) and a status grid. Uses the
+# steps a helper, standing in for a camera pan), a status grid and sector tiles. Uses the
 # lcards_test_* helpers; swap in your own locks, lights, cameras and modes.
 title: Security
 views:
@@ -121,18 +121,125 @@ views:
         preset: pills-basic
         view_layout:
           grid-area: pan
-      - type: custom:lcards-data-grid
-        data_mode: decorative
-        format: mixed
-        grid:
-          grid-template-rows: repeat(5, auto)
-          grid-template-columns: repeat(10, minmax(50px, 1fr))
-          gap: 0px
-        style:
-          font_size: 18px
-          color: var(--lcars-orange)
-        animations:
-          - preset: cascade
+      # Sector tiles: one framed tile per sector, like a camera wall.
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 10px
+          grid-template-columns: repeat(4, minmax(0, 1fr))
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-elbow
+            elbow:
+              type: frame
+              segment: { color: theme:colors.card.topColor }
+              frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+            background_animation:
+              inset: auto
+              effects: [{ preset: grid }]
+            symbiont:
+              enabled: true
+              position: { top: 10, right: 12, bottom: 10, left: 12 }
+              imprint: { enabled: false }
+              card:
+                type: custom:lcards-data-grid
+                data_mode: data
+                rows:
+                  - ["SECTOR 01 · MAIN DOORS"]
+                  - ["{{ 'OPEN' if is_state('input_boolean.lcards_test_doors', 'on') else 'SECURED' }}"]
+                grid:
+                  grid-template-columns: 1fr
+                  grid-template-rows: repeat(2, min-content)
+                  gap: 6px
+                style:
+                  font_size: 20px
+                columns:
+                  - style:
+                      align: right
+                      color: theme:colors.ui.secondary
+          - type: custom:lcards-elbow
+            elbow:
+              type: frame
+              segment: { color: theme:colors.card.topColor }
+              frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+            background_animation:
+              inset: auto
+              effects: [{ preset: grid }]
+            symbiont:
+              enabled: true
+              position: { top: 10, right: 12, bottom: 10, left: 12 }
+              imprint: { enabled: false }
+              card:
+                type: custom:lcards-data-grid
+                data_mode: data
+                rows:
+                  - ["SECTOR 02 · EXTERIOR"]
+                  - ["{{ 'LIT' if is_state('input_boolean.lcards_test_lights', 'on') else 'DARK' }}"]
+                grid:
+                  grid-template-columns: 1fr
+                  grid-template-rows: repeat(2, min-content)
+                  gap: 6px
+                style:
+                  font_size: 20px
+                columns:
+                  - style:
+                      align: right
+                      color: theme:colors.ui.secondary
+          - type: custom:lcards-elbow
+            elbow:
+              type: frame
+              segment: { color: theme:colors.ui.tertiary }
+              frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+            background_animation:
+              inset: auto
+              effects: [{ preset: grid }, { preset: scanlines }]
+            symbiont:
+              enabled: true
+              position: { top: 10, right: 12, bottom: 10, left: 12 }
+              imprint: { enabled: false }
+              card:
+                type: custom:lcards-data-grid
+                data_mode: data
+                rows:
+                  - ["SECTOR 03 · PERIMETER"]
+                  - ["{{ 'INTRUDER' if is_state('input_boolean.lcards_test_toggle', 'on') else 'CLEAR' }}"]
+                grid:
+                  grid-template-columns: 1fr
+                  grid-template-rows: repeat(2, min-content)
+                  gap: 6px
+                style:
+                  font_size: 20px
+                columns:
+                  - style:
+                      align: right
+                      color: theme:colors.ui.secondary
+          - type: custom:lcards-elbow
+            elbow:
+              type: frame
+              segment: { color: theme:colors.card.topColor }
+              frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+            background_animation:
+              inset: auto
+              effects: [{ preset: grid }]
+            symbiont:
+              enabled: true
+              position: { top: 10, right: 12, bottom: 10, left: 12 }
+              imprint: { enabled: false }
+              card:
+                type: custom:lcards-data-grid
+                data_mode: data
+                rows:
+                  - ["SECTOR 04 · CAMERA"]
+                  - ["{{ 'PAN ' ~ (states('input_number.lcards_test_value') | int) ~ ' DEG' }}"]
+                grid:
+                  grid-template-columns: 1fr
+                  grid-template-rows: repeat(2, min-content)
+                  gap: 6px
+                style:
+                  font_size: 20px
+                columns:
+                  - style:
+                      align: right
+                      color: theme:colors.ui.secondary
         view_layout:
           grid-area: deco
       - type: custom:lcards-elbow

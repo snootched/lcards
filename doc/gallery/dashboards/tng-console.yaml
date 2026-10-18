@@ -1,8 +1,9 @@
 # TNG console: the classic look from the patterns in doc/getting-started/lcars-design.md.
-# Thick colour blocks as structure, a sidebar of blocks with code numbers, a pill grid
-# whose groups are led by big numbers and alternate theme roles, a number cascade and a
-# footer bar. Every colour is a theme role, and the view uses the LCARS Default theme,
-# so the roles come out in the classic pastels. Uses lcards_test_* helpers.
+# Thick colour blocks as structure: header and footer sweeps continued as labelled
+# segments, a sidebar of blocks with code numbers, a pill grid led by big numbers in
+# alternating roles, a slider and a strip of small pills, a number cascade. Every colour
+# is a theme role, and the view uses the LCARS Default theme, so the roles come out in
+# the classic pastels. Uses lcards_test_* helpers.
 title: TNG Console
 views:
   - title: Operations
@@ -13,28 +14,48 @@ views:
       height: calc(100dvh - var(--header-height, 56px))
       padding: 12px
       grid-gap: 6px
-      grid-template-columns: 170px minmax(0, 3fr) minmax(0, 2fr)
-      grid-template-rows: 120px minmax(0, 1fr) 200px 70px
+      grid-template-columns: 170px 110px minmax(0, 3fr) minmax(0, 2fr)
+      grid-template-rows: 56px 64px minmax(0, 1fr) 150px 70px
       grid-template-areas: |
-        "head  head    head"
-        "side  pills   readout"
-        "side  status  readout"
-        "foot  foot    foot"
+        "corner corner bar    bar"
+        "corner corner title  title"
+        "side   pills  pills  readout"
+        "side   status status readout"
+        "fcorner fcorner fbar fbar"
     cards:
-      # Thick header sweep, title in the black beside it.
+      # Header: a short thick sweep, the bar continued as labelled segments in several roles.
       - type: custom:lcards-elbow
         view_layout:
-          grid-area: head
+          grid-area: corner
         elbow:
           type: header-left
           segment:
             bar_width: 170
             bar_height: 56
             color: theme:colors.ui.primary
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: bar
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 3fr 1fr 4fr 2fr 2fr
+          grid-template-rows: 56px
+        cards:
+          - { type: custom:lcards-button, preset: panel-light, min_height: 56, text: { label: { content: "COURSE SELECT", position: bottom-right } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 56, text: { label: { content: "541", position: bottom-right } }, style: { card: { color: { background: { default: theme:colors.ui.tertiary } } } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 56, text: { label: { content: "NAVIGATIONAL REFERENCE", position: bottom-right } }, style: { card: { color: { background: { default: theme:colors.ui.secondary } } } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 56, text: { label: { content: "FLIGHT CONTROL", position: bottom-right } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 56, text: { label: { content: "47-2201", position: bottom-right } }, style: { card: { color: { background: { default: theme:colors.card.topColor } } } } }
+      - type: custom:lcards-button
+        view_layout:
+          grid-area: title
+        preset: text-only
+        min_height: 0
         text:
-          title:
+          label:
             content: OPERATIONS • 40272
-            position: bottom-right
+            show: true
+            position: center-right
             font_size: 34
             color: theme:colors.ui.tertiary
 
@@ -130,38 +151,56 @@ views:
           - trigger: on_load
             preset: cascade-color
 
-      # Control bars and a slider under the pills.
+      # Under the pills: the power slider, then a strip of small pills (TNG panel strips).
       - type: custom:lcards-layout-card
         view_layout:
           grid-area: status
         layout:
           grid-gap: 8px
-          grid-template-columns: minmax(0, 1fr)
-          grid-template-rows: repeat(3, minmax(0, 1fr))
+          grid-template-columns: repeat(6, minmax(0, 1fr))
+          grid-template-rows: minmax(0, 1fr) 40px
+          grid-template-areas: |
+            "slider slider slider slider slider slider"
+            "p1 p2 p3 p4 p5 p6"
         cards:
-          - type: custom:lcards-button
-            preset: bar-label-right
-            text: { label: { content: SECONDARY CONTROL, color: theme:colors.ui.primary } }
-          - type: custom:lcards-button
-            preset: bar-label-right
-            text: { label: { content: AUXILIARY CONTROL, color: theme:colors.ui.primary } }
           - type: custom:lcards-slider
+            view_layout: { grid-area: slider }
             entity: input_number.lcards_test_power
             preset: pills-basic
+          - { type: custom:lcards-button, preset: lozenge, min_height: 0, view_layout: { grid-area: p1 }, text: { label: { content: "GS IRC", show: true } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
+          - { type: custom:lcards-button, preset: lozenge, min_height: 0, view_layout: { grid-area: p2 }, text: { label: { content: "KK TFD", show: true } }, style: { card: { color: { background: { default: theme:colors.ui.secondary } } } } }
+          - { type: custom:lcards-button, preset: lozenge, min_height: 0, view_layout: { grid-area: p3 }, text: { label: { content: "LA TWE", show: true } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
+          - { type: custom:lcards-button, preset: lozenge, min_height: 0, view_layout: { grid-area: p4 }, text: { label: { content: "BR TAS", show: true } }, style: { card: { color: { background: { default: theme:colors.ui.tertiary } } } } }
+          - { type: custom:lcards-button, preset: lozenge, min_height: 0, view_layout: { grid-area: p5 }, text: { label: { content: "IF WSD", show: true } }, style: { card: { color: { background: { default: theme:colors.ui.secondary } } } } }
+          - { type: custom:lcards-button, preset: lozenge, min_height: 0, view_layout: { grid-area: p6 }, text: { label: { content: "LO PRC", show: true } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
 
-      # Footer bar closes the frame.
+      # Footer: a short sweep, the bottom bar continued as segments.
       - type: custom:lcards-elbow
         view_layout:
-          grid-area: foot
+          grid-area: fcorner
         elbow:
           type: footer-left
           segment:
             bar_width: 170
             bar_height: 30
             color: theme:colors.ui.primary
-        text:
-          subtitle:
-            content: LCARS 23295
-            position: top-right
-            font_size: 20
-            color: theme:colors.ui.secondary
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: fbar
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 2fr 5fr 1fr 2fr
+          grid-template-rows: minmax(0, 1fr) 30px
+          grid-template-areas: |
+            ". . . sub"
+            "s1 s2 s3 s4"
+        cards:
+          - type: custom:lcards-button
+            view_layout: { grid-area: sub }
+            preset: text-only
+            min_height: 0
+            text: { label: { content: LCARS 23295, show: true, position: center-right, font_size: 20, color: theme:colors.ui.secondary } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 30, view_layout: { grid-area: s1 }, text: { label: { content: "PRIMARY CONTROL", position: center-right } }, style: { card: { color: { background: { default: theme:colors.ui.secondary } } } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 30, view_layout: { grid-area: s2 }, text: { label: { content: "AUXILIARY CONTROL", position: center-right } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 30, view_layout: { grid-area: s3 }, text: { label: { content: "08", position: center-right } }, style: { card: { color: { background: { default: theme:colors.ui.tertiary } } } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 30, view_layout: { grid-area: s4 }, text: { label: { content: "4301-795", position: center-right } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }

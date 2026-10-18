@@ -13,30 +13,44 @@ views:
       height: calc(100dvh - var(--header-height, 56px))
       padding: 12px
       grid-gap: 8px
-      grid-template-columns: 160px minmax(0, 1fr) 260px
+      grid-template-columns: 160px 100px minmax(0, 1fr) 260px
       grid-template-rows: 150px 50px minmax(0, 1fr) 70px
       grid-template-areas: |
-        "upper  upper   cascade"
-        "lower  lower   lower"
-        "side   list    numbers"
-        "pills  pills   pills"
+        "ucorner ucorner upper   cascade"
+        "lcorner lcorner lower   lower"
+        "side    list    list    numbers"
+        "pills   pills   pills   pills"
     cards:
-      # Split header: the upper block sweeps down into a bar...
+      # Split header: the upper block sweeps down into a bar continued as segments...
       - type: custom:lcards-elbow
         view_layout:
-          grid-area: upper
+          grid-area: ucorner
         elbow:
           type: footer-left
           segment:
             bar_width: 160
             bar_height: 20
             color: theme:colors.ui.secondary
-        text:
-          title:
-            content: VOYAGER DUTY ROSTER · 12.25.95
-            position: top-right
-            font_size: 32
-            color: theme:colors.ui.tertiary
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: upper
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 3fr 1fr 2fr
+          grid-template-rows: minmax(0, 1fr) 20px
+          grid-template-areas: |
+            "title title title"
+            "s1 s2 s3"
+        cards:
+          - type: custom:lcards-button
+            view_layout: { grid-area: title }
+            preset: text-only
+            min_height: 0
+            text: { label: { content: "VOYAGER DUTY ROSTER · 12.25.95", show: true, position: center-right, font_size: 32, color: theme:colors.ui.tertiary } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 20, view_layout: { grid-area: s1 }, text: { label: { content: "CREW ASSIGNMENTS", position: center-right } }, style: { card: { color: { background: { default: theme:colors.ui.secondary } } } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 20, view_layout: { grid-area: s2 }, text: { label: { content: "47", position: center-right } }, style: { card: { color: { background: { default: theme:colors.ui.tertiary } } } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 20, view_layout: { grid-area: s3 }, text: { label: { content: "DECK 5", position: center-right } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
+
       - type: custom:lcards-data-grid
         view_layout:
           grid-area: cascade
@@ -52,16 +66,28 @@ views:
         animations:
           - trigger: on_load
             preset: cascade-color
-      # ...and the lower one sweeps out of the next.
+      # ...and the lower one sweeps out of the next, also continued as segments.
       - type: custom:lcards-elbow
         view_layout:
-          grid-area: lower
+          grid-area: lcorner
         elbow:
           type: header-left
           segment:
             bar_width: 160
             bar_height: 20
             color: theme:colors.ui.primary
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: lower
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 1fr 4fr 1fr 2fr
+          grid-template-rows: 20px
+        cards:
+          - { type: custom:lcards-button, preset: panel-light, min_height: 20, text: { label: { content: "02-262000", position: center-right } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 20, text: { label: { content: "OPTICAL DATA NETWORK AVAILABLE", position: center-right } }, style: { card: { color: { background: { default: theme:colors.ui.secondary } } } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 20, text: { label: { content: "12", position: center-right } }, style: { card: { color: { background: { default: theme:colors.ui.tertiary } } } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 20, text: { label: { content: "03-111968", position: center-right } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
 
       # Sidebar under the lower sweep.
       - type: custom:lcards-layout-card

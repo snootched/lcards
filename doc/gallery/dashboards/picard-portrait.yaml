@@ -1,7 +1,7 @@
 # Picard portrait: the "portrait panel" archetype from doc/getting-started/lcars-design.md,
 # for a phone or an upright wall tablet. A header bar with the title, a condition readout
-# beside a column of code blocks, a tile wall, a gauge bank, toggle tabs and a footer
-# sweep. Every colour is a theme role. Uses lcards_test_* helpers.
+# beside a column of code blocks, a tile wall, a gauge bank, toggle tabs and a segmented
+# closing bar. Every colour is a theme role. Uses lcards_test_* helpers.
 title: Picard Portrait
 views:
   - title: Portrait
@@ -179,13 +179,16 @@ views:
             text: { name: { content: AUX } }
             tap_action: { action: toggle }
 
-      # Footer sweep.
-      - type: custom:lcards-elbow
+      # A segmented bar closes the panel (no sweep: nothing below for it to turn into).
+      - type: custom:lcards-layout-card
         view_layout:
           grid-area: foot
-        elbow:
-          type: footer-left
-          segment:
-            bar_width: 120
-            bar_height: 14
-            color: theme:colors.ui.secondary
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 120px 3fr 1fr 2fr
+          grid-template-rows: 16px
+        cards:
+          - { type: custom:lcards-button, preset: panel-light, min_height: 16, text: { label: { content: "", show: false } } }
+          - { type: custom:lcards-button, preset: panel-dark, min_height: 16, text: { label: { content: "453899-23780", position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 16, text: { label: { content: "692", position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-dark, min_height: 16, text: { label: { content: "4301-795-418", position: center-right } } }
