@@ -1,0 +1,219 @@
+# Picard split: a split header in the Picard style, from doc/getting-started/lcars-design.md.
+# Two segmented elbows (a thin outer band with a large curve around a wide inner block, as
+# in the lcars-shell strategy) face each other across a cut through the screen; each band
+# runs on as thin segments. Utility pills sit inside the upper curve, flagged code blocks
+# inside the lower one. Every colour is a theme role. Uses lcards_test_* helpers.
+title: Picard Split
+views:
+  - title: Split
+    path: split
+    type: custom:lcards-layout-view
+    layout:
+      height: calc(100dvh - var(--header-height, 56px))
+      padding: 12px
+      grid-gap: 8px
+      grid-template-columns: 210px 130px minmax(0, 1fr) 280px
+      grid-template-rows: 300px minmax(0, 1fr)
+      grid-template-areas: |
+        "ucorner ucorner upper upper"
+        "lcorner lcorner lower lower"
+    cards:
+      # Upper half: a segmented elbow sweeping down into the cut.
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: ucorner
+        elbow:
+          type: footer-left
+          style: segmented
+          segments:
+            gap: 5
+            outer_segment:
+              bar_width: 40
+              bar_height: 14
+              outer_curve: 120
+              inner_curve: 70
+              color: theme:colors.ui.primary
+            inner_segment:
+              bar_width: 150
+              bar_height: 30
+              inner_curve: 30
+              color: theme:colors.ui.quaternary
+      # Utility pills inside the upper curve.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: ucorner
+        layout:
+          padding: 16px 12px 70px 210px
+          grid-gap: 8px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: 26px 26px 26px minmax(0, 1fr) 26px
+        cards:
+          - { type: custom:lcards-button, preset: lozenge, min_height: 26, text: { label: { content: ZOOM, show: true, position: center, color: theme:colors.ui.secondary } }, style: { card: { color: { background: { default: theme:colors.card.topColor } } } } }
+          - { type: custom:lcards-button, preset: lozenge, min_height: 26, text: { label: { content: ABOUT, show: true, position: center, color: theme:colors.ui.secondary } }, style: { card: { color: { background: { default: theme:colors.card.topColor } } } } }
+          - { type: custom:lcards-button, preset: lozenge, min_height: 26, text: { label: { content: DIMMER, show: true, position: center, color: theme:colors.ui.secondary } }, style: { card: { color: { background: { default: theme:colors.card.topColor } } } } }
+          - { type: custom:lcards-button, preset: text-only, min_height: 0 }
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 26
+            text: { label: { content: RED ALERT, show: true, position: center } }
+            style: { card: { color: { background: { default: "var(--lcars-alert-color, var(--lcards-orange-dark))" } } } }
+            tap_action: { action: perform-action, perform_action: lcards.red_alert }
+
+      # Upper content, closed at the bottom by the band running on as thin segments.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: upper
+        layout:
+          grid-gap: 8px
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 280px
+          grid-template-rows: 48px minmax(0, 1fr) 14px
+          grid-template-areas: |
+            "dots   title  title"
+            "rows   cascade gauges"
+            "s1     s2     s3"
+        cards:
+          - type: custom:lcards-button
+            view_layout: { grid-area: dots }
+            preset: text-only
+            min_height: 0
+            text: { label: { content: "•  •••  ••  •••••  •  ••", show: true, position: center-left, color: theme:colors.ui.secondary } }
+          - type: custom:lcards-button
+            view_layout: { grid-area: title }
+            preset: text-only
+            min_height: 0
+            text: { label: { content: "U.S.S. TITAN · OPERATIONS", show: true, position: center-right, font_size: 32, color: theme:colors.ui.tertiary } }
+          - type: custom:lcards-layout-card
+            view_layout: { grid-area: rows }
+            layout:
+              grid-gap: 6px
+              grid-template-columns: 110px minmax(0, 1fr)
+              grid-template-rows: repeat(3, minmax(0, 1fr))
+            cards:
+              - { type: custom:lcards-button, preset: panel-dark, min_height: 0, text: { label: { content: POWER, position: center-right } } }
+              - { type: custom:lcards-slider, preset: gauge-basic, entity: input_number.lcards_test_power }
+              - { type: custom:lcards-button, preset: panel-dark, min_height: 0, text: { label: { content: SHIELDS, position: center-right } } }
+              - { type: custom:lcards-slider, preset: gauge-basic, entity: input_number.lcards_test_shields }
+              - { type: custom:lcards-button, preset: panel-dark, min_height: 0, text: { label: { content: HUMIDITY, position: center-right } } }
+              - { type: custom:lcards-slider, preset: gauge-basic, entity: input_number.lcards_test_humidity }
+          - type: custom:lcards-data-grid
+            view_layout: { grid-area: cascade }
+            data_mode: decorative
+            format: digit
+            grid:
+              grid-template-rows: repeat(6, auto)
+              grid-template-columns: repeat(4, minmax(0, 1fr))
+              gap: 0px
+            style:
+              padding: 0px
+              font_size: 18px
+            animations:
+              - trigger: on_load
+                preset: cascade-color
+          - type: custom:lcards-button
+            view_layout: { grid-area: gauges }
+            component: radar
+          - { type: custom:lcards-button, preset: panel-light, min_height: 14, view_layout: { grid-area: s1 }, text: { label: { content: "", show: false } } }
+          - { type: custom:lcards-button, preset: panel-dark, min_height: 14, view_layout: { grid-area: s2 }, text: { label: { content: "", show: false } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 14, view_layout: { grid-area: s3 }, text: { label: { content: "", show: false } }, style: { card: { color: { background: { default: theme:colors.ui.tertiary } } } } }
+
+      # Lower half: the mirror elbow sweeping up out of the cut.
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: lcorner
+        elbow:
+          type: header-left
+          style: segmented
+          segments:
+            gap: 5
+            outer_segment:
+              bar_width: 40
+              bar_height: 14
+              outer_curve: 120
+              inner_curve: 70
+              color: theme:colors.ui.primary
+            inner_segment:
+              bar_width: 150
+              bar_height: 30
+              inner_curve: 30
+              color: theme:colors.ui.quaternary
+      # Flagged code blocks inside the lower curve; two follow helpers.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: lcorner
+        layout:
+          padding: 70px 12px 16px 210px
+          grid-gap: 6px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: repeat(8, 30px)
+        cards:
+          - { type: custom:lcards-button, preset: panel-flagged, min_height: 30, text: { label: { content: "012" } } }
+          - { type: custom:lcards-button, preset: panel-flagged, min_height: 30, entity: input_boolean.lcards_test_lights, tap_action: { action: toggle }, text: { label: { content: "330" } } }
+          - { type: custom:lcards-button, preset: panel-flagged, min_height: 30, text: { label: { content: "436" } } }
+          - { type: custom:lcards-button, preset: panel-flagged, min_height: 30, entity: input_boolean.lcards_test_doors, tap_action: { action: toggle }, text: { label: { content: "23" } } }
+          - { type: custom:lcards-button, preset: panel-flagged, min_height: 30, text: { label: { content: "542" } } }
+          - { type: custom:lcards-button, preset: panel-flagged, min_height: 30, text: { label: { content: "7439" } } }
+          - { type: custom:lcards-button, preset: panel-flagged, min_height: 30, text: { label: { content: "4057" } } }
+          - { type: custom:lcards-button, preset: panel-flagged, min_height: 30, text: { label: { content: "0007" } } }
+
+      # Lower content: the band runs on as thin segments along the top, then a framed
+      # display and a column of blocks and tabs.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: lower
+        layout:
+          grid-gap: 8px
+          grid-template-columns: minmax(0, 1fr) 280px
+          grid-template-rows: 14px minmax(0, 1fr)
+          grid-template-areas: |
+            "segs segs"
+            "display side"
+        cards:
+          - type: custom:lcards-layout-card
+            view_layout: { grid-area: segs }
+            layout:
+              grid-gap: 6px
+              grid-template-columns: 3fr 1fr 5fr 2fr
+              grid-template-rows: 14px
+            cards:
+              - { type: custom:lcards-button, preset: panel-dark, min_height: 14, text: { label: { content: "", show: false } } }
+              - { type: custom:lcards-button, preset: panel-light, min_height: 14, text: { label: { content: "", show: false } } }
+              - { type: custom:lcards-button, preset: panel-dark, min_height: 14, text: { label: { content: "", show: false } } }
+              - { type: custom:lcards-button, preset: panel-light, min_height: 14, text: { label: { content: "", show: false } } }
+          - type: custom:lcards-elbow
+            view_layout: { grid-area: display }
+            elbow:
+              type: frame
+              segment: { color: theme:colors.card.topColor }
+              frame: { bar_width: 3, bar_height: 3, outer_curve: 24 }
+          - type: custom:lcards-msd-card
+            view_layout: { grid-area: display }
+            msd:
+              base_svg:
+                source: builtin:ncc-1701-a-blue
+                filters:
+                  - { mode: css, type: opacity, value: 0.45 }
+              view_box: [180, 270, 1600, 720]
+          - type: custom:lcards-layout-card
+            view_layout: { grid-area: side }
+            layout:
+              grid-gap: 6px
+              grid-template-columns: minmax(0, 1fr)
+              grid-template-rows: repeat(6, 30px) minmax(0, 1fr) 48px 48px
+            cards:
+              - { type: custom:lcards-button, preset: panel-light, min_height: 30, text: { label: { content: 58-347, position: center-right } } }
+              - { type: custom:lcards-button, preset: panel-dark, min_height: 30, text: { label: { content: NCC-80102, position: center-right } } }
+              - { type: custom:lcards-button, preset: panel-light, min_height: 30, text: { label: { content: 45-721, position: center-right } } }
+              - { type: custom:lcards-button, preset: panel-light, min_height: 30, text: { label: { content: 10-732, position: center-right } } }
+              - { type: custom:lcards-button, preset: panel-dark, min_height: 30, text: { label: { content: 52-741, position: center-right } } }
+              - { type: custom:lcards-button, preset: panel-light, min_height: 30, text: { label: { content: 25-225, position: center-right } } }
+              - { type: custom:lcards-button, preset: text-only, min_height: 0 }
+              - type: custom:lcards-button
+                preset: toggle-tab
+                entity: input_boolean.lcards_test_lights
+                text: { name: { content: LIGHTS } }
+                tap_action: { action: toggle }
+              - type: custom:lcards-button
+                preset: toggle-tab
+                entity: input_boolean.lcards_test_doors
+                text: { name: { content: DOORS } }
+                tap_action: { action: toggle }

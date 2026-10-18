@@ -193,6 +193,8 @@ Every standard preset, rendered:
 
 <CardGallery set="button-presets" />
 
+The `toggle-tab` indicator is a border on one side, so it can sit on any side at any thickness: `border.width: { top: 0, left: 6 }` moves it to the left edge, and the number is its thickness.
+
 ### Panels
 
 Square-cornered blocks with a code label, for number columns and fillers. With an entity they show the theme accent when on and the dark structure tone when off.

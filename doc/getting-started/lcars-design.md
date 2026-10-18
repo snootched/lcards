@@ -286,7 +286,7 @@ cards:
 
 ### Concentric sweep
 
-A thick sweep with a thin line running parallel inside it, the Picard header and corner shape. A segmented elbow: `outer_segment` is the sweep, `inner_segment` the line.
+A thick sweep with a thin line running parallel inside it, the Picard header and corner shape. A segmented elbow: `outer_segment` is the sweep, `inner_segment` the line. Swap the weights for the other common Picard form: a thin outer band with a large curve (`outer_segment` about 40 by 14, `outer_curve` around 120) wrapped round a wide inner block (`inner_segment` 150 by 30), as in the lcars-shell strategy and the [split screen](dashboard-gallery#picard-split-screen).
 
 ```yaml live
 type: custom:lcards-elbow

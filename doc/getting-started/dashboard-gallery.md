@@ -91,7 +91,7 @@ Segmented [frames](../cards/elbow/#frame-type) around a history chart with a smo
 
 ## Built from the design guide
 
-Six screens composed from the [archetypes](lcars-design#screen-archetypes) and [patterns](lcars-design#patterns) in Designing LCARS Screens, three for each look. Each starts from a different archetype, so together they show how varied the same design language can be. Every colour is a theme role: they follow your HA-LCARS theme, and the classic ones set a classic theme on their view.
+Seven screens composed from the [archetypes](lcars-design#screen-archetypes) and [patterns](lcars-design#patterns) in Designing LCARS Screens, four Picard and three classic. Each starts from a different archetype, so together they show how varied the same design language can be. Every colour is a theme role: they follow your HA-LCARS theme, and the classic ones set a classic theme on their view.
 
 ### Picard: display with side columns
 
@@ -111,6 +111,16 @@ A concentric header sweep continued by a [segmented bar](lcars-design#segmented-
 
 ::: details YAML
 <<< @/gallery/dashboards/picard-display.yaml
+:::
+
+### Picard: split screen
+
+A split header in the Picard style: two [segmented elbows](lcars-design#concentric-sweep) (a thin outer band with a large curve around a wide inner block) face each other across a cut through the screen, each band running on as thin segments. Utility pills sit inside the upper curve and [flagged blocks](lcars-design#flagged-blocks) inside the lower one, around readout gauges, a cascade, a radar scope and a framed ship schematic.
+
+<video class="doc-video" src="/gallery/picard-split.webm" poster="/gallery/picard-split.webp" title="Picard split screen: two grey segmented sweeps facing across a cut through the screen, pills in the upper curve, flagged code blocks in the lower, readout gauges, a number cascade, a radar scope, a dimmed blue ship and toggle tabs" autoplay loop muted playsinline></video>
+
+::: details YAML
+<<< @/gallery/dashboards/picard-split.yaml
 :::
 
 ### Picard: portrait panel
