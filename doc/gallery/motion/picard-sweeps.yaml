@@ -1,0 +1,24 @@
+# Gallery video for picard-sweeps.yaml: the selector moves through the modes, the gauges and readout rows follow power, shields and humidity, a tile frame lights when the doors open.
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/picard-sweeps.yaml --video
+steps:
+- {wait: 800}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_doors}]
+- {wait: 1200}
+- service: [input_select, select_option, {entity_id: input_select.lcards_test_mode, option: alpha}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 40}]
+- {wait: 1200}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_toggle}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 25}]
+- {wait: 1200}
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_lights}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_humidity, value: 70}]
+- {wait: 1500}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 82}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 64}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_humidity, value: 46}]
+- service: [input_select, select_option, {entity_id: input_select.lcards_test_mode, option: beta}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_doors}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_toggle}]
+- {wait: 800}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_lights}]
+tail: 1500

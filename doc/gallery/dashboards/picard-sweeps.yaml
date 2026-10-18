@@ -1,0 +1,193 @@
+# Picard sweeps: the "display over controls" archetype with facing sweeps across the top
+# (the title in the black between them), a wide nested frame around a dimmed ship schematic, and a
+# control deck under it: a gauge bank, a wall of framed tiles, readout rows and a selector
+# strip. Every colour is a theme role. Uses lcards_test_* helpers.
+title: Picard Sweeps
+views:
+  - title: Sweeps
+    path: sweeps
+    type: custom:lcards-layout-view
+    layout:
+      height: calc(100dvh - var(--header-height, 56px))
+      padding: 12px
+      grid-gap: 8px
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.2fr)
+      grid-template-rows: 80px minmax(0, 1.25fr) minmax(0, 1fr) 48px
+      grid-template-areas: |
+        "headl   headl   headr"
+        "display display display"
+        "gauges  tiles   readout"
+        "gauges  tiles   sel"
+    cards:
+      # Facing sweeps: the title sits in the black between them.
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: headl
+        elbow:
+          type: header-left
+          segment:
+            bar_width: 150
+            bar_height: 20
+            color: theme:colors.ui.secondary
+        text:
+          title:
+            content: SHUTTLE BAY · DECK 4
+            position: bottom-right
+            font_size: 28
+            color: theme:colors.ui.tertiary
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: headr
+        elbow:
+          type: header-right
+          segment:
+            bar_width: 110
+            bar_height: 20
+            color: theme:colors.ui.primary
+
+      # The display: a nested frame around the ship, dimmed so it reads as data.
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: display
+        elbow:
+          type: frame
+          style: segmented
+          segment:
+            color: theme:colors.card.topColor
+          frame:
+            bar_width: 8
+            segments:
+              gap: 6
+              inner_frame:
+                bar_width: 3
+                color: theme:colors.ui.primary
+      - type: custom:lcards-msd-card
+        view_layout:
+          grid-area: display
+        msd:
+          base_svg:
+            source: builtin:enterprise-d-shuttlecraft15-anomaly
+            # Grey and dimmed: on a Picard screen the schematic is data, not structure.
+            filters:
+              - { mode: css, type: grayscale, value: 1 }
+              - { mode: css, type: opacity, value: 0.55 }
+          view_box: [-40, -50, 1123, 560]
+
+      # Gauge bank.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: gauges
+        layout:
+          grid-gap: 8px
+          grid-template-columns: repeat(4, minmax(0, 1fr))
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - { type: custom:lcards-slider, component: picard, preset: picard-gauge-vertical, entity: input_number.lcards_test_power }
+          - { type: custom:lcards-slider, component: picard, preset: picard-gauge-vertical, entity: input_number.lcards_test_shields }
+          - { type: custom:lcards-slider, component: picard, preset: picard-gauge-vertical, entity: input_number.lcards_test_temperature }
+          - { type: custom:lcards-slider, component: picard, preset: picard-gauge-vertical, entity: input_number.lcards_test_humidity }
+
+      # Tile wall: framed readings, each embedded in its frame.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: tiles
+        layout:
+          grid-gap: 10px
+          grid-template-columns: repeat(2, minmax(0, 1fr))
+          grid-template-rows: repeat(2, minmax(0, 1fr))
+        cards:
+          - type: custom:lcards-elbow
+            elbow:
+              type: frame
+              segment: { color: theme:colors.card.topColor }
+              frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+            symbiont:
+              enabled: true
+              position: { top: 10, right: 10, bottom: 10, left: 10 }
+              imprint: { enabled: false }
+              card:
+                type: custom:lcards-data-grid
+                data_mode: decorative
+                format: digit
+                grid:
+                  grid-template-rows: repeat(3, auto)
+                  grid-template-columns: repeat(3, minmax(0, 1fr))
+          - type: custom:lcards-elbow
+            elbow:
+              type: frame
+              segment: { color: theme:colors.card.topColor }
+              frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+            symbiont:
+              enabled: true
+              position: { top: 10, right: 10, bottom: 10, left: 10 }
+              imprint: { enabled: false }
+              card:
+                type: custom:lcards-data-grid
+                data_mode: decorative
+                format: hex
+                grid:
+                  grid-template-rows: repeat(3, auto)
+                  grid-template-columns: repeat(3, minmax(0, 1fr))
+          - type: custom:lcards-elbow
+            entity: input_boolean.lcards_test_doors
+            elbow:
+              type: frame
+              segment:
+                color:
+                  default: theme:colors.card.topColor
+                  active: theme:colors.ui.tertiary
+                  inactive: theme:colors.card.topColor
+              frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+            symbiont:
+              enabled: true
+              position: { top: 10, right: 10, bottom: 10, left: 10 }
+              imprint: { enabled: false }
+              card:
+                type: custom:lcards-data-grid
+                data_mode: decorative
+                format: float
+                grid:
+                  grid-template-rows: repeat(3, auto)
+                  grid-template-columns: repeat(3, minmax(0, 1fr))
+          - type: custom:lcards-elbow
+            elbow:
+              type: frame
+              segment: { color: theme:colors.card.topColor }
+              frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+            symbiont:
+              enabled: true
+              position: { top: 10, right: 10, bottom: 10, left: 10 }
+              imprint: { enabled: false }
+              card:
+                type: custom:lcards-data-grid
+                data_mode: decorative
+                format: alpha
+                grid:
+                  grid-template-rows: repeat(3, auto)
+                  grid-template-columns: repeat(3, minmax(0, 1fr))
+
+      # Readout rows.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: readout
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 110px minmax(0, 1fr)
+          grid-template-rows: repeat(3, minmax(0, 1fr))
+        cards:
+          - { type: custom:lcards-button, preset: panel-dark, min_height: 0, text: { label: { content: POWER, position: center-right } } }
+          - { type: custom:lcards-slider, preset: gauge-basic, entity: input_number.lcards_test_power }
+          - { type: custom:lcards-button, preset: panel-dark, min_height: 0, text: { label: { content: SHIELDS, position: center-right } } }
+          - { type: custom:lcards-slider, preset: gauge-basic, entity: input_number.lcards_test_shields }
+          - { type: custom:lcards-button, preset: panel-dark, min_height: 0, text: { label: { content: HUMIDITY, position: center-right } } }
+          - { type: custom:lcards-slider, preset: gauge-basic, entity: input_number.lcards_test_humidity }
+
+      # Selector strip.
+      - type: custom:lcards-select-menu
+        view_layout:
+          grid-area: sel
+        entity: input_select.lcards_test_mode
+        preset: toggle-tab
+        grid:
+          columns: 3
+          gap: 6px
