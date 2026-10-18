@@ -91,7 +91,7 @@ Segmented [frames](../cards/elbow/#frame-type) around a history chart with a smo
 
 ## Built from the design guide
 
-Seven screens composed from the [archetypes](lcars-design#screen-archetypes) and [patterns](lcars-design#patterns) in Designing LCARS Screens, three or four for each look. Most start from a different archetype, so together they show how varied the same design language can be. Every colour is a theme role: they follow your HA-LCARS theme, and the classic ones set a classic theme on their view.
+Six screens composed from the [archetypes](lcars-design#screen-archetypes) and [patterns](lcars-design#patterns) in Designing LCARS Screens, three for each look. Each starts from a different archetype, so together they show how varied the same design language can be. Every colour is a theme role: they follow your HA-LCARS theme, and the classic ones set a classic theme on their view.
 
 ### Picard: display with side columns
 
@@ -111,16 +111,6 @@ A concentric header sweep continued by a [segmented bar](lcars-design#segmented-
 
 ::: details YAML
 <<< @/gallery/dashboards/picard-display.yaml
-:::
-
-### Picard: facing sweeps
-
-The same display-over-controls screen with a different header: two sweeps facing each other across the top, the title in the black between them.
-
-<video class="doc-video" src="/gallery/picard-sweeps.webm" poster="/gallery/picard-sweeps.webp" title="Picard sweeps: two grey sweeps facing across the top with a red title between them, a wide frame around a grey shuttlecraft schematic, four vertical gauges, four framed number tiles, three readout gauges and a mode selector" autoplay loop muted playsinline></video>
-
-::: details YAML
-<<< @/gallery/dashboards/picard-sweeps.yaml
 :::
 
 ### Picard: portrait panel
