@@ -372,7 +372,7 @@ export const BACKGROUND_PRESETS = {
         numBands: config.num_bands ?? resolveToken('components.backgroundAnimation.contourField.bands.count', 5),
         cellSize: config.cell_size ?? resolveToken('components.backgroundAnimation.contourField.bands.cellSize', 1),
         fillLevel: config.fill_level ?? resolveToken('components.backgroundAnimation.contourField.bands.fillLevel', 0.45),
-        fillColor: config.fill_color ?? resolveToken('components.backgroundAnimation.contourField.bands.fillColor', 'alpha(var(--lcars-midnight-blue), 0.30)'),
+        fillColor: config.fill_color ?? resolveToken('components.backgroundAnimation.contourField.bands.fillColor', 'alpha(var(--lcars-midnight-blue, var(--lcards-blue-darkest)), 0.30)'),
         blendColors: config.blend_colors ?? resolveToken('components.backgroundAnimation.contourField.bands.blendColors', true),
 
         // Support both 'colors' (array) and 'color' (single)

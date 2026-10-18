@@ -155,7 +155,7 @@ export class LCARdSMSDCard extends LCARdSCard {
                     justify-content: center;
                     background: black;
                     color: var(--lcars-yellow, var(--lcards-yellow-medium, #ffcc99));
-                    font-family: var(--lcars-font), var(--lcars-fallback-font), 'Antonio', 'Segoe UI Variable Static Text', 'Segoe UI', sans-serif;
+                    font-family: var(--lcars-font, var(--lcars-fallback-font, 'Antonio')), 'Antonio', 'Segoe UI Variable Static Text', 'Segoe UI', sans-serif;
                     font-weight: 100;
                     text-transform: uppercase;
                     letter-spacing: 0.05em;

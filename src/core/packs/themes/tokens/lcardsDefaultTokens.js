@@ -31,7 +31,7 @@ export const lcardsDefaultTokens = {
   // ==========================================================================
   typography: {
     fontFamily: {
-      primary: "var(--lcars-font), var(--lcars-fallback-font), 'Antonio', 'Segoe UI Variable Static Text', 'Segoe UI', sans-serif"
+      primary: "var(--lcars-font, var(--lcars-fallback-font, 'Antonio')), 'Antonio', 'Segoe UI Variable Static Text', 'Segoe UI', sans-serif"
     },
     fontSize: {
       sm: 12,
@@ -142,10 +142,10 @@ export const lcardsDefaultTokens = {
 
     // Alert colors (LCARS alert symbol component)
     alert: {
-      red: 'var(--lcars-alert-red)',         // Critical/Emergency
-      blue: 'var(--lcars-alert-blue)',       // Security/Tactical
+      red: 'var(--lcars-alert-red, var(--lcards-orange-dark))',         // Critical/Emergency
+      blue: 'var(--lcars-alert-blue, var(--lcards-blue))',       // Security/Tactical
       green: 'var(--lcars-green, #33cc99)',    // Normal/All Clear
-      yellow: 'var(--lcars-alert-yellow)', // Caution/Warning
+      yellow: 'var(--lcars-alert-yellow, var(--lcards-yellow))', // Caution/Warning
       gray: 'var(--lcards-gray)',       // Standby/Inactive
       black: 'var(--lcards-blue-lightest)'        // System Critical
     },

@@ -2,6 +2,10 @@
 // production bundle, one sample hass per page, the LCARS colour variables and
 // the sections-grid sizing.
 import { SAMPLE_ENTITIES, samplePoints, sampleStatistics, LCARS_DEMO_VARS } from './chart-demo-data.js'
+// The HA-LCARS palette (fixed colours such as --lcars-alert-red), from the committed snapshot
+// (scripts/sync-ha-lcars.js), so doc examples naming a palette colour render as on a dashboard.
+// Role variables (--lcars-ui-*) stay unset: cards show their LCARdS fallbacks, as without a theme.
+import haLcars from '../../../scripts/data/ha-lcars/snapshot.json' with { type: 'json' }
 
 /**
  * The production bundle, loaded once per page from the published /lcards/ copy.
@@ -38,7 +42,8 @@ export function sharedEnv() {
 /** The LCARS (HA-LCARS theme) colour variables a dashboard would have. */
 export function applyDemoVars() {
   const root = document.documentElement
-  for (const [name, value] of Object.entries(LCARS_DEMO_VARS)) {
+  const palette = Object.fromEntries(haLcars.palette.filter(p => p.name.startsWith('lcars-')).map(p => [`--${p.name}`, p.value]))
+  for (const [name, value] of Object.entries({ ...palette, ...LCARS_DEMO_VARS })) {
     if (!getComputedStyle(root).getPropertyValue(name).trim()) root.style.setProperty(name, value)
   }
 }
