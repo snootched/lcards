@@ -11,7 +11,7 @@ layout:
     "b3 main"
 cards:
   - type: custom:lcards-button
-    preset: number-block
+    preset: panel-light
     text: { label: { content: 13-650 } }
     view_layout: { grid-area: b1 }
   - type: custom:lcards-button

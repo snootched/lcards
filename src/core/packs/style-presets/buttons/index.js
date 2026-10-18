@@ -823,11 +823,15 @@ export const BUTTON_PRESETS = {
 
   'panel-light': {
     extends: 'button.barrel',
-    description: 'non-interactive square-cornered panel with LCARS random label',
+    description: 'square-cornered panel with a code label; with an entity, the theme accent when on and the dark structure tone when off',
     text: {
       label: {
         show: true,
-        position: 'bottom-right'
+        position: 'bottom-right',
+        color: {
+          // text partner of the inactive background (card-top-color): readable in every theme
+          inactive: 'var(--lcars-card-top-text, var(--lcards-gray-lightest))'
+        }
       },
     },
     interactive: false,
@@ -835,40 +839,7 @@ export const BUTTON_PRESETS = {
       card: {
         color: {
           background: {
-            default: 'theme:colors.ui.primary'
-           }
-         }
-       }
-    }
-  },
-  // =====================================
-  // NUMBER BLOCK - Picard-era code block (columns of small numbered blocks)
-  // =====================================
-  'number-block': {
-    extends: 'button.barrel',
-    description: 'small square-cornered block with a right-aligned code number; structure colour at rest, accent colour when active, dimmed when inactive',
-    min_height: 28,
-    text: {
-      default: {
-        font_size: 'theme:typography.fontSize.base'
-      },
-      label: {
-        show: true,
-        position: 'center-right',
-        padding: {
-          right: 8
-        },
-        color: {
-          // text partner of the inactive background (card-top-color): readable in every theme
-          inactive: 'var(--lcars-card-top-text, var(--lcards-gray-lightest))'
-        }
-      }
-    },
-    style: {
-      card: {
-        color: {
-          background: {
-            default: 'theme:colors.ui.secondary',
+            default: 'theme:colors.ui.primary',
             active: 'theme:colors.card.buttonOn',
             inactive: 'theme:colors.card.topColor',
             unavailable: 'theme:colors.card.buttonUnavailable'
@@ -928,11 +899,15 @@ export const BUTTON_PRESETS = {
 
   'panel-dark': {
     extends: 'button.barrel',
-    description: 'non-interactive square-cornered panel with LCARS random label',
+    description: 'square-cornered panel with a code label; with an entity, the theme accent when on and the dark structure tone when off',
     text: {
       label: {
         show: true,
-        position: 'bottom-right'
+        position: 'bottom-right',
+        color: {
+          // text partner of the inactive background (card-top-color): readable in every theme
+          inactive: 'var(--lcars-card-top-text, var(--lcards-gray-lightest))'
+        }
       },
     },
     interactive: false,
@@ -940,11 +915,15 @@ export const BUTTON_PRESETS = {
       card: {
         color: {
           background: {
-            default: 'theme:colors.ui.quaternary'
-           }
-         }
-       }
+            default: 'theme:colors.ui.quaternary',
+            active: 'theme:colors.card.buttonOn',
+            inactive: 'theme:colors.card.topColor',
+            unavailable: 'theme:colors.card.buttonUnavailable'
+          }
+        }
+      }
     }
   },
+
 
 };

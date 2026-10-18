@@ -1,0 +1,159 @@
+# Voyager roster: the "list" archetype from doc/getting-started/lcars-design.md. A split
+# header (an upper block sweeping down into a bar, a lower one sweeping out of the next),
+# a number cascade in the header, a roster list, a column of big numbers and a row of
+# pill groups. The view uses the LCARS Nemesis Blue theme; every colour is a theme role.
+# Uses lcards_test_* helpers.
+title: Voyager Roster
+views:
+  - title: Roster
+    path: roster
+    theme: LCARS Nemesis Blue
+    type: custom:lcards-layout-view
+    layout:
+      height: calc(100dvh - var(--header-height, 56px))
+      padding: 12px
+      grid-gap: 8px
+      grid-template-columns: 160px minmax(0, 1fr) 260px
+      grid-template-rows: 150px 50px minmax(0, 1fr) 70px
+      grid-template-areas: |
+        "upper  upper   cascade"
+        "lower  lower   lower"
+        "side   list    numbers"
+        "pills  pills   pills"
+    cards:
+      # Split header: the upper block sweeps down into a bar...
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: upper
+        elbow:
+          type: footer-left
+          segment:
+            bar_width: 160
+            bar_height: 20
+            color: theme:colors.ui.secondary
+        text:
+          title:
+            content: VOYAGER DUTY ROSTER · 12.25.95
+            position: top-right
+            font_size: 32
+            color: theme:colors.ui.tertiary
+      - type: custom:lcards-data-grid
+        view_layout:
+          grid-area: cascade
+        data_mode: decorative
+        format: digit
+        grid:
+          grid-template-rows: repeat(5, auto)
+          grid-template-columns: repeat(4, minmax(0, 1fr))
+          gap: 0px
+        style:
+          padding: 0px
+          font_size: 18px
+        animations:
+          - trigger: on_load
+            preset: cascade-color
+      # ...and the lower one sweeps out of the next.
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: lower
+        elbow:
+          type: header-left
+          segment:
+            bar_width: 160
+            bar_height: 20
+            color: theme:colors.ui.primary
+
+      # Sidebar under the lower sweep.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: side
+        layout:
+          grid-gap: 8px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: 2fr 1fr 1fr
+        cards:
+          - { type: custom:lcards-button, preset: panel-light, min_height: 0, text: { label: { content: 03-111968 } } }
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text: { label: { content: 04-041969 } }
+            style: { card: { color: { background: { default: theme:colors.ui.tertiary } } } }
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text: { label: { content: 05-1701D } }
+            style: { card: { color: { background: { default: theme:colors.card.topColor } } } }
+
+      # The roster.
+      - type: custom:lcards-data-grid
+        view_layout:
+          grid-area: list
+        data_mode: data
+        rows:
+          - values: [Name, Station, Shift, Status]
+            header: true
+          - [TUVOK, SECURITY, ALPHA, ON DUTY]
+          - [TORRES, ENGINEERING, BETA, ON DUTY]
+          - [PARIS, CONN, ALPHA, ON DUTY]
+          - [KIM, OPERATIONS, GAMMA, OFF DUTY]
+          - [NEELIX, GALLEY, ALPHA, ON DUTY]
+          - [SEVEN, ASTROMETRICS, BETA, OFF DUTY]
+          - [DOCTOR, SICKBAY, ALL, ACTIVE]
+          - [CHAKOTAY, COMMAND, ALPHA, ON DUTY]
+        grid:
+          grid-template-columns: 1.2fr 1.4fr 0.8fr 1fr
+          grid-template-rows: repeat(9, min-content)
+          gap: 6px
+        style:
+          font_size: 20px
+        columns:
+          - style:
+              align: left
+              color: theme:colors.ui.tertiary
+          - style:
+              align: left
+              color: theme:colors.ui.primary
+          - style:
+              align: left
+              color: theme:colors.ui.secondary
+          - style:
+              align: right
+              color: theme:colors.ui.primary
+
+      # A column of big numbers.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: numbers
+        layout:
+          grid-gap: 4px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: repeat(4, minmax(0, 1fr))
+        cards:
+          - { type: custom:lcards-button, preset: text-only, min_height: 0, text: { label: { content: "752", show: true, position: center-right, font_size: 54, color: theme:colors.ui.secondary } } }
+          - { type: custom:lcards-button, preset: text-only, min_height: 0, text: { label: { content: "77", show: true, position: center-right, font_size: 54, color: theme:colors.ui.tertiary } } }
+          - { type: custom:lcards-button, preset: text-only, min_height: 0, text: { label: { content: "04", show: true, position: center-right, font_size: 54, color: theme:colors.ui.primary } } }
+          - { type: custom:lcards-button, preset: text-only, min_height: 0, text: { label: { content: "003", show: true, position: center-right, font_size: 54, color: theme:colors.ui.secondary } } }
+
+      # Pill groups along the bottom.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: pills
+        layout:
+          grid-gap: 8px
+          grid-template-columns: repeat(6, minmax(0, 1fr))
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: lozenge
+            entity: input_boolean.lcards_test_lights
+            text: { label: { content: LIGHTS, show: true } }
+            tap_action: { action: toggle }
+          - type: custom:lcards-button
+            preset: lozenge
+            entity: input_boolean.lcards_test_doors
+            text: { label: { content: DOORS, show: true } }
+            tap_action: { action: toggle }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: 07 9012, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: 09 4421, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: 12 6610, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.secondary } } } } }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: 15 0087, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.secondary } } } } }

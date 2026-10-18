@@ -1,0 +1,191 @@
+# Picard portrait: the "portrait panel" archetype from doc/getting-started/lcars-design.md,
+# for a phone or an upright wall tablet. A header bar with the title, a condition readout
+# beside a column of code blocks, a tile wall, a gauge bank, toggle tabs and a footer
+# sweep. Every colour is a theme role. Uses lcards_test_* helpers.
+title: Picard Portrait
+views:
+  - title: Portrait
+    path: portrait
+    type: custom:lcards-layout-view
+    layout:
+      height: calc(100dvh - var(--header-height, 56px))
+      padding: 10px
+      grid-gap: 8px
+      grid-template-columns: 120px minmax(0, 1fr)
+      grid-template-rows: 56px 150px 120px minmax(0, 1fr) 52px 40px
+      grid-template-areas: |
+        "title  title"
+        "codes  status"
+        "tiles  tiles"
+        "gauges gauges"
+        "tabs   tabs"
+        "foot   foot"
+    cards:
+      # Header bar with the title.
+      - type: custom:lcards-button
+        view_layout:
+          grid-area: title
+        preset: bar-label-left
+        text:
+          label:
+            content: MISSION OPS
+            color: theme:colors.ui.tertiary
+        style:
+          card:
+            color:
+              background:
+                default: theme:colors.ui.tertiary
+
+      # Code blocks, two of them tied to helpers.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: codes
+        layout:
+          grid-gap: 6px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: repeat(4, minmax(0, 1fr))
+        cards:
+          - { type: custom:lcards-button, preset: panel-light, min_height: 0, text: { label: { content: 07-82, position: center-right } } }
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            entity: input_boolean.lcards_test_lights
+            text: { label: { content: 75-15, position: center-right } }
+            tap_action: { action: toggle }
+          - { type: custom:lcards-button, preset: panel-dark, min_height: 0, text: { label: { content: 7-385, position: center-right } } }
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            entity: input_boolean.lcards_test_doors
+            text: { label: { content: 19-587, position: center-right } }
+            tap_action: { action: toggle }
+
+      # Condition readout.
+      - type: custom:lcards-data-grid
+        view_layout:
+          grid-area: status
+        data_mode: data
+        rows:
+          - values: [CONDITION, "{{ 'NORMAL' if states('input_number.lcards_test_shields') | int > 30 else 'ALERT' }}"]
+          - [POWER, "{{ states('input_number.lcards_test_power') | int }} %"]
+          - [SHIELDS, "{{ states('input_number.lcards_test_shields') | int }} %"]
+        grid:
+          grid-template-columns: 1fr 1fr
+          grid-template-rows: repeat(3, min-content)
+          gap: 6px
+        style:
+          font_size: 20px
+        columns:
+          - style:
+              align: left
+              color: theme:colors.ui.primary
+          - style:
+              align: right
+              color: theme:colors.ui.tertiary
+
+      # Tile wall.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: tiles
+        layout:
+          grid-gap: 8px
+          grid-template-columns: repeat(3, minmax(0, 1fr))
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-elbow
+            elbow:
+              type: frame
+              segment: { color: theme:colors.card.topColor }
+              frame: { bar_width: 3, bar_height: 3, outer_curve: 8 }
+            symbiont:
+              enabled: true
+              position: { top: 8, right: 8, bottom: 8, left: 8 }
+              imprint: { enabled: false }
+              card:
+                type: custom:lcards-data-grid
+                data_mode: decorative
+                format: digit
+                grid:
+                  grid-template-rows: repeat(3, auto)
+                  grid-template-columns: repeat(2, minmax(0, 1fr))
+          - type: custom:lcards-elbow
+            elbow:
+              type: frame
+              segment: { color: theme:colors.ui.tertiary }
+              frame: { bar_width: 3, bar_height: 3, outer_curve: 8 }
+            symbiont:
+              enabled: true
+              position: { top: 8, right: 8, bottom: 8, left: 8 }
+              imprint: { enabled: false }
+              card:
+                type: custom:lcards-data-grid
+                data_mode: decorative
+                format: hex
+                grid:
+                  grid-template-rows: repeat(3, auto)
+                  grid-template-columns: repeat(2, minmax(0, 1fr))
+          - type: custom:lcards-elbow
+            elbow:
+              type: frame
+              segment: { color: theme:colors.card.topColor }
+              frame: { bar_width: 3, bar_height: 3, outer_curve: 8 }
+            symbiont:
+              enabled: true
+              position: { top: 8, right: 8, bottom: 8, left: 8 }
+              imprint: { enabled: false }
+              card:
+                type: custom:lcards-data-grid
+                data_mode: decorative
+                format: float
+                grid:
+                  grid-template-rows: repeat(3, auto)
+                  grid-template-columns: repeat(2, minmax(0, 1fr))
+
+      # Gauge bank.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: gauges
+        layout:
+          grid-gap: 8px
+          grid-template-columns: repeat(3, minmax(0, 1fr))
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - { type: custom:lcards-slider, component: picard, preset: picard-gauge-vertical, entity: input_number.lcards_test_power }
+          - { type: custom:lcards-slider, component: picard, preset: picard-gauge-vertical, entity: input_number.lcards_test_shields }
+          - { type: custom:lcards-slider, component: picard, preset: picard-gauge-vertical, entity: input_number.lcards_test_humidity }
+
+      # Toggle tabs.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: tabs
+        layout:
+          grid-gap: 6px
+          grid-template-columns: repeat(3, minmax(0, 1fr))
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: toggle-tab
+            entity: input_boolean.lcards_test_lights
+            text: { name: { content: LIGHTS } }
+            tap_action: { action: toggle }
+          - type: custom:lcards-button
+            preset: toggle-tab
+            entity: input_boolean.lcards_test_doors
+            text: { name: { content: DOORS } }
+            tap_action: { action: toggle }
+          - type: custom:lcards-button
+            preset: toggle-tab
+            entity: input_boolean.lcards_test_toggle
+            text: { name: { content: AUX } }
+            tap_action: { action: toggle }
+
+      # Footer sweep.
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: foot
+        elbow:
+          type: footer-left
+          segment:
+            bar_width: 120
+            bar_height: 14
+            color: theme:colors.ui.secondary

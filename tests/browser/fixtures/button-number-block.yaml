@@ -1,7 +1,0 @@
-# preset: number-block (doc/core/presets.md): a code-number block, structure colour at rest, accent when active
-type: custom:lcards-button
-entity: input_boolean.demo_toggle
-preset: number-block
-text:
-  label:
-    content: 13-650

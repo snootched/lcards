@@ -1,0 +1,142 @@
+# DS9 bracket: the "bracket screen" archetype from doc/getting-started/lcars-design.md.
+# A top and a bottom bar with the title, a sidebar of blocks with code numbers, a
+# cutaway display, a side readout list and a row of pills under the display. The view
+# uses the LCARS Zeldaar theme for a DS9 palette; every colour is a theme role.
+# Uses lcards_test_* helpers.
+title: DS9 Bracket
+views:
+  - title: Runabout
+    path: runabout
+    theme: LCARS Zeldaar
+    type: custom:lcards-layout-view
+    layout:
+      height: calc(100dvh - var(--header-height, 56px))
+      padding: 12px
+      grid-gap: 8px
+      grid-template-columns: 150px minmax(0, 3fr) minmax(0, 1fr)
+      grid-template-rows: 70px minmax(0, 1fr) 64px 70px
+      grid-template-areas: |
+        "top    top     top"
+        "side   display list"
+        "side   pills   list"
+        "bottom bottom  bottom"
+    cards:
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: top
+        elbow:
+          type: header-left
+          segment:
+            bar_width: 150
+            bar_height: 26
+            color: theme:colors.ui.primary
+        text:
+          title:
+            content: SHUTTLECRAFT SYSTEMS • 3645
+            position: bottom-right
+            font_size: 30
+            color: theme:colors.ui.tertiary
+
+      # Sidebar: blocks of different heights in different roles, each with a code.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: side
+        layout:
+          grid-gap: 8px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: 1fr 2fr 1fr 1fr 3fr
+        cards:
+          - { type: custom:lcards-button, preset: panel-light, min_height: 0, text: { label: { content: 848-5094 } } }
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text: { label: { content: 374-8463 } }
+            style: { card: { color: { background: { default: theme:colors.ui.secondary } } } }
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            entity: input_boolean.lcards_test_lights
+            text: { label: { content: 348-4636 } }
+            tap_action: { action: toggle }
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text: { label: { content: 754-9473 } }
+            style: { card: { color: { background: { default: theme:colors.card.topColor } } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 0, text: { label: { content: 758-5094 } } }
+
+      # The display: the shuttle cutaway, in colour.
+      - type: custom:lcards-msd-card
+        view_layout:
+          grid-area: display
+        msd:
+          base_svg:
+            source: builtin:enterprise-d-shuttlecraft15-anomaly
+          view_box: [-20, -20, 1083, 499]
+
+      # Readout list beside the display.
+      - type: custom:lcards-data-grid
+        view_layout:
+          grid-area: list
+        data_mode: data
+        rows:
+          - values: [SYSTEM, STATUS]
+            header: true
+          - [IMPULSE, "{{ states('input_number.lcards_test_power') | int }} %"]
+          - [SHIELDS, "{{ states('input_number.lcards_test_shields') | int }} %"]
+          - [CABIN, "{{ states('input_number.lcards_test_temperature') }} C"]
+          - [HUMIDITY, "{{ states('input_number.lcards_test_humidity') | int }} %"]
+          - [LIGHTS, "{{ states('input_boolean.lcards_test_lights') | upper }}"]
+          - [HATCH, "{{ 'OPEN' if is_state('input_boolean.lcards_test_doors', 'on') else 'SEALED' }}"]
+        grid:
+          grid-template-columns: 1fr 1fr
+          grid-template-rows: repeat(7, min-content)
+          gap: 8px
+        style:
+          font_size: 20px
+        columns:
+          - style:
+              align: left
+              color: theme:colors.ui.secondary
+          - style:
+              align: right
+              color: theme:colors.ui.tertiary
+
+      # Pills under the display, in two roles.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: pills
+        layout:
+          grid-gap: 8px
+          grid-template-columns: repeat(5, minmax(0, 1fr))
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: lozenge
+            entity: input_boolean.lcards_test_doors
+            text: { label: { content: HATCH, show: true } }
+            tap_action: { action: toggle }
+          - type: custom:lcards-button
+            preset: lozenge
+            entity: input_boolean.lcards_test_toggle
+            text: { label: { content: SHIELDS, show: true } }
+            tap_action: { action: toggle }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: 21-7745, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.secondary } } } } }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: 40-2274, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.secondary } } } } }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: 68-5009, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
+
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: bottom
+        elbow:
+          type: footer-left
+          segment:
+            bar_width: 150
+            bar_height: 26
+            color: theme:colors.ui.primary
+        text:
+          subtitle:
+            content: 73647-8947
+            position: top-right
+            font_size: 22
+            color: theme:colors.ui.secondary

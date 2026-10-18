@@ -62,10 +62,9 @@ These tables list every preset in the built-in packs (`src/core/packs/style-pres
 | `bar-label-bullet-right` | Bar label flat on the right, rounded on the left |
 | `bar-label-capped-left` | Bar label rounded on the left, flat on the right |
 | `bar-label-capped-right` | Bar label rounded on the right, flat on the left |
-| `panel-light` | Non-interactive square-cornered panel with a random LCARS label (light) |
-| `number-block` | Small square block with a right-aligned code number: structure colour at rest, the theme's accent when active (Picard-style block columns) |
+| `panel-light` | Square-cornered panel with a random LCARS label (light); with an entity, the theme accent when on and the dark structure tone when off |
 | `toggle-tab` | Dark square tab with a centred name; a coloured line along the top shows the state |
-| `panel-dark` | Non-interactive square-cornered panel with a random LCARS label (dark) |
+| `panel-dark` | Square-cornered panel with a random LCARS label (dark); with an entity, the theme accent when on and the dark structure tone when off |
 
 Rendered:
 

@@ -1,5 +1,5 @@
 /**
- * Layer A: the number-block and toggle-tab presets take every colour from the theme.
+ * Layer A: the panel-light and toggle-tab presets take every colour from the theme.
  * The harness loads no HA-LCARS theme, so the test sets one theme's variables (from the
  * committed HA-LCARS snapshot) on the page, then checks the card follows them in both
  * states. Screenshots of each theme/state go to test-results/ for eyeballing.
@@ -45,7 +45,7 @@ const paints = (card) => card.evaluate(el => {
 });
 
 for (const theme of ['LCARS Picard [LCARdS Red Accent]', 'LCARS Default']) {
-    for (const preset of ['number-block', 'toggle-tab']) {
+    for (const preset of ['panel-light', 'toggle-tab']) {
         test(`${preset} follows the theme (${theme}): accent when on, structure when off`, async ({ page }, info) => {
             const card = await mountCase(page, `button-${preset}`, { width: '220' });
             await page.addStyleTag({ content: themeCss(theme) });

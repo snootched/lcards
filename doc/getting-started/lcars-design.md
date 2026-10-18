@@ -55,7 +55,7 @@ Don't pick colours for an LCARS screen; pick **roles**, and let the theme supply
 
 ## Picard
 
-- **Columns of small number blocks** down one or both sides: mostly structure tones, a few in the accent, some dark (inactive). See [number-block column](#number-block-column).
+- **Columns of small number blocks** down one or both sides: mostly structure tones, a few in the accent, some dark (inactive). See [code-block column](#code-block-column).
 - **A utility column of pills at the far edge** (zoom, settings, dimmer), with a red alert pill at the bottom.
 - **Vertical gauges with tick scales** beside the number columns ([Picard and gauge sliders](../cards/slider-card/)).
 - **The main display is a schematic**: a line drawing with leader lines to labels, small accent highlights for faults ([MSD](../cards/msd/)).
@@ -77,13 +77,30 @@ Don't pick colours for an LCARS screen; pick **roles**, and let the theme supply
 - **Alerts change the whole screen at once**: [alert mode](../core/alert-mode.md) recolours everything in place, and an [alert overlay](../cards/alert-overlay/) adds the alert symbol. Avoid making every card flash.
 - **Show state by colour in place**, not by moving things: a block turns to the accent, a tab's line lights up.
 
+## Screen archetypes
+
+Start a screen by picking its overall shape, then fill the areas with [patterns](#patterns). These are the layouts that recur across the reference screens; each one suits a different job. Mix them: a Picard screen can use the wings layout, a classic one the tile wall. Take groupings and sections from the [gallery](dashboard-gallery) and the references freely, but compose the screen for its own job rather than reproducing one whole.
+
+| Archetype | Good for | Shape (`grid-template-areas`) | In the gallery |
+|---|---|---|---|
+| **Display with side columns** | One main system (a ship, a floor plan, a chart) with controls around it; Titan.DS modules | `"pills top top top" "pills left main right" "pills left strip right"` | [Picard](dashboard-gallery#picard-display-with-side-columns) |
+| **Display over controls** | A wide display with a dense control deck under it; Titan.DS ship screens | `"head head" "display display" "deck1 deck2"` | [Picard](dashboard-gallery#picard-display-over-controls) |
+| **Wings** | Two related halves (port and starboard, upstairs and downstairs) around a shared centre | `"head head head" "lwing centre rwing"` |  |
+| **Portrait panel** | Phones and wall tablets mounted upright | `"title" "main" "gauges" "controls"` | [Picard](dashboard-gallery#picard-portrait-panel) |
+| **Tile wall** | Many similar things at once: cameras, rooms, sensors | `"head head head" "t1 t2 t3" "t4 t5 t6"` |  |
+| **Sweep console** | A classic control panel: thick header sweep, sidebar, button groups | `"head head head" "side pills readout" "foot foot foot"` | [Classic](dashboard-gallery#classic-sweep-console) |
+| **Bracket screen** | A readout or a document: capped top and bottom bars, a numbered sidebar | `"top top" "side main" "bottom bottom"` | [Classic](dashboard-gallery#classic-bracket-screen) |
+| **List** | Rosters, schedules, logs: rows of text under a split header | `"head head" "list numbers" "pills pills"` | [Classic](dashboard-gallery#classic-list) |
+
+Two things vary a screen more than anything else: which archetype you start from, and which patterns you put in its areas. A screen that reuses one gallery screen's grid with new labels is the same screen; one that combines a different archetype with two or three patterns is a new one.
+
 ## Patterns
 
 Building blocks to compose a screen from. Each is a [layout card](../cards/layout-card/) you can drop into a layout view area, with every colour from a theme role. Change the numbers, labels and entities to yours.
 
 Two things keep a pattern from collapsing when you change it: give the layout card's rows a size (`grid-template-rows` or `grid-auto-rows` in px or `minmax(0, 1fr)`; rows left to size themselves squash the cards), and keep a button's row at least as tall as the button (56 px by default; small pills and blocks set a lower `min_height`, bar labels size their text to it).
 
-### Number-block column
+### Code-block column
 
 The Picard side column: small blocks with code numbers, mostly structure, one in the accent.
 
@@ -96,34 +113,42 @@ layout:
   grid-auto-rows: minmax(0, 1fr)
 cards:
   - type: custom:lcards-button
-    preset: number-block
-    text: { label: { content: 63-934 } }
+    preset: panel-light
+    min_height: 28
+    text: { label: { content: 63-934, position: center-right } }
   - type: custom:lcards-button
-    preset: number-block
-    text: { label: { content: 13-650 } }
+    preset: panel-light
+    min_height: 28
+    text: { label: { content: 13-650, position: center-right } }
   - type: custom:lcards-button
-    preset: number-block
-    text: { label: { content: 19-638 } }
+    preset: panel-light
+    min_height: 28
+    text: { label: { content: 19-638, position: center-right } }
   - type: custom:lcards-button
-    preset: number-block
+    preset: panel-light
+    min_height: 28
     entity: light.demo
-    text: { label: { content: 42-991 } }
+    text: { label: { content: 42-991, position: center-right } }
     tap_action: { action: toggle }
   - type: custom:lcards-button
-    preset: number-block
-    text: { label: { content: 28-130 } }
+    preset: panel-light
+    min_height: 28
+    text: { label: { content: 28-130, position: center-right } }
   - type: custom:lcards-button
-    preset: number-block
-    text: { label: { content: 50-957 } }
+    preset: panel-light
+    min_height: 28
+    text: { label: { content: 50-957, position: center-right } }
   - type: custom:lcards-button
-    preset: number-block
-    text: { label: { content: 81-782 } }
+    preset: panel-light
+    min_height: 28
+    text: { label: { content: 81-782, position: center-right } }
   - type: custom:lcards-button
-    preset: number-block
-    text: { label: { content: 85-334 } }
+    preset: panel-light
+    min_height: 28
+    text: { label: { content: 85-334, position: center-right } }
 ```
 
-The block with an entity shows the accent while it's on. Leave out `text.label.content` and each block gets a random code.
+Panels (`panel-light`, `panel-dark`) with the label moved to the middle right and a lower `min_height`. A panel with an entity shows the theme's accent while it's on and the dark structure tone while it's off. Leave out `text.label.content` and each block gets a random code.
 
 ### Toggle tab strip
 
@@ -363,6 +388,218 @@ cards:
       segment: { bar_width: 120, bar_height: 24, color: theme:colors.ui.primary }
 ```
 
+### Header bar with a title
+
+A bar that carries the screen or section title, with a short cap before it. Picard sections (*MISSION OPS*, *PROPULSION*) use this instead of a sweep. The title grows to fill the bar's height, so in a narrow area set a smaller `text.label.font_size` (or a shorter `min_height`) or it runs off the end.
+
+```yaml live
+type: custom:lcards-button
+preset: bar-label-left
+min_height: 48
+text:
+  label:
+    content: MISSION OPS
+    color: theme:colors.ui.tertiary
+style:
+  card:
+    color:
+      background:
+        default: theme:colors.ui.tertiary
+```
+
+### Readout rows
+
+A label block and a horizontal gauge per line, for a set of levels read side by side.
+
+```yaml live
+type: custom:lcards-layout-card
+layout:
+  height: 190px
+  grid-gap: 6px
+  grid-template-columns: 130px minmax(0, 1fr)
+  grid-template-rows: repeat(3, minmax(0, 1fr))
+cards:
+  - type: custom:lcards-button
+    preset: panel-dark
+    min_height: 0
+    text: { label: { content: PRIMARY, position: center-right } }
+  - type: custom:lcards-slider
+    entity: input_number.primary_level
+    preset: gauge-basic
+  - type: custom:lcards-button
+    preset: panel-dark
+    min_height: 0
+    text: { label: { content: SECONDARY, position: center-right } }
+  - type: custom:lcards-slider
+    entity: input_number.secondary_level
+    preset: gauge-basic
+  - type: custom:lcards-button
+    preset: panel-dark
+    min_height: 0
+    text: { label: { content: RESERVE, position: center-right } }
+  - type: custom:lcards-slider
+    entity: input_number.reserve_level
+    preset: gauge-basic
+```
+
+### Gauge bank
+
+A row of vertical gauges, as on the Picard biometric and atmospheric panels. Good for several readings of the same kind.
+
+```yaml live
+type: custom:lcards-layout-card
+layout:
+  height: 420px
+  grid-gap: 10px
+  grid-template-columns: repeat(4, minmax(0, 1fr))
+  grid-template-rows: minmax(0, 1fr)
+cards:
+  - type: custom:lcards-slider
+    component: picard
+    preset: picard-gauge-vertical
+    entity: sensor.demo_temperature
+  - type: custom:lcards-slider
+    component: picard
+    preset: picard-gauge-vertical
+    entity: sensor.demo_humidity
+  - type: custom:lcards-slider
+    component: picard
+    preset: picard-gauge-vertical
+    entity: sensor.demo_battery
+  - type: custom:lcards-slider
+    component: picard
+    preset: picard-gauge-vertical
+    entity: input_number.demo_level
+```
+
+### Selector strip
+
+A row of equal tabs for choosing one of several, as in the Titan.DS fleet directory: a [select menu](../cards/select-menu/) with the `toggle-tab` preset, the selected option highlighted.
+
+```yaml live
+type: custom:lcards-select-menu
+entity: input_select.demo_mode
+preset: toggle-tab
+grid:
+  columns: 4
+  gap: 6px
+```
+
+### Tile wall
+
+Small framed tiles, each with its own reading, as in the Picard signal-processing panels. Each frame holds its reading as an embedded card ([symbiont](../cards/elbow/#symbiont)): a chart, a camera, a data grid.
+
+```yaml live
+type: custom:lcards-layout-card
+layout:
+  height: 170px
+  grid-gap: 10px
+  grid-template-columns: repeat(3, minmax(0, 1fr))
+  grid-template-rows: minmax(0, 1fr)
+cards:
+  - type: custom:lcards-elbow
+    elbow:
+      type: frame
+      segment: { color: theme:colors.card.topColor }
+      frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+    symbiont:
+      enabled: true
+      position: { top: 10, right: 10, bottom: 10, left: 10 }
+      imprint: { enabled: false }
+      card:
+        type: custom:lcards-data-grid
+        data_mode: decorative
+        format: digit
+        grid:
+          grid-template-rows: repeat(4, auto)
+          grid-template-columns: repeat(3, minmax(0, 1fr))
+  - type: custom:lcards-elbow
+    elbow:
+      type: frame
+      segment: { color: theme:colors.card.topColor }
+      frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+    symbiont:
+      enabled: true
+      position: { top: 10, right: 10, bottom: 10, left: 10 }
+      imprint: { enabled: false }
+      card:
+        type: custom:lcards-data-grid
+        data_mode: decorative
+        format: hex
+        grid:
+          grid-template-rows: repeat(4, auto)
+          grid-template-columns: repeat(3, minmax(0, 1fr))
+  - type: custom:lcards-elbow
+    elbow:
+      type: frame
+      segment: { color: theme:colors.ui.tertiary }
+      frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+    symbiont:
+      enabled: true
+      position: { top: 10, right: 10, bottom: 10, left: 10 }
+      imprint: { enabled: false }
+      card:
+        type: custom:lcards-data-grid
+        data_mode: decorative
+        format: float
+        grid:
+          grid-template-rows: repeat(4, auto)
+          grid-template-columns: repeat(3, minmax(0, 1fr))
+```
+
+### Split header (classic)
+
+The TNG and Voyager header: an upper block that sweeps down into a bar, a thin gap, and a lower block that sweeps out of the next bar. The title sits in the black beside the upper sweep.
+
+```yaml live
+type: custom:lcards-layout-card
+layout:
+  height: 200px
+  grid-gap: 8px
+  grid-template-columns: minmax(0, 1fr)
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr)
+cards:
+  - type: custom:lcards-elbow
+    elbow:
+      type: footer-left
+      segment: { bar_width: 140, bar_height: 18, color: theme:colors.ui.primary }
+    text:
+      title:
+        content: PATIENT BIOMEDICAL STATUS
+        position: top-right
+        font_size: 26
+        color: theme:colors.ui.tertiary
+  - type: custom:lcards-elbow
+    elbow:
+      type: header-left
+      segment: { bar_width: 140, bar_height: 18, color: theme:colors.ui.secondary }
+```
+
+### List
+
+Rows of text in columns, for rosters, schedules and logs, as in Voyager's duty roster. A [data grid](../cards/data-grid/) in data mode with fixed text or your entities.
+
+```yaml live
+type: custom:lcards-data-grid
+data_mode: data
+rows:
+  - values: [Name, Station, Shift]
+    header: true
+  - [TUVOK, SECURITY, ALPHA]
+  - [TORRES, ENGINEERING, BETA]
+  - [PARIS, CONN, ALPHA]
+  - [KIM, OPS, GAMMA]
+grid:
+  grid-template-columns: 1fr 1fr 90px
+  gap: 4px
+style:
+  font_size: 20px
+columns:
+  - style:
+      align: left
+      color: theme:colors.ui.tertiary
+```
+
 ## Putting it together
 
-A screen is a [layout view](../cards/layout-view/) whose areas hold these patterns: for example a facing-sweeps header across the top, a number-block column and utility pills down the left, a nested frame with an MSD or chart in the centre, a toggle tab strip along the bottom. The [Dashboard Gallery](dashboard-gallery#built-from-the-design-guide) has two complete screens built this way, a Picard console and a TNG console, to start from.
+A screen is a [layout view](../cards/layout-view/) shaped by one of the [archetypes](#screen-archetypes), with patterns in its areas: for example a facing-sweeps header across the top, a code-block column and utility pills down the left, a nested frame with an MSD or chart in the centre, a toggle tab strip along the bottom. Or a portrait panel: a header bar with a title, a gauge bank, a selector strip. The [Dashboard Gallery](dashboard-gallery#built-from-the-design-guide) has six complete screens built this way, three per look, each from a different archetype.

@@ -1,6 +1,6 @@
 # Picard console: a Titan.DS-style screen built from the patterns in
 # doc/getting-started/lcars-design.md. Utility pills down the far edge, a header sweep
-# whose leg matches the number-block column, a nested frame around a line-drawn ship,
+# whose leg matches the column of code blocks, a nested frame around a line-drawn ship,
 # a right number column, toggle tabs and gauges along the bottom, a footer sweep.
 # Every colour is a theme role (theme: tokens), so it follows the HA-LCARS theme.
 # Uses lcards_test_* helpers.
@@ -85,32 +85,35 @@ views:
           grid-template-columns: repeat(2, minmax(0, 1fr))
           grid-template-rows: repeat(7, 32px) minmax(0, 1fr)
         cards:
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 63-934 } } }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 13-650 } } }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 19-638 } } }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 42-991 } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 63-934, position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 13-650, position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 19-638, position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 42-991, position: center-right } } }
           - type: custom:lcards-button
-            preset: number-block
+            preset: panel-light
+            min_height: 28
             entity: input_boolean.lcards_test_lights
-            text: { label: { content: 28-130 } }
+            text: { label: { content: 28-130, position: center-right } }
             tap_action: { action: toggle }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 50-957 } } }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 81-782 } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 50-957, position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 81-782, position: center-right } } }
           - type: custom:lcards-button
-            preset: number-block
+            preset: panel-light
+            min_height: 28
             entity: input_boolean.lcards_test_doors
-            text: { label: { content: 46-991 } }
+            text: { label: { content: 46-991, position: center-right } }
             tap_action: { action: toggle }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 95-132 } } }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 85-334 } } }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 92-548 } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 95-132, position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 85-334, position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 92-548, position: center-right } } }
           - type: custom:lcards-button
-            preset: number-block
+            preset: panel-light
+            min_height: 28
             entity: input_boolean.lcards_test_toggle
-            text: { label: { content: 97-747 } }
+            text: { label: { content: 97-747, position: center-right } }
             tap_action: { action: toggle }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 76-324 } } }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 12-229 } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 76-324, position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 12-229, position: center-right } } }
           # Vertical gauges under the blocks, as on the Titan.DS consoles.
           - type: custom:lcards-slider
             component: picard
@@ -159,16 +162,16 @@ views:
           grid-template-columns: minmax(0, 1fr)
           grid-template-rows: repeat(10, 32px) minmax(0, 1fr)
         cards:
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 82-947 } } }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: NCC-80102 } } }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 57-835 } } }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 83-370 } } }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 23-714 } } }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 87-718 } } }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 78-485 } } }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 97-923 } } }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 85-199 } } }
-          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 74-700 } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 82-947, position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: NCC-80102, position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 57-835, position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 83-370, position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 23-714, position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 87-718, position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 78-485, position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 97-923, position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 85-199, position: center-right } } }
+          - { type: custom:lcards-button, preset: panel-light, min_height: 28, text: { label: { content: 74-700, position: center-right } } }
           # Numbers as texture in the space left over.
           - type: custom:lcards-data-grid
             data_mode: decorative

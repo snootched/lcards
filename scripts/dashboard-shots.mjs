@@ -25,7 +25,9 @@
  * modes are cleared afterwards. --name sets the output file name (one file).
  * --video also records a looping WebM (<out>/<name>.webm, 1x, real time) of the view
  * while the motion file's steps run: doc/gallery/motion/<file name>.yaml by default,
- * or --motion=<file>. A motion file is { steps: [...], tail: ms, clip: view|viewport }
+ * or --motion=<file>. A motion file is { steps: [...], tail: ms, clip: view|viewport,
+ * size: WxH } (size: the viewport for this dashboard's still and video, e.g. 600x1000 for
+ * a portrait screen; --size overrides it)
  * with the steps of scripts/lib/shot-video.mjs (service calls, fake states, waits, eval,
  * goto, marks). --mp4 writes H.264 <name>.mp4 instead, --max-width=<px> caps its width
  * (default 1600). `mark` steps are saved as <name>.marks.json (ms from the start).
@@ -57,7 +59,9 @@ const opt = (name, fallback) => args.find(a => a.startsWith(`--${name}=`))?.spli
 const files = args.filter(a => !a.startsWith('--'));
 const outDir = resolve(opt('out', join(ROOT, 'doc/public/gallery')));
 const viewIndex = Number(opt('view', '0'));
-const [width, height] = opt('size', '1600x1000').split('x').map(Number);
+// Viewport: --size, else the motion file's `size:` (portrait screens), else 1600x1000.
+// Set per file in the loop below.
+let [width, height] = opt('size', '1600x1000').split('x').map(Number);
 const action = opt('action', null);
 const outName = opt('name', null);
 
@@ -146,6 +150,9 @@ async function recordMotion(motionFile, viewPath, name) {
 let failed = 0;
 for (const file of files) {
     const name = outName ?? basename(file).replace(/\.ya?ml$/, '');
+    const motionPath = opt('motion', null) ?? join(ROOT, 'doc/gallery/motion', `${basename(file).replace(/\.ya?ml$/, '')}.yaml`);
+    const motionSize = existsSync(motionPath) ? (yaml.load(readFileSync(motionPath, 'utf8')) ?? {}).size : null;
+    [width, height] = opt('size', motionSize ?? '1600x1000').split('x').map(Number);
     const text = readFileSync(file, 'utf8');
     const issues = await validateTexts([{ name: file, text }]);
     for (const i of issues) console.log(`  ${i.severity} ${i.path}${i.tag ? ` [${i.tag}]` : ''} ${i.message}`);
@@ -189,7 +196,7 @@ for (const file of files) {
         console.log(`${name}: ${out.startsWith(ROOT) ? out.slice(ROOT.length + 1) : out}${errors.length ? `  (${errors.length} page error(s))` : ''}`);
         for (const e of errors.slice(0, 5)) console.log(`  page error: ${e}`);
         if (args.includes('--video')) {
-            const motionFile = opt('motion', null) ?? join(ROOT, 'doc/gallery/motion', `${basename(file).replace(/\.ya?ml$/, '')}.yaml`);
+            const motionFile = motionPath;
             if (existsSync(motionFile)) await recordMotion(motionFile, viewPath, name);
             else console.log(`  no motion file ${motionFile.slice(ROOT.length + 1)}: still only`);
         }
