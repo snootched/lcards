@@ -1,0 +1,246 @@
+# Picard console: a Titan.DS-style screen built from the patterns in
+# doc/getting-started/lcars-design.md. Utility pills down the far edge, a header sweep
+# whose leg matches the number-block column, a nested frame around a line-drawn ship,
+# a right number column, toggle tabs and gauges along the bottom, a footer sweep.
+# Every colour is a theme role (theme: tokens), so it follows the HA-LCARS theme.
+# Uses lcards_test_* helpers.
+title: Picard Console
+views:
+  - title: Console
+    path: console
+    type: custom:lcards-layout-view
+    layout:
+      height: calc(100dvh - var(--header-height, 56px))
+      padding: 12px
+      grid-gap: 6px
+      grid-template-columns: 110px 220px minmax(0, 1fr) 140px
+      grid-template-rows: 90px minmax(0, 1fr) 56px 48px 48px
+      grid-template-areas: |
+        "pills top    top     top"
+        "pills nums   main    rnums"
+        "pills nums   tabs    rnums"
+        "pills nums   gauges  rnums"
+        "pills bottom bottom  bottom"
+    cards:
+      # Utility pills at the far edge, red alert at the bottom.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: pills
+        layout:
+          grid-gap: 8px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: 32px 32px 32px minmax(0, 1fr) 32px
+        cards:
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 32
+            text: { label: { content: ZOOM, show: true, position: center } }
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 32
+            text: { label: { content: ABOUT, show: true, position: center } }
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 32
+            text: { label: { content: DIMMER, show: true, position: center } }
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 32
+            text: { label: { content: RED ALERT, show: true, position: center } }
+            style:
+              card:
+                color:
+                  background:
+                    default: var(--lcars-alert-color, var(--lcards-orange-dark))
+            tap_action:
+              action: perform-action
+              perform_action: lcards.red_alert
+
+      # Header sweep: its leg is as wide as the number column below it.
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: top
+        elbow:
+          type: header-left
+          segment:
+            bar_width: 220
+            bar_height: 24
+            color: theme:colors.ui.secondary
+        text:
+          title:
+            content: U.S.S. TITAN · SYSTEMS
+            position: bottom-right
+            font_size: 30
+            color: theme:colors.ui.tertiary
+
+      # Left number column: mostly structure; the three with helpers light up when on.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: nums
+        layout:
+          grid-gap: 6px
+          grid-template-columns: repeat(2, minmax(0, 1fr))
+          grid-template-rows: repeat(7, 32px) minmax(0, 1fr)
+        cards:
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 63-934 } } }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 13-650 } } }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 19-638 } } }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 42-991 } } }
+          - type: custom:lcards-button
+            preset: number-block
+            entity: input_boolean.lcards_test_lights
+            text: { label: { content: 28-130 } }
+            tap_action: { action: toggle }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 50-957 } } }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 81-782 } } }
+          - type: custom:lcards-button
+            preset: number-block
+            entity: input_boolean.lcards_test_doors
+            text: { label: { content: 46-991 } }
+            tap_action: { action: toggle }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 95-132 } } }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 85-334 } } }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 92-548 } } }
+          - type: custom:lcards-button
+            preset: number-block
+            entity: input_boolean.lcards_test_toggle
+            text: { label: { content: 97-747 } }
+            tap_action: { action: toggle }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 76-324 } } }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 12-229 } } }
+          # Vertical gauges under the blocks, as on the Titan.DS consoles.
+          - type: custom:lcards-slider
+            component: picard
+            preset: picard-gauge-vertical
+            entity: input_number.lcards_test_power
+          - type: custom:lcards-slider
+            component: picard
+            preset: picard-gauge-vertical
+            entity: input_number.lcards_test_shields
+
+      # Main display: a nested frame around the line-drawn ship.
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: main
+        elbow:
+          type: frame
+          style: segmented
+          segment:
+            color: theme:colors.ui.primary
+          frame:
+            bar_width: 12
+            right:
+              enabled: false
+            segments:
+              gap: 6
+              inner_frame:
+                bar_width: 4
+                color: theme:colors.card.topColor
+      - type: custom:lcards-msd-card
+        view_layout:
+          grid-area: main
+        msd:
+          base_svg:
+            source: builtin:ncc-1701-a-blue
+            # Dimmed: the schematic is data, not structure.
+            filters:
+              - { mode: css, type: opacity, value: 0.45 }
+          view_box: [180, 270, 1600, 720]
+
+      # Right number column.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: rnums
+        layout:
+          grid-gap: 6px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: repeat(10, 32px) minmax(0, 1fr)
+        cards:
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 82-947 } } }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: NCC-80102 } } }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 57-835 } } }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 83-370 } } }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 23-714 } } }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 87-718 } } }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 78-485 } } }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 97-923 } } }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 85-199 } } }
+          - { type: custom:lcards-button, preset: number-block, text: { label: { content: 74-700 } } }
+          # Numbers as texture in the space left over.
+          - type: custom:lcards-data-grid
+            data_mode: decorative
+            format: digit
+            grid:
+              grid-template-rows: repeat(10, auto)
+              grid-template-columns: repeat(3, minmax(0, 1fr))
+              gap: 0px
+            style:
+              padding: 0px
+              font_size: 16px
+            animations:
+              - trigger: on_load
+                preset: cascade-color
+
+      # Toggle tabs: state shows as a line along the top.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: tabs
+        layout:
+          grid-gap: 6px
+          grid-template-columns: repeat(4, minmax(0, 1fr))
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: toggle-tab
+            entity: input_boolean.lcards_test_lights
+            text: { name: { content: LIGHTS } }
+            tap_action: { action: toggle }
+          - type: custom:lcards-button
+            preset: toggle-tab
+            entity: input_boolean.lcards_test_doors
+            text: { name: { content: DOORS } }
+            tap_action: { action: toggle }
+          - type: custom:lcards-button
+            preset: toggle-tab
+            entity: input_boolean.lcards_test_toggle
+            text: { name: { content: SHIELDS } }
+            tap_action: { action: toggle }
+          - type: custom:lcards-button
+            preset: toggle-tab
+            text: { name: { content: AUDIO } }
+
+      # Gauges along the bottom.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: gauges
+        layout:
+          grid-gap: 6px
+          grid-template-columns: repeat(2, minmax(0, 1fr))
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-slider
+            entity: input_number.lcards_test_power
+            preset: gauge-basic
+          - type: custom:lcards-slider
+            entity: input_number.lcards_test_shields
+            preset: gauge-basic
+
+      # Footer sweep closes the frame.
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: bottom
+        elbow:
+          type: footer-left
+          segment:
+            bar_width: 220
+            bar_height: 16
+            color: theme:colors.ui.secondary
+        text:
+          subtitle:
+            content: STARSHIP DB · W-255
+            position: top-right
+            font_size: 18
+            color: theme:colors.ui.quaternary

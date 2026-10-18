@@ -1,5 +1,5 @@
 ---
-description: "Complete LCARdS dashboards to copy (bridge, engineering, environmental, security, alert mode, and Picard-era operations and sciences screens), with the YAML and a screenshot of each."
+description: "Complete LCARdS dashboards to copy (bridge, engineering, environmental, security, alert mode, Picard-era operations and sciences screens, and Picard and TNG consoles built from the design guide), with the YAML and a recording of each."
 ---
 
 # Dashboard Gallery
@@ -87,4 +87,28 @@ Segmented [frames](../cards/elbow/#frame-type) around a history chart with a smo
 
 ::: details YAML
 <<< @/gallery/dashboards/sciences.yaml
+:::
+
+## Built from the design guide
+
+Two screens composed from the patterns in [Designing LCARS Screens](lcars-design), one for each look. Every colour is a theme role, so they follow your HA-LCARS theme.
+
+### Picard console
+
+A Titan.DS-style console: utility pills with red alert down the far edge, a header sweep whose leg matches the [number-block](lcars-design#number-block-column) column, vertical gauges, a nested frame around a dimmed ship schematic, a right number column with a cascade, [toggle tabs](lcars-design#toggle-tab-strip) and gauges along the bottom.
+
+<video class="doc-video" src="/gallery/picard-console.webm" poster="/gallery/picard-console.webp" title="Picard console: grey sweeps and number-block columns, red accents on the blocks and tabs that are on, a dimmed blue ship in a nested frame, vertical and horizontal gauges and a column of numbers" autoplay loop muted playsinline></video>
+
+::: details YAML
+<<< @/gallery/dashboards/picard-console.yaml
+:::
+
+### TNG console
+
+The classic look: a thick header sweep, a sidebar of coloured blocks with code numbers, a [pill grid](lcars-design#pill-grid-classic) led by big numbers, control bars, a slider and a number cascade. The view sets `theme: LCARS Default`, so the roles come out in the TNG pastels whatever your profile theme is.
+
+<video class="doc-video" src="/gallery/tng-console.webm" poster="/gallery/tng-console.webp" title="TNG console: peach header sweep and blocks, rows of pastel pills led by large numbers, two control bars, a pill slider and a column of blue numbers" autoplay loop muted playsinline></video>
+
+::: details YAML
+<<< @/gallery/dashboards/tng-console.yaml
 :::

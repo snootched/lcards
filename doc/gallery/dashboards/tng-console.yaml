@@ -1,0 +1,167 @@
+# TNG console: the classic look from the patterns in doc/getting-started/lcars-design.md.
+# Thick colour blocks as structure, a sidebar of blocks with code numbers, a pill grid
+# whose groups are led by big numbers and alternate theme roles, a number cascade and a
+# footer bar. Every colour is a theme role, and the view uses the LCARS Default theme,
+# so the roles come out in the classic pastels. Uses lcards_test_* helpers.
+title: TNG Console
+views:
+  - title: Operations
+    path: operations
+    theme: LCARS Default
+    type: custom:lcards-layout-view
+    layout:
+      height: calc(100dvh - var(--header-height, 56px))
+      padding: 12px
+      grid-gap: 6px
+      grid-template-columns: 170px minmax(0, 3fr) minmax(0, 2fr)
+      grid-template-rows: 120px minmax(0, 1fr) 200px 70px
+      grid-template-areas: |
+        "head  head    head"
+        "side  pills   readout"
+        "side  status  readout"
+        "foot  foot    foot"
+    cards:
+      # Thick header sweep, title in the black beside it.
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: head
+        elbow:
+          type: header-left
+          segment:
+            bar_width: 170
+            bar_height: 56
+            color: theme:colors.ui.primary
+        text:
+          title:
+            content: OPERATIONS • 40272
+            position: bottom-right
+            font_size: 34
+            color: theme:colors.ui.tertiary
+
+      # Sidebar of blocks with code numbers, in different roles.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: side
+        layout:
+          grid-gap: 6px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: 2fr 1fr 1fr 3fr 1fr
+        cards:
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text: { label: { content: 01-23564 } }
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text: { label: { content: 02-24156 } }
+            style: { card: { color: { background: { default: theme:colors.ui.secondary } } } }
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text: { label: { content: 03-41248 } }
+            style: { card: { color: { background: { default: theme:colors.ui.tertiary } } } }
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text: { label: { content: 04-14702 } }
+            style: { card: { color: { background: { default: theme:colors.card.topColor } } } }
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text: { label: { content: 05-32456 } }
+
+      # Pill grid: each row led by a big number, groups in alternating roles.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: pills
+        layout:
+          grid-gap: 8px
+          grid-template-columns: 90px repeat(3, minmax(0, 1fr))
+          grid-template-rows: repeat(5, minmax(0, 1fr))
+        cards:
+          - { type: custom:lcards-button, preset: text-only, min_height: 0, text: { label: { content: "20", show: true, position: center-right, font_size: 40, color: theme:colors.ui.tertiary } } }
+          - type: custom:lcards-button
+            preset: lozenge
+            entity: input_boolean.lcards_test_lights
+            text: { label: { content: LIGHTS, show: true } }
+            tap_action: { action: toggle }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: AF 1137, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: NK 0042, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
+          - { type: custom:lcards-button, preset: text-only, min_height: 0, text: { label: { content: "008", show: true, position: center-right, font_size: 40, color: theme:colors.ui.secondary } } }
+          - type: custom:lcards-button
+            preset: lozenge
+            entity: input_boolean.lcards_test_doors
+            text: { label: { content: DOORS, show: true } }
+            tap_action: { action: toggle }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: LK 7351, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.secondary } } } } }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: GH 8812, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.secondary } } } } }
+          - { type: custom:lcards-button, preset: text-only, min_height: 0, text: { label: { content: "72", show: true, position: center-right, font_size: 40, color: theme:colors.ui.primary } } }
+          - type: custom:lcards-button
+            preset: lozenge
+            entity: input_boolean.lcards_test_toggle
+            text: { label: { content: SHIELDS, show: true } }
+            tap_action: { action: toggle }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: SE 9104, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.tertiary } } } } }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: BE 3320, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
+          - { type: custom:lcards-button, preset: text-only, min_height: 0, text: { label: { content: "358", show: true, position: center-right, font_size: 40, color: theme:colors.ui.tertiary } } }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: LE 4471, show: true } }, style: { card: { color: { background: { default: theme:colors.card.topColor } } } } }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: FW 6620, show: true } }, style: { card: { color: { background: { default: theme:colors.card.topColor } } } } }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: VD 1998, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.secondary } } } } }
+          - { type: custom:lcards-button, preset: text-only, min_height: 0, text: { label: { content: "451", show: true, position: center-right, font_size: 40, color: theme:colors.ui.secondary } } }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: HU 2045, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: MA 5531, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.tertiary } } } } }
+          - { type: custom:lcards-button, preset: lozenge, text: { label: { content: AN 7764, show: true } }, style: { card: { color: { background: { default: theme:colors.ui.primary } } } } }
+
+      # Readout: a number cascade.
+      - type: custom:lcards-data-grid
+        view_layout:
+          grid-area: readout
+        data_mode: decorative
+        format: mixed
+        grid:
+          grid-template-rows: repeat(10, auto)
+          grid-template-columns: repeat(5, minmax(0, 1fr))
+          gap: 0px
+        style:
+          padding: 0px
+          font_size: 20px
+        animations:
+          - trigger: on_load
+            preset: cascade-color
+
+      # Control bars and a slider under the pills.
+      - type: custom:lcards-layout-card
+        view_layout:
+          grid-area: status
+        layout:
+          grid-gap: 8px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: repeat(3, minmax(0, 1fr))
+        cards:
+          - type: custom:lcards-button
+            preset: bar-label-right
+            text: { label: { content: SECONDARY CONTROL, color: theme:colors.ui.primary } }
+          - type: custom:lcards-button
+            preset: bar-label-right
+            text: { label: { content: AUXILIARY CONTROL, color: theme:colors.ui.primary } }
+          - type: custom:lcards-slider
+            entity: input_number.lcards_test_power
+            preset: pills-basic
+
+      # Footer bar closes the frame.
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: foot
+        elbow:
+          type: footer-left
+          segment:
+            bar_width: 170
+            bar_height: 30
+            color: theme:colors.ui.primary
+        text:
+          subtitle:
+            content: LCARS 23295
+            position: top-right
+            font_size: 20
+            color: theme:colors.ui.secondary

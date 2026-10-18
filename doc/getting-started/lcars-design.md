@@ -39,6 +39,7 @@ Don't pick colours for an LCARS screen; pick **roles**, and let the theme supply
 - **Keep accent colour sparse.** In the Picard references only about a tenth of the screen is accent colour; the rest is black and structure tones. A block stays a structure colour unless it means something.
 - **Classic screens are more colourful**: several roles side by side, mixed freely. The classic themes already set their roles to the pastel set.
 - **Light and dark mode belong to the theme.** If your theme has both, a screen built from roles works in both.
+- **A view can choose its own theme**: `theme: LCARS Default` on a view shows that view in that theme, whatever the user's profile theme is. Handy for a classic screen on an otherwise Picard dashboard.
 
 ## Structure
 
@@ -364,4 +365,4 @@ cards:
 
 ## Putting it together
 
-A screen is a [layout view](../cards/layout-view/) whose areas hold these patterns: for example a facing-sweeps header across the top, a number-block column and utility pills down the left, a nested frame with an MSD or chart in the centre, a toggle tab strip along the bottom. The [Dashboard Gallery](dashboard-gallery) has complete screens to start from.
+A screen is a [layout view](../cards/layout-view/) whose areas hold these patterns: for example a facing-sweeps header across the top, a number-block column and utility pills down the left, a nested frame with an MSD or chart in the centre, a toggle tab strip along the bottom. The [Dashboard Gallery](dashboard-gallery#built-from-the-design-guide) has two complete screens built this way, a Picard console and a TNG console, to start from.
