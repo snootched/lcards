@@ -275,3 +275,11 @@ test('elbow bar-slant-right: the bar is the whole card, slanted at the right end
     expect(pts[1][0]).toBeGreaterThan(pts[2][0]); // top edge longer than the bottom: the right end is cut
     await expectNoErrors(page);
 });
+
+test('button components brackets and radar render their segments', async ({ page }) => {
+    for (const [name, ids] of [['button-brackets', ['left', 'right']], ['button-radar', ['sweep', 'rings', 'rim']]]) {
+        const card = await mountCase(page, name, { width: '200' });
+        await expect.poll(() => card.evaluate((el, want) => want.filter(id => el.shadowRoot.querySelector(`#${id}`)).length, ids)).toBe(ids.length);
+        await expectNoErrors(page);
+    }
+});

@@ -781,6 +781,25 @@ cards:
       class: { content: SOVEREIGN, position: center, font_size: 18, color: theme:colors.ui.primary }
 ```
 
+### Brackets and scopes
+
+Round displays framed by bracket arcs, and radar scopes (meWho's Titan.DS and Protostar screens): the button's `brackets` and `radar` [components](../cards/button/#component-mode-brackets-and-radar). Both take their colours from the theme roles.
+
+```yaml live
+type: custom:lcards-layout-card
+layout:
+  height: 200px
+  grid-gap: 12px
+  grid-template-columns: 200px 200px
+  grid-template-rows: minmax(0, 1fr)
+cards:
+  - type: custom:lcards-button
+    component: brackets
+    text: { label: { content: "88", show: true, position: center, font_size: 48, color: theme:colors.ui.tertiary } }
+  - type: custom:lcards-button
+    component: radar
+```
+
 ## Putting it together
 
 A screen is a [layout view](../cards/layout-view/) shaped by one of the [archetypes](#screen-archetypes), with patterns in its areas: for example a facing-sweeps header across the top, a code-block column and utility pills down the left, a nested frame with an MSD or chart in the centre, a toggle tab strip along the bottom. Or a portrait panel: a header bar with a title, a gauge bank, a selector strip. The [Dashboard Gallery](dashboard-gallery#built-from-the-design-guide) has six complete screens built this way, three per look, each from a different archetype.

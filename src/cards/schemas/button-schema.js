@@ -26,7 +26,7 @@ export function getButtonSchema(options = {}) {
 
     // Action, animation, and filter schemas imported from common-schemas.js
 
-    return {
+    const schema = {
         $schema: 'http://json-schema.org/draft-07/schema#',
         $id: 'https://github.com/snootched/lcards/schemas/button-schema',
         title: 'LCARdS Button Card Configuration',
@@ -132,12 +132,14 @@ export function getButtonSchema(options = {}) {
 
             component: {
                 type: 'string',
-                enum: ['dpad', 'dpad_voyager', 'alert'],
+                enum: ['dpad', 'dpad_voyager', 'alert', 'brackets', 'radar'],
                 description: 'Component type (mutually exclusive with preset)',
                 enumDescriptions: [
                     'D-pad directional control (up/down/left/right/center)',
                     'D-pad directional control, Voyager LCARS ring styling (up/down/left/right/center)',
-                    'Alert symbol with animated bar segments (red/blue/green/yellow/grey/black)'
+                    'Alert symbol with animated bar segments (red/blue/green/yellow/grey/black)',
+                    'Bracket arcs ( ) framing a round display; content in the center zone',
+                    'Radar scope: rim, range rings, cross hairs and a sweep wedge'
                 ]
             },
 
@@ -1033,4 +1035,17 @@ export function getButtonSchema(options = {}) {
             grid_options: gridOptionsSchema
         }
     };
+    // The bracket and radar components take the same per-segment config as the D-pad.
+    const dpad = /** @type {any} */ (schema.properties).dpad;
+    for (const [key, ids] of [['brackets', 'left, right'], ['radar', 'sweep, rings, inner-ring, cross, rim']]) {
+        /** @type {any} */ (schema.properties)[key] = {
+            ...dpad,
+            description: `${key} component configuration`,
+            properties: {
+                ...dpad.properties,
+                segments: { ...dpad.properties.segments, description: `Segment configurations. Use "default" for all segments; other keys are segment IDs (${ids}).` },
+            },
+        };
+    }
+    return schema;
 }

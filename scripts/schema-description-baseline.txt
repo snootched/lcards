@@ -49,6 +49,9 @@ lcards-button: background_animation[].zoom.opacity_fade_in
 lcards-button: background_animation[].zoom.opacity_fade_out
 lcards-button: background_animation[].zoom.scale_from
 lcards-button: background_animation[].zoom.scale_to
+lcards-button: brackets.segments.*.animations
+lcards-button: brackets.segments.*.style.fill
+lcards-button: brackets.segments.*.style.stroke
 lcards-button: dpad
 lcards-button: dpad.segments.*.animations
 lcards-button: dpad.segments.*.style.fill
@@ -56,6 +59,9 @@ lcards-button: dpad.segments.*.style.stroke
 lcards-button: icon
 lcards-button: icon_style.color
 lcards-button: icon_style.padding
+lcards-button: radar.segments.*.animations
+lcards-button: radar.segments.*.style.fill
+lcards-button: radar.segments.*.style.stroke
 lcards-button: style
 lcards-button: style.border
 lcards-button: style.border.color

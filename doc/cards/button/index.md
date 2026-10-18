@@ -472,6 +472,27 @@ dpad:
 
 ---
 
+## Component Mode: Brackets and Radar
+
+Two decorative round components. `brackets` draws two arcs, ( and ), around its centre: put a reading in the centre with a text field. `radar` draws a scope (rim, range rings, cross hairs, sweep wedge). Each part is a segment, so `brackets.segments` / `radar.segments` take per-segment `style` and actions as the D-pad does (segment IDs: `left`, `right`; `sweep`, `rings`, `inner-ring`, `cross`, `rim`).
+
+```yaml live
+type: custom:lcards-button
+component: brackets
+text:
+  label:
+    content: "88"
+    show: true
+    position: center
+    font_size: 48
+    color: theme:colors.ui.tertiary
+```
+
+```yaml live
+type: custom:lcards-button
+component: radar
+```
+
 ## Component Mode: Alert
 
 The alert component displays a Starfleet alert symbol with animated bar elements.
