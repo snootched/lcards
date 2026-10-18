@@ -266,3 +266,25 @@ test('editReserve: room for the edit toolbar strip and header gutter, by mode', 
     assert.deepEqual(L.editReserve(null),    { top: 0, left: 0 });
     assert.deepEqual(L.editReserve(undefined), { top: 0, left: 0 });
 });
+
+test('countTracks: repeat(N, ...) counts as N times its inner tracks', () => {
+    assert.equal(L.countTracks(L.parseTrackList('repeat(3, minmax(0, 1fr))')), 3);
+    assert.equal(L.countTracks(L.parseTrackList('120px repeat(2, 1fr 2fr) auto')), 6);
+    assert.equal(L.countTracks(L.parseTrackList('repeat(auto-fill, 100px)')), 1);
+});
+
+test('parseLayoutConfig keeps every area name when tracks use repeat()', () => {
+    // Regression: repeat(3, ...) was one track, so each area row was cut to its first name
+    // and cards placed in the other areas collapsed to nothing.
+    const { areas } = L.parseLayoutConfig({
+        'grid-template-columns': 'repeat(3, minmax(0, 1fr))',
+        'grid-template-rows': 'minmax(0, 1fr) 40px',
+        'grid-template-areas': '"slider slider slider"\n"p1 p2 p3"',
+    });
+    assert.deepEqual(areas, [['slider', 'slider', 'slider'], ['p1', 'p2', 'p3']]);
+    const auto = L.parseLayoutConfig({
+        'grid-template-columns': 'repeat(auto-fill, 100px)',
+        'grid-template-areas': '"a b c"',
+    });
+    assert.deepEqual(auto.areas[0], ['a', 'b', 'c'], 'auto-fill tracks can\'t be counted, so the areas row sets the width');
+});

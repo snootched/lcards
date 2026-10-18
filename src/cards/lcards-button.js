@@ -2570,6 +2570,14 @@ export class LCARdSButton extends LCARdSCard {
                 if (preset) {
                     // Deep copy preset to avoid mutation issues
                     style = deepMergeImmutable({}, preset);
+                    // A preset's card-level `style:` block (panel-*, toggle-tab) normally
+                    // reaches config.style through CoreConfigManager's merge. Buttons built
+                    // with a config object directly (select menu options) skip that, so
+                    // fold it in here too (same values when both apply).
+                    if (preset.style && typeof preset.style === 'object') {
+                        const presetStyleCopy = JSON.parse(JSON.stringify(preset.style));
+                        style = deepMergeImmutable(style, resolveThemeTokensRecursive(presetStyleCopy, this._singletons?.themeManager));
+                    }
                     lcardsLog.trace(`[LCARdSButton] Applied preset '${this.config.preset}'`, {
                         borderRadius: preset.border?.radius,
                         borderWidth: preset.border?.width,

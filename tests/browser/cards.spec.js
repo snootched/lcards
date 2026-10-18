@@ -240,3 +240,24 @@ test('layout card outside HA: LCARdS children are built directly (docs demos, th
     await card.screenshot({ path: test.info().outputPath('layout.png') });
     await expectNoErrors(page);
 });
+
+test('select menu with a preset that styles through style: (toggle-tab): options are styled on the first render, not after a click', async ({ page }) => {
+    const card = await mountCase(page, 'select-menu-toggle-tab', { width: '600' });
+    const backgrounds = () => card.evaluate(el => [...el.shadowRoot.querySelectorAll('lcards-button')]
+        .map(b => String(b._buttonStyle?.card?.color?.background?.inactive ?? '')));
+    await expect.poll(async () => (await backgrounds()).length).toBe(4);
+    for (const bg of await backgrounds()) expect(bg).toContain('card-top-color');
+    await expectNoErrors(page);
+});
+
+test('layout card with repeat() tracks: cards in every named area get a cell', async ({ page }) => {
+    const card = await mountCase(page, 'layout-card-repeat-areas', { width: '600' });
+    const sizes = () => card.evaluate(el => [...el.shadowRoot.querySelector('#grid-root').children]
+        .filter(c => c.localName.startsWith('lcards-'))
+        .map(c => Math.round(c.getBoundingClientRect().width)));
+    await expect.poll(async () => (await sizes()).length).toBe(4);
+    const [slider, ...pills] = await sizes();
+    expect(slider).toBeGreaterThan(500);
+    for (const w of pills) expect(w).toBeGreaterThan(150);
+    await expectNoErrors(page);
+});

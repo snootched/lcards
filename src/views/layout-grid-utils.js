@@ -70,6 +70,22 @@ export function parseTrackList(str) {
 }
 
 /**
+ * How many grid tracks a parsed track list makes: `repeat(N, ...)` counts as N times its
+ * inner tracks. `repeat(auto-fill, ...)` / `auto-fit` can't be counted and count as 1.
+ *
+ * @param {string[]} tracks  from parseTrackList
+ * @returns {number}  e.g. ['120px', 'repeat(2, 1fr 2fr)', 'auto'] -> 6
+ */
+export function countTracks(tracks) {
+    let n = 0;
+    for (const t of tracks) {
+        const m = /^repeat\(\s*(\d+)\s*,(.*)\)$/s.exec(t);
+        n += m ? Number(m[1]) * Math.max(1, parseTrackList(m[2].trim()).length) : 1;
+    }
+    return n;
+}
+
+/**
  * Serialize a track array back to a CSS string.
  * @param {string[]} tracks
  * @returns {string}
@@ -647,8 +663,11 @@ export function parseLayoutConfig(layout) {
         ? parseAreasString(layout['grid-template-areas'])
         : [];
 
-    const numCols = columns.length;
-    const numRows = rows.length;
+    // Areas are fitted to the track grid. repeat(N, ...) is one token but N tracks;
+    // repeat(auto-fill/auto-fit, ...) can't be counted, so there the areas set the size.
+    const uncountable = (tracks) => tracks.some(t => /^repeat\(\s*auto-(fill|fit)/.test(t));
+    const numCols = uncountable(columns) ? Math.max(countTracks(columns), ...rawAreas.map(r => r.length)) : countTracks(columns);
+    const numRows = uncountable(rows) ? Math.max(countTracks(rows), rawAreas.length) : countTracks(rows);
 
     const areas = Array(numRows).fill(null).map((_, r) => {
         const row = rawAreas[r] ?? [];
