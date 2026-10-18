@@ -788,9 +788,9 @@ Round displays framed by bracket arcs, and radar scopes (meWho's Titan.DS and Pr
 ```yaml live
 type: custom:lcards-layout-card
 layout:
-  height: 200px
+  height: 300px
   grid-gap: 12px
-  grid-template-columns: 200px 200px
+  grid-template-columns: 300px 300px
   grid-template-rows: minmax(0, 1fr)
 cards:
   - type: custom:lcards-button

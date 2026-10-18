@@ -187,10 +187,23 @@ The card operates in one of three modes, selected by which top-level key is pres
 | `outline-right` | Transparent background, border only, icon area on right |
 | `icon` | Square icon-only button with large rounded corners |
 | `text-only` | No background or border: pure text label |
+| `toggle-tab` | Dark square tab; a coloured line along the top shows the state |
 
 Every standard preset, rendered:
 
 <CardGallery set="button-presets" />
+
+### Panels
+
+Square-cornered blocks with a code label, for number columns and fillers. With an entity they show the theme accent when on and the dark structure tone when off.
+
+| Preset | Description |
+|--------|-----------|
+| `panel-light` | Light structure block with a code label |
+| `panel-dark` | Dark structure block with a code label |
+| `panel-flagged` | Dark code block with a thin accent flag on its left edge |
+
+<CardGallery set="button-panels" />
 
 ### Bar Labels
 
@@ -479,6 +492,8 @@ Two decorative round components. `brackets` draws two arcs, ( and ), around its 
 ```yaml live
 type: custom:lcards-button
 component: brackets
+grid_options:
+  rows: 5
 text:
   label:
     content: "88"
@@ -491,6 +506,8 @@ text:
 ```yaml live
 type: custom:lcards-button
 component: radar
+grid_options:
+  rows: 5
 ```
 
 ## Component Mode: Alert

@@ -60,7 +60,7 @@ const rowsHeight = (rows) => `${rows * 56 + (rows - 1) * 8}px`
  * covers playground configs that don't.
  */
 function tallRows(config) {
-  if (config.type === 'custom:lcards-button') return { dpad: 5, alert: 4 }[config.component] ?? 0
+  if (config.type === 'custom:lcards-button') return { dpad: 5, alert: 4, brackets: 5, radar: 5 }[config.component] ?? 0
   if (config.type !== 'custom:lcards-slider') return 0
   const vertical = config.style?.track?.orientation === 'vertical' || /vertical/.test(String(config.preset ?? ''))
   if (config.component === 'picard') return 7
