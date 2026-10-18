@@ -271,6 +271,12 @@ export const actionSchema = {
             description: 'Service to call (format: domain.service)',
             examples: ['light.turn_on', 'switch.toggle', 'notify.mobile_app']
         },
+        perform_action: {
+            type: 'string',
+            pattern: '^[a-z_]+\\.[a-z0-9_]+$',
+            description: 'Action to perform (format: domain.action); the current Home Assistant name for service',
+            examples: ['light.turn_on', 'lcards.red_alert']
+        },
         service_data: {
             type: 'object',
             description: 'Data to pass to the service',

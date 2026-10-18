@@ -230,3 +230,13 @@ test('elbow symbiont: a uix block on the embedded card is passed through, and im
     await expect.poll(async () => (await inner())?.imprint ?? '').toMatch(/#654321|rgb\(101, 67, 33\)/);
     await expectNoErrors(page);
 });
+
+test('layout card outside HA: LCARdS children are built directly (docs demos, this harness) and render', async ({ page }) => {
+    const card = await mountCase(page, 'layout-card-children', { width: '600' });
+    const kids = () => card.evaluate(el => [...el.shadowRoot.querySelectorAll('lcards-button, lcards-elbow, hui-error-card')].map(n => n.localName));
+    await expect.poll(kids).toEqual(['lcards-button', 'lcards-button', 'lcards-button', 'lcards-elbow']);
+    const box = await page.locator('lcards-layout-card lcards-elbow').boundingBox();
+    expect(box?.width).toBeGreaterThan(300);
+    await card.screenshot({ path: test.info().outputPath('layout.png') });
+    await expectNoErrors(page);
+});

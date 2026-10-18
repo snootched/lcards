@@ -169,6 +169,16 @@ export class LCARdSLayoutCard extends LitElement {
                 if (this._hass) el.hass = this._hass;
                 return el;
             }
+            // Outside HA's frontend (docs live demos, the browser test harness) there is
+            // neither: build a registered custom card directly.
+            const tag = typeof cardConfig?.type === 'string' && cardConfig.type.startsWith('custom:') ? cardConfig.type.slice(7) : null;
+            if (tag && customElements.get(tag)) {
+                const el = /** @type {any} */ (document.createElement(tag));
+                el.setConfig?.(cardConfig);
+                el.preview = this.preview;
+                if (this._hass) el.hass = this._hass;
+                return el;
+            }
         } catch (e) {
             lcardsLog.warn('[LCARdSLayoutCard] Failed to build child card', { error: e?.message });
         }

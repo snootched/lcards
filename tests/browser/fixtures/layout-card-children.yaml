@@ -1,0 +1,26 @@
+# Layout card outside HA (no hui-card / loadCardHelpers): LCARdS children are built directly
+type: custom:lcards-layout-card
+layout:
+  height: 320px
+  grid-gap: 6px
+  grid-template-columns: 180px minmax(0, 1fr)
+  grid-template-rows: 1fr 1fr 1fr
+  grid-template-areas: |
+    "b1 main"
+    "b2 main"
+    "b3 main"
+cards:
+  - type: custom:lcards-button
+    preset: number-block
+    text: { label: { content: 13-650 } }
+    view_layout: { grid-area: b1 }
+  - type: custom:lcards-button
+    preset: toggle-tab
+    entity: input_boolean.demo_toggle
+    view_layout: { grid-area: b2 }
+  - type: custom:lcards-button
+    preset: lozenge
+    view_layout: { grid-area: b3 }
+  - type: custom:lcards-elbow
+    elbow: { type: header-left }
+    view_layout: { grid-area: main }

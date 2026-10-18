@@ -27,11 +27,25 @@ LCARdS cards support actions `tap_action`, `hold_action`, and `double_tap_action
 | `toggle` | Toggle the card's entity on/off |
 | `more-info` | Open the HA more-info dialog for the entity |
 | `call-service` | Call a HA service (use `service` + `service_data`) |
-| `perform-action` | Alias for `call-service` (HA 2024+ naming) |
+| `perform-action` | Alias for `call-service` (HA 2024+ naming); name the action with `perform_action` (or `service`) and its data with `data` |
 | `navigate` | Navigate to a dashboard path |
 | `url` | Open a URL |
 | `assist` | Open the HA Assist dialog |
 | `none` | Do nothing: suppresses the default action |
+
+Calling an action, with Home Assistant's current key names:
+
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+text:
+  label:
+    content: RED ALERT
+    show: true
+tap_action:
+  action: perform-action
+  perform_action: lcards.red_alert
+```
 
 ---
 

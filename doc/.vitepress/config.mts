@@ -57,6 +57,7 @@ const LIVE_DEMOS: Record<string, string> = {
   'lcards-slider': 'CardDemo',
   'lcards-select-menu': 'CardDemo',
   'lcards-msd-card': 'CardDemo',
+  'lcards-layout-card': 'CardDemo',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -282,6 +283,7 @@ export default withMermaid(defineConfig({
           { text: 'What is LCARdS?',      link: '/getting-started/what-is-lcards' },
           { text: 'Installation',          link: '/getting-started/installation' },
           { text: 'Building a Dashboard', link: '/getting-started/building-dashboards' },
+          { text: 'Designing LCARS Screens', link: '/getting-started/lcars-design' },
           { text: 'Dashboard Gallery',    link: '/getting-started/dashboard-gallery' },
           { text: 'Getting AI Help',      link: '/getting-started/ai-assistance' },
           { text: 'Check Your Config',    link: '/getting-started/config-checker' },
@@ -457,6 +459,7 @@ export default withMermaid(defineConfig({
             { text: 'What is LCARdS?',           link: '/getting-started/what-is-lcards' },
             { text: 'Installation',               link: '/getting-started/installation' },
             { text: 'Building a Dashboard',    link: '/getting-started/building-dashboards' },
+            { text: 'Designing LCARS Screens', link: '/getting-started/lcars-design' },
             { text: 'Dashboard Gallery',       link: '/getting-started/dashboard-gallery' },
             { text: 'Getting AI Help',         link: '/getting-started/ai-assistance' },
             { text: 'Check Your Config',       link: '/getting-started/config-checker' },

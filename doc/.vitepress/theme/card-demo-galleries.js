@@ -18,8 +18,8 @@ preset: ${preset}
 icon: mdi:lightbulb
 ${preset === 'icon' ? '' : `text:
   label:
-    content: MAIN LIGHTS
-    show: true
+    content: ${preset === 'number-block' ? '13-650' : 'MAIN LIGHTS'}
+    show: ${preset !== 'toggle-tab'}
 `}tap_action:
   action: toggle
 `,

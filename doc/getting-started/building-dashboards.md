@@ -4,7 +4,7 @@ description: "How to compose an LCARS dashboard from LCARdS cards: which card fo
 
 # Building a Dashboard
 
-How to go from single cards to a whole LCARS screen. The [Dashboard Gallery](dashboard-gallery) shows finished examples built this way; this page explains the choices behind them.
+How to go from single cards to a whole LCARS screen. The [Dashboard Gallery](dashboard-gallery) shows finished examples built this way; this page explains the choices behind them. For the look itself (frames, colour roles, the Picard and classic styles, ready-made patterns), see [Designing LCARS Screens](lcars-design).
 
 ## Pick the cards
 
