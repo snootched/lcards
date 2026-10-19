@@ -111,3 +111,23 @@ test('ring: marker labels render and follow their marker when its value changes'
     await expect.poll(async () => (await ringInfo(page)).labels[0]?.transform).not.toBe(before[0].transform);
     await expectNoErrors(page);
 });
+
+test('ring: no focus outline by default; style.ring.focus_ring: true shows it on keyboard focus', async ({ page }) => {
+    await mountCase(page, 'slider-ring', SIZE);
+    const overlay = page.locator('lcards-slider .ring-overlay');
+    const outline = () => overlay.evaluate(el => getComputedStyle(el).outlineStyle);
+    await page.keyboard.press('Tab');
+    await expect(overlay).toBeFocused();
+    expect(await outline()).toBe('none');
+
+    await page.evaluate(() => window.__reconfigure({
+        type: 'custom:lcards-slider', entity: 'light.demo', preset: 'ring',
+        control: { attribute: 'brightness' }, style: { ring: { focus_ring: true } },
+    }));
+    await expect.poll(() => overlay.evaluate(el => el.classList.contains('show-focus'))).toBe(true);
+    await page.locator('body').click({ position: { x: 1, y: 1 } });
+    await page.keyboard.press('Tab');
+    await expect(overlay).toBeFocused();
+    expect(await outline()).toBe('solid');
+    await expectNoErrors(page);
+});

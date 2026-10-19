@@ -1830,6 +1830,10 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     ${FormField.renderField(this, 'style.ring.cap', {
                         label: 'Arc Ends'
                     })}
+                    ${FormField.renderField(this, 'style.ring.focus_ring', {
+                        label: 'Show Focus Outline',
+                        helper: 'Outline while focused from the keyboard (off by default)'
+                    })}
                 </lcards-grid-layout>
             </lcards-form-section>
 

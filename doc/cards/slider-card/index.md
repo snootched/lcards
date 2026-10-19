@@ -649,6 +649,7 @@ text:
 | `style.ring.scale.tick_marks.minor` | object | - | Minor ticks between the majors: `interval` (default `2`), `height` (`4`), `width` (`1`), `color`, `enabled` |
 | `style.ring.scale.labels` | object | - | Value labels at the major interval: `show_unit`, `unit`, `color`, `font_size` (`12`), `padding` (`3`), `enabled` |
 | `style.ring.padding` | number | auto | Room outside the ring for the scale, markers and labels, in px |
+| `style.ring.focus_ring` | boolean | `false` | Outline the ring while it has keyboard focus; keyboard control works either way |
 
 `style.track.invert_fill` makes the value grow from the end angle back towards the start; the drag badge (`drag_badge`) sits in the centre of the ring. Borders (`style.border`) and track margins don't apply to a ring.
 

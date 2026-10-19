@@ -266,7 +266,8 @@ export class LCARdSSlider extends LCARdSButton {
                     -webkit-tap-highlight-color: transparent;
                 }
 
-                .ring-overlay:focus-visible {
+                /* Off unless style.ring.focus_ring: most rings are used by touch. */
+                .ring-overlay.show-focus:focus-visible {
                     outline: var(--ha-border-width-md, 2px) solid var(--primary-color, var(--lcards-orange));
                     outline-offset: 2px;
                 }
@@ -4939,7 +4940,7 @@ export class LCARdSSlider extends LCARdSButton {
                 ${unsafeHTML(finalSvg)}
                 ${!locked && ring ? html`
                     <div
-                        class="ring-overlay"
+                        class="ring-overlay ${this._sliderStyle?.ring?.focus_ring === true ? 'show-focus' : ''}"
                         role="slider"
                         tabindex="0"
                         aria-label="${label}"

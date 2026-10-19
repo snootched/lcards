@@ -1259,6 +1259,12 @@ export function getSliderSchema(options = {}) {
                                     }
                                 }
                             },
+                            focus_ring: {
+                                type: 'boolean',
+                                default: false,
+                                description: 'Outline the ring while it has keyboard focus (default false: most rings are used by touch). Keyboard control works either way.',
+                                'x-ui-hints': { label: 'Show Focus Outline' }
+                            },
                             padding: {
                                 type: 'number',
                                 minimum: 0,
