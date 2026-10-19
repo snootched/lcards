@@ -61,6 +61,23 @@ type: custom:lcards-alert-overlay
 dismiss_mode: dismiss           # dismiss | reset | auto-dismiss | auto-reset
 auto_dismiss_seconds: 30        # seconds; required for auto-dismiss / auto-reset
 
+# ── Display ────────────────────────────────────────────────────────────────────
+display: overlay                # overlay (default) | band; see Alert Band
+band:                           # display: band only
+  position: center              # top | center | bottom | a % of the screen height
+  height: 48px                  # dash height (CSS length); default clamp(24px, 4vh, 64px)
+  dash_width: 8                 # px
+  dash_gap: 12                  # px
+  dash_radius: pill             # px, or pill for rounded ends
+  emblem: true                  # the alert symbol in the middle (click to dismiss)
+  emblem_scale: 4               # symbol height as a multiple of the band height
+  animation: sweep              # sweep | flash | none
+  direction: outward            # outward | inward (sweep)
+  speed: 1                      # multiplier; the symbol bars follow it
+  grow: 1.5                     # peak dash height with the animation; 1 = none
+  phase: 180                    # lock to the symbol bar sweep, degrees later
+  color: theme:colors.alert.red # default: the condition colour
+
 # ── Content position & size ────────────────────────────────────────────────────
 position: center                # center | top | bottom | top-left | top-right
                                 # bottom-left | bottom-right | left | right
@@ -111,6 +128,8 @@ conditions:
 | `type` | string | - | `custom:lcards-alert-overlay` (required) |
 | `dismiss_mode` | string | `dismiss` | What happens when the user taps the backdrop; see [Dismiss](#dismiss) |
 | `auto_dismiss_seconds` | number | - | Seconds before the overlay auto-dismisses. Required when `dismiss_mode` is `auto-dismiss` or `auto-reset`. Min: 1. Can be overridden per condition. |
+| `display` | string | `overlay` | `overlay`: a backdrop over the dashboard with the alert symbol in the middle. `band`: a row of dashes across the screen with the symbol in the middle, the dashboard stays usable; see [Alert Band](#alert-band) |
+| `band` | object | - | Band settings for `display: band`; see [Alert Band](#alert-band) |
 | `position` | string | `center` | Where to place the content card within the overlay; see [Position](#position) |
 | `width` | string | `60%` | Content card width (CSS value, e.g. `400px`, `50%`). Percentages are of the screen. For the default alert symbol and other SVG component cards, a width alone is enough: the height follows from the SVG's aspect ratio. |
 | `height` | string | see note | Content card height (CSS value). With neither `width` nor `height` set, the built-in alert symbol gets `50%` of the screen's height and scales to fit, so it suits wide, tall and phone screens alike. Otherwise the content sizes itself (`auto`); set a height for custom cards that can't size themselves from their width. |
@@ -190,6 +209,54 @@ layers: null
 | `scanlines` | `lineHeight`, `opacity`, `scroll` | CRT horizontal lines |
 
 > **Colour values**: All `color-text` params (`color-tint`'s `color`, and the canvas presets' `static.color` / `pixelate.color`) support the full LCARdS colour expression syntax: hex, `rgb()`/`rgba()`, `var(--css-variable)`, theme tokens (`theme:palette.moonlight`), CSS named colours (`cornflowerblue`), and computed expressions (`alpha(theme:colors.ui.primary, 0.4)`). For alert-mode-aware colours use `var(--lcards-*)` or `var(--lcars-*)` variables.
+
+---
+
+## Alert Band
+
+`display: band` shows the alert the way the Titan.DS screens do: a row of short dashes in the condition colour across the whole screen, with the alert symbol in the middle. Nothing covers the rest of the dashboard, so it stays readable and usable while the alert is on: clicks reach the cards under the band, and clicking the symbol dismisses it (following `dismiss_mode`). Pair it with an alert-aware theme so the rest of the screen changes colour too.
+
+```yaml
+type: custom:lcards-alert-overlay
+display: band
+dismiss_mode: reset
+band:
+  position: 70%          # band centre at 70% of the screen height
+  animation: sweep
+  speed: 1.5             # 1.5 times as fast (the symbol's bars too)
+  phase: 180             # the sweep runs out of the symbol to the edges, like a warp core
+  grow: 1.6              # dashes swell as the sweep passes
+  dash_radius: pill      # rounded ends
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `band.position` | string | `center` | `top`, `center`, `bottom`, or a percentage of the screen height for the band's centre |
+| `band.height` | string | `clamp(24px, 4vh, 64px)` | Dash height (CSS length) |
+| `band.dash_width` | number | `8` | Dash width in px |
+| `band.dash_gap` | number | `12` | Space between dashes in px |
+| `band.dash_radius` | number or `pill` | `0` | Dash corner radius in px; `pill` rounds the ends fully |
+| `band.grow` | number | `1` | Peak dash height as a multiple of the band height, with the animation: the dashes swell as the sweep passes, or all together with `flash`. `1` = no growth |
+| `band.emblem` | boolean | `true` | The alert symbol in the middle. Without it, only auto-dismiss or the alert mode changing hides the band |
+| `band.emblem_scale` | number | `4` | Symbol height as a multiple of the band height |
+| `band.animation` | string | `sweep` | `sweep`: a flash runs outward from the symbol. `flash`: all dashes pulse together. `none`: still. Off when the device asks for reduced motion |
+| `band.direction` | string | `outward` | Sweep direction: `outward` from the symbol, or `inward` from the screen edges |
+| `band.speed` | number | `1` | Animation speed multiplier (`2` = twice as fast, `0.5` = half speed). The symbol's bars follow it unless `alert_button.speed` is set |
+| `band.phase` | number | - | Locks the band's animation to the symbol's bar sweep, this many degrees later (0 to 360). The symbol's bars light from the outside in, reaching the middle at 150; at `180` an outward band sweep starts as the symbol's finishes, so it reads as one sweep from the core out to the edges. Needs the built-in symbol, and the same speed for both (leave `alert_button.speed` unset) |
+| `band.color` | string | the condition colour | Dash colour |
+
+The symbol is the same alert button as the overlay's, so [`alert_button`](#default-alert-button-overrides) patches and a [content card](#content-cards) apply here too. Backdrop [layers](#layers) are off in band mode unless you set them. `display` and `band` can be set per condition:
+
+```yaml
+type: custom:lcards-alert-overlay
+display: band
+conditions:
+  red_alert:
+    display: overlay     # red alert still takes over the screen
+  yellow_alert:
+    band:
+      animation: flash
+```
 
 ---
 
@@ -300,6 +367,8 @@ Condition keys: `red_alert`, `yellow_alert`, `blue_alert`, `black_alert`, `gray_
 | `content` | object | Full HA card config to render inside the overlay. Any card type works. Overrides `alert_button` entirely. |
 | `alert_button` | object | Patch merged onto the default alert button. Override only the fields you need. See [Default Alert Button Overrides](#default-alert-button-overrides). |
 | `layers` | object | Per-slot effect overrides merged on top of the global `layers`. Only slots present in the condition override are applied; absent slots inherit global. Set a slot to `null` to explicitly clear it for this condition. |
+| `display` | string | `overlay` or `band` for this condition; see [Alert Band](#alert-band) |
+| `band` | object | Band settings for this condition, merged over the card's `band` |
 | `position` | string | Position override for this condition |
 | `width` | string | Content card width override. SVG component cards (e.g. the default alert button) derive their height from this automatically. |
 | `height` | string | Content card height override, for custom cards that cannot self-size from width alone. |
@@ -361,6 +430,7 @@ conditions.<key>.content               ← full card config override (existing)
 | `text.alert_text.content` | string | Override the top alert label (default: `ALERT`) |
 | `text.sub_text.content` | string | Override the sub-text message. Supports static strings and LCARdS templates. |
 | `alert` | object | Alert component config overrides: e.g. `alert.color.shape`, `alert.color.bars` |
+| `speed` | number | Speed multiplier for the symbol's bar sweep (`2` = twice as fast). In band mode it follows `band.speed` unless set |
 
 ### Static text override
 
@@ -464,6 +534,25 @@ Note: Setting `layers: null` disables all screen effects. This gives a pure noti
 
 ---
 
+### Warp-core band
+
+A band across the lower third that leaves the dashboard usable. The symbol's bars sweep in to the middle, then the dashes carry the sweep out to both edges, swelling as it passes. Red alert gets the full-screen overlay instead.
+
+```yaml
+type: custom:lcards-alert-overlay
+display: band
+dismiss_mode: reset
+band:
+  position: 70%
+  dash_radius: pill
+  grow: 1.6
+  phase: 180
+  speed: 0.75
+conditions:
+  red_alert:
+    display: overlay
+```
+
 ### Per-condition content and backdrop
 
 ```yaml
@@ -540,6 +629,7 @@ conditions:
 
 - **Single instance per dashboard**: only the first instance connected to the DOM becomes active. Any additional instances are automatically suppressed: they have no visual presence in normal mode and show a "DUPLICATE · INACTIVE" warning placeholder in edit mode. Remove duplicate instances to avoid confusion.
 - **Not targetable by the rules engine**: the overlay does not extend `LCARdSCard` and has no card ID or tags. Rules cannot target it. The content card *inside* the overlay does support rules if it is an `lcards-*` card type.
+- **Band phase needs the built-in symbol**: `band.phase` locks to the alert symbol's bar sweep. With `band.emblem: false` or a custom `content` card there is nothing to lock to, and the band runs on its own.
 
 ---
 

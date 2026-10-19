@@ -7,6 +7,7 @@ declare global {
     interface HTMLElementTagNameMap {
         'alert-mode-color-wheel': import('../editor/components/theme-browser/alert-mode-color-wheel.js').AlertModeColorWheel;
         'lcards-about-tab': import('../panels/components/lcards-about-tab.js').LCARdSAboutTab;
+        'lcards-alert-band': import('../cards/lcards-alert-band.js').LCARdSAlertBand;
         'lcards-alert-overlay': import('../cards/lcards-alert-overlay.js').LCARdSAlertOverlay;
         'lcards-alert-overlay-editor': import('../editor/cards/lcards-alert-overlay-editor.js').LCARdSAlertOverlayEditor;
         'lcards-animation-editor': import('../editor/components/lcards-animation-editor.js').LCARdSAnimationEditor;

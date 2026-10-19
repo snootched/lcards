@@ -19,6 +19,8 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import { HATemplateEvaluator } from '../core/templates/HATemplateEvaluator.js';
 import { getAlertOverlaySchema } from './schemas/lcards-alert-overlay-schema.js';
 import { parseColor } from '../core/themes/color-syntax.js';
+import { resolveBandConfig, bandSpeed, EMBLEM_SWEEP_MS } from './alert-band-layout.js';
+import './lcards-alert-band.js';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -105,6 +107,8 @@ export class LCARdSAlertOverlay extends LitElement {
         this._editMode         = false;
         this._editModePoller   = null;
         this._autoDismissTimer = null;
+        /** @type {(() => void)|null} */
+        this._bandDismissHandler = null;
     }
 
     // -------------------------------------------------------------------------
@@ -214,6 +218,11 @@ export class LCARdSAlertOverlay extends LitElement {
 
         clearInterval(this._editModePoller ?? undefined);
         this._editModePoller = null;
+
+        if (this._bandDismissHandler) {
+            window.removeEventListener('lcards-alert-band-dismiss', this._bandDismissHandler);
+            this._bandDismissHandler = null;
+        }
 
         if (this._isSuppressed) {
             this._isSuppressed = false;
@@ -328,6 +337,11 @@ export class LCARdSAlertOverlay extends LitElement {
             return;
         }
 
+        if (this._displayFor(condition) === 'band') {
+            this._showBand(pom, condition, resolvedConfig);
+            return;
+        }
+
         const size     = this._getEffectiveSize();
         const layers   = this._resolveBackdropLayers();
         const position = this.config?.conditions?.[this._activeCondition]?.position
@@ -344,6 +358,55 @@ export class LCARdSAlertOverlay extends LitElement {
         });
 
         this.requestUpdate();
+    }
+
+    /**
+     * Presentation for a condition: `overlay` (backdrop + emblem, modal) or
+     * `band` (dashes across the screen, the dashboard stays usable).
+     * @param {string} condition
+     * @returns {'overlay'|'band'}
+     */
+    _displayFor(condition) {
+        const display = this.config?.conditions?.[condition]?.display ?? this.config?.display;
+        return display === 'band' ? 'band' : 'overlay';
+    }
+
+    /**
+     * Show the alert band: full screen, clicks pass through except on the
+     * emblem, which dismisses. Backdrop layers only when the config sets them.
+     * @param {any} pom - PortalOverlayManager
+     * @param {string} condition
+     * @param {Object} emblem - Emblem card config (the alert button or `content`)
+     */
+    _showBand(pom, condition, emblem) {
+        const hasLayers = !!(this.config?.layers || this.config?.backdrop || this.config?.conditions?.[condition]?.layers);
+        this._listenForBandDismiss();
+        pom.show('alert-overlay', {
+            position:    'top-left',
+            width:       '100%',
+            height:      '100%',
+            dismiss:     false,
+            passThrough: true,
+            content: {
+                type: 'custom:lcards-alert-band',
+                condition,
+                band: resolveBandConfig(this.config, condition),
+                emblem,
+            },
+            layers: hasLayers ? this._resolveBackdropLayers() : null,
+        });
+        this.requestUpdate();
+    }
+
+    /** The band's emblem fires `lcards-alert-band-dismiss` (composed) when clicked. */
+    _listenForBandDismiss() {
+        if (this._bandDismissHandler) return;
+        this._bandDismissHandler = () => {
+            if (!this._isActive || this._isSuppressed) return;
+            this._handleDismiss();
+            window.lcards?.core?.portalOverlayManager?.hide('alert-overlay');
+        };
+        window.addEventListener('lcards-alert-band-dismiss', this._bandDismissHandler);
     }
 
     /**
@@ -448,6 +511,16 @@ export class LCARdSAlertOverlay extends LitElement {
         // Forward component-level color overrides if present (e.g. alert.color.shape)
         if (ab.alert) {
             card.alert = ab.alert;
+        }
+
+        // Bar sweep speed: alert_button.speed, else (band mode) the band's speed so
+        // the symbol and the dashes keep step. Merged by id into the component's
+        // bars-*-sweep animations.
+        const speed = ab.speed ?? (this._displayFor(condition) === 'band'
+            ? resolveBandConfig(this.config, condition).speed : undefined);
+        if (speed !== undefined && bandSpeed(speed) !== 1) {
+            const duration = Math.round(EMBLEM_SWEEP_MS / bandSpeed(speed));
+            card.animations = ['bars-top-sweep', 'bars-bottom-sweep'].map(id => ({ id, params: { duration } }));
         }
 
         return card;

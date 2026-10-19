@@ -165,6 +165,9 @@ export class PortalOverlayManager extends BaseService {
      * @param {Object}   [options.layers=null]        - SEM layer config:
      *   `{ backdrop, color, canvas }` — each slot: `{ preset, ...params }` or `null`.
      * @param {number}   [options.duration=null]      - Auto-hide after N ms.
+     * @param {boolean}  [options.passThrough=false]  - Clicks reach the page under the
+     *   content box; the content enables pointer events on its own interactive parts
+     *   (the alert band's emblem). Use with `dismiss: false`.
      */
     show(name, options = {}) {
         const sem = window.lcards?.core?.screenEffectManager;
@@ -179,8 +182,11 @@ export class PortalOverlayManager extends BaseService {
             this._destroySlot(name, { releaseSemOccupied: false });
         }
 
-        sem.setOverlayOccupied(true);
+        // Create the portal before marking it occupied: setOverlayOccupied() can
+        // only show a portal that exists, so the first overlay without layers
+        // (the alert band) stayed hidden when the order was reversed.
         const portal = sem.portal;
+        sem.setOverlayOccupied(true);
 
         // ── Dismiss click-catcher (z:10) ──────────────────────────────────────
         const dismissEl = document.createElement('div');
@@ -208,7 +214,7 @@ export class PortalOverlayManager extends BaseService {
         // aspect-ratio (set by lcards-button) ignores the container height.
         const contentContainer = document.createElement('div');
         Object.assign(contentContainer.style, {
-            pointerEvents: 'auto',
+            pointerEvents: options.passThrough ? 'none' : 'auto',
             display:       'flex',
             alignItems:    'stretch',
         });

@@ -37,12 +37,13 @@
  *   Bars are ordered top-to-bottom within each cap.
  * - Text labels rendered via the standard button text overlay system (alert_text, sub_text)
  *
- * ViewBox: 0 0 100 85.56
+ * ViewBox: 0 0 100 73.49 (trimmed to the shape, so the symbol centres in its box;
+ * it was 85.56 with empty space under the bottom cap, which drew it high)
  * Top cap inner rect:    x 30.40–69.57,  y  0.00–22.50
  * Bottom cap inner rect: x 30.40–69.57,  y 51.04–73.56
  * Bar height: ~1.882 units  |  Bar gap: ~1.591 units  |  stroke-width: 33.33
  */
-const alertSvg = `<svg viewBox="0 0 100 85.56" xmlns="http://www.w3.org/2000/svg">
+const alertSvg = `<svg viewBox="0 0 100 73.49" xmlns="http://www.w3.org/2000/svg">
 
   <!-- Shield outline (fill-rule evenodd cuts the interior open) -->
   <g id="alert-shape">
@@ -127,7 +128,7 @@ export const alertComponents = {
 
         // ---------------------------------------------------------------------------
         // zones — named map of interior cavities, in viewBox coordinate space
-        // (viewBox: 0 0 100 85.56).  _buildComponentTextMarkup() uses these directly
+        // (viewBox: 0 0 100 73.49).  _buildComponentTextMarkup() uses these directly
         // to position text in viewBox units so it scales 1:1 with the shape.
         //
         // Each text field declares which zone it lives in via its `zone` key.

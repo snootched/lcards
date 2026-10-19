@@ -206,9 +206,11 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
             <div class="tab-content-container">
 
                 <lcards-message type="info">
-                    Shows a full-screen backdrop and alert card while <code>input_select.lcards_alert_mode</code>
-                    is an alert (red, yellow, blue, black or gray). Add one per dashboard view.
+                    Shows an overlay or a band while <code>input_select.lcards_alert_mode</code> is an alert
+                    (red, yellow, blue, black or gray). Add one per dashboard view.
                 </lcards-message>
+
+                ${this._renderDisplaySection()}
 
                 <!-- Dismiss Behaviour -->
                 <lcards-form-section
@@ -288,6 +290,162 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                 </lcards-form-section>
 
             </div>
+        `;
+    }
+
+    /**
+     * Display: the modal overlay or the band across the screen, and the band settings.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderDisplaySection() {
+        const display = this.config?.display ?? 'overlay';
+        const band = this.config?.band ?? {};
+        const set = (key, value) => this._setConfigValue(`band.${key}`, value === '' || value === null ? undefined : value);
+        return html`
+            <lcards-form-section
+                header="Display"
+                description="A modal overlay, or a band of dashes across the screen that leaves the dashboard usable"
+                icon="mdi:alert-rhombus-outline"
+                ?expanded=${true}
+                ?outlined=${true}>
+
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Display'}
+                    .helper=${display === 'band'
+                        ? 'Band: dashes in the alert colour across the screen with the alert symbol in the middle. Clicks reach the dashboard; click the symbol to dismiss.'
+                        : 'Overlay: a backdrop over the dashboard with the alert symbol (or your content card) in the middle.'}
+                    .selector=${{ select: { mode: 'dropdown', options: [
+                        { value: 'overlay', label: 'Overlay (backdrop and symbol)' },
+                        { value: 'band',    label: 'Band (dashes across the screen)' },
+                    ]}}}
+                    .value=${display}
+                    @value-changed=${(e) => this._setConfigValue('display', e.detail.value === 'overlay' ? undefined : e.detail.value)}>
+                </ha-selector>
+
+                ${display === 'band' ? html`
+                    <lcards-grid-layout>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Band position'}
+                            .helper=${'top, center, bottom, or a percentage of the screen height (e.g. 75%)'}
+                            .selector=${{ select: { mode: 'dropdown', custom_value: true, options: [
+                                { value: 'top', label: 'Top' }, { value: 'center', label: 'Center' }, { value: 'bottom', label: 'Bottom' },
+                            ]}}}
+                            .value=${band.position ?? 'center'}
+                            @value-changed=${(e) => set('position', e.detail.value)}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Animation'}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: 'sweep', label: 'Sweep (outward from the symbol)' },
+                                { value: 'flash', label: 'Flash (all together)' },
+                                { value: 'none',  label: 'None' },
+                            ]}}}
+                            .value=${band.animation ?? 'sweep'}
+                            @value-changed=${(e) => set('animation', e.detail.value)}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Sweep direction'}
+                            .selector=${{ select: { mode: 'dropdown', options: [
+                                { value: 'outward', label: 'Outward (from the symbol)' },
+                                { value: 'inward',  label: 'Inward (from the edges)' },
+                            ]}}}
+                            .value=${band.direction ?? 'outward'}
+                            @value-changed=${(e) => set('direction', e.detail.value === 'outward' ? undefined : e.detail.value)}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Speed'}
+                            .helper=${'Multiplier: 2 = twice as fast. The symbol bars follow it'}
+                            .selector=${{ number: { min: 0.25, max: 4, step: 0.25, mode: 'box' } }}
+                            .value=${band.speed ?? 1}
+                            @value-changed=${(e) => set('speed', Number(e.detail.value) && Number(e.detail.value) !== 1 ? Number(e.detail.value) : undefined)}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Phase (degrees)'}
+                            .helper=${'Lock the band to the symbol bar sweep, this many degrees later. 180 with an outward sweep: one sweep from the symbol out to the edges. Blank = not locked'}
+                            .selector=${{ number: { min: 0, max: 360, step: 15, mode: 'box' } }}
+                            .value=${band.phase}
+                            @value-changed=${(e) => set('phase', e.detail.value === '' || e.detail.value === null || e.detail.value === undefined ? undefined : Number(e.detail.value))}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Band height'}
+                            .helper=${'CSS length, e.g. 48px or 5vh. Blank = 4% of the screen height'}
+                            .selector=${{ text: {} }}
+                            .value=${band.height ?? ''}
+                            @value-changed=${(e) => set('height', e.detail.value)}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Symbol size'}
+                            .helper=${'Symbol height as a multiple of the band height'}
+                            .selector=${{ number: { min: 1, max: 10, step: 0.5, mode: 'box' } }}
+                            .value=${band.emblem_scale ?? 4}
+                            @value-changed=${(e) => set('emblem_scale', e.detail.value)}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Dash width (px)'}
+                            .selector=${{ number: { min: 1, max: 100, step: 1, mode: 'box' } }}
+                            .value=${band.dash_width ?? 8}
+                            @value-changed=${(e) => set('dash_width', e.detail.value)}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Dash gap (px)'}
+                            .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'box' } }}
+                            .value=${band.dash_gap ?? 12}
+                            @value-changed=${(e) => set('dash_gap', e.detail.value)}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Dash corner radius (px)'}
+                            .helper=${'Capped at half the dash width'}
+                            .selector=${{ number: { min: 0, max: 100, step: 0.5, mode: 'box' } }}
+                            .value=${typeof band.dash_radius === 'number' ? band.dash_radius : 0}
+                            .disabled=${band.dash_radius === 'pill'}
+                            @value-changed=${(e) => set('dash_radius', Number(e.detail.value) > 0 ? Number(e.detail.value) : undefined)}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Pill ends'}
+                            .helper=${'Fully rounded dash ends (overrides the radius)'}
+                            .selector=${{ boolean: {} }}
+                            .value=${band.dash_radius === 'pill'}
+                            @value-changed=${(e) => set('dash_radius', e.detail.value ? 'pill' : undefined)}>
+                        </ha-selector>
+                        <ha-selector
+                            .hass=${this.hass}
+                            .label=${'Grow'}
+                            .helper=${'Peak dash height as a multiple of the band height, with the animation. 1 = no growth'}
+                            .selector=${{ number: { min: 1, max: 4, step: 0.1, mode: 'box' } }}
+                            .value=${band.grow ?? 1}
+                            @value-changed=${(e) => set('grow', Number(e.detail.value) > 1 ? Number(e.detail.value) : undefined)}>
+                        </ha-selector>
+                    </lcards-grid-layout>
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Show the alert symbol'}
+                        .helper=${'Without it, only auto-dismiss or the alert mode changing hides the band'}
+                        .selector=${{ boolean: {} }}
+                        .value=${band.emblem ?? true}
+                        @value-changed=${(e) => set('emblem', e.detail.value === true ? undefined : false)}>
+                    </ha-selector>
+                    <div style="font-size:12px;font-weight:500;color:var(--secondary-text-color);margin:8px 0 4px;padding:0 2px;">Dash colour (blank = the condition colour)</div>
+                    <lcards-color-picker
+                        .hass=${this.hass}
+                        .value=${band.color ?? ''}
+                        .showPreview=${true}
+                        @value-changed=${(e) => set('color', e.detail.value || undefined)}>
+                    </lcards-color-picker>
+                ` : ''}
+            </lcards-form-section>
         `;
     }
 
@@ -485,8 +643,21 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                     header="Layout Overrides"
                     description="Override content position or size for this condition only. Leave blank to use global defaults."
                     icon="mdi:move-resize"
-                    ?expanded=${!!(pos || width || height || condAutoSeconds)}
+                    ?expanded=${!!(pos || width || height || condAutoSeconds || condCfg.display)}
                     ?outlined=${true}>
+
+                    <ha-selector
+                        .hass=${this.hass}
+                        .label=${'Display (override)'}
+                        .helper=${'Overlay or band for this condition only'}
+                        .selector=${{ select: { mode: 'dropdown', options: [
+                            { value: '', label: '(Use global default)' },
+                            { value: 'overlay', label: 'Overlay (backdrop and symbol)' },
+                            { value: 'band',    label: 'Band (dashes across the screen)' },
+                        ]}}}
+                        .value=${condCfg.display ?? ''}
+                        @value-changed=${(e) => this._setConditionProp(condKey, 'display', e.detail.value || undefined)}>
+                    </ha-selector>
 
                     <ha-selector
                         .hass=${this.hass}
@@ -579,6 +750,16 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                     type="info"
                     message="Set only what you want to change; the rest comes from the default alert button. No effect when a Content Card is set above.">
                 </lcards-message>
+
+                <!-- Bar sweep speed -->
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Symbol animation speed'}
+                    .helper=${'Multiplier for the symbol bar sweep: 2 = twice as fast. Blank = normal (in band mode: the band speed)'}
+                    .selector=${{ number: { min: 0.25, max: 4, step: 0.25, mode: 'box' } }}
+                    .value=${ab.speed}
+                    @value-changed=${(e) => this._setAlertButtonProp(condKey, 'speed', Number(e.detail.value) || undefined)}>
+                </ha-selector>
 
                 <!-- Alert label -->
                 <ha-selector

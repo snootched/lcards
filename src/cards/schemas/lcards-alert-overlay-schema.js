@@ -5,6 +5,87 @@
  * Uses shared schema components from common-schemas.js for consistency.
  */
 
+/** How an alert shows: the modal overlay or the band across the screen. */
+const displaySchema = {
+    type: 'string',
+    enum: ['overlay', 'band'],
+    default: 'overlay',
+    description:
+        'overlay = backdrop and the alert symbol (or content card) in the middle, the dashboard blocked until dismissed; ' +
+        'band = a row of dashes across the screen with the symbol in the middle, the dashboard stays usable (click the symbol to dismiss)',
+};
+
+/** Settings for `display: band`. */
+const bandSchema = {
+    type: 'object',
+    description: 'Alert band settings (display: band). A row of dashes in the condition colour across the screen, with the alert symbol in the middle.',
+    properties: {
+        position: {
+            type: 'string',
+            pattern: '^(top|center|bottom|-?\\d+(\\.\\d+)?%)$',
+            default: 'center',
+            description: 'Where the band sits: top, center, bottom, or a percentage of the screen height for the band centre (e.g. 75%)',
+            examples: ['center', 'bottom', '75%'],
+        },
+        height: {
+            type: 'string',
+            default: 'clamp(24px, 4vh, 64px)',
+            description: 'Dash height (CSS length)',
+            examples: ['48px', '5vh'],
+        },
+        dash_width: { type: 'number', minimum: 1, default: 8, description: 'Dash width in px' },
+        dash_gap: { type: 'number', minimum: 0, default: 12, description: 'Space between dashes in px' },
+        dash_radius: {
+            oneOf: [
+                { type: 'number', minimum: 0 },
+                { type: 'string', const: 'pill' },
+            ],
+            default: 0,
+            description: 'Dash corner radius in px, or pill for fully rounded ends',
+            examples: [2, 'pill'],
+        },
+        grow: {
+            type: 'number',
+            minimum: 1,
+            maximum: 4,
+            default: 1,
+            description: 'Peak dash height as a multiple of the band height, following the animation: the dashes swell as the sweep passes (or all together with flash). 1 = no growth',
+            examples: [1.5, 2],
+        },
+        emblem: { type: 'boolean', default: true, description: 'Show the alert symbol (or the content card) in the middle of the band. Without it, only auto-dismiss or the alert mode changing hides the band' },
+        emblem_scale: { type: 'number', minimum: 1, maximum: 10, default: 4, description: 'Height of the symbol as a multiple of the band height' },
+        animation: {
+            type: 'string',
+            enum: ['sweep', 'flash', 'none'],
+            default: 'sweep',
+            description: 'sweep = a flash runs outward from the symbol; flash = all dashes pulse together; none = still. Reduced-motion settings turn it off',
+        },
+        direction: {
+            type: 'string',
+            enum: ['outward', 'inward'],
+            default: 'outward',
+            description: 'Sweep direction: outward from the symbol, or inward from the screen edges',
+        },
+        speed: {
+            type: 'number',
+            minimum: 0.25,
+            maximum: 4,
+            default: 1,
+            description: 'Animation speed multiplier (2 = twice as fast). The alert symbol bars follow it unless alert_button.speed is set',
+            examples: [0.5, 2],
+        },
+        phase: {
+            type: 'number',
+            minimum: 0,
+            maximum: 360,
+            description: 'Lock the band animation to the alert symbol bar sweep, this many degrees later (the symbol innermost bars light at 150, so 180 makes an outward sweep carry on out of the symbol). Unset = not locked. Needs the symbol and the same speed for both',
+            examples: [180],
+        },
+        color: { type: 'string', description: 'Dash colour (default: the condition alert colour from the theme)', examples: ['theme:colors.alert.red', 'var(--lcars-orange)'] },
+    },
+    additionalProperties: false,
+};
+
 export const alertOverlaySchema = {
     $schema: 'http://json-schema.org/draft-07/schema#',
     $id: 'https://github.com/snootched/lcards/schemas/alert-overlay-schema',
@@ -93,6 +174,8 @@ export const alertOverlaySchema = {
                 },
             ],
         },
+        display: displaySchema,
+        band: bandSchema,
         position: {
             type: 'string',
             enum: [
@@ -148,6 +231,13 @@ export const alertOverlaySchema = {
                                 description: 'Alert component config overrides: e.g. alert.color.shape, alert.color.bars',
                                 additionalProperties: true,
                             },
+                            speed: {
+                                type: 'number',
+                                minimum: 0.25,
+                                maximum: 4,
+                                description: 'Speed multiplier for the alert symbol bar sweep (2 = twice as fast). In band mode it follows band.speed unless set',
+                                examples: [0.5, 2],
+                            },
                         },
                         additionalProperties: true,
                     },
@@ -181,6 +271,8 @@ export const alertOverlaySchema = {
                             'bottom-left', 'bottom', 'bottom-center', 'bottom-right',
                         ],
                     },
+                    display: { type: 'string', enum: displaySchema.enum, description: 'Presentation for this condition (overlay or band); falls back to the card display' },
+                    band: { ...bandSchema, description: 'Band settings for this condition, merged over the card band' },
                     width:  { type: 'string', description: 'Content card width for this condition (CSS value); falls back to the card width' },
                     height: { type: 'string', description: 'Content card height for this condition (CSS value); falls back to the card height' },
                     auto_dismiss_seconds: {
