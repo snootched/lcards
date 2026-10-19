@@ -44,7 +44,8 @@ export const infoGuideStyles = css`
     font-size: 13px;
   }
 
-  .info-guide-body a {
+  .info-guide-body a,
+  .info-guide-links a {
     color: var(--primary-color);
   }
 

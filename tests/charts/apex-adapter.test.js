@@ -131,3 +131,65 @@ test('rangeArea honours style fill/stroke; radialBar legend defaults on but can 
     const off = ApexChartsAdapter.generateOptions({ chart_type: 'radialBar', legend: { show: false } }, [400, 200], {});
     assert.equal(off.legend.show, false);
 });
+
+// Chart-type defaults that ApexCharts gets wrong out of the box (2026-10-18).
+const genAt = (style, size, series = []) => ApexChartsAdapter.generateOptions(style, size, { series });
+const named = (...names) => names.map(name => ({ name }));
+
+test('radar: no cartesian grid; the polygon is fitted to the card and centred', () => {
+    const wide = genAt({ chart_type: 'radar' }, [900, 312], named('Toronto', 'Bathroom', 'Bedroom'));
+    assert.equal(wide.grid.show, false);
+    // ApexCharts alone: 312 / 2.1 minus label room, about 105px.
+    assert.ok(wide.plotOptions.radar.size > 150, `size ${wide.plotOptions.radar.size}`);
+    // A triangle reaches 1.5 radii down from the top: shift it down by a quarter.
+    assert.equal(wide.plotOptions.radar.offsetY, Math.round(wide.plotOptions.radar.size / 4));
+    // Four axes are symmetric: no shift. A narrow card is limited by its width.
+    assert.equal(genAt({ chart_type: 'radar' }, [900, 312], named('a', 'b', 'c', 'd')).plotOptions.radar.offsetY, 0);
+    const narrow = genAt({ chart_type: 'radar' }, [300, 420], named('Toronto', 'Bathroom', 'Bedroom'));
+    assert.ok(narrow.plotOptions.radar.size < 100);
+    // User chart_options still win.
+    const own = genAt({ chart_type: 'radar', chart_options: { plotOptions: { radar: { size: 50 } } } }, [900, 312], named('a', 'b', 'c'));
+    assert.equal(own.plotOptions.radar.size, 50);
+});
+
+test('radialBar: a half-circle gauge fills a wide card; full circles are left alone', () => {
+    const half = genAt({ chart_type: 'radialBar' }, [900, 312], named('a'));
+    assert.ok(half.grid.padding.bottom < -100, `padding ${half.grid.padding?.bottom}`);
+    const full = genAt({ chart_type: 'radialBar', gauge_start_angle: 0, gauge_end_angle: 360 }, [900, 312], named('a'));
+    assert.equal(full.grid.padding?.bottom, undefined);
+});
+
+test('pie, donut and polarArea show a legend by default (it names the slices)', () => {
+    for (const chart_type of ['pie', 'donut', 'polarArea']) {
+        assert.equal(gen({ chart_type }).legend.show, true, chart_type);
+        assert.equal(gen({ chart_type, legend: { show: false } }).legend.show, false, chart_type);
+    }
+    // polarArea tick values sit on the spoke: hidden unless asked for.
+    assert.equal(gen({ chart_type: 'polarArea' }).yaxis.show, false);
+    assert.equal(gen({ chart_type: 'polarArea', yaxis: { labels: { show: true } } }).yaxis.show, true);
+});
+
+test('horizontal bar: time labels on the y axis, values on the x axis', () => {
+    const o = ApexChartsAdapter.generateOptions({ chart_type: 'bar' }, [400, 200], { span: { start: 0, end: 86400_000 } });
+    const time = new Date('2026-10-18T14:05:00').getTime();
+    assert.equal(o.yaxis.labels.formatter(time), '14:05');
+    assert.equal(o.xaxis.labels.formatter(1234.567), '1,234.57');
+    assert.equal(ApexChartsAdapter._timeLabelFormat({ start: 0, end: 3 * 86400_000 }), 'ddd HH:mm');
+    assert.equal(ApexChartsAdapter._timeLabelFormat({ start: 0, end: 30 * 86400_000 }), 'MMM D');
+});
+
+test('the chart keeps exactly the measured height (no 15px parent offset)', () => {
+    assert.equal(gen({ chart_type: 'line' }).chart.parentHeightOffset, 0);
+});
+
+test('candlestick: several series take their own colours (matching the legend); one keeps red/green', () => {
+    const colors = { series: ['#ff9900', '#3399ff', '#ffcc66'] };
+    const many = genAt({ chart_type: 'candlestick', colors }, [400, 200], named('a', 'b', 'c'));
+    assert.deepEqual(many.plotOptions.candlestick.colors.upward, many.colors.slice(0, 3));
+    assert.equal(many.plotOptions.candlestick.colors.downward.length, 3);
+    assert.notEqual(many.plotOptions.candlestick.colors.downward[0], many.colors[0]);
+    const one = genAt({ chart_type: 'candlestick', colors }, [400, 200], named('a'));
+    assert.equal(typeof one.plotOptions.candlestick.colors.upward, 'string');
+    const own = genAt({ chart_type: 'candlestick', colors, chart_options: { plotOptions: { candlestick: { colors: { upward: '#00ff00', downward: '#ff0000' } } } } }, [400, 200], named('a', 'b'));
+    assert.equal(own.plotOptions.candlestick.colors.upward, '#00ff00');
+});

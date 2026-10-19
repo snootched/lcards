@@ -40,6 +40,8 @@ test('windowAxis only applies to datetime time charts', () => {
     const span = { start: 10, end: 20 };
     assert.deepEqual(windowAxis({ chart_type: 'line' }, span), { min: 10, max: 20 });
     assert.deepEqual(windowAxis({ chart_type: 'pie' }, span), {});
+    // Horizontal bars: min/max would clamp the value axis and hide every bar.
+    assert.deepEqual(windowAxis({ chart_type: 'bar' }, span), {});
     assert.deepEqual(windowAxis({ chart_type: 'line', xaxis_type: 'category' }, span), {});
     const opts = buildChartOptions({ config: { chart_type: 'line' }, style: {}, series, points, span });
     assert.equal(opts.xaxis.min, 10);
@@ -58,4 +60,10 @@ test('time charts default to a datetime x-axis without xaxis_type', () => {
     assert.equal(opts.xaxis.type, 'datetime');
     const cat = buildChartOptions({ config: { chart_type: 'line', xaxis_type: 'category' }, style: {}, series, points });
     assert.equal(cat.xaxis.type, 'category');
+});
+
+test('horizontal bars use a category axis (one time label per bar)', () => {
+    const opts = buildChartOptions({ config: { chart_type: 'bar' }, style: {}, series: [{ name: 'a' }], points: [[{ t: 1, v: 2 }]], span: { start: 0, end: 10 } });
+    assert.equal(opts.xaxis.type, 'category');
+    assert.equal(opts.xaxis.min, undefined);
 });

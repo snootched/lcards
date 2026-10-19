@@ -46,6 +46,8 @@ import { migrateChartConfig } from '../../charts/chart-config-migration.js';
 import { normalizeChartSources } from '../../charts/chart-sources.js';
 import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
 import '../components/yaml/lcards-studio-yaml-tab.js';
+import { docsUrl, DOCS } from '../../utils/docs-url.js';
+import { ApexChartsAdapter } from '../../charts/ApexChartsAdapter.js';
 
 export class LCARdSChartStudioDialog extends LitElement {
     static get properties() {
@@ -193,6 +195,7 @@ export class LCARdSChartStudioDialog extends LitElement {
      * @private
      */
     _getConfigValue(path) {
+        if (path === 'style.legend.show') return this._legendShown();
         const parts = path.split('.');
         let value = this._workingConfig;
 
@@ -480,6 +483,9 @@ export class LCARdSChartStudioDialog extends LitElement {
     _updateConfig(path, value) {
         const parts = path.split('.');
         const lastKey = parts.pop();
+
+        // New top-level object so child editors bound to the config re-render
+        this._workingConfig = { ...this._workingConfig };
         let target = this._workingConfig;
 
         // Navigate to parent object, creating if needed
@@ -707,6 +713,33 @@ export class LCARdSChartStudioDialog extends LitElement {
     }
 
     /**
+     * Whether the legend shows: the config's setting, else the chart type's default.
+     * @returns {boolean}
+     * @private
+     */
+    _legendShown() {
+        return this._workingConfig?.style?.legend?.show
+            ?? ApexChartsAdapter.LEGEND_ON_BY_DEFAULT.has(this._workingConfig?.chart_type ?? 'line');
+    }
+
+    /**
+     * Docs page for the active tab (footer Documentation button).
+     * @returns {string}
+     * @private
+     */
+    _tabDocs() {
+        switch (this._activeTab) {
+            case 'data': return DOCS.chartSeries;
+            case 'appearance':
+            case 'elements':
+            case 'theme':
+            case 'effects': return DOCS.chartStyling;
+            case 'advanced': return DOCS.chartRawOptions;
+            default: return DOCS.chart;
+        }
+    }
+
+    /**
      * Render tab navigation
      * @returns {TemplateResult}
      * @private
@@ -814,96 +847,93 @@ export class LCARdSChartStudioDialog extends LitElement {
         const seriesCount = this._getSeriesCount();
 
         // Chart type definitions
-        // special: true  = requires non-standard data format (not plain entity history)
-        // infoText        = shown in the info panel when this type is selected
+        // needs   = extra setup this type needs (shown as a warning)
+        // infoText = shown in the info panel when this type is selected
+        // docs     = DOCS key for the "Learn more" link
+        const latest = 'Plots the latest value of each series, not its history: add one series per item (each entity becomes one';
         const chartTypes = [
             {
                 value: 'line', label: 'Line', icon: 'mdi:chart-line', minSeries: 1,
-                desc: 'Trends over time',
-                infoText: 'Plots a continuous line from entity history. Works out of the box with any DataSource: each {t, v} point becomes a data point. Best for temperature, power, or any value that changes over time.'
+                desc: 'Trends over time', docs: 'chartTypes',
+                infoText: 'Plots each series\' history as a line. Works with any entity history, long-term statistics or data source. Best for temperature, power, or any value that changes over time.'
             },
             {
                 value: 'area', label: 'Area', icon: 'mdi:chart-areaspline', minSeries: 1,
-                desc: 'Volume visualization',
-                infoText: 'Like Line, but fills the area below the curve. Works directly with entity history. Good for showing volume or magnitude over time.'
+                desc: 'Volume visualization', docs: 'chartTypes',
+                infoText: 'Like Line, but fills the area below the curve. Good for showing volume or magnitude over time.'
             },
             {
                 value: 'bar', label: 'Bar', icon: 'mdi:chart-bar', minSeries: 1,
-                desc: 'Horizontal comparisons',
-                infoText: 'Horizontal bars from entity history. Each data point becomes a bar. Good for comparing values across time intervals or when you have discrete categories.'
+                desc: 'Horizontal comparisons', docs: 'chartTypes',
+                infoText: 'Horizontal bars, one per data point. Use Grouping on the series (for example Average per hour) to get one bar per time bucket.'
             },
             {
                 value: 'column', label: 'Column', icon: 'mdi:chart-bar-stacked', minSeries: 1,
-                desc: 'Vertical comparisons',
-                infoText: 'Vertical bars (classic bar chart) from entity history. Works the same as Bar but oriented vertically. Good for time-bucketed comparisons.'
+                desc: 'Vertical comparisons', docs: 'chartGrouping',
+                infoText: 'Vertical bars over time. Works best with Grouping on the series (for example Average per hour, or Delta per day for energy meters).'
             },
             {
                 value: 'scatter', label: 'Scatter', icon: 'mdi:chart-scatter-plot', minSeries: 1,
-                desc: 'Correlations',
-                infoText: 'Plots individual data points as dots without connecting lines. Works with entity history. Useful for spotting patterns and outliers. Add multiple series to compare two sensors side-by-side. Tip: increase Marker Size in Appearance if dots are too small to see.'
+                desc: 'Correlations', docs: 'chartTypes',
+                infoText: 'Plots individual readings as dots without connecting lines. Useful for spotting patterns and outliers. Tip: increase Marker Size in Appearance if the dots are too small.'
             },
             {
                 value: 'heatmap', label: 'Heatmap', icon: 'mdi:grid', minSeries: 1,
-                desc: 'Matrix / density',
-                infoText: 'Grid of color-intensity cells. Each series becomes one row, and values over time form the columns. Works with entity history, great for showing daily/weekly patterns across multiple entities.'
+                desc: 'Matrix / density', docs: 'chartGallery',
+                infoText: 'Grid of colour-intensity cells: each series is one row and time runs across the columns. Add Grouping (for example Average per 2h) so each cell is one bucket.'
             },
             {
                 value: 'pie', label: 'Pie', icon: 'mdi:chart-pie', minSeries: 2,
-                desc: 'Proportions (2+ series)',
-                special: true,
-                infoText: 'Shows proportional slices of a whole. Requires 2+ series, each holding a single numeric value (not a time-series). Use sensors that naturally return a single current value, e.g., energy usage per zone. Time-series history buffers are not suited for this type.'
+                desc: 'Proportions (2+ series)', docs: 'chartGallery',
+                infoText: `${latest} slice, named by the series Name). Use two or more, for example power per room.`
             },
             {
                 value: 'donut', label: 'Donut', icon: 'mdi:chart-donut', minSeries: 2,
-                desc: 'Proportions (2+ series)',
-                special: true,
-                infoText: 'Like Pie but with an open centre. Same data requirements: 2+ series each with a single numeric value. The centre can display a total or label.'
+                desc: 'Proportions (2+ series)', docs: 'chartGallery',
+                infoText: `${latest} slice). Like Pie with an open centre; use two or more series.`
             },
             {
                 value: 'radar', label: 'Radar', icon: 'mdi:radar', minSeries: 1,
-                desc: 'Spider chart',
-                special: true,
-                infoText: 'Plots values along multiple named axes arranged in a polygon. Each series provides values for each axis. Best when you have multiple entities each contributing one value (e.g., room-by-room energy breakdown). Not suited for time-series history.'
+                desc: 'Spider chart', docs: 'chartGallery',
+                infoText: `${latest} axis of the polygon, labelled by the series Name). Use three or more series that share a unit, for example the temperature of each room.`
             },
             {
                 value: 'radialBar', label: 'Radial Bar', icon: 'mdi:chart-arc', minSeries: 1,
-                desc: 'Circular gauges',
-                infoText: 'Circular gauge arcs, one per series. Works well if your entity returns 0–100 values (percent). Each series arc shows the latest value. Great for battery %, CPU %, or humidity sensors.'
+                desc: 'Circular gauges', docs: 'chartTypeOptions',
+                infoText: `${latest} gauge arc). Values from 0 to 100 work best (battery %, humidity, CPU %).`
             },
             {
                 value: 'polarArea', label: 'Polar', icon: 'mdi:chart-donut-variant', minSeries: 1,
-                desc: 'Directional data',
-                special: true,
-                infoText: 'Equal-angle segments with varying radius. Similar to Pie; requires category counts, one value per series. Each series becomes one segment, sized by its value. Not suited for time-series history buffers.'
+                desc: 'Directional data', docs: 'chartGallery',
+                infoText: `${latest} equal-angle segment, sized by its value).`
             },
             {
                 value: 'treemap', label: 'Treemap', icon: 'mdi:view-grid', minSeries: 1,
-                desc: 'Hierarchical data',
-                special: true,
-                infoText: 'Nested rectangles where box area = value. Requires one numeric value per series (category label + value). Not suited for time-series history. Good for showing proportional breakdowns like storage or energy cost by category.'
+                desc: 'Hierarchical data', docs: 'chartGallery',
+                infoText: `${latest} rectangle, its area sized by the value). Good for breakdowns like power or cost by room.`
             },
             {
                 value: 'rangeBar', label: 'Range Bar', icon: 'mdi:chart-gantt', minSeries: 1,
-                desc: 'Timelines / Gantt',
-                special: true,
-                infoText: 'Gantt-style bars spanning a start and end time. The chart can not build this data from entities yet; supply it through style.chart_options or a custom data source.'
+                desc: 'Timelines / Gantt', docs: 'chartRawOptions',
+                needs: 'data through raw options',
+                infoText: 'Gantt-style bars spanning a start and end time. The chart can not build this data from entities yet; supply the series data yourself in Advanced, Raw ApexCharts options (style.chart_options).'
             },
             {
                 value: 'rangeArea', label: 'Range Area', icon: 'mdi:chart-bell-curve', minSeries: 1,
-                desc: 'Confidence bands',
-                special: true,
-                infoText: 'Shaded band between a low and a high value over time. Set each series to Grouping: Min/max band, or use long-term statistics (the band runs from each period min to max).'
+                desc: 'Confidence bands', docs: 'chartRangeCharts',
+                needs: 'grouping or statistics',
+                infoText: 'Shaded band between a low and a high value over time. Set each series to Grouping: Min/max band, or use long-term statistics (the band runs from each period\'s min to max).'
             },
             {
                 value: 'candlestick', label: 'Candlestick', icon: 'mdi:chart-candlestick', minSeries: 1,
-                desc: 'OHLC financial data',
-                special: true,
+                desc: 'OHLC financial data', docs: 'chartRangeCharts',
+                needs: 'grouping',
                 infoText: 'Open/high/low/close bars per time bucket. Set each series to Grouping: Open/high/low/close with a bucket length (e.g. 1h).'
             },
             {
                 value: 'boxPlot', label: 'Box Plot', icon: 'mdi:chart-box-outline', minSeries: 1,
-                desc: 'Statistical distribution',
-                special: true,
+                desc: 'Statistical distribution', docs: 'chartRangeCharts',
+                needs: 'grouping',
                 infoText: 'Distribution per time bucket (min, quartiles, median, max). Set each series to Grouping: Box plot values with a bucket length (e.g. 1d).'
             }
         ];
@@ -924,26 +954,29 @@ export class LCARdSChartStudioDialog extends LitElement {
                             margin-bottom: 14px;
                             padding: 12px 14px;
                             border-radius: 8px;
-                            border-left: 3px solid ${selected.special ? 'var(--warning-color, #f59e0b)' : 'var(--info-color, var(--primary-color))'} ;
-                            background: ${selected.special ? 'rgba(245,158,11,0.08)' : 'rgba(var(--rgb-primary-color, 33,150,243), 0.07)'};
+                            border-left: 3px solid ${selected.needs ? 'var(--warning-color, #f59e0b)' : 'var(--info-color, var(--primary-color))'} ;
+                            background: ${selected.needs ? 'rgba(245,158,11,0.08)' : 'rgba(var(--rgb-primary-color, 33,150,243), 0.07)'};
                             display: flex;
                             gap: 10px;
                             align-items: flex-start;">
                             <ha-icon
-                                icon="${selected.special ? 'mdi:alert-circle-outline' : 'mdi:information-outline'}"
+                                icon="${selected.needs ? 'mdi:alert-circle-outline' : 'mdi:information-outline'}"
                                 style="
                                     --mdc-icon-size: 20px;
-                                    color: ${selected.special ? 'var(--warning-color, #f59e0b)' : 'var(--primary-color)'};
+                                    color: ${selected.needs ? 'var(--warning-color, #f59e0b)' : 'var(--primary-color)'};
                                     flex-shrink: 0;
                                     margin-top: 1px;">
                             </ha-icon>
                             <div>
                                 <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">
                                     ${selected.label}
-                                    ${selected.special ? html`<span style="font-size: 11px; font-weight: 400; opacity: 0.8;"> (requires custom data format)</span>` : ''}
+                                    ${selected.needs ? html`<span style="font-size: 11px; font-weight: 400; opacity: 0.8;"> (needs ${selected.needs})</span>` : ''}
                                 </div>
                                 <div style="font-size: 13px; line-height: 1.5; color: var(--secondary-text-color);">
                                     ${selected.infoText}
+                                </div>
+                                <div class="info-guide-links" style="margin-top: var(--ha-space-2); font-size: 13px;">
+                                    <a href=${docsUrl(DOCS[selected.docs])} target="_blank" rel="noopener noreferrer">${selected.label} chart docs →</a>
                                 </div>
                             </div>
                         </div>
@@ -1125,6 +1158,13 @@ export class LCARdSChartStudioDialog extends LitElement {
 
                     <h4>Grouping</h4>
                     <p>Buckets points into fixed intervals. Range area, box plot and candlestick charts need min/max band, box plot values or open/high/low/close grouping.</p>
+
+                    <div class="info-guide-links">
+                        <a href=${docsUrl(DOCS.chartSeries)} target="_blank" rel="noopener noreferrer">Series and time →</a>
+                        <a href=${docsUrl(DOCS.chartGrouping)} target="_blank" rel="noopener noreferrer">Grouping →</a>
+                        <a href=${docsUrl(DOCS.chartStatistics)} target="_blank" rel="noopener noreferrer">Long-term statistics →</a>
+                        <a href=${docsUrl(DOCS.datasources)} target="_blank" rel="noopener noreferrer">Data sources →</a>
+                    </div>
                 </div>
             </lcards-form-section>
         `;
@@ -1151,14 +1191,18 @@ export class LCARdSChartStudioDialog extends LitElement {
 
         const updatedConfig = event.detail.config;
 
-        // Update working config with new series configuration
+        // New object (not an in-place edit) so the series list sees a changed
+        // `config` property and re-renders after add/remove.
+        /** @type {any} */
+        const next = { ...this._workingConfig };
         if (updatedConfig.sources !== undefined) {
-            this._workingConfig.sources = updatedConfig.sources;
+            next.sources = updatedConfig.sources;
         }
 
         if (updatedConfig.data_sources !== undefined) {
-            this._workingConfig.data_sources = { ...updatedConfig.data_sources };
+            next.data_sources = { ...updatedConfig.data_sources };
         }
+        this._workingConfig = next;
 
         lcardsLog.info('[ChartStudio] Series configuration updated:',
             { seriesCount: this._workingConfig.sources?.length || 0,
@@ -1194,6 +1238,9 @@ export class LCARdSChartStudioDialog extends LitElement {
     _setNestedValue(path, value) {
         const parts = path.split('.');
         const lastPart = parts.pop();
+
+        // New top-level object so child editors bound to the config re-render
+        this._workingConfig = { ...this._workingConfig };
 
         let target = this._workingConfig;
         for (const part of parts) {
@@ -1567,7 +1614,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                     label: 'Show Legend'
                 })}
 
-                ${this._getNestedValue('style.legend.show') ? html`
+                ${this._legendShown() ? html`
                     ${FormField.renderField(this, 'style.legend.position', {
                         label: 'Legend Position'
                     })}
@@ -1891,6 +1938,12 @@ yaxis:
 
                 <!-- Dialog Actions -->
                 <div slot="footer">
+                    <div class="footer-start">
+                        <ha-button appearance="plain" @click=${() => window.open(docsUrl(this._tabDocs()), '_blank', 'noopener')}>
+                            <ha-icon icon="mdi:book-open-variant" slot="start"></ha-icon>
+                            Documentation
+                        </ha-button>
+                    </div>
                     <ha-button
                         appearance="plain"
                         @click=${this._handleCancel}>

@@ -913,8 +913,7 @@ export function getChartSchema(options = {}) {
                         properties: {
                             show: {
                                 type: 'boolean',
-                                default: false,
-                                description: 'Show/hide legend',
+                                description: 'Show/hide legend. Default: on for pie, donut, polarArea and radialBar (it names the slices and gauges), off for other chart types',
                                 'x-ui-hints': {
                                     label: 'Show Legend',
                                     selector: {

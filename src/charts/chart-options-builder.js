@@ -50,7 +50,10 @@ export function chartStyleDefaults(getToken) {
  */
 export function windowAxis(config, span) {
   const xaxisType = config.xaxis_type || 'datetime';
-  if (!span || xaxisType !== 'datetime' || !TIME_AXIS_CHART_TYPES.has(config.chart_type || 'line')) {
+  // Horizontal bars put time on the vertical (category) axis; min/max would
+  // clamp the value axis instead and hide every bar.
+  const chartType = config.chart_type || 'line';
+  if (!span || xaxisType !== 'datetime' || !TIME_AXIS_CHART_TYPES.has(chartType) || chartType === 'bar') {
     return {};
   }
   return { min: span.start, max: span.end };
@@ -112,7 +115,9 @@ export function buildChartOptions({ config, style, series, points, span = null, 
   // precedence) so type defaults can't undo them; user chart_options still win.
   // Time charts default to a datetime axis even when xaxis_type isn't set.
   const axis = windowAxis(config, span);
-  const xaxisType = config.xaxis_type ?? (TIME_AXIS_CHART_TYPES.has(chartType) ? 'datetime' : undefined);
+  // Horizontal bars get one time label per bar on a category axis (ApexCharts'
+  // datetime axis doesn't work sideways).
+  const xaxisType = config.xaxis_type ?? (chartType === 'bar' ? 'category' : (TIME_AXIS_CHART_TYPES.has(chartType) ? 'datetime' : undefined));
   if (xaxisType || axis.min !== undefined) {
     enhancedStyle = {
       ...enhancedStyle,
@@ -133,7 +138,8 @@ export function buildChartOptions({ config, style, series, points, span = null, 
   const options = ApexChartsAdapter.generateOptions(enhancedStyle, size, {
     hass,
     series,
-    yaxis: config.yaxis
+    yaxis: config.yaxis,
+    span
   });
 
   // One-value-per-series charts are labelled with the series names

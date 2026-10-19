@@ -170,6 +170,8 @@ export class LCARdSChart extends LCARdSCard {
   constructor() {
     super();
     this._chart = null;
+    /** @type {ResizeObserver|null} */
+    this._resizeObserverChart = null;
     this._chartReady = false;
     this._chartOptions = null;
     this._error = null;
@@ -456,6 +458,7 @@ export class LCARdSChart extends LCARdSCard {
       }
       this._chart = new ApexCharts(container, this._chartOptions);
       await this._chart.render();
+      this._observeChartSize(container);
 
       this._chartReady = true;
       this._error = null;
@@ -465,6 +468,40 @@ export class LCARdSChart extends LCARdSCard {
       this._error = `Chart initialization failed: ${error.message}`;
       this.requestUpdate();
     }
+  }
+
+  /**
+   * Follow the container's size. ApexCharts gets a fixed pixel size (and some
+   * types get sizes fitted to it, see ApexChartsAdapter._fitRadar), so a card that
+   * changes size (sidebar, edit mode, rotation) redraws at the new size.
+   * @private
+   * @param {HTMLElement} container
+   */
+  _observeChartSize(container) {
+    this._resizeObserverChart?.disconnect();
+    // ApexCharts sets min-height on its own container to the chart height, so the
+    // container can't shrink and measuring it feeds back; the card container's
+    // size comes from the card (grid cell, config height) instead.
+    const box = container.parentElement ?? container;
+    let last = [box.offsetWidth, box.offsetHeight];
+    let timer = null;
+    this._resizeObserverChart = new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const size = [box.offsetWidth, box.offsetHeight];
+        // 2 px hysteresis absorbs sub-pixel jitter (see LCARdSCard._setupAutoSizing)
+        if (!this._chart || !size[0] || !size[1] || (Math.abs(size[0] - last[0]) < 2 && Math.abs(size[1] - last[1]) < 2)) return;
+        last = size;
+        const options = this._buildChartOptions(size[0], size[1]);
+        this._chartOptions = options;
+        this._chart.updateOptions({
+          chart: { width: size[0], height: size[1] },
+          plotOptions: options.plotOptions,
+          grid: options.grid
+        }, false, false);
+      }, 100);
+    });
+    this._resizeObserverChart.observe(box);
   }
 
   /**
@@ -521,6 +558,8 @@ export class LCARdSChart extends LCARdSCard {
    * @override
    */
   setConfig(config) {
+    this._resizeObserverChart?.disconnect();
+    this._resizeObserverChart = null;
     if (this._chart) {
       try {
         this._chart.destroy();
@@ -642,6 +681,8 @@ export class LCARdSChart extends LCARdSCard {
    */
   _onDisconnected() {
     this._stopLoading();
+    this._resizeObserverChart?.disconnect();
+    this._resizeObserverChart = null;
 
     if (this._chart) {
       try {

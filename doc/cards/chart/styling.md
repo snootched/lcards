@@ -185,7 +185,7 @@ style:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `style.legend.show` | boolean | `false` | Show the legend |
+| `style.legend.show` | boolean | `false` (`true` for `pie`, `donut`, `polarArea` and `radialBar`) | Show the legend. The slice and gauge charts turn it on because it names the series |
 | `style.legend.position` | string | `bottom` | `top`, `bottom`, `left`, `right` |
 | `style.legend.horizontalAlign` | string | `center` | `left`, `center`, `right` |
 | `style.legend.font_size` | number | font size + 2 | Legend font size in px |
@@ -352,6 +352,18 @@ style:
 | `style.value_format` | `radialBar` | - | `percent` adds a % sign to the values |
 | `style.group_rows` | `rangeBar` | `true` | Put bars with the same label on one row |
 | `style.show_labels` | `rangeBar` | `true` | Show labels on the bars |
+
+### Fitted by default
+
+Some chart types are laid out by the card rather than left to ApexCharts' defaults, which waste space in wide cards. These follow the card when it changes size; [raw options](#raw-apexcharts-options) still override them.
+
+| Chart type | Default |
+|------------|---------|
+| `radar` | The web is sized to fill the card (with room for the axis names) and centred, so a three-axis triangle doesn't leave the bottom empty. No line-chart grid behind it. Set `plotOptions.radar.size` (radius in px) and `offsetY` in `chart_options` to place it yourself |
+| `radialBar` | A half-circle gauge (start and end angles within -90 to 90) fills the card's height instead of reserving room for the missing lower half |
+| `polarArea` | The ring values are hidden (they sit on the vertical spoke). `style.yaxis.labels.show: true` brings them back |
+| `candlestick` | One series: green candles for up, red for down. Two or more: each series' candles take its own colour (full for up, darker for down), so they match the legend and stay apart. Set `plotOptions.candlestick.colors.upward` and `downward` in `chart_options` to choose |
+| `bar` | Horizontal bars over time label each bar with its time on the vertical axis and put the values along the bottom |
 
 ```yaml live
 type: custom:lcards-chart

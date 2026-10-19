@@ -59,6 +59,14 @@ export class ApexChartsAdapter {
   ];
 
   /**
+   * Chart types whose legend is on unless style.legend.show is false: it names
+   * the slices and gauges, which carry no other label. The studio reads this to
+   * show the effective setting.
+   * @constant {Set<string>}
+   */
+  static LEGEND_ON_BY_DEFAULT = new Set(['pie', 'donut', 'polarArea', 'radialBar']);
+
+  /**
    * Generate ApexCharts options from the chart card's style config.
    *
    * - Theme tokens are resolved by the calling card (resolveThemeTokensRecursive)
@@ -260,6 +268,9 @@ export class ApexChartsAdapter {
         type: apexChartType,
         width: size[0],
         height: size[1],
+        // ApexCharts adds this to its container's min-height; 0 keeps the chart
+        // exactly the size the card measured (lcards-chart _observeChartSize).
+        parentHeightOffset: 0,
         animations: {
           enabled: true,
           speed: 800,
@@ -429,7 +440,13 @@ export class ApexChartsAdapter {
     // APPLY TYPE-SPECIFIC DEFAULTS
     // ============================================================================
 
-    const typeDefaults = this._getChartTypeDefaults(chartType, style, context?.hass);
+    const typeDefaults = this._getChartTypeDefaults(chartType, style, context?.hass, {
+      size,
+      names: (context.series ?? []).map(s => s.name ?? ''),
+      span: context.span,
+      fontSize,
+      valueFormatter
+    });
     const optionsWithTypeDefaults = deepMerge(baseOptions, typeDefaults);
 
     // ============================================================================
@@ -560,6 +577,22 @@ export class ApexChartsAdapter {
     finalOptions = this._resolveAllCssVariables(finalOptions);
     lcardsLog.debug('[ApexChartsAdapter] ✅ Final CSS variable resolution complete');
 
+    // Several candlestick series in red/green can't be told apart, and the legend
+    // shows the series colours: each series' candles use its own colour instead
+    // (up full, down darker). One series keeps red/green. Needs concrete colours,
+    // hence after the resolution pass; chart_options colours still win.
+    const seriesCount = context.series?.length ?? 0;
+    if (apexChartType === 'candlestick' && seriesCount > 1 && !style.chart_options?.plotOptions?.candlestick?.colors) {
+      const palette = Array.isArray(finalOptions.colors) && finalOptions.colors.length ? finalOptions.colors : null;
+      if (palette) {
+        const upward = Array.from({ length: seriesCount }, (_, i) => palette[i % palette.length]);
+        finalOptions.plotOptions.candlestick.colors = {
+          upward,
+          downward: upward.map(color => ColorUtils.darken(color, 0.5))
+        };
+      }
+    }
+
     return finalOptions;
   }
 
@@ -636,9 +669,15 @@ export class ApexChartsAdapter {
    * @param {string} chartType - Chart type
    * @param {Object} style - Chart style configuration
    * @param {Object} [hass] - For locale-aware number formatting
+   * @param {Object} [layout] - What sized and labelled defaults need
+   * @param {number[]} [layout.size] - Chart size [width, height] in px
+   * @param {string[]} [layout.names] - Series names
+   * @param {{start: number, end: number}|null} [layout.span] - Time window
+   * @param {number} [layout.fontSize] - Label font size in px
+   * @param {Function} [layout.valueFormatter] - Value label formatter (style.yaxis.decimals)
    * @returns {Object} ApexCharts options specific to chart type
    */
-  static _getChartTypeDefaults(chartType, style, hass = null) {
+  static _getChartTypeDefaults(chartType, style, hass = null, layout = {}) {
     // Use themeManager resolver if available; otherwise fall back to CSS variable strings
     // (which are resolved in the final _resolveAllCssVariables pass)
     const resolveToken = (tokenPath, fallback) => {
@@ -655,11 +694,37 @@ export class ApexChartsAdapter {
       case 'column':
         return { plotOptions: { bar: { horizontal: false } } };
 
-      // 'bar' = horizontal bar chart
-      case 'bar':
-        return { plotOptions: { bar: { horizontal: true } } };
+      // 'bar' = horizontal bar chart. Time runs down the category (y) axis, one
+      // label per bar; the x axis carries the values.
+      case 'bar': {
+        const value = layout.valueFormatter ?? ((val) => (typeof val === 'number'
+          ? haFormatNumber(hass, val, { maximumFractionDigits: 2 })
+          : val));
+        const timeFormat = this._timeLabelFormat(layout.span);
+        return {
+          plotOptions: { bar: { horizontal: true } },
+          xaxis: { labels: { formatter: value } },
+          // Timestamps are far above any plotted value, so only they become times.
+          yaxis: { labels: { formatter: (val) => (typeof val === 'number' && val > 1e11
+            ? this._formatDate(val, timeFormat, hass)
+            : value(val)) } }
+        };
+      }
+
+      // Slices need names: the legend is on unless the config turns it off.
+      case 'pie':
+      case 'donut':
+        return { legend: { show: style.legend?.show ?? true, showForSingleSeries: style.legend?.show ?? true } };
+
+      case 'radar':
+        return {
+          // The cartesian grid means nothing behind a radar (it has its own rings).
+          grid: { show: false },
+          plotOptions: { radar: this._fitRadar(layout, style) }
+        };
       case 'radialBar':
         return {
+          ...this._fitHalfGauge(layout, style),
           // Several gauges only show values on hover, so the legend carries
           // them (shown unless style.legend.show is false).
           legend: {
@@ -749,6 +814,8 @@ export class ApexChartsAdapter {
 
       case 'polarArea':
         return {
+          // Tick values sit on the vertical spoke and collide with it.
+          yaxis: { show: style.yaxis?.labels?.show ?? false },
           plotOptions: {
             polarArea: {
               rings: {
@@ -768,7 +835,10 @@ export class ApexChartsAdapter {
           fill: {
             opacity: 0.8
           },
+          // Segments need names: the legend is on unless the config turns it off.
           legend: {
+            show: style.legend?.show ?? true,
+            showForSingleSeries: style.legend?.show ?? true,
             position: style.legend?.position ?? 'bottom',
             fontSize: resolveToken('typography.fontSize.sm', '12px'),
             fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif'),
@@ -912,6 +982,75 @@ export class ApexChartsAdapter {
       default:
         return {};
     }
+  }
+
+  /**
+   * Radar size and vertical offset that fill the chart. ApexCharts sizes a radar
+   * from the height alone (minus label room) and centres the circle, so a wide
+   * card gets a small web, and a triangle (3 axes) leaves the bottom quarter empty.
+   * This fits the polygon itself, with room for the axis labels, and centres it.
+   * @private
+   * @param {{size?: number[], names?: string[], fontSize?: number}} layout
+   * @param {Object} style - Chart style (xaxis.labels.show)
+   * @returns {{size?: number, offsetY?: number}} plotOptions.radar
+   */
+  static _fitRadar({ size, names = [], fontSize = 12 }, style) {
+    const [width, height] = size ?? [];
+    const count = names.length;
+    if (!(width > 0) || !(height > 0) || count < 3) return {};
+    const showLabels = style.xaxis?.labels?.show ?? true;
+    // Vertices start at the top and go clockwise; extents in units of the radius.
+    const angles = Array.from({ length: count }, (_, i) => (2 * Math.PI * i) / count);
+    const below = Math.max(...angles.map(a => -Math.cos(a)));
+    const across = Math.max(...angles.map(a => Math.abs(Math.sin(a))));
+    const labelHeight = showLabels ? fontSize * 1.6 : 4;
+    const labelWidth = showLabels ? Math.max(...names.map(n => String(n).length)) * fontSize * 0.55 + 8 : 4;
+    const margin = 8;
+    const radius = Math.floor(Math.min(
+      (height - 2 * labelHeight - 2 * margin) / (1 + below),
+      (width / 2 - labelWidth - margin) / across
+    ));
+    if (radius < 20) return {};
+    return { size: radius, offsetY: Math.round((radius * (1 - below)) / 2) };
+  }
+
+  /**
+   * Grid padding that lets a half-circle gauge (the default -90 to 90) fill a
+   * wide card. ApexCharts sizes the gauge as a full circle from the height, so
+   * the empty bottom half takes half the card. Negative bottom padding makes the
+   * plot area tall enough for the arc to reach the card's height, with room under
+   * the centre for the value and the legend.
+   * @private
+   * @param {{size?: number[], fontSize?: number}} layout
+   * @param {Object} style - Chart style (gauge angles, legend)
+   * @returns {Object} options to merge, or {} when the gauge isn't a half circle
+   */
+  static _fitHalfGauge({ size, fontSize = 12 }, style) {
+    const [width, height] = size ?? [];
+    const start = style.gauge_start_angle || -90;
+    const end = style.gauge_end_angle || 90;
+    if (!(width > 0) || !(height > 0) || Math.abs(end - start) > 180 || start < -90 || end > 90) return {};
+    const legend = (style.legend?.show ?? true) && ['bottom', undefined].includes(style.legend?.position);
+    const plotHeight = height - (legend ? fontSize * 3 + 16 : 0);
+    const belowCentre = 40; // the value label
+    const radius = Math.min(plotHeight - belowCentre, width / 2.05);
+    const needed = Math.round(radius * 2.05);
+    if (radius < 20 || needed <= plotHeight) return {};
+    return { grid: { padding: { bottom: plotHeight - needed } } };
+  }
+
+  /**
+   * Time label format for a time window: times of day for a day or so, weekday
+   * and time up to a week, then dates.
+   * @private
+   * @param {{start: number, end: number}|null|undefined} span
+   * @returns {string} _formatDate format
+   */
+  static _timeLabelFormat(span) {
+    const length = span ? span.end - span.start : 0;
+    if (!length || length <= 36 * 3600_000) return 'HH:mm';
+    if (length <= 8 * 86400_000) return 'ddd HH:mm';
+    return 'MMM D';
   }
 
   /**
