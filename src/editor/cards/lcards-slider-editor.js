@@ -10,6 +10,8 @@ import { html } from 'lit';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { deepMerge } from '../../utils/deepMerge.js';
+import { fireEvent } from 'custom-card-helpers';
+import { dropStrayRangeLabels } from '../utils/slider-config-cleanup.js';
 
 // Import shared form components
 import '../components/editors/lcards-color-section-v2.js';
@@ -63,6 +65,11 @@ class SliderConfigState {
     // Track type: Visual rendering style (pills, gauge, or shaped)
     // Checks: explicit config → component name → preset name → default
     get trackType() {
+        // 0. The ring component always draws a ring (style.track.type doesn't apply)
+        if ((this.config.component || this.config.style?.component) === 'ring') {
+            return 'ring';
+        }
+
         // 1. Explicit config wins
         if (this.config.style?.track?.type) {
             return this.config.style.track.type;
@@ -114,6 +121,27 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         this._handleDirectionChanged = this._handleDirectionChanged.bind(this);
 
         lcardsLog.debug('[LCARdSSliderEditor] Editor initialized with cardType: slider (5 tabs + utility tabs)');
+    }
+
+    /**
+     * Drop range `label` values that aren't objects before the base editor sees
+     * the config: older versions of this editor added `label: ''` to every new
+     * band range, which fails validation (label is an object with text, colour,
+     * ...). On the first setConfig() after opening, the cleaned config is sent
+     * back so Save keeps it.
+     * @param {Object} config
+     * @override
+     */
+    setConfig(config) {
+        const { config: cleaned, changed: stray } = dropStrayRangeLabels(config);
+        config = cleaned;
+        const firstCall = !this._openedConfigSeen;
+        this._openedConfigSeen = true;
+        super.setConfig(config);
+        if (stray && firstCall) {
+            lcardsLog.info('[LCARdSSliderEditor] Removed empty range labels from the config');
+            this.updateComplete.then(() => fireEvent(this, 'config-changed', { config: this.config }));
+        }
     }
 
     /**
@@ -220,6 +248,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      */
     _renderOrientationSelector() {
         const componentName = this.config?.component;
+        // The ring has no orientation: its arc angles live in the Slider Track tab.
+        if (this._getSliderState().trackType === 'ring') return html``;
         const metadata = this._getComponentMetadata(componentName);
 
         // If component has fixed orientation, show it as disabled text
@@ -399,7 +429,9 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             if (metadata?.configurableOptions?.length > 0) {
                 baseTabs.push({
                     label: 'Component Options',
-                    docs: componentName === 'picard' ? '/cards/slider-card/#picard-component' : '/cards/slider-card/#shaped-component',
+                    docs: componentName === 'picard' ? '/cards/slider-card/#picard-component'
+                        : componentName === 'ring' ? '/cards/slider-card/#ring-gauge'
+                        : '/cards/slider-card/#shaped-component',
                     content: () => this._renderComponentOptionsTab()
                 });
             }
@@ -408,7 +440,8 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         // Add remaining tabs
         baseTabs.push(
             { label: 'Slider Track', content: () => this._renderTrackTab() },
-            { label: 'Borders', content: () => this._renderBordersTab() },
+            // Borders frame the card's edges; a ring has none, so the tab is left out.
+            ...(this._getSliderState().trackType === 'ring' ? [] : [{ label: 'Borders', content: () => this._renderBordersTab() }]),
             { label: 'Zones', content: () => this._renderZonesTab() },
             { label: 'Text Fields', content: () => this._renderTextTab() },
             { label: 'Actions', content: () => this._renderActionsTab() },
@@ -588,6 +621,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     .controlMin=${this.config?.control?.min ?? 0}
                     .controlMax=${this.config?.control?.max ?? 100}
                     .orientation=${state.orientation}
+                    ?hideOrientation=${trackType === 'ring'}
                     .invertFill=${this.config?.style?.track?.invert_fill ?? false}
                     .invertValue=${this.config?.control?.invert_value ?? false}
                     .currentValue=${50}
@@ -602,10 +636,12 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 ? this._renderPillsConfiguration()
                 : trackType === 'shaped'
                     ? this._renderShapedConfiguration()
-                    : this._renderGaugeConfiguration()}
+                    : trackType === 'ring'
+                        ? this._renderRingConfiguration()
+                        : this._renderGaugeConfiguration()}
 
-            <!-- Track Margins -->
-            <lcards-form-section
+            <!-- Track Margins (not for the ring: it sizes itself from the card) -->
+            ${trackType === 'ring' ? '' : html`<lcards-form-section
                 header="Track Margins"
                 description="Spacing around slider track"
                 icon="mdi:arrow-expand-all"
@@ -621,7 +657,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     .controlConfig=${{ min: 0, max: 100, mode: 'box', unit_of_measurement: 'px' }}
                     columns="2">
                 </lcards-object-editor>
-            </lcards-form-section>
+            </lcards-form-section>`}
 
             <!-- Value Tween -->
             <lcards-form-section
@@ -807,7 +843,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
                 <lcards-message
                     type="info"
-                    message="Bands colour a fixed part of the track. Value markers follow a live attribute: an indicator in gauge mode, a pill in pills mode.">
+                    message="Bands colour a fixed part of the track. Value markers follow a live attribute: an indicator in gauge mode, a pill in pills mode, a line or shape on the ring.">
                 </lcards-message>
 
                 <div class="range-list" style="display: flex; flex-direction: column; gap: 8px; margin: 16px 0;">
@@ -909,9 +945,11 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      * @private
      */
     _renderBandRangeContent(range, basePath, trackType = 'gauge') {
-        const opacityHelper = (trackType === 'pills' || trackType === 'shaped')
+        const opacityHelper = trackType === 'pills'
             ? 'Gauge mode only. In pills mode use Track Settings › Appearance › Unfilled Opacity instead.'
-            : 'Background opacity (0–1, default: 0.3)';
+            : (trackType === 'shaped' || trackType === 'ring')
+                ? 'Opacity (0–1, default: 1)'
+                : 'Background opacity (0–1, default: 0.3)';
         return html`
             <lcards-grid-layout columns="2">
                 ${FormField.renderField(this, `${basePath}.min`, {
@@ -949,10 +987,21 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
      */
     _renderMarkerRangeContent(range, basePath, trackType) {
         const isGauge = trackType === 'gauge';
-        const isPills = trackType === 'pills' || trackType === 'shaped';
+        const isRing = trackType === 'ring';
+        const isPills = trackType === 'pills';
+
+        // The shaped component doesn't draw value markers at all.
+        if (trackType === 'shaped') {
+            return html`
+                ${FormField.renderField(this, `${basePath}.value`, { label: 'Marker Value / Template' })}
+                <lcards-message type="info"
+                    message="The shaped component doesn't draw value markers. Switch to a gauge, pills or ring style to see them.">
+                </lcards-message>
+            `;
+        }
+        if (isRing) return this._renderRingMarkerContent(basePath);
         const indExpanded = this._expandedRanges[`${basePath}_ind`] || false;
         const pillExpanded = this._expandedRanges[`${basePath}_pill`] || false;
-        const labelExpanded = this._expandedRanges[`${basePath}_label`] || false;
 
         return html`
             <!-- Value template -->
@@ -975,7 +1024,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             ` : ''}
 
             <!-- Indicator shape settings (gauge mode) -->
-            <lcards-form-section
+            ${isGauge ? html`<lcards-form-section
                 header="Indicator Shape"
                 description="Gauge mode: shape used for this marker. Falls back to the global gauge indicator settings if not set."
                 icon="mdi:map-marker"
@@ -984,11 +1033,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 headerLevel="5"
                 @expanded-changed=${(e) => { this._expandedRanges[`${basePath}_ind`] = e.detail.expanded; this.requestUpdate(); }}>
 
-                ${!isGauge ? html`
-                    <lcards-message type="info"
-                        message="These settings only apply in gauge mode. Switch the preset to a gauge style to use them.">
-                    </lcards-message>
-                ` : ''}
 
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, `${basePath}.indicator.type`, {
@@ -1035,6 +1079,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, `${basePath}.indicator.border.enabled`, {
+                        value: this._getConfigValue(`${basePath}.indicator.border.enabled`) === true,
                         label: 'Show Border',
                         helper: 'Outline border on the indicator shape'
                     })}
@@ -1053,10 +1098,10 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
                 </lcards-color-section-v2>
-            </lcards-form-section>
+            </lcards-form-section>` : ''}
 
             <!-- Pill style settings (pills mode) -->
-            <lcards-form-section
+            ${isPills ? html`<lcards-form-section
                 header="Pill Marker Style"
                 description="Pills mode: how the highlighted pill looks."
                 icon="mdi:pill"
@@ -1065,11 +1110,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 headerLevel="5"
                 @expanded-changed=${(e) => { this._expandedRanges[`${basePath}_pill`] = e.detail.expanded; this.requestUpdate(); }}>
 
-                ${!isPills ? html`
-                    <lcards-message type="info"
-                        message="These settings only apply in pills mode. Switch the preset to a pills style to use them.">
-                    </lcards-message>
-                ` : ''}
 
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, `${basePath}.pill_style.stroke`, {
@@ -1092,12 +1132,26 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
                 </lcards-color-section-v2>
-            </lcards-form-section>
+            </lcards-form-section>` : ''}
 
+            ${this._renderMarkerLabelSection(basePath)}
+        `;
+    }
+
+    /**
+     * Value marker label section (gauge, pills and ring).
+     * @param {string} basePath - style.ranges.N
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderMarkerLabelSection(basePath) {
+        const labelExpanded = this._expandedRanges[`${basePath}_label`] || false;
+        const isRing = this._getSliderState().trackType === 'ring';
+        return html`
             <!-- Label settings (optional text caption) -->
             <lcards-form-section
                 header="Label"
-                description="Optional text caption shown next to the marker (gauge mode) or highlighted pill (pills mode)."
+                description="${isRing ? 'Optional text caption outside the ring, beyond the marker' : 'Optional text caption shown next to the marker (gauge mode) or highlighted pill (pills mode)'}"
                 icon="mdi:tag-text"
                 ?expanded=${labelExpanded}
                 ?outlined=${true}
@@ -1112,7 +1166,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, `${basePath}.label.font_size`, {
                         label: 'Font Size (px)',
-                        helper: 'Defaults to the gauge tick-label size (14px)'
+                        helper: isRing ? 'Default 12px on the ring' : 'Defaults to the gauge tick-label size (14px)'
                     })}
                     ${FormField.renderField(this, `${basePath}.label.offset.x`, {
                         label: 'Offset X (px)'
@@ -1137,6 +1191,90 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
     }
 
     /**
+     * Value marker settings on the ring: shape, anchoring, size, radial offset,
+     * colours and the label. Rotation follows the ring, so it isn't offered.
+     * @param {string} basePath - style.ranges.N
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderRingMarkerContent(basePath) {
+        const indExpanded = this._expandedRanges[`${basePath}_ind`] ?? true;
+        return html`
+            ${FormField.renderField(this, `${basePath}.value`, {
+                label: 'Marker Value / Template',
+                helper: 'Template resolving to a position on the ring. Examples: {entity.attributes.current_temperature}, {states.sensor.outdoor_temp.state}, {datasource:name}'
+            })}
+
+            <lcards-form-section
+                header="Marker Shape"
+                description="Line (default) across the ring, triangle pointing at it, or a dot"
+                icon="mdi:map-marker"
+                ?expanded=${indExpanded}
+                ?outlined=${true}
+                headerLevel="5"
+                @expanded-changed=${(e) => { this._expandedRanges[`${basePath}_ind`] = e.detail.expanded; this.requestUpdate(); }}>
+
+                <lcards-grid-layout columns="2">
+                    ${FormField.renderField(this, `${basePath}.indicator.type`, {
+                        label: 'Shape',
+                        helper: 'line (default), triangle or round'
+                    })}
+                    ${FormField.renderField(this, `${basePath}.indicator.align`, {
+                        label: 'Anchor',
+                        helper: 'start = inner edge, center = band, end = outer edge'
+                    })}
+                    ${FormField.renderField(this, `${basePath}.indicator.size.width`, {
+                        label: 'Width (px)',
+                        helper: 'Across the ring (a dot: its diameter)'
+                    })}
+                    ${FormField.renderField(this, `${basePath}.indicator.size.height`, {
+                        label: 'Length (px)',
+                        helper: 'Along the radius (line, triangle)'
+                    })}
+                    ${FormField.renderField(this, `${basePath}.indicator.offset.y`, {
+                        label: 'Radial Offset (px)',
+                        helper: 'Positive moves it outward'
+                    })}
+                </lcards-grid-layout>
+
+                <lcards-color-section-v2
+                    .editor=${this}
+                    .entityId=${this.config?.entity || ''}
+                    basePath="${basePath}.indicator.color"
+                    header="Marker Colour"
+                    description="State-based colour of the marker"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${true}>
+                </lcards-color-section-v2>
+
+                <lcards-grid-layout columns="2">
+                    ${FormField.renderField(this, `${basePath}.indicator.border.enabled`, {
+                        value: this._getConfigValue(`${basePath}.indicator.border.enabled`) === true,
+                        label: 'Show Border',
+                        helper: 'Outline on a triangle or dot'
+                    })}
+                    ${FormField.renderField(this, `${basePath}.indicator.border.width`, {
+                        label: 'Border Width (px)'
+                    })}
+                </lcards-grid-layout>
+
+                <lcards-color-section-v2
+                    .editor=${this}
+                    .entityId=${this.config?.entity || ''}
+                    basePath="${basePath}.indicator.border.color"
+                    header="Border Colour"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
+            </lcards-form-section>
+
+            ${this._renderMarkerLabelSection(basePath)}
+        `;
+    }
+
+    /**
      * Toggle range expanded state
      * @param {number} index - Range index
      * @private
@@ -1156,7 +1294,6 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             min: 0,
             max: 100,
             color: 'var(--primary-color)',
-            label: '',
             opacity: 0.3
         };
         this._updateConfig({
@@ -1650,6 +1787,159 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
     }
 
     /**
+     * Whether a ring scale level (or the labels) is drawn: its block is set and
+     * not `enabled: false`. The editor's Show switches use this rather than the
+     * schema default, which would show them on before anything is drawn.
+     * @param {string} path - e.g. style.ring.scale.tick_marks.major
+     * @returns {boolean}
+     * @private
+     */
+    _ringScaleShown(path) {
+        const block = this._getConfigValue?.(path);
+        return !!block && typeof block === 'object' && block.enabled !== false;
+    }
+
+    /**
+     * Ring component settings (style.ring): angles, thickness, ends, colours, ticks.
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderRingConfiguration() {
+        return html`
+            <lcards-form-section
+                header="Ring"
+                description="Arc angles (0 = top, clockwise), thickness and ends"
+                icon="mdi:circle-slice-7"
+                ?expanded=${true}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-grid-layout columns="2">
+                    ${FormField.renderField(this, 'style.ring.start_angle', {
+                        label: 'Start Angle',
+                        helper: 'Where the minimum sits (default -135)'
+                    })}
+                    ${FormField.renderField(this, 'style.ring.end_angle', {
+                        label: 'End Angle',
+                        helper: 'Where the maximum sits (default 135); equal to start = full ring'
+                    })}
+                    ${FormField.renderField(this, 'style.ring.thickness', {
+                        label: 'Thickness',
+                        helper: 'Percent of the diameter (12%) or pixels (14)'
+                    })}
+                    ${FormField.renderField(this, 'style.ring.cap', {
+                        label: 'Arc Ends'
+                    })}
+                </lcards-grid-layout>
+            </lcards-form-section>
+
+            <lcards-form-section
+                header="Colours"
+                description="Value arc and track colours"
+                icon="mdi:water"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-color-section-v2
+                    .editor=${this}
+                    .entityId=${this.config?.entity || ''}
+                    basePath="style.ring.fill.color"
+                    header="Value Arc Colour"
+                    description="State-based colour of the value arc"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${true}>
+                </lcards-color-section-v2>
+
+                <lcards-color-section-v2
+                    .editor=${this}
+                    .entityId=${this.config?.entity || ''}
+                    basePath="style.ring.track.color"
+                    header="Track Colour"
+                    description="State-based colour of the unfilled ring"
+                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
+                    ?allowCustomStates=${true}
+                    ?expanded=${false}>
+                </lcards-color-section-v2>
+            </lcards-form-section>
+
+            <lcards-form-section
+                header="Scale"
+                description="Ticks and value labels outside the ring (the same settings as the gauge scale)"
+                icon="mdi:ruler"
+                ?expanded=${false}
+                ?outlined=${true}
+                headerLevel="4">
+
+                <lcards-message type="info"
+                    message="A tick level or the labels show once one of their settings is set. Labels sit at the major tick interval.">
+                </lcards-message>
+
+                <lcards-form-section header="Major Ticks" icon="mdi:format-line-weight" ?expanded=${false} ?outlined=${true} headerLevel="5">
+                    <lcards-grid-layout columns="2">
+                        ${FormField.renderField(this, 'style.ring.scale.tick_marks.major.enabled', { label: 'Show', value: this._ringScaleShown('style.ring.scale.tick_marks.major') })}
+                        ${FormField.renderField(this, 'style.ring.scale.tick_marks.major.interval', { label: 'Interval', helper: 'Value units (default 10)' })}
+                        ${FormField.renderField(this, 'style.ring.scale.tick_marks.major.height', { label: 'Length (px)' })}
+                        ${FormField.renderField(this, 'style.ring.scale.tick_marks.major.width', { label: 'Width (px)' })}
+                    </lcards-grid-layout>
+                    <lcards-color-section-v2
+                        .editor=${this}
+                        .entityId=${this.config?.entity || ''}
+                        basePath="style.ring.scale.tick_marks.major.color"
+                        header="Major Tick Colour"
+                        .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
+                        ?allowCustomStates=${true}
+                        ?expanded=${false}>
+                    </lcards-color-section-v2>
+                </lcards-form-section>
+
+                <lcards-form-section header="Minor Ticks" icon="mdi:format-line-style" ?expanded=${false} ?outlined=${true} headerLevel="5">
+                    <lcards-grid-layout columns="2">
+                        ${FormField.renderField(this, 'style.ring.scale.tick_marks.minor.enabled', { label: 'Show', value: this._ringScaleShown('style.ring.scale.tick_marks.minor') })}
+                        ${FormField.renderField(this, 'style.ring.scale.tick_marks.minor.interval', { label: 'Interval', helper: 'Value units (default 2)' })}
+                        ${FormField.renderField(this, 'style.ring.scale.tick_marks.minor.height', { label: 'Length (px)' })}
+                        ${FormField.renderField(this, 'style.ring.scale.tick_marks.minor.width', { label: 'Width (px)' })}
+                    </lcards-grid-layout>
+                    <lcards-color-section-v2
+                        .editor=${this}
+                        .entityId=${this.config?.entity || ''}
+                        basePath="style.ring.scale.tick_marks.minor.color"
+                        header="Minor Tick Colour"
+                        .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
+                        ?allowCustomStates=${true}
+                        ?expanded=${false}>
+                    </lcards-color-section-v2>
+                </lcards-form-section>
+
+                <lcards-form-section header="Labels" icon="mdi:numeric" ?expanded=${false} ?outlined=${true} headerLevel="5">
+                    <lcards-grid-layout columns="2">
+                        ${FormField.renderField(this, 'style.ring.scale.labels.enabled', { label: 'Show', value: this._ringScaleShown('style.ring.scale.labels') })}
+                        ${FormField.renderField(this, 'style.ring.scale.labels.show_unit', { label: 'Show Unit' })}
+                        ${FormField.renderField(this, 'style.ring.scale.labels.unit', { label: 'Unit Override' })}
+                        ${FormField.renderField(this, 'style.ring.scale.labels.font_size', { label: 'Font Size (px)' })}
+                        ${FormField.renderField(this, 'style.ring.scale.labels.padding', { label: 'Gap (px)' })}
+                    </lcards-grid-layout>
+                    <lcards-color-section-v2
+                        .editor=${this}
+                        .entityId=${this.config?.entity || ''}
+                        basePath="style.ring.scale.labels.color"
+                        header="Label Colour"
+                        .suggestedStates=${['default', 'active', 'inactive', 'unavailable']}
+                        ?allowCustomStates=${true}
+                        ?expanded=${false}>
+                    </lcards-color-section-v2>
+                </lcards-form-section>
+
+                ${FormField.renderField(this, 'style.ring.padding', {
+                    label: 'Outside Padding (px)',
+                    helper: 'Room outside the ring for the scale and marker labels; empty = sized automatically'
+                })}
+            </lcards-form-section>
+        `;
+    }
+
+    /**
      * Shaped Configuration — shape type, fill colour, track background, and label band sizes.
      * Used when the shaped component is active (e.g. shaped-vertical / shaped-horizontal preset).
      * @returns {TemplateResult}
@@ -1778,7 +2068,13 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
 
         const componentName = this.config?.component || 'default';
 
-        if (componentName === 'shaped') {
+        if (componentName === 'ring') {
+            // Ring component: the centre zones inside the ring.
+            availableZones.label = 'Label (above the value)';
+            availableZones.value = 'Value (middle)';
+            availableZones.sublabel = 'Sublabel (below the value)';
+            availableZones.center = 'Centre (whole inner area)';
+        } else if (componentName === 'shaped') {
             // Shaped component: expose text band zones instead of border zones.
             // A band is only a valid target when its size is non-zero.
             const bands     = this.config?.style?.shaped?.text_bands || {};

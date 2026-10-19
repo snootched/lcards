@@ -88,6 +88,8 @@ Rendered:
 | `gauge-left-border-rounded` | Gauge with a left border and a rounded free end |
 | `shaped-vertical` | Vertical shaped slider with exterior text labels (`style.shaped.type` picks the shape) |
 | `shaped-horizontal` | Horizontal shaped slider with exterior text labels |
+| `ring` | Ring gauge: a 270 degree value arc around a large value, the name above it (`component: ring`) |
+| `picard-ring` | Picard-era ring: near-full thick ring with flat ends, small label over a large value |
 | `picard-gauge-vertical` | Picard-style vertical gauge |
 
 Rendered:

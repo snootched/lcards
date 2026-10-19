@@ -98,6 +98,10 @@ import { haFormatStateParts, extractUnit, haFormatNumber } from '../utils/ha-ent
 // Import unified schema
 import { getSliderSchema } from './schemas/slider-schema.js';
 import { TEXT_POSITIONS } from './schemas/schema-options.js';
+import {
+    arcPath, fractionToAngle, pointToFraction, hitsRing, fractionToValue, snapValue, scaleValues,
+    estimateTextWidth, labelCentre, markerRadialSpan, ringMarkerSize, ringLayout, RING_MARKER_ALIGN, TICK_GAP
+} from './slider-ring-geometry.js';
 
 /** Animation triggers the border action handlers fire; every other trigger runs on the card scope. */
 const INTERACTIVE_TRIGGERS = new Set(['on_tap', 'on_hold', 'on_double_tap', 'on_hover', 'on_leave']);
@@ -241,8 +245,30 @@ export class LCARdSSlider extends LCARdSButton {
                     transform: translate(calc(-100% - 20px), -50%);
                 }
 
+                .drag-badge.center {
+                    transform: translate(-50%, -50%);
+                }
+
                 .drag-badge.visible {
                     opacity: 1;
+                }
+
+                /* Ring gauge pointer/keyboard overlay (component: ring). Round, so
+                 * the focus ring follows the ring; presses off the band are ignored
+                 * in _handleRingPointerDown(). */
+                .ring-overlay {
+                    position: absolute;
+                    z-index: 10;
+                    border-radius: var(--ha-border-radius-circle, 50%);
+                    cursor: pointer;
+                    touch-action: none;
+                    outline: none;
+                    -webkit-tap-highlight-color: transparent;
+                }
+
+                .ring-overlay:focus-visible {
+                    outline: var(--ha-border-width-md, 2px) solid var(--primary-color, var(--lcards-orange));
+                    outline-offset: 2px;
                 }
 
                 .slider-input-overlay {
@@ -425,6 +451,15 @@ export class LCARdSSlider extends LCARdSButton {
         // so per-frame position math never needs to re-run zone calculation.
         this._dragBadgeEl = null;
         this._dragBadgeZone = null;
+
+        // Ring gauge (component: ring): layout from the last render, the drag's
+        // previous fraction (seam guard) and the keyboard commit timer.
+        /** @type {import('./slider-ring-geometry.js').RingLayout|null} */
+        this._ringLayout = null;
+        /** @type {number|null} */
+        this._ringDragFraction = null;
+        /** @type {ReturnType<typeof setTimeout>|null} */
+        this._ringKeyCommitTimer = null;
     }
 
     /**
@@ -928,6 +963,10 @@ export class LCARdSSlider extends LCARdSButton {
         const activeComponent = this.config.component || this._sliderStyle?.component;
         if (activeComponent === 'shaped') {
             this._mode = 'shaped';
+        }
+        // Same for the ring component: its track is the ring arc.
+        if (activeComponent === 'ring') {
+            this._mode = 'ring';
         }
 
         // Update control config (handles locked state based on domain)
@@ -1891,6 +1930,20 @@ export class LCARdSSlider extends LCARdSButton {
     }
 
     /**
+     * Context for the component's calculateZones(): the style and config, and
+     * for the ring the room it leaves outside itself (it depends on label texts
+     * only the card can resolve).
+     * @param {number} width
+     * @param {number} height
+     * @returns {{style: any, config: any, ringOuterPad?: number}}
+     * @private
+     */
+    _zoneContext(width, height) {
+        const ctx = { style: this._sliderStyle, config: this.config };
+        return this._mode === 'ring' ? { ...ctx, ringOuterPad: this._ringOuterPad(width, height) } : ctx;
+    }
+
+    /**
      * Override of LCARdSCard._calculateZones — populate this._zones for the slider.
      *
      * Called by _rebuildZones() (base-class) before text injection.
@@ -1905,7 +1958,7 @@ export class LCARdSSlider extends LCARdSButton {
     _calculateZones(width, height) {
         const componentName = this.config.component || 'default';
         const rawZones = this._componentCalculateZones
-            ? this._componentCalculateZones(width, height, { style: this._sliderStyle, config: this.config })
+            ? this._componentCalculateZones(width, height, this._zoneContext(width, height))
             : null;
 
         if (!rawZones) {
@@ -3049,6 +3102,9 @@ export class LCARdSSlider extends LCARdSButton {
 
         if (this._mode === 'pills') {
             this._updatePillOpacities();
+        } else if (this._mode === 'ring') {
+            const fill = this.shadowRoot.querySelector('[data-lcards-role="progress-fill"]');
+            if (fill) this._applyRingFill(fill, this._calculateValuePercent(this._sliderValue));
         }
         // Note: Gauge mode uses full re-render, no incremental updates needed
     }
@@ -3307,6 +3363,10 @@ export class LCARdSSlider extends LCARdSButton {
 
         const percent = this._calculateValuePercent(this._displayValue);
         const axis = el.getAttribute('data-fill-axis');
+        if (axis === 'arc') {
+            this._applyRingFill(el, percent);
+            return;
+        }
         const sizeScale = parseFloat(el.getAttribute('data-fill-size-scale') ?? '') || 0;
         const posBase = parseFloat(el.getAttribute('data-fill-pos-base') ?? '') || 0;
         const posScale = parseFloat(el.getAttribute('data-fill-pos-scale') ?? '') || 0;
@@ -3391,9 +3451,24 @@ export class LCARdSSlider extends LCARdSButton {
      * @private
      */
     _applyTransformFromCoefficients(el, percent) {
-        const axis = el.getAttribute('data-pos-axis'); // 'x' | 'y' — which coordinate varies
+        const axis = el.getAttribute('data-pos-axis'); // 'x' | 'y' | 'angle' — which coordinate varies
         const posBase = parseFloat(el.getAttribute('data-pos-base') ?? '') || 0;
         const posScale = parseFloat(el.getAttribute('data-pos-scale') ?? '') || 0;
+        if (axis === 'ring-label') {
+            // Ring marker labels: upright, pushed clear of the ring at the new angle.
+            const deg = posBase + posScale * percent;
+            const num = (/** @type {string} */ name) => parseFloat(el.getAttribute(name) ?? '') || 0;
+            const pos = labelCentre(num('data-pos-cx'), num('data-pos-cy'), num('data-ring-r0'), deg, num('data-ring-w'), num('data-ring-h'));
+            el.setAttribute('transform', `translate(${pos.x + num('data-ring-ox')},${pos.y + num('data-ring-oy')})`);
+            return;
+        }
+        if (axis === 'angle') {
+            // Ring markers rotate about the ring centre.
+            const cx = el.getAttribute('data-pos-cx') || '0';
+            const cy = el.getAttribute('data-pos-cy') || '0';
+            el.setAttribute('transform', `rotate(${posBase + posScale * percent} ${cx} ${cy})`);
+            return;
+        }
         const fixed = parseFloat(el.getAttribute('data-pos-fixed') ?? '') || 0;
         const rotation = el.getAttribute('data-pos-rotation') || '0';
 
@@ -3449,7 +3524,9 @@ export class LCARdSSlider extends LCARdSButton {
         // Horizontal always sits below the track (any track type). Vertical sits beside
         // it — left for picard's decorative shell, right for every other component —
         // matching the anchor math in _updateDragBadgePosition().
-        const placementClass = isVertical ? (isPicard ? 'vertical-left' : 'vertical-right') : 'horizontal';
+        const isRing = this._mode === 'ring';
+        const placementClass = isRing ? 'center'
+            : isVertical ? (isPicard ? 'vertical-left' : 'vertical-right') : 'horizontal';
         const textColor = this._resolveEntityStateColor(cfg.color, 'var(--lcars-text-light, #ffffff)');
         const bgEnabled = cfg.background?.enabled !== false;
         const bgColor = bgEnabled
@@ -3543,7 +3620,11 @@ export class LCARdSSlider extends LCARdSButton {
         // from — left edge for picard's left-anchored vertical badge, right edge for
         // every other vertical component, bottom edge for horizontal (below the track).
         let x, y;
-        if (zone.isVertical) {
+        if (zone.isRing) {
+            // Ring: the badge sits in the centre of the ring.
+            x = zone.x + zone.width / 2;
+            y = zone.y + zone.height / 2;
+        } else if (zone.isVertical) {
             const p = this._invertFill ? percent : (1 - percent);
             x = zone.isPicard ? zone.x : zone.x + zone.width;
             y = zone.y + p * zone.height;
@@ -3929,7 +4010,7 @@ export class LCARdSSlider extends LCARdSButton {
         // apply border/margin insets to them exactly once.
         const componentName = this.config.component || 'default';
         const zones = this._componentCalculateZones
-            ? this._componentCalculateZones(width, height, { style: this._sliderStyle, config: this.config })
+            ? this._componentCalculateZones(width, height, this._zoneContext(width, height))
             : null;
 
         if (!zones) {
@@ -3960,7 +4041,7 @@ export class LCARdSSlider extends LCARdSButton {
         const rightInset = (borderConfig?.right?.enabled ? getBorderSize(borderConfig.right) : 0) + (margins.right || 0);
         const bottomInset = (borderConfig?.bottom?.enabled ? getBorderSize(borderConfig.bottom) : 0) + (margins.bottom || 0);
 
-        if (componentName !== 'shaped' && (leftInset > 0 || topInset > 0 || rightInset > 0 || bottomInset > 0)) {
+        if (componentName !== 'shaped' && componentName !== 'ring' && (leftInset > 0 || topInset > 0 || rightInset > 0 || bottomInset > 0)) {
             // Inset zones that should not overlap borders/margins (track, progress, control, range)
             const zonesToInset = ['track', 'progress', 'control', 'range', 'solidBar'];
             zonesToInset.forEach(zoneName => {
@@ -4062,7 +4143,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         let trackContent = '';
         // Shaped component always uses shaped fill mode — ignore this._mode for it.
-        const effectiveMode = (componentName === 'shaped') ? 'shaped' : this._mode;
+        const effectiveMode = (componentName === 'shaped' || componentName === 'ring') ? componentName : this._mode;
         if (effectiveMode === 'pills') {
             trackContent = this._generatePillsContent(trackZone, orientation);
         } else if (effectiveMode === 'gauge') {
@@ -4072,6 +4153,8 @@ export class LCARdSSlider extends LCARdSButton {
             trackContent = this._generateGaugeContent(trackZone, orientation, !!progressZone, true);
         } else if (effectiveMode === 'shaped') {
             trackContent = this._generateShapedContent(trackZone, orientation);
+        } else if (effectiveMode === 'ring') {
+            trackContent = this._generateRingContent(zones._ring);
         }
 
         // Step 6: Inject content into shell using shadow DOM queries
@@ -4138,8 +4221,8 @@ export class LCARdSSlider extends LCARdSButton {
             }
         }
 
-        // Inject borders if configured
-        this._injectBordersToElement(shellElement, width, height);
+        // Inject borders if configured (not around a ring: it has no edges to frame)
+        if (effectiveMode !== 'ring') this._injectBordersToElement(shellElement, width, height);
 
         // Inject text fields if configured
         this._injectTextFieldsToElement(shellElement, width, height);
@@ -4180,6 +4263,14 @@ export class LCARdSSlider extends LCARdSButton {
         const dispRange = dispMax - dispMin;
         const ctrlStartFrac = dispRange > 0 ? Math.max(0, Math.min(1, (ctrlMin - dispMin) / dispRange)) : 0;
         const ctrlEndFrac   = dispRange > 0 ? Math.max(0, Math.min(1, (ctrlMax - dispMin) / dispRange)) : 1;
+
+        // Ring: a pointer/keyboard overlay over the ring box (angle to value).
+        if (effectiveMode === 'ring') {
+            this._ringLayout = zones._ring;
+            this._dragBadgeZone = { ...this._dragBadgeZone, isRing: true };
+            return this._renderRingOverlay(finalSvg, containerStyle);
+        }
+        this._ringLayout = null;
 
         // For vertical sliders, use a div overlay with mouse events instead of <input type="range">
         // because writing-mode breaks mouse coordinate mapping in browsers
@@ -4473,6 +4564,534 @@ export class LCARdSSlider extends LCARdSButton {
         });
 
         return svg;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Ring gauge (component: ring)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Angle (deg) of a display-range fraction on the ring, honouring invert_fill
+     * (the fill then grows from the end angle back towards the start).
+     * @param {number} p - 0..1 of the display range
+     * @param {{start:number, sweep:number}} ring
+     * @returns {number}
+     * @private
+     */
+    _ringAngle(p, ring) {
+        return fractionToAngle(this._invertFill ? 1 - p : p, ring.start, ring.sweep);
+    }
+
+    /**
+     * Ring track content: the track arc, band ranges as arcs, the value arc, the
+     * scale (ticks and labels outside the ring) and value markers with their
+     * labels. Absolute SVG coordinates (the track zone has translate(0,0)).
+     *
+     * The value arc is a stroked path with pathLength=1, so the value is just its
+     * stroke-dasharray: _applyRingFill() updates it in place on drag and during
+     * value tweens without a re-render.
+     *
+     * @param {import('./slider-ring-geometry.js').RingLayout} ring
+     * @returns {string} SVG markup
+     * @private
+     */
+    _generateRingContent(ring) {
+        if (!ring) return '';
+        const ringStyle = this._sliderStyle?.ring || {};
+        const { cx, cy, rMid, stroke, start, sweep } = ring;
+        const end = start + sweep;
+        const cap = ringStyle.cap === 'flat' ? 'butt' : 'round';
+
+        const trackColor = this._resolveRingColor(ringStyle.track?.color, 'theme:components.slider.ring.track.color');
+        const fillColor = this._resolveRingColor(ringStyle.fill?.color, 'theme:components.slider.ring.fill.color');
+
+        let svg = `<path data-lcards-role="ring-track" d="${arcPath(cx, cy, rMid, start, end)}" fill="none" stroke="${trackColor}" stroke-width="${stroke}" stroke-linecap="${cap}" />`;
+
+        // Band ranges: arcs over the track, under the value arc. Flat ends, so
+        // neighbouring ranges meet cleanly.
+        const displayMin = this._displayConfig.min;
+        const displayMax = this._displayConfig.max;
+        const displayRange = displayMax - displayMin;
+        if (displayRange > 0) {
+            (this._sliderStyle?.ranges || []).forEach((/** @type {any} */ range, /** @type {number} */ idx) => {
+                if ('value' in range) return;
+                const bounds = this._resolvedRangeBounds?.[idx];
+                const lo = Math.max(0, ((bounds?.min ?? range.min ?? displayMin) - displayMin) / displayRange);
+                const hi = Math.min(1, ((bounds?.max ?? range.max ?? displayMax) - displayMin) / displayRange);
+                if (hi <= lo) return;
+                const a0 = this._ringAngle(lo, ring);
+                const a1 = this._ringAngle(hi, ring);
+                const color = this._resolveRangeColor(range.color, '#888888');
+                svg += `<path data-lcards-role="ring-range" d="${arcPath(cx, cy, rMid, Math.min(a0, a1), Math.max(a0, a1))}" fill="none" stroke="${color}" stroke-width="${stroke}" opacity="${range.opacity ?? 1}" />`;
+            });
+        }
+
+        // Value arc, drawn from the fill origin (the end angle when inverted).
+        const percent = this._calculateValuePercent(undefined, this.config?.value_tween?.targets?.track !== false);
+        const fillD = this._invertFill ? arcPath(cx, cy, rMid, end, start) : arcPath(cx, cy, rMid, start, end);
+        svg += `<path data-lcards-role="progress-fill" data-fill-axis="arc" d="${fillD}" pathLength="1" fill="none" stroke="${fillColor}" stroke-width="${stroke}" stroke-linecap="${cap}" ${this._ringFillAttrs(percent)} />`;
+
+        svg += this._generateRingScale(ring);
+        svg += this._generateRingMarkers(ring);
+        return svg;
+    }
+
+    /**
+     * State-aware colour for ring parts (concrete, for SVG attributes).
+     * @param {any} colorConfig
+     * @param {string} fallback
+     * @returns {string}
+     * @private
+     */
+    _resolveRingColor(colorConfig, fallback) {
+        return this._resolveColorValue(String(this._resolveStateValue({
+            actualState: this._entity?.state,
+            classifiedState: this._classifyEntityState(),
+            colorConfig,
+            fallback
+        }) ?? ''));
+    }
+
+    /**
+     * style.ring.scale resolved: the same shape as style.gauge.scale. A tick
+     * level (or the labels) shows when its block is set and not `enabled: false`.
+     * @returns {{major: any, minor: any, labels: any}}
+     * @private
+     */
+    _ringScaleConfig() {
+        const scale = this._sliderStyle?.ring?.scale || {};
+        /** @param {any} t @param {number} interval @param {number} len @param {number} width @param {string} color */
+        const level = (t, interval, len, width, color) => (t && t.enabled !== false) ? {
+            interval: t.interval || interval,
+            length: t.height ?? len,
+            width: t.width ?? width,
+            color: t.color,
+            fallback: color
+        } : null;
+        const major = level(scale.tick_marks?.major, 10, 8, 2, 'theme:components.slider.gauge.tick.major.color.default');
+        const minor = level(scale.tick_marks?.minor, 2, 4, 1, 'theme:components.slider.gauge.tick.minor.color.default');
+        const lc = scale.labels;
+        const labels = (lc && lc.enabled !== false) ? {
+            interval: scale.tick_marks?.major?.interval || 10,
+            unit: lc.show_unit !== false ? (lc.unit ?? this._displayConfig.unit ?? '') : '',
+            fontSize: lc.font_size ?? 12,
+            padding: lc.padding ?? 3,
+            color: lc.color
+        } : null;
+        return { major, minor, labels };
+    }
+
+    /**
+     * Scale label texts at the label interval (shared by drawing and padding).
+     * @returns {{value:number, text:string}[]}
+     * @private
+     */
+    _ringScaleLabels() {
+        const { labels } = this._ringScaleConfig();
+        if (!labels) return [];
+        return scaleValues(this._displayConfig.min, this._displayConfig.max, labels.interval)
+            .map(v => ({ value: v, text: `${v}${labels.unit}` }));
+    }
+
+    /**
+     * Fraction of the display range for a value, or null when off the scale.
+     * The end of a full ring is skipped (it would sit on top of the start).
+     * @param {number} v
+     * @param {{sweep:number}} ring
+     * @returns {number|null}
+     * @private
+     */
+    _ringScaleFraction(v, ring) {
+        const dMin = this._displayConfig.min;
+        const dRange = this._displayConfig.max - dMin;
+        if (!(dRange > 0)) return null;
+        const p = (v - dMin) / dRange;
+        if (p < -1e-9 || p > 1 + 1e-9) return null;
+        if (ring.sweep >= 360 && p > 1 - 1e-9) return null;
+        return Math.max(0, Math.min(1, p));
+    }
+
+    /**
+     * How far the scale (ticks, then labels) reaches past the ring's outer
+     * edge, in px; 0 without a scale. Marker labels go beyond it.
+     * @returns {number}
+     * @private
+     */
+    _ringScaleExtent() {
+        const { major, minor, labels } = this._ringScaleConfig();
+        const tickExt = Math.max(major?.length ?? 0, minor?.length ?? 0);
+        let ext = tickExt > 0 ? TICK_GAP + tickExt : 0;
+        if (labels) {
+            const widest = Math.max(0, ...this._ringScaleLabels().map(l => estimateTextWidth(l.text, labels.fontSize)));
+            ext = TICK_GAP + tickExt + labels.padding + Math.max(widest, labels.fontSize);
+        }
+        return ext;
+    }
+
+    /**
+     * Scale ticks and labels outside the ring (style.ring.scale).
+     * @param {import('./slider-ring-geometry.js').RingLayout} ring
+     * @returns {string}
+     * @private
+     */
+    _generateRingScale(ring) {
+        const { major, minor, labels } = this._ringScaleConfig();
+        const { cx, cy, rOuter } = ring;
+        const dMin = this._displayConfig.min;
+        const dMax = this._displayConfig.max;
+        const r0 = rOuter + TICK_GAP;
+        let svg = '';
+
+        /** @param {any} lvl @param {number[]} values */
+        const ticks = (lvl, values) => {
+            if (!lvl) return '';
+            let out = `<g data-lcards-role="ring-ticks" stroke="${this._resolveRingColor(lvl.color, lvl.fallback)}" stroke-width="${lvl.width}">`;
+            for (const v of values) {
+                const p = this._ringScaleFraction(v, ring);
+                if (p === null) continue;
+                out += `<line x1="${cx}" y1="${cy - r0}" x2="${cx}" y2="${cy - r0 - lvl.length}" transform="rotate(${this._ringAngle(p, ring)} ${cx} ${cy})" />`;
+            }
+            return out + '</g>';
+        };
+        if (major) svg += ticks(major, scaleValues(dMin, dMax, major.interval));
+        if (minor) svg += ticks(minor, scaleValues(dMin, dMax, minor.interval, major?.interval));
+
+        if (labels) {
+            const color = this._resolveRingColor(labels.color, 'theme:components.slider.gauge.label.color.default');
+            const tickExt = Math.max(major?.length ?? 0, minor?.length ?? 0);
+            const rl = r0 + tickExt + labels.padding;
+            svg += `<g data-lcards-role="ring-scale-labels" fill="${color}" font-size="${labels.fontSize}px" font-family="var(--primary-font-family, Antonio, sans-serif)" text-anchor="middle" dominant-baseline="central">`;
+            for (const { value, text } of this._ringScaleLabels()) {
+                const p = this._ringScaleFraction(value, ring);
+                if (p === null) continue;
+                const pos = labelCentre(cx, cy, rl, this._ringAngle(p, ring), estimateTextWidth(text, labels.fontSize), labels.fontSize);
+                svg += `<text x="${pos.x}" y="${pos.y}">${escapeHtml(text)}</text>`;
+            }
+            svg += '</g>';
+        }
+        return svg;
+    }
+
+    /**
+     * Value markers (ranges with a `value` key) resolved for the ring: shape,
+     * size, alignment, radial offset, colours and the label text.
+     * @param {number} stroke - Band thickness
+     * @returns {any[]}
+     * @private
+     */
+    _ringMarkerSpecs(stroke) {
+        const markersTargetEnabled = this.config?.value_tween?.targets?.markers !== false;
+        return (this._sliderStyle?.ranges || [])
+            .map((/** @type {any} */ range, /** @type {number} */ index) => ({ range, index, value: this._effectiveMarkerValue(index, markersTargetEnabled) }))
+            .filter((/** @type {any} */ m) => 'value' in m.range && m.value != null)
+            .map((/** @type {any} */ m) => {
+                const ind = m.range.indicator || {};
+                const type = ['line', 'triangle', 'round'].includes(ind.type) ? ind.type : 'line';
+                const size = ringMarkerSize(type, stroke);
+                const rawText = m.range.label?.text;
+                const labelText = rawText ? String(this._resolveTemplateValue(rawText) ?? rawText) : '';
+                return {
+                    ...m,
+                    type,
+                    align: ['start', 'center', 'end'].includes(ind.align) ? ind.align : RING_MARKER_ALIGN[type],
+                    width: ind.size?.width ?? size.width,
+                    height: type === 'round' ? (ind.size?.width ?? size.width) : (ind.size?.height ?? size.height),
+                    offset: ind.offset?.y ?? 0,
+                    // Same rule as gauge markers: a border only with border.enabled: true.
+                    border: ind.border?.enabled === true ? ind.border : null,
+                    labelText,
+                    labelFontSize: m.range.label?.font_size ?? 12
+                };
+            });
+    }
+
+    /**
+     * Value markers on the ring: a radial line (default), a triangle pointing at
+     * the band or a dot, drawn at the top and rotated into place, with angle
+     * coefficients so value tweens move them in place. Labels sit outside the
+     * marker, upright, and follow it the same way.
+     * @param {import('./slider-ring-geometry.js').RingLayout} ring
+     * @returns {string}
+     * @private
+     */
+    _generateRingMarkers(ring) {
+        const markers = this._ringMarkerSpecs(ring.stroke);
+        if (markers.length === 0) return '';
+
+        const { cx, cy, start, sweep } = ring;
+        const base = this._invertFill ? start + sweep : start;
+        const scale = this._invertFill ? -sweep : sweep;
+        const scaleExt = this._ringScaleExtent();
+        let shapes = '';
+        let labels = '';
+        for (const m of markers) {
+            const color = this._resolveRingColor(
+                m.range.indicator?.color ?? this._sliderStyle?.gauge?.marker_indicator?.color,
+                'theme:components.slider.indicator.color'
+            );
+            const p = this._calculateValuePercent(m.value);
+            const angle = base + scale * p;
+            const span = markerRadialSpan(m.type, m.align, ring, m.height, m.offset);
+            const borderAttrs = m.border
+                ? `stroke="${this._resolveRingColor(m.border.color, 'theme:components.slider.indicator.border.color')}" stroke-width="${m.border.width ?? 1}"`
+                : '';
+            let shape;
+            if (m.type === 'triangle') {
+                const back = span.tip === span.r0 ? span.r1 : span.r0;
+                shape = `<polygon points="${cx},${cy - span.tip} ${cx - m.width / 2},${cy - back} ${cx + m.width / 2},${cy - back}" fill="${color}" ${borderAttrs} />`;
+            } else if (m.type === 'round') {
+                shape = `<circle cx="${cx}" cy="${cy - (span.r0 + span.r1) / 2}" r="${m.width / 2}" fill="${color}" ${borderAttrs} />`;
+            } else {
+                shape = `<line x1="${cx}" y1="${cy - span.r0}" x2="${cx}" y2="${cy - span.r1}" stroke="${color}" stroke-width="${m.width}" />`;
+            }
+            shapes += `<g data-lcards-role="range-marker" data-marker-index="${m.index}" data-pos-axis="angle" ` +
+                `data-pos-base="${base}" data-pos-scale="${scale}" data-pos-cx="${cx}" data-pos-cy="${cy}" ` +
+                `transform="rotate(${angle} ${cx} ${cy})">${shape}</g>`;
+
+            if (m.labelText) {
+                const w = estimateTextWidth(m.labelText, m.labelFontSize);
+                const h = m.labelFontSize;
+                // Beyond the marker and the scale, so it never sits on a scale label.
+                const r0 = Math.max(span.r1, ring.rOuter + scaleExt) + 4;
+                const ox = m.range.label?.offset?.x ?? 0;
+                const oy = m.range.label?.offset?.y ?? 0;
+                const pos = labelCentre(cx, cy, r0, angle, w, h);
+                const labelColor = this._resolveRingColor(m.range.label?.color, 'theme:components.slider.indicator.label.color');
+                labels += `<text data-lcards-role="range-marker-label" data-marker-index="${m.index}" data-pos-axis="ring-label" ` +
+                    `data-pos-base="${base}" data-pos-scale="${scale}" data-pos-cx="${cx}" data-pos-cy="${cy}" ` +
+                    `data-ring-r0="${r0}" data-ring-w="${w}" data-ring-h="${h}" data-ring-ox="${ox}" data-ring-oy="${oy}" ` +
+                    `x="0" y="0" transform="translate(${pos.x + ox},${pos.y + oy})" ` +
+                    `font-size="${m.labelFontSize}px" font-family="var(--primary-font-family, Antonio, sans-serif)" fill="${labelColor}" ` +
+                    `text-anchor="middle" dominant-baseline="central">${escapeHtml(m.labelText)}</text>`;
+            }
+        }
+        // Labels after every marker, so a label is never covered by a later marker.
+        return shapes + labels;
+    }
+
+    /**
+     * Room the ring leaves outside itself (px) for the scale, the markers and
+     * their labels; `style.ring.padding` overrides it. Estimated against the
+     * ring at full size (thickness is a share of the diameter).
+     * @param {number} width
+     * @param {number} height
+     * @returns {number}
+     * @private
+     */
+    _ringOuterPad(width, height) {
+        const configured = this._sliderStyle?.ring?.padding;
+        if (typeof configured === 'number' && configured >= 0) return configured;
+
+        const ring = ringLayout(width, height, this._sliderStyle?.ring);
+        const scaleExt = this._ringScaleExtent();
+        let pad = scaleExt;
+        for (const m of this._ringMarkerSpecs(ring.stroke)) {
+            const span = markerRadialSpan(m.type, m.align, ring, m.height, m.offset);
+            let ext = Math.max(0, span.r1 - ring.rOuter);
+            if (m.labelText) {
+                ext = Math.max(ext, scaleExt) + 4 + Math.max(estimateTextWidth(m.labelText, m.labelFontSize), m.labelFontSize);
+            }
+            pad = Math.max(pad, ext);
+        }
+        return pad > 0 ? Math.ceil(pad + 1) : 0;
+    }
+
+    /**
+     * stroke-dasharray (and visibility at zero, where a round cap would still
+     * paint a dot) for the value arc.
+     * @param {number} percent - 0..1
+     * @returns {string}
+     * @private
+     */
+    _ringFillAttrs(percent) {
+        const p = Math.max(0, Math.min(1, percent));
+        return `stroke-dasharray="${p} 1" visibility="${p <= 0.0005 ? 'hidden' : 'visible'}"`;
+    }
+
+    /**
+     * Patch the value arc for a percent (drag frames, value tweens).
+     * @param {Element} el
+     * @param {number} percent - 0..1
+     * @private
+     */
+    _applyRingFill(el, percent) {
+        const p = Math.max(0, Math.min(1, percent));
+        el.setAttribute('stroke-dasharray', `${p} 1`);
+        el.setAttribute('visibility', p <= 0.0005 ? 'hidden' : 'visible');
+    }
+
+    /**
+     * The ring's pointer/keyboard overlay over the ring box. A press counts only
+     * on the ring band (centre text and corners stay inert); dragging maps the
+     * pointer angle to a value. Locked rings render no overlay.
+     * @param {string} finalSvg
+     * @param {string} containerStyle
+     * @returns {TemplateResult}
+     * @private
+     */
+    _renderRingOverlay(finalSvg, containerStyle) {
+        const ring = this._ringLayout;
+        const locked = this._controlConfig.locked;
+        const { min, max } = this._controlConfig;
+        const label = this.config?.name || this._entity?.attributes?.friendly_name || this.config?.entity || 'Slider';
+        return html`
+            <div class="slider-container" style="${containerStyle}">
+                ${unsafeHTML(finalSvg)}
+                ${!locked && ring ? html`
+                    <div
+                        class="ring-overlay"
+                        role="slider"
+                        tabindex="0"
+                        aria-label="${label}"
+                        aria-valuemin="${min}"
+                        aria-valuemax="${max}"
+                        aria-valuenow="${this._sliderValue}"
+                        @pointerdown="${this._handleRingPointerDown}"
+                        @pointermove="${this._handleRingPointerMove}"
+                        @pointerup="${this._handleRingPointerUp}"
+                        @pointercancel="${this._handleRingPointerUp}"
+                        @keydown="${this._handleRingKeyDown}"
+                        style="
+                            left: ${ring.box.x}px;
+                            top: ${ring.box.y}px;
+                            width: ${ring.box.width}px;
+                            height: ${ring.box.height}px;
+                        "
+                    ></div>
+                ` : ''}
+                ${!locked ? this._renderDragBadge() : ''}
+            </div>
+        `;
+    }
+
+    /**
+     * Pointer event to SVG coordinates (the overlay covers ring.box exactly).
+     * @param {PointerEvent} event
+     * @returns {{x:number, y:number}|null}
+     * @private
+     */
+    _ringPoint(event) {
+        const ring = this._ringLayout;
+        const el = /** @type {HTMLElement|null} */ (event.currentTarget);
+        if (!ring || !el) return null;
+        const rect = el.getBoundingClientRect();
+        const sx = rect.width > 0 ? ring.box.width / rect.width : 1;
+        const sy = rect.height > 0 ? ring.box.height / rect.height : 1;
+        return { x: ring.box.x + (event.clientX - rect.left) * sx, y: ring.box.y + (event.clientY - rect.top) * sy };
+    }
+
+    /**
+     * Set the slider value from a pointer position on the ring.
+     * @param {{x:number, y:number}} pt
+     * @private
+     */
+    _setRingValueFromPoint(pt) {
+        const ring = this._ringLayout;
+        if (!ring) return;
+        const fraction = pointToFraction(pt.x, pt.y, ring, this._ringDragFraction);
+        this._ringDragFraction = fraction;
+        const p = this._invertFill ? 1 - fraction : fraction;
+        this._setRingValue(fractionToValue(p, this._displayConfig, this._controlConfig));
+    }
+
+    /**
+     * Apply a new (already stepped and clamped) value while the user is
+     * interacting: the value arc, the drag badge and aria-valuenow, without a
+     * re-render.
+     * @param {number} value
+     * @private
+     */
+    _setRingValue(value) {
+        this._sliderValue = value;
+        this._updateDynamicElements();
+        this._updateDragBadgePosition();
+        this.shadowRoot?.querySelector('.ring-overlay')?.setAttribute('aria-valuenow', String(value));
+    }
+
+    /**
+     * @param {PointerEvent} event
+     * @private
+     */
+    _handleRingPointerDown(event) {
+        const ring = this._ringLayout;
+        const pt = this._ringPoint(event);
+        if (!ring || !pt) return;
+        if (event.button !== 0) return;
+        if (!hitsRing(pt.x, pt.y, ring, Math.max(8, ring.stroke * 0.5))) return;
+
+        const el = /** @type {HTMLElement} */ (event.currentTarget);
+        event.preventDefault();
+        el.focus?.({ preventScroll: true });
+        try { el.setPointerCapture?.(event.pointerId); } catch (_) { /* capture is optional */ }
+        this._isDragging = true;
+        this._ringDragFraction = null;
+        this._playSound('slider_drag_start');
+        this._showDragBadge();
+        this._setRingValueFromPoint(pt);
+    }
+
+    /**
+     * @param {PointerEvent} event
+     * @private
+     */
+    _handleRingPointerMove(event) {
+        if (!this._isDragging || !this._ringLayout) return;
+        const pt = this._ringPoint(event);
+        if (!pt) return;
+        event.preventDefault();
+        const before = this._sliderValue;
+        this._setRingValueFromPoint(pt);
+        if (this._sliderValue !== before) this._playSound('slider_change');
+    }
+
+    /**
+     * @param {PointerEvent} event
+     * @private
+     */
+    async _handleRingPointerUp(event) {
+        if (!this._isDragging || !this._ringLayout) return;
+        this._isDragging = false;
+        this._ringDragFraction = null;
+        const el = /** @type {HTMLElement} */ (event.currentTarget);
+        try { el.releasePointerCapture?.(event.pointerId); } catch (_) { /* not captured */ }
+        this._playSound('slider_drag_end');
+        this._hideDragBadge();
+        await this._setEntityValue(this._sliderValue);
+    }
+
+    /**
+     * Keyboard: arrows change by one step, Page Up/Down by ten, Home/End jump to
+     * the control range ends. A burst of key presses commits once, shortly after
+     * the last one.
+     * @param {KeyboardEvent} event
+     * @private
+     */
+    _handleRingKeyDown(event) {
+        const { min, max } = this._controlConfig;
+        const step = this._controlConfig.step || 1;
+        const current = Number.isFinite(this._sliderValue) ? this._sliderValue : min;
+        let next;
+        switch (event.key) {
+            case 'ArrowUp':
+            case 'ArrowRight': next = current + step; break;
+            case 'ArrowDown':
+            case 'ArrowLeft': next = current - step; break;
+            case 'PageUp': next = current + step * 10; break;
+            case 'PageDown': next = current - step * 10; break;
+            case 'Home': next = min; break;
+            case 'End': next = max; break;
+            default: return;
+        }
+        event.preventDefault();
+        const value = snapValue(next, min, max, step);
+        if (value === this._sliderValue) return;
+        this._playSound('slider_change');
+        this._setRingValue(value);
+        if (this._ringKeyCommitTimer) clearTimeout(this._ringKeyCommitTimer);
+        this._ringKeyCommitTimer = setTimeout(() => {
+            this._ringKeyCommitTimer = null;
+            this._setEntityValue(this._sliderValue);
+        }, 400);
     }
 
     /**
@@ -5236,6 +5855,13 @@ export class LCARdSSlider extends LCARdSButton {
         this._valueTween?.revert();
         this._valueTween = null;
 
+        // A pending keyboard commit on the ring is dropped with the card.
+        if (this._ringKeyCommitTimer) {
+            clearTimeout(this._ringKeyCommitTimer);
+            this._ringKeyCommitTimer = null;
+        }
+        this._isDragging = false;
+
         // Unsubscribe from alert mode changes
 
         // Clear any pending hover restore timer
@@ -5328,6 +5954,16 @@ export class LCARdSSlider extends LCARdSButton {
         const orientation = this._sliderStyle?.track?.orientation || 'horizontal';
         const isVertical = orientation === 'vertical';
         const go = this.config.grid_options || {};
+
+        // Ring: a square-ish cell by default (6 columns x 4 rows in a sections view).
+        if (this._mode === 'ring') {
+            return {
+                columns:     go.columns     ?? 6,
+                rows:        go.rows        ?? 4,
+                min_columns: go.min_columns ?? 2,
+                min_rows:    go.min_rows    ?? 2,
+            };
+        }
 
         if (isVertical) {
             return {

@@ -18,6 +18,8 @@ const CASES = [
     ['elbow-segmented', {}],
     ['slider-pills', {}],
     ['slider-gauge', {}],
+    ['slider-ring', { width: '260', height: '260' }],
+    ['slider-picard-ring', { width: '260', height: '260' }],
     ['chart-area', { height: '300' }],
     ['data-grid-data', {}],
     ['data-grid-decorative', {}],

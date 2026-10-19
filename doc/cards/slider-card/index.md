@@ -2,7 +2,7 @@
 
 `custom:lcards-slider`
 
-Interactive sliders and read-only gauges for entities like lights, covers, fans, climate, and sensors. Three main visual styles: segmented pill bars, ruler gauges, and shaped (clip-path fill).
+Interactive sliders and read-only gauges for entities like lights, covers, fans, climate, and sensors. Four main visual styles: segmented pill bars, ruler gauges, shaped (clip-path fill) and the ring gauge (drag around a ring).
 
 ---
 
@@ -148,7 +148,7 @@ triggers_update: []
 | `ranges_attribute` | string | Entity attribute for range conditions: see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges-attribute) |
 | `state_attribute` | string | Attribute whose string value drives exact-key colour matching; see [state_attribute](../../core/colours.md#exact-match-keys-from-an-attribute-state-attribute) |
 | `preset` | string | Visual style preset: see [Presets](#presets) |
-| `component` | string | Advanced SVG component: `shaped` or `picard` |
+| `component` | string | Advanced SVG component: `shaped`, `ring` or `picard` |
 | `control` | object | Control behaviour: see [Control Options](#control-options) |
 | `text` | object | Text label definitions: see [Text Fields](../../core/text-fields.md) |
 | `style` | object | Visual style overrides: see [Style Object](#style-object) |
@@ -169,6 +169,8 @@ triggers_update: []
 | `gauge-left-border-rounded` | Gauge + left border, right end rounded |
 | `shaped-vertical` | Vertical lozenge fill with top/bottom text bands (component: `shaped`) |
 | `shaped-horizontal` | Horizontal lozenge fill with left/right text bands (component: `shaped`) |
+| `ring` | Ring gauge: 270 degree arc, name above a large value (component: `ring`) |
+| `picard-ring` | Near-full thick ring with flat ends, small label over the value (component: `ring`) |
 | `picard-gauge-vertical` | Picard-style vertical gauge (component: `picard`) |
 
 Every preset, rendered against a sample light (drag to set its brightness):
@@ -533,6 +535,126 @@ style:
 | `style.shaped.polygon.points` | array | - | `[[xPct, yPct], ...]` vertices (0–1) for polygon shape |
 | `style.shaped.path.d` | string | - | Raw SVG path `d` attribute (absolute coords) |
 | `style.shaped.path.translate` | boolean | `false` | Translate path to shape body origin |
+
+---
+
+## Ring Gauge
+
+Use `component: ring` (or the `ring` / `picard-ring` presets) for a circular gauge: a thick value arc around the centre text. Drag around the ring to set the value, or tap a point on it to jump there; with the ring focused, the arrow keys change it by one `control.step` (Page Up/Down by ten, Home/End to the ends). A press on the centre text does nothing. Sensors and `control.locked: true` give a read-only ring.
+
+```yaml live
+type: custom:lcards-slider
+entity: light.bedroom
+preset: ring
+grid_options:
+  rows: 4            # draws to its cell: give it rows in a sections view
+```
+
+Angles are in degrees, `0` is the top and they run clockwise; the value fills from `start_angle` to `end_angle`. The default sweep is 270 degrees with the gap at the bottom. An end at or before the start wraps round, and equal angles draw a full ring. The ring sits centred at the card's smaller side, so it stays round in any cell.
+
+`picard-ring` is the Picard-era look (the Protostar.NX zone gauges): a near-full thick ring with flat ends, a small label over the number. Band ranges are drawn as arcs under the value arc; `scale` adds ticks and value labels outside the ring:
+
+```yaml live
+type: custom:lcards-slider
+entity: input_number.target_level
+preset: picard-ring
+grid_options:
+  rows: 4
+text:
+  name:
+    content: Zone N
+style:
+  ring:
+    scale:
+      tick_marks:
+        major:
+          interval: 20
+        minor:
+          interval: 5
+      labels:
+        show_unit: false
+  ranges:
+    - min: 80
+      max: 100
+      color: theme:colors.status.error
+```
+
+### Scale
+
+`style.ring.scale` takes the same keys as the gauge's [`style.gauge.scale`](#style-gauge): `tick_marks.major` / `tick_marks.minor` (`interval` in value units from the display minimum, `height` as the tick length, `width`, `color`) and `labels` (`show_unit`, `unit`, `color`, `font_size`, `padding`). Labels sit at the major tick interval. Unlike the gauge, a tick level or the labels only show once their block is set, so a plain ring has no scale. The ring shrinks to leave room for them; `style.ring.padding` sets that room yourself.
+
+### Value markers
+
+A `ranges` entry with a `value` draws a marker at that value. On the ring, `indicator.type` is `line` (the default: a radial line from the inner edge past the ring), `triangle` (outside the ring, pointing at it) or `round` (a dot on the band). `indicator.align` anchors it at the inner edge (`start`), the middle of the band (`center`) or the outer edge (`end`); `size.width` runs across the ring, `size.height` along the radius, and `offset.y` shifts it outward (negative: inward). `color` and `border` work as in gauge mode; the rotation follows the ring. `label` puts a caption outside the ring beyond the marker, and both move with value tweens:
+
+```yaml live
+type: custom:lcards-slider
+entity: climate.living_room
+preset: ring
+control:
+  min: 10
+  max: 30
+  step: 0.5
+grid_options:
+  rows: 4
+text:
+  state:
+    content: "{entity.attributes.temperature}°"
+style:
+  ring:
+    scale:
+      tick_marks:
+        major:
+          interval: 5
+      labels: {}
+  ranges:
+    - value: "{entity.attributes.current_temperature}"
+      indicator:
+        type: triangle
+        color: theme:colors.status.success
+      label:
+        text: NOW
+```
+
+### Centre text
+
+Text fields go in the zones inside the ring: `label` (above the value), `value` (the middle), `sublabel` (below it) and `center` (the whole inner area). The presets put `name` in `label` and `state` in `value`; `font_size_percent` is a percentage of the zone's height, so the text scales with the ring. To put the name underneath:
+
+```yaml live
+type: custom:lcards-slider
+entity: light.bedroom
+preset: ring
+grid_options:
+  rows: 4
+style:
+  ring:
+    start_angle: -90
+    end_angle: 90
+    thickness: 20%
+text:
+  name:
+    zone: sublabel
+    position: top
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `style.ring.start_angle` | number | `-135` | Where the minimum sits, in degrees (0 = top, clockwise) |
+| `style.ring.end_angle` | number | `135` | Where the maximum sits; equal to `start_angle` draws a full ring |
+| `style.ring.thickness` | number / string | `12%` | Band thickness: a percentage of the diameter (`12%`) or pixels (`14`, `14px`) |
+| `style.ring.cap` | string | `round` | Arc ends: `round` or `flat` |
+| `style.ring.fill.color` | string / object | theme | Value arc colour; [state map](../../core/colours.md) supported |
+| `style.ring.track.color` | string / object | theme | Unfilled ring colour; [state map](../../core/colours.md) supported |
+| `style.ring.scale.tick_marks.major` | object | - | Major ticks: `interval` (default `10`), `height` (length, `8`), `width` (`2`), `color`, `enabled` |
+| `style.ring.scale.tick_marks.minor` | object | - | Minor ticks between the majors: `interval` (default `2`), `height` (`4`), `width` (`1`), `color`, `enabled` |
+| `style.ring.scale.labels` | object | - | Value labels at the major interval: `show_unit`, `unit`, `color`, `font_size` (`12`), `padding` (`3`), `enabled` |
+| `style.ring.padding` | number | auto | Room outside the ring for the scale, markers and labels, in px |
+
+`style.track.invert_fill` makes the value grow from the end angle back towards the start; the drag badge (`drag_badge`) sits in the centre of the ring. Borders (`style.border`) and track margins don't apply to a ring.
+
+Ring variants (drag any of them):
+
+<CardGallery set="slider-ring" />
 
 ---
 

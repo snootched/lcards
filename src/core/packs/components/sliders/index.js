@@ -13,6 +13,7 @@ import defaultComponent from './default.js';
 import picardComponent from './picard.js';
 import demoComponent from './demo.js';
 import shapedComponent from './shaped.js';
+import ringComponent from './ring.js';
 
 /**
  * Slider component registry
@@ -38,7 +39,10 @@ export const sliderComponents = {
     // Shaped component - generic clip-path shell with exterior label bands
     // Shape type (lozenge, rect, rounded, diamond, hexagon, polygon, path) is
     // configured via style.shaped.type — defaults to lozenge.
-    'shaped': shapedComponent
+    'shaped': shapedComponent,
+
+    // Ring component - circular gauge, drag around the ring (style.ring.*)
+    'ring': ringComponent
 };
 
 /**

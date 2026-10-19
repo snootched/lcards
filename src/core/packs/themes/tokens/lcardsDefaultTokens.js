@@ -366,6 +366,11 @@ export const lcardsDefaultTokens = {
           color: 'var(--primary-color, var(--lcards-blue-light))'
         }
       },
+      // Ring gauge (component: ring)
+      ring: {
+        fill: { color: 'var(--lcards-orange, var(--lcards-orange-medium))' },
+        track: { color: 'alpha(colors.card.buttonOff, 0.35)' }
+      },
       // Range band / indicator defaults
       range: {
         border: { color: 'black' },          // SVG-safe 'black' ≡ #000000

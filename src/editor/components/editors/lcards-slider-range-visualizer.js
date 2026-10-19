@@ -25,6 +25,8 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
 
             // Direction settings
             orientation: { type: String },
+            // Hide the orientation presets (the ring has no orientation: only the invert toggles apply)
+            hideOrientation: { type: Boolean },
             invertFill: { type: Boolean },
             invertValue: { type: Boolean },
 
@@ -337,6 +339,7 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
         this.controlMin = 0;
         this.controlMax = 100;
         this.orientation = 'horizontal';
+        this.hideOrientation = false;
         this.invertFill = false;
         this.invertValue = false;
         this.currentValue = 50;
@@ -733,7 +736,7 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
         return html`
             <div style="display: flex; flex-direction: column; gap: 12px;">
                 <!-- Direction Presets -->
-                <div class="direction-grid">
+                <div class="direction-grid" ?hidden=${this.hideOrientation}>
                     <button
                         class="direction-button ${isHorizontalNormal ? 'active' : ''}"
                         @click="${() => this._applyDirection('horizontal', false)}"
@@ -868,7 +871,7 @@ export class LCARdSSliderRangeVisualizer extends LitElement {
             <div class="section">
                 <div class="section-header">
                     <ha-icon icon="mdi:arrow-decision"></ha-icon>
-                    Direction & Orientation
+                    ${this.hideOrientation ? 'Direction' : 'Direction & Orientation'}
                 </div>
                 ${this._renderDirectionPresets()}
             </div>

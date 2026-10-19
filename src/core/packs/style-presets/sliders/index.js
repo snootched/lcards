@@ -394,6 +394,114 @@ export const SLIDER_PRESETS = {
   },
 
   // =====================================
+  // RING PRESETS: circular gauge (component: ring)
+  // =====================================
+  //
+  // Text sits in the ring's centre zones: label (top), value (middle),
+  // sublabel (bottom). font_size_percent is a percentage of the text zone's
+  // height, so the text scales with the ring. Put the name underneath with
+  // text.name.zone: sublabel.
+
+  /**
+   * ring: 270 degree ring with the gap at the bottom, round caps, the name small
+   * above a large value.
+   */
+  'ring': {
+    extends: 'slider.base',
+    description: 'Ring gauge: a 270 degree value arc around a large state value, the name above it. Drag around the ring to set the value.',
+    compatibleComponents: ['ring'],
+
+    component: 'ring',
+
+    style: {
+      ring: {
+        start_angle: -135,
+        end_angle: 135,
+        thickness: '12%',
+        cap: 'round'
+      }
+    },
+
+    text: {
+      name: {
+        zone: 'label',
+        position: 'bottom',
+        show: true,
+        font_size_percent: 60,
+        padding: 0,
+        color: {
+          default: 'theme:colors.text.onDark',
+          inactive: 'theme:darken(colors.text.onDark, 0.2)',
+          unavailable: 'theme:darken(colors.text.onDark, 0.3)'
+        }
+      },
+      state: {
+        zone: 'value',
+        position: 'center',
+        show: true,
+        font_size_percent: 85,
+        padding: 0,
+        color: {
+          default: 'theme:colors.text.onDark',
+          active: 'theme:lighten(colors.text.onDark, 0.2)',
+          inactive: 'theme:darken(colors.text.onDark, 0.2)',
+          unavailable: 'theme:darken(colors.text.onDark, 0.3)'
+        }
+      }
+    }
+  },
+
+  /**
+   * picard-ring: the M148 (Protostar.NX) look: a near-full thick ring with flat
+   * ends, a small label over the number.
+   */
+  'picard-ring': {
+    extends: 'slider.base',
+    description: 'Picard-era ring: a near-full thick ring with flat ends, a small label over a large value (Protostar.NX zone gauges).',
+    compatibleComponents: ['ring'],
+
+    component: 'ring',
+
+    style: {
+      ring: {
+        start_angle: -165,
+        end_angle: 165,
+        thickness: '20%',
+        cap: 'flat',
+        fill: { color: 'theme:components.slider.ring.fill.color' },
+        track: { color: 'theme:alpha(colors.card.buttonOff, 0.5)' }
+      }
+    },
+
+    text: {
+      name: {
+        zone: 'label',
+        position: 'bottom',
+        show: true,
+        font_size_percent: 55,
+        text_transform: 'uppercase',
+        padding: 0,
+        color: {
+          default: 'theme:components.slider.ring.fill.color',
+          unavailable: 'theme:darken(colors.text.onDark, 0.3)'
+        }
+      },
+      state: {
+        zone: 'value',
+        position: 'center',
+        show: true,
+        font_size_percent: 90,
+        padding: 0,
+        color: {
+          default: 'theme:colors.text.onDark',
+          inactive: 'theme:darken(colors.text.onDark, 0.2)',
+          unavailable: 'theme:darken(colors.text.onDark, 0.3)'
+        }
+      }
+    }
+  },
+
+  // =====================================
   // PICARD PRESET - Picard-style vertical slider
   // =====================================
 

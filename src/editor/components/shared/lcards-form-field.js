@@ -61,6 +61,7 @@ export class LCARdSFormFieldHelper {
      * @param {string} path - Config path (e.g., 'style.track.segments.gap')
      * @param {Object} options - Optional overrides
      * @param {string} [options.label] - Override label from x-ui-hints
+     * @param {*} [options.value] - Value to show instead of the config value / schema default
      * @param {string} [options.helper] - Override helper text from x-ui-hints
      * @param {Object} [options.selectorOverride] - Override entire selector config
      * @param {boolean} [options.disabled=false] - Disable the selector
@@ -89,7 +90,11 @@ export class LCARdSFormFieldHelper {
         // genuinely unset — previously this always showed blank/undefined for any
         // unset field, even ones with a documented default, since nothing here ever
         // consulted schema.default at all.
-        const rawValue = editor._getConfigValue?.(path) ?? schema?.default;
+        // options.value lets a caller show a value the config implies rather than
+        // the schema default (e.g. a switch that is on only once its block exists).
+        const rawValue = options.value !== undefined
+            ? options.value
+            : (editor._getConfigValue?.(path) ?? schema?.default);
         const hints = schema?.['x-ui-hints'] || {};
 
         // Get selector config (priority: override > x-ui-hints > auto-generated)

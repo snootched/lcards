@@ -1042,7 +1042,7 @@ export function getSliderSchema(options = {}) {
                                     minimum: 0,
                                     maximum: 1,
                                     default: 0.3,
-                                    description: 'Background opacity (0=transparent, 1=solid, default: 0.3)'
+                                    description: 'Band opacity (0=transparent, 1=solid). Default 0.3 in gauge mode, 1 for the shaped and ring components.'
                                 },
                                 value: {
                                     type: ['string', 'number'],
@@ -1054,7 +1054,7 @@ export function getSliderSchema(options = {}) {
                                 },
                                 indicator: {
                                     type: 'object',
-                                    description: 'Gauge mode: per-marker indicator shape override. Fallback chain: this block → style.gauge.marker_indicator (preset default) → hardcoded defaults (triangle 20×20, rotation 180, no border). Values not specified here inherit from the next level in the chain.',
+                                    description: 'Per-marker indicator shape. Gauge mode: fallback chain this block → style.gauge.marker_indicator (preset default) → hardcoded defaults (triangle 20×20, rotation 180, no border). Ring (component: ring): type line (default, a radial line from the inner edge past the ring), triangle (outside the ring, pointing at it) or round (a dot on the band); align start/center/end anchors it at the inner edge, the band middle or the outer edge; size, color, border and offset.y (radial shift, positive outward) apply; rotation follows the ring.',
                                     properties: {
                                         type: { type: 'string', enum: ['line', 'round', 'triangle'], description: 'Indicator shape type (default: triangle)' },
                                         align: {
@@ -1082,9 +1082,9 @@ export function getSliderSchema(options = {}) {
                                         border: {
                                             type: 'object',
                                             properties: {
-                                                enabled: { type: 'boolean', default: true },
-                                                color: stateColorSchema,
-                                                width: { type: 'number' }
+                                                enabled: { type: 'boolean', default: false, description: 'Draw an outline on the marker (default false)' },
+                                                color: { ...stateColorSchema, description: 'Outline colour. Default theme:components.slider.indicator.border.color.' },
+                                                width: { type: 'number', description: 'Outline width in pixels (default 1)' }
                                             }
                                         }
                                     }
@@ -1104,7 +1104,7 @@ export function getSliderSchema(options = {}) {
                                 },
                                 label: {
                                     type: 'object',
-                                    description: 'Optional text caption shown next to the marker (gauge mode) or highlighted pill (pills mode).',
+                                    description: 'Optional text caption shown next to the marker (gauge mode), the highlighted pill (pills mode) or outside the ring beyond the marker (ring).',
                                     properties: {
                                         text: {
                                             type: 'string',
@@ -1142,6 +1142,133 @@ export function getSliderSchema(options = {}) {
                         'x-ui-hints': {
                             label: 'Value Ranges',
                             helper: 'Define colour-coded zones to provide visual context for values (e.g., cold/comfort/hot)'
+                        }
+                    },
+
+                    // ====================================================================
+                    // RING COMPONENT CONFIGURATION
+                    // ====================================================================
+
+                    ring: {
+                        type: 'object',
+                        description: 'Ring gauge configuration (used with component: ring). Angles are in degrees, 0 = top, clockwise; the value arc fills from start_angle to end_angle.',
+                        properties: {
+                            start_angle: {
+                                type: 'number',
+                                default: -135,
+                                description: 'Angle where the ring starts (the minimum), in degrees: 0 = top, 90 = right, -90 = left. Default -135.',
+                                'x-ui-hints': {
+                                    label: 'Start Angle',
+                                    selector: { number: { min: -360, max: 360, step: 5, mode: 'box', unit_of_measurement: '°' } }
+                                }
+                            },
+                            end_angle: {
+                                type: 'number',
+                                default: 135,
+                                description: 'Angle where the ring ends (the maximum), in degrees, clockwise from start_angle. An end at or before the start wraps round; equal angles draw a full ring. Default 135 (a 270 degree sweep with the gap at the bottom).',
+                                'x-ui-hints': {
+                                    label: 'End Angle',
+                                    selector: { number: { min: -360, max: 360, step: 5, mode: 'box', unit_of_measurement: '°' } }
+                                }
+                            },
+                            thickness: {
+                                oneOf: [
+                                    { type: 'number', minimum: 1, description: 'Thickness in pixels' },
+                                    { type: 'string', pattern: '^\\d+(\\.\\d+)?(%|px)$', description: 'Percentage of the ring diameter (e.g. 12%) or pixels (e.g. 14px)' }
+                                ],
+                                default: '12%',
+                                description: 'Ring band thickness: a percentage of the ring diameter (e.g. 12%) or pixels (a number or e.g. 14px). Default 12%.',
+                                examples: ['12%', '20%', 14],
+                                'x-ui-hints': {
+                                    label: 'Thickness',
+                                    helper: 'Percent of the ring diameter (12%) or pixels (14)',
+                                    selector: { text: {} }
+                                }
+                            },
+                            cap: {
+                                type: 'string',
+                                enum: ['round', 'flat'],
+                                default: 'round',
+                                description: 'Ends of the track and value arcs: round or flat. Default round.',
+                                enumDescriptions: ['Rounded ends', 'Square-cut ends'],
+                                'x-ui-hints': { label: 'Arc Ends' }
+                            },
+                            track: {
+                                type: 'object',
+                                description: 'The unfilled ring (the whole sweep, under the value arc)',
+                                properties: {
+                                    color: {
+                                        ...stateColorSchema,
+                                        description: 'Track colour. Supports state-object syntax and theme:/var()/computed colour tokens. Default theme:components.slider.ring.track.color.'
+                                    }
+                                }
+                            },
+                            fill: {
+                                type: 'object',
+                                description: 'The value arc',
+                                properties: {
+                                    color: {
+                                        ...stateColorSchema,
+                                        description: 'Value arc colour. Supports state-object syntax ({ active, inactive, above:N, ... }) and theme:/var()/computed colour tokens. Default theme:components.slider.ring.fill.color.'
+                                    }
+                                }
+                            },
+                            scale: {
+                                type: 'object',
+                                description: 'Ticks and value labels outside the ring: the same keys as style.gauge.scale. A tick level, or the labels, shows when its block is set.',
+                                properties: {
+                                    tick_marks: {
+                                        type: 'object',
+                                        description: 'Major and minor tick marks at value intervals',
+                                        properties: {
+                                            major: {
+                                                type: 'object',
+                                                description: 'Major ticks. Shown when this block is set (enabled defaults to true).',
+                                                properties: {
+                                                    enabled: { type: 'boolean', default: true, description: 'Show the major ticks (default true once the block is set)' },
+                                                    interval: { type: 'number', exclusiveMinimum: 0, default: 10, description: 'Value units between major ticks, counted from the display minimum (default 10)' },
+                                                    height: { type: 'number', minimum: 1, default: 8, description: 'Tick length in pixels, outward from the ring (default 8)' },
+                                                    width: { type: 'number', minimum: 0.5, default: 2, description: 'Tick line width in pixels (default 2)' },
+                                                    color: { ...stateColorSchema, description: 'Major tick colour. Default theme:components.slider.gauge.tick.major.color.default.' }
+                                                }
+                                            },
+                                            minor: {
+                                                type: 'object',
+                                                description: 'Minor ticks. Shown when this block is set (enabled defaults to true).',
+                                                properties: {
+                                                    enabled: { type: 'boolean', default: true, description: 'Show the minor ticks (default true once the block is set)' },
+                                                    interval: { type: 'number', exclusiveMinimum: 0, default: 2, description: 'Value units between minor ticks, counted from the display minimum (default 2)' },
+                                                    height: { type: 'number', minimum: 1, default: 4, description: 'Tick length in pixels, outward from the ring (default 4)' },
+                                                    width: { type: 'number', minimum: 0.5, default: 1, description: 'Tick line width in pixels (default 1)' },
+                                                    color: { ...stateColorSchema, description: 'Minor tick colour. Default theme:components.slider.gauge.tick.minor.color.default.' }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    labels: {
+                                        type: 'object',
+                                        description: 'Value labels at the major tick interval (tick_marks.major.interval, default 10). Shown when this block is set.',
+                                        properties: {
+                                            enabled: { type: 'boolean', default: true, description: 'Show the labels (default true once the block is set)' },
+                                            show_unit: { type: 'boolean', default: true, description: 'Add the unit to each label. Set false to hide it even when the entity has a unit.' },
+                                            unit: { type: 'string', description: 'Unit suffix for the labels. Takes priority over the display unit and the entity unit_of_measurement.', examples: ['%', '°C'] },
+                                            color: { ...stateColorSchema, description: 'Label colour. Default theme:components.slider.gauge.label.color.default.' },
+                                            font_size: { type: 'number', minimum: 1, default: 12, description: 'Label font size in pixels (default 12)' },
+                                            padding: { type: 'number', minimum: 0, default: 3, description: 'Gap between the ticks and the labels in pixels (default 3)' }
+                                        }
+                                    }
+                                }
+                            },
+                            padding: {
+                                type: 'number',
+                                minimum: 0,
+                                description: 'Room left outside the ring for the scale, value markers and their labels, in pixels. Worked out from them when unset; set it to line up several rings or to give long labels more room.',
+                                'x-ui-hints': {
+                                    label: 'Outside Padding',
+                                    helper: 'Leave empty to size it from the scale and marker labels',
+                                    selector: { number: { min: 0, max: 200, mode: 'box', unit_of_measurement: 'px' } }
+                                }
+                            }
                         }
                     },
 
@@ -1328,13 +1455,13 @@ export function getSliderSchema(options = {}) {
                             track: {
                                 type: 'boolean',
                                 default: true,
-                                description: 'Tween the gauge/shaped fill or the pills opacity sweep, whichever the card\'s track type uses.',
+                                description: 'Tween the gauge/shaped fill, the ring\'s value arc or the pills opacity sweep, whichever the card\'s track type uses.',
                                 'x-ui-hints': { label: 'Track', selector: { boolean: {} } }
                             },
                             markers: {
                                 type: 'boolean',
                                 default: true,
-                                description: 'Tween threshold/range marker position (and, in pills mode, which pill is highlighted). Applies to `gauge` and `pills` track types: `shaped` never renders markers at all.',
+                                description: 'Tween threshold/range marker position (and, in pills mode, which pill is highlighted). Applies to `gauge`, `pills` and the ring: `shaped` never renders markers at all.',
                                 'x-ui-hints': { label: 'Markers', selector: { boolean: {} } }
                             }
                         }

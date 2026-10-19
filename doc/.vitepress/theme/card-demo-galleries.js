@@ -48,6 +48,8 @@ preset: ${preset}
 const SLIDER_EXTRA = {
   'shaped-vertical': 'grid_options:\n  rows: 5\n',
   'picard-gauge-vertical': 'component: picard\ngrid_options:\n  rows: 7\n  columns: 6\n',
+  'ring': 'grid_options:\n  rows: 4\n',
+  'picard-ring': 'grid_options:\n  rows: 4\n',
 }
 const sliderTile = (preset) => ({
   label: `preset: ${preset}`,
@@ -114,6 +116,16 @@ export const CARD_GALLERIES = {
     hint: "Drag a slider to set the sample light's brightness.",
     minWidth: 340,
     tiles: Object.keys(SLIDER_PRESETS).filter(p => p !== 'base').map(sliderTile),
+  },
+  'slider-ring': {
+    hint: 'Drag around a ring to set the sample light\'s brightness.',
+    minWidth: 220,
+    tiles: [
+      { label: 'preset: ring', yaml: 'type: custom:lcards-slider\nentity: light.demo\npreset: ring\ngrid_options:\n  rows: 4\n' },
+      { label: 'preset: picard-ring', yaml: 'type: custom:lcards-slider\nentity: light.demo\npreset: picard-ring\ngrid_options:\n  rows: 4\n' },
+      { label: 'full ring, flat ends, scale', yaml: 'type: custom:lcards-slider\nentity: light.demo\npreset: ring\ngrid_options:\n  rows: 4\nstyle:\n  ring:\n    start_angle: 0\n    end_angle: 0\n    cap: flat\n    scale:\n      tick_marks:\n        major:\n          interval: 25\n        minor:\n          interval: 5\n      labels:\n        show_unit: false\n' },
+      { label: 'half ring, name below', yaml: 'type: custom:lcards-slider\nentity: light.demo\npreset: ring\ngrid_options:\n  rows: 4\nstyle:\n  ring:\n    start_angle: -90\n    end_angle: 90\n    thickness: 20%\ntext:\n  name:\n    zone: sublabel\n    position: top\n' },
+    ],
   },
   'elbow-types': {
     minWidth: 260,

@@ -1,0 +1,26 @@
+# Picard ring (M148 look) with a scale, a band range and a labelled value marker
+type: custom:lcards-slider
+entity: input_number.demo_level
+preset: picard-ring
+text:
+  name:
+    content: Zone N
+style:
+  ring:
+    scale:
+      tick_marks:
+        major:
+          interval: 20
+        minor:
+          interval: 5
+      labels:
+        show_unit: false
+  ranges:
+    - min: 80
+      max: 100
+      color: theme:colors.status.error
+    - value: 60
+      indicator:
+        type: triangle
+      label:
+        text: SET
