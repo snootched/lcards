@@ -7,7 +7,7 @@ import { join, relative } from 'node:path';
 import { test, expect, watchErrors, waitForDemos, demoState, DOCS_BASE } from './support.js';
 
 // Card types rendered by CardDemo (chart and data grid have their own demos).
-const CARD_DEMO_TYPES = new Set(['lcards-button', 'lcards-elbow', 'lcards-slider', 'lcards-select-menu', 'lcards-msd-card']);
+const CARD_DEMO_TYPES = new Set(['lcards-button', 'lcards-elbow', 'lcards-slider', 'lcards-select-menu', 'lcards-msd-card', 'lcards-layout-card']);
 
 /** Every docs page with ```yaml live blocks of CardDemo types, with the card tag of each block. */
 function livePages() {
