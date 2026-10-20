@@ -1,0 +1,7 @@
+@font-face {
+    font-family: 'lcards_tellarite';
+    src: url('/lcards/fonts/tellarite-opad.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    size-adjust: 130%;
+}
