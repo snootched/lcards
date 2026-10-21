@@ -8,11 +8,11 @@ description: "Install LCARdS from HACS, add the integration (Home Assistant 2026
 
 - **Home Assistant 2026.10 or newer.** LCARdS relies on 2026.10's dashboard visibility handling and validation library; on older versions the integration logs an error and does not load.
 
-Something not working after installing? See [Getting Help](getting-help.md); the LCARdS panel's Welcome tab has a built-in health check.
+Something not working after installing and configuration? See [Getting Help](getting-help.md); the LCARdS panel's Welcome tab also has a built-in health check to help identify common installation issues.
 
 ## Quick Start
 
-1. [Install from HACS](#_1-install-via-hacs)
+1. [Install from the HA Marketplace (HACS)](#_1-install-via-hacs)
 2. [Add the LCARdS integration](#_2-add-the-integration)
 3. [First setup in the LCARdS panel](#_3-first-setup): create the helpers, then tune alert modes and sounds
 
@@ -22,11 +22,17 @@ LCARdS supports and integrates well with [**HA-LCARS themes**](https://github.co
 HA-LCARS includes LCARdS theme profiles (**LCARS Picard [LCARdS Red Accent]** and **[LCARdS Blue Accent]**): choose one as your Home Assistant theme and HA's own screens match your LCARdS cards. See [HA-LCARS Theme Profiles](../configuration/ha-lcars-theme-profiles.md).
 :::
 
-## 1. Install via HACS
+## 1. Install from the HA Marketplace (HACS)
+
+**HomeAssistant 2026.10 (HACS)**
 
 [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=snootched&repository=LCARdS&category=integration)
 
-1. Open **HACS** in Home Assistant
+**HA 2026.11+ (Marketplace)**
+
+[![Open your Home Assistant instance and open a repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=snootched&repository=lcards&category=integrations)
+
+1. Open **Marketplace/HACS** in Home Assistant
 2. Go to **Integrations** and search for **LCARdS**
 3. Click **Download** and confirm
 4. **Restart Home Assistant**, then [add the integration](#_2-add-the-integration).
@@ -42,22 +48,27 @@ HA-LCARS includes LCARdS theme profiles (**LCARS Picard [LCARdS Red Accent]** an
 
 </details>
 
-::: info Using `custom:layout-card`?
-LCARdS has its own [Layout Card](../cards/layout-card/), which fixes the sizing and margin problems LCARdS cards have inside `custom:layout-card` and adds a visual editor. Moving over is a one-line change: see [Sizing inside `custom:layout-card`](../cards/common#sizing-inside-custom-layout-card).
-:::
 
 ## 2. Add the integration
 
-Go to **Settings > Devices & services > Add integration** and pick **LCARdS**. The integration adds the **LCARdS Config** panel to the sidebar and loads the cards on every dashboard. Its options are listed under [Integration options](#integration-options).
+Go to **Settings > Devices & services > Add integration** and pick **LCARdS**. The integration adds the **LCARdS Config** panel to the sidebar and provides the conduit between HA and LCARdS frontend components.  Its options are listed under [Integration options](#integration-options).
 
 ## 3. First setup
 
-Open **LCARdS Config** in the sidebar. The **Welcome** tab walks you through the same steps:
+First **choose your HA-LCARS theme** (recommended), ideally one of the LCARdS profiles HA-LCARS includes. See [HA-LCARS Theme Profiles](../configuration/ha-lcars-theme-profiles).
 
-1. **Create the helpers.** In the **Helpers** tab, click **Create All Helpers**. LCARdS keeps alert mode, sound and sizing settings in Home Assistant helpers, and several features (alert mode, the alert overlay, sounds) need them. Do this first.
-2. **Pick your alert colours** (optional). The **Alert Mode Lab** in **Theme Studio** sets how each alert mode recolours your dashboards. See [Alert Mode Lab](../configuration/alert-mode-lab).
-3. **Set up sounds** (optional). The **Sounds** tab turns sounds on, picks a sound scheme and sets volumes. See [Sound Configuration](../configuration/sounds).
-4. **Choose your HA-LCARS theme** (recommended), ideally one of the LCARdS profiles HA-LCARS includes. See [HA-LCARS Theme Profiles](../configuration/ha-lcars-theme-profiles).
+
+Then head over to the **LCARdS Config** in the sidebar. The **Welcome** tab walks you through the same steps:
+
+1. **Create the helpers.**
+
+   In the **Helpers** tab, click **Create All Helpers**. LCARdS keeps alert mode, sound and sizing settings in Home Assistant helpers, and several features (alert mode, the alert overlay, sounds) need them.
+2. **Optional: Customize your alert colours**
+
+   The **Alert Mode Lab** in **Theme Studio** sets how each alert mode recolours your dashboards. See [Alert Mode Lab](../configuration/alert-mode-lab).
+3. **Optional: Set up sounds**
+
+   The **Sounds** tab turns sounds on, pick a sound scheme, customize it to your liking. See [Sound Configuration](../configuration/sounds).
 
 Then check the setup: **Welcome > Support & system info** runs a health check (versions, browser cache, card-mod leftovers).
 

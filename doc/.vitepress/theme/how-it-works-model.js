@@ -26,8 +26,8 @@ export const BANDS = [
       { id: 'datasources', label: 'Data sources', text: 'Keep recent values of a sensor and process them (smooth, average, min/max) for text and charts.', link: '/core/datasources/' },
       { id: 'templates', label: 'Templates', text: 'Put live values into text: a temperature in a label, a status in a grid cell.', link: '/core/templates/' },
       { id: 'animations', label: 'Animations & sounds', text: 'Pulses, cascades, line draws and LCARS beeps, on tap or when a state changes.', link: '/core/animations' },
-      { id: 'alert', label: 'Alert mode', text: 'Red, yellow or blue alert repaints every card at once, and can play a sound and show an overlay.', link: '/core/alert-mode' },
-      { id: 'effects', label: 'Screen effects', text: 'Full-screen layers (blur, tint, static, glitch), pop-up portal cards, the connection overlay and the Borg.', link: '/core/effects/screen-effects' },
+      { id: 'alert', label: 'Alert mode', text: 'Multiple alert levels (like red, yellow, blue...) change theme colours and repaints every card at once.  You can play a sound and show an overlay.', link: '/core/alert-mode' },
+      { id: 'effects', label: 'Screen effects', text: 'Full-screen layers (blur, tint, static, glitch), pop-up portal cards, show the connection overlay, and even be assimilated by the Borg.', link: '/core/effects/screen-effects' },
     ],
   },
   {
@@ -35,15 +35,15 @@ export const BANDS = [
     title: 'Cards',
     note: 'What you put on the screen',
     boxes: [
-      { id: 'button', label: 'Button', text: 'LCARS buttons, labels and multi-part controls like the D-pad.', link: '/cards/button/' },
-      { id: 'elbow', label: 'Elbow', text: 'The corner frames that give LCARS its shape.', link: '/cards/elbow/' },
-      { id: 'slider', label: 'Slider', text: 'Bars and gauges to show or set a value.', link: '/cards/slider-card/' },
-      { id: 'chart', label: 'Chart', text: 'History and live data as lines, areas, bars and more.', link: '/cards/chart/' },
-      { id: 'grid', label: 'Data grid', text: 'Tables of live values, or decorative number cascades.', link: '/cards/data-grid/' },
-      { id: 'select', label: 'Select menu', text: 'A grid of buttons to pick one option.', link: '/cards/select-menu/' },
-      { id: 'msd', label: 'MSD', text: 'A ship display with controls joined by routed lines.', link: '/cards/msd/' },
-      { id: 'overlay', label: 'Alert overlay', text: 'The full-screen symbol and backdrop shown during an alert.', link: '/cards/alert-overlay/' },
-      { id: 'layout', label: 'Layout', text: 'Grids that place cards on the screen: the layout view and layout card.', link: '/cards/layout-card/' },
+      { id: 'button', label: 'Button', text: 'LCARS buttons, labels and multi-part controls like D-PADs.', link: '/cards/button/' },
+      { id: 'elbow', label: 'Elbow', text: 'The iconic corner frames that give LCARS its shape.  Multiple styles and sizes are available.  Supports hosting other cards within.', link: '/cards/elbow/' },
+      { id: 'slider', label: 'Slider', text: 'Multiple types of bars and gauges to show or set values - fully customizable.', link: '/cards/slider-card/' },
+      { id: 'chart', label: 'Chart', text: 'Builtin ApexCharts for charting history, statistics, and live data as lines, areas, bars and more.', link: '/cards/chart/' },
+      { id: 'grid', label: 'Data grid', text: 'Create custom tables of live data, or use the decorative number cascades mode.', link: '/cards/data-grid/' },
+      { id: 'select', label: 'Select menu', text: 'Instead of using dropdowns, turn your select entities into a customizable grid of buttons to pick an option.', link: '/cards/select-menu/' },
+      { id: 'msd', label: 'MSD', text: 'A system within itself - build an LCARS MSD with a full ship display, embedded controls/cards, joined by entity-reactive routed lines.', link: '/cards/msd/' },
+      { id: 'overlay', label: 'Alert overlay', text: 'A full-screen symbol and backdrop shown during an alert - takes over the entire screen to grab attention.  Fully customizable.', link: '/cards/alert-overlay/' },
+      { id: 'layout', label: 'Layout', text: 'The power behind creating LCARS layouts - grids.  Use lcards-layout view for the dashboard layout, and the card version for embedding additional grids within.', link: '/cards/layout-card/' },
     ],
   },
 ]
@@ -55,7 +55,7 @@ export const BACKEND = {
   boxes: [
     { id: 'actions', label: 'Actions', text: 'lcards.red_alert, lcards.play_sound and more: call them from automations, scripts or voice.', link: '/configuration/ha-actions' },
     { id: 'helpers', label: 'Helpers', text: 'Home Assistant helpers LCARdS uses, such as the alert mode, created for you in one click.', link: '/configuration/persistent-helpers' },
-    { id: 'settings', label: 'Settings & panel', text: 'The LCARdS config panel: theme, sounds, users and devices, saved in Home Assistant.', link: '/configuration/' },
+    { id: 'settings', label: 'LCARdS Config Panel', text: 'Use the LCARdS config panel to configuring your setup: theme, sounds, users and devices, and more.', link: '/configuration/' },
   ],
 }
 

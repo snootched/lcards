@@ -4,16 +4,14 @@ description: "Complete LCARdS dashboards to copy (bridge, engineering, environme
 
 # Dashboard Gallery
 
-Complete dashboards, not single cards: each one is a whole view built from LCARdS cards on a [Layout View](../cards/layout-view/), recorded in Home Assistant while its entities change (lights switch, levels move, alerts sound). Copy one, swap in your own entities, and build from there.
+A set of complete starter dashboards, not single cards: each one is a whole view built from LCARdS cards on a [Layout View](../cards/layout-view/), recorded in Home Assistant while its entities change (lights switch, levels move, alerts sound). Copy one, swap in your own entities, and build from there.
 
 To use one:
 
 1. Create a dashboard (**Settings > Dashboards > Add dashboard**), open it, then **Edit dashboard > Raw configuration editor**.
 2. Paste the YAML and save.
 3. Replace the `lcards_test_*` helpers and the sample temperature sensor with your own entities.
-4. Paste your version into [Check Your Config](config-checker) before you save it.
-
-They look best with an [HA-LCARS](https://github.com/th3jesta/ha-lcars) theme, and need no other custom cards.
+4. Paste your version into [Check Your Config](config-checker) to check syntax if you hit errors.
 
 ## Bridge
 

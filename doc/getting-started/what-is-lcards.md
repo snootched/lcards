@@ -8,7 +8,7 @@ description: "What LCARdS is: LCARS-style cards, a layout view and a shell dashb
 
 **Build Star Trek LCARS-style dashboards in Home Assistant.**
 
-LCARdS is a set of LCARS cards (buttons, elbows, sliders, charts, data grids, ship displays and more) that work together as one system. It is designed to pair with the [HA-LCARS theme](https://github.com/th3jesta/ha-lcars).
+LCARdS is a an ecosystem of cards and services that you can use to create LCARS-style dashboards.  It includes buttons, elbows, sliders, charts, data grids, ship displays and more.  These all work together as one system designed to pair with the [HA-LCARS theme](https://github.com/th3jesta/ha-lcars).
 
 ## How it works
 
@@ -27,7 +27,7 @@ Three layers, plus a small integration running inside Home Assistant.
 
 ## Next steps
 
-1. **[Install LCARdS](installation)**: through HACS, in a few minutes.
+1. **[Install LCARdS](installation)**: through the HA Marketplace - run through a quick setup.
 2. **[Build a dashboard](building-dashboards)**: pick cards and lay out a screen.
 3. **[Browse the gallery](dashboard-gallery)**: copy a complete dashboard and make it yours.
 4. **[Get AI help](ai-assistance)**: let an assistant write the YAML for you.

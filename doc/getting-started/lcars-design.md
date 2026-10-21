@@ -4,13 +4,17 @@ description: "Guidelines for making a Home Assistant dashboard look like LCARS: 
 
 # Designing LCARS Screens
 
-What makes a screen read as LCARS, written down as guidelines you can pick from. They come from studying the screens people recognise: the *Star Trek: Picard* season 3 consoles (as rebuilt by meWho's Titan.DS and LCARSlad London) and production panels from *The Next Generation*, *Deep Space Nine* and *Voyager*.
+What makes a screen read as LCARS, written down as guidelines you can pick from. These come from an automated analysis consisting of hundreds of samples of recognizable LCARS screens: the *Star Trek: Picard* season 3 consoles (as rebuilt by meWho's Titan.DS and LCARSlad London) and production panels from *The Next Generation*, *Deep Space Nine* and *Voyager*.
 
-None of this is required. A dashboard that follows three of these guidelines already looks more like LCARS than one that follows none; pick the ones that suit your screen. [Building a Dashboard](building-dashboards) covers the mechanics (which card for which job, the layout view); this page is about the look.
+A dashboard that follows just a few of these guidelines already looks more like LCARS than one that follows none; pick the ones that suit your screen and taste.
+
+[Building a Dashboard](building-dashboards) covers the mechanics (which card for which job, the layout view); this page is about the look.
+
+[Dashboard Galley](dashboard-gallery) has examples of dashboards generated from these guidelines.
 
 ## Two looks
 
-| | Picard (Titan.DS, *Picard* S3) | Classic (TNG, DS9, Voyager) |
+| | Picard (*Picard* S3, Titan) | Classic (TNG, DS9, Voyager) |
 |---|---|---|
 | Structure | Thin frames in a few dark, muted tones | Thick blocks of colour |
 | Colour | Mostly black and structure tones; a little accent | Several pastel colours at once |
@@ -297,7 +301,7 @@ elbow:
   segments:
     gap: 6
     outer_segment: { bar_width: 140, bar_height: 24, color: theme:colors.ui.secondary }
-    inner_segment: { bar_width: 6, bar_height: 4, color: theme:colors.ui.primary }
+    inner_segment: { bar_width: 6, bar_height: 4, inner_curve: 25, color: theme:colors.ui.primary }
 text:
   title:
     content: COURSE SELECT
@@ -312,8 +316,8 @@ A thick frame whose black inset holds a group of controls, as in the Titan conso
 ```yaml live
 type: custom:lcards-layout-card
 layout:
-  height: 220px
-  grid-template-columns: 260px
+  height: 240px
+  grid-template-columns: 290px
   grid-template-rows: minmax(0, 1fr)
   grid-template-areas: |
     "arm"
@@ -323,7 +327,7 @@ cards:
     elbow:
       type: frame
       segment: { color: theme:colors.ui.primary }
-      frame: { bar_width: 24, bar_height: 24, outer_curve: 40, inner_curve: 18 }
+      frame: { bar_width: 24, bar_height: 24, outer_curve: 0, inner_curve: 0 }
   - type: custom:lcards-layout-card
     view_layout: { grid-area: arm }
     layout:
@@ -332,12 +336,12 @@ cards:
       grid-template-columns: 1fr 1fr
       grid-template-rows: repeat(3, 34px)
     cards:
-      - { type: custom:lcards-button, preset: panel-dark, min_height: 34, text: { label: { content: 6-3390, position: center-right } } }
-      - { type: custom:lcards-button, preset: panel-dark, min_height: 34, text: { label: { content: 60-1204, position: center-right } } }
-      - { type: custom:lcards-button, preset: panel-dark, min_height: 34, entity: light.demo, tap_action: { action: toggle }, text: { label: { content: 5-6549, position: center-right } } }
+      - { type: custom:lcards-button, preset: outline, min_height: 34, text: { label: { content: 6-3390, position: center-right, show: true } } }
+      - { type: custom:lcards-button, preset: filled, min_height: 34, text: { label: { content: 60-1204, position: center-right, show: true } } }
+      - { type: custom:lcards-button, preset: outline, min_height: 34, entity: light.demo, tap_action: { action: toggle }, text: { label: { content: 5-6549, position: center-right, show: true } } }
       - { type: custom:lcards-button, preset: panel-dark, min_height: 34, text: { label: { content: 34-3719, position: center-right } } }
       - { type: custom:lcards-button, preset: panel-dark, min_height: 34, text: { label: { content: 80-1932, position: center-right } } }
-      - { type: custom:lcards-button, preset: panel-dark, min_height: 34, text: { label: { content: 8-5300, position: center-right } } }
+      - { type: custom:lcards-button, preset: panel-light, min_height: 34, text: { label: { content: 8-5300, position: center-right } } }
 ```
 
 ### Segmented bar (classic arms)
@@ -750,6 +754,7 @@ text:
     show: true
     position: center-right
     color: theme:colors.ui.secondary
+    font_size: 44
 ```
 
 ### Fleet tiles

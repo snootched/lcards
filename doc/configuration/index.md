@@ -1,6 +1,6 @@
 # Configuration
 
-LCARdS configuration is managed through the **LCARdS Config Panel**, a dedicated sidebar entry in Home Assistant that serves as the central control hub for your installation. It provides access to helper management, theme browsing, alert mode customisation, sound configuration, content pack exploration, and device/user management.
+LCARdS configuration is managed through the **LCARdS Config Panel**, a dedicated sidebar entry in Home Assistant that serves as the central control hub for your installation. It provides access to helper management, theme labs, alert mode customisation, sound configuration, content pack exploration, and device/user management.
 
 The panel is registered automatically when the LCARdS integration is installed.
 

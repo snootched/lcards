@@ -27,7 +27,7 @@ The **LCARdS skill** teaches Claude everything for your LCARdS version: every op
    - "Make me an LCARdS button for `light.kitchen` that turns red when it's on."
    - "Build an engineering dashboard with my `sensor.power_*` entities."
 
-Claude asks for your real entity ids instead of inventing them, and checks its own YAML before handing it over. Running HA-LCARS? Say which theme, and Claude colours the cards with the theme's own variables so they follow when you switch themes.
+Claude can use your real entity ids (either you provde them, or integrate Claude to HA with [`ha-mcp` - see below](#give-claude-your-home-s-context-ha-mcp) ) instead of inventing them.  It can also check its own YAML before handing it over.
 
 In Claude Code the plugin goes further:
 
@@ -38,10 +38,10 @@ In Claude Code the plugin goes further:
 ::: details Keeping the Claude Code plugin up to date
 Each LCARdS release comes with a new version of the plugin. To get it, run `/plugin marketplace update lcards`, or open `/plugin`, go to **Marketplaces**, select **lcards** and turn on **Enable auto-update**. Run `/reload-plugins` (or start a new session) to load the new version.
 
-- **Running a dev build of LCARdS?** Use the dev channel instead, which follows the [dev docs](https://lcards.unimatrix01.ca/dev/): `/plugin marketplace add https://lcards.unimatrix01.ca/dev/marketplace.json`, then `/plugin install lcards@lcards-dev`. Install one channel, not both.
+- The plugin needs Claude Code 2.1.224 or newer.
 - **Installed the skill by hand before?** Delete `~/.claude/skills/lcards/` first, so only the plugin copy loads.
 - **Prefer a manual install?** Unzip [`lcards-skill.zip`](/tools/lcards-skill.zip) into `~/.claude/skills/`, so you have `~/.claude/skills/lcards/SKILL.md`. It won't update itself.
-- The plugin needs Claude Code 2.1.224 or newer.
+- **Running a dev build of LCARdS?** Use the dev channel instead, which follows the [dev docs](https://lcards.unimatrix01.ca/dev/): `/plugin marketplace add https://lcards.unimatrix01.ca/dev/marketplace.json`, then `/plugin install lcards@lcards-dev`. Install one channel, not both.
 :::
 
 ::: info Other tools that support skills
@@ -77,7 +77,6 @@ If your assistant supports Agent Skills, use the skill above. Otherwise:
    I'm writing YAML for LCARdS, a custom Home Assistant card system. The
    attached JSON Schema lists every option. Only use options from the schema.
    If something I ask for isn't there, tell me instead of inventing a key.
-   Theme colours need the theme: prefix, e.g. theme:colors.ui.primary.
    ```
 
 3. **Describe the card you want.**
@@ -93,9 +92,9 @@ If your assistant supports Agent Skills, use the skill above. Otherwise:
 - Paste the checker's output back into the chat and ask it to fix exactly those lines.
 - Remind it to re-read the attached schema and not to guess. Most assistants correct themselves once told.
 
-## Details for power users
+## Additional Context
 
-::: details What else you can attach
+::: details What else you can attach (not needed for Claude)
 
 **Schemas**
 

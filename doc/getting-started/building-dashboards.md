@@ -4,7 +4,9 @@ description: "How to compose an LCARS dashboard from LCARdS cards: which card fo
 
 # Building a Dashboard
 
-How to go from single cards to a whole LCARS screen. The [Dashboard Gallery](dashboard-gallery) shows finished examples built this way; this page explains the choices behind them. For the look itself (frames, colour roles, the Picard and classic styles, ready-made patterns), see [Designing LCARS Screens](lcars-design).
+Go from single cards to a entire LCARS screens. The [Dashboard Gallery](dashboard-gallery) shows some examples of what can be built.
+
+For some design principles (also used by the [AI Skill](ai-assistance)) see [Designing LCARS Screens](lcars-design).
 
 ## Pick the cards
 
@@ -19,6 +21,16 @@ How to go from single cards to a whole LCARS screen. The [Dashboard Gallery](das
 | A ship or floor plan with live controls | [MSD](../cards/msd/) | Cards placed on an SVG, wired with routed lines |
 | A full-screen alert | [Alert Overlay](../cards/alert-overlay/) | Shows over the view while an alert mode is active |
 | The screen itself | [Layout View](../cards/layout-view/) | A CSS grid for the whole view; [Layout Card](../cards/layout-card/) for a grid inside one area |
+
+
+::: info Using `custom:layout-card`?
+LCARdS has its own advanced [Layout Card](../cards/layout-card/) and [Layout View](../cards/layout-view/) which provides a similar functionaly but with many enhancements including a visual editor.
+
+Moving over is a one-line change: see [Sizing inside `custom:layout-card`](../cards/common#sizing-inside-custom-layout-card).
+
+When LCARdS is used inside `custom:layout-card` you may encounter known sizing and margin problems.
+:::
+
 
 ## Lay out the screen
 

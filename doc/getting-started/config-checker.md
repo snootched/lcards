@@ -4,11 +4,11 @@ description: "Paste LCARdS YAML (a card, a view or a whole dashboard) and see ev
 
 # Check Your Config
 
-Paste your YAML below to find the mistakes LCARdS would otherwise silently ignore.
+Paste your YAML below to diagnose any issues with LCARdS configs.
 
 - **Works with:** one card, a view, or a whole dashboard.
-- **Finds:** options that don't exist, misspelt preset, animation and colour names, and values of the wrong kind.
-- **Private:** it runs in your browser. Nothing is sent anywhere.
+- **Finds:** options that don't exist, misspelt keys, invalid animations and colour names, and values of the wrong kind.
+- **Private:** this page runs in your browser - nothing is sent anywhere.
 
 <ClientOnly>
   <ConfigChecker />
@@ -29,4 +29,4 @@ Paste your YAML below to find the mistakes LCARdS would otherwise silently ignor
 
 - **Ask Claude:** with the [LCARdS skill](ai-assistance#with-claude-easiest) loaded, paste your YAML and ask *"check this LCARdS config and fix it"*. Claude runs this same checker, explains each problem and gives you the corrected YAML.
 - **Command line:** download [`lcards-validate.mjs`](/tools/lcards-validate.mjs) and run `node lcards-validate.mjs my-dashboard.yaml` (Node.js 20 or newer). Add `--json` for machine-readable output.
-- **In Home Assistant:** each LCARdS card editor shows schema problems at the top of the editor as you edit.
+- **In Home Assistant:** each LCARdS card editor shows schema problems at the top of the editor as you edit.  It also offers advanced YAML edtitor tab with complete schema verification and lookups as you type.

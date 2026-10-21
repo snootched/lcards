@@ -31,7 +31,7 @@ features:
     link: /getting-started/dashboard-gallery
     linkText: See the gallery
   - title: Get AI Help
-    details: Let Claude, ChatGPT or another assistant write your LCARdS YAML, then check it in your browser.
+    details: Use Claude, ChatGPT other assistants write dashboard with proper LCARdS YAML, then check it in your browser.
     link: /getting-started/ai-assistance
     linkText: Getting AI help
 ---
