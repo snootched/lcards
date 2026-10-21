@@ -251,6 +251,7 @@ Run one node test file: `node --import ./tests/setup/browser-shims.js --import .
 ## Other maintenance
 
 - **HA compatibility:** after HA releases, run `npm run check:ha-impact:quick -- --pull` (or the full version), work through `reports/ha-impact/`, and delete each report once resolved.
+- **anime.js skill:** `.claude/skills/animejs/` is a vendored community skill (upstream, commit and local patches in its `references/UPSTREAM.md`) with an LCARdS rules section on top. After bumping `animejs`, run `tests/core/animejs-skill.test.js` (in `npm test`): it fails if the skill teaches a name the installed version no longer exports, or a removed string ease.
 - **Session handoffs:** `reports/handoffs/index.md` lists planned sessions and the backlog.
 
 ---

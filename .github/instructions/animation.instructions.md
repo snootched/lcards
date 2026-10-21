@@ -18,9 +18,10 @@ These rules apply to all card and MSD source files. LCARdS uses **anime.js v4** 
 | Easing names | `'easeInOutQuad'` | `'inOutQuad'` |
 | Stagger | `anime.stagger(100)` | `anime.stagger(100)` _(unchanged)_ |
 | Play/pause | `anim.play()` / `anim.pause()` | `anim.play()` / `anim.pause()` _(unchanged)_ |
+| Parametric eases | `easing: 'steps(5)'`, `'cubicBezier(...)'` | Function from a top-level export: `ease: anime.steps(5)`, `anime.cubicBezier(...)`. String form removed in 4.3; these are NOT on `anime.eases` |
 | Pause all when tab hidden | `anime.running` forEach | `anime.engine.pauseOnDocumentHidden` (boolean, default `true`) |
 
-animejs v4 has no default export — import it as a namespace: `import * as anime from 'animejs'` (matches actual usage in `src/lcards.js`).
+animejs v4 has no default export — import it as a namespace: `import * as anime from 'animejs'` (matches actual usage in `src/lcards-main.js`, which exposes it as `window.lcards.anim`). Full v4 reference: the `animejs` project skill (`.claude/skills/animejs/`).
 
 ---
 
