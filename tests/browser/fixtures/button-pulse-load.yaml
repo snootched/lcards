@@ -1,0 +1,12 @@
+# Looping on_load pulse: under reduced motion it must not run (reduced-motion.spec.js)
+type: custom:lcards-button
+entity: switch.demo_switch
+preset: lozenge
+text:
+  name:
+    content: Pulse
+animations:
+  - trigger: on_load
+    preset: pulse
+    loop: true
+    params: {duration: 600, max_scale: 1.2}

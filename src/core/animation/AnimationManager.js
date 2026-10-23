@@ -20,6 +20,7 @@ import { AnimationRegistry } from './AnimationRegistry.js';
 import { TriggerManager } from './TriggerManager.js';
 import { BaseService } from '../BaseService.js';
 import { resolveAnimCommandParams, resolveAnimParam } from './resolveAnimParams.js';
+import { prefersReducedMotion, onReducedMotionChange } from '../../utils/reduced-motion.js';
 
 export class AnimationManager extends BaseService {
   constructor(systemsManager) {
@@ -55,7 +56,55 @@ export class AnimationManager extends BaseService {
     // State
     this.initialized = false;
 
+    // Reduced motion switched on while animations run: settle them (see
+    // _settleForReducedMotion). Switching it off needs nothing: the next trigger plays.
+    /** @type {(() => void)|null} */
+    this._unsubscribeReducedMotion = onReducedMotionChange((reduced) => {
+      if (reduced) this._settleAllForReducedMotion();
+    });
+
     lcardsLog.debug('[AnimationManager] Created');
+  }
+
+  /**
+   * Under prefers-reduced-motion an animation does not play: a finite one jumps to
+   * its end frame (complete(), so entrance and on_show animations still leave the
+   * content visible and onComplete still fires), a looping one is reverted to its
+   * pre-animation state. CSS keyframe handles (march) and anything else without a
+   * finite iteration count count as looping.
+   * @param {any} instance - anime.js animation/timeline or LCARdS CSS animation handle
+   * @private
+   */
+  _settleForReducedMotion(instance) {
+    try {
+      const finite = typeof instance.complete === 'function' && Number.isFinite(instance.iterationCount);
+      if (finite) instance.complete();
+      else if (typeof instance.revert === 'function') instance.revert();
+      else instance.pause?.();
+    } catch (error) {
+      lcardsLog.warn('[AnimationManager] Error settling animation for reduced motion:', error);
+    }
+  }
+
+  /**
+   * Settle every tracked running animation in every scope (reduced motion turned on).
+   * @private
+   */
+  _settleAllForReducedMotion() {
+    let settled = 0;
+    this.scopes.forEach((scopeData, scopeId) => {
+      scopeData.runningInstances?.forEach((instances) => {
+        instances.forEach((instance) => {
+          if (instance && !instance.completed) {
+            this._settleForReducedMotion(instance);
+            settled++;
+          }
+        });
+      });
+      scopeData.runningInstances?.clear();
+      this._clearAllSpeedBindingsForScope(scopeId, scopeData);
+    });
+    lcardsLog.debug(`[AnimationManager] Reduced motion on: settled ${settled} running animation(s)`);
   }
 
   /**
@@ -718,12 +767,14 @@ export class AnimationManager extends BaseService {
         return;
       }
 
-      // Pause and complete each tracked instance
+      // Revert each tracked instance
       let stopped = 0;
       instances.forEach(instance => {
         try {
           if (instance && !instance.completed) {
-            // Revert animation - removes all transformations and returns to original state
+            // Revert animation - returns the target to its pre-animation state: inline
+            // styles, and since anime.js 4.4 also SVG/DOM attributes (fill, stroke,
+            // stroke-dashoffset, ...) as captured when the animation was created.
             // This is better than seek(0) which goes to first animation frame
             if (instance.revert) {
               instance.revert();
@@ -731,7 +782,6 @@ export class AnimationManager extends BaseService {
             } else {
               // Fallback: pause if revert not available
               lcardsLog.warn(`[AnimationManager] Instance has no revert() method, using pause()`);
-              instance.complete = true;
               instance.pause();
               stopped++;
             }
@@ -759,7 +809,6 @@ export class AnimationManager extends BaseService {
                 instance.revert();
                 stopped++;
               } else {
-                instance.complete = true;
                 instance.pause();
                 stopped++;
               }
@@ -797,7 +846,6 @@ export class AnimationManager extends BaseService {
             child.revert();
             stopped++;
           } else {
-            child.complete = true;
             child.pause();
             stopped++;
           }
@@ -1176,7 +1224,13 @@ export class AnimationManager extends BaseService {
       const instancesArray = scopeData.runningInstances.get(animDef.trigger);
 
       // Callback to track instances as they're created
+      const reducedMotion = prefersReducedMotion();
       const onInstanceCreated = (instance) => {
+        if (instance && reducedMotion) {
+          this._settleForReducedMotion(instance);
+          lcardsLog.debug(`[AnimationManager] Reduced motion: settled ${animDef.trigger} animation on ${overlayId}`);
+          return;
+        }
         if (instance) {
           instancesArray.push(instance);
           lcardsLog.debug(`[AnimationManager] 📌 Tracked anime instance for trigger: ${animDef.trigger}`);
@@ -1551,6 +1605,9 @@ export class AnimationManager extends BaseService {
    */
   dispose() {
     lcardsLog.info('[AnimationManager] 🧹 Disposing animation system');
+
+    this._unsubscribeReducedMotion?.();
+    this._unsubscribeReducedMotion = null;
 
     // ✨ NEW: Cleanup all datasource subscriptions
     lcardsLog.debug(`[AnimationManager] Cleaning up ${this.datasourceSubscriptions.size} datasource subscriptions`);

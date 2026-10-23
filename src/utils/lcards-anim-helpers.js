@@ -121,13 +121,21 @@ function resolveAnimationCssVariables(params) {
   return resolved;
 }
 
+// Easing types that are generator calls, not named curves: a bare string naming
+// one of these (an editor pick left on its default parameters) is resolved with
+// default params rather than handed to anime.js, which rejects it. 'linear' is
+// absent on purpose: as a string it is the plain linear curve.
+const EASE_GENERATOR_TYPES = new Set(['cubicBezier', 'spring', 'steps', 'irregular', 'custom']);
+
 /**
  * Resolve easing configuration to anime.js easing value
  *
  * Supports multiple input formats:
  * - String: 'inOutQuad', 'linear', etc. (passed through as-is)
  * - Object with type and params: { type: 'inBack', params: { overshoot: 2.0 } }
- * - Advanced easing objects for cubicBezier, spring, steps, linear, irregular
+ * - Advanced easing objects for cubicBezier, spring, steps, linear, irregular, custom
+ * - A bare generator name ('cubicBezier', 'steps', ...) resolves with default params
+ * - A generator call written as a string ('steps(4)') is evaluated like `custom`
  *
  * @param {string|Object} easingConfig - Easing configuration from animation definition
  * @returns {string|Function} - anime.js easing (string or function)
@@ -143,6 +151,15 @@ function resolveAnimationCssVariables(params) {
  * resolveEasing({ type: 'spring', params: { stiffness: 150, damping: 15 } })  // → spring() function
  */
 export function resolveEasing(easingConfig) {
+  if (typeof easingConfig === 'string' && EASE_GENERATOR_TYPES.has(easingConfig)) {
+    easingConfig = { type: easingConfig, params: {} };
+  }
+  // A call written as a string ('steps(4)', 'cubicBezier(.4, 0, .2, 1)'): anime.js
+  // dropped string parametric eases in 4.3, so evaluate it like a custom easing.
+  if (typeof easingConfig === 'string' && /^\s*(cubicBezier|spring|steps|linear|irregular)\s*\(/.test(easingConfig)) {
+    easingConfig = { type: 'custom', params: { customString: easingConfig } };
+  }
+
   // Simple string - use as-is (default case)
   if (typeof easingConfig === 'string' || !easingConfig) {
     return easingConfig || 'linear';
@@ -195,10 +212,10 @@ export function resolveEasing(easingConfig) {
         case 'outInElastic':
           return anim.eases.outInElastic(params.amplitude ?? 1, params.period ?? 0.3);
 
-        // Advanced easings (cubicBezier, steps, linear, irregular are on anime.eases)
-        // Note: spring is the ONLY one that's a top-level function (anime.spring)
+        // Generators: top-level animejs exports, exposed on window.lcards.anim
+        // (anim.eases.linear is the plain curve, not the points generator)
         case 'cubicBezier':
-          return anim.eases.cubicBezier(
+          return anim.cubicBezier(
             params.x1 ?? 0.25,
             params.y1 ?? 0.1,
             params.x2 ?? 0.25,
@@ -206,8 +223,7 @@ export function resolveEasing(easingConfig) {
           );
 
         case 'spring':
-          // spring is a top-level function (anime.spring), not on eases object
-          // Returns an easing function that generates spring physics-based curves
+          // Returns a Spring, which anime.js accepts as an ease (and which sets the duration)
           return anim.spring({
             mass: params.mass ?? 1,
             stiffness: params.stiffness ?? 100,
@@ -216,55 +232,17 @@ export function resolveEasing(easingConfig) {
           });
 
         case 'steps':
-          return anim.eases.steps(params.steps ?? 10, params.fromStart ?? false);
+          return anim.steps(params.steps ?? 10, params.fromStart ?? false);
 
         case 'linear':
           // Expects array of value points (or value/percentage string pairs)
-          return anim.eases.linear(...(params.points ?? [0, 1]));
+          return anim.linear(...(params.points ?? [0, 1]));
 
         case 'irregular':
-          // Expects steps and randomness parameters
-          return anim.eases.irregular(params.steps ?? 10, params.randomness ?? 1);
+          return anim.irregular(params.steps ?? 10, params.randomness ?? 1);
 
         case 'custom':
-          // Parse and evaluate custom anime.js easing string
-          if (params.customString) {
-            try {
-              // Create a safe evaluation context with anime.js functions
-              const evalContext = {
-                spring: anim.spring,
-                cubicBezier: anim.eases.cubicBezier,
-                steps: anim.eases.steps,
-                linear: anim.eases.linear,
-                irregular: anim.eases.irregular
-              };
-
-              const customStr = params.customString.trim();
-
-              // If not already wrapped in quotes, wrap it
-              let wrappedString = customStr;
-              if (!((customStr.startsWith("'") && customStr.endsWith("'")) ||
-                    (customStr.startsWith('"') && customStr.endsWith('"')))) {
-                wrappedString = `'${customStr}'`;
-              }
-
-              // Replace function calls in the string with context calls
-              // e.g., "spring({ bounce: 0.4 })" -> "evalContext.spring({ bounce: 0.4 })"
-              wrappedString = wrappedString.replace(
-                /\b(spring|cubicBezier|steps|linear|irregular)\s*\(/g,
-                'evalContext.$1('
-              );
-
-              // Safely evaluate the string
-              const evalFunc = new Function('evalContext', `return ${wrappedString}`);
-              return evalFunc(evalContext);
-            } catch (error) {
-              lcardsLog.error(`[resolveEasing] Failed to parse custom easing string:`, error);
-              return 'linear'; // Safe fallback
-            }
-          }
-          lcardsLog.warn(`[resolveEasing] Custom easing specified but no customString provided`);
-          return 'linear';
+          return _resolveCustomEasing(params.customString, anim);
 
         default:
           lcardsLog.warn(`[resolveEasing] Unknown easing type: ${type}, using as string`);
@@ -278,6 +256,51 @@ export function resolveEasing(easingConfig) {
 
   // Fallback for unexpected input
   lcardsLog.warn('[resolveEasing] Invalid easing config, using linear', easingConfig);
+  return 'linear';
+}
+
+/**
+ * Evaluate a custom easing expression as pasted from the anime.js easing editor,
+ * e.g. `spring({ bounce: 0.4, duration: 500 })`, `cubicBezier(0.4, 0, 0.2, 1)`,
+ * `steps(5)`, or a named curve such as `outExpo`. Surrounding quotes are dropped.
+ * @param {string|undefined} customString
+ * @param {any} anim - window.lcards.anim
+ * @returns {string|Function|object} anime.js ease, or 'linear' when it cannot be used
+ * @private
+ */
+function _resolveCustomEasing(customString, anim) {
+  if (typeof customString !== 'string' || !customString.trim()) {
+    lcardsLog.warn(`[resolveEasing] Custom easing specified but no customString provided`);
+    return 'linear';
+  }
+  let expr = customString.trim();
+  if (/^(['"`]).*\1$/s.test(expr)) expr = expr.slice(1, -1).trim();
+
+  // A bare name is a named curve ('outExpo'); anime.js validates it
+  if (/^[A-Za-z]+$/.test(expr)) return expr;
+
+  const evalContext = {
+    spring: anim.spring,
+    cubicBezier: anim.cubicBezier,
+    steps: anim.steps,
+    linear: anim.linear,
+    irregular: anim.irregular
+  };
+  try {
+    // spring({ bounce: 0.4 }) -> evalContext.spring({ bounce: 0.4 })
+    const rewritten = expr.replace(
+      /\b(spring|cubicBezier|steps|linear|irregular)\s*\(/g,
+      'evalContext.$1('
+    );
+    const result = new Function('evalContext', `return (${rewritten});`)(evalContext);
+    // Generators return a function; spring() returns a Spring object anime.js accepts
+    if (typeof result === 'function' || (result && typeof result === 'object' && typeof result.ease === 'function')) {
+      return result;
+    }
+    lcardsLog.warn(`[resolveEasing] Custom easing did not produce an easing function, using linear`, { customString });
+  } catch (error) {
+    lcardsLog.error(`[resolveEasing] Failed to parse custom easing string:`, error);
+  }
   return 'linear';
 }
 
@@ -319,7 +342,9 @@ export function resolvePresetParams(def) {
  * @returns {string|Function} Resolved easing value for anime.js
  */
 export function getResolvedEasing(params) {
-  if (params.ease_params) {
+  // animateElement() has usually resolved `ease` already (a function or Spring);
+  // only a still-unresolved name is combined with ease_params here.
+  if (params.ease_params && (typeof params.ease === 'string' || params.ease === undefined)) {
     return resolveEasing({ type: params.ease, params: params.ease_params });
   }
   return params.ease;

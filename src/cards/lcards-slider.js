@@ -88,6 +88,7 @@ import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSButton } from './lcards-button.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { prefersReducedMotion } from '../utils/reduced-motion.js';
 import { UnifiedTemplateEvaluator } from '../core/templates/UnifiedTemplateEvaluator.js';
 import { escapeHtml } from '../utils/StringUtils.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
@@ -704,7 +705,7 @@ export class LCARdSSlider extends LCARdSButton {
     _valueTweenAvailable() {
         const tweenConfig = this.config?.value_tween;
         const enabled = tweenConfig?.enabled !== false;
-        const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+        const reducedMotion = prefersReducedMotion();
         const anime = window.lcards?.anim?.anime;
         return enabled && !reducedMotion && typeof anime === 'function' && !!this.shadowRoot;
     }
@@ -732,7 +733,7 @@ export class LCARdSSlider extends LCARdSButton {
         const available = this._valueTweenAvailable();
 
         if (!available) {
-            this._valueTween?.revert();
+            this._valueTween?.cancel();
             this._valueTween = null;
             this._pendingTween = false;
             this._setPillTransitionsSuspended(false);
@@ -745,7 +746,7 @@ export class LCARdSSlider extends LCARdSButton {
         // position (not the stale `from`) so the new tween doesn't visually snap back.
         const startFrom = this._valueTween ? this._displayValue : from;
         const startMarkers = this._valueTween ? (this._displayMarkerValues || prevMarkerValues) : prevMarkerValues;
-        this._valueTween?.revert();
+        this._valueTween?.cancel();
 
         // Pills have their own CSS opacity transition (.pill { transition: opacity
         // 0.15s ease-out }), added long before this feature to softly fade a single
@@ -3673,7 +3674,7 @@ export class LCARdSSlider extends LCARdSButton {
         if (!el) return;
 
         const cfg = this.config?.drag_badge;
-        const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        const reducedMotion = prefersReducedMotion();
         const instant = reducedMotion || cfg?.release?.behavior === 'instant';
         const duration = cfg?.release?.duration ?? 500;
 
@@ -5853,7 +5854,7 @@ export class LCARdSSlider extends LCARdSButton {
         this._animationContainer = null;
 
         // Cancel any in-flight value_tween animation
-        this._valueTween?.revert();
+        this._valueTween?.cancel();
         this._valueTween = null;
 
         // A pending keyboard commit on the ring is dropped with the card.

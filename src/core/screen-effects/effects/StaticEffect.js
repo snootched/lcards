@@ -13,6 +13,7 @@
  */
 
 import { ColorUtils } from '../../themes/ColorUtils.js';
+import { prefersReducedMotion } from '../../../utils/reduced-motion.js';
 
 /**
  * TV-static noise effect for a `<canvas>` slot element.
@@ -73,6 +74,7 @@ export function StaticEffect(canvas, params = {}) {
             d[i + 3]   = 200;
         }
         ctx.putImageData(img, 0, 0);
+        if (prefersReducedMotion()) return; // reduced motion: hold this frame
         rafId = requestAnimationFrame(tick);
     }
 

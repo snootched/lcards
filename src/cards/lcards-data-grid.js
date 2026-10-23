@@ -23,6 +23,7 @@
 import { html, css } from 'lit';
 import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { prefersReducedMotion } from '../utils/reduced-motion.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { dataGridSchema } from './schemas/data-grid-schema.js';
 import { generateFilterString } from '../msd/utils/BaseSvgFilters.js';
@@ -542,6 +543,8 @@ export class LCARdSDataGrid extends LCARdSCard {
    * @private
    */
   _animateCellChange(row, col, highlight) {
+    // The flash returns to where it started, so under reduced motion it is simply skipped
+    if (prefersReducedMotion()) return;
     const cell = /** @type {HTMLElement|null} */ (this.renderRoot.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`));
     if (!cell) return;
 

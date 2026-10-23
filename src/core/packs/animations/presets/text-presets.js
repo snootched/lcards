@@ -122,9 +122,24 @@ function _splitText(element, type = 'chars') {
     lcardsLog.warn('[_splitText] No element provided');
     return { units: [], revert: () => {} };
   }
-  return _isSvgElement(element)
-    ? _splitTextSvg(element, type)
-    : _splitTextHtml(element, type);
+  if (!_isSvgElement(element)) return _splitTextHtml(element, type);
+
+  const tag = element.tagName.toLowerCase();
+  if (tag === 'text' || tag === 'tspan') return _splitTextSvg(element, type);
+
+  // An SVG container (a card's button group when the animation has no `target`):
+  // splitting its textContent would replace its shapes with <tspan>s. Split each
+  // <text> inside it instead.
+  const texts = Array.from(element.querySelectorAll('text'));
+  if (texts.length === 0) {
+    lcardsLog.warn('[_splitText] SVG target has no <text> to animate', { tagName: element.tagName });
+    return { units: [], revert: () => {} };
+  }
+  const splits = texts.map(text => _splitTextSvg(text, type));
+  return {
+    units: splits.flatMap(s => s.units),
+    revert: () => splits.forEach(s => s.revert())
+  };
 }
 
 /**

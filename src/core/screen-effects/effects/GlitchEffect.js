@@ -8,6 +8,8 @@
  * @module core/screen-effects/effects/GlitchEffect
  */
 
+import { prefersReducedMotion } from '../../../utils/reduced-motion.js';
+
 /**
  * Horizontal scanline glitch effect for a `<canvas>` slot element.
  *
@@ -91,6 +93,7 @@ export function GlitchEffect(canvas, params = {}) {
             ctx.fillRect(0, y, pw, h);
         }
 
+        if (prefersReducedMotion()) return; // reduced motion: hold this frame
         rafId = requestAnimationFrame(draw);
     }
 

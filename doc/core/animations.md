@@ -168,6 +168,8 @@ ease: "inOutQuad"       # Standard in-out (v4) - was easeInOutQuad in v3
 ease: "outElastic"      # Elastic bounce out
 ease: "inOutSine"       # Smooth sine curve
 ease: "linear"          # Constant speed
+ease: "steps(4)"        # Four jumps instead of a smooth curve
+ease: "cubicBezier(0.4, 0, 0.2, 1)"   # Custom curve, as in CSS
 ease:                    # Spring physics
   type: spring
   params:
@@ -186,7 +188,13 @@ ease:                    # Spring physics
 | Elastic | `inElastic`, `outElastic`, `inOutElastic` |
 | Back | `inBack`, `outBack`, `inOutBack` |
 | Bounce | `inBounce`, `outBounce`, `inOutBounce` |
-| Other | `linear`, `steps(N)` |
+| Other | `linear`, `steps(N)`, `cubicBezier(x1, y1, x2, y2)`, `irregular(steps, randomness)`, `spring({ bounce, duration })` |
+
+The function-style names take their numbers in brackets, written as a string. You can paste the output of the [anime.js easing editor](https://animejs.com/easing-editor) straight in, such as `spring({ bounce: 0.4, duration: 500 })`. The animation editor offers these too, with a field for each number.
+
+### Reduced motion
+
+When the device asks for less motion (the **Reduce motion** accessibility setting, `prefers-reduced-motion: reduce`), LCARdS does not play animations. An animation that runs once jumps straight to where it would end, so entrance and `on_show` animations still leave the card visible. A looping one (pulse, glow, blink, cascades) does not run, and canvas background and screen effects show a still frame. Turning the setting back off lets the next trigger play.
 
 ---
 

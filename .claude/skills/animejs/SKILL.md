@@ -1,23 +1,25 @@
 ---
 name: animejs
-description: anime.js v4 (4.3.6, the version LCARdS ships) API reference plus LCARdS animation-engine rules. Use when writing or changing code that calls anime.js in this repo: AnimationManager, AnimationRegistry, TriggerManager, animation presets and packs, resolveEasing / lcards-anim-helpers, window.lcards.anim, slider/button/MSD animations, timelines, stagger, springs, SVG draw/morph/motion paths, splitText, or when converting v3 examples (anime({ targets }), anime.timeline(), easeInOutQuad) to v4.
+description: anime.js v4 (4.5.0, the version LCARdS ships) API reference plus LCARdS animation-engine rules. Use when writing or changing code that calls anime.js in this repo: AnimationManager, AnimationRegistry, TriggerManager, animation presets and packs, resolveEasing / lcards-anim-helpers, window.lcards.anim, slider/button/MSD animations, timelines, stagger, springs, SVG draw/morph/motion paths, splitText, or when converting v3 examples (anime({ targets }), anime.timeline(), easeInOutQuad) to v4.
 ---
 
 # anime.js v4 for LCARdS
 
-Vendored from BowTiedSwan/animejs-skills (MIT) and patched for 4.3.6; see `references/UPSTREAM.md`. The generic API reference starts at "Core Concepts" below. Read the LCARdS rules first.
+Vendored from BowTiedSwan/animejs-skills (MIT) and patched for 4.5.0; see `references/UPSTREAM.md`. What changed in 4.4 and 4.5 (the vendored text predates both): `references/changes-4.4-4.5.md`. The generic API reference starts at "Core Concepts" below. Read the LCARdS rules first.
 
 ## LCARdS rules (read first)
 
-- **Exact version is 4.3.6.** When a signature matters, the ground truth is `node_modules/animejs/dist/modules/**/*.d.ts`, not this file or online examples (most of the web is v3). Check runtime names with `node --input-type=module -e "import * as a from 'animejs'; console.log(Object.keys(a))"`.
-- **Import as a namespace**: `import * as anime from 'animejs'` (no default export). The bundle does this once in `src/lcards-main.js` and exposes it as `window.lcards.anim` (`animate`, `createTimeline`, `stagger`, `spring`, `eases`, `utils`, `createScope`, `splitText`, plus LCARdS helpers). Reference: `doc/development/anim-api.md`.
+- **Exact version is 4.5.0.** When a signature matters, the ground truth is `node_modules/animejs/dist/modules/**/*.d.ts`, not this file or online examples (most of the web is v3). Check runtime names with `node --input-type=module -e "import * as a from 'animejs'; console.log(Object.keys(a))"`.
+- **Import as a namespace**: `import * as anime from 'animejs'` (no default export). The bundle does this once in `src/lcards-main.js` and exposes it as `window.lcards.anim` (`animate`, `createTimeline`, `stagger`, `spring`, `eases`, `utils`, `createScope`, `splitText`, plus the easing generators `cubicBezier`, `steps`, `linear`, `irregular` and LCARdS helpers). Reference: `doc/development/anim-api.md`.
 - **v3 to v4**: `anime({ targets, ... })` becomes `animate(targets, { ... })`; `anime.timeline()` becomes `createTimeline()`; `.add({ targets })` becomes `.add(targets, { })`; `easing: 'easeInOutQuad'` becomes `ease: 'inOutQuad'`; `begin`/`update`/`complete` become `onBegin`/`onUpdate`/`onComplete`; `direction: 'alternate'` becomes `alternate: true`; `direction: 'reverse'` becomes `reversed: true`; `endDelay` becomes `loopDelay`; `.finished.then()` becomes `.then()`; `anime.path()` becomes `svg.createMotionPath()`; `anime.setDashoffset` becomes `svg.createDrawable()`.
 - **Parametric eases are functions, not strings.** In 4.3 the strings `'cubicBezier(..)'`, `'steps(..)'`, `'linear(..)'`, `'irregular(..)'` were removed (warning, then no easing). Their generators are top-level exports (`anime.cubicBezier`, `anime.steps`, `anime.linear`, `anime.irregular`), not members of `anime.eases`. `anime.eases` holds only the named curves (`inQuad` ... `outInElastic`, callable for Back/Elastic params). `spring()` is the current name and `createSpring()` a deprecated alias.
 - **Config easing goes through `resolveEasing()`** (`src/utils/lcards-anim-helpers.js`). Never hand a user's YAML string straight to anime.js.
 - **Targets live in shadow DOM.** String selectors resolve against `document` and find nothing inside a card. Pass elements, or use `createScope({ root })`. Revert scopes and animations on disconnect (`scope.revert()`), and expect cards to re-render and replace the nodes you animated.
+- **`revert()` vs `cancel()` (4.4+)**: `revert()` restores inline styles **and** SVG/DOM attributes and JS object properties to the values captured when the animation was created (`AnimationManager.stopAnimations()` relies on this to put a stopped `fill`/`stroke` loop back). Use `cancel()` to stop where it is (the slider value tween), `utils.cleanInlineStyles(anim)` for the old styles-only clean-up. A card that re-renders a new attribute value during a loop gets the creation-time value back on revert, since Lit does not rewrite an attribute it thinks is unchanged.
+- **Transforms render in a fixed order (4.4+)**: perspective, translate, rotate, scale, skew, whatever order you wrote them in. `_migrateTransformAttrToStyle` copies an authored SVG `transform` into `style.transform` before animating; pure `translate(..)` and `matrix(..)` survive, authored `rotate(..)`/`scale(..)` forms do not (unitless CSS values are dropped; a known gap on 4.3 too).
 - **Colours**: anime.js interpolates concrete values, so resolve LCARdS colours with `resolveColor(value, { concrete: true, element })` (`src/core/themes/resolve-color.js`), never raw `var(--x)` or `theme:` strings.
 - **Where things live**: `src/core/animation/` (AnimationManager, AnimationRegistry, TriggerManager, AnimationConfigProcessor, resolveAnimParams, resolveTimelines), presets in `src/core/packs/animations/presets/`, preset param schemas in `src/cards/schemas/animation-preset-params-schemas.js`. Wiring rules: `.github/instructions/animation.instructions.md`.
-- **Reduced motion**: HA's `--ha-animation-duration-*` variables collapse under `prefers-reduced-motion: reduce`, but anime.js never reads them. New animation code checks `window.matchMedia('(prefers-reduced-motion: reduce)')` (as `lcards-slider.js` does) or goes through an engine-level gate. `AnimationManager` has no such gate yet (`reports/ha-frontend-skills-audit.md` A1).
+- **Reduced motion**: HA's `--ha-animation-duration-*` variables collapse under `prefers-reduced-motion: reduce`, but anime.js never reads them. `AnimationManager.playAnimation()` gates every animation it creates: a finite one jumps to its end state (`complete()`), a looping one is reverted; switching the setting on settles running ones. Code that animates outside the manager (direct `anim.anime()`, WAAPI `el.animate()`, a `requestAnimationFrame` loop) asks `prefersReducedMotion()` from `src/utils/reduced-motion.js` itself (`onReducedMotionChange()` to follow a live change); `Canvas2DRenderer` and the screen effects hold one static frame.
 - **A new or renamed YAML key** (a preset param, a trigger) follows the `lcards-card-option` skill.
 - Logging via `lcardsLog`, never `console.log`. No em dashes in user-facing text.
 
@@ -213,7 +215,7 @@ createDraggable('.draggable', {
 ### Function-Based Values
 ```javascript
 animate('.element', {
-  translateX: (el, i, total) => i * 50,
+  translateX: (el, i, targets) => i * 50,       // 3rd arg is the targets array since 4.4 (was the count); 4th is the previous tween
   rotate: (el, i) => utils.random(-180, 180),   // import { utils } from 'animejs'
   delay: (el, i) => i * 100
 });
@@ -245,7 +247,7 @@ class MyCard extends LitElement {
   }
   disconnectedCallback() {
     super.disconnectedCallback();
-    this._scope?.revert();   // stops every animation created in the scope and restores inline styles
+    this._scope?.revert();   // stops every animation created in the scope and restores styles and attributes
   }
 }
 ```

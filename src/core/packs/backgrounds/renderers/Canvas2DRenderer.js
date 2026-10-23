@@ -1,4 +1,5 @@
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
+import { prefersReducedMotion, onReducedMotionChange } from '../../../../utils/reduced-motion.js';
 
 /**
  * Canvas2DRenderer - Manages multiple Canvas2D effects with additive composition
@@ -61,6 +62,9 @@ export class Canvas2DRenderer {
     this._visibilityHandler = null;   // document visibilitychange handler
     this._pausedForVisibility = false; // true when RAF paused because tab is hidden
     this._isSuspended = false;         // true when externally suspended (e.g. IntersectionObserver)
+    this._pausedForReducedMotion = false; // true while prefers-reduced-motion holds the last drawn frame
+    /** @type {(() => void)|null} */
+    this._unsubscribeReducedMotion = null;
     this._pmPaused = false;            // true when we have decremented the PerformanceMonitor ref count
 
     // Performance recovery state
@@ -202,6 +206,19 @@ export class Canvas2DRenderer {
     };
     document.addEventListener('visibilitychange', this._visibilityHandler);
 
+    // Under prefers-reduced-motion _animate() draws one frame and then holds it;
+    // switching the setting off picks the loop back up.
+    this._unsubscribeReducedMotion = onReducedMotionChange((reduced) => {
+      if (reduced || !this._pausedForReducedMotion) return;
+      this._pausedForReducedMotion = false;
+      if (this._isRunning && !this._isSuspended && !this._pausedForVisibility) {
+        this._lastFrameTime = performance.now();
+        this._resumePerformanceMonitor();
+        lcardsLog.debug('[Canvas2DRenderer] Resumed: reduced motion off');
+        this._animate();
+      }
+    });
+
     // Deferred via rAF rather than called directly (unlike this file's other
     // _animate() resume call sites, deliberately left as direct calls — see
     // this method's own _coldStartFramesRemaining reset above for why THIS
@@ -246,6 +263,10 @@ export class Canvas2DRenderer {
       this._visibilityHandler = null;
     }
     this._pausedForVisibility = false;
+
+    this._unsubscribeReducedMotion?.();
+    this._unsubscribeReducedMotion = null;
+    this._pausedForReducedMotion = false;
 
     // If this is a deliberate stop (not triggered by the PerformanceMonitor),
     // cancel any pending recovery probe and reset the backoff counter so the
@@ -470,6 +491,13 @@ export class Canvas2DRenderer {
       }
     }
     if (this._coldStartFramesRemaining > 0) this._coldStartFramesRemaining--;
+
+    // Reduced motion: keep this frame as a static picture, schedule no more
+    if (prefersReducedMotion()) {
+      this._pausedForReducedMotion = true;
+      this._pausePerformanceMonitor();
+      return;
+    }
 
     // Request next frame
     this._animationId = requestAnimationFrame(() => this._animate());

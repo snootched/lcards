@@ -2,7 +2,8 @@
  * The vendored anime.js project skill (.claude/skills/animejs/) only teaches API names the
  * installed animejs actually exports, and never the parametric string eases that 4.3 removed
  * ('steps(5)', 'cubicBezier(..)': they warn and fall back to no easing). Fails after an animejs
- * bump that drops something the skill still shows; see references/UPSTREAM.md to re-vendor.
+ * bump that drops something the skill still shows, or once SKILL.md names a different version than
+ * the one installed; see references/UPSTREAM.md to re-vendor.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -42,6 +43,13 @@ function unknown(regex, known) {
     }
     return misses;
 }
+
+test('the skill names the installed animejs version', () => {
+    const installed = JSON.parse(readFileSync(join(ROOT, 'node_modules', 'animejs', 'package.json'), 'utf8')).version;
+    const skill = readFileSync(join(SKILL, 'SKILL.md'), 'utf8');
+    const named = skill.match(/\*\*Exact version is ([\d.]+)\.\*\*/)?.[1];
+    assert.equal(named, installed, 'update SKILL.md (and references/changes-*.md) for the new animejs');
+});
 
 test('animejs export probe ran', () => {
     assert.equal(probe.status, 0, probe.stderr);

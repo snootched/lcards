@@ -16,6 +16,7 @@
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 import { resolvePresetParams, getResolvedEasing } from '../../../../utils/lcards-anim-helpers.js';
 import { resolveColor as resolveConfiguredColor } from '../../../themes/resolve-color.js';
+import { prefersReducedMotion } from '../../../../utils/reduced-motion.js';
 
 /**
  * Tracks the currently-active WAAPI Animation created by 'stagger-flash' for
@@ -281,6 +282,11 @@ export const STAGGER_PRESETS = {
     let _timer = null;
 
     const _applyWapi = () => {
+      // WAAPI bypasses AnimationManager's reduced-motion gate: leave the elements static
+      if (prefersReducedMotion()) {
+        _pending.length = 0;
+        return;
+      }
       const N = _pending.length;
       _pending.splice(0).forEach((el, i) => {
         let idx;

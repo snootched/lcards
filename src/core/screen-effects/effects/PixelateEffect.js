@@ -11,6 +11,7 @@
  */
 
 import { ColorUtils } from '../../themes/ColorUtils.js';
+import { prefersReducedMotion } from '../../../utils/reduced-motion.js';
 
 /**
  * Mosaic pixel-block effect for a `<canvas>` slot element.
@@ -80,6 +81,7 @@ export function PixelateEffect(canvas, params = {}) {
             }
         }
 
+        if (prefersReducedMotion()) return; // reduced motion: hold this frame
         // ~8 fps — slow enough to look like quantisation noise.
         timerId = setTimeout(() => {
             rafId = requestAnimationFrame(draw);

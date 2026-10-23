@@ -185,16 +185,15 @@ async function initializeCustomCard() {
         waitForElement: animHelpers.waitForElement,
         presets: {},   // Populated entirely by pack loading (legacy presets disabled)
         scopes: new Map(),
-        // Easing function shortcuts
-        eases: anime.eases,            // All easing functions (built-in and advanced)
-        // Easing function API reference:
-        // - Built-in parametric: anime.eases.in(), .out(), .inOut(), .inBack(), etc.
-        // - Advanced generators:
-        //   • anime.spring({ mass, stiffness, damping, velocity } | { duration, bounce }) - top-level export
-        //   • anime.eases.cubicBezier(x1, y1, x2, y2)
-        //   • anime.eases.steps(count, fromStart)
-        //   • anime.eases.linear(...points)
-        //   • anime.eases.irregular(steps, randomness)
+        // Named easing curves: anime.eases.inQuad ... outInElastic, plus callable
+        // parametric ones (anime.eases.in(power), .outBack(overshoot), .outElastic(a, p)).
+        eases: anime.eases,
+        // Easing generators are top-level animejs exports, NOT members of anime.eases
+        // (anime.eases.linear is the plain linear curve, not the points generator).
+        cubicBezier: anime.cubicBezier, // cubicBezier(x1, y1, x2, y2)
+        steps: anime.steps,             // steps(count, fromStart)
+        linear: anime.linear,           // linear(...points)
+        irregular: anime.irregular,     // irregular(steps, randomness)
     };
 
 

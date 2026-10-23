@@ -118,8 +118,8 @@ animate('circle', {
 #### Function-Based Values
 ```javascript
 animate('.el', {
-  translateX: (el, i, total) => i * 50,
-  rotate: (el, i, total) => {
+  translateX: (el, i, targets) => i * 50,   // targets: Array since 4.4 (use targets.length for the count)
+  rotate: (el, i, targets, prevTween) => {
     return utils.random(-180, 180);
   }
 });
@@ -226,7 +226,7 @@ anim.resume();        // Resume from paused
 anim.complete();      // Jump to end
 anim.reset();         // Reset to initial state
 anim.cancel();        // Cancel and clear
-anim.revert();        // Revert all changes
+anim.revert();        // Cancel and restore styles, attributes and object props (4.4+)
 anim.seek(500);       // Seek to 500ms
 anim.seek('50%');     // Seek to 50%
 anim.stretch(2000);   // Stretch to new duration

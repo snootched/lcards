@@ -61,12 +61,17 @@ e.inBack()
 e.outElastic()
 // ... etc.
 
-// Generator functions
-e.cubicBezier(x1, y1, x2, y2)
-e.steps(count, fromStart?)
-e.linear(...points)
-e.irregular(steps, randomness)
+// Generators live on window.lcards.anim, not on eases
+// (e.linear is the plain linear curve, not the points generator)
+const a = window.lcards.anim;
+a.cubicBezier(x1, y1, x2, y2)
+a.steps(count, fromStart?)
+a.linear(...points)
+a.irregular(steps, randomness)
+a.spring({ stiffness, damping, mass, velocity })
 ```
+
+Card YAML reaches these through `ease` plus `params.ease_params` (for example `ease: steps` with `params: { ease_params: { steps: 4 } }`; without `ease_params` the defaults apply), or `ease: custom` with `params.ease_params.customString` holding an expression pasted from the anime.js easing editor such as `spring({ bounce: 0.4, duration: 500 })`.
 
 ---
 

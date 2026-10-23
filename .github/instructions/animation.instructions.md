@@ -18,10 +18,13 @@ These rules apply to all card and MSD source files. LCARdS uses **anime.js v4** 
 | Easing names | `'easeInOutQuad'` | `'inOutQuad'` |
 | Stagger | `anime.stagger(100)` | `anime.stagger(100)` _(unchanged)_ |
 | Play/pause | `anim.play()` / `anim.pause()` | `anim.play()` / `anim.pause()` _(unchanged)_ |
-| Parametric eases | `easing: 'steps(5)'`, `'cubicBezier(...)'` | Function from a top-level export: `ease: anime.steps(5)`, `anime.cubicBezier(...)`. String form removed in 4.3; these are NOT on `anime.eases` |
+| Parametric eases | `easing: 'steps(5)'`, `'cubicBezier(...)'` | Function from a top-level export: `ease: anime.steps(5)`, `anime.cubicBezier(...)`. String form removed in 4.3; these are NOT on `anime.eases` (also exposed as `window.lcards.anim.cubicBezier/steps/linear/irregular`). Config YAML goes through `resolveEasing()` |
+| Function-based values | `(el, i, total)` | `(el, i, targets, prevTween)`: `targets` is an Array since 4.4 (`targets.length` for the count) |
+| Stop an animation | `anim.pause()` + reset | `revert()` restores styles, attributes and object props to their pre-animation values (4.4+); `cancel()` stops where it is; `utils.cleanInlineStyles(anim)` clears styles only |
+| Transform order | As written | Always perspective, translate, rotate, scale, skew (4.4+) |
 | Pause all when tab hidden | `anime.running` forEach | `anime.engine.pauseOnDocumentHidden` (boolean, default `true`) |
 
-animejs v4 has no default export — import it as a namespace: `import * as anime from 'animejs'` (matches actual usage in `src/lcards-main.js`, which exposes it as `window.lcards.anim`). Full v4 reference: the `animejs` project skill (`.claude/skills/animejs/`).
+animejs v4 has no default export; import it as a namespace: `import * as anime from 'animejs'` (matches actual usage in `src/lcards-main.js`, which exposes it as `window.lcards.anim`). LCARdS ships animejs 4.5.0. Full v4 reference: the `animejs` project skill (`.claude/skills/animejs/`), with the 4.4/4.5 changes in its `references/changes-4.4-4.5.md`.
 
 ---
 
@@ -98,16 +101,19 @@ animations:
 
 ## `prefers-reduced-motion` Guard
 
-All animation code must respect the browser accessibility setting. Check before registering or firing animations:
+`AnimationManager.playAnimation()` gates every animation it creates, so trigger-based animations (`animations:` in card config, rules, segments) need nothing extra: under `prefers-reduced-motion: reduce` a finite animation jumps to its end state (`complete()`, so entrance and `on_show` animations still leave content visible and `onComplete` fires) and a looping one is reverted and never tracked. Switching the setting on while a dashboard is open settles the running ones (`_settleAllForReducedMotion()`); switching it off lets the next trigger play.
+
+Code that moves things outside the manager guards itself with the shared helper, read at the moment motion would start (never cached at startup):
 
 ```javascript
-const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-if (!reducedMotion) {
-  // register / play animation
+import { prefersReducedMotion, onReducedMotionChange } from '../utils/reduced-motion.js';
+if (!prefersReducedMotion()) {
+  // direct anime.js call, WAAPI el.animate(), requestAnimationFrame loop
 }
+const unsubscribe = onReducedMotionChange((reduced) => { /* pause or resume a loop */ });
 ```
 
-For `AnimationManager`-driven animations, the manager checks this internally — but **any direct anime.js calls you make must guard manually**.
+Existing guards: the slider value tween and release fade, the data-grid change flash, `stagger-flash` (WAAPI), `Canvas2DRenderer` and the Glitch/Pixelate/Static/Scanline screen effects (these draw one frame and hold it). Known gap: the Borg assimilation effect, whose loop runs in a Web Worker. There is no per-animation opt-out for "essential" motion yet.
 
 ---
 
@@ -135,6 +141,10 @@ This is distinct from repainting **static resolved colors** that reference an al
 
 anime.js v4 decides whether to write a tweened `fill`/`stroke` value via `element.setAttribute(...)` or `element.style[...] = ...` based on whether the target already carries that XML attribute at animation-start time. Any render or imperative code path that also colors the same element **must** use `setAttribute('fill'/'stroke', ...)`, never an inline `style="fill: ...;"`/`style="stroke: ...;"` — an inline style always wins the CSS cascade over the presentation attribute, silently defeating the animation regardless of which one anime.js is updating. This bit `lcards-button`'s `.button-bg` (issue #401): `_setupBaseInteractivity()`'s hover/pressed color helpers pre-set `style.fill` on every render, permanently shadowing any `fill` animation. See `applyColor()`/`applyBorderColor()` in `src/base/LCARdSCard.js` for the fixed pattern — `setAttribute()` plus a computed-style round trip (`materializeColor()`) to fully flatten `var()`/`color-mix()` (the default hover/pressed tokens resolve to `color-mix(in srgb, var(...) ..., ...)`, which regex-based `var()` substitution alone doesn't evaluate) into a literal `rgb()`/`rgba()` before it touches the attribute.
 
+### Stopping restores the attribute (anime.js 4.4+)
+
+`stopAnimations()` calls `revert()`, which since 4.4 writes a tweened attribute back to the value it had when the animation was created (4.3 left it on the last animated frame). Pinned by `tests/browser/animation-revert.spec.js`. Edge case: if the card re-renders a different `fill` while a loop runs on it, stopping restores the old value and Lit, which thinks the attribute is current, does not rewrite it until the value changes again.
+
 ### `target:` selectors — use classes, not tag names
 
 `lcards-button`/`lcards-elbow` implement no `getAnimationTarget()` semantic-targeting layer (unlike MSD overlays), so a `target:` string is resolved as a plain `querySelectorAll(...)` CSS selector against the card's DOM. The underlying element for `.button-bg` is a `<rect>` for scalar-radius presets (`barrel`, `filled`) but a `<path>` for per-corner-radius presets (`lozenge`, `bullet`, `capped`) — a tag-name selector like `target: path` or `target: rect` will only match some presets and silently animate nothing on the others. Always target the stable class instead: `target: .button-bg` / `target: .button-border`.
@@ -150,6 +160,6 @@ There is no coordination between `AnimationManager`/anime.js and `_setupBaseInte
 ❌ Don't use v3 `anime.timeline().add({ targets })` syntax — it's broken in v4
 ❌ Don't use easing strings like `'easeInOutQuad'` — use `'inOutQuad'` (v4 dropped the prefix)
 ❌ Don't fire anime.js animations directly during `_renderCard()` — trigger via `on_load` or `_handleFirstUpdate` after the element exists in the DOM
-❌ Don't skip `prefers-reduced-motion` check on direct `anime.animate()` calls
+❌ Don't skip the `prefersReducedMotion()` check on direct `anime.animate()`, WAAPI or `requestAnimationFrame` motion outside `AnimationManager`
 ❌ Don't create timeline instances in constructors — the DOM elements they target don't exist yet
 ❌ Don't duplicate alert mode listeners — `AnimationManager` distributes alert events to all registered overlays automatically

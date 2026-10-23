@@ -1,0 +1,12 @@
+# Text preset with no target: it must animate the button's text, not split the
+# whole button group (text-presets.spec.js swaps the preset via __reconfigure)
+type: custom:lcards-button
+preset: lozenge
+text:
+  name:
+    content: TEXT PRESET
+    show: true
+animations:
+  - trigger: on_tap
+    preset: text-scramble
+    params: {duration: 300}

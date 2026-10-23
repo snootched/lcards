@@ -8,6 +8,8 @@
  * @module core/screen-effects/effects/ScanlineEffect
  */
 
+import { prefersReducedMotion } from '../../../utils/reduced-motion.js';
+
 /**
  * CRT scanline overlay for a `<canvas>` slot element.
  *
@@ -42,13 +44,14 @@ export function ScanlineEffect(canvas, params = {}) {
         const dt = (now - last) / 1000;
         last     = now;
 
-        if (scroll !== 0) offset = (offset + scroll * dt) % (lineHeight * 2);
+        // Reduced motion: the lines stay, the scroll stops
+        if (scroll !== 0 && !prefersReducedMotion()) offset = (offset + scroll * dt) % (lineHeight * 2);
 
         const pw = canvas.parentElement?.offsetWidth  || window.innerWidth;
         const ph = canvas.parentElement?.offsetHeight || window.innerHeight;
 
         // Skip redraw when static (scroll=0) and canvas size hasn't changed.
-        if (scroll === 0 && drawnOnce && pw === lastPw && ph === lastPh) return;
+        if ((scroll === 0 || prefersReducedMotion()) && drawnOnce && pw === lastPw && ph === lastPh) return;
 
         if (canvas.width !== pw || canvas.height !== ph) {
             canvas.width  = pw;
