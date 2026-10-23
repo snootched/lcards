@@ -163,6 +163,26 @@ const sweepTile = (label, card, params) => ({
 `,
 });
 
+/** A decorative data grid that ripples from the tap (tap-ripple gallery). */
+const rippleTile = (label, params) => ({
+  label,
+  yaml: `type: custom:lcards-data-grid
+data_mode: decorative
+format: hex
+refresh_interval: 0
+grid:
+  grid-template-columns: repeat(6, 1fr)
+  grid-template-rows: repeat(4, auto)
+  gap: 6px
+style:
+  font_size: 16px
+animations:
+  - trigger: on_tap
+    preset: tap-ripple
+    target: .grid-cell${params ? `\n    params: ${params}` : ''}
+`,
+});
+
 export const CARD_GALLERIES = {
   'text-decode': {
     hint: 'Tap a button to decode it again.',
@@ -172,6 +192,16 @@ export const CARD_GALLERIES = {
       decodeTile('chars: numbers, from: right', '{chars: numbers, from: right}'),
       decodeTile('chars: blocks, from: center', '{chars: blocks, from: center, duration: 1400}'),
       decodeTile('cursor, perturbation, slower', '{cursor: true, perturbation: 0.4, duration: 2000}'),
+    ],
+  },
+  'tap-ripple': {
+    hint: 'Tap anywhere on a grid: the wave starts where you tap.',
+    minWidth: 280,
+    tiles: [
+      rippleTile('defaults'),
+      rippleTile('orange flash, jitter', '{color: var(--lcars-orange), jitter: 40}'),
+      rippleTile('inward, slower', '{reversed: true, spread: 800, scale: 1.15}'),
+      rippleTile('from the centre on any trigger', '{from: center, opacity_min: 0.1}'),
     ],
   },
   'boot-sequence': {

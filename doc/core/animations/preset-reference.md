@@ -678,6 +678,8 @@ animations:
       jitter: 30
 ```
 
+<CardGallery set="tap-ripple" />
+
 `from: pointer` works on the other stagger presets too (`stagger-grid`, `stagger-radial`), for any stagger that should start at the tap.
 
 ---
