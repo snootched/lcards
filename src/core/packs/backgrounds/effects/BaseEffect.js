@@ -27,6 +27,13 @@ export class BaseEffect {
   };
 
   /**
+   * Colour fields `recolorFrom()` copies from a fresh build. null: the effect
+   * cannot be recoloured in place (a palette change rebuilds it).
+   * @type {string[] | null}
+   */
+  static recolorFields = null;
+
+  /**
    * @param {Object} config - Effect configuration
    * @param {number} [config.opacity=1] - Initial opacity (0-1)
    * @param {number} [config.speed=1] - Initial speed multiplier
@@ -102,6 +109,30 @@ export class BaseEffect {
       ctx.scale(this.scale, this.scale);
     }
   }
+
+  /**
+   * Take the colours of `fresh`, an effect of the same class built from the
+   * same config with the new palette (alert mode), keeping every other piece
+   * of state, so the motion carries on. The default copies
+   * `static recolorFields` and calls `_afterRecolor()`.
+   *
+   * @param {any} fresh
+   * @returns {boolean} false when this effect cannot be recoloured in place
+   */
+  recolorFrom(fresh) {
+    const fields = /** @type {typeof BaseEffect} */ (this.constructor).recolorFields;
+    if (!fields || fresh?.constructor !== this.constructor) return false;
+    const self = /** @type {Record<string, any>} */ (/** @type {unknown} */ (this));
+    for (const f of fields) self[f] = fresh[f];
+    this._afterRecolor();
+    return true;
+  }
+
+  /**
+   * Invalidate caches built from the colours (after recolorFrom()).
+   * @protected
+   */
+  _afterRecolor() {}
 
   /**
    * Check if effect is still active

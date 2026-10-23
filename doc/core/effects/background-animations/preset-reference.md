@@ -906,6 +906,93 @@ config:
 
 ---
 
+## `warp-starfield`
+
+Stars flying toward you in 3D, drawn with three.js (WebGL). Above `speed: 1` the stars stretch into streaks, so animating `speed` reads as going to warp. Without WebGL (or if the browser drops the WebGL context) the plain [`starfield`](#starfield) is drawn with the same config.
+
+**Configuration:**
+
+```yaml
+preset: warp-starfield
+config:
+  count: 600                 # Number of stars
+  min_radius: 0.5            # Smallest star size
+  max_radius: 2              # Largest star size
+  colors:                    # Each star takes one of them
+    - "var(--lcards-moonlight)"
+    - "var(--lcards-blue-lightest)"
+  streak: 1                  # Streak length per unit of speed above 1 (0 = dots)
+  speed: 1                   # How fast the stars fly
+  seed: 1                    # Same seed, same layout
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `count` | 600 | Number of stars |
+| `min_radius` / `max_radius` | 0.5 / 2 | Star size range |
+| `colors` / `color` | `var(--lcards-moonlight)` | Star colours; `color` sets one colour for every star (the key to animate). The default follows the alert palette; a fixed colour such as `#ffffff` does not |
+| `streak` | 1 | How long the streaks grow per unit of speed above 1. `0` keeps dots at any speed |
+| `speed` | 1 | Time multiplier |
+| `seed` | random | Star layout |
+| `variant` | `instances` | Experimental. `instances` moves each star with its own anime.js loop; `shader` places every star on the GPU from one time value, cheaper above a few thousand stars |
+
+Animatable: `speed`, `streak`, `color`, `opacity` and the transform keys.
+
+**Examples:**
+
+```yaml
+# Dense warp field, warping while the alert mode is red
+- preset: warp-starfield
+  transition: 2000
+  config:
+    count: 1200
+    streak: 1.5
+    speed: "[[[ return states['input_select.lcards_alert_mode']?.state === 'red_alert' ? 8 : 1 ]]]"
+```
+
+---
+
+## `grid-floor`
+
+A perspective wireframe floor in three.js (WebGL): grid lines scrolling toward you, a scan line sweeping in from the horizon and a slow camera drift. Without WebGL the [`grid`](#grid) preset is drawn with the same `color`.
+
+**Configuration:**
+
+```yaml
+preset: grid-floor
+config:
+  color: "var(--lcards-orange)"   # Grid lines (alpha sets their opacity)
+  scan_color: "var(--lcards-moonlight)"
+  line_spacing: 2                 # Floor units between lines (the camera is 1.6 high)
+  camera_height: 1.6
+  camera_tilt: 8                  # Degrees the camera looks down
+  speed: 1
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `color` | theme grid colour | Grid line colour |
+| `scan_color` | `var(--lcards-moonlight)` | Scan line colour |
+| `line_spacing` | 2 | Distance between lines, in floor units |
+| `camera_height` | 1.6 | Camera height above the floor |
+| `camera_tilt` | 8 | How far the camera looks down, in degrees (negative looks up) |
+| `speed` | 1 | Time multiplier for the scroll, scan and drift |
+
+Animatable: `camera_height`, `camera_tilt`, `color`, `scan_color`, `speed`, `opacity` and the transform keys. Bind `camera_tilt` to an entity to tilt the floor as a value changes:
+
+```yaml
+- preset: grid-floor
+  transition: 800
+  config:
+    camera_tilt:
+      map_range:
+        entity_id: input_number.lcards_test_value
+        input: [0, 100]
+        output: [-5, 40]
+```
+
+---
+
 ## See Also
 
 - [Background Animations overview](../background-animations.md): schema, zoom wrapper, effect stacking, entity binding

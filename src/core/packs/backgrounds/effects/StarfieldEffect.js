@@ -295,6 +295,20 @@ export class StarfieldEffect extends BaseEffect {
   }
 
   /**
+   * Take the new palette from `fresh` (same seed, so star i has the same
+   * colour slot): positions and motion stay.
+   * @param {any} fresh
+   * @returns {boolean}
+   */
+  recolorFrom(fresh) {
+    if (!(fresh instanceof StarfieldEffect) || fresh.stars.length !== this.stars.length) return false;
+    this.resolvedColors = fresh.resolvedColors;
+    this.stars.forEach((star, i) => { star.color = fresh.stars[i].color; });
+    this._buildDrawBuckets();
+    return true;
+  }
+
+  /**
    * Cleanup
    */
   destroy() {

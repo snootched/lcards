@@ -45,6 +45,10 @@ export class EffectHandle {
     this.drawn = [];
     /** @type {Record<string, any>} last value set per key */
     this.values = {};
+    /** @type {number|undefined} random seed picked once for presets with `seed`, so rebuilds keep the layout */
+    this.seed = undefined;
+    /** A WebGL entry that failed: built from its Canvas2D fallback from now on */
+    this.forceFallback = false;
     this._alive = true;
   }
 

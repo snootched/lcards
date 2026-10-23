@@ -1,0 +1,25 @@
+# warp-starfield (three.js tier, C2): target: background ramps its speed (background-webgl.spec.js)
+type: custom:lcards-button
+entity: input_select.demo_mode
+preset: lozenge
+text:
+  name:
+    content: Warp
+    show: true
+background_animation:
+  - preset: warp-starfield
+    config:
+      seed: 7
+      count: 400
+      color: '#ffffff'
+animations:
+  - trigger: on_entity_change
+    entity: input_select.demo_mode
+    to_state: Heat
+    target: background
+    effect: 0
+    preset: custom
+    params:
+      speed: [1, 8]
+      duration: 1500
+      ease: linear

@@ -33,6 +33,8 @@ export class ContourFieldEffect extends BaseEffect {
     scroll_speed_y: numProp('scrollSpeedY')
   };
 
+  static recolorFields = ['_stops', '_fillColor'];
+
   /**
    * Padding (in buffer-cell units) added around the visible canvas in the
    * cached bake buffer. The field is static-and-panning, not continuously
@@ -46,6 +48,11 @@ export class ContourFieldEffect extends BaseEffect {
    * generous even at unusually fast configured scroll speeds (tens of px/s).
    */
   static BAKE_PAD_CELLS = 32;
+
+  /** The bake holds the colours: bake again with the new ones */
+  _afterRecolor() {
+    this._bakeDirty = true;
+  }
 
   /**
    * @param {object} [config={}]

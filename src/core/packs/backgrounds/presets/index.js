@@ -22,6 +22,7 @@ import { ShimmerTextureEffect }  from '../../textures/effects/ShimmerTextureEffe
 import { ScanlineTextureEffect } from '../../textures/effects/ScanlineTextureEffect.js';
 import { ImageEffect }            from '../effects/ImageEffect.js';
 import { SolidEffect }            from '../effects/SolidEffect.js';
+import { WarpStarfieldEffect, GridFloorEffect } from '../webgl/ThreeSceneEffect.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 
 /**
@@ -692,6 +693,86 @@ export const BACKGROUND_PRESETS = {
       return [new SolidEffect({
         color:   config.color   ?? 'rgba(0, 0, 0, 0.4)',
         opacity: config.opacity ?? 1,
+      })];
+    }
+  },
+
+  /**
+   * three.js tier (C2 spike): renders on the page's shared WebGL context and
+   * falls back to the named Canvas2D preset without WebGL. `renderer` and
+   * `fallback` are internal, not YAML keys.
+   */
+  'warp-starfield': {
+    name: 'Warp Starfield',
+    description: 'Stars flying at the viewer in 3D; streaks at speed (WebGL, falls back to starfield)',
+    renderer: 'webgl',
+    fallback: 'starfield',
+    guide: {
+      summary: 'A starfield with real depth, drawn with three.js: stars fly toward the viewer and stretch into streaks as speed rises above 1, so a speed animation reads as going to warp. Needs WebGL; without it the plain starfield preset is drawn with the same config.',
+      params: [
+        { key: 'seed', description: 'Random seed: same seed always generates the same star layout.' },
+        { key: 'count', default: 600, description: 'Number of stars.' },
+        { key: 'min_radius', default: 0.5, description: 'Smallest star size.' },
+        { key: 'max_radius', default: 2, description: 'Largest star size.' },
+        { key: 'colors', default: ['var(--lcards-moonlight)'], description: 'Star color(s); also accepts a single color. The default follows the alert palette.' },
+        { key: 'streak', default: 1, description: 'How long the streaks grow per unit of speed above 1 (0 = always dots).' },
+        { key: 'variant', default: 'instances', description: "Spike: 'instances' (an anime.js loop per star) or 'shader' (one time uniform)." },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
+      ],
+      example: 'background_animation:\n  - preset: warp-starfield\n    config:\n      count: 800\n      speed: 1'
+    },
+
+    /** @param {object} config */
+    createEffects(config) {
+      // Moonlight: near-white that follows the alert palette (a fixed #ffffff would not)
+      const colors = config.colors ?? (config.color ? [config.color] : ['var(--lcards-moonlight, #ffffff)']);
+      return [new WarpStarfieldEffect({
+        params: {
+          seed: config.seed ?? 1,
+          count: config.count ?? 600,
+          min_radius: config.min_radius ?? 0.5,
+          max_radius: config.max_radius ?? 2,
+          streak: config.streak ?? 1,
+          variant: config.variant ?? 'instances'
+        },
+        colors: { stars: Array.isArray(colors) ? colors : [colors] },
+        opacity: config.opacity ?? 1
+      })];
+    }
+  },
+
+  'grid-floor': {
+    name: 'Grid Floor',
+    description: 'Perspective wireframe floor scrolling to the horizon, with a scan line (WebGL, falls back to grid)',
+    renderer: 'webgl',
+    fallback: 'grid',
+    guide: {
+      summary: 'A three.js perspective floor of grid lines scrolling toward the viewer, with a scan line sweeping in from the horizon and a slow camera drift. camera_height and camera_tilt can be animated or bound like any other key. Needs WebGL; without it the grid preset is drawn with the same color.',
+      params: [
+        { key: 'color', description: 'Grid line color.' },
+        { key: 'scan_color', default: 'var(--lcards-moonlight)', description: 'Scan line color.' },
+        { key: 'line_spacing', default: 2, description: 'Distance between grid lines (world units; the camera is 1.6 above the floor).' },
+        { key: 'camera_height', default: 1.6, description: 'Camera height above the floor.' },
+        { key: 'camera_tilt', default: 8, description: 'How far the camera looks down, in degrees.' },
+        { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
+      ],
+      example: 'background_animation:\n  - preset: grid-floor\n    config:\n      camera_tilt: 10'
+    },
+
+    /** @param {object} config @param {{getThemeToken?: Function}|null} [cardInstance] */
+    createEffects(config, cardInstance = null) {
+      const token = (path, fallback) => cardInstance?.getThemeToken ? cardInstance.getThemeToken(path, fallback) : fallback;
+      return [new GridFloorEffect({
+        params: {
+          line_spacing: config.line_spacing ?? 2,
+          camera_height: config.camera_height ?? 1.6,
+          camera_tilt: config.camera_tilt ?? 8
+        },
+        colors: {
+          lines: [config.color ?? token('components.backgroundAnimation.grid.line.color', 'rgba(255, 153, 102, 0.8)')],
+          scan: [config.scan_color ?? 'var(--lcards-moonlight, #dfe1e8)']
+        },
+        opacity: config.opacity ?? 1
       })];
     }
   },

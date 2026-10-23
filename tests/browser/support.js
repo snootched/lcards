@@ -6,6 +6,8 @@ import { expect } from '@playwright/test';
 /** Errors that come from the harness environment, not from LCARdS. */
 const IGNORED_ERRORS = [
     /favicon/i,
+    // The fake hass has no sound_scheme helper; a long test outlives the retries
+    /\[SoundManager\] Giving up on sound_scheme restore/,
 ];
 
 /**

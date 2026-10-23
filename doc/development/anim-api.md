@@ -159,7 +159,7 @@ Preset names are passed as the `type` field when using `animateElement` or in ca
 
 Background effects (`background_animation`) draw on a canvas in their own loop, so anime.js can't see them as elements. LCARdS registers an anime.js 4.5 adapter for them (`registerAdapter` from the `animejs/adapters` sub-path, in `src/core/packs/backgrounds/effect-adapter.js`, called once from `lcards-main.js`). That gives every anime.js feature (easing, springs, timelines, `revert()`) and so every LCARdS trigger, rule and the reduced-motion gate on effect parameters. Users reach it with `target: background` ([Animating the background](../core/effects/background-animations.md#animating-the-background)).
 
-**The target is an `EffectHandle`, not the effect** (`effect-handle.js`): one per `background_animation` entry, owned by `BackgroundAnimationRenderer` (`renderer.getHandles(index?)`). An alert-mode palette change rebuilds the effect objects, and a zoomed starfield is one object per layer; the handle outlives both, re-attaches the new objects and re-applies the numeric values set so far. It has `isConnected` (true while its renderer lives), so `AnimationManager`'s target filters and re-render carry-over treat it like an element.
+**The target is an `EffectHandle`, not the effect** (`effect-handle.js`): one per `background_animation` entry, owned by `BackgroundAnimationRenderer` (`renderer.getHandles(index?)`). A zoomed starfield is one object per layer, and an effect can be rebuilt (an alert-mode palette change on an effect that bakes its colours, a WebGL fallback); the handle outlives both, re-attaches the new objects and re-applies the numeric values set so far. It has `isConnected` (true while its renderer lives), so `AnimationManager`'s target filters and re-render carry-over treat it like an element.
 
 ```javascript
 const card = document.querySelector('lcards-button');
@@ -190,6 +190,19 @@ export class MyEffect extends BaseEffect {
 - `tests/core/background-effect-adapter.test.js` fails if a declared key is not a config key of a preset that builds the effect.
 
 **Entity bindings** use the same path: `BackgroundAnimationRenderer.updateHass` resolves the `map_range` or template value, then glides a declared key with `animate(handle, { [key]: value, duration: transition })` (snapping the first value, with `transition: 0` and under reduced motion; `Canvas2DRenderer.requestFrame()` redraws the held reduced-motion frame).
+
+**Alert mode recolours in place.** `BackgroundAnimationRenderer.refreshColors()` builds each entry again with the new palette and calls `effect.recolorFrom(fresh)` on the live effects, so layouts, scroll offsets and zoom clocks carry on. The default copies `static recolorFields` and calls `_afterRecolor()`; starfield and nebula copy per star/cloud (same seed, same colour slot). An effect that returns false (it bakes its colours, like the texture effects) is swapped for the fresh copy in its own slot with its clocks carried. A preset with a `seed` param gets one random seed per entry, kept across rebuilds.
+
+## three.js background scenes
+
+`warp-starfield` and `grid-floor` are three.js scenes (`src/core/packs/backgrounds/webgl/`):
+
+- **One WebGL context per page** (`three-runtime.js`, lazy chunk with three.js and `animejs/adapters/three`). Browsers keep about 16 live contexts and drop the oldest, so a scene renders on the shared context (an `OffscreenCanvas`) and its `ThreeSceneEffect` draws the frame into the card's Canvas2D canvas (`transferToImageBitmap`). The scene is one more entry in `Canvas2DRenderer`, so pausing, the reduced-motion held frame, transforms and zoom apply unchanged. The last scene out disposes the context; a disconnected card releases its scene (`releaseGPU()`) and rebuilds it on the next draw.
+- **Scene motion runs on the effect clock.** A scene builds its anime.js animations on three.js objects (cameras, meshes, `getInstances(instancedMesh)`, materials, uniforms, timelines) with `autoplay: false`, and `seek(time)` runs every frame with the effect's elapsed time, which already runs at `speed`. So `speed` warps a scene without a jump, and a paused card is a paused scene.
+- **Users still target the handle.** `static animatableProps` on the effect class (`sceneProp()`, `sceneColorProp()`) forwards keys such as `camera_tilt` to the scene's `setParam()`, which writes through the adapter (`utils.set(camera, { rotateX })`).
+- **Fallback:** a preset declares `renderer: 'webgl'` and `fallback: '<canvas2d preset>'`. Without WebGL the fallback is built from the same config; a failed chunk load or a lost context swaps the entry for it.
+- **Cost:** per-instance anime.js loops cost about 1 µs per object per frame (500 stars 0.5 ms, 5,000 stars 7 ms), fine for hundreds of objects; for thousands use a shader uniform (the `shader` variant).
+- Debug: `await lcards.debug.webgl.stats()` (users, context, contexts created), `lcards.debug.webgl.frameStats(reset?)` (background update+draw ms per card frame on the page), `lcards.debug.webgl.loseContext()`.
 
 ---
 

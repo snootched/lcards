@@ -3,7 +3,7 @@
  * Runs against the built bundle (npm run build first).
  */
 import { test, expect } from '@playwright/test';
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync, readFileSync } from 'node:fs';
 import { mountCase, expectNoErrors } from './support.js';
 
 const DIST = new URL('../../custom_components/lcards/', import.meta.url);
@@ -74,7 +74,25 @@ test('size budget: tiny loader, main chunk under its ceiling', () => {
     // Measured 2026-10-10 after the split: 1.94 MB raw / 418 KB br. Ceilings leave
     // ~10% headroom; a change that pulls editors back into the main chunk fails here.
     expect(size(`chunks/${main}`)).toBeLessThanOrEqual(2_150_000);
-    expect(size(`chunks/${main}.br`)).toBeLessThanOrEqual(460_000);
+    // 460,000 until 2026-10-23: the main chunk had crept to ~460 KB br; C2's
+    // background tier (scene effect classes, two presets, schemas) took it over.
+    expect(size(`chunks/${main}.br`)).toBeLessThanOrEqual(480_000);
+});
+
+test('size budget: three.js and the anime.js three adapter stay out of the main chunk', () => {
+    const chunks = readdirSync(new URL('chunks/', DIST));
+    const main = chunks.find(f => /^lcards-main-.*\.js$/.test(f));
+    const mainSource = readFileSync(new URL(`chunks/${main}`, DIST), 'utf8');
+    expect(mainSource.includes('isAnimejsInstanceProxy'), 'three adapter in the main chunk').toBe(false);
+    expect(/WebGLRenderer|WEBGL_multisampled_render_to_texture/.test(mainSource), 'three.js in the main chunk').toBe(false);
+    // Measured 2026-10-23 (three 0.186.1): three 552 KB raw / 114 KB br, adapter 14 / 4 KB br,
+    // runtime + scenes ~6 KB raw. Ceiling ~10% over the whole tier.
+    const three = chunks.find(f => /^three\.module-.*\.js$/.test(f));
+    expect(three, 'chunks/three.module-*.js').toBeTruthy();
+    const tier = chunks.filter(f => /^(three\.module|three-runtime|warp-starfield|grid-floor|scene-helpers|instance)-.*\.js$/.test(f));
+    const total = (ext) => tier.reduce((sum, f) => sum + statSync(new URL(`chunks/${f}${ext}`, DIST)).size, 0);
+    expect(total('')).toBeLessThanOrEqual(640_000);
+    expect(total('.br')).toBeLessThanOrEqual(135_000);
 });
 
 test('rules: editing an existing rule keeps the old rule until a page refresh (documented)', async ({ page }) => {

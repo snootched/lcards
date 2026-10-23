@@ -60,6 +60,7 @@ import { LCARdSLayoutCard } from './cards/lcards-layout-card.js';
 // Config panel: a small shell; the panel itself loads when it is opened.
 import './panels/lcards-config-panel-shell.js';
 import { docsUrl, DOCS } from './utils/docs-url.js';
+import { loadThreeRuntime } from './core/packs/backgrounds/webgl/ThreeSceneEffect.js';
 
 
 // Ensure global namespace
@@ -235,6 +236,38 @@ async function initializeCustomCard() {
 
     // Add singleton reference to debug tier for unified API consistency
     window.lcards.debug.singletons = lcardsCore;
+
+    // three.js background tier: the shared WebGL context (loads the chunk if needed)
+    window.lcards.debug.webgl = {
+        stats: async () => (await loadThreeRuntime()).stats(),
+        /** Simulate the browser taking the context away (fallback testing) */
+        loseContext: async () => (await loadThreeRuntime())._canvas()?.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext(),
+        /**
+         * Background frame cost on this page: every card's update+draw time per
+         * frame since the last reset (pass true to reset after reading).
+         * @param {boolean} [reset]
+         */
+        frameStats: (reset = false) => {
+            /** @type {any[]} */
+            const renderers = [];
+            const walk = (/** @type {Document | ShadowRoot} */ root) => root.querySelectorAll('*').forEach((el) => {
+                const r = /** @type {any} */ (el)._backgroundRenderer?.renderer;
+                if (r?.frameStats) renderers.push(r);
+                if (el.shadowRoot) walk(el.shadowRoot);
+            });
+            walk(document);
+            const cards = renderers.map((r) => ({ ...r.frameStats, types: r.effects.map((/** @type {any} */ e) => e.constructor.name).join('+') }));
+            const frames = cards.reduce((s, c) => s + c.frames, 0);
+            const work = cards.reduce((s, c) => s + c.workMs, 0);
+            if (reset) renderers.forEach((r) => { r.frameStats = { frames: 0, workMs: 0, maxMs: 0 }; });
+            return {
+                cards: cards.length,
+                meanMsPerCardFrame: frames ? +(work / frames).toFixed(2) : 0,
+                maxMs: +Math.max(0, ...cards.map((c) => c.maxMs)).toFixed(1),
+                perCard: cards.map((c) => ({ types: c.types, frames: c.frames, meanMs: c.frames ? +(c.workMs / c.frames).toFixed(2) : 0, maxMs: +c.maxMs.toFixed(1) }))
+            };
+        }
+    };
 
     // === PERFORMANCE MONITOR DEBUG SHORTCUT ===
     window.lcards.debug.perf = {

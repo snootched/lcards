@@ -1,6 +1,6 @@
 /**
  * Background effect parameters (C1): `target: background` animations, entity
- * bindings that glide, reduced motion, the alert-mode rebuild and layer order.
+ * bindings that glide, reduced motion, recolour in place on alert (F1) and layer order.
  */
 import { test, expect } from '@playwright/test';
 import { mountCase, expectNoErrors } from './support.js';
@@ -41,14 +41,22 @@ test('stopping a running background animation restores the parameter', async ({ 
     await expectNoErrors(page);
 });
 
-test('the animation carries on across an alert-mode rebuild of the effects', async ({ page }) => {
+test('an alert-mode change recolours in place: same effects, same canvas, the animation carries on (F1)', async ({ page }) => {
     await mountCase(page, 'button-background-target');
     await expect.poll(() => effectValue(page, 'speed')).toBe(1);
-    const firstEffect = await page.evaluateHandle(() => /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer.getHandles()[0].effects[0]);
+    const before = await page.evaluateHandle(() => {
+        const bg = /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer;
+        return { effect: bg.getHandles()[0].effects[0], stars: bg.getHandles()[0].effects[0].stars, canvas: bg.canvas };
+    });
     await page.evaluate(() => window.__setState('input_select.demo_mode', 'Heat'));
     await expect.poll(() => effectValue(page, 'speed'), { timeout: 1500 }).toBeGreaterThan(1.5);
     await page.evaluate(() => window.lcards.core.themeManager.setAlertMode('red_alert'));
-    await expect.poll(() => page.evaluate((old) => /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer.getHandles()[0].effects[0] !== old, firstEffect), { timeout: 3000 }).toBe(true);
+    await page.waitForTimeout(300);
+    expect(await page.evaluate((old) => {
+        const bg = /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer;
+        const effect = bg.getHandles()[0].effects[0];
+        return { effect: effect === old.effect, stars: effect.stars === old.stars, canvas: bg.canvas === old.canvas };
+    }, before)).toEqual({ effect: true, stars: true, canvas: true });
     await expect.poll(() => effectValue(page, 'speed'), { timeout: 3000 }).toBe(8);
     await page.evaluate(() => window.lcards.core.themeManager.setAlertMode('green_alert'));
     await expectNoErrors(page);

@@ -27,6 +27,8 @@ export class SolidEffect extends BaseEffect {
     color: colorProp('color')
   };
 
+  static recolorFields = ['color'];
+
   /**
    * @param {Object} config
    * @param {string} [config.color='rgba(0, 0, 0, 0.4)'] - Fill colour. Accepts

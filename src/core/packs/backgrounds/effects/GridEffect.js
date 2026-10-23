@@ -41,6 +41,8 @@ export class GridEffect extends BaseEffect {
     fill_color: colorProp('fillColor')
   };
 
+  static recolorFields = ['color', 'colorMajor', 'fillColor'];
+
   /**
    * @param {object} config - Effect configuration
    *

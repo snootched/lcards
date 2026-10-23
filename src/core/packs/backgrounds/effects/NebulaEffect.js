@@ -329,6 +329,19 @@ export class NebulaEffect extends BaseEffect {
   }
 
   /**
+   * Take the new palette from `fresh` (same seed, so cloud i has the same
+   * colour slot): positions and drift stay.
+   * @param {any} fresh
+   * @returns {boolean}
+   */
+  recolorFrom(fresh) {
+    if (!(fresh instanceof NebulaEffect) || fresh.clouds.length !== this.clouds.length) return false;
+    this.resolvedColors = fresh.resolvedColors;
+    this.clouds.forEach((cloud, i) => { cloud.color = fresh.clouds[i].color; });
+    return true;
+  }
+
+  /**
    * Clean up resources
    */
   destroy() {

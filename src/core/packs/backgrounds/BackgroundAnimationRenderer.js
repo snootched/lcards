@@ -22,12 +22,25 @@ import { linearMap } from '../../../utils/linearMap.js';
 import { prefersReducedMotion } from '../../../utils/reduced-motion.js';
 import { animate, utils } from 'animejs';
 import { EffectHandle } from './effect-handle.js';
+import { webglAvailable } from './webgl/webgl-support.js';
 
 /** Default glide for an entity-bound value, in ms (`background_animation[].transition`) */
 export const DEFAULT_BINDING_TRANSITION = 500;
 
 /** @param {string} key - snake_case config key */
 const camelKey = (key) => key.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
+
+/** Clock and pan fields a rebuilt effect takes over from the one it replaces */
+const CLOCK_FIELDS = ['_elapsedTime', '_scrollOffsetX', '_scrollOffsetY', '_offsetX', '_offsetY', '_sweepOffset', 'scrollX', 'scrollY'];
+
+/**
+ * @param {any} from
+ * @param {any} to
+ */
+function carryClock(from, to) {
+  if (!from || !to || from.constructor !== to.constructor) return;
+  for (const f of CLOCK_FIELDS) if (typeof from[f] === 'number' && typeof to[f] === 'number') to[f] = from[f];
+}
 
 /**
  * Orchestrates background animation rendering using Canvas2D with modular effects
@@ -55,7 +68,7 @@ export class BackgroundAnimationRenderer {
      * One entry per loaded `background_animation` entry, populated during
      * _loadEffects() so updateHass() can re-evaluate templated / map_range
      * values and apply them to the entry's EffectHandle.
-     * @type {Array<{ rawConfig: Object, presetId: string, handle: EffectHandle, transition: number }>}
+     * @type {Array<{ effectConfig: Object, rawConfig: Object, presetId: string, handle: EffectHandle, transition: number }>}
      */
     this._reactiveEffects = [];
     /**
@@ -376,77 +389,27 @@ export class BackgroundAnimationRenderer {
         lcardsLog.warn('[BackgroundAnimation] Effect config missing preset', { effectConfig });
         return;
       }
-      const preset = BACKGROUND_PRESETS[presetId];
-      if (!preset) {
+      if (!BACKGROUND_PRESETS[presetId]) {
         lcardsLog.error(`[BackgroundAnimation] Unknown preset: ${presetId}`);
         return;
       }
-      if (!preset.createEffects) return;
-
-      lcardsLog.debug('[BackgroundAnimation] Loading preset', { presetId });
-
-      // Pass nested config object to preset factory:
-      // 1. Resolve colours (theme tokens, computed functions, CSS vars) to concrete values
-      // 2. Strip template-valued keys so constructors receive only concrete
-      //    values; updateHass() will push evaluated values on first hass tick.
-      const rawEffectConfig = effectConfig.config || {};
-      const config = this._stripTemplateValues(
-        this._resolveConfigColors(rawEffectConfig)
-      );
-      // `speed` is a time multiplier every effect honours; presets don't pass it
-      const applySpeed = (effects) => {
-        if (typeof config.speed === 'number') effects.forEach((e) => { e.speed = Math.max(0, config.speed); });
-        return effects;
-      };
-
-      /** @type {any[]} */
-      let baseEffects = [];
-      /** @type {any[]} */
-      let drawn = [];
-      const zoom = effectConfig.zoom;
-      const zoomConfig = (baseEffect, extra = {}) => ({
-        baseEffect,
-        layers: zoom.layers ?? 4,
-        scaleFrom: zoom.scale_from ?? 0.5,
-        scaleTo: zoom.scale_to ?? 2.0,
-        duration: zoom.duration ?? 15,
-        opacityFadeIn: zoom.opacity_fade_in ?? 15,
-        opacityFadeOut: zoom.opacity_fade_out ?? 75,
-        ...extra
-      });
-
-      if (zoom && presetId === 'starfield') {
-        // One starfield instance per zoom layer, each with its own seed
-        const layers = zoom.layers ?? 4;
-        const baseSeed = config.seed ?? Math.floor(Math.random() * 1e9);
-        lcardsLog.debug('[BackgroundAnimation] Creating starfield layers with unique seeds', { layers, baseSeed });
-        for (let layerIndex = 0; layerIndex < layers; layerIndex++) {
-          const layerEffects = applySpeed(preset.createEffects({ ...config, seed: baseSeed + layerIndex }, this.cardInstance));
-          layerEffects.forEach((baseEffect) => {
-            baseEffects.push(baseEffect);
-            // Single layer each: we're creating one ZoomEffect per starfield
-            drawn.push(new ZoomEffect(zoomConfig(baseEffect, { layers: 1, layerIndex, totalLayers: layers })));
-          });
-        }
-      } else {
-        baseEffects = applySpeed(preset.createEffects(config, this.cardInstance));
-        // Standard zoom: single instance, multiple renders
-        drawn = zoom ? baseEffects.map((baseEffect) => new ZoomEffect(zoomConfig(baseEffect))) : baseEffects;
-      }
-
-      drawn.forEach((effect) => renderer.addEffect(effect));
-      loadedEffects += drawn.length;
 
       let handle = this.handles[index];
       if (!handle || handle.presetId !== presetId) {
         handle = new EffectHandle(index, presetId, this);
         this.handles[index] = handle;
       }
-      handle.attach(baseEffects, drawn);
+
+      const built = this._buildEntry(effectConfig, handle);
+      if (!built) return;
+      built.drawn.forEach((effect) => renderer.addEffect(effect));
+      loadedEffects += built.drawn.length;
+      handle.attach(built.baseEffects, built.drawn);
 
       const transition = Number(effectConfig.transition ?? DEFAULT_BINDING_TRANSITION);
       this._reactiveEffects.push({
-        rawConfig: rawEffectConfig,
+        effectConfig,
+        rawConfig: effectConfig.config || {},
         presetId,
         handle,
         transition: Number.isFinite(transition) ? Math.max(0, transition) : DEFAULT_BINDING_TRANSITION
@@ -460,6 +423,93 @@ export class BackgroundAnimationRenderer {
 
     lcardsLog.debug(`[BackgroundAnimation] Loaded ${loadedEffects} effect(s)`);
     return true;
+  }
+
+  /**
+   * Build the effect objects for one `background_animation` entry with the
+   * current palette. Presets with a `seed` param get the handle's seed when
+   * the config sets none, chosen once per entry, so a rebuild keeps the layout.
+   *
+   * @private
+   * @param {Object} effectConfig - The entry (`{ preset, config, zoom }`)
+   * @param {EffectHandle} handle
+   * @returns {{ baseEffects: any[], drawn: any[] } | null} the effect instances,
+   *   and what the canvas draws (ZoomEffect wrappers, or the effects)
+   */
+  _buildEntry(effectConfig, handle) {
+    let presetId = effectConfig.preset;
+    /** @type {any} */
+    let preset = BACKGROUND_PRESETS[presetId];
+    // WebGL presets: their Canvas2D fallback without WebGL or after a failure
+    if (preset?.renderer === 'webgl' && (handle.forceFallback || !webglAvailable())) {
+      lcardsLog.debug(`[BackgroundAnimation] ${presetId}: no WebGL, drawing ${preset.fallback}`);
+      presetId = preset.fallback;
+      preset = BACKGROUND_PRESETS[presetId];
+    }
+    if (!preset?.createEffects) return null;
+
+    lcardsLog.debug('[BackgroundAnimation] Loading preset', { presetId });
+
+    // Pass nested config object to preset factory:
+    // 1. Resolve colours (theme tokens, computed functions, CSS vars) to concrete values
+    // 2. Strip template-valued keys so constructors receive only concrete
+    //    values; updateHass() will push evaluated values on first hass tick.
+    const config = this._stripTemplateValues(
+      this._resolveConfigColors(effectConfig.config || {})
+    );
+    if (config.seed === undefined && preset.guide?.params?.some((p) => p.key === 'seed')) {
+      config.seed = (handle.seed ??= Math.floor(Math.random() * 1e9));
+    }
+    // `speed` is a time multiplier every effect honours; presets don't pass it
+    const applySpeed = (effects) => {
+      if (typeof config.speed === 'number') effects.forEach((e) => { e.speed = Math.max(0, config.speed); });
+      return effects;
+    };
+
+    /** @type {any[]} */
+    let baseEffects = [];
+    /** @type {any[]} */
+    let drawn = [];
+    const zoom = effectConfig.zoom;
+    const zoomConfig = (baseEffect, extra = {}) => ({
+      baseEffect,
+      layers: zoom.layers ?? 4,
+      scaleFrom: zoom.scale_from ?? 0.5,
+      scaleTo: zoom.scale_to ?? 2.0,
+      duration: zoom.duration ?? 15,
+      opacityFadeIn: zoom.opacity_fade_in ?? 15,
+      opacityFadeOut: zoom.opacity_fade_out ?? 75,
+      ...extra
+    });
+
+    if (zoom && presetId === 'starfield') {
+      // One starfield instance per zoom layer, each with its own seed
+      const layers = zoom.layers ?? 4;
+      const baseSeed = config.seed;
+      lcardsLog.debug('[BackgroundAnimation] Creating starfield layers with unique seeds', { layers, baseSeed });
+      for (let layerIndex = 0; layerIndex < layers; layerIndex++) {
+        const layerEffects = applySpeed(preset.createEffects({ ...config, seed: baseSeed + layerIndex }, this.cardInstance));
+        layerEffects.forEach((baseEffect) => {
+          baseEffects.push(baseEffect);
+          // Single layer each: we're creating one ZoomEffect per starfield
+          drawn.push(new ZoomEffect(zoomConfig(baseEffect, { layers: 1, layerIndex, totalLayers: layers })));
+        });
+      }
+    } else {
+      baseEffects = applySpeed(preset.createEffects(config, this.cardInstance));
+      // Standard zoom: single instance, multiple renders
+      drawn = zoom ? baseEffects.map((baseEffect) => new ZoomEffect(zoomConfig(baseEffect))) : baseEffects;
+    }
+    // three.js scenes: redraw when ready (held reduced-motion frame), fall back on failure
+    for (const effect of baseEffects) {
+      if ('host' in effect) {
+        effect.host = {
+          requestFrame: () => this.renderer?.requestFrame(),
+          fail: () => this._fallbackEntry(handle)
+        };
+      }
+    }
+    return { baseEffects, drawn };
   }
 
   /**
@@ -631,6 +681,8 @@ export class BackgroundAnimationRenderer {
     if (this.renderer) {
       this.renderer.stop();
     }
+    // three.js scenes give the shared WebGL context back while the card is away
+    for (const handle of this.handles) handle?.effects.forEach((e) => e.releaseGPU?.());
     lcardsLog.debug('[BackgroundAnimation] Suspended — card disconnected from DOM');
   }
 
@@ -670,22 +722,87 @@ export class BackgroundAnimationRenderer {
   }
 
   /**
-   * Rebuild the effects with the current palette. Effects hold colours
-   * resolved to concrete values at creation (Canvas2D cannot use var()), so
-   * an alert-mode palette change needs a rebuild; cheap, and the alert
-   * transition hides it.
+   * Follow a palette change (alert mode) without resetting any motion. Each
+   * entry is built again with the new palette and the live effects copy
+   * their colours from that fresh copy (`recolorFrom()`), so star layouts,
+   * scroll offsets and zoom cycles carry on. An entry whose effects cannot
+   * (they bake colours into images) is swapped for the fresh copy in place,
+   * keeping its seed, clocks and animated values.
    *
    * @param {Object} [hass] - Pushed again so templated params are re-applied
    * @param {Object} [entity]
    * @param {Object} [cardConfig]
-   * @returns {boolean} True when the renderer restarted
+   * @returns {boolean} True when the background was refreshed
    */
   refreshColors(hass, entity, cardConfig) {
-    if (!this.canvas) return false;
-    this._teardown();
-    const ok = this.init();
-    if (ok && hass) this.updateHass(hass, entity, cardConfig);
-    return ok;
+    if (!this.canvas || !this.renderer) return false;
+    for (const entry of this._reactiveEffects) this._recolorEntry(entry);
+    if (hass) {
+      // Bound colours resolve against the new palette on the next push
+      for (const { handle } of this._reactiveEffects) {
+        const bound = /** @type {any} */ (handle)._bound;
+        if (bound) for (const key of Object.keys(bound)) if (typeof bound[key] === 'string') delete bound[key];
+      }
+      this.updateHass(hass, entity, cardConfig);
+    }
+    this.renderer.requestFrame();
+    return true;
+  }
+
+  /**
+   * @private
+   * @param {{ effectConfig: Object, handle: EffectHandle }} entry
+   */
+  _recolorEntry({ effectConfig, handle }) {
+    const renderer = this.renderer;
+    if (!renderer || handle.effects.length === 0) return;
+    const fresh = this._buildEntry(effectConfig, handle);
+    if (!fresh) return;
+    const live = handle.effects;
+    const inPlace = live.length === fresh.baseEffects.length &&
+      live.every((e, i) => typeof e.recolorFrom === 'function' && e.recolorFrom(fresh.baseEffects[i]) === true);
+    if (inPlace) {
+      fresh.drawn.forEach((d) => d.destroy());
+      lcardsLog.debug(`[BackgroundAnimation] Recoloured ${handle.presetId} in place`);
+      return;
+    }
+    this._swapEntry(handle, fresh);
+    lcardsLog.debug(`[BackgroundAnimation] Rebuilt ${handle.presetId} for the new palette`);
+  }
+
+  /**
+   * Put freshly built effects in place of an entry's live ones, at the same
+   * place in the stack, carrying the clocks so the motion does not restart.
+   * @private
+   * @param {EffectHandle} handle
+   * @param {{ baseEffects: any[], drawn: any[] }} fresh
+   */
+  _swapEntry(handle, fresh) {
+    const renderer = this.renderer;
+    if (!renderer) return;
+    fresh.drawn.forEach((d, i) => carryClock(handle.drawn[i], d));
+    if (fresh.drawn !== fresh.baseEffects) fresh.baseEffects.forEach((e, i) => carryClock(handle.effects[i], e));
+    renderer.replaceEffects(handle.drawn, fresh.drawn);
+    handle.attach(fresh.baseEffects, fresh.drawn);
+  }
+
+  /**
+   * A three.js scene could not start or lost its context: draw the preset's
+   * Canvas2D fallback in its place from now on.
+   * @private
+   * @param {EffectHandle} handle
+   */
+  _fallbackEntry(handle) {
+    if (handle.forceFallback) return;
+    handle.forceFallback = true;
+    // Not inside the draw loop that reported it
+    queueMicrotask(() => {
+      const entry = this._reactiveEffects.find((e) => e.handle === handle);
+      if (!entry || !this.renderer || handle.effects.length === 0) return;
+      const fresh = this._buildEntry(entry.effectConfig, handle);
+      if (fresh) this._swapEntry(handle, fresh);
+      lcardsLog.info(`[BackgroundAnimation] ${handle.presetId}: drawing its Canvas2D fallback`);
+    });
   }
 
   /**

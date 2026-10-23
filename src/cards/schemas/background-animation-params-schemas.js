@@ -399,6 +399,43 @@ export const solidParamsSchema = {
   additionalProperties: 'warn'
 };
 
+export const warpStarfieldParamsSchema = {
+  type: 'object',
+  description: 'Params for the "warp-starfield" preset: stars flying at the viewer in 3D (three.js, WebGL), stretching into streaks as speed rises above 1. Without WebGL the starfield preset is drawn with the same config.',
+  properties: {
+    speed: { ..._speedSchema, description: 'Time multiplier: how fast the stars fly. Above 1 they stretch into streaks (warp). Animatable.' },
+    seed: { type: 'integer', description: 'Random seed: same seed always generates the same star layout. Random by default when unset.' },
+    count: { type: 'integer', minimum: 1, maximum: 20000, default: 600, description: 'Number of stars.', 'x-ui-hints': { selector: { number: { min: 50, max: 3000, step: 50, mode: 'slider' } } } },
+    min_radius: { type: 'number', minimum: 0, default: 0.5, description: 'Smallest star size (about px at mid depth).', 'x-ui-hints': { selector: { number: { min: 0, max: 10, step: 0.1, mode: 'slider' } } } },
+    max_radius: { type: 'number', minimum: 0, default: 2, description: 'Largest star size (about px at mid depth).', 'x-ui-hints': { selector: { number: { min: 0, max: 10, step: 0.1, mode: 'slider' } } } },
+    colors: {
+      type: 'array', items: simpleColorSchema, default: ['var(--lcards-moonlight)'],
+      description: 'Star color(s); each star takes one of them. The default (moonlight) follows the alert palette.',
+      'x-ui-hints': { widget: 'json', label: 'Colors' }
+    },
+    color: { ...simpleColorSchema, description: 'One color for every star, in place of colors. This is the key to animate (target: background) or bind to recolor the stars.' },
+    streak: { type: 'number', minimum: 0, default: 1, description: 'How long the streaks grow per unit of speed above 1. 0 keeps the stars as dots at any speed. Animatable.', 'x-ui-hints': { selector: { number: { min: 0, max: 4, step: 0.1, mode: 'slider' } } } },
+    variant: { type: 'string', enum: ['instances', 'shader'], default: 'instances', description: 'Experimental: how the stars are moved. instances: one anime.js loop per star; shader: the GPU places every star from one time value (cheaper for many stars).' },
+    opacity: _opacitySchema
+  },
+  additionalProperties: 'warn'
+};
+
+export const gridFloorParamsSchema = {
+  type: 'object',
+  description: 'Params for the "grid-floor" preset: a perspective wireframe floor scrolling toward the viewer, with a scan line and a slow camera drift (three.js, WebGL). Without WebGL the grid preset is drawn with the same color.',
+  properties: {
+    speed: _speedSchema,
+    color: { ...simpleColorSchema, description: 'Grid line color (its alpha sets the line opacity). Defaults to the grid line color of the theme. Animatable.' },
+    scan_color: { ...simpleColorSchema, default: 'var(--lcards-moonlight)', description: 'Scan line color. Animatable.' },
+    line_spacing: { type: 'number', minimum: 0.25, default: 2, description: 'Distance between grid lines, in floor units (the camera sits 1.6 above the floor).', 'x-ui-hints': { selector: { number: { min: 0.5, max: 8, step: 0.25, mode: 'slider' } } } },
+    camera_height: { type: 'number', minimum: 0.1, default: 1.6, description: 'Camera height above the floor, in floor units. Animatable.', 'x-ui-hints': { selector: { number: { min: 0.2, max: 10, step: 0.1, mode: 'slider' } } } },
+    camera_tilt: { type: 'number', minimum: -89, maximum: 89, default: 8, description: 'How far the camera looks down, in degrees (negative looks up). Animatable.', 'x-ui-hints': { selector: { number: { min: -30, max: 60, step: 1, mode: 'slider' } } } },
+    opacity: _opacitySchema
+  },
+  additionalProperties: 'warn'
+};
+
 /**
  * Name → schema map, keyed by the exact string passed as `preset:` in a
  * background_animation effect entry.
@@ -418,7 +455,9 @@ export const BACKGROUND_ANIMATION_PARAMS_SCHEMAS = {
   shimmer: shimmerParamsSchema,
   scanlines: scanlinesParamsSchema,
   image: imageParamsSchema,
-  solid: solidParamsSchema
+  solid: solidParamsSchema,
+  'warp-starfield': warpStarfieldParamsSchema,
+  'grid-floor': gridFloorParamsSchema
 };
 
 /**

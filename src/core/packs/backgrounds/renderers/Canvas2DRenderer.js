@@ -68,6 +68,8 @@ export class Canvas2DRenderer {
     /** @type {(() => void)|null} */
     this._unsubscribeReducedMotion = null;
     this._pmPaused = false;            // true when we have decremented the PerformanceMonitor ref count
+    /** Update+draw time per rendered frame (window.lcards.debug.webgl.frameStats) */
+    this.frameStats = { frames: 0, workMs: 0, maxMs: 0 };
 
     // Performance recovery state
     this._disabledByPerformance = false; // true when stopped by PerformanceMonitor (not deliberately)
@@ -132,6 +134,21 @@ export class Canvas2DRenderer {
         totalEffects: this.effects.length
       });
     }
+  }
+
+  /**
+   * Swap a group of effects for new ones at the same place in the stack (one
+   * `background_animation` entry rebuilt), destroying the old ones.
+   *
+   * @param {Object[]} oldEffects
+   * @param {Object[]} newEffects
+   */
+  replaceEffects(oldEffects, newEffects) {
+    const positions = oldEffects.map((e) => this.effects.indexOf(e)).filter((i) => i >= 0);
+    const at = positions.length > 0 ? Math.min(...positions) : this.effects.length;
+    this.effects = this.effects.filter((e) => !oldEffects.includes(e));
+    oldEffects.forEach((e) => e.destroy());
+    this.effects.splice(Math.min(at, this.effects.length), 0, ...newEffects);
   }
 
   /**
@@ -449,6 +466,10 @@ export class Canvas2DRenderer {
     const frameWorkStart = performance.now();
     this._drawEffects(deltaTime);
     const frameWorkMs = performance.now() - frameWorkStart;
+    const stats = this.frameStats;
+    stats.frames++;
+    stats.workMs += frameWorkMs;
+    if (frameWorkMs > stats.maxMs) stats.maxMs = frameWorkMs;
 
     // Hard backstop: a single pathologically slow frame trips the same
     // disable+recovery-backoff path the FPS-averaged PerformanceMonitor uses,

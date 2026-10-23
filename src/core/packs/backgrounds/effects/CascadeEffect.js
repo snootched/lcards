@@ -64,6 +64,8 @@ export class CascadeEffect extends BaseEffect {
    * Base:
    * @param {number} [config.opacity=1] - Overall opacity (0-1, from BaseEffect)
    */
+  static recolorFields = ['colorStart', 'colorText', 'colorEnd'];
+
   constructor(config = {}) {
     super(config);
 

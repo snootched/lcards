@@ -141,6 +141,10 @@ Seven built-in presets are available. See the **[Preset Reference](background-an
 | [`nebula`](background-animations/preset-reference.md#nebula) | Organic Perlin-noise nebula clouds |
 | [`cascade`](background-animations/preset-reference.md#cascade) | LCARS data-waterfall colour-cycling background |
 | [`image`](background-animations/preset-reference.md#image) | Static or entity-driven image background |
+| [`warp-starfield`](background-animations/preset-reference.md#warp-starfield) | Stars flying toward you in 3D, streaking at speed (WebGL) |
+| [`grid-floor`](background-animations/preset-reference.md#grid-floor) | Perspective wireframe floor with a scan line (WebGL) |
+
+`warp-starfield` and `grid-floor` are drawn with three.js. They load only when a card uses them, share one WebGL context across the whole dashboard, sit in the stack like any other entry, and fall back to `starfield` and `grid` where WebGL is not available.
 
 ---
 ## Zoom Wrapper
@@ -451,6 +455,8 @@ Every effect: `opacity`, and the transform keys `x`, `y` (offset in px), `rotate
 | `shimmer` | `highlight_width`, `angle` |
 | `image` | `opacity` only |
 | `solid` | `opacity`, `color` |
+| `warp-starfield` | `streak`, `color` |
+| `grid-floor` | `camera_height`, `camera_tilt`, `color`, `scan_color` |
 
 Other keys are left out on purpose: changing them means rebuilding the effect (a new star layout, a noise re-bake), too slow to do every frame. A key that isn't animatable is logged once in the browser console.
 
