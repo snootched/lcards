@@ -76,14 +76,11 @@ registerAnimationPreset('pulse', (def) => {
       // being silently misinterpreted as a bogus tween property (attempting to
       // animate a function value) instead of ever firing as a callback.
       onComplete: (anim) => {
-        // Ensure final values after animation completes
-        if (anim && anim.animatables && anim.animatables.length > 0) {
-          const target = anim.animatables[0].target;
-          if (target) {
-            // Force remove anime-applied inline styles to return to original CSS
-            target.style.removeProperty('filter');
-            target.style.removeProperty('transform');
-          }
+        // Ensure final values after animation completes: remove the anime-applied
+        // inline styles to return to the original CSS (v4: `targets`, not v3 `animatables`)
+        for (const target of anim?.targets ?? []) {
+          target?.style?.removeProperty('filter');
+          target?.style?.removeProperty('transform');
         }
       }
     },
@@ -130,8 +127,8 @@ registerAnimationPreset('fade', (def) => {
       // as a bogus tween property and never fires as a callback).
       onComplete: alternate ? (anim) => {
         // Ensure element returns to starting opacity after alternate completes
-        if (anim.animatables && anim.animatables[0] && anim.animatables[0].target) {
-          anim.animatables[0].target.style.opacity = from;
+        for (const target of anim?.targets ?? []) {
+          if (target?.style) target.style.opacity = from;
         }
       } : undefined
     },

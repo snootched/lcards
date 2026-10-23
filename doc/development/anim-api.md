@@ -77,7 +77,7 @@ Card YAML reaches these through `ease` plus `params.ease_params` (for example `e
 
 ## LCARdS animation helpers
 
-These wrappers live on `window.lcards.anim` and handle shadow-DOM target resolution, scope registration, and preset expansion.
+These wrappers live on `window.lcards.anim` and handle shadow-DOM target resolution and preset expansion.
 
 ### `anim.animateElement(scope, options, hass?, onInstanceCreated?)`
 
@@ -90,7 +90,9 @@ Full-featured card animation entry point. Resolves targets within a scope's shad
 //   targets  (required) - CSS selector string, Element, or array
 //   root     (optional) - shadow root or element to query within (default: document)
 // hass - HA hass object (optional, unused currently, reserved)
-// onInstanceCreated - callback(animInstance) called after the animation is created
+// onInstanceCreated - callback(animInstance) called after the animation is created; the promise
+//   resolves once every instance exists. The anime.js scope does not track them: keep the
+//   instances from this callback to stop or revert them.
 
 await window.lcards.anim.animateElement(scope, {
   type: 'pulse',

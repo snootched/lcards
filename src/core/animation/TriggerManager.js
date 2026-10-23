@@ -226,7 +226,7 @@ export class TriggerManager {
             } else if (isActive) {
               this._whileActiveAnims.delete(anim);
               lcardsLog.debug(`[TriggerManager] ⏹️ while-stop: ${this.overlayId}, entity: ${changedEntityId}`);
-              this.animationManager.stopAnimations(this.overlayId, 'on_entity_change');
+              this.animationManager.stopAnimations(this.overlayId, 'on_entity_change', anim);
             }
             return; // while-path fully handled — never fall through to fire-and-forget
           }

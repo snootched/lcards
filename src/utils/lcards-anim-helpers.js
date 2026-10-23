@@ -28,6 +28,21 @@ const _LCARDS_META_PARAMS = new Set([
   'from',         // Stagger: position param consumed by stagger() — not an anime.js anim param
   'grid',         // Stagger: grid dimensions consumed by stagger() — not an anime.js anim param
   'trigger',      // AnimationManager: when to fire (on_load, on_tap…) — not anime.js
+  // Trigger and AnimationManager metadata from the animation definition: anime.js
+  // writes any unknown key onto a DOM target as an attribute (entity="light.x",
+  // while="[object Object]"), so these must never reach it.
+  'entity',
+  'attribute',
+  'from_state',
+  'to_state',
+  'check_on_load',
+  'while',
+  'enabled',
+  'datasource',
+  'state_resolver',
+  'morph_to_selector',
+  'precision',
+  'animejs',      // editor "custom" mode payload, not run by anything (see reports/animejs-4.5-opportunities.md E10)
   'easing',       // v3 alias: anime.js v4 uses 'ease' not 'easing'
   'ease_params',  // LCARdS: parametric ease config (merged into ease object before animateElement)
   'amplitude',    // stagger-wave preset meta-param (converted to property value by preset)
@@ -513,10 +528,7 @@ function _processAnimationMarkers(params, element, scope) {
       return { isTimeline: false, timelineInstance: null, processedParams: params };
     }
 
-    const timeline = window.lcards.anim.animejs.createTimeline({
-      scope: scope?.scope,
-      ...timelineGlobals
-    });
+    const timeline = window.lcards.anim.animejs.createTimeline(_cleanAnimeParams(timelineGlobals));
 
     // Add each step to timeline
     if (Array.isArray(steps)) {
@@ -744,330 +756,332 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
   }
   lcardsLog.debug('[animateElement] Received options:', { options });
 
-  scope.scope.add(async () => {
-    try {
-      const elements = await waitForElements(targets, root);
-      if (!elements || elements.length === 0) {
-        lcardsLog.error('[animateElement] Target element(s) not found:', { targets });
-        return;
-      }
+  // Runs inline, not inside scope.add(): anime.js only registers instances created
+  // while a scope callback runs synchronously, and everything here is created after
+  // an await, so the scope never tracked them. Callers track instances through
+  // onInstanceCreated, and awaiting this function means they all exist on return.
+  try {
+    const elements = await waitForElements(targets, root);
+    if (!elements || elements.length === 0) {
+      lcardsLog.error('[animateElement] Target element(s) not found:', { targets });
+      return;
+    }
 
-      lcardsLog.debug('[animateElement] Elements resolved:', {
+    lcardsLog.debug('[animateElement] Elements resolved:', {
+      selector: targets,
+      elementsFound: elements.length,
+      elementDetails: elements.map(el => ({
+        tag: el.tagName,
+        id: el.id,
+        classes: el.className
+      }))
+    });
+
+    // Log cascade animation targeting for debugging
+    if (type === 'cascade-color') {
+      lcardsLog.debug('[animateElement] Cascade-color targeting:', {
         selector: targets,
         elementsFound: elements.length,
-        elementDetails: elements.map(el => ({
-          tag: el.tagName,
-          id: el.id,
-          classes: el.className
-        }))
+        elementTags: elements.map(el => `${el.tagName}[data-row=${/** @type {any} */ (el).dataset.row},data-col=${/** @type {any} */ (el).dataset.col}]`)
       });
+    }
 
-      // Log cascade animation targeting for debugging
-      if (type === 'cascade-color') {
-        lcardsLog.debug('[animateElement] Cascade-color targeting:', {
-          selector: targets,
-          elementsFound: elements.length,
-          elementTags: elements.map(el => `${el.tagName}[data-row=${/** @type {any} */ (el).dataset.row},data-col=${/** @type {any} */ (el).dataset.col}]`)
-        });
-      }
+    // ── Stagger-batch short-circuit ──────────────────────────────────────────
+    // Stagger presets (stagger-grid, stagger-wave, stagger-radial) require a
+    // SINGLE anime() call across ALL elements so that the stagger delay
+    // function receives the correct per-element index.  Calling anime() once
+    // per element (as the loop below does) gives every element index 0.
+    // Detect this case by pre-running the preset and checking delay._stagger.
+    if (elements.length > 1 && !Array.isArray(type)) {
+      const _batchPresetFn = getAnimationPreset(String(type).toLowerCase());
+      if (_batchPresetFn) {
+        try {
+          const _batchProbeParams = { duration: 1000, ease: 'inOutQuad', ...animOptions };
+          if (_batchProbeParams.ease) _batchProbeParams.ease = resolveEasing(_batchProbeParams.ease);
+          // _batchProbeParams already IS a valid def for the preset factory (see
+          // the per-element call site above for why) — passing it directly avoids
+          // reproducing the same def-vs-def.params precedence bug this file's
+          // other call site already had fixed (this one previously had the
+          // spread order reversed, so a non-empty options.params — which
+          // stagger-grid/wave/radial ALWAYS have, since grid/delay are their
+          // entire reason to exist — would silently win over the correctly
+          // resolved duration/ease/loop/alternate here, every time).
+          const _batchProbeResult = _batchPresetFn(_batchProbeParams);
 
-      // ── Stagger-batch short-circuit ──────────────────────────────────────────
-      // Stagger presets (stagger-grid, stagger-wave, stagger-radial) require a
-      // SINGLE anime() call across ALL elements so that the stagger delay
-      // function receives the correct per-element index.  Calling anime() once
-      // per element (as the loop below does) gives every element index 0.
-      // Detect this case by pre-running the preset and checking delay._stagger.
-      if (elements.length > 1 && !Array.isArray(type)) {
-        const _batchPresetFn = getAnimationPreset(String(type).toLowerCase());
-        if (_batchPresetFn) {
-          try {
-            const _batchProbeParams = { duration: 1000, ease: 'inOutQuad', ...animOptions };
-            if (_batchProbeParams.ease) _batchProbeParams.ease = resolveEasing(_batchProbeParams.ease);
-            // _batchProbeParams already IS a valid def for the preset factory (see
-            // the per-element call site above for why) — passing it directly avoids
-            // reproducing the same def-vs-def.params precedence bug this file's
-            // other call site already had fixed (this one previously had the
-            // spread order reversed, so a non-empty options.params — which
-            // stagger-grid/wave/radial ALWAYS have, since grid/delay are their
-            // entire reason to exist — would silently win over the correctly
-            // resolved duration/ease/loop/alternate here, every time).
-            const _batchProbeResult = _batchPresetFn(_batchProbeParams);
-
-            lcardsLog.debug('[animateElement] Stagger-batch probe result:', {
-              type,
-              elementsFound: elements.length,
-              hasStaggerMarker: _batchProbeResult?.anime?.delay?._stagger === true,
-              probeAnimeKeys: _batchProbeResult?.anime ? Object.keys(_batchProbeResult.anime) : null,
-              probeDelay: _batchProbeResult?.anime?.delay
-            });
-
-            if (_batchProbeResult?.anime?.delay?._stagger === true) {
-              // Build final batch params by merging preset anime output.
-              // Start from probe params then let the preset output overwrite — this
-              // ensures the preset's [property]:[from,to] tween wins over anything
-              // the probe params might have for the same key.
-              const _batchParams = { ..._batchProbeParams };
-              Object.assign(_batchParams, _batchProbeResult.anime);
-
-              // Migrate any SVG transform attributes before anime.js touches these
-              // elements — see _migrateTransformAttrToStyle() for why.
-              elements.forEach(el => _migrateTransformAttrToStyle(el));
-
-              // Apply per-element CSS styles from preset
-              if (_batchProbeResult.styles) {
-                elements.forEach(el => Object.assign(/** @type {any} */ (el).style, _batchProbeResult.styles));
-              }
-              // Run preset setup callbacks
-              if (_batchProbeResult.setup) {
-                elements.forEach(el => { try { _batchProbeResult.setup(el); } catch (_se) {} });
-              }
-
-              // Convert _stagger / _radial marker to anime.js stagger() function
-              const _batchMarkerResult = _processAnimationMarkers(_batchParams, elements[0], scope);
-              if (!_batchMarkerResult.isTimeline) {
-                // Resolve CSS variables (var(--...)) in color properties so anime.js
-                // can interpolate them correctly (it can't parse var() references).
-                const _batchResolvedParams = resolveAnimationCssVariables(_batchMarkerResult.processedParams);
-
-                // Strip LCARdS-internal meta-params that must not be passed to anime.js.
-                // e.g. 'from', 'grid', 'property', 'from_value', 'to_value', 'trigger'
-                // are consumed by the preset/AnimationManager and are not valid anime.js params.
-                const _batchFinalParams = _cleanAnimeParams(_batchResolvedParams);
-                lcardsLog.debug('[animateElement] Calling batch anime() with:', {
-                  elementCount: elements.length,
-                  finalParamKeys: Object.keys(_batchFinalParams),
-                  delayIsFunction: typeof _batchFinalParams.delay === 'function'
-                });
-                const _batchInstance = window.lcards.anim.anime(elements, _batchFinalParams);
-                if (onInstanceCreated) onInstanceCreated(_batchInstance);
-              }
-              return; // bypass per-element loop
-            }
-          } catch (_batchErr) {
-            lcardsLog.warn('[animateElement] ⚠️ Stagger-batch probe failed — falling back to per-element loop', {
-              error: _batchErr?.message,
-              type,
-              stack: _batchErr?.stack?.split('\n')[1]
-            });
-          }
-        }
-      }
-
-      for (const element of elements) {
-        _migrateTransformAttrToStyle(element);
-
-        const params = {
-          duration: 1000,
-          ease: 'inOutQuad',  // Default to v4 naming
-          ...animOptions,
-        };
-
-        // ✨ Resolve ease configuration (string or parametric object)
-        if (params.ease) {
-          params.ease = resolveEasing(params.ease);
-        }
-
-        // state_resolver hook (left as-is)
-        if (options.state_resolver && options.entity && window.lcards.styleHelpers?.resolveStateStyles) {
-          const resolvedStyles = window.lcards.styleHelpers.resolveStateStyles(
-            options.state_resolver,
-            hass,
-            options.entity
-          );
-          Object.assign(params, resolvedStyles);
-        }
-
-        // Apply preset(s)
-        if (Array.isArray(type)) {
-          applyPresets(type, params, element, options);
-        } else {
-          // Try new MSD preset system first
-          const msdPresetFn = getAnimationPreset(String(type).toLowerCase());
-
-          if (msdPresetFn) {
-            // Use new MSD preset system
-            lcardsLog.debug(`[animateElement] Using MSD preset: ${type}`);
-
-            try {
-              // `params` already has every field a preset could need — defaults,
-              // resolved ease, and everything from animOptions (including its own
-              // `params:` extras, nested at `params.params`) — so it IS a valid
-              // `def` for the preset factory as-is. No merge needed here; presets
-              // read their fields via resolvePresetParams(def), which handles the
-              // def-vs-def.params precedence correctly and consistently for both
-              // call sites (see resolvePresetParams() in this file for why the
-              // old `def.params || def` idiom was unsafe).
-              const presetResult = msdPresetFn(params);
-
-              // Apply anime.js parameters
-              if (presetResult.anime) {
-                Object.assign(params, presetResult.anime);
-              }
-
-              // `_timeline` is a top-level sibling of `.anime` on presetResult (see
-              // sequence/timeline-cascade/timeline-attention), not nested inside it —
-              // the Object.assign above only ever copies `.anime`'s own keys, so this
-              // marker needs its own explicit copy. Without it, _processAnimationMarkers()
-              // never sees params._timeline === true and every timeline-based preset
-              // silently falls through to a plain anime.animate() call instead, with a
-              // raw `steps` array passed through as a bogus, non-animatable property —
-              // an instance gets created but nothing visible ever happens.
-              if (presetResult._timeline) {
-                params._timeline = true;
-              }
-
-              // Resolve CSS variables in animation params (for theme reactivity)
-              const resolvedParams = resolveAnimationCssVariables(params);
-              Object.assign(params, resolvedParams);
-
-              // Call setup function if provided (for CSS keyframe injection, etc.)
-              if (presetResult.setup && typeof presetResult.setup === 'function') {
-                presetResult.setup(element);
-              }
-
-              // Apply CSS styles to target element
-              if (presetResult.styles && element) {
-                Object.assign(/** @type {HTMLElement} */ (element).style, presetResult.styles);
-              }
-            } catch (error) {
-              lcardsLog.error(`[animateElement] Error applying MSD preset ${type}:`, error);
-            }
-          }
-
-          // Handle morph animation (special case)
-          if (String(type).toLowerCase() === 'morph') {
-            if (!options.morph_to_selector) {
-              lcardsLog.error('[animateElement] morph animation requires a `morph_to_selector`.', { options });
-              continue;
-            }
-            const morphTarget = await waitForElement(options.morph_to_selector, root);
-            if (!morphTarget) {
-              lcardsLog.error(`[animateElement] morph could not find target shape for selector: ${options.morph_to_selector}`);
-              continue;
-            }
-            const precision = options.precision ? parseInt(options.precision, 10) : undefined;
-            Object.assign(params, { d: window.lcards.animejs.svg.morphTo(morphTarget, precision) });
-          }
-        }
-
-        // CSS-driven preset (e.g. march): no anime.js instance exists, but still
-        // report a lightweight handle so AnimationManager can track/live-adjust
-        // it (Phase 10) and stopAnimations() can revert it, the same as it would
-        // for a real anime.js instance.
-        if (params._cssAnimation) {
-          if (onInstanceCreated && typeof onInstanceCreated === 'function' && typeof params.duration === 'number') {
-            onInstanceCreated(createCssAnimationHandle(/** @type {HTMLElement | SVGElement} */ (element), params.duration));
-          }
-          continue;
-        }
-
-        // Skip if targets were explicitly nulled (preset self-manages, e.g. scramble)
-        if (params.targets === null) {
-          continue;
-        }
-
-        // Process special animation markers (_timeline, _stagger, _radial)
-        const markerResult = _processAnimationMarkers(params, element, scope);
-
-        // If timeline marker was processed, track the timeline instance and skip anime() call
-        if (markerResult.isTimeline && markerResult.timelineInstance) {
-          lcardsLog.debug(`[animateElement] Timeline created for ${type}`, {
-            scopeId: scope.id || 'no-id',
-            element: element.id || element.tagName
+          lcardsLog.debug('[animateElement] Stagger-batch probe result:', {
+            type,
+            elementsFound: elements.length,
+            hasStaggerMarker: _batchProbeResult?.anime?.delay?._stagger === true,
+            probeAnimeKeys: _batchProbeResult?.anime ? Object.keys(_batchProbeResult.anime) : null,
+            probeDelay: _batchProbeResult?.anime?.delay
           });
 
-          // Call callback with the timeline instance (for tracking)
-          if (onInstanceCreated && typeof onInstanceCreated === 'function') {
-            onInstanceCreated(markerResult.timelineInstance);
+          if (_batchProbeResult?.anime?.delay?._stagger === true) {
+            // Build final batch params by merging preset anime output.
+            // Start from probe params then let the preset output overwrite — this
+            // ensures the preset's [property]:[from,to] tween wins over anything
+            // the probe params might have for the same key.
+            const _batchParams = { ..._batchProbeParams };
+            Object.assign(_batchParams, _batchProbeResult.anime);
+
+            // Migrate any SVG transform attributes before anime.js touches these
+            // elements — see _migrateTransformAttrToStyle() for why.
+            elements.forEach(el => _migrateTransformAttrToStyle(el));
+
+            // Apply per-element CSS styles from preset
+            if (_batchProbeResult.styles) {
+              elements.forEach(el => Object.assign(/** @type {any} */ (el).style, _batchProbeResult.styles));
+            }
+            // Run preset setup callbacks
+            if (_batchProbeResult.setup) {
+              elements.forEach(el => { try { _batchProbeResult.setup(el); } catch (_se) {} });
+            }
+
+            // Convert _stagger / _radial marker to anime.js stagger() function
+            const _batchMarkerResult = _processAnimationMarkers(_batchParams, elements[0], scope);
+            if (!_batchMarkerResult.isTimeline) {
+              // Resolve CSS variables (var(--...)) in color properties so anime.js
+              // can interpolate them correctly (it can't parse var() references).
+              const _batchResolvedParams = resolveAnimationCssVariables(_batchMarkerResult.processedParams);
+
+              // Strip LCARdS-internal meta-params that must not be passed to anime.js.
+              // e.g. 'from', 'grid', 'property', 'from_value', 'to_value', 'trigger'
+              // are consumed by the preset/AnimationManager and are not valid anime.js params.
+              const _batchFinalParams = _cleanAnimeParams(_batchResolvedParams);
+              lcardsLog.debug('[animateElement] Calling batch anime() with:', {
+                elementCount: elements.length,
+                finalParamKeys: Object.keys(_batchFinalParams),
+                delayIsFunction: typeof _batchFinalParams.delay === 'function'
+              });
+              const _batchInstance = window.lcards.anim.anime(elements, _batchFinalParams);
+              if (onInstanceCreated) onInstanceCreated(_batchInstance);
+            }
+            return; // bypass per-element loop
           }
-
-          continue; // Skip anime() call for timelines
-        }
-
-        // Use processed params (with stagger/radial converted if needed)
-        const processedParams = markerResult.processedParams;
-
-        // Check if preset created a drawable (for draw animations)
-        // or overrode the target element
-        let targetElement = element;
-        let animeParams = { ...processedParams };
-
-        if (/** @type {any} */ (element)._drawable) {
-          // Use drawable created by preset setup (e.g., draw animation)
-          targetElement = /** @type {any} */ (element)._drawable;
-          lcardsLog.debug(`[animateElement] Using drawable for ${type}`, { element: element.tagName });
-        } else if (processedParams.targets && processedParams.targets instanceof Element) {
-          // Preset wants to animate a different element (e.g., text child of group)
-          targetElement = processedParams.targets;
-          // Remove targets from params since it's passed as first argument
-          const { targets: _, ...rest } = processedParams;
-          animeParams = rest;
-        } else if (/** @type {any} */ (element)._animTargets !== undefined) {
-          // Text/split animations: setup() stored per-character targets on the element.
-          // null signals that setup() self-managed the animation entirely (e.g. scramble).
-          const animTargets = /** @type {any} */ (element)._animTargets;
-          delete /** @type {any} */ (element)._animTargets;
-          if (animTargets === null) {
-            lcardsLog.debug(`[animateElement] Preset setup() self-managed animation for ${type}, skipping main anime call`);
-            continue;
-          }
-          targetElement = animTargets;
-          // Strip the CSS-selector placeholder 'targets' from params (no longer needed)
-          const { targets: _, ...rest } = animeParams;
-          animeParams = rest;
-        }
-
-        if (/** @type {any} */ (element)._motionPath) {
-          // motionpath preset: merge in the real translateX/translateY/(rotate)
-          // anime.js v4 tween properties computed by setup() from the resolved
-          // path element (see presets/index.js's `motionpath` factory) — these
-          // aren't known until the actual DOM element/path exist, so they can't
-          // be part of the preset factory's own returned `anime` object.
-          animeParams = { ...animeParams, ...(/** @type {any} */ (element)._motionPath) };
-        }
-
-        // Strip LCARdS-internal meta-params before calling anime.animate()
-        const cleanedAnimeParams = _cleanAnimeParams(animeParams);
-
-        lcardsLog.debug('[animateElement] Calling anime() with:', {
-          id: /** @type {any} */ (targetElement)?.id,
-          styleTransformBeforeCall: /** @type {any} */ (targetElement)?.style?.transform,
-          cleanedAnimeParamKeys: Object.keys(cleanedAnimeParams)
-        });
-
-        const animeInstance = window.lcards.anim.anime(targetElement, cleanedAnimeParams);
-        lcardsLog.debug(`[animateElement] Animation instance created:`, {
-          scopeId: scope.id || 'no-id',
-          element: element.id || element.tagName,
-          targetElement: targetElement?.id || targetElement?.tagName || typeof targetElement,
-          animeInstance: !!animeInstance,
-          params: cleanedAnimeParams
-        });
-
-        // Some presets (e.g. cascade-color's interactive mode) need the real
-        // anime.js instance to wire up behavior — setup() runs before the
-        // instance exists, so it can't do this itself. It stashes a callback
-        // on the element for us to invoke now that the instance is real (see
-        // the _drawable/_animTargets/_motionPath convention above).
-        if (typeof (/** @type {any} */ (element)._pendingInstanceSetup) === 'function') {
-          const pendingInstanceSetup = /** @type {any} */ (element)._pendingInstanceSetup;
-          delete /** @type {any} */ (element)._pendingInstanceSetup;
-          try {
-            pendingInstanceSetup(animeInstance);
-          } catch (setupError) {
-            lcardsLog.error('[animateElement] Error in pending instance setup:', setupError);
-          }
-        }
-
-        // Call callback with the created instance (for tracking)
-        if (onInstanceCreated && typeof onInstanceCreated === 'function') {
-          onInstanceCreated(animeInstance);
+        } catch (_batchErr) {
+          lcardsLog.warn('[animateElement] ⚠️ Stagger-batch probe failed — falling back to per-element loop', {
+            error: _batchErr?.message,
+            type,
+            stack: _batchErr?.stack?.split('\n')[1]
+          });
         }
       }
-    } catch (error) {
-      lcardsLog.error('[animateElement] Failed to animate element(s):', { targets, type, error });
     }
-  });
+
+    for (const element of elements) {
+      _migrateTransformAttrToStyle(element);
+
+      const params = {
+        duration: 1000,
+        ease: 'inOutQuad',  // Default to v4 naming
+        ...animOptions,
+      };
+
+      // ✨ Resolve ease configuration (string or parametric object)
+      if (params.ease) {
+        params.ease = resolveEasing(params.ease);
+      }
+
+      // state_resolver hook (left as-is)
+      if (options.state_resolver && options.entity && window.lcards.styleHelpers?.resolveStateStyles) {
+        const resolvedStyles = window.lcards.styleHelpers.resolveStateStyles(
+          options.state_resolver,
+          hass,
+          options.entity
+        );
+        Object.assign(params, resolvedStyles);
+      }
+
+      // Apply preset(s)
+      if (Array.isArray(type)) {
+        applyPresets(type, params, element, options);
+      } else {
+        // Try new MSD preset system first
+        const msdPresetFn = getAnimationPreset(String(type).toLowerCase());
+
+        if (msdPresetFn) {
+          // Use new MSD preset system
+          lcardsLog.debug(`[animateElement] Using MSD preset: ${type}`);
+
+          try {
+            // `params` already has every field a preset could need — defaults,
+            // resolved ease, and everything from animOptions (including its own
+            // `params:` extras, nested at `params.params`) — so it IS a valid
+            // `def` for the preset factory as-is. No merge needed here; presets
+            // read their fields via resolvePresetParams(def), which handles the
+            // def-vs-def.params precedence correctly and consistently for both
+            // call sites (see resolvePresetParams() in this file for why the
+            // old `def.params || def` idiom was unsafe).
+            const presetResult = msdPresetFn(params);
+
+            // Apply anime.js parameters
+            if (presetResult.anime) {
+              Object.assign(params, presetResult.anime);
+            }
+
+            // `_timeline` is a top-level sibling of `.anime` on presetResult (see
+            // sequence/timeline-cascade/timeline-attention), not nested inside it —
+            // the Object.assign above only ever copies `.anime`'s own keys, so this
+            // marker needs its own explicit copy. Without it, _processAnimationMarkers()
+            // never sees params._timeline === true and every timeline-based preset
+            // silently falls through to a plain anime.animate() call instead, with a
+            // raw `steps` array passed through as a bogus, non-animatable property —
+            // an instance gets created but nothing visible ever happens.
+            if (presetResult._timeline) {
+              params._timeline = true;
+            }
+
+            // Resolve CSS variables in animation params (for theme reactivity)
+            const resolvedParams = resolveAnimationCssVariables(params);
+            Object.assign(params, resolvedParams);
+
+            // Call setup function if provided (for CSS keyframe injection, etc.)
+            if (presetResult.setup && typeof presetResult.setup === 'function') {
+              presetResult.setup(element);
+            }
+
+            // Apply CSS styles to target element
+            if (presetResult.styles && element) {
+              Object.assign(/** @type {HTMLElement} */ (element).style, presetResult.styles);
+            }
+          } catch (error) {
+            lcardsLog.error(`[animateElement] Error applying MSD preset ${type}:`, error);
+          }
+        }
+
+        // Handle morph animation (special case)
+        if (String(type).toLowerCase() === 'morph') {
+          if (!options.morph_to_selector) {
+            lcardsLog.error('[animateElement] morph animation requires a `morph_to_selector`.', { options });
+            continue;
+          }
+          const morphTarget = await waitForElement(options.morph_to_selector, root);
+          if (!morphTarget) {
+            lcardsLog.error(`[animateElement] morph could not find target shape for selector: ${options.morph_to_selector}`);
+            continue;
+          }
+          const precision = options.precision ? parseInt(options.precision, 10) : undefined;
+          Object.assign(params, { d: window.lcards.animejs.svg.morphTo(morphTarget, precision) });
+        }
+      }
+
+      // CSS-driven preset (e.g. march): no anime.js instance exists, but still
+      // report a lightweight handle so AnimationManager can track/live-adjust
+      // it (Phase 10) and stopAnimations() can revert it, the same as it would
+      // for a real anime.js instance.
+      if (params._cssAnimation) {
+        if (onInstanceCreated && typeof onInstanceCreated === 'function' && typeof params.duration === 'number') {
+          onInstanceCreated(createCssAnimationHandle(/** @type {HTMLElement | SVGElement} */ (element), params.duration));
+        }
+        continue;
+      }
+
+      // Skip if targets were explicitly nulled (preset self-manages, e.g. scramble)
+      if (params.targets === null) {
+        continue;
+      }
+
+      // Process special animation markers (_timeline, _stagger, _radial)
+      const markerResult = _processAnimationMarkers(params, element, scope);
+
+      // If timeline marker was processed, track the timeline instance and skip anime() call
+      if (markerResult.isTimeline && markerResult.timelineInstance) {
+        lcardsLog.debug(`[animateElement] Timeline created for ${type}`, {
+          scopeId: scope.id || 'no-id',
+          element: element.id || element.tagName
+        });
+
+        // Call callback with the timeline instance (for tracking)
+        if (onInstanceCreated && typeof onInstanceCreated === 'function') {
+          onInstanceCreated(markerResult.timelineInstance);
+        }
+
+        continue; // Skip anime() call for timelines
+      }
+
+      // Use processed params (with stagger/radial converted if needed)
+      const processedParams = markerResult.processedParams;
+
+      // Check if preset created a drawable (for draw animations)
+      // or overrode the target element
+      let targetElement = element;
+      let animeParams = { ...processedParams };
+
+      if (/** @type {any} */ (element)._drawable) {
+        // Use drawable created by preset setup (e.g., draw animation)
+        targetElement = /** @type {any} */ (element)._drawable;
+        lcardsLog.debug(`[animateElement] Using drawable for ${type}`, { element: element.tagName });
+      } else if (processedParams.targets && processedParams.targets instanceof Element) {
+        // Preset wants to animate a different element (e.g., text child of group)
+        targetElement = processedParams.targets;
+        // Remove targets from params since it's passed as first argument
+        const { targets: _, ...rest } = processedParams;
+        animeParams = rest;
+      } else if (/** @type {any} */ (element)._animTargets !== undefined) {
+        // Text/split animations: setup() stored per-character targets on the element.
+        // null signals that setup() self-managed the animation entirely (e.g. scramble).
+        const animTargets = /** @type {any} */ (element)._animTargets;
+        delete /** @type {any} */ (element)._animTargets;
+        if (animTargets === null) {
+          lcardsLog.debug(`[animateElement] Preset setup() self-managed animation for ${type}, skipping main anime call`);
+          continue;
+        }
+        targetElement = animTargets;
+        // Strip the CSS-selector placeholder 'targets' from params (no longer needed)
+        const { targets: _, ...rest } = animeParams;
+        animeParams = rest;
+      }
+
+      if (/** @type {any} */ (element)._motionPath) {
+        // motionpath preset: merge in the real translateX/translateY/(rotate)
+        // anime.js v4 tween properties computed by setup() from the resolved
+        // path element (see presets/index.js's `motionpath` factory) — these
+        // aren't known until the actual DOM element/path exist, so they can't
+        // be part of the preset factory's own returned `anime` object.
+        animeParams = { ...animeParams, ...(/** @type {any} */ (element)._motionPath) };
+      }
+
+      // Strip LCARdS-internal meta-params before calling anime.animate()
+      const cleanedAnimeParams = _cleanAnimeParams(animeParams);
+
+      lcardsLog.debug('[animateElement] Calling anime() with:', {
+        id: /** @type {any} */ (targetElement)?.id,
+        styleTransformBeforeCall: /** @type {any} */ (targetElement)?.style?.transform,
+        cleanedAnimeParamKeys: Object.keys(cleanedAnimeParams)
+      });
+
+      const animeInstance = window.lcards.anim.anime(targetElement, cleanedAnimeParams);
+      lcardsLog.debug(`[animateElement] Animation instance created:`, {
+        scopeId: scope.id || 'no-id',
+        element: element.id || element.tagName,
+        targetElement: targetElement?.id || targetElement?.tagName || typeof targetElement,
+        animeInstance: !!animeInstance,
+        params: cleanedAnimeParams
+      });
+
+      // Some presets (e.g. cascade-color's interactive mode) need the real
+      // anime.js instance to wire up behavior — setup() runs before the
+      // instance exists, so it can't do this itself. It stashes a callback
+      // on the element for us to invoke now that the instance is real (see
+      // the _drawable/_animTargets/_motionPath convention above).
+      if (typeof (/** @type {any} */ (element)._pendingInstanceSetup) === 'function') {
+        const pendingInstanceSetup = /** @type {any} */ (element)._pendingInstanceSetup;
+        delete /** @type {any} */ (element)._pendingInstanceSetup;
+        try {
+          pendingInstanceSetup(animeInstance);
+        } catch (setupError) {
+          lcardsLog.error('[animateElement] Error in pending instance setup:', setupError);
+        }
+      }
+
+      // Call callback with the created instance (for tracking)
+      if (onInstanceCreated && typeof onInstanceCreated === 'function') {
+        onInstanceCreated(animeInstance);
+      }
+    }
+  } catch (error) {
+    lcardsLog.error('[animateElement] Failed to animate element(s):', { targets, type, error });
+  }
 }
 
 
