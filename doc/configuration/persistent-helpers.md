@@ -1,6 +1,6 @@
 # Persistent Helpers
 
-LCARdS uses Home Assistant `input_*` helpers to store settings persistently: alert mode state, sound configuration, and HA-LCARS sizing values. They survive HA restarts and can be used in automations.
+LCARdS uses Home Assistant `input_*` helpers to store settings persistently: alert mode state, sound configuration, and HA-LCARS sizing values. They survive Home Assistant restarts and can be used in automations.
 
 ::: tip Create helpers from the Config Panel
 The easiest way is the **Config Panel** → **Helpers** tab → **Create All Helpers**: one click creates everything. See [LCARdS Config Panel](./index.md) for setup.
@@ -154,7 +154,7 @@ input_select:
 
 ## Using Helpers in Automations
 
-Because LCARdS reads from these helpers at runtime, you can control LCARdS from any HA automation:
+Because LCARdS reads from these helpers at runtime, you can control LCARdS from any Home Assistant automation:
 
 ```yaml
 # Trigger red alert from an automation

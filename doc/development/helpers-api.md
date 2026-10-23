@@ -60,7 +60,7 @@ await setHelperValue(hass, entityId, value);
 
 **WebSocket API Notes:**
 
-The HA WebSocket API for helpers is undocumented and may change:
+The Home Assistant WebSocket API for helpers is undocumented and may change:
 
 ```javascript
 // Create input_number
@@ -348,4 +348,4 @@ Both consumers use the same Helper Manager API already documented above; no new 
 - **State:** subscribe to changes for reactive updates instead of polling, and unsubscribe on component cleanup (`unsubscribeFromHelper()` or the function returned by `subscribeToHelper()`).
 - **Performance:** batch helper creation via `ensureAllHelpers()` rather than looping `ensureHelper()` calls; avoid excessive subscriptions.
 
-There is no automated test suite for this project; validate helper changes manually: create via the Config Panel, confirm the entity appears in HA, exercise Alert Lab save/reload, and trigger a value change from an automation.
+There is no automated test suite for this project; validate helper changes manually: create via the Config Panel, confirm the entity appears in Home Assistant, exercise Alert Lab save/reload, and trigger a value change from an automation.

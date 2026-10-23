@@ -1,4 +1,4 @@
-# HA Integration Architecture
+# Home Assistant Integration Architecture
 
 LCARdS ships as a **HACS Integration** (`custom_components/lcards/`). This page covers the Python-side architecture: how the integration boots, what it registers in Home Assistant, and how it hands off to the JavaScript frontend.
 
@@ -56,26 +56,26 @@ graph TB
 | File | Responsibility |
 |------|---------------|
 | `__init__.py` | Entry point: wires up static paths, JS injection, sidebar panel, storage init, WS commands, services, log level, and options update listener |
-| `frontend.py` | Registers static HTTP paths and injects `lcards.js` (with `?log=` param) into every HA frontend session |
+| `frontend.py` | Registers static HTTP paths and injects `lcards.js` (with `?log=` param) into every Home Assistant frontend session |
 | `config_flow.py` | Initial setup flow (single-instance, no user input) + options flow (panel, log level, sidebar customisation) |
 | `websocket_api.py` | Registers `lcards/info`, `lcards/subscribe`, and all `lcards/storage/*` WebSocket commands |
-| `media_source.py` | `MediaSource` platform: exposes bundled `images/`/`sounds/` as a browsable "LCARdS" folder in HA's native media browser (auto-discovered, no explicit wiring) |
-| `storage.py` | `LCARdSStorage`: HA Store-backed flat key/value persistence (`.storage/lcards`) |
-| `services.py` | Registers the `lcards.*` HA action namespace: 16 services covering alert modes, frontend control, screen effects, sound, portal overlays, and the Borg Easter egg |
+| `media_source.py` | `MediaSource` platform: exposes bundled `images/`/`sounds/` as a browsable "LCARdS" folder in Home Assistant's native media browser (auto-discovered, no explicit wiring) |
+| `storage.py` | `LCARdSStorage`: Home Assistant Store-backed flat key/value persistence (`.storage/lcards`) |
+| `services.py` | Registers the `lcards.*` Home Assistant action namespace: 16 services covering alert modes, frontend control, screen effects, sound, portal overlays, and the Borg Easter egg |
 | `services.yaml` | Action descriptions and field selectors shown in Developer Tools → Actions |
 | `const.py` | Shared constants: `DOMAIN`, `DOMAIN_VERSION`, option keys, `_LOG_LEVEL_MAP` |
-| `manifest.json` | HACS/HA integration manifest: domain, version (HA CalVer), dependencies |
+| `manifest.json` | HACS/Home Assistant integration manifest: domain, version (Home Assistant CalVer), dependencies |
 | `strings.json` + `translations/en.json` | UI strings for the config and options dialog |
 
 ---
 
 ## Boot Sequence
 
-HA calls the integration in two phases:
+Home Assistant calls the integration in two phases:
 
-### Phase 1: `async_setup()` (HA start, before config entry)
+### Phase 1: `async_setup()` (Home Assistant start, before config entry)
 
-Runs at HA startup before any config entry is loaded. Registers infrastructure that must be available immediately:
+Runs at Home Assistant startup before any config entry is loaded. Registers infrastructure that must be available immediately:
 
 1. **Static paths** (via `frontend.py`), single directory registration:
    - `/lcards/` → `custom_components/lcards/` (serves bundle, source map, and all asset subdirectories)
@@ -88,14 +88,14 @@ Runs when the integration is configured (after initial setup or on restart):
 1. **Log level**: maps the `log_level` option to a Python `logging` level and calls `setLevel()` on the `custom_components.lcards` parent logger, cascading to all child loggers
 2. **Storage init**: creates `LCARdSStorage`, loads `.storage/lcards` from disk, stores the instance at `hass.data["lcards"]["storage"]`
 3. **Services**: `async_setup_services(hass)` registers the full `lcards.*` action namespace (16 services)
-4. **JS injection**: `add_extra_js_url` loads `lcards.js?v=...&log=<level>` on every HA page; the `?log=` param lets `lcards.js` read the configured level at module load time via `import.meta.url`
+4. **JS injection**: `add_extra_js_url` loads `lcards.js?v=...&log=<level>` on every Home Assistant page; the `?log=` param lets `lcards.js` read the configured level at module load time via `import.meta.url`
 5. **Lovelace resource**: registers the script for Cast / kiosk support
 6. **Sidebar panel**: `async_register_built_in_panel` with the configured title and icon, if `show_panel` option is `True`
-7. **Options listener**: `entry.add_update_listener()` triggers an entry reload when the user saves new options, applying changes without an HA restart
+7. **Options listener**: `entry.add_update_listener()` triggers an entry reload when the user saves new options, applying changes without a Home Assistant restart
 
 ### Unload: `async_unload_entry()`
 
-Called on HA restart, explicit reload (triggered by options change), or removal:
+Called on Home Assistant restart, explicit reload (triggered by options change), or removal:
 
 1. **Services**: `async_remove_services(hass)` deregisters all `lcards.*` services
 2. Removes `add_extra_js_url` injection
@@ -128,7 +128,7 @@ All asset URLs in the JS bundle reference the `/lcards/` prefix, which maps dire
 
 `media_source.py` exposes the bundled `images/` and `sounds/` directories as a browsable, read-only **"LCARdS"** folder inside Home Assistant's native media browser: the Media sidebar panel, any media-picker dialog, and every `ha-selector` of type `media` (including the ones LCARdS's own editors use, see [Asset Manager: media-source:// Resolution Flow](subsystems/asset-manager#media-source-resolution-flow)).
 
-**Discovery is automatic and requires no explicit registration call**: HA's `media_source` integration scans every loaded integration for a `media_source.py` module exposing `async_get_media_source(hass)` (via `homeassistant.helpers.integration_platform.async_process_integration_platforms`), which sets `hass.data[MEDIA_SOURCE_DATA]["lcards"]`. No `manifest.json` dependency is strictly required for discovery; LCARdS declares `"after_dependencies": ["media_source"]` defensively, purely to order its own setup after `media_source`'s HTTP views/WS commands are ready.
+**Discovery is automatic and requires no explicit registration call**: Home Assistant's `media_source` integration scans every loaded integration for a `media_source.py` module exposing `async_get_media_source(hass)` (via `homeassistant.helpers.integration_platform.async_process_integration_platforms`), which sets `hass.data[MEDIA_SOURCE_DATA]["lcards"]`. No `manifest.json` dependency is strictly required for discovery; LCARdS declares `"after_dependencies": ["media_source"]` defensively, purely to order its own setup after `media_source`'s HTTP views/WS commands are ready.
 
 ```mermaid
 graph LR
@@ -139,13 +139,13 @@ graph LR
     Resolve -->|"reuses"| StaticPath["existing /lcards static path\n(frontend.py)"]
 ```
 
-`LCARdSMediaSource` (extends `MediaSource`) is deliberately simple and read-only: no upload/delete machinery, unlike HA core's `local_source.py`:
+`LCARdSMediaSource` (extends `MediaSource`) is deliberately simple and read-only: no upload/delete machinery, unlike Home Assistant core's `local_source.py`:
 
 - **`async_browse_media()`** walks the two allowed root directories (`images/`, `sounds/`) one level at a time, mapping each file's identifier to its path relative to `custom_components/lcards/` (e.g. `images/bedroom.jpg`, `sounds/lcards_alerts/alert_klaxon_1.mp3`). Only `image/*` and `audio/*` MIME types are surfaced (via `mimetypes.guess_type`).
 - **`async_resolve_media()`** does **not** serve files itself; it returns `PlayMedia(url=f"/lcards/{identifier}", ...)`, pointing straight at the static path `frontend.py` already registers. No new HTTP view is needed.
-- Path-traversal is guarded by resolving the requested identifier and checking it stays under the integration's own directory (`Path.relative_to()`), mirroring the check in HA core's `local_source.py`.
+- Path-traversal is guarded by resolving the requested identifier and checking it stays under the integration's own directory (`Path.relative_to()`), mirroring the check in Home Assistant core's `local_source.py`.
 
-This is intentionally scoped to LCARdS's own **bundled, read-only** assets. It does not expose user-uploaded or `/local/`-registered images; those already live in HA's own `media_source.local` tree.
+This is intentionally scoped to LCARdS's own **bundled, read-only** assets. It does not expose user-uploaded or `/local/`-registered images; those already live in Home Assistant's own `media_source.local` tree.
 
 ---
 
@@ -162,17 +162,17 @@ After setup, users configure options via **Settings → Integrations → LCARdS 
 | `sidebar_icon` | `CONF_SIDEBAR_ICON` | `"mdi:space-invaders"` | Sidebar icon (MDI name) |
 | `log_level` | `CONF_LOG_LEVEL` | `"warn"` | Frontend + backend verbosity: see [Logging](#logging) below |
 
-All changes applied immediately via entry reload, no HA restart required.
+All changes applied immediately via entry reload, no Home Assistant restart required.
 
 ---
 
 ## WebSocket API
 
-The integration registers WebSocket commands under the `lcards/*` namespace via `websocket_api.py`. Commands registered in `async_setup()` (before the config entry) are available immediately after HA start.
+The integration registers WebSocket commands under the `lcards/*` namespace via `websocket_api.py`. Commands registered in `async_setup()` (before the config entry) are available immediately after Home Assistant start.
 
 ### `lcards/subscribe`
 
-Non-admin push-channel subscription, registered in `async_setup()`. Clients subscribe once and receive `lcards_event` bus events forwarded as WS event messages. This replaces the HA-native `subscribeEvents` API for this purpose, which is restricted to admin users for custom event types.
+Non-admin push-channel subscription, registered in `async_setup()`. Clients subscribe once and receive `lcards_event` bus events forwarded as WS event messages. This replaces the Home Assistant native `subscribeEvents` API for this purpose, which is restricted to admin users for custom event types.
 
 | Command | Registered | Response |
 |---|---|---|
@@ -234,7 +234,7 @@ logger:
 
 ---
 
-## HA Services (Actions)
+## Home Assistant Services (Actions)
 
 The integration registers a `lcards.*` action namespace in `async_setup_entry()`, handled by `services.py`, 16 services in total.
 
@@ -265,8 +265,8 @@ Every service accepts four optional targeting fields, resolved server-side and c
 |---|---|
 | `target_device_ids` | Browser device UUIDs (as stored in the `lcards_device_id` localStorage key), used as-is |
 | `target_device_names` | Device display names (set in the LCARdS config panel or `?lcards_device=` URL param), matched case-insensitively against LCARdS backend storage; non-unique names hit every matching device |
-| `target_user_ids` | HA user IDs: used as-is |
-| `target_user_names` | HA user display names: matched case-insensitively against HA auth |
+| `target_user_ids` | Home Assistant user IDs: used as-is |
+| `target_user_names` | Home Assistant user display names: matched case-insensitively against Home Assistant auth |
 
 When none are supplied, a service broadcasts to all connected frontends (or, for the alert-mode services, writes the shared `input_select.lcards_alert_mode`; see below). When any are supplied, the service instead fires a targeted `lcards_event`; each JS client self-filters on its own device/user identity.
 
@@ -274,7 +274,7 @@ Alert mode services delegate to `input_select.select_option` on `input_select.lc
 
 Schema validation is handled by `voluptuous`; invalid values are rejected before the handler fires. If `input_select.lcards_alert_mode` doesn't exist, a `WARNING` is logged and the service exits without raising.
 
-→ Full reference including automation examples: [HA Services](internals/ha-services)
+→ Full reference including automation examples: [Home Assistant Services](internals/ha-services)
 
 ---
 
@@ -327,7 +327,7 @@ async_unload_entry → integration unloaded (tab navigates away / WS closes)
     → WebSocket disconnect → subscription cleaned up automatically
 ```
 
-On the Python side, `ws_subscribe` registers a `@callback`-decorated listener on the HA event bus for `lcards_event`. When the event fires, it forwards `event.data` directly to the WS connection via `connection.send_message(event_message(...))`. The `@callback` decorator ensures the forward runs on the event loop thread, not in an executor.
+On the Python side, `ws_subscribe` registers a `@callback`-decorated listener on the Home Assistant event bus for `lcards_event`. When the event fires, it forwards `event.data` directly to the WS connection via `connection.send_message(event_message(...))`. The `@callback` decorator ensures the forward runs on the event loop thread, not in an executor.
 
 Transport is always a **broadcast**: every open tab subscribed via `lcards/subscribe` receives every event. Targeting (`target_device_ids` / `target_device_names` / `target_user_ids` / `target_user_names`) is enforced client-side: each `IntegrationService` checks the event's target lists against its own device/user identity and silently drops events not addressed to it. Events with no target lists (the default) are acted on by every tab.
 
@@ -350,7 +350,7 @@ npm run build:integration
 #   custom_components/lcards/sounds/  (from src/assets/sounds/)
 ```
 
-In the devcontainer, `custom_components/lcards/` is bind-mounted into the HA core workspace, so a build is picked up immediately. A browser hard-refresh (`Ctrl+Shift+R`) applies JS changes; Python changes require a full HA restart.
+In the devcontainer, `custom_components/lcards/` is bind-mounted into the Home Assistant core workspace, so a build is picked up immediately. A browser hard-refresh (`Ctrl+Shift+R`) applies JS changes; Python changes require a full Home Assistant restart.
 
 ---
 
@@ -359,9 +359,9 @@ In the devcontainer, `custom_components/lcards/` is bind-mounted into the HA cor
 The `release.yml` GitHub Actions workflow handles versioning and packaging:
 
 1. `workflow_dispatch`, run manually against the desired branch, triggers the workflow
-2. Version (`YYYY.MM.SEQ[-dev.N]`, read from `package.json`; sequence resets each month) is normalised to HA CalVer (no leading zeros, no pre-release suffix) and stamped into `manifest.json`; the full version string (including any `-dev.N` suffix) is kept in `const.py`
+2. Version (`YYYY.MM.SEQ[-dev.N]`, read from `package.json`; sequence resets each month) is normalised to Home Assistant CalVer (no leading zeros, no pre-release suffix) and stamped into `manifest.json`; the full version string (including any `-dev.N` suffix) is kept in `const.py`
 3. `npm run build:integration` produces the complete integration directory
 4. `custom_components/lcards/` is zipped as `lcards.zip` (excluding `__pycache__`, `.pyc`)
 5. A GitHub release is created with the zip attached
 
-HACS downloads this zip and extracts it into `custom_components/lcards/` on the user's HA instance.
+HACS downloads this zip and extracts it into `custom_components/lcards/` on the user's Home Assistant instance.

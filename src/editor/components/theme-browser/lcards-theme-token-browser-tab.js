@@ -1474,14 +1474,14 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     // Count variables by category
     const categoryCounts = {
-      'ha-legacy':   { label: 'HA Legacy', count: 0 },
-      'ha-color':    { label: 'HA Color', count: 0 },
-      'ha-space':    { label: 'HA Spacing', count: 0 },
-      'ha-shape':    { label: 'HA Shape', count: 0 },
-      'ha-motion':   { label: 'HA Motion', count: 0 },
-      'ha-type':     { label: 'HA Typography', count: 0 },
-      'ha-elevation':{ label: 'HA Elevation', count: 0 },
-      'ha-system':   { label: 'HA System', count: 0 },
+      'ha-legacy':   { label: 'Home Assistant Legacy', count: 0 },
+      'ha-color':    { label: 'Home Assistant Color', count: 0 },
+      'ha-space':    { label: 'Home Assistant Spacing', count: 0 },
+      'ha-shape':    { label: 'Home Assistant Shape', count: 0 },
+      'ha-motion':   { label: 'Home Assistant Motion', count: 0 },
+      'ha-type':     { label: 'Home Assistant Typography', count: 0 },
+      'ha-elevation':{ label: 'Home Assistant Elevation', count: 0 },
+      'ha-system':   { label: 'Home Assistant System', count: 0 },
       'material':    { label: 'Material', count: 0 },
       'wa':          { label: 'WebAwesome', count: 0 },
       'states':      { label: 'States', count: 0 },
@@ -1908,14 +1908,14 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     // Group by category
     const categories = {
-      'ha-legacy':   { title: 'HA Legacy Semantic (--primary-*, --text-*, etc.)', vars: [] },
-      'ha-color':    { title: 'HA Color System (--ha-color-*)', vars: [] },
-      'ha-space':    { title: 'HA Spacing Scale (--ha-space-*)', vars: [] },
-      'ha-shape':    { title: 'HA Shape: Border Radius & Width', vars: [] },
-      'ha-motion':   { title: 'HA Motion: Animation Durations', vars: [] },
-      'ha-type':     { title: 'HA Typography: Font & Line Height', vars: [] },
-      'ha-elevation':{ title: 'HA Elevation: Box Shadows', vars: [] },
-      'ha-system':   { title: 'HA System (icons, chips, dialogs, …)', vars: [] },
+      'ha-legacy':   { title: 'Home Assistant Legacy Semantic (--primary-*, --text-*, etc.)', vars: [] },
+      'ha-color':    { title: 'Home Assistant Color System (--ha-color-*)', vars: [] },
+      'ha-space':    { title: 'Home Assistant Spacing Scale (--ha-space-*)', vars: [] },
+      'ha-shape':    { title: 'Home Assistant Shape: Border Radius & Width', vars: [] },
+      'ha-motion':   { title: 'Home Assistant Motion: Animation Durations', vars: [] },
+      'ha-type':     { title: 'Home Assistant Typography: Font & Line Height', vars: [] },
+      'ha-elevation':{ title: 'Home Assistant Elevation: Box Shadows', vars: [] },
+      'ha-system':   { title: 'Home Assistant System (icons, chips, dialogs, …)', vars: [] },
       'material':    { title: 'Material Design (--mdc-*, --md-*)', vars: [] },
       'wa':          { title: 'WebAwesome (--wa-*)', vars: [] },
       'states':      { title: 'Entity State Colours (--state-*)', vars: [] },
@@ -3857,7 +3857,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
                 <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
                 Save
               </ha-button>
-              <ha-button @click=${() => this._cancelEditOverride()}>
+              <ha-button appearance="plain" @click=${() => this._cancelEditOverride()}>
                 Cancel
               </ha-button>
             </div>

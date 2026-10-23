@@ -9,7 +9,7 @@ window.lcards.info()   // prints version, build date, log level, core status
 :::
 
 ::: tip URL log level override
-Append `?lcards_log_level=debug` (or `trace`) to the HA URL to set the log level before the page fully loads, useful for catching early init errors.
+Append `?lcards_log_level=debug` (or `trace`) to the Home Assistant URL to set the log level before the page fully loads, useful for catching early init errors.
 :::
 
 ---

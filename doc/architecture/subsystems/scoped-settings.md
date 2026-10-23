@@ -130,7 +130,7 @@ All storage key strings live in `src/core/services/ScopedSettingsConstants.js` t
 
 ## Backend Storage Layout
 
-Settings are stored under the existing LCARdS integration key in HA's `.storage/lcards`. The flat key format is:
+Settings are stored under the existing LCARdS integration key in Home Assistant's `.storage/lcards`. The flat key format is:
 
 ```
 _user_<ha-user-id>       → { sound_volume: 0.8, sound_scheme: "enterprise" }

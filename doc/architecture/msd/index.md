@@ -59,7 +59,7 @@ Note the two-step animation split: `AnimationManager.initialize()` (step 4) only
 | `CardModel` (`buildCardModel`) | `msd/model/CardModel.js` | Resolves `base_svg` source/filters, resolves the viewBox, normalizes the overlay list into a consistent shape |
 | `ModelBuilder` | `msd/pipeline/ModelBuilder.js` | Resolves overlay geometry, binding to SVG anchors, viewport scaling |
 | `AdvancedRenderer` | `msd/renderer/AdvancedRenderer.js` | Main render orchestrator; creates `OverlayBase` / `LineOverlay` instances per overlay |
-| `OverlayBase` | `msd/overlays/OverlayBase.js` | Base class for control overlays: position, size, embedded HA card |
+| `OverlayBase` | `msd/overlays/OverlayBase.js` | Base class for control overlays: position, size, embedded Home Assistant card |
 | `RouterCore` | `msd/routing/RouterCore.js` | Pathfinding engine: A* routing, obstacle/crossing avoidance, trunk-and-branch bundling, channels; one instance per card. See [Routing Engine](./routing.md) |
 | `LineOverlay` | `msd/overlays/LineOverlay.js` | Per-line renderer: resolves anchors, requests the route from `RouterCore`, builds SVG markup |
 | `ShapeOverlay` | `msd/overlays/ShapeOverlay.js` | Renders `shape` overlays (`polyline`/`rect`/`circle`); sibling of `LineOverlay`, not a subclass; shares its style-resolution logic by adaptation, not inheritance |
@@ -73,7 +73,7 @@ Note the two-step animation split: `AnimationManager.initialize()` (step 4) only
 
 | Type | Class | Description |
 |---|---|---|
-| `control` | `OverlayBase` | Positions an arbitrary HA card (including LCARdS cards) at SVG coordinates |
+| `control` | `OverlayBase` | Positions an arbitrary Home Assistant card (including LCARdS cards) at SVG coordinates |
 | `line` | `LineOverlay` | SVG polyline from source overlay to target overlay with smart routing |
 | `shape` | `ShapeOverlay` | Freeform geometry: `kind: polyline` (routed path via `RouterCore` forced to `manual` mode), `rect`/`circle` (native `<rect>`/`<ellipse>`, reusing controls' `position`+`size` convention) |
 

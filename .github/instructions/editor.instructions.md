@@ -6,6 +6,8 @@ applyTo: src/editor/**
 
 These rules apply to all files under `src/editor/`. Follow them exactly — they supersede any conflicting generic guidance.
 
+When an `ha-frontend-*` skill from the HA frontend checkout loads (dialogs, `ha-button`, styling, UI strings), also load the `lcards-ha-frontend` project skill: it maps HA-internal patterns (`DialogMixin`, `fireEvent`, `consume`, localization) to their LCARdS equivalents.
+
 ---
 
 ## Base Class
@@ -103,7 +105,7 @@ Import from `src/editor/components/shared/` — never recreate these:
 
 The studios (chart, data grid, layout, MSD, data source) and the config panel are the reference look. New or reworked UI follows them; older dialogs are being brought in line (see `reports/ui-consistency-*.md`).
 
-**Dialog shell.** An editor dialog with a preview is a studio: `ha-dialog` with `header-title` and `flexcontent` (without it the dialog body doesn't stretch its content, so the inset shrinks to fit a short tab), `studioDialogStyles` (`src/editor/dialogs/studio-dialog-styles.js`), `.dialog-content` > `.studio-layout` (split grid) > `.config-panel` (`ha-tab-group` with icon tabs, then a scrolling `.tab-content`) and `.preview-panel`. Footer: Cancel (`appearance="plain"`) then Save (`variant="brand"`, `mdi:check`). YAML is the last tab (`lcards-studio-yaml-tab`, icon `mdi:code-braces`). Mount with `mountDialogNearHomeAssistant()`.
+**Dialog shell.** An editor dialog with a preview is a studio: `ha-dialog` with `header-title` and `flexcontent` (without it the dialog body doesn't stretch its content, so the inset shrinks to fit a short tab), `studioDialogStyles` (`src/editor/dialogs/studio-dialog-styles.js`), `.dialog-content` > `.studio-layout` (split grid) > `.config-panel` (`ha-tab-group` with icon tabs, then a scrolling `.tab-content`) and `.preview-panel`. Footer: `<ha-dialog-footer slot="footer">` with Cancel (`slot="secondaryAction" appearance="plain"`) then Save (`slot="primaryAction" variant="brand"`, `mdi:check`); Documentation / Reset go in a `.footer-start` div in `secondaryAction`. YAML is the last tab (`lcards-studio-yaml-tab`, icon `mdi:code-braces`). Mount with `mountDialogNearHomeAssistant()`.
 
 **Surfaces.** Group fields in `lcards-form-section` (the inset section card). Panel tabs use `surfaceStyles` from `src/editor/base/surface-styles.js` (the inset area `.studio-layout` / `.inset-surface` and its `.scrollable-body` / `.scroll-body`); never copy that CSS into a tab. Studio dialogs import `messageStyles` instead, because their own `.studio-layout` is the split grid.
 
@@ -122,7 +124,7 @@ No headings, bullet characters, emoji or inline styles inside messages; lists an
 
 **Code.** Code or config text always goes in a code editor: `lcards-yaml-editor` / `lcards-studio-yaml-tab` for LCARdS YAML (schema completion), `ha-code-editor` for other text (`mode="yaml"` also suits JSON; `jinja2` for templates). Never `ha-textarea` or `<textarea>` for code.
 
-**Plain dialogs.** Use `ha-dialog` with `header-title` (there is no LCARdS wrapper). Stop its `closed` event (`e.stopPropagation()`) so it doesn't close the editor around it, and act only when `e.target === e.currentTarget`: pickers inside fire their own `closed`. Footer: Cancel / Close `appearance="plain"`, then the main action `variant="brand"`.
+**Plain dialogs.** Use `ha-dialog` with `header-title` (there is no LCARdS wrapper). Stop its `closed` event (`e.stopPropagation()`) so it doesn't close the editor around it, and act only when `e.target === e.currentTarget`: pickers inside fire their own `closed`. Footer: `<ha-dialog-footer slot="footer">` (imperative dialogs: `createDialogFooter({ secondary, primary })` from `src/utils/lcards-shared-helpers.js`) with Cancel `appearance="plain"` in `secondaryAction`, then the main action `variant="brand"` in `primaryAction`. A lone Close is the `primaryAction` with default appearance. Focus: put `autofocus` on the first field; a destructive confirm focuses Cancel, any other confirm its main button (HA's dialog box). Tabbed dialogs need none. `tests/editor/dialog-footer-guards.test.js` checks footers and button appearance.
 
 **No native dialogs.** Never `confirm()`, `alert()` or `prompt()`. Use `showConfirmDeleteDialog`, `showInfoDialog` and `showPromptDialog` from `src/views/layout-edit-dialogs.js` (HA dialogs, mounted near `home-assistant`).
 

@@ -42,7 +42,7 @@ The following properties are shared across all LCARdS cards. See [Common Card Pr
 | Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow-x-overflow-y) |
 | Stacking | `z_index` | [Stacking](../common.md#stacking-z-index) |
 | Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
-| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid-options) |
+| Home Assistant Grid | `grid_options` | [Home Assistant Grid Sizing](../common.md#home-assistant-grid-sizing-grid-options) |
 | Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
 | Text labels | `text` | [Text Fields](../../core/text-fields.md) |
 | Actions | `tap_action`, `hold_action`, `double_tap_action` | [Actions](../../core/actions.md) |
@@ -373,7 +373,7 @@ Zone/threshold *colours* are never tweened (they stay an instant, alert-like sta
 
 ## Drag Value Badge
 
-A floating badge that follows the drag position while you're actively dragging the slider, before the value is committed to the entity on release. Mirrors HA's native slider drag indicator. Works the same way across all three track types (`pills`, `gauge`, `shaped`): anchored below the track in horizontal orientation, and beside it in vertical: to the right for the default component, to the left for `component: picard`. It's never shown for entity-driven/external value changes; only for an actual user drag.
+A floating badge that follows the drag position while you're actively dragging the slider, before the value is committed to the entity on release. Mirrors Home Assistant's native slider drag indicator. Works the same way across all three track types (`pills`, `gauge`, `shaped`): anchored below the track in horizontal orientation, and beside it in vertical: to the right for the default component, to the left for `component: picard`. It's never shown for entity-driven/external value changes; only for an actual user drag.
 
 ```yaml
 drag_badge:

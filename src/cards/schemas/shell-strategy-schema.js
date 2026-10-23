@@ -26,7 +26,7 @@ export const shellStrategySchema = {
             title: 'Room Controller Entity',
             description: 'Controls the room light controller. '
                 + 'input_select or select: its options become the room list (entity mode). '
-                + 'input_text: room list is built from your HA area registry automatically; '
+                + 'input_text: room list is built from your Home Assistant area registry automatically; '
                 + 'the selected area is stored in this entity (auto-areas mode). '
                 + 'Leave blank to show a placeholder.',
             'x-ui-hints': { selector: { entity: { domain: ['input_select', 'select', 'input_text'] } } },

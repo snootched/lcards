@@ -1,6 +1,6 @@
 # Data Sources
 
-Data Sources give cards access to entity history, real-time updates, and processed values, beyond the plain current state that HA cards normally see.
+Data Sources give cards access to entity history, real-time updates, and processed values, beyond the plain current state that Home Assistant cards normally see.
 
 ---
 
@@ -42,7 +42,7 @@ Use in a text template:
 ```yaml
 text:
   value:
-    content: "{ds:temp}"         # HA-native: locale-formatted + unit → "4,7 °C"
+    content: "{ds:temp}"         # Home Assistant native: locale-formatted + unit → "4,7 °C"
     # content: "{ds:temp:.1f} °C"  # explicit precision + unit suffix
 ```
 
@@ -161,7 +161,7 @@ The preview runs the same processor code as the dashboard. Live-only behaviour, 
 ## Accessing Values in Templates
 
 ```yaml alternatives
-# No format spec - HA-native: locale-formatted number + unit from entity metadata
+# No format spec - Home Assistant native: locale-formatted number + unit from entity metadata
 "{ds:temp}"                          # → "4,73 °C"  (locale + unit)
 
 # With format spec - you own the output: number only, no auto-unit
@@ -173,7 +173,7 @@ The preview runs the same processor code as the dashboard. Live-only behaviour, 
 "{datasource:temp.fahrenheit:.0f} °F"  # → "87 °F"
 ```
 
-> **Rule:** no format spec → HA displays it (locale + unit). With a spec → you control the output.
+> **Rule:** no format spec → Home Assistant displays it (locale + unit). With a spec → you control the output.
 
 ---
 

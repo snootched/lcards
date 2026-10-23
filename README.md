@@ -43,11 +43,11 @@
 
 ## Install
 
-**HA 2026.10**
+**Home Assistant 2026.10**
 
 [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=snootched&repository=LCARdS&category=integration)
 
-**HA 2026.11+**
+**Home Assistant 2026.11+**
 
 [![Open your Home Assistant instance and open a repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=snootched&repository=lcards&category=integrations)
 

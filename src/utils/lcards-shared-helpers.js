@@ -66,3 +66,19 @@ export function mountDialogNearHomeAssistant(dialogEl, startEl) {
   const mountRoot = haRoot?.shadowRoot ?? document.body;
   mountRoot.appendChild(dialogEl);
 }
+
+/**
+ * Builds HA's standard dialog footer for an imperatively created `ha-dialog`:
+ * `<ha-dialog-footer slot="footer">` with the secondary buttons (cancel, close:
+ * `appearance="plain"`) placed before the primary ones. Templates write the same
+ * markup directly.
+ * @param {{ secondary?: Element[], primary?: Element[] }} buttons
+ * @returns {HTMLElement} The footer, ready to append to the dialog.
+ */
+export function createDialogFooter({ secondary = [], primary = [] }) {
+  const footer = document.createElement('ha-dialog-footer');
+  footer.slot = 'footer';
+  for (const el of secondary) { el.slot = 'secondaryAction'; footer.appendChild(el); }
+  for (const el of primary) { el.slot = 'primaryAction'; footer.appendChild(el); }
+  return footer;
+}

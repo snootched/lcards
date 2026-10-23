@@ -28,7 +28,7 @@ Each key is an SEM slot name; the value is `{ preset, ...params }`. Unknown slot
 
 > **`intro.canvas` is special**: the canvas slot during the intro is always hardcoded to the `borg-assimilation` preset. Any `preset` key you include in `intro.canvas` is silently stripped. All other keys are forwarded as effect params.
 >
-> **Naming convention:** the JavaScript console API uses camelCase (`siteCount`, `tendrilsPerSite`, `glowColor`). The HA service YAML layer (`intro_layers.canvas`) accepts **either** snake_case (`site_count`, `tendrils_per_site`, `glow_color`) or camelCase; both are normalised before being sent to the browser.
+> **Naming convention:** the JavaScript console API uses camelCase (`siteCount`, `tendrilsPerSite`, `glowColor`). The Home Assistant service YAML layer (`intro_layers.canvas`) accepts **either** snake_case (`site_count`, `tendrils_per_site`, `glow_color`) or camelCase; both are normalised before being sent to the browser.
 
 ::: tip SEM preset reference
 All available presets for the `backdrop`, `color`, and `canvas` slots (and every parameter each accepts) are documented in **[Screen Effects → Preset Reference](effects/screen-effects.md#preset-reference)**.
@@ -152,7 +152,7 @@ When `deassimilate()` is called:
 
 ---
 
-## HA Services
+## Home Assistant Services
 
 The LCARdS integration exposes two services in the `lcards.*` namespace that can trigger and clear the Easter egg from automations, scripts, or the Developer Tools → Actions panel.
 
@@ -174,8 +174,8 @@ Trigger the Borg assimilation on one or all connected browsers.
 | `persistent_layers` | No | - | **Advanced.** Full per-slot layers dict. Overrides `suppress_persistent` when set. Pass `{}` to suppress all. See [Preset Reference](effects/screen-effects.md#preset-reference) for all available presets and params per slot. |
 | `target_device_ids` | No | - | List of browser device UUIDs: leave empty for all |
 | `target_device_names` | No | - | List of device display names (resolved server-side) |
-| `target_user_ids` | No | - | List of HA user IDs: leave empty for all |
-| `target_user_names` | No | - | List of HA user display names (case-insensitive) |
+| `target_user_ids` | No | - | List of Home Assistant user IDs: leave empty for all |
+| `target_user_names` | No | - | List of Home Assistant user display names (case-insensitive) |
 
 **Broadcast, click-to-dismiss (intro stays until user interacts):**
 
@@ -284,8 +284,8 @@ Reverse the Borg assimilation and restore all browsers to normal.
 | `revert_transition_style` | No | `fade_only` | Palette transition back to normal: `flash`, `fade_only`, `blur_fade`, `off` |
 | `target_device_ids` | No | - | List of browser device UUIDs: leave empty for all |
 | `target_device_names` | No | - | List of device display names (resolved server-side) |
-| `target_user_ids` | No | - | List of HA user IDs: leave empty for all |
-| `target_user_names` | No | - | List of HA user display names (case-insensitive) |
+| `target_user_ids` | No | - | List of Home Assistant user IDs: leave empty for all |
+| `target_user_names` | No | - | List of Home Assistant user display names (case-insensitive) |
 
 **Broadcast (restore all connected browsers, default glitch outro):**
 
@@ -323,8 +323,8 @@ All four standard targeting fields work the same as other `lcards.*` services:
 - **No targeting fields** → broadcast to all connected browsers
 - **`target_device_ids`** → list of UUIDs from `localStorage.getItem('lcards_device_id')` in each browser
 - **`target_device_names`** → display names set in the LCARdS Config Panel or via `?lcards_device=` URL param; non-unique names match all devices sharing that name
-- **`target_user_ids`** → HA user IDs
-- **`target_user_names`** → HA user display names (case-insensitive)
+- **`target_user_ids`** → Home Assistant user IDs
+- **`target_user_names`** → Home Assistant user display names (case-insensitive)
 
 When targeting is used, the global `input_select.lcards_alert_mode` is **not** written; the Borg palette change is applied locally on matching devices only and does not persist across reloads.
 
@@ -336,8 +336,8 @@ When targeting is used, the global `input_select.lcards_alert_mode` is **not** w
 - Calling `assimilate()` while already assimilated is a no-op (a warning is logged)
 - Calling `deassimilate()` while not assimilated is a no-op (a warning is logged)
 - Calling `deassimilate()` during the canvas intro immediately cancels the click-dismiss Promise; the `deassimilate` sequence proceeds without waiting for user interaction
-- The canvas intro uses `pointer-events: auto` while visible; all intro SEM slots (canvas, backdrop, color) are cleared on dismiss so HA UI interaction works normally
+- The canvas intro uses `pointer-events: auto` while visible; all intro SEM slots (canvas, backdrop, color) are cleared on dismiss so Home Assistant UI interaction works normally
 - The font override injects a `<style id="lcards-borg-font-override">` tag on `document.head`; `deassimilate()` removes it cleanly, only when `fontSwap` was `true` (the default) during the corresponding `assimilate()` call
 - `window.lcards.alert.borg()` is a convenience alias for `window.lcards.borg.assimilate()`
-- `intro_layers`/`persistent_layers`/`outro_layers` are object selectors in the HA service; pass them as a YAML mapping, not as a list
+- `intro_layers`/`persistent_layers`/`outro_layers` are object selectors in the Home Assistant service; pass them as a YAML mapping, not as a list
 - When no `duration` key appears in any outro layer, the manager falls back to 1200 ms before reverting the palette

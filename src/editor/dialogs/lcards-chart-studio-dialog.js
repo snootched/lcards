@@ -1929,33 +1929,33 @@ yaxis:
                                 .editor=${this._dataSourceHost}
                                 .hass=${this.hass}>
                             </lcards-datasource-editor-tab>
-                            <div slot="footer">
-                                <ha-button appearance="plain" data-dialog="close">Close</ha-button>
-                            </div>
+                            <ha-dialog-footer slot="footer">
+                                <ha-button slot="primaryAction" data-dialog="close">Close</ha-button>
+                            </ha-dialog-footer>
                         </ha-dialog>
                     ` : ''}
                 </div>
 
                 <!-- Dialog Actions -->
-                <div slot="footer">
-                    <div class="footer-start">
+                <ha-dialog-footer slot="footer">
+                    <div slot="secondaryAction" class="footer-start">
                         <ha-button appearance="plain" @click=${() => window.open(docsUrl(this._tabDocs()), '_blank', 'noopener')}>
                             <ha-icon icon="mdi:book-open-variant" slot="start"></ha-icon>
                             Documentation
                         </ha-button>
                     </div>
-                    <ha-button
+                    <ha-button slot="secondaryAction"
                         appearance="plain"
                         @click=${this._handleCancel}>
                         Cancel
                     </ha-button>
-                    <ha-button
+                    <ha-button slot="primaryAction"
                         variant="brand"
                         @click=${this._handleSave}>
                         <ha-icon icon="mdi:check" slot="start"></ha-icon>
                         Save
                     </ha-button>
-                </div>
+                </ha-dialog-footer>
             </ha-dialog>
         `;
     }

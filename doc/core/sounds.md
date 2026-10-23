@@ -57,7 +57,7 @@ sounds:
 | `slider_drag_end` | string \| null | Asset key for slider release. |
 
 ::: info Asset keys
-An asset key is the name a sound pack registers its sound under, e.g. `lcards_default_tap`, `lcards_default_nav` or `computer_activate` (no `scheme:` prefix), or a `media-source://` ID picked from the HA media library. `schema/registries.json` on this site lists every built-in key under `sound_assets`. See [Sound Configuration](../configuration/sounds.md) for available events and installed packs.
+An asset key is the name a sound pack registers its sound under, e.g. `lcards_default_tap`, `lcards_default_nav` or `computer_activate` (no `scheme:` prefix), or a `media-source://` ID picked from the Home Assistant media library. `schema/registries.json` on this site lists every built-in key under `sound_assets`. See [Sound Configuration](../configuration/sounds.md) for available events and installed packs.
 :::
 
 ---
@@ -116,5 +116,5 @@ sounds:
 ## See Also
 
 - [Sound Configuration](../configuration/sounds.md): system-wide setup, schemes, per-user and per-device overrides
-- [HA Actions: `lcards.play_sound`](../configuration/ha-actions.md#lcards-play-sound): trigger a sound from an automation
+- [Home Assistant Actions: `lcards.play_sound`](../configuration/ha-actions.md#lcards-play-sound): trigger a sound from an automation
 - [Actions](actions.md): tap, hold, and double-tap action configuration

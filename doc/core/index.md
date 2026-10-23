@@ -13,7 +13,7 @@ Options you set on each card:
 
 | Option | Description |
 |---|---|
-| [Actions](actions.md) | Tap, hold, and double-tap actions wired to any HA service call |
+| [Actions](actions.md) | Tap, hold, and double-tap actions wired to any Home Assistant service call |
 | [Colours](colours.md) | Accepted colour formats and state-based colour maps |
 | [Presets](presets.md) | Named style collections: apply a full card appearance in one line |
 | [Sounds](sounds.md) | Event-driven audio feedback via the Sound Manager |

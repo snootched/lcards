@@ -70,7 +70,7 @@ The following properties are shared across all LCARdS cards. See [Common Card Pr
 | Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow-x-overflow-y) |
 | Stacking | `z_index` | [Stacking](../common.md#stacking-z-index) |
 | Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
-| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid-options) |
+| Home Assistant Grid | `grid_options` | [Home Assistant Grid Sizing](../common.md#home-assistant-grid-sizing-grid-options) |
 | Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
 | Actions | `tap_action`, `hold_action`, `double_tap_action` | [Actions](../../core/actions.md) |
 | Rules | via `id` / `tags` | [Rules Engine](../../core/rules/) |
@@ -196,7 +196,7 @@ A few layouts and presets against a sample `input_select` (tap an option to sele
 | Value | Behavior |
 |-------|----------|
 | _(unset)_ | **Natural**: the option grid is as tall as its rows; the card flows like normal content. |
-| `fit` | **Content-driven, published**: the card computes its exact natural height from config (`rows × row-height max + gaps`, using the pixel max of `grid-auto-rows`) and sets it as a definite pixel height on the card element. Use this when a *parent* grid track must size itself to the menu (an `auto` or `minmax(0, max-content)` track): measuring the menu through HA's `hui-card` wrapper via intrinsic CSS sizing is unreliable, while a definite pixel height always works. Requires a pixel-bounded `grid-auto-rows` (`minmax(Apx, Bpx)` or `Npx`). |
+| `fit` | **Content-driven, published**: the card computes its exact natural height from config (`rows × row-height max + gaps`, using the pixel max of `grid-auto-rows`) and sets it as a definite pixel height on the card element. Use this when a *parent* grid track must size itself to the menu (an `auto` or `minmax(0, max-content)` track): measuring the menu through Home Assistant's `hui-card` wrapper via intrinsic CSS sizing is unreliable, while a definite pixel height always works. Requires a pixel-bounded `grid-auto-rows` (`minmax(Apx, Bpx)` or `Npx`). |
 | `100%` | **Bounded fill**: the option grid fills whatever height its container provides. With a pixel-bounded `grid-auto-rows`, a `ResizeObserver` measures the container and computes a concrete per-button height within the bounds; if even the minimum row height cannot fit, buttons stay at the minimum and the grid scrolls internally instead of overflowing. With a flexible max (e.g. `minmax(40px, 1fr)`), CSS distributes the height directly. |
 
 Example: a sidebar where the menu's row hugs its content and a filler panel absorbs the leftover (the pattern used by the shell strategy):

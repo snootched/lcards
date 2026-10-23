@@ -60,7 +60,7 @@ set_alert_mode:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to specific HA user IDs. Leave empty to target all users.
+        Limit to specific Home Assistant user IDs. Leave empty to target all users.
         When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -80,7 +80,7 @@ set_alert_mode:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive. When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -106,7 +106,7 @@ red_alert:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to specific HA user IDs. Leave empty for all users.
+        Limit to specific Home Assistant user IDs. Leave empty for all users.
         When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -125,7 +125,7 @@ red_alert:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive. When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -151,7 +151,7 @@ yellow_alert:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to specific HA user IDs. Leave empty for all users.
+        Limit to specific Home Assistant user IDs. Leave empty for all users.
         When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -170,7 +170,7 @@ yellow_alert:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive. When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -196,7 +196,7 @@ blue_alert:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to specific HA user IDs. Leave empty for all users.
+        Limit to specific Home Assistant user IDs. Leave empty for all users.
         When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -215,7 +215,7 @@ blue_alert:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive. When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -241,7 +241,7 @@ gray_alert:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to specific HA user IDs. Leave empty for all users.
+        Limit to specific Home Assistant user IDs. Leave empty for all users.
         When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -260,7 +260,7 @@ gray_alert:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive. When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -286,7 +286,7 @@ black_alert:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to specific HA user IDs. Leave empty for all users.
+        Limit to specific Home Assistant user IDs. Leave empty for all users.
         When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -305,7 +305,7 @@ black_alert:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive. When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -331,7 +331,7 @@ clear_alert:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to specific HA user IDs. Leave empty for all users.
+        Limit to specific Home Assistant user IDs. Leave empty for all users.
         When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -350,7 +350,7 @@ clear_alert:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive. When set, the global input_select helper is NOT changed.
       required: false
       selector:
@@ -377,7 +377,7 @@ reload:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to sessions belonging to specific HA users. Leave empty for all.
+        Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -394,7 +394,7 @@ reload:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:
@@ -440,7 +440,7 @@ set_log_level:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to sessions belonging to specific HA users. Leave empty for all.
+        Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -457,7 +457,7 @@ set_log_level:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:
@@ -541,7 +541,7 @@ trigger_effect:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to sessions belonging to specific HA users. Leave empty for all.
+        Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -558,7 +558,7 @@ trigger_effect:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:
@@ -600,7 +600,7 @@ clear_effect:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to sessions belonging to specific HA users. Leave empty for all.
+        Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -616,7 +616,7 @@ clear_effect:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:
@@ -692,7 +692,7 @@ play_sound:
     target_user_ids:
       name: Target User IDs
       description: >
-        Limit to sessions belonging to specific HA users. Leave empty for all.
+        Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -708,7 +708,7 @@ play_sound:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:
@@ -718,13 +718,13 @@ play_sound:
 show_portal_card:
   name: Show Portal Card
   description: >
-    Display an HA card in the LCARdS screen-effect portal overlay on target
+    Display a Home Assistant card in the LCARdS screen-effect portal overlay on target
     browsers. The card is rendered above all other content. Optionally apply
     screen effect layers and auto-dismiss after a duration.
   fields:
     content:
       name: Card Config
-      description: HA card YAML configuration object (required).
+      description: Home Assistant card YAML configuration object (required).
       required: true
       example:
         type: "custom:lcards-button"
@@ -799,7 +799,7 @@ show_portal_card:
           multiple: true
     target_user_ids:
       name: Target User IDs
-      description: Limit to sessions belonging to specific HA users. Leave empty for all.
+      description: Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -816,7 +816,7 @@ show_portal_card:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:
@@ -840,7 +840,7 @@ clear_portal_card:
           multiple: true
     target_user_ids:
       name: Target User IDs
-      description: Limit to sessions belonging to specific HA users. Leave empty for all.
+      description: Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -857,7 +857,7 @@ clear_portal_card:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:
@@ -1061,7 +1061,7 @@ borg_assimilate:
           multiple: true
     target_user_ids:
       name: Target User IDs
-      description: Limit to sessions belonging to specific HA users. Leave empty for all.
+      description: Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -1078,7 +1078,7 @@ borg_assimilate:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:
@@ -1165,7 +1165,7 @@ borg_deassimilate:
           multiple: true
     target_user_ids:
       name: Target User IDs
-      description: Limit to sessions belonging to specific HA users. Leave empty for all.
+      description: Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
       required: false
       selector:
         text:
@@ -1182,7 +1182,7 @@ borg_deassimilate:
     target_user_names:
       name: Target User Names
       description: >
-        Limit to HA users by their display name. Resolved server-side.
+        Limit to Home Assistant users by their display name. Resolved server-side.
         Case-insensitive.
       required: false
       selector:

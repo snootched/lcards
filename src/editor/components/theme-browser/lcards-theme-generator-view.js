@@ -240,7 +240,7 @@ export const LEGACY_GROUPS = LEGACY_GROUP_ORDER.filter(g => LEGACY_FIELD_DEFS.so
 const DOMAIN_KEY_RE = /^state-([a-z0-9_]+)-([a-z0-9_]+)-color$/;
 
 /** Badge text for a _staticHaDefault()/_liveDomainStateDefault() tier — 'unknown' gets no badge at all (see _staticHaDefault's doc comment: genuinely no source exists, showing one would be dishonest). */
-const DEFAULT_TIER_LABELS = { lcars: 'HA-LCARS Default', ha: 'HA Default', global: 'Global Default', unknown: null };
+const DEFAULT_TIER_LABELS = { lcars: 'HA-LCARS Default', ha: 'Home Assistant Default', global: 'Global Default', unknown: null };
 
 /** Real <ha-button> variant/role pairing for the Live Component Preview — semantic role -> ha-button's own `variant` attribute (note: primary maps to "brand", not "primary"). */
 const HA_BUTTON_VARIANTS = [
@@ -1369,17 +1369,17 @@ export class LCARdSThemeGeneratorView extends LitElement {
     return html`
       <div class="tab-content-container">
         ${this._renderInfoGuide('overview', 'mdi:palette-swatch-outline', 'What is the HA-LCARS Theme Lab?', html`
-          <p>Build a full HA-LCARS theme: set and test your colour options here, then copy the generated YAML into your <code>lcars.yaml</code> theme file - nothing here is written to your live HA install.</p>
+          <p>Build a full HA-LCARS theme: set and test your colour options here, then copy the generated YAML into your <code>lcars.yaml</code> theme file - nothing here is written to your live Home Assistant install.</p>
           <p>There are four main sections:</p>
           <ul>
-            <li><strong>Palette Seed</strong>: HA's 5 role colour scales (Primary/Neutral/Red/Orange/Green). HA uses these palettes to calculate other colours throughout the UI.</li>
-            <li><strong>HA-LCARS &amp; Legacy HA Semantic Colours</strong>: individual fields for HA-LCARS theme configuration.  Also includes legacy HA semantic colours that are not from the Palette Seed.</li>
+            <li><strong>Palette Seed</strong>: Home Assistant's 5 role colour scales (Primary/Neutral/Red/Orange/Green). Home Assistant uses these palettes to calculate other colours throughout the UI.</li>
+            <li><strong>HA-LCARS &amp; Legacy Home Assistant Semantic Colours</strong>: individual fields for HA-LCARS theme configuration.  Also includes legacy Home Assistant semantic colours that are not from the Palette Seed.</li>
             <li><strong>Domain &amp; State Colours</strong>: configure common/per domain state-specific colour overrides.</li>
             <li><strong>Advanced / Raw Overrides</strong>: for any var name without dedicated UI.</li>
           </ul>
-          <p class="info-guide-tip">A Palette Seed role left as <strong>None</strong> is left out of the export, so HA's own default palette applies instead. Dashed badge
-            <span class="gen-fallback-badge">HA-LCARS Default</span> appears for values that are the HA-LCARS theme defaults; and <span class="gen-fallback-badge">HA Default</span>
-            for values from HA defaults.</p>
+          <p class="info-guide-tip">A Palette Seed role left as <strong>None</strong> is left out of the export, so Home Assistant's own default palette applies instead. Dashed badge
+            <span class="gen-fallback-badge">HA-LCARS Default</span> appears for values that are the HA-LCARS theme defaults; and <span class="gen-fallback-badge">Home Assistant Default</span>
+            for values from Home Assistant defaults.</p>
           <p>Most fields support separate light/dark values. Switch to <strong>Preview &amp; Export</strong> mode at any time to see the current state and generated YAML.</p>
         `)}
         ${this._renderLabTabToggle()}
@@ -1444,7 +1444,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
           <div class="gen-field-row" style="grid-template-columns: minmax(140px, 220px) 1fr auto;">
             <div class="gen-field-label">Theme</div>
             <ha-selector .hass=${this.hass}
-              .selector=${{ select: { mode: 'dropdown', options: this._themeLibraryEntries.map(e => ({ value: e.name, label: `${e.name}${e.source === 'installed' ? '  •  installed on this HA' : '  •  bundled reference'}` })) } }}
+              .selector=${{ select: { mode: 'dropdown', options: this._themeLibraryEntries.map(e => ({ value: e.name, label: `${e.name}${e.source === 'installed' ? '  •  installed' : '  •  bundled reference'}` })) } }}
               .value=${this._selectedLibraryTheme}
               .label=${'Theme'}
               @value-changed=${(ev) => { this._selectedLibraryTheme = ev.detail.value; }}>
@@ -1454,7 +1454,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
           ${this._renderInfoGuide('library', 'mdi:information-outline', 'How loading an HA-LCARS theme works', html`
             <p>Loads a theme's HA-LCARS UI variables and other colours as your starting point.</p>
             <ul>
-              <li><strong>Installed on this HA</strong>: themes currently loaded on this Home Assistant instance.</li>
+              <li><strong>Installed</strong>: themes currently loaded on this Home Assistant instance.</li>
               <li><strong>Bundled reference</strong>: a snapshot shipped with LCARdS, shown only when that theme isn't installed here.</li>
             </ul>
             <p class="info-guide-tip">A Palette Seed role switches to "Imported" when the loaded theme defines its own <code>ha-color-&lt;role&gt;-*</code> ramp. Otherwise it's set to "None".</p>
@@ -1495,9 +1495,9 @@ export class LCARdSThemeGeneratorView extends LitElement {
   _renderPaletteSeedSection() {
     return html`
       <lcards-form-section header="Palette Seed" icon="mdi:palette-outline" ?expanded=${true} ?outlined=${true}
-        description="Adopt the imported theme's palette, pick an LCARdS family, or hand-build custom tones for each of HA's 5 role colours.">
-        <p class="gen-hint">Feeds HA's native <code>ha-color-&lt;role&gt;-*</code> palettes: used on native HA
-          components that HA-LCARS's own styling doesn't reach. A role left as <strong>None</strong> uses HA's own
+        description="Adopt the imported theme's palette, pick an LCARdS family, or hand-build custom tones for each of Home Assistant's 5 role colours.">
+        <p class="gen-hint">Feeds Home Assistant's native <code>ha-color-&lt;role&gt;-*</code> palettes: used on native Home Assistant
+          components that HA-LCARS's own styling doesn't reach. A role left as <strong>None</strong> uses Home Assistant's own
           default palette.</p>
         ${this._renderTierLegend()}
         ${HA_PALETTE_ROLES.map(role => this._renderRoleSeed(role))}
@@ -1509,12 +1509,12 @@ export class LCARdSThemeGeneratorView extends LitElement {
   _renderTierLegend() {
     return html`
       ${this._renderInfoGuide('tier-legend', 'mdi:information-outline', 'The A/F/T/O badges', html`
-        <p>Home Assistant's <code>ha-button</code> (now built with WebAwesome) doesn't read a Palette Seed tone itself, but rather each tone below feeds one of HA's own fixed semantic tokens.  HA then aliases to the semantic tokens with generic names <code>ha-button</code> actually consumes. Each badge marks which tone makes that whole hop, for a given <code>appearance</code></p>
+        <p>Home Assistant's <code>ha-button</code> (now built with WebAwesome) doesn't read a Palette Seed tone itself, but rather each tone below feeds one of Home Assistant's own fixed semantic tokens.  Home Assistant then aliases to the semantic tokens with generic names <code>ha-button</code> actually consumes. Each badge marks which tone makes that whole hop, for a given <code>appearance</code></p>
         <p class="info-guide-note">Shown for Primary/"brand" as an example: each role follows the same 3-hop chain via its own family name (neutral/danger/warning/success)</p>
         <pre class="info-guide-example">--ha-color-primary-40                    Palette Seed tone (the swatch itself)
       │
       ▼
---ha-color-fill-primary-loud-resting     HA's semantic tier  ← the "A" badge marks this
+--ha-color-fill-primary-loud-resting     Home Assistant's semantic tier  ← the "A" badge marks this
       │
       ▼
 --wa-color-brand-fill-loud               WebAwesome alias var ha-button reads
@@ -1575,7 +1575,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
         </div>
 
         ${isUnset ? html`
-          <p class="gen-hint">Not set: this theme won't define <code>ha-color-${role}-*</code>, so HA uses its own
+          <p class="gen-hint">Not set: this theme won't define <code>ha-color-${role}-*</code>, so Home Assistant uses its own
             default palette. The swatches below preview that default. Pick <strong>LCARdS Palettes</strong> for a
             ready-made family, <strong>Custom</strong> to hand-build one, or <strong>Imported</strong> if this theme
             has its own ramp.</p>
@@ -1584,7 +1584,7 @@ export class LCARdSThemeGeneratorView extends LitElement {
         ${cfg.source === 'imported' ? html`
           <p class="gen-imported-note">Using this theme's own <code>ha-color-${role}-*</code> ramp:
             ${importedCount < 11
-              ? html`${importedCount} of 11 stops (missing stops, dashed below, preview HA's fallback)`
+              ? html`${importedCount} of 11 stops (missing stops, dashed below, preview Home Assistant's fallback)`
               : html`all 11 stops`}. Not editable here. Switch to <strong>Custom</strong> to hand-tune it, or
             <strong>LCARdS Palettes</strong> for a ready-made family.</p>
         ` : nothing}
@@ -1729,8 +1729,8 @@ export class LCARdSThemeGeneratorView extends LitElement {
   _renderLegacySection() {
     const counts = this._legacyCategoryCounts();
     return html`
-      <lcards-form-section header="HA-LCARS &amp; Legacy HA Semantic Colours" icon="mdi:format-color-fill" ?expanded=${false} ?outlined=${true}
-        description="Set the colour for HA-LCARS and legacy HA vars. The var name is shown under each label. Unset fields default to HA-LCARS or HA defaults, if available.">
+      <lcards-form-section header="HA-LCARS &amp; Legacy Home Assistant Semantic Colours" icon="mdi:format-color-fill" ?expanded=${false} ?outlined=${true}
+        description="Set the colour for HA-LCARS and legacy Home Assistant vars. The var name is shown under each label. Unset fields default to HA-LCARS or Home Assistant defaults, if available.">
         <div class="gen-search-container">
           <div class="gen-search-wrapper">
             <ha-input class="gen-legacy-search" .value=${this._legacySearchText} @input=${(ev) => this._handleLegacySearchInput(ev)}
@@ -1841,14 +1841,14 @@ export class LCARdSThemeGeneratorView extends LitElement {
     return html`
       <lcards-form-section header="Domain &amp; State Colours" icon="mdi:state-machine" ?expanded=${false} ?outlined=${true}>
         ${this._renderInfoGuide('domain', 'mdi:information-outline', 'How domain & state colours work', html`
-          <p>HA colours an entity's state icon by walking a fallback chain, top to bottom, until it finds a var that's defined:</p>
+          <p>Home Assistant colours an entity's state icon by walking a fallback chain, top to bottom, until it finds a var that's defined:</p>
           <pre class="info-guide-example">--state-&lt;domain&gt;-&lt;device_class&gt;-&lt;state&gt;-color             only for entities with a device_class
       │
       ▼
 --state-&lt;domain&gt;-&lt;state&gt;-color                            the rows below, e.g. --state-light-on-color
       │
       ▼
---state-&lt;domain&gt;-active-color / -inactive-color           HA's own per-domain split: not editable here
+--state-&lt;domain&gt;-active-color / -inactive-color           Home Assistant's own per-domain split: not editable here
       │
       ▼
 Global Fallback: --state-active-color / -inactive-color   the final floor (plus unavailable/unknown/default-icon)</pre>
@@ -1856,7 +1856,7 @@ Global Fallback: --state-active-color / -inactive-color   the final floor (plus 
             <code>--state-unavailable-color</code>.</p>
           <p class="info-guide-tip">Rows only hold a real value once set. <code>lock</code> and most of
             <code>climate</code> come pre-set from HA-LCARS's own shared defaults. Every other row starts unset and
-            just previews a static default (badged HA-LCARS Default / HA Default / Global Default). Leaving
+            just previews a static default (badged HA-LCARS Default / Home Assistant Default / Global Default). Leaving
             everything unset and only setting Global Fallback is a perfectly complete theme.</p>
         `)}
         <lcards-form-section header="Global Fallback" ?expanded=${true} nested>
@@ -1905,7 +1905,7 @@ Global Fallback: --state-active-color / -inactive-color   the final floor (plus 
           ? html`<span class="gen-dark-empty">(${badgeLabel}: not set by this theme)</span>`
           : html`<span class="gen-dark-empty">(using light value)</span>`)}
         ${isModified ? html`
-          <ha-icon-button .label=${'Revert to HA default'} @click=${() => this._revertDomainOverride(domain, state)}>
+          <ha-icon-button .label=${'Revert to Home Assistant default'} @click=${() => this._revertDomainOverride(domain, state)}>
             <ha-icon icon="mdi:restore"></ha-icon>
           </ha-icon-button>
         ` : html`<span class="gen-revert-spacer"></span>`}
@@ -2012,23 +2012,23 @@ Global Fallback: --state-active-color / -inactive-color   the final floor (plus 
         </lcards-form-section>
 
         <lcards-form-section header="Colour Reference" icon="mdi:format-color-fill" ?expanded=${false} nested
-          description="Every field from HA-LCARS &amp; Legacy HA Semantic Colours, as one swatch sheet, for the selected Light/Dark mode above.">
+          description="Every field from HA-LCARS &amp; Legacy Home Assistant Semantic Colours, as one swatch sheet, for the selected Light/Dark mode above.">
           ${this._renderVarSwatchSection(model)}
         </lcards-form-section>
 
         <lcards-form-section header="Domain &amp; State Colours: Live" icon="mdi:state-machine" ?expanded=${false} nested
           @expanded-changed=${() => this.requestUpdate()}
-          description="Real HA tile cards previewing each domain below, since Domain &amp; State Colours otherwise has no live preview.">
+          description="Real Home Assistant tile cards previewing each domain below, since Domain &amp; State Colours otherwise has no live preview.">
           ${this._renderInfoGuide('domain-demo', 'mdi:information-outline', 'What these tiles are, and what they can\'t show', html`
             <p>Each tile is a real <code>hui-card</code> pointed at a fake entity, created only for this preview.
               Tapping a tile does nothing; the entity isn't real.</p>
-            <p class="info-guide-tip"><strong>Person and device tracker are missing on purpose:</strong> HA's
+            <p class="info-guide-tip"><strong>Person and device tracker are missing on purpose:</strong> Home Assistant's
               tile card doesn't colour those from a CSS var; their colour comes from a badge instead. Still
               editable as swatches in <strong>Domain &amp; State Colours</strong> above.</p>
             <p class="info-guide-note">A tile badged <strong>HA-LCARS Default</strong> or
-              <strong>HA Default</strong> is showing this section's static default, not whatever theme is active on
+              <strong>Home Assistant Default</strong> is showing this section's static default, not whatever theme is active on
               this browser tab. Real device-classed entities (e.g. an actual <code>binary_sensor.smoke</code>) may
-              still show HA's own baked-in colour, since this generator only sets the generic per-state var, not
+              still show Home Assistant's own baked-in colour, since this generator only sets the generic per-state var, not
               device-class-specific ones.</p>
           `)}
           ${this._renderDomainDemoPreview(model)}
@@ -2063,7 +2063,7 @@ Global Fallback: --state-active-color / -inactive-color   the final floor (plus 
               <li><a href="https://github.com/thomasloven/lovelace-card-mod" target="_blank" rel="noopener">card_mod</a>
                 or its HACS successor <a href="https://uix.lf.technology/" target="_blank" rel="noopener">UIX</a> must
                 be installed.</li>
-              <li>Your currently active HA theme must be an HA-LCARS theme. The class definitions live in that
+              <li>Your currently active Home Assistant theme must be an HA-LCARS theme. The class definitions live in that
                 theme's own <code>card-mod-card-yaml</code>, not in the theme you're editing here.</li>
             </ul>
             <p class="info-guide-tip">The <em>colours</em> those classes use (<code>--lcars-card-top-color</code>
@@ -2073,8 +2073,8 @@ Global Fallback: --state-active-color / -inactive-color   the final floor (plus 
           ${this._renderLcarsCardModPreview(model)}
         </div>
 
-        <lcards-form-section header="HA-* Native Controls" icon="mdi:home-assistant" ?expanded=${false} nested
-          description="Real, stock HA elements, wrapped in this theme's computed colours for the selected Light/Dark mode.">
+        <lcards-form-section header="Home Assistant Native Controls" icon="mdi:home-assistant" ?expanded=${false} nested
+          description="Real, stock Home Assistant elements, wrapped in this theme's computed colours for the selected Light/Dark mode.">
           ${this._renderInfoGuide('live-preview', 'mdi:information-outline', 'What\'s real here, and what still isn\'t', html`
             <p>Real <code>ha-card</code>/<code>ha-button</code>/<code>ha-switch</code>/<code>ha-checkbox</code>/
               <code>ha-alert</code> elements, wrapped in this theme's computed CSS. Nothing outside this box is
@@ -2093,17 +2093,17 @@ Global Fallback: --state-active-color / -inactive-color   the final floor (plus 
               tone can legitimately land differently on Outlined than on Filled/Plain. The swatches in Palette Seed
               above are tagged with the same letters shown here: <strong>A</strong> = Accent background,
               <strong>F</strong> = Filled background, <strong>T</strong> = Filled &amp; Plain text,
-              <strong>O</strong> = Outlined text. A role left "None" is tagged the same way, using HA's own real
-              default scale instead. Its buttons come from HA's live fallback rather than anything exported here,
+              <strong>O</strong> = Outlined text. A role left "None" is tagged the same way, using Home Assistant's own real
+              default scale instead. Its buttons come from Home Assistant's live fallback rather than anything exported here,
               but the tone that drives them is still real and still shown. Accent's text has no tag since it isn't
               tone-based: it's plain white by default, auto-corrected to black if that fails contrast; Filled/Plain
               and Outlined's text can each lose their own tag the same way, but only for a role Palette Seed
               actually manages (Family/Custom/Imported). That correction is this generator's own, applied on
-              export, not something HA/"None" roles ever get. To change any of these, edit the tagged stop's colour
+              export, not something Home Assistant/"None" roles ever get. To change any of these, edit the tagged stop's colour
               in Palette Seed; the tone each tag points to isn't itself editable.</p>
             <p class="info-guide-tip">Toggle the switch/checkbox yourself to see both on and off colours.</p>
             <p class="info-guide-tip"><strong>Roles left "None" in Palette Seed</strong> render using whatever
-              HA (or your active theme) falls back to right now.</p>
+              Home Assistant (or your active theme) falls back to right now.</p>
             <p class="info-guide-note">Not your actual dashboard: a real view adds its own layout and
               HA-LCARS chrome (see <strong>LCARS UI Chrome</strong> above). This box only proves the theme's colours
               resolve correctly.</p>
@@ -2300,7 +2300,7 @@ Global Fallback: --state-active-color / -inactive-color   the final floor (plus 
               ...HA_BUTTON_TIERS.map(({ appearance, label: tierLabel }) => html`
                 <div class="gen-btn-cell ${unset ? 'gen-btn-cell-fallback' : ''}">
                   <ha-button size="s" variant=${variant} appearance=${appearance}>${tierLabel}</ha-button>
-                  ${unset ? html`<div class="gen-mock-caption"><span class="gen-fallback-badge">HA default</span></div>` : nothing}
+                  ${unset ? html`<div class="gen-mock-caption"><span class="gen-fallback-badge">Home Assistant default</span></div>` : nothing}
                 </div>
               `),
             ];
@@ -2334,7 +2334,7 @@ Global Fallback: --state-active-color / -inactive-color   the final floor (plus 
     return html`
       <div class="gen-live-preview" style=${styleMap(styles)}>
         ${!activeThemeHasCardMod ? html`
-          <p class="gen-hint">Your active HA theme doesn't define HA-LCARS's card-mod classes: these may render
+          <p class="gen-hint">Your active Home Assistant theme doesn't define HA-LCARS's card-mod classes: these may render
             unstyled. Switch to an HA-LCARS theme to see this correctly.</p>
         ` : nothing}
         ${LCARS_CARDMOD_DEMOS.map(({ group, demos }) => html`

@@ -1,6 +1,6 @@
 # Sound Configuration
 
-> **LCARS-style audio feedback for card interactions and HA UI events**
+> **LCARS-style audio feedback for card interactions and Home Assistant UI events**
 
 LCARdS can play sounds for card taps, navigation, dialogs, alert mode changes, and more. Sounds are **off by default**: you need to create the helper entities and enable the master toggle before any sound plays. Once enabled, all categories are on and the built-in scheme plays immediately with no further configuration.
 
@@ -10,7 +10,7 @@ LCARdS can play sounds for card taps, navigation, dialogs, alert mode changes, a
 
 Open **Config Panel** → **Helpers** tab and create the helpers.
 
-The HA input helpers that store and control certain global sound settings. You only need to do this once.
+The Home Assistant input helpers that store and control certain global sound settings. You only need to do this once.
 
 ---
 
@@ -19,7 +19,7 @@ The HA input helpers that store and control certain global sound settings. You o
 Sounds won't play until `input_boolean.lcards_sound_enabled` is turned on. Toggle it from:
 
 - The **Sound** tab in the Config Panel
-- Your HA dashboard directly
+- Your Home Assistant dashboard directly
 - An automation
 
 The three category toggles (`lcards_sound_cards`, `lcards_sound_ui`, `lcards_sound_alerts`) let you enable/disable each group independently. All three default to enabled once the master is on.
@@ -60,7 +60,7 @@ The **Per-User / Per-Device Overrides** section at the bottom of the Sound tab l
 
 Use the **User** / **Device** buttons to switch between the two scopes:
 
-- **User**: settings apply to your HA user account on any device
+- **User**: settings apply to your Home Assistant user account on any device
 - **Device**: settings apply to this specific browser/device only
 
 ### What can be overridden per-user / per-device
@@ -84,7 +84,7 @@ Card config → Device override → User override → Global setting → Scheme 
 |----------|------------|
 | **Card config** | `tap_action.sound` in a card's YAML; highest, overrides everything |
 | **Device override** | Set in the Device scope for this browser/device |
-| **User override** | Set in the User scope for your HA account |
+| **User override** | Set in the User scope for your Home Assistant account |
 | **Global setting** | The shared default (helpers + global per-event overrides) |
 | **Scheme default** | The active sound scheme's mapping for that event |
 
@@ -92,7 +92,7 @@ Clearing an override at any level (the × button, or setting a per-event overrid
 
 ### Admin: editing other users / devices
 
-HA admin users see an **Edit as admin** dropdown in each scope section. Selecting a user or device lets the admin view and modify that subject's overrides directly. Changes take effect on the target's next playback.
+Home Assistant admin users see an **Edit as admin** dropdown in each scope section. Selecting a user or device lets the admin view and modify that subject's overrides directly. Changes take effect on the target's next playback.
 
 ---
 
@@ -101,7 +101,7 @@ HA admin users see an **Edit as admin** dropdown in each scope section. Selectin
 ### Card Interactions
 | Event | When |
 |-------|------|
-| Card Tap | Tapping any LCARdS card or standard HA card |
+| Card Tap | Tapping any LCARdS card or standard Home Assistant card |
 | Card Hold | Hold action |
 | Card Double-Tap | Double-tap action |
 | Card Hover | Mouse hover (desktop only) |
@@ -109,13 +109,13 @@ HA admin users see an **Edit as admin** dropdown in each scope section. Selectin
 | Slider Grab / Release | Grabbing or releasing a slider |
 | More Info Open | Opening the more-info panel |
 
-### HA UI Navigation
+### Home Assistant UI Navigation
 | Event | When |
 |-------|------|
 | Menu Expand / Collapse | Hamburger menu button |
 | Page / View Navigation | Moving between dashboard views and sidebar nav items |
-| Dialog Open | Any HA dialog opens |
-| Dialog Close | Any HA dialog dismissed |
+| Dialog Open | Any Home Assistant dialog opens |
+| Dialog Close | Any Home Assistant dialog dismissed |
 | Dashboard Edit Start | Entering dashboard edit mode |
 | Dashboard Edit Save / Done | Exiting dashboard edit mode |
 
@@ -150,22 +150,22 @@ In the overrides table, set the event's asset to **Silence** (the explicit silen
 
 Browsers block audio playback until the user has interacted with the page (clicked, tapped, or pressed a key). For most LCARdS sounds this is transparent: the first tap on a card or navigation link is the interaction, and sounds play normally from that point on.
 
-The **System Ready** startup sound is different: it plays immediately after LCARdS finishes initializing, before any user interaction. Browsers will block it by default unless your HA dashboard URL is explicitly allowed to autoplay audio.
+The **System Ready** startup sound is different: it plays immediately after LCARdS finishes initializing, before any user interaction. Browsers will block it by default unless your Home Assistant dashboard URL is explicitly allowed to autoplay audio.
 
 :::: tabs
 === Chrome / Edge
 
 1. Open **Chrome Settings** → **Privacy and security** → **Site settings** → **Additional content settings** → **Sound**
-2. Under **Allowed to play sound**, click **Add** and enter your HA URL (e.g. `http://homeassistant.local:8123` or `https://my.ha.instance`)
-3. Hard-refresh your HA dashboard: the startup sound will now play on page load
+2. Under **Allowed to play sound**, click **Add** and enter your Home Assistant URL (e.g. `http://homeassistant.local:8123` or `https://my.ha.instance`)
+3. Hard-refresh your Home Assistant dashboard: the startup sound will now play on page load
 
-Alternatively, click the **🔒 / ℹ️** icon in the address bar while on your HA page → **Site settings** → change **Sound** to **Allow**.
+Alternatively, click the **🔒 / ℹ️** icon in the address bar while on your Home Assistant page → **Site settings** → change **Sound** to **Allow**.
 
 === Firefox
 
 1. Open **Firefox Settings** → **Privacy & Security** → scroll to **Permissions** → **Block websites from automatically playing sound** → click **Exceptions...**
-2. Enter your HA URL and click **Allow** → **Save Changes**
-3. Hard-refresh your HA dashboard
+2. Enter your Home Assistant URL and click **Allow** → **Save Changes**
+3. Hard-refresh your Home Assistant dashboard
 
 Alternatively, when Firefox shows the autoplay blocked icon (🔇) in the address bar, click it and select **Allow Audio and Video**.
 

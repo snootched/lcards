@@ -806,7 +806,7 @@ export function getElbowSchema(options = {}) {
 
             symbiont: {
                 type: 'object',
-                description: 'Embed another HA card inside the elbow content area with optional style imprinting',
+                description: 'Embed another Home Assistant card inside the elbow content area with optional style imprinting',
                 properties: {
                     enabled: {
                         type: 'boolean',
@@ -924,7 +924,7 @@ export function getElbowSchema(options = {}) {
                     },
                     card: {
                         type: 'object',
-                        description: 'Any valid HA card configuration (type + properties). uix (and legacy card_mod) blocks are passed through as-is; imprint styles apply after them.'
+                        description: 'Any valid Home Assistant card configuration (type + properties). uix (and legacy card_mod) blocks are passed through as-is; imprint styles apply after them.'
                     }
                 }
             }

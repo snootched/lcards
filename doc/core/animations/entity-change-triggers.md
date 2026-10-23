@@ -107,7 +107,7 @@ Use `attribute` to watch a specific entity attribute instead of the main state:
   loop: true
 ```
 
-`brightness_pct` is a special computed attribute that converts the raw HA brightness value (0–255) to a 0–100 percentage for easier threshold comparisons.
+`brightness_pct` is a special computed attribute that converts the raw Home Assistant brightness value (0–255) to a 0–100 percentage for easier threshold comparisons.
 
 The animation editor's Attribute field is a searchable dropdown listing the
 selected `entity`'s actual attributes (with `brightness_pct` injected right

@@ -12,7 +12,7 @@ CSS colour vars (`--lcars-*` and `--lcards-*`) are automatically shifted by the 
 
 | Format | Example | Notes |
 |--------|---------|-------|
-| CSS variable | `var(--lcards-orange)` | Any `--lcards-*` or HA CSS variable |
+| CSS variable | `var(--lcards-orange)` | Any `--lcards-*` or Home Assistant CSS variable |
 | Theme token path | `theme:colors.ui.primary` | Resolved from active theme |
 | Computed colour | `darken(var(--lcards-orange), 0.2)` | See [Computed Colour Tokens](#computed-colour-tokens) |
 | Hex | `#F90`, `#FF9900`, `#FF990080` | 3, 4, 6 or 8 digits; the last pair (or digit) is alpha |
@@ -253,7 +253,7 @@ ranges_attribute: humidity         # climate sensor attribute
 
 | Value | What it provides |
 |-------|-----------------|
-| `brightness_pct` | `Math.round(attributes.brightness / 2.55)`: converts the raw 0–255 HA light brightness to a 0–100 percentage, so thresholds can be written in familiar percentage terms |
+| `brightness_pct` | `Math.round(attributes.brightness / 2.55)`: converts the raw 0–255 Home Assistant light brightness to a 0–100 percentage, so thresholds can be written in familiar percentage terms |
 
 All other values are treated as literal attribute names read directly from `entity.attributes`.
 

@@ -30,7 +30,7 @@ The built-in defaults display an LCARS shield symbol styled for the active condi
 ## Common Properties
 
 ::: tip Infrastructure card: no common properties
-This card renders as a zero-size sentinel element in the HA grid. The overlay is injected into `document.body` and always covers the full viewport. Unlike other LCARdS cards, it does **not** support the standard common properties: no `height`, `width`, `id`, `tags`, `grid_options`, sizing, actions, text fields, or animations keys.
+This card renders as a zero-size sentinel element in the Home Assistant grid. The overlay is injected into `document.body` and always covers the full viewport. Unlike other LCARdS cards, it does **not** support the standard common properties: no `height`, `width`, `id`, `tags`, `grid_options`, sizing, actions, text fields, or animations keys.
 :::
 
 ---
@@ -110,7 +110,7 @@ conditions:
       text:
         sub_text:
           content: CONDITION RED - ALL HANDS TO BATTLE STATIONS
-    # content:                  # OR replace entirely with any HA card config
+    # content:                  # OR replace entirely with any Home Assistant card config
     #   type: custom:lcards-button
     #   preset: condition_red
   yellow_alert: {}              # inherits all defaults
@@ -320,7 +320,7 @@ The helper is **optional**. If it does not exist, or if its value is `off`, the 
 
 ### Setup
 
-Create the helper from the **LCARdS Config Panel → Alert System section**, or add it manually in HA with the entity ID `input_select.lcards_alert_transition_style` and the options listed below.
+Create the helper from the **LCARdS Config Panel → Alert System section**, or add it manually in Home Assistant with the entity ID `input_select.lcards_alert_transition_style` and the options listed below.
 
 Once the helper exists you can change the active effect at any time: from the Config Panel, a dashboard dropdown, or an automation.
 
@@ -364,7 +364,7 @@ Condition keys: `red_alert`, `yellow_alert`, `blue_alert`, `black_alert`, `gray_
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `content` | object | Full HA card config to render inside the overlay. Any card type works. Overrides `alert_button` entirely. |
+| `content` | object | Full Home Assistant card config to render inside the overlay. Any card type works. Overrides `alert_button` entirely. |
 | `alert_button` | object | Patch merged onto the default alert button. Override only the fields you need. See [Default Alert Button Overrides](#default-alert-button-overrides). |
 | `layers` | object | Per-slot effect overrides merged on top of the global `layers`. Only slots present in the condition override are applied; absent slots inherit global. Set a slot to `null` to explicitly clear it for this condition. |
 | `display` | string | `overlay` or `band` for this condition; see [Alert Band](#alert-band) |
@@ -378,7 +378,7 @@ Condition keys: `red_alert`, `yellow_alert`, `blue_alert`, `black_alert`, `gray_
 
 ## Content Cards
 
-The `content` value inside a condition is a standard HA card config. Any card type can be used; it is instantiated and mounted exactly as it would be on a normal dashboard. LCARdS cards have full support for templates, entities, actions, and animations.
+The `content` value inside a condition is a standard Home Assistant card config. Any card type can be used; it is instantiated and mounted exactly as it would be on a normal dashboard. LCARdS cards have full support for templates, entities, actions, and animations.
 
 ```yaml
 conditions:
@@ -655,7 +655,7 @@ data:
   # or: target_user_ids, target_device_names, target_user_names
 ```
 
-You can also set the helper directly using the standard HA service:
+You can also set the helper directly using the standard Home Assistant service:
 
 ```yaml
 service: input_select.select_option

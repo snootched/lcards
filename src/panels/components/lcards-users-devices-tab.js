@@ -381,7 +381,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
                       placeholder="e.g. Kitchen Tablet"
                     />
                     <ha-button @click=${this._saveDeviceName}>Save</ha-button>
-                    <ha-button @click=${this._cancelEditName}>Cancel</ha-button>
+                    <ha-button appearance="plain" @click=${this._cancelEditName}>Cancel</ha-button>
                   </div>
                 `
                 : html`
@@ -478,7 +478,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
                               <span>Clear all overrides for <strong>${displayName ?? u.id}</strong>?</span>
                               <div class="confirm-actions">
                                 <ha-button class="danger-btn" variant="danger" @click=${this._executeDeleteUser}>Delete</ha-button>
-                                <ha-button @click=${this._cancelDeleteUser}>Cancel</ha-button>
+                                <ha-button appearance="plain" @click=${this._cancelDeleteUser}>Cancel</ha-button>
                               </div>
                             </div>
                           `
@@ -562,7 +562,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
                                 placeholder="Device name…"
                               />
                               <ha-button @click=${this._executeRenameDevice}>Save</ha-button>
-                              <ha-button @click=${this._cancelRenameDevice}>Cancel</ha-button>
+                              <ha-button appearance="plain" @click=${this._cancelRenameDevice}>Cancel</ha-button>
                             </div>
                           `
                           : html`<span>${name ?? html`<em class="muted">Unnamed</em>`}</span>`}
@@ -577,7 +577,7 @@ export class LCARdsUsersDevicesTab extends LitElement {
                               <span>Remove <strong>${name ?? d.id}</strong>?</span>
                               <div class="confirm-actions">
                                 <ha-button class="danger-btn" variant="danger" @click=${this._executeDeleteDevice}>Delete</ha-button>
-                                <ha-button @click=${this._cancelDeleteDevice}>Cancel</ha-button>
+                                <ha-button appearance="plain" @click=${this._cancelDeleteDevice}>Cancel</ha-button>
                               </div>
                             </div>
                           `

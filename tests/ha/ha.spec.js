@@ -797,6 +797,14 @@ test('Rules: deleting a rule asks in an HA dialog; Cancel keeps it, Delete remov
     const { errors, dash } = await openRulesTab(page);
     const confirm = page.locator('ha-dialog', { hasText: "removed from this card's config" });
     await dash.getByRole('button', { name: 'Delete rule' }).first().click();
+    // A destructive confirm focuses Cancel (HA's dialog box), in HA's footer
+    await expect(confirm.locator(':scope > ha-dialog-footer ha-button[slot="secondaryAction"]')).toHaveText('Cancel');
+    await expect.poll(() => page.evaluate(() => {
+        let el = document.activeElement;
+        while (el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement;
+        return el?.closest?.('ha-button')?.textContent?.trim()
+            ?? (el?.getRootNode?.().host?.closest?.('ha-button')?.textContent?.trim());
+    })).toBe('Cancel');
     await confirm.getByRole('button', { name: 'Cancel' }).click();
     expect((await editorRules(page)).map(r => r.id)).toEqual(['test-attr-rule']);
     await dash.getByRole('button', { name: 'Delete rule' }).first().click();
@@ -1211,10 +1219,16 @@ for (const [name, tag, config, method, dialogTag] of STUDIOS) {
             heights.push(Math.round((await dialog.locator('.studio-layout').first().boundingBox()).height));
         }
         expect(new Set(heights).size, `heights ${heights}`).toBe(1);
-        // Footer: the last two buttons are Cancel (plain) and Save (brand)
-        const buttons = dialog.locator('ha-dialog').first().locator(':scope > [slot="footer"] > ha-button'); // not the .footer-start group
+        // Footer: HA's ha-dialog-footer; the last two buttons are Cancel (plain, secondaryAction)
+        // and Save (brand, primaryAction)
+        const footer = dialog.locator('ha-dialog').first().locator(':scope > [slot="footer"]');
+        await expect(footer).toHaveJSProperty('localName', 'ha-dialog-footer');
+        const buttons = footer.locator(':scope > ha-button'); // not the .footer-start group
         const n = await buttons.count();
         await expect(buttons.nth(n - 2)).toHaveText('Cancel');
+        await expect(buttons.nth(n - 2)).toHaveAttribute('slot', 'secondaryAction');
+        await expect(buttons.nth(n - 2)).toHaveAttribute('appearance', 'plain');
+        await expect(buttons.nth(n - 1)).toHaveAttribute('slot', 'primaryAction');
         await expect(buttons.nth(n - 1)).toHaveAttribute('variant', 'brand');
         await expect(buttons.nth(n - 1).locator('ha-icon')).toHaveAttribute('icon', 'mdi:check');
         await removeStudio(page, dialogTag);

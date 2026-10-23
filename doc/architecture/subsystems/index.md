@@ -14,7 +14,7 @@ LCARdS exposes a set of singleton services on `window.lcards.core.*`, all instan
 | [Connection Overlay](#connection-overlay) | `connectionOverlayService` | Full-screen lost-connection UI |
 | [DataSource System](#datasource-system) | `dataSourceManager` | Rolling entity buffers with processor pipelines |
 | [Device Identity](#device-identity) | `deviceIdentityManager` | Stable per-browser UUID for scoped settings |
-| [Helper Manager](#helper-manager) | `helperManager` | HA input_* helper read/write |
+| [Helper Manager](#helper-manager) | `helperManager` | Home Assistant input_* helper read/write |
 | [Integration Service](#integration-service) | `integrationService` | Backend probe, storage helpers, push events |
 | [Pack System](#pack-system) | `packManager` | Named bundles: themes, components, presets, assets |
 | [Rules Engine](#rules-engine) | `rulesManager` | Condition evaluation → style patch on overlays |
@@ -93,9 +93,9 @@ Consult this when implementing per-device configuration or device-specific featu
 
 **`window.lcards.core.helperManager`** · [Full reference →](./helper-manager.md)
 
-Manages HA `input_*` helper entities (select, boolean, number) for persistent frontend state: alert mode, sound schemes, user preferences. Provides typed read/write access and auto-creation of missing helpers.
+Manages Home Assistant `input_*` helper entities (select, boolean, number) for persistent frontend state: alert mode, sound schemes, user preferences. Provides typed read/write access and auto-creation of missing helpers.
 
-Consult this when implementing features that need HA-backed persistent storage or when reading/writing alert and sound configuration.
+Consult this when implementing features that need Home Assistant-backed persistent storage or when reading/writing alert and sound configuration.
 
 ---
 
@@ -103,7 +103,7 @@ Consult this when implementing features that need HA-backed persistent storage o
 
 **`window.lcards.core.integrationService`** · [Full reference →](./integration-service.md)
 
-Probes the LCARdS HA backend on startup to determine availability, wraps WebSocket storage operations, and handles push events from Python service handlers (reload, log level, portal overlays).
+Probes the LCARdS Home Assistant backend on startup to determine availability, wraps WebSocket storage operations, and handles push events from Python service handlers (reload, log level, portal overlays).
 
 Consult this when implementing backend-dependent features, checking integration availability before persisting data, or handling remote-control directives.
 
@@ -133,7 +133,7 @@ Consult this when implementing conditional styling, state-dependent animations, 
 
 **`window.lcards.core.scopedSettingsService`** · [Full reference →](./scoped-settings.md)
 
-Implements a three-tier waterfall (device → user → global) for any LCARdS setting. Each scope can be overridden independently; the most-specific set value wins at read time, and all scopes are persisted to the HA backend.
+Implements a three-tier waterfall (device → user → global) for any LCARdS setting. Each scope can be overridden independently; the most-specific set value wins at read time, and all scopes are persisted to the Home Assistant backend.
 
 Consult this when adding new settings that need per-device or per-user overrides.
 
@@ -143,7 +143,7 @@ Consult this when adding new settings that need per-device or per-user overrides
 
 **`window.lcards.core.screenEffectManager`** · [Full reference →](./screen-effects.md)
 
-Composites a full-screen canvas effect layer above all UI. Ships named presets (blur, static, pixelate, glitch, vignette) accessible via console API, HA services, and card config. Layered above `ConnectionOverlay`.
+Composites a full-screen canvas effect layer above all UI. Ships named presets (blur, static, pixelate, glitch, vignette) accessible via console API, Home Assistant services, and card config. Layered above `ConnectionOverlay`.
 
 Consult this when implementing visual feedback, alert backdrop effects, or custom canvas-based screen effects.
 
@@ -153,7 +153,7 @@ Consult this when implementing visual feedback, alert backdrop effects, or custo
 
 **`window.lcards.core.soundManager`** · [Full reference →](./sound-system.md)
 
-Event-driven audio feedback for card interactions and HA UI events. Maps events to assets via schemes defined in packs, with per-event overrides and scoped settings support for per-user and per-device sound preferences.
+Event-driven audio feedback for card interactions and Home Assistant UI events. Maps events to assets via schemes defined in packs, with per-event overrides and scoped settings support for per-user and per-device sound preferences.
 
 Consult this when playing sounds on card actions, configuring sound schemes via packs, or implementing per-user/device audio preferences.
 

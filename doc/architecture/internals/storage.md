@@ -1,6 +1,6 @@
 # Persistent Storage
 
-LCARdS stores user preferences and application state in a **persistent key/value store** backed by Home Assistant's `homeassistant.helpers.storage.Store`. Data survives HA restarts and HACS upgrades.
+LCARdS stores user preferences and application state in a **persistent key/value store** backed by Home Assistant's `homeassistant.helpers.storage.Store`. Data survives Home Assistant restarts and HACS upgrades.
 
 ---
 
@@ -9,7 +9,7 @@ LCARdS stores user preferences and application state in a **persistent key/value
 | Property | Value |
 |---|---|
 | **Python file** | `custom_components/lcards/storage.py` |
-| **HA storage key** | `.storage/lcards` (inside the HA config directory) |
+| **Home Assistant storage key** | `.storage/lcards` (inside the Home Assistant config directory) |
 | **Format** | JSON: `{ "data": { "<key>": <value> } }` |
 | **Schema version** | 1 |
 | **Access** | WebSocket API: `lcards/storage/*` commands |
@@ -31,7 +31,7 @@ The schema is a flat namespace. All keys are arbitrary strings; values are any J
 }
 ```
 
-The `version` field is written by HA's `Store` automatically and is not part of the `data` dict.
+The `version` field is written by Home Assistant's `Store` automatically and is not part of the `data` dict.
 
 ### Key naming convention
 
@@ -164,7 +164,7 @@ Options change / entry reload
 ```
 
 ::: warning Storage not persistent across `reset` + reload
-Calling `lcards/storage/reset` wipes the in-memory dict and persists the empty state to disk immediately. A subsequent HA restart will load the empty state.
+Calling `lcards/storage/reset` wipes the in-memory dict and persists the empty state to disk immediately. A subsequent Home Assistant restart will load the empty state.
 :::
 
 ---

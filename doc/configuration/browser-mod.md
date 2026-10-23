@@ -162,7 +162,7 @@ data:
 | Toast notification | `browser_mod.notification` |
 | Reload browser | `lcards.reload` / `browser_mod.refresh` |
 | Run JS in browser | `browser_mod.javascript` |
-| Set HA theme on browser | `browser_mod.set_theme` |
+| Set Home Assistant theme on browser | `browser_mod.set_theme` |
 
 ### Capability comparison
 

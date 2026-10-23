@@ -2,7 +2,7 @@
 
 > **UI audio coordination for LCARdS: `window.lcards.core.soundManager`**
 
-The Sound System provides event-driven audio feedback for all LCARdS interactions and HA UI events. It is a single-instance `BaseService` that lives at `window.lcards.core.soundManager`.
+The Sound System provides event-driven audio feedback for all LCARdS interactions and Home Assistant UI events. It is a single-instance `BaseService` that lives at `window.lcards.core.soundManager`.
 
 ---
 
@@ -43,7 +43,7 @@ SoundManager (BaseService singleton)
 | `src/core/sound/SoundManager.js` | Core singleton: all playback, listeners, scheme management |
 | `src/core/packs/lcards-default-sound-scheme.js` | `lcards_default` scheme + asset definitions |
 | `src/core/helpers/lcards-helper-registry.js` | Helper definitions for 6 sound config helpers |
-| `src/editor/components/sound/lcards-sound-source-selector.js` | Shared per-event source picker (scheme default / mute / bundled asset / HA media) used by all override tables |
+| `src/editor/components/sound/lcards-sound-source-selector.js` | Shared per-event source picker (scheme default / mute / bundled asset / Home Assistant media) used by all override tables |
 | `src/editor/components/sound/lcards-card-sound-tab.js` | Per-card sound override tab |
 | `src/panels/components/lcards-sound-config-tab.js` | Global Config Panel Sound tab: schemes, overrides, custom scheme save |
 
@@ -57,7 +57,7 @@ Event types are grouped into three categories, each controlled by an independent
 
 | Event | Trigger |
 |-------|---------|
-| `card_tap` | Any tap on a LCARdS card or standard HA card |
+| `card_tap` | Any tap on a LCARdS card or standard Home Assistant card |
 | `card_hold` | Hold action |
 | `card_double_tap` | Double-tap action |
 | `card_hover` | Hover (desktop pointer) |
@@ -73,8 +73,8 @@ Event types are grouped into three categories, each controlled by an independent
 |-------|---------|
 | `menu_expand` | Hamburger / sidebar toggle (`hass-toggle-menu`) |
 | `nav_page` | `location-changed` event (view/page navigation) |
-| `dialog_open` | Any HA dialog opens (except more-info) |
-| `dialog_close` | Any HA dialog dismissed (save or cancel) |
+| `dialog_open` | Any Home Assistant dialog opens (except more-info) |
+| `dialog_close` | Any Home Assistant dialog dismissed (save or cancel) |
 | `dashboard_edit_start` | Dashboard edit mode entered |
 | `dashboard_edit_save` | Dashboard edit mode exited |
 
@@ -94,7 +94,7 @@ Event types are grouped into three categories, each controlled by an independent
 
 ---
 
-## HA Helper Integration
+## Home Assistant Helper Integration
 
 Six input helpers store the **global** sound configuration. They are created via the Sound Config Panel or manually via YAML.
 
@@ -109,7 +109,7 @@ Six input helpers store the **global** sound configuration. They are created via
 
 **Enable model**: the master toggle (`sound_enabled`) is **opt-in**: if the helper doesn't exist, `_isEnabled()` returns `false` and everything is silent until the user creates the helper and sets it `on`. Category toggles are **opt-out from master**: a missing category helper defaults to on (as long as master is on); only an explicit `'off'` disables that category. So a fresh install is silent by default, and users get full category control once they opt in.
 
-**`'none'` is a genuine empty scheme**, not a "not configured yet" sentinel. `_getActiveSchemeName()` resolves it from the cached scoped value → live HA helper → the helper's `default_value` (`'none'`). `_getActiveScheme()` looks it up in `_soundSchemes` as-is, and since `'none'` is never a real key there it always resolves to `{}`: every event silent, per the "omitted events → silence" rule below. Per-event overrides still apply on top of `'none'`, so it doubles as "silent except for events I explicitly configure", unlike the master `sound_enabled` toggle, which silences everything unconditionally, overrides included.
+**`'none'` is a genuine empty scheme**, not a "not configured yet" sentinel. `_getActiveSchemeName()` resolves it from the cached scoped value → live Home Assistant helper → the helper's `default_value` (`'none'`). `_getActiveScheme()` looks it up in `_soundSchemes` as-is, and since `'none'` is never a real key there it always resolves to `{}`: every event silent, per the "omitted events → silence" rule below. Per-event overrides still apply on top of `'none'`, so it doubles as "silent except for events I explicitly configure", unlike the master `sound_enabled` toggle, which silences everything unconditionally, overrides included.
 
 **Scheme options sync**: the first sync each session is deferred until both pack-provided schemes (registered synchronously during core init) and persisted custom schemes (loaded asynchronously, see [Custom Sound Schemes](#custom-sound-schemes)) have had a chance to register (`_doLoadCustomSchemes()`) because `input_select.set_options` resets the entity's *value* to its first option on every call, and the entity is shared across every open tab, so syncing against an incomplete list would visibly reset users' selections. Later `registerSchemes()` calls (e.g. saving a scheme live) sync immediately. Non-fatal if the helper doesn't exist yet.
 
@@ -139,7 +139,7 @@ Note: Per-category toggles (`sound_cards_enabled`, etc.) are global-only; they c
 | `_cachedEnabled` / `_cachedVolume` / `_cachedScheme` | Scoped `sound_enabled` / `sound_volume` / `sound_scheme` (device → user → global waterfall) |
 | `_globalOverridesCache` / `_overridesCache` / `_deviceOverridesCache` | Per-event overrides (`sound_overrides`) at the global / user / device tier |
 
-The synchronous read methods (`_isEnabled()`, `_getVolume()`, `_getActiveScheme()`) return cached values when available, falling back to the live HA helper before the first load completes. `_getOverrides()` (used inside `play()`) merges `{ ...global, ...user, ...device }`, so device wins per event. `refreshScopedCache()` (public) clears all five caches and re-reads from the backend; the Config Panel calls this after every write so `play()` picks up changes without a page reload.
+The synchronous read methods (`_isEnabled()`, `_getVolume()`, `_getActiveScheme()`) return cached values when available, falling back to the live Home Assistant helper before the first load completes. `_getOverrides()` (used inside `play()`) merges `{ ...global, ...user, ...device }`, so device wins per event. `refreshScopedCache()` (public) clears all five caches and re-reads from the backend; the Config Panel calls this after every write so `play()` picks up changes without a page reload.
 
 ### Config Panel
 
@@ -179,11 +179,11 @@ Users configure scoped overrides in **LCARdS Config Panel → Sounds → Per-Use
 `mountGlobalUIListener()` attaches all Tier 2 listeners. It's idempotent (exits early if already mounted) and is called by `LCARdSCore` after initialization.
 
 - **Browser autoplay policy**: SoundManager relies on the browser's native autoplay policy rather than implementing its own interaction guard. Tap/hold/navigation sounds work immediately after any first touch or click; the `system_ready` startup sound additionally requires the dashboard URL to be on the browser's "allowed to autoplay" list (see [Sound Effects → Browser Audio Policy](../../configuration/sounds#browser-audio-policy)).
-- **Sidebar menu toggle**: listens for `hass-toggle-menu` on `window` (dispatched by HA's `ha-menu-button`). Some HA versions dispatch it twice per click, so the handler dedupes within a 200 ms window and only the first firing plays `menu_expand`.
-- **`hass-action`**: catches tap/hold/double_tap on non-LCARdS HA cards (Mushroom, built-in HA cards, etc.). Skips events whose `composedPath()` passes through any `LCARDS-*` element, since LCARdS cards handle their own sounds via `LCARdSActionHandler`.
-- **`show-dialog`**: fires on any HA dialog open except `ha-more-info-dialog`, which gets its own `more_info_open` event type.
-- **`dialog-closed`**: fires on any HA dialog dismiss (save, cancel, ESC, close button); skips `lcards-*` dialogs to avoid double-sounds from LCARdS-owned panels.
-- **Dashboard edit mode**: HA toggles `?edit=1` in the URL via `history.replaceState` (not a DOM event), so SoundManager patches `window.history.replaceState`, compares the `edit=1` param before/after, and fires `dashboard_edit_start`/`dashboard_edit_save` on change. The original function is restored in `destroy()`.
+- **Sidebar menu toggle**: listens for `hass-toggle-menu` on `window` (dispatched by Home Assistant's `ha-menu-button`). Some Home Assistant versions dispatch it twice per click, so the handler dedupes within a 200 ms window and only the first firing plays `menu_expand`.
+- **`hass-action`**: catches tap/hold/double_tap on non-LCARdS Home Assistant cards (Mushroom, built-in Home Assistant cards, etc.). Skips events whose `composedPath()` passes through any `LCARDS-*` element, since LCARdS cards handle their own sounds via `LCARdSActionHandler`.
+- **`show-dialog`**: fires on any Home Assistant dialog open except `ha-more-info-dialog`, which gets its own `more_info_open` event type.
+- **`dialog-closed`**: fires on any Home Assistant dialog dismiss (save, cancel, ESC, close button); skips `lcards-*` dialogs to avoid double-sounds from LCARdS-owned panels.
+- **Dashboard edit mode**: Home Assistant toggles `?edit=1` in the URL via `history.replaceState` (not a DOM event), so SoundManager patches `window.history.replaceState`, compares the `edit=1` param before/after, and fires `dashboard_edit_start`/`dashboard_edit_save` on change. The original function is restored in `destroy()`.
 
 ---
 
@@ -204,9 +204,9 @@ const url = entry?.url;
 
 No async preloading is required; the browser fetches the URL on first play.
 
-### HA Media Library Sounds
+### Home Assistant Media Library Sounds
 
-Any `assetKey` value may instead be a `media-source://…` content ID picked via the HA media library; the per-card and Config Panel sound-override pickers offer a **Browse HA Media** mode alongside bundled assets (see [Asset Manager: Media Source Resolution Flow](asset-manager#media-source-resolution-flow)). `_playAsset()` detects the `media-source://` prefix and routes to `_playMediaSourceAsset()` instead of the synchronous registry lookup. Unlike bundled assets, the cached `Audio` element is rebuilt whenever the resolved URL differs from what's cached, since `AssetManager.resolveMediaSourceUrl()` may return a different signed URL after its own 15-minute cache window expires.
+Any `assetKey` value may instead be a `media-source://…` content ID picked via the Home Assistant media library; the per-card and Config Panel sound-override pickers offer a **Browse Home Assistant Media** mode alongside bundled assets (see [Asset Manager: Media Source Resolution Flow](asset-manager#media-source-resolution-flow)). `_playAsset()` detects the `media-source://` prefix and routes to `_playMediaSourceAsset()` instead of the synchronous registry lookup. Unlike bundled assets, the cached `Audio` element is rebuilt whenever the resolved URL differs from what's cached, since `AssetManager.resolveMediaSourceUrl()` may return a different signed URL after its own 15-minute cache window expires.
 
 ---
 
@@ -272,7 +272,7 @@ const mapping = sm.getSchemeMapping('custom:bridge-ops');  // { card_tap: 'my_as
 - **Startup load**: `_ensureCustomSchemesLoaded()` reads `custom_sound_schemes` once the integration probe resolves and registers every entry found, a one-shot pattern mirroring `_ensureOverridesLoaded()`.
 - **Deleting the active scheme**: the Config Panel resets the `sound_scheme` helper to `'none'` immediately after a successful delete, since the deleted name is no longer selectable.
 
-Custom schemes fully support `media-source://…` event mappings (see [HA Media Library Sounds](#ha-media-library-sounds) above); saving/updating a scheme snapshots whatever asset keys or media-source IDs are currently set as overrides.
+Custom schemes fully support `media-source://…` event mappings (see [Home Assistant Media Library Sounds](#home-assistant-media-library-sounds) above); saving/updating a scheme snapshots whatever asset keys or media-source IDs are currently set as overrides.
 
 ### Overrides vs. the Active Scheme selector
 
@@ -291,7 +291,7 @@ Both contexts are **staged, not auto-saved**: editing a row only updates local `
 
 ### Scheme-options sync coordination
 
-Registering (`saveCustomScheme()`) or removing (`deleteCustomScheme()`) a scheme updates the shared HA `input_select.lcards_sound_scheme` entity's options list, a network round trip (`input_select.set_options`, which resets the entity's *value* to its first option, followed by a restore call). Any flow that explicitly switches the active scheme right after one of these calls must `await sm.waitForSchemeSync()` first, so the restore step can't land after (and silently revert) the explicit switch. Both `_confirmSaveScheme()` and `_deleteScheme()` in the Config Panel do this.
+Registering (`saveCustomScheme()`) or removing (`deleteCustomScheme()`) a scheme updates the shared Home Assistant `input_select.lcards_sound_scheme` entity's options list, a network round trip (`input_select.set_options`, which resets the entity's *value* to its first option, followed by a restore call). Any flow that explicitly switches the active scheme right after one of these calls must `await sm.waitForSchemeSync()` first, so the restore step can't land after (and silently revert) the explicit switch. Both `_confirmSaveScheme()` and `_deleteScheme()` in the Config Panel do this.
 
 ---
 

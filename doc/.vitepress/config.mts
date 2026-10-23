@@ -314,7 +314,7 @@ export default withMermaid(defineConfig({
           {
             text: 'Integrations',
             items: [
-              { text: 'HA Actions',        link: '/configuration/ha-actions' },
+              { text: 'Home Assistant Actions',        link: '/configuration/ha-actions' },
               { text: 'Using browser_mod', link: '/configuration/browser-mod' },
               { text: 'Connectivity',      link: '/configuration/connectivity' },
             ],
@@ -397,7 +397,7 @@ export default withMermaid(defineConfig({
             text: 'Architecture',
             items: [
               { text: 'Systems Overview',   link: '/architecture/systems-arch' },
-              { text: 'HA Integration',     link: '/architecture/ha-integration' },
+              { text: 'Home Assistant Integration',     link: '/architecture/ha-integration' },
               { text: 'Card Foundation',    link: '/architecture/cards/lcards-card-foundation' },
               { text: 'Layout View',        link: '/architecture/layout-view' },
               { text: 'MSD Pipeline',       link: '/architecture/msd/' },
@@ -431,7 +431,7 @@ export default withMermaid(defineConfig({
           {
             text: 'CSS & Theming',
             items: [
-              { text: 'HA CSS Variables', link: '/development/ha-css-vars' },
+              { text: 'Home Assistant CSS Variables', link: '/development/ha-css-vars' },
             ],
           },
         ],
@@ -589,7 +589,7 @@ export default withMermaid(defineConfig({
         {
           text: 'Integrations',
           items: [
-            { text: 'HA Actions',        link: '/configuration/ha-actions' },
+            { text: 'Home Assistant Actions',        link: '/configuration/ha-actions' },
             { text: 'Using browser_mod', link: '/configuration/browser-mod' },
             { text: 'Connectivity',      link: '/configuration/connectivity' },
           ],
@@ -684,7 +684,7 @@ export default withMermaid(defineConfig({
           text: 'Architecture',
           items: [
             { text: 'Systems Overview', link: '/architecture/systems-arch' },
-            { text: 'HA Integration',   link: '/architecture/ha-integration' },
+            { text: 'Home Assistant Integration',   link: '/architecture/ha-integration' },
           ],
         },
         {
@@ -734,8 +734,8 @@ export default withMermaid(defineConfig({
           items: [
             { text: 'Background Animations',  link: '/architecture/internals/background-animation-system' },
             { text: 'DataSource Buffers',     link: '/architecture/internals/datasource-buffers' },
-            { text: 'HA Entity Display',      link: '/architecture/internals/ha-entity-display' },
-            { text: 'HA Services (internals)', link: '/architecture/internals/ha-services' },
+            { text: 'Home Assistant Entity Display',      link: '/architecture/internals/ha-entity-display' },
+            { text: 'Home Assistant Services (internals)', link: '/architecture/internals/ha-services' },
             { text: 'Persistent Storage',     link: '/architecture/internals/storage' },
             { text: 'Shape & Texture System', link: '/architecture/internals/shape-texture-system' },
           ],
@@ -768,7 +768,7 @@ export default withMermaid(defineConfig({
           text: 'CSS & Theming',
           collapsed: false,
           items: [
-            { text: 'HA CSS Variables', link: '/development/ha-css-vars' },
+            { text: 'Home Assistant CSS Variables', link: '/development/ha-css-vars' },
           ],
         },
       ],

@@ -6,9 +6,9 @@
 
 ## Overview
 
-`DataSourceManager` extends `BaseService` and manages a collection of named `DataSource` instances. Each source subscribes to a single HA entity, records a rolling value history, runs processor pipelines, and notifies subscribers on every update.
+`DataSourceManager` extends `BaseService` and manages a collection of named `DataSource` instances. Each source subscribes to a single Home Assistant entity, records a rolling value history, runs processor pipelines, and notifies subscribers on every update.
 
-Cards never talk to HA entity state directly for data; they declare data sources in config and subscribe to the manager.
+Cards never talk to Home Assistant entity state directly for data; they declare data sources in config and subscribe to the manager.
 
 ---
 
@@ -90,7 +90,7 @@ data_sources:
 Processors run in **dependency order**, not config order. `ProcessorManager` performs a topological sort (Kahn's algorithm) at initialization. The resolved execution order is logged at `debug` level on startup.
 
 Each processor declares its input via `input_source`:
-- **No `input_source`**: processor reads from the raw entity value pushed by HA
+- **No `input_source`**: processor reads from the raw entity value pushed by Home Assistant
 - **`input_source: other_key`**: processor reads from the *output* of the named processor
 
 A processor only ever sees one input: either the raw entity value or the output of its `input_source` target. Processors with no shared dependencies run in an unspecified order relative to each other; only declared chains are ordered.
@@ -150,13 +150,13 @@ if (this._unsubscribe) this._unsubscribe();
 ## Template Access
 
 ```yaml alternatives
-text: "{ds:temp_sensor}"                   # HA-native: locale-formatted + unit
+text: "{ds:temp_sensor}"                   # Home Assistant native: locale-formatted + unit
 text: "{ds:temp_sensor.celsius:.1f}"       # processor buffer: 1 decimal, no auto-unit
 text: "{ds:temp_sensor.celsius:.1f} °C"   # explicit unit suffix
-text: "{datasource:temp_sensor.rolling_avg}"  # explicit prefix, HA-native
+text: "{datasource:temp_sensor.rolling_avg}"  # explicit prefix, Home Assistant native
 ```
 
-> **No format spec** → HA-native (locale + unit). **With format spec** → number only, you control the suffix.
+> **No format spec** → Home Assistant native (locale + unit). **With format spec** → number only, you control the suffix.
 
 ---
 

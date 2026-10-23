@@ -100,7 +100,7 @@ export class LCARdSSoundSourceSelector extends LitElement {
             options: [
               { value: '__scheme__', label: this.schemeLabel },
               { value: '__mute__',   label: 'Mute this event' },
-              { value: MEDIA_MODE,   label: 'Browse HA Media…' },
+              { value: MEDIA_MODE,   label: 'Browse Home Assistant Media…' },
               ...this.audioAssets.map(a => ({ value: a.key, label: `${a.key} (${a.pack})` }))
             ]
           }}}

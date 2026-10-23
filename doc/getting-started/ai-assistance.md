@@ -27,7 +27,7 @@ The **LCARdS skill** teaches Claude everything for your LCARdS version: every op
    - "Make me an LCARdS button for `light.kitchen` that turns red when it's on."
    - "Build an engineering dashboard with my `sensor.power_*` entities."
 
-Claude can use your real entity ids (either you provde them, or integrate Claude to HA with [`ha-mcp` - see below](#give-claude-your-home-s-context-ha-mcp) ) instead of inventing them.  It can also check its own YAML before handing it over.
+Claude can use your real entity ids (either you provde them, or integrate Claude to Home Assistant with [`ha-mcp` - see below](#give-claude-your-home-s-context-ha-mcp) ) instead of inventing them.  It can also check its own YAML before handing it over.
 
 In Claude Code the plugin goes further:
 

@@ -451,6 +451,6 @@ Shared by all LCARdS cards. See [Common Card Properties](../common.md) for detai
 | Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow-x-overflow-y) |
 | Stacking | `z_index` | [Stacking](../common.md#stacking-z-index) |
 | Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
-| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid-options) |
+| Home Assistant Grid | `grid_options` | [Home Assistant Grid Sizing](../common.md#home-assistant-grid-sizing-grid-options) |
 | Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
 | Rules | via `id` / `tags` | [Rules Engine](../../core/rules/) |

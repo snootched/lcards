@@ -235,7 +235,7 @@ content: "[[[return Math.round(entity.attributes.brightness / 255 * 100) + '%']]
 # Jinja2 (server-evaluated)
 content: "{{ states('sensor.temperature') }}°C"
 
-# DataSource - HA-native (locale-formatted + unit)
+# DataSource - Home Assistant native (locale-formatted + unit)
 content: "{ds:temp}"
 # DataSource - explicit precision (no auto-unit, you control the suffix)
 content: "{ds:temp:.1f} °C"
@@ -359,10 +359,10 @@ The `display_format` option controls how entity state and attribute token values
 
 | Value | Description | Example (door sensor) |
 |-------|-------------|----------------------|
-| `friendly` | HA-translated display string: matches native HA cards (**default**) | `"Open"` |
+| `friendly` | Home Assistant's translated display string: matches native Home Assistant cards (**default**) | `"Open"` |
 | `raw` | Unmodified state/attribute value from `hass.states` | `"on"` |
-| `parts` | Value and unit joined from HA's ToParts API | `"23.5 °C"` |
-| `unit` | Unit portion only from HA's ToParts API | `"°C"` |
+| `parts` | Value and unit joined from Home Assistant's ToParts API | `"23.5 °C"` |
+| `unit` | Unit portion only from Home Assistant's ToParts API | `"°C"` |
 
 ### YAML Examples
 
@@ -406,6 +406,6 @@ text:
 - `display_format` only affects display strings. State classification logic (active/inactive/unavailable) always operates on raw state values.
 - `[[[JavaScript]]]` templates are **unaffected**: they always receive the raw entity object. Call `hass.formatEntityState(entity)` directly if needed.
 - Jinja2 templates (`{{ ... }}`) are server-evaluated and unaffected.
-- When `show_unit: true` is set on a slider or text field, the unit is derived from HA's ToParts API to ensure it matches HA's own display exactly.
+- When `show_unit: true` is set on a slider or text field, the unit is derived from Home Assistant's ToParts API to ensure it matches Home Assistant's own display exactly.
 
 ---

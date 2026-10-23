@@ -1,11 +1,11 @@
-# HA Actions
+# Home Assistant Actions
 
 > **Control LCARdS from automations, scripts, voice assistants, and Developer Tools**
 
-LCARdS registers a set of HA **actions** under the `lcards` domain. Once the integration is installed they appear automatically in:
+LCARdS registers a set of Home Assistant **actions** under the `lcards` domain. Once the integration is installed they appear automatically in:
 
 - **Automations & Scripts**: `action:` blocks in YAML or the visual editor
-- **Voice assistants** that call HA services
+- **Voice assistants** that call Home Assistant services
 - **Developer Tools → Actions** (one-shot testing)
 - The **REST / WebSocket API** for external integrations
 
@@ -20,8 +20,8 @@ If these options are omitted, then the action is global and every connected brow
 |-------|------|-------------|
 | `target_device_ids` | list | Browser device UUIDs (`localStorage.lcards_device_id` in each tab) |
 | `target_device_names` | list | Display names set in Config Panel → Users & Devices or via `?lcards_device=` URL param. Non-unique names match every device sharing that name. |
-| `target_user_ids` | list | HA user UUIDs |
-| `target_user_names` | list | HA user display names (case-insensitive) |
+| `target_user_ids` | list | Home Assistant user UUIDs |
+| `target_user_names` | list | Home Assistant user display names (case-insensitive) |
 
 See [Users & Devices](/configuration/users-devices) for how device IDs and display names are assigned.
 
@@ -227,7 +227,7 @@ data:
 
 ## Portal Overlay Actions
 
-Display or clear a custom HA card over the full-screen portal on connected browser tabs. Supports [targeting](#targeting).
+Display or clear a custom Home Assistant card over the full-screen portal on connected browser tabs. Supports [targeting](#targeting).
 
 Cards are mounted in the `'ha-service'` portal slot, which is independent of the Alert and Connection overlay slots; they do not interfere with each other.
 
@@ -239,7 +239,7 @@ Displays a card or message in the portal overlay.
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| `content` | object | ✅ | Any HA card config (`type: custom:lcards-button`, `type: entities`, etc.) |
+| `content` | object | ✅ | Any Home Assistant card config (`type: custom:lcards-button`, `type: entities`, etc.) |
 | `layers` | object | | SEM effect layers: same shape as `lcards.trigger_effect` |
 | `position` | select | | Content anchor. Default: `center`. Options: `center`, `top`, `top-left`, `top-right`, `bottom`, `bottom-left`, `bottom-right`, `left`, `right` |
 | `width` | string | | CSS width for the content container, e.g. `'400px'` |
@@ -465,7 +465,7 @@ This *immediately* reloads the matched browser tabs. Use with care if users are 
 
 ### `lcards.set_log_level`
 
-Changes the JS frontend log level at runtime across matched tabs and updates the Python logger hierarchy simultaneously. Verbose output appears in the browser console immediately, no HA restart or page reload required. Supports [targeting](#targeting).
+Changes the JS frontend log level at runtime across matched tabs and updates the Python logger hierarchy simultaneously. Verbose output appears in the browser console immediately, no Home Assistant restart or page reload required. Supports [targeting](#targeting).
 
 | Field | Type | Required | Options |
 |-------|------|----------|---------|

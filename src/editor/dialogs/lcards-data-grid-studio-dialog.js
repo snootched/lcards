@@ -769,13 +769,13 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
                     </div>
                 </div>
 
-                <div slot="footer">
-                    <ha-button appearance="plain" @click=${this._close}>Cancel</ha-button>
-                    <ha-button variant="brand" @click=${this._handleSave}>
+                <ha-dialog-footer slot="footer">
+                    <ha-button slot="secondaryAction" appearance="plain" @click=${this._close}>Cancel</ha-button>
+                    <ha-button slot="primaryAction" variant="brand" @click=${this._handleSave}>
                         <ha-icon icon="mdi:check" slot="start"></ha-icon>
                         Save
                     </ha-button>
-                </div>
+                </ha-dialog-footer>
             </ha-dialog>
         `;
     }

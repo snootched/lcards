@@ -907,7 +907,7 @@ export class LCARdSConnectivityTab extends LitElement {
                 <ha-selector
                   .hass=${this.hass}
                   .label=${'Enable connection overlay'}
-                  .helper=${'Show full-screen overlay when HA connection is lost'}
+                  .helper=${'Show full-screen overlay when Home Assistant connection is lost'}
                   .selector=${{ boolean: {} }}
                   .value=${cfg.enabled}
                   @value-changed=${(e) => this._set('enabled', e.detail.value)}>
@@ -953,7 +953,7 @@ export class LCARdSConnectivityTab extends LitElement {
                 <ha-selector
                   .hass=${this.hass}
                   .label=${'Display style'}
-                  .helper=${'Simple text with basic styling controls; Custom card renders any HA card YAML'}
+                  .helper=${'Simple text with basic styling controls; Custom card renders any Home Assistant card YAML'}
                   .selector=${{ select: { mode: 'dropdown', options: MODE_OPTIONS } }}
                   .value=${messageMode}
                   @value-changed=${(e) => this._set('message.mode', e.detail.value)}>
@@ -1060,7 +1060,7 @@ export class LCARdSConnectivityTab extends LitElement {
                 <lcards-form-section
                   header="Connection Lost Card"
                   icon="mdi:wifi-off"
-                  description="Any HA card shown when disconnected. Replaces the text message."
+                  description="Any Home Assistant card shown when disconnected. Replaces the text message."
                   ?expanded=${true}
                   ?outlined=${true}>
                   ${this._contentYamlError ? html`
@@ -1215,7 +1215,7 @@ export class LCARdSConnectivityTab extends LitElement {
                   <ha-button variant="danger" ?disabled=${this._saving} @click=${this._resetScope}>
                     ${this._saving ? 'Resetting…' : 'Yes, reset all'}
                   </ha-button>
-                  <ha-button ?disabled=${this._saving} @click=${this._cancelClearScope}>Cancel</ha-button>
+                  <ha-button appearance="plain" ?disabled=${this._saving} @click=${this._cancelClearScope}>Cancel</ha-button>
                 </div>
               </div>
             ` : ''}

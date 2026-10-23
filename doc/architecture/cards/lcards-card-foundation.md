@@ -437,7 +437,7 @@ _onRulePatchesChanged(patches) {
 LCARdSCard integrates with the singleton HASS distribution system and CoreSystemsManager:
 
 ### Automatic HASS Updates
-- Inherits from `LCARdSNativeCard` which gets HASS from HA
+- Inherits from `LCARdSNativeCard` which gets HASS from Home Assistant
 - `_onHassChanged()` called automatically when HASS updates
 - Entity references updated automatically via CoreSystemsManager cache
 
@@ -516,7 +516,7 @@ window.lcards.core.ingestHass(hass) (feed to singletons)
 | `resolveStyle(base, tokens, overrides)` | base: Object, tokens: Array, overrides: Object | Object | Resolve combined styles |
 | `getEntityState(entityId)` | entityId?: string | Object\|null | Get entity state (cached via CoreSystemsManager) |
 | `subscribeToEntity(entityId, callback)` | entityId: string, callback: Function | Function | Subscribe to entity changes (returns unsubscribe function) |
-| `callService(domain, service, data)` | domain: string, service: string, data?: Object | Promise | Call HA service |
+| `callService(domain, service, data)` | domain: string, service: string, data?: Object | Promise | Call Home Assistant service |
 | `setupActions(element, actions, options)` | element: HTMLElement, actions: Object, options?: Object | Function | Setup action handlers (options: animationManager, elementId, entity, animations, soundOverride, disableHover) |
 | `_registerOverlayForRules(overlayId, type, tags)` | overlayId: string, type: string, tags?: `Array<string>` | void | Register overlay with RulesEngine for rule-based styling. Callable **once per card**; subsequent calls warn and no-op; for additional sub-component overlays call `this._singletons.systemsManager.registerOverlay()` directly (tags default to []) |
 | `_getMergedStyleWithRules(baseStyle)` | baseStyle: Object | Object | Merge base style with active rule patches (rules have highest priority). Call last, from your own card-specific resolve method (e.g. `_resolveButtonStyle()`). See the Basic Setup example above. |

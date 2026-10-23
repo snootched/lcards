@@ -893,19 +893,19 @@ export class LCARdSRulesDashboard extends LitElement {
                     </lcards-yaml-editor>
                     ${this._previewError ? html`<div class="banner error">${this._previewError}</div>` : nothing}
                 </div>
-                <div slot="footer">
-                    <ha-button appearance="plain" @click=${() => this._handleCopyYAML(rule)}>
+                <ha-dialog-footer slot="footer">
+                    <ha-button slot="secondaryAction" appearance="plain" @click=${() => this._handleCopyYAML(rule)}>
                         <ha-icon icon="mdi:content-copy" slot="start"></ha-icon>
                         Copy YAML
                     </ha-button>
                     ${editable ? html`
-                        <ha-button appearance="plain" data-dialog="close">Cancel</ha-button>
-                        <ha-button variant="brand" @click=${() => this._savePreviewYaml()}>
+                        <ha-button slot="secondaryAction" appearance="plain" data-dialog="close">Cancel</ha-button>
+                        <ha-button slot="primaryAction" variant="brand" @click=${() => this._savePreviewYaml()}>
                             <ha-icon icon="mdi:check" slot="start"></ha-icon>
                             Save
                         </ha-button>
-                    ` : html`<ha-button appearance="plain" data-dialog="close">Close</ha-button>`}
-                </div>
+                    ` : html`<ha-button slot="primaryAction" data-dialog="close">Close</ha-button>`}
+                </ha-dialog-footer>
             </ha-dialog>
         `;
     }

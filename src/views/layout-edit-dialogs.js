@@ -3,11 +3,12 @@
  *
  * Uses the same imperative `ha-dialog` pattern as the rest of the codebase
  * (see lcards-msd-studio-dialog / lcards-color-section-v2): `headerTitle` for
- * the heading and a `slot="footer"` div holding the action buttons. The danger
- * action uses `variant="danger"`.
+ * the heading and HA's `ha-dialog-footer` (createDialogFooter) for the action
+ * buttons. The danger action uses `variant="danger"`; focus follows HA's dialog
+ * box: Cancel for a destructive confirm, the input for a prompt, OK otherwise.
  */
 
-import { mountDialogNearHomeAssistant } from '../utils/lcards-shared-helpers.js';
+import { createDialogFooter, mountDialogNearHomeAssistant } from '../utils/lcards-shared-helpers.js';
 
 /**
  * Show a destructive-action confirmation dialog.
@@ -33,6 +34,7 @@ export function showConfirmDeleteDialog({ title, message, confirmText = 'Delete'
         const cancelButton = document.createElement('ha-button');
         cancelButton.textContent = 'Cancel';
         cancelButton.setAttribute('appearance', 'plain');
+        cancelButton.autofocus = true;
         cancelButton.addEventListener('click', () => {
             dialog.open = false;
             resolve(false);
@@ -46,11 +48,7 @@ export function showConfirmDeleteDialog({ title, message, confirmText = 'Delete'
             resolve(true);
         });
 
-        const footerDiv = document.createElement('div');
-        footerDiv.slot = 'footer';
-        footerDiv.appendChild(cancelButton);
-        footerDiv.appendChild(confirmButton);
-        dialog.appendChild(footerDiv);
+        dialog.appendChild(createDialogFooter({ secondary: [cancelButton], primary: [confirmButton] }));
 
         // Resolve false if the dialog is dismissed without choosing (Esc / scrim).
         dialog.addEventListener('closed', () => {
@@ -84,12 +82,12 @@ export function showInfoDialog({ title, message }) {
 
         const okButton = document.createElement('ha-button');
         okButton.textContent = 'OK';
-        okButton.setAttribute('slot', 'footer');
         okButton.setAttribute('variant', 'brand');
+        okButton.autofocus = true;
         okButton.addEventListener('click', () => {
             dialog.open = false;
         });
-        dialog.appendChild(okButton);
+        dialog.appendChild(createDialogFooter({ primary: [okButton] }));
 
         dialog.addEventListener('closed', () => {
             dialog.remove();
@@ -136,6 +134,7 @@ export function showPromptDialog({ title, message = '', label = '', value = '', 
         const input = document.createElement('ha-input');
         input.label = label;
         input.value = value;
+        input.autofocus = true;
         content.appendChild(input);
         dialog.appendChild(content);
 
@@ -158,11 +157,7 @@ export function showPromptDialog({ title, message = '', label = '', value = '', 
         okButton.setAttribute('variant', 'brand');
         okButton.addEventListener('click', submit);
 
-        const footerDiv = document.createElement('div');
-        footerDiv.slot = 'footer';
-        footerDiv.appendChild(cancelButton);
-        footerDiv.appendChild(okButton);
-        dialog.appendChild(footerDiv);
+        dialog.appendChild(createDialogFooter({ secondary: [cancelButton], primary: [okButton] }));
 
         dialog.addEventListener('closed', () => {
             dialog.remove();
@@ -170,6 +165,5 @@ export function showPromptDialog({ title, message = '', label = '', value = '', 
         });
 
         mountDialogNearHomeAssistant(dialog);
-        setTimeout(() => input.focus?.(), 50);
     });
 }

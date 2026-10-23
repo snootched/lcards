@@ -29,7 +29,7 @@ The following properties are shared across all LCARdS cards. See [Common Card Pr
 | Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow-x-overflow-y) |
 | Stacking | `z_index` | [Stacking](../common.md#stacking-z-index) |
 | Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
-| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid-options) |
+| Home Assistant Grid | `grid_options` | [Home Assistant Grid Sizing](../common.md#home-assistant-grid-sizing-grid-options) |
 | Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
 | Text labels | `text` | [Text Fields](../../core/text-fields.md) |
 | Actions | `tap_action`, `hold_action`, `double_tap_action` | [Actions](../../core/actions.md) |
@@ -469,7 +469,7 @@ symbiont:
 | `overflow` | string | `hidden` | CSS overflow for both axes of the symbiont container: `visible`, `hidden`, `clip`, `scroll`, `auto` |
 | `overflow_x` | string | - | CSS overflow-x (horizontal). Overrides `overflow` shorthand |
 | `overflow_y` | string | - | CSS overflow-y (vertical). Overrides `overflow` shorthand |
-| `card` | object | - | Any valid HA card config (`type` + card properties) |
+| `card` | object | - | Any valid Home Assistant card config (`type` + card properties) |
 | `position` | object | - | Padding (px) within the elbow content area |
 | `position.top` | number | `10` | Top padding |
 | `position.left` | number | `10` | Left padding |
@@ -605,10 +605,10 @@ symbiont:
 
 > **Note:** `custom_style` injects raw CSS without UIX. For simple shadow-root overrides prefer `custom_style`: it needs nothing else installed and is handled entirely by LCARdS.
 
-### Lazy-Loaded HA Card Types
+### Lazy-Loaded Home Assistant Card Types
 
-HA lazy-loads many of its own built-in card modules (e.g. `alarm-panel`, `thermostat`, `media-player`); they are only imported when they first appear on a dashboard. On a fresh page load, before another dashboard view has triggered the import, the element is not yet registered.
+Home Assistant lazy-loads many of its own built-in card modules (e.g. `alarm-panel`, `thermostat`, `media-player`); they are only imported when they first appear on a dashboard. On a fresh page load, before another dashboard view has triggered the import, the element is not yet registered.
 
-LCARdS handles this automatically: when the requested type is not yet registered, it routes through HA's internal `hui-card` wrapper which triggers the correct dynamic import. The card renders as soon as HA finishes loading the module, no configuration required.
+LCARdS handles this automatically: when the requested type is not yet registered, it routes through Home Assistant's internal `hui-card` wrapper which triggers the correct dynamic import. The card renders as soon as Home Assistant finishes loading the module, no configuration required.
 
 ---

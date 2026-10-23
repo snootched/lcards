@@ -99,14 +99,14 @@ msd:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `source` | string | SVG source: `builtin:<name>`, `/local/path.svg`, a `media-source://…` content ID picked via the HA media library, or `none` |
+| `source` | string | SVG source: `builtin:<name>`, `/local/path.svg`, a `media-source://…` content ID picked via the Home Assistant media library, or `none` |
 | `filters` | list | CSS/SVG filters (opacity, blur, brightness, tint, etc.); see [Base SVG Filters](./base-svg-filters.md) |
 | `render_visual` | boolean | Default `true`. Set `false` to hide the SVG as the visible background (e.g. to use `background_animation` instead) while still parsing it for anchors. |
 | `harvest_landmarks` | boolean | Default `true`. Computes geometric landmark anchors (`hull_center`, `extremity_bow`/`extremity_stern`/`extremity_top`/`extremity_bottom`, `lateral_a`/`lateral_b`) from the SVG's own silhouette; see [Automatic Anchors](#automatic-anchors) below. |
 | `harvest_svg_elements` | boolean | Default `true`. Harvests anchors from any named `<circle>`/`<text>`/`<g>` element already present in the SVG markup; see [Automatic Anchors](#automatic-anchors) below. |
 | `animations` | list | Animations targeting elements *inside* the base SVG, by id/class; same `target`/`targets` selector syntax as [Card Animations](../../core/animations.md). Not to be confused with `msd.animations` (below), which targets *overlays*, not base-SVG internals. |
 
-In MSD Studio's Base SVG tab, the "Browse HA Media" source mode lets you pick an SVG uploaded to Home Assistant's media library, filtered to SVG's actual MIME type (`image/svg+xml`) so only SVG files show up, alongside the existing Asset Library (built-in ships) and Custom Path (typed `/local/…` or URL) modes.
+In MSD Studio's Base SVG tab, the "Browse Home Assistant Media" source mode lets you pick an SVG uploaded to Home Assistant's media library, filtered to SVG's actual MIME type (`image/svg+xml`) so only SVG files show up, alongside the existing Asset Library (built-in ships) and Custom Path (typed `/local/…` or URL) modes.
 
 ### Filters
 
@@ -161,7 +161,7 @@ In MSD Studio's Anchors tab, the two automatic sources are shown in their own re
 
 ### Control Overlay
 
-Embeds any HA card at a position on the canvas.
+Embeds any Home Assistant card at a position on the canvas.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -170,7 +170,7 @@ Embeds any HA card at a position on the canvas.
 | `anchor` | string | Anchor name to centre on |
 | `position` | array | Explicit `[x, y]` position (overrides `anchor`) |
 | `size` | array | `[width, height]` in viewBox units |
-| `card` | object | Any HA card config |
+| `card` | object | Any Home Assistant card config |
 | `z_index` | number | Stacking order (higher = in front) |
 | `locked` | boolean | Editor-only: disables drag/resize in MSD Studio |
 | `tags` | list | Tags for rule targeting |
@@ -319,9 +319,9 @@ msd:
 
 This matches shape, line, and control overlays uniformly; the selector runs against
 the shared overlay container, so it doesn't care what kind of overlay it lands on.
-For control overlays embedding a non-LCARdS HA card, this animates the control's own
+For control overlays embedding a non-LCARdS Home Assistant card, this animates the control's own
 positioned wrapper (opacity/transform/glow-style effects), not the embedded card's
-internals; LCARdS has no access to an arbitrary HA card's own DOM.
+internals; LCARdS has no access to an arbitrary Home Assistant card's own DOM.
 
 Each entry uses the exact same field set as `base_svg.animations` and per-overlay
 `animations:`; see [Card Animations](../../core/animations.md) for the full

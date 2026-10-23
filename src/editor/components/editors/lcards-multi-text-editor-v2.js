@@ -211,7 +211,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
             <!-- Display Format (card-wide default) -->
             ${FormField.renderField(this.editor, 'text.default.display_format', {
                 label: 'Default Display Format',
-                helper: 'How {entity.state} tokens are rendered across all fields: friendly = HA-translated, raw = actual state, parts = value+unit, unit = unit only'
+                helper: 'How {entity.state} tokens are rendered across all fields: friendly = translated by Home Assistant, raw = actual state, parts = value+unit, unit = unit only'
             })}
 
             <!-- Font Section -->
@@ -407,7 +407,7 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
             ${FormField.renderField(this.editor, `text.${fieldName}.display_format`, {
                 label: 'Display Format',
                 helper: hasDefaults && !fieldConfig.display_format
-                    ? 'Inherits from defaults: friendly = HA-translated, raw = actual state, parts = value+unit, unit = unit only'
+                    ? 'Inherits from defaults: friendly = translated by Home Assistant, raw = actual state, parts = value+unit, unit = unit only'
                     : 'How entity state tokens are rendered: friendly, raw, parts, or unit'
             })}
 

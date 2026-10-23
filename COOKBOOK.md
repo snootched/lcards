@@ -130,7 +130,7 @@ All in `.github/workflows/`.
 **Validate jobs** (all except the first two are skipped on the nightly schedule):
 - Hassfest and HACS validation (the routine HACS check; these run nightly).
 - CSS variable lint.
-- Docs examples (strict), the schema description check and the em-dash check: seconds. The docs site build and its tests are in the Docs workflow.
+- Docs examples (strict), the schema description check, the em-dash check and the "Home Assistant" check: seconds. The docs site build and its tests are in the Docs workflow.
 - **Tests and Typecheck:** `npm test`, `typecheck`, `build:integration`, `test:browser`.
 - Version format (`YYYY.MM.SEQ[-suffix]`).
 - Required files present.
@@ -148,7 +148,7 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 
 | Script | When | What |
 |---|---|---|
-| `build` | every build | Doc examples (strict), schema descriptions, docs em dashes, CSS vars, HA compat, version sync, Vite build (minified, `.br`/`.gz`), asset copy. |
+| `build` | every build | Doc examples (strict), schema descriptions, docs em dashes and bare "HA", CSS vars, HA compat, version sync, Vite build (minified, `.br`/`.gz`), asset copy. |
 | `build:integration` | CI/release | Vite build and asset copy only. Never for dev. |
 | `set-version` | inside build | `package.json` version into `manifest.json` (HA CalVer, no suffix) and `const.py`. |
 | `bump-version` | releasing | Strip `-dev.N` (promote), or advance SEQ (reset on a new month). |
@@ -243,7 +243,7 @@ Run one node test file: `node --import ./tests/setup/browser-shims.js --import .
 ## Docs site
 
 - VitePress in `doc/`, deployed by the Docs workflow. Nav and sidebars are in `doc/.vitepress/config.mts`; the Releases sidebar and the home page's "What's new" button come from the release pages' frontmatter.
-- Build gates: no em dashes; YAML examples schema-valid (strict); no dead links; no missing `#anchors` (VitePress slugs turn `_` into `-`).
+- Build gates: no em dashes; "Home Assistant" in full, never bare "HA" (HA-LCARS stays); YAML examples schema-valid (strict); no dead links; no missing `#anchors` (VitePress slugs turn `_` into `-`).
 - Live demos (` ```yaml live `) mount the real cards from the last build; see `CLAUDE.md`.
 
 ---
@@ -252,6 +252,7 @@ Run one node test file: `node --import ./tests/setup/browser-shims.js --import .
 
 - **HA compatibility:** after HA releases, run `npm run check:ha-impact:quick -- --pull` (or the full version), work through `reports/ha-impact/`, and delete each report once resolved.
 - **anime.js skill:** `.claude/skills/animejs/` is a vendored community skill (upstream, commit and local patches in its `references/UPSTREAM.md`) with an LCARdS rules section on top. After bumping `animejs`, run `tests/core/animejs-skill.test.js` (in `npm test`): it fails if the skill teaches a name the installed version no longer exports, or a removed string ease.
+- **HA frontend skills:** the `ha-frontend-*` skills come from `../frontend/.agents/skills/` and load in LCARdS sessions; `.claude/skills/lcards-ha-frontend/` maps each one to follow / translate / ignore. When `check:ha-impact` lists changes under `.agents/skills/`, re-check the matching rows. `tests/core/ha-frontend-skill.test.js` fails when an upstream skill has no row (skipped without the checkout).
 - **Session handoffs:** `reports/handoffs/index.md` lists planned sessions and the backlog.
 
 ---
@@ -262,6 +263,7 @@ Run one node test file: `node --import ./tests/setup/browser-shims.js --import .
 - **Docs channels:** the root is `main`, `/dev/` is `dev`, `/v/<version>/` is frozen per stable release (switcher next to the site title, banner on non-root channels). A root-absolute path in a docs component or raw HTML link (`/credits`, `/lcards/...`) escapes the channel: use `withBase()` or `import.meta.env.BASE_URL` (`npm run docs:check-base` catches it in built HTML). The card bundle's own `/lcards/` asset paths are expected to escape; the deploy keeps them at the root. Build a channel locally with `DOCS_BASE=/dev/ npm run docs:build && DOCS_BASE=/dev/ npm run test:docs`.
 - **Personal data in pictures:** the dev HA's entities and dashboards carry real names. Shots use `lcards_test_*` helpers; check every image before committing.
 - **No em dashes** anywhere (docs, UI strings, commit messages).
+- **"Home Assistant" in full** in docs, UI strings, schema descriptions and `services.yaml` (`scripts/check-doc-ha-name.js`, `tests/docs/home-assistant-name.test.js`).
 - **CI checks out one commit** (shallow) except in Release (`fetch-depth: 0`). Tests that need git history must skip themselves when it's missing (see the `release:commits` test).
 - **GitHub Actions versions:** every action runs on Node 24 (checkout v7, setup-node v7, github-script v9, action-gh-release v3, Pages actions v5/v6, upload-artifact v7, download-artifact v8, as of 2026-10). When GitHub warns that an action targets a deprecated Node runtime, move to its next major after reading that major's breaking changes; don't force the old one with `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`. Our own code is tested on Node 24 (`node-version: '24'`).
 - **`ubuntu-latest`** moves to Ubuntu 26 from 2026-10-19. If Playwright's `install --with-deps` breaks there, pin `runs-on: ubuntu-24.04` until Playwright supports it.

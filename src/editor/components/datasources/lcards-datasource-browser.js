@@ -1123,9 +1123,9 @@ export class LCARdSDataSourceBrowser extends LitElement {
           </div>
         </div>
 
-        <div slot="footer">
-          <ha-button appearance="plain" @click=${this._handleClose} data-dialog="close">Close</ha-button>
-        </div>
+        <ha-dialog-footer slot="footer">
+          <ha-button slot="primaryAction" @click=${this._handleClose} data-dialog="close">Close</ha-button>
+        </ha-dialog-footer>
       </ha-dialog>
     `;
   }

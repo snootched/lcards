@@ -49,7 +49,7 @@ const result = await this.hass.connection.sendMessagePromise({
 
 ## `lcards/diagnostics`
 
-**Admin only.** Backend environment facts for support. Used by the config panel's Welcome → Support & system info section (`src/utils/support-info.js`), and shares its collector (`custom_components/lcards/support.py`) with HA's standard **Download diagnostics** for the integration.
+**Admin only.** Backend environment facts for support. Used by the config panel's Welcome → Support & system info section (`src/utils/support-info.js`), and shares its collector (`custom_components/lcards/support.py`) with Home Assistant's standard **Download diagnostics** for the integration.
 
 ```javascript
 const diag = await this.hass.connection.sendMessagePromise({ type: 'lcards/diagnostics' });
@@ -71,7 +71,7 @@ Non-admin callers get an `unauthorized` error; the frontend then shows "Backend 
 
 ## Storage API
 
-All storage commands are under `lcards/storage/*`. The store is a flat key/value namespace persisted to `.storage/lcards` in the HA config directory; survives HA restarts and HACS upgrades.
+All storage commands are under `lcards/storage/*`. The store is a flat key/value namespace persisted to `.storage/lcards` in the Home Assistant config directory; survives Home Assistant restarts and HACS upgrades.
 
 → Full schema reference: [Persistent Storage](../architecture/internals/storage).
 
@@ -166,16 +166,16 @@ const store = await this.hass.connection.sendMessagePromise({
 
 ---
 
-## HA Service Targeting
+## Home Assistant Service Targeting
 
-All sixteen `lcards.*` HA services accept four optional fields that limit which browser sessions act on the event. Any combination may be used together.
+All sixteen `lcards.*` Home Assistant services accept four optional fields that limit which browser sessions act on the event. Any combination may be used together.
 
 | Field | Type | Resolved by |
 |-------|------|-------------|
 | `target_device_ids` | `list[string]` | Used as-is: browser device UUIDs (`lcards_device_id` from `localStorage`) |
 | `target_device_names` | `list[string]` | Resolved server-side: matched case-insensitively against the device display name set in the LCARdS config panel or `?lcards_device=` URL param |
-| `target_user_ids` | `list[string]` | Used as-is: HA user IDs |
-| `target_user_names` | `list[string]` | Resolved server-side: matched case-insensitively against the HA user display name |
+| `target_user_ids` | `list[string]` | Used as-is: Home Assistant user IDs |
+| `target_user_names` | `list[string]` | Resolved server-side: matched case-insensitively against the Home Assistant user display name |
 
 Omitting all four fields produces a **broadcast**, identical to the existing behaviour before targeting was added. Fully backward-compatible.
 
@@ -201,15 +201,15 @@ window.lcards.targeting.getMyIds()
 // → { deviceId: "a1b2c3d4-...", userId: "e71f94a8..." }
 ```
 
-**Device display names** are set per-browser in the LCARdS Config Panel → **Device** tab, or by appending `?lcards_device=my-name` to any HA URL.
+**Device display names** are set per-browser in the LCARdS Config Panel → **Device** tab, or by appending `?lcards_device=my-name` to any Home Assistant URL.
 
-**User display names** are the names shown in **HA → Settings → People → Users**.
+**User display names** are the names shown in **Home Assistant → Settings → People → Users**.
 
 All registered device names are visible from the LCARdS Config Panel → **Users & Devices** tab (admin view).
 
 ### Example: target by display name
 
-`target_device_names` and `target_user_names` work the same way on any service, resolved server-side against the display names set in the Config Panel / HA Users page:
+`target_device_names` and `target_user_names` work the same way on any service, resolved server-side against the display names set in the Config Panel / Home Assistant Users page:
 
 ```yaml
 action: lcards.reload

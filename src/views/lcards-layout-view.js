@@ -872,7 +872,7 @@ export class LCARdSLayoutView extends LitElement {
                 <div class="menu-sep" role="separator"></div>
                 <ha-dropdown-item value="delete" variant="danger">
                     <ha-svg-icon slot="icon" .path=${ICON.delete}></ha-svg-icon>
-                    Delete
+                    Remove
                 </ha-dropdown-item>
             </ha-dropdown>
         `;
@@ -1118,9 +1118,9 @@ export class LCARdSLayoutView extends LitElement {
         const type = String(card?.type ?? 'card').replace('custom:', '');
         const area = card?.view_layout?.['grid-area'];
         const confirmed = await showConfirmDeleteDialog({
-            title: 'Delete card?',
-            message: `Delete the "${type}" card${area ? ` from area "${area}"` : ''}? You can undo this from the dashboard toolbar.`,
-            confirmText: 'Delete',
+            title: 'Remove card?',
+            message: `Remove the "${type}" card${area ? ` from area "${area}"` : ''}? You can undo this from the dashboard toolbar.`,
+            confirmText: 'Remove',
         });
         if (!confirmed) return;
         if (this._placementEditCard?.index === cardIndex) this._placementEditCard = null;

@@ -709,9 +709,9 @@ export class LCARdSProvenanceTab extends LitElement {
                         </div>
                     </div>
                 </div>
-                <div slot="footer">
-                    <ha-button appearance="plain" data-dialog="close">Close</ha-button>
-                </div>
+                <ha-dialog-footer slot="footer">
+                    <ha-button slot="primaryAction" data-dialog="close">Close</ha-button>
+                </ha-dialog-footer>
             </ha-dialog>
         `;
     }

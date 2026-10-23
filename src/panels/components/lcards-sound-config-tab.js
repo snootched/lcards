@@ -1084,7 +1084,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                     ${this._saveSchemeError ? html`<span class="error-text">${this._saveSchemeError}</span>` : ''}
                     <div class="confirm-actions">
                       <ha-button @click=${this._confirmSaveScheme}>Save</ha-button>
-                      <ha-button @click=${this._cancelSaveScheme}>Cancel</ha-button>
+                      <ha-button appearance="plain" @click=${this._cancelSaveScheme}>Cancel</ha-button>
                     </div>
                   </div>
                 ` : (this._overridesDirty || Object.keys(this._overrides).length > 0) ? html`

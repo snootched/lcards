@@ -39,7 +39,7 @@ The following properties are shared across LCARdS cards. See [Common Card Proper
 | Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow-x-overflow-y) |
 | Stacking | `z_index` | [Stacking](../common.md#stacking-z-index) |
 | Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
-| HA Grid | `grid_options` | [HA Grid Sizing](../common.md#ha-grid-sizing-grid-options) |
+| Home Assistant Grid | `grid_options` | [Home Assistant Grid Sizing](../common.md#home-assistant-grid-sizing-grid-options) |
 | Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
 | Text labels | `text` | [Text Fields](../../core/text-fields.md) |
 | Actions | `tap_action`, `hold_action`, `double_tap_action` | [Actions](../../core/actions.md) |
@@ -607,7 +607,7 @@ svg:
 
 SVG elements with `id` attributes become interactive segments.
 
-> **Note**: When using CSS custom properties in SVG `fill` attributes, browser support can vary. Using `currentColor` in the SVG with CSS `color` styling via JavaScript is a reliable cross-browser alternative. The example above works in modern browsers and the HA web app.
+> **Note**: When using CSS custom properties in SVG `fill` attributes, browser support can vary. Using `currentColor` in the SVG with CSS `color` styling via JavaScript is a reliable cross-browser alternative. The example above works in modern browsers and the Home Assistant web app.
 
 ---
 

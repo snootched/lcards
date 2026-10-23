@@ -10,9 +10,9 @@ The feature is configured from the **Connectivity** tab in the [LCARdS Config Pa
 
 ## How it works
 
-LCARdS monitors the HA WebSocket connection inside the browser. When the connection drops it waits a short tolerance window (default 2.5 s) before showing the overlay; brief blips during HA startup or network handoffs are absorbed silently. When the connection comes back the overlay is removed (optionally showing a brief confirmation banner first).
+LCARdS monitors the Home Assistant WebSocket connection inside the browser. When the connection drops it waits a short tolerance window (default 2.5 s) before showing the overlay; brief blips during Home Assistant startup or network handoffs are absorbed silently. When the connection comes back the overlay is removed (optionally showing a brief confirmation banner first).
 
-The overlay sits on top of the entire dashboard at the highest z-index so it is never obscured by HA's own UI.
+The overlay sits on top of the entire dashboard at the highest z-index so it is never obscured by Home Assistant's own UI.
 
 ::: tip Alert mode co-existence
 The connection overlay is automatically **suppressed** while any alert mode other than the baseline (`green_alert`) is active. Alert mode already implies a deliberate full-screen takeover, so the two overlays never compete.
@@ -34,7 +34,7 @@ Changes made in the panel are **not live until you click Save**. Use the **Test 
 |---------|---------|-------------|
 | **Enable connection overlay** | On | Master switch. When off, no overlay is shown on disconnect. |
 | **Allow user to dismiss** | On | Let the user click the overlay backdrop to close it manually. Useful if you want a "confirm you know it's offline" interaction rather than a pure indicator. |
-| **Disconnect tolerance** | 2500 ms | How long to wait after a disconnect event before showing the overlay. Brief blips during HA startup or mobile network handoffs are silently absorbed. Set to 0 to show immediately. |
+| **Disconnect tolerance** | 2500 ms | How long to wait after a disconnect event before showing the overlay. Brief blips during Home Assistant startup or mobile network handoffs are silently absorbed. Set to 0 to show immediately. |
 
 ---
 
@@ -48,7 +48,7 @@ Choose between two modes:
 
 **Simple text**: LCARdS renders styled text directly on top of the effect layers. No card required. Use the typography controls below to set the message content, colour, font, size, weight, and casing.
 
-**Custom card (YAML)**: Provide any valid HA card YAML. LCARdS renders the card centred in the overlay, letting you use your own button cards, custom components, or LCARdS cards as the disconnect screen. You control position, width, and height.
+**Custom card (YAML)**: Provide any valid Home Assistant card YAML. LCARdS renders the card centred in the overlay, letting you use your own button cards, custom components, or LCARdS cards as the disconnect screen. You control position, width, and height.
 
 ---
 
@@ -83,7 +83,7 @@ An optional confirmation banner shown briefly after the connection returns.
 
 #### Connection Lost Card
 
-Paste any valid HA card YAML into the editor. The card is rendered on top of the effect layers.
+Paste any valid Home Assistant card YAML into the editor. The card is rendered on top of the effect layers.
 
 | Field | Default | Description |
 |-------|---------|-------------|
@@ -154,7 +154,7 @@ Set a slot to **None (disabled)** to turn it off entirely. You can mix and match
 
 ## Test Controls
 
-Use **Simulate Disconnect** to trigger the overlay immediately with your current unsaved settings. The dashboard continues to run normally behind it; HA is not actually disconnected.
+Use **Simulate Disconnect** to trigger the overlay immediately with your current unsaved settings. The dashboard continues to run normally behind it; Home Assistant is not actually disconnected.
 
 Click **Clear Test** to dismiss it. The test state is indicated by the button states: **Simulate Disconnect** disables while the test is active.
 
@@ -177,8 +177,8 @@ Use the **scope selector** at the top of the tab to choose which level you are c
 | Scope | Who it applies to |
 |-------|------------------|
 | **Global** | Every user and device (the installation-wide default) |
-| **User** | Your HA user account, on any device |
-| **Device** | This specific browser, regardless of which HA user is logged in |
+| **User** | Your Home Assistant user account, on any device |
+| **Device** | This specific browser, regardless of which Home Assistant user is logged in |
 
 Each field shows a small badge indicating where its current value comes from. If a field has an override at the selected scope, a **×** button lets you clear that override and fall back to the level below.
 

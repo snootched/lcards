@@ -14,7 +14,7 @@ Effects are declaratively registered as named **presets** in a shared registry. 
 
 - Alert overlay backdrop (via `layers` config in card config and per-condition overrides)
 - Console API (`window.lcards.screenEffect.play('pixelate')`)
-- HA automation service (`lcards.trigger_effect`)
+- Home Assistant automation service (`lcards.trigger_effect`)
 
 ---
 
@@ -30,7 +30,7 @@ On first use `ScreenEffectManager` appends a single `position:fixed; inset:0; z-
 | `canvas` | `<canvas>` | Canvas2D rAF loop: draws directly above all content |
 | `color` | `<div>` | CSS `background`: semi-transparent colour overlay |
 
-Z-index 9100 places the portal above all HA UI. The alert overlay card (`lcards-alert-overlay`), `ConnectionOverlayService`, and the `show_portal_card` HA service all inject content into this shared portal via `PortalOverlayManager`; there is only one portal div on the page at any given time. Each consumer owns an independent named slot (`'alert-overlay'`, `'connection-overlay'`, `'ha-service'`) so their DOM subtrees are separate and can coexist.
+Z-index 9100 places the portal above all Home Assistant UI. The alert overlay card (`lcards-alert-overlay`), `ConnectionOverlayService`, and the `show_portal_card` Home Assistant service all inject content into this shared portal via `PortalOverlayManager`; there is only one portal div on the page at any given time. Each consumer owns an independent named slot (`'alert-overlay'`, `'connection-overlay'`, `'ha-service'`) so their DOM subtrees are separate and can coexist.
 
 ### Preset API shape
 
@@ -128,7 +128,7 @@ window.lcards.screenEffect.list()
 
 ---
 
-## HA Service: `lcards.trigger_effect`
+## Home Assistant Service: `lcards.trigger_effect`
 
 Fire one or more layered screen effects from an automation or script. Effects are specified per **slot** (`backdrop`, `color`, `canvas`), each independently.
 
@@ -290,7 +290,7 @@ screenEffectPresetRegistry.register('my-effect', {
 
 ```bash
 npm run build
-# Copy dist/lcards.js → HA www/community/lcards/
+# Copy dist/lcards.js → Home Assistant www/community/lcards/
 # window.lcards.screenEffect.play('my-effect', { duration: 2000 })
 ```
 
@@ -315,6 +315,6 @@ npm run build
 
 **Canvas security**: Canvas2D cannot call `ctx.drawWindow()` or sample arbitrary DOM content in the browser for security reasons. The `pixelate` preset therefore generates synthetic colour blocks rather than true pixel-sampling of the viewport content. The visual result is an obscuring mosaic overlay, which is consistent with what the alert transition system already does.
 
-**Portal creation is lazy**: The portal div is appended to `document.body` on the first call to `apply()` or `play()`. It is not created at singleton initialization. This avoids any risk of interfering with HA's own DOM setup.
+**Portal creation is lazy**: The portal div is appended to `document.body` on the first call to `apply()` or `play()`. It is not created at singleton initialization. This avoids any risk of interfering with Home Assistant's own DOM setup.
 
 **`prefers-reduced-motion`**: Canvas effects (`static`, `pixelate`, `glitch`, `scanlines`) run continuous rAF loops. If your automation targets all users, consider checking `window.matchMedia('(prefers-reduced-motion: reduce)')` before calling backdrop effects and using the backdrop slot instead.

@@ -351,15 +351,15 @@ export class LCARdSLayoutStudioDialog extends LitElement {
                     </div>
                 </div>
 
-                <div slot="footer">
-                    <ha-button appearance="plain" @click=${this._handleCancel}>
+                <ha-dialog-footer slot="footer">
+                    <ha-button slot="secondaryAction" appearance="plain" @click=${this._handleCancel}>
                         Cancel
                     </ha-button>
-                    <ha-button variant="brand" @click=${this._handleSave}>
+                    <ha-button slot="primaryAction" variant="brand" @click=${this._handleSave}>
                         <ha-icon icon="mdi:check" slot="start"></ha-icon>
                         Save
                     </ha-button>
-                </div>
+                </ha-dialog-footer>
             </ha-dialog>
         `;
     }
@@ -622,7 +622,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         const label = (card?.type ?? 'card').replace('custom:', '');
         const ok = await showConfirmDeleteDialog({
             title: 'Remove card?',
-            message: `Remove the "${label}" card from this layout? This cannot be undone.`,
+            message: `Remove the "${label}" card from this layout? Cancel the studio to get it back.`,
             confirmText: 'Remove',
         });
         if (!ok) return;

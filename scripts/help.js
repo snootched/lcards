@@ -33,7 +33,7 @@ const CATEGORIES = [
   {
     name: 'Build',
     scripts: {
-      build: { when: 'every build', desc: 'Full validated build: doc examples (strict), schema descriptions, docs em-dash check, CSS vars, HA compat, version sync, Vite integration build (minified, .br/.gz), asset copy. Use for ALL dev/test builds.' },
+      build: { when: 'every build', desc: 'Full validated build: doc examples (strict), schema descriptions, docs em-dash and "Home Assistant" checks, CSS vars, HA compat, version sync, Vite integration build (minified, .br/.gz), asset copy. Use for ALL dev/test builds.' },
       'build:integration': { when: 'CI/release', desc: 'Vite build + asset copy only, skips validation/version-sync. CI/release only — never for dev.' },
       typecheck: { when: 'build, CI', desc: 'TypeScript checks across src/: zero errors or it fails (also checks the generated element map). Runs inside build. Rules: doc/development/typescript.md.' },
       'types:elements': { when: 'as needed', desc: 'Regenerate src/types/elements.generated.d.ts after adding or renaming a custom element.' },

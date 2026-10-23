@@ -786,7 +786,7 @@ export class LCARdSShapeTextureEditor extends LitElement {
                             .selector=${{ select: { mode: 'dropdown', options: [
                                 { value: 'asset',  label: 'Asset Library (builtin images & SVGs)' },
                                 { value: 'custom', label: 'Custom URL / Template' },
-                                { value: 'media',  label: 'Browse HA Media' }
+                                { value: 'media',  label: 'Browse Home Assistant Media' }
                             ]}}}
                             .value=${mode}
                             .label=${'Image Source'}
@@ -818,7 +818,7 @@ export class LCARdSShapeTextureEditor extends LitElement {
                             <ha-selector .hass=${this.hass}
                                 .selector=${{ media: { accept: ['image/*'] } }}
                                 .value=${mediaValue}
-                                .label=${'HA Media'}
+                                .label=${'Home Assistant Media'}
                                 .helper=${'Browse or upload an image via the Home Assistant media library'}
                                 @value-changed=${(e) => this._updatePresetConfig('source', e.detail.value?.media_content_id ?? '')}
                             ></ha-selector>

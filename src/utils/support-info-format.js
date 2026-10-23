@@ -76,7 +76,7 @@ export function evaluateSupportChecks(info) {
     } else if (lcards.backendVersion && lcards.version && lcards.backendVersion !== lcards.version) {
         checks.push({ id: 'version_match', status: 'warn', title: 'Frontend and integration versions differ',
             detail: `Browser is running ${lcards.version}, integration is ${lcards.backendVersion}.`,
-            fix: 'Hard-refresh the browser (Ctrl+Shift+R) or clear the companion app cache; restart HA if you just updated.' });
+            fix: 'Hard-refresh the browser (Ctrl+Shift+R) or clear the companion app cache; restart Home Assistant if you just updated.' });
     } else {
         checks.push({ id: 'version_match', status: 'ok', title: `LCARdS ${lcards.version ?? 'unknown'} (frontend = integration)` });
     }
@@ -178,9 +178,9 @@ export function formatSupportMarkdown(info, checks, { compact = false } = {}) {
     lines.push(`| LCARdS (browser) | ${cell(l.version)} (${cell(l.buildDate)}) |`);
     lines.push(`| LCARdS (integration) | ${cell(l.backendVersion)} |`);
     lines.push(`| Home Assistant | ${cell(ha.version)} |`);
-    lines.push(`| HA frontend | ${cell(ha.frontendVersion)} |`);
+    lines.push(`| Home Assistant frontend | ${cell(ha.frontendVersion)} |`);
     lines.push(`| Browser | ${cell(b.summary)}${b.companionApp ? ' (companion app)' : ''} |`);
-    lines.push(`| HA theme | ${cell(t.haTheme)}${t.darkMode === true ? ' (dark)' : t.darkMode === false ? ' (light)' : ''} |`);
+    lines.push(`| Home Assistant theme | ${cell(t.haTheme)}${t.darkMode === true ? ' (dark)' : t.darkMode === false ? ' (light)' : ''} |`);
     lines.push(`| UIX | ${s.uix?.installed ? cell(s.uix.version ?? 'installed') : 'not installed'} |`);
     lines.push(`| card-mod | ${s.cardMod?.present ? cell(s.cardMod.version ?? 'present') : 'not present'} |`);
     lines.push('');

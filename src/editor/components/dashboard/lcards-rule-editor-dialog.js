@@ -257,16 +257,16 @@ export class LCARdSRuleEditorDialog extends LitElement {
                     ${this._renderForm()}
                 </div>
 
-                <div slot="footer">
-                    <ha-button appearance="plain" @click=${this._handleCancel}>Cancel</ha-button>
-                    <ha-button
+                <ha-dialog-footer slot="footer">
+                    <ha-button slot="secondaryAction" appearance="plain" @click=${this._handleCancel}>Cancel</ha-button>
+                    <ha-button slot="primaryAction"
                         variant="brand"
                         @click=${this._handleSave}
                         ?disabled=${!this._isValid()}>
                         <ha-icon icon="mdi:check" slot="start"></ha-icon>
                         ${this.mode === 'add' ? 'Create rule' : 'Save rule'}
                     </ha-button>
-                </div>
+                </ha-dialog-footer>
             </ha-dialog>
         `;
     }
@@ -286,6 +286,7 @@ export class LCARdSRuleEditorDialog extends LitElement {
                     <div class="identity-grid">
                         <div>
                             <ha-selector
+                                ?autofocus=${this.mode !== 'edit'}
                                 .hass=${this.hass}
                                 .label=${'Rule ID'}
                                 .required=${true}

@@ -87,7 +87,7 @@ const layoutSchema = {
 
 const childCardsSchema = {
     type: 'array',
-    description: 'Cards placed in the grid. Each is any HA card config; `view_layout` places it in a grid area.',
+    description: 'Cards placed in the grid. Each is any Home Assistant card config; `view_layout` places it in a grid area.',
     items: {
         type: 'object',
         required: ['type'],

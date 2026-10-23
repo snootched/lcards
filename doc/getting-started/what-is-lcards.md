@@ -27,7 +27,7 @@ Three layers, plus a small integration running inside Home Assistant.
 
 ## Next steps
 
-1. **[Install LCARdS](installation)**: through the HA Marketplace - run through a quick setup.
+1. **[Install LCARdS](installation)**: through the Home Assistant Marketplace - run through a quick setup.
 2. **[Build a dashboard](building-dashboards)**: pick cards and lay out a screen.
 3. **[Browse the gallery](dashboard-gallery)**: copy a complete dashboard and make it yours.
 4. **[Get AI help](ai-assistance)**: let an assistant write the YAML for you.

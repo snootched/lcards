@@ -17,7 +17,7 @@ All dynamic text in LCARdS is processed by `UnifiedTemplateEvaluator`. It orches
 | `UnifiedTemplateEvaluator` | `core/templates/UnifiedTemplateEvaluator.js` | Orchestrator: runs all four evaluators in order |
 | `LCARdSCardTemplateEvaluator` | `core/templates/LCARdSCardTemplateEvaluator.js` | Handles JS `[[[...]]]` and token `{...}` templates |
 | `DataSourceTemplateEvaluator` | `core/templates/DataSourceTemplateEvaluator.js` | Handles `{ds:name}` and `{datasource:name.key}` |
-| `HATemplateEvaluator` | `core/templates/HATemplateEvaluator.js` | Sends Jinja2 to HA server for evaluation |
+| `HATemplateEvaluator` | `core/templates/HATemplateEvaluator.js` | Sends Jinja2 to Home Assistant server for evaluation |
 | `TemplateDetector` | `core/templates/TemplateDetector.js` | Fast type detection: avoids unnecessary evaluator calls |
 | `TemplateParser` | `core/templates/TemplateParser.js` | Tokenises complex mixed-content strings |
 
@@ -46,13 +46,13 @@ text: "{config.name}"
 ### 3: DataSource `{ds:...}`
 
 ```yaml alternatives
-text: "{ds:sensor_name}"                    # HA-native: locale-formatted + unit
+text: "{ds:sensor_name}"                    # Home Assistant native: locale-formatted + unit
 text: "{ds:sensor_name.celsius:.1f}"        # processor buffer: 1 decimal, no auto-unit
 text: "{ds:sensor_name.celsius:.1f} °C"    # manual unit suffix
 text: "{datasource:temp.rolling_avg}"       # explicit long prefix
 ```
 
-**Rule:** no format spec → HA-native display with unit. With a format spec → number only, caller controls the suffix.
+**Rule:** no format spec → Home Assistant native display with unit. With a format spec → number only, caller controls the suffix.
 
 ### 4: Jinja2 `{{...}}` / `{% %}`
 
@@ -61,7 +61,7 @@ text: "{{states('sensor.temp')}} °C"
 text: "{% if is_state('light.kitchen','on') %}On{% else %}Off{% endif %}"
 ```
 
-Jinja2 is asynchronous: evaluated by HA server via WebSocket.
+Jinja2 is asynchronous: evaluated by Home Assistant server via WebSocket.
 
 ---
 
@@ -72,7 +72,7 @@ A single string may contain multiple template types. They are evaluated sequenti
 1. JavaScript `[[[...]]]` replaced first (synchronous)
 2. Token `{...}` replaced (synchronous)
 3. DataSource `{ds:...}` replaced (synchronous, reads latest buffer value)
-4. Jinja2 `{{...}}` sent to HA (async, awaited before render)
+4. Jinja2 `{{...}}` sent to Home Assistant (async, awaited before render)
 
 ---
 
@@ -97,7 +97,7 @@ const evaluator = new UnifiedTemplateEvaluator({
 const result = await evaluator.evaluateAsync(template);
 ```
 
-`evaluateAsync()` runs all four phases (including Jinja2). A second public entry point, `evaluateSync()`, runs only JS + Token + DataSource (no Jinja2, since that requires the async HA round-trip) for callers that need a result without an `await` (e.g. a value recomputed on every hass tick, like `lcards-slider.js`'s marker `value`/`min`/`max` resolution).
+`evaluateAsync()` runs all four phases (including Jinja2). A second public entry point, `evaluateSync()`, runs only JS + Token + DataSource (no Jinja2, since that requires the async Home Assistant round-trip) for callers that need a result without an `await` (e.g. a value recomputed on every hass tick, like `lcards-slider.js`'s marker `value`/`min`/`max` resolution).
 
 The `states.<domain>.<object_id>.state` / `.attributes.<key>` token form resolves a *different* entity's state via the `states` context key above. Because `hass.states` is a flat dict keyed by the whole `"domain.object_id"` string (not a nested object), `LCARdSCardTemplateEvaluator._resolveToken()` special-cases this form, reconstructing the entity ID from the two path segments right after `states`, rather than relying on its normal per-segment dot-walk.
 

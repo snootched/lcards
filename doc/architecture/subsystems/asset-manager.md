@@ -78,7 +78,7 @@ window.lcards.core.assetManager.register('image', 'living-room', null, {
 | `loadSvg(key)` | `Promise<string>` | Load SVG by key; cached after first fetch |
 | `getRegistry('svg').has(key)` | `boolean` | True if SVG is already cached (no `hasSvg()` shortcut exists; call `has()` on the SVG registry) |
 | `resolveImageUrl(key)` | `string\|null` | Resolve an image key → URL (no I/O). Used by `ImageLoader` for `builtin:key` references. |
-| `resolveMediaSourceUrl(mediaContentId)` | `Promise<string\|null>` | Resolve a `media-source://…` content ID to a real URL via the HA `media_source/resolve_media` websocket command. Result is cached for 15 minutes (resolved URLs may carry an expiring signed token). Used by `ImageLoader` for `media-source://…` references. |
+| `resolveMediaSourceUrl(mediaContentId)` | `Promise<string\|null>` | Resolve a `media-source://…` content ID to a real URL via the Home Assistant `media_source/resolve_media` websocket command. Result is cached for 15 minutes (resolved URLs may carry an expiring signed token). Used by `ImageLoader` for `media-source://…` references. |
 | `listImages()` | `string[]` | All registered image asset keys |
 | `listFonts()` | `Object[]` | All registered font asset entries |
 | `listTypes()` | `string[]` | All registered asset categories |
@@ -122,7 +122,7 @@ card config: url = 'builtin:bedroom'
 
 ## Media Source Resolution Flow
 
-Lets a user pick an image from Home Assistant's native media library (local media, uploads, or any other registered `media_source` platform, including LCARdS's own bundled assets, see [Media Source Platform](../ha-integration#media-source-platform)) as a card background or shape texture, via the editor's **Browse HA Media** mode:
+Lets a user pick an image from Home Assistant's native media library (local media, uploads, or any other registered `media_source` platform, including LCARdS's own bundled assets, see [Media Source Platform](../ha-integration#media-source-platform)) as a card background or shape texture, via the editor's **Browse Home Assistant Media** mode:
 
 ```
 card config: source = 'media-source://media_source/local/bedroom.jpg'
@@ -180,4 +180,4 @@ am.getRegistry('image')        // raw registry map for images
 
 - [Pack System](pack-system.md)
 - [Component Manager](component-manager.md)
-- [Media Source Platform](../ha-integration.md#media-source-platform): the reverse direction: LCARdS's own bundled assets exposed as a browsable HA media source
+- [Media Source Platform](../ha-integration.md#media-source-platform): the reverse direction: LCARdS's own bundled assets exposed as a browsable Home Assistant media source

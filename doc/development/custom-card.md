@@ -152,7 +152,7 @@ export class LCARdSMyCard extends LCARdSCard {
 | `_handleHassUpdate(newHass, oldHass)` | Every HASS push | Cache `this._entity`, trigger re-render on state change |
 | `_renderCard()` | Every render | Return Lit `html` template |
 | `_onRulePatchesChanged(patches)` | Rules Engine pushes new patch | Merge patches into style, call `requestUpdate()` |
-| `_onConfigSet(config)` | `setConfig()` called by HA | Override if you need to react to raw config before base processes it |
+| `_onConfigSet(config)` | `setConfig()` called by Home Assistant | Override if you need to react to raw config before base processes it |
 
 ::: warning Always call `super`
 Every `_handleFirstUpdate` and `_handleHassUpdate` override must call `super` before your code, or base-class wiring (logging, entity tracking, template processing) will be skipped.
@@ -228,7 +228,7 @@ lcardsLog.warn ('[LCARdSMyCard] Config missing entity');
 lcardsLog.error('[LCARdSMyCard] Render failed:', err);
 ```
 
-Enable debug output in the HA dev console:
+Enable debug output in the Home Assistant dev console:
 ```javascript
 window.lcards.setGlobalLogLevel('debug')
 ```

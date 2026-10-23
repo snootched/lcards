@@ -6,7 +6,7 @@ The **Alert Mode Lab** is a tab in the [LCARdS Config Panel](./index.md) for cus
 
 ## What It Does
 
-LCARdS Alert Mode shifts card colours across your entire dashboard when an alert is active. The Lab lets you tune how each alert level looks by adjusting per-mode colour parameters, then saves those values as HA input helpers so they persist across restarts.
+LCARdS Alert Mode shifts card colours across your entire dashboard when an alert is active. The Lab lets you tune how each alert level looks by adjusting per-mode colour parameters, then saves those values as Home Assistant input helpers so they persist across restarts.
 
 ---
 

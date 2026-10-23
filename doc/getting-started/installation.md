@@ -12,23 +12,23 @@ Something not working after installing and configuration? See [Getting Help](get
 
 ## Quick Start
 
-1. [Install from the HA Marketplace (HACS)](#_1-install-via-hacs)
+1. [Install from the Home Assistant Marketplace (HACS)](#_1-install-from-the-home-assistant-marketplace-hacs)
 2. [Add the LCARdS integration](#_2-add-the-integration)
 3. [First setup in the LCARdS panel](#_3-first-setup): create the helpers, then tune alert modes and sounds
 
 :::tip HA-LCARS Theme Integration
 LCARdS supports and integrates well with [**HA-LCARS themes**](https://github.com/th3jesta/ha-lcars).  Use these two together for the best experience.
 
-HA-LCARS includes LCARdS theme profiles (**LCARS Picard [LCARdS Red Accent]** and **[LCARdS Blue Accent]**): choose one as your Home Assistant theme and HA's own screens match your LCARdS cards. See [HA-LCARS Theme Profiles](../configuration/ha-lcars-theme-profiles.md).
+HA-LCARS includes LCARdS theme profiles (**LCARS Picard [LCARdS Red Accent]** and **[LCARdS Blue Accent]**): choose one as your Home Assistant theme and Home Assistant's own screens match your LCARdS cards. See [HA-LCARS Theme Profiles](../configuration/ha-lcars-theme-profiles.md).
 :::
 
-## 1. Install from the HA Marketplace (HACS)
+## 1. Install from the Home Assistant Marketplace (HACS)
 
 **HomeAssistant 2026.10 (HACS)**
 
 [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=snootched&repository=LCARdS&category=integration)
 
-**HA 2026.11+ (Marketplace)**
+**Home Assistant 2026.11+ (Marketplace)**
 
 [![Open your Home Assistant instance and open a repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=snootched&repository=lcards&category=integrations)
 
@@ -51,7 +51,7 @@ HA-LCARS includes LCARdS theme profiles (**LCARS Picard [LCARdS Red Accent]** an
 
 ## 2. Add the integration
 
-Go to **Settings > Devices & services > Add integration** and pick **LCARdS**. The integration adds the **LCARdS Config** panel to the sidebar and provides the conduit between HA and LCARdS frontend components.  Its options are listed under [Integration options](#integration-options).
+Go to **Settings > Devices & services > Add integration** and pick **LCARdS**. The integration adds the **LCARdS Config** panel to the sidebar and provides the conduit between Home Assistant and LCARdS frontend components.  Its options are listed under [Integration options](#integration-options).
 
 ## 3. First setup
 

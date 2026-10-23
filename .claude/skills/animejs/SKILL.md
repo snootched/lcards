@@ -17,6 +17,7 @@ Vendored from BowTiedSwan/animejs-skills (MIT) and patched for 4.3.6; see `refer
 - **Targets live in shadow DOM.** String selectors resolve against `document` and find nothing inside a card. Pass elements, or use `createScope({ root })`. Revert scopes and animations on disconnect (`scope.revert()`), and expect cards to re-render and replace the nodes you animated.
 - **Colours**: anime.js interpolates concrete values, so resolve LCARdS colours with `resolveColor(value, { concrete: true, element })` (`src/core/themes/resolve-color.js`), never raw `var(--x)` or `theme:` strings.
 - **Where things live**: `src/core/animation/` (AnimationManager, AnimationRegistry, TriggerManager, AnimationConfigProcessor, resolveAnimParams, resolveTimelines), presets in `src/core/packs/animations/presets/`, preset param schemas in `src/cards/schemas/animation-preset-params-schemas.js`. Wiring rules: `.github/instructions/animation.instructions.md`.
+- **Reduced motion**: HA's `--ha-animation-duration-*` variables collapse under `prefers-reduced-motion: reduce`, but anime.js never reads them. New animation code checks `window.matchMedia('(prefers-reduced-motion: reduce)')` (as `lcards-slider.js` does) or goes through an engine-level gate. `AnimationManager` has no such gate yet (`reports/ha-frontend-skills-audit.md` A1).
 - **A new or renamed YAML key** (a preset param, a trigger) follows the `lcards-card-option` skill.
 - Logging via `lcardsLog`, never `console.log`. No em dashes in user-facing text.
 

@@ -9,14 +9,14 @@
 
 ## Overview
 
-The Connection Overlay Service monitors the Home Assistant WebSocket connection and displays a full-screen overlay whenever the frontend loses contact with the HA server. It is a `BaseService` singleton that is active on every page the LCARdS module is loaded; no card placement is required.
+The Connection Overlay Service monitors the Home Assistant WebSocket connection and displays a full-screen overlay whenever the frontend loses contact with the Home Assistant server. It is a `BaseService` singleton that is active on every page the LCARdS module is loaded; no card placement is required.
 
 Key capabilities:
 
 - **Automatic detection** via two complementary signals (WS events + `hass.connected` flag)
 - **Per-scope config** via the ScopedSettings waterfall: device, user, or global overrides
-- **Config auto-refresh**: re-reads config from the scoped waterfall after every HA reconnect, so settings saved just before an HA restart are always picked up without a page reload
-- **Three display modes**: simple text message, a full custom HA card, or a Borg-assimilation takeover
+- **Config auto-refresh**: re-reads config from the scoped waterfall after every Home Assistant reconnect, so settings saved just before a Home Assistant restart are always picked up without a page reload
+- **Three display modes**: simple text message, a full custom Home Assistant card, or a Borg-assimilation takeover
 - **Optional reconnection banner**: brief confirmation overlay that auto-dismisses after reconnection
 - **SEM integration**: backdrop, canvas, and colour effect layers via `ScreenEffectManager`
 - **Stackable with alert overlay**: both overlays can be visible simultaneously; the connection overlay renders on top when both are active
@@ -57,7 +57,7 @@ Two complementary signals are monitored so that disconnection is caught reliably
 
 1. **`hass.connection` WebSocket events** (primary): `home-assistant-js-websocket` fires `'disconnected'` on close and `'ready'` on (re)connect on the `Connection` object. The library has **no** `'reconnected'` event; `'ready'` is the correct reconnect signal, and it fires after auth completes on both the initial connection and every subsequent reconnect. These fire regardless of dashboard activity, avoiding false positives from idle dashboards (no state changes → no `updateHass` calls is normal and is **not** a disconnect signal).
 
-2. **`hass.connected` flag** (belt-and-suspenders): HA propagates the `hass.connected` boolean on connect/disconnect transitions. `updateHass()` monitors it to catch any edge-cases where the WS event fires slightly outside the `updateHass` call cycle.
+2. **`hass.connected` flag** (belt-and-suspenders): Home Assistant propagates the `hass.connected` boolean on connect/disconnect transitions. `updateHass()` monitors it to catch any edge-cases where the WS event fires slightly outside the `updateHass` call cycle.
 
 The service subscribes to `hass.connection` events each time it sees a new `connection` object, and unsubscribes from the old one. Subscription is idempotent: re-subscribing to the same connection object is skipped.
 
@@ -148,7 +148,7 @@ Device scope → User scope → Global scope → Built-in defaults
 
 Flat keys are independent: a device-scoped colour does **not** clobber a global-scoped text value. This allows kiosks or individual users to override only the fields they care about.
 
-Config is re-read from the full waterfall after every HA reconnect (`_doReconnected()` → `loadConfig()`), so settings saved just before an HA restart are picked up automatically without a page reload. A brief in-memory optimistic patch is also applied immediately after a successful save so that `_onDisconnected()` sees the correct flags even if the subsequent `loadConfig()` WS reads are interrupted by an HA restart.
+Config is re-read from the full waterfall after every Home Assistant reconnect (`_doReconnected()` → `loadConfig()`), so settings saved just before a Home Assistant restart are picked up automatically without a page reload. A brief in-memory optimistic patch is also applied immediately after a successful save so that `_onDisconnected()` sees the correct flags even if the subsequent `loadConfig()` WS reads are interrupted by a Home Assistant restart.
 
 ### Flat key constants (from `ScopedSettingsConstants.js`)
 
@@ -217,7 +217,7 @@ POM calls `sem.setOverlayOccupied(true)` as soon as any slot is shown, and `sem.
 
 ## Alert Overlay Co-existence
 
-Both the connection overlay and the alert overlay use `PortalOverlayManager` with independent named slots (`'connection-overlay'` and `'alert-overlay'`). They stack freely: there is no suppression logic. If an alert is active and HA disconnects, the connection overlay appears on top of the alert overlay (last `appendChild` wins at equal z-index).
+Both the connection overlay and the alert overlay use `PortalOverlayManager` with independent named slots (`'connection-overlay'` and `'alert-overlay'`). They stack freely: there is no suppression logic. If an alert is active and Home Assistant disconnects, the connection overlay appears on top of the alert overlay (last `appendChild` wins at equal z-index).
 
 The SEM effect slots are shared (last-in-wins): the connection overlay's `layers` config will evict the alert overlay's SEM effects if both are active simultaneously. If the connection overlay is configured without `layers` (text or card mode only), the alert backdrop effects are unaffected.
 
@@ -239,13 +239,13 @@ The banner uses `PortalOverlayManager` under the `'connection-overlay'` slot; th
 
 ### Text mode (`message.mode = 'text'`)
 
-A plain `<div>` is rendered in the content container using inline styles only (no CSS custom properties). This ensures the overlay remains styled correctly while disconnected, when the HA theme system may not be fully operational.
+A plain `<div>` is rendered in the content container using inline styles only (no CSS custom properties). This ensures the overlay remains styled correctly while disconnected, when the Home Assistant theme system may not be fully operational.
 
 Styling fields: `text`, `color`, `font` (resolved via font registry), `size` (px), `weight`, `transform`.
 
 ### Card mode (`message.mode = 'card'`)
 
-An arbitrary HA card config (`config.content`) is mounted as a custom element via `ha-card-factory`. The card element receives `hass` updates via `applyHassToCard()` on every `updateHass()` call. `width` and `height` from config are applied to the content container so the card fills a predictable area.
+An arbitrary Home Assistant card config (`config.content`) is mounted as a custom element via `ha-card-factory`. The card element receives `hass` updates via `applyHassToCard()` on every `updateHass()` call. `width` and `height` from config are applied to the content container so the card fills a predictable area.
 
 ### Borg mode (`message.mode = 'borg'`)
 

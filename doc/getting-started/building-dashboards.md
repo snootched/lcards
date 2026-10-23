@@ -42,7 +42,7 @@ views:
     path: bridge
     type: custom:lcards-layout-view
     layout:
-      height: calc(100dvh - var(--header-height, 56px))   # fill the screen below HA's toolbar
+      height: calc(100dvh - var(--header-height, 56px))   # fill the screen below Home Assistant's toolbar
       padding: 12px
       grid-gap: 6px
       grid-template-columns: 170px minmax(0, 1fr)

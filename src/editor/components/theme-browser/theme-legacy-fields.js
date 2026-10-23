@@ -40,8 +40,8 @@ const labelBadgeVariant = (colourName) => `Background colour for a ${colourName}
 
 export const LEGACY_FIELD_DEFS = [
   // ── Core ──
-  { key: 'primary-color', label: 'Primary Colour', group: 'Core', role: 'primary', tone: 40, description: "HA's own accent colour: buttons, active toggles, selected tabs, and focus rings across stock HA UI." },
-  { key: 'accent-color', label: 'Accent Colour', group: 'Core', role: 'primary', tone: 40, description: 'A secondary accent used alongside Primary Colour for less prominent highlights in stock HA components.' },
+  { key: 'primary-color', label: 'Primary Colour', group: 'Core', role: 'primary', tone: 40, description: "Home Assistant's own accent colour: buttons, active toggles, selected tabs, and focus rings across stock Home Assistant UI." },
+  { key: 'accent-color', label: 'Accent Colour', group: 'Core', role: 'primary', tone: 40, description: 'A secondary accent used alongside Primary Colour for less prominent highlights in stock Home Assistant components.' },
   { key: 'primary-background-color', label: 'Primary Background', group: 'Core', live: true, description: 'The base page background behind every card and panel.' },
   { key: 'secondary-background-color', label: 'Secondary Background', group: 'Core', role: 'neutral', tone: 20, description: 'Background for secondary surfaces: dialogs, list rows, form fields.' },
   { key: 'card-background-color', label: 'Card Background', group: 'Core', role: 'neutral', tone: 20, description: 'Background colour of ha-card and every Lovelace card by default.' },
@@ -51,12 +51,12 @@ export const LEGACY_FIELD_DEFS = [
   { key: 'divider-color', label: 'Divider', group: 'Core', live: true, description: "Colour of divider lines between list items and sections (HA-LCARS's own default is transparent)." },
 
   // ── Text ──
-  { key: 'primary-text-color', label: 'Primary Text', group: 'Text', live: true, description: 'Default text colour used almost everywhere in stock HA UI.' },
+  { key: 'primary-text-color', label: 'Primary Text', group: 'Text', live: true, description: 'Default text colour used almost everywhere in stock Home Assistant UI.' },
   { key: 'secondary-text-color', label: 'Secondary Text', group: 'Text', live: true, description: 'Muted/secondary text: captions, helper text, timestamps.' },
   { key: 'text-primary-color', label: 'Text on Primary Background', group: 'Text', live: true, description: 'Text/icon colour placed on surfaces coloured with Primary Colour (e.g. filled buttons).' },
   { key: 'text-accent-color', label: 'Text on Accent Background', group: 'Text', live: true, description: 'Text/icon colour placed on surfaces coloured with Accent Colour.' },
   { key: 'disabled-text-color', label: 'Disabled Text', group: 'Text', live: true, description: 'Text colour for disabled controls and unavailable entities.' },
-  { key: 'lcars-primary-text', label: 'LCARS Primary Text', group: 'Text', live: true, description: "Default LCARS-styled text colour, layered under HA's own Primary Text." },
+  { key: 'lcars-primary-text', label: 'LCARS Primary Text', group: 'Text', live: true, description: "Default LCARS-styled text colour, layered under Home Assistant's own Primary Text." },
   // The one field that can't be a plain `live` key lookup: its real definition is
   // color-mix(in oklch, var(--lcars-primary-text) 80%, var(--lcars-ui-mix-color)), and
   // lcars-ui-mix-color only exists inside HA-LCARS's modes.light/modes.dark blocks (black light /
@@ -72,7 +72,7 @@ export const LEGACY_FIELD_DEFS = [
   // below are tagged with this same group for data/export purposes, but render in the Domain &
   // State Colours section instead (see DOMAIN_FALLBACK_KEYS) — they're this chain's real starting
   // point, not a generic "status" colour.
-  { key: 'success-color', label: 'Success', group: 'Status Colours', role: 'green', tone: 40, description: 'Colour for success alerts, badges, and positive indicators across stock HA UI.' },
+  { key: 'success-color', label: 'Success', group: 'Status Colours', role: 'green', tone: 40, description: 'Colour for success alerts, badges, and positive indicators across stock Home Assistant UI.' },
   { key: 'warning-color', label: 'Warning', group: 'Status Colours', role: 'orange', tone: 40, description: 'Colour for warning alerts and caution indicators.' },
   { key: 'error-color', label: 'Error', group: 'Status Colours', role: 'red', tone: 40, description: 'Colour for error alerts and failure indicators.' },
   { key: 'info-color', label: 'Info', group: 'Status Colours', role: 'primary', tone: 40, description: 'Colour for informational alerts and neutral notices.' },
@@ -106,7 +106,7 @@ export const LEGACY_FIELD_DEFS = [
   { key: 'lcars-ui-accent-color', label: 'LCARS UI Accent', group: 'LCARS UI', role: 'primary', tone: 40, description: 'A dedicated accent tier, separate from the primary/secondary/tertiary/quaternary stack, for standout chrome elements.' },
   { key: 'lcars-ui-accent-text', label: 'LCARS UI Accent Text', group: 'LCARS UI', live: true, description: textOn('LCARS UI Accent') },
   { key: 'lcars-ui-text-heading', label: 'LCARS UI Heading Text', group: 'LCARS UI', role: 'neutral', tone: 90, description: 'Heading text colour for LCARS-styled panels and section titles.' },
-  { key: 'lcars-ui-app-header-background-color', label: 'App Header Background', group: 'LCARS UI', role: 'primary', tone: 40, description: "Background colour of HA's top app header bar." },
+  { key: 'lcars-ui-app-header-background-color', label: 'App Header Background', group: 'LCARS UI', role: 'primary', tone: 40, description: "Background colour of Home Assistant's top app header bar." },
   { key: 'lcars-ui-app-header-text-color', label: 'App Header Text', group: 'LCARS UI', live: true, description: textOn('App Header Background') },
   { key: 'lcars-ui-app-header-clock', label: 'App Header Clock', group: 'LCARS UI', role: 'neutral', tone: 90, description: 'Colour of the clock shown in the app header, if enabled.' },
   { key: 'lcars-ui-config-button', label: 'Config Button', group: 'LCARS UI', role: 'primary', tone: 40, description: 'Background colour of the settings/config button chip.' },
@@ -126,14 +126,14 @@ export const LEGACY_FIELD_DEFS = [
   // MDC-themed inputs/selects still used throughout HA (ha-alert.ts, ha-radio-list-item.ts,
   // ha-check-list-item.ts, entity pickers, …) despite HA moving new components away from MWC —
   // confirmed live (23/3/2/3 consumer files respectively), not vestigial, before adding these.
-  { key: 'mdc-theme-primary', label: 'MDC Theme Primary', group: 'Cards', role: 'neutral', tone: 90, description: 'Primary colour for legacy Material (MWC) components still used in HA: dialogs, radio/checkbox lists, entity pickers.' },
+  { key: 'mdc-theme-primary', label: 'MDC Theme Primary', group: 'Cards', role: 'neutral', tone: 90, description: 'Primary colour for legacy Material (MWC) components still used in Home Assistant: dialogs, radio/checkbox lists, entity pickers.' },
   { key: 'mdc-theme-secondary', label: 'MDC Theme Secondary', group: 'Cards', role: 'neutral', tone: 90, description: 'Secondary colour for the same legacy Material components.' },
   { key: 'mdc-theme-on-primary', label: 'MDC Theme On Primary', group: 'Cards', live: true, description: textOn('MDC Theme Primary') },
   { key: 'mdc-theme-on-secondary', label: 'MDC Theme On Secondary', group: 'Cards', live: true, description: textOn('MDC Theme Secondary') },
   { key: 'control-circular-slider-background', label: 'Thermostat Slider Background', group: 'Cards', role: 'neutral', tone: 20, description: 'Track background colour for the circular thermostat/climate slider control.' },
 
   // ── Sidebar ──
-  { key: 'lcars-sidebar-background', label: 'Sidebar Background', group: 'Sidebar', live: true, description: 'Background colour of the HA sidebar navigation panel.' },
+  { key: 'lcars-sidebar-background', label: 'Sidebar Background', group: 'Sidebar', live: true, description: 'Background colour of the Home Assistant sidebar navigation panel.' },
   { key: 'lcars-sidebar-text', label: 'Sidebar Text', group: 'Sidebar', role: 'neutral', tone: 90, description: 'Heading/label text colour in the sidebar, distinct from individual item text.' },
   { key: 'lcars-sidebar-icon-color', label: 'Sidebar Icon', group: 'Sidebar', role: 'neutral', tone: 90, description: 'Icon colour for unselected sidebar navigation items.' },
   { key: 'lcars-sidebar-icon-background', label: 'Sidebar Icon Background', group: 'Sidebar', role: 'neutral', tone: 20, description: "Background chip colour behind each sidebar item's icon." },
@@ -142,7 +142,7 @@ export const LEGACY_FIELD_DEFS = [
   { key: 'lcars-sidebar-notification-color', label: 'Sidebar Notification', group: 'Sidebar', role: 'red', tone: 40, description: 'Background colour for the notification-count badge on sidebar items.' },
 
   // ── Tooltip & Misc ──
-  { key: 'lcars-tooltip-background', label: 'Tooltip Background', group: 'Tooltip & Misc', role: 'neutral', tone: 60, description: "Background colour of HA's hover tooltips (e.g. an entity's more-info tooltip)." },
+  { key: 'lcars-tooltip-background', label: 'Tooltip Background', group: 'Tooltip & Misc', role: 'neutral', tone: 60, description: "Background colour of Home Assistant's hover tooltips (e.g. an entity's more-info tooltip)." },
   { key: 'lcars-tooltip-text', label: 'Tooltip Text', group: 'Tooltip & Misc', live: true, description: textOn('Tooltip Background') },
   { key: 'lcars-ripple-color', label: 'Ripple Effect', group: 'Tooltip & Misc', role: 'primary', tone: 40, description: 'Tint colour for the press/hover ripple effect on interactive HA-LCARS elements.' },
   // input-dropdown-icon-color (ha-form-multi_select.ts) and ha-outlined-field-container-color
@@ -153,9 +153,9 @@ export const LEGACY_FIELD_DEFS = [
   // more-info-header-background has zero consumers anywhere in current HA frontend, and
   // mini-media-player-* belongs to a third-party HACS card, not HA core.
   { key: 'input-dropdown-icon-color', label: 'Input Dropdown Icon', group: 'Tooltip & Misc', role: 'neutral', tone: 90, description: 'Dropdown-arrow icon colour on multi-select form fields.' },
-  { key: 'ha-outlined-field-container-color', label: 'Outlined Field Container', group: 'Tooltip & Misc', role: 'neutral', tone: 90, description: "Border/container colour for HA's newer outlined text-field component." },
+  { key: 'ha-outlined-field-container-color', label: 'Outlined Field Container', group: 'Tooltip & Misc', role: 'neutral', tone: 90, description: "Border/container colour for Home Assistant's newer outlined text-field component." },
   { key: 'markdown-code-text-color', label: 'Markdown Code Text', group: 'Tooltip & Misc', live: true, description: 'Text colour for inline code blocks rendered inside markdown cards and the assist chat.' },
-  { key: 'code-editor-background-color', label: 'Code Editor Background', group: 'Tooltip & Misc', live: true, description: "Background colour of HA's built-in YAML/code editor." },
+  { key: 'code-editor-background-color', label: 'Code Editor Background', group: 'Tooltip & Misc', live: true, description: "Background colour of Home Assistant's built-in YAML/code editor." },
 
   // ── Alert Colours ── HA-LCARS's alert-mode indicator palette (preamble.yaml's alert-state CSS
   // switches lcars-alert-color between these at runtime); confirmed against the shared

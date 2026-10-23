@@ -44,7 +44,7 @@ import '../components/datasources/lcards-datasource-editor-tab.js';
 // Import template components
 import '../components/templates/lcards-template-evaluation-tab.js';
 import '../components/provenance/lcards-provenance-tab.js';
-import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { createDialogFooter, mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 import { showInfoDialog } from '../../views/layout-edit-dialogs.js';
 import { elbowEditorZones } from './elbow-editor-zones.js';
 
@@ -361,16 +361,14 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         container.appendChild(editor);
         dialog.appendChild(container);
 
-        const actionsDiv = document.createElement('div');
-        actionsDiv.slot = 'footer';
-        actionsDiv.style.cssText = 'display:flex; gap:8px;';
-
         const cancelButton = document.createElement('ha-button');
         cancelButton.textContent = 'Cancel';
+        cancelButton.setAttribute('appearance', 'plain');
         cancelButton.addEventListener('click', () => { dialog.open = false; });
 
         const saveButton = document.createElement('ha-button');
         saveButton.textContent = 'Save';
+        saveButton.setAttribute('variant', 'brand');
         saveButton.addEventListener('click', () => {
             if (tempConfig?.type) {
                 this._setConfigValue('symbiont.card', JSON.parse(JSON.stringify(tempConfig)));
@@ -379,9 +377,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             dialog.open = false;
         });
 
-        actionsDiv.appendChild(cancelButton);
-        actionsDiv.appendChild(saveButton);
-        dialog.appendChild(actionsDiv);
+        dialog.appendChild(createDialogFooter({ secondary: [cancelButton], primary: [saveButton] }));
 
         dialog.addEventListener('closed', () => {
             dialog.remove();
@@ -1884,7 +1880,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 <!-- Master Enable -->
                 <lcards-form-section
                     header="Symbiont"
-                    description="Embed another HA card inside the elbow content area"
+                    description="Embed another Home Assistant card inside the elbow content area"
                     icon="mdi:card-multiple"
                     ?expanded=${true}
                     ?outlined=${true}>
@@ -1892,7 +1888,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                     <ha-selector
                         .hass=${this.hass}
                         .label=${'Enable Symbiont'}
-                        .helper=${'Embed another HA card in the elbow content area'}
+                        .helper=${'Embed another Home Assistant card in the elbow content area'}
                         .selector=${{ boolean: {} }}
                         .value=${enabled}
                         @value-changed=${(e) => this._setConfigValue('symbiont.enabled', e.detail.value)}>

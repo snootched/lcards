@@ -29,7 +29,7 @@ Classic LCARS corner designs.
 - Built-in preset library: `header-left`, `header-right`, `footer-left`, `footer-right` and more
 - **Simple** and **segmented** (Picard-style double elbow) styles
 - Fully configurable LCARS arc geometry or diagonal-cut corners
-- Symbiont support: embed other HA cards inside the elbow area
+- Symbiont support: embed other Home Assistant cards inside the elbow area
 - Animated 'textures' available
 
 [Elbow Documentation](elbow/)
@@ -111,7 +111,7 @@ Create your own Master Systems Display with controls and routable lines.
 
 <video class="doc-video" src="/img/cards/msd-motion.webm" poster="/img/cards/msd.webp" title="MSD card: shield arcs around a starship blueprint turn orange, then red, as shields drop, with three controls joined to the ship by routed lines" autoplay loop muted playsinline></video>
 
-- Embed any HA card as a positioned **control overlay**
+- Embed any Home Assistant card as a positioned **control overlay**
 - **Line overlays**: SVG lines with smart routing and avoid-obstacle algorithms
 - **Studio Editor**: visual configuration with live preview and drag-to-reposition
 - Animate lines independently with rules
@@ -149,5 +149,5 @@ Features and concepts shared across the card system:
 | [Background Animations](../core/effects/background-animations.md) | Canvas-based animated backgrounds (grid, starfield, nebula, etc.) |
 | [Sound Effects](../core/sounds.md) | LCARS-style audio feedback for interactions and alerts |
 | [Rules Engine](../core/rules/) | Advanced conditional system for styling applied across cards |
-| [Data Sources](../core/datasources/) | Subscribes to HA Entity to provide history and processing pipelines for cards to consume |
+| [Data Sources](../core/datasources/) | Subscribes to Home Assistant Entity to provide history and processing pipelines for cards to consume |
 | [Themes](../core/themes/) | Built-in token-based theming for providing colour, sizing etc. |

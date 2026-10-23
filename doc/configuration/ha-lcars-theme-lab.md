@@ -1,5 +1,5 @@
 ---
-description: "Build your own HA-LCARS theme profile in the LCARdS panel's HA-LCARS Theme Lab: palettes for HA's five colour roles, LCARS chrome, state colours, a live preview, and YAML to add to HA-LCARS."
+description: "Build your own HA-LCARS theme profile in the LCARdS panel's HA-LCARS Theme Lab: palettes for Home Assistant's five colour roles, LCARS chrome, state colours, a live preview, and YAML to add to HA-LCARS."
 ---
 
 # HA-LCARS Theme Lab
@@ -8,7 +8,7 @@ The **HA-LCARS Theme Lab** builds your own theme profile for [HA-LCARS](https://
 
 - **Five full palettes:** the colour roles Home Assistant's own screens use (primary, neutral, warning, danger, success), each an 11-tone scale, with separate light and dark versions if you want them.
 - **Readable by design:** button text colours are checked for contrast and corrected automatically.
-- **Everything else in one place:** the LCARS chrome (sidebar, header, status bars), legacy HA colours and the colour of every entity state.
+- **Everything else in one place:** the LCARS chrome (sidebar, header, status bars), legacy Home Assistant colours and the colour of every entity state.
 
 Open it from the LCARdS panel: **Theme Studio > HA-LCARS Theme Lab**.
 
@@ -16,7 +16,7 @@ Open it from the LCARdS panel: **Theme Studio > HA-LCARS Theme Lab**.
 
 ## 1. Start from a theme
 
-- **Load from HA-LCARS:** pick a theme. Ones installed on your Home Assistant are marked *installed on this HA*; the others are reference copies bundled with LCARdS. A good start is one of the LCARdS profiles, **LCARS Picard [LCARdS Red Accent]** or **[LCARdS Blue Accent]**.
+- **Load from HA-LCARS:** pick a theme. Ones installed on your Home Assistant are marked *installed*; the others are reference copies bundled with LCARdS. A good start is one of the LCARdS profiles, **LCARS Picard [LCARdS Red Accent]** or **[LCARdS Blue Accent]**.
 - **Paste theme YAML:** bring in a theme you already have, including one you made here earlier.
 - Give your theme a **Theme Name**. That is the name you'll pick in Home Assistant later.
 
@@ -39,7 +39,7 @@ Tips:
 
 ## 3. The other sections
 
-- **HA-LCARS & Legacy HA Semantic Colours:** the LCARS chrome (sidebar, header, status bars, buttons) and the older Home Assistant colour variables. Anything you leave unset keeps HA-LCARS's or Home Assistant's default.
+- **HA-LCARS & Legacy Home Assistant Semantic Colours:** the LCARS chrome (sidebar, header, status bars, buttons) and the older Home Assistant colour variables. Anything you leave unset keeps HA-LCARS's or Home Assistant's default.
 - **Domain & State Colours:** the colour of an entity's icon in each state, per domain (lights, locks, climate and more), with a global fallback.
 - **Advanced / Raw Overrides:** any other theme variable, by name.
 

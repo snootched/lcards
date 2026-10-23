@@ -110,6 +110,7 @@ const FRONTEND_RELEVANT_PATHS = [
   'src/common/condition/',
   'src/panels/lovelace/',
   'src/layouts/',
+  '.agents/skills/',                // ha-frontend-* skills: re-check .claude/skills/lcards-ha-frontend
 ];
 
 /**

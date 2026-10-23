@@ -6,7 +6,7 @@ LCARdS is written in plain JavaScript, and TypeScript checks it. Nothing is comp
 
 ## Why a Checker on JavaScript
 
-The checker finds mistakes that no test happened to cover. When the backlog was cleared (2026-10) it turned up a variable that didn't exist in the data-source percent format, a dialog method HA's `ha-dialog` doesn't have, an un-awaited confirm that let MSD Studio's Reset skip its question, and a dead duplicate of `ingestHass()`. The same engine powers editor tooling: go to definition, find references and hover types.
+The checker finds mistakes that no test happened to cover. When the backlog was cleared (2026-10) it turned up a variable that didn't exist in the data-source percent format, a dialog method Home Assistant's `ha-dialog` doesn't have, an un-awaited confirm that let MSD Studio's Reset skip its question, and a dead duplicate of `ingestHass()`. The same engine powers editor tooling: go to definition, find references and hover types.
 
 We don't convert files to `.ts`: JSDoc gives the same checking without touching every file.
 
@@ -43,7 +43,7 @@ CI runs `npm run typecheck` on every push. There is no baseline: every error is 
 `document.createElement('lcards-chart')` and `querySelector('lcards-chart')` are typed through `HTMLElementTagNameMap`.
 
 - **Our elements** are generated from the `customElements.define()` calls: run `npm run types:elements` after adding one (the class must be exported).
-- **Home Assistant's elements** (`ha-dialog`, `ha-button`, `hui-card`, `hui-card-picker`, ...) are declared by hand in `src/types/ha-elements.d.ts`, listing only the properties we use, named as in HA's frontend source. Add a property there rather than casting at the call site.
+- **Home Assistant's elements** (`ha-dialog`, `ha-button`, `hui-card`, `hui-card-picker`, ...) are declared by hand in `src/types/ha-elements.d.ts`, listing only the properties we use, named as in Home Assistant's frontend source. Add a property there rather than casting at the call site.
 - **A card whose tag is only known at runtime** (`createElement(cardType)`): cast to `LovelaceCardElement`.
 
 ```js
@@ -53,7 +53,7 @@ card.setConfig(config);
 
 ### `this.hass` doesn't exist on a Lit component
 
-Properties declared only in `static properties` are invisible to the checker. Declare the type in the constructor without assigning (assigning can interfere with values HA sets before the element upgrades):
+Properties declared only in `static properties` are invisible to the checker. Declare the type in the constructor without assigning (assigning can interfere with values Home Assistant sets before the element upgrades):
 
 ```js
 constructor() {
@@ -65,7 +65,7 @@ constructor() {
 
 ### `e.detail` doesn't exist on `Event`
 
-HA's `config-changed` and `value-changed` events are declared in `src/types/ha-elements.d.ts`, so `addEventListener('value-changed', e => e.detail.value)` is typed. For a handler method, document the parameter as `@param {CustomEvent} e`.
+Home Assistant's `config-changed` and `value-changed` events are declared in `src/types/ha-elements.d.ts`, so `addEventListener('value-changed', e => e.detail.value)` is typed. For a handler method, document the parameter as `@param {CustomEvent} e`.
 
 ### `.style`, `.value` or `.focus()` doesn't exist on `Element` / `EventTarget`
 

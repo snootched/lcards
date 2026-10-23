@@ -6,7 +6,7 @@
 
 ## Overview
 
-`IntegrationService` probes the LCARdS HA backend on startup to determine whether the Python integration is installed and active. All other services and cards that want to call backend WebSocket APIs check `integrationService.available` before doing so, allowing LCARdS to degrade gracefully when the integration is absent (e.g. legacy plugin-only setups or development without HA).
+`IntegrationService` probes the LCARdS Home Assistant backend on startup to determine whether the Python integration is installed and active. All other services and cards that want to call backend WebSocket APIs check `integrationService.available` before doing so, allowing LCARdS to degrade gracefully when the integration is absent (e.g. legacy plugin-only setups or development without Home Assistant).
 
 It also exposes three convenience methods (`readStorage()`, `writeStorage()`, and `deleteStorage()`) so services and cards can access the backend persistent store without reimplementing the guard-and-call pattern.
 
@@ -47,7 +47,7 @@ HA page loads → HASS first pushed to core
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `available` | `boolean` | `true` if the HA integration responded to `lcards/info`. Default `false`. |
+| `available` | `boolean` | `true` if the Home Assistant integration responded to `lcards/info`. Default `false`. |
 | `version` | `string \| null` | Version string reported by the integration (`DOMAIN_VERSION` from `const.py`), or `null`. |
 | `storageKeyCount` | `number \| null` | Number of keys currently in backend storage, or `null` if unavailable. |
 | `options` | `Object \| null` | Snapshot of the integration's configured options (`show_panel`, `sidebar_title`, `sidebar_icon`, `log_level`), or `null`. |
@@ -116,7 +116,7 @@ if (integration.available) {
 
 After a successful `lcards/info` probe, `IntegrationService` subscribes via the `lcards/subscribe` WS command. This gives Python service handlers a way to push instructions to all connected browser tabs (including non-admin users) without a WS request/response cycle.
 
-The `lcards/subscribe` command is registered by the Python integration and is not admin-gated, unlike the HA-native `subscribeEvents` API which restricts custom bus event types to admin users.
+The `lcards/subscribe` command is registered by the Python integration and is not admin-gated, unlike the Home Assistant native `subscribeEvents` API which restricts custom bus event types to admin users.
 
 ### Subscription
 
@@ -133,7 +133,7 @@ _startEventListener() {
 }
 ```
 
-The subscription is cleaned up automatically when the WebSocket connection closes (tab navigation or HA restart). The guard `if (this._eventUnsubscribe) return` prevents double-subscription on partial re-initialisation.
+The subscription is cleaned up automatically when the WebSocket connection closes (tab navigation or Home Assistant restart). The guard `if (this._eventUnsubscribe) return` prevents double-subscription on partial re-initialisation.
 
 ### Handled actions
 
@@ -165,8 +165,8 @@ hass.bus.async_fire("lcards_event", {"action": "set_log_level", "level": level})
 
 The event is a **broadcast by default**: every browser tab with an active `IntegrationService` subscription receives it simultaneously. Services that support targeting fields (`target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names`) filter delivery on the Python side so only matching sessions act on the event.
 
-→ See [HA Services](../internals/ha-services) for the full Python action reference and automation examples.
-→ See [HA Integration Architecture](../ha-integration#python-→-js-push-channel) for the sequence diagram.
+→ See [Home Assistant Services](../internals/ha-services) for the full Python action reference and automation examples.
+→ See [Home Assistant Integration Architecture](../ha-integration#python-→-js-push-channel) for the sequence diagram.
 
 ---
 
@@ -200,7 +200,7 @@ The probe hits the `lcards/info` command. The expanded response (since Phase 2C)
 }
 ```
 
-→ See [HA Integration Architecture](../ha-integration) for the full Python-side reference.
+→ See [Home Assistant Integration Architecture](../ha-integration) for the full Python-side reference.
 → See [Backend WS API](../../development/backend-api) for the full storage command reference.
 
 ---

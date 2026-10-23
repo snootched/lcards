@@ -86,7 +86,7 @@ These services start on page load and become accessible to all LCARdS cards via 
 
 | Service | `window.lcards.core.*` | What it does |
 |---|---|---|
-| **Integration Service** | `integrationService` | Probes the HA Python backend on startup; sets `available` flag and `capabilities` Set so other services can gate on backend APIs. Falls back gracefully when the integration is absent. Exposes `onReady()` Promise API. |
+| **Integration Service** | `integrationService` | Probes the Home Assistant Python backend on startup; sets `available` flag and `capabilities` Set so other services can gate on backend APIs. Falls back gracefully when the integration is absent. Exposes `onReady()` Promise API. |
 | **Systems Manager** | `systemsManager` | Centralised entity state subscriptions; cards register interest and receive smart push notifications; no duplicate subscriptions |
 | **DataSource Manager** | `dataSourceManager` | Named data buffers tied to entities; records history, runs processing pipelines (moving average, min/max, aggregation) and notifies subscribers |
 | **Rules Engine** | `rulesManager` | Evaluates conditions and hot-patches LCARd styles at runtime; target any card by tag, type, or ID |
@@ -100,9 +100,9 @@ These services start on page load and become accessible to all LCARdS cards via 
 | **Helper Manager** | `helperManager` | Manages LCARdS and HA-LCARS `input_*` helper entities; auto-create from LCARdS Config Panel |
 | **Device Identity Manager** | `deviceIdentityManager` | Stable per-browser UUID + display name; heartbeat registration to backend; supports `?lcards_device=` URL param |
 | **Scoped Settings Service** | `scopedSettingsService` | Three-tier waterfall (Device → User → Global) for any LCARdS setting; requires backend `scoped_storage` capability; graceful degradation |
-| **Screen Effect Manager** | `screenEffectManager` | Full-screen composited canvas effect layer (blur, static, glitch, vignette, etc.); accessible via HA services, console, and card config |
+| **Screen Effect Manager** | `screenEffectManager` | Full-screen composited canvas effect layer (blur, static, glitch, vignette, etc.); accessible via Home Assistant services, console, and card config |
 | **Portal Overlay Manager** | `portalOverlayManager` | Shared portal overlay lifecycle engine for dialogs and modal card overlays rendered above the dashboard |
-| **Connection Overlay Service** | `connectionOverlayService` | Monitors HA WebSocket health and shows a full-screen connection-lost overlay when the frontend loses server contact |
+| **Connection Overlay Service** | `connectionOverlayService` | Monitors Home Assistant WebSocket health and shows a full-screen connection-lost overlay when the frontend loses server contact |
 
 **Template Support**: any text field in any card supports four syntaxes (JS `[[[...]]]`, LCARdS tokens `{...}`, DataSource `{ds:...}`, Jinja2 `{{...}}`), orchestrated by `UnifiedTemplateEvaluator`. See [Template System](subsystems/template-system.md) for the full reference.
 
@@ -200,7 +200,7 @@ See [Pack System](subsystems/pack-system.md) for the full developer reference.
 
 ## Further Reading
 
-- [HA Integration Architecture](ha-integration.md)
+- [Home Assistant Integration Architecture](ha-integration.md)
 - [Integration Service](subsystems/integration-service.md)
 - [Pack System](subsystems/pack-system.md)
 - [Template System](subsystems/template-system.md)

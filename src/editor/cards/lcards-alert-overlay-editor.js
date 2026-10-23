@@ -25,7 +25,7 @@ import '../components/yaml/lcards-yaml-editor.js';
 import '../components/editors/lcards-grid-layout.js';
 import '../components/shared/lcards-color-picker.js';
 import '../components/provenance/lcards-provenance-tab.js';
-import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { createDialogFooter, mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 import { parseColor } from '../../core/themes/color-syntax.js';
 import { showInfoDialog } from '../../views/layout-edit-dialogs.js';
 
@@ -497,7 +497,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                         <p>Each section below sets what shows while that alert mode is active.</p>
                         <ul>
                             <li><strong>Alert button overrides</strong> change the default alert button's text and colours.</li>
-                            <li><strong>Content card</strong> replaces the default with any HA card.</li>
+                            <li><strong>Content card</strong> replaces the default with any Home Assistant card.</li>
                             <li>Everything else overrides the defaults on the <strong>Config</strong> and <strong>Backdrop</strong> tabs.</li>
                         </ul>
                     `,
@@ -558,7 +558,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                 ${(hasContent || !hasAlertButtonOverrides) ? html`
                     <lcards-form-section
                         header="Content Card"
-                        description="HA card rendered inside the overlay for this condition"
+                        description="Home Assistant card rendered inside the overlay for this condition"
                         icon="mdi:card-multiple-outline"
                         ?expanded=${true}
                         ?outlined=${true}>
@@ -1272,16 +1272,14 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
         container.appendChild(editor);
         dialog.appendChild(container);
 
-        const actionsDiv = document.createElement('div');
-        actionsDiv.slot = 'footer';
-        actionsDiv.style.cssText = 'display:flex; gap:8px;';
-
         const cancelBtn = document.createElement('ha-button');
         cancelBtn.textContent = 'Cancel';
+        cancelBtn.setAttribute('appearance', 'plain');
         cancelBtn.addEventListener('click', () => { dialog.open = false; });
 
         const saveBtn = document.createElement('ha-button');
         saveBtn.textContent = 'Save';
+        saveBtn.setAttribute('variant', 'brand');
         saveBtn.addEventListener('click', () => {
             if (tempConfig?.type) {
                 this._setConditionProp(condKey, 'content', JSON.parse(JSON.stringify(tempConfig)));
@@ -1290,9 +1288,7 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
             dialog.open = false;
         });
 
-        actionsDiv.appendChild(cancelBtn);
-        actionsDiv.appendChild(saveBtn);
-        dialog.appendChild(actionsDiv);
+        dialog.appendChild(createDialogFooter({ secondary: [cancelBtn], primary: [saveBtn] }));
 
         dialog.addEventListener('closed', () => {
             dialog.remove();

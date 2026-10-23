@@ -21,7 +21,7 @@ text:
   title:
     content: "{theme:colors.text.onDark}"              # Theme token
   reading:
-    content: "{ds:temp}"                              # DataSource: HA-native (locale-formatted + unit)
+    content: "{ds:temp}"                              # DataSource: Home Assistant native (locale-formatted + unit)
 ```
 
 **Available tokens:**
@@ -40,7 +40,7 @@ text:
 For DataSource values (`{ds:...}`), see [Section 4](#_4-data-source-templates-ds-datasource) below.
 
 > [!NOTE]
-> This single-brace `{...}` syntax is an LCARdS-specific shorthand, not a Home Assistant or Jinja2 convention; it exists because it resolves synchronously (no network round trip), which some render paths require. If you already know HA's Jinja2 templating from automations or other cards, reach for [Jinja2 templates](#_3-jinja2-templates) (`{{ }}`, real double braces) instead; it's the actual HA template engine and supports everything you already know (`states()`, `state_attr()`, filters, etc.). Use single-brace tokens when you specifically need the synchronous fast path.
+> This single-brace `{...}` syntax is an LCARdS-specific shorthand, not a Home Assistant or Jinja2 convention; it exists because it resolves synchronously (no network round trip), which some render paths require. If you already know Home Assistant's Jinja2 templating from automations or other cards, reach for [Jinja2 templates](#_3-jinja2-templates) (`{{ }}`, real double braces) instead; it's the actual Home Assistant template engine and supports everything you already know (`states()`, `state_attr()`, filters, etc.). Use single-brace tokens when you specifically need the synchronous fast path.
 
 ---
 
@@ -81,7 +81,7 @@ text:
 
 ### 3. Jinja2 Templates `{{...}}`
 
-Evaluated server-side by Home Assistant. Supports all HA template functions.
+Evaluated server-side by Home Assistant. Supports all Home Assistant template functions.
 
 ```yaml
 text:
@@ -94,7 +94,7 @@ text:
 ```
 
 > [!NOTE]
-> Jinja2 templates are evaluated asynchronously by HA. There may be a brief delay before values appear after a page load.
+> Jinja2 templates are evaluated asynchronously by Home Assistant. There may be a brief delay before values appear after a page load.
 
 ---
 
@@ -102,13 +102,13 @@ text:
 
 For values from a named [data source](../datasources/). The `{ds:name}` shorthand and the `{datasource:name}` long form are equivalent.
 
-**No format specifier** → HA-native display: locale-formatted number + unit from entity metadata (e.g. `4,73 °C`). Equivalent to HA's `haFormatEntityState()`.
+**No format specifier** → Home Assistant native display: locale-formatted number + unit from entity metadata (e.g. `4,73 °C`). Equivalent to Home Assistant's `haFormatEntityState()`.
 
 **With a format specifier** → you own the output. The number is formatted to the spec and returned with **no auto-unit**; append any suffix you want.
 
 | Specifier | Example | Result |
 |-----------|---------|--------|
-| *(none)* | `{ds:temp}` | `4,73 °C`: HA-native, locale-formatted + unit |
+| *(none)* | `{ds:temp}` | `4,73 °C`: Home Assistant native, locale-formatted + unit |
 | `:.Nf` | `{ds:temp:.1f}` | `4,7`: N decimal places, no unit |
 | `:int` | `{ds:temp:int}` | `5`: rounded integer, no unit |
 | `:.N%` | `{ds:progress:.0%}` | `75%`: percentage |
@@ -125,7 +125,7 @@ data_sources:
 
 text:
   value:
-    content: "{ds:temp}"                    # HA-native: "4,73 °C"
+    content: "{ds:temp}"                    # Home Assistant native: "4,73 °C"
     # content: "{ds:temp:.2f} °C"           # explicit precision: "4,73 °C" (no auto-unit)
     # content: "{datasource:temp.f:.0f}"    # processor buffer: "76" (Fahrenheit, no unit)
 ```
@@ -156,7 +156,7 @@ When a value could match multiple syntaxes, evaluation proceeds in this order:
 1. `[[[...]]]`: JavaScript (evaluated first)
 2. `{token}`: Token substitution
 3. `{ds:...}` / `{datasource:...}`: data source
-4. `{{...}}`: Jinja2 (HA server-evaluated, async)
+4. `{{...}}`: Jinja2 (Home Assistant server-evaluated, async)
 
 ---
 

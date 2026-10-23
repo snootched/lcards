@@ -798,7 +798,7 @@ config:
 
 | Config key | Default | Description |
 |---|---|---|
-| `source` | `''` | `/local/` path, `https://` URL, `builtin:<key>`, `media-source://…` content ID (HA media library item), or a template string |
+| `source` | `''` | `/local/` path, `https://` URL, `builtin:<key>`, `media-source://…` content ID (Home Assistant media library item), or a template string |
 | `size` | `'cover'` | `cover`: fill (may crop) · `contain`: fit (may letterbox) · `fill`: stretch · `<n>px`: explicit width in px, height scales to match the image's aspect ratio |
 | `position` | `'center'` | CSS `background-position`: keywords (`top left`) or percentages (`50% 0%`) |
 | `opacity` | `1` | Layer opacity. Use with other stacked effects for blending. |
@@ -846,7 +846,7 @@ background_animation:
         size: cover
         opacity: 0.8
 
-# Image picked from the HA Media Library
+# Image picked from the Home Assistant Media Library
 background_animation:
   effects:
     - preset: image
@@ -860,11 +860,11 @@ background_animation:
 `.svg` files work as image sources; they load via an `<img>` element and paint into Canvas2D. SVG files must be self-contained (no external resource references). Files without explicit `width`/`height` attributes are rendered at canvas size automatically.
 :::
 
-::: info HA Media Library
-The editor's "Image Source" field offers a **Browse HA Media** mode that opens Home Assistant's native media browser (browse or upload) and stores the picked item's `media_content_id` as `source`. This is resolved to a real URL at render time via `AssetManager.resolveMediaSourceUrl()`, cached for 15 minutes since resolved URLs may carry an expiring signed token. See [Asset Manager](../../../architecture/subsystems/asset-manager.md).
+::: info Home Assistant Media Library
+The editor's "Image Source" field offers a **Browse Home Assistant Media** mode that opens Home Assistant's native media browser (browse or upload) and stores the picked item's `media_content_id` as `source`. This is resolved to a real URL at render time via `AssetManager.resolveMediaSourceUrl()`, cached for 15 minutes since resolved URLs may carry an expiring signed token. See [Asset Manager](../../../architecture/subsystems/asset-manager.md).
 :::
 
-No live demo here: a meaningful preview needs a real image, and there's no built-in asset that resolves outside a full HA + LCARdS runtime (the demos on this page only load the renderer itself, not the full asset-manager pack system `builtin:`/media-library references depend on).
+No live demo here: a meaningful preview needs a real image, and there's no built-in asset that resolves outside a full Home Assistant + LCARdS runtime (the demos on this page only load the renderer itself, not the full asset-manager pack system `builtin:`/media-library references depend on).
 
 ::: warning HTTP URLs
 Using an `http://` URL on an HTTPS dashboard is blocked by the browser's mixed-content policy. Use `/local/` paths or `https://` URLs instead. The editor shows a warning when an HTTP URL is detected.

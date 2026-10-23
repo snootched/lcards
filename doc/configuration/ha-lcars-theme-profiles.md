@@ -3,7 +3,7 @@
 [**HA-LCARS**](https://github.com/th3jesta/ha-lcars) includes two themes made for LCARdS: **LCARS Picard [LCARdS Red Accent]** and **LCARS Picard [LCARdS Blue Accent]**. Pick one and Home Assistant's own screens, the HA-LCARS chrome and your LCARdS cards all share one palette.
 
 - Uses the **LCARdS colour palette** (`--lcards-*` variables) that are provided automatically by the integration.
-- The **HA core colour tokens** (`--ha-color-*`) which are used by stock Home Assistant components are remapped to LCARdS palette entries.  This helps bring more theme consistency across across the UI.
+- The **Home Assistant core colour tokens** (`--ha-color-*`) which are used by stock Home Assistant components are remapped to LCARdS palette entries.  This helps bring more theme consistency across across the UI.
 - All variables are assigned dynamic HA-LCARS/LCARdS palette references, meaning alert-mode hue rotations and light/dark mode switches propagate automatically.
 
 ---
@@ -26,19 +26,19 @@ To make your own profile, use the [HA-LCARS Theme Lab](ha-lcars-theme-lab) in th
 | `LCARS Picard [LCARdS Red Accent]` | Orange/Red (`--lcards-orange-*`) | Primary accent mapped to the LCARdS orange family |
 | `LCARS Picard [LCARdS Blue Accent]` | Blue (`--lcards-blue-*`) | Primary accent mapped to the LCARdS blue family |
 
-Both profiles include independent **light** and **dark** mode sections and cover the full 11-shade HA core colour token range, plus HA's `on-*`/`fill-*`/`border-*`/`surface-*` semantic layer (the vars behind buttons, chips, form fields, and dialogs).
+Both profiles include independent **light** and **dark** mode sections and cover the full 11-shade Home Assistant core colour token range, plus Home Assistant's `on-*`/`fill-*`/`border-*`/`surface-*` semantic layer (the vars behind buttons, chips, form fields, and dialogs).
 
 ---
 
 ## How the Colour Mapping Works
 
-### HA Core Colour Tokens
+### Home Assistant Core Colour Tokens
 
-Home Assistant's frontend exposes an 11-shade scale (05 → 95) for five colour families: `primary`, `neutral`, `orange`, `red`, and `green`.  These are consumed by stock HA components.  The profiles map each HA shade **1:1** to the matching stop on the [LCARdS 11-stop palette scale](../core/themes/index.md#lcards-css-colour-palette); LCARdS's own palette was expanded from its original 7 canon stops specifically so this mapping wouldn't need to lossily collapse multiple HA shades onto the same colour.
+Home Assistant's frontend exposes an 11-shade scale (05 → 95) for five colour families: `primary`, `neutral`, `orange`, `red`, and `green`.  These are consumed by stock Home Assistant components.  The profiles map each Home Assistant shade **1:1** to the matching stop on the [LCARdS 11-stop palette scale](../core/themes/index.md#lcards-css-colour-palette); LCARdS's own palette was expanded from its original 7 canon stops specifically so this mapping wouldn't need to lossily collapse multiple Home Assistant shades onto the same colour.
 
 The family mapping differs per profile accent:
 
-| HA family | Red Accent profile | Blue Accent profile |
+| Home Assistant family | Red Accent profile | Blue Accent profile |
 |---|---|---|
 | `primary` | `--lcards-orange-*` | `--lcards-blue-*` |
 | `neutral` | `--lcards-gray-*` | `--lcards-gray-*` |
@@ -48,9 +48,9 @@ The family mapping differs per profile accent:
 
 ### Semantic Tokens (text-on-fill contrast)
 
-Remapping the shade scale alone isn't enough for readable text: HA computes button, chip, and form-field text colours (`--ha-color-on-*`) by referencing a fixed tone number within the same palette (e.g. "text = tone 40 of whatever primary is"), on the assumption that any colour a theme substitutes will still read clearly at that tone. That assumption doesn't hold equally for every hue: LCARdS's orange family has a narrower readable-lightness range than its blue family, which is why the Red Accent profile could otherwise generate low-contrast button text.
+Remapping the shade scale alone isn't enough for readable text: Home Assistant computes button, chip, and form-field text colours (`--ha-color-on-*`) by referencing a fixed tone number within the same palette (e.g. "text = tone 40 of whatever primary is"), on the assumption that any colour a theme substitutes will still read clearly at that tone. That assumption doesn't hold equally for every hue: LCARdS's orange family has a narrower readable-lightness range than its blue family, which is why the Red Accent profile could otherwise generate low-contrast button text.
 
-Both profiles now explicitly set the full `on-*`/`fill-*`/`border-*`/`surface-*` semantic layer, with every text/background pairing checked against real WCAG contrast math and corrected where HA's mechanical default would fail, rather than relying on the shade-scale remapping to produce readable results by chance. See [ha-css-vars.md](../development/ha-css-vars.md#layer-2-semantic-colour-tokens) for the full technical detail.
+Both profiles now explicitly set the full `on-*`/`fill-*`/`border-*`/`surface-*` semantic layer, with every text/background pairing checked against real WCAG contrast math and corrected where Home Assistant's mechanical default would fail, rather than relying on the shade-scale remapping to produce readable results by chance. See [ha-css-vars.md](../development/ha-css-vars.md#layer-2-semantic-colour-tokens) for the full technical detail.
 
 ---
 

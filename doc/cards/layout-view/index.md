@@ -4,7 +4,7 @@
 
 <video class="doc-video" src="/img/cards/layout-editing.webm" poster="/img/cards/layout-editing.webp" title="Editing a layout view: the dashboard, then Layout mode with coloured areas and track bands, then Card mode, then back to the dashboard" autoplay loop muted playsinline></video>
 
-A custom dashboard **view type** with a built-in, in-view WYSIWYG CSS Grid editor: build a grid layout visually (drag to resize tracks, draw areas, drop cards into them) right on the dashboard, the way HA Sections works.
+A custom dashboard **view type** with a built-in, in-view WYSIWYG CSS Grid editor: build a grid layout visually (drag to resize tracks, draw areas, drop cards into them) right on the dashboard, the way Home Assistant Sections works.
 
 It reuses the [`custom:grid-layout`](https://github.com/thomasloven/lovelace-layout-card) (lovelace-layout-card) schema, so an existing `grid-layout` view usually moves over by changing only `type: custom:grid-layout` → `type: custom:lcards-layout-view`. A couple of differences apply; see [Compatibility with grid-layout](#compatibility-with-grid-layout).
 
@@ -50,7 +50,7 @@ views:
 
 ## Editing in the dashboard
 
-Enter HA **edit mode** (top-right pencil). A toolbar strip appears above the grid with a **Layout | Cards** toggle; it sits in its own space, so it never covers your cards. The ⓘ button at its right end shows tips for the current mode. While editing, cards are inactive: a click selects or edits a card and never runs its tap action. Every change can be undone with HA's **Undo** button in the dashboard toolbar.
+Enter Home Assistant **edit mode** (top-right pencil). A toolbar strip appears above the grid with a **Layout | Cards** toggle; it sits in its own space, so it never covers your cards. The ⓘ button at its right end shows tips for the current mode. While editing, cards are inactive: a click selects or edits a card and never runs its tap action. Every change can be undone with Home Assistant's **Undo** button in the dashboard toolbar.
 
 ### Layout mode (the grid)
 
@@ -70,11 +70,11 @@ Settings open in a **side panel** on the right (a sheet at the bottom on a phone
 
 ### Card mode
 
-Place and manage cards inside areas. Cards get the same controls as in HA's own views:
+Place and manage cards inside areas. Cards get the same controls as in Home Assistant's own views:
 
-- **Edit a card**: hover (or tap) a card and click it: HA's card editor opens.
-- **Card menu**: the ⋮ button (top right) has **Edit**, **Placement & spacing** ([per-card placement](#per-card-placement) in the side panel: alignment, margin, overflow) and **Delete** (asks first; HA's *Undo* toast can still bring the card back).
-- **Add a card**: every empty area shows an **Add card** tile that opens HA's card picker; the new card is placed in that area automatically.
+- **Edit a card**: hover (or tap) a card and click it: Home Assistant's card editor opens.
+- **Card menu**: the ⋮ button (top right) has **Edit**, **Placement & spacing** ([per-card placement](#per-card-placement) in the side panel: alignment, margin, overflow) and **Delete** (asks first; Home Assistant's *Undo* toast can still bring the card back).
+- **Add a card**: every empty area shows an **Add card** tile that opens Home Assistant's card picker; the new card is placed in that area automatically.
 - **Stacked cards**: when several cards share one area (say a frame elbow behind an MSD, plus an alert overlay), the area shows a picker with one button per card. Pick a card to bring its edit controls to the front.
 
 > Cards placed in the same area are layered on top of each other (useful for a frame elbow behind another card). To lay several cards out one after another in an area, put a `vertical-stack` (or `horizontal-stack`) card there instead.
@@ -160,7 +160,7 @@ When a card has a Visibility condition and occupies a row, the layout view can a
 **Requirements:**
 
 1. The card must have an explicit, definite `layout.height` (e.g. `height: 10vh` or `height: 120px`), typically a `custom:lcards-layout-card`. Percentage and `auto` heights are not supported; the row would have nothing to size to.
-2. Any Visibility condition type works (`state`, `numeric_state`, `screen`, `user`, `template`, `and`/`or`/`not`, …). The view follows HA's own verdict: it watches whether HA hid the card rather than re-evaluating the condition.
+2. Any Visibility condition type works (`state`, `numeric_state`, `screen`, `user`, `template`, `and`/`or`/`not`, …). The view follows Home Assistant's own verdict: it watches whether Home Assistant hid the card rather than re-evaluating the condition.
 3. The row collapses only when **every** visibility-controlled card in it is hidden. Cards in the row without a Visibility condition don't hold it open, so a row is best owned by a single visibility-controlled card.
 
 ```yaml
@@ -174,13 +174,13 @@ cards:
       grid-area: top-bar               # the row containing top-bar collapses when hidden
     visibility:
       - condition: state
-        entity_id: input_boolean.show_top_bar   # HA's Visibility editor saves this shape;
+        entity_id: input_boolean.show_top_bar   # Home Assistant's Visibility editor saves this shape;
         state: "on"                             # the older `entity:` key works too
 ```
 
-When `input_boolean.show_top_bar` is `"on"`, the row is set to `10vh`. When it's anything else, the row is set to `0px`. Any `1fr` rows in the layout are recomputed to fill the remaining space correctly. In dashboard edit mode every visibility-controlled row is expanded, matching HA showing every card while editing.
+When `input_boolean.show_top_bar` is `"on"`, the row is set to `10vh`. When it's anything else, the row is set to `0px`. Any `1fr` rows in the layout are recomputed to fill the remaining space correctly. In dashboard edit mode every visibility-controlled row is expanded, matching Home Assistant showing every card while editing.
 
-> **Sidebar / window resize:** row heights are recomputed automatically via a `ResizeObserver` whenever the host element changes size (HA sidebar opens/closes, window resized, dev tools toggled).
+> **Sidebar / window resize:** row heights are recomputed automatically via a `ResizeObserver` whenever the host element changes size (Home Assistant sidebar opens/closes, window resized, dev tools toggled).
 
 ---
 
@@ -234,13 +234,13 @@ The card version of the layout view, `custom:lcards-layout-card`, builds a sub-g
 
 - **One card per area**: use a stack card (or a nested [Layout Card](../layout-card/)) to group several.
 - **`grid-gap` is grid-wide**: CSS grid has no per-cell gap.
-- **Per-card visibility** uses HA's native [Visibility](#conditional-cards), not a `view_layout.show` key.
+- **Per-card visibility** uses Home Assistant's native [Visibility](#conditional-cards), not a `view_layout.show` key.
 
 ## Compatibility with grid-layout
 
 The `layout` and `view_layout` schemas match lovelace-layout-card's grid view (`custom:grid-layout`), so configs move between the two by changing only the `type`. Two differences to know:
 
 - **`layout.areas` is LCARdS-only.** The per-area surfaces (background, border, etc.) are an LCARdS extension. Moving a config to `custom:grid-layout` keeps everything else working; the area surfaces just aren't drawn there. Pasting a `grid-layout` config *into* LCARdS works fully.
-- **`view_layout.show` is not supported.** Per-card conditions use HA's native [Visibility](#conditional-cards) instead. A pasted config using `show` will ignore that key; move the condition to the card's Visibility tab.
+- **`view_layout.show` is not supported.** Per-card conditions use Home Assistant's native [Visibility](#conditional-cards) instead. A pasted config using `show` will ignore that key; move the condition to the card's Visibility tab.
 
 Everything else (grid templates, gaps, sizing/spacing, `mediaquery`, and `view_layout` placement) behaves the same in both.

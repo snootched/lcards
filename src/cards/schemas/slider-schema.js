@@ -1481,7 +1481,7 @@ export function getSliderSchema(options = {}) {
 
             drag_badge: {
                 type: 'object',
-                description: 'Live value badge that follows the drag position while the slider is being actively dragged by the user (never shown for entity-driven/external state changes). Mirrors HA\'s native slider drag badge.',
+                description: 'Live value badge that follows the drag position while the slider is being actively dragged by the user (never shown for entity-driven/external state changes). Mirrors Home Assistant\'s native slider drag badge.',
                 examples: [
                     { enabled: true },
                     { enabled: true, format: { decimals: 0, show_unit: true }, release: { behavior: 'instant' } }

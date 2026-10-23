@@ -66,7 +66,7 @@ import { searchableSelectStyles } from '../components/shared/searchable-select-s
 // Native HA Card Picker & Editor Integration
 import { MSDCardPickerManager } from './msd-studio/msd-card-picker-manager.js';
 import { MSDEventInterceptor } from './msd-studio/msd-event-interceptor.js';
-import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { createDialogFooter, mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 import { normalizeHACardType, isBuiltinCardType } from '../../utils/ha-card-factory.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
 
@@ -2284,7 +2284,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                     options: [
                                         { value: 'asset', label: 'Asset Library' },
                                         { value: 'custom', label: 'Custom Path' },
-                                        { value: 'media', label: 'Browse HA Media' },
+                                        { value: 'media', label: 'Browse Home Assistant Media' },
                                         { value: 'none', label: 'None (ViewBox Only)' }
                                     ]
                                 }
@@ -2326,7 +2326,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 .value=${baseSvg.source?.startsWith('media-source://')
                                     ? { media_content_id: baseSvg.source, media_content_type: '' }
                                     : undefined}
-                                .label=${'HA Media'}
+                                .label=${'Home Assistant Media'}
                                 .helper=${'Browse or upload an SVG via the Home Assistant media library'}
                                 @value-changed=${(e) => this._handleSvgSourceChange(e.detail.value?.media_content_id ?? '')}>
                             </ha-selector>
@@ -2868,6 +2868,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     ` : ''}
 
                     <ha-input
+                        autofocus
                         label="Anchor Name"
                         .value=${this._anchorFormName}
                         @input=${(e) => {
@@ -2895,16 +2896,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </div>
                 </div>
 
-                <div slot="footer">
-                    <ha-button @click=${this._closeAnchorForm} appearance="plain">
+                <ha-dialog-footer slot="footer">
+                    <ha-button slot="secondaryAction" @click=${this._closeAnchorForm} appearance="plain">
                         <ha-icon icon="mdi:close" slot="start"></ha-icon>
                         Cancel
                     </ha-button>
-                    <ha-button @click=${this._saveAnchor}>
+                    <ha-button slot="primaryAction" @click=${this._saveAnchor}>
                         <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
                         Save
                     </ha-button>
-                </div>
+                </ha-dialog-footer>
             </ha-dialog>
         `;
     }
@@ -3081,9 +3082,10 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             // Cancel button
             const cancelButton = document.createElement('ha-button');
-            cancelButton.slot = 'footer';
             cancelButton.textContent = 'Cancel';
             cancelButton.setAttribute('appearance', 'plain');
+            // HA's dialog box focuses Cancel for a destructive confirm, the action otherwise.
+            if (variant === 'danger') cancelButton.autofocus = true;
             cancelButton.addEventListener('click', () => {
                 dialog.open = false;
                 resolve(false);
@@ -3091,19 +3093,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
             // Confirm button
             const confirmButton = document.createElement('ha-button');
-            confirmButton.slot = 'footer';
             confirmButton.textContent = confirmLabel;
             confirmButton.setAttribute('variant', variant);
+            if (variant !== 'danger') confirmButton.autofocus = true;
             confirmButton.addEventListener('click', () => {
                 dialog.open = false;
                 resolve(true);
             });
 
-            const footerDiv = document.createElement('div');
-            footerDiv.slot = 'footer';
-            footerDiv.appendChild(cancelButton);
-            footerDiv.appendChild(confirmButton);
-            dialog.appendChild(footerDiv);
+            dialog.appendChild(createDialogFooter({ secondary: [cancelButton], primary: [confirmButton] }));
 
             dialog.addEventListener('closed', () => {
                 dialog.remove();
@@ -9973,7 +9971,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <!-- Controls Management -->
                 <lcards-form-section
                     header="Control Overlays"
-                    description="HA cards positioned on the MSD canvas"
+                    description="Home Assistant cards positioned on the MSD canvas"
                     icon="mdi:card-multiple"
                     ?expanded=${true}>
 
@@ -10340,7 +10338,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 header: 'About control overlays',
                 body: html`
                     <ul>
-                        <li>Control overlays are HA cards (buttons, entities, custom cards) placed on the MSD.</li>
+                        <li>Control overlays are Home Assistant cards (buttons, entities, custom cards) placed on the MSD.</li>
                         <li>Place them by anchor or by coordinates.</li>
                         <li>Lines can connect them, for visual flow.</li>
                         <li>For example: a button card at anchor <code>warp_drive</code> showing its power state.</li>
@@ -10618,16 +10616,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
 
                 </div>
 
-                <div slot="footer">
-                    <ha-button @click=${this._closeControlForm} appearance="plain">
+                <ha-dialog-footer slot="footer">
+                    <ha-button slot="secondaryAction" @click=${this._closeControlForm} appearance="plain">
                         <ha-icon icon="mdi:close" slot="start"></ha-icon>
                         Cancel
                     </ha-button>
-                    <ha-button @click=${this._saveControl}>
+                    <ha-button slot="primaryAction" @click=${this._saveControl}>
                         <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
                         Save
                     </ha-button>
-                </div>
+                </ha-dialog-footer>
             </ha-dialog>
         `;
     }
@@ -11809,16 +11807,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </div>
                 </div>
 
-                <div slot="footer">
-                    <ha-button @click=${this._closeCardEditorForm} appearance="plain">
+                <ha-dialog-footer slot="footer">
+                    <ha-button slot="secondaryAction" @click=${this._closeCardEditorForm} appearance="plain">
                         <ha-icon icon="mdi:close" slot="start"></ha-icon>
                         Cancel
                     </ha-button>
-                    <ha-button @click=${this._saveCardEditorForm}>
+                    <ha-button slot="primaryAction" @click=${this._saveCardEditorForm}>
                         <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
                         Save
                     </ha-button>
-                </div>
+                </ha-dialog-footer>
             </ha-dialog>
         `;
     }
@@ -12645,7 +12643,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             <ha-icon icon="mdi:check" slot="start"></ha-icon>
                             Accept
                         </ha-button>
-                        <ha-button @click=${() => this._cancelShieldBubble()}>
+                        <ha-button appearance="plain" @click=${() => this._cancelShieldBubble()}>
                             Cancel
                         </ha-button>
                     </div>
@@ -14215,6 +14213,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <div style="padding: 8px 16px;">
                     <ha-input
                         label="Channel ID"
+                        ?autofocus=${isNew}
                         .value=${data.id}
                         ?disabled=${!isNew}
                         @input=${(e) => this._updateChannelFormField('id', e.target.value)}
@@ -14366,16 +14365,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 </div>
 
                 <!-- Dialog Actions -->
-                <div slot="footer">
-                    <ha-button @click=${this._closeChannelForm} appearance="plain">
+                <ha-dialog-footer slot="footer">
+                    <ha-button slot="secondaryAction" @click=${this._closeChannelForm} appearance="plain">
                         <ha-icon icon="mdi:close" slot="start"></ha-icon>
                         Cancel
                     </ha-button>
-                    <ha-button @click=${this._saveChannel}>
+                    <ha-button slot="primaryAction" @click=${this._saveChannel}>
                         <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
                         ${isNew ? 'Add' : 'Save'}
                     </ha-button>
-                </div>
+                </ha-dialog-footer>
             </ha-dialog>
         `;
     }
@@ -15916,16 +15915,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </div>
                 </div>
 
-                <div slot="footer">
-                    <ha-button @click=${this._closeShapeForm} appearance="plain">
+                <ha-dialog-footer slot="footer">
+                    <ha-button slot="secondaryAction" @click=${this._closeShapeForm} appearance="plain">
                         <ha-icon icon="mdi:close" slot="start"></ha-icon>
                         Cancel
                     </ha-button>
-                    <ha-button @click=${() => isBulk ? this._saveBulkShapeStyle() : this._saveShape()}>
+                    <ha-button slot="primaryAction" @click=${() => isBulk ? this._saveBulkShapeStyle() : this._saveShape()}>
                         <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
                         ${isBulk ? 'Apply to Selected' : 'Save'}
                     </ha-button>
-                </div>
+                </ha-dialog-footer>
             </ha-dialog>
         `;
     }
@@ -16231,16 +16230,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     </div>
                 </div>
 
-                <div slot="footer">
-                    <ha-button @click=${this._closeLineForm} appearance="plain">
+                <ha-dialog-footer slot="footer">
+                    <ha-button slot="secondaryAction" @click=${this._closeLineForm} appearance="plain">
                         <ha-icon icon="mdi:close" slot="start"></ha-icon>
                         Cancel
                     </ha-button>
-                    <ha-button @click=${() => isBulk ? this._saveBulkLineStyle() : this._saveLine()}>
+                    <ha-button slot="primaryAction" @click=${() => isBulk ? this._saveBulkLineStyle() : this._saveLine()}>
                         <ha-icon icon="mdi:content-save" slot="start"></ha-icon>
                         ${isBulk ? 'Apply to Selected' : 'Save'}
                     </ha-button>
-                </div>
+                </ha-dialog-footer>
             </ha-dialog>
         `;
     }
@@ -18462,14 +18461,14 @@ export class LCARdSMSDStudioDialog extends LitElement {
             dialog.appendChild(content);
 
             const closeButton = document.createElement('ha-button');
-            closeButton.slot = 'footer';
             closeButton.textContent = 'OK';
+            closeButton.autofocus = true;
             closeButton.addEventListener('click', () => {
                 dialog.open = false;
                 resolve(undefined);
             });
 
-            dialog.appendChild(closeButton);
+            dialog.appendChild(createDialogFooter({ primary: [closeButton] }));
 
             dialog.addEventListener('closed', () => {
                 dialog.remove();
@@ -18494,8 +18493,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 flexcontent
                 header-title="MSD Configuration Studio">
 
-                <div slot="footer">
-                    <div class="footer-start">
+                <ha-dialog-footer slot="footer">
+                    <div slot="secondaryAction" class="footer-start">
                         <ha-button @click=${() => window.open(docsUrl(DOCS.msd), '_blank', 'noopener')} appearance="plain">
                             <ha-icon icon="mdi:book-open-variant" slot="start"></ha-icon>
                             Documentation
@@ -18505,12 +18504,12 @@ export class LCARdSMSDStudioDialog extends LitElement {
                             Reset
                         </ha-button>
                     </div>
-                    <ha-button @click=${this._handleCancel} appearance="plain">Cancel</ha-button>
-                    <ha-button variant="brand" @click=${this._handleSave}>
+                    <ha-button slot="secondaryAction" @click=${this._handleCancel} appearance="plain">Cancel</ha-button>
+                    <ha-button slot="primaryAction" variant="brand" @click=${this._handleSave}>
                         <ha-icon icon="mdi:check" slot="start"></ha-icon>
                         Save
                     </ha-button>
-                </div>
+                </ha-dialog-footer>
 
                 <div class="dialog-content">
                     <!-- Split Panel Layout -->

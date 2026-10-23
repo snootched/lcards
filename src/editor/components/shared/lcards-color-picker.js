@@ -103,7 +103,7 @@ const CATEGORY_GROUPS = {
     ha: ['ha-legacy', 'ha-color', 'ha-system', 'ha-space', 'ha-shape', 'ha-motion', 'ha-type', 'ha-elevation', 'states'],
     all: null
 };
-const CATEGORY_GROUP_LABELS = { theme: 'Theme', 'ha-lcars': 'HA-LCARS', ha: 'HA', all: 'All' };
+const CATEGORY_GROUP_LABELS = { theme: 'Theme', 'ha-lcars': 'HA-LCARS', ha: 'Home Assistant', all: 'All' };
 
 export class LCARdSColorPicker extends LitElement {
 

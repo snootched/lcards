@@ -130,7 +130,7 @@ static async getConfigElement() {
 }
 ```
 
-HA awaits `getConfigElement()` when it opens the visual editor. The dynamic `import()` loads the editor module (which registers its element) only at that moment, so editor code stays out of the bundle every dashboard loads. Do not import the editor at the top of the card file: a static import puts the whole editor back into the main chunk.
+Home Assistant awaits `getConfigElement()` when it opens the visual editor. The dynamic `import()` loads the editor module (which registers its element) only at that moment, so editor code stays out of the bundle every dashboard loads. Do not import the editor at the top of the card file: a static import puts the whole editor back into the main chunk.
 
 ## 3. `_buildConfigTab` Reference
 

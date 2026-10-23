@@ -6,7 +6,7 @@
 
 ## Overview
 
-`LCARdSHelperManager` extends `BaseService` and manages the set of HA `input_select`, `input_boolean`, and `input_number` entities that LCARdS requires for features like alert mode and sound schemes. It detects missing helpers, can create them via the WebSocket API, and provides a typed read/write interface.
+`LCARdSHelperManager` extends `BaseService` and manages the set of Home Assistant `input_select`, `input_boolean`, and `input_number` entities that LCARdS requires for features like alert mode and sound schemes. It detects missing helpers, can create them via the WebSocket API, and provides a typed read/write interface.
 
 ---
 

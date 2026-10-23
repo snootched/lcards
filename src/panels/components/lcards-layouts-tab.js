@@ -318,7 +318,7 @@ function _generateShellAdaptive(inputs, size) {
     '  lcars_ui_room_selector:',
     '    name: LCARS Room Selector',
     '    options:',
-    '      - Living Room    # Replace with your actual HA area names',
+    '      - Living Room    # Replace with your actual Home Assistant area names',
     '      - Kitchen',
     '      - Bedroom',
     'input_boolean:',
@@ -428,7 +428,7 @@ function _generatePanelRoomLights(inputs) {
     '  lcars_ui_room_selector:',
     '    name: LCARS Room Selector',
     '    options:',
-    '      - Living Room    # Replace with your actual HA area names',
+    '      - Living Room    # Replace with your actual Home Assistant area names',
     '      - Kitchen',
     '      - Bedroom',
   ].join('\n');
@@ -569,7 +569,7 @@ export class LCARdSLayoutsTab extends LitElement {
           `# Paste under 'views:' in your dashboard raw editor.\n\n` +
           _toYaml(result.view, 0) +
           (result.helpers
-            ? `\n\n# ── PART 2: HA Helpers ──────────────────────────────────────────────\n` +
+            ? `\n\n# ── PART 2: Home Assistant Helpers ──────────────────────────────────────────────\n` +
               `# Add to configuration.yaml, then restart Home Assistant.\n\n` +
               result.helpers
             : '');
@@ -582,7 +582,7 @@ export class LCARdSLayoutsTab extends LitElement {
           `# Replace the content-panel placeholder in your shell with this card.\n\n` +
           _toYaml(result.card, 0) +
           (result.helpers
-            ? `\n\n# ── Required HA Helpers ─────────────────────────────────────────────\n` +
+            ? `\n\n# ── Required Home Assistant Helpers ─────────────────────────────────────────────\n` +
               `# Add to configuration.yaml, then restart Home Assistant.\n\n` +
               result.helpers
             : '');

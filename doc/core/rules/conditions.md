@@ -16,7 +16,7 @@ The `when` block of a rule evaluates to `true` or `false`. When it matches, the 
 | **Sun elevation** | `sun_elevation` | Sun is `above`/`below` a degree threshold |
 | **Random chance** | `random_chance` | Evaluates true with a given probability (0.0–1.0) |
 | **JavaScript** | `condition` / `javascript` / `js` | Arbitrary JS expression: returns truthy |
-| **Jinja2** | `condition` / `jinja2` | Arbitrary HA Jinja2 template: returns truthy |
+| **Jinja2** | `condition` / `jinja2` | Arbitrary Home Assistant Jinja2 template: returns truthy |
 | **All of (AND)** | `all` | Every sub-condition must be true |
 | **Any of (OR)** | `any` | At least one sub-condition must be true |
 | **Not (NOT)** | `not` | Inverts a single sub-condition |
@@ -313,8 +313,8 @@ when:
 |---|---|---|
 | Evaluated by | Browser | Home Assistant server |
 | Latency | Synchronous, instant | Async round-trip |
-| Access to HA functions | ❌ (use `states` directly) | ✅ (`is_state`, `state_attr`, filters…) |
-| Best for | Fast logic, math, multi-entity | HA-native functions, formatted values |
+| Access to Home Assistant functions | ❌ (use `states` directly) | ✅ (`is_state`, `state_attr`, filters…) |
+| Best for | Fast logic, math, multi-entity | Home Assistant native functions, formatted values |
 
 ---
 

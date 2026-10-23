@@ -10,10 +10,10 @@ This section documents lower-level implementation details that underpin the subs
 |------|----------------|
 | [Background Animation System](#background-animation-system) | Canvas2D rendering pipeline for animated card backgrounds |
 | [DataSource Buffers](#datasource-buffer-structure) | Internal buffer and processor-output data shape |
-| [HA Entity Display](#ha-entity-display-utility) | Locale-aware entity value formatting |
-| [HA Services: Implementation Notes](#ha-services-implementation-notes) | Backend service architecture and server-push channel |
+| [Home Assistant Entity Display](#home-assistant-entity-display-utility) | Locale-aware entity value formatting |
+| [Home Assistant Services: Implementation Notes](#home-assistant-services-implementation-notes) | Backend service architecture and server-push channel |
 | [Shape Texture System](#shape-texture-system) | SVG-native declarative texture effects inside card shapes |
-| [Persistent Storage](#persistent-storage) | HA-backed key/value store for user and layout state |
+| [Persistent Storage](#persistent-storage) | Home Assistant-backed key/value store for user and layout state |
 
 ---
 
@@ -37,23 +37,23 @@ Consult this when referencing datasource values in templates (`{ds:source.buffer
 
 ---
 
-## HA Entity Display Utility
+## Home Assistant Entity Display Utility
 
 [Full reference →](./ha-entity-display.md)
 
-Centralised utility (`src/utils/ha-entity-display.js`) for i18n/locale-aware formatting of Home Assistant entity values. Delegates to the stable `hass.format*` API family and provides graceful fallbacks. This is the single source of truth for all HA text formatting in LCARdS.
+Centralised utility (`src/utils/ha-entity-display.js`) for i18n/locale-aware formatting of Home Assistant entity values. Delegates to the stable `hass.format*` API family and provides graceful fallbacks. This is the single source of truth for all Home Assistant text formatting in LCARdS.
 
 Consult this when displaying entity values, units, or state strings in cards to ensure consistent formatting and translation support.
 
 ---
 
-## HA Services: Implementation Notes
+## Home Assistant Services: Implementation Notes
 
 [Full reference →](./ha-services.md)
 
 Documents the LCARdS backend service architecture: alert mode management, frontend control directives, screen effects, sound, portal overlays, and the server-push channel that broadcasts events (reload, log level changes, effect/portal triggers) to connected browser tabs, with optional per-device/per-user targeting.
 
-Consult this when understanding how HA service calls interact with the integration lifecycle, or when implementing features that need the push channel.
+Consult this when understanding how Home Assistant service calls interact with the integration lifecycle, or when implementing features that need the push channel.
 
 ---
 
@@ -71,6 +71,6 @@ Consult this when configuring animated textures on cards, adding new SVG-based p
 
 [Full reference →](./storage.md)
 
-Key/value store backed by Home Assistant's storage API (written to `.storage/lcards`), exposed over WebSocket as read/write/delete commands. Values survive HA restarts. Used by scoped settings, layout state, and any feature that needs cross-session persistence.
+Key/value store backed by Home Assistant's storage API (written to `.storage/lcards`), exposed over WebSocket as read/write/delete commands. Values survive Home Assistant restarts. Used by scoped settings, layout state, and any feature that needs cross-session persistence.
 
-Consult this when implementing user preferences or dashboard state that must survive page reloads and HA restarts.
+Consult this when implementing user preferences or dashboard state that must survive page reloads and Home Assistant restarts.

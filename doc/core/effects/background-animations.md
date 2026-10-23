@@ -275,7 +275,7 @@ background_animation:
 
 ## Entity Binding
 
-Effect config parameters can react to live HA entity state or attributes. Works identically in both `background_animation` and `shape_texture`.
+Effect config parameters can react to live Home Assistant entity state or attributes. Works identically in both `background_animation` and `shape_texture`.
 
 ### `map_range`: Recommended
 

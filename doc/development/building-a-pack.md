@@ -203,7 +203,7 @@ export const alwaysLoad = [
 
 ### External / third-party packs
 
-Call `PackManager.registerPack()` after the LCARdS core has initialized. There is no dedicated readiness event; `window.lcards.core` and its managers are attached synchronously during LCARdS's own module load, well before any HA card can mount, so a script that loads *after* the LCARdS bundle can call `registerPack()` immediately. A load-order-independent script should still poll for `packManager` to appear, in case it runs first:
+Call `PackManager.registerPack()` after the LCARdS core has initialized. There is no dedicated readiness event; `window.lcards.core` and its managers are attached synchronously during LCARdS's own module load, well before any Home Assistant card can mount, so a script that loads *after* the LCARdS bundle can call `registerPack()` immediately. A load-order-independent script should still poll for `packManager` to appear, in case it runs first:
 
 ```javascript
 import { MY_PACK } from './lcards-my-pack.js';
@@ -226,7 +226,7 @@ if (window.lcards?.core?.packManager) {
 
 ## Verifying Registration
 
-After build and browser refresh, inspect pack state from the HA developer console:
+After build and browser refresh, inspect pack state from the Home Assistant developer console:
 
 ```javascript
 // List all loaded packs

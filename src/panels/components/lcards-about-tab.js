@@ -177,19 +177,19 @@ export class LCARdSAboutTab extends LitElement {
         index: 1,
         icon: 'mdi:cog',
         label: 'Helpers',
-        desc: 'Create and manage the HA input helpers LCARdS and HA-LCARS use to store dynamic configuration values',
+        desc: 'Create and manage the Home Assistant input helpers LCARdS and HA-LCARS use to store dynamic configuration values',
       },
       {
         index: 2,
         icon: 'mdi:palette-swatch',
         label: 'Theme Studio',
-        desc: 'LCARdS Alert Mode Lab (fully customize alert colour transforms), HA-LCARS Theme Lab, browsable LCARdS/HA CSS variable references',
+        desc: 'LCARdS Alert Mode Lab (fully customize alert colour transforms), HA-LCARS Theme Lab, browsable LCARdS/Home Assistant CSS variable references',
       },
       {
         index: 3,
         icon: 'mdi:wifi-off',
         label: 'Connectivity',
-        desc: 'Configure the connection-lost overlay: what is shown when HA loses its WebSocket connection, and the "connection restored" confirmation banner',
+        desc: 'Configure the connection-lost overlay: what is shown when Home Assistant loses its WebSocket connection, and the "connection restored" confirmation banner',
       },
       {
         index: 4,
@@ -207,7 +207,7 @@ export class LCARdSAboutTab extends LitElement {
         index: 7,
         icon: 'mdi:database-cog',
         label: 'Storage',
-        desc: 'Advanced: Inspect and manage the raw key/value data LCARdS stores for persistent configuration (data that is not stored in HA helpers - use with caution)',
+        desc: 'Advanced: Inspect and manage the raw key/value data LCARdS stores for persistent configuration (data that is not stored in Home Assistant helpers - use with caution)',
       },
     ];
   }

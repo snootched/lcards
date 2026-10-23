@@ -57,7 +57,7 @@ export function getMsdSchema() {
           source: {
             type: 'string',
             minLength: 1,
-            description: 'SVG source: builtin:key, /local/path.svg, a media-source://… content ID (picked via the HA media library), or "none"',
+            description: 'SVG source: builtin:key, /local/path.svg, a media-source://… content ID (picked via the Home Assistant media library), or "none"',
             examples: ['builtin:ncc-1701-a-blue', '/local/my-ship.svg', 'media-source://media_source/local/my-ship.svg', 'none'],
             'x-ui': {
               control: 'text',
@@ -352,14 +352,14 @@ export function getMsdSchema() {
             card: {
               type: 'object',
               optional: true,
-              description: 'HA card config embedded in this control overlay'
+              description: 'Home Assistant card config embedded in this control overlay'
             },
             triggers_update: {
               oneOf: [
                 {
                   type: 'array',
                   items: { type: 'string' },
-                  description: 'Extra entity IDs (or MSD data-source refs) this overlay depends on, beyond what static analysis of `card` can detect. HA entity IDs are folded into a control overlay\'s HASS change-detection set; non-entity refs are subscribed as MSD data-source updates (existing behavior, any overlay type).'
+                  description: 'Extra entity IDs (or MSD data-source refs) this overlay depends on, beyond what static analysis of `card` can detect. Home Assistant entity IDs are folded into a control overlay\'s HASS change-detection set; non-entity refs are subscribed as MSD data-source updates (existing behavior, any overlay type).'
                 },
                 {
                   type: 'string',

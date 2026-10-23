@@ -40,7 +40,7 @@ This launches **MSD Studio**: a full-screen dialog with a canvas on one side, a 
 On the **Base SVG** tab, pick a source:
 
 - **Asset Library**: built-in ship blueprints that ship with LCARdS (the easiest starting point)
-- **Browse HA Media**: an SVG you've uploaded to Home Assistant's media library
+- **Browse Home Assistant Media**: an SVG you've uploaded to Home Assistant's media library
 - **Custom Path**: a `/local/…` path or URL to your own SVG
 - **None**: a blank canvas with no background image at all
 

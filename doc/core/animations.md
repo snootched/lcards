@@ -151,7 +151,7 @@ Parameters that accept a number (`duration`, `delay`, any `params` field) can in
 
 | Field | Required | Description |
 |---|---|---|
-| `entity` | ✅ | HA entity to read |
+| `entity` | ✅ | Home Assistant entity to read |
 | `attribute` | - | Attribute instead of state (supports `brightness_pct`) |
 | `input` | ✅ | `[min, max]` input range |
 | `output` | ✅ | `[min, max]` numeric, or `['#hex', '#hex']` for colour interpolation |

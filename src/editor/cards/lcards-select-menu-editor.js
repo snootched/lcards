@@ -31,7 +31,7 @@ import '../components/datasources/lcards-datasource-editor-tab.js';
 import '../components/templates/lcards-template-evaluation-tab.js';
 import { renderInfoGuide } from '../components/shared/info-guide.js';
 import '../components/provenance/lcards-provenance-tab.js';
-import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
+import { createDialogFooter, mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 
 const _overflowOpts = [
     { value: 'visible', label: 'Visible: content paints outside the box' },
@@ -492,7 +492,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
                 outlined>
 
                 <lcards-message type="info">
-                    Defaults: 1 column, 56 px row height, matching a standard HA button card row.
+                    Defaults: 1 column, 56 px row height, matching a standard Home Assistant button card row.
                     Increase columns to show options side-by-side.
                 </lcards-message>
 
@@ -1015,10 +1015,10 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         return html`
             <ha-dialog open .headerTitle=${title} @closed=${() => this._cancelConfirm()}>
                 <p style="margin:0;line-height:1.6">${body}</p>
-                <div slot="footer" style="display:flex;gap:8px;justify-content:flex-end">
-                    <ha-button appearance="plain" variant="neutral" @click=${() => this._cancelConfirm()}>Cancel</ha-button>
-                    <ha-button variant="danger"                     @click=${() => this._executeConfirmedAction()}>Confirm</ha-button>
-                </div>
+                <ha-dialog-footer slot="footer">
+                    <ha-button slot="secondaryAction" appearance="plain" variant="neutral" autofocus @click=${() => this._cancelConfirm()}>Cancel</ha-button>
+                    <ha-button slot="primaryAction" variant="danger" @click=${() => this._executeConfirmedAction()}>Confirm</ha-button>
+                </ha-dialog-footer>
             </ha-dialog>
         `;
     }
@@ -1076,10 +1076,6 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         container.appendChild(editor);
         dialog.appendChild(container);
 
-        const footer = document.createElement('div');
-        footer.setAttribute('slot', 'footer');
-        footer.style.cssText = 'display:flex;gap:8px;justify-content:flex-end';
-
         const cancelBtn = document.createElement('ha-button');
         cancelBtn.setAttribute('appearance', 'plain');
         cancelBtn.setAttribute('variant', 'neutral');
@@ -1096,9 +1092,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
             dialog.open = false;
         });
 
-        footer.appendChild(cancelBtn);
-        footer.appendChild(saveBtn);
-        dialog.appendChild(footer);
+        dialog.appendChild(createDialogFooter({ secondary: [cancelBtn], primary: [saveBtn] }));
 
         dialog.addEventListener('closed', () => {
             dialog.remove();

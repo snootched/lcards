@@ -836,7 +836,7 @@ export class LCARdSAnimationEditor extends LitElement {
       return html`
         <div class="confirm-delete-row">
           <span class="confirm-delete-label">Delete this animation permanently?</span>
-          <ha-button @click=${() => { this._pendingDeleteIndex = null; this.requestUpdate(); }}>
+          <ha-button appearance="plain" @click=${() => { this._pendingDeleteIndex = null; this.requestUpdate(); }}>
             Cancel
           </ha-button>
           <ha-button

@@ -28,7 +28,7 @@ import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { editorWidgetStyles } from './editor-widget-styles.js';
 import '../shared/lcards-form-section.js';
-import { mountDialogNearHomeAssistant } from '../../../utils/lcards-shared-helpers.js';
+import { createDialogFooter, mountDialogNearHomeAssistant } from '../../../utils/lcards-shared-helpers.js';
 
 export class LCARdSIconSection extends LitElement {
 
@@ -772,14 +772,14 @@ export class LCARdSIconSection extends LitElement {
             dialog.appendChild(content);
 
             const closeButton = document.createElement('ha-button');
-            closeButton.slot = 'footer';
             closeButton.textContent = 'OK';
+            closeButton.autofocus = true;
             closeButton.addEventListener('click', () => {
                 dialog.open = false;
                 resolve(undefined);
             });
 
-            dialog.appendChild(closeButton);
+            dialog.appendChild(createDialogFooter({ primary: [closeButton] }));
             dialog.addEventListener('closed', () => dialog.remove());
             mountDialogNearHomeAssistant(dialog, this);
         });
@@ -800,6 +800,7 @@ export class LCARdSIconSection extends LitElement {
             const cancelButton = document.createElement('ha-button');
             cancelButton.textContent = 'Cancel';
             cancelButton.setAttribute('appearance', 'plain');
+            cancelButton.autofocus = true;
             cancelButton.addEventListener('click', () => {
                 dialog.open = false;
                 resolve(false);
@@ -813,11 +814,7 @@ export class LCARdSIconSection extends LitElement {
                 resolve(true);
             });
 
-            const footerDiv = document.createElement('div');
-            footerDiv.slot = 'footer';
-            footerDiv.appendChild(cancelButton);
-            footerDiv.appendChild(confirmButton);
-            dialog.appendChild(footerDiv);
+            dialog.appendChild(createDialogFooter({ secondary: [cancelButton], primary: [confirmButton] }));
 
             dialog.addEventListener('closed', () => dialog.remove());
             mountDialogNearHomeAssistant(dialog, this);

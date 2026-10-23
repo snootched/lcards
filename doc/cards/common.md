@@ -1,6 +1,6 @@
 # Common Card Properties
 
-LCARdS share a set of common top-level configuration properties regardless of card type.  This page documents them alongside how sizing interacts with the HA grid system.
+LCARdS share a set of common top-level configuration properties regardless of card type.  This page documents them alongside how sizing interacts with the Home Assistant grid system.
 
 ## Common Properties
 
@@ -18,7 +18,7 @@ LCARdS share a set of common top-level configuration properties regardless of ca
 | `overflow_x` | string | Horizontal axis overflow: same values as `overflow`; overrides the shorthand |
 | `overflow_y` | string | Vertical axis overflow: same values as `overflow`; overrides the shorthand |
 | `z_index` | integer | CSS z-index on the card host element (range: -999 to 9999) |
-| `grid_options` | object | HA grid sizing: `rows` and `columns` for the Lovelace grid (see below) |
+| `grid_options` | object | Home Assistant grid sizing: `rows` and `columns` for the Lovelace grid (see below) |
 | `data_sources` | object | Named data source definitions: see [Data Sources](../core/datasources/) |
 | `triggers_update` | list | Extra entity IDs that trigger template re-evaluation; see [Templates](../core/templates/#manual-tracking-with-triggers-update) |
 | `preset` | string | Style preset (button, slider, elbow; select menu option buttons): see [Presets](../core/presets.md) |
@@ -140,7 +140,7 @@ Accepts the same formats as `height` and `width` (bare integer = px, or any CSS 
 - **Aspect-ratio layouts**: pair `height` with `width` to keep proportions consistent
 - **Dynamic content**: use `min_height`/`min_width` to prevent collapse when content length varies
 
-> **Note on `getCardSize()`**: HA uses `getCardSize()` to pre-allocate grid space before the card renders. When `height` is set in pixels, LCARdS uses that value to report grid rows (`px ÷ 56`, rounded up). For non-px units (`vh`, `%`, etc.) the card falls back to its default row count since the pixel value cannot be determined at configuration time.
+> **Note on `getCardSize()`**: Home Assistant uses `getCardSize()` to pre-allocate grid space before the card renders. When `height` is set in pixels, LCARdS uses that value to report grid rows (`px ÷ 56`, rounded up). For non-px units (`vh`, `%`, etc.) the card falls back to its default row count since the pixel value cannot be determined at configuration time.
 
 ---
 
@@ -182,9 +182,9 @@ z_index: 10     # render above neighbouring cards (range: -999 to 9999)
 
 ---
 
-## HA Grid Sizing (`grid_options`)
+## Home Assistant Grid Sizing (`grid_options`)
 
-`grid_options` controls how the card occupies the Lovelace grid. This is the standard HA mechanism and is independent of `height`/`width`.
+`grid_options` controls how the card occupies the Lovelace grid. This is the standard Home Assistant mechanism and is independent of `height`/`width`.
 
 ```yaml live
 type: custom:lcards-button
@@ -195,7 +195,7 @@ grid_options:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `columns` | number | Grid columns to span (HA grid is 12 columns wide) |
+| `columns` | number | Grid columns to span (Home Assistant grid is 12 columns wide) |
 | `rows` | number | Grid rows to request |
 
 ### `height`/`width`/`min_height`/`min_width` vs `grid_options`
@@ -204,12 +204,12 @@ These two systems operate independently and serve different purposes:
 
 | | `height` / `width` / `min_height` / `min_width` | `grid_options` |
 |---|---|---|
-| **What it sets** | CSS size of the card host element | HA grid slot allocation |
-| **Effect on layout** | How large the card *renders* inside its slot | How large a *slot* HA reserves in the grid |
+| **What it sets** | CSS size of the card host element | Home Assistant grid slot allocation |
+| **Effect on layout** | How large the card *renders* inside its slot | How large a *slot* Home Assistant reserves in the grid |
 | **Typical use** | Overlays, stacks, fixed-px sizing, dynamic-content floors | Standard dashboard grid layout |
 | **Units** | Any CSS unit or bare integer (= px) | Whole numbers only |
 
-In most dashboard layouts you only need `grid_options`. Use the sizing properties when you need to override the rendered size independently of the grid slot, for example when a card is inside a fixed-size container that doesn't use the HA grid.
+In most dashboard layouts you only need `grid_options`. Use the sizing properties when you need to override the rendered size independently of the grid slot, for example when a card is inside a fixed-size container that doesn't use the Home Assistant grid.
 
 ---
 
@@ -255,7 +255,7 @@ All LCARdS cards support the following cross-cutting features in addition to the
 | Feature | Description |
 |---------|-------------|
 | [Text Labels](../core/text-fields.md) | Multiple positioned text fields with template support, per-field styling, and zone targeting |
-| [Actions](../core/actions.md) | `tap_action`, `hold_action`, and `double_tap_action`, any HA action type |
+| [Actions](../core/actions.md) | `tap_action`, `hold_action`, and `double_tap_action`, any Home Assistant action type |
 | [Animations](../core/animations.md) | Trigger-based card animations (on load, on state change, etc.) |
 | [Background Animations](../core/effects/background-animations.md) | Canvas-rendered animated backgrounds (grid, starfield, fluid, etc.) |
 | [Card Sounds](../core/sounds.md) | Per-card audio playback tied to state changes or actions |

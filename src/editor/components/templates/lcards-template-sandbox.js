@@ -611,19 +611,19 @@ export class LCARdSTemplateSandbox extends LitElement {
                         </div>
                     </div>
                 </div>
-                <div slot="footer">
-                    <ha-button appearance="plain" @click=${() => copyTextToClipboard(this._editor?.value ?? this._template)}>
+                <ha-dialog-footer slot="footer">
+                    <ha-button slot="secondaryAction" appearance="plain" @click=${() => copyTextToClipboard(this._editor?.value ?? this._template)}>
                         <ha-icon icon="mdi:content-copy" slot="start"></ha-icon>
                         Copy template
                     </ha-button>
                     ${this._path ? html`
-                        <ha-button appearance="plain" data-dialog="close">Cancel</ha-button>
-                        <ha-button variant="brand" @click=${this._save}>
+                        <ha-button slot="secondaryAction" appearance="plain" data-dialog="close">Cancel</ha-button>
+                        <ha-button slot="primaryAction" variant="brand" @click=${this._save}>
                             <ha-icon icon="mdi:check" slot="start"></ha-icon>
                             Save to ${this._path}
                         </ha-button>
-                    ` : html`<ha-button appearance="plain" data-dialog="close">Close</ha-button>`}
-                </div>
+                    ` : html`<ha-button slot="primaryAction" data-dialog="close">Close</ha-button>`}
+                </ha-dialog-footer>
             </ha-dialog>
         `;
     }

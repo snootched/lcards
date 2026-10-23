@@ -4,11 +4,11 @@ Alert Mode gives LCARdS coordinated, dashboard-wide visual states that match the
 
 Alert mode is more than a colour change; it shifts the entire dashboard UI together:
 
-- **Theme colours transform**: the whole HA UI palette shifts; hues, saturation, and token values rotate to match the alert level across every element on screen. All transform parameters are fully configurable per alert mode via the **Alert Mode Lab** in the LCARdS Config Panel.
+- **Theme colours transform**: the whole Home Assistant UI palette shifts; hues, saturation, and token values rotate to match the alert level across every element on screen. All transform parameters are fully configurable per alert mode via the **Alert Mode Lab** in the LCARdS Config Panel.
 - **Sound plays**: the Sound Manager fires the matching alert audio scheme automatically.
 - **Alert Overlay activates**: the `lcards-alert-overlay` card reacts and displays its full-screen backdrop and content card for the triggered alert condition.
 - **Rules-driven animations**: cards and MSD overlays can be configured to pulse, flash, or animate when a specific alert level is active. This is opt-in via the Rules Engine, not automatic.
-- **HA helpers stay in sync**: the `input_select.lcards_alert_mode` helper always reflects the current state, so HA automations can both trigger and react to alert level changes.
+- **Home Assistant helpers stay in sync**: the `input_select.lcards_alert_mode` helper always reflects the current state, so Home Assistant automations can both trigger and react to alert level changes.
 
 ---
 
@@ -43,7 +43,7 @@ tap_action:
     option: red_alert
 ```
 
-=== HA Automation
+=== Home Assistant Automation
 
 Use the helper in any automation; changes all browsers simultaneously:
 
@@ -78,7 +78,7 @@ data:
   target_device_ids:
     - "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 
-# All sessions belonging to a specific HA user
+# All sessions belonging to a specific Home Assistant user
 action: lcards.yellow_alert
 data:
   target_user_names:
@@ -92,7 +92,7 @@ data:
 ```
 
 > Get your device's UUID and name via `window.lcards.targeting.getMyIds()` in the browser console.
-> See [HA Service Targeting](/development/backend-api#ha-service-targeting) for the full field reference.
+> See [Home Assistant Service Targeting](/development/backend-api#ha-service-targeting) for the full field reference.
 
 === Browser Console
 

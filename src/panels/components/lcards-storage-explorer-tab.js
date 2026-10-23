@@ -498,7 +498,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
             >
               ${isSaving ? html`<ha-spinner size="small"></ha-spinner>` : 'Save'}
             </ha-button>
-            <ha-button @click=${(e) => { e.stopPropagation(); this._cancelEdit(); }}>Cancel</ha-button>
+            <ha-button appearance="plain" @click=${(e) => { e.stopPropagation(); this._cancelEdit(); }}>Cancel</ha-button>
           `}
         </div>
 

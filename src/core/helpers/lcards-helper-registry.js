@@ -1122,7 +1122,7 @@ export const HELPER_REGISTRY = {
     entity_id: 'input_boolean.lcards_sound_ui',
     domain: 'input_boolean',
     name: 'LCARdS UI Navigation Sounds',
-    description: 'Enable sounds for HA sidebar navigation and page transitions',
+    description: 'Enable sounds for Home Assistant sidebar navigation and page transitions',
     icon: 'mdi:navigation',
     category: 'sound',
     ws_create_params: {},

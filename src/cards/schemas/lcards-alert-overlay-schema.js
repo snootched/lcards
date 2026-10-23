@@ -206,7 +206,7 @@ export const alertOverlaySchema = {
                 properties: {
                     content: {
                         type: 'object',
-                        description: 'HA card config to render inside the overlay for this condition',
+                        description: 'Home Assistant card config to render inside the overlay for this condition',
                         properties: {
                             type: { type: 'string', description: 'Card type (e.g. custom:lcards-button)' },
                         },

@@ -1,6 +1,6 @@
 # Screen Effects
 
-> **Full-screen visual effects that sit above all HA and LCARdS UI**
+> **Full-screen visual effects that sit above all Home Assistant and LCARdS UI**
 
 Screen effects cover the entire viewport with composited overlays: blur, colour tints, TV static, pixelation, glitch artefacts, CRT scanlines, and more. They are designed for alert states, dramatic transitions, and automation-triggered feedback.
 
@@ -19,7 +19,7 @@ window.lcards.screenEffect.clear()
 ```
 
 ```yaml
-# HA automation
+# Home Assistant automation
 service: lcards.trigger_effect
 data:
   layers:
@@ -135,7 +135,7 @@ Dark radial gradient at the screen edges, like a cinematic vignette.
 These draw directly above all content using a Canvas2D rAF loop. They blend with the underlying screen using CSS `mix-blend-mode` so content shows through.
 
 ::: info Canvas and screen content
-For browser security reasons, canvas effects cannot read the actual pixels of the HA dashboard; they generate synthetic overlays. The visual result is an obscuring or distorting texture layered over the real content.
+For browser security reasons, canvas effects cannot read the actual pixels of the Home Assistant dashboard; they generate synthetic overlays. The visual result is an obscuring or distorting texture layered over the real content.
 :::
 
 #### `static`
@@ -259,7 +259,7 @@ data:
 
 ---
 
-## HA Service
+## Home Assistant Service
 
 ### `lcards.trigger_effect`
 

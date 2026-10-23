@@ -169,7 +169,7 @@ const COMMON = {
   filters: '/core/effects/filters',
   height: SIZING,
   width: SIZING,
-  grid_options: '/cards/common#ha-grid-sizing-grid-options'
+  grid_options: '/cards/common#home-assistant-grid-sizing-grid-options'
 };
 
 /**

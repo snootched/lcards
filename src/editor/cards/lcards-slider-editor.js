@@ -725,7 +725,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
         return html`
             <lcards-form-section
                 header="Live Value Badge"
-                description="Floating badge that follows the drag position while dragging; shows the value before it's committed to the entity, like HA's native slider drag indicator."
+                description="Floating badge that follows the drag position while dragging; shows the value before it's committed to the entity, like Home Assistant's native slider drag indicator."
                 icon="mdi:tooltip-text"
                 ?expanded=${false}
                 ?outlined=${true}
