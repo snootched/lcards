@@ -116,6 +116,53 @@ animations:
 `,
 });
 
+/** A card that boots on show and again on tap (boot-sequence gallery). */
+const bootTile = (label, card, params) => ({
+  label,
+  yaml: `${card}tap_action:
+  action: none
+animations:
+  - trigger: on_show
+    preset: boot-sequence${params ? `\n    params: ${params}` : ''}
+  - trigger: on_tap
+    preset: boot-sequence${params ? `\n    params: ${params}` : ''}
+`,
+});
+const BOOT_LOZENGE = `type: custom:lcards-button
+preset: lozenge
+text:
+  name:
+    content: WARP CORE
+    show: true
+`;
+const BOOT_BORDERED = `type: custom:lcards-button
+preset: lozenge
+text:
+  name:
+    content: SHIELDS
+    show: true
+style:
+  border:
+    width: 3
+    color: var(--lcars-orange)
+`;
+const BOOT_ELBOW = `type: custom:lcards-elbow
+elbow:
+  type: header-left
+  segment:
+    bar_width: 90
+    bar_height: 24
+`;
+
+/** A card with a looping sensor sweep (sensor-sweep gallery). */
+const sweepTile = (label, card, params) => ({
+  label,
+  yaml: `${card}animations:
+  - trigger: on_load
+    preset: sensor-sweep${params ? `\n    params: ${params}` : ''}
+`,
+});
+
 export const CARD_GALLERIES = {
   'text-decode': {
     hint: 'Tap a button to decode it again.',
@@ -125,6 +172,24 @@ export const CARD_GALLERIES = {
       decodeTile('chars: numbers, from: right', '{chars: numbers, from: right}'),
       decodeTile('chars: blocks, from: center', '{chars: blocks, from: center, duration: 1400}'),
       decodeTile('cursor, perturbation, slower', '{cursor: true, perturbation: 0.4, duration: 2000}'),
+    ],
+  },
+  'boot-sequence': {
+    hint: 'Tap a card to boot it again.',
+    minWidth: 280,
+    tiles: [
+      bootTile('flicker (default)', BOOT_LOZENGE),
+      bootTile('sweep from the left', BOOT_LOZENGE, '{fill: sweep}'),
+      bootTile('border draws in, fade', BOOT_BORDERED, '{fill: fade, duration: 1600}'),
+      bootTile('elbow, sweep from the top', BOOT_ELBOW, '{fill: sweep, from: top}'),
+    ],
+  },
+  'sensor-sweep': {
+    minWidth: 280,
+    tiles: [
+      sweepTile('radar component', 'type: custom:lcards-button\ncomponent: radar\n', '{color: var(--lcars-orange), radius: 40}'),
+      sweepTile('lozenge, narrow wedge', 'type: custom:lcards-button\npreset: lozenge\n', '{color: var(--lcars-orange), angle: 20, duration: 2000}'),
+      sweepTile('elbow corner, counter-clockwise', `${BOOT_ELBOW}`, '{center: [45, 12], radius: 70, direction: ccw, color: var(--lcars-blue)}'),
     ],
   },
   'button-presets': {

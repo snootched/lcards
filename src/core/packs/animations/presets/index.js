@@ -25,6 +25,7 @@ import { resolvePresetParams, getResolvedEasing, presetRandom } from '../../../.
 import { TIMELINE_PRESETS } from './timeline-presets.js';
 import { STAGGER_PRESETS } from './stagger-presets.js';
 import { TEXT_PRESETS } from './text-presets.js';
+import { EFFECT_PRESETS } from './effect-presets.js';
 
 /**
  * Register all builtin animation presets
@@ -1549,6 +1550,66 @@ registerAnimationPreset('motionpath', (def) => {
   };
 });
 
+const MORPHABLE = /^(path|polygon|polyline)$/i;
+
+/**
+ * Morph - change one SVG shape into another (anime.js v4 morphTo)
+ *
+ * The animated shape (the target, or the first path/polygon/polyline inside it, so an
+ * MSD shape overlay's group works) takes the geometry of the `to` shape, found in the
+ * same card. Stopping puts the original geometry back. `loop` + `alternate` flips
+ * between the two, e.g. an MSD status indicator going from a circle to a warning
+ * triangle.
+ *
+ * Parameters:
+ * - to (required) - CSS selector of the shape to become (often a hidden path in the
+ *   base SVG or an MSD shape overlay: `[data-overlay-id="warn_shape"]`)
+ * - precision (default 0.33) - points sampled per SVG unit of length; 0 interpolates
+ *   the raw `d`/`points` (only works when both shapes have the same commands)
+ * - duration (default 800), ease (default 'inOutQuad'), loop, alternate
+ * - morph_to_selector - old name for `to`
+ */
+registerAnimationPreset('morph', (def) => {
+  const p = resolvePresetParams(def);
+  const to = p.to ?? p.morph_to_selector ?? def.morph_to_selector;
+  const precision = typeof p.precision === 'number' && p.precision >= 0 ? p.precision : 0.33;
+
+  return {
+    anime: {
+      duration: p.duration || 800,
+      ease: getResolvedEasing(p) || 'inOutQuad',
+      loop: p.loop !== undefined ? p.loop : false,
+      alternate: p.alternate !== undefined ? p.alternate : false,
+    },
+    styles: {},
+    setup: (element) => {
+      if (!to || typeof to !== 'string') {
+        lcardsLog.warn('[morph preset] Missing the `to` selector of the shape to morph into');
+        element._animTargets = null;
+        return;
+      }
+      const findShape = (/** @type {Element|null} */ el) => (!el ? null
+        : MORPHABLE.test(el.tagName) ? el
+          // The visible MSD geometry first (shapes and lines also carry a wider hit-area path)
+          : el.querySelector('.shape-path, .line-path')
+            ?? el.querySelector('path:not(.shape-hit-area):not(.line-hit-area), polygon, polyline'));
+      const source = findShape(element);
+      const root = /** @type {ParentNode} */ (element.getRootNode());
+      const target = findShape(root.querySelector?.(to) ?? null);
+      if (!source || !target) {
+        lcardsLog.warn('[morph preset] Needs a <path>, <polygon> or <polyline> to animate and to morph into', {
+          to, hasSource: !!source, hasTarget: !!target,
+        });
+        element._animTargets = null; // nothing to animate
+        return;
+      }
+      if (source !== element) element._animTargets = source;
+      const attribute = source.tagName.toLowerCase() === 'path' ? 'd' : 'points';
+      element._presetTweens = { [attribute]: window.lcards.anim.animejs.morphTo(target, precision) };
+    }
+  };
+});
+
 // ==============================================================================
 // ADVANCED PRESETS
 // ==============================================================================
@@ -1778,6 +1839,14 @@ Object.entries(STAGGER_PRESETS).forEach(([name, factory]) => {
 // ==============================================================================
 
 Object.entries(TEXT_PRESETS).forEach(([name, factory]) => {
+  registerAnimationPreset(name, factory);
+});
+
+// ==============================================================================
+// EFFECT PRESETS (boot-sequence, sensor-sweep)
+// ==============================================================================
+
+Object.entries(EFFECT_PRESETS).forEach(([name, factory]) => {
   registerAnimationPreset(name, factory);
 });
 

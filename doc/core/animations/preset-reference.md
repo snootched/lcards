@@ -458,6 +458,56 @@ CSS-based marching dashed line animation. More performant than JS for continuous
 
 <AnimationPlayground preset="march" />
 
+### `morph`
+
+One SVG shape becomes another, with anime.js's [`morphTo`](https://animejs.com/documentation/svg/morphto). The animated shape is the target, or the first path inside it (so an MSD shape or line overlay works); `to` names the shape it becomes, anywhere in the same card. Stopping puts the original shape back, and `loop` with `alternate` flips between the two, e.g. a status indicator that turns into a warning sign while an alert is on.
+
+Both shapes must be a `<path>`, `<polygon>` or `<polyline>`: on an MSD that is a `kind: polyline` shape or a line; `rect` and `circle` shapes draw native rectangles and ellipses, which don't morph.
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `to` | (required) | CSS selector of the shape to become, e.g. `[data-overlay-id="warn_shape"]`. It can be hidden |
+| `precision` | `0.33` | Points sampled per SVG unit of path length; higher is smoother. `0` interpolates the raw geometry, which only works when both shapes use the same path commands |
+| `duration` | `800` | Duration (ms) |
+| `ease` | `inOutQuad` | Easing function |
+| `loop` | `false` | Loop continuously |
+| `alternate` | `false` | Morph back on each loop |
+
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: none
+  view_box: [0, 0, 400, 200]
+  overlays:
+    - id: status_shape
+      type: shape
+      kind: polyline
+      closed: true
+      points: [[150, 40], [250, 40], [250, 140], [150, 140]]
+      corner_style: miter
+      style:
+        color: var(--lcars-orange)
+        fill: var(--lcars-orange)
+      animations:
+        - trigger: on_load
+          preset: morph
+          loop: true
+          alternate: true
+          params:
+            to: '[data-overlay-id="warn_shape"]'
+            duration: 1200
+    - id: warn_shape
+      type: shape
+      kind: polyline
+      closed: true
+      points: [[200, 40], [250, 140], [150, 140]]
+      corner_style: miter
+      style:
+        color: transparent
+        fill: transparent
+```
+
 ---
 
 ## Stagger Presets
@@ -473,7 +523,7 @@ Stagger across a `[cols, rows]` grid of targets, with a configurable wave origin
 | Param | Default | Description |
 |-------|---------|-------------|
 | `grid` | `[1, 1]` | Grid dimensions `[cols, rows]`, validated; warns and no-ops on the wrong shape |
-| `from` | `first` | Wave origin: `first` (top-left), `last`, `center` (outward), `edges` (inward), `random`, or a `[col, row]` cell (0-indexed). `start` and `end` are aliases of `first` and `last` |
+| `from` | `first` | Wave origin: `first` (top-left), `last`, `center` (outward), `edges` (inward), `random`, `pointer` (where the card was tapped, see [`tap-ripple`](#tap-ripple)), or a `[col, row]` cell (0-indexed). `start` and `end` are aliases of `first` and `last` |
 | `axis` | - | Stagger along one axis only: `x` (or `row`) delays by column, `y` (or `column`) by row |
 | `delay` | `100` | Per-element stagger step (ms): not the canonical single start-offset |
 | `reversed` | `false` | Run the stagger in the opposite order |
@@ -534,7 +584,7 @@ Stagger radiating outward from a point.
 
 | Param | Default | Description |
 |-------|---------|-------------|
-| `from` | `center` | Where the ripple starts, measured on the targets' real positions: `center`, `first`, `last`, `random`, or an `[x, y]` point as fractions of the group (`0` to `1`, `[0, 0]` is top-left) |
+| `from` | `center` | Where the ripple starts, measured on the targets' real positions: `center`, `first`, `last`, `random`, `pointer` (where the card was tapped, see [`tap-ripple`](#tap-ripple)), or an `[x, y]` point as fractions of the group (`0` to `1`, `[0, 0]` is top-left) |
 | `reversed` | `false` | Run the stagger in the opposite order |
 | `jitter` | - | Random offset (ms) added to each target's delay, plus or minus; `[start, end]` ramps it along the stagger order |
 | `seed` | - | Any number: the same jitter and `random` order on every load |
@@ -595,6 +645,43 @@ A lead/trail colour sweep across targets, driven by the Web Animations API direc
 
 ---
 
+### `tap-ripple`
+
+A pulse that spreads across a group of targets from where the card was tapped: each target scales up, dims (and optionally flashes a colour) and settles back, later the further it is from the tap. Target positions are read from the layout, so it works on data-grid cells without giving a grid size. Use it on `on_tap` (also `on_hold`, `on_double_tap`); any other trigger starts it from the centre. On a data grid a tap anywhere on the grid fires the card's `on_tap` animations, alongside any cell actions.
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `spread` | `400` | ms for the wave to travel from the tap point to the farthest target, whatever the layout |
+| `scale` | `1.08` | Peak scale of each target |
+| `opacity_min` | `0.4` | Lowest opacity of each target during its pulse |
+| `color` | - | Flash colour at the peak of each pulse (theme token, CSS variable or colour) |
+| `property` | `color` | What `color` sets: `color` for HTML text such as data-grid cells, `fill` or `stroke` for SVG shapes |
+| `from` | `pointer` | Where the wave starts: `pointer`, `center`, `first`, `last`, `random` |
+| `reversed` | `false` | Run the wave inward, ending at the tap point |
+| `jitter` | - | Random extra delay per target (ms, or a `[start, end]` ramp) for a less even wave |
+| `seed` | - | Any number: the same jitter on every load |
+| `duration` | `500` | One target's pulse, ms |
+| `ease` | `outQuad` | Easing function |
+
+```yaml
+type: custom:lcards-data-grid
+data_mode: decorative
+grid:
+  grid-template-columns: repeat(8, 1fr)
+  grid-template-rows: repeat(4, auto)
+animations:
+  - trigger: on_tap
+    preset: tap-ripple
+    target: .grid-cell
+    params:
+      color: var(--lcars-orange)
+      jitter: 30
+```
+
+`from: pointer` works on the other stagger presets too (`stagger-grid`, `stagger-radial`), for any stagger that should start at the tap.
+
+---
+
 ## Timeline Presets
 
 Multi-phase animations built with anime.js's `createTimeline()`. The canonical top-level `duration`/`ease` are inert; timing/easing for each phase lives in that phase's own config instead. `loop`, `alternate`, and `delay`, however, still apply at the whole-timeline level (repeat, reverse, and start-delay for the entire sequence), since a Timeline inherits that behavior from the same underlying mechanism a single animation uses.
@@ -636,6 +723,80 @@ A fixed 3-phase "look at me" sequence: scale up, shake, settle back.
 | `loop` | `false` | Loop the full sequence |
 
 <AnimationPlayground preset="timeline-attention" />
+
+---
+
+## Effect Presets
+
+Effects with several parts on one timeline. Each is one tracked animation: stopping it, or reduced motion, leaves the card as it was.
+
+### `boot-sequence`
+
+The card powers up: stroked shapes (borders, lines, radar rings) draw in, filled shapes come on, then the text decodes from glyph noise ([`text-decode`](#text-decode)). It works on whatever the target has, so a lozenge without a border skips the draw and an elbow without text skips the decode. Best on `on_show` (each time the card appears) or `on_load`.
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `duration` | `1200` | ms for the whole sequence |
+| `fill` | `flicker` | How filled shapes come on: `flicker` (a panel powering up), `sweep` (wipes in from the `from` side) or `fade` |
+| `from` | `left` | The side a sweep starts from: `left`, `right`, `top`, `bottom` |
+| `draw` | `true` | Draw stroked shapes in |
+| `decode` | `true` | Decode the text; off, the text just appears |
+| `chars` | `A-Z0-9` | Decode glyphs, as in [`text-decode`](#text-decode) |
+| `stagger` | `60` | ms between one shape coming on and the next |
+| `seed` | - | Any number: the same decode on every load |
+| `delay` | `0` | ms before it starts |
+
+```yaml
+animations:
+  - trigger: on_show
+    preset: boot-sequence
+    params:
+      fill: sweep
+```
+
+<CardGallery set="boot-sequence" />
+
+### `sensor-sweep`
+
+A rotating scanner wedge with a ring that pings outward on each turn. It draws its own shapes, centred on the target (or on `center`), and removes them when it stops; nothing in the card changes. On an elbow or an MSD, set `center` and `radius` to put it on a corner or a spot of the ship.
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `duration` | `3000` | ms per revolution (and per ping) |
+| `radius` | half the shorter side | SVG units |
+| `center` | the target's centre | `[x, y]` in the target's SVG units |
+| `angle` | `40` | Wedge width, degrees |
+| `direction` | `cw` | `cw` or `ccw` |
+| `color` | `theme:colors.ui.primary` | Wedge colour |
+| `ring_color` | `color` | Ping ring colour |
+| `opacity` | `0.35` | Wedge opacity; the ring starts at 2.5 times this (at most 1) and fades out |
+| `ring` | `true` | Show the ping ring |
+| `ring_width` | `2` | Ring stroke width, SVG units |
+| `loop` | `true` | Keep sweeping |
+
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: none
+  view_box: [0, 0, 400, 200]
+  overlays:
+    - id: scanner
+      type: shape
+      kind: circle
+      position: [130, 30]
+      size: [140, 140]
+      style:
+        color: var(--lcars-blue)
+        width: 2
+      animations:
+        - trigger: on_load
+          preset: sensor-sweep
+          params:
+            color: var(--lcars-orange)
+```
+
+<CardGallery set="sensor-sweep" />
 
 ---
 

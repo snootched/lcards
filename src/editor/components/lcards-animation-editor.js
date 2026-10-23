@@ -82,7 +82,9 @@ const SCHEMA_DRIVEN_PRESETS = new Set([
   // Stagger presets
   'stagger-grid', 'stagger-flash', 'stagger-wave', 'stagger-radial',
   // Timeline presets
-  'timeline-cascade', 'timeline-attention'
+  'timeline-cascade', 'timeline-attention',
+  // Effect presets
+  'tap-ripple', 'boot-sequence', 'sensor-sweep', 'morph'
 ]);
 
 /**
@@ -131,7 +133,10 @@ const PRESET_HIDDEN_CANONICAL_FIELDS = {
   'stagger-flash': { hideDuration: true, hideEasing: true, hideLoop: true, hideAlternate: true, hideStartDelay: true },
   'sequence': { hideDuration: true, hideEasing: true },
   'timeline-cascade': { hideDuration: true, hideEasing: true },
-  'timeline-attention': { hideDuration: true, hideEasing: true }
+  'timeline-attention': { hideDuration: true, hideEasing: true },
+  'tap-ripple': { hideLoop: true, hideAlternate: true },
+  'boot-sequence': { hideEasing: true, hideLoop: true, hideAlternate: true },
+  'sensor-sweep': { hideEasing: true, hideAlternate: true }
 };
 
 const CANONICAL_KEY_HIDE_FLAG = { duration: 'hideDuration', ease: 'hideEasing', loop: 'hideLoop', alternate: 'hideAlternate', delay: 'hideStartDelay' };
@@ -197,7 +202,11 @@ const ANIMEJS_REFERENCE_URLS = {
   'text-scramble': `${ANIMEJS_DOCS_BASE}/text/scrambletext`,
   'text-decode': `${ANIMEJS_DOCS_BASE}/text/scrambletext`,
   'text-glitch': `${ANIMEJS_DOCS_BASE}/text/splittext`,
-  'text-typewriter': `${ANIMEJS_DOCS_BASE}/text/splittext`
+  'text-typewriter': `${ANIMEJS_DOCS_BASE}/text/splittext`,
+  'tap-ripple': `${ANIMEJS_DOCS_BASE}/utilities/stagger`,
+  'boot-sequence': `${ANIMEJS_DOCS_BASE}/timeline`,
+  'sensor-sweep': `${ANIMEJS_DOCS_BASE}/timeline`,
+  morph: `${ANIMEJS_DOCS_BASE}/svg/morphto`
 };
 // Everything else uses the default plain-tween mechanism.
 const ANIMEJS_DEFAULT_REFERENCE_URL = `${ANIMEJS_DOCS_BASE}/animation`;
@@ -1977,7 +1986,11 @@ export class LCARdSAnimationEditor extends LitElement {
       'stagger-flash': 'Stagger Flash',
       'stagger-grid': 'Stagger Grid',
       'stagger-wave': 'Stagger Wave',
-      'stagger-radial': 'Stagger Radial'
+      'stagger-radial': 'Stagger Radial',
+      'tap-ripple': 'Tap Ripple',
+      'boot-sequence': 'Boot Sequence',
+      'sensor-sweep': 'Sensor Sweep',
+      'morph': 'Morph'
     };
     return names[preset] || preset;
   }
@@ -2047,6 +2060,7 @@ export class LCARdSAnimationEditor extends LitElement {
       { value: 'color-shift', label: 'Colour Shift - Pure colour transition' },
       { value: 'skew', label: 'Skew - Slant transformation' },
       { value: 'motionpath', label: 'Motion Path - Follow SVG path' },
+      { value: 'morph', label: 'Morph - Become another SVG shape' },
       { value: 'sequence', label: 'Sequence - Multi-step timeline of tweens' },
       { value: 'chaos', label: 'Chaos - Randomized multi-property glitch motion' },
       { value: 'glitch', label: 'Glitch - Digital distortion' },
@@ -2064,6 +2078,11 @@ export class LCARdSAnimationEditor extends LitElement {
       { value: 'stagger-grid', label: 'Stagger Grid - Grid-based stagger' },
       { value: 'stagger-wave', label: 'Stagger Wave - Wave pattern' },
       { value: 'stagger-radial', label: 'Stagger Radial - Radial burst' },
+      { value: 'tap-ripple', label: 'Tap Ripple - Pulse spreading from the tap point' },
+
+      // Effects
+      { value: 'boot-sequence', label: 'Boot Sequence - Power-up: draw, fill, decode' },
+      { value: 'sensor-sweep', label: 'Sensor Sweep - Rotating scanner with ring ping' },
 
       // Timeline Animations (NEW - PR#233)
       { value: 'timeline-cascade', label: 'Timeline Cascade - Sequential steps' },

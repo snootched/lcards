@@ -21,8 +21,9 @@ See the **[Preset Reference](animations/preset-reference.md)** for full paramete
 | Color | [`cascade-color`](animations/preset-reference.md#cascade-color), [`color-shift`](animations/preset-reference.md#color-shift), [`shimmer`](animations/preset-reference.md#shimmer) |
 | Text | [`text-glitch`](animations/preset-reference.md#text-glitch), [`text-reveal`](animations/preset-reference.md#text-reveal), [`text-decode`](animations/preset-reference.md#text-decode), [`text-scramble`](animations/preset-reference.md#text-scramble), [`text-typewriter`](animations/preset-reference.md#text-typewriter) |
 | Visual Effects | [`cascade`](animations/preset-reference.md#cascade), [`flicker`](animations/preset-reference.md#flicker), [`glitch`](animations/preset-reference.md#glitch), [`ripple`](animations/preset-reference.md#ripple) |
-| SVG | [`draw`](animations/preset-reference.md#draw), [`march`](animations/preset-reference.md#march) |
-| Stagger | [`stagger-grid`](animations/preset-reference.md#stagger-grid), [`stagger-wave`](animations/preset-reference.md#stagger-wave), [`stagger-radial`](animations/preset-reference.md#stagger-radial), [`stagger-flash`](animations/preset-reference.md#stagger-flash) |
+| SVG | [`draw`](animations/preset-reference.md#draw), [`march`](animations/preset-reference.md#march), [`morph`](animations/preset-reference.md#morph) |
+| Stagger | [`stagger-grid`](animations/preset-reference.md#stagger-grid), [`stagger-wave`](animations/preset-reference.md#stagger-wave), [`stagger-radial`](animations/preset-reference.md#stagger-radial), [`stagger-flash`](animations/preset-reference.md#stagger-flash), [`tap-ripple`](animations/preset-reference.md#tap-ripple) |
+| Effects | [`boot-sequence`](animations/preset-reference.md#boot-sequence), [`sensor-sweep`](animations/preset-reference.md#sensor-sweep) |
 | Timeline | [`timeline-cascade`](animations/preset-reference.md#timeline-cascade), [`timeline-attention`](animations/preset-reference.md#timeline-attention), [`sequence`](animations/preset-reference.md#sequence) |
 | Advanced | [`chaos`](animations/preset-reference.md#chaos), [`physics-spring`](animations/preset-reference.md#physics-spring) |
 | Utility | [`motionpath`](animations/preset-reference.md#motionpath), [`set`](animations/preset-reference.md#set), [`custom`](animations/preset-reference.md#custom) |

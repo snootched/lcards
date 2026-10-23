@@ -1,0 +1,14 @@
+# sensor-sweep centred on an elbow's corner (new-presets.spec.js)
+type: custom:lcards-elbow
+elbow:
+  type: header-left
+  segment:
+    bar_width: 60
+    bar_height: 20
+animations:
+  - trigger: on_load
+    preset: sensor-sweep
+    params:
+      duration: 2000
+      center: [30, 10]
+      radius: 60

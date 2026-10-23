@@ -26,6 +26,20 @@ import { TriggerManager } from '../core/animation/TriggerManager.js';
  * - Shadow DOM support
  * - Late-binding for AnimationManager
  */
+/**
+ * Viewport position of a mouse, pointer or touch event, or null (keyboard activation).
+ * @param {any} event
+ * @returns {{ clientX: number, clientY: number }|null}
+ */
+export function pointerOf(event) {
+    const point = event?.touches?.[0] ?? event?.changedTouches?.[0] ?? event;
+    const { clientX, clientY } = point ?? {};
+    if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return null;
+    // A keyboard "click" reports 0,0
+    if (clientX === 0 && clientY === 0 && event?.detail === 0) return null;
+    return { clientX, clientY };
+}
+
 export class LCARdSActionHandler {
 
     constructor() {
@@ -230,6 +244,8 @@ export class LCARdSActionHandler {
         // Tap action handler with double-tap coordination
         if (actions.tap_action || actions.double_tap_action) {
             const tapHandler = async (event) => {
+                // The tap point, for stagger `from: 'pointer'` (tap-ripple)
+                const tapContext = { pointer: pointerOf(event) };
                 // Check if click target is a segment element (Phase 2 multi-action regions)
                 // Walk up the DOM tree to check for data-lcards-segment attribute
                 let targetElement = event.target;
@@ -272,7 +288,7 @@ export class LCARdSActionHandler {
                                 // Trigger animation if registration completed
                                 const currentAnimationManager = options.getAnimationManager?.() || window.lcards?.core?.getAnimationManager?.();
                                 if (currentAnimationManager && elementId) {
-                                    currentAnimationManager.triggerAnimations(elementId, 'on_tap');
+                                    currentAnimationManager.triggerAnimations(elementId, 'on_tap', tapContext);
                                 }
 
                                 if (!playToggleSound(actions.tap_action, defaultEntity)) playSound('card_tap');
@@ -291,7 +307,7 @@ export class LCARdSActionHandler {
                         // Trigger animation if registration completed
                         const dtAnimationManager = options.getAnimationManager?.() || window.lcards?.core?.getAnimationManager?.();
                         if (dtAnimationManager && elementId) {
-                            dtAnimationManager.triggerAnimations(elementId, 'on_double_tap');
+                            dtAnimationManager.triggerAnimations(elementId, 'on_double_tap', tapContext);
                         }
 
                         if (!playToggleSound(actions.double_tap_action, defaultEntity)) playSound('card_double_tap');
@@ -307,7 +323,7 @@ export class LCARdSActionHandler {
                     // Trigger animation if registration completed
                     const currentAnimationManager = options.getAnimationManager?.() || window.lcards?.core?.getAnimationManager?.();
                     if (currentAnimationManager && elementId) {
-                        currentAnimationManager.triggerAnimations(elementId, 'on_tap');
+                        currentAnimationManager.triggerAnimations(elementId, 'on_tap', tapContext);
                     }
 
                     if (!playToggleSound(actions.tap_action, defaultEntity)) playSound('card_tap');
@@ -323,6 +339,7 @@ export class LCARdSActionHandler {
         // Hold action handler
         if (actions.hold_action) {
             const holdStart = (event) => {
+                const holdContext = { pointer: pointerOf(event) };
                 event.stopPropagation();
                 event.preventDefault(); // Prevent click from firing
                 isHolding = false;
@@ -339,7 +356,7 @@ export class LCARdSActionHandler {
                     // Trigger animation if registration completed
                     const currentAnimationManager = options.getAnimationManager?.() || window.lcards?.core?.getAnimationManager?.();
                     if (currentAnimationManager && elementId) {
-                        currentAnimationManager.triggerAnimations(elementId, 'on_hold');
+                        currentAnimationManager.triggerAnimations(elementId, 'on_hold', holdContext);
                     }
 
                     if (!playToggleSound(actions.hold_action, defaultEntity)) playSound('card_hold');

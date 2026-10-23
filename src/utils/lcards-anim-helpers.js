@@ -510,6 +510,32 @@ function _withPresetCleanup(instance, element) {
 /** `from` aliases kept from the LCARdS docs, mapped to anime.js v4 names. */
 const _STAGGER_FROM_ALIASES = { start: 'first', end: 'last' };
 const _STAGGER_FROM_VALUES = new Set(['first', 'center', 'last', 'random']);
+
+/**
+ * The tap point as an anime.js grid `from: [x, y]`: anime.js measures that pair
+ * against the box spanned by the targets' CENTRES (stagger.js, `grid: true`), so the
+ * point is normalised to that box, not to the union of the targets. A tap outside it
+ * gives a value below 0 or above 1, which anime.js extrapolates correctly. An axis
+ * with no extent (one row, one column) gets 0.5.
+ *
+ * @param {{ clientX: number, clientY: number }|null} pointer - viewport coordinates
+ * @param {Array<{ left: number, top: number, width: number, height: number }>} rects - the targets' client rects
+ * @returns {[number, number]|null} null without a usable pointer or targets
+ */
+export function pointerFrom(pointer, rects) {
+  if (!pointer || !Number.isFinite(pointer.clientX) || !Number.isFinite(pointer.clientY) || !rects?.length) return null;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const r of rects) {
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    if (cx < minX) minX = cx;
+    if (cx > maxX) maxX = cx;
+    if (cy < minY) minY = cy;
+    if (cy > maxY) maxY = cy;
+  }
+  const axis = (/** @type {number} */ v, /** @type {number} */ lo, /** @type {number} */ hi) => (hi - lo > 0 ? (v - lo) / (hi - lo) : 0.5);
+  return [axis(pointer.clientX, minX, maxX), axis(pointer.clientY, minY, maxY)];
+}
 /** `axis` aliases: a row runs along x, a column along y. */
 const _STAGGER_AXIS_ALIASES = { row: 'x', column: 'y' };
 
@@ -522,16 +548,25 @@ const _STAGGER_AXIS_ALIASES = { row: 'x', column: 'y' };
  * `from: 'edges'` (centre, reversed: edges first), `axis: 'row' | 'column'` and the
  * legacy `direction: 'reverse'`. An unknown `from` string falls back to 'first'.
  *
+ * `from: 'pointer'` starts at the tap that triggered the animation (`context.pointer`
+ * plus the targets' client rects, see pointerFrom()) and turns `grid` on (positions
+ * read from the layout). Without a pointer (on_load, a preview) it starts at the centre.
+ *
  * @param {Object} marker - `{ _stagger: true, value, from, grid, ... }`
+ * @param {{ pointer?: { clientX: number, clientY: number }|null, rects?: Array<{ left: number, top: number, width: number, height: number }> }} [context]
  * @returns {{ value: number|number[], options: Object }}
  */
-export function staggerArgs(marker) {
+export function staggerArgs(marker, context = {}) {
   const value = marker.value ?? 100;
   /** @type {Record<string, any>} */
   const options = {};
 
   let from = marker.from;
   let reversed = marker.reversed === true || marker.direction === 'reverse';
+  if (from === 'pointer') {
+    from = pointerFrom(context.pointer ?? null, context.rects ?? []) ?? 'center';
+    if (marker.grid === undefined) options.grid = true;
+  }
   if (typeof from === 'string') {
     from = _STAGGER_FROM_ALIASES[from] ?? from;
     if (from === 'edges') {
@@ -657,10 +692,12 @@ function _buildTimeline(params, targets, root) {
  * @param {Object} params - Animation parameters from preset
  * @param {Element} element - Target element for animation
  * @param {Element|Document|ShadowRoot} root - Where step selectors of a timeline are resolved (the card's root)
+ * @param {{ clientX: number, clientY: number }|null} [pointer] - the tap that triggered it (stagger `from: 'pointer'`)
+ * @param {Element[]} [elements] - every target of a batch stagger (for `from: 'pointer'`)
  * @returns {Object} { isTimeline: boolean, timelineInstance: object|null, processedParams: object }
  * @private
  */
-function _processAnimationMarkers(params, element, root) {
+function _processAnimationMarkers(params, element, root, pointer = null, elements = [element]) {
   // 1. Handle _timeline marker - create timeline instead of single animation
   if (params._timeline === true) {
     if (!window.lcards?.anim?.animejs?.createTimeline) {
@@ -678,7 +715,8 @@ function _processAnimationMarkers(params, element, root) {
     if (!window.lcards?.anim?.animejs?.stagger) {
       lcardsLog.warn('[animateElement] stagger() not available for _stagger marker');
     } else {
-      const { value, options } = staggerArgs(processedParams.delay);
+      const rects = processedParams.delay.from === 'pointer' ? elements.map(el => el.getBoundingClientRect()) : [];
+      const { value, options } = staggerArgs(processedParams.delay, { pointer, rects });
       processedParams.delay = window.lcards.anim.animejs.stagger(value, options);
       lcardsLog.debug('[animateElement] Converted _stagger to stagger function', { value, options });
     }
@@ -827,7 +865,7 @@ function _writeAuthoredMatrix(el) {
  * @param {((instance: any) => void)|null} [onInstanceCreated] - receives each created anime.js instance or CSS handle
  */
 export async function animateElement(scope, options, hass = null, onInstanceCreated = null) {
-  const { type, targets, root = document, ...animOptions } = options;
+  const { type, targets, root = document, pointer = null, ...animOptions } = options;
   if (!type || !targets || !scope) {
     lcardsLog.warn('[animateElement] Animation missing type, targets, or scope.', { options, scope });
     return;
@@ -947,7 +985,7 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
             elements.forEach(el => _reportPresetInstances(el, onInstanceCreated));
 
             // Convert the _stagger marker to an anime.js stagger() function
-            const _batchMarkerResult = _processAnimationMarkers(_batchParams, elements[0], root);
+            const _batchMarkerResult = _processAnimationMarkers(_batchParams, elements[0], root, pointer, elements);
             if (!_batchMarkerResult.isTimeline) {
               // Resolve CSS variables (var(--...)) in color properties so anime.js
               // can interpolate them correctly (it can't parse var() references).
@@ -1068,20 +1106,6 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
           }
         }
 
-        // Handle morph animation (special case)
-        if (String(type).toLowerCase() === 'morph') {
-          if (!options.morph_to_selector) {
-            lcardsLog.error('[animateElement] morph animation requires a `morph_to_selector`.', { options });
-            continue;
-          }
-          const morphTarget = await waitForElement(options.morph_to_selector, root);
-          if (!morphTarget) {
-            lcardsLog.error(`[animateElement] morph could not find target shape for selector: ${options.morph_to_selector}`);
-            continue;
-          }
-          const precision = options.precision ? parseInt(options.precision, 10) : undefined;
-          Object.assign(params, { d: window.lcards.animejs.svg.morphTo(morphTarget, precision) });
-        }
       }
 
       // After the preset's styles and setup(): the migration needs the transform-origin
@@ -1104,7 +1128,7 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
       }
 
       // Process special animation markers (_timeline, _stagger)
-      const markerResult = _processAnimationMarkers(params, element, root);
+      const markerResult = _processAnimationMarkers(params, element, root, pointer);
 
       // If timeline marker was processed, track the timeline instance and skip anime() call
       if (markerResult.isTimeline && markerResult.timelineInstance) {
@@ -1163,6 +1187,11 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
         // aren't known until the actual DOM element/path exist, so they can't
         // be part of the preset factory's own returned `anime` object.
         animeParams = { ...animeParams, ...(/** @type {any} */ (element)._motionPath) };
+      }
+      if (/** @type {any} */ (element)._presetTweens) {
+        // Tween values setup() could only build once the element exists (morph's morphTo)
+        animeParams = { ...animeParams, ...(/** @type {any} */ (element)._presetTweens) };
+        delete /** @type {any} */ (element)._presetTweens;
       }
 
       // Strip LCARdS-internal meta-params before calling anime.animate()

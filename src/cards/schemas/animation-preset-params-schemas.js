@@ -445,6 +445,19 @@ export const motionpathParamsSchema = {
   additionalProperties: 'warn'
 };
 
+export const morphParamsSchema = {
+  type: 'object',
+  description: 'Params for the "morph" preset: the target shape (a path, polygon or polyline, or the first one inside the target) takes the geometry of the `to` shape. Stopping puts the original back; loop with alternate flips between the two.',
+  properties: {
+    ..._CANONICAL_REDECLARED,
+    duration: { ..._CANONICAL_REDECLARED.duration, default: 800 },
+    to: { type: 'string', description: 'Required. CSS selector of the shape to morph into, found in the same card, e.g. #warn_shape or [data-overlay-id="warn_shape"]. It can be hidden (display: none or inside defs).' },
+    precision: { type: 'number', minimum: 0, default: 0.33, description: 'Points sampled per SVG unit of path length (anime.js morphTo). Higher is smoother and slower. 0 interpolates the raw geometry, which only works when both shapes use the same path commands.' },
+    morph_to_selector: { type: 'string', deprecated: true, 'x-replacement': 'params.to', description: 'Old name for to.' }
+  },
+  additionalProperties: 'warn'
+};
+
 export const sequenceParamsSchema = {
   type: 'object',
   description: "Params for the \"sequence\" preset: timeline of steps. Each step may set its own duration/ease (falling back to this preset's own duration/ease as per-step defaults). Step positioning uses `offset`; the preset factory also accepts the older `at` name as a fallback (translated to `offset` internally); `offset` wins if a step sets both.",
@@ -546,11 +559,11 @@ export const staggerGridParamsSchema = {
     },
     from: {
       oneOf: [
-        { type: 'string', enum: ['first', 'last', 'center', 'edges', 'random', 'start', 'end'] },
+        { type: 'string', enum: ['first', 'last', 'center', 'edges', 'random', 'start', 'end', 'pointer'] },
         { type: 'array', minItems: 2, maxItems: 2, items: { type: 'integer', minimum: 0 } }
       ],
       default: 'first',
-      description: "Where the wave starts: 'first' (top-left), 'last', 'center' (outward), 'edges' (inward), 'random', or a [col, row] cell (0-indexed). 'start' and 'end' are aliases of 'first' and 'last'.",
+      description: "Where the wave starts: 'first' (top-left), 'last', 'center' (outward), 'edges' (inward), 'random', or a [col, row] cell (0-indexed). 'start' and 'end' are aliases of 'first' and 'last'. 'pointer' starts where the card was tapped (on_tap, on_hold, on_double_tap; the centre for other triggers).",
       // A oneOf with an array branch hits a known, separately-tracked bug in
       // FormField's oneOf/choose handling (_prepareValueForSelector has no
       // Array.isArray branch, so an array value always resets to the first
@@ -571,6 +584,32 @@ export const staggerGridParamsSchema = {
     property: { type: 'string', default: 'scale' },
     from_value: { type: 'number', default: 0.8 },
     to_value: { type: 'number', default: 1 }
+  },
+  additionalProperties: 'warn'
+};
+
+export const tapRippleParamsSchema = {
+  type: 'object',
+  description: 'Params for the "tap-ripple" preset: a pulse that spreads across the targets from where the card was tapped (positions read from the layout). Use with on_tap, on_hold or on_double_tap and several targets, e.g. target: .grid-cell in a data-grid.',
+  properties: {
+    duration: { ..._CANONICAL_REDECLARED.duration, default: 500, description: "One target's pulse, ms." },
+    ease: { ..._CANONICAL_REDECLARED.ease, description: "Default 'outQuad'." },
+    spread: { type: 'number', minimum: 0, default: 400, description: 'ms for the wave to travel from the tap point to the farthest target, whatever the layout.' },
+    scale: { type: 'number', minimum: 0, default: 1.08, description: 'Peak scale of each target.' },
+    opacity_min: { type: 'number', minimum: 0, maximum: 1, default: 0.4, description: 'Lowest opacity of each target during its pulse.' },
+    color: { ...simpleColorSchema, description: 'Optional flash colour at the peak of each pulse (theme token, CSS variable or colour).' },
+    property: { type: 'string', enum: ['color', 'fill', 'stroke'], default: 'color', description: "What color sets: 'color' for HTML text such as data-grid cells, 'fill' or 'stroke' for SVG shapes." },
+    from: {
+      type: 'string', enum: ['pointer', 'center', 'first', 'last', 'random'], default: 'pointer',
+      description: "Where the wave starts: 'pointer' is the tap point (the centre when another trigger fires it)."
+    },
+    reversed: { type: 'boolean', default: false, description: 'Run the wave inward, ending at the tap point.' },
+    jitter: {
+      anyOf: [{ type: 'number', minimum: 0 }, { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number', minimum: 0 } }],
+      description: 'Random extra delay per target (ms, or a [start, end] ramp) for a less even wave.',
+      'x-ui-hints': { widget: 'json', label: 'Jitter (ms)' }
+    },
+    seed: { type: 'number', description: 'Any number: the same jitter on every load.' }
   },
   additionalProperties: 'warn'
 };
@@ -614,7 +653,7 @@ export const staggerRadialParamsSchema = {
     },
     from: {
       oneOf: [
-        { type: 'string', enum: ['center', 'first', 'last', 'random'] },
+        { type: 'string', enum: ['center', 'first', 'last', 'random', 'pointer'] },
         { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number', minimum: 0, maximum: 1 } }
       ],
       default: 'center',
@@ -759,6 +798,51 @@ export const textTypewriterParamsSchema = {
 };
 
 // ============================================================================
+// EFFECT PRESETS (mirrors src/core/packs/animations/presets/effect-presets.js)
+// ============================================================================
+
+export const bootSequenceParamsSchema = {
+  type: 'object',
+  description: 'Params for the "boot-sequence" preset: the target powers up. Stroked shapes draw in, filled shapes come on, then the text decodes, all on one timeline. Parts the card does not have are skipped. Best on on_show or on_load.',
+  properties: {
+    duration: { ..._CANONICAL_REDECLARED.duration, default: 1200, description: 'ms for the whole sequence.' },
+    delay: { ..._CANONICAL_REDECLARED.delay, description: 'ms before the sequence starts.' },
+    fill: { type: 'string', enum: ['flicker', 'sweep', 'fade'], default: 'flicker', description: "How filled shapes come on: 'flicker' (a panel powering up), 'sweep' (wipes in from the from side) or 'fade'." },
+    from: { type: 'string', enum: ['left', 'right', 'top', 'bottom'], default: 'left', description: 'The side a sweep starts from.' },
+    draw: { type: 'boolean', default: true, description: 'Draw stroked shapes (borders, lines, rings) in.' },
+    decode: { type: 'boolean', default: true, description: 'Decode the text from glyph noise. Off: the text just appears.' },
+    chars: { type: 'string', default: 'A-Z0-9', description: 'Decode glyphs, as in text-decode: a named set (uppercase, numbers, blocks, ...) or ranges.' },
+    stagger: { type: 'number', minimum: 0, default: 60, description: 'ms between one shape coming on and the next.' },
+    seed: { type: 'number', description: 'Any number: the same decode on every load.' }
+  },
+  additionalProperties: 'warn'
+};
+
+export const sensorSweepParamsSchema = {
+  type: 'object',
+  description: 'Params for the "sensor-sweep" preset: a rotating scanner wedge with a ring that pings outward each turn. It draws its own shapes, centred on the target, and removes them when stopped.',
+  properties: {
+    duration: { ..._CANONICAL_REDECLARED.duration, default: 3000, description: 'ms per revolution (and per ping).' },
+    delay: { ..._CANONICAL_REDECLARED.delay, description: 'ms before it starts.' },
+    loop: { ..._CANONICAL_REDECLARED.loop, default: true },
+    radius: { type: 'number', exclusiveMinimum: 0, description: "SVG units. Default: half the shorter side of the target's box." },
+    center: {
+      type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' },
+      description: "[x, y] in the target's SVG units, e.g. an elbow corner or a spot on an MSD. Default: the centre of the target's box.",
+      'x-ui-hints': { widget: 'json', label: 'Center [x, y]' }
+    },
+    angle: { type: 'number', minimum: 1, maximum: 359, default: 40, description: 'Wedge width, degrees.' },
+    direction: { type: 'string', enum: ['cw', 'ccw'], default: 'cw', description: 'Clockwise or counter-clockwise.' },
+    color: { ...simpleColorSchema, default: 'theme:colors.ui.primary', description: 'Wedge colour.' },
+    ring_color: { ...simpleColorSchema, description: 'Ping ring colour. Default: color.' },
+    opacity: { type: 'number', minimum: 0, maximum: 1, default: 0.35, description: 'Wedge opacity. The ring starts at 2.5 times this (at most 1) and fades out.' },
+    ring: { type: 'boolean', default: true, description: 'Show the ping ring.' },
+    ring_width: { type: 'number', minimum: 0, default: 2, description: 'Ring stroke width, SVG units.' }
+  },
+  additionalProperties: 'warn'
+};
+
+// ============================================================================
 // TIMELINE PRESETS (mirrors src/core/packs/animations/presets/timeline-presets.js)
 // ============================================================================
 
@@ -832,6 +916,7 @@ export const ANIMATION_PRESET_PARAMS_SCHEMAS = {
   glitch: glitchParamsSchema,
   set: setParamsSchema,
   motionpath: motionpathParamsSchema,
+  morph: morphParamsSchema,
   sequence: sequenceParamsSchema,
   custom: customParamsSchema,
   chaos: chaosParamsSchema,
@@ -840,11 +925,14 @@ export const ANIMATION_PRESET_PARAMS_SCHEMAS = {
   'stagger-wave': staggerWaveParamsSchema,
   'stagger-radial': staggerRadialParamsSchema,
   'stagger-flash': staggerFlashParamsSchema,
+  'tap-ripple': tapRippleParamsSchema,
   'text-reveal': textRevealParamsSchema,
   'text-scramble': textScrambleParamsSchema,
   'text-decode': textDecodeParamsSchema,
   'text-glitch': textGlitchParamsSchema,
   'text-typewriter': textTypewriterParamsSchema,
+  'boot-sequence': bootSequenceParamsSchema,
+  'sensor-sweep': sensorSweepParamsSchema,
   'timeline-cascade': timelineCascadeParamsSchema,
   'timeline-attention': timelineAttentionParamsSchema
 };

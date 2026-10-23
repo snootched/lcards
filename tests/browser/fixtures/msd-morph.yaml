@@ -1,0 +1,31 @@
+# morph preset: a square status shape becomes the triangle shape (new-presets.spec.js)
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: none
+  view_box: [0, 0, 400, 200]
+  overlays:
+    - id: status_shape
+      type: shape
+      kind: polyline
+      closed: true
+      points: [[40, 40], [140, 40], [140, 140], [40, 140]]
+      style:
+        color: var(--lcars-orange)
+        fill: var(--lcars-orange)
+      animations:
+        - trigger: on_load
+          preset: morph
+          loop: true
+          alternate: true
+          params:
+            to: '[data-overlay-id="warn_shape"]'
+            duration: 400
+    - id: warn_shape
+      type: shape
+      kind: polyline
+      closed: true
+      points: [[290, 40], [340, 140], [240, 140]]
+      style:
+        color: var(--lcars-red)
+        fill: var(--lcars-red)

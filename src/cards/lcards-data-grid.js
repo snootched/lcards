@@ -22,6 +22,7 @@
 
 import { html, css } from 'lit';
 import { LCARdSCard } from '../base/LCARdSCard.js';
+import { pointerOf } from '../base/LCARdSActionHandler.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { prefersReducedMotion } from '../utils/reduced-motion.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
@@ -431,6 +432,23 @@ export class LCARdSDataGrid extends LCARdSCard {
   }
 
   /**
+   * A tap anywhere on the grid fires the card's on_tap animations with the tap point,
+   * for stagger `from: pointer` (tap-ripple). Capture phase: a cell with its own tap
+   * action stops the click before it bubbles, and its action must still run, so this
+   * neither stops nor prevents anything. Cell actions have no animation scope of
+   * their own, so nothing plays twice.
+   * @private
+   */
+  _onGridTap = {
+    capture: true,
+    handleEvent: (/** @type {MouseEvent} */ event) => {
+      const animationManager = this._singletons?.animationManager;
+      if (!animationManager || this._inCardPicker()) return;
+      animationManager.triggerAnimations(this._getAnimationSetup().overlayId, 'on_tap', { pointer: pointerOf(event) });
+    }
+  };
+
+  /**
    * Create the AnimationManager scope with every animation except the cascade
    * (which the card runs row by row).
    * @private
@@ -740,7 +758,7 @@ export class LCARdSDataGrid extends LCARdSCard {
 
     return html`
       <div class="lcards-card-container">
-        <div class="data-grid-container">
+        <div class="data-grid-container" @click=${this._onGridTap}>
           <div class="data-grid" style="${gridCss}">
             ${this._gridData.map((row, r) => row.map((text, c) => {
               const cell = this._cellConfigs[r]?.[c];

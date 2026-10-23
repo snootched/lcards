@@ -158,6 +158,65 @@ export const STAGGER_PRESETS = {
   },
 
   /**
+   * Tap Ripple - a wave across a group of targets, starting where it was tapped
+   *
+   * Every target pulses (scale up, dim, and optionally a colour flash) and back, each
+   * one later the further it is from the tap point. Positions come from the layout
+   * (anime.js grid stagger with `grid: true`), so it works on data-grid cells or any
+   * set of buttons or overlays without a [cols, rows]. Triggered by on_tap, on_hold or
+   * on_double_tap; any other trigger starts from the centre.
+   *
+   * Parameters:
+   * - spread (default: 400) - ms for the wave to reach the farthest target. A delay
+   *   range rather than a step: anime.js measures grid distances in units of the
+   *   closest pair of targets, so a step would make a wide, short grid crawl.
+   * - scale (default: 1.08) - peak scale of each target
+   * - opacity_min (default: 0.4) - lowest opacity of each target
+   * - color (optional) - flash colour at the peak (theme token, CSS variable or colour)
+   * - property (default: 'color') - what `color` sets: 'color' for HTML text (data-grid
+   *   cells), 'fill' or 'stroke' for SVG shapes
+   * - from (default: 'pointer') - any stagger from: 'center', 'first', ...
+   * - jitter, seed, reversed (optional) - see staggerExtras()
+   * - duration (default: 500) - one target's pulse, ms
+   * - ease (default: 'outQuad')
+   */
+  'tap-ripple': (def) => {
+    const p = resolvePresetParams(def);
+    const duration = p.duration || 500;
+    const scale = p.scale !== undefined ? p.scale : 1.08;
+    const opacityMin = p.opacity_min !== undefined ? p.opacity_min : 0.4;
+    /** @type {Record<string, any>} */
+    const anime = {
+      scale: [1, scale, 1],
+      opacity: [1, opacityMin, 1],
+      duration,
+      ease: getResolvedEasing(p) || 'outQuad',
+      loop: false,
+      delay: {
+        _stagger: true,
+        value: [0, p.spread !== undefined ? p.spread : 400],
+        from: p.from ?? 'pointer',
+        ...(p.grid !== undefined ? { grid: p.grid } : {}),
+        ...staggerExtras(p)
+      }
+    };
+    if (p.color) {
+      const property = p.property || 'color';
+      const flash = resolveConfiguredColor(p.color, { concrete: true });
+      // Back to the colour the target had before (read when the animation starts)
+      const original = (/** @type {Element} */ el) => getComputedStyle(el).getPropertyValue(property) || flash;
+      anime[property] = [{ to: flash, duration: duration / 2 }, { to: original, duration: duration / 2 }];
+    }
+    return {
+      anime,
+      styles: {
+        transformOrigin: 'center',
+        transformBox: 'fill-box'
+      }
+    };
+  },
+
+  /**
    * Stagger Wave - Wave effect across elements
    *
    * Creates a wave-like animation across a linear sequence of elements.

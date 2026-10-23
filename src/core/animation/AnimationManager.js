@@ -854,7 +854,14 @@ export class AnimationManager extends BaseService {
     }
   }
 
-  async triggerAnimations(overlayId, trigger) {
+  /**
+   * Play every animation registered on a scope for one trigger.
+   * @param {string} overlayId
+   * @param {string} trigger
+   * @param {{ pointer?: { clientX: number, clientY: number }|null }} [context] - pointer: the tap
+   *   that fired it, for stagger `from: 'pointer'` (tap-ripple)
+   */
+  async triggerAnimations(overlayId, trigger, context = {}) {
     const scopeData = this.scopes.get(overlayId);
 
     if (!scopeData) {
@@ -892,7 +899,7 @@ export class AnimationManager extends BaseService {
         continue;
       }
       try {
-        await this.playAnimation(overlayId, animDef);
+        await this.playAnimation(overlayId, animDef, context.pointer ? { pointer: context.pointer } : {});
       } catch (error) {
         lcardsLog.error(`[AnimationManager] Failed to play animation for ${overlayId}:`, error);
       }
@@ -1079,8 +1086,9 @@ export class AnimationManager extends BaseService {
    *
    * @param {string} overlayId - Overlay identifier
    * @param {Object} animDef - Animation definition (already resolved)
-   * @param {{ seek?: number }} [options] - seek: start this far in (ms); used to resume
-   *   an animation a card re-render cut off
+   * @param {{ seek?: number, pointer?: { clientX: number, clientY: number } }} [options] - seek: start
+   *   this far in (ms); used to resume an animation a card re-render cut off. pointer: the tap
+   *   that triggered it (stagger `from: 'pointer'`)
    * @returns {Promise<Object|null>} Animation instance
    */
   async playAnimation(overlayId, animDef, options = {}) {
@@ -1284,6 +1292,7 @@ export class AnimationManager extends BaseService {
         type: finalAnimDef.preset || finalAnimDef.type,
         targets: targetElements,  // Pass resolved DOM elements, not original selectors
         root: scopeData.element.getRootNode(),
+        pointer: options.pointer ?? null,
         // Pass params nested (not spread) so preset factories can still read
         // preset-specific fields via `def.params || def` (e.g. pulse's max_scale/
         // max_brightness) WITHOUT those fields also leaking onto animOptions

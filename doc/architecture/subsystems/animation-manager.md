@@ -80,7 +80,7 @@ Custom presets are registered via `animation_presets` in pack definitions.
 | Method | Returns | Description |
 |---|---|---|
 | `playAnimation(overlayId, animDef)` | `Promise<Object\|null>` | Resolve and play one animation definition against an overlay's scope; returns the resolved `animDef` or `null` on failure |
-| `triggerAnimations(overlayId, trigger)` | `Promise<void>` | Fire every animation registered for an overlay + trigger pair (used internally by `ActionHandler` on tap/hold/hover/etc.) |
+| `triggerAnimations(overlayId, trigger, context?)` | `Promise<void>` | Fire every animation registered for an overlay + trigger pair (used internally by `ActionHandler` on tap/hold/hover/etc.). `context.pointer` (`{ clientX, clientY }`, the tap point) reaches stagger `from: 'pointer'` (`tap-ripple`); the action handler passes it on tap, double tap and hold, the data grid on a tap anywhere on the grid |
 | `stopAnimation(overlayId)` | `void` | Revert the overlay's entire anime.js scope (all running instances) |
 | `stopAnimations(overlayId, trigger?)` | `void` | Stop animations for one overlay, optionally filtered to a single trigger |
 | `pauseOverlay(overlayId)` / `resumeOverlay(overlayId)` | `void` | Pause/resume the anime.js scope for an overlay |

@@ -1,0 +1,17 @@
+# boot-sequence on a bordered, labelled button (new-presets.spec.js)
+type: custom:lcards-button
+preset: lozenge
+text:
+  name:
+    content: BOOT SEQUENCE
+    show: true
+style:
+  border:
+    width: 3
+    color: var(--lcars-orange)
+animations:
+  - trigger: on_load
+    preset: boot-sequence
+    params:
+      duration: 1500
+      seed: 7
