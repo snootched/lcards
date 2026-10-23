@@ -129,7 +129,7 @@ function builder({ overlays, themeManager, sources = {} } = {}) {
         },
     };
     const cardModel = { viewBox: [0, 0, 100, 100], anchors: { a: [1, 1] }, overlaysBase: overlays };
-    return { mb: new ModelBuilder({ timelines: [] }, cardModel, coordinator), coordinator, subscribed, updates };
+    return { mb: new ModelBuilder({}, cardModel, coordinator), coordinator, subscribed, updates };
 }
 
 test('computeResolvedModel: overlays merge raw + base, theme: tokens resolve per component', async () => {

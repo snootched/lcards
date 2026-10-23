@@ -458,6 +458,18 @@ export const animationSchema = {
                 default: { type: 'object', additionalProperties: true }
             },
             description: 'Preset-specific parameters. Shape depends on the sibling `preset` field.'
+        },
+        type: {
+            type: 'string',
+            deprecated: true,
+            'x-replacement': 'preset',
+            description: 'Old name for preset, written by earlier animation editors as `type: custom` (now `preset: custom`).'
+        },
+        animejs: {
+            type: 'object',
+            deprecated: true,
+            'x-replacement': 'params',
+            description: 'Old home of the raw anime.js properties of a custom animation (now `params` with `preset: custom`).'
         }
     },
     // 'warn', not false: an unrecognized top-level field here is worth surfacing but

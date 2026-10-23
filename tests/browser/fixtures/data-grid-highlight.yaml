@@ -1,0 +1,12 @@
+# highlight_changes: a changed cell pulses through AnimationManager (animation-sequence.spec.js)
+type: custom:lcards-data-grid
+data_mode: data
+rows:
+  - [Inside, input_number.demo_level]
+  - [Humidity, switch.demo_switch]
+grid:
+  grid-template-columns: 140px 1fr
+highlight_changes:
+  preset: pulse
+  duration: 400
+  params: {max_scale: 1.2}

@@ -1621,6 +1621,24 @@ registerAnimationPreset('sequence', (def) => {
 });
 
 /**
+ * Custom - raw anime.js v4 animation properties, passed through to animate()
+ *
+ * `params` holds any anime.js v4 animation properties (opacity, scale, translateX,
+ * keyframes, loop, alternate, ease, ...). The target comes from the animation's own
+ * `target`/`targets`, so a `targets` key inside params is ignored. Colours and the
+ * reduced-motion gate apply as for every preset.
+ *
+ * Legacy: the animation editor used to write `type: custom` with the properties in
+ * `animejs:`; that shape is read too (the editor rewrites it to this one on edit).
+ */
+registerAnimationPreset('custom', (def) => {
+  const raw = (def.animejs && typeof def.animejs === 'object') ? def.animejs : (def.params || {});
+  const { targets: _targets, target: _target, ...props } = raw;
+  if (props.ease !== undefined) props.ease = getResolvedEasing(props);
+  return { anime: props, styles: {} };
+});
+
+/**
  * Chaos - Randomized multi-property animation for glitch/malfunction effects
  *
  * Creates unpredictable, chaotic motion by randomizing multiple properties

@@ -572,7 +572,7 @@ A generic multi-step timeline you fully define yourself.
 
 | Param | Default | Description |
 |-------|---------|-------------|
-| `steps` | - | Required, at least 1. Array of step objects, each with: `targets` (CSS selector, falls back to the animated element if absent), `params` (arbitrary anime.js tween properties, e.g. `scale`/`opacity`), `duration`, and `offset` (`'+=N'` relative, `'<'` overlap-with-previous, or an absolute ms number) |
+| `steps` | - | Required, at least 1. Array of step objects, each with: `targets` (a CSS selector inside the card; without it the step animates the animation's own target), `params` (arbitrary anime.js tween properties, e.g. `scale`/`opacity`), `duration`, and `offset` (see [step positions](#sequence)) |
 | `loop` | `false` | Loop the full timeline |
 
 ```yaml
@@ -629,6 +629,28 @@ animations:
 ```
 
 <AnimationPlayground preset="set" />
+
+### `custom`
+
+Raw anime.js v4 animation properties, passed straight to `animate()`: anything a preset doesn't cover. `params` holds the properties; the element comes from the animation's own `target`/`targets` (a `targets` key inside `params` is ignored). Colours (theme tokens, CSS variables) are resolved and the [reduced-motion gate](../animations.md#reduced-motion) applies, as for every preset. The animation editor's **Use custom anime.js code** switch writes this shape.
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| any anime.js v4 property | - | `opacity`, `scale`, `translateX`, `rotate`, `fill`, `keyframes`, ... with anime.js v4 values (`[from, to]`, keyframe arrays, `'+=10'`) |
+| `duration`, `ease`, `loop`, `alternate`, `delay` | - | As in anime.js; `ease` takes the same names as every preset (`outQuad`, `inOutSine`, ...) |
+
+```yaml
+animations:
+  - preset: custom
+    trigger: on_tap
+    params:
+      scale: [1, 1.08, 1]
+      rotate: [0, 3, -3, 0]
+      duration: 600
+      ease: outQuad
+```
+
+> Function values and callbacks can't be written in YAML, so stagger, `onComplete` and the like aren't available here; use a [stagger preset](#stagger-presets) or [`sequence`](#sequence) for those. Configs from older editors (`type: custom` with an `animejs:` block) still run, but the config checker reports them (they have no `preset`); the editor rewrites them to `preset: custom` when you edit them, or change them by hand.
 
 ### `motionpath`
 
@@ -702,7 +724,7 @@ Timeline-based animation with multiple steps at specified offsets. Uses `anime.j
 
 | Param | Default | Description |
 |-------|---------|-------------|
-| `steps` | - | Array of step objects (required, at least 1); each has the same fields as a normal anime.js animate call plus an optional `offset` (an absolute ms number, `'+=N'` relative, or `'<'` for overlap-with-previous) |
+| `steps` | - | Array of step objects (required, at least 1); each has the same fields as a normal anime.js animate call plus an optional `target` and `offset` (below) |
 | `duration` | `2000` | Default duration per step (used when a step doesn't set its own) |
 | `ease` | `outQuad` | Default easing per step (used when a step doesn't set its own) |
 | `loop` | `false` | Loop the full sequence |
@@ -720,6 +742,34 @@ Timeline-based animation with multiple steps at specified offsets. Uses `anime.j
 ```
 
 > Prefer `offset`: the older `at` name is also accepted as a fallback (translated internally), but `offset` wins if a step sets both.
+
+The whole sequence is one timeline, however many elements it animates. Each step can name its own `target`: a CSS selector resolved inside the card, so one sequence can move between parts of a card. Without `target`, a step animates the animation's own target(s). In an MSD card the selector reaches every overlay of that card, for example `[data-overlay-id="line_1"]`, so a sequence can draw a line, then light a control, then fade in a label.
+
+Step positions (`offset`):
+
+| Value | Starts |
+|---|---|
+| (none) | When the previous step ends |
+| `500` | At 500 ms from the start of the sequence |
+| `'+=200'` / `'-=200'` | 200 ms after / before the previous step ends |
+| `'<'` | When the previous step ends |
+| `'<<'` | Together with the previous step |
+
+A button that fades its fill in, then its label:
+
+```yaml
+- preset: sequence
+  trigger: on_show
+  params:
+    steps:
+      - target: .button-bg
+        opacity: [0, 1]
+        duration: 400
+      - target: "[data-field-id='name']"
+        opacity: [0, 1]
+        duration: 300
+        offset: "-=150"
+```
 
 <AnimationPlayground preset="sequence" />
 

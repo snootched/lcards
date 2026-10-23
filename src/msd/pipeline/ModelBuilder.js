@@ -6,7 +6,6 @@
  * fully-resolved model ready for AdvancedRenderer.
  */
 
-import { resolveDesiredTimelines } from '../../core/animation/resolveTimelines.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { isHAEntity } from '../utils/HADomains.js';
 
@@ -17,7 +16,6 @@ export class ModelBuilder {
     this.systems = coordinator;
 
     // animationIndex removed - animations now defined directly on overlays
-    this.timelineDefs = mergedConfig.timelines || [];
 
     this._resolvedModelRef = null;
   }
@@ -37,7 +35,7 @@ export class ModelBuilder {
     // MSD card receives patches automatically when rules affecting it change
 
     // Process animations (no rule result needed)
-    const { activeAnimations, animDiff, tlDiff } = this._processAnimations(baseOverlays, { overlayPatches: [] });
+    const { animDiff } = this._processAnimations(baseOverlays, { overlayPatches: [] });
 
     // Build final resolved model
     const resolved = {
@@ -45,7 +43,6 @@ export class ModelBuilder {
       anchors: { ...this.cardModel.anchors },
       overlays: baseOverlays,
       animations: animDiff.active,
-      timelines: tlDiff.active,
       config: this.mergedConfig
     };
 
@@ -150,12 +147,9 @@ export class ModelBuilder {
   _processAnimations(overlaysWithPatches, ruleResult) {
     // Legacy animation_ref system removed
     // Animations are now handled directly by AnimationManager from overlay.animations arrays
-    const desiredTimelines = resolveDesiredTimelines(this.timelineDefs);
-
     const animDiff = { active: [] };
-    const tlDiff = { active: desiredTimelines };
 
-    return { activeAnimations: [], animDiff, tlDiff };
+    return { activeAnimations: [], animDiff };
   }
 
 

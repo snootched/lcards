@@ -270,6 +270,11 @@ export class LCARdSAnimationEditor extends LitElement {
    */
   _normalizeAnimation(anim) {
     const TOP_LEVEL_KEYS = ['loop', 'alternate', 'duration', 'delay', 'ease'];
+    // Legacy custom animation (type: custom, properties in animejs) -> preset: custom + params
+    if (anim.type === 'custom' && anim.animejs && typeof anim.animejs === 'object') {
+      const { type: _type, animejs, ...rest } = anim;
+      anim = { ...rest, preset: 'custom', params: { ...animejs } };
+    }
     if (!anim.params) return anim;
 
     const presetSchema = ANIMATION_PRESET_PARAMS_SCHEMAS[anim.preset];
@@ -650,7 +655,7 @@ export class LCARdSAnimationEditor extends LitElement {
   _renderAnimationItem(anim, index) {
     const isExpanded = this._expandedIndex === index;
     const trigger = anim.trigger || 'on_load';
-    const isCustom = anim.type === 'custom';
+    const isCustom = anim.preset === 'custom' || anim.type === 'custom';
     const preset = anim.preset || 'pulse';
     const isEnabled = anim.enabled !== false;
     const isSystem = !!(anim.id && this.systemAnimationIds?.includes(anim.id));
@@ -728,7 +733,7 @@ export class LCARdSAnimationEditor extends LitElement {
   }
 
   _renderAnimationForm(anim, index) {
-    const isCustom = anim.type === 'custom';
+    const isCustom = anim.preset === 'custom' || anim.type === 'custom';
     const preset = anim.preset || 'pulse';
     const isPlaceholder = this._isPlaceholderPreset(preset);
     const isEnabled = anim.enabled !== false;
@@ -1655,7 +1660,13 @@ export class LCARdSAnimationEditor extends LitElement {
   }
 
   _renderCustomForm(anim, index) {
-    const animeConfig = anim.animejs || {};
+    // Legacy configs keep the properties in animejs (type: custom); _normalizeAnimation
+    // converts them, so this is a fallback
+    const animeConfig = anim.animejs || anim.params || {};
+    // Timing and easing live at the top level, like every preset (see _normalizeAnimation),
+    // and get the same Timing & Duration / Easing Function sections
+    const TOP_LEVEL_KEYS = ['loop', 'alternate', 'duration', 'delay', 'ease'];
+    const timing = Object.fromEntries(TOP_LEVEL_KEYS.filter(k => anim[k] !== undefined).map(k => [k, anim[k]]));
 
     return html`
       <lcards-form-section
@@ -1672,12 +1683,13 @@ export class LCARdSAnimationEditor extends LitElement {
           }}>
         </ha-yaml-editor>
         <lcards-message type="info">
-          Enter a valid object for anime.js v4 configuration (JSON or YAML syntax both work).
+          anime.js v4 properties (YAML or JSON), e.g. scale, opacity, keyframes. The target is set above; duration, delay, loop, alternate and easing in the sections below.
           <a href="https://animejs.com/documentation/" target="_blank" rel="noopener noreferrer">
             View Documentation →
           </a>
         </lcards-message>
       </lcards-form-section>
+      ${this._renderCommonParams(timing, index)}
     `;
   }
 
@@ -2368,12 +2380,17 @@ export class LCARdSAnimationEditor extends LitElement {
   _toggleCustomMode(index, isCustom) {
     const updated = [...this.animations];
     if (isCustom) {
-      // Convert preset to custom
+      // Convert preset to custom: raw anime.js v4 properties in params. Keeps the
+      // trigger, id, target and enabled flag (the target picker still applies).
+      const { id, trigger, target, targets, enabled } = updated[index];
       updated[index] = {
-        trigger: updated[index].trigger || 'on_load',
-        type: 'custom',
-        animejs: {
-          targets: '#your-overlay-id',
+        ...(id !== undefined ? { id } : {}),
+        trigger: trigger || 'on_load',
+        ...(target !== undefined ? { target } : {}),
+        ...(targets !== undefined ? { targets } : {}),
+        ...(enabled !== undefined ? { enabled } : {}),
+        preset: 'custom',
+        params: {
           scale: [1, 1.1, 1],
           duration: 1000,
           loop: true
@@ -2381,7 +2398,7 @@ export class LCARdSAnimationEditor extends LitElement {
       };
     } else {
       // Convert custom to preset
-      const { type, animejs, ...rest } = updated[index];
+      const { type, animejs, preset: _preset, params: _params, ...rest } = updated[index];
       updated[index] = {
         ...rest,
         preset: 'pulse',
@@ -2399,9 +2416,24 @@ export class LCARdSAnimationEditor extends LitElement {
   // needed, unlike the old plain-text-input version of this handler.
   _updateCustomConfig(index, config) {
     const updated = [...this.animations];
+    // Writes the current shape (preset: custom + params), dropping the legacy type/animejs
+    // keys. Timing keys typed into the YAML move to the top level, where the Timing &
+    // Duration / Easing Function sections edit them (and the runtime reads them).
+    const TOP_LEVEL_KEYS = ['loop', 'alternate', 'duration', 'delay', 'ease'];
+    const { type: _type, animejs: _animejs, ...rest } = updated[index];
+    const params = { ...(config && typeof config === 'object' ? config : {}) };
+    const promoted = {};
+    for (const key of TOP_LEVEL_KEYS) {
+      if (params[key] !== undefined) {
+        promoted[key] = params[key];
+        delete params[key];
+      }
+    }
     updated[index] = {
-      ...updated[index],
-      animejs: config
+      ...rest,
+      ...promoted,
+      preset: 'custom',
+      params
     };
     this._workingAnimations = updated;
     this._fireChange();

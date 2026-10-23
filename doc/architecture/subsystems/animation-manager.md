@@ -18,8 +18,7 @@
 | `AnimationRegistry` | `core/animation/AnimationRegistry.js` | Caches compiled anime.js instances; avoids re-parsing |
 | `TriggerManager` | `core/animation/TriggerManager.js` | Manages trigger subscriptions (entity_change, datasource) |
 | `AnimationPerformanceMonitor` | `core/animation/PerformanceMonitor.js` | Tracks active animation count and frame budget |
-| `resolveAnimations` | `core/animation/resolveAnimations.js` | Merges preset defaults with overlay animation config |
-| `resolveTimelines` | `core/animation/resolveTimelines.js` | Resolves timeline steps from config or preset |
+| `resolveAnimParams` | `core/animation/resolveAnimParams.js` | Resolves `map_range` descriptors (entity-driven duration, delay, params) to numbers |
 
 ---
 
@@ -28,12 +27,11 @@
 ```
 AnimationManager
     ├─ scopes Map (overlayId → scope)
-    │   ├─ scope.triggerManager  (TriggerManager per overlay)
-    │   └─ scope.activeAnimations (Set<anime instance>)
+    │   ├─ scope.triggerManager   (TriggerManager per overlay)
+    │   └─ scope.runningInstances (trigger → anime instances it started)
     │
     ├─ AnimationRegistry  (shared, caches anime instances by key)
-    ├─ datasourceSubscriptions (datasource_id → cleanup fn)
-    └─ timelines Map (timelineId → createTimeline() instance)
+    └─ datasourceSubscriptions (datasource_id → cleanup fn)
 ```
 
 ---
@@ -102,7 +100,7 @@ Custom animation presets are registered via `animation_presets` in pack definiti
 ```javascript [Snapshot]
 window.lcards.debug.singleton('animationManager')
 // → { type: 'AnimationManager', initialized: true, scopesCount: 4, customPresetsCount: 0,
-//      timelinesCount: 0, activeAnimationsCount: 1, registeredAnimationsCount: 3,
+//      activeAnimationsCount: 1, registeredAnimationsCount: 3,
 //      hasMountEl: true, hasSystemsManager: true }
 ```
 ```javascript [Live object]

@@ -555,6 +555,64 @@ export function presetRandom(seed) {
   };
 }
 
+/** Timeline-level anime.js params a timeline preset may set (the rest belong to steps). */
+const _TIMELINE_PARAMS = ['loop', 'alternate', 'loopDelay', 'reversed', 'playbackRate', 'playbackEase'];
+
+/**
+ * Elements a timeline step animates: its own `target`/`targets` selector(s), resolved
+ * inside `root`, or the animation's own targets when the step names none.
+ * @param {any} spec - selector string, Element, array of either, or undefined
+ * @param {Element|Document|ShadowRoot} root
+ * @param {Element[]} fallback
+ * @returns {Element[]}
+ */
+function _resolveStepTargets(spec, root, fallback) {
+  if (spec === undefined || spec === null) return fallback;
+  if (spec instanceof Element) return [spec];
+  if (Array.isArray(spec)) return spec.flatMap(s => _resolveStepTargets(s, root, []));
+  if (typeof spec === 'string' && root && 'querySelectorAll' in root) return [...root.querySelectorAll(spec)];
+  return [];
+}
+
+/**
+ * Build one anime.js timeline from a timeline preset's params (`_timeline` marker).
+ *
+ * Each step is `{ target | targets, offset, params?, ...tween props }`. A step selector is
+ * resolved inside `root` (the card's shadow root; in an MSD card that reaches every
+ * overlay of the card, e.g. `[data-overlay-id="line_1"]`), so one timeline can move
+ * between parts of a card. Offsets are anime.js v4 positions: a number (ms), '+=N' /
+ * '-=N' relative to the end of the previous step, '<' at the end of the previous step,
+ * '<<' together with it, or a label.
+ *
+ * @param {Record<string, any>} params - merged preset output (`steps`, `loop`, ...)
+ * @param {Element[]} targets - the animation's own targets (steps without a selector)
+ * @param {Element|Document|ShadowRoot} root
+ * @returns {any} the timeline
+ */
+function _buildTimeline(params, targets, root) {
+  /** @type {Record<string, any>} */
+  const timelineParams = {};
+  for (const key of _TIMELINE_PARAMS) {
+    if (params[key] !== undefined) timelineParams[key] = params[key];
+  }
+  if (typeof params.delay === 'number') timelineParams.delay = params.delay;
+  const timeline = window.lcards.anim.animejs.createTimeline(timelineParams);
+
+  (Array.isArray(params.steps) ? params.steps : []).forEach((step, index) => {
+    const { target, targets: stepSelector, offset, params: stepParams, ...stepProps } = step;
+    const stepTargets = _resolveStepTargets(stepSelector ?? target, root, targets);
+    if (stepTargets.length === 0) {
+      lcardsLog.warn(`[animateElement] Timeline step ${index}: no element matches`, { target: stepSelector ?? target });
+      return;
+    }
+    stepTargets.forEach(el => _migrateTransformAttrToStyle(el));
+    const props = _cleanAnimeParams(resolveAnimationCssVariables(stepParams ? { ...stepProps, ...stepParams } : stepProps));
+    if (props.ease !== undefined) props.ease = resolveEasing(props.ease);
+    timeline.add(stepTargets, props, offset);
+  });
+  return timeline;
+}
+
 /**
  * Process special animation markers (_timeline, _stagger)
  * These are inserted by presets to signal special handling
@@ -577,44 +635,18 @@ export function presetRandom(seed) {
  *
  * @param {Object} params - Animation parameters from preset
  * @param {Element} element - Target element for animation
- * @param {Object} scope - Scope object with scope.scope property
+ * @param {Element|Document|ShadowRoot} root - Where step selectors of a timeline are resolved (the card's root)
  * @returns {Object} { isTimeline: boolean, timelineInstance: object|null, processedParams: object }
  * @private
  */
-function _processAnimationMarkers(params, element, scope) {
+function _processAnimationMarkers(params, element, root) {
   // 1. Handle _timeline marker - create timeline instead of single animation
   if (params._timeline === true) {
-    lcardsLog.debug('[animateElement] Processing _timeline marker');
-
-    const { _timeline, steps, ...timelineGlobals } = params;
-
     if (!window.lcards?.anim?.animejs?.createTimeline) {
       lcardsLog.error('[animateElement] createTimeline not available for _timeline marker');
       return { isTimeline: false, timelineInstance: null, processedParams: params };
     }
-
-    const timeline = window.lcards.anim.animejs.createTimeline(_cleanAnimeParams(timelineGlobals));
-
-    // Add each step to timeline
-    if (Array.isArray(steps)) {
-      steps.forEach(step => {
-        const { targets, offset, params: stepParams, ...stepAnimationProps } = step;
-
-        // If step has targets, resolve them; otherwise use element
-        const stepTargets = targets || element;
-
-        // Merge step params if provided
-        const finalStepProps = stepParams ? { ...stepAnimationProps, ...stepParams } : stepAnimationProps;
-
-        timeline.add(stepTargets, finalStepProps, offset);
-      });
-    }
-
-    return {
-      isTimeline: true,
-      timelineInstance: timeline,
-      processedParams: params
-    };
+    return { isTimeline: true, timelineInstance: _buildTimeline(params, [element], root), processedParams: params };
   }
 
   // Make a copy to avoid mutating original
@@ -795,6 +827,34 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
       });
     }
 
+    // ── Timeline short-circuit ───────────────────────────────────────────────
+    // A timeline preset (sequence, timeline-*) builds ONE timeline for the whole
+    // animation: steps without their own selector animate all targets together,
+    // steps with one animate those elements. (One timeline per target would run
+    // N copies of the same sequence.)
+    if (!Array.isArray(type)) {
+      const _tlPresetFn = getAnimationPreset(String(type).toLowerCase());
+      if (_tlPresetFn) {
+        const _tlParams = { duration: 1000, ease: 'inOutQuad', ...animOptions };
+        if (_tlParams.ease) _tlParams.ease = resolveEasing(_tlParams.ease);
+        const _tlResult = _tlPresetFn(_tlParams);
+        if (_tlResult?._timeline || _tlResult?.anime?._timeline) {
+          elements.forEach(el => {
+            _migrateTransformAttrToStyle(el);
+            if (_tlResult.styles) Object.assign(/** @type {any} */ (el).style, _tlResult.styles);
+            if (_tlResult.setup) { try { _tlResult.setup(el); } catch (_se) {} }
+          });
+          if (!window.lcards?.anim?.animejs?.createTimeline) {
+            lcardsLog.error('[animateElement] createTimeline not available for timeline preset', { type });
+            return;
+          }
+          const _timeline = _buildTimeline({ ..._tlParams, ..._tlResult.anime }, elements, root);
+          if (onInstanceCreated) onInstanceCreated(_timeline);
+          return;
+        }
+      }
+    }
+
     // ── Stagger-batch short-circuit ──────────────────────────────────────────
     // Stagger presets (stagger-grid, stagger-wave, stagger-radial) require a
     // SINGLE anime() call across ALL elements so that the stagger delay
@@ -847,7 +907,7 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
             }
 
             // Convert the _stagger marker to an anime.js stagger() function
-            const _batchMarkerResult = _processAnimationMarkers(_batchParams, elements[0], scope);
+            const _batchMarkerResult = _processAnimationMarkers(_batchParams, elements[0], root);
             if (!_batchMarkerResult.isTimeline) {
               // Resolve CSS variables (var(--...)) in color properties so anime.js
               // can interpolate them correctly (it can't parse var() references).
@@ -1001,7 +1061,7 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
       }
 
       // Process special animation markers (_timeline, _stagger)
-      const markerResult = _processAnimationMarkers(params, element, scope);
+      const markerResult = _processAnimationMarkers(params, element, root);
 
       // If timeline marker was processed, track the timeline instance and skip anime() call
       if (markerResult.isTimeline && markerResult.timelineInstance) {
@@ -1103,188 +1163,6 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
   }
 }
 
-
-/**
- * v4: Create a single timeline from an array of steps.
- * Uses createTimeline consistently and add(targets, vars, offset).
- * @param {Array} timelineConfig - [{ targets, ...vars, offset? }]
- * @param {string} scopeId
- * @param {Element|Document} root
- */
-export async function createTimeline(timelineConfig, scopeId, root = document) {
-  const scopeObj = window.lcards.anim.scopes.get(scopeId);
-  const timeline = window.lcards.anim.animejs.createTimeline({ scope: scopeObj?.scope });
-
-  if (!Array.isArray(timelineConfig)) return timeline;
-
-  for (const step of timelineConfig) {
-    const { targets, offset, ...vars } = step || {};
-    if (!targets) continue;
-    const element = await window.lcards.anim.waitForElement(targets, root);
-    if (!element) continue;
-    timeline.add(element, vars, offset);
-  }
-  if (scopeObj) scopeObj.addAnimation?.(timeline);
-  return timeline;
-}
-
-/**
- * Creates multiple anime.js timelines from a config object, supporting global params and step merging.
- * Enhancements:
- * - Supports step.state_resolver using variables.msd.presets (stylePresets).
- * - Only strips 'direction' (v4 removed); keeps 'alternate' and 'loop'.
- * - Respects autoplay: does not force timeline.play() when autoplay === false.
- * - Marks preset calls with __timeline for timeline-friendly behavior.
- *
- * @param {object} timelinesConfig
- * @param {string} scopeId
- * @param {Element|Document} root
- * @param {object} overlayConfigs
- * @param {object|null} hass
- * @param {object} stylePresets - variables.msd.presets
- * @returns {Promise<object>} timelines by name
- */
-export async function createTimelines(
-  timelinesConfig,
-  scopeId,
-  root = document,
-  overlayConfigs = {},
-  hass = null,
-  stylePresets = {}
-) {
-  const scopeObj = window.lcards.anim.scopes.get(scopeId);
-  if (!scopeObj) {
-    lcardsLog.error('[createTimelines] Scope not found:', scopeId);
-    return {};
-  }
-  const timelines = {};
-  const resolveAll = window.lcards.styleHelpers?.resolveAllDynamicValues;
-
-  for (const [timelineName, timelineConfig] of Object.entries(timelinesConfig || {})) {
-    const { steps, ...timelineGlobals } = timelineConfig || {};
-    const resolvedGlobals = resolveAll ? resolveAll(timelineGlobals, hass) : timelineGlobals;
-
-    const timeline = window.lcards.anim.animejs.createTimeline({
-      scope: scopeObj.scope,
-      ...resolvedGlobals
-    });
-
-    if (!steps || !Array.isArray(steps)) {
-      lcardsLog.warn(`[createTimelines] Timeline "${timelineName}" has no steps array.`);
-      timelines[timelineName] = timeline;
-      continue;
-    }
-
-    for (const step of steps) {
-      let elements = [];
-      try {
-        elements = await waitForElements(step.targets, root);
-      } catch (error) {
-        lcardsLog.error(`[createTimelines] Failed to find target(s) for "${timelineName}":`, { targets: step.targets, error });
-        continue;
-      }
-      if (!elements || elements.length === 0) {
-        lcardsLog.warn(`[createTimelines] No elements found for timeline "${timelineName}" step:`, { targets: step.targets });
-        continue;
-      }
-
-      for (const element of elements) {
-        const elementAnim = overlayConfigs?.[element.id]?.animation || {};
-        let mergedParams = { ...elementAnim, ...resolvedGlobals, ...step };
-
-        // State resolver on steps
-        if (step?.state_resolver && window.lcards.styleHelpers?.resolveStatePreset) {
-          try {
-            const overrides = window.lcards.styleHelpers.resolveStatePreset(
-              { state_resolver: step.state_resolver, entity: step.entity, attribute: step.attribute },
-              stylePresets,
-              hass
-            );
-            if (overrides && typeof overrides === 'object') {
-              if (overrides.animation && typeof overrides.animation === 'object') {
-                mergedParams = { ...mergedParams, ...overrides.animation };
-              } else {
-                mergedParams = { ...mergedParams, ...overrides };
-              }
-            }
-          } catch (e) {
-            lcardsLog.warn('[createTimelines] step.state_resolver failed', { timelineName, step, error: e });
-          }
-        }
-
-        // Resolve dynamic values
-        mergedParams = resolveAll ? resolveAll(mergedParams, hass) : mergedParams;
-
-        // Defaults for text transforms in some presets
-        if (
-          (mergedParams.type === 'pulse' || mergedParams.type === 'glow') &&
-          (element.tagName === 'text' || element.tagName === 'TEXT')
-        ) {
-          /** @type {any} */ (element).style.transformOrigin = 'center';
-          /** @type {any} */ (element).style.transformBox = 'fill-box';
-        }
-
-        // Legacy preset application removed - all presets now from packs
-
-        // Strip non-anime keys
-        const {
-          targets, offset, direction,
-          state_resolver, preset, entity, attribute, __timeline,
-          // NEW: strip these flags from anime params
-          deep, descendants, apply_to,
-          ...animeParams
-        } = mergedParams;
-
-        // Determine whether to apply immediate props to descendants
-        const applyToDescendants =
-          mergedParams.descendants === true ||
-          mergedParams.deep === true ||
-          mergedParams.apply_to === 'descendants';
-
-        // Ensure non-animated properties are applied at the step start
-        const immediateKeys = ['fill', 'stroke', 'stroke-width', 'filter', 'color', 'opacity'];
-        const immediateSet = {};
-        for (const k of immediateKeys) {
-          if (animeParams[k] !== undefined && !Array.isArray(animeParams[k]) && typeof animeParams[k] !== 'object') {
-            immediateSet[k] = animeParams[k];
-          }
-        }
-        if (Object.keys(immediateSet).length) {
-          const userOnBegin = animeParams.onBegin;
-          animeParams.onBegin = () => {
-            try {
-              const nodes = applyToDescendants ? element.querySelectorAll('*') : [element];
-              if (window.lcards?.anim?.utils?.set) {
-                nodes.forEach((n) => window.lcards.anim.utils.set(n, immediateSet));
-              } else {
-                nodes.forEach((n) => {
-                  for (const [prop, val] of Object.entries(immediateSet)) {
-                    if (prop in n.style) n.style[prop] = val;
-                    else n.setAttribute(prop, val);
-                  }
-                });
-              }
-            } catch (_) {}
-            if (typeof userOnBegin === 'function') userOnBegin();
-          };
-        }
-
-        // v4 add(targets, vars, offset)
-        timeline.add(element, animeParams, offset);
-      }
-    }
-
-    if (typeof scopeObj.addAnimation === 'function') {
-      scopeObj.addAnimation(timeline);
-    }
-    timelines[timelineName] = timeline;
-
-    if (resolvedGlobals?.autoplay === false) {
-      lcardsLog.info(`[createTimelines] Timeline "${timelineName}" created with autoplay: false.`);
-    }
-  }
-  return timelines;
-}
 
 /**
  * Applies one or more animation presets to the anime.js params object.

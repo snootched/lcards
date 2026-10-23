@@ -25,7 +25,7 @@ See the **[Preset Reference](animations/preset-reference.md)** for full paramete
 | Stagger | [`stagger-grid`](animations/preset-reference.md#stagger-grid), [`stagger-wave`](animations/preset-reference.md#stagger-wave), [`stagger-radial`](animations/preset-reference.md#stagger-radial), [`stagger-flash`](animations/preset-reference.md#stagger-flash) |
 | Timeline | [`timeline-cascade`](animations/preset-reference.md#timeline-cascade), [`timeline-attention`](animations/preset-reference.md#timeline-attention), [`sequence`](animations/preset-reference.md#sequence) |
 | Advanced | [`chaos`](animations/preset-reference.md#chaos), [`physics-spring`](animations/preset-reference.md#physics-spring) |
-| Utility | [`motionpath`](animations/preset-reference.md#motionpath), [`set`](animations/preset-reference.md#set) |
+| Utility | [`motionpath`](animations/preset-reference.md#motionpath), [`set`](animations/preset-reference.md#set), [`custom`](animations/preset-reference.md#custom) |
 
 ---
 

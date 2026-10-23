@@ -27,7 +27,6 @@ export function processAnimationConfig(mergedConfig) {
   const processed = {
     customPresets: {},
     overlayAnimations: new Map(), // overlayId -> animations[]
-    timelines: {},
     issues: /** @type {any[]} */ ([]) // Validation issues
   };
 
@@ -60,18 +59,7 @@ export function processAnimationConfig(mergedConfig) {
       lcardsLog.debug(`[AnimationConfigProcessor] Processed animations for ${processed.overlayAnimations.size} overlays`);
     }
 
-    // 3. Process timeline configurations
-    if (mergedConfig.timelines) {
-      processed.timelines = processTimelines(
-        mergedConfig.timelines,
-        processed.customPresets,
-        processed.issues
-      );
-
-      lcardsLog.debug(`[AnimationConfigProcessor] Processed ${Object.keys(processed.timelines).length} timelines`);
-    }
-
-    // 4. Log any validation issues
+    // 3. Log any validation issues
     if (processed.issues.length > 0) {
       lcardsLog.warn('[AnimationConfigProcessor] ⚠️ Validation issues found:', processed.issues);
     }
@@ -79,7 +67,6 @@ export function processAnimationConfig(mergedConfig) {
     lcardsLog.info('[AnimationConfigProcessor] ✅ Animation configuration processed', {
       customPresets: Object.keys(processed.customPresets).length,
       overlaysWithAnimations: processed.overlayAnimations.size,
-      timelines: Object.keys(processed.timelines).length,
       issues: processed.issues.length
     });
 
@@ -255,94 +242,6 @@ function processOverlayAnimations(overlayId, animations, customPresets, issues =
     };
 
     processed.push(processedDef);
-  });
-
-  return processed;
-}
-
-/**
- * Process timeline configurations
- *
- * @param {Object} timelinesConfig - timelines from YAML
- * @param {Object} customPresets - Processed custom presets
- * @param {Array} issues - Array to collect validation issues
- * @returns {Object} Processed timeline configurations
- */
-function processTimelines(timelinesConfig, customPresets, issues = []) {
-  const processed = {};
-
-  Object.entries(timelinesConfig).forEach(([timelineId, timelineConfig]) => {
-    // Validate timeline ID
-    if (!timelineId || typeof timelineId !== 'string') {
-      issues.push({
-        severity: 'error',
-        message: 'Timeline must have a valid string ID'
-      });
-      return;
-    }
-
-    // Validate timeline config
-    if (!timelineConfig || typeof timelineConfig !== 'object') {
-      issues.push({
-        severity: 'error',
-        message: `Timeline "${timelineId}" must be an object`,
-        timelineId
-      });
-      return;
-    }
-
-    // Validate steps
-    if (!timelineConfig.steps || !Array.isArray(timelineConfig.steps)) {
-      issues.push({
-        severity: 'error',
-        message: `Timeline "${timelineId}" must have a "steps" array`,
-        timelineId
-      });
-      return;
-    }
-
-    // Process timeline steps
-    const processedSteps = timelineConfig.steps.map((step, index) => {
-      // Validate step
-      if (!step || typeof step !== 'object') {
-        issues.push({
-          severity: 'error',
-          message: `Timeline "${timelineId}" step ${index} must be an object`,
-          timelineId,
-          step: index
-        });
-        return null;
-      }
-
-      // Must have overlay_id
-      if (!step.overlay_id) {
-        issues.push({
-          severity: 'error',
-          message: `Timeline "${timelineId}" step ${index} must have "overlay_id"`,
-          timelineId,
-          step: index
-        });
-        return null;
-      }
-
-      // Validate preset_ref if used
-      if (step.preset_ref && !customPresets[step.preset_ref]) {
-        issues.push({
-          severity: 'warning',
-          message: `Timeline "${timelineId}" step ${index} references unknown preset: ${step.preset_ref}`,
-          timelineId,
-          step: index,
-          preset_ref: step.preset_ref
-        });
-      }
-
-      return step;
-    }).filter(Boolean); // Remove invalid steps
-
-    processed[timelineId] = {
-      ...timelineConfig,
-      steps: processedSteps
-    };
   });
 
   return processed;

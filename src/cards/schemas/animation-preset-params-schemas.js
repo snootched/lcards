@@ -456,14 +456,28 @@ export const sequenceParamsSchema = {
       type: 'array', minItems: 1,
       items: {
         type: 'object',
+        properties: {
+          target: { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }], description: "CSS selector (or list of selectors) for this step, resolved inside the card: in an MSD card any overlay of that card, e.g. [data-overlay-id=\"line_1\"]. Without it the step animates the animation's own target(s)." },
+          targets: { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }], description: 'Same as target.' },
+          offset: { oneOf: [{ type: 'number' }, { type: 'string' }], description: "Position in the timeline: an absolute ms number, '+=N' / '-=N' relative to the end of the previous step, '<' at the end of the previous step, '<<' together with the previous step." }
+        },
         additionalProperties: true,
-        description: 'Arbitrary anime.js tween properties at the top level, plus optional duration/ease/offset (or legacy at) overrides.'
+        description: 'Arbitrary anime.js tween properties at the top level, plus optional target, duration, ease and offset (or legacy at).'
       },
       description: 'Required, at least one step.',
       'x-ui-hints': { widget: 'json', label: 'Steps' }
     }
   },
   additionalProperties: 'warn'
+};
+
+export const customParamsSchema = {
+  type: 'object',
+  description: 'Params for the "custom" preset: raw anime.js v4 animation properties passed through to animate(), for example opacity, scale, translateX, keyframes, loop, alternate, ease. The target comes from the animation\'s own target/targets.',
+  properties: {
+    ..._CANONICAL_REDECLARED
+  },
+  additionalProperties: true
 };
 
 export const chaosParamsSchema = {
@@ -720,12 +734,12 @@ export const timelineCascadeParamsSchema = {
       items: {
         type: 'object',
         properties: {
-          targets: { type: 'string', description: 'CSS selector. Falls back to the element being animated if absent.' },
+          targets: { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }], description: "CSS selector (or list of selectors) for this step, resolved inside the card: in an MSD card any overlay of that card, e.g. [data-overlay-id=\"line_1\"]. Without it the step animates the animation's own target(s)." },
           params: { type: 'object', additionalProperties: true, description: 'Arbitrary anime.js props, e.g. scale/opacity.' },
           duration: { type: 'number', minimum: 0 },
           offset: {
             oneOf: [{ type: 'number' }, { type: 'string' }],
-            description: "'+=' relative, '<' overlap-with-previous, or an absolute ms number."
+            description: "Position in the timeline: an absolute ms number, '+=N' / '-=N' relative to the end of the previous step, '<' at the end of the previous step, '<<' together with the previous step."
           }
         },
         additionalProperties: true
@@ -781,6 +795,7 @@ export const ANIMATION_PRESET_PARAMS_SCHEMAS = {
   set: setParamsSchema,
   motionpath: motionpathParamsSchema,
   sequence: sequenceParamsSchema,
+  custom: customParamsSchema,
   chaos: chaosParamsSchema,
   'physics-spring': physicsSpringParamsSchema,
   'stagger-grid': staggerGridParamsSchema,

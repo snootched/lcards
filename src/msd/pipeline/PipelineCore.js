@@ -167,7 +167,6 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
 
       await coordinator.animationManager.initialize(mergedConfig.overlays, {
         customPresets: mergedConfig.animation_presets || {},
-        timelines: mergedConfig.timelines || {},
         suppressMountWarning: true // mountEl already set by core singleton init
       });
       lcardsLog.info('[PipelineCore] ✅ AnimationManager initialized:', {

@@ -246,7 +246,7 @@ export class MsdDebugAPI {
           },
           animations: {
             desc: 'Animation state and playback control',
-            methods: ['active(cardId?)', 'dump(cardId?)', 'registryStats(cardId?)', 'inspect(overlayId, cardId?)', 'timeline(id, cardId?)', 'trigger(overlayId, preset, params?, cardId?)']
+            methods: ['active(cardId?)', 'dump(cardId?)', 'registryStats(cardId?)', 'inspect(overlayId, cardId?)', 'trigger(overlayId, preset, params?, cardId?)']
           },
           overlays: {
             desc: 'Overlay introspection and search',
@@ -761,8 +761,8 @@ export class MsdDebugAPI {
         /**
          * Dump all animation definitions
          *
-         * Returns complete animation configuration including custom presets,
-         * overlay animations, and timelines.
+         * Returns complete animation configuration including custom presets
+         * and overlay animations.
          *
          * @returns {Object} Animation definitions
          *
@@ -770,7 +770,6 @@ export class MsdDebugAPI {
          * const dump = window.lcards.debug.msd.animations.dump();
          * console.log('Custom presets:', dump.customPresets);
          * console.log('Overlay animations:', dump.overlayAnimations);
-         * console.log('Timelines:', dump.timelines);
          */
         dump(cardId = null) {
           try {
@@ -847,29 +846,6 @@ export class MsdDebugAPI {
             return animationManager.inspectOverlay(overlayId);
           } catch (error) {
             lcardsLog.error('[DebugAPI] Error inspecting overlay:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Get timeline details
-         *
-         * Returns details for a specific animation timeline.
-         *
-         * @param {string} timelineId - Timeline ID
-         * @param {*} [cardId]
-         * @returns {Object|null} Timeline details
-         *
-         * @example
-         * const timeline = window.lcards.debug.msd.animations.timeline('startup_sequence');
-         */
-        timeline(timelineId, cardId = null) {
-          try {
-            const config = _getMsdConfig(cardId);
-            const timelines = config?.timelines || [];
-            return timelines.find(tl => tl.id === timelineId) || null;
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting timeline:', error);
             return null;
           }
         },

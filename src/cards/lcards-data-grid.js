@@ -548,32 +548,32 @@ export class LCARdSDataGrid extends LCARdSCard {
     const cell = /** @type {HTMLElement|null} */ (this.renderRoot.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`));
     if (!cell) return;
 
-    const scopeData = this._singletons?.animationManager?.scopes.get(this._getAnimationSetup().overlayId);
-    const presetFn = window.lcards?.anim?.presets?.[highlight.preset || 'pulse'];
-    if (!scopeData || !presetFn) {
+    const animationManager = this._singletons?.animationManager;
+    const { overlayId } = this._getAnimationSetup();
+    if (!animationManager?.scopes.get(overlayId)) {
       this._animateCellChangeFallback(cell);
       return;
     }
 
-    const params = {
-      duration: highlight.duration || 500,
-      ease: highlight.ease || 'outQuad',
-      loop: 1, // forward then back with alternate
-      alternate: true,
-      ...(highlight.params || {})
-    };
+    const params = { ...(highlight.params || {}) };
     if (params.color) params.color = this._resolveColorValue(params.color, params.color);
 
-    try {
-      const result = presetFn({ params });
-      if (result.styles) Object.assign(cell.style, result.styles);
-      scopeData.scope.add(() => {
-        window.lcards.anim.anime(cell, { ...result.anime });
-      });
-    } catch (error) {
+    // Through AnimationManager like any card animation: preset setup and styles,
+    // colour resolution, tracking (stopped with the card), the reduced-motion gate
+    animationManager.playAnimation(overlayId, {
+      trigger: 'on_cell_change',
+      preset: highlight.preset || 'pulse',
+      target: cell,
+      // highlight.params may override these, as before
+      duration: params.duration ?? highlight.duration ?? 500,
+      ease: params.ease ?? highlight.ease ?? 'outQuad',
+      loop: params.loop ?? 1, // forward then back with alternate
+      alternate: params.alternate ?? true,
+      params
+    }).catch((error) => {
       lcardsLog.error('[LCARdSDataGrid] Failed to animate cell change:', error);
       this._animateCellChangeFallback(cell);
-    }
+    });
   }
 
   /** @param {HTMLElement} cell @private */

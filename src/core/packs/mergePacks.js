@@ -78,7 +78,6 @@ async function processSinglePass(layers) {
     overlays: [],
     rules: [],
     animations: [],
-    timelines: [],
     animation_presets: {},
     routing: {},
     data_sources: {},
@@ -405,7 +404,7 @@ function createTimeoutPromise(timeout, url) {
 
 function validateExternalPackStructure(data, url) {
   // Basic validation - ensure it looks like an MSD pack
-  const validFields = ['version', 'anchors', 'overlays', 'rules', 'animations', 'timelines'];
+  const validFields = ['version', 'anchors', 'overlays', 'rules', 'animations'];
   const dataFields = Object.keys(data);
   const hasValidField = validFields.some(field => dataFields.includes(field));
 
@@ -437,7 +436,7 @@ const externalPackCache = new Map();
 export { externalPackCache };
 
 async function processLayer(merged, layer) {
-  const collections = ['overlays', 'rules', 'animations', 'timelines'];
+  const collections = ['overlays', 'rules', 'animations'];
 
   // Warn about deprecated pack fields
   if (layer.type === 'builtin' || layer.type === 'external' || layer.type === 'user') {
@@ -670,7 +669,7 @@ function determineAnchorOriginType(layer, anchorId) {
 function applyRemovals(merged, removals) {
   if (!removals || typeof removals !== 'object') return;
 
-  const collections = ['overlays', 'rules', 'animations', 'timelines'];
+  const collections = ['overlays', 'rules', 'animations'];
 
   for (const collection of collections) {
     const removeIds = removals[collection];
@@ -697,7 +696,7 @@ export function exportCollapsed(userMsd) {
   const out = {};
   const keep = [
     'version', 'use_packs', 'anchors', 'overlays', 'animations',
-    'rules', 'timelines', 'routing',
+    'rules', 'routing',
     'remove', 'debug', 'base_svg',
     'theme'
   ];

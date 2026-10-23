@@ -141,6 +141,17 @@ This is distinct from repainting **static resolved colors** that reference an al
 
 anime.js v4 decides whether to write a tweened `fill`/`stroke` value via `element.setAttribute(...)` or `element.style[...] = ...` based on whether the target already carries that XML attribute at animation-start time. Any render or imperative code path that also colors the same element **must** use `setAttribute('fill'/'stroke', ...)`, never an inline `style="fill: ...;"`/`style="stroke: ...;"` — an inline style always wins the CSS cascade over the presentation attribute, silently defeating the animation regardless of which one anime.js is updating. This bit `lcards-button`'s `.button-bg` (issue #401): `_setupBaseInteractivity()`'s hover/pressed color helpers pre-set `style.fill` on every render, permanently shadowing any `fill` animation. See `applyColor()`/`applyBorderColor()` in `src/base/LCARdSCard.js` for the fixed pattern — `setAttribute()` plus a computed-style round trip (`materializeColor()`) to fully flatten `var()`/`color-mix()` (the default hover/pressed tokens resolve to `color-mix(in srgb, var(...) ..., ...)`, which regex-based `var()` substitution alone doesn't evaluate) into a literal `rgb()`/`rgba()` before it touches the attribute.
 
+### AnimationManager owns every instance (not the anime.js scope)
+
+Each overlay has an anime.js scope, but nothing relies on it: anime.js only registers instances created while a scope callback runs synchronously, and `animateElement()` creates them after awaiting targets. `playAnimation()` tracks each instance through `onInstanceCreated` in `runningInstances` (per trigger, finished ones dropped) and remembers the definition it came from. So:
+
+- `stopAnimations(id, trigger, animDef)` stops one definition's instances (a `while` condition that clears stops its own animation only); `stopAnimations(id, trigger)` a trigger's; `stopAnimations(id)` all.
+- A stop that lands while an animation is still starting (a quick mouseleave during target resolution) wins: `playAnimation()` takes a stop token before its first await, and an instance created after a matching stop, or after its overlay was destroyed or rebuilt, is reverted at once.
+- `destroyOverlayScope()` reverts running instances. A scope rebuild (the card re-renders, for example when a tap toggles the entity or a state change re-colours it) carries them over instead (`_carryOverInstances()`): an instance whose elements survived keeps running, one whose elements were replaced is replayed on the new ones from where it was (`playAnimation(id, def, { seek })`). Not carried: `while` animations (re-seeded), `on_show` (replays itself), and `on_load` when it fires again anyway. Pinned by `tests/browser/animation-tap.spec.js`.
+- Trigger metadata (`entity`, `while`, `from_state`, ...) is stripped by `_cleanAnimeParams()`: anime.js writes unknown keys onto a DOM target as attributes.
+
+Pinned by `tests/browser/animation-lifecycle.spec.js` and `tests/core/trigger-manager-while.test.js`.
+
 ### Stopping restores the attribute (anime.js 4.4+)
 
 `stopAnimations()` calls `revert()`, which since 4.4 writes a tweened attribute back to the value it had when the animation was created (4.3 left it on the last animated frame). Pinned by `tests/browser/animation-revert.spec.js`. Edge case: if the card re-renders a different `fill` while a loop runs on it, stopping restores the old value and Lit, which thinks the attribute is current, does not rewrite it until the value changes again.
