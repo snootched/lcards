@@ -97,7 +97,36 @@ ${extra}`,
 })
 
 /** Gallery sets by name: `{ minWidth, hint?, tiles: [{ label, yaml }] }` (hint: caption text). */
+/** A button that decodes its label on show and again on tap (text-decode gallery). */
+const decodeTile = (label, params) => ({
+  label,
+  yaml: `type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: SENSOR ARRAY ONLINE
+    show: true
+animations:
+  - trigger: on_show
+    preset: text-decode${params ? `\n    params: ${params}` : ''}
+  - trigger: on_tap
+    preset: text-decode${params ? `\n    params: ${params}` : ''}
+`,
+});
+
 export const CARD_GALLERIES = {
+  'text-decode': {
+    hint: 'Tap a button to decode it again.',
+    minWidth: 280,
+    tiles: [
+      decodeTile('defaults (A-Z0-9, from left)'),
+      decodeTile('chars: numbers, from: right', '{chars: numbers, from: right}'),
+      decodeTile('chars: blocks, from: center', '{chars: blocks, from: center, duration: 1400}'),
+      decodeTile('cursor, perturbation, slower', '{cursor: true, perturbation: 0.4, duration: 2000}'),
+    ],
+  },
   'button-presets': {
     hint: "Tap a button to toggle the sample light.",
     minWidth: 220,

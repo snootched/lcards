@@ -225,18 +225,51 @@ Characters, words, or lines appear in sequence with a stagger effect.
 
 <AnimationPlayground preset="text-reveal" />
 
+### `text-decode`
+
+An LCARS readout decode: each text line starts as glyph noise and resolves character by character, built on anime.js's [`scrambleText`](https://animejs.com/documentation/text/scrambletext). Good on `on_show`, and on `on_entity_change` for a value that re-decodes when it changes. Stopping it restores the text; under reduced motion it shows the text at once.
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `duration` | `1000` | ms for the whole decode of a line |
+| `chars` | `A-Z0-9` | Scramble glyphs: a named set (`uppercase`, `lowercase`, `numbers`, `symbols`, `blocks`, `shades`, `braille`) or characters and ranges such as `A-F0-9` (put a literal `-` first or last) |
+| `from` | `left` | Where the reveal starts: `left`, `right`, `center`, `random` |
+| `reversed` | `false` | Reveal in the opposite order (`from: center` then reveals the edges first) |
+| `cursor` | `false` | Characters at the reveal edge: `true` for `_`, or a string. Best seen on a slower decode (a longer `duration`) |
+| `perturbation` | - | `0` to `1`: random timing per character, for a less even reveal |
+| `reveal_rate` | - | Characters per second entering the reveal (anime.js default `60`) |
+| `seed` | - | Any number: the same scramble on every load |
+| `delay` | `0` | ms before it starts |
+| `loop` | `false` | Decode again on every loop |
+
+```yaml
+animations:
+  - trigger: on_show
+    preset: text-decode
+  - trigger: on_entity_change
+    entity: sensor.desk_sensor_temperature
+    preset: text-decode
+    params:
+      chars: numbers
+      duration: 600
+```
+
+<CardGallery set="text-decode" />
+
+<AnimationPlayground preset="text-decode" />
+
 ### `text-scramble`
 
-Matrix-style character scramble before settling on the real text.
+The same decode as [`text-decode`](#text-decode) under its original name, with its original timing params: each character scrambles for `duration`, and characters start `stagger` ms apart, so a line takes `duration` + (characters - 1) × `stagger` ms. Every `text-decode` param works here too.
 
 | Param | Default | Description |
 |-------|---------|-------------|
 | `duration` | `800` | ms each character spends scrambling |
 | `stagger` | `40` | Delay between characters starting (ms) |
 | `delay` | `0` | Initial delay before animation starts (ms) |
-| `settle_at` | `0.85` | Fraction (0–1) of `duration` spent scrambling |
-| `characters` | `A-Z 0-9 !@#$%^&*` | Pool of random characters to cycle through |
+| `characters` | `A-Z0-9!@#$%^&*` | Scramble glyphs, as `text-decode`'s `chars` (`chars` works too) |
 | `loop` | `false` | Loop continuously |
+| `settle_at` | - | Deprecated: no longer used (the decode settles each character itself) |
 
 <AnimationPlayground preset="text-scramble" />
 

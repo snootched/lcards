@@ -19,7 +19,7 @@
  */
 
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
-import { resolvePresetParams, getResolvedEasing } from '../../../../utils/lcards-anim-helpers.js';
+import { resolvePresetParams, getResolvedEasing, presetRandom, withRevertHook } from '../../../../utils/lcards-anim-helpers.js';
 
 /**
  * Detect whether an element lives in the SVG namespace.
@@ -143,6 +143,82 @@ function _splitText(element, type = 'chars') {
 }
 
 /**
+ * The elements whose own text a decode rewrites: a <text>/<tspan> (or HTML element)
+ * with no child elements, or every such element inside a container (a card's button
+ * group when the animation has no `target`). Multi-line text keeps its <tspan>s.
+ * @param {Element} element
+ * @returns {Element[]}
+ * @private
+ */
+function _textLeaves(element) {
+  if (!element) return [];
+  const isLeaf = (/** @type {Element} */ el) => el.children.length === 0 && (el.textContent ?? '').trim() !== '';
+  if (isLeaf(element)) return [element];
+  const selector = _isSvgElement(element) ? 'text, tspan' : '*';
+  return Array.from(element.querySelectorAll(selector)).filter(isLeaf);
+}
+
+/**
+ * anime.js writes an unknown property on an SVG element as an attribute, so
+ * scrambleText() can't drive `textContent` of a <text> directly. It animates a proxy
+ * object and copies its text across; this wraps that animation in the surface
+ * AnimationManager tracks (see _reportPresetInstances in lcards-anim-helpers.js) and
+ * puts the real text back whenever it is stopped, completed or reverted.
+ * @param {any} anim - anime.js animation on the proxy
+ * @param {Element} el - the text element shown
+ * @param {string} original - its text before the animation
+ * @private
+ */
+function _textAnimationHandle(anim, el, original) {
+  const restore = () => { el.textContent = original; };
+  return {
+    targets: [el],
+    get completed() { return anim.completed; },
+    get iterationCount() { return anim.iterationCount; },
+    get currentTime() { return anim.currentTime; },
+    get speed() { return anim.speed; },
+    set speed(v) { anim.speed = v; },
+    seek(time) { anim.seek(time); return this; },
+    pause() { anim.pause(); return this; },
+    complete() { anim.complete(); restore(); return this; },
+    cancel() { anim.cancel(); restore(); return this; },
+    revert() { anim.revert(); restore(); return this; },
+  };
+}
+
+/**
+ * setup() for a decode: each text line gets its own scrambleText() animation on a
+ * proxy (see _textAnimationHandle), handed to AnimationManager via _presetInstances.
+ * @param {Record<string, any>} options - scrambleText params (duration may be a function of the proxy)
+ * @param {{ loop: any, delay: number, seed?: number }} timing
+ * @param {string} name - preset name, for logs
+ * @private
+ */
+function _decodeSetup(options, { loop, delay, seed }, name) {
+  return (element) => {
+    const animejs = window.lcards?.anim?.animejs;
+    if (!animejs?.scrambleText || !animejs?.animate) {
+      lcardsLog.warn(`[${name}] anime.js scrambleText not available`);
+      return;
+    }
+    element._animTargets = null; // self-managed; skip anim-helpers main call
+    element._presetInstances = _textLeaves(element).map((leaf, i) => {
+      const original = leaf.textContent ?? '';
+      const proxy = { textContent: original };
+      const anim = animejs.animate(proxy, {
+        // A different seed per line, so lines don't scramble in lockstep
+        textContent: animejs.scrambleText({ ...options, ...(typeof seed === 'number' ? { seed: seed + i } : {}) }),
+        delay,
+        loop,
+        onUpdate: () => { leaf.textContent = proxy.textContent; },
+        onComplete: () => { leaf.textContent = original; },
+      });
+      return _textAnimationHandle(anim, leaf, original);
+    });
+  };
+}
+
+/**
  * Text animation presets.
  *
  * Each preset's setup() stores split char/word/line targets in element._animTargets.
@@ -181,6 +257,7 @@ export const TEXT_PRESETS = {
         loop,
         delay: { _stagger: true, value: stagger, from: direction }
       },
+      batch: false, // staggers each element's own split characters
       styles: {},
       setup(element) {
         if (!element) return;
@@ -201,95 +278,82 @@ export const TEXT_PRESETS = {
   },
 
   /**
-   * Text Scramble – matrix-style character scramble.
-   *
-   * Each character scrambles for `duration` ms, then snaps to its real value.
-   * Characters start staggered by `stagger` ms so the scramble rolls across the text.
-   * Total wall-clock time ≈ delay + duration + (chars - 1) × stagger.
-   *
-   * To slow the effect down, increase `duration` (time each char spends scrambling)
-   * and/or `stagger` (gap between each character starting).
-   *
-   * setup() self-manages all anime calls and sets element._animTargets = null to
-   * prevent anim-helpers from making an additional redundant anime() call.
-   *
-   * Works for both HTML <span> and SVG <tspan> targets.
+   * Text Scramble - the shipped name for the decode (see text-decode), with its
+   * original params mapped across so existing configs keep their timing:
+   * a line takes `duration` + (characters - 1) x `stagger` ms, as before.
    *
    * params:
-   *   duration    (default 800)  – ms each character spends scrambling before settling
-   *   stagger     (default 40)   – ms between each character starting
-   *   delay       (default 0)    – ms to wait before the first character begins
-   *   loop        (default false) – replay the scramble indefinitely
-   *   settle_at   (default 0.85) – fraction [0–1] of duration spent scrambling;
-   *                                 remainder is the "settled" hold before loop/end
-   *   characters                 – pool of random chars to cycle through
-   *
-   * Note: `ease`, `alternate`, and `scramble_iterations` are not applicable and are
-   *       silently ignored — the scramble is driven entirely by textContent mutation,
-   *       not by an interpolated CSS/SVG property.
+   *   duration    (default 800)  - ms each character spends scrambling
+   *   stagger     (default 40)   - ms between characters starting
+   *   delay       (default 0)    - ms before it starts
+   *   loop        (default false)
+   *   characters  - scramble glyphs (default: A-Z, 0-9 and !@#$%^&*); chars works too
+   *   settle_at   - deprecated, no longer used (the decode settles each character itself)
+   *   Any text-decode param (from, cursor, perturbation, seed, ...) works here too.
    */
   'text-scramble': (def) => {
     const p = resolvePresetParams(def);
-    const duration  = p.duration  || 800;
-    const stagger   = p.stagger   !== undefined ? p.stagger    : 40;
-    const delay     = p.delay     !== undefined ? p.delay      : 0;
-    const loop      = p.loop      !== undefined ? p.loop       : false;
-    const settleAt  = p.settle_at !== undefined ? p.settle_at  : 0.85;
-    const charSet   = p.characters || 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
-
+    const perChar = p.duration || 800;
+    const stagger = p.stagger !== undefined ? p.stagger : 40;
+    const options = {
+      chars: p.characters ?? p.chars ?? 'A-Z0-9!@#$%^&*',
+      from: p.from ?? 'left',
+      // Per line: the original preset's wall-clock time
+      duration: (/** @type {any} */ proxy) => perChar + Math.max(0, String(proxy?.textContent ?? '').length - 1) * stagger,
+      ...(p.reversed === true ? { reversed: true } : {}),
+      ...(p.cursor !== undefined ? { cursor: p.cursor } : {}),
+      ...(p.perturbation !== undefined ? { perturbation: p.perturbation } : {}),
+      ...(p.reveal_rate !== undefined ? { revealRate: p.reveal_rate } : {}),
+    };
     return {
-      anime: {}, // empty — setup() drives the animation
+      anime: {},
       styles: {},
-      setup(element) {
-        if (!element) return;
+      setup: _decodeSetup(options, {
+        loop: p.loop !== undefined ? p.loop : false,
+        delay: typeof p.delay === 'number' ? p.delay : 0,
+        seed: typeof p.seed === 'number' ? p.seed : undefined,
+      }, 'text-scramble'),
+    };
+  },
 
-        const splitter = _splitText(element, 'chars');
-        element._textSplitter = splitter;
-        element._animTargets = null; // self-managed; skip anim-helpers main call
-
-        const units = splitter.units;
-        const anime = window.lcards?.anim?.anime;
-        if (!anime) {
-          lcardsLog.warn('[text-scramble] anime.animate not available');
-          return;
-        }
-
-        const settleThreshold = duration * settleAt;
-
-        units.forEach((unit, i) => {
-          const originalText = unit.textContent;
-            // A tiny imperceptible delta forces a real tween so onUpdate fires every frame.
-            // The scramble IS the textContent mutation — no visible opacity change.
-            anime(unit, {
-              opacity:  [0.9999, 1],
-            duration,
-            delay:    delay + i * stagger,
-            ease:     'linear',
-            loop,
-            onUpdate(anim) {
-              // Scramble random chars for settleAt fraction of duration, then hold original
-              if (anim.currentTime < settleThreshold) {
-                unit.textContent = charSet[Math.floor(Math.random() * charSet.length)];
-              } else {
-                unit.textContent = originalText;
-              }
-            },
-            onComplete() {
-              unit.textContent = originalText;
-            }
-          });
-        });
-
-        lcardsLog.debug('[text-scramble] self-managed animation started', {
-          tag: element.tagName, count: units.length, duration, stagger, delay, loop, settleAt
-        });
-      },
-      cleanup(element) {
-        if (element?._textSplitter) {
-          element._textSplitter.revert();
-          delete element._textSplitter;
-        }
-      }
+  /**
+   * Text Decode - LCARS readout decode, on anime.js 4.5's scrambleText().
+   *
+   * The text starts as scrambled glyphs and resolves character by character from
+   * `from`, with an optional cursor at the leading edge. Each text line is decoded on
+   * its own; the visible text is restored on stop.
+   *
+   * params:
+   *   duration      (default 1000) - ms for the whole decode
+   *   chars         (default 'A-Z0-9') - scramble glyphs: a named set (uppercase,
+   *                 lowercase, numbers, symbols, blocks, shades, braille) or ranges
+   *   from          (default 'left') - 'left', 'right', 'center', 'random'
+   *   reversed      - reveal in the opposite order ('center' then reveals edges first)
+   *   cursor        - true for '_', or the cursor characters
+   *   perturbation  - 0 to 1: random timing per character, for a less even reveal
+   *   reveal_rate   - characters per second entering the reveal (anime.js default 60)
+   *   seed          - a number: the same scramble on every load
+   *   loop          (default false)
+   */
+  'text-decode': (def) => {
+    const p = resolvePresetParams(def);
+    const options = {
+      chars: p.chars ?? 'A-Z0-9',
+      from: p.from ?? 'left',
+      duration: p.duration || 1000,
+      ...(p.reversed === true ? { reversed: true } : {}),
+      ...(p.cursor !== undefined ? { cursor: p.cursor } : {}),
+      ...(p.perturbation !== undefined ? { perturbation: p.perturbation } : {}),
+      ...(p.reveal_rate !== undefined ? { revealRate: p.reveal_rate } : {}),
+    };
+    return {
+      anime: {}, // setup() drives it
+      styles: {},
+      setup: _decodeSetup(options, {
+        loop: p.loop !== undefined ? p.loop : false,
+        delay: typeof p.delay === 'number' ? p.delay : 0,
+        seed: typeof p.seed === 'number' ? p.seed : undefined,
+      }, 'text-decode'),
     };
   },
 
@@ -307,6 +371,7 @@ export const TEXT_PRESETS = {
    *   stagger      (default 50)   – ms offset between characters
    *   color_shift  (default false) – hue rotate on each character (HTML only)
    *   loop         (default false) – repeat
+   *   seed         – a number: the same jitter on every load
    */
   'text-glitch': (def) => {
     const p = resolvePresetParams(def);
@@ -315,6 +380,7 @@ export const TEXT_PRESETS = {
     const stagger    = p.stagger     !== undefined ? p.stagger    : 50;
     const colorShift = p.color_shift || false;
     const loop       = p.loop        !== undefined ? p.loop       : false;
+    const random     = presetRandom(p.seed);
 
     const htmlAnimConfig = {
       duration,
@@ -322,18 +388,19 @@ export const TEXT_PRESETS = {
       loop,
       delay: { _stagger: true, value: stagger, from: 'first' },
       // Function form: called once per element, generates unique random displacement per char
-      translateX: () => [0, (Math.random() - 0.5) * intensity * 2],
-      translateY: () => [0, (Math.random() - 0.5) * intensity * 2]
+      translateX: () => [0, (random() - 0.5) * intensity * 2],
+      translateY: () => [0, (random() - 0.5) * intensity * 2]
     };
     if (colorShift) {
       htmlAnimConfig.filter = () => {
-        const hue = Math.random() * 30 - 15;
+        const hue = random() * 30 - 15;
         return [`hue-rotate(0deg)`, `hue-rotate(${hue}deg)`];
       };
     }
 
     return {
       anime: htmlAnimConfig, // used for HTML path only
+      batch: false, // staggers each element's own split characters
       styles: {},
       setup(element) {
         if (!element) return;
@@ -347,18 +414,21 @@ export const TEXT_PRESETS = {
           const anime = window.lcards?.anim?.anime;
           if (!anime) { lcardsLog.warn('[text-glitch] anime.animate not available'); return; }
 
-          units.forEach((unit, i) => {
-            const dxVal = (Math.random() - 0.5) * intensity * 2;
-            const dyVal = (Math.random() - 0.5) * intensity * 2;
-            anime(unit, {
-              dx:       [0, dxVal, 0],
-              dy:       [0, dyVal, 0],
+          // One animation over all characters, handed to AnimationManager (tracked,
+          // stoppable, gated); stopping it also puts the unsplit text back
+          if (units.length) {
+            const anim = anime(units, {
+              dx:       () => [0, (random() - 0.5) * intensity * 2, 0],
+              dy:       () => [0, (random() - 0.5) * intensity * 2, 0],
               duration,
               ease:     'inOutQuad', // v4 easing name (was 'easeInOutQuad')
               loop,
-              delay:    i * stagger
+              delay:    (/** @type {any} */ _el, /** @type {number} */ i) => i * stagger
             });
-          });
+            element._presetInstances = [withRevertHook(anim, () => {
+              if (element._textSplitter) { element._textSplitter.revert(); delete element._textSplitter; }
+            })];
+          }
         } else {
           // HTML path: hand targets to anim-helpers with CSS transform config
           units.forEach(u => { /** @type {HTMLElement} */ (u).style.display = 'inline-block'; });

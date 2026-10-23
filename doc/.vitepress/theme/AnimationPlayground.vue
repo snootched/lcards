@@ -135,6 +135,7 @@ const svgPathId = `ap-svg-path-${props.preset}`
 
 let animeLib = null
 let getPreset = null
+let staggerArgs = null // src/utils/lcards-anim-helpers.js, loaded with the presets
 let currentInstance = null
 let containerEl = null
 let debounceTimer = null
@@ -151,6 +152,7 @@ const STAGE_CONFIG = {
   cascade:          { kind: 'row', count: 8 },
   'text-reveal':    { kind: 'text' },
   'text-scramble':  { kind: 'text' },
+  'text-decode':    { kind: 'text' },
   'text-glitch':    { kind: 'text' },
   'text-typewriter': { kind: 'text' },
   draw:             { kind: 'svg-path' },
@@ -391,10 +393,9 @@ function playResult(elements, result) {
 
   const processed = { ...animeParams }
   if (processed.delay?._stagger) {
-    const cfg = processed.delay
-    processed.delay = animeLib.stagger(cfg.value ?? 100, {
-      from: cfg.from, grid: cfg.grid, axis: cfg.axis, direction: cfg.direction,
-    })
+    // The card runtime's own mapping (aliases, reversed, grid: true, jitter, seed)
+    const { value, options } = staggerArgs(processed.delay)
+    processed.delay = animeLib.stagger(value, options)
   }
 
   // Target resolution: mirrors animateElement()'s _drawable → _animTargets
@@ -507,11 +508,13 @@ onMounted(async () => {
     window.lcards.animejs = window.lcards.anim.animejs
     window.lcards.anime = window.lcards.anim.anime
 
-    const [presetsIndexMod, presetsRegMod, schemasMod] = await Promise.all([
+    const [presetsIndexMod, presetsRegMod, schemasMod, helpersMod] = await Promise.all([
       import('../../../src/core/packs/animations/presets/index.js'),
       import('../../../src/core/animation/presets.js'),
       import('../../../src/cards/schemas/animation-preset-params-schemas.js'),
+      import('../../../src/utils/lcards-anim-helpers.js'),
     ])
+    staggerArgs = helpersMod.staggerArgs
 
     if (!presetsRegMod.getAnimationPreset(props.preset)) {
       presetsIndexMod.registerBuiltinAnimationPresets()

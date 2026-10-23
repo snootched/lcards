@@ -17,7 +17,7 @@
       </figure>
     </div>
     <p v-if="gallery" class="card-gallery-caption">
-      Real cards with sample entities.<span v-if="gallery.hint"> {{ gallery.hint }}</span>
+      Real cards with sample entities. <span v-if="gallery.hint">{{ gallery.hint }}</span>
     </p>
   </div>
 </template>

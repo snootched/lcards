@@ -78,7 +78,7 @@ const SCHEMA_DRIVEN_PRESETS = new Set([
   'flicker', 'cascade', 'cascade-color', 'ripple', 'scale', 'scale-reset',
   'set', 'slide', 'shake', 'color-shift',
   // Text presets
-  'text-reveal', 'text-typewriter', 'text-scramble', 'text-glitch',
+  'text-reveal', 'text-typewriter', 'text-scramble', 'text-decode', 'text-glitch',
   // Stagger presets
   'stagger-grid', 'stagger-flash', 'stagger-wave', 'stagger-radial',
   // Timeline presets
@@ -124,6 +124,7 @@ const PRESET_HIDDEN_CANONICAL_FIELDS = {
   'glitch': { hideEasing: true },
   'text-typewriter': { hideDuration: true, hideEasing: true },
   'text-scramble': { hideEasing: true, hideAlternate: true },
+  'text-decode': { hideEasing: true, hideAlternate: true },
   'text-glitch': { hideEasing: true },
   'physics-spring': { hideDuration: true, hideEasing: true, hideAlternate: true },
   'march': { hideEasing: true, hideAlternate: true, hideStartDelay: true },
@@ -193,7 +194,8 @@ const ANIMEJS_REFERENCE_URLS = {
   'timeline-cascade': `${ANIMEJS_DOCS_BASE}/timeline`,
   'timeline-attention': `${ANIMEJS_DOCS_BASE}/timeline`,
   'text-reveal': `${ANIMEJS_DOCS_BASE}/text/splittext`,
-  'text-scramble': `${ANIMEJS_DOCS_BASE}/text/splittext`,
+  'text-scramble': `${ANIMEJS_DOCS_BASE}/text/scrambletext`,
+  'text-decode': `${ANIMEJS_DOCS_BASE}/text/scrambletext`,
   'text-glitch': `${ANIMEJS_DOCS_BASE}/text/splittext`,
   'text-typewriter': `${ANIMEJS_DOCS_BASE}/text/splittext`
 };
@@ -2043,7 +2045,8 @@ export class LCARdSAnimationEditor extends LitElement {
       // Text Animations (NEW - PR#234)
       { value: 'text-reveal', label: 'Text Reveal - Character-by-character reveal' },
       { value: 'text-typewriter', label: 'Text Typewriter - Typing effect' },
-      { value: 'text-scramble', label: 'Text Scramble - Matrix-style scramble' },
+      { value: 'text-scramble', label: 'Text Scramble - Decode with per-character timing' },
+      { value: 'text-decode', label: 'Text Decode - LCARS readout decode from glyph noise' },
       { value: 'text-glitch', label: 'Text Glitch - Rapid jitter' },
 
       // Stagger Animations (NEW - PR#233)

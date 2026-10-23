@@ -180,6 +180,7 @@ async function initializeCustomCard() {
         createScope: anime.createScope, // scope factory for overlay-scoped animations
         utils: anime.utils,            // CENTRAL canonical utils reference
         splitText: anime.splitText,    // native text splitter (v4.1+)
+        scrambleText: anime.scrambleText, // text scramble/decode function value (v4.4+); SVG text needs a proxy, see text-presets.js
         animateElement: animHelpers.animateElement,
         animateWithRoot: animHelpers.animateWithRoot,
         waitForElement: animHelpers.waitForElement,

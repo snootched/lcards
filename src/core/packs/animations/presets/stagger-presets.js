@@ -23,15 +23,42 @@ import { prefersReducedMotion } from '../../../../utils/reduced-motion.js';
  * each element, keyed by element so a later re-registration (e.g. a preset
  * switch that re-runs setup() on the SAME still-attached elements, before a
  * fresh SVG render replaces them) can cancel the previous animation instead
- * of leaving two Animations racing on the same property — 'stagger-flash'
- * uses raw element.animate() specifically to get independent per-element
- * looping, which means the returned Animation object isn't visible to
- * AnimationManager's own instance tracking (that only sees the harmless 1ms
- * anime.js stagger-delay vehicle, not the real WAAPI animation) and would
- * otherwise never get cancelled.
+ * of leaving two Animations racing on the same property. AnimationManager
+ * tracks each animation through a staggerFlashHandle (stop, reduced motion,
+ * re-renders); this map is the safety net for a re-registration the manager
+ * did not stop, such as a re-render replaying the animation on the same element.
  * @type {WeakMap<Element, Animation>}
  */
 const _activeStaggerFlashAnimations = new WeakMap();
+
+/**
+ * A handle AnimationManager can track for one element's stagger-flash WAAPI
+ * animation (see _reportPresetInstances in lcards-anim-helpers.js). setup() returns
+ * it at once; the real Animation attaches a tick later, when _applyWapi knows every
+ * element. A stop or a reduced-motion settle that comes first cancels it before it
+ * starts. revert()/cancel() remove the animation's effect (fill: both), restoring the
+ * element; targets lets a card re-render keep it running when the element survives.
+ * @param {Element} element
+ * @param {boolean} loop
+ */
+function staggerFlashHandle(element, loop) {
+  return {
+    targets: [element],
+    /** @type {Animation|null} */
+    animation: null,
+    cancelled: false,
+    completed: false,
+    iterationCount: loop ? Infinity : 1,
+    get currentTime() { return Number(this.animation?.currentTime) || 0; },
+    get speed() { return this.animation?.playbackRate ?? 1; },
+    set speed(v) { if (this.animation) this.animation.playbackRate = v; },
+    seek(time) { if (this.animation) this.animation.currentTime = time; return this; },
+    pause() { this.animation?.pause(); return this; },
+    complete() { this.animation?.finish(); this.cancelled = true; this.completed = true; return this; },
+    cancel() { this.animation?.cancel(); this.cancelled = true; this.completed = true; return this; },
+    revert() { return this.cancel(); },
+  };
+}
 
 /**
  * The optional anime.js v4 stagger extras a preset passes through to its marker:
@@ -311,13 +338,15 @@ export const STAGGER_PRESETS = {
     let _timer = null;
 
     const _applyWapi = () => {
-      // WAAPI bypasses AnimationManager's reduced-motion gate: leave the elements static
+      // AnimationManager settles the handles under reduced motion (they arrive
+      // cancelled); this also covers callers outside the manager
       if (prefersReducedMotion()) {
         _pending.length = 0;
         return;
       }
       const N = _pending.length;
-      _pending.splice(0).forEach((el, i) => {
+      _pending.splice(0).forEach(({ el, handle }, i) => {
+        if (handle.cancelled) return; // stopped before it started
         let idx;
         if      (from === 'last')   idx = N - 1 - i;
         else if (from === 'center') idx = Math.abs(i - Math.floor((N - 1) / 2));
@@ -339,6 +368,8 @@ export const STAGGER_PRESETS = {
           easing:     'linear'  // overall composite; per-keyframe easing handles the shape
         });
         _activeStaggerFlashAnimations.set(el, animation);
+        handle.animation = animation;
+        animation.addEventListener('finish', () => { handle.completed = true; });
         animation.addEventListener('cancel', () => {
           // Don't clobber a newer animation's entry if this cancel fired
           // asynchronously after another setup() already replaced it.
@@ -360,7 +391,10 @@ export const STAGGER_PRESETS = {
       },
       // Called per-element (DOM order) by the stagger-batch path.
       setup: (element) => {
-        _pending.push(element);
+        const handle = staggerFlashHandle(element, !!loop);
+        _pending.push({ el: element, handle });
+        // Tracked by AnimationManager: stop, reduced motion and re-renders reach it
+        /** @type {any} */ (element)._presetInstances = [handle];
         clearTimeout(_timer);
         _timer = setTimeout(_applyWapi, 0);
       },

@@ -683,16 +683,54 @@ export const textRevealParamsSchema = {
   additionalProperties: 'warn'
 };
 
+/** Params text-decode and text-scramble share (anime.js scrambleText options). */
+const _DECODE_PARAMS = {
+  from: {
+    type: 'string', enum: ['left', 'right', 'center', 'random'], default: 'left',
+    description: 'Where the reveal starts.'
+  },
+  reversed: { type: 'boolean', default: false, description: "Reveal in the opposite order: from: center then reveals the edges first." },
+  cursor: {
+    type: ['boolean', 'string'], default: false,
+    description: "Characters shown at the reveal edge: true for '_', or a string. Best seen on slower decodes (a longer duration)."
+  },
+  perturbation: { type: 'number', minimum: 0, maximum: 1, description: 'Random timing per character (0 to 1) for a less even reveal.' },
+  reveal_rate: { type: 'number', exclusiveMinimum: 0, description: 'Characters per second entering the reveal (anime.js default 60).' },
+  seed: { type: 'number', description: 'Any number: the same scramble on every load. Each text line gets the next seed.' },
+  loop: { type: 'boolean', default: false, description: 'Decode again on every loop.' },
+  delay: { type: 'number', minimum: 0, default: 0, description: 'ms before the decode starts.' }
+};
+
+export const textDecodeParamsSchema = {
+  type: 'object',
+  description: 'Params for the "text-decode" preset: an LCARS readout decode (anime.js scrambleText). Each text line starts as glyph noise and resolves character by character; stopping restores the text. `ease`/`alternate` are not used.',
+  properties: {
+    duration: { type: 'number', minimum: 0, default: 1000, description: 'ms for the whole decode of a line.' },
+    chars: {
+      type: 'string', default: 'A-Z0-9',
+      description: 'Scramble glyphs: a named set (uppercase, lowercase, numbers, symbols, blocks, shades, braille) or characters and ranges such as A-Z0-9. Put a literal - first or last.'
+    },
+    ..._DECODE_PARAMS
+  },
+  additionalProperties: 'warn'
+};
+
 export const textScrambleParamsSchema = {
   type: 'object',
-  description: 'Params for the "text-scramble" preset: self-managed per-character scramble, bypassing the normal preset-level anime dispatch. `ease`/`alternate` (canonical) are accepted but ignored.',
+  description: 'Params for the "text-scramble" preset: the decode of text-decode under its original name, with its original timing params. A line takes duration + (characters - 1) x stagger ms. Any text-decode param works too.',
   properties: {
-    duration: { type: 'number', minimum: 0, default: 800, description: 'ms each character spends scrambling before settling.' },
+    duration: { type: 'number', minimum: 0, default: 800, description: 'ms each character spends scrambling.' },
     stagger: { type: 'number', minimum: 0, default: 40, description: 'ms between each character starting.' },
-    delay: { type: 'number', minimum: 0, default: 0, description: 'A legitimate use of the canonical meaning: ms before the first character begins.' },
-    loop: { type: 'boolean', default: false },
-    settle_at: { type: 'number', minimum: 0, maximum: 1, default: 0.85, description: 'Fraction of duration. Not clamped in code today; values outside 0-1 produce nonsensical results.' },
-    characters: { type: 'string', default: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*', description: 'Character pool. An empty string is an unguarded edge case in code today.' }
+    characters: {
+      type: 'string', default: 'A-Z0-9!@#$%^&*',
+      description: 'Scramble glyphs, as text-decode chars (named sets and ranges such as A-Z work; put a literal - first or last).'
+    },
+    chars: { type: 'string', description: 'Same as characters.' },
+    settle_at: {
+      type: 'number', minimum: 0, maximum: 1, deprecated: true,
+      description: 'No longer used: the decode settles each character itself.'
+    },
+    ..._DECODE_PARAMS
   },
   additionalProperties: 'warn'
 };
@@ -804,6 +842,7 @@ export const ANIMATION_PRESET_PARAMS_SCHEMAS = {
   'stagger-flash': staggerFlashParamsSchema,
   'text-reveal': textRevealParamsSchema,
   'text-scramble': textScrambleParamsSchema,
+  'text-decode': textDecodeParamsSchema,
   'text-glitch': textGlitchParamsSchema,
   'text-typewriter': textTypewriterParamsSchema,
   'timeline-cascade': timelineCascadeParamsSchema,

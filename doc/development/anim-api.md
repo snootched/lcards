@@ -23,6 +23,7 @@ All anime.js primitives and LCARdS animation utilities live here.
 | `anim.createScope` | `anime.createScope` | Scope factory for overlay-scoped animations |
 | `anim.utils` | `anime.utils` | anime.js utility functions |
 | `anim.splitText` | `anime.splitText` | Native text splitter (v4.1+) |
+| `anim.scrambleText` | `anime.scrambleText` | Text scramble/decode as a function-based value (v4.4+). On SVG text, animate a proxy object and copy its `textContent` (anime.js writes unknown SVG properties as attributes); the `text-decode` preset does this |
 | `anim.eases` | `anime.eases` | Built-in and advanced easing functions |
 
 ```javascript

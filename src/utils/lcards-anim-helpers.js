@@ -486,6 +486,66 @@ export async function animateWithRoot(options) {
   }
 }
 
+/**
+ * Hand the instances a preset's setup() created itself (text presets that drive a
+ * proxy, WAAPI-backed presets) to the caller's onInstanceCreated, so AnimationManager
+ * tracks, stops and gates them like any other. setup() pushes them to
+ * `element._presetInstances`; each needs the instance surface the manager uses
+ * (`completed`, `revert()`, and for settling `complete()` + `iterationCount`).
+ * @param {Element} element
+ * @param {((instance: any) => void)|null} onInstanceCreated
+ */
+function _reportPresetInstances(element, onInstanceCreated) {
+  const instances = /** @type {any} */ (element)?._presetInstances;
+  if (!Array.isArray(instances)) return;
+  delete /** @type {any} */ (element)._presetInstances;
+  if (typeof onInstanceCreated === 'function') instances.forEach(instance => onInstanceCreated(instance));
+}
+
+/**
+ * Wrap an anime.js instance so `fn` runs once when it is reverted or cancelled
+ * (stopAnimations, a card re-render) or when a finite one completes. The wrapper
+ * has the instance's own surface (methods bound to it), for AnimationManager to track.
+ * Text presets use it to put their split text back.
+ * @param {any} instance
+ * @param {() => void} fn
+ * @returns {any}
+ */
+export function withRevertHook(instance, fn) {
+  if (!instance || typeof fn !== 'function') return instance;
+  let done = false;
+  const run = () => {
+    if (done) return;
+    done = true;
+    try { fn(); } catch (error) { lcardsLog.warn('[withRevertHook] Hook failed:', error); }
+  };
+  if (typeof instance.then === 'function') instance.then(run);
+  return new Proxy(instance, {
+    get(target, key) {
+      if (key === 'revert' || key === 'cancel') {
+        return (/** @type {any[]} */ ...args) => { const result = target[key](...args); run(); return result; };
+      }
+      const value = Reflect.get(target, key, target);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+    set(target, key, value) { return Reflect.set(target, key, value, target); },
+  });
+}
+
+/**
+ * Tie a preset's cleanup(element) to the instance animating that element
+ * (see withRevertHook). `_presetCleanup` is set after the preset's setup().
+ * @param {any} instance
+ * @param {Element} element
+ * @returns {any}
+ */
+function _withPresetCleanup(instance, element) {
+  const cleanup = /** @type {any} */ (element)?._presetCleanup;
+  if (typeof cleanup !== 'function') return instance;
+  delete /** @type {any} */ (element)._presetCleanup;
+  return withRevertHook(instance, () => cleanup(element));
+}
+
 /** `from` aliases kept from the LCARdS docs, mapped to anime.js v4 names. */
 const _STAGGER_FROM_ALIASES = { start: 'first', end: 'last' };
 const _STAGGER_FROM_VALUES = new Set(['first', 'center', 'last', 'random']);
@@ -843,6 +903,7 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
             _migrateTransformAttrToStyle(el);
             if (_tlResult.styles) Object.assign(/** @type {any} */ (el).style, _tlResult.styles);
             if (_tlResult.setup) { try { _tlResult.setup(el); } catch (_se) {} }
+            _reportPresetInstances(el, onInstanceCreated);
           });
           if (!window.lcards?.anim?.animejs?.createTimeline) {
             lcardsLog.error('[animateElement] createTimeline not available for timeline preset', { type });
@@ -885,7 +946,9 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
             probeDelay: _batchProbeResult?.anime?.delay
           });
 
-          if (_batchProbeResult?.anime?.delay?._stagger === true) {
+          // `batch: false`: the preset animates per-element targets of its own (text
+          // presets stagger the split characters of each element), not the elements
+          if (_batchProbeResult?.anime?.delay?._stagger === true && _batchProbeResult.batch !== false) {
             // Build final batch params by merging preset anime output.
             // Start from probe params then let the preset output overwrite — this
             // ensures the preset's [property]:[from,to] tween wins over anything
@@ -905,6 +968,7 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
             if (_batchProbeResult.setup) {
               elements.forEach(el => { try { _batchProbeResult.setup(el); } catch (_se) {} });
             }
+            elements.forEach(el => _reportPresetInstances(el, onInstanceCreated));
 
             // Convert the _stagger marker to an anime.js stagger() function
             const _batchMarkerResult = _processAnimationMarkers(_batchParams, elements[0], root);
@@ -1018,6 +1082,8 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
             if (presetResult.setup && typeof presetResult.setup === 'function') {
               presetResult.setup(element);
             }
+            if (typeof presetResult.cleanup === 'function') /** @type {any} */ (element)._presetCleanup = presetResult.cleanup;
+            _reportPresetInstances(element, onInstanceCreated);
 
             // Apply CSS styles to target element
             if (presetResult.styles && element) {
@@ -1102,6 +1168,8 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
         const animTargets = /** @type {any} */ (element)._animTargets;
         delete /** @type {any} */ (element)._animTargets;
         if (animTargets === null) {
+          // A self-managed preset ties its own cleanup to the instances it reported
+          delete /** @type {any} */ (element)._presetCleanup;
           lcardsLog.debug(`[animateElement] Preset setup() self-managed animation for ${type}, skipping main anime call`);
           continue;
         }
@@ -1155,7 +1223,7 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
 
       // Call callback with the created instance (for tracking)
       if (onInstanceCreated && typeof onInstanceCreated === 'function') {
-        onInstanceCreated(animeInstance);
+        onInstanceCreated(_withPresetCleanup(animeInstance, element));
       }
     }
   } catch (error) {
