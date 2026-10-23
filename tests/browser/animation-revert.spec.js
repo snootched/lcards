@@ -42,7 +42,7 @@ test('stopping a looping fill animation restores the original fill attribute', a
 test('animating an SVG group keeps its authored translate or matrix transform', async ({ page }) => {
     // _migrateTransformAttrToStyle copies the attribute into style.transform before
     // anime.js touches it. Authored rotate()/scale() forms are a known gap (lost on
-    // anime.js 4.3 and 4.5 alike; see reports/handoffs/animejs-upgrade-4.5.md).
+    // anime.js 4.3 and 4.5 alike; see reports/handoffs/animejs-4.5-opportunities.md).
     await mountCase(page, 'button-on-show');
     const result = await page.evaluate(async () => {
         const ns = 'http://www.w3.org/2000/svg';

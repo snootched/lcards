@@ -33,4 +33,4 @@ Written by LCARdS (not vendored) on 2026-10-22, from the upstream release notes 
 | 4.5 | `registerAdapter()` | Extends `animate()` and `utils.set()` to non-DOM targets. Built-in three.js adapter at `animejs/adapters/three` (optional `three` peer dependency). |
 | 4.5 | `stagger` 3D grids, `jitter`, `seed` | `grid: [c, r, d]`, `from: [x, y, z]`, `axis: 'z'`; `jitter: n` or `[start, end]`; `seed` makes `jitter` and `from: 'random'` reproducible. |
 
-Follow-ups worth considering are listed in `reports/handoffs/animejs-upgrade-4.5.md`.
+Follow-ups worth considering are listed in `reports/handoffs/animejs-4.5-opportunities.md`.
