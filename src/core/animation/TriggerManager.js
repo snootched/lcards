@@ -43,6 +43,8 @@ export class TriggerManager {
 
     /** @type {boolean} Set by AnimationManager when recreating a scope that had active while-animations */
     this._isRecreation = false;
+    /** The scope is being rebuilt (a re-render), not set up for the first time */
+    this._isRebuild = false;
 
     /** @type {boolean} Set to true in destroy() — guards deferred callbacks after teardown */
     this._destroyed = false;
@@ -232,6 +234,15 @@ export class TriggerManager {
           }
 
           // --- Fire-and-forget path ---
+          // from_state / to_state describe a transition: an update that keeps the
+          // value (an attribute or context change, a re-sent state) is not one.
+          // Without this a `to_state: red_alert` ramp restarted on every such
+          // update while in red alert, and the matching `from_state: red_alert`
+          // ramp-down fired and cancelled it.
+          if ((anim.from_state !== undefined || anim.to_state !== undefined) && oldState &&
+              String(oldValue) === String(newValue)) {
+            return;
+          }
           if (anim.from_state !== undefined) {
             if (!oldState || String(oldValue) !== String(anim.from_state)) {
               lcardsLog.trace(`[TriggerManager] from_state mismatch: expected ${anim.from_state}, got ${oldValue ?? 'unavailable'}`);
@@ -324,7 +335,13 @@ export class TriggerManager {
           return;
         }
 
-        // Fire-and-forget: from_state not applicable on load (no prior state)
+        // Fire-and-forget runs on the first setup only. On a rebuild (a re-render)
+        // the AnimationManager carry-over keeps or replays what was running;
+        // firing again here restarted a running `to_state` ramp on every
+        // re-render, and fired every `from_state` animation.
+        if (this._isRebuild) return;
+        // from_state needs a prior state, which a load does not have
+        if (anim.from_state !== undefined) return;
         if (anim.to_state !== undefined && String(currentValue) !== String(anim.to_state)) {
           lcardsLog.debug(`[TriggerManager] check_on_load: to_state mismatch for ${entityId} \u2014 expected ${anim.to_state}, got ${currentValue}`);
           return;

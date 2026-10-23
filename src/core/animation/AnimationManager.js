@@ -233,18 +233,33 @@ export class AnimationManager extends BaseService {
    * The background effect handles of the card that owns `element` (the nearest
    * LCARdS card up the DOM and shadow roots that supports background_animation;
    * an embedded card stops the climb even without a background of its own).
+   * A re-render can leave the scope holding a detached element (its card is
+   * then unreachable by walking up), so the card found when the scope was
+   * registered is the fallback.
    * @param {any} element - The scope element
    * @param {number|string|undefined} index - `effect:` from the animation
+   * @param {any} [cardHost] - The scope's card, remembered at registration
    * @returns {any[]} EffectHandles
    * @private
    */
-  _resolveBackgroundTargets(element, index) {
+  _resolveBackgroundTargets(element, index, cardHost = null) {
+    const host = this._findBackgroundHost(element) ?? cardHost;
+    return host?._backgroundRenderer?.getHandles?.(index) ?? [];
+  }
+
+  /**
+   * The nearest card up the DOM and shadow roots that supports background_animation.
+   * @param {any} element
+   * @returns {any}
+   * @private
+   */
+  _findBackgroundHost(element) {
     let node = element;
     while (node) {
-      if ('_backgroundRenderer' in node) return node._backgroundRenderer?.getHandles?.(index) ?? [];
+      if ('_backgroundRenderer' in node) return node;
       node = node.parentNode ?? node.host ?? null;
     }
-    return [];
+    return null;
   }
 
   /**
@@ -588,12 +603,15 @@ export class AnimationManager extends BaseService {
       // as that would bypass the check_on_load: false guard.
       const triggerManager = new TriggerManager(overlayId, element, this);
       triggerManager._isRecreation = !!existingScope && previouslyActiveWhileAnims;
+      triggerManager._isRebuild = !!existingScope;
 
       // Store scope and trigger manager
       this.scopes.set(overlayId, {
         scope: scope,
         overlay: overlayConfig,
         element: element,
+        // The card around the element, for target: background (see _resolveBackgroundTargets)
+        cardHost: this._findBackgroundHost(element) ?? existingScope?.cardHost ?? null,
         activeAnimations: new Set(),
         triggerManager: triggerManager,
         // Track running animation instances by trigger type for stopAnimations()
@@ -1181,7 +1199,7 @@ export class AnimationManager extends BaseService {
         }
       } else if (finalAnimDef.target === 'background') {
         // The card's background_animation effects (one entry with `effect: N`)
-        const handles = this._resolveBackgroundTargets(overlayElement, finalAnimDef.effect);
+        const handles = this._resolveBackgroundTargets(overlayElement, finalAnimDef.effect, scopeData.cardHost);
         if (handles.length === 0) {
           lcardsLog.warn(`[AnimationManager] target: background found no background effect${finalAnimDef.effect !== undefined ? ` at index ${finalAnimDef.effect}` : ''} for ${overlayId}`);
           return null;

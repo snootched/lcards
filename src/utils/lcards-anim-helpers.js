@@ -937,6 +937,11 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
 
   // target: background resolves to EffectHandles, not elements
   if (Array.isArray(targets) && targets.length > 0 && targets.every(isEffectHandle)) {
+    // After an await, like the element path below: created synchronously inside
+    // AnimationManager's scope.add(), the instance joined the anime.js scope, and
+    // a re-render's scope.revert() then killed it even though the carry-over had
+    // kept it (a warp ramp cut short by the alert-mode re-render)
+    await Promise.resolve();
     _animateEffectHandles(targets, type, animOptions, onInstanceCreated);
     return;
   }

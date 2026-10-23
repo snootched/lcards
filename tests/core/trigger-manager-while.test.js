@@ -45,3 +45,52 @@ describe('TriggerManager while stop', () => {
         assert.equal(am.calls.filter(([kind]) => kind === 'stop').length, 1);
     });
 });
+
+describe('TriggerManager from_state / to_state', () => {
+    it('fire on a real transition only, not on an update that keeps the state', () => {
+        const am = fakeManager({ 'input_select.alert': { state: 'green_alert' } });
+        const tm = new TriggerManager('overlay', null, am);
+        const up = { trigger: 'on_entity_change', entity: 'input_select.alert', to_state: 'red_alert', preset: 'custom' };
+        const down = { trigger: 'on_entity_change', entity: 'input_select.alert', from_state: 'red_alert', preset: 'custom' };
+        const any = { trigger: 'on_entity_change', entity: 'input_select.alert', preset: 'custom' };
+        tm.register('on_entity_change', up);
+        tm.register('on_entity_change', down);
+        tm.register('on_entity_change', any);
+        tm.finalizeRegistrations();
+        am.calls.length = 0;
+
+        am.setState('input_select.alert', 'red_alert');
+        assert.deepEqual(am.calls.map(([, a]) => a), [up, any]);
+
+        // Still red_alert (attribute / context update): the gated ones stay quiet
+        am.setState('input_select.alert', 'red_alert');
+        assert.deepEqual(am.calls.map(([, a]) => a), [up, any, any]);
+
+        am.setState('input_select.alert', 'green_alert');
+        assert.deepEqual(am.calls.map(([, a]) => a), [up, any, any, down, any]);
+    });
+});
+
+describe('TriggerManager check_on_load (fire-and-forget)', () => {
+    const setup = (rebuild) => {
+        const am = fakeManager({ 'input_select.alert': { state: 'red_alert' } });
+        const tm = new TriggerManager('overlay', null, am);
+        tm._isRebuild = rebuild;
+        const up = { trigger: 'on_entity_change', entity: 'input_select.alert', to_state: 'red_alert', preset: 'custom' };
+        const down = { trigger: 'on_entity_change', entity: 'input_select.alert', from_state: 'red_alert', preset: 'custom' };
+        tm.register('on_entity_change', up);
+        tm.register('on_entity_change', down);
+        tm.finalizeRegistrations();
+        return { am, up };
+    };
+
+    it('first setup: a matching to_state fires; a from_state animation never does', () => {
+        const { am, up } = setup(false);
+        assert.deepEqual(am.calls.map(([, a]) => a), [up]);
+    });
+
+    it('rebuild (re-render): nothing fires again (the carry-over keeps what was running)', () => {
+        const { am } = setup(true);
+        assert.deepEqual(am.calls, []);
+    });
+});
