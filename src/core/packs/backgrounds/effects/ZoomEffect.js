@@ -42,6 +42,9 @@ export class ZoomEffect {
     this.opacityFadeIn = config.opacityFadeIn ?? 10; // percentage
     this.opacityFadeOut = config.opacityFadeOut ?? 80; // percentage
 
+    // Cycle clock multiplier; the background's animatable `speed` sets it (warp)
+    this.speed = 1;
+
     // Track time for animation
     this._elapsedTime = 0;
     this._isActive = true;
@@ -82,7 +85,7 @@ export class ZoomEffect {
    */
   update(deltaTime, canvasWidth, canvasHeight) {
     // Update elapsed time
-    this._elapsedTime += deltaTime / 1000; // Convert to seconds
+    this._elapsedTime += (deltaTime / 1000) * this.speed; // Convert to seconds
 
     // Update the base effect
     if (this.baseEffect.update) {

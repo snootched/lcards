@@ -166,6 +166,10 @@ There is no coordination between `AnimationManager`/anime.js and `_setupBaseInte
 
 ---
 
+## Background effects (`target: background`)
+
+`target: background` (+ optional `effect: N`) resolves, in `AnimationManager.playAnimation`, to the card's `EffectHandle`s (`BackgroundAnimationRenderer.getHandles()`), not elements; `animateElement` sends them down `_animateEffectHandles` (no DOM work). anime.js reaches the effect parameters through the adapter in `src/core/packs/backgrounds/effect-adapter.js`. A new effect declares what it can animate in `static animatableProps` (YAML config keys, cheap to change per frame) and multiplies its motion by `this.speed`. Never animate effect objects directly: an alert-mode palette change replaces them; the handle survives it. Reference: `doc/development/anim-api.md#background-effects-as-anime-js-targets`.
+
 ## Anti-patterns
 
 ❌ Don't use v3 `anime.timeline().add({ targets })` syntax — it's broken in v4

@@ -63,6 +63,8 @@ export class Canvas2DRenderer {
     this._pausedForVisibility = false; // true when RAF paused because tab is hidden
     this._isSuspended = false;         // true when externally suspended (e.g. IntersectionObserver)
     this._pausedForReducedMotion = false; // true while prefers-reduced-motion holds the last drawn frame
+    /** @type {number|null} pending requestFrame() redraw */
+    this._frameRequestId = null;
     /** @type {(() => void)|null} */
     this._unsubscribeReducedMotion = null;
     this._pmPaused = false;            // true when we have decremented the PerformanceMonitor ref count
@@ -244,6 +246,10 @@ export class Canvas2DRenderer {
     if (this._animationId) {
       cancelAnimationFrame(this._animationId);
       this._animationId = null;
+    }
+    if (this._frameRequestId) {
+      cancelAnimationFrame(this._frameRequestId);
+      this._frameRequestId = null;
     }
 
     // Clean up PerformanceMonitor listener
@@ -438,27 +444,10 @@ export class Canvas2DRenderer {
     const deltaTime = currentTime - this._lastFrameTime;
     this._lastFrameTime = currentTime;
 
-    // Clear canvas
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
     // Update and draw each effect, timing the whole pass for the hard
     // frame-budget check below.
     const frameWorkStart = performance.now();
-    for (let i = this.effects.length - 1; i >= 0; i--) {
-      const effect = this.effects[i];
-
-      // Remove inactive effects
-      if (!effect.isActive()) {
-        this.removeEffect(effect);
-        continue;
-      }
-
-      // Update effect state
-      effect.update(deltaTime, this.canvas.width, this.canvas.height);
-
-      // Draw effect
-      effect.draw(this.ctx, this.canvas.width, this.canvas.height);
-    }
+    this._drawEffects(deltaTime);
     const frameWorkMs = performance.now() - frameWorkStart;
 
     // Hard backstop: a single pathologically slow frame trips the same
@@ -501,6 +490,59 @@ export class Canvas2DRenderer {
 
     // Request next frame
     this._animationId = requestAnimationFrame(() => this._animate());
+  }
+
+  /**
+   * Clear the canvas, then update and draw every effect in order: the first
+   * effect is the bottom layer. Inactive effects are dropped after the pass.
+   * An effect's `_xform` (x/y offset in px, rotate in degrees, scale; set by
+   * the background effect adapter) is applied around its centre.
+   *
+   * @param {number} deltaTime - ms since the last frame (0 redraws in place)
+   * @private
+   */
+  _drawEffects(deltaTime) {
+    const { ctx, canvas } = this;
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    let inactive = null;
+    for (const effect of this.effects) {
+      if (!effect.isActive()) {
+        (inactive ??= []).push(effect);
+        continue;
+      }
+      if (deltaTime > 0) effect.update(deltaTime, w, h);
+
+      const xf = effect._xform;
+      if (xf && (xf.x || xf.y || xf.rotate || xf.scale !== 1)) {
+        ctx.save();
+        ctx.translate(w / 2 + xf.x, h / 2 + xf.y);
+        if (xf.rotate) ctx.rotate((xf.rotate * Math.PI) / 180);
+        if (xf.scale !== 1) ctx.scale(xf.scale, xf.scale);
+        ctx.translate(-w / 2, -h / 2);
+        effect.draw(ctx, w, h);
+        ctx.restore();
+      } else {
+        effect.draw(ctx, w, h);
+      }
+    }
+    inactive?.forEach((effect) => this.removeEffect(effect));
+  }
+
+  /**
+   * Redraw once without advancing time, for a parameter change while the
+   * loop is holding a static frame (prefers-reduced-motion). While the loop
+   * runs, the next frame shows the change anyway.
+   */
+  requestFrame() {
+    if (!this._pausedForReducedMotion || this._isSuspended || this._pausedForVisibility) return;
+    if (this._frameRequestId) return;
+    this._frameRequestId = requestAnimationFrame(() => {
+      this._frameRequestId = null;
+      if (this._pausedForReducedMotion) this._drawEffects(0);
+    });
   }
 
   /**

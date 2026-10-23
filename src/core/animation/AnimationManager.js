@@ -230,6 +230,24 @@ export class AnimationManager extends BaseService {
   }
 
   /**
+   * The background effect handles of the card that owns `element` (the nearest
+   * LCARdS card up the DOM and shadow roots that supports background_animation;
+   * an embedded card stops the climb even without a background of its own).
+   * @param {any} element - The scope element
+   * @param {number|string|undefined} index - `effect:` from the animation
+   * @returns {any[]} EffectHandles
+   * @private
+   */
+  _resolveBackgroundTargets(element, index) {
+    let node = element;
+    while (node) {
+      if ('_backgroundRenderer' in node) return node._backgroundRenderer?.getHandles?.(index) ?? [];
+      node = node.parentNode ?? node.host ?? null;
+    }
+    return [];
+  }
+
+  /**
    * Whether every element an instance animates is still in the document. Timelines
    * and CSS handles expose no targets and count as not connected (they are replayed).
    * @param {any} instance
@@ -858,8 +876,9 @@ export class AnimationManager extends BaseService {
    * Play every animation registered on a scope for one trigger.
    * @param {string} overlayId
    * @param {string} trigger
-   * @param {{ pointer?: { clientX: number, clientY: number }|null }} [context] - pointer: the tap
-   *   that fired it, for stagger `from: 'pointer'` (tap-ripple)
+   * @param {{ pointer?: { clientX: number, clientY: number }|null, fromState?: string, toState?: string }} [context] - pointer: the tap
+   *   that fired it, for stagger `from: 'pointer'` (tap-ripple). fromState / toState: the
+   *   card entity change behind an on_entity_change trigger (gates from_state / to_state)
    */
   async triggerAnimations(overlayId, trigger, context = {}) {
     const scopeData = this.scopes.get(overlayId);
@@ -897,6 +916,14 @@ export class AnimationManager extends BaseService {
       if (animDef.while) {
         lcardsLog.debug(`[AnimationManager] ⏭️ Skipping while-gated animation in triggerAnimations (handled by TriggerManager) for ${overlayId}`);
         continue;
+      }
+      // A card's own entity change: an on_entity_change animation naming its
+      // `entity` is TriggerManager's (subscribed, gated); the rest still honour
+      // from_state / to_state
+      if (trigger === 'on_entity_change' && 'toState' in context) {
+        if (animDef.entity) continue;
+        if (animDef.to_state !== undefined && String(context.toState) !== String(animDef.to_state)) continue;
+        if (animDef.from_state !== undefined && String(context.fromState) !== String(animDef.from_state)) continue;
       }
       try {
         await this.playAnimation(overlayId, animDef, context.pointer ? { pointer: context.pointer } : {});
@@ -1152,6 +1179,14 @@ export class AnimationManager extends BaseService {
             lcardsLog.warn(`[AnimationManager] Target not found: "${spec}" for overlay ${overlayId}`);
           }
         }
+      } else if (finalAnimDef.target === 'background') {
+        // The card's background_animation effects (one entry with `effect: N`)
+        const handles = this._resolveBackgroundTargets(overlayElement, finalAnimDef.effect);
+        if (handles.length === 0) {
+          lcardsLog.warn(`[AnimationManager] target: background found no background effect${finalAnimDef.effect !== undefined ? ` at index ${finalAnimDef.effect}` : ''} for ${overlayId}`);
+          return null;
+        }
+        targetElements.push(...handles);
       } else if (finalAnimDef.target) {
         // Single target specified (string selector or element)
 

@@ -9,6 +9,7 @@
  */
 
 import { BaseTextureEffect } from './BaseTextureEffect.js';
+import { configProp } from '../../backgrounds/effects/animatable-props.js';
 import { parseColorToRgba } from './noise-helpers.js';
 import { resolveColor } from '../../../themes/resolve-color.js';
 
@@ -51,6 +52,16 @@ function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
  *    slosh_period {number}  Seconds per slosh cycle (default 3)
  */
 export class LevelTextureEffect extends BaseTextureEffect {
+    static animatableProps = {
+        ...BaseTextureEffect.animatableProps,
+        fill_pct: configProp('fill_pct', '_fillPct'),
+        wave_height: configProp('wave_height', '_waveHeight'),
+        wave_speed: configProp('wave_speed', '_waveSpeed'),
+        wave2_height: configProp('wave2_height', '_wave2Height'),
+        wave2_speed: configProp('wave2_speed', '_wave2Speed'),
+        slosh_amount: configProp('slosh_amount', '_sloshAmount'),
+    };
+
 
     constructor(config = {}) {
         super(config);

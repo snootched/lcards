@@ -14,7 +14,7 @@ import { JSDOM } from 'jsdom';
 const GLOBALS = [
     'document', 'navigator', 'location', 'history', 'screen', 'localStorage', 'sessionStorage',
     'HTMLElement', 'HTMLCanvasElement', 'HTMLStyleElement', 'SVGElement', 'Element', 'Node',
-    'DocumentFragment', 'ShadowRoot', 'customElements', 'CSSStyleSheet',
+    'DocumentFragment', 'ShadowRoot', 'customElements', 'CSSStyleSheet', 'NodeList', 'HTMLCollection',
     'Event', 'CustomEvent', 'MutationObserver', 'DOMParser', 'XMLSerializer', 'Image',
     'getComputedStyle', 'matchMedia', 'innerWidth', 'innerHeight',
 ];

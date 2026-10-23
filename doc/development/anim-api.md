@@ -155,6 +155,44 @@ Preset names are passed as the `type` field when using `animateElement` or in ca
 
 ---
 
+## Background effects as anime.js targets
+
+Background effects (`background_animation`) draw on a canvas in their own loop, so anime.js can't see them as elements. LCARdS registers an anime.js 4.5 adapter for them (`registerAdapter` from the `animejs/adapters` sub-path, in `src/core/packs/backgrounds/effect-adapter.js`, called once from `lcards-main.js`). That gives every anime.js feature (easing, springs, timelines, `revert()`) and so every LCARdS trigger, rule and the reduced-motion gate on effect parameters. Users reach it with `target: background` ([Animating the background](../core/effects/background-animations.md#animating-the-background)).
+
+**The target is an `EffectHandle`, not the effect** (`effect-handle.js`): one per `background_animation` entry, owned by `BackgroundAnimationRenderer` (`renderer.getHandles(index?)`). An alert-mode palette change rebuilds the effect objects, and a zoomed starfield is one object per layer; the handle outlives both, re-attaches the new objects and re-applies the numeric values set so far. It has `isConnected` (true while its renderer lives), so `AnimationManager`'s target filters and re-render carry-over treat it like an element.
+
+```javascript
+const card = document.querySelector('lcards-button');
+const [handle] = card._backgroundRenderer.getHandles(0);
+const anim = window.lcards.anim.anime(handle, { speed: [1, 8], duration: 2000 });
+anim.revert(); // speed back to 1, through the same setters
+```
+
+**Declaring what an effect can animate.** Each effect class has `static animatableProps`, keyed by the YAML config key, built with the helpers in `effects/animatable-props.js`:
+
+```javascript
+import { numProp, colorProp } from './animatable-props.js';
+
+export class MyEffect extends BaseEffect {
+  static animatableProps = {
+    ...BaseEffect.animatableProps,                 // opacity, speed
+    scroll_speed_x: numProp('scrollSpeedX'),
+    density: numProp('density', { min: 0, after: (e) => e._rebuildCache() }),
+    color: colorProp('color')                      // concrete colour string
+  };
+}
+```
+
+- Declare only what is cheap to change every frame. A key that needs a rebuild or a re-bake stays out; an entity binding on it falls back to the effect's `updateConfig()` (a snap).
+- `after` is the cache invalidation hook. Colour setters get an `rgba()` string (the adapter turns anime.js's `tween._numbers` back into one).
+- Honour `this.speed` wherever the effect moves by `deltaTime` (`BaseEffect.update` already runs the elapsed clock at `speed`).
+- `x`, `y`, `rotate`, `scale` are handled by the handle and `Canvas2DRenderer` (around each drawn object), not by the effect.
+- `tests/core/background-effect-adapter.test.js` fails if a declared key is not a config key of a preset that builds the effect.
+
+**Entity bindings** use the same path: `BackgroundAnimationRenderer.updateHass` resolves the `map_range` or template value, then glides a declared key with `animate(handle, { [key]: value, duration: transition })` (snapping the first value, with `transition: 0` and under reduced motion; `Canvas2DRenderer.requestFrame()` redraws the held reduced-motion frame).
+
+---
+
 ## Active scopes
 
 `anim.scopes` is a `Map` maintained by `AnimationManager`. Overlays register a scope entry here on creation. Pack code should generally not interact with this directly; use `AnimationManager.createScopeForOverlay()` instead.

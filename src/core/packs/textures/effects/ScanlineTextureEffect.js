@@ -8,6 +8,7 @@
  */
 
 import { BaseTextureEffect } from './BaseTextureEffect.js';
+import { configProp } from '../../backgrounds/effects/animatable-props.js';
 
 /**
  * ScanlineTextureEffect - Scrolling CRT scanlines
@@ -15,6 +16,14 @@ import { BaseTextureEffect } from './BaseTextureEffect.js';
  * @extends BaseTextureEffect
  */
 export class ScanlineTextureEffect extends BaseTextureEffect {
+    static animatableProps = {
+        ...BaseTextureEffect.animatableProps,
+        scroll_speed_x: configProp('scroll_speed_x', '_scrollSpeedX'),
+        scroll_speed_y: configProp('scroll_speed_y', '_scrollSpeedY'),
+        line_spacing: configProp('line_spacing', '_lineSpacing'),
+        line_width: configProp('line_width', '_lineWidth'),
+    };
+
     /**
      * @param {object} config
      * @param {string} [config.color='rgba(0,0,0,0.25)']   - Scanline colour

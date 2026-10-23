@@ -11,6 +11,8 @@
 import { lcardsLog } from './lcards-logging.js';
 import { getAnimationPreset } from '../core/animation/presets.js';
 import { resolveColor } from '../core/themes/resolve-color.js';
+import { isEffectHandle } from '../core/packs/backgrounds/effect-handle.js';
+import { EFFECT_TIMING_KEYS } from '../core/packs/backgrounds/effect-adapter.js';
 
 /**
  * LCARdS-internal animation meta-params that must NOT be passed to anime.animate().
@@ -43,6 +45,7 @@ const _LCARDS_META_PARAMS = new Set([
   'state_resolver',
   'morph_to_selector',
   'precision',
+  'effect',       // target: background: which background_animation entry (AnimationManager)
   'animejs',      // editor "custom" mode payload, not run by anything (see reports/animejs-4.5-opportunities.md E10)
   'easing',       // v3 alias: anime.js v4 uses 'ease' not 'easing'
   'ease_params',  // LCARdS: parametric ease config (merged into ease object before animateElement)
@@ -54,6 +57,66 @@ const _LCARDS_META_PARAMS = new Set([
   'with_opacity',
   'trail_opacity',
 ]);
+
+/** Background keys already reported as not animatable, `preset.key` */
+const _warnedEffectKeys = new Set();
+
+/**
+ * Animate background effect parameters (`target: background`). The preset
+ * builds its anime.js tween as usual; only the keys the effects declare
+ * (`static animatableProps`, plus x/y/rotate/scale) and the timing keys
+ * reach anime.js, through the effect adapter. No DOM work: no waiting for
+ * elements, styles, setup() or transform migration.
+ *
+ * @param {any[]} handles - EffectHandles
+ * @param {any} type - Preset name
+ * @param {Record<string, any>} animOptions
+ * @param {((instance: any) => void)|null} onInstanceCreated
+ * @private
+ */
+function _animateEffectHandles(handles, type, animOptions, onInstanceCreated) {
+  const presetFn = getAnimationPreset(String(type).toLowerCase());
+  if (!presetFn) {
+    lcardsLog.warn(`[animateElement] target: background: unknown preset "${type}"`);
+    return;
+  }
+  const params = /** @type {Record<string, any>} */ ({ duration: 1000, ease: 'inOutQuad', ...animOptions });
+  if (params.ease) params.ease = resolveEasing(params.ease);
+  let result;
+  try {
+    result = presetFn(params);
+  } catch (error) {
+    lcardsLog.error(`[animateElement] target: background: preset ${type} failed`, error);
+    return;
+  }
+  if (!result?.anime || result._timeline || result.setup) {
+    lcardsLog.warn(`[animateElement] target: background: preset "${type}" animates elements and cannot drive a background; use preset: custom with the effect keys in params`);
+    return;
+  }
+  Object.assign(params, result.anime);
+
+  const out = /** @type {Record<string, any>} */ ({});
+  for (const [key, value] of Object.entries(_cleanAnimeParams(params))) {
+    if (EFFECT_TIMING_KEYS.has(key)) {
+      out[key] = value;
+    } else if (handles.some((h) => h.has(key))) {
+      // Colour keys: theme:/var()/computed values become concrete for interpolation
+      const isColor = handles.some((h) => typeof h.getProp(key) === 'string');
+      const toConcrete = (/** @type {any} */ v) => (typeof v === 'string' ? resolveColor(v, { concrete: true }) : v);
+      out[key] = isColor ? (Array.isArray(value) ? value.map(toConcrete) : toConcrete(value)) : value;
+    } else if (key in result.anime) {
+      const id = `${handles[0]?.presetId}.${key}`;
+      if (!_warnedEffectKeys.has(id)) {
+        _warnedEffectKeys.add(id);
+        lcardsLog.warn(`[animateElement] target: background: "${key}" is not animatable on ${handles[0]?.presetId}. Animatable: ${handles[0]?.keys().join(', ')}`);
+      }
+    }
+  }
+  if (!Object.keys(out).some((k) => !EFFECT_TIMING_KEYS.has(k))) return;
+
+  const instance = window.lcards.anim.anime(handles, out);
+  if (typeof onInstanceCreated === 'function') onInstanceCreated(instance);
+}
 
 /**
  * Strip LCARdS-internal meta-params from an anime.js parameter object.
@@ -871,6 +934,12 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
     return;
   }
   lcardsLog.debug('[animateElement] Received options:', { options });
+
+  // target: background resolves to EffectHandles, not elements
+  if (Array.isArray(targets) && targets.length > 0 && targets.every(isEffectHandle)) {
+    _animateEffectHandles(targets, type, animOptions, onInstanceCreated);
+    return;
+  }
 
   // Runs inline, not inside scope.add(): anime.js only registers instances created
   // while a scope callback runs synchronously, and everything here is created after

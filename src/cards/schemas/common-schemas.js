@@ -443,7 +443,12 @@ export const animationSchema = {
         },
         target: {
             type: 'string',
-            description: 'CSS selector for a single animation target element.'
+            description: 'CSS selector for a single animation target element, or `background` to animate the card\'s background_animation effects (their config keys in params, with preset: custom).'
+        },
+        effect: {
+            type: 'integer',
+            minimum: 0,
+            description: 'With target: background, the index of the background_animation entry to animate (0 is the first, the bottom layer). Without it, every entry.'
         },
         targets: {
             type: ['string', 'array'],
@@ -1590,6 +1595,13 @@ const backgroundAnimationEffectSchema = {
             type: 'boolean',
             description: 'Set to false to disable this effect without removing it',
             default: true
+        },
+        transition: {
+            type: 'number',
+            minimum: 0,
+            default: 500,
+            description: 'How long, in ms, an entity-bound config value (map_range or a template) glides to its new value. 0 snaps. Under reduced motion values always snap.',
+            'x-ui-hints': { selector: { number: { min: 0, max: 5000, step: 50, mode: 'box', unit_of_measurement: 'ms' } } }
         },
         zoom: {
             type: 'object',

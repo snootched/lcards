@@ -46,6 +46,19 @@ const _opacitySchema = {
   'x-ui-hints': { label: 'Opacity', selector: { number: { min: 0, max: 1, step: 0.05, mode: 'slider' } } }
 };
 
+/**
+ * Time multiplier every background effect honours (BaseEffect.speed). The
+ * shimmer preset declares its own `speed` (its sweep speed) instead.
+ * @private
+ */
+const _speedSchema = {
+  type: 'number',
+  minimum: 0,
+  default: 1,
+  description: 'Time multiplier for the whole effect: 2 runs it twice as fast, 0 freezes it. A zoom wrapper cycles faster too. Animatable (target: background).',
+  'x-ui-hints': { selector: { number: { min: 0, max: 10, step: 0.1, mode: 'slider' } } }
+};
+
 // ============================================================================
 // GRID FAMILY (mirrors GridEffect.js — backs grid / grid-diagonal / grid-hexagonal)
 // ============================================================================
@@ -54,6 +67,7 @@ export const gridParamsSchema = {
   type: 'object',
   description: 'Params for the "grid" preset: orthogonal scrolling grid with optional major/minor divisions.',
   properties: {
+    speed: _speedSchema,
     line_spacing: {
       type: 'number', minimum: 1, default: 40,
       description: 'Pixel spacing between minor lines. Confirmed unclamped in code: 0 or unset-with-falsy hangs the tile loop (Infinity tiles), hence the minimum.',
@@ -86,6 +100,7 @@ export const gridDiagonalParamsSchema = {
   type: 'object',
   description: 'Params for the "grid-diagonal" preset: 45° hatched variant of grid. Pattern is hardcoded to diagonal, not user-overridable.',
   properties: {
+    speed: _speedSchema,
     line_spacing: { type: 'number', minimum: 1, default: 30, description: 'Pixel spacing between lines. Unclamped in code: 0 hangs the tile loop, hence the minimum.', 'x-ui-hints': { selector: { number: { min: 1, max: 200, step: 1, mode: 'slider' } } } },
     line_width: { type: 'number', minimum: 0, default: 1, description: 'Line thickness in px.', 'x-ui-hints': { selector: { number: { min: 0, max: 10, step: 0.5, mode: 'slider' } } } },
     color: { ...simpleColorSchema, default: 'rgba(255, 153, 102, 0.25)', description: 'Line color.' },
@@ -101,6 +116,7 @@ export const gridHexagonalParamsSchema = {
   type: 'object',
   description: 'Params for the "grid-hexagonal" preset: honeycomb hex-grid variant of grid. Pattern is hardcoded to hexagonal, not user-overridable.',
   properties: {
+    speed: _speedSchema,
     hex_radius: { type: 'number', minimum: 1, default: 40, description: 'Hexagon size in px. Unclamped in code: 0 hangs the tile loop (patternWidth=0), hence the minimum.', 'x-ui-hints': { selector: { number: { min: 1, max: 150, step: 1, mode: 'slider' } } } },
     line_width_minor: { type: 'number', minimum: 0, default: 1, description: 'Minor line thickness in px.', 'x-ui-hints': { selector: { number: { min: 0, max: 10, step: 0.5, mode: 'slider' } } } },
     line_width_major: { type: 'number', minimum: 0, default: 2, description: 'Major line thickness in px.', 'x-ui-hints': { selector: { number: { min: 0, max: 10, step: 0.5, mode: 'slider' } } } },
@@ -124,6 +140,7 @@ export const starfieldParamsSchema = {
   type: 'object',
   description: 'Params for the "starfield" preset: scrolling parallax star field.',
   properties: {
+    speed: _speedSchema,
     seed: { type: 'integer', description: 'Random seed: same seed always generates the same star layout. Random by default when unset.' },
     count: { type: 'integer', minimum: 0, default: 150, description: 'Number of stars.', 'x-ui-hints': { selector: { number: { min: 0, max: 500, step: 10, mode: 'slider' } } } },
     min_radius: { type: 'number', minimum: 0, default: 0.5, description: 'Smallest star radius in px.', 'x-ui-hints': { selector: { number: { min: 0, max: 10, step: 0.1, mode: 'slider' } } } },
@@ -135,6 +152,7 @@ export const starfieldParamsSchema = {
       description: 'Star color(s); also accepts a single color via the legacy `color` field.',
       'x-ui-hints': { widget: 'json', label: 'Colors' }
     },
+    color: { ...simpleColorSchema, description: 'One color for every star, in place of colors. This is the key to animate (target: background) or bind to recolor the stars.' },
     scroll_speed_x: { type: 'number', default: 30, description: 'Horizontal scroll speed in px/s.', 'x-ui-hints': { selector: { number: { min: -100, max: 100, step: 1, mode: 'slider' } } } },
     scroll_speed_y: { type: 'number', default: 0, description: 'Vertical scroll speed in px/s.', 'x-ui-hints': { selector: { number: { min: -100, max: 100, step: 1, mode: 'slider' } } } },
     parallax_layers: { type: 'integer', minimum: 1, maximum: 5, default: 3, description: 'Number of depth layers: more layers = more depth. Clamped in code to 1-5.', 'x-ui-hints': { selector: { number: { min: 1, max: 5, step: 1, mode: 'slider' } } } },
@@ -148,6 +166,7 @@ export const nebulaParamsSchema = {
   type: 'object',
   description: 'Params for the "nebula" preset: layered Perlin-noise cloud blobs.',
   properties: {
+    speed: _speedSchema,
     seed: { type: 'integer', description: 'Random seed: same seed always generates the same cloud layout. Random by default when unset.' },
     cloud_count: { type: 'integer', minimum: 1, maximum: 10, default: 4, description: 'Number of cloud blobs. Clamped in code to 1-10.', 'x-ui-hints': { selector: { number: { min: 1, max: 10, step: 1, mode: 'slider' } } } },
     min_radius: { type: 'number', minimum: 0, maximum: 1, default: 0.15, description: 'Smallest cloud radius, as a fraction of canvas size. Clamped in code to 0-1.', 'x-ui-hints': { selector: { number: { min: 0, max: 1, step: 0.01, mode: 'slider' } } } },
@@ -172,6 +191,7 @@ export const contourFieldParamsSchema = {
   type: 'object',
   description: 'Params for the "contour-field" preset: topographic-style banded noise field. Defaults below are the REAL zero-config resolved values (verified against ContourFieldEffect.js/presets/index.js), not the sparser set previously shown in guide.params; the shipped default is a visible tinted fill with a 5-stop gradient, not transparent/single-color.',
   properties: {
+    speed: _speedSchema,
     seed: { type: 'integer', description: 'Random seed: same seed + settings always generates the same field. Random by default when unset.' },
     noise_scale: { type: 'number', minimum: 0.0001, default: 0.005, description: 'Smaller = a few large drifting blobs; larger = many small, busy ripples.', 'x-ui-hints': { selector: { number: { min: 0.0005, max: 0.02, step: 0.0005, mode: 'slider' } } } },
     num_octaves: { type: 'integer', minimum: 1, maximum: 8, default: 2, description: 'Layers of fine detail: 1 = smooth blobs, 8 = rough, cloud-like fuzz. Clamped in code to 1-8.', 'x-ui-hints': { selector: { number: { min: 1, max: 8, step: 1, mode: 'slider' } } } },
@@ -201,6 +221,7 @@ export const cascadeParamsSchema = {
   type: 'object',
   description: 'Params for the "cascade" preset: LCARS waterfall colour-cycling data grid. A single instance changes every matched cell in sync (mode: css\'s delay is one flat value); the row-by-row "waterfall" look (including the niagara timing pattern) requires declaring multiple separate instances, one per row; see lcards-data-grid\'s animation.pattern option, which automates that.',
   properties: {
+    speed: _speedSchema,
     num_rows: { type: 'integer', minimum: 1, description: 'Explicit row count. Unclamped in code: 0 or negative throws a RangeError, hence the minimum.' },
     num_cols: { type: 'integer', minimum: 1, description: 'Explicit column count. Unclamped in code: 0 or negative throws a RangeError, hence the minimum.' },
     format: {
@@ -240,6 +261,7 @@ export const levelParamsSchema = {
   type: 'object',
   description: 'Params for the "level" preset: animated tank/gauge fill bar.',
   properties: {
+    speed: _speedSchema,
     color_a: { ...simpleColorSchema, default: 'rgba(0,200,100,0.7)', description: 'Primary fill color (or gradient start).' },
     color_b: { ...simpleColorSchema, description: 'Gradient end color: omit for a flat fill.' },
     gradient_crossover: { type: 'number', minimum: 0, maximum: 100, default: 80, description: 'Percent of fill height where the gradient crosses over. Clamped in code to 0-100.', 'x-ui-hints': { selector: { number: { min: 0, max: 100, step: 1, mode: 'slider' } } } },
@@ -273,6 +295,7 @@ export const fluidParamsSchema = {
   type: 'object',
   description: 'Params for the "fluid" preset: swirling single-colour noise wash.',
   properties: {
+    speed: _speedSchema,
     color: { ...simpleColorSchema, default: 'rgba(100,180,255,0.8)', description: 'Wash color.' },
     base_frequency: { type: 'number', minimum: 0.0001, default: 0.010, description: 'Noise detail: lower = larger features.', 'x-ui-hints': { selector: { number: { min: 0.001, max: 0.05, step: 0.001, mode: 'slider' } } } },
     num_octaves: { type: 'integer', minimum: 1, maximum: 8, default: 4, description: 'Layers of noise detail: perf cost scales with this, practical max ~8.', 'x-ui-hints': { selector: { number: { min: 1, max: 8, step: 1, mode: 'slider' } } } },
@@ -287,6 +310,7 @@ export const plasmaParamsSchema = {
   type: 'object',
   description: 'Params for the "plasma" preset: two-colour plasma noise bands.',
   properties: {
+    speed: _speedSchema,
     color_a: { ...simpleColorSchema, default: 'rgba(80,0,255,0.9)', description: 'First plasma color.' },
     color_b: { ...simpleColorSchema, default: 'rgba(255,40,120,0.9)', description: 'Second plasma color.' },
     base_frequency: { type: 'number', minimum: 0.0001, default: 0.012, description: 'Noise detail: lower = larger features.', 'x-ui-hints': { selector: { number: { min: 0.001, max: 0.05, step: 0.001, mode: 'slider' } } } },
@@ -301,6 +325,7 @@ export const flowParamsSchema = {
   type: 'object',
   description: 'Params for the "flow" preset: directional streaming noise streaks.',
   properties: {
+    speed: _speedSchema,
     color: { ...simpleColorSchema, default: 'rgba(0,200,255,0.7)', description: 'Streak color.' },
     base_frequency: { type: 'number', minimum: 0.0001, default: 0.012, description: 'Noise detail: lower = larger features.', 'x-ui-hints': { selector: { number: { min: 0.001, max: 0.05, step: 0.001, mode: 'slider' } } } },
     wave_scale: { type: 'number', minimum: 0, default: 8, description: 'Streak waviness.', 'x-ui-hints': { selector: { number: { min: 0, max: 30, step: 1, mode: 'slider' } } } },
@@ -328,6 +353,7 @@ export const scanlinesParamsSchema = {
   type: 'object',
   description: 'Params for the "scanlines" preset: static CRT-style scanline overlay.',
   properties: {
+    speed: _speedSchema,
     color: { ...simpleColorSchema, default: 'rgba(0,0,0,0.25)', description: 'Scanline color.' },
     line_spacing: { type: 'number', minimum: 1, default: 4, description: 'Pixel spacing between lines.', 'x-ui-hints': { selector: { number: { min: 1, max: 30, step: 1, mode: 'slider' } } } },
     line_width: { type: 'number', minimum: 0, default: 1.5, description: 'Line thickness in px.', 'x-ui-hints': { selector: { number: { min: 0, max: 10, step: 0.5, mode: 'slider' } } } },

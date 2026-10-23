@@ -19,6 +19,15 @@ import { isTemplateString } from '../../../utils/template-string.js';
 import { LCARdSCardTemplateEvaluator } from '../../templates/LCARdSCardTemplateEvaluator.js';
 import { TemplateDetector } from '../../templates/TemplateDetector.js';
 import { linearMap } from '../../../utils/linearMap.js';
+import { prefersReducedMotion } from '../../../utils/reduced-motion.js';
+import { animate, utils } from 'animejs';
+import { EffectHandle } from './effect-handle.js';
+
+/** Default glide for an entity-bound value, in ms (`background_animation[].transition`) */
+export const DEFAULT_BINDING_TRANSITION = 500;
+
+/** @param {string} key - snake_case config key */
+const camelKey = (key) => key.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
 
 /**
  * Orchestrates background animation rendering using Canvas2D with modular effects
@@ -43,12 +52,20 @@ export class BackgroundAnimationRenderer {
     /** @type {Object|string|null} */
     this._rawInset = null;
     /**
-     * Pairs of { rawConfig, effects[] } for effects whose config may contain
-     * templates — populated during _loadEffects() so updateHass() can
-     * re-evaluate and push hot-updates via effect.updateConfig().
-     * @type {Array<{ rawConfig: Object, presetId: string, effects: Array }>}
+     * One entry per loaded `background_animation` entry, populated during
+     * _loadEffects() so updateHass() can re-evaluate templated / map_range
+     * values and apply them to the entry's EffectHandle.
+     * @type {Array<{ rawConfig: Object, presetId: string, handle: EffectHandle, transition: number }>}
      */
     this._reactiveEffects = [];
+    /**
+     * One EffectHandle per `background_animation` entry, by its index (null for
+     * a disabled or unknown entry). Kept across refreshColors() rebuilds.
+     * @type {Array<EffectHandle|null>}
+     */
+    this.handles = [];
+    /** @type {Set<string>} binding keys already reported as not applicable */
+    this._warnedKeys = new Set();
   }
 
   /**
@@ -344,113 +361,97 @@ export class BackgroundAnimationRenderer {
     const effectConfigs = Array.isArray(this.effectConfigs) ? this.effectConfigs : [this.effectConfigs];
 
     let loadedEffects = 0;
+    // Rebuilt on every load: a refreshColors() rebuild must not stack entries
+    this._reactiveEffects = [];
 
-    for (const effectConfig of effectConfigs) {
+    effectConfigs.forEach((effectConfig, index) => {
       // Skip if disabled
-      if (effectConfig.enabled === false) {
-        continue;
+      if (!effectConfig || effectConfig.enabled === false) {
+        this.handles[index] ??= null;
+        return;
       }
 
       const presetId = effectConfig.preset;
+      if (!presetId) {
+        lcardsLog.warn('[BackgroundAnimation] Effect config missing preset', { effectConfig });
+        return;
+      }
+      const preset = BACKGROUND_PRESETS[presetId];
+      if (!preset) {
+        lcardsLog.error(`[BackgroundAnimation] Unknown preset: ${presetId}`);
+        return;
+      }
+      if (!preset.createEffects) return;
 
-      // If preset specified, load it
-      if (presetId) {
-        const preset = BACKGROUND_PRESETS[presetId];
-        if (!preset) {
-          lcardsLog.error(`[BackgroundAnimation] Unknown preset: ${presetId}`);
-          continue;
-        }
+      lcardsLog.debug('[BackgroundAnimation] Loading preset', { presetId });
 
-        lcardsLog.debug('[BackgroundAnimation] Loading preset', { presetId });
+      // Pass nested config object to preset factory:
+      // 1. Resolve colours (theme tokens, computed functions, CSS vars) to concrete values
+      // 2. Strip template-valued keys so constructors receive only concrete
+      //    values; updateHass() will push evaluated values on first hass tick.
+      const rawEffectConfig = effectConfig.config || {};
+      const config = this._stripTemplateValues(
+        this._resolveConfigColors(rawEffectConfig)
+      );
+      // `speed` is a time multiplier every effect honours; presets don't pass it
+      const applySpeed = (effects) => {
+        if (typeof config.speed === 'number') effects.forEach((e) => { e.speed = Math.max(0, config.speed); });
+        return effects;
+      };
 
-        // Preset will provide effect factory functions
-        if (preset.createEffects) {
-          // Pass nested config object to preset factory:
-          // 1. Resolve colours (theme tokens, computed functions, CSS vars) to concrete values
-          // 2. Strip template-valued keys so constructors receive only concrete
-          //    values; updateHass() will push evaluated values on first hass tick.
-          const rawEffectConfig = effectConfig.config || {};
-          const config = this._stripTemplateValues(
-            this._resolveConfigColors(rawEffectConfig)
-          );
+      /** @type {any[]} */
+      let baseEffects = [];
+      /** @type {any[]} */
+      let drawn = [];
+      const zoom = effectConfig.zoom;
+      const zoomConfig = (baseEffect, extra = {}) => ({
+        baseEffect,
+        layers: zoom.layers ?? 4,
+        scaleFrom: zoom.scale_from ?? 0.5,
+        scaleTo: zoom.scale_to ?? 2.0,
+        duration: zoom.duration ?? 15,
+        opacityFadeIn: zoom.opacity_fade_in ?? 15,
+        opacityFadeOut: zoom.opacity_fade_out ?? 75,
+        ...extra
+      });
 
-          // Check if zoom wrapper should be applied
-          if (effectConfig.zoom) {
-            lcardsLog.debug('[BackgroundAnimation] Applying zoom wrapper to preset', { presetId });
-
-            // Special handling for starfield: create multiple instances with unique seeds
-            if (presetId === 'starfield') {
-              const layers = effectConfig.zoom.layers ?? 4;
-              const baseSeed = config.seed ?? Math.floor(Math.random() * 1e9);
-
-              lcardsLog.debug('[BackgroundAnimation] Creating starfield layers with unique seeds', {
-                layers,
-                baseSeed
-              });
-
-              // Create one starfield instance per zoom layer with incremented seeds
-              for (let layerIndex = 0; layerIndex < layers; layerIndex++) {
-                // Create unique config for this layer
-                const layerConfig = {
-                  ...config,
-                  seed: baseSeed + layerIndex // Increment seed for each layer
-                };
-
-                // Create effect instance for this layer
-                const layerEffects = preset.createEffects(layerConfig, this.cardInstance);
-
-                // Wrap with zoom effect configured for this specific layer
-                layerEffects.forEach(baseEffect => {
-                  const zoomConfig = {
-                    baseEffect: baseEffect,
-                    layers: 1, // Single layer - we're creating multiple ZoomEffects
-                    layerIndex: layerIndex, // Pass layer index for offset
-                    totalLayers: layers,
-                    scaleFrom: effectConfig.zoom.scale_from ?? 0.5,
-                    scaleTo: effectConfig.zoom.scale_to ?? 2.0,
-                    duration: effectConfig.zoom.duration ?? 15,
-                    opacityFadeIn: effectConfig.zoom.opacity_fade_in ?? 15,
-                    opacityFadeOut: effectConfig.zoom.opacity_fade_out ?? 75
-                  };
-
-                  const zoomEffect = new ZoomEffect(zoomConfig);
-                  renderer.addEffect(zoomEffect);
-                  loadedEffects++;
-                });
-              }
-            } else {
-              // Standard zoom handling for other effects (single instance, multiple renders)
-              const effects = preset.createEffects(config, this.cardInstance);
-              this._reactiveEffects.push({ rawConfig: effectConfig.config || {}, presetId, effects });
-
-              effects.forEach(baseEffect => {
-                const zoomConfig = {
-                  baseEffect: baseEffect,
-                  layers: effectConfig.zoom.layers ?? 4,
-                  scaleFrom: effectConfig.zoom.scale_from ?? 0.5,
-                  scaleTo: effectConfig.zoom.scale_to ?? 2.0,
-                  duration: effectConfig.zoom.duration ?? 15,
-                  opacityFadeIn: effectConfig.zoom.opacity_fade_in ?? 15,
-                  opacityFadeOut: effectConfig.zoom.opacity_fade_out ?? 75
-                };
-
-                const zoomEffect = new ZoomEffect(zoomConfig);
-                renderer.addEffect(zoomEffect);
-                loadedEffects++;
-              });
-            }
-          } else {
-            // No zoom - add effects directly
-            const effects = preset.createEffects(config, this.cardInstance);
-            this._reactiveEffects.push({ rawConfig: effectConfig.config || {}, presetId, effects });
-            effects.forEach(effect => renderer.addEffect(effect));
-            loadedEffects += effects.length;
-          }
+      if (zoom && presetId === 'starfield') {
+        // One starfield instance per zoom layer, each with its own seed
+        const layers = zoom.layers ?? 4;
+        const baseSeed = config.seed ?? Math.floor(Math.random() * 1e9);
+        lcardsLog.debug('[BackgroundAnimation] Creating starfield layers with unique seeds', { layers, baseSeed });
+        for (let layerIndex = 0; layerIndex < layers; layerIndex++) {
+          const layerEffects = applySpeed(preset.createEffects({ ...config, seed: baseSeed + layerIndex }, this.cardInstance));
+          layerEffects.forEach((baseEffect) => {
+            baseEffects.push(baseEffect);
+            // Single layer each: we're creating one ZoomEffect per starfield
+            drawn.push(new ZoomEffect(zoomConfig(baseEffect, { layers: 1, layerIndex, totalLayers: layers })));
+          });
         }
       } else {
-        lcardsLog.warn('[BackgroundAnimation] Effect config missing preset', { effectConfig });
+        baseEffects = applySpeed(preset.createEffects(config, this.cardInstance));
+        // Standard zoom: single instance, multiple renders
+        drawn = zoom ? baseEffects.map((baseEffect) => new ZoomEffect(zoomConfig(baseEffect))) : baseEffects;
       }
-    }
+
+      drawn.forEach((effect) => renderer.addEffect(effect));
+      loadedEffects += drawn.length;
+
+      let handle = this.handles[index];
+      if (!handle || handle.presetId !== presetId) {
+        handle = new EffectHandle(index, presetId, this);
+        this.handles[index] = handle;
+      }
+      handle.attach(baseEffects, drawn);
+
+      const transition = Number(effectConfig.transition ?? DEFAULT_BINDING_TRANSITION);
+      this._reactiveEffects.push({
+        rawConfig: rawEffectConfig,
+        presetId,
+        handle,
+        transition: Number.isFinite(transition) ? Math.max(0, transition) : DEFAULT_BINDING_TRANSITION
+      });
+    });
 
     if (loadedEffects === 0) {
       lcardsLog.warn('[BackgroundAnimation] No effects were loaded');
@@ -486,7 +487,7 @@ export class BackgroundAnimationRenderer {
     };
     const templateEvaluator = new LCARdSCardTemplateEvaluator(evalContext);
 
-    for (const { rawConfig, presetId, effects } of this._reactiveEffects) {
+    for (const { rawConfig, presetId, handle, transition } of this._reactiveEffects) {
       const resolvedConfig = {};
       let hasTemplates = false;
 
@@ -529,14 +530,92 @@ export class BackgroundAnimationRenderer {
       if (hasTemplates) {
         // Resolve any CSS var() tokens that may have been produced by the templates
         const finalConfig = this._resolveConfigColors(resolvedConfig);
-        for (const effect of effects) {
-          if (typeof effect.updateConfig === 'function') {
-            effect.updateConfig(finalConfig);
-            lcardsLog.trace(`[BackgroundAnimation] updateHass pushed config to ${presetId} effect`, finalConfig);
-          }
+        /** @type {Record<string, any>} */
+        const rest = {};
+        for (const [key, value] of Object.entries(finalConfig)) {
+          if (!this._applyBoundValue(handle, key, value, transition)) rest[key] = value;
         }
+        if (Object.keys(rest).length > 0) this._applyViaUpdateConfig(handle, presetId, rest);
       }
     }
+  }
+
+  /**
+   * Apply one entity-bound value to a declared (animatable) key: glide to it
+   * over `transition` ms, or snap on the first value, with `transition: 0`,
+   * under reduced motion, or when nothing is attached yet.
+   *
+   * @private
+   * @param {EffectHandle} handle
+   * @param {string} key
+   * @param {any} value
+   * @param {number} transition
+   * @returns {boolean} false when the key is not animatable with this value
+   *   (the caller falls back to updateConfig())
+   */
+  _applyBoundValue(handle, key, value, transition) {
+    if (!handle.has(key)) return false;
+    const current = handle.getProp(key);
+    const isNumber = typeof value === 'number' && Number.isFinite(value);
+    const isColor = typeof value === 'string' && typeof current === 'string';
+    if (!isNumber && !isColor) return false;
+
+    const bound = (/** @type {any} */ (handle)._bound ??= {});
+    const glides = (/** @type {any} */ (handle)._glides ??= {});
+    const first = !(key in bound);
+    if (!first && bound[key] === value) return true;
+    bound[key] = value;
+
+    glides[key]?.cancel();
+    glides[key] = null;
+    if (first || transition <= 0 || prefersReducedMotion() || handle.effects.length === 0) {
+      handle.setProp(key, value);
+      return true;
+    }
+    glides[key] = animate(handle, { [key]: value, duration: transition, ease: 'outQuad' });
+    return true;
+  }
+
+  /**
+   * Push bound values an effect does not declare as animatable through its
+   * updateConfig(), with camelCase copies for effects that read camelCase
+   * fields (contour-field). Keys no path can apply are logged once.
+   *
+   * @private
+   * @param {EffectHandle} handle
+   * @param {string} presetId
+   * @param {Record<string, any>} values
+   */
+  _applyViaUpdateConfig(handle, presetId, values) {
+    const effects = handle.effects;
+    const withUpdate = effects.filter((e) => typeof e.updateConfig === 'function');
+    if (withUpdate.length > 0) {
+      const cfg = { ...values };
+      for (const [key, value] of Object.entries(values)) cfg[camelKey(key)] ??= value;
+      withUpdate.forEach((e) => e.updateConfig(cfg));
+      lcardsLog.trace(`[BackgroundAnimation] updateHass pushed config to ${presetId} effect`, values);
+      return;
+    }
+    for (const key of Object.keys(values)) {
+      const id = `${presetId}.${key}`;
+      if (this._warnedKeys.has(id)) continue;
+      this._warnedKeys.add(id);
+      lcardsLog.warn(`[BackgroundAnimation] ${presetId}: "${key}" cannot follow an entity (it is fixed when the effect is created). Bindable keys: ${handle.keys().join(', ')}`);
+    }
+  }
+
+  /**
+   * The handles an animation targets: every live entry, or the one at `index`.
+   *
+   * @param {number|string|null} [index] - Entry index in `background_animation`
+   * @returns {EffectHandle[]}
+   */
+  getHandles(index) {
+    if (index === undefined || index === null || index === '') {
+      return /** @type {EffectHandle[]} */ (this.handles.filter((h) => h && h.effects.length > 0));
+    }
+    const h = this.handles[Number(index)];
+    return h && h.effects.length > 0 ? [h] : [];
   }
 
   /**
@@ -591,9 +670,6 @@ export class BackgroundAnimationRenderer {
   }
 
   /**
-   * Clean up resources
-   */
-  /**
    * Rebuild the effects with the current palette. Effects hold colours
    * resolved to concrete values at creation (Canvas2D cannot use var()), so
    * an alert-mode palette change needs a rebuild; cheap, and the alert
@@ -606,13 +682,32 @@ export class BackgroundAnimationRenderer {
    */
   refreshColors(hass, entity, cardConfig) {
     if (!this.canvas) return false;
-    this.destroy();
+    this._teardown();
     const ok = this.init();
     if (ok && hass) this.updateHass(hass, entity, cardConfig);
     return ok;
   }
 
+  /**
+   * Permanent removal: also stops whatever animates the handles.
+   */
   destroy() {
+    this._teardown();
+    for (const handle of this.handles) {
+      if (!handle) continue;
+      Object.values(/** @type {any} */ (handle)._glides ?? {}).forEach((g) => g?.cancel());
+      utils.remove(handle);
+      handle.kill();
+    }
+    this.handles = [];
+  }
+
+  /**
+   * Remove the canvas and effects but keep the handles (a rebuild re-attaches).
+   * @private
+   */
+  _teardown() {
+    this.handles.forEach((h) => h?.detach());
     if (this._intersectionObserver) {
       this._intersectionObserver.disconnect();
       this._intersectionObserver = null;

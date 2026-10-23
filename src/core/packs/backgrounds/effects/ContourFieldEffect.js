@@ -18,6 +18,7 @@ import { BaseEffect } from './BaseEffect.js';
 import { _fbm, parseColorToRgba } from '../../textures/effects/noise-helpers.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 import { resolveColor } from '../../../themes/resolve-color.js';
+import { numProp } from './animatable-props.js';
 
 /**
  * ContourFieldEffect - Topographic-style banded noise field
@@ -25,6 +26,13 @@ import { resolveColor } from '../../../themes/resolve-color.js';
  * @extends BaseEffect
  */
 export class ContourFieldEffect extends BaseEffect {
+  // Band and noise keys re-bake the field, so they are not tweened (a binding snaps them)
+  static animatableProps = {
+    ...BaseEffect.animatableProps,
+    scroll_speed_x: numProp('scrollSpeedX'),
+    scroll_speed_y: numProp('scrollSpeedY')
+  };
+
   /**
    * Padding (in buffer-cell units) added around the visible canvas in the
    * cached bake buffer. The field is static-and-panning, not continuously
@@ -137,8 +145,8 @@ export class ContourFieldEffect extends BaseEffect {
   update(deltaTime, canvasWidth, canvasHeight) {
     super.update(deltaTime, canvasWidth, canvasHeight);
     const dt = deltaTime / 1000;
-    this._scrollOffsetX += this.scrollSpeedX * dt;
-    this._scrollOffsetY += this.scrollSpeedY * dt;
+    this._scrollOffsetX += this.scrollSpeedX * this.speed * dt;
+    this._scrollOffsetY += this.scrollSpeedY * this.speed * dt;
   }
 
   /**

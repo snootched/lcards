@@ -506,8 +506,46 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       <!-- Preset Configuration -->
       ${this._renderPresetConfig(effect, index)}
 
+      <!-- Speed + binding glide -->
+      ${this._renderTimingSection(effect, index)}
+
       <!-- Zoom Wrapper -->
       ${this._renderZoomSection(effect, index)}
+    `;
+  }
+
+  /**
+   * Whole-effect speed multiplier (not for static presets, or shimmer, whose
+   * own speed is its sweep) and the glide of entity-bound values.
+   */
+  _renderTimingSection(effect, index) {
+    const preset = effect.preset || 'grid';
+    const config = effect.config || {};
+    const hasSpeed = !['shimmer', 'image', 'solid'].includes(preset);
+    const speed = typeof config.speed === 'number' ? config.speed : 1;
+    return html`
+      <lcards-form-section header="Timing" icon="mdi:timer-outline" ?expanded=${false}>
+        <div class="param-grid">
+          ${hasSpeed ? html`
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ number: { min: 0, max: 10, step: 0.1, mode: 'slider' } }}
+              .value=${speed}
+              .label=${'Speed'}
+              .helper=${'Time multiplier for the whole effect: 2 is twice as fast, 0 freezes it'}
+              @value-changed=${(e) => this._updateEffectConfig(index, 'speed', e.detail.value)}
+            ></ha-selector>
+          ` : ''}
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ number: { min: 0, max: 5000, step: 50, mode: 'box', unit_of_measurement: 'ms' } }}
+            .value=${effect.transition ?? 500}
+            .label=${'Binding transition'}
+            .helper=${'How long an entity-bound value glides to its new value (0 snaps)'}
+            @value-changed=${(e) => this._updateEffect(index, 'transition', e.detail.value)}
+          ></ha-selector>
+        </div>
+      </lcards-form-section>
     `;
   }
 

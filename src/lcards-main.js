@@ -26,6 +26,7 @@ lcardsLogBanner();
 
 // Now import everything else (including MSD system which will use correct log level)
 import * as anime from 'animejs';
+import { registerEffectAdapter } from './core/packs/backgrounds/effect-adapter.js';
 import { loadSVGToCache, getSVGFromCache } from './utils/lcards-fileutils.js';
 import { loadFont } from './utils/lcards-theme.js';
 
@@ -170,6 +171,9 @@ async function initializeCustomCard() {
 
     // Debug namespace (log level lives at window.lcards.setGlobalLogLevel / getGlobalLogLevel)
     window.lcards.debug = window.lcards.debug || {};
+
+    // anime.js can animate background effect parameters (target: background)
+    registerEffectAdapter();
 
     // Animation namespace organization
     window.lcards.anim = {

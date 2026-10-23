@@ -63,10 +63,13 @@ background_animation:
 2. For each effect config:
    a. Get preset from BACKGROUND_PRESETS
    b. Call preset.createEffects(config.config)
-   c. If config.zoom exists, wrap in ZoomEffect
-   d. Add to effects array
-3. Store effects in this._effects
+   c. If config.zoom exists, wrap in ZoomEffect (a zoomed starfield: one starfield + ZoomEffect per layer)
+   d. Add the drawn objects to the renderer, in config order
+   e. Attach the effect objects to the entry's EffectHandle (created once per entry index, kept across rebuilds)
+3. Register each entry for entity bindings (updateHass), with its `transition`
 ```
+
+Each entry's `EffectHandle` is the stable anime.js target for `target: background` animations and for binding glides; see [Background effects as anime.js targets](../../development/anim-api.md#background-effects-as-anime-js-targets).
 
 ### 2. Animation Loop
 
@@ -74,8 +77,9 @@ background_animation:
 // Canvas2DRenderer._animate()
 1. Calculate deltaTime since last frame
 2. Clear canvas
-3. For each effect, in reverse array order (see Rendering Order below):
-   update(deltaTime, width, height), then draw(ctx, width, height)
+3. For each effect, in array order (first = bottom, see Rendering Order below):
+   update(deltaTime, width, height), then draw(ctx, width, height),
+   inside the effect's x/y/rotate/scale transform when one is set
 4. requestAnimationFrame(next frame)
 ```
 
@@ -123,6 +127,9 @@ class BaseEffect {
    * Cleanup resources
    */
   destroy() {}
+
+  /** What anime.js and entity bindings may change live, keyed by YAML config key */
+  static animatableProps = { opacity, speed };
 }
 ```
 
@@ -132,6 +139,8 @@ class BaseEffect {
 - **`update()`**: Update internal state (time, positions, etc.)
 - **`draw()`**: Render to provided canvas context
 - **`destroy()`**: Clean up resources (listeners, timers, etc.)
+- **`speed`**: a time multiplier. `BaseEffect.update()` runs the elapsed clock at `speed`; an effect that moves by `deltaTime` multiplies by `this.speed` itself.
+- **`static animatableProps`**: the keys that can be animated or glide on a binding; declare only what is cheap to change every frame (helpers in `effects/animatable-props.js`).
 
 ---
 
@@ -293,16 +302,19 @@ export const BACKGROUND_PRESETS = {
 
 ### Rendering Order
 
-`Canvas2DRenderer._animate()` updates and draws effects in **reverse array order** (`effects.length - 1` down to `0`), which allows an inactive effect to be safely removed mid-loop via `removeEffect()`. The practical result: the effect added **first** (index `0`) is drawn **last** and ends up visually **on top**; the effect added **last** is drawn first and sits at the **bottom**.
+`Canvas2DRenderer._drawEffects()` (called from `_animate()`) updates and draws effects in **array order**: the effect added **first** (index `0`, the first `background_animation` entry) is drawn first and sits at the **bottom**; the last is drawn last, **on top**. This matches the user docs and the MSD overlay tie-break (same `z_index`: declared first is underneath). Inactive effects are collected during the pass and removed after it, so the array is never changed while it is iterated.
 
 ```javascript
-for (let i = this.effects.length - 1; i >= 0; i--) {
-  const effect = this.effects[i];
-  if (!effect.isActive()) { this.removeEffect(effect); continue; }
+let inactive = null;
+for (const effect of this.effects) {
+  if (!effect.isActive()) { (inactive ??= []).push(effect); continue; }
   effect.update(deltaTime, width, height);
-  effect.draw(ctx, width, height);
+  effect.draw(ctx, width, height);   // inside its _xform transform when set
 }
+inactive?.forEach((effect) => this.removeEffect(effect));
 ```
+
+Before 2026.10 the loop ran backwards (to remove inactive effects mid-loop), which drew the stack upside down against the docs. `tests/browser/background-animation.spec.js` checks the order on a real canvas.
 
 ### Alpha Blending
 

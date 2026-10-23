@@ -2423,12 +2423,13 @@ export class LCARdSAnimationEditor extends LitElement {
     if (isCustom) {
       // Convert preset to custom: raw anime.js v4 properties in params. Keeps the
       // trigger, id, target and enabled flag (the target picker still applies).
-      const { id, trigger, target, targets, enabled, essential_motion } = updated[index];
+      const { id, trigger, target, targets, effect, enabled, essential_motion } = updated[index];
       updated[index] = {
         ...(id !== undefined ? { id } : {}),
         trigger: trigger || 'on_load',
         ...(target !== undefined ? { target } : {}),
         ...(targets !== undefined ? { targets } : {}),
+        ...(effect !== undefined ? { effect } : {}),
         ...(enabled !== undefined ? { enabled } : {}),
         ...(essential_motion ? { essential_motion } : {}),
         preset: 'custom',
@@ -2570,6 +2571,11 @@ export class LCARdSAnimationEditor extends LitElement {
   _renderSingleTarget(animation, index) {
     const options = this._getTargetOptions();
     const currentValue = animation.target || null;
+    const bgConfig = this.cardElement?.config?.background_animation;
+    const bgEffects = Array.isArray(bgConfig) ? bgConfig : (bgConfig?.effects ?? []);
+    const bgOptions = bgEffects.length > 0 || currentValue === 'background'
+      ? [{ value: 'background', label: 'Background animation' }]
+      : [];
 
     return html`
       <ha-selector
@@ -2580,6 +2586,7 @@ export class LCARdSAnimationEditor extends LitElement {
             custom_value: true,
             options: [
               { value: '_default', label: 'Card (Default)' },
+              ...bgOptions,
               ...options
             ]
           }
@@ -2589,13 +2596,49 @@ export class LCARdSAnimationEditor extends LitElement {
         @value-changed=${(e) => this._updateTarget(index, e.detail.value)}
       ></ha-selector>
 
-      <div class="help-text">
-        ${currentValue && currentValue !== '_default'
-          ? this._renderValidation(currentValue)
-          : html`<span>Leave empty to use card's default animation target</span>`
-        }
-      </div>
+      ${currentValue === 'background' ? html`
+        <ha-selector
+          .hass=${this.hass}
+          .selector=${{
+            select: {
+              mode: 'dropdown',
+              options: [
+                { value: '_all', label: '(All effects)' },
+                ...bgEffects.map((/** @type {any} */ fx, /** @type {number} */ i) => ({ value: String(i), label: `${i}: ${fx?.preset ?? '-'}` }))
+              ]
+            }
+          }}
+          .value=${animation.effect === undefined ? '_all' : String(animation.effect)}
+          .label=${'Background effect'}
+          @value-changed=${(e) => this._updateBackgroundEffect(index, e.detail.value)}
+        ></ha-selector>
+        <div class="help-text">
+          <span>Use the Custom preset with the effect's config keys in params, e.g. speed: [1, 8]</span>
+        </div>
+      ` : html`
+        <div class="help-text">
+          ${currentValue && currentValue !== '_default'
+            ? this._renderValidation(currentValue)
+            : html`<span>Leave empty to use card's default animation target</span>`
+          }
+        </div>
+      `}
     `;
+  }
+
+  /**
+   * Pick the background_animation entry a `target: background` animation drives.
+   * @param {number} index
+   * @param {string} value - an index, or '_all'
+   */
+  _updateBackgroundEffect(index, value) {
+    const animations = [...this.animations];
+    const animation = { ...animations[index] };
+    animations[index] = animation;
+    if (value === '_all' || value === '' || value === null || value === undefined) delete animation.effect;
+    else animation.effect = Number(value);
+    this._workingAnimations = animations;
+    this._fireChange();
   }
 
   /**
@@ -2977,6 +3020,7 @@ export class LCARdSAnimationEditor extends LitElement {
     } else {
       animation.target = value;
     }
+    if (animation.target !== 'background') delete animation.effect;
 
     // Remove targets array if switching from multiple mode
     delete animation.targets;

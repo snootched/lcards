@@ -119,6 +119,10 @@ The canvas minimum dimension is clamped to 1 px.
 | `preset` | string | ✅ | Preset name (see [Available Presets](#available-presets)) |
 | `config` | object | ✅ | Preset-specific configuration |
 | `zoom` | object | ❌ | Optional zoom wrapper configuration |
+| `enabled` | boolean | ❌ | `false` keeps the entry (and its index) but draws nothing |
+| `transition` | number | ❌ | How long, in ms, an [entity-bound](#entity-binding) value glides to its new value. Default `500`, `0` snaps. |
+
+Every preset that moves (all but `image` and `solid`) also takes `config.speed`: a time multiplier for the whole effect (`2` is twice as fast, `0` freezes it; a zoom wrapper cycles faster too). On `shimmer`, `speed` is its sweep speed.
 
 Colour parameters in `config` accept all standard LCARdS colour formats: CSS variables, theme tokens, hex, rgba, and computed expressions (`darken()`, `alpha()`, etc.). See [Colours](../colours.md).
 
@@ -220,6 +224,10 @@ Progress 0% ──────► opacity_fade_in ──────► opacity_
 ## Effect Stacking
 
 Multiple effects can be stacked by providing an array. Effects render in order (first = bottom layer, last = top layer).
+
+::: warning Changed in 2026.10
+Earlier versions drew the stack upside down (the last entry at the bottom), against this page. If you tuned a stacked background to that order, reverse the list.
+:::
 
 ### Stacking Rules
 
@@ -338,9 +346,113 @@ config:
     default: 20
 ```
 
-**Supported template types:** `[[[JavaScript]]]`, `{token.path}`; both work in any config key.
+**Supported template types:** `[[[JavaScript]]]`, `{token.path}`.
+
+### Which keys follow an entity
+
+A bound value is applied in one of three ways, depending on the key:
+
+- **Glides** (the [animatable keys](#animatable-keys)): the effect moves to the new value over `transition` ms (default 500) instead of jumping. The first value after the card loads, `transition: 0` and reduced motion snap.
+- **Snaps**: other keys of the `level`, `fluid`, `plasma`, `flow`, `shimmer`, `scanlines`, `image` and `contour-field` presets are applied at once (a noise re-bake, a new image source).
+- **Fixed**: other keys of `grid`, `grid-diagonal`, `grid-hexagonal`, `starfield`, `nebula`, `cascade` and `solid` (star `count`, grid `pattern`, ...) are set when the effect is created. A binding on one is logged once in the browser console and has no effect.
+
+```yaml
+# Grid scroll speed follows a light's brightness, gliding over 1.5 s
+entity: light.tv
+background_animation:
+  - preset: grid
+    transition: 1500
+    config:
+      scroll_speed_x:
+        map_range:
+          attribute: brightness
+          input: [0, 255]
+          output: [0, 120]
+```
 
 > **Note:** Both forms are available in `shape_texture.config` and `background_animation` effect `config`. The UI editor does not expose entity binding; use YAML mode to configure it.
+
+---
+
+## Animating the background
+
+An animation can target the card's background effects instead of an element: set `target: background`, and optionally `effect:` to the index of one `background_animation` entry (`0` is the first, the bottom layer; without it, every entry). Use `preset: custom` and put the effect's keys in `params`, written like any anime.js property (`[from, to]`, a single end value, keyframes). Triggers, `while`, rules (`apply.animations`), easing, `loop`/`alternate` and reduced motion all work as for element animations; stopping a running animation puts the values back.
+
+The animation keeps running when an alert mode recolours the background (the effects are rebuilt with the new palette, and pick up the animated values).
+
+### Example: warp speed on red alert
+
+```yaml
+type: custom:lcards-button
+entity: input_select.lcards_alert_mode
+background_animation:
+  - preset: starfield
+    zoom:
+      layers: 4
+      duration: 12
+    config:
+      scroll_speed_x: 0
+animations:
+  # Ramp the stars (and the zoom cycle) to 8x over 2 s when red alert starts
+  - trigger: on_entity_change
+    entity: input_select.lcards_alert_mode
+    to_state: red_alert
+    target: background
+    effect: 0
+    preset: custom
+    params:
+      speed: [1, 8]
+      duration: 2000
+      ease: inOutQuad
+  # And back down when it ends
+  - trigger: on_entity_change
+    entity: input_select.lcards_alert_mode
+    from_state: red_alert
+    target: background
+    effect: 0
+    preset: custom
+    params:
+      speed: 1
+      duration: 3000
+      ease: outQuad
+```
+
+The same result with an [entity binding](#entity-binding) and no animations: the template picks the speed, `transition` sets the glide.
+
+```yaml
+type: custom:lcards-button
+entity: input_select.lcards_alert_mode
+background_animation:
+  - preset: starfield
+    transition: 2000
+    zoom:
+      layers: 4
+      duration: 12
+    config:
+      scroll_speed_x: 0
+      speed: "[[[ return entity.state === 'red_alert' ? 8 : 1 ]]]"
+```
+
+### Animatable keys
+
+Every effect: `opacity`, and the transform keys `x`, `y` (offset in px), `rotate` (degrees) and `scale` (about the centre). Every effect that moves: `speed`. Colour keys accept every LCARdS colour format.
+
+| Preset | Keys |
+|---|---|
+| `grid`, `grid-diagonal`, `grid-hexagonal` | `scroll_speed_x`, `scroll_speed_y`, `line_spacing`, `line_width`, `line_width_minor`, `line_width_major`, `color`, `color_major`, `fill_color` (those the preset takes) |
+| `starfield` | `scroll_speed_x`, `scroll_speed_y`, `color` (one colour for every star) |
+| `nebula` | `scroll_speed_x`, `scroll_speed_y`, `turbulence` |
+| `contour-field` | `scroll_speed_x`, `scroll_speed_y` |
+| `cascade` | (the common keys) |
+| `level` | `fill_pct`, `wave_height`, `wave_speed`, `wave2_height`, `wave2_speed`, `slosh_amount` |
+| `fluid`, `plasma` | `scroll_speed_x`, `scroll_speed_y` |
+| `flow` | `scroll_speed_x`, `scroll_speed_y`, `wave_scale` |
+| `scanlines` | `scroll_speed_x`, `scroll_speed_y`, `line_spacing`, `line_width` |
+| `shimmer` | `highlight_width`, `angle` |
+| `image` | `opacity` only |
+| `solid` | `opacity`, `color` |
+
+Other keys are left out on purpose: changing them means rebuilding the effect (a new star layout, a noise re-bake), too slow to do every frame. A key that isn't animatable is logged once in the browser console.
 
 ---
 

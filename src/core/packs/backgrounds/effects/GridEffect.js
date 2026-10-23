@@ -1,6 +1,10 @@
 import { BaseEffect } from './BaseEffect.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 import { resolveColor } from '../../../themes/resolve-color.js';
+import { numProp, colorProp } from './animatable-props.js';
+
+/** @param {any} e */
+const resetDimensions = (e) => { e._rowHeight = 0; e._colWidth = 0; };
 
 /**
  * GridEffect - Highly configurable scrolling LCARS-style grid background effect
@@ -24,6 +28,19 @@ import { resolveColor } from '../../../themes/resolve-color.js';
  * @extends BaseEffect
  */
 export class GridEffect extends BaseEffect {
+  static animatableProps = {
+    ...BaseEffect.animatableProps,
+    scroll_speed_x: numProp('scrollSpeedX'),
+    scroll_speed_y: numProp('scrollSpeedY'),
+    line_spacing: numProp('lineSpacing', { min: 1, after: resetDimensions }),
+    line_width: numProp('lineWidthMinor', { min: 0 }),
+    line_width_minor: numProp('lineWidthMinor', { min: 0 }),
+    line_width_major: numProp('lineWidthMajor', { min: 0 }),
+    color: colorProp('color'),
+    color_major: colorProp('colorMajor'),
+    fill_color: colorProp('fillColor')
+  };
+
   /**
    * @param {object} config - Effect configuration
    *

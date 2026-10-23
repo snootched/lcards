@@ -10,6 +10,7 @@
 import { BaseEffect } from './BaseEffect.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 import { resolveColor } from '../../../themes/resolve-color.js';
+import { numProp } from './animatable-props.js';
 
 /**
  * NebulaEffect - Layered nebula clouds with Perlin noise turbulence
@@ -24,6 +25,13 @@ import { resolveColor } from '../../../themes/resolve-color.js';
  * @extends BaseEffect
  */
 export class NebulaEffect extends BaseEffect {
+  static animatableProps = {
+    ...BaseEffect.animatableProps,
+    scroll_speed_x: numProp('scrollSpeedX'),
+    scroll_speed_y: numProp('scrollSpeedY'),
+    turbulence: numProp('turbulence', { min: 0, max: 1 })
+  };
+
   /**
    * Create a new nebula effect
    *
@@ -234,8 +242,8 @@ export class NebulaEffect extends BaseEffect {
 
     // Update scroll offsets (deltaTime is in milliseconds)
     const dt = deltaTime / 1000;
-    this._scrollOffsetX += this.scrollSpeedX * dt;
-    this._scrollOffsetY += this.scrollSpeedY * dt;
+    this._scrollOffsetX += this.scrollSpeedX * this.speed * dt;
+    this._scrollOffsetY += this.scrollSpeedY * this.speed * dt;
   }
 
   /**

@@ -8,6 +8,7 @@
  */
 
 import { BaseTextureEffect } from './BaseTextureEffect.js';
+import { configProp } from '../../backgrounds/effects/animatable-props.js';
 import { resolveColor } from '../../../themes/resolve-color.js';
 
 /**
@@ -16,6 +17,13 @@ import { resolveColor } from '../../../themes/resolve-color.js';
  * @extends BaseTextureEffect
  */
 export class FlowTextureEffect extends BaseTextureEffect {
+    static animatableProps = {
+        ...BaseTextureEffect.animatableProps,
+        scroll_speed_x: configProp('scroll_speed_x', '_scrollSpeedX'),
+        scroll_speed_y: configProp('scroll_speed_y', '_scrollSpeedY'),
+        wave_scale: configProp('wave_scale', '_waveScale')
+    };
+
     /**
      * @param {object} config
      * @param {string} [config.color='rgba(0,200,255,0.7)'] - Streak colour

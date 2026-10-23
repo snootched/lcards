@@ -9,6 +9,7 @@
  */
 
 import { BaseTextureEffect } from './BaseTextureEffect.js';
+import { configProp } from '../../backgrounds/effects/animatable-props.js';
 import { resolveColor } from '../../../themes/resolve-color.js';
 
 /**
@@ -17,6 +18,12 @@ import { resolveColor } from '../../../themes/resolve-color.js';
  * @extends BaseTextureEffect
  */
 export class ShimmerTextureEffect extends BaseTextureEffect {
+    static animatableProps = {
+        ...BaseTextureEffect.animatableProps,
+        highlight_width: configProp('highlight_width', '_highlightWidth'),
+        angle: configProp('angle', '_angle'),
+    };
+
     /**
      * @param {object} config
      * @param {string} [config.color='rgba(255,255,255,0.55)'] - Highlight colour

@@ -10,6 +10,7 @@
 import { BaseEffect } from './BaseEffect.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 import { resolveColor } from '../../../themes/resolve-color.js';
+import { colorProp } from './animatable-props.js';
 
 /**
  * Draws a single flat-colour rectangle across the full background canvas.
@@ -20,6 +21,12 @@ import { resolveColor } from '../../../themes/resolve-color.js';
  * @extends BaseEffect
  */
 export class SolidEffect extends BaseEffect {
+  // Static: no speed
+  static animatableProps = {
+    opacity: BaseEffect.animatableProps.opacity,
+    color: colorProp('color')
+  };
+
   /**
    * @param {Object} config
    * @param {string} [config.color='rgba(0, 0, 0, 0.4)'] - Fill colour. Accepts

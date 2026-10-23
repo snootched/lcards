@@ -24,6 +24,7 @@
  */
 
 import { BaseTextureEffect } from './BaseTextureEffect.js';
+import { configProp } from '../../backgrounds/effects/animatable-props.js';
 import { _fbm, parseColorToRgba } from './noise-helpers.js';
 import { resolveColor } from '../../../themes/resolve-color.js';
 
@@ -33,6 +34,12 @@ import { resolveColor } from '../../../themes/resolve-color.js';
  * @extends BaseTextureEffect
  */
 export class PlasmaTextureEffect extends BaseTextureEffect {
+    static animatableProps = {
+        ...BaseTextureEffect.animatableProps,
+        scroll_speed_x: configProp('scroll_speed_x', '_speedX'),
+        scroll_speed_y: configProp('scroll_speed_y', '_speedY'),
+    };
+
     /**
      * Padding (raw px) around the visible canvas in the cached bake buffer.
      * This effect has no downsampling knob (unlike ContourFieldEffect's

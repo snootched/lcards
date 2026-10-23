@@ -1,6 +1,7 @@
 import { BaseEffect } from './BaseEffect.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 import { resolveColor } from '../../../themes/resolve-color.js';
+import { numProp, colorProp } from './animatable-props.js';
 
 /**
  * StarfieldEffect - Scrolling starfield with parallax depth
@@ -24,6 +25,18 @@ import { resolveColor } from '../../../themes/resolve-color.js';
  * @extends BaseEffect
  */
 export class StarfieldEffect extends BaseEffect {
+  static animatableProps = {
+    ...BaseEffect.animatableProps,
+    scroll_speed_x: numProp('scrollSpeedX'),
+    scroll_speed_y: numProp('scrollSpeedY'),
+    // One colour for every star (a `colors` list collapses to it while animated)
+    color: {
+      color: true,
+      get: (e) => e.resolvedColors[0],
+      set: (e, v) => e._recolor(v)
+    }
+  };
+
   /**
    * @param {object} config - Effect configuration
    *
@@ -213,8 +226,8 @@ export class StarfieldEffect extends BaseEffect {
     // Update each star position in normalized 0-1 space
     for (const star of this.stars) {
       // Convert pixel speeds to normalized speeds
-      const normalizedSpeedX = (this.scrollSpeedX * dt * star.speedMultiplier) / canvasWidth;
-      const normalizedSpeedY = (this.scrollSpeedY * dt * star.speedMultiplier) / canvasHeight;
+      const normalizedSpeedX = (this.scrollSpeedX * this.speed * dt * star.speedMultiplier) / canvasWidth;
+      const normalizedSpeedY = (this.scrollSpeedY * this.speed * dt * star.speedMultiplier) / canvasHeight;
 
       // Update position
       star.x += normalizedSpeedX;
@@ -272,12 +285,13 @@ export class StarfieldEffect extends BaseEffect {
   }
 
   /**
-   * Update animation state (called by anime.js or manual updates)
+   * Give every star one colour (the animatable `color`) and rebuild the draw buckets.
+   * @param {string} color - Concrete CSS colour
    */
-  updateAnimatableProps(props) {
-    if (props.scrollSpeedX !== undefined) this.scrollSpeedX = props.scrollSpeedX;
-    if (props.scrollSpeedY !== undefined) this.scrollSpeedY = props.scrollSpeedY;
-    if (props.opacity !== undefined) this.opacity = props.opacity;
+  _recolor(color) {
+    this.resolvedColors = [color];
+    for (const star of this.stars) star.color = color;
+    this._buildDrawBuckets();
   }
 
   /**

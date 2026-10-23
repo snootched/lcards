@@ -302,7 +302,7 @@ export class LCARdSButton extends LCARdSCard {
                         const animationManager = window.lcards?.core?.getAnimationManager?.();
                         const elementId = `button-${this._cardGuid}`;
                         if (animationManager && elementId) {
-                            animationManager.triggerAnimations(elementId, 'on_entity_change');
+                            animationManager.triggerAnimations(elementId, 'on_entity_change', { fromState: oldState, toState: newState });
                             lcardsLog.debug(`[LCARdSButton] Card-level on_entity_change animations triggered`);
                         }
                     });
@@ -6792,6 +6792,8 @@ export class LCARdSButton extends LCARdSCard {
             if (rawInset === 'auto') {
                 this._backgroundRenderer.updateInset(this._resolveBackgroundAnimationInset(rawInset));
             }
+            // Entity-bound config values: apply them now, not on the next hass update
+            if (this.hass) this._backgroundRenderer.updateHass(this.hass, this._entity, this.config);
             lcardsLog.debug('[LCARdSButton] Background animation initialized');
         } else {
             lcardsLog.error('[LCARdSButton] Background animation initialization failed');

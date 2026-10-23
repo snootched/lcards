@@ -1276,6 +1276,8 @@ export class LCARdSMSDCard extends LCARdSCard {
 
         const success = this._backgroundRenderer.init();
         if (success) {
+            // Entity-bound config values: apply them now, not on the next hass update
+            if (this.hass) this._backgroundRenderer.updateHass(this.hass, null, this._fullConfig);
             lcardsLog.debug('[LCARdSMSDCard] Background animation initialized');
         } else {
             lcardsLog.error('[LCARdSMSDCard] Background animation initialization failed');
