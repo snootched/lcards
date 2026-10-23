@@ -486,8 +486,77 @@ export async function animateWithRoot(options) {
   }
 }
 
+/** `from` aliases kept from the LCARdS docs, mapped to anime.js v4 names. */
+const _STAGGER_FROM_ALIASES = { start: 'first', end: 'last' };
+const _STAGGER_FROM_VALUES = new Set(['first', 'center', 'last', 'random']);
+/** `axis` aliases: a row runs along x, a column along y. */
+const _STAGGER_AXIS_ALIASES = { row: 'x', column: 'y' };
+
 /**
- * Process special animation markers (_timeline, _stagger, _radial)
+ * Map an LCARdS `_stagger` marker onto anime.js v4 stagger() arguments.
+ *
+ * Accepts the v4 options (`from`, `reversed`, `grid` as `[cols, rows]` or `true` for
+ * positions read from the layout, `axis`, `ease`, `jitter`, `seed`, `start`, `total`,
+ * a `[start, end]` range as `value`) plus the LCARdS aliases: `from: 'start' | 'end'`,
+ * `from: 'edges'` (centre, reversed: edges first), `axis: 'row' | 'column'` and the
+ * legacy `direction: 'reverse'`. An unknown `from` string falls back to 'first'.
+ *
+ * @param {Object} marker - `{ _stagger: true, value, from, grid, ... }`
+ * @returns {{ value: number|number[], options: Object }}
+ */
+export function staggerArgs(marker) {
+  const value = marker.value ?? 100;
+  /** @type {Record<string, any>} */
+  const options = {};
+
+  let from = marker.from;
+  let reversed = marker.reversed === true || marker.direction === 'reverse';
+  if (typeof from === 'string') {
+    from = _STAGGER_FROM_ALIASES[from] ?? from;
+    if (from === 'edges') {
+      from = 'center';
+      reversed = !reversed;
+    } else if (!_STAGGER_FROM_VALUES.has(from)) {
+      lcardsLog.warn(`[staggerArgs] Unknown stagger from "${from}", using 'first'`);
+      from = 'first';
+    }
+  }
+  if (from !== undefined) options.from = from;
+  if (reversed) options.reversed = true;
+
+  if (marker.grid !== undefined) options.grid = marker.grid;
+  if (marker.axis !== undefined) options.axis = _STAGGER_AXIS_ALIASES[marker.axis] ?? marker.axis;
+  if (marker.ease !== undefined) options.ease = resolveEasing(marker.ease);
+  for (const key of ['jitter', 'seed', 'start', 'total']) {
+    if (marker[key] !== undefined) options[key] = marker[key];
+  }
+  return { value, options };
+}
+
+/**
+ * Random source for a preset: a seeded generator when `seed` is a number (the same
+ * seed gives the same sequence, on every load), otherwise Math.random.
+ *
+ * mulberry32, kept here rather than anime.js's utils.createSeededRandom so this
+ * module stays importable without a DOM (the build's config validator loads it).
+ *
+ * @param {unknown} seed
+ * @returns {() => number} values from 0 (inclusive) to 1 (exclusive)
+ */
+export function presetRandom(seed) {
+  if (typeof seed !== 'number' || !Number.isFinite(seed)) return Math.random;
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Process special animation markers (_timeline, _stagger)
  * These are inserted by presets to signal special handling
  *
  * Marker Types:
@@ -504,11 +573,7 @@ export async function animateWithRoot(options) {
  *    - Output: delay: stagger(100, { grid: [6,2], from: 'center' })
  *    - Example: stagger-grid preset animates grid elements with progressive delay
  *
- * 3. _radial: true (in delay object)
- *    - Creates radial stagger pattern from center point outward
- *    - Input: delay: { _radial: true, value: 50, from: 'center' }
- *    - Output: delay: stagger(50, { from: 'center' })
- *    - Example: stagger-radial preset creates ripple effects
+ *    Options are mapped by staggerArgs() (aliases, v4 option names).
  *
  * @param {Object} params - Animation parameters from preset
  * @param {Element} element - Target element for animation
@@ -557,68 +622,12 @@ function _processAnimationMarkers(params, element, scope) {
 
   // 2. Handle _stagger marker - convert to stagger function
   if (processedParams.delay?._stagger === true) {
-    lcardsLog.debug('[animateElement] Processing _stagger marker');
-
-    const staggerConfig = processedParams.delay;
-
     if (!window.lcards?.anim?.animejs?.stagger) {
       lcardsLog.warn('[animateElement] stagger() not available for _stagger marker');
     } else {
-      // Build stagger options
-      const staggerOptions = {};
-
-      if (staggerConfig.from !== undefined) {
-        staggerOptions.from = staggerConfig.from;
-      }
-      if (staggerConfig.grid !== undefined) {
-        staggerOptions.grid = staggerConfig.grid;
-      }
-      if (staggerConfig.axis !== undefined) {
-        staggerOptions.axis = staggerConfig.axis;
-      }
-      if (staggerConfig.ease !== undefined) {
-        staggerOptions.ease = staggerConfig.ease;
-      }
-      if (staggerConfig.direction !== undefined) {
-        staggerOptions.direction = staggerConfig.direction;
-      }
-
-      processedParams.delay = window.lcards.anim.animejs.stagger(
-        staggerConfig.value || 100,
-        staggerOptions
-      );
-
-      lcardsLog.debug('[animateElement] Converted _stagger to stagger function', {
-        value: staggerConfig.value,
-        options: staggerOptions
-      });
-    }
-  }
-
-  // 3. Handle _radial marker - calculate radial stagger positions
-  if (processedParams.delay?._radial === true) {
-    lcardsLog.debug('[animateElement] Processing _radial marker');
-
-    const radialConfig = processedParams.delay;
-
-    if (!window.lcards?.anim?.animejs?.stagger) {
-      lcardsLog.warn('[animateElement] stagger() not available for _radial marker');
-    } else {
-      // Use anime.js stagger with 'center' from option
-      // This creates a radial effect from the center point
-      processedParams.delay = window.lcards.anim.animejs.stagger(
-        radialConfig.value || 50,
-        {
-          from: radialConfig.from || 'center',
-          grid: radialConfig.grid,
-          axis: radialConfig.axis
-        }
-      );
-
-      lcardsLog.debug('[animateElement] Converted _radial to radial stagger', {
-        value: radialConfig.value,
-        from: radialConfig.from || 'center'
-      });
+      const { value, options } = staggerArgs(processedParams.delay);
+      processedParams.delay = window.lcards.anim.animejs.stagger(value, options);
+      lcardsLog.debug('[animateElement] Converted _stagger to stagger function', { value, options });
     }
   }
 
@@ -837,7 +846,7 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
               elements.forEach(el => { try { _batchProbeResult.setup(el); } catch (_se) {} });
             }
 
-            // Convert _stagger / _radial marker to anime.js stagger() function
+            // Convert the _stagger marker to an anime.js stagger() function
             const _batchMarkerResult = _processAnimationMarkers(_batchParams, elements[0], scope);
             if (!_batchMarkerResult.isTimeline) {
               // Resolve CSS variables (var(--...)) in color properties so anime.js
@@ -854,6 +863,16 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
                 delayIsFunction: typeof _batchFinalParams.delay === 'function'
               });
               const _batchInstance = window.lcards.anim.anime(elements, _batchFinalParams);
+              // Same _pendingInstanceSetup hand-off as the per-element path below
+              // (cascade-color's interactive pause/resume), here with the shared instance
+              elements.forEach(el => {
+                const pending = /** @type {any} */ (el)._pendingInstanceSetup;
+                if (typeof pending !== 'function') return;
+                delete /** @type {any} */ (el)._pendingInstanceSetup;
+                try { pending(_batchInstance); } catch (setupError) {
+                  lcardsLog.error('[animateElement] Error in pending instance setup:', setupError);
+                }
+              });
               if (onInstanceCreated) onInstanceCreated(_batchInstance);
             }
             return; // bypass per-element loop
@@ -981,7 +1000,7 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
         continue;
       }
 
-      // Process special animation markers (_timeline, _stagger, _radial)
+      // Process special animation markers (_timeline, _stagger)
       const markerResult = _processAnimationMarkers(params, element, scope);
 
       // If timeline marker was processed, track the timeline instance and skip anime() call

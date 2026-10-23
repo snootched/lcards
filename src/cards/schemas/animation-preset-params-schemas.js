@@ -198,11 +198,12 @@ export const strobeParamsSchema = {
 
 export const flickerParamsSchema = {
   type: 'object',
-  description: 'Params for the "flicker" preset. Randomized keyframes are generated once at setup time (not re-randomized per loop cycle). `alternate` has no effect.',
+  description: 'Params for the "flicker" preset: random opacity keyframes, a new pattern on each loop. `alternate` has no effect.',
   properties: {
     ..._CANONICAL_REDECLARED,
     max_opacity: { type: 'number', minimum: 0, maximum: 1, default: 1 },
-    min_opacity: { type: 'number', minimum: 0, maximum: 1, default: 0.3 }
+    min_opacity: { type: 'number', minimum: 0, maximum: 1, default: 0.3 },
+    seed: { type: 'number', description: 'Any number: the same random pattern on every load. Leave unset for a new pattern each time. Targets with the same seed share the pattern.' }
   },
   additionalProperties: 'warn'
 };
@@ -257,10 +258,16 @@ export const cascadeColorParamsSchema = {
       type: 'string', enum: ['css', 'animejs'],
       description: "Both modes actually run through anime.js. Despite the naming, this isn't a CSS-vs-anime.js engine choice. 'animejs' mode adds per-cell stagger (interactive/stagger_from/axis) on top of the base cascade; 'css' mode is the plain synchronized version. Auto-computed from interactive/stagger_from/axis when unset, and force-upgraded to 'animejs' whenever any of those are set even if `mode` was also set explicitly: those fields have no effect at all in 'css' mode, so silently ignoring them would be more surprising than the override."
     },
-    interactive: { type: 'boolean', default: false, description: "Only wired up (mouseenter/mouseleave pause/play) when mode==='animejs'." },
-    stagger_from: { type: 'string', enum: ['first', 'last', 'center', 'random'], description: 'Not validated in code today: documented values only.' },
-    stagger_delay: { type: 'number', minimum: 0, default: 100, description: 'Only relevant in animejs mode.' },
-    axis: { type: 'string', enum: ['row', 'column'], default: 'row', description: 'Not validated in code today: documented values only.' },
+    interactive: { type: 'boolean', default: false, description: "Only wired up (mouseenter/mouseleave pause/play) when mode==='animejs'. With stagger_from set, hovering any target pauses the whole cascade." },
+    stagger_from: {
+      type: 'string', enum: ['first', 'last', 'center', 'random'],
+      description: "Stagger the targets from this end instead of starting them together (forces mode 'animejs')."
+    },
+    stagger_delay: { type: 'number', minimum: 0, default: 100, description: 'Per-target stagger step in ms, with stagger_from.' },
+    axis: {
+      type: 'string', enum: ['row', 'column'], default: 'row',
+      description: "With stagger_from: 'row' follows target order; 'column' staggers by layout position, row by row downward (forces mode 'animejs')."
+    },
     delay: { type: 'number', minimum: 0, default: 0, description: 'Row-level start delay: a legitimate use of the canonical start-offset meaning (unlike the stagger-* presets).' }
   },
   additionalProperties: 'warn'
@@ -390,7 +397,8 @@ export const glitchParamsSchema = {
   properties: {
     ..._CANONICAL_REDECLARED,
     intensity: { type: 'number', minimum: 0, default: 5, description: 'Max px displacement, symmetric around 0.' },
-    frequency: { type: 'number', minimum: 1, default: 10, description: 'Number of random keyframes generated.' }
+    frequency: { type: 'number', minimum: 1, default: 10, description: 'Number of random keyframes per loop (a new pattern on each loop).' },
+    seed: { type: 'number', description: 'Any number: the same random pattern on every load. Leave unset for a new pattern each time. Targets with the same seed share the pattern.' }
   },
   additionalProperties: 'warn'
 };
@@ -460,7 +468,7 @@ export const sequenceParamsSchema = {
 
 export const chaosParamsSchema = {
   type: 'object',
-  description: 'Params for the "chaos" preset: randomized multi-property glitch motion. Does not use the top-level `duration` field at all.',
+  description: 'Params for the "chaos" preset: randomized multi-property glitch motion, new random values on each loop. Does not use the top-level `duration` field at all.',
   properties: {
     ..._CANONICAL_REDECLARED,
     loop: { ..._CANONICAL_REDECLARED.loop, default: true },
@@ -480,7 +488,8 @@ export const chaosParamsSchema = {
     },
     duration_min: { type: 'number', minimum: 0, default: 200, description: 'Replaces the canonical `duration` entirely for this preset.' },
     duration_max: { type: 'number', minimum: 0, default: 800 },
-    composition: { type: 'string', enum: ['blend', 'replace'], default: 'blend', description: 'Not validated in code today: documented values only.' }
+    composition: { type: 'string', enum: ['blend', 'replace'], default: 'blend', description: 'Not validated in code today: documented values only.' },
+    seed: { type: 'number', description: 'Any number: the same random pattern on every load. Leave unset for a new pattern each time. Targets with the same seed share the pattern.' }
   },
   additionalProperties: 'warn'
 };
@@ -523,17 +532,28 @@ export const staggerGridParamsSchema = {
     },
     from: {
       oneOf: [
-        { type: 'string', enum: ['start', 'end', 'center', 'edges'] },
-        { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' } }
+        { type: 'string', enum: ['first', 'last', 'center', 'edges', 'random', 'start', 'end'] },
+        { type: 'array', minItems: 2, maxItems: 2, items: { type: 'integer', minimum: 0 } }
       ],
-      default: 'start',
-      description: 'Not validated in code today.',
+      default: 'first',
+      description: "Where the wave starts: 'first' (top-left), 'last', 'center' (outward), 'edges' (inward), 'random', or a [col, row] cell (0-indexed). 'start' and 'end' are aliases of 'first' and 'last'.",
       // A oneOf with an array branch hits a known, separately-tracked bug in
       // FormField's oneOf/choose handling (_prepareValueForSelector has no
       // Array.isArray branch, so an array value always resets to the first
       // choice) — bypass via the code editor rather than ship a broken toggle.
       'x-ui-hints': { widget: 'json', label: 'From' }
     },
+    axis: {
+      type: 'string', enum: ['x', 'y', 'row', 'column'],
+      description: "Stagger along one axis only: 'x' (or 'row') delays by column, 'y' (or 'column') by row."
+    },
+    reversed: { type: 'boolean', default: false, description: 'Run the stagger in the opposite order.' },
+    jitter: {
+      anyOf: [{ type: 'number', minimum: 0 }, { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number', minimum: 0 } }],
+      description: 'Random offset in ms added to each target\'s delay (plus or minus). A [start, end] pair ramps it along the stagger order.',
+      'x-ui-hints': { widget: 'json', label: 'Jitter (ms)' }
+    },
+    seed: { type: 'number', description: 'Any number: the same jitter and random order on every load.' },
     property: { type: 'string', default: 'scale' },
     from_value: { type: 'number', default: 0.8 },
     to_value: { type: 'number', default: 1 }
@@ -553,8 +573,16 @@ export const staggerWaveParamsSchema = {
     },
     direction: {
       type: 'string', enum: ['normal', 'reverse'], default: 'normal',
-      description: "Any value other than 'reverse' collapses to 'normal' in code."
+      description: "'reverse' runs the wave from the last target (the same as reversed: true)."
     },
+    reversed: { type: 'boolean', default: false, description: 'Run the wave from the last target.' },
+    jitter: {
+      anyOf: [{ type: 'number', minimum: 0 }, { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number', minimum: 0 } }],
+      description: 'Random offset in ms added to each target\'s delay (plus or minus). A [start, end] pair ramps it along the stagger order.',
+      'x-ui-hints': { widget: 'json', label: 'Jitter (ms)' }
+    },
+    seed: { type: 'number', description: 'Any number: the same jitter and random order on every load.' },
+
     property: { type: 'string', default: 'translateY' },
     amplitude: { type: 'number', default: -20, description: 'Used in a 3-point path [0, amplitude, 0].' }
   },
@@ -572,17 +600,24 @@ export const staggerRadialParamsSchema = {
     },
     from: {
       oneOf: [
-        { type: 'string', enum: ['center'] },
-        { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number' } }
+        { type: 'string', enum: ['center', 'first', 'last', 'random'] },
+        { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number', minimum: 0, maximum: 1 } }
       ],
       default: 'center',
-      description: "'center' or an [x,y] pixel position. Unvalidated.",
+      description: "Where the ripple starts, measured on the targets' real positions: 'center', 'first', 'last', 'random', or an [x, y] point as fractions of the group (0 to 1, [0, 0] is top-left).",
       // See stagger-grid.from's comment — same known oneOf/array selector bug.
       'x-ui-hints': { widget: 'json', label: 'From' }
     },
     property: { type: 'string', default: 'scale' },
     from_value: { type: 'number', default: 0 },
-    to_value: { type: 'number', default: 1 }
+    to_value: { type: 'number', default: 1 },
+    reversed: { type: 'boolean', default: false, description: 'Run the stagger in the opposite order.' },
+    jitter: {
+      anyOf: [{ type: 'number', minimum: 0 }, { type: 'array', minItems: 2, maxItems: 2, items: { type: 'number', minimum: 0 } }],
+      description: 'Random offset in ms added to each target\'s delay (plus or minus). A [start, end] pair ramps it along the stagger order.',
+      'x-ui-hints': { widget: 'json', label: 'Jitter (ms)' }
+    },
+    seed: { type: 'number', description: 'Any number: the same jitter and random order on every load.' }
   },
   additionalProperties: 'warn'
 };

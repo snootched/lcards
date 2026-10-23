@@ -296,7 +296,8 @@ Randomised opacity animation for flickering effects.
 | `min_opacity` | `0.3` | Minimum opacity |
 | `duration` | `1000` | Duration (ms) |
 | `ease` | `linear` | Easing function |
-| `loop` | `true` | Loop continuously |
+| `loop` | `true` | Loop continuously: each loop draws a new random pattern |
+| `seed` | - | Any number: the same random pattern on every load (unset: a new one each time). Targets with the same seed share it |
 
 <AnimationPlayground preset="flicker" />
 
@@ -340,7 +341,8 @@ Random position and colour shifts for a malfunction effect.
 | `intensity` | `5` | Max pixel displacement |
 | `frequency` | `10` | Number of glitch steps |
 | `duration` | `1000` | Duration (ms) |
-| `loop` | `false` | Loop continuously |
+| `loop` | `false` | Loop continuously: each loop draws a new random pattern |
+| `seed` | - | Any number: the same random pattern on every load (unset: a new one each time). Targets with the same seed share it |
 
 > `ease` is hardcoded to `linear` and `alternate` has no effect; both are ignored if set.
 
@@ -384,8 +386,8 @@ LCARS-style colour cascade through three keyframe colours. Uses theme tokens for
 | `delay` | `0` | Start delay before the whole cascade begins (ms); unlike the stagger-* presets, this is the canonical single start-offset, not a per-element step |
 | `stagger_delay` | `100` | Delay between elements: only applies in `animejs` mode |
 | `stagger_from` | - | Stagger origin: `first`, `last`, `center`, or `random` |
-| `axis` | `row` | Stagger axis: `row` or `column` |
-| `interactive` | `false` | Pause on hover, resume on leave; only wired up in `animejs` mode |
+| `axis` | `row` | With `stagger_from`: `row` follows the order of the targets; `column` staggers by layout position, row by row downward |
+| `interactive` | `false` | Pause on hover, resume on leave; only wired up in `animejs` mode. With `stagger_from`, hovering any target pauses the whole cascade |
 
 > A single `cascade-color` instance targeting a whole grid changes every matched cell **in sync**: that's correct, expected behavior for one instance (`mode: css`'s `delay` is one flat value, not a per-element stagger). The row-by-row "waterfall" look (including the `niagara` timing pattern) comes from declaring **multiple separate instances**, one per row, each with its own `delay`/`duration`; see the `@example User Config (data-grid)` above, or the [data grid's cascade](../../cards/data-grid/styling.md#the-cascade) (`params.pattern` on its `cascade-color` animation), which automates exactly that. The demo below forces `stagger_from` to show real per-cell staggering (`animejs` mode) so the effect is visible from a single instance; that's a demo-only override, not this preset's real default.
 
@@ -438,8 +440,12 @@ Stagger across a `[cols, rows]` grid of targets, with a configurable wave origin
 | Param | Default | Description |
 |-------|---------|-------------|
 | `grid` | `[1, 1]` | Grid dimensions `[cols, rows]`, validated; warns and no-ops on the wrong shape |
-| `from` | `start` | Wave origin: `start`, `end`, `center`, `edges`, or an `[x, y]` position |
+| `from` | `first` | Wave origin: `first` (top-left), `last`, `center` (outward), `edges` (inward), `random`, or a `[col, row]` cell (0-indexed). `start` and `end` are aliases of `first` and `last` |
+| `axis` | - | Stagger along one axis only: `x` (or `row`) delays by column, `y` (or `column`) by row |
 | `delay` | `100` | Per-element stagger step (ms): not the canonical single start-offset |
+| `reversed` | `false` | Run the stagger in the opposite order |
+| `jitter` | - | Random offset (ms) added to each target's delay, plus or minus; `[start, end]` ramps it along the stagger order |
+| `seed` | - | Any number: the same jitter and `random` order on every load |
 | `property` | `scale` | CSS property to animate |
 | `from_value` | `0.8` | Starting value |
 | `to_value` | `1` | Ending value |
@@ -467,7 +473,10 @@ A wave ripples through a linear sequence of targets.
 | Param | Default | Description |
 |-------|---------|-------------|
 | `delay` | `100` | Per-element stagger step (ms): not the canonical single start-offset |
-| `direction` | `normal` | `normal` or `reverse`: any other value collapses to `normal` |
+| `direction` | `normal` | `reverse` runs the wave from the last target (the same as `reversed: true`) |
+| `reversed` | `false` | Run the wave from the last target |
+| `jitter` | - | Random offset (ms) added to each target's delay, plus or minus; `[start, end]` ramps it along the stagger order |
+| `seed` | - | Any number: the same jitter and `random` order on every load |
 | `property` | `translateY` | CSS property to animate |
 | `amplitude` | `-20` | Peak displacement, used in a 3-point `[0, amplitude, 0]` path |
 | `duration` | `800` | Duration per element (ms) |
@@ -492,7 +501,10 @@ Stagger radiating outward from a point.
 
 | Param | Default | Description |
 |-------|---------|-------------|
-| `from` | `center` | `center`, or an `[x, y]` pixel position |
+| `from` | `center` | Where the ripple starts, measured on the targets' real positions: `center`, `first`, `last`, `random`, or an `[x, y]` point as fractions of the group (`0` to `1`, `[0, 0]` is top-left) |
+| `reversed` | `false` | Run the stagger in the opposite order |
+| `jitter` | - | Random offset (ms) added to each target's delay, plus or minus; `[start, end]` ramps it along the stagger order |
+| `seed` | - | Any number: the same jitter and `random` order on every load |
 | `delay` | `50` | Per-element stagger step (ms): not the canonical single start-offset |
 | `property` | `scale` | CSS property to animate |
 | `from_value` | `0` | Starting value |
@@ -511,6 +523,19 @@ Stagger radiating outward from a point.
     from: center
     delay: 40
     property: opacity
+```
+
+Start from a corner, with a little random spread that is the same on every load:
+
+```yaml
+- preset: stagger-radial
+  trigger: on_tap
+  targets: ".dot"
+  params:
+    from: [0, 0]
+    delay: 40
+    jitter: 25
+    seed: 7
 ```
 
 <AnimationPlayground preset="stagger-radial" />
@@ -731,7 +756,8 @@ Randomised multi-property animation for glitch and malfunction effects.
 | `duration_max` | `800` | Maximum animation duration (ms) |
 | `composition` | `blend` | `blend` or `replace` |
 | `ease` | `inOutQuad` | Easing function |
-| `loop` | `true` | Loop continuously |
+| `loop` | `true` | Loop continuously: each loop moves to new random values |
+| `seed` | - | Any number: the same random pattern on every load (unset: a new one each time). Targets with the same seed share it |
 
 > The canonical top-level `duration` field isn't used at all here; `duration_min`/`duration_max` replace it entirely.
 

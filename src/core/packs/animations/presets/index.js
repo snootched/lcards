@@ -21,7 +21,7 @@
 
 import { registerAnimationPreset } from '../../../animation/presets.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
-import { resolvePresetParams, getResolvedEasing } from '../../../../utils/lcards-anim-helpers.js';
+import { resolvePresetParams, getResolvedEasing, presetRandom } from '../../../../utils/lcards-anim-helpers.js';
 import { TIMELINE_PRESETS } from './timeline-presets.js';
 import { STAGGER_PRESETS } from './stagger-presets.js';
 import { TEXT_PRESETS } from './text-presets.js';
@@ -530,6 +530,13 @@ registerAnimationPreset('strobe', (def) => {
 });
 
 /**
+ * onLoop for the random presets: re-evaluate their function-based values so each
+ * loop draws a new pattern instead of replaying the first one.
+ * @param {any} anim
+ */
+const rerollOnLoop = (anim) => { anim?.refresh?.(); };
+
+/**
  * Flicker - Randomized opacity animation
  *
  * Parameters:
@@ -538,6 +545,9 @@ registerAnimationPreset('strobe', (def) => {
  * - duration (default: 1000)
  * - ease (default: 'linear')
  * - loop (default: true)
+ * - seed (optional) - Number: the same flicker pattern on every load
+ *
+ * Each loop draws a new pattern.
  */
 registerAnimationPreset('flicker', (def) => {
   const p = resolvePresetParams(def);
@@ -547,12 +557,12 @@ registerAnimationPreset('flicker', (def) => {
   const ease = getResolvedEasing(p) || 'linear';
   const loop = p.loop !== undefined ? p.loop : true;
 
-  // Generate random opacity keyframes
+  // Random opacity keyframes: function-based, so rerollOnLoop draws new ones
+  const random = presetRandom(p.seed);
   const keyframes = [];
   const steps = 10;
   for (let i = 0; i <= steps; i++) {
-    const randomOpacity = minOpacity + Math.random() * (maxOpacity - minOpacity);
-    keyframes.push({ opacity: randomOpacity });
+    keyframes.push({ opacity: () => minOpacity + random() * (maxOpacity - minOpacity) });
   }
 
   // Always end at max opacity to return to normal when used with alternate
@@ -563,7 +573,8 @@ registerAnimationPreset('flicker', (def) => {
       keyframes,
       duration,
       ease,
-      loop
+      loop,
+      onLoop: rerollOnLoop
     },
     styles: {}
   };
@@ -596,7 +607,9 @@ registerAnimationPreset('cascade', (def) => {
       [property]: [from, to],
       duration,
       ease,
-      delay: window.lcards?.animejs?.stagger?.(stagger) || ((el, i) => i * stagger),
+      // The marker (not a ready stagger function) sends multiple targets through
+      // animateElement's single-call batch path; per-element calls are all index 0
+      delay: { _stagger: true, value: stagger },
       loop
     },
     styles: {}
@@ -745,12 +758,15 @@ registerAnimationPreset('cascade-color', (def) => {
     alternate
   };
 
-  // Add stagger if specified
+  // Add stagger if specified. The default 'row' axis is plain element order; a
+  // 'column' axis staggers by layout position (grid: true), row by row downward.
   if (staggerFrom) {
-    animeParams.delay = window.lcards?.animejs?.stagger?.(staggerDelay, {
+    animeParams.delay = {
+      _stagger: true,
+      value: staggerDelay,
       from: staggerFrom,
-      axis: axis
-    }) || ((el, i) => i * staggerDelay);
+      ...(axis !== 'row' ? { grid: true, axis } : {})
+    };
   } else {
     animeParams.delay = rowDelay;
   }
@@ -1243,6 +1259,9 @@ registerAnimationPreset('skew', (def) => {
  * - frequency (default: 10) - Number of glitch steps
  * - duration (default: 1000)
  * - loop (default: false)
+ * - seed (optional) - Number: the same glitch pattern on every load
+ *
+ * Each loop draws a new pattern.
  */
 registerAnimationPreset('glitch', (def) => {
   const p = resolvePresetParams(def);
@@ -1251,18 +1270,15 @@ registerAnimationPreset('glitch', (def) => {
   const duration = p.duration || 1000;
   const loop = p.loop !== undefined ? p.loop : false;
 
-  // Generate random keyframes for glitch effect
+  // Random keyframes: function-based, so rerollOnLoop draws new ones
+  const random = presetRandom(p.seed);
   const keyframes = [];
   for (let i = 0; i < frequency; i++) {
-    // Random position shifts
-    const randomX = (Math.random() - 0.5) * 2 * intensity;
-    const randomY = (Math.random() - 0.5) * 2 * intensity;
-
     keyframes.push({
-      translateX: randomX,
-      translateY: randomY,
-      // Optional: add filter effects for more intense glitch
-      filter: Math.random() > 0.7 ? `hue-rotate(${Math.random() * 360}deg)` : 'hue-rotate(0deg)'
+      translateX: () => (random() - 0.5) * 2 * intensity,
+      translateY: () => (random() - 0.5) * 2 * intensity,
+      // Occasional hue shift for a more intense glitch
+      filter: () => (random() > 0.7 ? `hue-rotate(${random() * 360}deg)` : 'hue-rotate(0deg)')
     });
   }
 
@@ -1278,7 +1294,8 @@ registerAnimationPreset('glitch', (def) => {
       keyframes,
       duration,
       ease: 'linear', // Use linear for chaotic glitch effect
-      loop
+      loop,
+      onLoop: rerollOnLoop
     },
     styles: {}
   };
@@ -1617,6 +1634,9 @@ registerAnimationPreset('sequence', (def) => {
  * - ease (default: 'inOutQuad')
  * - loop (default: true)
  * - composition (default: 'blend') - 'blend' or 'replace'
+ * - seed (optional) - Number: the same motion on every load
+ *
+ * Each loop moves to new random values.
  */
 registerAnimationPreset('chaos', (def) => {
   const p = resolvePresetParams(def);
@@ -1628,6 +1648,7 @@ registerAnimationPreset('chaos', (def) => {
   const ease = getResolvedEasing(p) || 'inOutQuad'; // v4 easing name (was 'easeInOutQuad')
   const loop = p.loop !== undefined ? p.loop : true;
   const composition = p.composition || 'blend';
+  const random = presetRandom(p.seed);
 
   // Build animation parameters with function-based random values
   const animeParams = {
@@ -1635,7 +1656,8 @@ registerAnimationPreset('chaos', (def) => {
     loop,
     composition,
     // Randomize duration for each element
-    duration: () => durationMin + Math.random() * (durationMax - durationMin)
+    duration: () => durationMin + random() * (durationMax - durationMin),
+    onLoop: rerollOnLoop
   };
 
   // Add randomized properties
@@ -1647,7 +1669,7 @@ registerAnimationPreset('chaos', (def) => {
 
       // Use function to generate random value for each element
       animeParams[animeProp] = () => {
-        return propRange[0] + Math.random() * (propRange[1] - propRange[0]);
+        return propRange[0] + random() * (propRange[1] - propRange[0]);
       };
     }
   });

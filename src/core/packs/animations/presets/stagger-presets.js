@@ -34,6 +34,21 @@ import { prefersReducedMotion } from '../../../../utils/reduced-motion.js';
 const _activeStaggerFlashAnimations = new WeakMap();
 
 /**
+ * The optional anime.js v4 stagger extras a preset passes through to its marker:
+ * reversed order, random jitter (ms, or a [start, end] ramp) and a seed that makes
+ * jitter and from: 'random' the same on every load.
+ * @param {Record<string, any>} p - resolved preset params
+ */
+function staggerExtras(p) {
+  /** @type {Record<string, any>} */
+  const extras = {};
+  if (p.reversed === true) extras.reversed = true;
+  if (p.jitter !== undefined) extras.jitter = p.jitter;
+  if (p.seed !== undefined) extras.seed = p.seed;
+  return extras;
+}
+
+/**
  * Stagger animation presets
  * Each preset returns a stagger configuration that AnimationManager will execute
  */
@@ -46,12 +61,15 @@ export const STAGGER_PRESETS = {
    *
    * Parameters:
    * - grid (required) - Grid dimensions [cols, rows] (e.g., [6, 1] for alert bars)
-   * - from (default: 'start') - Start position:
-   *   - 'start' - Top-left to bottom-right
-   *   - 'end' - Bottom-right to top-left
+   * - from (default: 'first') - Start position:
+   *   - 'first' (alias 'start') - Top-left to bottom-right
+   *   - 'last' (alias 'end') - Bottom-right to top-left
    *   - 'center' - Center outward
    *   - 'edges' - Edges inward
-   *   - [x, y] - Custom grid position (0-indexed)
+   *   - 'random' - Random order (reproducible with seed)
+   *   - [col, row] - A grid cell (0-indexed)
+   * - axis (optional) - 'x' / 'row' or 'y' / 'column': stagger along one axis only
+   * - reversed, jitter, seed (optional) - see staggerExtras()
    * - delay (default: 100) - Delay between elements in ms
    * - property (default: 'scale') - Property to animate
    * - from_value (default: 0.8) - Starting value
@@ -70,7 +88,6 @@ export const STAGGER_PRESETS = {
   'stagger-grid': (def) => {
     const p = resolvePresetParams(def);
     const grid = p.grid || [1, 1];
-    const from = p.from || 'start';
     const delay = p.delay !== undefined ? p.delay : 100;
     const property = p.property || 'scale';
     const fromValue = p.from_value !== undefined ? p.from_value : 0.8;
@@ -84,6 +101,11 @@ export const STAGGER_PRESETS = {
       lcardsLog.warn('[stagger-grid preset] Invalid grid parameter, expected [cols, rows]');
       return { anime: {}, styles: {} };
     }
+    // anime.js reads an array `from` as 0 to 1 fractions of the grid; this preset
+    // documents a 0-indexed [col, row] cell
+    const from = Array.isArray(p.from)
+      ? p.from.map((cell, i) => (grid[i] > 1 ? cell / (grid[i] - 1) : 0))
+      : (p.from || 'first');
 
     return {
       anime: {
@@ -96,7 +118,9 @@ export const STAGGER_PRESETS = {
           _stagger: true,
           value: delay,
           grid,
-          from
+          from,
+          ...(p.axis !== undefined ? { axis: p.axis } : {}),
+          ...staggerExtras(p)
         }
       },
       styles: {
@@ -114,7 +138,9 @@ export const STAGGER_PRESETS = {
    *
    * Parameters:
    * - delay (default: 100) - Delay between elements in ms
-   * - direction (default: 'normal') - Wave direction ('normal' or 'reverse')
+   * - reversed (default: false) - Run the wave from the last element
+   * - direction (legacy) - 'reverse' is the same as reversed: true
+   * - jitter, seed (optional) - see staggerExtras()
    * - property (default: 'translateY') - Property to animate
    * - amplitude (default: -20) - Wave amplitude (distance)
    * - duration (default: 800)
@@ -132,7 +158,6 @@ export const STAGGER_PRESETS = {
   'stagger-wave': (def) => {
     const p = resolvePresetParams(def);
     const delay = p.delay !== undefined ? p.delay : 100;
-    const direction = p.direction || 'normal';
     const property = p.property || 'translateY';
     const amplitude = p.amplitude !== undefined ? p.amplitude : -20;
     const duration = p.duration || 800;
@@ -150,7 +175,7 @@ export const STAGGER_PRESETS = {
         delay: {
           _stagger: true,
           value: delay,
-          direction: direction === 'reverse' ? 'reverse' : 'normal'
+          ...staggerExtras({ ...p, reversed: p.reversed === true || p.direction === 'reverse' })
         }
       },
       styles: {}
@@ -164,9 +189,12 @@ export const STAGGER_PRESETS = {
    * Useful for ripple effects and circular layouts.
    *
    * Parameters:
-   * - from (default: 'center') - Start position:
-   *   - 'center' - Center of bounding box
-   *   - [x, y] - Custom position in pixels
+   * - from (default: 'center') - Start position, measured on the targets' layout
+   *   positions (stagger grid: true):
+   *   - 'center' - Center of the group
+   *   - 'first' / 'last' / 'random'
+   *   - [x, y] - A point as fractions of the group (0 to 1, [0, 0] = top-left)
+   * - reversed, jitter, seed (optional) - see staggerExtras()
    * - delay (default: 50) - Base delay between rings in ms
    * - property (default: 'scale') - Property to animate
    * - from_value (default: 0) - Starting value
@@ -201,9 +229,10 @@ export const STAGGER_PRESETS = {
         loop,
         delay: {
           _stagger: true,
-          _radial: true,
           value: delay,
-          from
+          grid: true,  // distances from the targets' real positions
+          from,
+          ...staggerExtras(p)
         }
       },
       styles: {
