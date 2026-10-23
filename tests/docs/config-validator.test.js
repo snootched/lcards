@@ -65,6 +65,14 @@ test('schema errors and unknown keys are reported at their full path', () => {
     assert.ok(m.some(x => x.startsWith('error views[0].cards[0].height:')), m.join('\n'));
 });
 
+test('an unknown custom:lcards-* type is an error, with the full type suggested', () => {
+    // It used to pass silently: there is no schema to check it against
+    const m = messages(check({ type: 'custom:lcards-msd', msd: { base_svg: { source: 'builtin:ncc-1701-kelvin' } } }));
+    assert.ok(m.includes('error type: unknown LCARdS type "custom:lcards-msd" (did you mean "custom:lcards-msd-card"?)'), m.join('\n'));
+    const typo = messages(check({ type: 'custom:lcards-buton' }));
+    assert.ok(typo.some(x => x.includes('unknown LCARdS type "custom:lcards-buton" (did you mean "lcards-button"?)')), typo.join('\n'));
+});
+
 test('unknown names are warnings with a suggestion', () => {
     const m = messages(check({
         type: 'custom:lcards-button',

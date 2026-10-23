@@ -187,6 +187,11 @@ let _rafId   = null;
 let _running = false;
 let _ctx     = null;
 let _canvas  = null;
+// prefers-reduced-motion (a worker has no matchMedia; the main thread sends it):
+// draw one settled frame and hold it instead of running the loop
+let _reduced = false;
+/** Schedule one draw of the running effect (set by _runEffect). @type {(() => void)|null} */
+let _requestDraw = null;
 
 // ─── Effect runner ────────────────────────────────────────────────────────────
 
@@ -360,9 +365,12 @@ function _runEffect(canvas, params) {
     }
 
     // ── Draw loop ─────────────────────────────────────────────────────────────
+    // The settled picture: every site grown, every bridge flashed in
+    const settledAt = allGrownAt + 2000 + 600;
+
     function draw(now) {
         if (!_running) return;
-        const elapsed = now - startT;
+        const elapsed = _reduced ? settledAt : now - startT;
         // Use current buffer dimensions — updated by resize messages.
         const W = canvas.width;
         const H = canvas.height;
@@ -498,7 +506,8 @@ function _runEffect(canvas, params) {
 
         // ── Build bridges once all tendrils have grown ────────────────────────
         if (!bridgesBuilt && elapsed > allGrownAt) {
-            bridges      = _buildBridges(elapsed);
+            // Under reduced motion, built as they would have been at allGrownAt
+            bridges      = _buildBridges(_reduced ? allGrownAt : elapsed);
             bridgesBuilt = true;
         }
 
@@ -538,9 +547,13 @@ function _runEffect(canvas, params) {
             });
         }
 
-        _rafId = requestAnimationFrame(draw);
+        _rafId = _reduced ? null : requestAnimationFrame(draw);
     }
 
+    _requestDraw = () => {
+        if (_rafId !== null) cancelAnimationFrame(_rafId);
+        _rafId = requestAnimationFrame(draw);
+    };
     _rafId = requestAnimationFrame(draw);
 }
 
@@ -552,6 +565,7 @@ self.onmessage = (e) => {
     if (type === 'start') {
         _canvas  = e.data.canvas;
         _running = true;
+        _reduced = !!e.data.reducedMotion;
         _runEffect(_canvas, e.data.params ?? {});
         return;
     }
@@ -562,6 +576,13 @@ self.onmessage = (e) => {
             _canvas.width  = e.data.width;
             _canvas.height = e.data.height;
         }
+        return;
+    }
+
+    if (type === 'motion') {
+        // Reduced motion switched: hold the settled frame, or run the loop again
+        _reduced = !!e.data.reduced;
+        if (_running) _requestDraw?.();
         return;
     }
 

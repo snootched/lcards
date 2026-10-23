@@ -459,6 +459,11 @@ export const animationSchema = {
             },
             description: 'Preset-specific parameters. Shape depends on the sibling `preset` field.'
         },
+        essential_motion: {
+            type: 'boolean',
+            default: false,
+            description: 'Keep playing when the device asks for reduced motion (prefers-reduced-motion). Only for motion that carries meaning, such as an alert flash; other animations jump to their end state or stay still.'
+        },
         type: {
             type: 'string',
             deprecated: true,

@@ -784,6 +784,16 @@ export class LCARdSAnimationEditor extends LitElement {
         </ha-selector>
       </div>
 
+      <!-- Essential motion: keeps playing under prefers-reduced-motion -->
+      <ha-selector
+        .hass=${this.hass}
+        .selector=${{ boolean: {} }}
+        .value=${anim.essential_motion === true}
+        .label=${'Essential motion'}
+        .helper=${'Keep playing when the device asks for reduced motion. Only for motion that carries meaning, such as an alert flash.'}
+        @value-changed=${(e) => this._setEssentialMotion(index, e.detail.value)}
+      ></ha-selector>
+
       <!-- Trigger Section -->
       <lcards-form-section
         header="Trigger"
@@ -2380,18 +2390,28 @@ export class LCARdSAnimationEditor extends LitElement {
     this._fireChange();
   }
 
+  /** essential_motion is written only when on, so the default stays out of the YAML. */
+  _setEssentialMotion(index, value) {
+    const updated = [...this.animations];
+    const { essential_motion: _old, ...rest } = updated[index];
+    updated[index] = value ? { ...rest, essential_motion: true } : rest;
+    this._workingAnimations = updated;
+    this._fireChange();
+  }
+
   _toggleCustomMode(index, isCustom) {
     const updated = [...this.animations];
     if (isCustom) {
       // Convert preset to custom: raw anime.js v4 properties in params. Keeps the
       // trigger, id, target and enabled flag (the target picker still applies).
-      const { id, trigger, target, targets, enabled } = updated[index];
+      const { id, trigger, target, targets, enabled, essential_motion } = updated[index];
       updated[index] = {
         ...(id !== undefined ? { id } : {}),
         trigger: trigger || 'on_load',
         ...(target !== undefined ? { target } : {}),
         ...(targets !== undefined ? { targets } : {}),
         ...(enabled !== undefined ? { enabled } : {}),
+        ...(essential_motion ? { essential_motion } : {}),
         preset: 'custom',
         params: {
           scale: [1, 1.1, 1],

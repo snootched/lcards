@@ -1,0 +1,10 @@
+# base_svg.animations: an animation on an element inside the base SVG (msd-animation.spec.js)
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: builtin:enterprise-d-shuttlecraft15-anomaly
+    animations:
+      - trigger: on_load
+        target: "#g45-6"
+        preset: pulse
+        loop: true

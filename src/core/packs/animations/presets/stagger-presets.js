@@ -339,8 +339,9 @@ export const STAGGER_PRESETS = {
 
     const _applyWapi = () => {
       // AnimationManager settles the handles under reduced motion (they arrive
-      // cancelled); this also covers callers outside the manager
-      if (prefersReducedMotion()) {
+      // cancelled); this also covers callers outside the manager.
+      // essential_motion: an alert flash that must play anyway
+      if (prefersReducedMotion() && p.essential_motion !== true) {
         _pending.length = 0;
         return;
       }

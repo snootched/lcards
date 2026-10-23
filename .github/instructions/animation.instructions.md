@@ -113,7 +113,7 @@ if (!prefersReducedMotion()) {
 const unsubscribe = onReducedMotionChange((reduced) => { /* pause or resume a loop */ });
 ```
 
-Existing guards: the slider value tween and release fade, the data-grid change flash, `stagger-flash` (WAAPI), `Canvas2DRenderer` and the Glitch/Pixelate/Static/Scanline screen effects (these draw one frame and hold it). Known gap: the Borg assimilation effect, whose loop runs in a Web Worker. There is no per-animation opt-out for "essential" motion yet.
+Existing guards: the slider value tween and release fade, the data-grid change flash, `stagger-flash` (WAAPI), `Canvas2DRenderer` and the Glitch/Pixelate/Static/Scanline screen effects (these draw one frame and hold it), and the Borg assimilation effect (its worker has no `matchMedia`, so the main thread sends `reducedMotion` in `start` and `motion` messages; the worker draws its settled picture and holds it). An animation with `essential_motion: true` skips the gate (playAnimation, `_settleAllForReducedMotion`, and `stagger-flash`'s own WAAPI check): only for motion that carries meaning, such as an alert flash.
 
 ---
 

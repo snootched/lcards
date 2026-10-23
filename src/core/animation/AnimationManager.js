@@ -102,15 +102,20 @@ export class AnimationManager extends BaseService {
   _settleAllForReducedMotion() {
     let settled = 0;
     this.scopes.forEach((scopeData, scopeId) => {
-      scopeData.runningInstances?.forEach((instances) => {
+      scopeData.runningInstances?.forEach((instances, trigger) => {
+        const kept = [];
         instances.forEach((instance) => {
-          if (instance && !instance.completed) {
-            this._settleForReducedMotion(instance);
-            settled++;
+          if (!instance || instance.completed) return;
+          if (this._instanceDefs.get(instance)?.essential_motion === true) {
+            kept.push(instance); // essential_motion: keeps playing
+            return;
           }
+          this._settleForReducedMotion(instance);
+          settled++;
         });
+        if (kept.length) scopeData.runningInstances.set(trigger, kept);
+        else scopeData.runningInstances.delete(trigger);
       });
-      scopeData.runningInstances?.clear();
       this._clearAllSpeedBindingsForScope(scopeId, scopeData);
     });
     lcardsLog.debug(`[AnimationManager] Reduced motion on: settled ${settled} running animation(s)`);
@@ -1306,7 +1311,8 @@ export class AnimationManager extends BaseService {
       };
 
       // Callback to track instances as they're created
-      const reducedMotion = prefersReducedMotion();
+      // essential_motion: the animation carries meaning (an alert flash) and plays anyway
+      const reducedMotion = prefersReducedMotion() && animDef.essential_motion !== true;
       const onInstanceCreated = (instance) => {
         if (!instance) return;
         if (this._stopToken(scopeData, animDef.trigger, animDef) !== stopToken) {

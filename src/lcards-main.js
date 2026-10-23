@@ -182,7 +182,6 @@ async function initializeCustomCard() {
         splitText: anime.splitText,    // native text splitter (v4.1+)
         scrambleText: anime.scrambleText, // text scramble/decode function value (v4.4+); SVG text needs a proxy, see text-presets.js
         animateElement: animHelpers.animateElement,
-        animateWithRoot: animHelpers.animateWithRoot,
         waitForElement: animHelpers.waitForElement,
         presets: {},   // Populated entirely by pack loading (legacy presets disabled)
         scopes: new Map(),
@@ -202,7 +201,6 @@ async function initializeCustomCard() {
     window.lcards.animejs = window.lcards.anim.animejs;
     window.lcards.anime = window.lcards.anim.anime;
     window.lcards.animateElement = window.lcards.anim.animateElement;
-    window.lcards.animateWithRoot = window.lcards.anim.animateWithRoot;
     window.lcards.waitForElement = window.lcards.anim.waitForElement;
 
 

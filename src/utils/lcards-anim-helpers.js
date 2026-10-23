@@ -36,6 +36,7 @@ const _LCARDS_META_PARAMS = new Set([
   'from_state',
   'to_state',
   'check_on_load',
+  'essential_motion',
   'while',
   'enabled',
   'datasource',
@@ -447,46 +448,6 @@ export async function waitForElements(targets, root = document, timeout = 2000) 
 }
 
 /**
- * A generic wrapper for anime.js that resolves targets within a given root element.
- * If scopeId is provided, add the animation to the scope.
- * @param {object} options - The anime.js animation options.
- * @param {string|Element|Array} options.targets - Selector(s) or element(s).
- * @param {Element} [options.root=document] - The root element for the selector query.
- * @param {string} [options.scopeId] - The scope ID to use.
- */
-export async function animateWithRoot(options) {
-  const { targets, root = document, scopeId, ...animOptions } = options;
-  if (!targets) {
-    lcardsLog.warn('[animateWithRoot] Animation missing targets.', { options });
-    return;
-  }
-  try {
-    const elements = await waitForElements(targets, root);
-    if (elements.length === 0) {
-      lcardsLog.warn('[animateWithRoot] No targets resolved.', { targets });
-      return;
-    }
-
-    for (const element of elements) {
-      try {
-        let animation;
-        if (scopeId && window.lcards.anim.scopes.has(scopeId)) {
-          const scopeObj = window.lcards.anim.scopes.get(scopeId);
-          animation = window.lcards.anime(element, { ...animOptions, scope: scopeObj.scope });
-          scopeObj.addAnimation(animation);
-        } else {
-          animation = window.lcards.anime(element, animOptions);
-        }
-      } catch (e) {
-        lcardsLog.error('[animateWithRoot] Failed to animate a resolved element.', { element: element?.id, error: e });
-      }
-    }
-  } catch (error) {
-    lcardsLog.error('[animateWithRoot] Failed to animate element(s):', { targets, error });
-  }
-}
-
-/**
  * Hand the instances a preset's setup() created itself (text presets that drive a
  * proxy, WAAPI-backed presets) to the caller's onInstanceCreated, so AnimationManager
  * tracks, stops and gates them like any other. setup() pushes them to
@@ -794,50 +755,66 @@ function createCssAnimationHandle(element, baseDurationMs) {
  * handful of elements an animation targets avoids whatever that interaction
  * was, while still fixing the original problem for the elements that need it.
  *
- * SVG's legacy transform-list syntax (translate/scale/rotate/skewX/skewY/
- * matrix) is valid CSS transform-function syntax, and browsers already treat
- * unitless translate() values on SVG content as user-space units — but anime.js
- * decomposes/recomposes `style.transform` through its own internal property
- * list (`validTransforms` in animejs/core/consts.js), which recognizes
- * `translateX`/`translateY`/`translateZ` but NOT the bare two-argument
- * `translate(x, y)` form SVG authoring tools (Inkscape/Illustrator) actually
- * emit. When anime.js re-serializes the transform string it looks up each
- * cached function name in a fixed fragment-string map; an unrecognized key
- * (`translate`) resolves to `undefined`, producing an invalid transform
- * function that the browser silently drops — wiping out the original
- * position the instant any animation touches the element (confirmed via
- * `g1`'s real attribute, `translate(-180.26109,-261.5)`). Normalize the bare
- * form to `translateX()/translateY()` before handing it to `style.transform`
- * so anime.js's own decomposition keeps it.
+ * The attribute is consolidated into one matrix and written as `matrix(..)`,
+ * compensated for the transform-origin the preset sets (see _writeAuthoredMatrix),
+ * so the element draws exactly as before. Call it after the preset's styles and
+ * setup() have run, so that origin is known. (Before 2026-10 only translate()
+ * survived, rewritten as translateX/translateY: rotate/scale forms were dropped and
+ * the element jumped to its untransformed position.)
  * @param {Element} element
  */
 function _migrateTransformAttrToStyle(element) {
-  const style = /** @type {HTMLElement | SVGElement} */ (element)?.style;
-  if (!element || style.transform) return; // no element, or inline style already present (attribute already inert)
-  const transformValue = element.getAttribute && element.getAttribute('transform');
-  if (transformValue) {
-    // CSS's <length> grammar requires a unit on any non-zero value — a bare
-    // "translateX(-180.26109)" (no unit) is syntactically INVALID as a CSS
-    // property value, even though the same unitless number is valid inside
-    // SVG's own `transform` XML-attribute grammar. Assigning an invalid value
-    // to element.style.transform silently no-ops (CSSOM setters don't throw
-    // on unparseable values) — confirmed live: the migrated string appeared
-    // to assign successfully but a readback of element.style.transform right
-    // before the anime.animate() call showed it was still empty. Appending
-    // "px" satisfies CSS's parser; per the CSS Transforms/SVG compatibility
-    // rules, px lengths on SVG content without an associated CSS box are
-    // still resolved as user-space units, so the original meaning survives.
-    const normalized = transformValue.replace(/\btranslate\(([^)]+)\)/g, (_match, args) => {
-      const [x, y] = args.split(',').map(part => part.trim());
-      const px = (v) => (v === undefined ? '0px' : /[a-z%]/i.test(v) ? v : `${v}px`);
-      return `translateX(${px(x)}) translateY(${px(y)})`;
-    });
-    style.transform = normalized;
-    element.removeAttribute('transform');
-    lcardsLog.debug('[_migrateTransformAttrToStyle] Migrated attribute to style', {
-      id: element.id, from: transformValue, attempted: normalized, readBack: style.transform
-    });
+  const el = /** @type {any} */ (element);
+  const style = el?.style;
+  if (!el || !style) return;
+  if (style.transform) {
+    // Migrated by us earlier: re-fit the compensation to the current transform-origin
+    // (a later preset may have set another one). Any other inline transform is the
+    // card's or an animation's own and is left alone.
+    if (el._lcardsAuthoredMatrix && style.transform === el._lcardsMigratedTransform) _writeAuthoredMatrix(el);
+    return;
   }
+  const transformValue = el.getAttribute?.('transform');
+  if (!transformValue) return;
+  // Every SVG transform form (translate with spaces or commas, rotate(a cx cy), scale,
+  // skew, matrix, lists of them) consolidates to one matrix: unitless and valid CSS
+  // (a bare translate(10 5) is not), and anime.js keeps an inline matrix() beside the
+  // transforms it animates.
+  const consolidated = el.transform?.baseVal?.consolidate?.();
+  if (!consolidated) return;
+  const m = consolidated.matrix;
+  el._lcardsAuthoredMatrix = [m.a, m.b, m.c, m.d, m.e, m.f];
+  _writeAuthoredMatrix(el);
+  el.removeAttribute('transform');
+  lcardsLog.debug('[_migrateTransformAttrToStyle] Migrated attribute to style', {
+    id: el.id, from: transformValue, to: style.transform
+  });
+}
+
+/**
+ * Write an element's authored SVG matrix M into style.transform so it draws exactly as
+ * the attribute did. The attribute transforms about the user-space origin; a CSS
+ * transform turns about transform-origin O (presets set center + fill-box), so the
+ * written matrix is T(-O) M T(O). anime.js renders its own transforms before this
+ * matrix, so a scale/rotate preset on a rotated or scaled group pivots in the parent's
+ * space rather than around the group's own centre (a documented limitation).
+ * @param {any} el - carries _lcardsAuthoredMatrix
+ */
+function _writeAuthoredMatrix(el) {
+  const [a, b, c, d, e, f] = el._lcardsAuthoredMatrix;
+  const computed = getComputedStyle(el);
+  const [ox = 0, oy = 0] = String(computed.transformOrigin || '0 0').split(' ').map(parseFloat);
+  let bx = 0;
+  let by = 0;
+  if (computed.transformBox === 'fill-box' && typeof el.getBBox === 'function') {
+    try { const box = el.getBBox(); bx = box.x; by = box.y; } catch (_e) { /* not rendered */ }
+  }
+  const origin = { x: bx + ox, y: by + oy };
+  const matrix = new DOMMatrix().translate(-origin.x, -origin.y)
+    .multiply(new DOMMatrix([a, b, c, d, e, f]))
+    .translate(origin.x, origin.y);
+  el.style.transform = `matrix(${matrix.a}, ${matrix.b}, ${matrix.c}, ${matrix.d}, ${matrix.e}, ${matrix.f})`;
+  el._lcardsMigratedTransform = el.style.transform;
 }
 
 /**
@@ -900,9 +877,9 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
         const _tlResult = _tlPresetFn(_tlParams);
         if (_tlResult?._timeline || _tlResult?.anime?._timeline) {
           elements.forEach(el => {
-            _migrateTransformAttrToStyle(el);
             if (_tlResult.styles) Object.assign(/** @type {any} */ (el).style, _tlResult.styles);
             if (_tlResult.setup) { try { _tlResult.setup(el); } catch (_se) {} }
+            _migrateTransformAttrToStyle(el); // after styles: needs the transform-origin
             _reportPresetInstances(el, onInstanceCreated);
           });
           if (!window.lcards?.anim?.animejs?.createTimeline) {
@@ -956,10 +933,6 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
             const _batchParams = { ..._batchProbeParams };
             Object.assign(_batchParams, _batchProbeResult.anime);
 
-            // Migrate any SVG transform attributes before anime.js touches these
-            // elements — see _migrateTransformAttrToStyle() for why.
-            elements.forEach(el => _migrateTransformAttrToStyle(el));
-
             // Apply per-element CSS styles from preset
             if (_batchProbeResult.styles) {
               elements.forEach(el => Object.assign(/** @type {any} */ (el).style, _batchProbeResult.styles));
@@ -968,6 +941,9 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
             if (_batchProbeResult.setup) {
               elements.forEach(el => { try { _batchProbeResult.setup(el); } catch (_se) {} });
             }
+            // Migrate any SVG transform attributes before anime.js touches these
+            // elements, after the styles (it needs the transform-origin)
+            elements.forEach(el => _migrateTransformAttrToStyle(el));
             elements.forEach(el => _reportPresetInstances(el, onInstanceCreated));
 
             // Convert the _stagger marker to an anime.js stagger() function
@@ -1012,8 +988,6 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
     }
 
     for (const element of elements) {
-      _migrateTransformAttrToStyle(element);
-
       const params = {
         duration: 1000,
         ease: 'inOutQuad',  // Default to v4 naming
@@ -1109,6 +1083,9 @@ export async function animateElement(scope, options, hass = null, onInstanceCrea
           Object.assign(params, { d: window.lcards.animejs.svg.morphTo(morphTarget, precision) });
         }
       }
+
+      // After the preset's styles and setup(): the migration needs the transform-origin
+      _migrateTransformAttrToStyle(element);
 
       // CSS-driven preset (e.g. march): no anime.js instance exists, but still
       // report a lightweight handle so AnimationManager can track/live-adjust

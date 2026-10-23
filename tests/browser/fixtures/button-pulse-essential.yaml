@@ -1,0 +1,13 @@
+# Looping on_load pulse with essential_motion: plays even under reduced motion (reduced-motion.spec.js)
+type: custom:lcards-button
+entity: switch.demo_switch
+preset: lozenge
+text:
+  name:
+    content: Essential
+animations:
+  - trigger: on_load
+    preset: pulse
+    loop: true
+    essential_motion: true
+    params: {duration: 600, max_scale: 1.2}

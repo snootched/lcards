@@ -301,7 +301,14 @@ export function createConfigValidator({ entries, registries = null }) {
       add('error', 'msd-canvas', 'msd.view_box', 'base_svg.source "none" needs a view_box [x, y, w, h]');
     }
     const validate = compiled.get(tag);
-    if (!validate) return issues;
+    if (!validate) {
+      // A custom:lcards-* type no card, view or strategy registers (e.g. lcards-msd for
+      // lcards-msd-card): Home Assistant shows "Custom element doesn't exist"
+      const known = [...compiled.keys()];
+      const prefixed = known.find(k => k.startsWith(`${tag}-`)); // lcards-msd -> lcards-msd-card
+      add('error', 'unknown-type', 'type', `unknown LCARdS type "custom:${tag}"${prefixed ? ` (did you mean "custom:${prefixed}"?)` : suggest(tag, known)}`);
+      return issues;
+    }
 
     const migrator = { 'lcards-chart': migrateChartConfig, 'lcards-data-grid': migrateDataGridConfig }[tag];
     if (migrator) {

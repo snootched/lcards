@@ -196,6 +196,26 @@ The function-style names take their numbers in brackets, written as a string. Yo
 
 When the device asks for less motion (the **Reduce motion** accessibility setting, `prefers-reduced-motion: reduce`), LCARdS does not play animations. An animation that runs once jumps straight to where it would end, so entrance and `on_show` animations still leave the card visible. A looping one (pulse, glow, blink, cascades) does not run, and canvas background and screen effects show a still frame. Turning the setting back off lets the next trigger play.
 
+Some motion carries meaning: an alert flash that should catch the eye even when everything else stays still. Mark that animation with `essential_motion: true` and it plays regardless. Use it sparingly; people turn the setting on because motion bothers them.
+
+```yaml
+animations:
+  - trigger: on_entity_change
+    entity: binary_sensor.front_door
+    to_state: "on"
+    preset: blink
+    essential_motion: true
+    params:
+      duration: 400
+      loop: 6
+```
+
+The animation editor has the same switch (**Essential motion**).
+
+### Animating SVG elements that have their own transform
+
+When an animation runs on an element that has its own `transform` (common in SVGs exported from Inkscape, such as MSD base images), LCARdS keeps that transform, so the element stays exactly where it was drawn. A `scale`, `rotate` or `pulse` animation on a rotated or scaled group turns about a point slightly off the group's centre. Colour, opacity, stroke and draw animations are not affected.
+
 ---
 
 ## Comprehensive Example

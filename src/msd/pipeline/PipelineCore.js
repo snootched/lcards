@@ -32,6 +32,12 @@ import { lcardsCore } from '../../core/lcards-core.js';
  * @returns {Promise<Object>} Pipeline API
  */
 export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass = null, cardGuid = null, isEditMode = false) {
+  // AnimationManager is one shared singleton: its scopes for this card's base SVG and
+  // overlay group need ids of their own, or a second MSD card on the view tears the
+  // first card's animations down (it re-registers the same id)
+  const scopeSuffix = cardGuid || `msd-${Math.random().toString(36).slice(2, 10)}`;
+  const baseSvgScopeId = `__msd_base_svg:${scopeSuffix}`;
+  const overlayGroupScopeId = `__msd_animations:${scopeSuffix}`;
   lcardsLog.info('[PipelineCore] 🚀 Starting MSD pipeline initialization with SVG extraction', {
     hasCardGuid: !!cardGuid,
     cardGuid
@@ -294,7 +300,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
         if (overlayContainer) {
           try {
             await coordinator.animationManager.onOverlayRendered(
-              '__msd_animations',
+              overlayGroupScopeId,
               overlayContainer,
               { animations: cardModel.animations },
               coordinator
@@ -419,7 +425,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
         animationCount: cardModel.baseSvg.animations.length
       });
       await coordinator.animationManager.onOverlayRendered(
-        '__msd_base_svg',
+        baseSvgScopeId,
         baseContentGroup,
         { animations: cardModel.baseSvg.animations },
         coordinator

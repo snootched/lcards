@@ -17,6 +17,8 @@
 
 // @ts-expect-error — Vite ?raw suffix is a build-time import; TypeScript cannot resolve relative ?raw paths
 import workerSource from './BorgAssimilationWorker.js?raw';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { prefersReducedMotion, onReducedMotionChange } from '../../../utils/reduced-motion.js';
 
 /**
  * Borg assimilation intro animation for a `<canvas>` slot element.
@@ -34,6 +36,10 @@ import workerSource from './BorgAssimilationWorker.js?raw';
 export function BorgAssimilationEffect(canvas, params = {}) {
     const parent = canvas.parentElement;
     if (!parent) return () => {}; // effect canvas not mounted: nothing to attach a sibling to
+    if (typeof HTMLCanvasElement.prototype.transferControlToOffscreen !== 'function' || typeof Worker === 'undefined') {
+        lcardsLog.debug('[BorgAssimilationEffect] OffscreenCanvas or Worker not available: effect skipped');
+        return () => {};
+    }
     const W = parent?.clientWidth  || window.innerWidth;
     const H = parent?.clientHeight || window.innerHeight;
 
@@ -69,7 +75,9 @@ export function BorgAssimilationEffect(canvas, params = {}) {
 
     // Transfer our sibling canvas to the worker thread.
     const offscreen = ownCanvas.transferControlToOffscreen();
-    worker.postMessage({ type: 'start', canvas: offscreen, params }, [offscreen]);
+    // The worker has no matchMedia: it gets the reduced-motion setting here and on change
+    worker.postMessage({ type: 'start', canvas: offscreen, params, reducedMotion: prefersReducedMotion() }, [offscreen]);
+    const unsubscribeMotion = onReducedMotionChange((reduced) => worker.postMessage({ type: 'motion', reduced }));
 
     // Forward resize events so the draw buffer matches the container.
     let _ro = null;
@@ -88,6 +96,7 @@ export function BorgAssimilationEffect(canvas, params = {}) {
 
     return () => {
         if (_ro) { _ro.disconnect(); _ro = null; }
+        unsubscribeMotion?.();
         worker.postMessage({ type: 'stop' });
         // Give the worker one tick to clear the canvas before terminating.
         setTimeout(() => {

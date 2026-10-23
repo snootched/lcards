@@ -105,23 +105,25 @@ await window.lcards.anim.animateElement(scope, {
 });
 ```
 
-### `anim.animateWithRoot(options)`
+### Animating elements inside a card
 
-Simpler wrapper: resolves targets within a root and calls `anime.animate()` directly. Does not expand presets. Use when you want raw anime.js params with shadow-DOM target resolution.
+anime.js resolves a string selector against `document`, so `'.button-bg'` finds nothing inside a card's shadow root. Pass elements instead, or give a scope the card's root:
 
 ```javascript
-// options - { targets, root?, scopeId?, ...animeOptions }
-//   targets  (required) - selector, Element, or array
-//   root     (optional) - root to query within (default: document)
-//   scopeId  (optional) - key in anim.scopes Map; if present, animation is registered to that scope
+const card = document.querySelector('lcards-button');           // or the element from the editor/console
+const { animate, createScope } = window.lcards.anim.animejs;
 
-await window.lcards.anim.animateWithRoot({
-  targets: '.status-bar',
-  root: myCard.shadowRoot,
-  opacity: [0, 1],
-  duration: 400,
+// Pass the element itself
+animate(card.shadowRoot.querySelector('.button-bg'), { opacity: [1, 0.3, 1], duration: 600 });
+
+// Or resolve selectors against the card's root
+const scope = createScope({ root: card.shadowRoot }).add(() => {
+  animate('.button-bg', { opacity: [1, 0.3, 1], duration: 600 });
 });
+scope.revert(); // later: stops it and restores the element
 ```
+
+Animations made this way are not tracked by AnimationManager (no `stopAnimations`, no reduced-motion gate); for anything a card config should own, use `animateElement` or an `animations:` entry. The former `anim.animateWithRoot()` helper was removed in 2026.10: it predates `createScope({ root })` and its `scopeId` option never worked.
 
 ### `anim.waitForElement(selector, root?, timeout?)`
 
@@ -173,7 +175,6 @@ The following are kept on the root `window.lcards` namespace for older code. Pre
 | `window.lcards.animejs` | `window.lcards.anim.animejs` |
 | `window.lcards.anime` | `window.lcards.anim.anime` |
 | `window.lcards.animateElement` | `window.lcards.anim.animateElement` |
-| `window.lcards.animateWithRoot` | `window.lcards.anim.animateWithRoot` |
 | `window.lcards.waitForElement` | `window.lcards.anim.waitForElement` |
 
 ---
