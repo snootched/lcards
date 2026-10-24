@@ -175,6 +175,28 @@ test('grid scan line: a pure function of the clock, off at 0, far to near', () =
   assert.equal(gridScene.scanAt(6500, 7).strength, 0, 'rest at the end of the period');
 });
 
+test('warp-starfield camera keys: a turned view moves where the stars stream from; fov keeps star sizes in px', () => {
+  const params = { count: 20, seed: 2, camera_yaw: 0, camera_tilt: 0, fov: 70 };
+  const s = warpScene.createScene({ params, colors: {} });
+  const u = s.scene.children[0].material.uniforms;
+  s.resize(400, 200);
+  assert.ok(u.uDir.value.x === 0 && Math.abs(u.uDir.value.y) === 0, 'straight ahead');
+  params.camera_yaw = 20;
+  params.camera_tilt = 10;
+  s.setParam('camera_yaw', 20);
+  assert.ok(Math.abs(u.uDir.value.x - Math.tan((20 * Math.PI) / 180)) < 1e-9, 'yaw right: far stars sit left (x offset = tan(yaw) x depth, depth negative)');
+  assert.ok(Math.abs(u.uDir.value.y + Math.tan((10 * Math.PI) / 180)) < 1e-9, 'tilt down: far stars sit higher');
+  params.camera_yaw = 90;
+  s.setParam('camera_yaw', 90);
+  assert.ok(Math.abs(u.uDir.value.x - Math.tan((40 * Math.PI) / 180)) < 1e-9, 'clamped to 40 degrees: the star volume stays in view');
+  const before = u.uScaleXY.value;
+  params.fov = 100;
+  s.setParam('fov', 100);
+  assert.equal(s.camera.fov, 100);
+  assert.ok(u.uScaleXY.value > before, 'wider view: more world units per px, so stars keep their px size');
+  s.dispose();
+});
+
 test('warp-starfield: one time uniform, streak from speed', () => {
   const s = warpScene.createScene({ params: { count: 50, seed: 2, streak: 1 }, colors: {} });
   const material = s.scene.children[0].material;

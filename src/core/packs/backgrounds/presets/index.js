@@ -879,6 +879,9 @@ export const BACKGROUND_PRESETS = {
         { key: 'max_radius', default: 2, description: 'Largest star size.' },
         { key: 'colors', default: ['var(--lcards-moonlight)'], description: 'Star color(s); also accepts a single color. The default follows the alert palette.' },
         { key: 'streak', default: 1, description: 'How long the streaks grow per unit of speed above 1 (0 = always dots).' },
+        { key: 'camera_tilt', default: 0, description: 'Look down (positive) or up from the direction of travel, in degrees (-40 to 40): the stars stream from a point higher or lower on the card.' },
+        { key: 'camera_yaw', default: 0, description: 'Look right (positive) or left of the direction of travel, in degrees (-40 to 40), as when turning at warp.' },
+        { key: 'fov', default: 70, description: 'Field of view in degrees: wider makes a deeper tunnel of streaks.' },
         { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
       ],
       example: 'background_animation:\n  - preset: warp-starfield\n    config:\n      count: 800\n      speed: 1'
@@ -894,7 +897,10 @@ export const BACKGROUND_PRESETS = {
           count: config.count ?? 600,
           min_radius: config.min_radius ?? 0.5,
           max_radius: config.max_radius ?? 2,
-          streak: config.streak ?? 1
+          streak: config.streak ?? 1,
+          camera_tilt: config.camera_tilt ?? 0,
+          camera_yaw: config.camera_yaw ?? 0,
+          fov: config.fov ?? 70
         },
         colors: { stars: Array.isArray(colors) ? colors : [colors] },
         opacity: config.opacity ?? 1

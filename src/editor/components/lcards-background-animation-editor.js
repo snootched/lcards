@@ -28,6 +28,7 @@ import './shared/lcards-color-list.js';
 import './shared/lcards-form-section.js';
 import './shared/lcards-message.js';
 import { BACKGROUND_PRESET_DOCS_URL } from './shared/docs-links.js';
+import { SCHEMA_SECTIONS, GRID_PRESETS, GRID_VIEW_KEYS, schemaFields, withViewDefault } from './background-animation-fields.js';
 import { infoGuideStyles } from './shared/info-guide-styles.js';
 import { renderInfoGuide } from './shared/info-guide.js';
 import { searchableSelectStyles } from './shared/searchable-select-styles.js';
@@ -499,6 +500,20 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           .helper=${this._getPresetHelp(preset)}
           @value-changed=${(e) => this._updateEffect(index, 'preset', e.detail.value)}
         ></ha-selector>
+        ${/** @type {any} */ (BACKGROUND_PRESETS)[preset]?.renderer === 'webgl' ? html`
+          <ha-selector
+            .hass=${this.hass}
+            .selector=${{ select: { mode: 'dropdown', options: [
+              { value: 'auto', label: 'Auto: WebGL when available' },
+              { value: 'webgl', label: 'WebGL (Canvas2D without it)' },
+              { value: 'canvas', label: 'Canvas2D only' }
+            ] } }}
+            .value=${effect.renderer ?? 'auto'}
+            .label=${'Renderer'}
+            .helper=${'How this effect is drawn. Canvas2D only uses no GPU.'}
+            @value-changed=${(e) => this._updateEffect(index, 'renderer', e.detail.value === 'auto' ? undefined : e.detail.value)}
+          ></ha-selector>
+        ` : ''}
       </lcards-form-section>
 
       ${this._renderEffectInfoGuide(preset, index)}
@@ -608,6 +623,11 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     const preset = effect.preset || 'grid';
     const config = effect.config || {};
 
+    // Presets edited from their params schema (the WebGL scenes)
+    if (SCHEMA_SECTIONS[preset]) {
+      return html`${this._renderSchemaSections(preset, config, index)}`;
+    }
+
     // Starfield uses different sections
     if (preset === 'starfield') {
       return html`
@@ -657,12 +677,95 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       return html`${this._renderSolidSection(config, index)}`;
     }
 
-    // Grid presets use pattern/major-minor/scrolling/color sections
+    // Grid presets use pattern/major-minor/scrolling/color sections, then
+    // the WebGL view and camera group
     return html`
       ${this._renderPatternSection(preset, config, index)}
       ${this._renderMajorMinorSection(preset, config, index)}
       ${this._renderScrollingSection(config, index)}
       ${this._renderColorSection(preset, config, index)}
+      ${GRID_PRESETS.includes(preset) ? this._renderGridViewSection(preset, config, index) : ''}
+    `;
+  }
+
+  /**
+   * Sections built from a preset's params schema (SCHEMA_SECTIONS).
+   * @param {string} preset
+   * @param {Record<string, any>} config
+   * @param {number} index
+   */
+  _renderSchemaSections(preset, config, index) {
+    return html`
+      ${SCHEMA_SECTIONS[preset].map((section) => this._renderSchemaSection(section.header, section.icon, schemaFields(preset, section.keys), config, index))}
+      ${preset === 'warp-starfield' ? html`
+        <lcards-form-section header="Colours" icon="mdi:palette" ?expanded=${true}>
+          <lcards-color-list
+            .hass=${this.hass}
+            .colors=${config.colors || (config.color ? [config.color] : [])}
+            .label=${'Star colours'}
+            .description=${'Each star takes one of these. Empty: moonlight, which follows the alert palette.'}
+            @colors-changed=${(e) => this._updateEffectConfig(index, 'colors', e.detail.colors)}
+          ></lcards-color-list>
+        </lcards-form-section>
+      ` : ''}
+    `;
+  }
+
+  /**
+   * One section of schema fields: number, select and boolean fields in a
+   * grid, colour fields with their label and helper.
+   * @param {string} header
+   * @param {string} icon
+   * @param {import('./background-animation-fields.js').EditorField[]} fields
+   * @param {Record<string, any>} config
+   * @param {number} index
+   */
+  _renderSchemaSection(header, icon, fields, config, index) {
+    const plain = fields.filter((f) => f.type !== 'color');
+    const colors = fields.filter((f) => f.type === 'color');
+    return html`
+      <lcards-form-section header=${header} icon=${icon} ?expanded=${true}>
+        ${plain.length ? html`<div class="param-grid">${plain.map((f) => this._renderField(f, config, index))}</div>` : ''}
+        ${colors.map((f) => this._renderColorSlot(f, config, index))}
+      </lcards-form-section>
+    `;
+  }
+
+  /**
+   * The grid presets' view, camera and scan keys (WebGL only).
+   * @param {string} preset
+   * @param {Record<string, any>} config
+   * @param {number} index
+   */
+  _renderGridViewSection(preset, config, index) {
+    const fields = schemaFields(preset, GRID_VIEW_KEYS).map((f) => withViewDefault(f, config));
+    return html`
+      <lcards-form-section header="View and camera (WebGL)" icon="mdi:axis-arrow" ?expanded=${false}>
+        <div class="param-grid">${fields.filter((f) => f.type !== 'color').map((f) => this._renderField(f, config, index))}</div>
+        ${fields.filter((f) => f.type === 'color').map((f) => this._renderColorSlot(f, config, index))}
+      </lcards-form-section>
+    `;
+  }
+
+  /**
+   * A labelled colour picker for one config key.
+   * @param {{ key: string, label: string, helper?: string }} slot
+   * @param {Record<string, any>} config
+   * @param {number} index
+   */
+  _renderColorSlot(slot, config, index) {
+    return html`
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; padding: 2px 8px;">${slot.label}</div>
+        <lcards-color-picker
+          .hass=${this.hass}
+          .value=${config[slot.key] || ''}
+          .variablePrefixes=${['--lcards-', '--lcars-', '--cblcars-']}
+          ?showPreview=${true}
+          @value-changed=${(e) => this._updateEffectConfig(index, slot.key, e.detail.value)}>
+        </lcards-color-picker>
+        ${slot.helper ? html`<div style="font-size: 12px; color: var(--secondary-text-color); margin-top: 4px; padding: 0 8px;">${slot.helper}</div>` : ''}
+      </div>
     `;
   }
 
@@ -815,6 +918,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
           ${this._renderField({ key: 'max_radius', label: 'Max Cloud Radius', type: 'number', min: 0.1, max: 1, step: 0.05, default: 0.4, helper: 'Fraction of canvas size (0-1)' }, config, index)}
           ${this._renderField({ key: 'min_opacity', label: 'Min Cloud Opacity', type: 'number', min: 0, max: 1, step: 0.1, default: 0.3 }, config, index)}
           ${this._renderField({ key: 'max_opacity', label: 'Max Cloud Opacity', type: 'number', min: 0, max: 1, step: 0.1, default: 0.8 }, config, index)}
+          ${schemaFields('nebula', ['volumetric']).map((f) => this._renderField(f, config, index))}
         </div>
       </lcards-form-section>
 
@@ -1034,19 +1138,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     // effects never write into each other.
     return html`
       <lcards-form-section header="Colours" icon="mdi:palette" ?expanded=${true}>
-        ${slots.map(slot => html`
-          <div style="margin-bottom: 12px;">
-            <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px; padding: 2px 8px;">${slot.label}</div>
-            <lcards-color-picker
-              .hass=${this.hass}
-              .value=${config[slot.key] || ''}
-              .variablePrefixes=${['--lcards-', '--lcars-', '--cblcars-']}
-              ?showPreview=${true}
-              @value-changed=${(e) => this._updateEffectConfig(index, slot.key, e.detail.value)}>
-            </lcards-color-picker>
-            <div style="font-size: 12px; color: var(--secondary-text-color); margin-top: 4px; padding: 0 8px;">${slot.helper}</div>
-          </div>
-        `)}
+        ${slots.map(slot => this._renderColorSlot(slot, config, index))}
       </lcards-form-section>
     `;
   }
@@ -1798,6 +1890,8 @@ fill_pct: "[[[return entity.attributes.brightness / 2.55]]]"</pre>
       ...updatedEffects[index],
       [key]: value
     };
+    // undefined removes the key (e.g. renderer back to its default)
+    if (value === undefined) delete updatedEffects[index][key];
 
     // Reset config when preset changes
     if (key === 'preset') {

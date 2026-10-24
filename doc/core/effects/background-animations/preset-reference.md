@@ -980,8 +980,11 @@ config:
 | `streak` | 1 | How long the streaks grow per unit of speed above 1. `0` keeps dots at any speed |
 | `speed` | 1 | Time multiplier |
 | `seed` | random | Star layout |
+| `camera_tilt` | 0 | Looks down (positive) or up from the direction of travel, in degrees (-40 to 40): the stars stream from a point higher or lower on the card |
+| `camera_yaw` | 0 | Looks right (positive) or left of the direction of travel, in degrees (-40 to 40), as when turning at warp |
+| `fov` | 70 | Field of view in degrees: wider makes a deeper tunnel of streaks |
 
-Animatable: `speed`, `streak`, `color`, `opacity` and the transform keys.
+Animatable: `speed`, `streak`, `camera_tilt`, `camera_yaw`, `fov`, `color`, `opacity` and the transform keys. The camera keys mean the same as on the [grid](#grid-views-and-camera), so either can follow an entity.
 
 **Examples:**
 
@@ -993,6 +996,17 @@ Animatable: `speed`, `streak`, `color`, `opacity` and the transform keys.
     count: 1200
     streak: 1.5
     speed: "[[[ return states['input_select.lcards_alert_mode']?.state === 'red_alert' ? 8 : 1 ]]]"
+
+# Banking: the stars stream from left or right as a value moves
+- preset: warp-starfield
+  transition: 1500
+  config:
+    speed: 4
+    camera_yaw:
+      map_range:
+        entity_id: input_number.lcards_test_value
+        input: [0, 100]
+        output: [-30, 30]
 ```
 
 ---

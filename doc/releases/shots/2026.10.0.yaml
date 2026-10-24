@@ -260,3 +260,80 @@
   viewport: [1400, 1500]
   selector: 'lcards-rule-apply-editor'
   padding: 12
+
+# WebGL backgrounds: a flat grid tips into a perspective floor and back (camera_tilt animated).
+- name: webgl-grid-floor
+  kind: video
+  card:
+    type: custom:lcards-elbow
+    elbow:
+      type: frame
+      segment: { color: var(--lcards-gray) }
+      frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+    background_animation:
+      inset: auto
+      effects:
+        - preset: grid
+          config:
+            color: var(--lcards-orange)
+            line_width: 2
+            major_row_interval: 4
+            major_col_interval: 4
+            color_major: var(--lcards-moonlight)
+            line_width_major: 3
+            scroll_speed_x: 0
+            scroll_speed_y: 30
+            scan_period: 4
+    animations:
+      - trigger: on_load
+        target: background
+        preset: custom
+        params:
+          camera_tilt: [90, 12]
+          duration: 2500
+          ease: inOutSine
+          alternate: true
+          loop: true
+  steps:
+    - wait: 1500
+  duration: 6600
+  size: [900, 320]
+  viewport: [1100, 500]
+  selector: '#lcards-release-card'
+  padding: 24
+
+# holo-sphere: the wireframe planet with its scan band, beside a grid floor.
+- name: holo-sphere
+  card:
+    type: custom:lcards-elbow
+    elbow:
+      type: frame
+      segment: { color: var(--lcards-gray) }
+      frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+    background_animation:
+      inset: auto
+      effects:
+        - preset: grid
+          config: { view: floor, color: var(--lcards-blue-medium), scan_period: 0 }
+        - preset: holo-sphere
+          config: { size: 0.85, position_x: 0.7, position_y: 0.45, line_width: 1.5, scan_period: 3 }
+  steps:
+    - wait: 3200
+  size: [700, 320]
+  viewport: [900, 500]
+  selector: '#lcards-release-card'
+  padding: 24
+
+# Slider ring gauge.
+- name: slider-ring
+  card:
+    type: custom:lcards-slider
+    entity: input_number.lcards_test_value
+    preset: picard-ring
+  steps:
+    - service: [input_number, set_value, { entity_id: input_number.lcards_test_value, value: 65 }]
+    - wait: 1500
+  size: [300, 300]
+  viewport: [700, 500]
+  selector: '#lcards-release-card'
+  padding: 24

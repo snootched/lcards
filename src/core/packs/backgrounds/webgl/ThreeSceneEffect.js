@@ -255,6 +255,9 @@ export class WarpStarfieldEffect extends ThreeSceneEffect {
   static animatableProps = {
     ...BaseEffect.animatableProps,
     streak: sceneProp('streak', { min: 0 }),
+    camera_tilt: sceneProp('camera_tilt', { min: -40, max: 40 }),
+    camera_yaw: sceneProp('camera_yaw', { min: -40, max: 40 }),
+    fov: sceneProp('fov', { min: 20, max: 120 }),
     color: sceneColorProp('stars')
   };
 }

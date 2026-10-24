@@ -2,6 +2,11 @@
  * `warp-starfield` scene (lazy chunk): stars on an InstancedMesh flying at
  * the camera; streaks stretch with the effect's `speed`.
  *
+ * Camera keys (`camera_tilt`, `camera_yaw`, `fov`) turn the view away from
+ * the direction of travel: the stars stream from a point off centre, as when
+ * a ship turns at warp. The star volume stays in front of the camera (the
+ * stars travel along the turned direction instead), so the field stays full.
+ *
  * One time uniform; the vertex shader places every star, so the cost stays
  * flat at any star count. (C2 also had a per-star anime.js loop through the
  * three adapter's `getInstances()`: about 1 µs per star per frame, 4 ms at
@@ -12,7 +17,7 @@
  */
 import {
   Scene, PerspectiveCamera, CylinderGeometry, InstancedMesh, ShaderMaterial,
-  InstancedBufferAttribute, Matrix4, AdditiveBlending, Color
+  InstancedBufferAttribute, Matrix4, AdditiveBlending, Color, Vector2
 } from 'three';
 import { seededRandom, toColor } from './scene-helpers.js';
 
@@ -31,6 +36,8 @@ const SHADER_VERT = /* glsl */ `
 uniform float uTime;
 uniform float uStretch;
 uniform float uScaleXY;
+// Camera turned from the direction of travel: lateral drift per unit depth
+uniform vec2 uDir;
 attribute float aPhase;
 attribute float aRate;
 varying vec3 vColor;
@@ -39,7 +46,10 @@ void main() {
   vec4 base = instanceMatrix * vec4( position.xy * uScaleXY, 0.0, 1.0 );
   float travel = fract( aPhase + uTime * aRate / ${PASS_MS.toFixed(1)} );
   float z = mix( ${(-DEPTH).toFixed(1)}, ${NEAR.toFixed(1)}, travel ) + position.z * uStretch;
-  vec4 mv = modelViewMatrix * vec4( base.xy, z, 1.0 );
+  // Stars stream along the direction of travel, seen from a turned camera:
+  // the farther they are, the more they sit toward where the ship is heading
+  // (streaks lean the same way, since the tail is farther than the head)
+  vec4 mv = modelViewMatrix * vec4( base.xy + uDir * z, z, 1.0 );
   gl_Position = projectionMatrix * mv;
   vViewDepth = -mv.z;
 #ifdef USE_INSTANCING_COLOR
@@ -88,8 +98,9 @@ export function createScene({ params, colors }) {
 
   const stretch = { value: 1 };
   const scaleXY = { value: 0.01 };
+  const dir = { value: new Vector2() };
   const material = new ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uStretch: stretch, uScaleXY: scaleXY },
+    uniforms: { uTime: { value: 0 }, uStretch: stretch, uScaleXY: scaleXY, uDir: dir },
     vertexShader: SHADER_VERT,
     fragmentShader: SHADER_FRAG,
     transparent: true,
@@ -109,6 +120,26 @@ export function createScene({ params, colors }) {
   });
   geometry.setAttribute('aPhase', new InstancedBufferAttribute(new Float32Array(stars.map((s) => s.phase)), 1));
   geometry.setAttribute('aRate', new InstancedBufferAttribute(new Float32Array(stars.map((s) => s.rate)), 1));
+
+  /** Camera keys: tilt (degrees down) and yaw (degrees right) from the direction of travel */
+  const MAX_TURN = 40;
+  let viewH = 1;
+  function updateFov() {
+    camera.fov = Math.max(20, Math.min(120, params.fov ?? FOV));
+    camera.updateProjectionMatrix();
+    // World units per px at SIZE_DEPTH, so star radii are px whatever the card size and fov
+    scaleXY.value = (2 * SIZE_DEPTH * Math.tan((camera.fov * Math.PI) / 360)) / viewH;
+  }
+  function updateDir() {
+    const rad = (/** @type {number} */ deg) => (Math.max(-MAX_TURN, Math.min(MAX_TURN, deg)) * Math.PI) / 180;
+    dir.value.set(Math.tan(rad(params.camera_yaw ?? 0)), -Math.tan(rad(params.camera_tilt ?? 0)));
+  }
+  /** @param {string} key */
+  function setParam(key) {
+    if (key === 'fov') updateFov();
+    else if (key === 'camera_tilt' || key === 'camera_yaw') updateDir();
+  }
+  updateDir();
 
   const tmp = new Color();
   /** @param {Record<string, Array<{ r: number, g: number, b: number }>>} cols */
@@ -134,12 +165,11 @@ export function createScene({ params, colors }) {
     },
     /** @param {number} w @param {number} h */
     resize(w, h) {
-      camera.aspect = w / Math.max(1, h);
-      camera.updateProjectionMatrix();
-      // World units per px at SIZE_DEPTH, so star radii are px whatever the card size
-      scaleXY.value = (2 * SIZE_DEPTH * Math.tan((FOV * Math.PI) / 360)) / Math.max(1, h);
+      viewH = Math.max(1, h);
+      camera.aspect = w / viewH;
+      updateFov();
     },
-    setParam() {},
+    setParam,
     setColors,
     dispose() {
       geometry.dispose();

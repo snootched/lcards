@@ -183,7 +183,43 @@ animations:
 `,
 });
 
+// WebGL backgrounds: a frame elbow (no fill of its own) around each one
+const webglTile = (label, effect) => ({
+  label,
+  yaml: `type: custom:lcards-elbow
+elbow:
+  type: frame
+  segment:
+    color: var(--lcards-gray)
+  frame:
+    bar_width: 4
+    bar_height: 4
+    outer_curve: 10
+background_animation:
+  inset: auto
+  effects:
+${effect.replace(/^/gm, '    ')}
+grid_options:
+  rows: 4
+`,
+})
+
 export const CARD_GALLERIES = {
+  'background-webgl': {
+    hint: 'Drawn with WebGL in your browser; without it each falls back to its Canvas2D version.',
+    minWidth: 280,
+    tiles: [
+      webglTile('grid, view: floor', '- preset: grid\n  config:\n    view: floor\n    color: var(--lcards-orange)\n    line_width: 2'),
+      webglTile('grid-hexagonal, view: floor', '- preset: grid-hexagonal\n  config:\n    view: floor\n    line_width_minor: 2'),
+      webglTile('grid, majors, tilted', '- preset: grid\n  config:\n    view: floor\n    camera_tilt: 40\n    camera_yaw: 20\n    color: var(--lcards-orange)\n    major_row_interval: 4\n    major_col_interval: 4\n    color_major: var(--lcards-moonlight)\n    line_width_major: 3'),
+      webglTile('holo-sphere', '- preset: holo-sphere\n  config:\n    line_width: 1.5'),
+      webglTile('warp-starfield', '- preset: warp-starfield\n  config:\n    count: 800\n    speed: 3'),
+      webglTile('nebula, volumetric', '- preset: nebula\n  config:\n    cloud_count: 5\n    colors: [var(--lcards-purple), var(--lcards-blue-medium), var(--lcards-orange)]\n    volumetric: true'),
+      webglTile('contour-field', '- preset: contour-field\n  config:\n    num_bands: 7\n    colors: [var(--lcards-blue-darkest), var(--lcards-blue-medium), var(--lcards-blue-light)]'),
+      webglTile('plasma', '- preset: plasma'),
+      webglTile('fluid', '- preset: fluid\n  config:\n    color: var(--lcards-blue-light)'),
+    ],
+  },
   'text-decode': {
     hint: 'Tap a button to decode it again.',
     minWidth: 280,

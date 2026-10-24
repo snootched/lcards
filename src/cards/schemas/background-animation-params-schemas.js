@@ -75,6 +75,7 @@ export const gridParamsSchema = {
     },
     num_rows: { type: 'integer', minimum: 1, maximum: 100, description: 'Cell-based sizing alternative to line_spacing: exact row count.' },
     num_cols: { type: 'integer', minimum: 1, maximum: 100, description: 'Cell-based sizing alternative to line_spacing: exact column count.' },
+    line_width: { type: 'number', minimum: 0, default: 1, description: 'Line thickness in px (the minor lines; the same as line_width_minor, which wins when both are set). Animatable.', 'x-ui-hints': { selector: { number: { min: 0, max: 10, step: 0.5, mode: 'slider' } } } },
     line_width_minor: { type: 'number', minimum: 0, default: 1, description: 'Minor line thickness in px.', 'x-ui-hints': { selector: { number: { min: 0, max: 10, step: 0.5, mode: 'slider' } } } },
     line_width_major: { type: 'number', minimum: 0, default: 2, description: 'Major (emphasised) line thickness in px.', 'x-ui-hints': { selector: { number: { min: 0, max: 10, step: 0.5, mode: 'slider' } } } },
     color: { ...simpleColorSchema, default: 'rgba(255, 153, 102, 0.3)', description: 'Minor line color.' },
@@ -437,6 +438,9 @@ export const warpStarfieldParamsSchema = {
     },
     color: { ...simpleColorSchema, description: 'One color for every star, in place of colors. This is the key to animate (target: background) or bind to recolor the stars.' },
     streak: { type: 'number', minimum: 0, default: 1, description: 'How long the streaks grow per unit of speed above 1. 0 keeps the stars as dots at any speed. Animatable.', 'x-ui-hints': { selector: { number: { min: 0, max: 4, step: 0.1, mode: 'slider' } } } },
+    camera_tilt: { type: 'number', minimum: -40, maximum: 40, default: 0, description: 'Looks down (positive) or up from the direction of travel, in degrees: the stars stream from a point higher or lower on the card. Same meaning as the grid camera_tilt (degrees below straight ahead). Animatable.', 'x-ui-hints': { selector: { number: { min: -40, max: 40, step: 1, mode: 'slider' } } } },
+    camera_yaw: { type: 'number', minimum: -40, maximum: 40, default: 0, description: 'Looks right (positive) or left of the direction of travel, in degrees, as when a ship turns at warp. Animatable.', 'x-ui-hints': { selector: { number: { min: -40, max: 40, step: 1, mode: 'slider' } } } },
+    fov: { type: 'number', minimum: 20, maximum: 120, default: 70, description: 'Camera field of view in degrees: wider makes a deeper tunnel of streaks (star sizes stay in px). Animatable.', 'x-ui-hints': { selector: { number: { min: 20, max: 120, step: 1, mode: 'slider' } } } },
     opacity: _opacitySchema
   },
   additionalProperties: 'warn'

@@ -155,6 +155,8 @@ Seven built-in presets are available. See the **[Preset Reference](background-an
 
 `contour-field`, `plasma` and `fluid` are drawn on the GPU too where WebGL is available, with the same keys and the same field as their Canvas2D versions. On the CPU these effects pause the page each time they first draw, resize or change alert colours (up to half a second on a full-screen background); on the GPU they don't, and their noise keys become [animatable](#animatable-keys).
 
+<CardGallery set="background-webgl" />
+
 Set `renderer: canvas` on the entry to always draw the Canvas2D version:
 
 ```yaml
@@ -475,7 +477,7 @@ Every effect: `opacity`, and the transform keys `x`, `y` (offset in px), `rotate
 | `shimmer` | `highlight_width`, `angle` |
 | `image` | `opacity` only |
 | `solid` | `opacity`, `color` |
-| `warp-starfield` | `streak`, `color` |
+| `warp-starfield` | `streak`, `camera_tilt`, `camera_yaw`, `fov`, `color` |
 | `holo-sphere` | `rotate_speed`, `tilt`, `size`, `position_x`, `position_y`, `back_opacity`, `line_width`, `color`, `scan_color` |
 
 Other keys are left out on purpose: changing them means rebuilding the effect (a new star layout, a noise re-bake), too slow to do every frame. The WebGL versions of the noise presets have no bake, so their noise keys are animatable there; under `renderer: canvas` or without WebGL they keep the Canvas2D list. A key that isn't animatable is logged once in the browser console.

@@ -41,6 +41,35 @@ test('warp-starfield loads its scene on the shared context and draws into the ca
     await expectNoErrors(page);
 });
 
+test('warp-starfield camera_yaw: the stars stream from a point to the left when the camera turns right', async ({ page }) => {
+    await mountCase(page, 'button-warp-starfield', { width: '600' });
+    await expect.poll(() => entries(page), { timeout: 10_000 }).toEqual([{ type: 'WarpStarfieldEffect', ready: true }]);
+    /** Horizontal centroid of the lit pixels, 0 (left) to 1 (right), averaged over a few frames */
+    const centroid = async () => {
+        let sum = 0;
+        for (let k = 0; k < 4; k++) {
+            sum += await page.evaluate(() => {
+                const c = /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer.canvas;
+                const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+                let sx = 0, n = 0;
+                for (let i = 3; i < d.length; i += 4) if (d[i] > 20) { sx += ((i - 3) / 4) % c.width; n++; }
+                return n ? sx / n / c.width : 0.5;
+            });
+            await page.waitForTimeout(120);
+        }
+        return sum / 4;
+    };
+    const straight = await centroid();
+    await page.evaluate(() => {
+        const h = /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer.getHandles(0)[0];
+        h.setProp('camera_yaw', 35);
+    });
+    await page.waitForTimeout(300);
+    const turned = await centroid();
+    expect(turned, 'stars shift left').toBeLessThan(straight - 0.05);
+    await expectNoErrors(page);
+});
+
 test('target: background ramps warp speed through the handle', async ({ page }) => {
     await mountCase(page, 'button-warp-starfield');
     await expect.poll(() => entries(page), { timeout: 10_000 }).toEqual([{ type: 'WarpStarfieldEffect', ready: true }]);
