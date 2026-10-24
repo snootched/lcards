@@ -1,0 +1,11 @@
+# fluid on WebGL vs its Canvas2D version, scrolling stopped (background-webgl.spec.js)
+type: custom:lcards-button
+entity: light.demo
+preset: lozenge
+height: 160
+background_animation:
+  - preset: fluid
+    config:
+      color: 'rgba(100, 180, 255, 0.8)'
+      scroll_speed_x: 0
+      scroll_speed_y: 0

@@ -91,6 +91,13 @@ export const gridParamsSchema = {
     hex_radius: { type: 'number', minimum: 1, default: 40, description: 'Hexagon size in px: only used when pattern is "hexagonal". Unclamped in code: 0 collapses the hex tiling, hence the minimum.', 'x-ui-hints': { selector: { number: { min: 1, max: 150, step: 1, mode: 'slider' } } } },
     show_border_lines: { type: 'boolean', default: true, description: 'Draw lines at canvas edges.' },
     fill_color: { ...simpleColorSchema, default: 'transparent', description: 'Solid fill painted behind each cell.' },
+    view: { type: 'string', enum: ['flat', 'floor'], default: 'flat', description: 'flat: the grid face-on. floor: a perspective floor streaming toward the viewer, fading to a horizon. Drawn with WebGL; without it (or with renderer: canvas) the flat grid is drawn.', enumDescriptions: { flat: 'Face-on grid', floor: 'Perspective floor to a horizon' } },
+    camera_tilt: { type: 'number', minimum: 1, maximum: 90, description: 'How far the camera looks down, in degrees: 90 is straight down (the flat view), low values look along a floor toward the horizon. Default 90 in flat view, 10 in floor view. WebGL only. Animatable: animate from 90 to 10 to tip a flat grid into a floor.', 'x-ui-hints': { selector: { number: { min: 1, max: 90, step: 1, mode: 'slider' } } } },
+    camera_yaw: { type: 'number', default: 0, description: 'Turns the camera around the grid, in degrees. WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: -180, max: 180, step: 1, mode: 'slider' } } } },
+    camera_distance: { type: 'number', minimum: 0.05, default: 1, description: 'Zoom: at 1, line_spacing is true px at the middle of the card; 2 is twice as far (the grid looks half the size). WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: 0.2, max: 5, step: 0.05, mode: 'slider' } } } },
+    fov: { type: 'number', minimum: 5, maximum: 150, default: 60, description: 'Camera field of view in degrees: wider exaggerates the floor perspective (the flat view looks the same at any value). WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: 20, max: 120, step: 1, mode: 'slider' } } } },
+    scan_period: { type: 'number', minimum: 0, description: 'Seconds per scan line sweep, from the far side of the grid to the near side, including a short rest; 0 turns it off. Default 0 in flat view, 7 in floor view. WebGL only.', 'x-ui-hints': { selector: { number: { min: 0, max: 30, step: 0.5, mode: 'slider' } } } },
+    scan_color: { ...simpleColorSchema, default: 'var(--lcards-moonlight)', description: 'Scan line color. The default follows the alert palette. WebGL only. Animatable.' },
     opacity: _opacitySchema
   },
   additionalProperties: 'warn'
@@ -107,6 +114,13 @@ export const gridDiagonalParamsSchema = {
     scroll_speed_x: { type: 'number', default: 15, description: 'Horizontal scroll speed in px/s.', 'x-ui-hints': { selector: { number: { min: -100, max: 100, step: 1, mode: 'slider' } } } },
     scroll_speed_y: { type: 'number', default: 15, description: 'Vertical scroll speed in px/s.', 'x-ui-hints': { selector: { number: { min: -100, max: 100, step: 1, mode: 'slider' } } } },
     fill_color: { ...simpleColorSchema, default: 'transparent', description: 'Solid fill painted behind each cell.' },
+    view: { type: 'string', enum: ['flat', 'floor'], default: 'flat', description: 'flat: the grid face-on. floor: a perspective floor streaming toward the viewer, fading to a horizon. Drawn with WebGL; without it (or with renderer: canvas) the flat grid is drawn.', enumDescriptions: { flat: 'Face-on grid', floor: 'Perspective floor to a horizon' } },
+    camera_tilt: { type: 'number', minimum: 1, maximum: 90, description: 'How far the camera looks down, in degrees: 90 is straight down (the flat view), low values look along a floor toward the horizon. Default 90 in flat view, 10 in floor view. WebGL only. Animatable: animate from 90 to 10 to tip a flat grid into a floor.', 'x-ui-hints': { selector: { number: { min: 1, max: 90, step: 1, mode: 'slider' } } } },
+    camera_yaw: { type: 'number', default: 0, description: 'Turns the camera around the grid, in degrees. WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: -180, max: 180, step: 1, mode: 'slider' } } } },
+    camera_distance: { type: 'number', minimum: 0.05, default: 1, description: 'Zoom: at 1, line_spacing is true px at the middle of the card; 2 is twice as far (the grid looks half the size). WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: 0.2, max: 5, step: 0.05, mode: 'slider' } } } },
+    fov: { type: 'number', minimum: 5, maximum: 150, default: 60, description: 'Camera field of view in degrees: wider exaggerates the floor perspective (the flat view looks the same at any value). WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: 20, max: 120, step: 1, mode: 'slider' } } } },
+    scan_period: { type: 'number', minimum: 0, description: 'Seconds per scan line sweep, from the far side of the grid to the near side, including a short rest; 0 turns it off. Default 0 in flat view, 7 in floor view. WebGL only.', 'x-ui-hints': { selector: { number: { min: 0, max: 30, step: 0.5, mode: 'slider' } } } },
+    scan_color: { ...simpleColorSchema, default: 'var(--lcards-moonlight)', description: 'Scan line color. The default follows the alert palette. WebGL only. Animatable.' },
     opacity: _opacitySchema
   },
   additionalProperties: 'warn'
@@ -127,6 +141,13 @@ export const gridHexagonalParamsSchema = {
     scroll_speed_x: { type: 'number', default: 20, description: 'Horizontal scroll speed in px/s.', 'x-ui-hints': { selector: { number: { min: -100, max: 100, step: 1, mode: 'slider' } } } },
     scroll_speed_y: { type: 'number', default: 20, description: 'Vertical scroll speed in px/s.', 'x-ui-hints': { selector: { number: { min: -100, max: 100, step: 1, mode: 'slider' } } } },
     fill_color: { ...simpleColorSchema, default: 'transparent', description: 'Solid fill painted behind each cell.' },
+    view: { type: 'string', enum: ['flat', 'floor'], default: 'flat', description: 'flat: the grid face-on. floor: a perspective floor streaming toward the viewer, fading to a horizon. Drawn with WebGL; without it (or with renderer: canvas) the flat grid is drawn.', enumDescriptions: { flat: 'Face-on grid', floor: 'Perspective floor to a horizon' } },
+    camera_tilt: { type: 'number', minimum: 1, maximum: 90, description: 'How far the camera looks down, in degrees: 90 is straight down (the flat view), low values look along a floor toward the horizon. Default 90 in flat view, 10 in floor view. WebGL only. Animatable: animate from 90 to 10 to tip a flat grid into a floor.', 'x-ui-hints': { selector: { number: { min: 1, max: 90, step: 1, mode: 'slider' } } } },
+    camera_yaw: { type: 'number', default: 0, description: 'Turns the camera around the grid, in degrees. WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: -180, max: 180, step: 1, mode: 'slider' } } } },
+    camera_distance: { type: 'number', minimum: 0.05, default: 1, description: 'Zoom: at 1, line_spacing is true px at the middle of the card; 2 is twice as far (the grid looks half the size). WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: 0.2, max: 5, step: 0.05, mode: 'slider' } } } },
+    fov: { type: 'number', minimum: 5, maximum: 150, default: 60, description: 'Camera field of view in degrees: wider exaggerates the floor perspective (the flat view looks the same at any value). WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: 20, max: 120, step: 1, mode: 'slider' } } } },
+    scan_period: { type: 'number', minimum: 0, description: 'Seconds per scan line sweep, from the far side of the grid to the near side, including a short rest; 0 turns it off. Default 0 in flat view, 7 in floor view. WebGL only.', 'x-ui-hints': { selector: { number: { min: 0, max: 30, step: 0.5, mode: 'slider' } } } },
+    scan_color: { ...simpleColorSchema, default: 'var(--lcards-moonlight)', description: 'Scan line color. The default follows the alert palette. WebGL only. Animatable.' },
     opacity: _opacitySchema
   },
   additionalProperties: 'warn'
@@ -182,6 +203,7 @@ export const nebulaParamsSchema = {
     noise_scale: { type: 'number', minimum: 0.0001, default: 0.003, description: 'Noise detail: lower = larger, smoother features.', 'x-ui-hints': { selector: { number: { min: 0.0005, max: 0.02, step: 0.0005, mode: 'slider' } } } },
     scroll_speed_x: { type: 'number', default: 5, description: 'Horizontal scroll speed in px/s.', 'x-ui-hints': { selector: { number: { min: -50, max: 50, step: 1, mode: 'slider' } } } },
     scroll_speed_y: { type: 'number', default: 5, description: 'Vertical scroll speed in px/s.', 'x-ui-hints': { selector: { number: { min: -50, max: 50, step: 1, mode: 'slider' } } } },
+    volumetric: { type: 'boolean', default: false, description: 'On: the same clouds shaded with drifting noise on the GPU (wisps and a turbulent edge) instead of smooth gradients. Needs WebGL; without it, or with renderer: canvas, the plain clouds are drawn.' },
     opacity: _opacitySchema
   },
   additionalProperties: 'warn'
@@ -415,22 +437,28 @@ export const warpStarfieldParamsSchema = {
     },
     color: { ...simpleColorSchema, description: 'One color for every star, in place of colors. This is the key to animate (target: background) or bind to recolor the stars.' },
     streak: { type: 'number', minimum: 0, default: 1, description: 'How long the streaks grow per unit of speed above 1. 0 keeps the stars as dots at any speed. Animatable.', 'x-ui-hints': { selector: { number: { min: 0, max: 4, step: 0.1, mode: 'slider' } } } },
-    variant: { type: 'string', enum: ['instances', 'shader'], default: 'instances', description: 'Experimental: how the stars are moved. instances: one anime.js loop per star; shader: the GPU places every star from one time value (cheaper for many stars).' },
     opacity: _opacitySchema
   },
   additionalProperties: 'warn'
 };
 
-export const gridFloorParamsSchema = {
+export const holoSphereParamsSchema = {
   type: 'object',
-  description: 'Params for the "grid-floor" preset: a perspective wireframe floor scrolling toward the viewer, with a scan line and a slow camera drift (three.js, WebGL). Without WebGL the grid preset is drawn with the same color.',
+  description: 'Params for the "holo-sphere" preset: a rotating latitude/longitude wireframe planet with a scan band (three.js where WebGL is available, the same look on Canvas2D otherwise).',
   properties: {
     speed: _speedSchema,
-    color: { ...simpleColorSchema, description: 'Grid line color (its alpha sets the line opacity). Defaults to the grid line color of the theme. Animatable.' },
-    scan_color: { ...simpleColorSchema, default: 'var(--lcards-moonlight)', description: 'Scan line color. Animatable.' },
-    line_spacing: { type: 'number', minimum: 0.25, default: 2, description: 'Distance between grid lines, in floor units (the camera sits 1.6 above the floor).', 'x-ui-hints': { selector: { number: { min: 0.5, max: 8, step: 0.25, mode: 'slider' } } } },
-    camera_height: { type: 'number', minimum: 0.1, default: 1.6, description: 'Camera height above the floor, in floor units. Animatable.', 'x-ui-hints': { selector: { number: { min: 0.2, max: 10, step: 0.1, mode: 'slider' } } } },
-    camera_tilt: { type: 'number', minimum: -89, maximum: 89, default: 8, description: 'How far the camera looks down, in degrees (negative looks up). Animatable.', 'x-ui-hints': { selector: { number: { min: -30, max: 60, step: 1, mode: 'slider' } } } },
+    color: { ...simpleColorSchema, default: 'var(--lcards-blue-light)', description: 'Wireframe color. The default follows the alert palette. Animatable.' },
+    scan_color: { ...simpleColorSchema, default: 'var(--lcards-moonlight)', description: 'Scan band color. The default follows the alert palette. Animatable.' },
+    rotate_speed: { type: 'number', default: 1, description: 'Revolutions per minute; negative turns the other way. Animatable (a change never jumps the rotation).', 'x-ui-hints': { selector: { number: { min: -10, max: 10, step: 0.1, mode: 'slider' } } } },
+    tilt: { type: 'number', minimum: -90, maximum: 90, default: 20, description: 'Axis tilt in degrees: positive leans the north pole toward the viewer. Animatable.', 'x-ui-hints': { selector: { number: { min: -90, max: 90, step: 1, mode: 'slider' } } } },
+    latitude_lines: { type: 'integer', minimum: 0, maximum: 64, default: 7, description: 'Rings between the poles.', 'x-ui-hints': { selector: { number: { min: 0, max: 24, step: 1, mode: 'slider' } } } },
+    longitude_lines: { type: 'integer', minimum: 0, maximum: 128, default: 12, description: 'Meridians around the sphere.', 'x-ui-hints': { selector: { number: { min: 0, max: 48, step: 1, mode: 'slider' } } } },
+    size: { type: 'number', minimum: 0, default: 0.8, description: "Diameter as a fraction of the card's shorter side (above 1 overflows the card). Animatable.", 'x-ui-hints': { selector: { number: { min: 0.1, max: 3, step: 0.05, mode: 'slider' } } } },
+    position_x: { type: 'number', default: 0.5, description: 'Centre across the card: 0 is the left edge, 1 the right. Animatable.', 'x-ui-hints': { selector: { number: { min: 0, max: 1, step: 0.01, mode: 'slider' } } } },
+    position_y: { type: 'number', default: 0.5, description: 'Centre down the card: 0 is the top edge, 1 the bottom. Animatable.', 'x-ui-hints': { selector: { number: { min: 0, max: 1, step: 0.01, mode: 'slider' } } } },
+    back_opacity: { type: 'number', minimum: 0, maximum: 1, default: 0.2, description: 'Brightness of the far side: 0 hides it, 1 draws it like the front. Animatable.', 'x-ui-hints': { selector: { number: { min: 0, max: 1, step: 0.05, mode: 'slider' } } } },
+    line_width: { type: 'number', minimum: 0.1, default: 1, description: 'Wireframe line width in px (the scan band draws 1.5 times as wide). Animatable.', 'x-ui-hints': { selector: { number: { min: 0.5, max: 8, step: 0.5, mode: 'slider' } } } },
+    scan_period: { type: 'number', minimum: 0, default: 6, description: 'Seconds per scan sweep, including a short rest; 0 turns the band off.', 'x-ui-hints': { selector: { number: { min: 0, max: 30, step: 0.5, mode: 'slider' } } } },
     opacity: _opacitySchema
   },
   additionalProperties: 'warn'
@@ -457,7 +485,7 @@ export const BACKGROUND_ANIMATION_PARAMS_SCHEMAS = {
   image: imageParamsSchema,
   solid: solidParamsSchema,
   'warp-starfield': warpStarfieldParamsSchema,
-  'grid-floor': gridFloorParamsSchema
+  'holo-sphere': holoSphereParamsSchema
 };
 
 /**

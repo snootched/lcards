@@ -1,5 +1,5 @@
-# Mixed stack (background-webgl.spec.js): a Canvas2D solid fill over a three.js grid-floor,
-# then warp-starfield (shader variant) on top. First entry is the bottom layer.
+# Mixed stack (background-webgl.spec.js): a Canvas2D solid fill over the WebGL grid floor,
+# then warp-starfield on top. First entry is the bottom layer.
 type: custom:lcards-button
 preset: lozenge
 text:
@@ -7,8 +7,9 @@ text:
     content: Stack
     show: true
 background_animation:
-  - preset: grid-floor
+  - preset: grid
     config:
+      view: floor
       color: '#ff9966'
   - preset: solid
     config:
@@ -17,4 +18,3 @@ background_animation:
     config:
       seed: 3
       count: 300
-      variant: shader

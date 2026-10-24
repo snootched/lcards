@@ -31,7 +31,7 @@ export const DEFAULT_BINDING_TRANSITION = 500;
 const camelKey = (key) => key.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
 
 /** Clock and pan fields a rebuilt effect takes over from the one it replaces */
-const CLOCK_FIELDS = ['_elapsedTime', '_scrollOffsetX', '_scrollOffsetY', '_offsetX', '_offsetY', '_sweepOffset', 'scrollX', 'scrollY'];
+const CLOCK_FIELDS = ['_elapsedTime', '_scrollOffsetX', '_scrollOffsetY', '_offsetX', '_offsetY', '_angle', '_sweepOffset', 'scrollX', 'scrollY'];
 
 /**
  * @param {any} from
@@ -57,6 +57,9 @@ export class BackgroundAnimationRenderer {
     this.cardInstance = cardInstance; // Reference to card for theme token resolution
     /** @type {import('./renderers/Canvas2DRenderer.js').Canvas2DRenderer | null} */
     this.renderer = null;
+    /** @type {ResizeObserver | null} keeps the canvas buffer at the container's size */
+    this._resizeObserver = null;
+    this._resizeFrame = 0;
     this.canvas = null;
     /** @type {{ top: number, right: number, bottom: number, left: number }} */
     this.inset = { top: 0, right: 0, bottom: 0, left: 0 };
@@ -198,6 +201,26 @@ export class BackgroundAnimationRenderer {
         );
         this._intersectionObserver.observe(this.container);
         lcardsLog.debug('[BackgroundAnimation] IntersectionObserver attached');
+      }
+
+      // Follow the container's size: the canvas buffer is sized in px, so a
+      // card that changes width after init (sections grid settling, sidebar,
+      // window resize) would otherwise draw squashed (CSS stretches the
+      // buffer). The canvas is absolutely positioned, so resizing it never
+      // feeds back into the container size.
+      if (typeof ResizeObserver !== 'undefined') {
+        this._resizeObserver = new ResizeObserver(() => {
+          if (this._resizeFrame) return;
+          this._resizeFrame = requestAnimationFrame(() => {
+            this._resizeFrame = 0;
+            if (!this.canvas || !this.renderer) return;
+            const { width, height } = this._canvasSize();
+            if (width === this.canvas.width && height === this.canvas.height) return;
+            this.handleResize();
+            this.renderer.requestFrame();
+          });
+        });
+        this._resizeObserver.observe(this.container);
       }
 
       lcardsLog.debug('[BackgroundAnimation] Renderer initialized and started');
@@ -440,13 +463,21 @@ export class BackgroundAnimationRenderer {
     let presetId = effectConfig.preset;
     /** @type {any} */
     let preset = BACKGROUND_PRESETS[presetId];
-    // WebGL presets: their Canvas2D fallback without WebGL or after a failure
-    if (preset?.renderer === 'webgl' && (handle.forceFallback || !webglAvailable())) {
-      lcardsLog.debug(`[BackgroundAnimation] ${presetId}: no WebGL, drawing ${preset.fallback}`);
+    // WebGL presets draw Canvas2D when the entry asks for canvas, without
+    // WebGL, or after a failure: a `fallback` preset, or the preset's own
+    // createEffects next to its createWebGLEffects
+    const canvasOnly = effectConfig.renderer === 'canvas' || handle.forceFallback || !webglAvailable();
+    if (preset?.renderer === 'webgl' && canvasOnly && preset.fallback) {
+      lcardsLog.debug(`[BackgroundAnimation] ${presetId}: drawing ${preset.fallback} (Canvas2D)`);
       presetId = preset.fallback;
       preset = BACKGROUND_PRESETS[presetId];
     }
     if (!preset?.createEffects) return null;
+    /** @type {(config: any, card: any) => any[]} */
+    const create = preset.renderer === 'webgl' && !canvasOnly && preset.createWebGLEffects
+      // null: this config has no WebGL version (nebula without volumetric)
+      ? (c, card) => preset.createWebGLEffects(c, card) ?? preset.createEffects(c, card)
+      : (c, card) => preset.createEffects(c, card);
 
     lcardsLog.debug('[BackgroundAnimation] Loading preset', { presetId });
 
@@ -488,7 +519,7 @@ export class BackgroundAnimationRenderer {
       const baseSeed = config.seed;
       lcardsLog.debug('[BackgroundAnimation] Creating starfield layers with unique seeds', { layers, baseSeed });
       for (let layerIndex = 0; layerIndex < layers; layerIndex++) {
-        const layerEffects = applySpeed(preset.createEffects({ ...config, seed: baseSeed + layerIndex }, this.cardInstance));
+        const layerEffects = applySpeed(create({ ...config, seed: baseSeed + layerIndex }, this.cardInstance));
         layerEffects.forEach((baseEffect) => {
           baseEffects.push(baseEffect);
           // Single layer each: we're creating one ZoomEffect per starfield
@@ -496,7 +527,7 @@ export class BackgroundAnimationRenderer {
         });
       }
     } else {
-      baseEffects = applySpeed(preset.createEffects(config, this.cardInstance));
+      baseEffects = applySpeed(create(config, this.cardInstance));
       // Standard zoom: single instance, multiple renders
       drawn = zoom ? baseEffects.map((baseEffect) => new ZoomEffect(zoomConfig(baseEffect))) : baseEffects;
     }
@@ -700,6 +731,19 @@ export class BackgroundAnimationRenderer {
   }
 
   /**
+   * The canvas buffer size for the container's current size, minus the inset.
+   * @private
+   * @returns {{ width: number, height: number }}
+   */
+  _canvasSize() {
+    const inset = this.inset;
+    return {
+      width: Math.max(1, (this.container.offsetWidth || 400) - inset.left - inset.right),
+      height: Math.max(1, (this.container.offsetHeight || 300) - inset.top - inset.bottom)
+    };
+  }
+
+  /**
    * Handle container resize — accounts for current inset values.
    */
   handleResize() {
@@ -708,8 +752,7 @@ export class BackgroundAnimationRenderer {
     }
 
     const inset  = this.inset;
-    const width  = Math.max(1, (this.container.offsetWidth  || 400) - inset.left - inset.right);
-    const height = Math.max(1, (this.container.offsetHeight || 300) - inset.top  - inset.bottom);
+    const { width, height } = this._canvasSize();
 
     this.renderer.resize(width, height);
 
@@ -829,6 +872,10 @@ export class BackgroundAnimationRenderer {
       this._intersectionObserver.disconnect();
       this._intersectionObserver = null;
     }
+    this._resizeObserver?.disconnect();
+    this._resizeObserver = null;
+    if (this._resizeFrame) cancelAnimationFrame(this._resizeFrame);
+    this._resizeFrame = 0;
 
     if (this.renderer) {
       this.renderer.destroy();

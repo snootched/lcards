@@ -21,6 +21,24 @@ import { resolveColor } from '../../../themes/resolve-color.js';
 import { numProp } from './animatable-props.js';
 
 /**
+ * Where a seed starts the field (the shared _fbm hash isn't seeded): a scroll
+ * offset in px. The WebGL version starts at the same place, so a seed draws
+ * the same field on both.
+ * @param {number} seed
+ * @returns {{ x: number, y: number }}
+ */
+export function contourSeedOffset(seed) {
+  let s = (seed >>> 0) || 1;
+  const rng = () => {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  return { x: rng() * 10000, y: rng() * 10000 };
+}
+
+/**
  * ContourFieldEffect - Topographic-style banded noise field
  *
  * @extends BaseEffect
@@ -113,15 +131,9 @@ export class ContourFieldEffect extends BaseEffect {
     this._fillColor = config.fillColor ? parseColorToRgba(concrete(config.fillColor), config.fillColor) : null;
 
     // Seed a starting sample offset (the shared _fbm hash itself isn't seeded)
-    let s = (this.seed >>> 0) || 1;
-    const rng = () => {
-      s = (s + 0x6D2B79F5) | 0;
-      let t = Math.imul(s ^ (s >>> 15), 1 | s);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-    this._scrollOffsetX = rng() * 10000;
-    this._scrollOffsetY = rng() * 10000;
+    const start = contourSeedOffset(this.seed);
+    this._scrollOffsetX = start.x;
+    this._scrollOffsetY = start.y;
 
     // Reusable scratch object for _colorAtBand()'s blend path — avoids a
     // heap allocation per sampled cell (hundreds of thousands per bake at

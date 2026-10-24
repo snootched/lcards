@@ -1,0 +1,15 @@
+# contour-field on WebGL vs its Canvas2D version, scrolling stopped (background-webgl.spec.js)
+type: custom:lcards-button
+entity: light.demo
+preset: lozenge
+height: 160
+background_animation:
+  - preset: contour-field
+    config:
+      seed: 7
+      num_bands: 6
+      fill_level: 0.3
+      fill_color: 'rgba(0, 0, 80, 0.5)'
+      colors: ['#330066', '#ff9966']
+      scroll_speed_x: 0
+      scroll_speed_y: 0

@@ -87,7 +87,11 @@ test('with a transition, cards repaint while the transition is still running', a
 
 test('background animation: effects are rebuilt with the new palette', async ({ page }) => {
     await mountCase(page, 'button-background');
-    const gridColor = () => page.evaluate(() => document.querySelector('lcards-button')._backgroundRenderer?.renderer?.effects?.[0]?.color ?? null);
+    // The WebGL grid keeps its colours on its GridEffect model
+    const gridColor = () => page.evaluate(() => {
+        const e = document.querySelector('lcards-button')._backgroundRenderer?.renderer?.effects?.[0];
+        return (e?.model ?? e)?.color ?? null;
+    });
     await expect.poll(gridColor).not.toBeNull();
     const green = await gridColor();
 

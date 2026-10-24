@@ -3,6 +3,9 @@
  * @module core/packs/backgrounds/webgl/scenes/scene-helpers
  */
 import { Color, SRGBColorSpace } from 'three';
+// Registers the anime.js three adapter, so a scene's animate() calls on
+// three.js objects work whatever loaded first (every scene imports this file)
+import 'animejs/adapters/three';
 
 /**
  * Seeded RNG (mulberry32), the same one the Canvas2D starfield uses.
@@ -29,43 +32,17 @@ export function toColor(c, target = new Color()) {
 }
 
 /**
- * Fade a stock material out with distance (alpha, not fog: the scene sits on
- * a transparent canvas over other layers, and fog would fade to black).
- * Also lets the geometry stretch along z (`uStretch`) and scale in x/y
- * (`uScaleXY`), for star streaks and pixel-true star sizes.
- *
- * The view depth is rebuilt in the fragment shader from gl_FragCoord.z and
- * the camera's near/far planes. No varying: a line crossing the near plane
- * (the floor runs under the camera) vanished with one on SwiftShader.
- *
- * @param {import('three').Material} material
- * @param {{ camera: import('three').PerspectiveCamera, far: { value: number }, full: { value: number },
- *   near?: { value: number }, stretch?: { value: number }, scaleXY?: { value: number } }} uniforms
- *   `far`: distance where it is gone; `full`: distance where it is fully visible;
- *   `near`: fade in over this distance from the camera (0 = no near fade)
+ * @param {number} v - colour channel 0-255
  */
-export function addDepthFade(material, uniforms) {
-  material.transparent = true;
-  material.premultipliedAlpha = true;
-  material.depthWrite = false;
-  const camNear = { value: uniforms.camera.near };
-  const camFar = { value: uniforms.camera.far };
-  material.onBeforeCompile = (shader) => {
-    shader.uniforms.uFadeFar = uniforms.far;
-    shader.uniforms.uFadeFull = uniforms.full;
-    shader.uniforms.uFadeNear = uniforms.near ?? { value: 0 };
-    shader.uniforms.uStretch = uniforms.stretch ?? { value: 1 };
-    shader.uniforms.uScaleXY = uniforms.scaleXY ?? { value: 1 };
-    shader.uniforms.uCamNear = camNear;
-    shader.uniforms.uCamFar = camFar;
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uStretch;\nuniform float uScaleXY;')
-      .replace('#include <begin_vertex>', 'vec3 transformed = vec3( position.xy * uScaleXY, position.z * uStretch );');
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uFadeFar;\nuniform float uFadeFull;\nuniform float uFadeNear;\nuniform float uCamNear;\nuniform float uCamFar;')
-      .replace('#include <color_fragment>', `#include <color_fragment>
-float ndcZ = gl_FragCoord.z * 2.0 - 1.0;
-float viewDepth = 2.0 * uCamNear * uCamFar / ( uCamFar + uCamNear - ndcZ * ( uCamFar - uCamNear ) );
-diffuseColor.a *= ( 1.0 - smoothstep( uFadeFull, uFadeFar, viewDepth ) ) * ( uFadeNear > 0.0 ? smoothstep( 0.0, uFadeNear, viewDepth ) : 1.0 );`);
-  };
+const ch = (v) => Math.max(0, Math.min(255, v)) / 255;
+
+/**
+ * A colour as a vec4 uniform value: sRGB channels 0-1 (no colour-space
+ * conversion, the Canvas2D effects write the same bytes) and alpha.
+ * @param {{ r: number, g: number, b: number, a?: number } | undefined} c
+ * @param {[number, number, number, number]} [fallback]
+ * @returns {[number, number, number, number]}
+ */
+export function rgba(c, fallback = [1, 1, 1, 1]) {
+  return c ? [ch(c.r), ch(c.g), ch(c.b), c.a ?? 1] : fallback;
 }

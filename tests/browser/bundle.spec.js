@@ -87,9 +87,14 @@ test('size budget: three.js and the anime.js three adapter stay out of the main 
     expect(/WebGLRenderer|WEBGL_multisampled_render_to_texture/.test(mainSource), 'three.js in the main chunk').toBe(false);
     // Measured 2026-10-23 (three 0.186.1): three 552 KB raw / 114 KB br, adapter 14 / 4 KB br,
     // runtime + scenes ~6 KB raw. Ceiling ~10% over the whole tier.
-    const three = chunks.find(f => /^three\.module-.*\.js$/.test(f));
-    expect(three, 'chunks/three.module-*.js').toBeTruthy();
-    const tier = chunks.filter(f => /^(three\.module|three-runtime|warp-starfield|grid-floor|scene-helpers|instance)-.*\.js$/.test(f));
+    // Rollup names the three.js chunk after whichever module it merged first
+    // (three.module, or the adapter's instance module), so find it by content.
+    // (No manualChunks: it would pull anime.js core in too, and main would import it.)
+    const js = chunks.filter(f => f.endsWith('.js'));
+    const three = js.find(f => readFileSync(new URL(`chunks/${f}`, DIST), 'utf8').includes('WEBGL_multisampled_render_to_texture'));
+    expect(three, 'a lazy chunk holds three.js').toBeTruthy();
+    expect(mainSource.includes(`"./${three}"`) && !mainSource.includes(`import("./${three}")`), 'main imports the three.js chunk statically').toBe(false);
+    const tier = [three, ...js.filter(f => /^(three-runtime|warp-starfield|grid|holo-sphere|field-scene|contour-field|plasma|fluid|nebula|noise-glsl|scene-helpers)-[\w-]{8}\.js$/.test(f))];
     const total = (ext) => tier.reduce((sum, f) => sum + statSync(new URL(`chunks/${f}${ext}`, DIST)).size, 0);
     expect(total('')).toBeLessThanOrEqual(640_000);
     expect(total('.br')).toBeLessThanOrEqual(135_000);

@@ -12,7 +12,7 @@
 import { GridEffect } from '../effects/GridEffect.js';
 import { StarfieldEffect } from '../effects/StarfieldEffect.js';
 import { NebulaEffect } from '../effects/NebulaEffect.js';
-import { ContourFieldEffect } from '../effects/ContourFieldEffect.js';
+import { ContourFieldEffect, contourSeedOffset } from '../effects/ContourFieldEffect.js';
 import { CascadeEffect } from '../effects/CascadeEffect.js';
 import { LevelTextureEffect }    from '../../textures/effects/LevelTextureEffect.js';
 import { FluidTextureEffect }    from '../../textures/effects/FluidTextureEffect.js';
@@ -22,8 +22,53 @@ import { ShimmerTextureEffect }  from '../../textures/effects/ShimmerTextureEffe
 import { ScanlineTextureEffect } from '../../textures/effects/ScanlineTextureEffect.js';
 import { ImageEffect }            from '../effects/ImageEffect.js';
 import { SolidEffect }            from '../effects/SolidEffect.js';
-import { WarpStarfieldEffect, GridFloorEffect } from '../webgl/ThreeSceneEffect.js';
+import { WarpStarfieldEffect, GridGLEffect, ContourFieldGLEffect, PlasmaGLEffect, FluidGLEffect, HoloSphereGLEffect, NebulaGLEffect } from '../webgl/ThreeSceneEffect.js';
+import { HoloSphereEffect } from '../effects/HoloSphereEffect.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
+
+/** Guide entries for the view, camera and scan keys every grid preset takes */
+const GRID_VIEW_GUIDE = [
+  { key: 'view', default: 'flat', description: "'flat' or 'floor' (a perspective floor streaming toward you). Needs WebGL; without it the flat grid is drawn." },
+  { key: 'camera_tilt', default: 90, description: 'How far the camera looks down, in degrees: 90 is straight down (flat), low values a floor toward the horizon. Default 90 flat, 10 floor.' },
+  { key: 'camera_yaw', default: 0, description: 'Turn the camera around the grid, in degrees.' },
+  { key: 'camera_distance', default: 1, description: 'Zoom: at 1 the line spacing is true px at the middle of the card; 2 is twice as far away.' },
+  { key: 'fov', default: 60, description: 'Field of view in degrees: wider exaggerates the floor perspective.' },
+  { key: 'scan_period', default: 0, description: 'Seconds per scan line sweep from the far side to the near side (0 = off). Default 0 flat, 7 floor.' },
+  { key: 'scan_color', default: 'var(--lcards-moonlight)', description: 'Scan line color.' }
+];
+
+/**
+ * The WebGL grid (GridGLEffect) for a grid preset: the Canvas2D GridEffect
+ * built from the same options is its model; the view, camera and scan keys
+ * are the WebGL effect's own.
+ * @param {any} config - the entry's config
+ * @param {object} gridConfig - the GridEffect options the preset built
+ */
+function gridWebGL(config, gridConfig) {
+  const floor = config.view === 'floor';
+  return [new GridGLEffect({
+    model: new GridEffect(gridConfig),
+    params: {
+      view: floor ? 'floor' : 'flat',
+      camera_tilt: config.camera_tilt,
+      camera_yaw: config.camera_yaw ?? 0,
+      camera_distance: config.camera_distance,
+      fov: config.fov ?? 60,
+      scan_period: config.scan_period ?? (floor ? 7 : 0)
+    },
+    colors: { scan: [config.scan_color ?? 'var(--lcards-moonlight, #dfe1e8)'] },
+    opacity: /** @type {any} */ (gridConfig).opacity
+  })];
+}
+
+/**
+ * Floor view: the grid streams toward the viewer unless the config scrolls it.
+ * @param {any} config
+ * @param {'scroll_speed_x' | 'scroll_speed_y'} key
+ * @param {number} fallback - the flat default
+ */
+const floorScroll = (config, key, fallback) =>
+  config[key] ?? (config.view === 'floor' ? (key === 'scroll_speed_y' ? 40 : 0) : fallback);
 
 /**
  * Built-in background animation presets
@@ -52,15 +97,32 @@ export const BACKGROUND_PRESETS = {
         { key: 'dot_radius', default: 2, description: "Dot radius in px: only used when pattern is 'dots'." },
         { key: 'hex_radius', default: 40, description: "Hexagon size in px: only used when pattern is 'hexagonal'." },
         { key: 'fill_color', default: 'transparent', description: 'Solid fill painted behind each cell.' },
+        ...GRID_VIEW_GUIDE,
         { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
       ],
       example: "background_animation:\n  - preset: grid\n    config:\n      line_spacing: 40\n      color: 'rgba(255,153,102,0.3)'\n      major_row_interval: 5\n      major_col_interval: 5"
     },
 
     /** @param {object} config @param {{getThemeToken?: Function}|null} [cardInstance] the card, for theme tokens */
+    // WebGL when available (createWebGLEffects), this Canvas2D effect otherwise
+    renderer: 'webgl',
+
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:grid] Creating grid effect');
+      return [new GridEffect(this.options(config, cardInstance))];
+    },
 
+    /** @param {any} config @param {{getThemeToken?: Function}|null} [cardInstance] */
+    createWebGLEffects(config, cardInstance = null) {
+      return gridWebGL(config, this.options(config, cardInstance));
+    },
+
+    /**
+     * GridEffect options with defaults and theme tokens, for both tiers.
+     * @param {any} config
+     * @param {{getThemeToken?: Function}|null} [cardInstance]
+     */
+    options(config, cardInstance = null) {
       // Helper function to resolve theme token or use fallback
       const resolveToken = (tokenPath, fallback) => {
         if (cardInstance && cardInstance.getThemeToken) {
@@ -69,7 +131,7 @@ export const BACKGROUND_PRESETS = {
         return fallback;
       };
 
-      const gridConfig = {
+      const gridConfig = /** @type {any} */ ({
         // Sizing - supports both cell-based and spacing-based
         numRows: config.num_rows,
         numCols: config.num_cols,
@@ -86,8 +148,8 @@ export const BACKGROUND_PRESETS = {
         majorColInterval: config.major_col_interval ?? resolveToken('components.backgroundAnimation.grid.intervals.majorCol', 0),
 
         // Scrolling
-        scrollSpeedX: config.scroll_speed_x ?? resolveToken('components.backgroundAnimation.grid.scroll.speedX', 20),
-        scrollSpeedY: config.scroll_speed_y ?? resolveToken('components.backgroundAnimation.grid.scroll.speedY', 20),
+        scrollSpeedX: floorScroll(config, 'scroll_speed_x', resolveToken('components.backgroundAnimation.grid.scroll.speedX', 20)),
+        scrollSpeedY: floorScroll(config, 'scroll_speed_y', resolveToken('components.backgroundAnimation.grid.scroll.speedY', 20)),
         pattern: config.pattern ?? 'both',
         showBorderLines: config.show_border_lines ?? true,
         fillColor: config.fill_color ?? 'transparent',
@@ -95,9 +157,8 @@ export const BACKGROUND_PRESETS = {
         hexRadius: config.hex_radius ?? resolveToken('components.backgroundAnimation.grid.spacing.hexRadius', 40),
 
         opacity: config.opacity ?? 1
-      };
-
-      return [new GridEffect(gridConfig)];
+      });
+      return gridConfig;
     }
   },
 
@@ -116,15 +177,32 @@ export const BACKGROUND_PRESETS = {
         { key: 'scroll_speed_x', default: 15, description: 'Horizontal scroll speed in px/s.' },
         { key: 'scroll_speed_y', default: 15, description: 'Vertical scroll speed in px/s.' },
         { key: 'fill_color', default: 'transparent', description: 'Solid fill painted behind each cell.' },
+        ...GRID_VIEW_GUIDE,
         { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
       ],
       example: "background_animation:\n  - preset: grid-diagonal\n    config:\n      line_spacing: 30\n      color: 'rgba(255,153,102,0.25)'"
     },
 
     /** @param {object} config @param {{getThemeToken?: Function}|null} [cardInstance] the card, for theme tokens */
+    // WebGL when available (createWebGLEffects), this Canvas2D effect otherwise
+    renderer: 'webgl',
+
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:grid-diagonal] Creating diagonal grid effect');
+      return [new GridEffect(this.options(config, cardInstance))];
+    },
 
+    /** @param {any} config @param {{getThemeToken?: Function}|null} [cardInstance] */
+    createWebGLEffects(config, cardInstance = null) {
+      return gridWebGL(config, this.options(config, cardInstance));
+    },
+
+    /**
+     * GridEffect options with defaults and theme tokens, for both tiers.
+     * @param {any} config
+     * @param {{getThemeToken?: Function}|null} [cardInstance]
+     */
+    options(config, cardInstance = null) {
       // Helper function to resolve theme token or use fallback
       const resolveToken = (tokenPath, fallback) => {
         if (cardInstance && cardInstance.getThemeToken) {
@@ -133,18 +211,17 @@ export const BACKGROUND_PRESETS = {
         return fallback;
       };
 
-      const gridConfig = {
+      const gridConfig = /** @type {any} */ ({
         lineSpacing: config.line_spacing ?? resolveToken('components.backgroundAnimation.grid.spacing.diagonal', 30),
         lineWidthMinor: config.line_width ?? resolveToken('components.backgroundAnimation.grid.line.width', 1),
         color: config.color ?? resolveToken('components.backgroundAnimation.grid.line.color', 'rgba(255, 153, 102, 0.25)'),
-        scrollSpeedX: config.scroll_speed_x ?? resolveToken('components.backgroundAnimation.grid.scroll.speedDiagonal', 15),
-        scrollSpeedY: config.scroll_speed_y ?? resolveToken('components.backgroundAnimation.grid.scroll.speedDiagonal', 15),
+        scrollSpeedX: floorScroll(config, 'scroll_speed_x', resolveToken('components.backgroundAnimation.grid.scroll.speedDiagonal', 15)),
+        scrollSpeedY: floorScroll(config, 'scroll_speed_y', resolveToken('components.backgroundAnimation.grid.scroll.speedDiagonal', 15)),
         pattern: 'diagonal',
         fillColor: config.fill_color ?? 'transparent',
         opacity: config.opacity ?? 1
-      };
-
-      return [new GridEffect(gridConfig)];
+      });
+      return gridConfig;
     }
   },
 
@@ -167,15 +244,32 @@ export const BACKGROUND_PRESETS = {
         { key: 'scroll_speed_x', default: 20, description: 'Horizontal scroll speed in px/s.' },
         { key: 'scroll_speed_y', default: 20, description: 'Vertical scroll speed in px/s.' },
         { key: 'fill_color', default: 'transparent', description: 'Solid fill painted behind each cell.' },
+        ...GRID_VIEW_GUIDE,
         { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
       ],
       example: "background_animation:\n  - preset: grid-hexagonal\n    config:\n      hex_radius: 40\n      color: 'rgba(255,153,102,0.3)'"
     },
 
     /** @param {object} config @param {{getThemeToken?: Function}|null} [cardInstance] the card, for theme tokens */
+    // WebGL when available (createWebGLEffects), this Canvas2D effect otherwise
+    renderer: 'webgl',
+
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:grid-hexagonal] Creating hexagonal grid effect');
+      return [new GridEffect(this.options(config, cardInstance))];
+    },
 
+    /** @param {any} config @param {{getThemeToken?: Function}|null} [cardInstance] */
+    createWebGLEffects(config, cardInstance = null) {
+      return gridWebGL(config, this.options(config, cardInstance));
+    },
+
+    /**
+     * GridEffect options with defaults and theme tokens, for both tiers.
+     * @param {any} config
+     * @param {{getThemeToken?: Function}|null} [cardInstance]
+     */
+    options(config, cardInstance = null) {
       // Helper function to resolve theme token or use fallback
       const resolveToken = (tokenPath, fallback) => {
         if (cardInstance && cardInstance.getThemeToken) {
@@ -184,7 +278,7 @@ export const BACKGROUND_PRESETS = {
         return fallback;
       };
 
-      const gridConfig = {
+      const gridConfig = /** @type {any} */ ({
         hexRadius: config.hex_radius ?? resolveToken('components.backgroundAnimation.grid.spacing.hexRadius', 40),
         lineWidthMinor: config.line_width_minor ?? resolveToken('components.backgroundAnimation.grid.line.width', 1),
         lineWidthMajor: config.line_width_major ?? resolveToken('components.backgroundAnimation.grid.line.widthMajor', 2),
@@ -192,14 +286,13 @@ export const BACKGROUND_PRESETS = {
         colorMajor: config.color_major ?? resolveToken('components.backgroundAnimation.grid.line.colorMajor', 'rgba(255, 153, 102, 0.6)'),
         majorRowInterval: config.major_row_interval ?? resolveToken('components.backgroundAnimation.grid.intervals.majorRow', 3),
         majorColInterval: config.major_col_interval ?? resolveToken('components.backgroundAnimation.grid.intervals.majorCol', 3),
-        scrollSpeedX: config.scroll_speed_x ?? resolveToken('components.backgroundAnimation.grid.scroll.speedX', 20),
-        scrollSpeedY: config.scroll_speed_y ?? resolveToken('components.backgroundAnimation.grid.scroll.speedY', 20),
+        scrollSpeedX: floorScroll(config, 'scroll_speed_x', resolveToken('components.backgroundAnimation.grid.scroll.speedX', 20)),
+        scrollSpeedY: floorScroll(config, 'scroll_speed_y', resolveToken('components.backgroundAnimation.grid.scroll.speedY', 20)),
         pattern: 'hexagonal',
         fillColor: config.fill_color ?? 'transparent',
         opacity: config.opacity ?? 1
-      };
-
-      return [new GridEffect(gridConfig)];
+      });
+      return gridConfig;
     }
   },
 
@@ -287,15 +380,34 @@ export const BACKGROUND_PRESETS = {
         { key: 'noise_scale', default: 0.003, description: 'Noise detail: lower = larger, smoother features.' },
         { key: 'scroll_speed_x', default: 5, description: 'Horizontal scroll speed in px/s.' },
         { key: 'scroll_speed_y', default: 5, description: 'Vertical scroll speed in px/s.' },
+        { key: 'volumetric', default: false, description: 'On: the same clouds shaded with drifting noise on the GPU (wisps, a turbulent edge) instead of smooth gradients. Needs WebGL; without it the plain clouds are drawn.' },
         { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
       ],
       example: "background_animation:\n  - preset: nebula\n    config:\n      colors: ['#8000ff', '#ff0080']\n      cloud_count: 5"
     },
 
+    // volumetric: true draws on WebGL (createWebGLEffects); plain clouds stay Canvas2D
+    renderer: 'webgl',
+
     /** @param {object} config @param {{getThemeToken?: Function}|null} [cardInstance] the card, for theme tokens */
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:nebula] Creating nebula effect');
+      return [new NebulaEffect(this.options(config, cardInstance))];
+    },
 
+    /** @param {any} config @param {{getThemeToken?: Function}|null} [cardInstance] */
+    createWebGLEffects(config, cardInstance = null) {
+      if (config.volumetric !== true) return null;
+      const o = this.options(config, cardInstance);
+      return [new NebulaGLEffect({ model: new NebulaEffect(o), opacity: o.opacity })];
+    },
+
+    /**
+     * Config with defaults and theme tokens, for both tiers.
+     * @param {any} config
+     * @param {{getThemeToken?: Function}|null} [cardInstance]
+     */
+    options(config, cardInstance = null) {
       // Helper function to resolve theme token or use fallback
       const resolveToken = (tokenPath, fallback) => {
         if (cardInstance && cardInstance.getThemeToken) {
@@ -324,8 +436,7 @@ export const BACKGROUND_PRESETS = {
 
         opacity: config.opacity ?? 1
       };
-
-      return [new NebulaEffect(nebulaConfig)];
+      return nebulaConfig;
     }
   },
 
@@ -355,10 +466,43 @@ export const BACKGROUND_PRESETS = {
       tip: 'Lower Band Count + Cell Size for a blocky, retro-LCARS look; raise them for a smooth, photographic nebula look.'
     },
 
+    // WebGL when available (createWebGLEffects), this Canvas2D effect otherwise
+    renderer: 'webgl',
+
     /** @param {object} config @param {{getThemeToken?: Function}|null} [cardInstance] the card, for theme tokens */
     createEffects(config, cardInstance = null) {
       lcardsLog.debug('[Preset:contour-field] Creating contour field effect');
+      return [new ContourFieldEffect(this.options(config, cardInstance))];
+    },
 
+    /** @param {object} config @param {{getThemeToken?: Function}|null} [cardInstance] */
+    createWebGLEffects(config, cardInstance = null) {
+      const o = this.options(config, cardInstance);
+      const start = contourSeedOffset(o.seed);
+      return [new ContourFieldGLEffect({
+        params: {
+          noise_scale: o.noiseScale,
+          num_octaves: o.numOctaves,
+          num_bands: o.numBands,
+          cell_size: o.cellSize,
+          fill_level: o.fillLevel,
+          blend_colors: o.blendColors,
+          scroll_speed_x: o.scrollSpeedX,
+          scroll_speed_y: o.scrollSpeedY
+        },
+        colors: { stops: Array.isArray(o.colors) ? o.colors : [o.colors], fill: o.fillColor ? [o.fillColor] : [] },
+        opacity: o.opacity,
+        offsetX: start.x,
+        offsetY: start.y
+      })];
+    },
+
+    /**
+     * Config with defaults and theme tokens, for both tiers.
+     * @param {object} config
+     * @param {{getThemeToken?: Function}|null} [cardInstance]
+     */
+    options(config, cardInstance = null) {
       const resolveToken = (tokenPath, fallback) => {
         if (cardInstance && cardInstance.getThemeToken) {
           return cardInstance.getThemeToken(tokenPath, fallback);
@@ -366,7 +510,7 @@ export const BACKGROUND_PRESETS = {
         return fallback;
       };
 
-      const contourConfig = {
+      return {
         seed: config.seed ?? Math.floor(Math.random() * 1e9), // Random seed by default
         noiseScale: config.noise_scale ?? resolveToken('components.backgroundAnimation.contourField.noise.scale', 0.005),
         numOctaves: config.num_octaves ?? resolveToken('components.backgroundAnimation.contourField.noise.octaves', 2),
@@ -390,8 +534,6 @@ export const BACKGROUND_PRESETS = {
 
         opacity: config.opacity ?? 1
       };
-
-      return [new ContourFieldEffect(contourConfig)];
     }
   },
 
@@ -521,15 +663,25 @@ export const BACKGROUND_PRESETS = {
       ],
       example: "background_animation:\n  - preset: fluid\n    config:\n      color: 'rgba(100,180,255,0.8)'"
     },
+    // WebGL when available (createWebGLEffects), this Canvas2D effect otherwise
+    renderer: 'webgl',
     createEffects(config) {
-      return [new FluidTextureEffect({
+      return [new FluidTextureEffect(this.options(config))];
+    },
+    createWebGLEffects(config) {
+      const { color, opacity, ...params } = this.options(config);
+      return [new FluidGLEffect({ params, colors: { wash: [color] }, opacity })];
+    },
+    /** @param {object} config */
+    options(config) {
+      return {
         color:          config.color          ?? 'rgba(100,180,255,0.8)',
         base_frequency: config.base_frequency ?? 0.010,
         num_octaves:    config.num_octaves    ?? 4,
         scroll_speed_x: config.scroll_speed_x ?? 7,
         scroll_speed_y: config.scroll_speed_y ?? 10,
         opacity:        config.opacity        ?? 1,
-      })];
+      };
     }
   },
 
@@ -548,15 +700,26 @@ export const BACKGROUND_PRESETS = {
       ],
       example: "background_animation:\n  - preset: plasma\n    config:\n      color_a: 'rgba(80,0,255,0.9)'\n      color_b: 'rgba(255,40,120,0.9)'"
     },
+    // WebGL when available (createWebGLEffects), this Canvas2D effect otherwise
+    renderer: 'webgl',
     createEffects(config) {
-      return [new PlasmaTextureEffect({
+      return [new PlasmaTextureEffect(this.options(config))];
+    },
+    createWebGLEffects(config) {
+      const { color_a, color_b, opacity, ...params } = this.options(config);
+      // num_octaves: PlasmaTextureEffect's default (the preset never set it)
+      return [new PlasmaGLEffect({ params: { num_octaves: 3, ...params }, colors: { a: [color_a], b: [color_b] }, opacity })];
+    },
+    /** @param {object} config */
+    options(config) {
+      return {
         color_a:        config.color_a        ?? 'rgba(80,0,255,0.9)',
         color_b:        config.color_b        ?? 'rgba(255,40,120,0.9)',
         base_frequency: config.base_frequency ?? 0.012,
         scroll_speed_x: config.scroll_speed_x ?? 8,
         scroll_speed_y: config.scroll_speed_y ?? 5,
         opacity:        config.opacity        ?? 1,
-      })];
+      };
     }
   },
 
@@ -716,7 +879,6 @@ export const BACKGROUND_PRESETS = {
         { key: 'max_radius', default: 2, description: 'Largest star size.' },
         { key: 'colors', default: ['var(--lcards-moonlight)'], description: 'Star color(s); also accepts a single color. The default follows the alert palette.' },
         { key: 'streak', default: 1, description: 'How long the streaks grow per unit of speed above 1 (0 = always dots).' },
-        { key: 'variant', default: 'instances', description: "Spike: 'instances' (an anime.js loop per star) or 'shader' (one time uniform)." },
         { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
       ],
       example: 'background_animation:\n  - preset: warp-starfield\n    config:\n      count: 800\n      speed: 1'
@@ -732,8 +894,7 @@ export const BACKGROUND_PRESETS = {
           count: config.count ?? 600,
           min_radius: config.min_radius ?? 0.5,
           max_radius: config.max_radius ?? 2,
-          streak: config.streak ?? 1,
-          variant: config.variant ?? 'instances'
+          streak: config.streak ?? 1
         },
         colors: { stars: Array.isArray(colors) ? colors : [colors] },
         opacity: config.opacity ?? 1
@@ -741,39 +902,55 @@ export const BACKGROUND_PRESETS = {
     }
   },
 
-  'grid-floor': {
-    name: 'Grid Floor',
-    description: 'Perspective wireframe floor scrolling to the horizon, with a scan line (WebGL, falls back to grid)',
+  'holo-sphere': {
+    name: 'Holo Sphere',
+    description: 'Rotating latitude/longitude wireframe planet with a scan band (WebGL, Canvas2D without it)',
+    // WebGL when available (createWebGLEffects), this Canvas2D effect otherwise
     renderer: 'webgl',
-    fallback: 'grid',
     guide: {
-      summary: 'A three.js perspective floor of grid lines scrolling toward the viewer, with a scan line sweeping in from the horizon and a slow camera drift. camera_height and camera_tilt can be animated or bound like any other key. Needs WebGL; without it the grid preset is drawn with the same color.',
+      summary: 'An LCARS planetary display: a wireframe sphere of latitude rings and meridians turning slowly on a tilted axis, with its far side dimmed and a scan band sweeping up it. Size and position place it anywhere on the card; rotate_speed, tilt, size and position can be animated or bound like any other key. Drawn with three.js where WebGL is available, on Canvas2D otherwise (same look).',
       params: [
-        { key: 'color', description: 'Grid line color.' },
-        { key: 'scan_color', default: 'var(--lcards-moonlight)', description: 'Scan line color.' },
-        { key: 'line_spacing', default: 2, description: 'Distance between grid lines (world units; the camera is 1.6 above the floor).' },
-        { key: 'camera_height', default: 1.6, description: 'Camera height above the floor.' },
-        { key: 'camera_tilt', default: 8, description: 'How far the camera looks down, in degrees.' },
+        { key: 'color', default: 'var(--lcards-blue-light)', description: 'Wireframe color.' },
+        { key: 'scan_color', default: 'var(--lcards-moonlight)', description: 'Scan band color.' },
+        { key: 'rotate_speed', default: 1, description: 'Revolutions per minute; negative turns the other way.' },
+        { key: 'tilt', default: 20, description: 'Axis tilt in degrees: positive leans the north pole toward the viewer.' },
+        { key: 'latitude_lines', default: 7, description: 'Rings between the poles.' },
+        { key: 'longitude_lines', default: 12, description: 'Meridians around the sphere.' },
+        { key: 'size', default: 0.8, description: "Diameter as a fraction of the card's shorter side." },
+        { key: 'position_x', default: 0.5, description: 'Centre across the card, 0 (left) to 1 (right).' },
+        { key: 'position_y', default: 0.5, description: 'Centre down the card, 0 (top) to 1 (bottom).' },
+        { key: 'back_opacity', default: 0.2, description: 'Brightness of the far side, 0 (hidden) to 1.' },
+        { key: 'line_width', default: 1, description: 'Wireframe line width in px.' },
+        { key: 'scan_period', default: 6, description: 'Seconds per scan sweep (0 = no band).' },
         { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
       ],
-      example: 'background_animation:\n  - preset: grid-floor\n    config:\n      camera_tilt: 10'
+      example: 'background_animation:\n  - preset: holo-sphere\n    config:\n      size: 0.9\n      tilt: 25'
     },
 
-    /** @param {object} config @param {{getThemeToken?: Function}|null} [cardInstance] */
-    createEffects(config, cardInstance = null) {
-      const token = (path, fallback) => cardInstance?.getThemeToken ? cardInstance.getThemeToken(path, fallback) : fallback;
-      return [new GridFloorEffect({
-        params: {
-          line_spacing: config.line_spacing ?? 2,
-          camera_height: config.camera_height ?? 1.6,
-          camera_tilt: config.camera_tilt ?? 8
-        },
-        colors: {
-          lines: [config.color ?? token('components.backgroundAnimation.grid.line.color', 'rgba(255, 153, 102, 0.8)')],
-          scan: [config.scan_color ?? 'var(--lcards-moonlight, #dfe1e8)']
-        },
+    createEffects(config) {
+      return [new HoloSphereEffect(this.options(config))];
+    },
+    createWebGLEffects(config) {
+      const { color, scan_color, opacity, ...params } = this.options(config);
+      return [new HoloSphereGLEffect({ params, colors: { lines: [color], scan: [scan_color] }, opacity })];
+    },
+    /** @param {object} config */
+    options(config) {
+      return {
+        color: config.color ?? 'var(--lcards-blue-light, #93e1ff)',
+        scan_color: config.scan_color ?? 'var(--lcards-moonlight, #dfe1e8)',
+        rotate_speed: config.rotate_speed ?? 1,
+        tilt: config.tilt ?? 20,
+        latitude_lines: config.latitude_lines ?? 7,
+        longitude_lines: config.longitude_lines ?? 12,
+        size: config.size ?? 0.8,
+        position_x: config.position_x ?? 0.5,
+        position_y: config.position_y ?? 0.5,
+        back_opacity: config.back_opacity ?? 0.2,
+        line_width: config.line_width ?? 1,
+        scan_period: config.scan_period ?? 6,
         opacity: config.opacity ?? 1
-      })];
+      };
     }
   },
 };

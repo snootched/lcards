@@ -9,7 +9,9 @@ import { mountCase, expectNoErrors } from './support.js';
 const effectValue = (page, field, index = 0) => page.evaluate(([f, i]) => {
     const card = /** @type {any} */ (document.querySelector('#mount > *'));
     const effect = card?._backgroundRenderer?.getHandles(i)[0]?.effects[0];
-    return effect ? effect[f] : null;
+    // WebGL effects that wrap a Canvas2D model (the grid) keep its fields there
+    const target = effect?.model ?? effect;
+    return target ? target[f] : null;
 }, [field, index]);
 
 /** Stop every animation of every scope (what a rule or `while` ending does) */
@@ -101,4 +103,48 @@ test.describe('reduced motion', () => {
         await expect.poll(() => effectValue(page, 'speed'), { timeout: 400 }).toBe(8);
         await expectNoErrors(page);
     });
+});
+
+test('setConfig rebuilds the background when background_animation changes, and keeps it otherwise', async ({ page }) => {
+    await mountCase(page, 'button-background');
+    const card = () => page.evaluate(() => {
+        const c = /** @type {any} */ (document.querySelector('#mount > *'));
+        const e = c._backgroundRenderer?.getHandles()[0]?.effects[0];
+        return { effect: e?.constructor.name ?? null, layers: c.shadowRoot.querySelectorAll('.button-container > div > canvas').length };
+    });
+    await expect.poll(card).toEqual({ effect: 'GridGLEffect', layers: 1 });
+    const mark = () => page.evaluate(() => { /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer.__mark = 1; });
+    const marked = () => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer?.__mark === 1);
+    const base = { type: 'custom:lcards-button', entity: 'light.demo', preset: 'lozenge' };
+    const grid = [{ preset: 'grid', config: { color: 'var(--lcards-orange)' } }];
+
+    await mark();
+    await page.evaluate((c) => window.__reconfigure(c), { ...base, background_animation: grid, text: { name: { content: 'Other' } } });
+    await page.waitForTimeout(200);
+    expect(await marked(), 'unrelated change keeps the running background').toBe(true);
+
+    await page.evaluate((c) => window.__reconfigure(c), { ...base, background_animation: [{ preset: 'starfield' }] });
+    await expect.poll(card).toEqual({ effect: 'StarfieldEffect', layers: 1 });
+
+    await page.evaluate((c) => window.__reconfigure(c), base);
+    await expect.poll(card).toEqual({ effect: null, layers: 0 });
+
+    await page.evaluate((c) => window.__reconfigure(c), { ...base, background_animation: grid });
+    await expect.poll(card).toEqual({ effect: 'GridGLEffect', layers: 1 });
+    await expectNoErrors(page);
+});
+
+test('the canvas buffer follows the card when it changes size (no squashed background)', async ({ page }) => {
+    await mountCase(page, 'button-background', { width: '400' });
+    const size = () => page.evaluate(() => {
+        const c = /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer.canvas;
+        const r = c.getBoundingClientRect();
+        return { buffer: c.width, shown: Math.round(r.width), bufferH: c.height, shownH: Math.round(r.height) };
+    });
+    await expect.poll(async () => { const s = await size(); return s.buffer === s.shown && s.bufferH === s.shownH; }).toBe(true);
+    for (const width of ['250px', '520px']) {
+        await page.evaluate((w) => { /** @type {HTMLElement} */ (document.querySelector('#mount')).style.width = w; }, width);
+        await expect.poll(async () => { const s = await size(); return s.buffer === s.shown && s.bufferH === s.shownH; }, { message: width }).toBe(true);
+    }
+    await expectNoErrors(page);
 });

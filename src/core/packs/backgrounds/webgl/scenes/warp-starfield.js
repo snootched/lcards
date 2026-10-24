@@ -2,22 +2,19 @@
  * `warp-starfield` scene (lazy chunk): stars on an InstancedMesh flying at
  * the camera; streaks stretch with the effect's `speed`.
  *
- * Two variants, for the C2 evaluation:
- * - `instances` (default): each star is an anime.js loop on its instance,
- *   through the three adapter's `getInstances()`. Pure adapter, no shader code.
- * - `shader`: one time uniform; the vertex shader places every star.
- * Both are seeked from the effect clock (ThreeSceneEffect), so `speed` warps
- * them without a jump.
+ * One time uniform; the vertex shader places every star, so the cost stays
+ * flat at any star count. (C2 also had a per-star anime.js loop through the
+ * three adapter's `getInstances()`: about 1 µs per star per frame, 4 ms at
+ * 5000 stars on a real GPU, so it was dropped.) The time is the effect
+ * clock (ThreeSceneEffect), so `speed` warps the stars without a jump.
  *
  * @module core/packs/backgrounds/webgl/scenes/warp-starfield
  */
 import {
-  Scene, PerspectiveCamera, CylinderGeometry, InstancedMesh, MeshBasicMaterial, ShaderMaterial,
+  Scene, PerspectiveCamera, CylinderGeometry, InstancedMesh, ShaderMaterial,
   InstancedBufferAttribute, Matrix4, AdditiveBlending, Color
 } from 'three';
-import { animate, utils } from 'animejs';
-import { getInstances } from 'animejs/adapters/three';
-import { seededRandom, toColor, addDepthFade } from './scene-helpers.js';
+import { seededRandom, toColor } from './scene-helpers.js';
 
 /** Depth of the star volume and how close stars come before wrapping */
 const DEPTH = 60;
@@ -68,7 +65,6 @@ export function createScene({ params, colors }) {
   const rng = seededRandom(params.seed ?? 1);
   const minR = params.min_radius ?? 0.5;
   const maxR = params.max_radius ?? 2;
-  const variant = params.variant === 'shader' ? 'shader' : 'instances';
 
   const scene = new Scene();
   const camera = new PerspectiveCamera(FOV, 1, 0.1, DEPTH + 5);
@@ -92,49 +88,27 @@ export function createScene({ params, colors }) {
 
   const stretch = { value: 1 };
   const scaleXY = { value: 0.01 };
-  /** @type {import('three').Material} */
-  let material;
-  if (variant === 'shader') {
-    material = new ShaderMaterial({
-      uniforms: { uTime: { value: 0 }, uStretch: stretch, uScaleXY: scaleXY },
-      vertexShader: SHADER_VERT,
-      fragmentShader: SHADER_FRAG,
-      transparent: true,
-      premultipliedAlpha: true,
-      depthWrite: false,
-      blending: AdditiveBlending
-    });
-  } else {
-    material = new MeshBasicMaterial({ color: 0xffffff, blending: AdditiveBlending });
-    addDepthFade(material, { camera, far: { value: DEPTH }, full: { value: DEPTH * 0.45 }, near: { value: NEAR_FADE }, stretch, scaleXY });
-  }
+  const material = new ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uStretch: stretch, uScaleXY: scaleXY },
+    vertexShader: SHADER_VERT,
+    fragmentShader: SHADER_FRAG,
+    transparent: true,
+    premultipliedAlpha: true,
+    depthWrite: false,
+    blending: AdditiveBlending
+  });
 
   const mesh = new InstancedMesh(geometry, material, count);
   mesh.frustumCulled = false;
   scene.add(mesh);
 
-  /** @type {Array<{ seek: (t: number) => any, cancel: () => any }>} */
-  let loops = [];
-  /** @type {number[]} */
-  let offsets = [];
-  if (variant === 'shader') {
-    const m = new Matrix4();
-    stars.forEach((s, i) => {
-      m.makeScale(s.size, s.size, 1).setPosition(s.x, s.y, 0);
-      mesh.setMatrixAt(i, m);
-    });
-    geometry.setAttribute('aPhase', new InstancedBufferAttribute(new Float32Array(stars.map((s) => s.phase)), 1));
-    geometry.setAttribute('aRate', new InstancedBufferAttribute(new Float32Array(stars.map((s) => s.rate)), 1));
-  } else {
-    // The adapter way: every star is an instance proxy anime.js animates
-    const instances = /** @type {any[]} */ (getInstances(mesh));
-    loops = instances.map((inst, i) => {
-      const s = stars[i];
-      utils.set(inst, { x: s.x, y: s.y, scaleX: s.size, scaleY: s.size });
-      return animate(inst, { z: [-DEPTH, NEAR], duration: PASS_MS / s.rate, ease: 'linear', loop: true, autoplay: false });
-    });
-    offsets = stars.map((s) => s.phase * (PASS_MS / s.rate));
-  }
+  const m = new Matrix4();
+  stars.forEach((s, i) => {
+    m.makeScale(s.size, s.size, 1).setPosition(s.x, s.y, 0);
+    mesh.setMatrixAt(i, m);
+  });
+  geometry.setAttribute('aPhase', new InstancedBufferAttribute(new Float32Array(stars.map((s) => s.phase)), 1));
+  geometry.setAttribute('aRate', new InstancedBufferAttribute(new Float32Array(stars.map((s) => s.rate)), 1));
 
   const tmp = new Color();
   /** @param {Record<string, Array<{ r: number, g: number, b: number }>>} cols */
@@ -156,11 +130,7 @@ export function createScene({ params, colors }) {
       // Streak: a dot at speed 1, a line that grows past it (warp)
       const warp = Math.max(0, (effect.speed ?? 1) - 1) * (params.streak ?? 1);
       stretch.value = 0.05 + warp * 0.9;
-      if (variant === 'shader') {
-        /** @type {ShaderMaterial} */ (material).uniforms.uTime.value = t;
-      } else {
-        for (let i = 0; i < loops.length; i++) loops[i].seek(t + offsets[i]);
-      }
+      material.uniforms.uTime.value = t;
     },
     /** @param {number} w @param {number} h */
     resize(w, h) {
@@ -172,8 +142,6 @@ export function createScene({ params, colors }) {
     setParam() {},
     setColors,
     dispose() {
-      loops.forEach((a) => a.cancel());
-      loops = [];
       geometry.dispose();
       material.dispose();
       mesh.dispose();

@@ -1603,6 +1603,17 @@ const backgroundAnimationEffectSchema = {
             description: 'How long, in ms, an entity-bound config value (map_range or a template) glides to its new value. 0 snaps. Under reduced motion values always snap.',
             'x-ui-hints': { selector: { number: { min: 0, max: 5000, step: 50, mode: 'box', unit_of_measurement: 'ms' } } }
         },
+        renderer: {
+            type: 'string',
+            enum: ['auto', 'webgl', 'canvas'],
+            default: 'auto',
+            description: 'How a preset with a WebGL version is drawn (warp-starfield, grid, holo-sphere, the noise presets and the other three.js presets). auto: WebGL when the browser has it, otherwise the Canvas2D version. webgl: the same, stated explicitly; without WebGL it still draws the Canvas2D version, so the background never goes blank. canvas: always the Canvas2D version (no GPU use). Ignored by presets that are Canvas2D only.',
+            enumDescriptions: {
+                auto: 'WebGL when available, Canvas2D otherwise',
+                webgl: 'Prefer WebGL (falls back to Canvas2D without it)',
+                canvas: 'Always Canvas2D'
+            }
+        },
         zoom: {
             type: 'object',
             description: 'Optional zoom wrapper: creates layered depth effect',

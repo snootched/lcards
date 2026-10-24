@@ -7,6 +7,36 @@ import { numProp, colorProp } from './animatable-props.js';
 const resetDimensions = (e) => { e._rowHeight = 0; e._colWidth = 0; };
 
 /**
+ * Line `index` (counted across tiles) is a major line every `interval` lines.
+ * @param {number} index
+ * @param {number} interval - 0 = no major lines
+ */
+export const isMajorLine = (index, interval) => interval > 0 && ((index % interval) + interval) % interval === 0;
+
+/**
+ * Lowest common multiple of two positive integers.
+ * @param {number} a
+ * @param {number} b
+ */
+export function lcm(a, b) {
+  /** @type {(x: number, y: number) => number} */
+  const gcd = (x, y) => (y ? gcd(y, x % y) : x);
+  return (a * b) / gcd(a, b);
+}
+
+/**
+ * The scroll period of a rows/columns grid along one axis, px: whole tiles
+ * that are also whole major intervals, so wrapping the scroll by it never
+ * moves a line or turns a minor line major.
+ * @param {number} cell - px between lines
+ * @param {number} count - lines per tile
+ * @param {number} interval - major interval (0 = none)
+ */
+export function linePeriod(cell, count, interval) {
+  return cell * lcm(Math.max(1, Math.round(count)), Math.max(1, Math.round(interval)));
+}
+
+/**
  * GridEffect - Highly configurable scrolling LCARS-style grid background effect
  *
  * Supports:
@@ -213,8 +243,8 @@ export class GridEffect extends BaseEffect {
         pw = 3 * this.hexRadius;
         ph = 2 * hexHeight;
       } else if (this._totalCols && this._colWidth) {
-        pw = this._totalCols * this._colWidth;
-        ph = this._totalRows * this._rowHeight;
+        pw = linePeriod(this._colWidth, this._totalCols, this.majorColInterval);
+        ph = linePeriod(this._rowHeight, this._totalRows, this.majorRowInterval);
       }
       if (pw && ph) {
         if (Math.abs(this.scrollX) > _wrapThreshold) {
@@ -286,7 +316,7 @@ export class GridEffect extends BaseEffect {
       for (let tx = 0; tx < tilesX; tx++) {
         const offsetX = (startTileX + tx) * patternWidth;
         const offsetY = (startTileY + ty) * patternHeight;
-        this._drawPattern(ctx, offsetX, offsetY, patternWidth, patternHeight);
+        this._drawPattern(ctx, offsetX, offsetY, patternWidth, patternHeight, startTileX + tx, startTileY + ty);
       }
     }
 
@@ -298,7 +328,7 @@ export class GridEffect extends BaseEffect {
    * Major/minor lines are determined by row/col position in pattern (not scroll position)
    * @private
    */
-  _drawPattern(ctx, offsetX, offsetY, patternWidth, patternHeight) {
+  _drawPattern(ctx, offsetX, offsetY, patternWidth, patternHeight, tileX = 0, tileY = 0) {
     const shouldDrawHorizontal = this.pattern === 'both' || this.pattern === 'horizontal';
     const shouldDrawVertical = this.pattern === 'both' || this.pattern === 'vertical';
     const shouldDrawDiagonal = this.pattern === 'diagonal';
@@ -330,10 +360,13 @@ export class GridEffect extends BaseEffect {
     // then stroke once. Reduces draw calls from N → 2 (minor path + major path).
     if (shouldDrawHorizontal) {
       // Minor lines
+      // Rows 0..T-1: row T is the next tile's row 0, so each line is drawn
+      // once. Majors count rows across tiles (global index), so they stay
+      // evenly spaced at every seam whatever the tile size.
       ctx.beginPath();
-      for (let row = 0; row <= this._totalRows; row++) {
-        if (!this.showBorderLines && (row === 0 || row === this._totalRows)) continue;
-        if (this.majorRowInterval > 0 && row % this.majorRowInterval === 0) continue;
+      for (let row = 0; row < this._totalRows; row++) {
+        if (!this.showBorderLines && row === 0) continue;
+        if (isMajorLine(tileY * this._totalRows + row, this.majorRowInterval)) continue;
         const y = offsetY + (row * this._rowHeight);
         ctx.moveTo(offsetX, y);
         ctx.lineTo(offsetX + patternWidth, y);
@@ -345,9 +378,9 @@ export class GridEffect extends BaseEffect {
       // Major lines
       if (this.majorRowInterval > 0) {
         ctx.beginPath();
-        for (let row = 0; row <= this._totalRows; row++) {
-          if (!this.showBorderLines && (row === 0 || row === this._totalRows)) continue;
-          if (row % this.majorRowInterval !== 0) continue;
+        for (let row = 0; row < this._totalRows; row++) {
+          if (!this.showBorderLines && row === 0) continue;
+          if (!isMajorLine(tileY * this._totalRows + row, this.majorRowInterval)) continue;
           const y = offsetY + (row * this._rowHeight);
           ctx.moveTo(offsetX, y);
           ctx.lineTo(offsetX + patternWidth, y);
@@ -362,9 +395,9 @@ export class GridEffect extends BaseEffect {
     if (shouldDrawVertical) {
       // Minor lines
       ctx.beginPath();
-      for (let col = 0; col <= this._totalCols; col++) {
-        if (!this.showBorderLines && (col === 0 || col === this._totalCols)) continue;
-        if (this.majorColInterval > 0 && col % this.majorColInterval === 0) continue;
+      for (let col = 0; col < this._totalCols; col++) {
+        if (!this.showBorderLines && col === 0) continue;
+        if (isMajorLine(tileX * this._totalCols + col, this.majorColInterval)) continue;
         const x = offsetX + (col * this._colWidth);
         ctx.moveTo(x, offsetY);
         ctx.lineTo(x, offsetY + patternHeight);
@@ -376,9 +409,9 @@ export class GridEffect extends BaseEffect {
       // Major lines
       if (this.majorColInterval > 0) {
         ctx.beginPath();
-        for (let col = 0; col <= this._totalCols; col++) {
-          if (!this.showBorderLines && (col === 0 || col === this._totalCols)) continue;
-          if (col % this.majorColInterval !== 0) continue;
+        for (let col = 0; col < this._totalCols; col++) {
+          if (!this.showBorderLines && col === 0) continue;
+          if (!isMajorLine(tileX * this._totalCols + col, this.majorColInterval)) continue;
           const x = offsetX + (col * this._colWidth);
           ctx.moveTo(x, offsetY);
           ctx.lineTo(x, offsetY + patternHeight);

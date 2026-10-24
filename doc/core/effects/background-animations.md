@@ -121,6 +121,7 @@ The canvas minimum dimension is clamped to 1 px.
 | `zoom` | object | ❌ | Optional zoom wrapper configuration |
 | `enabled` | boolean | ❌ | `false` keeps the entry (and its index) but draws nothing |
 | `transition` | number | ❌ | How long, in ms, an [entity-bound](#entity-binding) value glides to its new value. Default `500`, `0` snaps. |
+| `renderer` | string | ❌ | For presets with a WebGL version: `auto` (default) uses WebGL when the browser has it, `canvas` always draws the Canvas2D version (no GPU use), `webgl` prefers WebGL. Without WebGL every value draws the Canvas2D version, so the background never goes blank. See [WebGL presets](#webgl-presets). |
 
 Every preset that moves (all but `image` and `solid`) also takes `config.speed`: a time multiplier for the whole effect (`2` is twice as fast, `0` freezes it; a zoom wrapper cycles faster too). On `shimmer`, `speed` is its sweep speed.
 
@@ -134,17 +135,35 @@ Seven built-in presets are available. See the **[Preset Reference](background-an
 
 | Preset | Description |
 |--------|-------------|
-| [`grid`](background-animations/preset-reference.md#grid) | Orthogonal grid with optional major/minor divisions |
+| [`grid`](background-animations/preset-reference.md#grid) | Orthogonal grid with optional major/minor divisions; on WebGL also a perspective floor (`view: floor`) |
 | [`grid-diagonal`](background-animations/preset-reference.md#grid-diagonal) | Diagonal hatch pattern at 45° |
 | [`grid-hexagonal`](background-animations/preset-reference.md#grid-hexagonal) | Honeycomb hexagonal pattern |
 | [`starfield`](background-animations/preset-reference.md#starfield) | Scrolling starfield with parallax depth layers |
-| [`nebula`](background-animations/preset-reference.md#nebula) | Organic Perlin-noise nebula clouds |
+| [`nebula`](background-animations/preset-reference.md#nebula) | Organic Perlin-noise nebula clouds (`volumetric: true`: noise-shaded on WebGL) |
 | [`cascade`](background-animations/preset-reference.md#cascade) | LCARS data-waterfall colour-cycling background |
 | [`image`](background-animations/preset-reference.md#image) | Static or entity-driven image background |
 | [`warp-starfield`](background-animations/preset-reference.md#warp-starfield) | Stars flying toward you in 3D, streaking at speed (WebGL) |
-| [`grid-floor`](background-animations/preset-reference.md#grid-floor) | Perspective wireframe floor with a scan line (WebGL) |
+| [`holo-sphere`](background-animations/preset-reference.md#holo-sphere) | Rotating wireframe planet with a scan band (WebGL, Canvas2D without it) |
 
-`warp-starfield` and `grid-floor` are drawn with three.js. They load only when a card uses them, share one WebGL context across the whole dashboard, sit in the stack like any other entry, and fall back to `starfield` and `grid` where WebGL is not available.
+### WebGL presets
+
+`warp-starfield` is drawn with three.js. Like every WebGL preset it loads only when a card uses it, shares one WebGL context across the whole dashboard, sits in the stack like any other entry, and falls back to Canvas2D (here `starfield`) where WebGL is not available.
+
+`grid`, `grid-diagonal` and `grid-hexagonal` draw on the GPU too: the same pixels as their Canvas2D versions in the flat view, any line width, and a perspective floor view with an animatable camera ([grid views](background-animations/preset-reference.md#grid-views-and-camera)).
+
+`holo-sphere` is drawn with three.js too, and on Canvas2D with the same look where WebGL is not available. `nebula` with `volumetric: true` shades its clouds with noise on the GPU (opt-in, because it changes the look); without WebGL it draws the plain clouds.
+
+`contour-field`, `plasma` and `fluid` are drawn on the GPU too where WebGL is available, with the same keys and the same field as their Canvas2D versions. On the CPU these effects pause the page each time they first draw, resize or change alert colours (up to half a second on a full-screen background); on the GPU they don't, and their noise keys become [animatable](#animatable-keys).
+
+Set `renderer: canvas` on the entry to always draw the Canvas2D version:
+
+```yaml
+background_animation:
+  - preset: warp-starfield
+    renderer: canvas
+    config:
+      count: 400
+```
 
 ---
 ## Zoom Wrapper
@@ -443,22 +462,23 @@ Every effect: `opacity`, and the transform keys `x`, `y` (offset in px), `rotate
 
 | Preset | Keys |
 |---|---|
-| `grid`, `grid-diagonal`, `grid-hexagonal` | `scroll_speed_x`, `scroll_speed_y`, `line_spacing`, `line_width`, `line_width_minor`, `line_width_major`, `color`, `color_major`, `fill_color` (those the preset takes) |
+| `grid`, `grid-diagonal`, `grid-hexagonal` | `scroll_speed_x`, `scroll_speed_y`, `line_spacing`, `line_width`, `line_width_minor`, `line_width_major`, `color`, `color_major`, `fill_color` (those the preset takes); on WebGL also `camera_tilt`, `camera_yaw`, `camera_distance`, `fov`, `scan_color` |
 | `starfield` | `scroll_speed_x`, `scroll_speed_y`, `color` (one colour for every star) |
 | `nebula` | `scroll_speed_x`, `scroll_speed_y`, `turbulence` |
-| `contour-field` | `scroll_speed_x`, `scroll_speed_y` |
+| `contour-field` | `scroll_speed_x`, `scroll_speed_y`; on WebGL also `noise_scale`, `num_bands`, `fill_level` |
 | `cascade` | (the common keys) |
 | `level` | `fill_pct`, `wave_height`, `wave_speed`, `wave2_height`, `wave2_speed`, `slosh_amount` |
-| `fluid`, `plasma` | `scroll_speed_x`, `scroll_speed_y` |
+| `fluid` | `scroll_speed_x`, `scroll_speed_y`; on WebGL also `base_frequency`, `color` |
+| `plasma` | `scroll_speed_x`, `scroll_speed_y`; on WebGL also `base_frequency`, `color_a`, `color_b` |
 | `flow` | `scroll_speed_x`, `scroll_speed_y`, `wave_scale` |
 | `scanlines` | `scroll_speed_x`, `scroll_speed_y`, `line_spacing`, `line_width` |
 | `shimmer` | `highlight_width`, `angle` |
 | `image` | `opacity` only |
 | `solid` | `opacity`, `color` |
 | `warp-starfield` | `streak`, `color` |
-| `grid-floor` | `camera_height`, `camera_tilt`, `color`, `scan_color` |
+| `holo-sphere` | `rotate_speed`, `tilt`, `size`, `position_x`, `position_y`, `back_opacity`, `line_width`, `color`, `scan_color` |
 
-Other keys are left out on purpose: changing them means rebuilding the effect (a new star layout, a noise re-bake), too slow to do every frame. A key that isn't animatable is logged once in the browser console.
+Other keys are left out on purpose: changing them means rebuilding the effect (a new star layout, a noise re-bake), too slow to do every frame. The WebGL versions of the noise presets have no bake, so their noise keys are animatable there; under `renderer: canvas` or without WebGL they keep the Canvas2D list. A key that isn't animatable is logged once in the browser console.
 
 ---
 

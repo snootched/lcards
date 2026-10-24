@@ -1,0 +1,13 @@
+# holo-sphere on WebGL vs its Canvas2D version, rotation and band stopped (background-webgl.spec.js)
+type: custom:lcards-button
+entity: light.demo
+preset: lozenge
+height: 160
+background_animation:
+  - preset: holo-sphere
+    config:
+      color: '#93e1ff'
+      rotate_speed: 0
+      scan_period: 0
+      tilt: 25
+      size: 0.9

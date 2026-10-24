@@ -259,22 +259,7 @@ export class NebulaEffect extends BaseEffect {
     const parentAlpha = ctx.globalAlpha;
 
     // Draw each cloud
-    for (const cloud of this.clouds) {
-      // Calculate actual position and radius in pixels
-      const baseX = cloud.x * canvasWidth;
-      const baseY = cloud.y * canvasHeight;
-      const radius = cloud.radius * Math.min(canvasWidth, canvasHeight);
-
-      // Apply Perlin noise displacement for turbulence
-      const noiseX = (baseX + this._scrollOffsetX) * this.noiseScale;
-      const noiseY = (baseY + this._scrollOffsetY) * this.noiseScale;
-      const noise = this._perlin2D(noiseX, noiseY);
-
-      // Displace position based on turbulence
-      const displacement = noise * this.turbulence * radius * 0.5;
-      const x = baseX + displacement * Math.cos(noise * Math.PI);
-      const y = baseY + displacement * Math.sin(noise * Math.PI);
-
+    for (const { cloud, x, y, radius } of this.cloudPlacements(canvasWidth, canvasHeight)) {
       // Create radial gradient
       const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
 
@@ -295,6 +280,35 @@ export class NebulaEffect extends BaseEffect {
 
     // Restore parent alpha
     ctx.globalAlpha = parentAlpha;
+  }
+
+  /**
+   * Where each cloud is this frame: its centre drifted by Perlin turbulence,
+   * and its radius, in px. Shared with the volumetric WebGL version.
+   * @param {number} canvasWidth
+   * @param {number} canvasHeight
+   * @returns {Array<{ cloud: any, x: number, y: number, radius: number }>}
+   */
+  cloudPlacements(canvasWidth, canvasHeight) {
+    return this.clouds.map((cloud) => {
+      const baseX = cloud.x * canvasWidth;
+      const baseY = cloud.y * canvasHeight;
+      const radius = cloud.radius * Math.min(canvasWidth, canvasHeight);
+
+      // Apply Perlin noise displacement for turbulence
+      const noiseX = (baseX + this._scrollOffsetX) * this.noiseScale;
+      const noiseY = (baseY + this._scrollOffsetY) * this.noiseScale;
+      const noise = this._perlin2D(noiseX, noiseY);
+
+      // Displace position based on turbulence
+      const displacement = noise * this.turbulence * radius * 0.5;
+      return {
+        cloud,
+        x: baseX + displacement * Math.cos(noise * Math.PI),
+        y: baseY + displacement * Math.sin(noise * Math.PI),
+        radius
+      };
+    });
   }
 
   /**

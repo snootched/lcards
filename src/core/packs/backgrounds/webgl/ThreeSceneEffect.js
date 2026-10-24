@@ -32,6 +32,8 @@ import { BaseEffect } from '../effects/BaseEffect.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 import { parseColorToRgba } from '../../textures/effects/noise-helpers.js';
 import { resolveColor } from '../../../themes/resolve-color.js';
+import { NebulaEffect } from '../effects/NebulaEffect.js';
+import { GridEffect } from '../effects/GridEffect.js';
 
 /** @type {Promise<typeof import('./three-runtime.js')> | null} */
 let runtimePromise = null;
@@ -195,7 +197,15 @@ export class ThreeSceneEffect extends BaseEffect {
       this._scene.resize(w, h);
     }
     this._scene.seek(this._elapsedTime, this);
-    const out = this._runtime.render(this._scene.scene, this._scene.camera, w, h);
+    let out;
+    try {
+      out = this._runtime.render(this._scene.scene, this._scene.camera, w, h);
+    } catch (error) {
+      // An exception here would end the card's whole frame loop
+      lcardsLog.warn(`[ThreeSceneEffect] ${this.constructor.name} render failed:`, error);
+      this._fail('render failed');
+      return;
+    }
     if (!out) return;
     const alpha = ctx.globalAlpha;
     ctx.globalAlpha = alpha * this.opacity;
@@ -237,9 +247,7 @@ export class ThreeSceneEffect extends BaseEffect {
 
 /**
  * `warp-starfield`: stars flying at the viewer on an InstancedMesh; streaks
- * stretch with `speed`. Two variants for the C2 evaluation: `instances` (one
- * anime.js loop per star through the three adapter's getInstances) and
- * `shader` (one time uniform, positions in the vertex shader).
+ * stretch with `speed`. One time uniform; the vertex shader places the stars.
  */
 export class WarpStarfieldEffect extends ThreeSceneEffect {
   static loadScene = () => import('./scenes/warp-starfield.js');
@@ -252,18 +260,297 @@ export class WarpStarfieldEffect extends ThreeSceneEffect {
 }
 
 /**
- * `grid-floor`: a perspective LCARS wireframe floor scrolling to the horizon,
- * with a scan line and a slow camera drift (an anime.js timeline on the camera
- * rig). `camera_height` and `camera_tilt` reach the camera through the adapter.
+ * A noise field drawn on the GPU (`contour-field`, `plasma`, `fluid` on
+ * WebGL): the scroll is integrated here exactly as the Canvas2D effects do
+ * (`_offsetX/Y` in px, `scroll_speed_x/y` px/s times `speed`); the scene
+ * reads it every frame. Keys that the Canvas2D version re-bakes for are
+ * plain uniforms here, so they are animatable.
  */
-export class GridFloorEffect extends ThreeSceneEffect {
-  static loadScene = () => import('./scenes/grid-floor.js');
+export class NoiseFieldEffect extends ThreeSceneEffect {
+  /** Config colour key → colour slot, for updateConfig (template-bound colours) */
+  static colorKeys = /** @type {Record<string, string>} */ ({});
+
+  /**
+   * @param {{ params?: Record<string, any>, colors?: Record<string, string[]>, opacity?: number,
+   *   offsetX?: number, offsetY?: number }} [config] - ThreeSceneEffect config, plus the start offset (px)
+   */
+  constructor(config = {}) {
+    super(config);
+    this._offsetX = config.offsetX ?? 0;
+    this._offsetY = config.offsetY ?? 0;
+  }
+
+  /**
+   * @param {number} deltaTime
+   * @param {number} w
+   * @param {number} h
+   */
+  update(deltaTime, w, h) {
+    super.update(deltaTime, w, h);
+    const s = (deltaTime / 1000) * this.speed;
+    this._offsetX += (this.params.scroll_speed_x ?? 0) * s;
+    this._offsetY += (this.params.scroll_speed_y ?? 0) * s;
+  }
+
+  /**
+   * Entity-bound values that are not animatable keys (snake_case, as in YAML).
+   * @param {Record<string, any>} cfg
+   */
+  updateConfig(cfg) {
+    if (cfg.opacity !== undefined) this.opacity = cfg.opacity;
+    if (cfg.speed !== undefined) this.speed = cfg.speed;
+    for (const key of Object.keys(this.params)) {
+      if (cfg[key] === undefined) continue;
+      this.params[key] = cfg[key];
+      this._scene?.setParam(key, cfg[key]);
+    }
+    const colorKeys = /** @type {typeof NoiseFieldEffect} */ (this.constructor).colorKeys;
+    let recolor = false;
+    for (const [key, slot] of Object.entries(colorKeys)) {
+      if (typeof cfg[key] !== 'string') continue;
+      this.colors[slot] = [resolveColor(cfg[key], { concrete: true })];
+      recolor = true;
+    }
+    if (recolor) this._pushColors();
+  }
+}
+
+/** `contour-field` on WebGL (scenes/contour-field.js); Canvas2D: ContourFieldEffect */
+export class ContourFieldGLEffect extends NoiseFieldEffect {
+  static loadScene = () => import('./scenes/contour-field.js');
 
   static animatableProps = {
     ...BaseEffect.animatableProps,
-    camera_height: sceneProp('camera_height', { min: 0.1 }),
-    camera_tilt: sceneProp('camera_tilt', { min: -89, max: 89 }),
+    scroll_speed_x: sceneProp('scroll_speed_x'),
+    scroll_speed_y: sceneProp('scroll_speed_y'),
+    noise_scale: sceneProp('noise_scale', { min: 0.0001 }),
+    num_bands: sceneProp('num_bands', { min: 2, max: 64 }),
+    fill_level: sceneProp('fill_level', { min: 0, max: 0.95 })
+  };
+
+  static colorKeys = { fill_color: 'fill' };
+}
+
+/** `plasma` on WebGL (scenes/plasma.js); Canvas2D: PlasmaTextureEffect */
+export class PlasmaGLEffect extends NoiseFieldEffect {
+  static loadScene = () => import('./scenes/plasma.js');
+
+  static animatableProps = {
+    ...BaseEffect.animatableProps,
+    scroll_speed_x: sceneProp('scroll_speed_x'),
+    scroll_speed_y: sceneProp('scroll_speed_y'),
+    base_frequency: sceneProp('base_frequency', { min: 0.0001 }),
+    color_a: sceneColorProp('a'),
+    color_b: sceneColorProp('b')
+  };
+
+  static colorKeys = { color_a: 'a', color_b: 'b' };
+}
+
+/** `fluid` on WebGL (scenes/fluid.js); Canvas2D: FluidTextureEffect */
+export class FluidGLEffect extends NoiseFieldEffect {
+  static loadScene = () => import('./scenes/fluid.js');
+
+  static animatableProps = {
+    ...BaseEffect.animatableProps,
+    scroll_speed_x: sceneProp('scroll_speed_x'),
+    scroll_speed_y: sceneProp('scroll_speed_y'),
+    base_frequency: sceneProp('base_frequency', { min: 0.0001 }),
+    color: sceneColorProp('wash')
+  };
+
+  static colorKeys = { color: 'wash' };
+}
+
+/**
+ * `holo-sphere` on WebGL (scenes/holo-sphere.js); Canvas2D: HoloSphereEffect.
+ * The rotation angle is integrated here, as the Canvas2D version does, so a
+ * `rotate_speed` change never jumps and a rebuild carries on (`_angle`).
+ */
+export class HoloSphereGLEffect extends ThreeSceneEffect {
+  static loadScene = () => import('./scenes/holo-sphere.js');
+
+  static animatableProps = {
+    ...BaseEffect.animatableProps,
+    rotate_speed: sceneProp('rotate_speed'),
+    tilt: sceneProp('tilt', { min: -90, max: 90 }),
+    size: sceneProp('size', { min: 0 }),
+    position_x: sceneProp('position_x'),
+    position_y: sceneProp('position_y'),
+    back_opacity: sceneProp('back_opacity', { min: 0, max: 1 }),
+    line_width: sceneProp('line_width', { min: 0.1 }),
     color: sceneColorProp('lines'),
     scan_color: sceneColorProp('scan')
   };
+
+  /** @param {{ params?: Record<string, any>, colors?: Record<string, string[]>, opacity?: number }} [config] */
+  constructor(config = {}) {
+    super(config);
+    /** Rotation in degrees */
+    this._angle = 0;
+  }
+
+  /**
+   * @param {number} deltaTime
+   * @param {number} w
+   * @param {number} h
+   */
+  update(deltaTime, w, h) {
+    super.update(deltaTime, w, h);
+    this._angle = (this._angle + (this.params.rotate_speed ?? 1) * 0.006 * deltaTime * this.speed) % 360;
+  }
+}
+
+/**
+ * A Canvas2D effect's animatable keys, applied to the model a WebGL effect
+ * wraps (`effect.model`): the keys, their limits and colour handling stay
+ * the Canvas2D effect's own.
+ * @param {Record<string, import('../effects/animatable-props.js').AnimatableProp>} props
+ * @param {string[]} keys
+ * @returns {Record<string, import('../effects/animatable-props.js').AnimatableProp>}
+ */
+function onModel(props, keys) {
+  return Object.fromEntries(keys.map((key) => {
+    const prop = props[key];
+    return [key, { ...prop, get: (e) => prop.get(e.model), set: (e, v) => prop.set(e.model, v) }];
+  }));
+}
+
+/**
+ * `nebula` with `volumetric: true` on WebGL (scenes/nebula.js). The clouds,
+ * their drift and colours are a NebulaEffect (the Canvas2D effect, never
+ * drawn): the same seeded layout as `nebula` without `volumetric`, shaded
+ * with noise on the GPU.
+ */
+export class NebulaGLEffect extends ThreeSceneEffect {
+  static loadScene = () => import('./scenes/nebula.js');
+
+  static animatableProps = {
+    ...BaseEffect.animatableProps,
+    ...onModel(NebulaEffect.animatableProps, ['scroll_speed_x', 'scroll_speed_y', 'turbulence'])
+  };
+
+  /**
+   * @param {{ model: NebulaEffect, opacity?: number }} config - the model is a NebulaEffect built from the same config
+   */
+  constructor(config) {
+    super({ opacity: config.opacity });
+    this.model = config.model;
+  }
+
+  /** Scroll offsets live on the model; exposed so a rebuild carries them */
+  get _scrollOffsetX() { return this.model._scrollOffsetX; }
+  set _scrollOffsetX(v) { this.model._scrollOffsetX = v; }
+  get _scrollOffsetY() { return this.model._scrollOffsetY; }
+  set _scrollOffsetY(v) { this.model._scrollOffsetY = v; }
+
+  /**
+   * @param {number} deltaTime
+   * @param {number} w
+   * @param {number} h
+   */
+  update(deltaTime, w, h) {
+    super.update(deltaTime, w, h);
+    this.model.speed = this.speed;
+    this.model.update(deltaTime, w, h);
+  }
+
+  /** @param {Record<string, any>} cfg - entity-bound values (camelCase copies included) */
+  updateConfig(cfg) {
+    if (cfg.opacity !== undefined) this.opacity = cfg.opacity;
+    if (cfg.speed !== undefined) this.speed = cfg.speed;
+    if (cfg.noiseScale !== undefined) this.model.noiseScale = cfg.noiseScale;
+  }
+
+  /**
+   * F1: the model takes the new palette (same seed, same colour slots).
+   * @param {any} fresh
+   * @returns {boolean}
+   */
+  recolorFrom(fresh) {
+    if (!(fresh instanceof NebulaGLEffect) || !this.model.recolorFrom(fresh.model)) return false;
+    this._scene?.setColors({});
+    return true;
+  }
+
+  destroy() {
+    this.model.destroy();
+    super.destroy();
+  }
+}
+
+/**
+ * `grid` (and `grid-diagonal`, `grid-hexagonal`) on WebGL (scenes/grid.js):
+ * the grid per pixel on a ground plane through a camera; `view: flat` lands
+ * on the Canvas2D pixels, `view: floor` is a perspective floor. The pattern,
+ * scroll and colours are a GridEffect (the Canvas2D effect, never drawn):
+ * same keys, same defaults, same recolour.
+ */
+export class GridGLEffect extends ThreeSceneEffect {
+  static loadScene = () => import('./scenes/grid.js');
+
+  static animatableProps = {
+    ...BaseEffect.animatableProps,
+    ...onModel(GridEffect.animatableProps, [
+      'scroll_speed_x', 'scroll_speed_y', 'line_spacing', 'line_width', 'line_width_minor', 'line_width_major',
+      'color', 'color_major', 'fill_color'
+    ]),
+    camera_tilt: sceneProp('camera_tilt', { min: 1, max: 90 }),
+    camera_yaw: sceneProp('camera_yaw'),
+    camera_distance: sceneProp('camera_distance', { min: 0.05 }),
+    fov: sceneProp('fov', { min: 5, max: 150 }),
+    scan_color: sceneColorProp('scan')
+  };
+
+  /**
+   * @param {{ model: GridEffect, params?: Record<string, any>, colors?: Record<string, string[]>, opacity?: number }} config
+   */
+  constructor(config) {
+    super({ params: config.params, colors: config.colors, opacity: config.opacity });
+    this.model = config.model;
+  }
+
+  /** Scroll lives on the model; exposed so a rebuild carries it */
+  get scrollX() { return this.model.scrollX; }
+  set scrollX(v) { this.model.scrollX = v; }
+  get scrollY() { return this.model.scrollY; }
+  set scrollY(v) { this.model.scrollY = v; }
+
+  /**
+   * @param {number} deltaTime
+   * @param {number} w
+   * @param {number} h
+   */
+  update(deltaTime, w, h) {
+    super.update(deltaTime, w, h);
+    this.model.speed = this.speed;
+    this.model.update(deltaTime, w, h);
+  }
+
+  /**
+   * Entity-bound values that are not animatable keys.
+   * @param {Record<string, any>} cfg
+   */
+  updateConfig(cfg) {
+    if (cfg.opacity !== undefined) this.opacity = cfg.opacity;
+    if (cfg.speed !== undefined) this.speed = cfg.speed;
+    for (const key of ['view', 'scan_period']) if (cfg[key] !== undefined) this.params[key] = cfg[key];
+  }
+
+  /**
+   * F1: the model takes the new palette; the scan colour from the fresh copy.
+   * @param {any} fresh
+   * @returns {boolean}
+   */
+  recolorFrom(fresh) {
+    if (!(fresh instanceof GridGLEffect) || !this.model.recolorFrom(fresh.model)) return false;
+    this.colors = fresh.colors;
+    this._pushColors();
+    return true;
+  }
+
+  destroy() {
+    this.model.destroy();
+    super.destroy();
+  }
 }

@@ -6,7 +6,7 @@ All built-in background animation presets with full configuration options and ex
 
 ## `grid`
 
-Orthogonal grid with optional major/minor line divisions and scrolling.
+Orthogonal grid with optional major/minor line divisions and scrolling. Drawn on the GPU where WebGL is available ([WebGL presets](../background-animations.md#webgl-presets)), the same pixels as the Canvas2D version in the flat view, which draws it without WebGL or with `renderer: canvas`. On WebGL the grid can also be seen [as a floor](#grid-views-and-camera).
 
 **Configuration:**
 
@@ -100,6 +100,36 @@ config:
 ```
 
 <EffectPlayground preset="grid" />
+
+### Grid views and camera
+
+On WebGL the grid lies on a plane seen through a camera, so the same grid can be face-on or a perspective floor running to a horizon. These keys apply to `grid`, `grid-diagonal` and `grid-hexagonal`; without WebGL (or with `renderer: canvas`) the flat grid is drawn.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `view` | `flat` | `flat`: face-on. `floor`: a perspective floor streaming toward you (scroll defaults `scroll_speed_x: 0`, `scroll_speed_y: 40`) |
+| `camera_tilt` | 90 flat, 10 floor | How far the camera looks down, in degrees: 90 is straight down |
+| `camera_yaw` | 0 | Turns the camera around the grid, in degrees |
+| `camera_distance` | 1 | Zoom: at 1, `line_spacing` is true px at the middle of the card |
+| `fov` | 60 | Field of view in degrees: wider exaggerates the floor perspective |
+| `scan_period` | 0 flat, 7 floor | Seconds per scan line sweep from the far side to the near side; 0 is off |
+| `scan_color` | `var(--lcards-moonlight)` | Scan line colour |
+
+Line widths are px in every view (`line_width`, `line_width_major`), and lines fade out toward the horizon where they crowd, so the distance stays calm. The camera keys are [animatable](../background-animations.md#animatable-keys): a flat grid tips into a floor when `camera_tilt` animates from 90 to 10.
+
+```yaml
+background_animation:
+  - preset: grid
+    config:
+      view: floor
+      line_spacing: 50
+      line_width: 2
+      major_row_interval: 4
+      major_col_interval: 4
+      color: "var(--lcards-orange)"
+      color_major: "var(--lcards-moonlight)"
+      scan_period: 5
+```
 
 ---
 
@@ -330,8 +360,20 @@ config:
 | `scroll_speed_x` | 5 | Horizontal speed (px/sec) |
 | `scroll_speed_y` | 5 | Vertical speed (px/sec) |
 | `seed` | 1 | Random seed for reproducible placement |
+| `volumetric` | `false` | Shade the clouds with drifting noise on the GPU: wisps inside and a turbulent edge, instead of smooth gradients. Needs WebGL |
 
 Each cloud's pixel positions are displaced via 2D Perlin noise (`turbulence` controls the magnitude, `noise_scale` controls feature size) producing realistic organic cloud shapes.
+
+**Volumetric clouds:** `volumetric: true` keeps the same clouds (same `seed`, positions, colours and drift) and shades each one with noise on the GPU ([WebGL presets](../background-animations.md#webgl-presets)): wisps that slowly evolve inside the cloud, and an edge that `turbulence` makes ragged. `noise_scale` sets the wisp size. Without WebGL, or with `renderer: canvas`, the plain clouds are drawn. It is opt-in because it changes how a nebula looks.
+
+```yaml
+- preset: nebula
+  config:
+    cloud_count: 5
+    colors: ["var(--lcards-purple)", "var(--lcards-blue-medium)"]
+    turbulence: 0.7
+    volumetric: true
+```
 
 **Examples:**
 
@@ -390,6 +432,8 @@ Each cloud's pixel positions are displaced via 2D Perlin noise (`turbulence` con
 ## `contour-field`
 
 Topographic-style banded noise field: an LCARS star-chart contour look. Paints a drifting noise field, then slices it into colour bands like a topographic map.
+
+Drawn on the GPU where WebGL is available ([WebGL presets](../background-animations.md#webgl-presets)): the same field, pixel for pixel, with no pause when the card first draws, resizes or changes alert colours, and `noise_scale`, `num_bands` and `fill_level` become animatable. Without WebGL, or with `renderer: canvas`, the Canvas2D version draws it.
 
 **Configuration:**
 
@@ -678,7 +722,9 @@ config:
 
 ## Texture Presets
 
-`fluid`, `plasma`, `flow`, `shimmer`, and `scanlines` are one-shot Canvas2D texture generators sharing a small, near-identical config shape: a colour (or two), a couple of shape parameters, and `opacity`. Documented together here rather than as five separate essays.
+`fluid`, `plasma`, `flow`, `shimmer`, and `scanlines` are texture generators sharing a small, near-identical config shape: a colour (or two), a couple of shape parameters, and `opacity`. Documented together here rather than as five separate essays.
+
+`fluid` and `plasma` are drawn on the GPU where WebGL is available ([WebGL presets](../background-animations.md#webgl-presets)): the same field as the Canvas2D version, without its pause on first draw, resize and alert colour changes, and with `base_frequency` and the colours animatable. Without WebGL, or with `renderer: canvas`, the Canvas2D version draws them.
 
 ### `fluid`
 
@@ -934,7 +980,6 @@ config:
 | `streak` | 1 | How long the streaks grow per unit of speed above 1. `0` keeps dots at any speed |
 | `speed` | 1 | Time multiplier |
 | `seed` | random | Star layout |
-| `variant` | `instances` | Experimental. `instances` moves each star with its own anime.js loop; `shader` places every star on the GPU from one time value, cheaper above a few thousand stars |
 
 Animatable: `speed`, `streak`, `color`, `opacity` and the transform keys.
 
@@ -952,43 +997,58 @@ Animatable: `speed`, `streak`, `color`, `opacity` and the transform keys.
 
 ---
 
-## `grid-floor`
+## `holo-sphere`
 
-A perspective wireframe floor in three.js (WebGL): grid lines scrolling toward you, a scan line sweeping in from the horizon and a slow camera drift. Without WebGL the [`grid`](#grid) preset is drawn with the same `color`.
+An LCARS planetary display: a wireframe sphere of latitude rings and meridians turning slowly on a tilted axis, its far side dimmed, with a scan band sweeping up it. Drawn with three.js where WebGL is available and on Canvas2D otherwise, with the same look (`renderer: canvas` forces the Canvas2D version).
 
 **Configuration:**
 
 ```yaml
-preset: grid-floor
+preset: holo-sphere
 config:
-  color: "var(--lcards-orange)"   # Grid lines (alpha sets their opacity)
-  scan_color: "var(--lcards-moonlight)"
-  line_spacing: 2                 # Floor units between lines (the camera is 1.6 high)
-  camera_height: 1.6
-  camera_tilt: 8                  # Degrees the camera looks down
-  speed: 1
+  color: "var(--lcards-blue-light)"     # Wireframe
+  scan_color: "var(--lcards-moonlight)" # Scan band
+  rotate_speed: 1                       # Revolutions per minute
+  tilt: 20                              # Degrees, north pole toward you
+  latitude_lines: 7
+  longitude_lines: 12
+  size: 0.8                             # Diameter, fraction of the card's shorter side
+  position_x: 0.5                       # 0 left, 1 right
+  position_y: 0.5                       # 0 top, 1 bottom
+  back_opacity: 0.2                     # Far side brightness
+  line_width: 1                         # px
+  scan_period: 6                        # Seconds per sweep, 0 = no band
 ```
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `color` | theme grid colour | Grid line colour |
-| `scan_color` | `var(--lcards-moonlight)` | Scan line colour |
-| `line_spacing` | 2 | Distance between lines, in floor units |
-| `camera_height` | 1.6 | Camera height above the floor |
-| `camera_tilt` | 8 | How far the camera looks down, in degrees (negative looks up) |
-| `speed` | 1 | Time multiplier for the scroll, scan and drift |
+| `color` | `var(--lcards-blue-light)` | Wireframe colour (follows the alert palette) |
+| `scan_color` | `var(--lcards-moonlight)` | Scan band colour (follows the alert palette) |
+| `rotate_speed` | 1 | Revolutions per minute; negative turns the other way |
+| `tilt` | 20 | Axis tilt in degrees; positive leans the north pole toward you |
+| `latitude_lines` | 7 | Rings between the poles |
+| `longitude_lines` | 12 | Meridians around the sphere |
+| `size` | 0.8 | Diameter as a fraction of the card's shorter side (above 1 overflows the card) |
+| `position_x`, `position_y` | 0.5 | Centre on the card, 0 to 1 |
+| `back_opacity` | 0.2 | Brightness of the far side: 0 hides it |
+| `line_width` | 1 | Wireframe line width in px |
+| `scan_period` | 6 | Seconds per scan sweep, including a short rest; 0 turns the band off |
+| `speed` | 1 | Time multiplier for the rotation and the scan |
 
-Animatable: `camera_height`, `camera_tilt`, `color`, `scan_color`, `speed`, `opacity` and the transform keys. Bind `camera_tilt` to an entity to tilt the floor as a value changes:
+Animatable: `rotate_speed`, `tilt`, `size`, `position_x`, `position_y`, `back_opacity`, `line_width`, `color`, `scan_color`, `speed`, `opacity` and the transform keys. A `rotate_speed` change never jumps the rotation. A planet off to one side, spinning faster while a light is on:
 
 ```yaml
-- preset: grid-floor
-  transition: 800
+- preset: holo-sphere
+  transition: 1500
   config:
-    camera_tilt:
+    size: 1.4
+    position_x: 0.85
+    tilt: 15
+    rotate_speed:
       map_range:
         entity_id: input_number.lcards_test_value
         input: [0, 100]
-        output: [-5, 40]
+        output: [0.5, 6]
 ```
 
 ---

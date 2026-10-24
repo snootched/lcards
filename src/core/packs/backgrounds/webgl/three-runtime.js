@@ -102,7 +102,9 @@ function disposeRenderer() {
  *   to call once drawn (closes the bitmap)
  */
 export function render(scene, camera, w, h) {
-  if (!renderer) return null;
+  // Lost but the webglcontextlost event not yet delivered: draw nothing
+  // (transferToImageBitmap would throw); the event swaps in the fallbacks
+  if (!renderer || renderer.getContext().isContextLost()) return null;
   if (w > width || h > height) {
     width = Math.max(width, w);
     height = Math.max(height, h);

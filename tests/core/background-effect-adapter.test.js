@@ -216,10 +216,13 @@ test('every declared key is a config key of a preset that builds that effect', (
   /** @type {Map<Function, Set<string>>} */
   const schemaKeysByClass = new Map();
   for (const [presetId, preset] of Object.entries(BACKGROUND_PRESETS)) {
-    const [effect] = preset.createEffects({ seed: 1 }, null);
-    const keys = schemaKeysByClass.get(effect.constructor) ?? new Set();
-    Object.keys(BACKGROUND_ANIMATION_PARAMS_SCHEMAS[presetId]?.properties ?? {}).forEach((k) => keys.add(k));
-    schemaKeysByClass.set(effect.constructor, keys);
+    // Both tiers: the Canvas2D effect and, where there is one, the WebGL effect
+    const built = [preset.createEffects({ seed: 1 }, null)[0], /** @type {any} */ (preset).createWebGLEffects?.({ seed: 1 }, null)?.[0]];
+    for (const effect of built.filter(Boolean)) {
+      const keys = schemaKeysByClass.get(effect.constructor) ?? new Set();
+      Object.keys(BACKGROUND_ANIMATION_PARAMS_SCHEMAS[presetId]?.properties ?? {}).forEach((k) => keys.add(k));
+      schemaKeysByClass.set(effect.constructor, keys);
+    }
   }
   for (const [cls, keys] of schemaKeysByClass) {
     for (const key of Object.keys(/** @type {any} */ (cls).animatableProps ?? {})) {

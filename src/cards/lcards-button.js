@@ -172,6 +172,10 @@ export class LCARdSButton extends LCARdSCard {
 
         // Background animation support
         this._backgroundRenderer = null;
+        /** @type {HTMLElement | null} the layer _initializeBackgroundAnimation() inserted */
+        this._backgroundLayer = null;
+        /** @type {string | undefined} JSON of the background_animation config it was built from */
+        this._backgroundConfigKey = undefined;
 
         // Component preset tracking
         this._activePreset = null;          // Currently applied preset name
@@ -2218,6 +2222,9 @@ export class LCARdSButton extends LCARdSCard {
             this.updateComplete.then(() => {
                 this._initializeBackgroundAnimation();
             });
+        } else {
+            // updated() builds one if a later setConfig adds it
+            this._backgroundConfigKey = JSON.stringify(null);
         }
 
     }
@@ -2497,6 +2504,14 @@ export class LCARdSButton extends LCARdSCard {
 
         // Sync canvas texture overlay (create or hot-update after each render)
         this._syncCanvasTexture();
+
+        // setConfig (editor preview, a reconfigure) changed background_animation:
+        // build it again. Unchanged config keeps the running background.
+        if (this._backgroundConfigKey !== undefined &&
+            this._backgroundConfigKey !== JSON.stringify(this.config?.background_animation ?? null)) {
+            this._destroyBackgroundAnimation();
+            if (this.config?.background_animation) this._initializeBackgroundAnimation();
+        }
     }
 
     /**
@@ -6747,6 +6762,19 @@ export class LCARdSButton extends LCARdSCard {
     }
 
     /**
+     * Destroy the background animation renderer and its layer (config replaced).
+     * A view switch only suspends it (disconnectedCallback).
+     * @private
+     */
+    _destroyBackgroundAnimation() {
+        this._backgroundRenderer?.destroy();
+        this._backgroundRenderer = null;
+        this._backgroundLayer?.remove();
+        this._backgroundLayer = null;
+        this._backgroundConfigKey = JSON.stringify(null);
+    }
+
+    /**
      * Initialize background animation renderer
      * @private
      */
@@ -6757,6 +6785,7 @@ export class LCARdSButton extends LCARdSCard {
             lcardsLog.warn('[LCARdSButton] Cannot initialize background - container not found');
             return;
         }
+        this._backgroundConfigKey = JSON.stringify(this.config?.background_animation ?? null);
 
         // Create a wrapper div for the background layer
         const backgroundLayer = document.createElement('div');
@@ -6770,6 +6799,7 @@ export class LCARdSButton extends LCARdSCard {
 
         // Insert at the beginning of container
         container.insertBefore(backgroundLayer, container.firstChild);
+        this._backgroundLayer = backgroundLayer;
 
         // Resolve canvas inset from config.
         // Explicit inset objects are applied by _resolveConfig() inside init() — only

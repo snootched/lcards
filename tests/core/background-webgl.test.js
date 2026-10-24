@@ -12,9 +12,9 @@ const env = installJsdom();
 after(() => env.restore());
 const { BackgroundAnimationRenderer } = await import('../../src/core/packs/backgrounds/BackgroundAnimationRenderer.js');
 const { _setWebGLAvailableForTests } = await import('../../src/core/packs/backgrounds/webgl/webgl-support.js');
-const { WarpStarfieldEffect, GridFloorEffect } = await import('../../src/core/packs/backgrounds/webgl/ThreeSceneEffect.js');
+const { WarpStarfieldEffect, GridGLEffect } = await import('../../src/core/packs/backgrounds/webgl/ThreeSceneEffect.js');
 const warpScene = await import('../../src/core/packs/backgrounds/webgl/scenes/warp-starfield.js');
-const floorScene = await import('../../src/core/packs/backgrounds/webgl/scenes/grid-floor.js');
+const gridScene = await import('../../src/core/packs/backgrounds/webgl/scenes/grid.js');
 
 beforeEach(() => _setWebGLAvailableForTests(null));
 after(() => _setWebGLAvailableForTests(null));
@@ -39,19 +39,39 @@ test('no WebGL (jsdom): warp-starfield draws the starfield preset with the same 
   assert.equal(bg.handles[0].presetId, 'warp-starfield', 'the handle keeps the preset name');
 });
 
-test('no WebGL: grid-floor draws the grid preset', () => {
-  const { renderer } = load([{ preset: 'grid-floor', config: { color: '#00ff00' } }]);
+test('no WebGL: grid in floor view draws the flat Canvas2D grid with the same config', () => {
+  const { renderer } = load([{ preset: 'grid', config: { view: 'floor', color: '#00ff00', line_spacing: 33 } }]);
   assert.equal(renderer.effects[0].constructor.name, 'GridEffect');
+  assert.equal(renderer.effects[0].lineSpacing, 33);
 });
 
 test('with WebGL: the scene effects are built (nothing loads until the first draw)', () => {
   _setWebGLAvailableForTests(true);
-  const { renderer } = load([{ preset: 'warp-starfield', config: { seed: 1 } }, { preset: 'grid-floor' }]);
+  const { renderer } = load([{ preset: 'warp-starfield', config: { seed: 1 } }, { preset: 'grid', config: { view: 'floor' } }]);
   assert.ok(renderer.effects[0] instanceof WarpStarfieldEffect);
-  assert.ok(renderer.effects[1] instanceof GridFloorEffect);
+  assert.ok(renderer.effects[1] instanceof GridGLEffect);
   assert.equal(renderer.effects[0]._loading, false);
   assert.equal(renderer.effects[0]._scene, null);
   assert.equal(typeof renderer.effects[0].host?.fail, 'function');
+});
+
+test('renderer: canvas draws the Canvas2D version even with WebGL; webgl and auto draw the scene', () => {
+  _setWebGLAvailableForTests(true);
+  const { renderer } = load([
+    { preset: 'warp-starfield', renderer: 'canvas', config: { count: 77 } },
+    { preset: 'grid', renderer: 'canvas' },
+    { preset: 'warp-starfield', renderer: 'webgl' },
+    { preset: 'grid', renderer: 'auto' }
+  ]);
+  assert.deepEqual(renderer.effects.map((e) => e.constructor.name),
+    ['StarfieldEffect', 'GridEffect', 'WarpStarfieldEffect', 'GridGLEffect']);
+  assert.equal(renderer.effects[0].count, 77);
+});
+
+test('renderer: webgl without WebGL still draws the Canvas2D version (never blank)', () => {
+  _setWebGLAvailableForTests(false);
+  const { renderer } = load([{ preset: 'warp-starfield', renderer: 'webgl' }]);
+  assert.equal(renderer.effects[0].constructor.name, 'StarfieldEffect');
 });
 
 test('warp-starfield default colour is moonlight, so it follows the alert palette', () => {
@@ -87,10 +107,10 @@ test('handle keys reach the effect and its scene (speed, streak, colour)', () =>
 
 test('an entity-bound camera_tilt is a declared key (it glides, not snaps via updateConfig)', () => {
   _setWebGLAvailableForTests(true);
-  const { bg } = load([{ preset: 'grid-floor' }]);
-  assert.ok(bg.handles[0].has('camera_tilt'));
-  assert.ok(bg.handles[0].has('camera_height'));
-  assert.ok(bg.handles[0].has('scan_color'));
+  const { bg } = load([{ preset: 'grid', config: { view: 'floor' } }]);
+  for (const key of ['camera_tilt', 'camera_yaw', 'camera_distance', 'fov', 'scan_color', 'line_width', 'color']) {
+    assert.ok(bg.handles[0].has(key), key);
+  }
 });
 
 test('F1: an alert change recolours a scene effect in place, without loading the fresh copy', () => {
@@ -105,41 +125,58 @@ test('F1: an alert change recolours a scene effect in place, without loading the
   assert.equal(effect.colors.stars[0], '#0000ff');
 });
 
-test('the adapter writes three.js objects from a seek: grid-floor camera keys and floor scroll', () => {
-  const s = floorScene.createScene({ params: { line_spacing: 2, camera_height: 1.6, camera_tilt: 8 }, colors: {} });
-  assert.equal(s.camera.position.y, 1.6);
-  assert.equal(deg(s.camera.rotation.x), -8);
-  s.setParam('camera_tilt', 20);
-  s.setParam('camera_height', 3);
-  assert.equal(deg(s.camera.rotation.x), -20);
-  assert.equal(s.camera.position.y, 3);
-  const floor = s.scene.children.find((c) => c.isLineSegments);
-  s.seek(800);
-  assert.ok(Math.abs(floor.position.z - 1) < 1e-6, 'half of the 1600 ms cell loop = half a cell');
-  // The lines toward the horizon end in front of the camera, whatever the scroll
-  const pos = floor.geometry.attributes.position;
-  assert.ok(Math.abs(pos.getZ(1) + floor.position.z + 0.3) < 1e-6);
-  s.dispose();
-});
-
-test('warp-starfield, instances variant: each star is an anime.js loop on its instance', () => {
-  const s = warpScene.createScene({ params: { count: 50, seed: 2 }, colors: { stars: [{ r: 255, g: 255, b: 255 }] } });
-  const mesh = s.scene.children[0];
-  const zAt = (t) => {
-    s.seek(t, { speed: 1 });
-    mesh.onBeforeRender?.();
-    return Array.from({ length: 50 }, (_, i) => mesh.instanceMatrix.array[i * 16 + 14]);
+test('grid scene: flat view looks straight down at 1 px per unit; floor tilts the camera through the adapter', () => {
+  _setWebGLAvailableForTests(true);
+  const { renderer } = load([{ preset: 'grid', config: { line_spacing: 25, scroll_speed_x: 0, scroll_speed_y: 0 } }]);
+  const effect = renderer.effects[0];
+  const s = gridScene.createScene({ params: effect.params, colors: {} });
+  s.resize(400, 200);
+  s.seek(0, effect);
+  // Flat: ground point (x, z) shows at pixel (x, z): project two of them
+  const at = (x, z) => {
+    const v = new (s.view.position.constructor)(x, 0, z).project(s.view);
+    return [Math.round(((v.x + 1) / 2) * 400 * 100) / 100, Math.round(((1 - v.y) / 2) * 200 * 100) / 100];
   };
-  const a = zAt(1000);
-  const b = zAt(1500);
-  assert.notDeepEqual(a, b, 'stars moved');
-  assert.ok(a.every((z) => z <= -0.5 && z >= -60), 'inside the star volume');
-  assert.deepEqual(zAt(1000), a, 'seek is deterministic: same time, same layout');
+  assert.deepEqual(at(200, 100), [200, 100], 'screen centre');
+  assert.deepEqual(at(10, 30), [10, 30], 'a corner region, 1 unit = 1 px');
+  assert.equal(s.material.uniforms.uCell.value.x, 25);
+  // Floor: tilted through the adapter (rotateX), yaw too
+  effect.params.view = 'floor';
+  effect.params.camera_yaw = 30;
+  s.seek(0, effect);
+  assert.equal(deg(s.view.rotation.x), -10);
+  assert.equal(deg(s.view.rotation.y), 30);
+  effect.params.camera_tilt = 45;
+  s.seek(0, effect);
+  assert.equal(deg(s.view.rotation.x), -45);
   s.dispose();
 });
 
-test('warp-starfield, shader variant: one time uniform, streak from speed', () => {
-  const s = warpScene.createScene({ params: { count: 50, seed: 2, variant: 'shader', streak: 1 }, colors: {} });
+test('grid scene: scroll is reduced to one period of the pattern (float precision)', () => {
+  _setWebGLAvailableForTests(true);
+  const { renderer } = load([{ preset: 'grid', config: { line_spacing: 40, scroll_speed_x: 0, scroll_speed_y: 0 } }]);
+  const effect = renderer.effects[0];
+  const s = gridScene.createScene({ params: effect.params, colors: {} });
+  s.resize(400, 200);
+  effect.model.scrollX = 123456.5;
+  s.seek(0, effect);
+  const tile = effect.model._colWidth * effect.model._totalCols;
+  const sx = s.material.uniforms.uScroll.value.x;
+  assert.ok(sx >= 0 && sx < tile);
+  assert.ok(Math.abs(((123456.5 - sx) / tile) - Math.round((123456.5 - sx) / tile)) < 1e-9, 'a whole number of tiles removed');
+  s.dispose();
+});
+
+test('grid scan line: a pure function of the clock, off at 0, far to near', () => {
+  assert.equal(gridScene.scanAt(1234, 0).strength, 0);
+  const early = gridScene.scanAt(500, 7);
+  const late = gridScene.scanAt(4500, 7);
+  assert.ok(late.pos > early.pos);
+  assert.equal(gridScene.scanAt(6500, 7).strength, 0, 'rest at the end of the period');
+});
+
+test('warp-starfield: one time uniform, streak from speed', () => {
+  const s = warpScene.createScene({ params: { count: 50, seed: 2, streak: 1 }, colors: {} });
   const material = s.scene.children[0].material;
   s.seek(1234, { speed: 1 });
   assert.equal(material.uniforms.uTime.value, 1234);
