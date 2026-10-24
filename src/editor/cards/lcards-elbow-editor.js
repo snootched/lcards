@@ -37,6 +37,7 @@ import '../components/editors/lcards-font-selector.js';
 import '../components/lcards-animation-editor.js';
 import '../components/lcards-filter-editor.js';
 import '../components/lcards-shape-texture-editor.js';
+import '../components/lcards-background-animation-editor.js';
 // Import dashboard components
 import '../components/dashboard/lcards-rules-dashboard.js';
 // Import datasource components
