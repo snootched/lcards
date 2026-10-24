@@ -6,7 +6,7 @@ All built-in background animation presets with full configuration options and ex
 
 ## `grid`
 
-Orthogonal grid with optional major/minor line divisions and scrolling. Drawn on the GPU where WebGL is available ([WebGL presets](../background-animations.md#webgl-presets)), the same pixels as the Canvas2D version in the flat view, which draws it without WebGL or with `renderer: canvas`. On WebGL the grid can also be seen [as a floor](#grid-views-and-camera).
+Orthogonal grid with optional major/minor line divisions and scrolling. Drawn on the GPU where WebGL is available ([WebGL presets](../background-animations.md#webgl-presets)), the same pixels as the Canvas2D version in the flat view, which draws it without WebGL or with `renderer: canvas`. On WebGL the grid can also be seen [as a floor](#grid-views-and-camera) or drawn [on a cylinder, dome or sphere](#grid-surfaces).
 
 **Configuration:**
 
@@ -129,6 +129,45 @@ background_animation:
       color: "var(--lcards-orange)"
       color_major: "var(--lcards-moonlight)"
       scan_period: 5
+```
+
+### Grid surfaces
+
+On WebGL the grid can also be drawn on a curved surface: a cylinder, a dome (a half sphere) or a sphere, the wireframes of LCARS astrometrics displays. The same keys apply to `grid`, `grid-diagonal` and `grid-hexagonal`; without WebGL (or with `renderer: canvas`) the flat grid is drawn.
+
+<CardGallery set="grid-surfaces" />
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `surface` | `plane` | `plane`: the flat grid or floor (`view`). `cylinder`, `dome`, `sphere`: the grid on that surface |
+| `surface_size` | 0.8 | Diameter, as a fraction of the card's shorter side |
+| `surface_length` | 1 | Cylinder length, as a fraction of the card's size along its axis; 0 runs it off the card and into the distance |
+| `surface_axis` | `vertical` | `vertical`: an upright cylinder, a dome over the floor. `horizontal`: a cylinder lying across the card, a dome facing you with its pole in the middle (rings and spokes) |
+| `surface_side` | `outside` | `outside`: look at the surface. `inside`: look out from its centre (a tunnel down a horizontal cylinder, a planetarium inside a dome) |
+| `back_opacity` | 0.25 | Opacity of the far side seen from outside; 0 hides it |
+
+How the keys you already know behave on a surface:
+
+- **Spacing and widths:** `line_spacing` is true px at the front of the surface, and line widths are px everywhere. Lines fade where they crowd (toward the edges, the poles and into the distance).
+- **Scroll is spin:** the scroll that runs round the surface turns it: `scroll_speed_x` on an upright cylinder, a dome or a sphere; `scroll_speed_y` rolls a horizontal cylinder. By default a surface spins and does not slide along its axis. A whole number of cells goes round, so there is no seam.
+- **Camera:** from outside the camera circles the surface: `camera_tilt` is its height above the equator (default 15), `camera_yaw` turns round it, `camera_distance` zooms. From inside, `camera_tilt` looks up (default 0) and `camera_yaw` turns; `camera_distance` above 1 steps back along the view.
+- **Edges:** the open ends of a cylinder and the base of a dome get a rim line (`line_width_major`, `color_major`) while `show_border_lines` is on.
+- **Patterns:** a cylinder takes every pattern. On a dome or sphere, `diagonal` and `hexagonal` draw rows and columns.
+- **Scan line:** `scan_period` sweeps along the axis, from the top (or the pole) down.
+
+```yaml
+background_animation:
+  - preset: grid
+    config:
+      surface: cylinder
+      surface_axis: horizontal
+      surface_side: inside
+      surface_length: 0
+      line_spacing: 30
+      scroll_speed_x: 60
+      major_col_interval: 4
+      color: "var(--lcards-orange)"
+      color_major: "var(--lcards-moonlight)"
 ```
 
 ---

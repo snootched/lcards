@@ -13,8 +13,11 @@ import { BACKGROUND_ANIMATION_PARAMS_SCHEMAS } from '../../cards/schemas/backgro
  *   min?: number, max?: number, step?: number, options?: string[], default?: any, helper?: string }} EditorField
  */
 
-/** Keys of the grid presets' view, camera and scan group */
-export const GRID_VIEW_KEYS = ['view', 'camera_tilt', 'camera_yaw', 'camera_distance', 'fov', 'scan_period', 'scan_color'];
+/** Keys of the grid presets' view, surface, camera and scan group */
+export const GRID_VIEW_KEYS = [
+  'view', 'surface', 'surface_size', 'surface_length', 'surface_axis', 'surface_side', 'back_opacity',
+  'camera_tilt', 'camera_yaw', 'camera_distance', 'fov', 'scan_period', 'scan_color'
+];
 
 /**
  * Sections for presets the editor builds from the schema: header, icon, keys.
@@ -94,6 +97,8 @@ export function schemaFields(preset, keys) {
  */
 export function withViewDefault(field, config) {
   const floor = config.view === 'floor';
+  const curved = config.surface && config.surface !== 'plane';
+  if (field.key === 'camera_tilt' && curved) return { ...field, default: config.surface_side === 'inside' ? 0 : 15 };
   if (field.key === 'camera_tilt') return { ...field, default: floor ? 10 : 90 };
   if (field.key === 'scan_period') return { ...field, default: floor ? 7 : 0 };
   return field;

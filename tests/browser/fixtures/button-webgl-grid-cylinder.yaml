@@ -1,0 +1,13 @@
+# grid on a vertical cylinder, side on, not spinning (background-webgl.spec.js)
+type: custom:lcards-button
+entity: light.demo
+preset: lozenge
+height: 300
+background_animation:
+  - preset: grid
+    config:
+      surface: cylinder
+      camera_tilt: 0
+      line_spacing: 40
+      color: 'rgba(255, 153, 102, 0.9)'
+      scroll_speed_x: 0

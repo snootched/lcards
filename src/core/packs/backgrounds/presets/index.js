@@ -34,7 +34,13 @@ const GRID_VIEW_GUIDE = [
   { key: 'camera_distance', default: 1, description: 'Zoom: at 1 the line spacing is true px at the middle of the card; 2 is twice as far away.' },
   { key: 'fov', default: 60, description: 'Field of view in degrees: wider exaggerates the floor perspective.' },
   { key: 'scan_period', default: 0, description: 'Seconds per scan line sweep from the far side to the near side (0 = off). Default 0 flat, 7 floor.' },
-  { key: 'scan_color', default: 'var(--lcards-moonlight)', description: 'Scan line color.' }
+  { key: 'scan_color', default: 'var(--lcards-moonlight)', description: 'Scan line color.' },
+  { key: 'surface', default: 'plane', description: "'plane', 'cylinder', 'dome' or 'sphere': the grid on a curved surface (astrometrics wireframes). Needs WebGL; without it the flat grid is drawn." },
+  { key: 'surface_size', default: 0.8, description: "Curved surface diameter, as a fraction of the card's shorter side." },
+  { key: 'surface_length', default: 1, description: "Cylinder length, as a fraction of the card's size along its axis (0 = runs off the card)." },
+  { key: 'surface_axis', default: 'vertical', description: "'vertical' or 'horizontal': a cylinder upright or lying across the card; a dome opening down or facing you." },
+  { key: 'surface_side', default: 'outside', description: "'outside' or 'inside': look at the surface, or from its centre (a tunnel, a planetarium)." },
+  { key: 'back_opacity', default: 0.25, description: 'Opacity of the far side of a curved surface seen from outside (0 hides it).' }
 ];
 
 /**
@@ -54,7 +60,13 @@ function gridWebGL(config, gridConfig) {
       camera_yaw: config.camera_yaw ?? 0,
       camera_distance: config.camera_distance,
       fov: config.fov ?? 60,
-      scan_period: config.scan_period ?? (floor ? 7 : 0)
+      scan_period: config.scan_period ?? (floor ? 7 : 0),
+      surface: config.surface ?? 'plane',
+      surface_size: config.surface_size,
+      surface_length: config.surface_length,
+      surface_axis: config.surface_axis ?? 'vertical',
+      surface_side: config.surface_side ?? 'outside',
+      back_opacity: config.back_opacity
     },
     colors: { scan: [config.scan_color ?? 'var(--lcards-moonlight, #dfe1e8)'] },
     opacity: /** @type {any} */ (gridConfig).opacity
@@ -62,13 +74,21 @@ function gridWebGL(config, gridConfig) {
 }
 
 /**
- * Floor view: the grid streams toward the viewer unless the config scrolls it.
+ * Default scroll unless the config sets it: the floor view streams toward the
+ * viewer; a curved surface spins round its axis (the coordinate that runs
+ * round it: y on a horizontal cylinder, x otherwise) and does not slide.
  * @param {any} config
  * @param {'scroll_speed_x' | 'scroll_speed_y'} key
  * @param {number} fallback - the flat default
  */
-const floorScroll = (config, key, fallback) =>
-  config[key] ?? (config.view === 'floor' ? (key === 'scroll_speed_y' ? 40 : 0) : fallback);
+const floorScroll = (config, key, fallback) => {
+  if (config[key] !== undefined) return config[key];
+  if (config.surface && config.surface !== 'plane') {
+    const around = config.surface === 'cylinder' && config.surface_axis === 'horizontal' ? 'scroll_speed_y' : 'scroll_speed_x';
+    return key === around ? fallback : 0;
+  }
+  return config.view === 'floor' ? (key === 'scroll_speed_y' ? 40 : 0) : fallback;
+};
 
 /**
  * Built-in background animation presets

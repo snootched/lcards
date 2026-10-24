@@ -485,7 +485,8 @@ export class NebulaGLEffect extends ThreeSceneEffect {
 /**
  * `grid` (and `grid-diagonal`, `grid-hexagonal`) on WebGL (scenes/grid.js):
  * the grid per pixel on a ground plane through a camera; `view: flat` lands
- * on the Canvas2D pixels, `view: floor` is a perspective floor. The pattern,
+ * on the Canvas2D pixels, `view: floor` is a perspective floor, and
+ * `surface` puts the grid on a cylinder, dome or sphere instead. The pattern,
  * scroll and colours are a GridEffect (the Canvas2D effect, never drawn):
  * same keys, same defaults, same recolour.
  */
@@ -502,6 +503,9 @@ export class GridGLEffect extends ThreeSceneEffect {
     camera_yaw: sceneProp('camera_yaw'),
     camera_distance: sceneProp('camera_distance', { min: 0.05 }),
     fov: sceneProp('fov', { min: 5, max: 150 }),
+    surface_size: sceneProp('surface_size', { min: 0.05, max: 4 }),
+    surface_length: sceneProp('surface_length', { min: 0 }),
+    back_opacity: sceneProp('back_opacity', { min: 0, max: 1 }),
     scan_color: sceneColorProp('scan')
   };
 
@@ -537,7 +541,9 @@ export class GridGLEffect extends ThreeSceneEffect {
   updateConfig(cfg) {
     if (cfg.opacity !== undefined) this.opacity = cfg.opacity;
     if (cfg.speed !== undefined) this.speed = cfg.speed;
-    for (const key of ['view', 'scan_period']) if (cfg[key] !== undefined) this.params[key] = cfg[key];
+    for (const key of ['view', 'scan_period', 'surface', 'surface_axis', 'surface_side']) {
+      if (cfg[key] !== undefined) this.params[key] = cfg[key];
+    }
   }
 
   /**

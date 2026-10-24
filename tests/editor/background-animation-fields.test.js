@@ -31,7 +31,7 @@ test('schema types map onto editor fields', () => {
   assert.deepEqual(schemaField('view', props.view), { key: 'view', label: 'View', default: 'flat', helper: schemaField('view', props.view).helper, type: 'select', options: ['flat', 'floor'] });
   assert.equal(schemaField('scan_color', props.scan_color).type, 'color');
   const tilt = schemaField('camera_tilt', props.camera_tilt);
-  assert.deepEqual([tilt.type, tilt.min, tilt.max, tilt.step, tilt.label], ['number', 1, 90, 1, 'Camera tilt']);
+  assert.deepEqual([tilt.type, tilt.min, tilt.max, tilt.step, tilt.label], ['number', 0, 90, 1, 'Camera tilt']);
   assert.equal(schemaField('volumetric', BACKGROUND_ANIMATION_PARAMS_SCHEMAS.nebula.properties.volumetric).type, 'boolean');
   assert.ok(!/\. /.test(tilt.helper ?? ''), 'helper is the first sentence');
 });
@@ -42,4 +42,8 @@ test('camera_tilt and scan_period defaults follow the view', () => {
   assert.equal(withViewDefault(tilt, { view: 'floor' }).default, 10);
   assert.equal(withViewDefault(scan, {}).default, 0);
   assert.equal(withViewDefault(scan, { view: 'floor' }).default, 7);
+  // A curved surface: above the equator outside, level inside
+  assert.equal(withViewDefault(tilt, { surface: 'cylinder' }).default, 15);
+  assert.equal(withViewDefault(tilt, { surface: 'dome', surface_side: 'inside' }).default, 0);
+  assert.equal(withViewDefault(tilt, { surface: 'plane', view: 'floor' }).default, 10);
 });

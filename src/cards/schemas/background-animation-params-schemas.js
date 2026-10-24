@@ -63,6 +63,23 @@ const _speedSchema = {
 // GRID FAMILY (mirrors GridEffect.js — backs grid / grid-diagonal / grid-hexagonal)
 // ============================================================================
 
+/** View, camera, scan and surface keys every grid preset takes (WebGL) */
+const gridViewProperties = {
+    view: { type: 'string', enum: ['flat', 'floor'], default: 'flat', description: 'flat: the grid face-on. floor: a perspective floor streaming toward the viewer, fading to a horizon. Drawn with WebGL; without it (or with renderer: canvas) the flat grid is drawn.', enumDescriptions: { flat: 'Face-on grid', floor: 'Perspective floor to a horizon' } },
+    camera_tilt: { type: 'number', minimum: 0, maximum: 90, description: 'How far the camera looks down, in degrees: 90 is straight down (the flat view), low values look along a floor toward the horizon. Default 90 in flat view, 10 in floor view. On a curved surface: the height above its equator seen from outside (default 15), the pitch above horizontal from inside (default 0); the plane takes at least 1. WebGL only. Animatable: animate from 90 to 10 to tip a flat grid into a floor.', 'x-ui-hints': { selector: { number: { min: 0, max: 90, step: 1, mode: 'slider' } } } },
+    camera_yaw: { type: 'number', default: 0, description: 'Turns the camera around the grid, in degrees. WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: -180, max: 180, step: 1, mode: 'slider' } } } },
+    camera_distance: { type: 'number', minimum: 0.05, default: 1, description: 'Zoom: at 1, line_spacing is true px at the middle of the card; 2 is twice as far (the grid looks half the size). WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: 0.2, max: 5, step: 0.05, mode: 'slider' } } } },
+    fov: { type: 'number', minimum: 5, maximum: 150, default: 60, description: 'Camera field of view in degrees: wider exaggerates the floor perspective (the flat view looks the same at any value). WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: 20, max: 120, step: 1, mode: 'slider' } } } },
+    scan_period: { type: 'number', minimum: 0, description: 'Seconds per scan line sweep, from the far side of the grid to the near side, including a short rest; 0 turns it off. Default 0 in flat view, 7 in floor view. WebGL only.', 'x-ui-hints': { selector: { number: { min: 0, max: 30, step: 0.5, mode: 'slider' } } } },
+    scan_color: { ...simpleColorSchema, default: 'var(--lcards-moonlight)', description: 'Scan line color. The default follows the alert palette. WebGL only. Animatable.' },
+    surface: { type: 'string', enum: ['plane', 'cylinder', 'dome', 'sphere'], default: 'plane', description: 'What the grid is drawn on. plane: the flat grid or floor (view). cylinder, dome (a half sphere) and sphere: a wireframe surface for astrometrics displays, spun by the scroll speed that runs round it. On a dome or sphere the diagonal and hexagonal patterns draw rows and columns. Tile seams (show_border_lines) belong to the plane. Drawn with WebGL; without it (or with renderer: canvas) the flat grid is drawn.', enumDescriptions: { plane: 'Flat grid or floor', cylinder: 'Cylinder wireframe', dome: 'Half sphere', sphere: 'Full sphere' } },
+    surface_size: { type: 'number', minimum: 0.05, maximum: 4, default: 0.8, description: "Diameter of a curved surface, as a fraction of the card's shorter side. line_spacing is true px at the front of the surface. WebGL only. Animatable.", 'x-ui-hints': { selector: { number: { min: 0.1, max: 2, step: 0.05, mode: 'slider' } } } },
+    surface_length: { type: 'number', minimum: 0, default: 1, description: "Length of a cylinder along its axis, as a fraction of the card's size that way (height when vertical, width when horizontal); 0 runs it off the card and into the distance. WebGL only. Animatable.", 'x-ui-hints': { selector: { number: { min: 0, max: 4, step: 0.05, mode: 'slider' } } } },
+    surface_axis: { type: 'string', enum: ['vertical', 'horizontal'], default: 'vertical', description: 'Which way a cylinder or dome points. vertical: an upright cylinder, a dome over the floor. horizontal: a cylinder lying across the card (scroll_speed_y rolls it), a dome facing you with its pole in the middle (rings and spokes). The sphere always has its poles up; turn it with the camera. WebGL only.', enumDescriptions: { vertical: 'Upright cylinder, dome over the floor', horizontal: 'Cylinder across the card, dome facing you' } },
+    surface_side: { type: 'string', enum: ['outside', 'inside'], default: 'outside', description: 'Where the camera is. outside: it looks at the surface from camera_distance. inside: it sits at the centre (slid back by camera_distance above 1) and looks out: down a horizontal cylinder as a tunnel at camera_yaw 0, up into a dome as a planetarium with camera_tilt. WebGL only.', enumDescriptions: { outside: 'Look at the surface', inside: 'Look out from its centre' } },
+    back_opacity: { type: 'number', minimum: 0, maximum: 1, default: 0.25, description: 'Opacity of the far side of a curved surface seen from outside (0 hides it). WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: 0, max: 1, step: 0.05, mode: 'slider' } } } }
+};
+
 export const gridParamsSchema = {
   type: 'object',
   description: 'Params for the "grid" preset: orthogonal scrolling grid with optional major/minor divisions.',
@@ -92,13 +109,7 @@ export const gridParamsSchema = {
     hex_radius: { type: 'number', minimum: 1, default: 40, description: 'Hexagon size in px: only used when pattern is "hexagonal". Unclamped in code: 0 collapses the hex tiling, hence the minimum.', 'x-ui-hints': { selector: { number: { min: 1, max: 150, step: 1, mode: 'slider' } } } },
     show_border_lines: { type: 'boolean', default: true, description: 'Draw lines at canvas edges.' },
     fill_color: { ...simpleColorSchema, default: 'transparent', description: 'Solid fill painted behind each cell.' },
-    view: { type: 'string', enum: ['flat', 'floor'], default: 'flat', description: 'flat: the grid face-on. floor: a perspective floor streaming toward the viewer, fading to a horizon. Drawn with WebGL; without it (or with renderer: canvas) the flat grid is drawn.', enumDescriptions: { flat: 'Face-on grid', floor: 'Perspective floor to a horizon' } },
-    camera_tilt: { type: 'number', minimum: 1, maximum: 90, description: 'How far the camera looks down, in degrees: 90 is straight down (the flat view), low values look along a floor toward the horizon. Default 90 in flat view, 10 in floor view. WebGL only. Animatable: animate from 90 to 10 to tip a flat grid into a floor.', 'x-ui-hints': { selector: { number: { min: 1, max: 90, step: 1, mode: 'slider' } } } },
-    camera_yaw: { type: 'number', default: 0, description: 'Turns the camera around the grid, in degrees. WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: -180, max: 180, step: 1, mode: 'slider' } } } },
-    camera_distance: { type: 'number', minimum: 0.05, default: 1, description: 'Zoom: at 1, line_spacing is true px at the middle of the card; 2 is twice as far (the grid looks half the size). WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: 0.2, max: 5, step: 0.05, mode: 'slider' } } } },
-    fov: { type: 'number', minimum: 5, maximum: 150, default: 60, description: 'Camera field of view in degrees: wider exaggerates the floor perspective (the flat view looks the same at any value). WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: 20, max: 120, step: 1, mode: 'slider' } } } },
-    scan_period: { type: 'number', minimum: 0, description: 'Seconds per scan line sweep, from the far side of the grid to the near side, including a short rest; 0 turns it off. Default 0 in flat view, 7 in floor view. WebGL only.', 'x-ui-hints': { selector: { number: { min: 0, max: 30, step: 0.5, mode: 'slider' } } } },
-    scan_color: { ...simpleColorSchema, default: 'var(--lcards-moonlight)', description: 'Scan line color. The default follows the alert palette. WebGL only. Animatable.' },
+    ...gridViewProperties,
     opacity: _opacitySchema
   },
   additionalProperties: 'warn'
@@ -115,13 +126,7 @@ export const gridDiagonalParamsSchema = {
     scroll_speed_x: { type: 'number', default: 15, description: 'Horizontal scroll speed in px/s.', 'x-ui-hints': { selector: { number: { min: -100, max: 100, step: 1, mode: 'slider' } } } },
     scroll_speed_y: { type: 'number', default: 15, description: 'Vertical scroll speed in px/s.', 'x-ui-hints': { selector: { number: { min: -100, max: 100, step: 1, mode: 'slider' } } } },
     fill_color: { ...simpleColorSchema, default: 'transparent', description: 'Solid fill painted behind each cell.' },
-    view: { type: 'string', enum: ['flat', 'floor'], default: 'flat', description: 'flat: the grid face-on. floor: a perspective floor streaming toward the viewer, fading to a horizon. Drawn with WebGL; without it (or with renderer: canvas) the flat grid is drawn.', enumDescriptions: { flat: 'Face-on grid', floor: 'Perspective floor to a horizon' } },
-    camera_tilt: { type: 'number', minimum: 1, maximum: 90, description: 'How far the camera looks down, in degrees: 90 is straight down (the flat view), low values look along a floor toward the horizon. Default 90 in flat view, 10 in floor view. WebGL only. Animatable: animate from 90 to 10 to tip a flat grid into a floor.', 'x-ui-hints': { selector: { number: { min: 1, max: 90, step: 1, mode: 'slider' } } } },
-    camera_yaw: { type: 'number', default: 0, description: 'Turns the camera around the grid, in degrees. WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: -180, max: 180, step: 1, mode: 'slider' } } } },
-    camera_distance: { type: 'number', minimum: 0.05, default: 1, description: 'Zoom: at 1, line_spacing is true px at the middle of the card; 2 is twice as far (the grid looks half the size). WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: 0.2, max: 5, step: 0.05, mode: 'slider' } } } },
-    fov: { type: 'number', minimum: 5, maximum: 150, default: 60, description: 'Camera field of view in degrees: wider exaggerates the floor perspective (the flat view looks the same at any value). WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: 20, max: 120, step: 1, mode: 'slider' } } } },
-    scan_period: { type: 'number', minimum: 0, description: 'Seconds per scan line sweep, from the far side of the grid to the near side, including a short rest; 0 turns it off. Default 0 in flat view, 7 in floor view. WebGL only.', 'x-ui-hints': { selector: { number: { min: 0, max: 30, step: 0.5, mode: 'slider' } } } },
-    scan_color: { ...simpleColorSchema, default: 'var(--lcards-moonlight)', description: 'Scan line color. The default follows the alert palette. WebGL only. Animatable.' },
+    ...gridViewProperties,
     opacity: _opacitySchema
   },
   additionalProperties: 'warn'
@@ -142,13 +147,7 @@ export const gridHexagonalParamsSchema = {
     scroll_speed_x: { type: 'number', default: 20, description: 'Horizontal scroll speed in px/s.', 'x-ui-hints': { selector: { number: { min: -100, max: 100, step: 1, mode: 'slider' } } } },
     scroll_speed_y: { type: 'number', default: 20, description: 'Vertical scroll speed in px/s.', 'x-ui-hints': { selector: { number: { min: -100, max: 100, step: 1, mode: 'slider' } } } },
     fill_color: { ...simpleColorSchema, default: 'transparent', description: 'Solid fill painted behind each cell.' },
-    view: { type: 'string', enum: ['flat', 'floor'], default: 'flat', description: 'flat: the grid face-on. floor: a perspective floor streaming toward the viewer, fading to a horizon. Drawn with WebGL; without it (or with renderer: canvas) the flat grid is drawn.', enumDescriptions: { flat: 'Face-on grid', floor: 'Perspective floor to a horizon' } },
-    camera_tilt: { type: 'number', minimum: 1, maximum: 90, description: 'How far the camera looks down, in degrees: 90 is straight down (the flat view), low values look along a floor toward the horizon. Default 90 in flat view, 10 in floor view. WebGL only. Animatable: animate from 90 to 10 to tip a flat grid into a floor.', 'x-ui-hints': { selector: { number: { min: 1, max: 90, step: 1, mode: 'slider' } } } },
-    camera_yaw: { type: 'number', default: 0, description: 'Turns the camera around the grid, in degrees. WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: -180, max: 180, step: 1, mode: 'slider' } } } },
-    camera_distance: { type: 'number', minimum: 0.05, default: 1, description: 'Zoom: at 1, line_spacing is true px at the middle of the card; 2 is twice as far (the grid looks half the size). WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: 0.2, max: 5, step: 0.05, mode: 'slider' } } } },
-    fov: { type: 'number', minimum: 5, maximum: 150, default: 60, description: 'Camera field of view in degrees: wider exaggerates the floor perspective (the flat view looks the same at any value). WebGL only. Animatable.', 'x-ui-hints': { selector: { number: { min: 20, max: 120, step: 1, mode: 'slider' } } } },
-    scan_period: { type: 'number', minimum: 0, description: 'Seconds per scan line sweep, from the far side of the grid to the near side, including a short rest; 0 turns it off. Default 0 in flat view, 7 in floor view. WebGL only.', 'x-ui-hints': { selector: { number: { min: 0, max: 30, step: 0.5, mode: 'slider' } } } },
-    scan_color: { ...simpleColorSchema, default: 'var(--lcards-moonlight)', description: 'Scan line color. The default follows the alert palette. WebGL only. Animatable.' },
+    ...gridViewProperties,
     opacity: _opacitySchema
   },
   additionalProperties: 'warn'

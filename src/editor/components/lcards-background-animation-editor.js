@@ -732,7 +732,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
   }
 
   /**
-   * The grid presets' view, camera and scan keys (WebGL only).
+   * The grid presets' view, surface, camera and scan keys (WebGL only).
    * @param {string} preset
    * @param {Record<string, any>} config
    * @param {number} index
@@ -740,7 +740,7 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
   _renderGridViewSection(preset, config, index) {
     const fields = schemaFields(preset, GRID_VIEW_KEYS).map((f) => withViewDefault(f, config));
     return html`
-      <lcards-form-section header="View and camera (WebGL)" icon="mdi:axis-arrow" ?expanded=${false}>
+      <lcards-form-section header="View, surface and camera (WebGL)" icon="mdi:axis-arrow" ?expanded=${false}>
         <div class="param-grid">${fields.filter((f) => f.type !== 'color').map((f) => this._renderField(f, config, index))}</div>
         ${fields.filter((f) => f.type === 'color').map((f) => this._renderColorSlot(f, config, index))}
       </lcards-form-section>

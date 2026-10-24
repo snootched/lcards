@@ -423,3 +423,73 @@ test.describe('reduced motion', () => {
         await expectNoErrors(page);
     });
 });
+
+/** Alpha of every pixel of the background canvas, with its size */
+const alphaMap = (page) => page.evaluate(() => {
+    const c = /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer.canvas;
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    const a = [];
+    for (let i = 3; i < d.length; i += 4) a.push(d[i]);
+    return { w: c.width, h: c.height, a };
+});
+
+/** Centres of the runs of lit pixels along a line of alphas */
+const peaks = (line, min = 60) => {
+    const out = [];
+    for (let i = 0; i < line.length; i++) {
+        if (line[i] < min) continue;
+        let j = i;
+        while (j + 1 < line.length && line[j + 1] >= min) j++;
+        out.push((i + j) / 2);
+        i = j;
+    }
+    return out;
+};
+
+test('grid surface: cylinder, line_spacing is true px at the front, columns and rows', async ({ page }) => {
+    await mountCase(page, 'button-webgl-grid-cylinder', { width: '860' });
+    await expect.poll(() => entries(page), { timeout: 10_000 }).toEqual([{ type: 'GridGLEffect', ready: true }]);
+    await page.waitForTimeout(300);
+    const { w, h, a } = await alphaMap(page);
+    // Columns along a row between two rings (rings every 40 px from the equator)
+    const y = Math.round(h / 2 + 20);
+    const cols = peaks(a.slice(y * w, (y + 1) * w), 120); // front lines only (the far side is at 0.25)
+    const centre = cols.reduce((best, x) => (Math.abs(x - w / 2) < Math.abs(best - w / 2) ? x : best), cols[0]);
+    expect(Math.abs(centre - w / 2), 'a column at the front').toBeLessThanOrEqual(1);
+    const next = cols.find((x) => x > centre);
+    // 40 px stretched so a whole number of cells goes round (19 round 754 px: 40.3)
+    expect(Math.abs(next - centre - 40), 'column pitch at the front').toBeLessThanOrEqual(1.5);
+    // Rings down the front column's side
+    const x = Math.round(w / 2 + 20);
+    const ring = peaks(Array.from({ length: h }, (_, yy) => a[yy * w + x]), 120);
+    const mid = ring.reduce((best, v) => (Math.abs(v - h / 2) < Math.abs(best - h / 2) ? v : best), ring[0]);
+    expect(Math.abs(mid - h / 2), 'the equator ring at the front').toBeLessThanOrEqual(1.5);
+    expect(Math.abs(ring[ring.indexOf(mid) + 1] - mid - 40), 'ring pitch at the front').toBeLessThanOrEqual(1.5);
+    // Nothing outside the cylinder's silhouette (radius 0.4 x 300)
+    expect(a.slice(y * w, y * w + Math.round(w / 2 - 140)).every((v) => v === 0), 'clear left of the cylinder').toBe(true);
+    await expectNoErrors(page);
+});
+
+test('grid surface: back_opacity dims the far side; renderer: canvas draws the flat grid', async ({ page }) => {
+    await mountCase(page, 'button-webgl-grid-cylinder', { width: '860' });
+    await expect.poll(() => entries(page), { timeout: 10_000 }).toEqual([{ type: 'GridGLEffect', ready: true }]);
+    const total = async (back) => {
+        await page.evaluate((b) => {
+            const e = /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer.getHandles(0)[0].effects[0];
+            e.params.back_opacity = b;
+        }, back);
+        await page.waitForTimeout(250);
+        const { a } = await alphaMap(page);
+        return a.reduce((s, v) => s + v, 0);
+    };
+    const none = await total(0);
+    const some = await total(0.25);
+    const full = await total(1);
+    expect(none).toBeGreaterThan(0);
+    expect(some, 'back_opacity 0.25 adds the far side').toBeGreaterThan(none * 1.05);
+    expect(full, 'back_opacity 1 adds more').toBeGreaterThan(some * 1.1);
+    const config = /** @type {any} */ (yaml.load(readFileSync(new URL('fixtures/button-webgl-grid-cylinder.yaml', import.meta.url), 'utf8')));
+    await page.evaluate((c) => window.__reconfigure(c), { ...config, background_animation: config.background_animation.map((e) => ({ ...e, renderer: 'canvas' })) });
+    await expect.poll(() => entries(page)).toEqual([{ type: 'GridEffect', ready: undefined }]);
+    await expectNoErrors(page);
+});

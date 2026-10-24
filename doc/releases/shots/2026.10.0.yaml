@@ -324,6 +324,26 @@
   selector: '#lcards-release-card'
   padding: 24
 
+# Grid surfaces: a grid wrapped round a cylinder, spinning, scan line sweeping down.
+- name: grid-surfaces
+  card:
+    type: custom:lcards-elbow
+    elbow:
+      type: frame
+      segment: { color: var(--lcards-gray) }
+      frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+    background_animation:
+      inset: auto
+      effects:
+        - preset: grid
+          config: { surface: cylinder, surface_size: 0.9, surface_length: 0.85, color: var(--lcards-orange), major_row_interval: 3, color_major: var(--lcards-moonlight), line_width_major: 2, scan_period: 4 }
+  steps:
+    - wait: 3200
+  size: [700, 320]
+  viewport: [900, 500]
+  selector: '#lcards-release-card'
+  padding: 24
+
 # Slider ring gauge.
 - name: slider-ring
   card:

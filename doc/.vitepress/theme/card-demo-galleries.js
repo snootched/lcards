@@ -220,6 +220,18 @@ export const CARD_GALLERIES = {
       webglTile('fluid', '- preset: fluid\n  config:\n    color: var(--lcards-blue-light)'),
     ],
   },
+  'grid-surfaces': {
+    hint: 'Drawn with WebGL in your browser; without it each draws the flat grid.',
+    minWidth: 280,
+    tiles: [
+      webglTile('surface: cylinder', '- preset: grid\n  config:\n    surface: cylinder\n    color: var(--lcards-orange)\n    major_row_interval: 3\n    color_major: var(--lcards-moonlight)\n    line_width_major: 2'),
+      webglTile('cylinder, surface_axis: horizontal', '- preset: grid\n  config:\n    surface: cylinder\n    surface_axis: horizontal\n    surface_length: 0.8\n    color: var(--lcards-orange)'),
+      webglTile('surface: sphere', '- preset: grid\n  config:\n    surface: sphere\n    surface_size: 0.9\n    camera_tilt: 25\n    color: var(--lcards-blue-light)\n    major_row_interval: 3\n    major_col_interval: 3\n    color_major: var(--lcards-moonlight)'),
+      webglTile('dome, surface_axis: horizontal', '- preset: grid\n  config:\n    surface: dome\n    surface_axis: horizontal\n    surface_size: 1.1\n    line_spacing: 25\n    scroll_speed_x: 10\n    scan_period: 5\n    color: var(--lcards-blue-light)'),
+      webglTile('grid-hexagonal, surface: cylinder', '- preset: grid-hexagonal\n  config:\n    surface: cylinder\n    surface_size: 1\n    surface_length: 0.8'),
+      webglTile('cylinder, surface_side: inside', '- preset: grid\n  config:\n    surface: cylinder\n    surface_axis: horizontal\n    surface_side: inside\n    surface_length: 0\n    scroll_speed_x: 60\n    major_col_interval: 4\n    color: var(--lcards-orange)\n    color_major: var(--lcards-moonlight)'),
+    ],
+  },
   'text-decode': {
     hint: 'Tap a button to decode it again.',
     minWidth: 280,

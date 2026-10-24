@@ -135,7 +135,7 @@ Seven built-in presets are available. See the **[Preset Reference](background-an
 
 | Preset | Description |
 |--------|-------------|
-| [`grid`](background-animations/preset-reference.md#grid) | Orthogonal grid with optional major/minor divisions; on WebGL also a perspective floor (`view: floor`) |
+| [`grid`](background-animations/preset-reference.md#grid) | Orthogonal grid with optional major/minor divisions; on WebGL also a perspective floor (`view: floor`) or a cylinder, dome or sphere (`surface`) |
 | [`grid-diagonal`](background-animations/preset-reference.md#grid-diagonal) | Diagonal hatch pattern at 45° |
 | [`grid-hexagonal`](background-animations/preset-reference.md#grid-hexagonal) | Honeycomb hexagonal pattern |
 | [`starfield`](background-animations/preset-reference.md#starfield) | Scrolling starfield with parallax depth layers |
@@ -149,7 +149,7 @@ Seven built-in presets are available. See the **[Preset Reference](background-an
 
 `warp-starfield` is drawn with three.js. Like every WebGL preset it loads only when a card uses it, shares one WebGL context across the whole dashboard, sits in the stack like any other entry, and falls back to Canvas2D (here `starfield`) where WebGL is not available.
 
-`grid`, `grid-diagonal` and `grid-hexagonal` draw on the GPU too: the same pixels as their Canvas2D versions in the flat view, any line width, and a perspective floor view with an animatable camera ([grid views](background-animations/preset-reference.md#grid-views-and-camera)).
+`grid`, `grid-diagonal` and `grid-hexagonal` draw on the GPU too: the same pixels as their Canvas2D versions in the flat view, any line width, a perspective floor view with an animatable camera ([grid views](background-animations/preset-reference.md#grid-views-and-camera)), and curved surfaces: cylinders, domes and spheres, seen from outside or inside ([grid surfaces](background-animations/preset-reference.md#grid-surfaces)).
 
 `holo-sphere` is drawn with three.js too, and on Canvas2D with the same look where WebGL is not available. `nebula` with `volumetric: true` shades its clouds with noise on the GPU (opt-in, because it changes the look); without WebGL it draws the plain clouds.
 
