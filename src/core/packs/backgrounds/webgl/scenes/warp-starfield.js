@@ -4,7 +4,8 @@
  *
  * Camera keys (`camera_tilt`, `camera_yaw`, `fov`) turn the view away from
  * the direction of travel: the stars stream from a point off centre, as when
- * a ship turns at warp. The star volume stays in front of the camera (the
+ * a ship turns at warp. `camera_roll` turns the view round its own line of
+ * sight (banking). The star volume stays in front of the camera (the
  * stars travel along the turned direction instead), so the field stays full.
  *
  * One time uniform; the vertex shader places every star, so the cost stays
@@ -134,12 +135,17 @@ export function createScene({ params, colors }) {
     const rad = (/** @type {number} */ deg) => (Math.max(-MAX_TURN, Math.min(MAX_TURN, deg)) * Math.PI) / 180;
     dir.value.set(Math.tan(rad(params.camera_yaw ?? 0)), -Math.tan(rad(params.camera_tilt ?? 0)));
   }
+  function updateRoll() {
+    camera.rotation.z = ((params.camera_roll ?? 0) * Math.PI) / 180;
+  }
   /** @param {string} key */
   function setParam(key) {
     if (key === 'fov') updateFov();
     else if (key === 'camera_tilt' || key === 'camera_yaw') updateDir();
+    else if (key === 'camera_roll') updateRoll();
   }
   updateDir();
+  updateRoll();
 
   const tmp = new Color();
   /** @param {Record<string, Array<{ r: number, g: number, b: number }>>} cols */

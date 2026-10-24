@@ -31,16 +31,23 @@ const GRID_VIEW_GUIDE = [
   { key: 'view', default: 'flat', description: "'flat' or 'floor' (a perspective floor streaming toward you). Needs WebGL; without it the flat grid is drawn." },
   { key: 'camera_tilt', default: 90, description: 'How far the camera looks down, in degrees: 90 is straight down (flat), low values a floor toward the horizon. Default 90 flat, 10 floor.' },
   { key: 'camera_yaw', default: 0, description: 'Turn the camera around the grid, in degrees.' },
+  { key: 'camera_roll', default: 0, description: 'Turn the camera round its line of sight, in degrees (positive: clockwise).' },
   { key: 'camera_distance', default: 1, description: 'Zoom: at 1 the line spacing is true px at the middle of the card; 2 is twice as far away.' },
   { key: 'fov', default: 60, description: 'Field of view in degrees: wider exaggerates the floor perspective.' },
   { key: 'scan_period', default: 0, description: 'Seconds per scan line sweep from the far side to the near side (0 = off). Default 0 flat, 7 floor.' },
   { key: 'scan_color', default: 'var(--lcards-moonlight)', description: 'Scan line color.' },
-  { key: 'surface', default: 'plane', description: "'plane', 'cylinder', 'dome' or 'sphere': the grid on a curved surface (astrometrics wireframes). Needs WebGL; without it the flat grid is drawn." },
+  { key: 'surface', default: 'plane', description: "'plane', 'cylinder', 'dome', 'sphere' or 'well' (a funnel): the grid on a curved surface (astrometrics wireframes). Needs WebGL; without it the flat grid is drawn." },
   { key: 'surface_size', default: 0.8, description: "Curved surface diameter, as a fraction of the card's shorter side." },
-  { key: 'surface_length', default: 1, description: "Cylinder length, as a fraction of the card's size along its axis (0 = runs off the card)." },
+  { key: 'surface_length', default: 1, description: "Cylinder length or well depth, as a fraction of the card's size along its axis (0 = a cylinder runs off the card)." },
+  { key: 'well_shape', default: 'trumpet', description: "'trumpet' (the gravity well), 'cone' or 'bowl': the well's profile from rim to throat." },
+  { key: 'well_throat', default: 0.15, description: 'Throat diameter of a well_shape, as a fraction of its rim (1 = a cylinder).' },
+  { key: 'well_profile', description: 'Any well shape: diameters (fractions of surface_size) from the rim down, evenly spaced; a smooth curve passes through them. Replaces well_shape.' },
   { key: 'surface_axis', default: 'vertical', description: "'vertical' or 'horizontal': a cylinder upright or lying across the card; a dome opening down or facing you." },
   { key: 'surface_side', default: 'outside', description: "'outside' or 'inside': look at the surface, or from its centre (a tunnel, a planetarium)." },
-  { key: 'back_opacity', default: 0.25, description: 'Opacity of the far side of a curved surface seen from outside (0 hides it).' }
+  { key: 'back_opacity', default: 0.25, description: 'Opacity of the far side of a curved surface seen from outside (0 hides it).' },
+  { key: 'surface_rotate_x', default: 0, description: 'Turn a curved surface itself toward or away from you, in degrees (then _y round the vertical, _z leaning left or right).' },
+  { key: 'well_profile_to', description: 'A second well profile; well_morph (0 to 1) blends toward it.' },
+  { key: 'well_ripple', default: 0, description: 'Ripples running down the well (fraction of the radius); well_ripple_waves, well_ripple_speed.' }
 ];
 
 /**
@@ -58,6 +65,7 @@ function gridWebGL(config, gridConfig) {
       view: floor ? 'floor' : 'flat',
       camera_tilt: config.camera_tilt,
       camera_yaw: config.camera_yaw ?? 0,
+      camera_roll: config.camera_roll ?? 0,
       camera_distance: config.camera_distance,
       fov: config.fov ?? 60,
       scan_period: config.scan_period ?? (floor ? 7 : 0),
@@ -66,7 +74,18 @@ function gridWebGL(config, gridConfig) {
       surface_length: config.surface_length,
       surface_axis: config.surface_axis ?? 'vertical',
       surface_side: config.surface_side ?? 'outside',
-      back_opacity: config.back_opacity
+      back_opacity: config.back_opacity,
+      well_throat: config.well_throat,
+      well_shape: config.well_shape,
+      well_profile: config.well_profile,
+      well_profile_to: config.well_profile_to,
+      well_morph: config.well_morph,
+      well_ripple: config.well_ripple,
+      well_ripple_waves: config.well_ripple_waves,
+      well_ripple_speed: config.well_ripple_speed,
+      surface_rotate_x: config.surface_rotate_x,
+      surface_rotate_y: config.surface_rotate_y,
+      surface_rotate_z: config.surface_rotate_z
     },
     colors: { scan: [config.scan_color ?? 'var(--lcards-moonlight, #dfe1e8)'] },
     opacity: /** @type {any} */ (gridConfig).opacity
@@ -75,7 +94,7 @@ function gridWebGL(config, gridConfig) {
 
 /**
  * Default scroll unless the config sets it: the floor view streams toward the
- * viewer; a curved surface spins round its axis (the coordinate that runs
+ * viewer; `pattern: polar` holds still; a curved surface spins round its axis (the coordinate that runs
  * round it: y on a horizontal cylinder, x otherwise) and does not slide.
  * @param {any} config
  * @param {'scroll_speed_x' | 'scroll_speed_y'} key
@@ -83,6 +102,8 @@ function gridWebGL(config, gridConfig) {
  */
 const floorScroll = (config, key, fallback) => {
   if (config[key] !== undefined) return config[key];
+  // A polar chart holds still unless told to turn or pulse
+  if (config.pattern === 'polar') return 0;
   if (config.surface && config.surface !== 'plane') {
     const around = config.surface === 'cylinder' && config.surface_axis === 'horizontal' ? 'scroll_speed_y' : 'scroll_speed_x';
     return key === around ? fallback : 0;
@@ -113,9 +134,12 @@ export const BACKGROUND_PRESETS = {
         { key: 'major_col_interval', default: 0, description: 'Draw a major line every N columns (0 = disabled).' },
         { key: 'scroll_speed_x', default: 20, description: 'Horizontal scroll speed in px/s.' },
         { key: 'scroll_speed_y', default: 20, description: 'Vertical scroll speed in px/s.' },
-        { key: 'pattern', default: 'both', description: "Line pattern: 'both' | 'horizontal' | 'vertical' | 'diagonal' | 'hexagonal' | 'dots'. The diagonal/hexagonal presets below hardcode this; set it directly here if you want it combined with grid's other options (num_rows/num_cols, major/minor intervals)." },
+        { key: 'pattern', default: 'both', description: "Line pattern: 'both' | 'horizontal' | 'vertical' | 'diagonal' | 'hexagonal' | 'dots' | 'polar'. The diagonal/hexagonal presets below hardcode this; set it directly here if you want it combined with grid's other options (num_rows/num_cols, major/minor intervals)." },
         { key: 'dot_radius', default: 2, description: "Dot radius in px: only used when pattern is 'dots'." },
         { key: 'hex_radius', default: 40, description: "Hexagon size in px: only used when pattern is 'hexagonal'." },
+        { key: 'spoke_count', default: 12, description: "Spokes round the centre when pattern is 'polar' (rings every line_spacing px); 0 = rings only." },
+        { key: 'polar_x', default: 0.5, description: "Polar centre across the card (0 left, 1 right)." },
+        { key: 'polar_y', default: 0.5, description: "Polar centre down the card (0 top, 1 bottom)." },
         { key: 'fill_color', default: 'transparent', description: 'Solid fill painted behind each cell.' },
         ...GRID_VIEW_GUIDE,
         { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
@@ -175,6 +199,9 @@ export const BACKGROUND_PRESETS = {
         fillColor: config.fill_color ?? 'transparent',
         dotRadius: config.dot_radius,
         hexRadius: config.hex_radius ?? resolveToken('components.backgroundAnimation.grid.spacing.hexRadius', 40),
+        spokeCount: config.spoke_count,
+        polarX: config.polar_x,
+        polarY: config.polar_y,
 
         opacity: config.opacity ?? 1
       });
@@ -901,6 +928,7 @@ export const BACKGROUND_PRESETS = {
         { key: 'streak', default: 1, description: 'How long the streaks grow per unit of speed above 1 (0 = always dots).' },
         { key: 'camera_tilt', default: 0, description: 'Look down (positive) or up from the direction of travel, in degrees (-40 to 40): the stars stream from a point higher or lower on the card.' },
         { key: 'camera_yaw', default: 0, description: 'Look right (positive) or left of the direction of travel, in degrees (-40 to 40), as when turning at warp.' },
+        { key: 'camera_roll', default: 0, description: 'Bank the view round its line of sight, in degrees (positive: clockwise).' },
         { key: 'fov', default: 70, description: 'Field of view in degrees: wider makes a deeper tunnel of streaks.' },
         { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
       ],
@@ -920,6 +948,7 @@ export const BACKGROUND_PRESETS = {
           streak: config.streak ?? 1,
           camera_tilt: config.camera_tilt ?? 0,
           camera_yaw: config.camera_yaw ?? 0,
+          camera_roll: config.camera_roll ?? 0,
           fov: config.fov ?? 70
         },
         colors: { stars: Array.isArray(colors) ? colors : [colors] },

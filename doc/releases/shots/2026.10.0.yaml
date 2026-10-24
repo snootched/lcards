@@ -357,3 +357,24 @@
   viewport: [700, 500]
   selector: '#lcards-release-card'
   padding: 24
+
+# Grid wells: a gravity well with a polar grid, ripples running down into the throat.
+- name: grid-wells
+  kind: video
+  duration: 5000
+  card:
+    type: custom:lcards-elbow
+    elbow:
+      type: frame
+      segment: { color: var(--lcards-gray) }
+      frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+    background_animation:
+      inset: auto
+      effects:
+        - preset: grid
+          config: { surface: well, well_profile: [1.1, 0.5, 0.2, 0.12, 0.1], well_ripple: 0.12, well_ripple_speed: 0.6, pattern: polar, spoke_count: 24, line_spacing: 18, camera_tilt: 40, color: var(--lcards-orange), color_major: var(--lcards-moonlight), major_row_interval: 4 }
+  steps:
+    - wait: 1500
+  selector: '#lcards-release-card'
+  padding: 24
+  size: [700, 360]

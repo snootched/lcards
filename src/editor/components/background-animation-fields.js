@@ -7,16 +7,19 @@
  * @module editor/components/background-animation-fields
  */
 import { BACKGROUND_ANIMATION_PARAMS_SCHEMAS } from '../../cards/schemas/background-animation-params-schemas.js';
+import { curvedTilt } from '../../core/packs/backgrounds/effects/grid-surface-model.js';
 
 /**
- * @typedef {{ key: string, label: string, type: 'number' | 'select' | 'boolean' | 'color',
+ * @typedef {{ key: string, label: string, type: 'number' | 'select' | 'boolean' | 'color' | 'list',
  *   min?: number, max?: number, step?: number, options?: string[], default?: any, helper?: string }} EditorField
  */
 
 /** Keys of the grid presets' view, surface, camera and scan group */
 export const GRID_VIEW_KEYS = [
-  'view', 'surface', 'surface_size', 'surface_length', 'surface_axis', 'surface_side', 'back_opacity',
-  'camera_tilt', 'camera_yaw', 'camera_distance', 'fov', 'scan_period', 'scan_color'
+  'view', 'surface', 'surface_size', 'surface_length', 'well_shape', 'well_throat', 'well_profile',
+  'well_profile_to', 'well_morph', 'well_ripple', 'well_ripple_waves', 'well_ripple_speed',
+  'surface_axis', 'surface_rotate_x', 'surface_rotate_y', 'surface_rotate_z', 'surface_side', 'back_opacity',
+  'camera_tilt', 'camera_yaw', 'camera_roll', 'camera_distance', 'fov', 'scan_period', 'scan_color'
 ];
 
 /**
@@ -27,7 +30,7 @@ export const GRID_VIEW_KEYS = [
 export const SCHEMA_SECTIONS = {
   'warp-starfield': [
     { header: 'Stars', icon: 'mdi:star-shooting', keys: ['seed', 'count', 'min_radius', 'max_radius', 'streak', 'opacity'] },
-    { header: 'Camera', icon: 'mdi:axis-arrow', keys: ['camera_tilt', 'camera_yaw', 'fov'] }
+    { header: 'Camera', icon: 'mdi:axis-arrow', keys: ['camera_tilt', 'camera_yaw', 'camera_roll', 'fov'] }
   ],
   'holo-sphere': [
     { header: 'Sphere', icon: 'mdi:earth', keys: ['size', 'position_x', 'position_y', 'tilt', 'rotate_speed', 'latitude_lines', 'longitude_lines', 'line_width', 'back_opacity', 'opacity'] },
@@ -64,6 +67,8 @@ export function schemaField(key, prop) {
   const base = { key, label: labelFor(key), default: prop.default, helper: firstSentence(prop.description) };
   if (prop['x-ui-hints']?.widget === 'lcards-color-picker') return { ...base, type: 'color' };
   if (prop.type === 'boolean') return { ...base, type: 'boolean' };
+  // A list of numbers, edited as comma-separated text
+  if (prop.type === 'array') return { ...base, type: 'list' };
   if (Array.isArray(prop.enum)) return { ...base, type: 'select', options: prop.enum };
   const hint = prop['x-ui-hints']?.selector?.number ?? {};
   const integer = prop.type === 'integer';
@@ -98,7 +103,7 @@ export function schemaFields(preset, keys) {
 export function withViewDefault(field, config) {
   const floor = config.view === 'floor';
   const curved = config.surface && config.surface !== 'plane';
-  if (field.key === 'camera_tilt' && curved) return { ...field, default: config.surface_side === 'inside' ? 0 : 15 };
+  if (field.key === 'camera_tilt' && curved) return { ...field, default: curvedTilt(config.surface, config.surface_side) };
   if (field.key === 'camera_tilt') return { ...field, default: floor ? 10 : 90 };
   if (field.key === 'scan_period') return { ...field, default: floor ? 7 : 0 };
   return field;

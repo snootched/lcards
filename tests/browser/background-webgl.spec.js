@@ -11,7 +11,17 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import yaml from 'js-yaml';
-import { mountCase, expectNoErrors, cardErrors } from './support.js';
+import { mountCase, cardErrors } from './support.js';
+
+/**
+ * No card errors, except the frame-budget guard: SwiftShader renders WebGL on
+ * the CPU, and in a parallel run a frame can pass the 500 ms hard limit, which
+ * pauses the loop as designed. That is the machine's load, not a fault here.
+ * @param {import('@playwright/test').Page} page
+ */
+const expectNoErrors = async (page) => {
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
+};
 
 /** What each background entry is drawn with, and whether its scene is up */
 const entries = (page) => page.evaluate(() => {
@@ -140,9 +150,8 @@ test('10 remove/re-add cycles (view switches): the context is given back each ti
         expect(await webglStats(page)).toMatchObject({ users: 1, context: true });
     }
     expect((await webglStats(page)).created).toBe(11);
-    // Lifecycle, not frame time: under a loaded CPU the SwiftShader first frames
-    // can trip the 500 ms frame-budget guard, which is working as designed
-    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
+    // Lifecycle, not frame time (see expectNoErrors)
+    await expectNoErrors(page);
 });
 
 test('a lost context swaps the entry for its Canvas2D fallback', async ({ page }) => {
@@ -276,7 +285,10 @@ const GRID_CASES = {
     fill: { preset: 'grid', config: { fill_color: 'rgba(0,40,120,0.4)', show_border_lines: false } },
     dots: { preset: 'grid', config: { pattern: 'dots', dot_radius: 3, color: '#ff9966' } },
     diagonal: { preset: 'grid-diagonal', config: { color: 'rgba(255,153,102,0.6)' } },
-    hexagonal: { preset: 'grid-hexagonal', config: {} }
+    hexagonal: { preset: 'grid-hexagonal', config: {} },
+    polar: { preset: 'grid', config: { pattern: 'polar', color: 'rgba(255,153,102,0.6)' } },
+    // Off centre, majors on rings and spokes, rings moved out and spokes turned by the scroll
+    'polar-major': { preset: 'grid', config: { pattern: 'polar', polar_x: 0.3, polar_y: 0.7, spoke_count: 16, line_spacing: 30, major_row_interval: 3, major_col_interval: 4, line_width_major: 3, color: 'rgba(255,153,102,0.5)', color_major: '#ffcc99' }, scroll: [20, 47] }
 };
 
 for (const [name, entry] of Object.entries(GRID_CASES)) {
@@ -307,7 +319,7 @@ for (const [name, entry] of Object.entries(GRID_CASES)) {
             if (i % 4 === 3) { alphaGl += gl[i]; alphaC2d += c2d[i]; }
         }
         expect(alphaGl, 'drew something').toBeGreaterThan(0);
-        if (name === 'diagonal' || name === 'hexagonal') {
+        if (name === 'diagonal' || name === 'hexagonal' || name.startsWith('polar')) {
             // Canvas2D overdraws these unevenly (overlapping tiles) and the tiers
             // antialias 1 px diagonals differently: every line pixel (core,
             // alpha > 60) of one tier has one of the other within 1 px, both ways
@@ -474,11 +486,13 @@ test('grid surface: back_opacity dims the far side; renderer: canvas draws the f
     await mountCase(page, 'button-webgl-grid-cylinder', { width: '860' });
     await expect.poll(() => entries(page), { timeout: 10_000 }).toEqual([{ type: 'GridGLEffect', ready: true }]);
     const total = async (back) => {
+        // Set it and draw a frame in place: under load the loop pauses itself
+        // (FPS too low), so waiting for the next frame is not reliable
         await page.evaluate((b) => {
-            const e = /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer.getHandles(0)[0].effects[0];
-            e.params.back_opacity = b;
+            const bg = /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer;
+            bg.getHandles(0)[0].effects[0].params.back_opacity = b;
+            bg.renderer._drawEffects(0);
         }, back);
-        await page.waitForTimeout(250);
         const { a } = await alphaMap(page);
         return a.reduce((s, v) => s + v, 0);
     };
@@ -491,5 +505,119 @@ test('grid surface: back_opacity dims the far side; renderer: canvas draws the f
     const config = /** @type {any} */ (yaml.load(readFileSync(new URL('fixtures/button-webgl-grid-cylinder.yaml', import.meta.url), 'utf8')));
     await page.evaluate((c) => window.__reconfigure(c), { ...config, background_animation: config.background_animation.map((e) => ({ ...e, renderer: 'canvas' })) });
     await expect.poll(() => entries(page)).toEqual([{ type: 'GridEffect', ready: undefined }]);
+    await expectNoErrors(page);
+});
+
+test('grid surface: well, a funnel from the rim down to a narrow throat', async ({ page }) => {
+    await mountCase(page, 'button-background', { width: '500' });
+    await page.evaluate((c) => window.__reconfigure(c), {
+        type: 'custom:lcards-button', entity: 'light.demo', preset: 'lozenge', height: 300,
+        background_animation: [{ preset: 'grid', config: { surface: 'well', well_throat: 0.2, color: 'rgba(153,204,255,0.8)', scroll_speed_x: 0 } }]
+    });
+    await expect.poll(() => entries(page), { timeout: 10_000 }).toEqual([{ type: 'GridGLEffect', ready: true }]);
+    await page.waitForTimeout(300);
+    const { w, h, a } = await alphaMap(page);
+    /** Lit extent of row y: [first, last] x, or null */
+    const extent = (y) => {
+        const row = a.slice(y * w, (y + 1) * w);
+        const first = row.findIndex((v) => v > 30);
+        if (first < 0) return null;
+        return [first, w - 1 - [...row].reverse().findIndex((v) => v > 30)];
+    };
+    const rows = Array.from({ length: h }, (_, y) => extent(y));
+    const top = rows.findIndex(Boolean);
+    const bottom = h - 1 - [...rows].reverse().findIndex(Boolean);
+    expect(bottom - top, 'the well spans most of the card').toBeGreaterThan(h * 0.5);
+    const width = (y) => { const e = rows[y]; return e ? e[1] - e[0] : 0; };
+    const rim = width(top + Math.round((bottom - top) * 0.1));
+    const throat = width(bottom - 3);
+    expect(rim, 'rim wider than the throat').toBeGreaterThan(throat * 3);
+    // Centred, inside its rim (diameter 0.8 x 300, plus the near rim's perspective)
+    expect(Math.abs((rows[top + 20][0] + rows[top + 20][1]) / 2 - w / 2), 'centred').toBeLessThanOrEqual(2);
+    expect(a.slice(0, h * w).filter((v, i) => v > 0 && Math.abs((i % w) - w / 2) > 160).length, 'nothing far outside the rim').toBe(0);
+    await expectNoErrors(page);
+});
+
+test('zoom over a WebGL grid: draws, the scene renders once per frame, and the copies are scaled', async ({ page }) => {
+    await mountCase(page, 'button-background', { width: '520' });
+    const bg = { preset: 'grid', config: { line_spacing: 40, color: 'rgba(255,153,102,0.8)', scroll_speed_x: 0, scroll_speed_y: 0 } };
+    await page.evaluate((c) => window.__reconfigure(c), {
+        type: 'custom:lcards-button', entity: 'light.demo', preset: 'lozenge', height: 200,
+        background_animation: [{ ...bg, zoom: { layers: 3, scale_from: 0.5, scale_to: 2, duration: 10 } }]
+    });
+    await expect.poll(() => page.evaluate(() => {
+        const z = /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer.renderer.effects[0];
+        return [z.constructor.name, z.baseEffect?.constructor.name, !!z.baseEffect?._scene];
+    }), { timeout: 10_000 }).toEqual(['ZoomEffect', 'GridGLEffect', true]);
+    // Five frames drawn here (the loop may pause itself on a busy machine)
+    const counts = await page.evaluate(() => {
+        const r = /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer.renderer;
+        r.stop();
+        const z = r.effects[0];
+        const n = { zoom: 0, base: 0 };
+        const zoomDraw = z.draw.bind(z);
+        const baseDraw = z.baseEffect.draw.bind(z.baseEffect);
+        z.draw = (...args) => { n.zoom++; return zoomDraw(...args); };
+        z.baseEffect.draw = (...args) => { n.base++; return baseDraw(...args); };
+        for (let i = 0; i < 5; i++) r._drawEffects(400);
+        return n;
+    });
+    expect(counts, 'one grid render per frame').toEqual({ zoom: 5, base: 5 });
+    expect(await litPixels(page), 'drew something').toBeGreaterThan(1000);
+    // Three scaled copies of a 40 px grid: more distinct line positions than one grid
+    const { w, h, a } = await alphaMap(page);
+    const lines = peaks(a.slice(Math.round(h / 2) * w, (Math.round(h / 2) + 1) * w), 20).length;
+    expect(lines, 'scaled copies add lines').toBeGreaterThan(Math.ceil(w / 40) + 2);
+    await expectNoErrors(page);
+});
+
+/** Mount one grid entry on a 500 x 300 card and return its alpha map */
+const gridMap = async (page, config) => {
+    await mountCase(page, 'button-background', { width: '500' });
+    await page.evaluate((c) => window.__reconfigure(c), {
+        type: 'custom:lcards-button', entity: 'light.demo', preset: 'lozenge', height: 300,
+        background_animation: [{ preset: 'grid', config: { scroll_speed_x: 0, scroll_speed_y: 0, color: 'rgba(153,204,255,0.9)', ...config } }]
+    });
+    await expect.poll(() => entries(page), { timeout: 10_000 }).toEqual([{ type: 'GridGLEffect', ready: true }]);
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer.renderer._drawEffects(0));
+    return alphaMap(page);
+};
+
+test('camera_roll turns the picture clockwise: rows become columns at 90, the floor horizon drops to the right', async ({ page }) => {
+    // Mean alpha of a row and of a column: horizontal lines vary down a column, not along a row
+    const spread = ({ w, h, a }) => {
+        const col = Array.from({ length: h }, (_, y) => a[y * w + Math.round(w / 2) + 7]);
+        const row = Array.from({ length: w }, (_, x) => a[Math.round(h / 2 + 7) * w + x]);
+        const range = (v) => Math.max(...v) - Math.min(...v);
+        return { col: range(col), row: range(row) };
+    };
+    const flat = spread(await gridMap(page, { pattern: 'horizontal' }));
+    expect(flat.col, 'rows: lit and dark down a column').toBeGreaterThan(100);
+    expect(flat.row, 'rows: even along a row').toBeLessThan(20);
+    const rolled = spread(await gridMap(page, { pattern: 'horizontal', camera_roll: 90 }));
+    expect(rolled.row, 'rolled 90: lit and dark along a row').toBeGreaterThan(100);
+    expect(rolled.col, 'rolled 90: even down a column').toBeLessThan(20);
+    // Floor rolled 20 degrees clockwise: the sky reaches lower on the left than on the right
+    const { w, h, a } = await gridMap(page, { view: 'floor', camera_roll: 20 });
+    const firstLit = (x) => Array.from({ length: h }, (_, y) => a[y * w + x]).findIndex((v) => v > 10);
+    expect(firstLit(20), 'horizon higher on the left').toBeLessThan(firstLit(w - 20));
+    await expectNoErrors(page);
+});
+
+test('well ripple: the silhouette swells and narrows down a straight well; well_morph reshapes it', async ({ page }) => {
+    /** Lit width of each row */
+    const widths = ({ w, h, a }) => Array.from({ length: h }, (_, y) => {
+        const row = a.slice(y * w, (y + 1) * w);
+        const first = row.findIndex((v) => v > 20);
+        return first < 0 ? 0 : w - [...row].reverse().findIndex((v) => v > 20) - first;
+    });
+    const mid = (v) => v.slice(Math.round(v.length * 0.35), Math.round(v.length * 0.65));
+    const plain = mid(widths(await gridMap(page, { surface: 'well', well_profile: [1, 1], camera_tilt: 0 })));
+    const rippled = mid(widths(await gridMap(page, { surface: 'well', well_profile: [1, 1], camera_tilt: 0, well_ripple: 0.15, well_ripple_speed: 0 })));
+    expect(Math.max(...plain) - Math.min(...plain), 'straight well: even width').toBeLessThanOrEqual(3);
+    expect(Math.max(...rippled) - Math.min(...rippled), 'ripples: the width swells and narrows').toBeGreaterThan(20);
+    // Morph a straight well halfway toward a narrow waist: the middle narrows
+    const waist = mid(widths(await gridMap(page, { surface: 'well', well_profile: [1, 1, 1], well_profile_to: [1, 0.2, 1], well_morph: 0.5, camera_tilt: 0 })));
+    expect(Math.min(...waist), 'morphed: narrower in the middle').toBeLessThan(Math.min(...plain) * 0.8);
     await expectNoErrors(page);
 });

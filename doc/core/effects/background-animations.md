@@ -135,7 +135,7 @@ Seven built-in presets are available. See the **[Preset Reference](background-an
 
 | Preset | Description |
 |--------|-------------|
-| [`grid`](background-animations/preset-reference.md#grid) | Orthogonal grid with optional major/minor divisions; on WebGL also a perspective floor (`view: floor`) or a cylinder, dome or sphere (`surface`) |
+| [`grid`](background-animations/preset-reference.md#grid) | Orthogonal grid with optional major/minor divisions; polar rings and spokes (`pattern: polar`); on WebGL also a perspective floor (`view: floor`) or a cylinder, dome, sphere or funnel (`surface`) |
 | [`grid-diagonal`](background-animations/preset-reference.md#grid-diagonal) | Diagonal hatch pattern at 45° |
 | [`grid-hexagonal`](background-animations/preset-reference.md#grid-hexagonal) | Honeycomb hexagonal pattern |
 | [`starfield`](background-animations/preset-reference.md#starfield) | Scrolling starfield with parallax depth layers |
@@ -149,7 +149,7 @@ Seven built-in presets are available. See the **[Preset Reference](background-an
 
 `warp-starfield` is drawn with three.js. Like every WebGL preset it loads only when a card uses it, shares one WebGL context across the whole dashboard, sits in the stack like any other entry, and falls back to Canvas2D (here `starfield`) where WebGL is not available.
 
-`grid`, `grid-diagonal` and `grid-hexagonal` draw on the GPU too: the same pixels as their Canvas2D versions in the flat view, any line width, a perspective floor view with an animatable camera ([grid views](background-animations/preset-reference.md#grid-views-and-camera)), and curved surfaces: cylinders, domes and spheres, seen from outside or inside ([grid surfaces](background-animations/preset-reference.md#grid-surfaces)).
+`grid`, `grid-diagonal` and `grid-hexagonal` draw on the GPU too: the same pixels as their Canvas2D versions in the flat view, any line width, a perspective floor view with an animatable camera ([grid views](background-animations/preset-reference.md#grid-views-and-camera)), curved surfaces: cylinders, domes and spheres, seen from outside or inside ([grid surfaces](background-animations/preset-reference.md#grid-surfaces)), and wells: funnels of any profile that can morph and ripple ([grid wells](background-animations/preset-reference.md#grid-wells)). With `camera_tilt`, `camera_yaw`, `camera_roll` and the `surface_rotate_*` keys a surface can face any way and be seen from any direction.
 
 `holo-sphere` is drawn with three.js too, and on Canvas2D with the same look where WebGL is not available. `nebula` with `volumetric: true` shades its clouds with noise on the GPU (opt-in, because it changes the look); without WebGL it draws the plain clouds.
 
@@ -170,7 +170,7 @@ background_animation:
 ---
 ## Zoom Wrapper
 
-The zoom wrapper applies a **layered scaling effect** with opacity fades to any preset, creating a pseudo-3D depth illusion.
+The zoom wrapper applies a **layered scaling effect** with opacity fades to any preset, creating a pseudo-3D depth illusion. It works over the WebGL presets too (the effect draws once per frame and the layers are scaled copies). For real depth, use the grid's [floor view](background-animations/preset-reference.md#grid-views-and-camera), [surfaces](background-animations/preset-reference.md#grid-surfaces) or [`warp-starfield`](background-animations/preset-reference.md#warp-starfield).
 
 ### How It Works
 
@@ -464,7 +464,7 @@ Every effect: `opacity`, and the transform keys `x`, `y` (offset in px), `rotate
 
 | Preset | Keys |
 |---|---|
-| `grid`, `grid-diagonal`, `grid-hexagonal` | `scroll_speed_x`, `scroll_speed_y`, `line_spacing`, `line_width`, `line_width_minor`, `line_width_major`, `color`, `color_major`, `fill_color` (those the preset takes); on WebGL also `camera_tilt`, `camera_yaw`, `camera_distance`, `fov`, `scan_color` |
+| `grid`, `grid-diagonal`, `grid-hexagonal` | `scroll_speed_x`, `scroll_speed_y`, `line_spacing`, `line_width`, `line_width_minor`, `line_width_major`, `color`, `color_major`, `fill_color` (those the preset takes); `grid` also `spoke_count`, `polar_x`, `polar_y`; on WebGL also `camera_tilt`, `camera_yaw`, `camera_roll`, `camera_distance`, `fov`, `scan_color`, `surface_size`, `surface_length`, `back_opacity`, `surface_rotate_x`, `surface_rotate_y`, `surface_rotate_z`, `well_throat`, `well_morph`, `well_ripple`, `well_ripple_waves`, `well_ripple_speed` |
 | `starfield` | `scroll_speed_x`, `scroll_speed_y`, `color` (one colour for every star) |
 | `nebula` | `scroll_speed_x`, `scroll_speed_y`, `turbulence` |
 | `contour-field` | `scroll_speed_x`, `scroll_speed_y`; on WebGL also `noise_scale`, `num_bands`, `fill_level` |
@@ -477,7 +477,7 @@ Every effect: `opacity`, and the transform keys `x`, `y` (offset in px), `rotate
 | `shimmer` | `highlight_width`, `angle` |
 | `image` | `opacity` only |
 | `solid` | `opacity`, `color` |
-| `warp-starfield` | `streak`, `camera_tilt`, `camera_yaw`, `fov`, `color` |
+| `warp-starfield` | `streak`, `camera_tilt`, `camera_yaw`, `camera_roll`, `fov`, `color` |
 | `holo-sphere` | `rotate_speed`, `tilt`, `size`, `position_x`, `position_y`, `back_opacity`, `line_width`, `color`, `scan_color` |
 
 Other keys are left out on purpose: changing them means rebuilding the effect (a new star layout, a noise re-bake), too slow to do every frame. The WebGL versions of the noise presets have no bake, so their noise keys are animatable there; under `renderer: canvas` or without WebGL they keep the Canvas2D list. A key that isn't animatable is logged once in the browser console.

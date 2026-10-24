@@ -257,6 +257,7 @@ export class WarpStarfieldEffect extends ThreeSceneEffect {
     streak: sceneProp('streak', { min: 0 }),
     camera_tilt: sceneProp('camera_tilt', { min: -40, max: 40 }),
     camera_yaw: sceneProp('camera_yaw', { min: -40, max: 40 }),
+    camera_roll: sceneProp('camera_roll'),
     fov: sceneProp('fov', { min: 20, max: 120 }),
     color: sceneColorProp('stars')
   };
@@ -497,15 +498,24 @@ export class GridGLEffect extends ThreeSceneEffect {
     ...BaseEffect.animatableProps,
     ...onModel(GridEffect.animatableProps, [
       'scroll_speed_x', 'scroll_speed_y', 'line_spacing', 'line_width', 'line_width_minor', 'line_width_major',
-      'color', 'color_major', 'fill_color'
+      'color', 'color_major', 'fill_color', 'spoke_count', 'polar_x', 'polar_y'
     ]),
-    camera_tilt: sceneProp('camera_tilt', { min: 1, max: 90 }),
+    camera_tilt: sceneProp('camera_tilt', { min: 0, max: 90 }),
     camera_yaw: sceneProp('camera_yaw'),
+    camera_roll: sceneProp('camera_roll'),
+    surface_rotate_x: sceneProp('surface_rotate_x'),
+    surface_rotate_y: sceneProp('surface_rotate_y'),
+    surface_rotate_z: sceneProp('surface_rotate_z'),
+    well_morph: sceneProp('well_morph', { min: 0, max: 1 }),
+    well_ripple: sceneProp('well_ripple', { min: 0, max: 0.9 }),
+    well_ripple_waves: sceneProp('well_ripple_waves', { min: 0, max: 12 }),
+    well_ripple_speed: sceneProp('well_ripple_speed'),
     camera_distance: sceneProp('camera_distance', { min: 0.05 }),
     fov: sceneProp('fov', { min: 5, max: 150 }),
     surface_size: sceneProp('surface_size', { min: 0.05, max: 4 }),
     surface_length: sceneProp('surface_length', { min: 0 }),
     back_opacity: sceneProp('back_opacity', { min: 0, max: 1 }),
+    well_throat: sceneProp('well_throat', { min: 0.02, max: 1 }),
     scan_color: sceneColorProp('scan')
   };
 
@@ -541,7 +551,7 @@ export class GridGLEffect extends ThreeSceneEffect {
   updateConfig(cfg) {
     if (cfg.opacity !== undefined) this.opacity = cfg.opacity;
     if (cfg.speed !== undefined) this.speed = cfg.speed;
-    for (const key of ['view', 'scan_period', 'surface', 'surface_axis', 'surface_side']) {
+    for (const key of ['view', 'scan_period', 'surface', 'surface_axis', 'surface_side', 'well_shape', 'well_profile', 'well_profile_to']) {
       if (cfg[key] !== undefined) this.params[key] = cfg[key];
     }
   }

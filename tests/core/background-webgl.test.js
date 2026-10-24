@@ -207,3 +207,13 @@ test('warp-starfield: one time uniform, streak from speed', () => {
   assert.ok(material.uniforms.uStretch.value > dot * 10, 'streaks at warp');
   s.dispose();
 });
+
+test('warp-starfield camera_roll banks the camera round its line of sight (and is animatable)', () => {
+  const params = { count: 20, seed: 1, camera_roll: 30 };
+  const s = warpScene.createScene({ params, colors: {} });
+  assert.ok(Math.abs(s.camera.rotation.z - Math.PI / 6) < 1e-9);
+  params.camera_roll = -90;
+  s.setParam('camera_roll', -90);
+  assert.ok(Math.abs(s.camera.rotation.z + Math.PI / 2) < 1e-9);
+  s.dispose();
+});

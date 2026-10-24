@@ -1,0 +1,20 @@
+# grid (WebGL by default) inside the zoom wrapper (background-webgl.spec.js, visual.spec.js)
+type: custom:lcards-button
+entity: light.demo
+preset: lozenge
+height: 200
+background_animation:
+  - preset: grid
+    config:
+      line_spacing: 40
+      major_row_interval: 3
+      major_col_interval: 3
+      color: 'rgba(255, 153, 102, 0.8)'
+      color_major: '#ffcc99'
+      scroll_speed_x: 0
+      scroll_speed_y: 0
+    zoom:
+      layers: 3
+      scale_from: 0.5
+      scale_to: 2
+      duration: 10

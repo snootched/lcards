@@ -37,6 +37,62 @@ export function linePeriod(cell, count, interval) {
 }
 
 /**
+ * `pattern: polar` scroll periods, px: scrolling by them never moves a ring
+ * or a spoke, nor turns a minor one major. Rings move outward with the
+ * vertical scroll; the horizontal scroll turns the spokes, one spoke pitch
+ * per `lineSpacing` px.
+ * @param {number} cell - px between rings
+ * @param {number} lineSpacing - px of horizontal scroll per spoke pitch
+ * @param {number} spokes - spoke count (0 = rings only)
+ * @param {number} majorRing - major ring interval (0 = none)
+ * @param {number} majorSpoke - major spoke interval (0 = none)
+ * @returns {{ ring: number, spoke: number }}
+ */
+export function polarPeriods(cell, lineSpacing, spokes, majorRing, majorSpoke) {
+  const m = Math.max(1, Math.round(majorSpoke));
+  const n = Math.max(0, Math.round(spokes));
+  // Turning by m spokes maps majors onto majors only when m divides the count;
+  // a whole turn always does
+  const turn = n > 0 && n % m !== 0 ? n : m;
+  return { ring: cell * Math.max(1, Math.round(majorRing)), spoke: lineSpacing * turn };
+}
+
+/** @param {number} v @param {number} period */
+const wrapBy = (v, period) => (period > 0 ? ((v % period) + period) % period : v);
+
+/**
+ * The rings and spokes of `pattern: polar` on a w x h card, shared by the
+ * Canvas2D drawer and the tests (the WebGL grid follows the same rules per
+ * pixel). Ring n sits at radius n x cell + the wrapped vertical scroll and is
+ * major every `majorRing` rings; spoke j at angle j x pitch + the turn from
+ * the wrapped horizontal scroll, major every `majorSpoke` spokes.
+ * @param {{ w: number, h: number, cell: number, lineSpacing: number, spokes: number,
+ *   majorRing: number, majorSpoke: number, polarX: number, polarY: number, scrollX: number, scrollY: number }} g
+ * @returns {{ cx: number, cy: number, maxR: number, rings: Array<{ r: number, major: boolean }>,
+ *   spokes: Array<{ angle: number, major: boolean }> }}
+ */
+export function polarGeometry(g) {
+  const cx = g.polarX * g.w;
+  const cy = g.polarY * g.h;
+  const maxR = Math.max(Math.hypot(cx, cy), Math.hypot(g.w - cx, cy), Math.hypot(cx, g.h - cy), Math.hypot(g.w - cx, g.h - cy));
+  const n = Math.max(0, Math.round(g.spokes));
+  const per = polarPeriods(g.cell, g.lineSpacing, n, g.majorRing, g.majorSpoke);
+  const off = wrapBy(g.scrollY, per.ring);
+  const rings = [];
+  for (let i = 0; off + i * g.cell <= maxR + g.cell; i++) {
+    const r = off + i * g.cell;
+    if (r > 0) rings.push({ r, major: isMajorLine(i, g.majorRing) });
+  }
+  const spokes = [];
+  if (n > 0) {
+    const pitch = (2 * Math.PI) / n;
+    const turn = (wrapBy(g.scrollX, per.spoke) / g.lineSpacing) * pitch;
+    for (let j = 0; j < n; j++) spokes.push({ angle: j * pitch + turn, major: isMajorLine(j, g.majorSpoke) });
+  }
+  return { cx, cy, maxR, rings, spokes };
+}
+
+/**
  * GridEffect - Highly configurable scrolling LCARS-style grid background effect
  *
  * Supports:
@@ -68,7 +124,10 @@ export class GridEffect extends BaseEffect {
     line_width_major: numProp('lineWidthMajor', { min: 0 }),
     color: colorProp('color'),
     color_major: colorProp('colorMajor'),
-    fill_color: colorProp('fillColor')
+    fill_color: colorProp('fillColor'),
+    spoke_count: numProp('spokeCount', { min: 0 }),
+    polar_x: numProp('polarX'),
+    polar_y: numProp('polarY')
   };
 
   static recolorFields = ['color', 'colorMajor', 'fillColor'];
@@ -92,13 +151,18 @@ export class GridEffect extends BaseEffect {
    * @param {number} [config.majorColInterval=3] - Draw major line every N columns
    *
    * Pattern control:
- * @param {string} [config.pattern='both'] - Which lines to draw: 'both', 'horizontal', 'vertical', 'diagonal', 'hexagonal'
+ * @param {string} [config.pattern='both'] - Which lines to draw: 'both', 'horizontal', 'vertical', 'diagonal', 'hexagonal', 'dots', 'polar'
  * @param {boolean} [config.showBorderLines=true] - Draw lines on canvas edges
  * @param {string} [config.direction] - Legacy alias for pattern (deprecated)
  * @param {string} [config.fillColor='transparent'] - Fill color for cell backgrounds
  *
  * Hexagonal pattern (when pattern='hexagonal'):
  * @param {number} [config.hexRadius=40] - Radius of hexagonal cells
+   *
+   * Polar pattern (when pattern='polar'): rings every lineSpacing px round a centre, and spokes
+   * @param {number} [config.spokeCount=12] - Spokes round the centre (0 = rings only)
+   * @param {number} [config.polarX=0.5] - Centre, fraction of the card's width
+   * @param {number} [config.polarY=0.5] - Centre, fraction of the card's height
    *
    * Dot grid pattern (when pattern='dots'):
    * @param {number} [config.dotRadius=2] - Dot radius
@@ -151,6 +215,11 @@ export class GridEffect extends BaseEffect {
 
     // Hexagonal pattern config
     this.hexRadius = Math.max(1, config.hexRadius ?? 40);
+
+    // Polar pattern config
+    this.spokeCount = Math.max(0, config.spokeCount ?? 12);
+    this.polarX = config.polarX ?? 0.5;
+    this.polarY = config.polarY ?? 0.5;
 
     // Dot grid pattern config (pattern='dots') — dotRadius=0 is harmless (just
     // draws nothing), only dotSpacing drives tile counts so only it needs a floor.
@@ -242,6 +311,10 @@ export class GridEffect extends BaseEffect {
         const hexHeight = Math.sqrt(3) * this.hexRadius;
         pw = 3 * this.hexRadius;
         ph = 2 * hexHeight;
+      } else if (this.pattern === 'polar') {
+        const per = polarPeriods(this._rowHeight, this.lineSpacing, this.spokeCount, this.majorRowInterval, this.majorColInterval);
+        pw = per.spoke;
+        ph = per.ring;
       } else if (this._totalCols && this._colWidth) {
         pw = linePeriod(this._colWidth, this._totalCols, this.majorColInterval);
         ph = linePeriod(this._rowHeight, this._totalRows, this.majorRowInterval);
@@ -273,6 +346,13 @@ export class GridEffect extends BaseEffect {
     // Ensure dimensions are computed
     if (!this._rowHeight || !this._colWidth) {
       this._computeGridDimensions(canvasWidth, canvasHeight);
+    }
+
+    // Polar: one pass over the card, not tiled
+    if (this.pattern === 'polar') {
+      this._drawPolarPattern(ctx, canvasWidth, canvasHeight);
+      ctx.restore();
+      return;
     }
 
     // Apply scroll offset via translate (unbounded - no wrapping)
@@ -420,6 +500,48 @@ export class GridEffect extends BaseEffect {
         ctx.lineWidth = this.lineWidthMajor;
         ctx.stroke();
       }
+    }
+  }
+
+  /**
+   * Draw the polar pattern: rings, then spokes (each minor then major, one
+   * path per style), in the WebGL grid's order so crossings composite the same.
+   * @private
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {number} w
+   * @param {number} h
+   */
+  _drawPolarPattern(ctx, w, h) {
+    const g = polarGeometry({
+      w, h, cell: this._rowHeight, lineSpacing: this.lineSpacing, spokes: this.spokeCount,
+      majorRing: this.majorRowInterval, majorSpoke: this.majorColInterval,
+      polarX: this.polarX, polarY: this.polarY, scrollX: this.scrollX, scrollY: this.scrollY
+    });
+    if (this.fillColor && this.fillColor !== 'transparent') {
+      ctx.fillStyle = this.fillColor;
+      ctx.fillRect(0, 0, w, h);
+    }
+    for (const major of [false, true]) {
+      ctx.beginPath();
+      for (const ring of g.rings) {
+        if (ring.major !== major) continue;
+        ctx.moveTo(g.cx + ring.r, g.cy);
+        ctx.arc(g.cx, g.cy, ring.r, 0, Math.PI * 2);
+      }
+      ctx.strokeStyle = major ? this.colorMajor : this.color;
+      ctx.lineWidth = major ? this.lineWidthMajor : this.lineWidthMinor;
+      ctx.stroke();
+    }
+    for (const major of [false, true]) {
+      ctx.beginPath();
+      for (const spoke of g.spokes) {
+        if (spoke.major !== major) continue;
+        ctx.moveTo(g.cx, g.cy);
+        ctx.lineTo(g.cx + g.maxR * Math.cos(spoke.angle), g.cy + g.maxR * Math.sin(spoke.angle));
+      }
+      ctx.strokeStyle = major ? this.colorMajor : this.color;
+      ctx.lineWidth = major ? this.lineWidthMajor : this.lineWidthMinor;
+      ctx.stroke();
     }
   }
 

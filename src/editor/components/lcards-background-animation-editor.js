@@ -790,7 +790,10 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     // too, but GridEffect also honours them directly on the base 'grid'
     // preset; 'dots' had no UI path to it at all before this).
     if (preset === 'grid') {
-      fields.push({ key: 'pattern', label: 'Pattern', type: 'select', options: ['both', 'horizontal', 'vertical', 'diagonal', 'hexagonal', 'dots'], default: 'both' });
+      fields.push({ key: 'pattern', label: 'Pattern', type: 'select', options: ['both', 'horizontal', 'vertical', 'diagonal', 'hexagonal', 'dots', 'polar'], default: 'both' });
+      if (config.pattern === 'polar') {
+        fields.push(...schemaFields('grid', ['spoke_count', 'polar_x', 'polar_y']));
+      }
       if (config.pattern === 'dots') {
         fields.push({ key: 'dot_radius', label: 'Dot Radius (px)', type: 'number', min: 0.5, max: 10, step: 0.5, default: 2 });
       }
@@ -1502,6 +1505,24 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       `;
     }
 
+    if (field.type === 'list') {
+      // Numbers as comma-separated text; cleared text removes the key
+      return html`
+        <ha-selector
+          .hass=${this.hass}
+          .selector=${{ text: {} }}
+          .value=${Array.isArray(value) ? value.join(', ') : ''}
+          .label=${field.label}
+          .helper=${field.helper}
+          @value-changed=${(e) => {
+            const nums = String(e.detail.value ?? '').split(',').map((v) => v.trim()).filter(Boolean).map(Number);
+            if (nums.some((n) => !Number.isFinite(n))) return;
+            this._updateEffectConfig(index, field.key, nums.length ? nums : undefined);
+          }}
+        ></ha-selector>
+      `;
+    }
+
     return html`
       <ha-selector
         .hass=${this.hass}
@@ -1904,13 +1925,10 @@ fill_pct: "[[[return entity.attributes.brightness / 2.55]]]"</pre>
   _updateEffectConfig(index, key, value) {
     const { effects, inset } = this._normalizedConfig;
     const updatedEffects = [...effects];
-    updatedEffects[index] = {
-      ...updatedEffects[index],
-      config: {
-        ...updatedEffects[index].config,
-        [key]: value
-      }
-    };
+    const config = { ...updatedEffects[index].config, [key]: value };
+    // undefined removes the key (a cleared list field)
+    if (value === undefined) delete config[key];
+    updatedEffects[index] = { ...updatedEffects[index], config };
     this._emitChange(updatedEffects, inset);
   }
 

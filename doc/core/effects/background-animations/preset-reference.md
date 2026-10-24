@@ -6,7 +6,7 @@ All built-in background animation presets with full configuration options and ex
 
 ## `grid`
 
-Orthogonal grid with optional major/minor line divisions and scrolling. Drawn on the GPU where WebGL is available ([WebGL presets](../background-animations.md#webgl-presets)), the same pixels as the Canvas2D version in the flat view, which draws it without WebGL or with `renderer: canvas`. On WebGL the grid can also be seen [as a floor](#grid-views-and-camera) or drawn [on a cylinder, dome or sphere](#grid-surfaces).
+Orthogonal grid with optional major/minor line divisions and scrolling. Drawn on the GPU where WebGL is available ([WebGL presets](../background-animations.md#webgl-presets)), the same pixels as the Canvas2D version in the flat view, which draws it without WebGL or with `renderer: canvas`. On WebGL the grid can also be seen [as a floor](#grid-views-and-camera) or drawn [on a cylinder, dome, sphere](#grid-surfaces) or [funnel](#grid-wells); `pattern: polar` draws [rings and spokes](#polar-pattern).
 
 **Configuration:**
 
@@ -34,9 +34,12 @@ config:
   scroll_speed_y: 20         # Vertical scroll speed (px/sec)
 
   # Pattern
-  pattern: "both"            # "both" | "horizontal" | "vertical" | "diagonal" | "hexagonal" | "dots"
+  pattern: "both"            # "both" | "horizontal" | "vertical" | "diagonal" | "hexagonal" | "dots" | "polar"
   dot_radius: 2              # Dot radius in px - only used when pattern is "dots"
   hex_radius: 40             # Hexagon size in px - only used when pattern is "hexagonal"
+  spoke_count: 12            # Spokes round the centre - only used when pattern is "polar"
+  polar_x: 0.5               # Polar centre across the card (0 left, 1 right)
+  polar_y: 0.5               # Polar centre down the card (0 top, 1 bottom)
   show_border_lines: true    # Draw lines at canvas edges
   fill_color: ""             # Optional cell background fill (empty = transparent)
 ```
@@ -101,6 +104,40 @@ config:
 
 <EffectPlayground preset="grid" />
 
+### Polar pattern
+
+`pattern: polar` draws rings round a centre and spokes out from it, the charts of the Voyager astrometrics lab. It draws on both tiers (the Canvas2D grid draws it too), flat, as a floor (`view: floor` gives the tilted galaxy map) and on [curved surfaces](#grid-surfaces).
+
+<CardGallery set="grid-polar" />
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `line_spacing` | 40 | px between rings |
+| `spoke_count` | 12 | Spokes round the centre; 0 draws rings only |
+| `polar_x`, `polar_y` | 0.5 | The centre, as fractions of the card's width and height (values outside 0 to 1 move it off the card) |
+| `major_row_interval` | 0 | Every Nth ring is major |
+| `major_col_interval` | 0 | Every Nth spoke is major |
+| `scroll_speed_y` | 0 | Rings move outward at this many px per second (negative: inward), a sonar pulse |
+| `scroll_speed_x` | 0 | Turns the spokes: `line_spacing` px of scroll turns them by one spoke |
+
+A polar chart holds still unless a scroll speed is set. Spokes crowd toward the centre and fade to their average there; `show_border_lines` has no tiles to act on. `polar_x`, `polar_y`, `spoke_count` and the scroll speeds are [animatable](../background-animations.md#animatable-keys).
+
+On a curved surface, polar draws rings along the axis every `line_spacing` px and exactly `spoke_count` meridians round it: a dome facing you (`surface_axis: horizontal`) becomes a polar disc, a well the classic gravity well picture.
+
+```yaml
+background_animation:
+  - preset: grid
+    config:
+      pattern: polar
+      view: floor
+      camera_tilt: 30
+      spoke_count: 24
+      major_row_interval: 4
+      major_col_interval: 6
+      color: "var(--lcards-blue-light)"
+      color_major: "var(--lcards-moonlight)"
+```
+
 ### Grid views and camera
 
 On WebGL the grid lies on a plane seen through a camera, so the same grid can be face-on or a perspective floor running to a horizon. These keys apply to `grid`, `grid-diagonal` and `grid-hexagonal`; without WebGL (or with `renderer: canvas`) the flat grid is drawn.
@@ -110,6 +147,7 @@ On WebGL the grid lies on a plane seen through a camera, so the same grid can be
 | `view` | `flat` | `flat`: face-on. `floor`: a perspective floor streaming toward you (scroll defaults `scroll_speed_x: 0`, `scroll_speed_y: 40`) |
 | `camera_tilt` | 90 flat, 10 floor | How far the camera looks down, in degrees: 90 is straight down |
 | `camera_yaw` | 0 | Turns the camera around the grid, in degrees |
+| `camera_roll` | 0 | Turns the camera round its line of sight, in degrees (positive: the picture turns clockwise). With tilt and yaw the camera can look from any direction |
 | `camera_distance` | 1 | Zoom: at 1, `line_spacing` is true px at the middle of the card |
 | `fov` | 60 | Field of view in degrees: wider exaggerates the floor perspective |
 | `scan_period` | 0 flat, 7 floor | Seconds per scan line sweep from the far side to the near side; 0 is off |
@@ -133,26 +171,30 @@ background_animation:
 
 ### Grid surfaces
 
-On WebGL the grid can also be drawn on a curved surface: a cylinder, a dome (a half sphere) or a sphere, the wireframes of LCARS astrometrics displays. The same keys apply to `grid`, `grid-diagonal` and `grid-hexagonal`; without WebGL (or with `renderer: canvas`) the flat grid is drawn.
+On WebGL the grid can also be drawn on a curved surface: a cylinder, a dome (a half sphere), a sphere or a [well](#grid-wells) (a funnel of any profile), the wireframes of LCARS astrometrics displays. The same keys apply to `grid`, `grid-diagonal` and `grid-hexagonal`; without WebGL (or with `renderer: canvas`) the flat grid is drawn.
 
 <CardGallery set="grid-surfaces" />
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `surface` | `plane` | `plane`: the flat grid or floor (`view`). `cylinder`, `dome`, `sphere`: the grid on that surface |
-| `surface_size` | 0.8 | Diameter, as a fraction of the card's shorter side |
-| `surface_length` | 1 | Cylinder length, as a fraction of the card's size along its axis; 0 runs it off the card and into the distance |
-| `surface_axis` | `vertical` | `vertical`: an upright cylinder, a dome over the floor. `horizontal`: a cylinder lying across the card, a dome facing you with its pole in the middle (rings and spokes) |
-| `surface_side` | `outside` | `outside`: look at the surface. `inside`: look out from its centre (a tunnel down a horizontal cylinder, a planetarium inside a dome) |
+| `surface` | `plane` | `plane`: the flat grid or floor (`view`). `cylinder`, `dome`, `sphere`, `well`: the grid on that surface |
+| `surface_size` | 0.8 | Diameter, as a fraction of the card's shorter side (a well's rim) |
+| `surface_length` | 1 | Cylinder length or well depth, as a fraction of the card's size along its axis; 0 runs a cylinder off the card and into the distance |
+| `surface_axis` | `vertical` | `vertical`: an upright cylinder, a dome over the floor, a well opening upward. `horizontal`: a cylinder lying across the card, a dome or well facing you |
+| `surface_side` | `outside` | `outside`: look at the surface. `inside`: look out from its centre (a tunnel down a horizontal cylinder, a planetarium inside a dome); a well is always seen from outside |
 | `back_opacity` | 0.25 | Opacity of the far side seen from outside; 0 hides it |
+| `surface_rotate_x` | 0 | Turns the surface itself, in degrees: positive tips its top toward you |
+| `surface_rotate_y` | 0 | Positive turns its front to the right |
+| `surface_rotate_z` | 0 | Positive leans its top to the left (counter-clockwise) |
 
 How the keys you already know behave on a surface:
 
 - **Spacing and widths:** `line_spacing` is true px at the front of the surface, and line widths are px everywhere. Lines fade where they crowd (toward the edges, the poles and into the distance).
 - **Scroll is spin:** the scroll that runs round the surface turns it: `scroll_speed_x` on an upright cylinder, a dome or a sphere; `scroll_speed_y` rolls a horizontal cylinder. By default a surface spins and does not slide along its axis. A whole number of cells goes round, so there is no seam.
-- **Camera:** from outside the camera circles the surface: `camera_tilt` is its height above the equator (default 15), `camera_yaw` turns round it, `camera_distance` zooms. From inside, `camera_tilt` looks up (default 0) and `camera_yaw` turns; `camera_distance` above 1 steps back along the view.
+- **Camera:** from outside the camera circles the surface: `camera_tilt` is its height above the equator (default 15; 35 on a well), `camera_yaw` turns round it, `camera_distance` zooms, `camera_roll` turns the picture. From inside, `camera_tilt` looks up (default 0) and `camera_yaw` turns; `camera_distance` above 1 steps back along the view.
+- **Orientation:** `surface_rotate_x`, `_y` and `_z` turn the surface itself (applied in that order), so it can face any way while the camera keys still circle it. All of them are animatable: a tumbling or leaning surface is one animation.
 - **Edges:** the open ends of a cylinder and the base of a dome get a rim line (`line_width_major`, `color_major`) while `show_border_lines` is on.
-- **Patterns:** a cylinder takes every pattern. On a dome or sphere, `diagonal` and `hexagonal` draw rows and columns.
+- **Patterns:** a cylinder and a well take every pattern. On a dome or sphere, `diagonal` and `hexagonal` draw rows and columns. [`polar`](#polar-pattern) draws rings along the axis and `spoke_count` meridians.
 - **Scan line:** `scan_period` sweeps along the axis, from the top (or the pole) down.
 
 ```yaml
@@ -169,6 +211,72 @@ background_animation:
       color: "var(--lcards-orange)"
       color_major: "var(--lcards-moonlight)"
 ```
+
+### Grid wells
+
+`surface: well` is a funnel: a surface of revolution from its rim down to its bottom, of any profile. The gravity well and the wormhole of the Voyager astrometrics displays are wells. It takes every [surface key](#grid-surfaces): `surface_size` is the rim's diameter, `surface_length` the depth.
+
+<CardGallery set="grid-wells" />
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `well_shape` | `trumpet` | `trumpet`: the gravity well, nearly flat at the rim and plunging to the throat. `cone`: straight sides. `bowl`: rounded toward the bottom |
+| `well_throat` | 0.15 | The throat of a `well_shape`, as a fraction of the rim (1 is a cylinder) |
+| `well_profile` | | Any shape: diameters as fractions of `surface_size`, from the rim down to the bottom, evenly spaced along the depth. A smooth curve passes through every one. Replaces `well_shape` and `well_throat` |
+| `well_profile_to` | | A second profile in the same form, for `well_morph` |
+| `well_morph` | 0 | Blends from the well's shape (0) to `well_profile_to` (1) |
+| `well_ripple` | 0 | Ripples running along the well: their height, as a fraction of the local radius (0.1 is a gentle swell) |
+| `well_ripple_waves` | 3 | Ripple wavelengths along the depth |
+| `well_ripple_speed` | 0.5 | Waves per second: positive runs down toward the bottom, negative up toward the rim |
+
+Some profiles: `[1, 0.4, 0.2, 0.15]` is a trumpet, `[1, 0.25, 1]` an hourglass (a wormhole), `[1, 0.9, 0.5, 0]` a closed bowl, `[1, 1]` a straight tube (with a ripple, a pulsing conduit). The rings are evenly spaced along the surface (`line_spacing` px apart, however steep it is); a ripple passes through them, so they ride the swell.
+
+`well_throat`, `well_morph` and the ripple keys are [animatable](../background-animations.md#animatable-keys): animate `well_morph` from 0 to 1 to reshape the funnel, or `well_throat` to let it breathe.
+
+```yaml
+background_animation:
+  - preset: grid
+    config:
+      surface: well
+      well_profile: [1.2, 0.5, 0.2, 0.12, 0.1]
+      well_ripple: 0.12
+      well_ripple_speed: 0.6
+      pattern: polar
+      spoke_count: 24
+      line_spacing: 20
+      camera_tilt: 40
+      color: "var(--lcards-orange)"
+```
+
+A morph from a trumpet to an hourglass and back:
+
+```yaml
+type: custom:lcards-elbow
+elbow:
+  type: frame
+background_animation:
+  inset: auto
+  effects:
+    - preset: grid
+      config:
+        surface: well
+        well_profile: [1, 0.35, 0.18, 0.12]
+        well_profile_to: [1, 0.3, 0.15, 1]
+        camera_tilt: 20
+animations:
+  - trigger: on_load
+    target: background
+    effect: 0
+    preset: custom
+    params:
+      well_morph: [0, 1]
+      duration: 5000
+      ease: inOutSine
+      loop: true
+      alternate: true
+```
+
+The well is drawn as 64 stacked slices, each an exact hit, so its edges stay sharp at any shape. A wobble that is not round about the axis (a bulge on one side, a bending axis) is not something a well can do.
 
 ---
 
@@ -1021,9 +1129,10 @@ config:
 | `seed` | random | Star layout |
 | `camera_tilt` | 0 | Looks down (positive) or up from the direction of travel, in degrees (-40 to 40): the stars stream from a point higher or lower on the card |
 | `camera_yaw` | 0 | Looks right (positive) or left of the direction of travel, in degrees (-40 to 40), as when turning at warp |
+| `camera_roll` | 0 | Banks the view round its line of sight, in degrees (positive: clockwise) |
 | `fov` | 70 | Field of view in degrees: wider makes a deeper tunnel of streaks |
 
-Animatable: `speed`, `streak`, `camera_tilt`, `camera_yaw`, `fov`, `color`, `opacity` and the transform keys. The camera keys mean the same as on the [grid](#grid-views-and-camera), so either can follow an entity.
+Animatable: `speed`, `streak`, `camera_tilt`, `camera_yaw`, `camera_roll`, `fov`, `color`, `opacity` and the transform keys. The camera keys mean the same as on the [grid](#grid-views-and-camera), so either can follow an entity.
 
 **Examples:**
 

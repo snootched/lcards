@@ -39,3 +39,29 @@ for (const [name, params] of CASES) {
         await expect(page.locator('#mount')).toHaveScreenshot(`${name}.png`);
     });
 }
+
+// The zoom wrapper over the WebGL grid (C5): the background canvas at a pinned
+// zoom time (the button face would cover it in a card screenshot)
+test('visual: grid + zoom on WebGL (background canvas)', async ({ page }) => {
+    await mountCase(page, 'button-webgl-grid-zoom', { freeze: '1', width: '520' });
+    await expect.poll(() => page.evaluate(() => {
+        const z = /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer.renderer.effects[0];
+        return !!z?.baseEffect?._scene;
+    }), { timeout: 10_000 }).toBe(true);
+    const png = await page.evaluate(() => {
+        const bg = /** @type {any} */ (document.querySelector('#mount > *'))._backgroundRenderer;
+        bg.renderer.stop();
+        bg.renderer.effects[0]._elapsedTime = 3;
+        bg.renderer._drawEffects(0);
+        const out = document.createElement('canvas');
+        out.width = bg.canvas.width;
+        out.height = bg.canvas.height;
+        const ctx = /** @type {CanvasRenderingContext2D} */ (out.getContext('2d'));
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, out.width, out.height);
+        ctx.drawImage(bg.canvas, 0, 0);
+        return out.toDataURL('image/png').split(',')[1];
+    });
+    await expectNoErrors(page);
+    expect(Buffer.from(png, 'base64')).toMatchSnapshot('grid-zoom-webgl.png');
+});

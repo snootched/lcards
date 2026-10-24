@@ -232,6 +232,28 @@ export const CARD_GALLERIES = {
       webglTile('cylinder, surface_side: inside', '- preset: grid\n  config:\n    surface: cylinder\n    surface_axis: horizontal\n    surface_side: inside\n    surface_length: 0\n    scroll_speed_x: 60\n    major_col_interval: 4\n    color: var(--lcards-orange)\n    color_major: var(--lcards-moonlight)'),
     ],
   },
+  'grid-polar': {
+    hint: 'Flat polar charts draw on both tiers; the floor and the surface need WebGL.',
+    minWidth: 280,
+    tiles: [
+      webglTile('pattern: polar', '- preset: grid\n  config:\n    pattern: polar\n    color: var(--lcards-orange)\n    major_row_interval: 3\n    major_col_interval: 3\n    color_major: var(--lcards-moonlight)\n    line_width_major: 2'),
+      webglTile('polar, view: floor', '- preset: grid\n  config:\n    pattern: polar\n    view: floor\n    camera_tilt: 30\n    spoke_count: 24\n    major_row_interval: 4\n    major_col_interval: 6\n    color: var(--lcards-blue-light)\n    color_major: var(--lcards-moonlight)'),
+      webglTile('off centre, rings pulsing out', '- preset: grid\n  config:\n    pattern: polar\n    polar_x: 0.2\n    polar_y: 0.8\n    spoke_count: 16\n    scroll_speed_y: 20\n    major_row_interval: 3\n    color: var(--lcards-orange)\n    color_major: var(--lcards-moonlight)'),
+      webglTile('polar on a dome facing you', '- preset: grid\n  config:\n    pattern: polar\n    surface: dome\n    surface_axis: horizontal\n    surface_size: 1.1\n    major_row_interval: 3\n    color: var(--lcards-blue-light)\n    color_major: var(--lcards-moonlight)'),
+    ],
+  },
+  'grid-wells': {
+    hint: 'Drawn with WebGL in your browser; without it each draws the flat grid.',
+    minWidth: 280,
+    tiles: [
+      webglTile('surface: well (trumpet)', '- preset: grid\n  config:\n    surface: well\n    major_row_interval: 4\n    color: var(--lcards-blue-light)\n    color_major: var(--lcards-moonlight)'),
+      webglTile('gravity well: profile, polar, ripple', '- preset: grid\n  config:\n    surface: well\n    well_profile: [1.1, 0.5, 0.2, 0.12, 0.1]\n    well_ripple: 0.12\n    pattern: polar\n    spoke_count: 24\n    line_spacing: 20\n    camera_tilt: 40\n    color: var(--lcards-orange)'),
+      webglTile('well_profile: [1, 0.25, 1]', '- preset: grid\n  config:\n    surface: well\n    well_profile: [1, 0.25, 1]\n    camera_tilt: 15\n    color: var(--lcards-orange)\n    color_major: var(--lcards-moonlight)\n    major_row_interval: 3'),
+      webglTile('well_shape: bowl', '- preset: grid\n  config:\n    surface: well\n    well_shape: bowl\n    well_throat: 0.05\n    color: var(--lcards-blue-light)'),
+      webglTile('tube with a ripple', '- preset: grid\n  config:\n    surface: well\n    well_profile: [1, 1]\n    well_ripple: 0.2\n    well_ripple_waves: 2\n    camera_tilt: 20\n    color: var(--lcards-orange)'),
+      webglTile('surface_rotate_z: 30', '- preset: grid\n  config:\n    surface: well\n    surface_rotate_z: 30\n    camera_roll: 10\n    color: var(--lcards-blue-light)\n    color_major: var(--lcards-moonlight)\n    major_row_interval: 4'),
+    ],
+  },
   'text-decode': {
     hint: 'Tap a button to decode it again.',
     minWidth: 280,
