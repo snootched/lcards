@@ -57,6 +57,7 @@ import { LCARdSMSDCard } from './cards/lcards-msd.js';
 import { LCARdSAlertOverlay } from './cards/lcards-alert-overlay.js';
 import { LCARdSSelectMenu } from './cards/lcards-select-menu.js';
 import { LCARdSLayoutCard } from './cards/lcards-layout-card.js';
+import { LCARdSAstrometricsCard } from './cards/lcards-astrometrics-card.js';
 // Config panel: a small shell; the panel itself loads when it is opened.
 import './panels/lcards-config-panel-shell.js';
 import { docsUrl, DOCS } from './utils/docs-url.js';
@@ -361,6 +362,7 @@ initializeCustomCard()
         if (!customElements.get('lcards-alert-overlay')) customElements.define('lcards-alert-overlay', LCARdSAlertOverlay);
         if (!customElements.get('lcards-select-menu')) customElements.define('lcards-select-menu', LCARdSSelectMenu);
         if (!customElements.get('lcards-layout-card')) customElements.define('lcards-layout-card', LCARdSLayoutCard);
+        if (!customElements.get('lcards-astrometrics-card')) customElements.define('lcards-astrometrics-card', LCARdSAstrometricsCard);
 
         lcardsLog.debug('[lcards.js] All custom elements registered after core initialization');
 
@@ -376,6 +378,7 @@ initializeCustomCard()
             if (LCARdSAlertOverlay.registerSchema) LCARdSAlertOverlay.registerSchema();
             if (LCARdSSelectMenu.registerSchema) LCARdSSelectMenu.registerSchema();
             if (LCARdSLayoutCard.registerSchema) LCARdSLayoutCard.registerSchema();
+            if (LCARdSAstrometricsCard.registerSchema) LCARdSAstrometricsCard.registerSchema();
 
             lcardsLog.debug('[lcards.js] Card schemas registered');
 
@@ -472,6 +475,13 @@ const LCARdSCardClasses = [
         preview: false,
         description: 'CSS Grid container card with a visual editor. Build sub-grids and place cards into named areas',
         documentationURL: docsUrl(DOCS.layoutCard),
+    },
+    {
+        type: 'lcards-astrometrics-card',
+        name: 'LCARdS Astrometrics',
+        preview: true,
+        description: '3D astrometrics scene: sector maps, galaxy discs, sky domes with the sun and moon, labelled points to fly to',
+        documentationURL: docsUrl(DOCS.astrometrics),
     }
 ];
 

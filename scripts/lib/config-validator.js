@@ -14,6 +14,8 @@
  *     and background presets, filters, sound assets, MSD backgrounds, theme tokens,
  *     near-miss `var(--lcars-*)` (HA-LCARS) and `var(--lcards-*)` (LCARdS palette) names
  *     (scripts/lib/registries.js). User packs can add names, so these are warnings.
+ *   - astrometrics: one placement form per point, and every point, object and view id
+ *     a reference names exists in the card (errors: nothing outside the card adds them)
  */
 
 import Ajv from 'ajv';
@@ -21,6 +23,7 @@ import { isTemplateString } from '../../src/utils/template-string.js';
 import { migrateChartConfig } from '../../src/charts/chart-config-migration.js';
 import { migrateDataGridConfig } from '../../src/data-grid/data-grid-config-migration.js';
 import { classifyThemePath } from './theme-token-rules.js';
+import { PLACEMENT_FORMS } from '../../src/core/astrometrics/names.js';
 
 /**
  * Keys every card accepts that card schemas don't list (HA / layout plumbing, and the
@@ -100,6 +103,12 @@ export function unknownKeys(value, schema, pathPrefix = '', out = [], isCardRoot
     const items = schema.items ?? [schema, ...(schema.anyOf ?? []), ...(schema.oneOf ?? [])].find(b => b?.items)?.items;
     value.forEach((v, i) => unknownKeys(v, items, `${pathPrefix}[${i}]`, out, false, hints));
     return out;
+  }
+  // A oneOf/anyOf keyed by `type` (one branch per type: astrometrics objects): check
+  // against the branch for this value's type, so keys of other types are reported.
+  if (!isCardRoot && typeof value.type === 'string') {
+    const branch = [...(schema.oneOf ?? []), ...(schema.anyOf ?? [])].filter(b => b?.properties?.type?.const === value.type);
+    if (branch.length === 1) schema = branch[0];
   }
   for (const [key, v] of Object.entries(value)) {
     if (isCardRoot && CARD_PLUMBING_KEYS.has(key)) continue;
@@ -223,6 +232,98 @@ export function registryIssues(node, tag, reg) {
   return out;
 }
 
+/**
+ * Astrometrics references (all card-local): each point has exactly one placement
+ * form, ids are unique, and every id a reference names exists: points (`at`,
+ * `target`, path `points` / `from` / `to`, ring `around`, beam ends, object `at`),
+ * objects (`on`, of a kind that carries the form) and views (`camera.view`, an
+ * action's `view`). Generated label points (`<object>.ring.<deg>`, `.col.`, `.row.`)
+ * count as points.
+ * @returns {{path: string, severity: 'error'|'warning', message: string}[]}
+ */
+export function astrometricsIssues(node) {
+  const out = [];
+  const err = (path, message) => out.push({ path, severity: 'error', message });
+  const warn = (path, message) => out.push({ path, severity: 'warning', message });
+  const points = Array.isArray(node.points) ? node.points : [];
+  const objects = Array.isArray(node.objects) ? node.objects : [];
+  const views = node.camera?.views && typeof node.camera.views === 'object' ? node.camera.views : {};
+
+  /** @type {Map<string, any>} object id -> config (generated ids type#n as the runtime makes them) */
+  const objectIds = new Map();
+  const counts = {};
+  objects.forEach((o, i) => {
+    if (!o || typeof o !== 'object') return;
+    counts[o.type] = (counts[o.type] ?? 0) + 1;
+    const id = o.id === undefined || o.id === null || o.id === '' ? `${o.type}#${counts[o.type]}` : String(o.id);
+    if (objectIds.has(id)) warn(`objects[${i}].id`, `two objects with id "${id}": references use the later one`);
+    objectIds.set(id, o);
+  });
+  const pointIds = new Set();
+  points.forEach((p, i) => {
+    if (!p || typeof p !== 'object' || p.id === undefined) return;
+    const id = String(p.id);
+    if (pointIds.has(id)) err(`points[${i}].id`, `two points with id "${id}"`);
+    pointIds.add(id);
+  });
+  const generated = /^(.+)\.(ring|col|row)\.[\d.]+$/;
+  const isPoint = (ref) => pointIds.has(ref) || (generated.test(ref) && objectIds.has(generated.exec(ref)[1]));
+  const nearPoint = (ref) => suggest(ref, [...pointIds]);
+  /** A point reference: an id that must exist, or [x, y, z] */
+  const pointRef = (path, ref) => {
+    if (isLiteral(ref) && !isPoint(ref)) err(path, `no point "${ref}"${nearPoint(ref)}`);
+  };
+  const viewRef = (path, ref) => {
+    if (isLiteral(ref) && !Object.prototype.hasOwnProperty.call(views, ref)) err(path, `no view "${ref}" in camera.views${suggest(ref, Object.keys(views))}`);
+  };
+  const actionViews = (path, cfg) => {
+    for (const key of ['tap_action', 'hold_action']) {
+      if (cfg?.[key]?.view !== undefined) viewRef(`${path}.${key}.view`, cfg[key].view);
+    }
+  };
+  const isDome = (o) => o?.type === 'grid' && (o.shape === 'dome' || o.shape === 'sphere');
+  const isGlobe = (o) => o?.type === 'sphere' || (o?.type === 'grid' && o.shape === 'sphere');
+
+  points.forEach((p, i) => {
+    if (!p || typeof p !== 'object') return;
+    const at = `points[${i}]`;
+    const forms = PLACEMENT_FORMS.filter(f => p[f] !== undefined);
+    if (forms.length === 0) err(at, `point "${p.id}" has no position (one of ${PLACEMENT_FORMS.join(', ')})`);
+    if (forms.length > 1) err(at, `point "${p.id}" has more than one position (${forms.join(', ')}); use one`);
+    if (p.at !== undefined) pointRef(`${at}.at`, p.at);
+    if (p.on !== undefined && isLiteral(p.on)) {
+      const host = objectIds.get(p.on);
+      if (!host) err(`${at}.on`, `no object "${p.on}"${suggest(p.on, [...objectIds.keys()])}`);
+      else if (p.latlon !== undefined && !isGlobe(host)) warn(`${at}.on`, `latlon stands on a sphere; "${p.on}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
+      else if ((p.altaz !== undefined || p.sky !== undefined) && !isDome(host)) warn(`${at}.on`, `${p.sky !== undefined ? 'sky' : 'altaz'} stands on a dome grid; "${p.on}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
+      else if (p.cell !== undefined && !(host.type === 'grid' && (host.shape ?? 'plane') === 'plane')) err(`${at}.on`, `cell needs a plane grid; "${p.on}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
+    } else if (p.cell !== undefined || p.latlon !== undefined || p.altaz !== undefined || p.sky !== undefined) {
+      const form = ['cell', 'latlon', 'altaz', 'sky'].find(f => p[f] !== undefined);
+      err(at, `${form} needs on: (the object it stands on)`);
+    }
+    actionViews(at, p);
+  });
+
+  objects.forEach((o, i) => {
+    if (!o || typeof o !== 'object') return;
+    const at = `objects[${i}]`;
+    if (o.at !== undefined) pointRef(`${at}.at`, o.at);
+    if (o.type === 'ring' && o.around !== undefined) pointRef(`${at}.around`, o.around);
+    if (o.type === 'path' || o.type === 'beam') {
+      for (const key of ['from', 'to']) if (o[key] !== undefined) pointRef(`${at}.${key}`, o[key]);
+    }
+    if (o.type === 'path' && Array.isArray(o.points)) o.points.forEach((r, k) => pointRef(`${at}.points[${k}]`, r));
+    if (o.type === 'path' && o.on !== undefined && isLiteral(o.on) && !objectIds.has(o.on)) err(`${at}.on`, `no object "${o.on}"${suggest(o.on, [...objectIds.keys()])}`);
+    actionViews(at, o);
+  });
+
+  for (const [name, v] of Object.entries(views)) {
+    if (v?.target !== undefined) pointRef(`camera.views.${name}.target`, v.target);
+  }
+  if (node.camera?.view !== undefined) viewRef('camera.view', node.camera.view);
+  return out;
+}
+
 /** Only `builtin:` sources are checked against the registry (paths and media IDs are the user's). */
 function builtinOnly(source) {
   return typeof source === 'string' && source.startsWith('builtin:') ? source : undefined;
@@ -262,7 +363,7 @@ function distance(a, b) {
 // ── The validator ──────────────────────────────────────────────────────────────
 /**
  * @typedef {{ path: string, tag: string, severity: 'error'|'warning', code: string, message: string }} Issue
- *   code: schema | unknown-key | msd-canvas | legacy-format | registry
+ *   code: schema | unknown-key | msd-canvas | legacy-format | registry | reference
  */
 
 /**
@@ -271,7 +372,8 @@ function distance(a, b) {
  */
 export function createConfigValidator({ entries, registries = null }) {
   // validateFormats: false silences HA-specific formats (entity, font-family, color).
-  const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false });
+  // discriminator: a oneOf keyed by `type` (astrometrics objects) reports only the matching branch.
+  const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false, discriminator: true, verbose: true });
   // Template strings are evaluated at render time, so `pattern` only applies to literal values
   // (the same rule as CoreValidationService).
   ajv.removeKeyword('pattern');
@@ -322,11 +424,20 @@ export function createConfigValidator({ entries, registries = null }) {
     if (!validate(node)) {
       for (const err of validate.errors ?? []) {
         const p = err.instancePath.replace(/^\//, '').replace(/\/(\d+)(?=\/|$)/g, '[$1]').replace(/\//g, '.');
+        if (err.keyword === 'discriminator' && err.params?.error === 'mapping') {
+          // A oneOf keyed by type with no branch for this value: name the choices
+          const types = (err.parentSchema?.oneOf ?? []).map(b => b?.properties?.type?.const).filter(Boolean);
+          add('error', 'schema', `${p}.type`, `unknown type "${err.params.tagValue}" (one of ${types.join(', ')})${suggest(String(err.params.tagValue), types)}`);
+          continue;
+        }
         add('error', 'schema', p, err.message ?? 'invalid');
       }
     }
     if (registries) {
       for (const r of registryIssues(node, tag, registries)) add('warning', 'registry', r.path, r.message);
+    }
+    if (tag === 'lcards-astrometrics-card') {
+      for (const r of astrometricsIssues(node)) add(r.severity, 'reference', r.path, r.message);
     }
     return issues;
   }

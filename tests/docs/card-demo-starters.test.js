@@ -16,6 +16,7 @@ import { getSliderSchema } from '../../src/cards/schemas/slider-schema.js';
 import { getElbowSchema } from '../../src/cards/schemas/elbow-schema.js';
 import { getSelectMenuSchema } from '../../src/cards/schemas/select-menu-schema.js';
 import { dataGridSchema } from '../../src/cards/schemas/data-grid-schema.js';
+import { astrometricsSchema } from '../../src/cards/schemas/astrometrics-schema.js';
 import { BUTTON_PRESETS } from '../../src/core/packs/style-presets/buttons/index.js';
 import { SLIDER_PRESETS } from '../../src/core/packs/style-presets/sliders/index.js';
 
@@ -27,6 +28,7 @@ const SCHEMAS = {
     'lcards-elbow': getElbowSchema(buttonPresets),
     'lcards-select-menu': getSelectMenuSchema(buttonPresets),
     'lcards-data-grid': dataGridSchema,
+    'lcards-astrometrics-card': astrometricsSchema,
 };
 
 function assertValid(text, card) {

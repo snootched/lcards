@@ -1,0 +1,252 @@
+---
+description: "The LCARdS Astrometrics card (custom:lcards-astrometrics-card): 3D scenes in the style of the astrometrics lab and stellar cartography. Sector maps, galaxy discs, sky domes with the sun and moon, labelled points you tap to fly to."
+---
+
+# Astrometrics
+
+`custom:lcards-astrometrics-card`
+
+![Astrometrics card: a galaxy disc with bearing labels round its rim, the galactic core glowing yellow, Federation space as a blue see-through sector, Borg space as a green one, crossing beams and a small blue planet with its orbits](/img/cards/astrometrics.webp)
+
+A 3D scene in the style of the astrometrics lab and stellar cartography: a lettered sector map, a galaxy disc with territories, a planet with an away team on it, or the sky over your home with the sun and moon where they are now. Drag to orbit, zoom, tap a point to fly to it.
+
+- **Objects** draw the scene: grids (plane, disc, dome, sphere, cylinder), see-through territory volumes, planets, orbits and rings, routes, beams, images and glows. See [Objects](./objects).
+- **Points** are named places with an optional label and marker: on the plane, on a planet, in the sky, in a sector map cell. Paths, rings, beams and the camera refer to them by id. See [Points](./points).
+- **Camera** orbits a target. Named views let a tap fly the camera from the galaxy to a planet and back.
+- **Light on the device:** the scene draws only when something moves (a drag, a fly-to, a spinning planet). An idle card costs nothing, and every astrometrics card on a page shares one WebGL context.
+
+## Quick start
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 360
+camera:
+  view: galaxy
+  views:
+    galaxy: { target: core, yaw: 20, tilt: 35, distance: 260 }
+    map: { target: core, tilt: 90, distance: 300 }
+backdrop:
+  stars: true
+points:
+  - { id: core, xyz: [0, 0, 0], label: GALACTIC CORE, style: title }
+  - { id: vega, polar: [64, 160], marker: triangle, label: Vega }
+  - { id: rigel, polar: [88, 95], marker: diamond, label: Rigel }
+  - id: home
+    polar: [45, 300]
+    marker: reticle
+    label: MAP VIEW
+    tap_action: { action: fly-to, view: map }
+objects:
+  - { type: grid, shape: disc, radius: 100, pattern: polar, line_spacing: 10, spoke_count: 36, ring_labels: { step: 30 } }
+  - { type: ring, radius: 100, width: 2 }
+  - { type: glow, at: core, size: 50 }
+```
+
+Drag to turn the disc, scroll or pinch to zoom. Tap **Vega** to fly to it; tap **MAP VIEW** to fly to the view named `map`.
+
+Scene units are yours to choose: here the disc has a radius of 100. Line widths, dashes and label sizes are in px, so they look the same at any zoom. Bearings are in degrees: **0 is north** (away from the camera in the default view), **clockwise** seen from above.
+
+## The three references
+
+### Galaxy with territories
+
+Federation and Borg space as see-through volumes, crossing beams, a planet orbiting on its own point with an away team on its surface, and a route between two stars.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 460
+camera:
+  view: galaxy
+  views:
+    galaxy: { target: core, yaw: 20, tilt: 35, distance: 280 }
+    map: { target: core, tilt: 90, distance: 300 }
+    planet: { target: nimbus, yaw: 60, tilt: 20, distance: 40 }
+backdrop:
+  stars: { count: 2500 }
+points:
+  - { id: core, xyz: [0, 0, 0], label: GALACTIC CORE, style: title }
+  - { id: sagittarius, polar: [45, 300], label: Sagittarius Arm, style: major }
+  - { id: federation, polar: [75, 135], y: 22, label: FEDERATION, style: major, color: var(--lcars-blue) }
+  - { id: borg, polar: [30, 345], y: 44, label: BORG SPACE, style: major, color: var(--lcars-green) }
+  - { id: talos, polar: [52, 310], marker: dot, label: Talos IV, style: tiny, max_distance: 200 }
+  - { id: vega, polar: [64, 160], marker: triangle, label: Vega, style: minor }
+  - id: nimbus
+    polar: [72, 236]
+    y: 12
+    marker: reticle
+    label: NIMBUS III
+    tap_action: { action: fly-to, view: planet }
+  - { id: away, latlon: [10, 40], on: planet, alt: 0.3, marker: dot, label: AWAY TEAM, style: tiny, color: var(--lcars-orange) }
+objects:
+  - type: grid
+    shape: disc
+    radius: 100
+    pattern: polar
+    line_spacing: 10
+    spoke_count: 36
+    major_row_interval: 3
+    ring_labels: { step: 10, radius: 106 }
+  - { type: ring, radius: 100, width: 3, color: theme:colors.ui.secondary }
+  - type: volume
+    id: federation_space
+    shape: sector
+    radius: [55, 95]
+    angle: [100, 170]
+    height: [-6, 18]
+    cells: { ring: 10, angle: 10, layer: 8 }
+    color: var(--lcars-blue)
+    tap_action: { action: fly-to }
+  - type: volume
+    shape: sector
+    radius: [18, 42]
+    angle: [330, 360]
+    height: [0, 40]
+    color: var(--lcars-green)
+  - { type: glow, at: core, size: 70 }
+  - { type: beam, from: [-180, 0, 0], to: [180, 0, 0] }
+  - { type: beam, from: [0, 0, -180], to: [0, 0, 180] }
+  - { type: sphere, id: planet, at: nimbus, radius: 6, spin: 8 }
+  - { type: ring, around: nimbus, radius: 10, inclination: 20, width: 1.5 }
+  - { type: path, points: [talos, vega], arc: 12, dash: [6, 4], color: var(--lcars-orange) }
+```
+
+Tap **NIMBUS III** to fly to the planet view, or tap the Federation volume to fly to it.
+
+### Sector map
+
+A flat lettered grid seen from straight above, with territories filled cell by cell. `limits.tilt: [90, 90]` locks the tilt, so a one-finger drag pans the map instead of turning it.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 380
+camera:
+  view: map
+  views:
+    map: { target: [0, 0, 0], tilt: 90, distance: 1250, projection: orthographic }
+  limits: { tilt: [90, 90] }
+objects:
+  - type: grid
+    id: sectors
+    shape: plane
+    size: [1200, 600]
+    line_spacing: 40
+    axis_labels: { columns: letters, rows: numbers, column_start: AD }
+    cells:
+      - { from: AF3, to: AH6, color: var(--lcars-blue), opacity: 0.3, shade: 0.4, border: true }
+      - { from: AL2, to: AO5, color: var(--lcars-green), opacity: 0.25, shade: 0.4 }
+      - { from: AL9, to: AP12, color: var(--lcars-red), opacity: 0.3, shade: 0.4 }
+points:
+  - { id: ufp, cell: AG4, on: sectors, label: UNITED FEDERATION OF PLANETS, style: major }
+  - { id: sb10, cell: AJ2, on: sectors, offset: [8, 0, 12], marker: triangle, label: Starbase 10 }
+  - { id: achernar, cell: AN3, on: sectors, marker: diamond, label: Achernar }
+  - { id: qualor, cell: AL6, on: sectors, marker: dot, label: Qualor, style: tiny, max_distance: 1300 }
+```
+
+### Sky dome: the sun and moon
+
+A dome over your home with the sun and moon where they are now and today's tracks across the sky. Positions come from the time and your Home Assistant location; when `sun.sun` exists its azimuth and elevation are used for the sun. They are updated every minute.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 380
+camera:
+  view: horizon
+  views:
+    horizon: { target: [0, 15, 0], yaw: 180, tilt: 28, distance: 260 }
+    zenith: { target: [0, 0, 0], tilt: 90, distance: 260 }
+objects:
+  - { type: grid, id: sky, shape: dome, radius: 100, pattern: both, line_spacing_deg: 15 }
+  - { type: ring, radius: 100, width: 3, color: theme:colors.ui.primary }
+  - { type: path, sky: sun, on: sky, dash: [6, 4], color: var(--lcars-yellow) }
+  - { type: path, sky: moon, on: sky, dash: [6, 4], color: var(--lcars-blue) }
+points:
+  - { id: sun, sky: sun, on: sky, marker: reticle, label: SOL }
+  - { id: moon, sky: moon, on: sky, marker: moon_phase, label: LUNA }
+  - { id: n, altaz: [0, 0], on: sky, alt: 6, label: N, style: major }
+  - { id: e, altaz: [90, 0], on: sky, alt: 6, label: E, style: major }
+  - { id: s, altaz: [180, 0], on: sky, alt: 6, label: S, style: major }
+  - { id: w, altaz: [270, 0], on: sky, alt: 6, label: W, style: major }
+```
+
+Below the horizon, sky points dim (`below_horizon: dim`, the default) and the tracks stop at the horizon. The moon marker shows its lit part.
+
+## Camera and views
+
+The camera orbits a target. Four numbers place it: `yaw` (the bearing it looks from: 0 looks north, 90 looks east), `tilt` (0 is level with the target, 90 is straight down), `distance` and `fov`. A view is a named set of them:
+
+```yaml
+camera:
+  view: galaxy                # shown first (default: the first view)
+  views:
+    galaxy: { target: core, yaw: 20, tilt: 35, distance: 280 }
+    map: { target: core, tilt: 90, distance: 300, projection: orthographic }
+  controls: true              # drag to orbit, wheel or pinch to zoom (default true)
+  limits: { tilt: [5, 90], distance: [20, 800] }
+  auto_rotate: 2              # degrees per second (0 = off)
+  fly_duration: 1600          # ms
+  ease: inOutCubic
+```
+
+- `target` is a point id (the camera follows the point if it moves) or `[x, y, z]`.
+- A view without `yaw` faces north. With no views at all the camera frames the whole scene.
+- `projection: orthographic` removes the perspective (a flat map); `distance` then sets the zoom.
+- **Controls:** drag to orbit; shift-drag, right-drag or two fingers to pan; wheel or pinch to zoom. With `limits.tilt` locked to one value, a one-finger drag pans. `controls: false` leaves the camera to fly-to actions and `auto_rotate`.
+- Fly between views with a `tap_action` on a point or object: `{ action: fly-to, view: map }` (see [Points: actions](./points#actions)).
+
+## Labels
+
+Labels are text in the LCARS font over the scene, in four sizes: `title`, `major`, `minor` and `tiny`. When two overlap the larger style wins, then the nearer one. They move by sub-pixel steps, which looks smooth while the scene turns; on a weak device `labels: { snap: true }` rounds them to whole pixels.
+
+## Backdrop
+
+`backdrop.stars` puts stars at infinity behind the scene: they turn with the camera and never move when it pans. `true` uses the defaults; the settings take the [starfield](/core/effects/background-animations/preset-reference#starfield) background preset's names:
+
+```yaml
+backdrop:
+  stars:
+    count: 2500
+    min_radius: 0.4       # px
+    max_radius: 1.4
+    min_opacity: 0.3
+    max_opacity: 1
+    colors: [var(--lcards-moonlight), var(--lcars-blue)]
+    seed: 7
+```
+
+`background_animation` takes any [background animation](/core/effects/background-animations) (a nebula, a warp starfield, a grid) as a flat layer behind the scene, as on the MSD card. It does not turn with the camera.
+
+```yaml
+background_animation:
+  - preset: nebula
+    config: { volumetric: true, cloud_count: 4 }
+```
+
+## A header bar
+
+The card is the scene only. For an LCARS frame round it (an "ALPHA QUADRANT" bar), put it in a [Layout Card](../layout-card/) with an elbow or a bar-label button above it.
+
+## Options
+
+| Option | What it does |
+|---|---|
+| `height` | Card height, px or CSS (default 400). The scene fills the card. |
+| `camera` | `view`, `views`, `controls`, `limits`, `auto_rotate`, `fly_duration`, `ease` ([Camera and views](#camera-and-views)) |
+| `points` | Named points with labels and markers ([Points](./points)) |
+| `objects` | What is drawn ([Objects](./objects)) |
+| `backdrop` | `stars` ([Backdrop](#backdrop)) |
+| `background_animation` | Flat background effects behind the scene ([Backdrop](#backdrop)) |
+| `labels` | `snap` ([Labels](#labels)) |
+| `id`, `tags`, `rules`, `sounds`, `variables`, `grid_options`, `width`, `min_height`, `max_height`, ... | As on every card ([Common options](../common)) |
+
+The [config checker](/getting-started/config-checker) also checks what the schema cannot: that each point has exactly one position, and that every id a point, path, ring, beam or view names exists.
+
+## Performance and motion
+
+- **Render on demand:** the scene draws when the camera moves, a fly-to runs, an object spins, the sky timer ticks or the theme changes. A still scene draws nothing. Off screen and in a hidden tab nothing draws.
+- **One WebGL context** for every astrometrics card and WebGL background on the page.
+- **Reduced motion** (the system setting): spin and `auto_rotate` stop, and fly-to jumps instead of flying.
+- **Alert modes** recolour the scene; labels follow the palette at once.
+
+## When the 3D view is unavailable
+
+The card shows **3D VIEW UNAVAILABLE** with the reason when the browser has no WebGL, or when the graphics context was lost (a GPU reset, too many WebGL pages). Reloading the page starts it again.

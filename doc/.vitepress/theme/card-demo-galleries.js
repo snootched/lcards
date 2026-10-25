@@ -96,6 +96,28 @@ entity: input_select.demo_mode
 ${extra}`,
 })
 
+/** A small astrometrics scene for a gallery tile: a faint plane under the camera */
+const astroTile = (label, body, camera = '{ target: [0, 0, 0], yaw: 20, tilt: 35, distance: 120 }') => ({
+  label,
+  yaml: `type: custom:lcards-astrometrics-card
+height: 220
+grid_options:
+  rows: 4
+camera:
+  views:
+    v: ${camera}
+${body}`,
+})
+const ASTRO_FLOOR = '  - { type: grid, shape: plane, size: 120, line_spacing: 10, opacity: 0.5 }\n'
+const astroMarkerTile = (marker) => astroTile(`marker: ${marker}`, `points:
+  - { id: p, xyz: [0, 0, 0], marker: ${marker}, label: ${marker.toUpperCase()} }
+objects:
+${ASTRO_FLOOR}`, '{ target: [0, 0, 0], tilt: 90, distance: 120, projection: orthographic }')
+const astroStyleTile = (style) => astroTile(`style: ${style}`, `points:
+  - { id: p, xyz: [0, 0, 0], style: ${style}, label: ${style.toUpperCase()} }
+objects:
+${ASTRO_FLOOR}`, '{ target: [0, 0, 0], tilt: 90, distance: 120, projection: orthographic }')
+
 /** Gallery sets by name: `{ minWidth, hint?, tiles: [{ label, yaml }] }` (hint: caption text). */
 /** A button that decodes its label on show and again on tap (text-decode gallery). */
 const decodeTile = (label, params) => ({
@@ -205,6 +227,49 @@ grid_options:
 })
 
 export const CARD_GALLERIES = {
+  'astro-markers': {
+    hint: 'Drag to turn a tile; a point with a marker can be tapped.',
+    minWidth: 200,
+    tiles: ['dot', 'triangle', 'diamond', 'square', 'reticle', 'moon_phase'].map(astroMarkerTile),
+  },
+  'astro-label-styles': {
+    minWidth: 240,
+    tiles: ['title', 'major', 'minor', 'tiny'].map(astroStyleTile),
+  },
+  'astro-objects': {
+    hint: 'Drag to turn a tile, scroll or pinch to zoom.',
+    minWidth: 260,
+    tiles: [
+      astroTile('type: grid (disc)', `objects:
+  - { type: grid, shape: disc, radius: 50, pattern: polar, line_spacing: 10, spoke_count: 24 }
+`),
+      astroTile('type: grid (dome)', `objects:
+  - { type: grid, shape: dome, radius: 45, line_spacing_deg: 15 }
+`, '{ target: [0, 15, 0], yaw: 20, tilt: 25, distance: 150 }'),
+      astroTile('type: volume', `objects:
+${ASTRO_FLOOR}  - { type: volume, shape: sector, radius: [15, 50], angle: [300, 400], height: [0, 15], color: var(--lcars-blue) }
+`),
+      astroTile('type: sphere', `objects:
+  - { type: sphere, radius: 22, spin: 15, color: var(--lcars-blue) }
+`, '{ target: [0, 0, 0], yaw: 0, tilt: 15, distance: 90 }'),
+      astroTile('type: ring', `objects:
+${ASTRO_FLOOR}  - { type: ring, radius: 40, inclination: 25, width: 2 }
+  - { type: ring, radius: [50, 30], dash: [4, 4] }
+`),
+      astroTile('type: path', `points:
+  - { id: a, polar: [45, 250], marker: dot }
+  - { id: b, polar: [45, 70], marker: dot }
+objects:
+${ASTRO_FLOOR}  - { type: path, from: a, to: b, arc: 20, width: 2, dash: [6, 4], color: var(--lcars-orange) }
+`),
+      astroTile('type: beam', `objects:
+${ASTRO_FLOOR}  - { type: beam, from: [-60, 5, 0], to: [60, 5, 0] }
+`),
+      astroTile('type: glow', `objects:
+${ASTRO_FLOOR}  - { type: glow, at: [0, 5, 0], size: 50 }
+`),
+    ],
+  },
   'background-webgl': {
     hint: 'Drawn with WebGL in your browser; without it each falls back to its Canvas2D version.',
     minWidth: 280,

@@ -207,3 +207,32 @@ test('one GLSL line chunk: the background grid and the mesh grid both include it
   assert.equal(/** @type {any} */ (face.children[1]).material.uniforms.uColor, mat.uniforms.uColor);
   bg.dispose();
 });
+
+test('backdrop stars take the starfield preset key names: size steps, opacity range, colour list', () => {
+  const colours = /** @type {Record<string, number[]>} */ ({ red: [1, 0, 0, 1], blue: [0, 0, 1, 1] });
+  const c = { ...ctx(), color: (/** @type {string} */ v) => colours[v] ?? [1, 1, 1, 1] };
+  const w = buildScene({ backdrop: { stars: { count: 400, min_radius: 0.5, max_radius: 2.5, min_opacity: 0.2, max_opacity: 0.6, colors: ['red', 'blue'] } } }, /** @type {any} */ (c));
+  const layers = /** @type {any[]} */ (w.stars?.node.children ?? []);
+  assert.equal(layers.length, 4, 'four size steps');
+  const sizes = layers.map((p) => p.material.size);
+  assert.deepEqual(sizes, [...sizes].sort((a, b) => a - b));
+  assert.ok(sizes[0] >= 1 && sizes[3] <= 5, `diameters within 2 x radius range: ${sizes}`);
+  let count = 0;
+  let red = 0;
+  for (const p of layers) {
+    const col = p.geometry.getAttribute('color');
+    assert.equal(col.itemSize, 4);
+    for (let i = 0; i < col.count; i++, count++) {
+      const a = col.getW(i);
+      assert.ok(a >= 0.2 - 1e-6 && a <= 0.6 + 1e-6, `alpha ${a} in range`);
+      if (col.getX(i) > 0.5) red++;
+    }
+  }
+  assert.equal(count, 400);
+  assert.ok(red > 120 && red < 280, `both colours used (${red} red of 400)`);
+  // one size: one layer
+  const one = buildScene({ backdrop: { stars: { count: 50, min_radius: 1, max_radius: 1 } } }, /** @type {any} */ (ctx()));
+  assert.equal(one.stars?.node.children.length, 1);
+  w.dispose();
+  one.dispose();
+});

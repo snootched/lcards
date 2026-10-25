@@ -65,3 +65,22 @@ test('visual: grid + zoom on WebGL (background canvas)', async ({ page }) => {
     await expectNoErrors(page);
     expect(Buffer.from(png, 'base64')).toMatchSnapshot('grid-zoom-webgl.png');
 });
+
+// Astrometrics (E2b): the galaxy reference under reduced motion (the planet's
+// spin held, so the frame is still) and the sector map. The scene draws on
+// demand: wait until it is built and has stopped drawing.
+for (const name of ['astro-galaxy', 'astro-sector']) {
+    test(`visual: ${name}`, async ({ page }) => {
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await mountCase(page, name, { freeze: '1', width: '800' });
+        const frames = () => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene?.debug().frames ?? 0);
+        await expect.poll(async () => (await frames()) > 0, { timeout: 15_000 }).toBe(true);
+        await expect.poll(async () => {
+            const a = await frames();
+            await page.waitForTimeout(300);
+            return (await frames()) === a;
+        }, { timeout: 10_000 }).toBe(true);
+        await expectNoErrors(page);
+        await expect(page.locator('#mount')).toHaveScreenshot(`${name}.png`);
+    });
+}

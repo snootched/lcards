@@ -14,7 +14,7 @@
 import { Scene, Group, Vector3, Box3, Sphere } from 'three';
 import { Placements } from './placements.js';
 import { labelItem, LABEL_STYLES } from './label-layer.js';
-import { MARKERS } from './markers.js';
+import { MARKERS, OBJECT_TYPES } from './names.js';
 import { buildGrid } from './objects/grid.js';
 import { buildVolume } from './objects/volume.js';
 import { buildSphere } from './objects/sphere.js';
@@ -24,8 +24,8 @@ import { buildGlow } from './objects/glow.js';
 import { applyRotation, disposeNode, num } from './objects/common.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
-/** Object types and their builders; line objects read points, so they come second */
-export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'ring', 'path', 'beam']);
+export { OBJECT_TYPES };
+/** Builders of the objects points can stand on; line objects read points, so they come second */
 const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image: buildImage, glow: buildGlow };
 
 /** Default label colours per style (CSS values: variables stay live) */

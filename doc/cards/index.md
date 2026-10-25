@@ -1,5 +1,5 @@
 ---
-description: "Every LCARdS card at a glance (button, elbow, slider, chart, data grid, select menu, layout card, alert overlay, MSD) with links to each card's reference."
+description: "Every LCARdS card at a glance (button, elbow, slider, chart, data grid, select menu, layout card, alert overlay, MSD, astrometrics) with links to each card's reference."
 ---
 
 # The Fleet
@@ -118,6 +118,20 @@ Create your own Master Systems Display with controls and routable lines.
 
 [MSD Documentation](msd/)
 
+
+=== Astrometrics
+
+#### **`lcards-astrometrics-card`**
+3D scenes in the style of the astrometrics lab and stellar cartography.
+
+![Astrometrics card: a galaxy disc with bearing labels, the glowing galactic core, Federation and Borg space as see-through sectors, crossing beams and a small planet](/img/cards/astrometrics.webp)
+
+- Sector maps with lettered cells, galaxy discs with territories, planets with points on their surface
+- A sky dome with the sun and moon where they are now, from your Home Assistant location
+- Drag to orbit, zoom, tap a point to fly to it; named views
+- Draws only when something moves; every card shares one WebGL context
+
+[Astrometrics Documentation](astrometrics/)
 === Layout Card
 
 #### **`lcards-layout-card`**

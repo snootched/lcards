@@ -6,6 +6,57 @@
 export const DEMO_ENTITIES = ['switch.demo_switch', 'input_boolean.demo_toggle', 'input_number.demo_level', 'input_select.demo_mode'];
 
 export const CARD_STARTERS = {
+  'lcards-astrometrics-card': [
+    { key: 'galaxy', label: 'Galaxy disc', yaml: `type: custom:lcards-astrometrics-card
+height: 360
+camera:
+  view: galaxy
+  views:
+    galaxy: { target: core, yaw: 20, tilt: 35, distance: 260 }
+    map: { target: core, tilt: 90, distance: 300 }
+backdrop:
+  stars: true
+points:
+  - { id: core, xyz: [0, 0, 0], label: GALACTIC CORE, style: title }
+  - { id: vega, polar: [64, 160], marker: triangle, label: Vega }
+  - { id: rigel, polar: [88, 95], marker: diamond, label: Rigel }
+objects:
+  - { type: grid, shape: disc, radius: 100, pattern: polar, line_spacing: 10, spoke_count: 36, ring_labels: { step: 30 } }
+  - { type: ring, radius: 100, width: 2 }
+  - { type: glow, at: core, size: 50 }
+` },
+    { key: 'sector', label: 'Sector map', yaml: `type: custom:lcards-astrometrics-card
+height: 340
+camera:
+  views:
+    map: { target: [0, 0, 0], tilt: 90, distance: 700, projection: orthographic }
+  limits: { tilt: [90, 90] }
+objects:
+  - type: grid
+    id: sectors
+    shape: plane
+    size: [640, 360]
+    line_spacing: 40
+    axis_labels: { column_start: AD }
+    cells:
+      - { from: AF3, to: AH6, color: var(--lcars-blue), opacity: 0.3, shade: 0.4, border: true }
+points:
+  - { id: sb10, cell: AJ2, on: sectors, marker: triangle, label: Starbase 10 }
+` },
+    { key: 'sky', label: 'Sky dome', yaml: `type: custom:lcards-astrometrics-card
+height: 340
+camera:
+  views:
+    horizon: { target: [0, 15, 0], yaw: 180, tilt: 28, distance: 260 }
+objects:
+  - { type: grid, id: sky, shape: dome, radius: 100, line_spacing_deg: 15 }
+  - { type: path, sky: sun, on: sky, dash: [6, 4], color: var(--lcars-yellow) }
+points:
+  - { id: sun, sky: sun, on: sky, marker: reticle, label: SOL }
+  - { id: moon, sky: moon, on: sky, marker: moon_phase, label: LUNA }
+  - { id: s, altaz: [180, 0], on: sky, alt: 6, label: S, style: major }
+` },
+  ],
   'lcards-button': [
     { key: 'lozenge', label: 'Lozenge toggle', yaml: `type: custom:lcards-button
 entity: light.demo

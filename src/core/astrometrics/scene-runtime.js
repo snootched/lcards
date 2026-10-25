@@ -35,6 +35,10 @@ import { num } from './objects/common.js';
 const DEG = Math.PI / 180;
 /** The sun crosses its own width in about 2 minutes: recompute the sky this often */
 const SKY_INTERVAL_MS = 60_000;
+/** A press this long is a hold (Home Assistant's hold time); a tap must be shorter */
+const HOLD_MS = 500;
+/** Movement (CSS px) that turns a press into a drag */
+const TAP_SLOP = 6;
 
 /**
  * @typedef {Object} AstroTapHit
@@ -49,6 +53,7 @@ const SKY_INTERVAL_MS = 60_000;
  * @property {any} [hass]
  * @property {(value: any, opts?: any) => any} [resolveColor] - resolveColor() (`concrete` for WebGL, CSS for labels)
  * @property {(hit: AstroTapHit) => boolean | void} [onTap] - return true when handled (else a point flies to itself)
+ * @property {(hit: AstroTapHit) => void} [onHold] - a press held HOLD_MS within the tap distance, on a point or an object with a `hold_action`
  * @property {(reason: string) => void} [onFail] - no WebGL, or the context was lost
  */
 
@@ -241,8 +246,8 @@ export function createAstroScene(host, config, options = {}) {
           f.userData.uniforms.uWidthMajor.value = major * dpr;
         }
       }
-      const pts = /** @type {any} */ (world.stars?.node.children[0]);
-      if (pts?.material) {
+      for (const pts of /** @type {any[]} */ (world.stars?.node.children ?? [])) {
+        if (!pts.material) continue;
         pts.userData.baseSize ??= pts.material.size;
         pts.material.size = pts.userData.baseSize * dpr;
       }
@@ -333,25 +338,77 @@ export function createAstroScene(host, config, options = {}) {
   // Picking ----------------------------------------------------------------
   const ray = new Raycaster();
   const ndc = new Vector2();
-  /** @type {{ x: number, y: number, t: number } | null} */
+  /** @type {{ x: number, y: number, t: number, moved: boolean, held: boolean } | null} */
   let down = null;
+  let holdTimer = /** @type {ReturnType<typeof setTimeout> | undefined} */ (undefined);
   /** @param {PointerEvent} e */
   const onDown = (e) => {
-    down = { x: e.clientX, y: e.clientY, t: performance.now() };
+    if (e.button > 0) return;
+    const d = { x: e.clientX, y: e.clientY, t: performance.now(), moved: false, held: false };
+    down = d;
     dragging = true;
+    clearTimeout(holdTimer);
+    if (options.onHold) {
+      holdTimer = setTimeout(() => {
+        if (down !== d || d.moved) return;
+        d.held = true;
+        const r = canvas.getBoundingClientRect();
+        hold(d.x - r.left, d.y - r.top);
+      }, HOLD_MS);
+    }
+  };
+  /** @param {PointerEvent} e */
+  const onMove = (e) => {
+    if (down && !down.moved && Math.hypot(e.clientX - down.x, e.clientY - down.y) > TAP_SLOP) down.moved = true;
   };
   /** @param {PointerEvent} e */
   const onUp = (e) => {
     dragging = false;
+    clearTimeout(holdTimer);
     const d = down;
     down = null;
-    if (!d || !world || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6 || performance.now() - d.t > 600) return;
+    if (!d || !world || d.held || d.moved || Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_SLOP || performance.now() - d.t >= HOLD_MS) return;
     const r = canvas.getBoundingClientRect();
     tap(e.clientX - r.left, e.clientY - r.top);
   };
+  const onCancel = () => { dragging = false; down = null; clearTimeout(holdTimer); };
   canvas.addEventListener('pointerdown', onDown);
+  canvas.addEventListener('pointermove', onMove);
   canvas.addEventListener('pointerup', onUp);
-  canvas.addEventListener('pointercancel', () => { dragging = false; down = null; });
+  canvas.addEventListener('pointercancel', onCancel);
+
+  /**
+   * What is under (x, y) CSS px: the nearest point marker, else an object
+   * whose config has `key` (`tap_action`, `hold_action`) under it.
+   * @param {number} x
+   * @param {number} y
+   * @param {string} key
+   * @returns {AstroTapHit | null}
+   */
+  function pickAt(x, y, key) {
+    if (!world) return null;
+    const hit = labels.pick(x, y);
+    if (hit && hit.world) return { kind: 'point', id: hit.id, config: /** @type {any} */ (hit).def, position: hit.world.clone() };
+    ndc.set((x / cssW) * 2 - 1, -(y / cssH) * 2 + 1);
+    ray.setFromCamera(ndc, rig.camera);
+    const candidates = world.list.filter((b) => b.config[key] !== undefined && b.pickMeshes.length);
+    const hits = ray.intersectObjects(candidates.flatMap((b) => b.pickMeshes), false);
+    const obj = hits.length ? candidates.find((b) => b.pickMeshes.includes(hits[0].object)) : undefined;
+    if (!obj) return null;
+    const c = obj.centre ?? [0, 0, 0];
+    return { kind: 'object', id: obj.id, config: obj.config, position: new Vector3(c[0], c[1], c[2]).applyMatrix4(obj.node.matrixWorld) };
+  }
+
+  /**
+   * A hold at (x, y) CSS px: only what has a `hold_action` (a point's
+   * marker is picked even without one, the card ignores it then).
+   * @param {number} x
+   * @param {number} y
+   */
+  function hold(x, y) {
+    const hit = pickAt(x, y, 'hold_action');
+    if (hit && hit.config?.hold_action !== undefined) options.onHold?.(hit);
+  }
 
   /**
    * A tap at (x, y) CSS px: the nearest point marker, else an object with a
@@ -360,28 +417,17 @@ export function createAstroScene(host, config, options = {}) {
    * @param {number} y
    */
   function tap(x, y) {
-    if (!world) return;
-    const hit = labels.pick(x, y);
-    if (hit && hit.world) {
-      const def = /** @type {any} */ (hit).def;
-      const info = { kind: /** @type {const} */ ('point'), id: hit.id, config: def, position: hit.world.clone() };
-      if (options.onTap?.(info) === true) return;
-      if (def.tap_action && def.tap_action.action !== 'fly-to') return;
+    const hit = pickAt(x, y, 'tap_action');
+    if (!hit) return;
+    if (options.onTap?.(hit) === true) return;
+    const action = hit.config?.tap_action;
+    if (hit.kind === 'point') {
+      if (action && action.action !== 'fly-to') return;
       select(hit.id);
-      flyToPosition(info.position, def.view);
-      return;
+      flyToPosition(hit.position, hit.config.view);
+    } else if (action?.action === 'fly-to') {
+      flyToPosition(hit.position, hit.config.view);
     }
-    ndc.set((x / cssW) * 2 - 1, -(y / cssH) * 2 + 1);
-    ray.setFromCamera(ndc, rig.camera);
-    const tappable = world.list.filter((b) => b.config.tap_action !== undefined && b.pickMeshes.length);
-    const hits = ray.intersectObjects(tappable.flatMap((b) => b.pickMeshes), false);
-    if (!hits.length) return;
-    const obj = tappable.find((b) => b.pickMeshes.includes(hits[0].object));
-    if (!obj) return;
-    const c = obj.centre ?? [0, 0, 0];
-    const position = new Vector3(c[0], c[1], c[2]).applyMatrix4(obj.node.matrixWorld);
-    if (options.onTap?.({ kind: 'object', id: obj.id, config: obj.config, position }) === true) return;
-    if (obj.config.tap_action?.action === 'fly-to') flyToPosition(position, obj.config.view);
   }
 
   /** @param {string | null} id */
@@ -472,6 +518,7 @@ export function createAstroScene(host, config, options = {}) {
       disposed = true;
       if (raf) cancelAnimationFrame(raf);
       clearInterval(skyTimer);
+      clearTimeout(holdTimer);
       ro?.disconnect();
       io?.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
@@ -499,7 +546,8 @@ export function createAstroScene(host, config, options = {}) {
         world,
         rig,
         labelItems: labels.items,
-        tap
+        tap,
+        hold
       };
     }
   };

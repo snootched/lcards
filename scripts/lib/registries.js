@@ -1,7 +1,7 @@
 /**
  * @fileoverview The built-in names a config can refer to: presets, components,
  * animation and background presets, filters, sound events, MSD backgrounds,
- * theme tokens, the HA-LCARS `--lcars-*` and LCARdS palette `--lcards-*` variables. Published as `schema/registries.json` (scripts/generate-llm-schema.js)
+ * theme tokens, the HA-LCARS `--lcars-*` and LCARdS palette `--lcards-*` variables, the astrometrics card's names. Published as `schema/registries.json` (scripts/generate-llm-schema.js)
  * and used by scripts/lib/config-validator.js to catch values that pass the JSON
  * Schema but don't exist (`preset: lozange`, `theme:colors.ui.primry`).
  *
@@ -34,7 +34,7 @@ export async function buildRegistries() {
 
   const src = (p) => new URL(`../../src/${p}`, import.meta.url).href;
   const [{ components }, { BACKGROUND_PRESETS }, { listAnimationPresets }, animations,
-    { FILTER_PARAMS_SCHEMAS }, { BUILTIN_SOUNDS_PACK }, { BUILTIN_MSD_SVG_PACK }, { lcardsDefaultTokens }, { GREEN_ALERT_PALETTE }, ...soundPacks] = await Promise.all([
+    { FILTER_PARAMS_SCHEMAS }, { BUILTIN_SOUNDS_PACK }, { BUILTIN_MSD_SVG_PACK }, { lcardsDefaultTokens }, { GREEN_ALERT_PALETTE }, astro, ...soundPacks] = await Promise.all([
     import(src('core/packs/components/index.js')),
     import(src('core/packs/backgrounds/presets/index.js')),
     import(src('core/animation/presets.js')),
@@ -44,6 +44,7 @@ export async function buildRegistries() {
     import(src('core/packs/builtin-msd.js')),
     import(src('core/packs/themes/tokens/lcardsDefaultTokens.js')),
     import(src('core/themes/paletteInjector.js')),
+    import(src('core/astrometrics/names.js')),
     // Every built-in pack that ships audio assets (their keys are what `sounds:` takes).
     import(src('core/packs/lcards-beeps-pack.js')),
     import(src('core/packs/lcards-alerts-pack.js')),
@@ -86,5 +87,17 @@ export async function buildRegistries() {
     ha_lcars_commit: haLcars.source.commit,
     // The LCARdS palette the integration injects as `--lcards-<name>` on every page.
     lcards_palette_vars: sorted(Object.keys(GREEN_ALERT_PALETTE).map(k => `lcards-${k}`)),
+    // lcards-astrometrics-card: object types, shapes, markers, label styles, placement forms.
+    astrometrics: {
+      object_types: [...astro.OBJECT_TYPES],
+      grid_shapes: [...astro.GRID_SHAPES],
+      grid_patterns: [...astro.GRID_PATTERNS],
+      volume_shapes: [...astro.VOLUME_SHAPES],
+      image_shapes: [...astro.IMAGE_SHAPES],
+      markers: [...astro.MARKERS],
+      label_styles: [...astro.LABEL_STYLE_NAMES],
+      sky_bodies: [...astro.SKY_BODIES],
+      placement_forms: [...astro.PLACEMENT_FORMS],
+    },
   };
 }

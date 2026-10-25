@@ -20,9 +20,10 @@ import { planeGeometry, discGeometry, domeGeometry, sphereGeometry, cylinderGeom
 import { FatLine } from '../lines.js';
 import { lettersToIndex, indexToLetters, parseCell, bearingXZ } from '../placements.js';
 import { built, num, pair, gridLook, DEFAULT_COLORS } from './common.js';
+import { GRID_SHAPES } from '../names.js';
 
 const DEG = Math.PI / 180;
-export const GRID_SHAPES = /** @type {const} */ (['plane', 'disc', 'dome', 'sphere', 'cylinder']);
+export { GRID_SHAPES };
 
 /**
  * A closed circle as a flat polyline (bearing 0 at north, clockwise).

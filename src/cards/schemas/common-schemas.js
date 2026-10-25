@@ -1618,12 +1618,12 @@ const backgroundAnimationEffectSchema = {
             type: 'object',
             description: 'Optional zoom wrapper: creates layered depth effect',
             properties: {
-                layers:          { type: 'number', minimum: 1, default: 4 },
-                scale_from:      { type: 'number', default: 0.5 },
-                scale_to:        { type: 'number', default: 2.0 },
-                duration:        { type: 'number', default: 15 },
-                opacity_fade_in: { type: 'number', default: 15 },
-                opacity_fade_out:{ type: 'number', default: 75 }
+                layers:          { type: 'number', minimum: 1, default: 4, description: 'Copies of the effect zooming at once, evenly staggered through the cycle.' },
+                scale_from:      { type: 'number', default: 0.5, description: 'Scale a layer starts at (1 = the effect at its normal size).' },
+                scale_to:        { type: 'number', default: 2.0, description: 'Scale a layer reaches before it fades out.' },
+                duration:        { type: 'number', default: 15, description: 'Seconds for one layer to zoom from scale_from to scale_to.' },
+                opacity_fade_in: { type: 'number', default: 15, description: 'Percent of the cycle over which a layer fades in (0 to 100).' },
+                opacity_fade_out:{ type: 'number', default: 75, description: 'Percent of the cycle at which a layer starts to fade out (0 to 100).' }
             }
         }
     },
@@ -1634,6 +1634,7 @@ const backgroundAnimationEffectSchema = {
  * Inset schema (numeric sides object)
  */
 const backgroundAnimationInsetSchema = {
+    description: "Keeps the animation canvas off the card's edges: px per side, or 'auto' (elbow cards: inside the elbow's arms).",
     oneOf: [
         {
             type: 'string',
@@ -1644,10 +1645,10 @@ const backgroundAnimationInsetSchema = {
             type: 'object',
             description: 'Per-side pixel inset for the animation canvas',
             properties: {
-                top:    { type: 'number', minimum: 0, default: 0 },
-                right:  { type: 'number', minimum: 0, default: 0 },
-                bottom: { type: 'number', minimum: 0, default: 0 },
-                left:   { type: 'number', minimum: 0, default: 0 }
+                top:    { type: 'number', minimum: 0, default: 0, description: 'Inset from the top edge, px.' },
+                right:  { type: 'number', minimum: 0, default: 0, description: 'Inset from the right edge, px.' },
+                bottom: { type: 'number', minimum: 0, default: 0, description: 'Inset from the bottom edge, px.' },
+                left:   { type: 'number', minimum: 0, default: 0, description: 'Inset from the left edge, px.' }
             },
             additionalProperties: false
         }
@@ -1670,6 +1671,7 @@ const backgroundAnimationInsetSchema = {
  *         config: { line_spacing: 40 }
  */
 export const backgroundAnimationSchema = {
+    description: 'Animated background layers drawn behind the card content: a list of effects (preset plus config), or { inset, effects }.',
     oneOf: [
         {
             type: 'array',
@@ -2002,9 +2004,14 @@ export const cardLevelProperties = {
         additionalProperties: {
             type: 'object',
             properties: {
-                x: { type: 'number' }, y: { type: 'number' }, width: { type: 'number' }, height: { type: 'number' },
-                x_percent: { type: 'number' }, y_percent: { type: 'number' },
-                width_percent: { type: 'number' }, height_percent: { type: 'number' },
+                x: { type: 'number', description: 'Left edge, px from the card\'s left.' },
+                y: { type: 'number', description: 'Top edge, px from the card\'s top.' },
+                width: { type: 'number', description: 'Width, px.' },
+                height: { type: 'number', description: 'Height, px.' },
+                x_percent: { type: 'number', description: 'Left edge, percent of the card width.' },
+                y_percent: { type: 'number', description: 'Top edge, percent of the card height.' },
+                width_percent: { type: 'number', description: 'Width, percent of the card width.' },
+                height_percent: { type: 'number', description: 'Height, percent of the card height.' },
             },
         },
     },

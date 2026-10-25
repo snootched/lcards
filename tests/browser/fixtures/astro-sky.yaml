@@ -1,0 +1,95 @@
+# Design reference sky: sky dome with the sun and moon (astrometrics.spec.js; the test fixes the clock).
+# Same as tests/core/fixtures/astro-references.yaml (sky); tests/docs/astrometrics-config.test.js keeps them equal.
+type: custom:lcards-astrometrics-card
+height: 420
+camera:
+  view: horizon
+  views:
+    horizon:
+      target:
+        - 0
+        - 15
+        - 0
+      yaw: 180
+      tilt: 28
+      distance: 260
+    zenith:
+      target:
+        - 0
+        - 0
+        - 0
+      tilt: 90
+      distance: 260
+objects:
+  - type: grid
+    id: sky
+    shape: dome
+    radius: 100
+    pattern: both
+    line_spacing_deg: 15
+    major_col_interval: 6
+    color: theme:colors.ui.tertiary
+  - type: ring
+    radius: 100
+    width: 3
+    color: theme:colors.ui.primary
+  - type: path
+    sky: sun
+    'on': sky
+    span: today
+    dash:
+      - 6
+      - 4
+    color: var(--lcars-yellow)
+  - type: path
+    sky: moon
+    'on': sky
+    span: today
+    dash:
+      - 6
+      - 4
+    color: var(--lcars-blue)
+points:
+  - id: sun
+    sky: sun
+    'on': sky
+    marker: reticle
+    label: SOL
+    below_horizon: dim
+  - id: moon
+    sky: moon
+    'on': sky
+    marker: moon_phase
+    label: LUNA
+  - id: 'n'
+    altaz:
+      - 0
+      - 0
+    'on': sky
+    alt: 6
+    label: 'N'
+    style: major
+  - id: e
+    altaz:
+      - 90
+      - 0
+    'on': sky
+    alt: 6
+    label: E
+    style: major
+  - id: s
+    altaz:
+      - 180
+      - 0
+    'on': sky
+    alt: 6
+    label: S
+    style: major
+  - id: w
+    altaz:
+      - 270
+      - 0
+    'on': sky
+    alt: 6
+    label: W
+    style: major

@@ -103,7 +103,7 @@ test('index lists every file with its real size and the shared files it referenc
 });
 
 function ajvWithFiles() {
-    const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false });
+    const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false, discriminator: true });
     // Template strings are evaluated at render time, so `pattern` applies to literals only (as in the app).
     ajv.removeKeyword('pattern');
     ajv.addKeyword({ keyword: 'pattern', type: 'string', schemaType: 'string', validate: (p, d) => isTemplateString(d) || new RegExp(p, 'u').test(d) });
@@ -132,14 +132,16 @@ test('every split file compiles in ajv with its shared refs, and real fixture co
     assert.equal(msd({ type: 'custom:lcards-msd-card', msd: { view_box: [0, 0, 1, 1], overlays: 'nope' } }), false);
 });
 
-test('size budgets: each card/view/strategy file under 100 KB, the full bundle under 600 KB', () => {
+test('size budgets: each card/view/strategy file under 100 KB, the full bundle under 650 KB', () => {
     for (const [rel, doc] of files) {
         if (rel.startsWith('shared/')) continue;
         const kb = Buffer.byteLength(JSON.stringify(doc)) / 1024;
         assert.ok(kb < 100, `${rel} is ${kb.toFixed(1)} KB; move a big shared piece into SHARED_MODULES or trim it`);
     }
     const bundleKb = Buffer.byteLength(JSON.stringify(bundle)) / 1024;
-    assert.ok(bundleKb < 600, `lcards-schema.json is ${bundleKb.toFixed(1)} KB`);
+    // 600 until 2026-10-25: the astrometrics card (8 object types, ~150 described keys) added
+    // 35 KB (572 to 607 KB) after its colours and common object keys were shared.
+    assert.ok(bundleKb < 650, `lcards-schema.json is ${bundleKb.toFixed(1)} KB`);
 });
 
 test('published text has no em dashes (CLAUDE.md: schema descriptions are user-facing)', () => {

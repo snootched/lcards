@@ -146,6 +146,29 @@ const DETAILED = {
   },
   datasource: {
     '': '/core/datasources/'
+  },
+  astrometrics: {
+    '': '/cards/astrometrics/#options',
+    camera: '/cards/astrometrics/#camera-and-views',
+    backdrop: '/cards/astrometrics/#backdrop',
+    background_animation: '/cards/astrometrics/#backdrop',
+    labels: '/cards/astrometrics/#labels',
+    points: '/cards/astrometrics/points',
+    'points.label': '/cards/astrometrics/points#labels-and-markers',
+    'points.style': '/cards/astrometrics/points#labels-and-markers',
+    'points.marker': '/cards/astrometrics/points#labels-and-markers',
+    'points.color': '/cards/astrometrics/points#labels-and-markers',
+    'points.max_distance': '/cards/astrometrics/points#visibility',
+    'points.min_distance': '/cards/astrometrics/points#visibility',
+    'points.fade': '/cards/astrometrics/points#visibility',
+    'points.below_horizon': '/cards/astrometrics/points#visibility',
+    'points.tap_action': '/cards/astrometrics/points#actions',
+    'points.hold_action': '/cards/astrometrics/points#actions',
+    objects: '/cards/astrometrics/objects',
+    'objects.axis_labels': '/cards/astrometrics/objects#sector-maps',
+    'objects.cells': '/cards/astrometrics/objects#sector-maps',
+    'objects.tap_action': '/cards/astrometrics/points#actions',
+    'objects.hold_action': '/cards/astrometrics/points#actions'
   }
 };
 
@@ -157,7 +180,8 @@ const CARD_PAGES = {
   msd: '/cards/msd/',
   'select-menu': '/cards/select-menu/',
   'alert-overlay': '/cards/alert-overlay/',
-  'layout-card': '/cards/layout-card/'
+  'layout-card': '/cards/layout-card/',
+  astrometrics: '/cards/astrometrics/'
 };
 
 /** Options shared by every card. */
@@ -236,6 +260,7 @@ const EDITOR_TABS = {
   'data-grid': { Configuration: '/cards/data-grid/' },
   msd: { Configuration: '/cards/msd/' },
   'layout-card': { Configuration: '/cards/layout-card/' },
+  astrometrics: { Configuration: '/cards/astrometrics/' },
 };
 
 /** Tabs most card editors share. */

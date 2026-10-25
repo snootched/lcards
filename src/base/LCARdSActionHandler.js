@@ -467,6 +467,20 @@ export class LCARdSActionHandler {
     }
 
     /**
+     * Run one action now, for things that are not elements with listeners
+     * (an astrometrics point picked on a canvas). Same action types as
+     * setupActions(); no sounds or animations (the caller plays those).
+     * @param {Object} actionConfig - e.g. { action: 'more-info', entity }
+     * @param {Object} hass
+     * @param {HTMLElement} element - dispatches more-info and assist events
+     * @param {string|null} [defaultEntity] - when the action names none
+     */
+    runAction(actionConfig, hass, element, defaultEntity = null) {
+        if (!this._validateActionConfig(actionConfig)) return;
+        this._executeAction(actionConfig, hass, element, defaultEntity);
+    }
+
+    /**
      * Execute action configuration
      * @private
      * @param {*} [defaultEntity]

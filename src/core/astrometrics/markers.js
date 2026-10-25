@@ -6,8 +6,7 @@
  * @module core/astrometrics/markers
  */
 
-/** Marker names a point can take (`none` draws nothing) */
-export const MARKERS = /** @type {const} */ (['dot', 'triangle', 'diamond', 'square', 'reticle', 'moon_phase', 'none']);
+export { MARKERS } from './names.js';
 
 /** @type {Record<string, string>} */
 const SHAPES = {

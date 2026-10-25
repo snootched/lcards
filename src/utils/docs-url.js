@@ -65,6 +65,7 @@ export const DOCS = Object.freeze({
   chartRawOptions: '/cards/chart/styling#raw-apexcharts-options',
   slider: '/cards/slider-card/',
   dataGrid: '/cards/data-grid/',
+  astrometrics: '/cards/astrometrics/',
   selectMenu: '/cards/select-menu/',
   alertOverlay: '/cards/alert-overlay/',
   layoutCard: '/cards/layout-card/',

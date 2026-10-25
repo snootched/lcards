@@ -21,6 +21,7 @@ import { getAlertOverlaySchema } from '../../src/cards/schemas/lcards-alert-over
 import { getSelectMenuSchema }   from '../../src/cards/schemas/select-menu-schema.js';
 import { layoutCardSchema, layoutViewSchema } from '../../src/cards/schemas/layout-card-schema.js';
 import { getMsdSchema }          from '../../src/cards/schemas/msd-schema.js';
+import { astrometricsSchema }    from '../../src/cards/schemas/astrometrics-schema.js';
 import { shellStrategySchema }   from '../../src/cards/schemas/shell-strategy-schema.js';
 import { TEXT_POSITIONS }        from '../../src/cards/schemas/schema-options.js';
 import { BUTTON_PRESETS }        from '../../src/core/packs/style-presets/buttons/index.js';
@@ -56,6 +57,7 @@ export function getSchemaEntries() {
     { kind: 'card',     tag: 'lcards-select-menu',   schema: getSelectMenuSchema({ availablePresets: o.buttonPresets }) },
     { kind: 'card',     tag: 'lcards-layout-card',   schema: layoutCardSchema },
     { kind: 'card',     tag: 'lcards-msd-card',      schema: getMsdSchema() },
+    { kind: 'card',     tag: 'lcards-astrometrics-card', schema: astrometricsSchema },
     { kind: 'view',     tag: 'lcards-layout-view',   schema: layoutViewSchema },
     { kind: 'strategy', tag: 'lcars-shell',          schema: shellStrategySchema },
   ];

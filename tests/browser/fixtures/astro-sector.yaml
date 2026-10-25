@@ -1,0 +1,78 @@
+# Design reference sector: flat sector map, lettered cells, tilt locked (astrometrics.spec.js).
+# Same as tests/core/fixtures/astro-references.yaml (sector); tests/docs/astrometrics-config.test.js keeps them equal.
+type: custom:lcards-astrometrics-card
+height: 420
+camera:
+  view: map
+  views:
+    map:
+      target:
+        - 0
+        - 0
+        - 0
+      tilt: 90
+      distance: 1250
+      projection: orthographic
+  limits:
+    tilt:
+      - 90
+      - 90
+objects:
+  - type: grid
+    id: sectors
+    shape: plane
+    size:
+      - 1200
+      - 600
+    line_spacing: 40
+    axis_labels:
+      columns: letters
+      rows: numbers
+      column_start: AD
+    cells:
+      - from: AF3
+        to: AH6
+        color: var(--lcars-blue)
+        opacity: 0.3
+        shade: 0.25
+        border: true
+      - from: AL2
+        to: AO5
+        color: var(--lcars-green)
+        opacity: 0.3
+        shade: 0.25
+      - from: AL9
+        to: AP12
+        color: var(--lcars-red)
+        opacity: 0.35
+        shade: 0.25
+        border:
+          width: 2
+          opacity: 0.6
+points:
+  - id: ufp
+    cell: AG4
+    'on': sectors
+    label: UNITED FEDERATION OF PLANETS
+    style: major
+  - id: sb10
+    cell: AJ2
+    'on': sectors
+    offset:
+      - 8
+      - 0
+      - 12
+    marker: triangle
+    label: Starbase 10
+  - id: achernar
+    cell: AN3
+    'on': sectors
+    marker: diamond
+    label: Achernar
+  - id: qualor
+    cell: AL6
+    'on': sectors
+    marker: dot
+    label: Qualor
+    style: tiny
+    max_distance: 1300

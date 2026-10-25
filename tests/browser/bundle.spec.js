@@ -11,7 +11,7 @@ const DIST = new URL('../../custom_components/lcards/', import.meta.url);
 /** The nine cards and their (lazily loaded) editor tags. */
 const CARDS = [
     'button', 'elbow', 'slider', 'chart', 'data-grid', 'alert-overlay', 'select-menu', 'layout-card',
-].map(c => [`lcards-${c}`, `lcards-${c}-editor`]).concat([['lcards-msd-card', 'lcards-msd-editor']]);
+].map(c => [`lcards-${c}`, `lcards-${c}-editor`]).concat([['lcards-msd-card', 'lcards-msd-editor'], ['lcards-astrometrics-card', 'lcards-astrometrics-editor']]);
 
 test('the loader stub is loaded once with its query, and the main chunk once', async ({ page }) => {
     const requests = [];
@@ -45,7 +45,7 @@ test('?log= on the loader URL sets the global log level', async ({ page }) => {
 test('rendering cards loads no editor code', async ({ page }) => {
     const editorChunks = [];
     page.on('request', r => { if (/\/chunks\/[^/]*editor[^/]*\.js$/.test(r.url())) editorChunks.push(r.url()); });
-    for (const name of ['button-lozenge', 'slider-pills', 'elbow-header-left', 'data-grid-data', 'msd-channel']) {
+    for (const name of ['button-lozenge', 'slider-pills', 'elbow-header-left', 'data-grid-data', 'msd-channel', 'astro-actions']) {
         await mountCase(page, name);
     }
     await mountCase(page, 'chart-area', { height: '300' });
@@ -98,6 +98,22 @@ test('size budget: three.js and the anime.js three adapter stay out of the main 
     const total = (ext) => tier.reduce((sum, f) => sum + statSync(new URL(`chunks/${f}${ext}`, DIST)).size, 0);
     expect(total('')).toBeLessThanOrEqual(640_000);
     expect(total('.br')).toBeLessThanOrEqual(135_000);
+});
+
+test('size budget: the astrometrics runtime and schema are lazy chunks of their own', () => {
+    const chunks = readdirSync(new URL('chunks/', DIST));
+    const main = chunks.find(f => /^lcards-main-.*\.js$/.test(f));
+    const mainSource = readFileSync(new URL(`chunks/${main}`, DIST), 'utf8');
+    expect(mainSource.includes('[Astrometrics] scene unavailable'), 'astrometrics runtime in the main chunk').toBe(false);
+    expect(mainSource.includes('A see-through box of grid cells'), 'astrometrics schema in the main chunk').toBe(false);
+    const js = chunks.filter(f => f.endsWith('.js'));
+    const runtime = js.find(f => readFileSync(new URL(`chunks/${f}`, DIST), 'utf8').includes('[Astrometrics] scene unavailable'));
+    expect(runtime, 'a lazy chunk holds the astrometrics runtime').toBeTruthy();
+    expect(js.some(f => /^astrometrics-schema-[\w-]{8}\.js$/.test(f)), 'the schema chunk').toBe(true);
+    // Measured 2026-10-25: runtime 76 KB raw / 25 KB br (three.js and the Line2 family are in the three chunk).
+    const size = (f) => statSync(new URL(`chunks/${f}`, DIST)).size;
+    expect(size(/** @type {string} */ (runtime))).toBeLessThanOrEqual(90_000);
+    expect(size(`${runtime}.br`)).toBeLessThanOrEqual(30_000);
 });
 
 test('rules: editing an existing rule keeps the old rule until a page refresh (documented)', async ({ page }) => {

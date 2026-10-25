@@ -58,6 +58,7 @@ const LIVE_DEMOS: Record<string, string> = {
   'lcards-select-menu': 'CardDemo',
   'lcards-msd-card': 'CardDemo',
   'lcards-layout-card': 'CardDemo',
+  'lcards-astrometrics-card': 'CardDemo',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -338,6 +339,7 @@ export default withMermaid(defineConfig({
             text: 'Card Reference',
             items: [
               { text: 'Alert Overlay', link: '/cards/alert-overlay/' },
+              { text: 'Astrometrics',  link: '/cards/astrometrics/' },
               { text: 'Button',        link: '/cards/button/' },
               { text: 'Chart',         link: '/cards/chart/' },
               { text: 'Data Grid',     link: '/cards/data-grid/' },
@@ -560,6 +562,15 @@ export default withMermaid(defineConfig({
               ],
             },
             { text: 'Alert Overlay',  link: '/cards/alert-overlay/' },
+            {
+              text: 'Astrometrics',
+              collapsed: true,
+              items: [
+                { text: 'Overview', link: '/cards/astrometrics/' },
+                { text: 'Points',   link: '/cards/astrometrics/points' },
+                { text: 'Objects',  link: '/cards/astrometrics/objects' },
+              ],
+            },
           ],
         },
         {
