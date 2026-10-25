@@ -310,7 +310,7 @@ data:
 
 Trigger and clear the [Borg Assimilation mode](/core/borg) from automations. Both actions support [targeting](#targeting).
 
-To clear, you can call [`lcards.borg_deassimilate`](#lcards-borg-deassimilate) or simply relaod the page - this does not persist across reloads.
+To clear, you can call [`lcards.borg_deassimilate`](#lcards-borg-deassimilate) or simply reload the page - this does not persist across reloads.
 
 ### `lcards.borg_assimilate`
 
@@ -323,6 +323,10 @@ Trigger the Borg assimilation on one or all connected browsers.
 | `tendrils_per_site` | No | `5` | Bézier tendrils per injection site (1–24) |
 | `tendril_length` | No | `600` | Maximum tendril reach in pixels (100–1200) |
 | `particle_count` | No | `2` | Nano-probe particles per tendril (0–6); `0` disables particles |
+| `renderer` | No | `auto` | `auto` or `webgl`: the WebGL intro where the browser supports it; `canvas`: the [classic intro](/core/borg#classic-intro) |
+| `cube` | No | `true` | WebGL intro: show the Borg cube |
+| `corruption` | No | `0.5` | WebGL intro: signal corruption strength (0–1); `0` turns it off |
+| `overrun` | No | `0.65` | WebGL intro: darkness behind the assimilation front (0–1) |
 | `transition_style` | No | `blur_fade` | Palette transition: `blur_fade`, `flash`, `fade_only`, `off` |
 | `font_swap` | No | `true` | Set to `false` to skip the Borg font injection; all other effects (palette, canvas intro, persistent layers) still run. |
 | `suppress_persistent` | No | `false` | Suppress all persistent effects after intro. Ignored if `persistent_layers` is also set. |

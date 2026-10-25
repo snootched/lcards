@@ -4,7 +4,7 @@ The Borg Assimilation mode uses LCARdS core systems to tranform the entire dashb
 
 - **Palette shift**: the UI colour palette is pushed toward Borg yellow-green (HSL ~110°) system-wide. The hue is configurable via the `paletteHue` option (or the Palette Hue control in the Config Panel).
 - **Font swap**: all LCARS text switches to the `lcards_borg` typeface
-- **Canvas intro**: a full-screen Borg lattice animation plays: signal corruption flicker, glowing injection sites with a gentle breathing pulse, and growing Bézier tendrils spreading across the viewport. The animation runs in a dedicated Web Worker on an `OffscreenCanvas` to keep the main thread (and LCARS UI) fully responsive.
+- **Canvas intro**: a full-screen assimilation plays. Injection sites appear with a breathing glow and grow tendrils; an assimilation front spreads out from them and overruns the screen with Borg circuitry; a Borg cube emerges at the centre while bursts of signal corruption tear the picture. It runs on WebGL in a dedicated Web Worker on an `OffscreenCanvas`, so the main thread (and the LCARS UI) stays fully responsive. The classic intro (tendrils and injection sites only, drawn with Canvas2D) is still there: set `renderer: canvas` (see [Classic intro](#classic-intro)). Browsers without WebGL2 play the classic intro.
 - **Click-to-dismiss**: the intro stays on screen until the user clicks anywhere on the canvas (or until an optional timeout expires). After dismissal, persistent layers activate.
 - **Persistent layers**: after the intro is dismissed, zero or more SEM presets remain active per slot (default: glitch on `canvas` + subtle green colour tint on `color` + saturation boost on `backdrop`)
 
@@ -119,6 +119,27 @@ window.lcards.alert.borg()
 | `particleCount` | `2` | Nano-probe particles travelling each tendril and branch continuously. Set to `0` to disable (0–6) |
 | `color` | `'var(--lcars-martian)'` | Tendril and injection site colour (any CSS colour string, supports CSS variables and token expressions) |
 | `glowColor` | `'var(--lcards-yellow)'` | Inner glow colour at each injection site and nano-probe particle halos |
+| `renderer` | `'auto'` | `'auto'` and `'webgl'` play the WebGL intro where the browser supports WebGL2; `'canvas'` plays the [classic intro](#classic-intro). Without WebGL2 every value plays the classic one |
+| `cube` | `true` | WebGL intro: a rotating Borg cube emerges at the centre of the screen. `false` leaves it out |
+| `corruption` | `0.5` | WebGL intro: strength of the signal corruption bursts (block displacement, scanline tearing, colour fringing), 0 to 1. `0` turns them off |
+| `overrun` | `0.65` | WebGL intro: how dark the screen gets behind the assimilation front, 0 to 1. `0` draws only the circuitry over your dashboard |
+| `seed` | - | WebGL intro: a number gives the same layout every time |
+
+With the WebGL intro, `particleCount` sets the light pulses travelling along each tendril.
+
+#### Classic intro
+
+The original Canvas2D intro (signal flicker, injection sites, Bézier tendrils with nano-probe particles, bridges between them) stays available with all of its params. Set `renderer: canvas` to keep it:
+
+```js
+window.lcards.borg.assimilate({ intro: { canvas: { renderer: 'canvas' } } })
+```
+
+From an automation, add `renderer: canvas` to the `lcards.borg_assimilate` action. In the Config Panel, pick **Classic (Canvas2D)** under Renderer in the Borg canvas effect.
+
+#### Performance
+
+The WebGL intro draws the whole screen every frame on the graphics card while it shows. On a slow wall tablet, lower `corruption` or turn off the `cube`, or use the classic intro. With the browser console at debug level (`window.lcards.setGlobalLogLevel('debug')`) the frame rate is logged every 5 seconds.
 
 ### `deassimilate(opts?)` options
 
@@ -135,7 +156,7 @@ When `assimilate()` is called:
 1. `borg_alert` palette is applied immediately (HSL hue-shift to ~110°, slightly desaturated and darkened)
 2. `lcards_borg` font is loaded and injected as a `:root` CSS override; both fire in parallel (skipped if `fontSwap: false`)
 3. Intro layers are applied:
-   - `intro.canvas` → `borg-assimilation` effect (signal flicker → injection sites → growing tendrils)
+   - `intro.canvas` → `borg-assimilation` effect (signal flicker → injection sites → growing tendrils → assimilation front and Borg cube on WebGL)
    - `intro.backdrop` and `intro.color` (if specified) → applied to their SEM slots alongside the canvas
 4. The intro stays visible until the user **clicks anywhere on the canvas**, or until `duration` ms elapses (if positive)
 5. All intro layers are cleared (canvas, backdrop, color slots)
@@ -167,6 +188,10 @@ Trigger the Borg assimilation on one or all connected browsers.
 | `tendrils_per_site` | No | `5` | Bézier tendrils per injection site (1–24) |
 | `tendril_length` | No | `600` | Maximum tendril reach in pixels (100–1200) |
 | `particle_count` | No | `2` | Nano-probe particles per tendril (0–6); `0` disables particles |
+| `renderer` | No | `auto` | `auto` or `webgl`: the WebGL intro where the browser supports it; `canvas`: the [classic intro](#classic-intro) |
+| `cube` | No | `true` | WebGL intro: show the Borg cube |
+| `corruption` | No | `0.5` | WebGL intro: signal corruption strength (0–1); `0` turns it off |
+| `overrun` | No | `0.65` | WebGL intro: darkness behind the assimilation front (0–1) |
 | `transition_style` | No | `blur_fade` | Palette transition: `blur_fade`, `flash`, `fade_only`, `off` |
 | `font_swap` | No | `true` | Set to `false` to skip the Borg font injection; all other effects (palette, canvas intro, persistent layers) still run. |
 | `suppress_persistent` | No | `false` | Suppress all persistent effects after intro. Ignored if `persistent_layers` is also set. |
@@ -201,6 +226,24 @@ data:
   tendrils_per_site: 14
   tendril_length: 900
   particle_count: 3
+```
+
+**Keep the classic intro:**
+
+```yaml
+action: lcards.borg_assimilate
+data:
+  renderer: canvas
+```
+
+**WebGL intro without the cube, gentler corruption, dashboard still visible behind the front:**
+
+```yaml
+action: lcards.borg_assimilate
+data:
+  cube: false
+  corruption: 0.2
+  overrun: 0.3
 ```
 
 **Custom intro, flat shortcuts + blur backdrop via advanced object:**

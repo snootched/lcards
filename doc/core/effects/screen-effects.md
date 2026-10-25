@@ -236,7 +236,7 @@ data:
 
 #### `borg-assimilation`
 
-Green tendrils grow across the screen from several injection sites, with nano-probe particles travelling along them. This is the effect behind [Borg Assimilation](../borg.md), and it can be triggered on its own.
+Green tendrils grow across the screen from several injection sites while an assimilation front spreads out from them, overrunning the screen with Borg circuitry; a Borg cube emerges at the centre and bursts of signal corruption tear the picture. It runs on WebGL in a worker; `renderer: canvas` plays the classic intro (tendrils with nano-probe particles, drawn with Canvas2D), which browsers without WebGL2 also get. This is the effect behind [Borg Assimilation](../borg.md), and it can be triggered on its own.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -246,6 +246,11 @@ Green tendrils grow across the screen from several injection sites, with nano-pr
 | `particleCount` | number | `2` | Particles travelling each tendril (0 to 6; `0` disables) |
 | `color` | string | `'#00cc44'` | Tendril, branch and site colour (hex, CSS variable or computed token) |
 | `glowColor` | string | `'#00ff66'` | Glow at each site and around particles |
+| `renderer` | string | `'auto'` | `auto` or `webgl`: the WebGL intro where the browser supports it; `canvas`: the classic intro |
+| `cube` | boolean | `true` | WebGL: the Borg cube at the centre |
+| `corruption` | number | `0.5` | WebGL: signal corruption strength (0 to 1; `0` turns it off) |
+| `overrun` | number | `0.65` | WebGL: darkness behind the assimilation front (0 to 1) |
+| `seed` | number | - | WebGL: the same layout every time |
 
 ```yaml
 service: lcards.trigger_effect

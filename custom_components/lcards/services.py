@@ -401,6 +401,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         if tendrils       is not None: canvas_overrides["tendrilsPerSite"] = tendrils
         if tendril_length is not None: canvas_overrides["tendrilLength"]   = tendril_length
         if particle_count is not None: canvas_overrides["particleCount"]   = particle_count
+        # WebGL intro options (single words: same key in YAML and JS)
+        for key in ("renderer", "cube", "corruption", "overrun"):
+            if call.data.get(key) is not None:
+                canvas_overrides[key] = call.data[key]
 
         # Mapping from snake_case YAML keys → camelCase JS params.
         # Allows intro_layers.canvas to use either convention in YAML.
@@ -555,6 +559,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             vol.Optional("tendrils_per_site"): vol.All(int, vol.Range(min=1, max=20)),
             vol.Optional("tendril_length"):    vol.All(int, vol.Range(min=100, max=1200)),
             vol.Optional("particle_count"):    vol.All(int, vol.Range(min=0, max=6)),
+            vol.Optional("renderer"):          vol.In(["auto", "webgl", "canvas"]),
+            vol.Optional("cube"):              bool,
+            vol.Optional("corruption"):        vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
+            vol.Optional("overrun"):           vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
             vol.Optional("suppress_persistent"): bool,
             vol.Optional("font_swap"):         bool,
             vol.Optional("intro_layers"):      dict,

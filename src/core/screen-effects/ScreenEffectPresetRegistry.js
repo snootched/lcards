@@ -274,8 +274,19 @@ screenEffectPresetRegistry.register('borg-assimilation', {
         particleCount:   2,
         color:           '#00cc44',
         glowColor:       '#00ff66',
+        renderer:        'auto',
+        cube:            true,
+        corruption:      0.5,
+        overrun:         0.65,
     },
     params_schema: [
+        { key: 'renderer',        type: 'select',     label: 'Renderer',
+          options: [
+              { value: 'auto',   label: 'Auto (WebGL when available)' },
+              { value: 'webgl',  label: 'WebGL' },
+              { value: 'canvas', label: 'Classic (Canvas2D)' },
+          ],
+          helper: 'The WebGL intro adds the assimilation front, Borg circuitry, the Borg cube and signal corruption. Classic plays the original tendril animation. Without WebGL every value plays the classic one' },
         { key: 'siteCount',       type: 'number',     label: 'Injection Sites',      min: 1,   max: 20,   step: 1,
           helper: 'Number of Borg injection points on the screen' },
         { key: 'tendrilsPerSite', type: 'number',     label: 'Tendrils per Site',    min: 1,   max: 24,   step: 1,
@@ -288,6 +299,12 @@ screenEffectPresetRegistry.register('borg-assimilation', {
           helper: 'Primary colour for tendrils, branches, and injection sites; supports hex, CSS variables, and computed expressions' },
         { key: 'glowColor',       type: 'color-text', label: 'Glow Color',           placeholder: '#00ff66',
           helper: 'Inner glow colour at each injection site and nano-probe particle halos' },
+        { key: 'cube',            type: 'boolean',    label: 'Borg cube',
+          helper: 'WebGL only: a rotating Borg cube emerges at the centre of the screen' },
+        { key: 'corruption',      type: 'number',     label: 'Signal corruption',    min: 0,   max: 1,    step: 0.05,
+          helper: 'WebGL only: strength of the block displacement, tearing and colour fringing bursts (0 = off)' },
+        { key: 'overrun',         type: 'number',     label: 'Overrun',              min: 0,   max: 1,    step: 0.05,
+          helper: 'WebGL only: how dark the screen gets behind the assimilation front (0 = circuitry only)' },
     ],
     // The effect runs until BorgAssimilationManager dismisses it (click or timeout).
     // Do not pass a duration here — use sem.apply() not sem.play() for this preset.

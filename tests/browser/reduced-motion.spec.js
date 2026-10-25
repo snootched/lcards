@@ -47,11 +47,15 @@ test('control: without reduced motion the on_show fade is seen part-way', async 
     expect(await page.evaluate(() => window.__minOpacity)).toBeLessThan(0.9);
 });
 
-/** Screenshots of the page while the Borg screen effect runs: before, then twice 700 ms apart. */
-async function borgShots(page) {
+/**
+ * Screenshots of the page while the Borg screen effect runs: before, then twice 700 ms apart.
+ * @param {import('@playwright/test').Page} page
+ * @param {Object} [extra] - effect params (renderer: 'canvas' for the classic intro)
+ */
+async function borgShots(page, extra = {}) {
     await mountCase(page, 'button-on-show');
     const blank = await page.screenshot();
-    await page.evaluate(() => { window.lcards.core.screenEffectManager.play('borg-assimilation', { duration: 10000, siteCount: 4 }); });
+    await page.evaluate((p) => { window.lcards.core.screenEffectManager.play('borg-assimilation', { duration: 10000, siteCount: 4, ...p }); }, extra);
     await page.waitForTimeout(6000); // sites spawn over the first ~5 s
     const first = await page.screenshot();
     await page.waitForTimeout(700);
@@ -95,6 +99,13 @@ test.describe('reduced motion', () => {
 
     test('the Borg effect draws its settled picture once and holds it', async ({ page }) => {
         const { blank, first, second } = await borgShots(page);
+        expect(first.equals(blank), 'the settled picture is drawn').toBe(false);
+        expect(first.equals(second), 'it does not move').toBe(true);
+        await expectNoErrors(page);
+    });
+
+    test('the classic Borg intro holds its settled picture too', async ({ page }) => {
+        const { blank, first, second } = await borgShots(page, { renderer: 'canvas' });
         expect(first.equals(blank), 'the settled picture is drawn').toBe(false);
         expect(first.equals(second), 'it does not move').toBe(true);
         await expectNoErrors(page);

@@ -1000,6 +1000,30 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                 </ha-selector>
             `;
         }
+        if (spec.type === 'boolean') {
+            return html`
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${spec.label}
+                    .helper=${spec.helper ?? ''}
+                    .selector=${{ boolean: {} }}
+                    .value=${typeof value === 'boolean' ? value : fallback !== false}
+                    @value-changed=${(e) => onChange(e.detail.value)}>
+                </ha-selector>
+            `;
+        }
+        if (spec.type === 'select') {
+            return html`
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${spec.label}
+                    .helper=${spec.helper ?? ''}
+                    .selector=${{ select: { mode: 'dropdown', options: spec.options ?? [] } }}
+                    .value=${value ?? fallback ?? ''}
+                    @value-changed=${(e) => onChange(e.detail.value || undefined)}>
+                </ha-selector>
+            `;
+        }
         const strVal = value    !== undefined ? String(value)
                      : fallback !== undefined ? String(fallback)
                      : '';
