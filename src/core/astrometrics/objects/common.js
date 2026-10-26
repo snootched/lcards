@@ -42,6 +42,7 @@ export const DEFAULT_COLORS = {
  * @property {number} [radius] - for latlon / altaz placements and occlusion
  * @property {number[]} [centre] - local middle (fly-to and the object's label), default the origin
  * @property {(code: string) => (import('three').Vector3 | null)} [cellPoint]
+ * @property {(local: import('three').Vector3) => (string | null)} [cellAt] - the cell under a local position (picking)
  * @property {number} spin - degrees per second round the object's y axis
  * @property {boolean} occludes - hides labels behind it (a solid sphere)
  * @property {import('three').Object3D[]} pickMeshes

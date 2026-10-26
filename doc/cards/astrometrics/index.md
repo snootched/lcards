@@ -180,7 +180,8 @@ camera:
   views:
     galaxy: { target: core, yaw: 20, tilt: 35, distance: 280 }
     map: { target: core, tilt: 90, distance: 300, projection: orthographic }
-  controls: true              # drag to orbit, wheel or pinch to zoom (default true)
+  controls: true              # drag, zoom, double-tap, keys (default true)
+  buttons: true               # on-card pan, zoom and reset buttons (default off)
   limits: { tilt: [5, 90], distance: [20, 800] }
   auto_rotate: 2              # degrees per second (0 = off)
   fly_duration: 1600          # ms
@@ -190,8 +191,38 @@ camera:
 - `target` is a point id (the camera follows the point if it moves) or `[x, y, z]`.
 - A view without `yaw` faces north. With no views at all the camera frames the whole scene.
 - `projection: orthographic` removes the perspective (a flat map); `distance` then sets the zoom.
-- **Controls:** drag to orbit; shift-drag, right-drag or two fingers to pan; wheel or pinch to zoom. With `limits.tilt` locked to one value, a one-finger drag pans. `controls: false` leaves the camera to fly-to actions and `auto_rotate`.
-- Fly between views with a `tap_action` on a point or object: `{ action: fly-to, view: map }` (see [Points: actions](./points#actions)).
+- Fly between views with a `tap_action` on a point or object: `{ action: fly-to, view: map }` (see [Points: actions](./points#actions)), or from other cards and automations ([Live data: fly-to](./data#fly-to-from-other-cards-and-automations)).
+
+### Controls
+
+| Input | Does |
+|---|---|
+| Drag | Orbit round the target (`drag: pan` swaps this with panning) |
+| Shift-drag, right-drag, two fingers | Pan |
+| Wheel, pinch | Zoom toward the pointer (`zoom_to: target` zooms straight in) |
+| Double-tap or double-click blank space | Fly one zoom step in toward that spot, which becomes the centre; with shift, out |
+| Arrow keys (card focused) | Pan; with shift, orbit |
+| `+` / `-` | Zoom one step |
+| `Home` | Back to the start view |
+| `buttons` | The same on the card: pan arrows, zoom, reset. Press and hold keeps moving |
+
+Taps on points and on objects with a `tap_action` are never a double-tap: they run their action each time.
+
+```yaml
+camera:
+  drag: orbit            # or pan: a one-finger drag moves the view
+  pan: screen            # or ground: panning stays on the ground plane
+  zoom_to: cursor        # or target
+  zoom_step: 2           # each step halves (or doubles) the distance
+  double_tap: zoom       # or none
+  buttons: { position: bottom-right, pan: true, zoom: true, reset: true }
+  limits:
+    target: { radius: 300 }   # or a box { x: [a, b], z: [a, b] }, or false
+```
+
+- **Pan** moves along the screen by default, so a side view pans up and down and a top view pans across the map. `pan: ground` keeps the target on its height.
+- **Target limit:** the point the camera looks at stays inside a sphere 1.5 times the size of the scene, so panning cannot lose it. Set your own sphere (`radius`, optional `center`) or box, or `false` for none.
+- With `limits.tilt` locked to one value, a one-finger drag always pans (a map). `controls: false` turns off dragging, zooming, double-tap and keys, and leaves the camera to fly-to actions, `auto_rotate` and the buttons.
 
 ## Labels
 
@@ -232,7 +263,7 @@ The card is the scene only. For an LCARS frame round it (an "ALPHA QUADRANT" bar
 | Option | What it does |
 |---|---|
 | `height` | Card height, px or CSS (default 400). The scene fills the card. |
-| `camera` | `view`, `views`, `controls`, `limits`, `auto_rotate`, `fly_duration`, `ease` ([Camera and views](#camera-and-views)) |
+| `camera` | `view`, `views`, `controls`, `drag`, `pan`, `zoom_to`, `zoom_step`, `double_tap`, `buttons`, `limits`, `auto_rotate`, `fly_duration`, `ease` ([Camera and views](#camera-and-views), [Controls](#controls)) |
 | `points` | Named points with labels and markers ([Points](./points)) |
 | `objects` | What is drawn ([Objects](./objects)) |
 | `backdrop` | `stars` ([Backdrop](#backdrop)) |

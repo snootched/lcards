@@ -206,3 +206,21 @@ test('standalone bundle: one file, no node_modules, same results as the repo CLI
     const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
     assert.equal(runCli(out, ['--version']).stdout.trim(), pkg.version);
 });
+
+test('fly-to: another card needs card and a view or point; inside astrometrics a bare fly-to is fine', () => {
+    const button = (tap_action) => ({ type: 'custom:lcards-button', preset: 'lozenge', tap_action });
+    assert.deepEqual(messages(check(button({ action: 'fly-to', card: 'galaxy', point: 'earth', duration: 2000 }))), []);
+    assert.deepEqual(messages(check(button({ action: 'fly-to', view: 'top' }))), ['warning tap_action: fly-to needs card: the id of the astrometrics card to fly']);
+    assert.deepEqual(messages(check(button({ action: 'fly-to', card: 'galaxy' }))), ['warning tap_action: fly-to to another card needs a view or a point']);
+    const astro = {
+        type: 'custom:lcards-astrometrics-card',
+        points: [
+            { id: 'a', xyz: [0, 0, 0], tap_action: { action: 'fly-to' } },
+            { id: 'b', xyz: [1, 0, 0], tap_action: { action: 'fly-to', card: 'other', point: 'x' } },
+        ],
+        camera: { buttons: { position: 'top-left', zoom: false }, drag: 'pan', pan: 'ground', zoom_to: 'target', zoom_step: 1.5, double_tap: 'none', limits: { target: { radius: 50 } } },
+    };
+    assert.deepEqual(messages(check(astro)), []);
+    assert.deepEqual(messages(check({ ...astro, camera: { limits: { target: false } } })), []);
+    assert.ok(messages(check({ ...astro, camera: { zoom_step: 1 } })).some(m => m.startsWith('error camera.zoom_step')));
+});

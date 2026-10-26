@@ -715,6 +715,79 @@ play_sound:
         text:
           multiple: true
 
+fly_to:
+  name: Fly to
+  description: >
+    Fly the camera of an LCARdS astrometrics card to one of its named views or
+    to one of its points, on every open dashboard showing that card (or only
+    the targeted devices and users).
+  fields:
+    card_id:
+      name: Card ID
+      description: The `id` of the astrometrics card.
+      required: true
+      example: galaxy
+      selector:
+        text:
+    view:
+      name: View
+      description: A named view of the card (`camera.views`). Give a view or a point.
+      required: false
+      example: top
+      selector:
+        text:
+    point:
+      name: Point
+      description: A point id of the card to fly to (it wins over View).
+      required: false
+      example: earth
+      selector:
+        text:
+    duration:
+      name: Duration
+      description: How long the flight takes, in milliseconds. Default the card's `camera.fly_duration`.
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 60000
+          step: 100
+          unit_of_measurement: ms
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty to broadcast to
+        all connected browsers.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to Home Assistant users by their display name. Resolved server-side.
+        Case-insensitive.
+      required: false
+      selector:
+        text:
+          multiple: true
+
 show_portal_card:
   name: Show Portal Card
   description: >

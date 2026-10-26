@@ -233,6 +233,23 @@ export function registryIssues(node, tag, reg) {
 }
 
 /**
+ * `action: fly-to` flies an astrometrics card's camera. Outside that card it
+ * names the card in `card` and gives a `view` or a `point`; without them it
+ * does nothing.
+ * @returns {{path: string, message: string}[]}
+ */
+export function flyToIssues(node, tag) {
+  const out = [];
+  walk(node, '', (value, path) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value) || value.action !== 'fly-to') return;
+    const inAstro = tag === 'lcards-astrometrics-card';
+    if (!inAstro && typeof value.card !== 'string') out.push({ path, message: 'fly-to needs card: the id of the astrometrics card to fly' });
+    else if ((!inAstro || value.card !== undefined) && !value.view && !value.point) out.push({ path, message: 'fly-to to another card needs a view or a point' });
+  });
+  return out;
+}
+
+/**
  * Home Assistant's code editor (card dialogs, the raw dashboard editor) reads
  * YAML 1.1 since Home Assistant 2026.8: unquoted on, off, y, n, yes, no (any
  * case) become true / false. A key `true` or a boolean where text belongs is
@@ -481,6 +498,7 @@ export function createConfigValidator({ entries, registries = null }) {
     if (tag === 'lcards-astrometrics-card') {
       for (const r of astrometricsIssues(node)) add(r.severity, 'reference', r.path, r.message);
     }
+    for (const r of flyToIssues(node, tag)) add('warning', 'reference', r.path, r.message);
     return issues;
   }
 

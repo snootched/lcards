@@ -16,6 +16,12 @@ points:
     tap_action: { action: fly-to }
 ```
 
+## In the card editor
+
+The editor's **Points** tab lists the points: add, duplicate, reorder and remove them, and set each one's placement, the object it stands on, entity, label, style, marker, colour and the main label text keys. Other keys stay as they are; edit them in the YAML tab.
+
+**Pick on preview** (the crosshair on a row) places a point with a tap: the preview shows "TAP TO PLACE ..." and the next tap writes the point's numbers, in its own form. `xyz` and `polar` land on the ground (y = 0), or on the surface of the object in `object`; `latlon` lands on a sphere, `altaz` on a dome, `cell` on a plane grid's cell. Drag to turn the view first if you need to; Escape or Cancel stops picking. Points placed by `sky`, `at` or an entity are not picked.
+
 ## Placement forms
 
 Each point takes exactly one of these. `offset: [x, y, z]` moves any of them by scene units.

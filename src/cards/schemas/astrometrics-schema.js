@@ -84,8 +84,7 @@ const sceneActionSchema = {
         ...actionSchema.properties,
         action: {
             ...actionSchema.properties.action,
-            enum: [...actionSchema.properties.action.enum, 'fly-to'],
-            description: 'Type of action. fly-to: fly the camera here (or to the named view in view); the other types run as on any card.'
+            description: 'Type of action. fly-to: fly the camera here (or to the named view in view, or the point in point; with card, another astrometrics card\'s camera); the other types run as on any card.'
         },
         view: { type: 'string', description: 'fly-to only: fly to this named view (camera.views) instead of the point or object.' }
     }
@@ -119,14 +118,77 @@ const cameraSchema = {
             description: 'Named views (keys are your names). Fly between them with a tap_action (action: fly-to, view: <name>).',
             additionalProperties: viewSchema
         },
-        controls: { type: 'boolean', default: true, description: 'Drag to orbit, wheel or pinch to zoom, shift-drag, right-drag or two fingers to pan. false: the camera only moves by fly-to and auto_rotate.' },
+        controls: { type: 'boolean', default: true, description: 'Drag to orbit, wheel or pinch to zoom, shift-drag, right-drag or two fingers to pan, double-tap blank space to zoom in, arrow keys when focused. false: the camera only moves by fly-to and auto_rotate.' },
+        drag: {
+            type: 'string',
+            enum: ['orbit', 'pan'],
+            default: 'orbit',
+            description: 'What a one-finger or left-button drag does. orbit: turn round the target (shift or right button pans). pan: move the view (shift or right button orbits). A locked tilt always pans.'
+        },
+        pan: {
+            type: 'string',
+            enum: ['screen', 'ground'],
+            default: 'screen',
+            description: 'What panning moves along. screen: the screen\'s left, right, up and down, so a side view pans up and down. ground: across the ground plane only, the target keeps its height.'
+        },
+        zoom_to: {
+            type: 'string',
+            enum: ['cursor', 'target'],
+            default: 'cursor',
+            description: 'Where the wheel and pinch zoom toward. cursor: the spot under the pointer stays put. target: straight in and out from the centre.'
+        },
+        zoom_step: number('Distance factor of one zoom step (double-tap, zoom buttons, plus and minus keys). Default 2: each step halves the distance.', { exclusiveMinimum: 1, default: 2 }),
+        double_tap: {
+            type: 'string',
+            enum: ['zoom', 'none'],
+            default: 'zoom',
+            description: 'A double-tap or double-click in blank space. zoom: fly in one zoom step toward that spot, which becomes the centre (shift: zoom out). none: nothing. Taps on points and tappable objects are never affected.'
+        },
+        buttons: {
+            description: 'On-card camera buttons: pan arrows, zoom in and out, reset (back to the start view). Press and hold repeats. true for all of them in the bottom right; an object to choose. Default off.',
+            anyOf: [
+                { type: 'boolean' },
+                {
+                    type: 'object',
+                    additionalProperties: false,
+                    properties: {
+                        position: {
+                            type: 'string',
+                            enum: ['top-left', 'top-center', 'top-right', 'center-left', 'center', 'center-right', 'bottom-left', 'bottom-center', 'bottom-right'],
+                            default: 'bottom-right',
+                            description: 'Where the buttons sit on the card.'
+                        },
+                        pan: { type: 'boolean', default: true, description: 'Show the pan arrows.' },
+                        zoom: { type: 'boolean', default: true, description: 'Show zoom in and zoom out.' },
+                        reset: { type: 'boolean', default: true, description: 'Show reset (fly back to the start view).' }
+                    }
+                }
+            ]
+        },
         limits: {
             type: 'object',
             description: 'Where drag and zoom stop: [min, max] pairs. A tilt range of one value (e.g. [90, 90]) locks the tilt, and a one-finger drag then pans (a map).',
             properties: {
                 tilt: tuple(2, 'Lowest and highest tilt, degrees. Default [-90, 90].'),
                 distance: tuple(2, 'Nearest and farthest distance, scene units.'),
-                yaw: tuple(2, 'Yaw range, degrees. Default: no limit.')
+                yaw: tuple(2, 'Yaw range, degrees. Default: no limit.'),
+                target: {
+                    description: 'Where the point the camera looks at may go, so panning cannot lose the scene. A sphere ({ radius, center }) or a box ({ x, y, z } ranges, an axis left out is free); false for no limit. Default: a sphere 1.5 times the size of the scene round its centre.',
+                    anyOf: [
+                        { type: 'boolean', const: false },
+                        {
+                            type: 'object',
+                            additionalProperties: false,
+                            properties: {
+                                radius: number('Sphere radius, scene units.', { exclusiveMinimum: 0 }),
+                                center: tuple(3, 'Sphere centre [x, y, z]. Default: the centre of the scene.'),
+                                x: tuple(2, 'Box: lowest and highest x.'),
+                                y: tuple(2, 'Box: lowest and highest y.'),
+                                z: tuple(2, 'Box: lowest and highest z.')
+                            }
+                        }
+                    ]
+                }
             }
         },
         auto_rotate: number('Turn the camera round its target, degrees per second (negative: the other way). 0 is off. Pauses while dragging; off under reduced motion.', { default: 0 }),

@@ -90,6 +90,17 @@ export function axisSpec(cfg, colCount = 1, rowCount = 1) {
       const m = /^(-?\d+)([A-Z]+)$/i.exec(String(code ?? '').trim());
       if (m && columns === 'numbers' && rows === 'letters') return { c: Number(m[1]) - colStart, r: lettersToIndex(m[2]) - rowStart };
       return null;
+    },
+    /**
+     * 0-based column and row to the code parse() reads back (letters first),
+     * or null when both axes are letters or both numbers.
+     * @param {number} c
+     * @param {number} r
+     */
+    cellName(c, r) {
+      if (columns === 'letters' && rows === 'numbers') return `${indexToLetters(colStart + c)}${rowStart + r}`;
+      if (columns === 'numbers' && rows === 'letters') return `${indexToLetters(rowStart + r)}${colStart + c}`;
+      return null;
     }
   };
 }
@@ -138,6 +149,11 @@ export function buildGrid(cfg, ctx) {
       const p = axes.parse(code);
       if (!p || p.c < 0 || p.r < 0 || p.c >= cols || p.r >= rows) return null;
       return new Vector3(-w / 2 + (p.c + 0.5) * s, 0, -d / 2 + (p.r + 0.5) * s);
+    };
+    out.cellAt = (local) => {
+      const c = Math.floor((local.x + w / 2) / s);
+      const r = Math.floor((local.z + d / 2) / s);
+      return c >= 0 && r >= 0 && c < cols && r < rows ? axes.cellName(c, r) : null;
     };
     if (cfg.axis_labels) {
       const a = cfg.axis_labels;

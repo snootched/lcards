@@ -25,13 +25,26 @@ import { prefersReducedMotion } from '../../utils/reduced-motion.js';
 const DEG = Math.PI / 180;
 
 /** @typedef {{ tx: number, ty: number, tz: number, yaw: number, tilt: number, distance: number, fov: number }} CameraKeys */
-/** @typedef {{ tilt: [number, number], distance: [number, number], yaw: [number, number] | null }} CameraLimits */
+/**
+ * Where the target may go: a sphere, or a box (an axis left out is free).
+ * @typedef {{ center: [number, number, number], radius: number } | { x?: [number, number], y?: [number, number], z?: [number, number] }} TargetLimit
+ */
+/** @typedef {{ tilt: [number, number], distance: [number, number], yaw: [number, number] | null, target: TargetLimit | null }} CameraLimits */
+/**
+ * Held motion (buttons, keys): per second, in view heights (pan, x right and
+ * y up, the view moves), zoom steps (1 halves the distance at zoom_step 2) and
+ * degrees (orbit: yaw, tilt).
+ * @typedef {{ pan?: [number, number], zoom?: number, orbit?: [number, number] }} CameraMotion
+ */
 
 /** @type {CameraKeys} */
 export const DEFAULT_KEYS = { tx: 0, ty: 0, tz: 0, yaw: 20, tilt: 35, distance: 260, fov: 40 };
 
 /** @type {CameraLimits} */
-export const DEFAULT_LIMITS = { tilt: [-90, 90], distance: [1, 100000], yaw: null };
+export const DEFAULT_LIMITS = { tilt: [-90, 90], distance: [1, 100000], yaw: null, target: null };
+
+/** The default target limit is a sphere this many times the scene's radius */
+export const TARGET_LIMIT_SCALE = 1.5;
 
 /**
  * `to` moved by whole turns so that going from `from` to it is the short way.
@@ -61,6 +74,94 @@ export function cameraPose(k) {
 }
 
 /**
+ * The camera's screen right and up as world vectors (unit length).
+ * @param {CameraKeys} k
+ * @returns {{ right: [number, number, number], up: [number, number, number] }}
+ */
+export function screenBasis(k) {
+  const t = k.tilt * DEG;
+  const y = k.yaw * DEG;
+  return {
+    right: [Math.cos(y), 0, -Math.sin(y)],
+    up: [-Math.sin(t) * Math.sin(y), Math.cos(t), -Math.sin(t) * Math.cos(y)]
+  };
+}
+
+/** World units the view is high at the target (orthographic: everywhere) */
+function viewHeight(k) {
+  return 2 * k.distance * Math.tan((k.fov * DEG) / 2);
+}
+
+/**
+ * The ray through CSS px (x, y) of a w x h view.
+ * @param {CameraKeys} k
+ * @param {'perspective' | 'orthographic'} projection
+ * @param {number} x
+ * @param {number} y
+ * @param {number} w
+ * @param {number} h
+ * @returns {{ origin: [number, number, number], dir: [number, number, number] }} dir is unit length
+ */
+export function screenRay(k, projection, x, y, w, h) {
+  const pose = cameraPose(k);
+  const { right, up } = screenBasis(k);
+  const halfH = viewHeight(k) / 2;
+  // Offsets from the centre in world units at the target
+  const ox = ((x / Math.max(1, w)) * 2 - 1) * halfH * (w / Math.max(1, h));
+  const oy = (1 - (y / Math.max(1, h)) * 2) * halfH;
+  if (projection === 'orthographic') {
+    const origin = /** @type {[number, number, number]} */ ([0, 1, 2].map((i) => pose.position[i] + right[i] * ox + up[i] * oy));
+    return { origin, dir: pose.forward };
+  }
+  const d = [0, 1, 2].map((i) => pose.forward[i] * k.distance + right[i] * ox + up[i] * oy);
+  const len = Math.hypot(d[0], d[1], d[2]) || 1;
+  return { origin: pose.position, dir: /** @type {[number, number, number]} */ (d.map((v) => v / len)) };
+}
+
+/**
+ * Where a ray meets the plane through `point` with normal `normal`, or null
+ * (parallel within `grazing`, or behind the origin).
+ * @param {{ origin: number[], dir: number[] }} ray
+ * @param {number[]} point
+ * @param {number[]} normal - unit length
+ * @param {number} [grazing] - minimum |cos| between the ray and the normal
+ * @returns {[number, number, number] | null}
+ */
+export function rayPlane(ray, point, normal, grazing = 1e-6) {
+  const denom = ray.dir[0] * normal[0] + ray.dir[1] * normal[1] + ray.dir[2] * normal[2];
+  if (Math.abs(denom) < grazing) return null;
+  const t = ((point[0] - ray.origin[0]) * normal[0] + (point[1] - ray.origin[1]) * normal[1] + (point[2] - ray.origin[2]) * normal[2]) / denom;
+  if (!(t > 0)) return null;
+  return [ray.origin[0] + ray.dir[0] * t, ray.origin[1] + ray.dir[1] * t, ray.origin[2] + ray.dir[2] * t];
+}
+
+/**
+ * Clamp a target position into a limit (in place on keys).
+ * @param {CameraKeys} k
+ * @param {TargetLimit | null} limit
+ */
+function clampTarget(k, limit) {
+  if (!limit) return;
+  if ('radius' in limit) {
+    const c = limit.center;
+    const d = [k.tx - c[0], k.ty - c[1], k.tz - c[2]];
+    const len = Math.hypot(d[0], d[1], d[2]);
+    if (len > limit.radius && len > 0) {
+      const f = limit.radius / len;
+      k.tx = c[0] + d[0] * f;
+      k.ty = c[1] + d[1] * f;
+      k.tz = c[2] + d[2] * f;
+    }
+    return;
+  }
+  /** @param {number} v @param {[number, number] | undefined} r */
+  const box = (v, r) => (r ? Math.min(r[1], Math.max(r[0], v)) : v);
+  k.tx = box(k.tx, limit.x);
+  k.ty = box(k.ty, limit.y);
+  k.tz = box(k.tz, limit.z);
+}
+
+/**
  * Clamp keys to limits (in place).
  * @param {CameraKeys} k
  * @param {CameraLimits} limits
@@ -70,22 +171,45 @@ export function clampKeys(k, limits) {
   k.distance = Math.min(limits.distance[1], Math.max(limits.distance[0], k.distance));
   if (limits.yaw) k.yaw = Math.min(limits.yaw[1], Math.max(limits.yaw[0], k.yaw));
   k.fov = Math.min(150, Math.max(5, k.fov));
+  clampTarget(k, limits.target);
   return k;
 }
 
 /**
- * Config limits (`{ tilt: [a, b], distance: [a, b], yaw: [a, b] }`, any part)
- * over the defaults.
+ * Config limits (`{ tilt: [a, b], distance: [a, b], yaw: [a, b], target }`,
+ * any part) over the defaults. `target`: `{ radius, center? }` (a sphere),
+ * `{ x?, y?, z? }` (a box of [a, b] ranges), or `false` (none). Left out, the
+ * target stays within a sphere of TARGET_LIMIT_SCALE x the scene's radius
+ * (`scene`), so nobody pans the scene out of sight.
  * @param {any} cfg
+ * @param {{ center: [number, number, number], radius: number }} [scene]
  * @returns {CameraLimits}
  */
-export function parseLimits(cfg) {
+export function parseLimits(cfg, scene) {
   /** @param {any} v @param {[number, number] | null} d @returns {[number, number] | null} */
   const pair = (v, d) => (Array.isArray(v) && v.length === 2 && v.every(Number.isFinite) ? [Math.min(v[0], v[1]), Math.max(v[0], v[1])] : d);
+  const t = cfg?.target;
+  /** @type {TargetLimit | null} */
+  let target = null;
+  if (t && typeof t === 'object' && Number.isFinite(t.radius) && t.radius > 0) {
+    const c = Array.isArray(t.center) && t.center.length === 3 && t.center.every(Number.isFinite) ? t.center : scene?.center ?? [0, 0, 0];
+    target = { center: /** @type {[number, number, number]} */ ([...c]), radius: t.radius };
+  } else if (t && typeof t === 'object' && ['x', 'y', 'z'].some((a) => t[a] !== undefined)) {
+    /** @type {{ x?: [number, number], y?: [number, number], z?: [number, number] }} */
+    const box = {};
+    for (const a of /** @type {const} */ (['x', 'y', 'z'])) {
+      const r = pair(t[a], null);
+      if (r) box[a] = r;
+    }
+    target = box;
+  } else if (t !== false && scene && scene.radius > 0) {
+    target = { center: [...scene.center], radius: scene.radius * TARGET_LIMIT_SCALE };
+  }
   return {
     tilt: /** @type {[number, number]} */ (pair(cfg?.tilt, DEFAULT_LIMITS.tilt)),
     distance: /** @type {[number, number]} */ (pair(cfg?.distance, DEFAULT_LIMITS.distance)),
-    yaw: pair(cfg?.yaw, null)
+    yaw: pair(cfg?.yaw, null),
+    target
   };
 }
 
@@ -137,6 +261,17 @@ export class CameraRig {
     this._tweenDone = null;
     /** @type {(() => void) | null} */
     this._detach = null;
+    /** @type {'screen' | 'ground'} what a pan moves along */
+    this.panMode = 'screen';
+    /** @type {'orbit' | 'pan'} what a one-pointer drag does */
+    this.dragMode = 'orbit';
+    /** @type {'cursor' | 'target'} what wheel and pinch zoom toward */
+    this.zoomTo = 'cursor';
+    /** Distance factor of one zoom step (buttons, keys, double-tap) */
+    this.zoomStep = 2;
+    /** @type {CameraMotion | null} held motion, run by step() */
+    this.motion = null;
+    this._motionLast = -1;
   }
 
   /** @returns {PerspectiveCamera | OrthographicCamera} */
@@ -149,9 +284,9 @@ export class CameraRig {
     return this.limits.tilt[0] === this.limits.tilt[1];
   }
 
-  /** Whether a fly-to is running */
+  /** Whether a fly-to (or a held motion) is running */
   get flying() {
-    return !!this._tween;
+    return !!this._tween || !!this.motion;
   }
 
   /** Put the camera where the keys say (call before every render) */
@@ -233,11 +368,17 @@ export class CameraRig {
   }
 
   /**
-   * Advance the fly-to to `now` (the frame loop calls this).
+   * Advance the fly-to (or the held motion) to `now` (the frame loop calls this).
    * @param {number} now - ms
    * @returns {boolean} true while it still runs (draw another frame)
    */
   step(now) {
+    if (this.motion && !this._tween) {
+      const dt = this._motionLast < 0 ? 0 : Math.min(0.1, (now - this._motionLast) / 1000);
+      this._motionLast = now;
+      this._applyNudge(this.motion, dt);
+      return true;
+    }
     if (!this._tween) return false;
     if (this._tweenStart < 0) this._tweenStart = now;
     const t = Math.min(this._tweenDuration, now - this._tweenStart);
@@ -259,6 +400,16 @@ export class CameraRig {
   }
 
   /**
+   * The world directions a pan moves along: the screen's right and up
+   * (`panMode` screen), or right and forward on the ground (ground).
+   */
+  panBasis() {
+    if (this.panMode === 'screen') return screenBasis(this.keys);
+    const y = this.keys.yaw * DEG;
+    return { right: [Math.cos(y), 0, -Math.sin(y)], up: [-Math.sin(y), 0, -Math.cos(y)] };
+  }
+
+  /**
    * Move the target by a screen drag (content follows the pointer).
    * @param {number} dx - CSS px
    * @param {number} dy
@@ -266,15 +417,113 @@ export class CameraRig {
    */
   pan(dx, dy, heightPx) {
     const s = this.unitsPerPx(heightPx);
-    const y = this.keys.yaw * DEG;
-    // camera right (cos, 0, -sin) and screen-up on the ground (-sin, 0, -cos)
-    this.keys.tx += (-dx * Math.cos(y) - dy * Math.sin(y)) * s;
-    this.keys.tz += (dx * Math.sin(y) - dy * Math.cos(y)) * s;
+    const { right, up } = this.panBasis();
+    this.keys.tx += (-dx * right[0] + dy * up[0]) * s;
+    this.keys.ty += (-dx * right[1] + dy * up[1]) * s;
+    this.keys.tz += (-dx * right[2] + dy * up[2]) * s;
+  }
+
+  /**
+   * The world spot under CSS px (x, y) for zooming toward it: on the ground
+   * plane through the target (`panMode` ground, unless the ray grazes it),
+   * else on the plane through the target facing the camera.
+   * @param {number} x
+   * @param {number} y
+   * @param {number} w - viewport width
+   * @param {number} h - viewport height
+   * @returns {[number, number, number]}
+   */
+  spotAt(x, y, w, h) {
+    const k = this.keys;
+    const ray = screenRay(k, this.projection, x, y, w, h);
+    const target = [k.tx, k.ty, k.tz];
+    if (this.panMode === 'ground') {
+      const hit = rayPlane(ray, target, [0, 1, 0], 0.15);
+      if (hit) return hit;
+    }
+    const f = cameraPose(k).forward;
+    return rayPlane(ray, target, [-f[0], -f[1], -f[2]]) ?? /** @type {[number, number, number]} */ (target);
+  }
+
+  /**
+   * Zoom by a distance factor (< 1 closer) toward a world spot: everything
+   * scales about `at`, so it stays where it is on screen. Without `at` the
+   * zoom is about the target. The factor is clamped by the distance limits
+   * first, so the spot stays put at a limit too.
+   * @param {number} factor
+   * @param {number[] | null} [at]
+   */
+  zoomAt(factor, at = null) {
+    const k = this.keys;
+    const d1 = Math.min(this.limits.distance[1], Math.max(this.limits.distance[0], k.distance * factor));
+    const f = d1 / k.distance;
+    if (at) {
+      k.tx = at[0] + (k.tx - at[0]) * f;
+      k.ty = at[1] + (k.ty - at[1]) * f;
+      k.tz = at[2] + (k.tz - at[2]) * f;
+    }
+    k.distance = d1;
+    clampKeys(k, this.limits);
+  }
+
+  /**
+   * Keys after a nudge (see CameraMotion; `scale` multiplies it), without
+   * moving the camera.
+   * @param {CameraMotion} n
+   * @param {number} [scale]
+   * @returns {CameraKeys}
+   */
+  nudged(n, scale = 1) {
+    const k = { ...this.keys };
+    if (n.pan) {
+      const { right, up } = this.panBasis();
+      const s = viewHeight(k) * scale;
+      k.tx += (right[0] * n.pan[0] + up[0] * n.pan[1]) * s;
+      k.ty += (right[1] * n.pan[0] + up[1] * n.pan[1]) * s;
+      k.tz += (right[2] * n.pan[0] + up[2] * n.pan[1]) * s;
+    }
+    if (n.zoom) k.distance *= Math.pow(this.zoomStep, -n.zoom * scale);
+    if (n.orbit) {
+      k.yaw += n.orbit[0] * scale;
+      k.tilt += n.orbit[1] * scale;
+    }
+    return clampKeys(k, this.limits);
+  }
+
+  /**
+   * One step of a nudge: a short fly (or a jump with `duration` 0).
+   * @param {CameraMotion} n
+   * @param {{ duration?: number }} [opts]
+   */
+  nudge(n, { duration = 250 } = {}) {
+    return this.flyTo(this.nudged(n), { duration, ease: 'outQuad' });
+  }
+
+  /**
+   * Start (or with null stop) a held motion: step() moves the camera at
+   * this rate each frame.
+   * @param {CameraMotion | null} m
+   */
+  setMotion(m) {
+    if (m) this.cancel();
+    this.motion = m;
+    this._motionLast = -1;
+    if (m) this.onChange();
+  }
+
+  /**
+   * @private
+   * @param {CameraMotion} n
+   * @param {number} scale
+   */
+  _applyNudge(n, scale) {
+    Object.assign(this.keys, this.nudged(n, scale));
   }
 
   /**
    * Drag to orbit (or pan: shift, right button, two fingers, or a fixed
-   * tilt), wheel and pinch to zoom.
+   * tilt; `dragMode` pan swaps the two), wheel and pinch to zoom (toward
+   * the pointer with `zoomTo` cursor).
    * @param {HTMLElement} el
    * @param {{ onStart?: () => void }} [hooks]
    */
@@ -296,7 +545,7 @@ export class CameraRig {
       pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
       this.cancel();
       onStart?.();
-      panMode = e.shiftKey || e.button === 2;
+      panMode = (this.dragMode === 'pan') !== (e.shiftKey || e.button === 2);
       if (pts.size === 2) {
         const m = mid();
         pinch0 = m.d;
@@ -321,8 +570,9 @@ export class CameraRig {
         }
       } else if (pts.size === 2) {
         const m = mid();
-        this.keys.distance = (dist0 * pinch0) / Math.max(1, m.d);
+        const factor = (dist0 * pinch0) / Math.max(1, m.d) / this.keys.distance;
         this.pan(m.x - last.x, m.y - last.y, h);
+        this.zoomAt(factor, this._zoomSpot(el, m.x, m.y));
         last = m;
       }
       clampKeys(this.keys, this.limits);
@@ -340,8 +590,7 @@ export class CameraRig {
     const wheel = (e) => {
       e.preventDefault();
       this.cancel();
-      this.keys.distance *= Math.exp(e.deltaY * 0.001);
-      clampKeys(this.keys, this.limits);
+      this.zoomAt(Math.exp(e.deltaY * 0.001), this._zoomSpot(el, e.clientX, e.clientY));
       this.onChange();
     };
     /** @param {Event} e */
@@ -362,6 +611,21 @@ export class CameraRig {
     };
   }
 
+  /**
+   * The spot wheel and pinch zoom toward (client px), or null for the target.
+   * @private
+   * @param {HTMLElement} el
+   * @param {number} clientX
+   * @param {number} clientY
+   */
+  _zoomSpot(el, clientX, clientY) {
+    if (this.zoomTo !== 'cursor') return null;
+    const r = el.getBoundingClientRect();
+    const w = r.width || el.clientWidth || 1;
+    const h = r.height || el.clientHeight || 1;
+    return this.spotAt(clientX - r.left, clientY - r.top, w, h);
+  }
+
   detach() {
     this._detach?.();
     this._detach = null;
@@ -369,6 +633,7 @@ export class CameraRig {
 
   dispose() {
     this.cancel();
+    this.motion = null;
     this.detach();
   }
 }

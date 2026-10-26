@@ -98,6 +98,17 @@ test('lcards.red_alert / clear_alert services switch the alert mode on the page'
     await expect.poll(mode, { timeout: 15_000 }).toBe('green_alert');
 });
 
+test('lcards.fly_to flies the astrometrics card on the page', async ({ page }) => {
+    const errors = await openDashboard(page, 'astrometrics');
+    const keys = () => page.evaluate(() => window.lcards.cards.astrometrics.get('lcards_test_astro')?._scene?.debug().keys ?? null);
+    await expect.poll(async () => (await keys())?.tx, { timeout: 20_000 }).toBe(0);
+    await client.callService('lcards', 'fly_to', { card_id: 'lcards_test_astro', point: 'beacon', duration: 0 });
+    await expect.poll(async () => Math.round((await keys())?.tx ?? 0), { timeout: 15_000 }).toBe(-60);
+    await client.callService('lcards', 'fly_to', { card_id: 'lcards_test_astro', view: 'top', duration: 0 });
+    await expect.poll(async () => Math.round((await keys())?.tx ?? -1), { timeout: 15_000 }).toBe(0);
+    expect(errors).toEqual([]);
+});
+
 /** Every lazily loaded card editor and a config that opens it. */
 const EDITORS = [
     ['lcards-button', { type: 'custom:lcards-button', entity: 'input_boolean.lcards_test_toggle', preset: 'lozenge' }],

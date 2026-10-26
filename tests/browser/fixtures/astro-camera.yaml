@@ -1,0 +1,20 @@
+# Astrometrics camera controls (astrometrics.spec.js): a top-down map with the
+# on-card buttons. Double-tap blank floor zooms toward it; svc has a tap
+# action, so double-tapping it never zooms. The floor sets the scene's size
+# for the default target limit. The id is for the fly-to tests.
+type: custom:lcards-astrometrics-card
+id: astro_cam
+height: 400
+camera:
+  view: top
+  buttons: true
+  views:
+    top: { target: [0, 0, 0], tilt: 90, distance: 200, projection: orthographic }
+points:
+  - id: svc
+    xyz: [-60, 0, 0]
+    marker: square
+    label: SERVICE
+    tap_action: { action: perform-action, perform_action: light.turn_on, target: { entity_id: light.demo } }
+objects:
+  - { type: grid, id: floor, shape: plane, size: [240, 160], line_spacing: 20 }

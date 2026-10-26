@@ -519,6 +519,12 @@ export class IntegrationService extends BaseService {
                 break;
             }
 
+            case 'fly_to': {
+                const flown = window.lcards?.cards?.astrometrics?.flyTo(payload.card_id, payload.point ? { point: payload.point } : { view: payload.view }, { duration: payload.duration }) ?? 0;
+                lcardsLog.info(`[IntegrationService] fly_to '${payload.card_id}': ${flown} card(s) here`);
+                break;
+            }
+
             case 'clear_portal_card': {
                 const pom = window.lcards?.core?.portalOverlayManager;
                 pom?.hide('ha-service');

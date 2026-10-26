@@ -514,6 +514,10 @@ export class LCARdSActionHandler {
             case 'assist':
                 this._handleAssist(hass, actionConfig, element);
                 break;
+            case 'fly-to':
+                // An astrometrics card's camera, by the card's id
+                /** @type {any} */ (window).lcards?.cards?.astrometrics?.flyTo(actionConfig.card, actionConfig.point ? { point: actionConfig.point } : { view: actionConfig.view }, { duration: actionConfig.duration });
+                break;
             case 'none':
                 // Do nothing
                 break;
@@ -555,6 +559,9 @@ export class LCARdSActionHandler {
             case 'assist':
                 // Optional pipeline_id and start_listening
                 return true;
+
+            case 'fly-to':
+                return typeof actionConfig.card === 'string' && !!(actionConfig.view || actionConfig.point);
 
             case 'toggle':
             case 'more-info':

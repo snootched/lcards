@@ -254,9 +254,9 @@ export const actionSchema = {
     properties: {
         action: {
             type: 'string',
-            enum: ['toggle', 'call-service', 'perform-action', 'navigate', 'url', 'more-info', 'assist', 'none'],
+            enum: ['toggle', 'call-service', 'perform-action', 'navigate', 'url', 'more-info', 'assist', 'fly-to', 'none'],
             default: 'toggle',
-            description: 'Type of action to perform',
+            description: 'Type of action to perform. fly-to: fly the camera of the astrometrics card named in card to its view or point.',
             enumDescriptions: [
                 'Toggle entity on/off',
                 'Call a Home Assistant service',
@@ -304,6 +304,23 @@ export const actionSchema = {
             type: 'object',
             description: 'Service target selector',
             examples: [{ entity_id: 'light.living_room' }]
+        },
+        card: {
+            type: 'string',
+            description: 'fly-to only: the id of the astrometrics card whose camera flies (any card on the same dashboard or open in the same browser).'
+        },
+        view: {
+            type: 'string',
+            description: 'fly-to only: a named view of that card (camera.views).'
+        },
+        point: {
+            type: 'string',
+            description: 'fly-to only: a point id of that card to fly to (wins over view).'
+        },
+        duration: {
+            type: 'number',
+            minimum: 0,
+            description: 'fly-to only: how long the flight takes, ms. Default the card\'s camera.fly_duration.'
         }
     }
 };

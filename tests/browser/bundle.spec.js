@@ -73,7 +73,9 @@ test('size budget: tiny loader, main chunk under its ceiling', () => {
     expect(size('lcards.js')).toBeLessThanOrEqual(2 * 1024);
     // Measured 2026-10-10 after the split: 1.94 MB raw / 418 KB br. Ceilings leave
     // ~10% headroom; a change that pulls editors back into the main chunk fails here.
-    expect(size(`chunks/${main}`)).toBeLessThanOrEqual(2_150_000);
+    // 2,150,000 until 2026-10-25: E3b's astrometrics card side (fly-to registry, camera
+    // buttons, editor pick mode) took it to 2.155 MB; the editor and runtime stay lazy.
+    expect(size(`chunks/${main}`)).toBeLessThanOrEqual(2_200_000);
     // 460,000 until 2026-10-23: the main chunk had crept to ~460 KB br; C2's
     // background tier (scene effect classes, two presets, schemas) took it over.
     expect(size(`chunks/${main}.br`)).toBeLessThanOrEqual(480_000);
@@ -113,9 +115,11 @@ test('size budget: the astrometrics runtime and schema are lazy chunks of their 
     expect(runtime, 'a lazy chunk holds the astrometrics runtime').toBeTruthy();
     expect(js.some(f => /^astrometrics-schema-[\w-]{8}\.js$/.test(f)), 'the schema chunk').toBe(true);
     // Measured 2026-10-25: runtime 76 KB raw / 25 KB br (three.js and the Line2 family are in the three chunk).
+    // E3a (labels on the text system) and E3b (zoom to cursor, keys, picking) took it to
+    // 95 KB raw / 30.6 KB br the same day; ceilings ~10% over that.
     const size = (f) => statSync(new URL(`chunks/${f}`, DIST)).size;
-    expect(size(/** @type {string} */ (runtime))).toBeLessThanOrEqual(90_000);
-    expect(size(`${runtime}.br`)).toBeLessThanOrEqual(30_000);
+    expect(size(/** @type {string} */ (runtime))).toBeLessThanOrEqual(105_000);
+    expect(size(`${runtime}.br`)).toBeLessThanOrEqual(34_000);
 });
 
 test('rules: editing an existing rule keeps the old rule until a page refresh (documented)', async ({ page }) => {

@@ -368,3 +368,229 @@ test('labels mirror to dodge each other and the card edge; a label measured whil
     expect(await markerOffset()).toBeLessThan(1.5);
     await expectNoErrors(page);
 });
+
+// ── Camera controls (E3b) ────────────────────────────────────────────────────
+
+/** The scene's box on the page */
+const sceneBox = (page) => page.evaluate(() => {
+    const r = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('.astro-scene').getBoundingClientRect();
+    return { x: r.left, y: r.top, w: r.width, h: r.height };
+});
+
+/** setConfig with camera keys changed */
+const reconfigureCamera = (page, patch) => page.evaluate((camera) => {
+    const raw = JSON.parse(JSON.stringify(/** @type {any} */ (document.querySelector('#mount > *'))._rawConfig));
+    window.__reconfigure({ ...raw, camera: { ...raw.camera, ...camera } });
+}, patch);
+
+/** Wait for the camera to stop (no fly-to, no held motion) and return its keys */
+async function settled(page) {
+    await expect.poll(() => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().rig.flying), { timeout: 5000 }).toBe(false);
+    return (await sceneState(page)).keys;
+}
+
+test('double-tap in blank space zooms toward the spot (shift: out); on a tappable point it never zooms', async ({ page }) => {
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await sceneReady(page);
+    const b = await sceneBox(page);
+    const perPx = (2 * 200 * Math.tan((20 * Math.PI) / 180)) / b.h;
+    // 100 px right of the centre, on the floor
+    await page.mouse.dblclick(b.x + b.w / 2 + 100, b.y + b.h / 2);
+    let k = await settled(page);
+    expect(k.distance).toBeCloseTo(100, 3);
+    expect(k.tx).toBeCloseTo(100 * perPx, 1);
+    expect(k.tz).toBeCloseTo(0, 1);
+    await page.keyboard.down('Shift');
+    await page.mouse.dblclick(b.x + b.w / 2, b.y + b.h / 2);
+    await page.keyboard.up('Shift');
+    k = await settled(page);
+    expect(k.distance).toBeCloseTo(200, 3);
+    // a double-click on the service point runs its action twice and leaves the camera be
+    const p = await pointOnPage(page, 'svc');
+    const before = await settled(page);
+    await page.mouse.dblclick(p.x, p.y);
+    await expect.poll(() => page.evaluate(() => window.__hass.serviceCalls.length)).toBe(2);
+    k = await settled(page);
+    expect(k).toEqual(before);
+    // double_tap: none
+    await reconfigureCamera(page, { double_tap: 'none' });
+    await page.waitForTimeout(100);
+    const still = await settled(page);
+    await page.mouse.dblclick(b.x + b.w / 2 + 100, b.y + b.h / 2 + 50);
+    await page.waitForTimeout(600);
+    expect((await settled(page)).distance).toBe(still.distance);
+    await expectNoErrors(page);
+});
+
+test('wheel zooms toward the cursor: the spot under it stays put', async ({ page }) => {
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await sceneReady(page);
+    const b = await sceneBox(page);
+    const at = { x: b.x + b.w / 2 + 150, y: b.y + b.h / 2 - 80 };
+    const spot = await page.evaluate(({ x, y, w, h }) => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().rig.spotAt(x, y, w, h), { x: at.x - b.x, y: at.y - b.y, w: b.w, h: b.h });
+    await page.mouse.move(at.x, at.y);
+    await page.mouse.wheel(0, -300);
+    await expect.poll(async () => (await sceneState(page)).keys.distance).toBeLessThan(200);
+    const onScreen = await page.evaluate((p) => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        s.rig.apply();
+        const v = s.world.places.get('svc').clone().set(p[0], p[1], p[2]).project(s.rig.camera);
+        return v;
+    }, spot);
+    expect((onScreen.x + 1) / 2 * b.w).toBeCloseTo(at.x - b.x, 0);
+    expect((1 - onScreen.y) / 2 * b.h).toBeCloseTo(at.y - b.y, 0);
+});
+
+test('camera buttons: a click steps, a hold keeps going, reset flies home', async ({ page }) => {
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await sceneReady(page);
+    const buttons = page.locator('lcards-astrometrics-card .astro-buttons button');
+    await expect(buttons).toHaveCount(7);
+    await page.locator('lcards-astrometrics-card button[data-cmd="zoom-in"]').click();
+    expect((await settled(page)).distance).toBeCloseTo(100, 3);
+    const right = page.locator('lcards-astrometrics-card button[data-cmd="pan-right"]');
+    await right.click();
+    const step = (await settled(page)).tx;
+    expect(step).toBeGreaterThan(0);
+    const box = await right.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(900);
+    await page.mouse.up();
+    const held = (await settled(page)).tx;
+    expect(held).toBeGreaterThan(step * 2.5);
+    await page.locator('lcards-astrometrics-card button[data-cmd="reset"]').click();
+    const k = await settled(page);
+    expect([Math.round(k.tx), Math.round(k.distance)]).toEqual([0, 200]);
+    // buttons: { zoom: false, position: top-left }
+    await reconfigureCamera(page, { buttons: { zoom: false, position: 'top-left' } });
+    await expect(buttons).toHaveCount(5);
+    await expect(page.locator('lcards-astrometrics-card .astro-buttons')).toHaveAttribute('data-pos', 'top-left');
+    await expectNoErrors(page);
+});
+
+test('keyboard when focused: arrows pan, shift+arrows orbit, plus zooms, Home resets', async ({ page }) => {
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await sceneReady(page);
+    await page.locator('lcards-astrometrics-card .astro-scene').focus();
+    await page.keyboard.press('ArrowRight');
+    expect((await settled(page)).tx).toBeGreaterThan(0);
+    await page.keyboard.press('+');
+    expect((await settled(page)).distance).toBeCloseTo(100, 3);
+    await page.keyboard.press('Shift+ArrowLeft');
+    expect((await settled(page)).yaw).toBeCloseTo(15, 3);
+    await page.keyboard.press('Home');
+    const k = await settled(page);
+    expect([Math.round(k.tx), Math.round(k.distance), Math.round(k.yaw)]).toEqual([0, 200, 0]);
+});
+
+test('drag: pan moves the view instead of orbiting; panning stops at the target limit', async ({ page }) => {
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await sceneReady(page);
+    const b = await sceneBox(page);
+    const cx = b.x + b.w / 2;
+    const cy = b.y + b.h / 2;
+    // default: orbit
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx - 60, cy, { steps: 4 });
+    await page.mouse.up();
+    let k = await settled(page);
+    expect(k.yaw).not.toBeCloseTo(0, 1);
+    await reconfigureCamera(page, { drag: 'pan' });
+    await page.waitForTimeout(100);
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.home({ duration: 0 }));
+    // pan far to the left, way past the scene
+    for (let i = 0; i < 6; i++) {
+        await page.mouse.move(cx - 300, cy);
+        await page.mouse.down();
+        await page.mouse.move(cx + 300, cy, { steps: 4 });
+        await page.mouse.up();
+    }
+    k = await settled(page);
+    expect(k.yaw).toBeCloseTo(0, 3);
+    const limit = await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().limits.target);
+    expect(limit.radius).toBeGreaterThan(100);
+    expect(Math.hypot(k.tx - limit.center[0], k.tz - limit.center[2])).toBeCloseTo(limit.radius, 3);
+    expect(k.tx).toBeLessThan(0);
+    await expectNoErrors(page);
+});
+
+test('fly-to from outside: the registry, lcards_event fly_to, and a fly-to action naming the card', async ({ page }) => {
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await sceneReady(page);
+    expect(await page.evaluate(() => {
+        const reg = window.lcards.cards.astrometrics;
+        return [reg.getAll().length, reg.get('astro_cam') === document.querySelector('#mount > *'), reg.get('nope')];
+    })).toEqual([1, true, null]);
+    // the registry: a point
+    expect(await page.evaluate(() => window.lcards.cards.astrometrics.flyTo('astro_cam', { point: 'svc' }, { duration: 0 }))).toBe(1);
+    await expect.poll(async () => Math.round((await settled(page)).tx)).toBe(-60);
+    // the service's event: a view
+    await page.evaluate(() => window.lcards.core.integrationService._handleLcardsEvent({ action: 'fly_to', card_id: 'astro_cam', view: 'top', duration: 0 }));
+    await expect.poll(async () => Math.round((await settled(page)).tx)).toBe(0);
+    // targeted at another device: ignored
+    await page.evaluate(() => window.lcards.core.integrationService._handleLcardsEvent({ action: 'fly_to', card_id: 'astro_cam', point: 'svc', duration: 0, target_device_ids: ['someone-else'] }));
+    await page.waitForTimeout(200);
+    expect(Math.round((await settled(page)).tx)).toBe(0);
+    // the action any LCARdS card runs
+    await page.evaluate(() => {
+        const card = /** @type {any} */ (document.querySelector('#mount > *'));
+        card._actionHandler.runAction({ action: 'fly-to', card: 'astro_cam', point: 'svc', duration: 0 }, card.hass, card);
+    });
+    await expect.poll(async () => Math.round((await settled(page)).tx)).toBe(-60);
+    // gone from the registry once disconnected
+    expect(await page.evaluate(() => {
+        document.querySelector('#mount > *').remove();
+        return window.lcards.cards.astrometrics.getAll().length;
+    })).toBe(0);
+    await expectNoErrors(page);
+});
+
+test('editor pick: the preview places a point on the next tap (xyz, a cell), Escape cancels', async ({ page }) => {
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await sceneReady(page);
+    await page.evaluate(async () => {
+        const card = /** @type {any} */ (document.querySelector('#mount > *'));
+        await customElements.get('lcards-astrometrics-card').getConfigElement(); // loads the editor chunk
+        await customElements.whenDefined('lcards-astro-points-editor');
+        // the harness has no edit dialog: let the card listen as if it were the preview
+        card._inEditDialog = true;
+        card._listenForPicks();
+        const list = /** @type {any} */ (document.createElement('lcards-astro-points-editor'));
+        list.config = JSON.parse(JSON.stringify(card._rawConfig));
+        list.addEventListener('points-changed', (e) => { window.__points = e.detail.value; list.config = { ...list.config, points: e.detail.value }; });
+        document.body.appendChild(list);
+        await list.updateComplete;
+        window.__list = list;
+    });
+    const b = await sceneBox(page);
+    const perPx = (2 * 200 * Math.tan((20 * Math.PI) / 180)) / b.h;
+    // xyz on the ground
+    await page.evaluate(() => window.__list._pick({ id: 'svc', xyz: [-60, 0, 0] }));
+    await expect(page.locator('lcards-astrometrics-card .astro-pick')).toContainText('TAP TO PLACE SVC');
+    await page.mouse.click(b.x + b.w / 2 + 100, b.y + b.h / 2);
+    await expect(page.locator('lcards-astrometrics-card .astro-pick')).toHaveCount(0);
+    const xyz = await page.evaluate(() => window.__points.find((p) => p.id === 'svc').xyz);
+    expect(xyz[0]).toBeCloseTo(100 * perPx, 0);
+    expect(xyz[1]).toBe(0);
+    expect(Math.abs(xyz[2])).toBeLessThan(0.5);
+    expect(await page.evaluate(() => window.__hass.serviceCalls)).toEqual([]);
+    // a cell on the floor grid (240 x 160, cells of 20: columns A to L, rows 1 to 8)
+    await page.evaluate(() => {
+        const list = window.__list;
+        list.config = { ...list.config, points: list.config.points.map((p) => (p.id === 'svc' ? { id: 'svc', cell: 'A1', object: 'floor', label: p.label } : p)) };
+        list._pick(list.config.points.find((p) => p.id === 'svc'));
+    });
+    // 30 px below the middle: inside row 5 (row 4 ends at z = 0)
+    await page.mouse.click(b.x + b.w / 2 + 100, b.y + b.h / 2 + 30);
+    await expect.poll(() => page.evaluate(() => window.__points.find((p) => p.id === 'svc'))).toMatchObject({ cell: 'H5', object: 'floor' });
+    expect(await page.evaluate(() => window.__points.find((p) => p.id === 'svc').xyz)).toBeUndefined();
+    // Escape cancels; the next tap runs the point's action again
+    await page.evaluate(() => window.__list._pick({ id: 'svc', xyz: [0, 0, 0] }));
+    await expect(page.locator('lcards-astrometrics-card .astro-pick')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('lcards-astrometrics-card .astro-pick')).toHaveCount(0);
+    expect(await page.evaluate(() => window.__list._picking)).toBe('');
+    await expectNoErrors(page);
+});

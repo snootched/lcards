@@ -131,6 +131,22 @@ views:
               attach_to: b_end
               route: auto
 
+  # E3b: lcards.fly_to reaches the page
+  - title: Astrometrics
+    path: astrometrics
+    cards:
+      - type: custom:lcards-astrometrics-card
+        id: lcards_test_astro
+        height: 300
+        camera:
+          view: top
+          views:
+            top: { target: [0, 0, 0], tilt: 90, distance: 200 }
+        points:
+          - { id: beacon, xyz: [-60, 0, 0], marker: square, label: BEACON }
+        objects:
+          - { type: grid, shape: plane, size: [240, 160], line_spacing: 20 }
+
   # S2 regressions: entity_attr rules, `condition: |` rules, mixed templates.
   - title: Rules
     path: rules

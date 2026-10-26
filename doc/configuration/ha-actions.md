@@ -225,6 +225,48 @@ data:
 
 ---
 
+## Astrometrics Actions
+
+Move the camera of an [astrometrics card](/cards/astrometrics/) from an automation, for example to show the front door on the wall panel when the doorbell rings. The card needs an `id`. Every open dashboard showing that card flies, unless you target devices or users.
+
+### `lcards.fly_to`
+
+Give a `view` or a `point`; if both are given, `point` wins.
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `card_id` | string | ✓ | The astrometrics card's `id`. |
+| `view` | string | | A named view of the card (`camera.views`). |
+| `point` | string | | A point id of the card; the camera flies to it as a tap on it would. |
+| `duration` | number | | Flight time in ms. Default: the card's `camera.fly_duration`. |
+| `target_device_ids` | list | | → [Targeting](#targeting) |
+| `target_device_names` | list | | → [Targeting](#targeting) |
+| `target_user_ids` | list | | → [Targeting](#targeting) |
+| `target_user_names` | list | | → [Targeting](#targeting) |
+
+```yaml
+# Show the front door on every dashboard with the house map
+action: lcards.fly_to
+data:
+  card_id: house_map
+  point: front_door
+```
+
+```yaml
+# The sector overview on the bridge tablet, slowly
+action: lcards.fly_to
+data:
+  card_id: galaxy
+  view: sector
+  duration: 4000
+  target_device_names:
+    - Bridge Tablet
+```
+
+From another LCARdS card on the same dashboard, the `fly-to` action does the same without a round trip; see [Fly-to from other cards](/cards/astrometrics/data#fly-to-from-other-cards-and-automations).
+
+---
+
 ## Portal Overlay Actions
 
 Display or clear a custom Home Assistant card over the full-screen portal on connected browser tabs. Supports [targeting](#targeting).

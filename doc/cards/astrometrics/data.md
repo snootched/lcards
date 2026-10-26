@@ -126,3 +126,24 @@ rules:
 - When the rule stops matching, the point or object goes back to its config.
 
 Ids are page-wide: two cards with a point `sol` both match a rule on `sol`. Use distinct ids, or tags, when a dashboard has several astrometrics or MSD cards.
+
+## Fly-to from other cards and automations
+
+Give the astrometrics card an `id`, then any LCARdS card can fly its camera with a `fly-to` action naming it in `card`, with a `view` or a `point`:
+
+```yaml
+type: custom:lcards-button
+preset: lozenge
+text:
+  name: { content: EARTH, show: true }
+tap_action:
+  action: fly-to
+  card: galaxy          # the astrometrics card's id
+  point: earth          # or view: <a camera view>
+  duration: 2500        # optional, ms
+```
+
+The camera of every open card with that id flies, in the same browser. From an automation use the [`lcards.fly_to`](/configuration/ha-actions#lcards-fly-to) action, which reaches every open dashboard (or only the devices and users you target).
+
+In the browser console, `window.lcards.cards.astrometrics` has `getAll()`, `get(id)` and `flyTo(id, view or { point }, { duration })`.
+

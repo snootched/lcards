@@ -13,6 +13,7 @@ Provides the lcards.* action namespace:
   lcards.set_log_level    — change JS frontend log level at runtime
   lcards.trigger_effect   — fire a named screen effect on target devices/users
   lcards.play_sound       — play a sound effect on target devices/users
+  lcards.fly_to           — fly an astrometrics card's camera to a view or point
 
 All services accept four optional targeting fields (all may be combined):
 
@@ -187,6 +188,7 @@ SERVICE_SHOW_PORTAL_CARD  = "show_portal_card"
 SERVICE_CLEAR_PORTAL_CARD = "clear_portal_card"
 SERVICE_BORG_ASSIMILATE   = "borg_assimilate"    # Easter egg
 SERVICE_BORG_DEASSIMILATE = "borg_deassimilate"  # Easter egg — restores normal state
+SERVICE_FLY_TO            = "fly_to"
 
 _ALL_SERVICES = [
     SERVICE_SET_ALERT_MODE,
@@ -205,6 +207,7 @@ _ALL_SERVICES = [
     SERVICE_CLEAR_PORTAL_CARD,
     SERVICE_BORG_ASSIMILATE,
     SERVICE_BORG_DEASSIMILATE,
+    SERVICE_FLY_TO,
 ]
 
 
@@ -340,6 +343,22 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             payload["asset_key"] = asset_key
         device_ids, user_ids = await _async_resolve_targets(hass, call)
         _fire_targeted_event(hass, "play_sound", payload, device_ids, user_ids)
+
+    async def handle_fly_to(call: ServiceCall) -> None:
+        """Fly an astrometrics card's camera on target LCARdS frontends.
+
+        ``card_id`` is the card's ``id``; ``view`` a named camera view or
+        ``point`` a point id (``point`` wins); ``duration`` (ms) overrides the
+        card's fly_duration. Every open dashboard showing that card flies
+        unless targeted.
+        """
+        payload: dict = {"card_id": call.data["card_id"]}
+        for key in ("view", "point", "duration"):
+            if call.data.get(key) is not None:
+                payload[key] = call.data[key]
+        _LOGGER.info("LCARdS service: fly_to %r", payload)
+        device_ids, user_ids = await _async_resolve_targets(hass, call)
+        _fire_targeted_event(hass, "fly_to", payload, device_ids, user_ids)
 
     async def handle_clear_effect(call: ServiceCall) -> None:
         """Clear screen effects on target LCARdS frontends.
@@ -528,6 +547,23 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             vol.Optional("asset_key"):  vol.All(str, vol.Length(min=1)),
             **_TARGET_FIELDS,
         }),
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_FLY_TO, handle_fly_to,
+        schema=vol.All(
+            vol.Schema({
+                vol.Required("card_id"):  vol.All(str, vol.Length(min=1)),
+                vol.Optional("view"):     vol.All(str, vol.Length(min=1)),
+                vol.Optional("point"):    vol.All(str, vol.Length(min=1)),
+                vol.Optional("duration"): vol.All(int, vol.Range(min=0, max=60000)),
+                **_TARGET_FIELDS,
+            }),
+            vol.Any(
+                vol.Schema({vol.Required("view"): str}, extra=vol.ALLOW_EXTRA),
+                vol.Schema({vol.Required("point"): str}, extra=vol.ALLOW_EXTRA),
+                msg="fly_to needs a view or a point",
+            ),
+        ),
     )
     hass.services.async_register(
         DOMAIN, SERVICE_SHOW_PORTAL_CARD, handle_show_portal_card,

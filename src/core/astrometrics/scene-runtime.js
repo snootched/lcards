@@ -25,7 +25,7 @@ import { parseColorToRgba } from '../packs/textures/effects/noise-helpers.js';
 import { resolveColor as defaultResolveColor } from '../themes/resolve-color.js';
 import { prefersReducedMotion, onReducedMotionChange } from '../../utils/reduced-motion.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { CameraRig, viewToKeys, parseLimits, DEFAULT_KEYS } from './camera-rig.js';
+import { CameraRig, viewToKeys, parseLimits, clampKeys, screenRay, rayPlane, DEFAULT_KEYS } from './camera-rig.js';
 import { LabelLayer } from './label-layer.js';
 import { markerSvg } from './markers.js';
 import { buildScene, makeLabelItem } from './scene-builder.js';
@@ -44,6 +44,39 @@ const SKY_INTERVAL_MS = 60_000;
 const HOLD_MS = 500;
 /** Movement (CSS px) that turns a press into a drag */
 const TAP_SLOP = 6;
+/** Two taps in blank space this close in time (ms) and place (CSS px) are a double-tap */
+const DOUBLE_TAP_MS = 300;
+const DOUBLE_TAP_SLOP = 24;
+/** A double-tap zoom flies this long (ms) */
+const DOUBLE_TAP_FLY_MS = 450;
+/** A button or key held this long (ms) after its first step moves continuously */
+const PRESS_REPEAT_MS = 300;
+
+/**
+ * Camera commands (on-card buttons, keys): one step on press, then a rate
+ * while held. Pan in view heights (x right, y up: the view moves), zoom in
+ * zoom steps, orbit in degrees (as a drag the same way would).
+ * @type {Record<string, { step: import('./camera-rig.js').CameraMotion, rate: import('./camera-rig.js').CameraMotion }>}
+ */
+export const CAMERA_COMMANDS = {
+  'pan-left': { step: { pan: [-0.15, 0] }, rate: { pan: [-0.8, 0] } },
+  'pan-right': { step: { pan: [0.15, 0] }, rate: { pan: [0.8, 0] } },
+  'pan-up': { step: { pan: [0, 0.15] }, rate: { pan: [0, 0.8] } },
+  'pan-down': { step: { pan: [0, -0.15] }, rate: { pan: [0, -0.8] } },
+  'zoom-in': { step: { zoom: 1 }, rate: { zoom: 1.5 } },
+  'zoom-out': { step: { zoom: -1 }, rate: { zoom: -1.5 } },
+  'orbit-left': { step: { orbit: [15, 0] }, rate: { orbit: [60, 0] } },
+  'orbit-right': { step: { orbit: [-15, 0] }, rate: { orbit: [-60, 0] } },
+  'orbit-up': { step: { orbit: [0, -10] }, rate: { orbit: [0, -40] } },
+  'orbit-down': { step: { orbit: [0, 10] }, rate: { orbit: [0, 40] } }
+};
+
+/** @type {Record<string, string>} key (shift + key with an `S` prefix) to command */
+const KEY_COMMANDS = {
+  ArrowLeft: 'pan-left', ArrowRight: 'pan-right', ArrowUp: 'pan-up', ArrowDown: 'pan-down',
+  SArrowLeft: 'orbit-left', SArrowRight: 'orbit-right', SArrowUp: 'orbit-up', SArrowDown: 'orbit-down',
+  '+': 'zoom-in', '=': 'zoom-in', '-': 'zoom-out', _: 'zoom-out'
+};
 
 /**
  * @typedef {Object} AstroTapHit
@@ -78,6 +111,12 @@ const TAP_SLOP = 6;
  * @property {(view: string | Record<string, any>, opts?: { duration?: number }) => Promise<void>} flyTo
  * @property {() => void} requestFrame
  * @property {() => void} recolor - re-resolve theme colours (theme or alert change)
+ * @property {(command: string) => void} press - start a camera command (CAMERA_COMMANDS name, or `reset`): one step, then held motion
+ * @property {() => void} release - end the pressed command
+ * @property {(opts?: { duration?: number }) => Promise<void>} home - fly back to the start view
+ * @property {(x: number, y: number, opts?: { out?: boolean }) => Promise<void>} zoomTo - the double-tap zoom at CSS px (x, y)
+ * @property {(handler: ((x: number, y: number) => void) | null) => void} setPickHandler - while set, a tap goes to it (no actions, no double-tap)
+ * @property {(x: number, y: number, form: string, object?: string) => (number[] | string | null)} placeAt - a placement form's value for the spot at CSS px (x, y), or null
  * @property {(values: Record<string, AstroLabelValues>) => void} setLabelValues - label text and colours by point id (no rebuild)
  * @property {(values: Record<string, Record<string, number[] | null>>) => void} updatePoints - positions from entities by point id (no rebuild)
  * @property {(patches: { points?: Record<string, any>, objects?: Record<string, any> }) => void} patch - rule effects on points and objects (no world rebuild)
@@ -87,7 +126,8 @@ const TAP_SLOP = 6;
  */
 
 const CSS = `
-.astro-scene { position: relative; width: 100%; height: 100%; overflow: hidden; touch-action: none; user-select: none; }
+.astro-scene { position: relative; width: 100%; height: 100%; overflow: hidden; touch-action: none; user-select: none; outline: none; }
+.astro-scene:focus-visible { box-shadow: inset 0 0 0 var(--ha-border-width-md) var(--primary-color); }
 .astro-scene > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .astro-scene .astro-message { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-family: var(--lcars-font, 'Antonio'), sans-serif; color: var(--lcards-moonlight); opacity: 0.7; }
@@ -106,6 +146,8 @@ export function createAstroScene(host, config, options = {}) {
 
   const wrap = document.createElement('div');
   wrap.className = 'astro-scene';
+  wrap.setAttribute('role', 'application');
+  wrap.setAttribute('aria-label', 'Astrometrics scene: arrows pan, shift and arrows orbit, plus and minus zoom, Home resets');
   const style = document.createElement('style');
   style.textContent = CSS;
   const canvas = document.createElement('canvas');
@@ -156,6 +198,8 @@ export function createAstroScene(host, config, options = {}) {
   /** @type {Record<string, any>} */
   let views = {};
   let cameraKey = '';
+  /** @type {{ keys: import('./camera-rig.js').CameraKeys, projection: 'perspective' | 'orthographic' } | null} the start view, for reset */
+  let home = null;
 
   /** @type {import('./objects/common.js').BuildContext} */
   const ctx = {
@@ -216,13 +260,40 @@ export function createAstroScene(host, config, options = {}) {
   function initialView() {
     const cam = cfg.camera ?? {};
     views = cam.views && typeof cam.views === 'object' ? cam.views : {};
-    rig.limits = parseLimits(cam.limits);
     const name = cam.view !== undefined && views[cam.view] ? cam.view : Object.keys(views)[0];
     const view = name ? views[name] : null;
     const b = world?.bounds;
     // A named view that leaves out yaw faces north; with no view, frame the bounds at an angle
     const base = { ...DEFAULT_KEYS, tx: b?.center.x ?? 0, ty: b?.center.y ?? 0, tz: b?.center.z ?? 0, distance: (b?.radius ?? 100) * 2.8, ...(view ? { yaw: 0 } : {}) };
     rig.set({ ...base, ...viewToKeys(view, (r) => world?.places.resolve(r) ?? null) }, view?.projection === 'orthographic' ? 'orthographic' : 'perspective');
+    home = { keys: { ...rig.keys }, projection: rig.projection };
+  }
+
+  /**
+   * The scene's extent for the default target limit: the objects' bounds,
+   * grown to take in every labelled point and every view target.
+   * @returns {{ center: [number, number, number], radius: number } | undefined}
+   */
+  function sceneSphere() {
+    if (!world) return undefined;
+    const c = world.bounds.center;
+    let r = world.bounds.radius;
+    /** @param {Vector3 | null | undefined} p */
+    const take = (p) => { if (p) r = Math.max(r, p.distanceTo(c)); };
+    for (const it of world.labels) take(world.places.get(it.id));
+    const vs = cfg.camera?.views && typeof cfg.camera.views === 'object' ? Object.values(cfg.camera.views) : [];
+    for (const v of vs) if (v && typeof v === 'object' && v.target !== undefined) take(world.places.resolve(v.target));
+    return { center: [c.x, c.y, c.z], radius: r };
+  }
+
+  /** Camera options that need no new view: pan and drag modes, zoom, limits */
+  function applyCameraOptions() {
+    const cam = cfg.camera ?? {};
+    rig.panMode = cam.pan === 'ground' ? 'ground' : 'screen';
+    rig.dragMode = cam.drag === 'pan' ? 'pan' : 'orbit';
+    rig.zoomTo = cam.zoom_to === 'target' ? 'target' : 'cursor';
+    rig.zoomStep = num(cam.zoom_step, 2) > 1 ? num(cam.zoom_step, 2) : 2;
+    rig.limits = parseLimits(cam.limits, sceneSphere());
   }
 
   function build() {
@@ -247,6 +318,7 @@ export function createAstroScene(host, config, options = {}) {
       const u = f.userData.uniforms;
       f.userData.baseWidths ??= [u.uWidthMinor.value, u.uWidthMajor.value];
     }
+    applyCameraOptions();
     const key = JSON.stringify(cfg.camera ?? null);
     if (key !== cameraKey) {
       cameraKey = key;
@@ -405,7 +477,7 @@ export function createAstroScene(host, config, options = {}) {
     down = null;
     if (!d || !world || d.held || d.moved || Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_SLOP || performance.now() - d.t >= HOLD_MS) return;
     const r = canvas.getBoundingClientRect();
-    tap(e.clientX - r.left, e.clientY - r.top);
+    tap(e.clientX - r.left, e.clientY - r.top, e.shiftKey);
   };
   const onCancel = () => { dragging = false; down = null; clearTimeout(holdTimer); };
   canvas.addEventListener('pointerdown', onDown);
@@ -446,15 +518,77 @@ export function createAstroScene(host, config, options = {}) {
     if (hit && hit.config?.hold_action !== undefined) options.onHold?.(hit);
   }
 
+  /** @type {{ x: number, y: number, t: number } | null} the last tap in blank space */
+  let blankTap = null;
+  /** @type {((x: number, y: number) => void) | null} picking a position (the editor) */
+  let pickHandler = null;
+
   /**
-   * A tap at (x, y) CSS px: the nearest point marker, else an object with a
-   * `tap_action` under it.
+   * A placement form's value for what is under (x, y) CSS px: on the
+   * object's surface (local to it) when `object` names one, else on the
+   * ground plane (y = 0). Rounded to what a person would type.
    * @param {number} x
    * @param {number} y
+   * @param {string} form - xyz, polar, latlon, altaz or cell
+   * @param {string} [object]
+   * @returns {number[] | string | null}
    */
-  function tap(x, y) {
+  function placeAt(x, y, form, object) {
+    if (!world) return null;
+    const host = object ? world.objects.get(object) : undefined;
+    if (object && !host) return null;
+    ndc.set((x / cssW) * 2 - 1, -(y / cssH) * 2 + 1);
+    ray.setFromCamera(ndc, rig.camera);
+    /** @type {Vector3 | null} */
+    let local = null;
+    if (host) {
+      const hit = ray.intersectObjects(host.pickMeshes, false)[0];
+      if (hit) local = host.node.worldToLocal(hit.point.clone());
+    } else {
+      const r = screenRay(rig.keys, rig.projection, x, y, cssW, cssH);
+      const g = rayPlane(r, [0, 0, 0], [0, 1, 0], 0.02);
+      if (g) local = new Vector3(g[0], g[1], g[2]);
+    }
+    if (!local) return null;
+    const r1 = (/** @type {number} */ v) => Math.round(v * 10) / 10;
+    const bearing = (((Math.atan2(local.x, -local.z) / DEG) % 360) + 360) % 360;
+    const R = local.length() || 1;
+    switch (form) {
+      case 'xyz': return [r1(local.x), r1(local.y), r1(local.z)];
+      case 'polar': return [r1(Math.hypot(local.x, local.z)), r1(bearing)];
+      case 'latlon': return [r1(Math.asin(local.y / R) / DEG), r1(Math.atan2(local.x, local.z) / DEG)];
+      case 'altaz': return [r1(bearing), r1(Math.asin(local.y / R) / DEG)];
+      case 'cell': return host?.cellAt?.(local) ?? null;
+      default: return null;
+    }
+  }
+
+  /**
+   * A tap at (x, y) CSS px: the nearest point marker, else an object with a
+   * `tap_action` under it. Two taps in blank space are a double-tap: zoom
+   * toward the spot (out with shift), unless `camera.double_tap: none`.
+   * @param {number} x
+   * @param {number} y
+   * @param {boolean} [shift]
+   */
+  function tap(x, y, shift = false) {
+    if (pickHandler) {
+      pickHandler(x, y);
+      return;
+    }
     const hit = pickAt(x, y, 'tap_action');
-    if (!hit) return;
+    if (!hit) {
+      const now = performance.now();
+      const b = blankTap;
+      if (b && now - b.t < DOUBLE_TAP_MS && Math.hypot(x - b.x, y - b.y) <= DOUBLE_TAP_SLOP && cfg.camera?.double_tap !== 'none' && cfg.camera?.controls !== false) {
+        blankTap = null;
+        zoomTo(x, y, { out: shift });
+      } else {
+        blankTap = { x, y, t: now };
+      }
+      return;
+    }
+    blankTap = null;
     if (options.onTap?.(hit) === true) return;
     const action = hit.config?.tap_action;
     if (hit.kind === 'point') {
@@ -601,6 +735,85 @@ export function createAstroScene(host, config, options = {}) {
     return rig.flyTo(viewToKeys(view, (r) => world?.places.resolve(r) ?? null), { duration, ease: cfg.camera?.ease });
   }
 
+  /**
+   * Where a double-tap at (x, y) CSS px zooms to: an object's surface, else
+   * the ground (y = 0) when the ray meets it within the target limit, else
+   * the plane through the target facing the camera.
+   * @param {number} x
+   * @param {number} y
+   * @returns {[number, number, number]}
+   */
+  function zoomSpot(x, y) {
+    if (world) {
+      ndc.set((x / cssW) * 2 - 1, -(y / cssH) * 2 + 1);
+      ray.setFromCamera(ndc, rig.camera);
+      const hits = ray.intersectObjects(world.list.flatMap((b) => b.pickMeshes), false);
+      if (hits.length) return [hits[0].point.x, hits[0].point.y, hits[0].point.z];
+      const r = screenRay(rig.keys, rig.projection, x, y, cssW, cssH);
+      const ground = rayPlane(r, [0, 0, 0], [0, 1, 0], 0.15);
+      if (ground) {
+        const k = clampKeys({ ...rig.keys, tx: ground[0], ty: ground[1], tz: ground[2] }, rig.limits);
+        if (k.tx === ground[0] && k.ty === ground[1] && k.tz === ground[2]) return ground;
+      }
+    }
+    return rig.spotAt(x, y, cssW, cssH);
+  }
+
+  /**
+   * The double-tap zoom: the spot becomes the orbit target, one zoom step
+   * closer (further with `out`).
+   * @param {number} x
+   * @param {number} y
+   * @param {{ out?: boolean }} [opts]
+   */
+  function zoomTo(x, y, { out = false } = {}) {
+    if (!world) return Promise.resolve();
+    const p = zoomSpot(x, y);
+    const distance = rig.keys.distance * (out ? rig.zoomStep : 1 / rig.zoomStep);
+    return rig.flyTo({ tx: p[0], ty: p[1], tz: p[2], distance }, { duration: DOUBLE_TAP_FLY_MS, ease: 'outCubic' });
+  }
+
+  /** @param {{ duration?: number }} [opts] */
+  function goHome({ duration } = {}) {
+    if (!home) return Promise.resolve();
+    return rig.flyTo(home.keys, { duration: duration ?? num(cfg.camera?.fly_duration, 1600), ease: cfg.camera?.ease, projection: home.projection });
+  }
+
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let pressTimer;
+  /** @param {string} command */
+  function press(command) {
+    endPress();
+    if (command === 'reset') { goHome(); return; }
+    const c = CAMERA_COMMANDS[command];
+    if (!c) return;
+    rig.nudge(c.step);
+    pressTimer = setTimeout(() => rig.setMotion(c.rate), PRESS_REPEAT_MS);
+  }
+  function endPress() {
+    clearTimeout(pressTimer);
+    pressTimer = undefined;
+    if (rig.motion) rig.setMotion(null);
+  }
+
+  /** @param {KeyboardEvent} e */
+  const onKeyDown = (e) => {
+    if (cfg.camera?.controls === false || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.key === 'Home') {
+      e.preventDefault();
+      if (!e.repeat) press('reset');
+      return;
+    }
+    const command = KEY_COMMANDS[(e.shiftKey ? 'S' : '') + e.key] ?? KEY_COMMANDS[e.key];
+    if (!command) return;
+    e.preventDefault();
+    if (!e.repeat) press(command);
+  };
+  const onKeyUp = () => endPress();
+  wrap.addEventListener('keydown', onKeyDown);
+  wrap.addEventListener('keyup', onKeyUp);
+  wrap.addEventListener('blur', onKeyUp);
+
   // Observers --------------------------------------------------------------
   const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => resize()) : null;
   ro?.observe(wrap);
@@ -616,9 +829,11 @@ export function createAstroScene(host, config, options = {}) {
   document.fonts?.addEventListener?.('loadingdone', onFonts);
   /** @param {boolean} on */
   const setControls = (on) => {
-    if (on) rig.attach(canvas, { onStart: () => { dragging = true; } });
-    else rig.detach();
+    if (on) rig.attach(canvas, { onStart: () => { dragging = true; endPress(); } });
+    else { rig.detach(); endPress(); }
     wrap.style.touchAction = on ? 'none' : 'auto';
+    if (on) wrap.tabIndex = 0;
+    else wrap.removeAttribute('tabindex');
   };
 
   setControls(cfg.camera?.controls !== false);
@@ -635,6 +850,16 @@ export function createAstroScene(host, config, options = {}) {
       if (refreshSky()) requestFrame();
     },
     flyTo,
+    press,
+    release: endPress,
+    home: goHome,
+    zoomTo,
+    setPickHandler(handler) {
+      pickHandler = handler;
+      blankTap = null;
+      canvas.style.cursor = handler ? 'crosshair' : '';
+    },
+    placeAt,
     requestFrame,
     setLabelValues,
     updatePoints,
@@ -649,6 +874,10 @@ export function createAstroScene(host, config, options = {}) {
       if (raf) cancelAnimationFrame(raf);
       clearInterval(skyTimer);
       clearTimeout(holdTimer);
+      clearTimeout(pressTimer);
+      wrap.removeEventListener('keydown', onKeyDown);
+      wrap.removeEventListener('keyup', onKeyUp);
+      wrap.removeEventListener('blur', onKeyUp);
       ro?.disconnect();
       io?.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
@@ -680,7 +909,9 @@ export function createAstroScene(host, config, options = {}) {
         labelItems: labels.items,
         labelLayer: labels,
         tap,
-        hold
+        hold,
+        limits: rig.limits,
+        home
       };
     }
   };

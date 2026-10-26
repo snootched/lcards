@@ -39,6 +39,7 @@ import { resolveColor } from '../core/themes/resolve-color.js';
 import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/BackgroundAnimationRenderer.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { deepMergeImmutable } from '../utils/deepMerge.js';
+import { registerAstrometricsCard, unregisterAstrometricsCard } from './astrometrics-registry.js';
 
 /** Keys a rules engine patch carries besides the patch itself */
 const PATCH_META = new Set(['id', 'ruleId', 'ruleCondition']);
@@ -73,6 +74,47 @@ function normalizeScenePatch(patch) {
     }
     return out;
 }
+
+/** On-card camera buttons: command, grid area, label, SVG path (24 x 24) */
+const CAMERA_BUTTONS = {
+    pan: [
+        ['pan-up', 'up', 'Pan up', 'M6 15l6-6 6 6'],
+        ['pan-left', 'left', 'Pan left', 'M15 6l-6 6 6 6'],
+        ['pan-right', 'right', 'Pan right', 'M9 6l6 6-6 6'],
+        ['pan-down', 'down', 'Pan down', 'M6 9l6 6 6-6']
+    ],
+    zoom: [
+        ['zoom-out', 'zout', 'Zoom out', 'M6 12h12'],
+        ['zoom-in', 'zin', 'Zoom in', 'M6 12h12M12 6v12']
+    ],
+    reset: [['reset', 'reset', 'Reset view', 'M12 5a7 7 0 1 0 0 14a7 7 0 1 0 0-14M12 10a2 2 0 1 0 0 4a2 2 0 1 0 0-4']]
+};
+
+/**
+ * The button grid for `camera.buttons`: which buttons, and the grid areas.
+ * @param {any} cfg - `camera.buttons`
+ * @returns {{ position: string, areas: string, buttons: string[][] } | null}
+ */
+export function cameraButtonLayout(cfg) {
+    if (!cfg) return null;
+    const o = cfg === true ? {} : cfg;
+    const pan = o.pan !== false;
+    const zoom = o.zoom !== false;
+    const reset = o.reset !== false;
+    /** @type {string[]} */
+    const rows = [];
+    if (pan) rows.push('". up ."', `"left ${reset ? 'reset' : '.'} right"`, '". down ."');
+    if (zoom) rows.push(`"zout ${reset && !pan ? 'reset' : '.'} zin"`);
+    if (!pan && !zoom && reset) rows.push('". reset ."');
+    if (!rows.length) return null;
+    const buttons = [...(pan ? CAMERA_BUTTONS.pan : []), ...(zoom ? CAMERA_BUTTONS.zoom : []), ...(reset ? CAMERA_BUTTONS.reset : [])];
+    return { position: typeof o.position === 'string' ? o.position : 'bottom-right', areas: rows.join(' '), buttons };
+}
+
+/** The editor asks the preview to pick a point's position, and hears back (window events) */
+export const PICK_REQUEST = 'lcards-astro-pick-request';
+export const PICK_RESULT = 'lcards-astro-pick-result';
+export const PICK_CANCEL = 'lcards-astro-pick-cancel';
 
 /** Config keys the scene reads; a change to anything else does not rebuild it */
 const SCENE_KEYS = ['camera', 'backdrop', 'labels', 'points', 'objects'];
@@ -133,7 +175,8 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
     static get properties() {
         return {
             ...super.properties,
-            _failure: { type: String, state: true }
+            _failure: { type: String, state: true },
+            _pick: { type: Object, state: true }
         };
     }
 
@@ -158,6 +201,84 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                 }
                 .astro-bg {
                     pointer-events: none;
+                }
+                .astro-buttons {
+                    position: absolute;
+                    display: grid;
+                    grid-template-columns: repeat(3, 32px);
+                    grid-auto-rows: 32px;
+                    gap: var(--ha-space-1, 4px);
+                    margin: var(--ha-space-3, 12px);
+                    z-index: 1;
+                }
+                .astro-buttons[data-pos^='top'] { top: 0; }
+                .astro-buttons[data-pos^='bottom'] { bottom: 0; }
+                .astro-buttons[data-pos$='left'] { left: 0; }
+                .astro-buttons[data-pos$='right'] { right: 0; }
+                .astro-buttons[data-pos^='center'] { top: 50%; translate: 0 -50%; }
+                .astro-buttons[data-pos$='center'] { left: 50%; translate: -50% 0; }
+                .astro-buttons[data-pos='center'] { translate: -50% -50%; }
+                .astro-buttons button {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0;
+                    border: none;
+                    border-radius: var(--ha-border-radius-md, 8px);
+                    background: var(--lcars-ui-secondary, var(--lcards-blue-medium));
+                    color: var(--primary-background-color);
+                    cursor: pointer;
+                    touch-action: none;
+                    opacity: 0.85;
+                    transition: opacity var(--ha-animation-duration-fast, 0.15s);
+                }
+                .astro-buttons button:hover,
+                .astro-buttons button:focus-visible { opacity: 1; }
+                .astro-buttons button:focus-visible { outline: var(--ha-border-width-md) solid var(--primary-color); outline-offset: 1px; }
+                .astro-buttons button[data-cmd^='zoom'] {
+                    border-radius: var(--ha-border-radius-pill, 9999px);
+                    background: var(--lcars-orange, var(--lcards-orange-medium));
+                }
+                .astro-buttons button[data-cmd='reset'] {
+                    border-radius: var(--ha-border-radius-circle, 50%);
+                    background: var(--lcars-ui-tertiary, var(--lcards-gray-medium-light));
+                }
+                .astro-buttons svg {
+                    width: 20px;
+                    height: 20px;
+                    fill: none;
+                    stroke: currentColor;
+                    stroke-width: 3;
+                    stroke-linecap: round;
+                    stroke-linejoin: round;
+                }
+                .astro-pick {
+                    position: absolute;
+                    top: var(--ha-space-2, 8px);
+                    left: 50%;
+                    translate: -50% 0;
+                    z-index: 2;
+                    display: flex;
+                    align-items: center;
+                    gap: var(--ha-space-3, 12px);
+                    padding: var(--ha-space-1, 4px) var(--ha-space-1, 4px) var(--ha-space-1, 4px) var(--ha-space-4, 16px);
+                    border-radius: var(--ha-border-radius-pill, 9999px);
+                    background: var(--lcars-orange, var(--lcards-orange-medium));
+                    color: var(--primary-background-color);
+                    font-family: var(--lcars-font, 'Antonio'), sans-serif;
+                    font-size: 16px;
+                    letter-spacing: 1px;
+                    pointer-events: auto;
+                    white-space: nowrap;
+                }
+                .astro-pick button {
+                    border: none;
+                    border-radius: var(--ha-border-radius-pill, 9999px);
+                    padding: var(--ha-space-1, 4px) var(--ha-space-3, 12px);
+                    background: var(--primary-background-color);
+                    color: var(--lcars-orange, var(--lcards-orange-medium));
+                    font: inherit;
+                    cursor: pointer;
                 }
                 .astro-failure {
                     position: absolute;
@@ -240,6 +361,12 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._sceneTargets = { points: new Set(), objects: new Set() };
         /** @type {Record<string, any>} the merged rule patch per point or object id */
         this._scenePatches = {};
+        /** @type {{ requestId: string, pointId: string, form: string, object?: string, label: string, missed?: boolean } | null} picking a position for the editor */
+        this._pick = null;
+        this._inEditDialog = false;
+        this._onPickRequest = this._onPickRequest.bind(this);
+        this._onPickCancel = this._onPickCancel.bind(this);
+        this._onPickKey = this._onPickKey.bind(this);
     }
 
     /**
@@ -266,6 +393,9 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             this.requestUpdate();
             return;
         }
+        registerAstrometricsCard(this);
+        this._inEditDialog = this._checkForAncestor(['hui-dialog-edit-card']);
+        this._listenForPicks();
         this._startScene();
     }
 
@@ -275,6 +405,10 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
      */
     async _onConnected() {
         await super._onConnected();
+        if (this._firstUpdateDone && !this._inPicker && this.isConnected) {
+            registerAstrometricsCard(this);
+            this._listenForPicks();
+        }
         if (this._firstUpdateDone && !this._inPicker && !this._scene && this.isConnected) this._startScene();
     }
 
@@ -689,7 +823,17 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
     _onSceneAction(hit, key) {
         const action = hit.config?.[key];
         if (!action || typeof action !== 'object') return false;
+        // fly-to another card goes through the action handler like any card's
+        if (action.action === 'fly-to' && action.card !== undefined && action.card !== this.config?.id) {
+            this._playSound(key === 'tap_action' ? 'card_tap' : 'card_hold');
+            this._actionHandler.runAction(action, this.hass, this);
+            return true;
+        }
         if (action.action === 'fly-to') {
+            if (action.point) {
+                this._scene?.flyTo({ point: action.point }, action.duration !== undefined ? { duration: action.duration } : {});
+                return true;
+            }
             if (action.view) {
                 this._scene?.flyTo(action.view);
                 return true;
@@ -762,6 +906,12 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             <div class="astro-card">
                 <div class="astro-bg"></div>
                 <div class="astro-host"></div>
+                ${failure ? '' : this._renderCameraButtons()}
+                ${this._pick ? html`
+                    <div class="astro-pick" role="status">
+                        <span>${this._pick.missed ? `MISSED: TAP ON ${this._pick.object ? this._pick.object.toUpperCase() : 'THE GROUND'}` : `TAP TO PLACE ${this._pick.label.toUpperCase()}`}</span>
+                        <button type="button" @click=${() => this._endPick(null)}>CANCEL</button>
+                    </div>` : ''}
                 ${failure ? html`
                     <div class="astro-failure" role="status">
                         <div class="title">3D VIEW UNAVAILABLE</div>
@@ -769,6 +919,130 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                     </div>` : ''}
             </div>
         `;
+    }
+
+    /**
+     * Fly the camera (the registry, `lcards.fly_to` and fly-to actions from
+     * other cards call this): a view name or point id, `{ point }`, or keys.
+     * @param {string | Record<string, any>} view
+     * @param {{ duration?: number }} [opts]
+     * @returns {Promise<void>}
+     */
+    flyTo(view, opts = {}) {
+        if (!this._scene) {
+            lcardsLog.debug('[LCARdSAstrometricsCard] fly-to before the scene is ready: ignored');
+            return Promise.resolve();
+        }
+        return this._scene.flyTo(view, opts);
+    }
+
+    // ── Picking a point's position for the editor (the edit dialog's preview only) ──
+
+    /** @private */
+    _listenForPicks() {
+        if (!this._inEditDialog) return;
+        window.addEventListener(PICK_REQUEST, this._onPickRequest);
+        window.addEventListener(PICK_CANCEL, this._onPickCancel);
+    }
+
+    /**
+     * The editor wants a position: the next tap on the scene places the point.
+     * @private
+     * @param {Event} e
+     */
+    _onPickRequest(e) {
+        const d = /** @type {CustomEvent} */ (e).detail ?? {};
+        // The editor of this card: same id (both may have none)
+        if ((d.cardId ?? null) !== (this.config?.id ?? null) || !this._scene || !d.requestId) return;
+        this._endPick(null);
+        this._pick = { requestId: d.requestId, pointId: String(d.pointId), form: d.form, object: d.object || undefined, label: String(d.label || d.pointId) };
+        this._scene.setPickHandler((x, y) => {
+            const pick = this._pick;
+            if (!pick || !this._scene) return;
+            const value = this._scene.placeAt(x, y, pick.form, pick.object);
+            if (value === null || value === undefined) {
+                this._pick = { ...pick, missed: true };
+                return;
+            }
+            this._playSound('card_tap');
+            this._endPick(value);
+        });
+        window.addEventListener('keydown', this._onPickKey, true);
+    }
+
+    /** @private @param {Event} e */
+    _onPickCancel(e) {
+        const id = /** @type {CustomEvent} */ (e).detail?.requestId;
+        if (this._pick && (!id || id === this._pick.requestId)) this._endPick(null);
+    }
+
+    /** @private @param {KeyboardEvent} e */
+    _onPickKey(e) {
+        if (e.key !== 'Escape' || !this._pick) return;
+        e.stopPropagation();
+        e.preventDefault();
+        this._endPick(null);
+    }
+
+    /**
+     * Leave pick mode and tell the editor (a value, or null when cancelled).
+     * @private
+     * @param {number[] | string | null} value
+     */
+    _endPick(value) {
+        const pick = this._pick;
+        if (!pick) return;
+        this._pick = null;
+        this._scene?.setPickHandler(null);
+        window.removeEventListener('keydown', this._onPickKey, true);
+        window.dispatchEvent(new CustomEvent(PICK_RESULT, {
+            detail: { requestId: pick.requestId, pointId: pick.pointId, form: pick.form, value, cancelled: value === null }
+        }));
+    }
+
+    /**
+     * `camera.buttons`: pan arrows, zoom, reset over the scene.
+     * @private
+     */
+    _renderCameraButtons() {
+        const layout = cameraButtonLayout(this.config?.camera?.buttons);
+        if (!layout) return '';
+        return html`
+            <div class="astro-buttons" data-pos=${layout.position} style=${`grid-template-areas: ${layout.areas}`}>
+                ${layout.buttons.map(([cmd, area, label, path]) => html`
+                    <button type="button" data-cmd=${cmd} style=${`grid-area: ${area}`} aria-label=${label} title=${label}
+                        @pointerdown=${(/** @type {PointerEvent} */ e) => this._pressCamera(cmd, e)}
+                        @pointerup=${() => this._releaseCamera()}
+                        @pointercancel=${() => this._releaseCamera()}
+                        @lostpointercapture=${() => this._releaseCamera()}
+                        @keydown=${(/** @type {KeyboardEvent} */ e) => { if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) { e.preventDefault(); this._pressCamera(cmd); } }}
+                        @keyup=${() => this._releaseCamera()}
+                        @contextmenu=${(/** @type {Event} */ e) => e.preventDefault()}>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d=${path}/></svg>
+                    </button>`)}
+            </div>
+        `;
+    }
+
+    /**
+     * A camera button went down: one step now, held motion after a moment.
+     * @private
+     * @param {string} cmd
+     * @param {PointerEvent} [e]
+     */
+    _pressCamera(cmd, e) {
+        if (e) {
+            if (e.button > 0) return;
+            e.preventDefault();
+            /** @type {HTMLElement} */ (e.currentTarget).setPointerCapture?.(e.pointerId);
+        }
+        this._playSound('card_tap');
+        this._scene?.press(cmd);
+    }
+
+    /** @private */
+    _releaseCamera() {
+        this._scene?.release();
     }
 
     /**
@@ -794,6 +1068,10 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
      * @protected
      */
     _onDisconnected() {
+        unregisterAstrometricsCard(this);
+        this._endPick(null);
+        window.removeEventListener(PICK_REQUEST, this._onPickRequest);
+        window.removeEventListener(PICK_CANCEL, this._onPickCancel);
         this._stopScene();
         super._onDisconnected();
     }

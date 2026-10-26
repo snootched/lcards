@@ -1,11 +1,11 @@
 /**
  * @fileoverview LCARdS Astrometrics Editor
  *
- * YAML first: points and objects are written in the YAML tab (schema
- * completion knows every object type's keys). The Configuration tab holds
- * the card-level settings: the first view, camera controls, label snapping,
- * identification and sizing. A points table and picking points on the
- * scene come later (E3 in reports/astrometrics-design.md).
+ * The Configuration tab holds the card-level settings: the first view,
+ * camera controls and buttons, label defaults, identification and sizing.
+ * The Points tab is a list of the points (placement, label, marker), with
+ * Pick: the next tap on the preview places the point. Objects are written
+ * in the YAML tab (schema completion knows every object type's keys).
  */
 
 import { html, css } from 'lit';
@@ -14,6 +14,7 @@ import { docsUrl, DOCS } from '../../utils/docs-url.js';
 import { ensureAstrometricsSchema } from '../../cards/lcards-astrometrics-card.js';
 
 import '../components/shared/lcards-form-section.js';
+import '../components/editors/lcards-astro-points-editor.js';
 import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 
 export class LCARdSAstrometricsEditor extends LCARdSBaseEditor {
@@ -32,6 +33,7 @@ export class LCARdSAstrometricsEditor extends LCARdSBaseEditor {
     _getTabDefinitions() {
         return [
             { label: 'Configuration', content: () => this._renderConfigurationTab() },
+            { label: 'Points', content: () => this._renderPointsTab() },
             ...this._getUtilityTabs()
         ];
     }
@@ -50,9 +52,10 @@ export class LCARdSAstrometricsEditor extends LCARdSBaseEditor {
                 <div class="info-card-content">
                     <h3>Scene</h3>
                     <p>
-                        Points (labels, markers, where things are) and objects (grids, volumes,
-                        spheres, rings, paths, beams, images, glows) are written in the
-                        <strong>YAML</strong> tab, which completes every key.
+                        Points (labels, markers, where things are) are listed in the
+                        <strong>Points</strong> tab, where Pick places one with a tap on the preview.
+                        Objects (grids, volumes, spheres, rings, paths, beams, images, glows) are
+                        written in the <strong>YAML</strong> tab, which completes every key.
                     </p>
                     <div class="astro-stats">
                         <span><b>${points}</b> point${points === 1 ? '' : 's'}</span>
@@ -82,7 +85,18 @@ export class LCARdSAstrometricsEditor extends LCARdSBaseEditor {
                     selectorOverride: { select: { mode: 'dropdown', options: views.map(v => ({ value: v, label: v })) } }
                 }) : html`<div class="hint">No named views yet: the camera frames the whole scene. Add camera.views in YAML to fly between views.</div>`}
 
-                ${FormField.renderField(this, 'camera.controls', { label: 'Drag and zoom' })}
+                ${FormField.renderField(this, 'camera.controls', { label: 'Drag, zoom, double-tap and keys' })}
+                <div class="astro-pair">
+                    ${FormField.renderField(this, 'camera.drag', { label: 'One-finger drag' })}
+                    ${FormField.renderField(this, 'camera.pan', { label: 'Pan along' })}
+                    ${FormField.renderField(this, 'camera.zoom_to', { label: 'Wheel and pinch zoom toward' })}
+                    ${FormField.renderField(this, 'camera.double_tap', { label: 'Double-tap blank space' })}
+                </div>
+                ${FormField.renderField(this, 'camera.zoom_step', {
+                    label: 'Zoom step',
+                    selectorOverride: { number: { min: 1.1, max: 4, step: 0.1, mode: 'slider' } }
+                })}
+                ${this._renderCameraButtonsFields()}
 
                 <div class="astro-pair">
                     ${FormField.renderField(this, 'camera.auto_rotate', {
@@ -102,7 +116,15 @@ export class LCARdSAstrometricsEditor extends LCARdSBaseEditor {
                 ?expanded=${false}
                 ?outlined=${true}
                 headerLevel="4">
+                ${FormField.renderField(this, 'labels.overlap', { label: 'Overlapping labels all show' })}
                 ${FormField.renderField(this, 'labels.snap', { label: 'Snap labels to whole pixels' })}
+                <div class="astro-pair">
+                    ${FormField.renderField(this, 'labels.default.position', { label: 'Default position' })}
+                    ${FormField.renderField(this, 'labels.default.font_size', { label: 'Default font size' })}
+                    ${FormField.renderField(this, 'labels.default.font_weight', { label: 'Default weight' })}
+                    ${FormField.renderField(this, 'labels.default.text_transform', { label: 'Default case' })}
+                </div>
+                <div class="hint">Every point label inherits these. Label styles (labels.styles) are written in YAML.</div>
             </lcards-form-section>
 
             <lcards-form-section
@@ -131,6 +153,51 @@ export class LCARdSAstrometricsEditor extends LCARdSBaseEditor {
                 </div>
                 ${this._renderLayoutCardHint()}
             </lcards-form-section>
+        `;
+    }
+
+    /**
+     * camera.buttons: on or off, and where (true is every button at bottom-right).
+     * @private
+     */
+    _renderCameraButtonsFields() {
+        const b = this.config?.camera?.buttons;
+        const on = !!b;
+        const o = b && typeof b === 'object' ? b : {};
+        /** @param {Record<string, any>} patch */
+        const set = (patch) => this._updateConfig({ camera: { buttons: { ...o, ...patch } } });
+        return html`
+            <ha-selector .hass=${this.hass} .required=${false} .label=${'On-card buttons (pan, zoom, reset)'} .value=${on}
+                .selector=${{ boolean: {} }}
+                @value-changed=${(/** @type {CustomEvent} */ e) => this._updateConfig({ camera: { buttons: e.detail.value ? true : false } })}>
+            </ha-selector>
+            ${on ? html`
+                <div class="astro-pair">
+                    <ha-selector .hass=${this.hass} .required=${false} .label=${'Buttons position'} .value=${o.position ?? 'bottom-right'}
+                        .selector=${{ select: { mode: 'dropdown', options: ['top-left', 'top-center', 'top-right', 'center-left', 'center', 'center-right', 'bottom-left', 'bottom-center', 'bottom-right'].map(p => ({ value: p, label: p })) } }}
+                        @value-changed=${(/** @type {CustomEvent} */ e) => set({ position: e.detail.value })}>
+                    </ha-selector>
+                    <div></div>
+                    ${['pan', 'zoom', 'reset'].map(k => html`
+                        <ha-selector .hass=${this.hass} .required=${false} .label=${k === 'pan' ? 'Pan arrows' : k === 'zoom' ? 'Zoom in and out' : 'Reset'} .value=${o[k] !== false}
+                            .selector=${{ boolean: {} }}
+                            @value-changed=${(/** @type {CustomEvent} */ e) => set({ [k]: e.detail.value })}>
+                        </ha-selector>`)}
+                </div>` : ''}
+        `;
+    }
+
+    /**
+     * @returns {import('lit').TemplateResult}
+     * @private
+     */
+    _renderPointsTab() {
+        return html`
+            <lcards-astro-points-editor
+                .hass=${this.hass}
+                .config=${this.config ?? {}}
+                @points-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); this._updateConfig({ points: e.detail.value }); }}>
+            </lcards-astro-points-editor>
         `;
     }
 

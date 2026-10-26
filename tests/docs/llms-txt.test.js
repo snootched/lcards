@@ -67,4 +67,8 @@ test('HA Actions page documents every service in services.yaml (what an agent ca
     const page = readFileSync(join(ROOT, 'doc/configuration/ha-actions.md'), 'utf8');
     const missing = services.filter(s => !page.includes(`lcards.${s}`));
     assert.deepEqual(missing, [], 'add a section for each new service to doc/configuration/ha-actions.md');
+    // services.py registers exactly the services services.yaml describes
+    const py = readFileSync(join(ROOT, 'custom_components/lcards/services.py'), 'utf8');
+    const registered = [...py.matchAll(/^SERVICE_[A-Z_]+\s*=\s*"([a-z_]+)"/gm)].map(m => m[1]);
+    assert.deepEqual([...registered].sort(), [...services].sort(), 'services.py SERVICE_* and services.yaml disagree');
 });

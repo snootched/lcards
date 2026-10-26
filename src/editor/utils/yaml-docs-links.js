@@ -269,7 +269,7 @@ const EDITOR_TABS = {
   'data-grid': { Configuration: '/cards/data-grid/' },
   msd: { Configuration: '/cards/msd/' },
   'layout-card': { Configuration: '/cards/layout-card/' },
-  astrometrics: { Configuration: '/cards/astrometrics/' },
+  astrometrics: { Configuration: '/cards/astrometrics/', Points: '/cards/astrometrics/points' },
 };
 
 /** Tabs most card editors share. */
