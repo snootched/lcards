@@ -94,3 +94,30 @@ export function measureCssLength(cssValue) {
         if (probe.parentNode) probe.parentNode.removeChild(probe);
     }
 }
+
+/**
+ * A text field's `letter_spacing` as CSS: a number is px, a string is used
+ * as given (`0.1em`, `2px`, `normal`). Empty for no value.
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function letterSpacingCss(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) return `${value}px`;
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    return '';
+}
+
+/**
+ * A `letter_spacing` in px, for width estimates (px and em; anything else 0).
+ * @param {unknown} value
+ * @param {number} fontSizePx
+ * @returns {number}
+ */
+export function letterSpacingPx(value, fontSizePx) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value !== 'string') return 0;
+    const m = value.trim().match(/^(-?\d*\.?\d+)(px|em|rem)?$/);
+    if (!m) return 0;
+    const n = parseFloat(m[1]);
+    return m[2] === 'em' || m[2] === 'rem' ? n * fontSizePx : n;
+}

@@ -25,6 +25,10 @@ Paste your YAML below to diagnose any issues with LCARdS configs.
 - **Warnings** are names LCARdS doesn't know (a preset, animation, sound or theme colour), almost always a typo. The checker suggests the closest match. A warning about an older chart or data grid format means the config still works but can be updated.
 - Each result shows the option's path and line, and links to the docs for that option.
 
+## Pasting into Home Assistant's code editor
+
+Home Assistant's own code editor (a card dialog's **Show code editor**, the raw configuration editor) reads a few unquoted words as `true` or `false`: `y`, `yes`, `on` become `true` and `n`, `no`, `off` become `false`, in any case. So `y: 20` arrives as `true: 20`, and `label: N` as `label: false`. Quote them there: `"y": 20`, `label: "N"`. The checker warns about each one (**Home Assistant's code editor reads...**). The LCARdS editor's own **YAML** tab reads them as written.
+
 ## Other ways to check
 
 - **Ask Claude:** with the [LCARdS skill](ai-assistance#with-claude-easiest) loaded, paste your YAML and ask *"check this LCARdS config and fix it"*. Claude runs this same checker, explains each problem and gives you the corrected YAML.

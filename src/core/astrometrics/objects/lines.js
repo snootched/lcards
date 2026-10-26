@@ -188,7 +188,7 @@ export function buildPath(cfg, ctx, objects) {
     // A day's track on the dome `on`, local to it
     let dayKey = '';
     out.update = () => {
-      const dome = cfg.on ? objects.get(cfg.on) : undefined;
+      const dome = cfg.object ? objects.get(cfg.object) : undefined;
       const sky = ctx.sky();
       if (!sky) return;
       const day = new Date(sky.time).toDateString();

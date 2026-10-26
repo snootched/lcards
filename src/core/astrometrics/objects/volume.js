@@ -53,9 +53,9 @@ export function buildVolume(cfg, ctx) {
   if (cfg.shape === 'box') {
     const s = Array.isArray(cfg.size) ? cfg.size : [num(cfg.size, 20), num(cfg.size, 20), num(cfg.size, 20)];
     const [w, h, d] = [num(s[0], 20), num(s[1], 20), num(s[2], 20)];
-    const cx = num(cells.x, w / 4);
-    const cy = num(cells.y, h / 4);
-    const cz = num(cells.z, d / 4);
+    const cx = num(cells.width, w / 4);
+    const cy = num(cells.height, h / 4);
+    const cz = num(cells.depth, d / 4);
     // top, bottom (s = x, t = z), front, back (x, y), sides (z, y)
     for (const y of [-h / 2, h / 2]) face(rectGeometry(w, d, (a, b) => [a, y, b]), look([cx, cz]));
     for (const z of [-d / 2, d / 2]) face(rectGeometry(w, h, (a, b) => [a, b, z]), look([cx, cy]));

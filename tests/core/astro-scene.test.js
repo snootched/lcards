@@ -135,8 +135,8 @@ test('sky reference: sun and moon on the dome, tracks split at the horizon, comp
   assert.ok(Math.abs(sun.x - c * Math.sin((135 * Math.PI) / 180)) < 1e-6);
   assert.ok(Math.abs(sun.y - 50) < 1e-6);
   assert.ok(Math.abs(sun.z + c * Math.cos((135 * Math.PI) / 180)) < 1e-6);
-  const n = w.places.get('n');
-  assert.ok(n && Math.abs(n.z + 106) < 1e-6, 'N is north (-z), radius + alt');
+  const n = w.places.get('north');
+  assert.ok(n && Math.abs(n.z + 100) < 1e-6, 'N is north (-z), on the horizon ring');
   const tracks = w.list.filter((b) => b.type === 'path');
   assert.equal(tracks.length, 2);
   // the sun's June track at Toronto: one run above the horizon, from about NE to NW

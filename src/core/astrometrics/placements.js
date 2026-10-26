@@ -8,14 +8,17 @@
  * One direction convention everywhere: **0 degrees is north (-z, away from
  * the default camera), clockwise seen from above**, so east is +x. Forms:
  *
- *   xyz: [x, y, z]                       scene units (object-local with `on`)
- *   polar: [r, bearing], y               on the scene plane (object-local with `on`)
- *   latlon: [lat, lon], on: <sphere>, alt  on a sphere or globe; lon 0 faces +z
- *                                        (the default camera), east to the right
- *   altaz: [azimuth, altitude], on: <dome>, alt  on a sky dome
- *   sky: sun | moon, on: <dome>, alt     the body's altaz now (see sky.js)
- *   at: <point>                          another point
- *   cell: AF3, on: <grid>                the centre of a lettered grid cell
+ *   xyz: [x, y, z]                              scene units (object-local with `object`)
+ *   polar: [r, bearing], alt                    on the scene plane (object-local with `object`)
+ *   latlon: [lat, lon], object: <sphere>, alt   on a sphere or globe; lon 0 faces +z
+ *                                               (the default camera), east to the right
+ *   altaz: [azimuth, altitude], object: <dome>, alt   on a sky dome
+ *   sky: sun | moon, object: <dome>, alt        the body's altaz now (see sky.js)
+ *   at: <point>                                 another point
+ *   cell: AF3, object: <grid>                   the centre of a lettered grid cell
+ *
+ * Key names avoid YAML 1.1 booleans (on, off, y, n, yes, no): Home
+ * Assistant's code editor reads `on: sky` as `true: sky`.
  *
  * `offset: [x, y, z]` (scene units) is added to any form. A reference that
  * loops back on itself is refused (null, logged once).
@@ -113,16 +116,33 @@ export function parseCell(code) {
  * @property {string} id
  * @property {number[]} [xyz]
  * @property {number[]} [polar]
- * @property {number} [y]
  * @property {number[]} [latlon]
  * @property {number[]} [altaz]
  * @property {'sun' | 'moon'} [sky]
  * @property {string} [at]
  * @property {string} [cell]
- * @property {string} [on]
+ * @property {string} [object]
  * @property {number} [alt]
  * @property {number[]} [offset]
+ * @property {boolean} [_bound] - its position comes from an entity (setPosition)
  */
+
+/** Placement forms that can take their numbers from an entity (`{ entity, ... }` instead of a tuple) */
+export const BINDABLE_FORMS = /** @type {const} */ (['xyz', 'polar', 'latlon', 'altaz']);
+
+/**
+ * The entity-bound form of a point, if any: the form key and its binding
+ * (`{ entity?, attributes?, latitude?, ... }`).
+ * @param {any} d - a point config
+ * @returns {{ form: typeof BINDABLE_FORMS[number], binding: Record<string, any> } | null}
+ */
+export function pointBinding(d) {
+  for (const form of BINDABLE_FORMS) {
+    const v = d?.[form];
+    if (v && typeof v === 'object' && !Array.isArray(v)) return { form, binding: v };
+  }
+  return null;
+}
 
 export class Placements {
   /**
@@ -141,6 +161,37 @@ export class Placements {
     this._cache = new Map();
     /** @type {Set<string>} ids already warned about */
     this._warned = new Set();
+    /** @type {Map<string, PointDef>} the configs as given (bound forms included) */
+    this.configs = new Map(this.defs);
+  }
+
+  /**
+   * Replace a point's config (a rule patch moved it). Entity positions set
+   * before are dropped: the caller sets them again.
+   * @param {string} id
+   * @param {PointDef} def
+   */
+  replaceDef(id, def) {
+    this.defs.set(id, { ...def, id });
+    this.configs.set(id, { ...def, id });
+    this._cache.clear();
+  }
+
+  /**
+   * Set a point's position form from outside (an entity binding's numbers):
+   * no rebuild, the next frame reads it. null clears it (the point has no
+   * position until the next value).
+   * @param {string} id
+   * @param {typeof BINDABLE_FORMS[number]} form
+   * @param {number[] | null} value
+   * @returns {boolean} false for an unknown point
+   */
+  setPosition(id, form, value) {
+    const d = this.defs.get(id);
+    if (!d) return false;
+    this.defs.set(id, { ...d, [form]: value ?? undefined, _bound: true });
+    this._cache.clear();
+    return true;
   }
 
   /** @param {string} id */
@@ -186,8 +237,8 @@ export class Placements {
     const d = this.defs.get(ref);
     if (!d || seen.has(ref)) return false;
     seen.add(ref);
-    if (d.sky) return true;
-    if (d.on && this.hosts.get(d.on)?.moving) return true;
+    if (d.sky || pointBinding(this.configs.get(ref) ?? d) || d._bound) return true;
+    if (d.object && this.hosts.get(d.object)?.moving) return true;
     return d.at ? this.isDynamic(d.at, seen) : false;
   }
 
@@ -220,9 +271,9 @@ export class Placements {
    * @private
    */
   _place(d, seen) {
-    const host = d.on ? this.hosts.get(d.on) : undefined;
-    if (d.on && !host) {
-      this._warn(d.id, `point '${d.id}': no object '${d.on}'`);
+    const host = d.object ? this.hosts.get(d.object) : undefined;
+    if (d.object && !host) {
+      this._warn(d.id, `point '${d.id}': no object '${d.object}'`);
       return null;
     }
     /** Local to the host when there is one */
@@ -231,7 +282,7 @@ export class Placements {
     if (Array.isArray(d.xyz)) return world(new Vector3(+d.xyz[0] || 0, +d.xyz[1] || 0, +d.xyz[2] || 0));
     if (Array.isArray(d.polar)) {
       const [x, z] = bearingXZ(+d.polar[0] || 0, +d.polar[1] || 0);
-      return world(new Vector3(x, Number(d.y) || 0, z));
+      return world(new Vector3(x, Number(d.alt) || 0, z));
     }
     if (Array.isArray(d.latlon)) return world(latlonToLocal(+d.latlon[0] || 0, +d.latlon[1] || 0, R));
     if (Array.isArray(d.altaz)) return world(altazToLocal(+d.altaz[0] || 0, +d.altaz[1] || 0, R));
@@ -241,13 +292,15 @@ export class Placements {
     }
     if (d.cell) {
       const local = host?.cellPoint?.(d.cell) ?? null;
-      if (!local) this._warn(d.id, `point '${d.id}': no cell '${d.cell}'${d.on ? ` on '${d.on}'` : ''}`);
+      if (!local) this._warn(d.id, `point '${d.id}': no cell '${d.cell}'${d.object ? ` on '${d.object}'` : ''}`);
       return local ? world(local.clone()) : null;
     }
     if (d.at) {
       const base = this._get(d.at, seen);
       return base ? base.clone() : null;
     }
+    // An entity-bound form waits for its first numbers (no warning)
+    if (d._bound || pointBinding(d)) return null;
     this._warn(d.id, `point '${d.id}' has no position (xyz, polar, latlon, altaz, sky, at or cell)`);
     return null;
   }

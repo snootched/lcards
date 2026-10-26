@@ -35,7 +35,7 @@ objects:
     color: theme:colors.ui.primary
   - type: path
     sky: sun
-    'on': sky
+    object: sky
     span: today
     dash:
       - 6
@@ -43,7 +43,7 @@ objects:
     color: var(--lcars-yellow)
   - type: path
     sky: moon
-    'on': sky
+    object: sky
     span: today
     dash:
       - 6
@@ -52,44 +52,44 @@ objects:
 points:
   - id: sun
     sky: sun
-    'on': sky
+    object: sky
     marker: reticle
     label: SOL
     below_horizon: dim
   - id: moon
     sky: moon
-    'on': sky
+    object: sky
     marker: moon_phase
     label: LUNA
-  - id: 'n'
+  - id: north
     altaz:
       - 0
       - 0
-    'on': sky
-    alt: 6
+    object: sky
     label: 'N'
     style: major
-  - id: e
+    overlap: true
+  - id: east
     altaz:
       - 90
       - 0
-    'on': sky
-    alt: 6
+    object: sky
     label: E
     style: major
-  - id: s
+    overlap: true
+  - id: south
     altaz:
       - 180
       - 0
-    'on': sky
-    alt: 6
+    object: sky
     label: S
     style: major
-  - id: w
+    overlap: true
+  - id: west
     altaz:
       - 270
       - 0
-    'on': sky
-    alt: 6
+    object: sky
     label: W
     style: major
+    overlap: true

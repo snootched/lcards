@@ -31,6 +31,7 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
+import { yaml11Differences, yaml11Message } from './lib/yaml-11.js';
 import { getSchemaEntries } from './lib/card-schemas.js';
 import { createConfigValidator } from './lib/config-validator.js';
 
@@ -87,6 +88,10 @@ export async function validateTexts(inputs) {
     } catch (e) {
       out.push({ file: name, path: '(file)', tag: '', severity: 'error', code: 'yaml', message: `YAML does not parse: ${e.message.split('\n')[0]}` });
       continue;
+    }
+    // Pasted into Home Assistant's code editor, a bare y / on / N means something else
+    for (const d of yaml11Differences(text)) {
+      out.push({ file: name, path: d.path, tag: '', severity: 'warning', code: 'yaml-1.1', message: yaml11Message(d) });
     }
     for (const issue of checker.validateConfig(config)) {
       // A value from !secret / !include is HA's to resolve; don't judge the placeholder.

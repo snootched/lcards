@@ -37,6 +37,42 @@ import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { resolveColor } from '../core/themes/resolve-color.js';
 import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/BackgroundAnimationRenderer.js';
+import { resolveStateColor } from '../utils/state-color-resolver.js';
+import { deepMergeImmutable } from '../utils/deepMerge.js';
+
+/** Keys a rules engine patch carries besides the patch itself */
+const PATCH_META = new Set(['id', 'ruleId', 'ruleCondition']);
+
+/**
+ * The sky as label templates see it: angles to one decimal (a token such as
+ * `{sky.sun.altitude}` cannot format a number), illumination in whole percent.
+ * @param {import('../core/astrometrics/sky.js').SkyState | null} sky
+ */
+function templateSky(sky) {
+    if (!sky) return null;
+    const r1 = (/** @type {number} */ n) => Math.round(n * 10) / 10;
+    return {
+        sun: { azimuth: r1(sky.sun.azimuth), altitude: r1(sky.sun.altitude) },
+        moon: { azimuth: r1(sky.moon.azimuth), altitude: r1(sky.moon.altitude), illumination: sky.moon.illumination, waxing: sky.moon.waxing },
+        time: sky.time
+    };
+}
+
+/**
+ * A rule patch as point / object keys: the engine's metadata dropped, and an
+ * MSD-style `style: { ... }` object spread (a string style is the label style).
+ * @param {Record<string, any>} patch
+ */
+function normalizeScenePatch(patch) {
+    /** @type {Record<string, any>} */
+    const out = {};
+    for (const [k, v] of Object.entries(patch ?? {})) {
+        if (PATCH_META.has(k)) continue;
+        if (k === 'style' && v && typeof v === 'object' && !Array.isArray(v)) Object.assign(out, v);
+        else out[k] = v;
+    }
+    return out;
+}
 
 /** Config keys the scene reads; a change to anything else does not rebuild it */
 const SCENE_KEYS = ['camera', 'backdrop', 'labels', 'points', 'objects'];
@@ -188,6 +224,22 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._sceneGeneration = 0;
         this._firstUpdateDone = false;
         this._inPicker = false;
+        /** @type {typeof import('../core/astrometrics/index.js') | null} the loaded runtime module */
+        this._runtime = null;
+        /** @type {import('../core/astrometrics/point-data.js').LabelSource[]} labels the card resolves */
+        this._labelSources = [];
+        /** @type {Map<string, import('../core/astrometrics/scene-runtime.js').AstroLabelValues>} resolved, by point id */
+        this._labelValues = new Map();
+        /** @type {Map<string, number>} latest evaluation per field, so a slow (Jinja2) result never overwrites a newer one */
+        this._labelSeq = new Map();
+        /** @type {{ id: string, point: any, entityId: string }[]} points placed from entities */
+        this._bindings = [];
+        /** @type {Set<string>} points already warned about (binding without numbers) */
+        this._bindingWarned = new Set();
+        /** @type {{ points: Set<string>, objects: Set<string> }} ids registered as rule targets */
+        this._sceneTargets = { points: new Set(), objects: new Set() };
+        /** @type {Record<string, any>} the merged rule patch per point or object id */
+        this._scenePatches = {};
     }
 
     /**
@@ -238,6 +290,23 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
     }
 
     /**
+     * A scene config with the rule patches on its points and objects merged.
+     * @private
+     * @param {Record<string, any>} config
+     */
+    _withScenePatches(config) {
+        const patches = this._scenePatches;
+        if (!Object.keys(patches).length) return config;
+        const pick = (/** @type {any} */ item, /** @type {Set<string>} */ ids) =>
+            item && item.id !== undefined && ids.has(String(item.id)) && patches[String(item.id)] ? deepMergeImmutable(item, patches[String(item.id)]) : item;
+        return {
+            ...config,
+            ...(Array.isArray(config.points) ? { points: config.points.map((p) => pick(p, this._sceneTargets.points)) } : {}),
+            ...(Array.isArray(config.objects) ? { objects: config.objects.map((o) => pick(o, this._sceneTargets.objects)) } : {})
+        };
+    }
+
+    /**
      * Load the runtime and create the scene in the host element.
      * @private
      */
@@ -257,13 +326,16 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         const config = this._sceneConfig();
         this._failure = null;
         this._sceneKey = JSON.stringify(config);
-        this._scene = runtime.createAstroScene(host, config, {
+        this._runtime = runtime;
+        this._scene = runtime.createAstroScene(host, this._withScenePatches(config), {
             hass: this.hass,
             resolveColor,
             onTap: (hit) => this._onSceneAction(hit, 'tap_action'),
             onHold: (hit) => { this._onSceneAction(hit, 'hold_action'); },
-            onFail: (reason) => { this._failure = reason in FAILURES ? reason : 'render failed'; }
+            onFail: (reason) => { this._failure = reason in FAILURES ? reason : 'render failed'; },
+            onSky: () => { this._refreshLabels({ sky: true }); }
         });
+        this._rebuildPointData();
         this._syncBackground();
         lcardsLog.debug(`[LCARdSAstrometricsCard] Scene created for ${this.config?.id || this._cardGuid}`);
     }
@@ -294,7 +366,9 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             const key = JSON.stringify(config);
             if (key !== this._sceneKey) {
                 this._sceneKey = key;
-                this._scene.setConfig(config);
+                this._registerSceneTargets();
+                this._scene.setConfig(this._withScenePatches(config));
+                this._rebuildPointData();
             }
         }
         this._syncBackground();
@@ -325,6 +399,284 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         if (this.hass) renderer.updateHass(this.hass, null, this.config);
     }
 
+    // ── Live point data: labels (templates, state colours), entity positions ──
+
+    /**
+     * The config's points changed (or the scene just started): work out which
+     * labels the card resolves and which points follow entities, then resolve
+     * them all once.
+     * @private
+     */
+    _rebuildPointData() {
+        const runtime = this._runtime;
+        if (!runtime) return;
+        const points = this._withScenePatches({ points: Array.isArray(this.config?.points) ? this.config.points : [] }).points;
+        this._labelSources = runtime.labelSources(points, this.config?.labels);
+        this._labelValues.clear();
+        this._labelSeq.clear();
+        this._bindings = [];
+        for (const point of points) {
+            const entityId = runtime.bindingEntity(point);
+            if (entityId) this._bindings.push({ id: String(point.id), point, entityId });
+        }
+        this._bindingWarned.clear();
+        this._updateTrackedEntities();
+        this._refreshBindings(null);
+        this._refreshLabels({ all: true });
+    }
+
+    /**
+     * Positions from entities: push the numbers of the bindings whose entity
+     * changed (all with null).
+     * @private
+     * @param {Set<string> | null} changed
+     */
+    _refreshBindings(changed) {
+        const runtime = this._runtime;
+        if (!runtime || !this._scene || !this._bindings.length) return;
+        /** @type {Record<string, Record<string, number[] | null>>} */
+        const values = {};
+        for (const b of this._bindings) {
+            if (changed && !changed.has(b.entityId)) continue;
+            const entity = this.hass?.states?.[b.entityId];
+            const r = runtime.bindingValue(b.point, entity);
+            if (!r) continue;
+            values[b.id] = { [r.form]: r.value };
+            if (!r.value && entity && !this._bindingWarned.has(b.id)) {
+                this._bindingWarned.add(b.id);
+                lcardsLog.warn(`[LCARdSAstrometricsCard] point '${b.id}': ${b.entityId} has no numbers for ${r.form}; the point is hidden until it has`);
+            }
+        }
+        if (Object.keys(values).length) this._scene.updatePoints(values);
+    }
+
+    /**
+     * A state colour map for a point's entity, as a CSS value (var() stays
+     * live). No entity: the default key.
+     * @private
+     * @param {any} colorConfig
+     * @param {any} entity
+     * @returns {string | undefined}
+     */
+    _pointStateColor(colorConfig, entity) {
+        const picked = resolveStateColor({
+            actualState: entity?.state,
+            classifiedState: entity ? this._classifyEntityState(entity) : 'default',
+            colorConfig,
+            fallback: null
+        });
+        if (picked === null || picked === undefined || picked === '') return undefined;
+        return String(resolveColor(picked));
+    }
+
+    /**
+     * Resolve the label fields a change touches (templates through
+     * processTemplate with the point's entity, `sky` and `point`; state
+     * colours) and push the changed values to the scene.
+     * @private
+     * @param {{ all?: boolean, ids?: Set<string>, entities?: Set<string>, sky?: boolean, ds?: boolean }} change - ids: only these points
+     */
+    async _refreshLabels(change) {
+        const runtime = this._runtime;
+        if (!runtime || !this._labelSources.length) return;
+        const sky = templateSky(this._scene?.sky() ?? null);
+        /** @type {Promise<void>[]} */
+        const jobs = [];
+        /** @type {Record<string, import('../core/astrometrics/scene-runtime.js').AstroLabelValues>} */
+        const out = {};
+        const put = (/** @type {string} */ id) => (out[id] ??= { fields: {} });
+        for (const src of this._labelSources) {
+            if (change.ids && !change.ids.has(src.id)) continue;
+            const entity = src.entityId ? this.hass?.states?.[src.entityId] ?? null : null;
+            const entityChanged = !!(src.entityId && change.entities?.has(src.entityId));
+            if (src.color && (change.all || entityChanged)) {
+                const c = this._pointStateColor(src.color, entity);
+                if (c !== undefined) put(src.id).color = c;
+            }
+            for (const f of src.fields) {
+                if (!runtime.fieldNeedsUpdate(f.deps, change)) continue;
+                /** @type {{ color?: string, background?: string }} */
+                const values = {};
+                /** @type {Record<string, any>} */ (put(src.id).fields)[f.name] = values;
+                if (f.color) {
+                    const c = this._pointStateColor(f.color, entity);
+                    if (c !== undefined) values.color = c;
+                }
+                if (f.background) {
+                    const b = this._pointStateColor(f.background, entity);
+                    if (b !== undefined) values.background = b;
+                }
+                if (!f.templated) continue;
+                const key = `${src.id}\u0000${f.name}`;
+                const seq = (this._labelSeq.get(key) ?? 0) + 1;
+                this._labelSeq.set(key, seq);
+                jobs.push(this.processTemplate(f.content, {
+                    entity,
+                    extra: { sky, point: src.point },
+                    displayFormat: f.displayFormat,
+                    field: `points.${src.id}.text.${f.name}.content`
+                }).then((text) => {
+                    if (this._labelSeq.get(key) !== seq) return;
+                    this._pushLabelValues({ [src.id]: { fields: { [f.name]: { text: String(text ?? '') } } } });
+                }));
+            }
+        }
+        // Colours now; templates as they resolve (Jinja2 round trips)
+        this._pushLabelValues(out);
+        await Promise.all(jobs);
+    }
+
+    /**
+     * Keep the values (a scene started later gets them) and send them.
+     * @private
+     * @param {Record<string, import('../core/astrometrics/scene-runtime.js').AstroLabelValues>} values
+     */
+    _pushLabelValues(values) {
+        /** @type {Record<string, import('../core/astrometrics/scene-runtime.js').AstroLabelValues>} */
+        const send = {};
+        for (const [id, v] of Object.entries(values)) {
+            const hasFields = v.fields && Object.values(v.fields).some((f) => Object.keys(f).length);
+            if (!hasFields && v.color === undefined) continue;
+            const prev = this._labelValues.get(id) ?? { fields: {} };
+            const fields = { ...prev.fields };
+            for (const [name, f] of Object.entries(v.fields ?? {})) fields[name] = { ...(fields[name] ?? {}), ...f };
+            this._labelValues.set(id, { ...prev, ...v, fields });
+            send[id] = v;
+        }
+        if (Object.keys(send).length) this._scene?.setLabelValues(send);
+    }
+
+    /**
+     * Entities the card follows (for the core and rules): the points' own and
+     * their bindings', on top of the base's (templates, triggers_update).
+     * @protected
+     */
+    _updateTrackedEntities() {
+        super._updateTrackedEntities();
+        const tracked = new Set(this._trackedEntities ?? []);
+        for (const p of Array.isArray(this.config?.points) ? this.config.points : []) {
+            if (typeof p?.entity === 'string' && p.entity) tracked.add(p.entity);
+        }
+        for (const b of this._bindings) tracked.add(b.entityId);
+        for (const src of this._labelSources) for (const f of src.fields) f.deps.entities.forEach((e) => tracked.add(e));
+        this._trackedEntities = [...tracked];
+    }
+
+    /**
+     * A data source a template reads changed (the base subscribes them).
+     * @protected
+     */
+    async _processCustomTemplates() {
+        await this._refreshLabels({ ds: true });
+    }
+
+    // ── Rules on points and objects ─────────────────────────────────────────
+
+    /**
+     * Points and objects with an id are rule targets (as MSD overlays):
+     * `vega`, `tag:hostile`, `type:astrometrics-point`. Registered before the
+     * card itself, so the first evaluation sees them.
+     * @protected
+     * @param {string} overlayId
+     * @param {any} type
+     * @param {any} [tags]
+     */
+    _registerOverlayForRules(overlayId, type, tags = []) {
+        this._registerSceneTargets();
+        super._registerOverlayForRules(overlayId, type, tags);
+    }
+
+    /** @protected */
+    _unregisterOverlayFromRules() {
+        this._unregisterSceneTargets();
+        super._unregisterOverlayFromRules();
+    }
+
+    /**
+     * Register the config's point and object ids (again: drops ids that went).
+     * @private
+     */
+    _registerSceneTargets() {
+        const systems = this._singletons?.systemsManager;
+        if (!systems) return;
+        const had = this._overlayRegistered;
+        this._unregisterSceneTargets();
+        /** @param {any} item @param {'astrometrics-point' | 'astrometrics-object'} type @param {Set<string>} set */
+        const add = (item, type, set) => {
+            if (!item || typeof item !== 'object' || item.id === undefined || item.id === null || item.id === '') return;
+            const id = String(item.id);
+            if (id === this._overlayId) return;
+            systems.registerOverlay(id, { id, type, tags: Array.isArray(item.tags) ? item.tags : [], sourceCardId: this._cardGuid });
+            set.add(id);
+        };
+        for (const p of Array.isArray(this.config?.points) ? this.config.points : []) add(p, 'astrometrics-point', this._sceneTargets.points);
+        for (const o of Array.isArray(this.config?.objects) ? this.config.objects : []) add(o, 'astrometrics-object', this._sceneTargets.objects);
+        // A config change while registered: evaluate the rules again for the new ids
+        if (had && this._rulesCallback && this.hass) {
+            this._singletons?.rulesEngine?.markAllDirty();
+            this._rulesCallback();
+        }
+    }
+
+    /** @private */
+    _unregisterSceneTargets() {
+        const systems = this._singletons?.systemsManager;
+        for (const id of [...this._sceneTargets.points, ...this._sceneTargets.objects]) systems?.unregisterOverlay(id);
+        this._sceneTargets = { points: new Set(), objects: new Set() };
+    }
+
+    /**
+     * Patches for the card itself go the base way (they patch the config);
+     * patches for points and objects go to the scene without a rebuild.
+     * @protected
+     * @param {any[]} overlayPatches
+     */
+    _applyRulePatches(overlayPatches) {
+        super._applyRulePatches(overlayPatches);
+        const targets = this._sceneTargets;
+        /** @type {Record<string, any[]>} */
+        const byId = {};
+        for (const patch of Array.isArray(overlayPatches) ? overlayPatches : []) {
+            const id = patch?.id;
+            if (typeof id !== 'string' || (!targets.points.has(id) && !targets.objects.has(id))) continue;
+            (byId[id] ??= []).push(patch);
+        }
+        /** @type {Record<string, any>} */
+        const next = {};
+        for (const [id, list] of Object.entries(byId)) {
+            // Highest priority first from the engine: merge from the end so it wins
+            const merged = [...list].reverse().reduce((acc, p) => deepMergeImmutable(acc, normalizeScenePatch(p)), {});
+            // A rule's label replaces the label text, also over an explicit text.label.content
+            if (targets.points.has(id) && merged.label !== undefined) {
+                merged.text = deepMergeImmutable(merged.text ?? {}, { label: { content: String(merged.label) } });
+            }
+            next[id] = merged;
+        }
+        const prev = this._scenePatches;
+        const changed = [...new Set([...Object.keys(prev), ...Object.keys(next)])]
+            .filter((id) => JSON.stringify(prev[id]) !== JSON.stringify(next[id]));
+        if (!changed.length) return;
+        this._scenePatches = next;
+        if (!this._scene) return;
+        const patched = this._withScenePatches(this._sceneConfig());
+        /** @type {{ points: Record<string, any>, objects: Record<string, any> }} */
+        const send = { points: {}, objects: {} };
+        for (const id of changed) {
+            if (targets.points.has(id)) send.points[id] = (patched.points ?? []).find((/** @type {any} */ p) => String(p?.id) === id);
+            else send.objects[id] = (patched.objects ?? []).find((/** @type {any} */ o) => String(o?.id) === id);
+        }
+        this._scene.patch(send);
+        // Labels the card resolves (templates, state colours) for the patched points
+        const ids = new Set(Object.keys(send.points));
+        if (ids.size && this._runtime) {
+            const fresh = this._runtime.labelSources(Object.values(send.points), this.config?.labels);
+            this._labelSources = [...this._labelSources.filter((src) => !ids.has(src.id)), ...fresh];
+            for (const id of ids) this._labelValues.delete(id);
+            this._refreshLabels({ all: true, ids });
+        }
+        lcardsLog.debug(`[LCARdSAstrometricsCard] Rule patches on ${changed.join(', ')}`);
+    }
+
     /**
      * A tap or hold on a point or object. fly-to without a view (and a tap
      * on a point with no tap_action) is left to the scene: it selects the
@@ -349,7 +701,8 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         }
         if (action.action === 'none') return true;
         this._playSound(key === 'tap_action' ? 'card_tap' : 'card_hold');
-        this._actionHandler.runAction(action, this.hass, this, this.config?.entity ?? null);
+        // A point's own entity, else the card's, for more-info and toggle
+        this._actionHandler.runAction(action, this.hass, this, hit.config?.entity ?? this.config?.entity ?? null);
         return true;
     }
 
@@ -371,6 +724,22 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
     _handleHassUpdate(newHass, oldHass) {
         super._handleHassUpdate?.(newHass, oldHass);
         this._scene?.setHass(newHass);
+        if (this._runtime) {
+            if (!oldHass) {
+                this._refreshBindings(null);
+                this._refreshLabels({ all: true });
+            } else {
+                /** @type {Set<string>} */
+                const changed = new Set();
+                for (const id of this._trackedEntities ?? []) {
+                    if (oldHass.states?.[id] !== newHass?.states?.[id]) changed.add(id);
+                }
+                if (changed.size) {
+                    this._refreshBindings(changed);
+                    this._refreshLabels({ entities: changed });
+                }
+            }
+        }
         this._backgroundRenderer?.updateHass(newHass, null, this.config);
     }
 

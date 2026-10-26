@@ -61,6 +61,7 @@ import { escapeHtml } from '../utils/StringUtils.js';
 import { TemplateDetector } from '../core/templates/TemplateDetector.js';
 import { LCARdSCardTemplateEvaluator } from '../core/templates/LCARdSCardTemplateEvaluator.js';
 import { RendererUtils } from '../msd/renderer/RendererUtils.js';
+import { letterSpacingCss, letterSpacingPx } from '../utils/css-length-utils.js';
 import { sanitizeSvg, extractViewBox, extractDataUriContent, escapeXmlAttribute } from '../utils/lcards-svg-helpers.js';
 import { applyBaseSvgFilters } from '../msd/utils/BaseSvgFilters.js';
 import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/BackgroundAnimationRenderer.js';
@@ -5155,6 +5156,7 @@ export class LCARdSButton extends LCARdSCard {
                 font_weight: fieldConfig.font_weight || userDefaults.font_weight || presetFieldConfig.font_weight || this._buttonStyle?.text?.default?.font_weight || 'normal',
                 font_family: fieldConfig.font_family || userDefaults.font_family || presetFieldConfig.font_family || this._buttonStyle?.text?.default?.font_family || "'LCARS', 'Antonio', sans-serif",
                 text_transform: fieldConfig.text_transform || userDefaults.text_transform || presetFieldConfig.text_transform || this._buttonStyle?.text?.default?.text_transform || 'none',
+                letter_spacing: fieldConfig.letter_spacing ?? userDefaults.letter_spacing ?? presetFieldConfig.letter_spacing ?? this._buttonStyle?.text?.default?.letter_spacing ?? null,
                 anchor: fieldConfig.anchor || presetFieldConfig.anchor || presetDefault.anchor || null,
                 baseline: fieldConfig.baseline || presetFieldConfig.baseline || presetDefault.baseline || null,
                 rotation: fieldConfig.rotation !== undefined ? fieldConfig.rotation : (presetFieldConfig.rotation !== undefined ? presetFieldConfig.rotation : 0),
@@ -5634,7 +5636,8 @@ export class LCARdSButton extends LCARdSCard {
                 const fontString = `${fontWeight} ${field.font_size}px ${fontFamily}`;
 
                 const metrics = RendererUtils.measureText(field.content, fontString);
-                const textWidth = metrics.width;
+                // letter-spacing adds after every glyph (SVG and canvas alike)
+                const textWidth = metrics.width + letterSpacingPx(field.letter_spacing, Number(field.font_size) || 0) * String(field.content ?? '').length;
 
                 const bgFixedWidth = field.background_width ?? null;
                 const bgMinWidth   = field.background_min_width ?? null;
@@ -5713,6 +5716,9 @@ export class LCARdSButton extends LCARdSCard {
             if (field.font_family) {
                 textAttrs.push(`font-family="${escapeXmlAttribute(field.font_family)}"`);
             }
+
+            const letterSpacing = letterSpacingCss(field.letter_spacing);
+            if (letterSpacing) textAttrs.push(`letter-spacing="${escapeXmlAttribute(letterSpacing)}"`);
 
             // Add rotation transform if specified (rotates around text origin point)
             if (field.rotation && field.rotation !== 0) {
@@ -5932,6 +5938,8 @@ export class LCARdSButton extends LCARdSCard {
 
             if (field.font_weight) textAttrs.push(`font-weight="${field.font_weight}"`);
             if (field.font_family) textAttrs.push(`font-family="${escapeXmlAttribute(field.font_family)}"`);
+            const letterSpacing = letterSpacingCss(field.letter_spacing);
+            if (letterSpacing) textAttrs.push(`letter-spacing="${escapeXmlAttribute(letterSpacing)}"`);
             if (field.rotation && field.rotation !== 0) {
                 textAttrs.push(`transform="rotate(${field.rotation} ${x} ${y})"`);
             }

@@ -31,7 +31,7 @@ export function buildImage(cfg, ctx) {
   if (cfg.blend === 'add') mat.blending = AdditiveBlending;
   const mesh = new Mesh(geo, mat);
   // under the grids (they draw over it), just above the plane they share
-  mesh.position.y = num(cfg.y, -0.01);
+  mesh.position.y = num(cfg.alt, -0.01);
   mesh.renderOrder = 0.5;
   node.add(mesh);
   out.pickMeshes.push(mesh);

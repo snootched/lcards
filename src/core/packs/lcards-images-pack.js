@@ -55,6 +55,12 @@ export const LCARDS_IMAGES_PACK = {
     image_assets: {
         // Built-in entries will be added here as they are sourced and licensed.
         // Users add their own via the Config Panel → Image Library.
+        earth_blue_marble: {
+            url: '/lcards/images/nasa-blue-marble-earth-2048.webp',
+            label: 'Earth (Blue Marble)',
+            category: 'planets',
+            description: 'Earth, an equirectangular map for globes (2048 x 1024, longitude 0 in the middle): NASA Earth Observatory, Blue Marble: Next Generation (July 2004). NASA texture maps are not subject to copyright in the United States.',
+        },
         sun: {
             url: '/lcards/images/astrographix_visuals-sun-1494070_1920.jpg',
             label: 'Sun',

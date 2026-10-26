@@ -15,15 +15,15 @@ galaxy:
     - { id: core, xyz: [0, 0, 0], label: GALACTIC CORE, style: title }
     - { id: sagittarius, polar: [45, 300], label: Sagittarius Arm, style: major }
     - { id: perseus, polar: [70, 225], label: Perseus Arm, style: major }
-    - { id: federation, polar: [75, 135], y: 22, label: FEDERATION, style: major, color: var(--lcars-blue) }
-    - { id: borg, polar: [30, 345], y: 44, label: BORG SPACE, style: major, color: var(--lcars-green) }
+    - { id: federation, polar: [75, 135], alt: 22, label: FEDERATION, style: major, color: var(--lcars-blue) }
+    - { id: borg, polar: [30, 345], alt: 44, label: BORG SPACE, style: major, color: var(--lcars-green) }
     - { id: talos, polar: [52, 310], marker: dot, label: Talos IV, style: tiny, max_distance: 200, tap_action: { action: fly-to } }
     - { id: vega, polar: [64, 160], marker: triangle, label: Vega, style: minor }
     - { id: rigel, polar: [88, 95], marker: diamond, label: Rigel, style: minor }
     - { id: deneb, polar: [40, 60], marker: dot, label: Deneb, style: tiny }
-    - { id: nimbus, polar: [72, 236], y: 12, marker: reticle, label: NIMBUS III, style: minor }
-    - { id: away, latlon: [10, 40], on: planet, alt: 0.3, marker: dot, label: AWAY TEAM, style: tiny, color: var(--lcars-orange) }
-    - { id: outpost, latlon: [-20, 200], on: planet, alt: 0.3, marker: dot, label: OUTPOST, style: tiny, color: var(--lcars-orange) }
+    - { id: nimbus, polar: [72, 236], alt: 12, marker: reticle, label: NIMBUS III, style: minor }
+    - { id: away, latlon: [10, 40], object: planet, alt: 0.3, marker: dot, label: AWAY TEAM, style: tiny, color: var(--lcars-orange) }
+    - { id: outpost, latlon: [-20, 200], object: planet, alt: 0.3, marker: dot, label: OUTPOST, style: tiny, color: var(--lcars-orange) }
   objects:
     - type: grid
       shape: disc
@@ -79,10 +79,10 @@ sector:
         - { from: AL2, to: AO5, color: var(--lcars-green), opacity: 0.3, shade: 0.25 }
         - { from: AL9, to: AP12, color: var(--lcars-red), opacity: 0.35, shade: 0.25, border: { width: 2, opacity: 0.6 } }
   points:
-    - { id: ufp, cell: AG4, on: sectors, label: UNITED FEDERATION OF PLANETS, style: major }
-    - { id: sb10, cell: AJ2, on: sectors, offset: [8, 0, 12], marker: triangle, label: Starbase 10 }
-    - { id: achernar, cell: AN3, on: sectors, marker: diamond, label: Achernar }
-    - { id: qualor, cell: AL6, on: sectors, marker: dot, label: Qualor, style: tiny, max_distance: 1300 }
+    - { id: ufp, cell: AG4, object: sectors, label: UNITED FEDERATION OF PLANETS, style: major }
+    - { id: sb10, cell: AJ2, object: sectors, offset: [8, 0, 12], marker: triangle, label: Starbase 10 }
+    - { id: achernar, cell: AN3, object: sectors, marker: diamond, label: Achernar }
+    - { id: qualor, cell: AL6, object: sectors, marker: dot, label: Qualor, style: tiny, max_distance: 1300 }
 
 sky:
   camera:
@@ -100,12 +100,12 @@ sky:
       major_col_interval: 6
       color: theme:colors.ui.tertiary
     - { type: ring, radius: 100, width: 3, color: theme:colors.ui.primary }
-    - { type: path, sky: sun, on: sky, span: today, dash: [6, 4], color: var(--lcars-yellow) }
-    - { type: path, sky: moon, on: sky, span: today, dash: [6, 4], color: var(--lcars-blue) }
+    - { type: path, sky: sun, object: sky, span: today, dash: [6, 4], color: var(--lcars-yellow) }
+    - { type: path, sky: moon, object: sky, span: today, dash: [6, 4], color: var(--lcars-blue) }
   points:
-    - { id: sun, sky: sun, on: sky, marker: reticle, label: SOL, below_horizon: dim }
-    - { id: moon, sky: moon, on: sky, marker: moon_phase, label: LUNA }
-    - { id: n, altaz: [0, 0], on: sky, alt: 6, label: N, style: major }
-    - { id: e, altaz: [90, 0], on: sky, alt: 6, label: E, style: major }
-    - { id: s, altaz: [180, 0], on: sky, alt: 6, label: S, style: major }
-    - { id: w, altaz: [270, 0], on: sky, alt: 6, label: W, style: major }
+    - { id: sun, sky: sun, object: sky, marker: reticle, label: SOL, below_horizon: dim }
+    - { id: moon, sky: moon, object: sky, marker: moon_phase, label: LUNA }
+    - { id: north, altaz: [0, 0], object: sky, label: "N", style: major, overlap: true }
+    - { id: east, altaz: [90, 0], object: sky, label: E, style: major, overlap: true }
+    - { id: south, altaz: [180, 0], object: sky, label: S, style: major, overlap: true }
+    - { id: west, altaz: [270, 0], object: sky, label: W, style: major, overlap: true }

@@ -13,7 +13,9 @@
  */
 import { Scene, Group, Vector3, Box3, Sphere } from 'three';
 import { Placements } from './placements.js';
-import { labelItem, LABEL_STYLES } from './label-layer.js';
+import { labelItem } from './label-layer.js';
+import { resolveLabel, plainColor, selectedColor, fieldCss } from './label-text.js';
+import { TemplateDetector } from '../templates/TemplateDetector.js';
 import { MARKERS, OBJECT_TYPES } from './names.js';
 import { buildGrid } from './objects/grid.js';
 import { buildVolume } from './objects/volume.js';
@@ -28,15 +30,6 @@ export { OBJECT_TYPES };
 /** Builders of the objects points can stand on; line objects read points, so they come second */
 const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image: buildImage, glow: buildGlow };
 
-/** Default label colours per style (CSS values: variables stay live) */
-export const LABEL_COLORS = {
-  title: 'var(--lcards-moonlight)',
-  major: 'var(--lcards-moonlight)',
-  minor: 'theme:colors.text.onDark',
-  tiny: 'theme:colors.text.onDark',
-  selected: 'theme:colors.status.error'
-};
-
 /**
  * @typedef {Object} AstroScene
  * @property {Scene} scene
@@ -45,12 +38,54 @@ export const LABEL_COLORS = {
  * @property {Map<import('./objects/common.js').BuiltObject, Group>} outer - each object's position / rotation group
  * @property {Placements} places
  * @property {any[]} pointDefs - generated + user, the user's last
- * @property {(import('./label-layer.js').LabelItem & { color: string, def: any })[]} labels
+ * @property {(import('./label-layer.js').LabelItem & { color: string, selectedColor: string, def: any, spec: import('./label-text.js').LabelSpec })[]} labels
  * @property {import('./objects/common.js').BuiltObject | null} stars
  * @property {Sphere} bounds - of the objects (for a default view)
  * @property {() => void} layout - one frame's placement pass: matrices, objects on points (`at`), then what reads moving points
+ * @property {(id: string, cfg: any) => boolean} rebuildObject - build one object again from a new config (a rule patch), in place; false for an unknown id
  * @property {() => void} dispose
  */
+
+/**
+ * The label item for a point, or null when it shows nothing (no text, no marker).
+ * @param {any} def - the point config
+ * @param {any} labelsCfg - the card's `labels`
+ * @param {(value: any, fallback: string) => string} cssColor
+ * @returns {(import('./label-layer.js').LabelItem & { color: string, selectedColor: string, def: any, spec: import('./label-text.js').LabelSpec }) | null}
+ */
+export function makeLabelItem(def, labelsCfg, cssColor) {
+  const marker = MARKERS.includes(def.marker) ? def.marker : 'none';
+  const spec = resolveLabel(def, labelsCfg);
+  if (!spec.fields.length && marker === 'none') return null;
+  const item = labelItem({
+    id: String(def.id),
+    style: spec.style,
+    priority: spec.priority,
+    overlap: spec.overlap,
+    marker,
+    fields: spec.fields.map((f) => ({
+      name: f.name,
+      position: f.position,
+      css: fieldCss(f),
+      // A template shows once the card has evaluated it (no raw {entity.state} flash)
+      text: f.template && TemplateDetector.hasTemplates(f.content) ? '' : f.content,
+      color: cssColor(plainColor(f.color), 'var(--lcards-moonlight)'),
+      selectedColor: cssColor(selectedColor(f.color), 'var(--lcards-moonlight)'),
+      ...(f.background !== undefined ? { background: cssColor(plainColor(f.background), 'transparent') } : {})
+    })),
+    fade: Array.isArray(def.fade) && def.fade.length === 2 ? [num(def.fade[0], 0), num(def.fade[1], 1)] : null,
+    minDistance: num(def.min_distance, 0),
+    maxDistance: num(def.max_distance, Infinity),
+    pickable: def.tap_action !== undefined ? def.tap_action?.action !== 'none' : marker !== 'none'
+  });
+  return {
+    ...item,
+    color: cssColor(plainColor(spec.color), 'var(--lcards-moonlight)'),
+    selectedColor: cssColor(selectedColor(spec.color), 'var(--lcards-moonlight)'),
+    def,
+    spec
+  };
+}
 
 /**
  * @param {any} config - the card config (`objects`, `points`, `backdrop`)
@@ -69,6 +104,8 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   const cfgs = Array.isArray(config?.objects) ? config.objects.filter((o) => o && typeof o === 'object') : [];
   const counts = /** @type {Record<string, number>} */ ({});
 
+  /** @type {Map<string, (cfg: any) => import('./objects/common.js').BuiltObject>} how each object was built, by id */
+  const builders = new Map();
   /** @param {any} cfg @param {(cfg: any) => import('./objects/common.js').BuiltObject} build */
   const add = (cfg, build) => {
     counts[cfg.type] = (counts[cfg.type] ?? 0) + 1;
@@ -90,6 +127,7 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
     scene.add(g);
     outer.set(b, g);
     objects.set(b.id, b);
+    builders.set(b.id, build);
     list.push(b);
   };
 
@@ -128,26 +166,8 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   for (const p of pointDefs) byId.set(String(p.id), p);
   const labels = [];
   for (const def of byId.values()) {
-    const marker = MARKERS.includes(def.marker) ? def.marker : 'none';
-    const text = def.label === undefined || def.label === null ? '' : String(def.label);
-    if (!text && marker === 'none') continue;
-    const style = def.style && LABEL_STYLES[/** @type {keyof typeof LABEL_STYLES} */ (def.style)] ? def.style : 'minor';
-    const item = labelItem({
-      id: String(def.id),
-      text,
-      style,
-      marker,
-      priority: def.priority !== undefined ? num(def.priority, 0) : undefined,
-      anchor: ['center', 'right', 'left'].includes(def.anchor) ? def.anchor : undefined,
-      fade: Array.isArray(def.fade) && def.fade.length === 2 ? [num(def.fade[0], 0), num(def.fade[1], 1)] : null,
-      minDistance: num(def.min_distance, 0),
-      maxDistance: num(def.max_distance, Infinity),
-      pickable: def.tap_action !== undefined ? def.tap_action?.action !== 'none' : marker !== 'none'
-    });
-    // labelItem fills undefined priority / anchor from the style and marker
-    if (def.priority === undefined) item.priority = LABEL_STYLES[item.style].priority;
-    if (!['center', 'right', 'left'].includes(def.anchor)) item.anchor = marker !== 'none' ? 'right' : 'center';
-    labels.push({ ...item, color: cssColor(def.color, LABEL_COLORS[item.style]), def });
+    const item = makeLabelItem(def, config?.labels, cssColor);
+    if (item) labels.push(item);
   }
 
   const layout = () => {
@@ -185,6 +205,35 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
     stars,
     bounds,
     layout,
+    rebuildObject(id, cfg) {
+      const old = objects.get(id);
+      const build = builders.get(id);
+      const g = old ? outer.get(old) : undefined;
+      if (!old || !build || !g) return false;
+      let b;
+      try {
+        b = build({ ...cfg, id });
+      } catch (error) {
+        lcardsLog.warn(`[Astrometrics] could not rebuild ${cfg.type} '${id}':`, error);
+        return false;
+      }
+      g.remove(old.node);
+      old.lines.forEach((l) => l.dispose());
+      disposeNode(old.node);
+      g.rotation.set(0, 0, 0);
+      applyRotation(g, cfg);
+      g.visible = cfg.visible !== false;
+      g.add(b.node);
+      outer.delete(old);
+      outer.set(b, g);
+      objects.set(id, b);
+      list[list.indexOf(old)] = b;
+      hosts.set(id, { node: b.node, radius: b.radius, cellPoint: b.cellPoint, moving: b.spin !== 0 });
+      scene.updateMatrixWorld(true);
+      places.invalidate();
+      if (!b.dynamic) b.update?.();
+      return true;
+    },
     dispose() {
       for (const b of list) b.lines.forEach((l) => l.dispose());
       disposeNode(scene);

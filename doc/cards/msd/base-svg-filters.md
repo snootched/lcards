@@ -126,7 +126,7 @@ Creates a drop shadow behind the element.
 
 ```yaml
 filters:
-  - { mode: css, type: drop-shadow, value: { x: 2, y: 2, blur: '4px', color: '#000000' } }
+  - { mode: css, type: drop-shadow, value: { x: 2, "y": 2, blur: '4px', color: '#000000' } }
 ```
 
 **Use cases**: Depth/emphasis via a classic drop shadow.

@@ -247,3 +247,124 @@ test('background_animation draws behind the scene, flat, on its own layer', asyn
     await expect(page.locator('lcards-astrometrics-card .astro-bg canvas')).toHaveCount(0);
     await expectNoErrors(page);
 });
+
+// ── E3a: live data (text system, entities, templates, rules) ────────────────
+
+/** A label's DOM: the element colour (marker) and each field's text and colour */
+const labelDom = (page, id) => page.evaluate((pid) => {
+    const card = /** @type {any} */ (document.querySelector('#mount > *'));
+    const el = card.renderRoot.querySelector(`.astro-label[data-id="${pid}"]`);
+    if (!el) return null;
+    const fields = Object.fromEntries([...el.querySelectorAll('.f')].map((f) => [f.dataset.field, {
+        text: f.textContent, color: getComputedStyle(f).color, background: getComputedStyle(f).backgroundColor,
+        transform: getComputedStyle(f).textTransform, font: getComputedStyle(f).fontFamily
+    }]));
+    return { color: getComputedStyle(el).color, fields };
+}, id);
+
+/** A point's world position now (null: not placed) */
+const pointWorld = (page, id) => page.evaluate((pid) => {
+    const w = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world;
+    const v = w.places.get(pid);
+    return v ? [v.x, v.y, v.z].map((n) => Math.round(n * 10) / 10) : null;
+}, id);
+
+test('labels on the text system: templates from the point\'s entity, state colours, labels.default, a sky template', async ({ page }) => {
+    await mountCase(page, 'astro-data', { width: '800' });
+    await sceneReady(page);
+    // lamp: switch.demo_switch is off -> inactive grey; the rule is on (demo_toggle on) -> green wins
+    await expect.poll(async () => (await labelDom(page, 'lamp'))?.color).toBe('rgb(0, 255, 0)');
+    const lamp = await labelDom(page, 'lamp');
+    expect(lamp.fields.label.transform).toBe('uppercase');
+    expect(lamp.fields.label.font).toContain('Antonio');
+    // the sky template resolves (no raw template text ever shows)
+    await expect.poll(async () => (await labelDom(page, 'luna'))?.fields.label.text).toMatch(/^LUNA \d+%$/);
+    // sky angles reach templates to one decimal
+    await expect.poll(async () => (await labelDom(page, 'sol'))?.fields.label.text).toMatch(/^SOL -?\d+(\.\d)?$/);
+    // the shuttle has no entity yet: no position, no template text
+    expect(await pointWorld(page, 'shuttle')).toBeNull();
+    expect((await labelDom(page, 'shuttle')).fields.label.text).toBe('');
+    await expectNoErrors(page);
+});
+
+test('an entity-bound point appears and moves with its entity; the path to it follows; its label updates', async ({ page }) => {
+    await mountCase(page, 'astro-data', { width: '800' });
+    await sceneReady(page);
+    const builds = (await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().builds));
+    await page.evaluate(() => window.__setState('device_tracker.shuttle', { state: 'home', attributes: { friendly_name: 'Shuttle Two', x: 30, y: 0, z: 20 } }));
+    await expect.poll(() => pointWorld(page, 'shuttle')).toEqual([30, 0, 20]);
+    await expect.poll(async () => (await labelDom(page, 'shuttle'))?.fields.label.text).toBe('Shuttle Two');
+    expect((await labelDom(page, 'shuttle')).color).toBe('rgb(0, 0, 255)');
+    expect((await labelDom(page, 'shuttle')).fields.status.background).toBe('rgb(0, 0, 0)');
+    const routeEnd = () => page.evaluate(() => {
+        const w = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world;
+        return w.objects.get('route').dynamic;
+    });
+    expect(await routeEnd()).toBe(true);
+    // move it and change the state: position, text and colour follow, no rebuild
+    await page.evaluate(() => window.__setState('device_tracker.shuttle', { state: 'not_home', attributes: { x: -20, z: -30 } }));
+    await expect.poll(() => pointWorld(page, 'shuttle')).toEqual([-20, 0, -30]);
+    await expect.poll(async () => (await labelDom(page, 'shuttle'))?.color).toBe('rgb(255, 0, 0)');
+    await expect.poll(async () => (await labelDom(page, 'shuttle'))?.fields.status.text).toBe('not_home');
+    expect(await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().builds)).toBe(builds);
+    await expectNoErrors(page);
+});
+
+test('a state colour map follows the point\'s entity', async ({ page }) => {
+    await mountCase(page, 'astro-data', { width: '800' });
+    await sceneReady(page);
+    // the rule wins while demo_toggle is on: turn it off first
+    await page.evaluate(() => window.__setState('input_boolean.demo_toggle', 'off'));
+    await expect.poll(async () => (await labelDom(page, 'lamp'))?.color).toBe('rgb(128, 128, 128)');
+    await page.evaluate(() => window.__setState('switch.demo_switch', 'on'));
+    await expect.poll(async () => (await labelDom(page, 'lamp'))?.color).toBe('rgb(255, 165, 0)');
+    await expectNoErrors(page);
+});
+
+test('rules on points and objects: a colour and a hide without rebuilding the world, undone when the rule ends', async ({ page }) => {
+    await mountCase(page, 'astro-data', { width: '800' });
+    await sceneReady(page);
+    const dbg = () => page.evaluate(() => {
+        const d = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const earth = d.world.objects.get('earth');
+        return { builds: d.builds, objectBuilds: d.objectBuilds, earthVisible: d.world.outer.get(earth).visible };
+    });
+    await expect.poll(async () => (await dbg()).earthVisible).toBe(false);
+    const before = await dbg();
+    expect((await labelDom(page, 'lamp')).color).toBe('rgb(0, 255, 0)');
+    expect(await labelDom(page, 'base')).toMatchObject({ color: 'rgb(255, 255, 0)', fields: { label: { text: 'BASE ALERT' } } });
+    await page.evaluate(() => window.__setState('input_boolean.demo_toggle', 'off'));
+    await expect.poll(async () => (await labelDom(page, 'lamp'))?.color).toBe('rgb(128, 128, 128)');
+    await expect.poll(async () => (await dbg()).earthVisible).toBe(true);
+    await expect.poll(async () => (await labelDom(page, 'base'))?.fields.label.text).toBe('BASE');
+    const after = await dbg();
+    expect(after.builds).toBe(before.builds);
+    // only the route (a colour change) is built again; the globe's hide is a toggle
+    expect(after.objectBuilds).toBe(before.objectBuilds + 1);
+    await expectNoErrors(page);
+});
+
+test('labels mirror to dodge each other and the card edge; a label measured while mirrored still sits on its point', async ({ page }) => {
+    await mountCase(page, 'astro-labels', { width: '800' });
+    await sceneReady(page);
+    const markerOffset = () => page.evaluate(() => {
+        const card = /** @type {any} */ (document.querySelector('#mount > *'));
+        const it = card._scene.debug().labelItems.find((l) => l.id === 'base');
+        const host = card.renderRoot.querySelector('.astro-scene').getBoundingClientRect();
+        const mk = card.renderRoot.querySelector('.astro-label[data-id="base"] .mk').getBoundingClientRect();
+        return Math.hypot(mk.left + mk.width / 2 - host.left - it.sx, mk.top + mk.height / 2 - host.top - it.sy);
+    });
+    expect(await markerOffset()).toBeLessThan(1.5);
+    // mirror it, measure it mirrored, then let the layout put it back
+    await page.evaluate(() => {
+        const d = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const it = d.labelItems.find((l) => l.id === 'base');
+        it.flip = 1;
+        d.labelLayer.update(d.rig.camera, 800, 320, []);
+        d.labelLayer.invalidateSizes();
+        /** @type {any} */ (document.querySelector('#mount > *'))._scene.requestFrame();
+    });
+    await page.waitForTimeout(300);
+    expect(await markerOffset()).toBeLessThan(1.5);
+    await expectNoErrors(page);
+});

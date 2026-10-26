@@ -568,6 +568,7 @@ export default withMermaid(defineConfig({
               items: [
                 { text: 'Overview', link: '/cards/astrometrics/' },
                 { text: 'Points',   link: '/cards/astrometrics/points' },
+                { text: 'Live data', link: '/cards/astrometrics/data' },
                 { text: 'Objects',  link: '/cards/astrometrics/objects' },
               ],
             },

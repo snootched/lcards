@@ -370,7 +370,7 @@ overlays:
     route: string                 # Optional: Routing mode (default: "auto")
                                   # Options: auto, direct, manhattan, smart, grid, manual
     waypoints:                    # For route: manual
-      - [x, y]                    # or [x, y, radius] to override this corner's corner_radius
+      - [120, 80]                 # [x, y], or [x, y, radius] to override this corner's corner_radius
     route_hint: string            # Optional: xy | yx (default: auto)
     route_hint_last: string       # Optional: xy | yx (default: auto)
     route_channels: [string]      # Optional: channel IDs to route through

@@ -225,6 +225,8 @@ export class LCARdSCardTemplateEvaluator extends TemplateEvaluator {
   _safeEvalCode(code) {
     // Create evaluation context with safe access to required objects
     const evalContext = {
+      // Card-supplied names (e.g. sky, point) first, so the standard ones win
+      ...(this.context.extra && typeof this.context.extra === 'object' ? this.context.extra : {}),
       entity: this.context.entity,
       config: this.context.config,
       hass: this.context.hass,

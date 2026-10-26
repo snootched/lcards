@@ -145,10 +145,10 @@ export function buildGrid(cfg, ctx) {
       const style = a.style ?? 'tiny';
       const gap = num(a.offset, s * 0.6);
       for (let c = 0; c < cols; c += every) {
-        out.points.push({ id: `${cfg.id ?? 'grid'}.col.${c}`, on: cfg.id, xyz: [-w / 2 + (c + 0.5) * s, 0, -d / 2 - gap], label: axes.colLabel(c), style, color: a.color, priority: 30 });
+        out.points.push({ id: `${cfg.id ?? 'grid'}.col.${c}`, object: cfg.id, xyz: [-w / 2 + (c + 0.5) * s, 0, -d / 2 - gap], label: axes.colLabel(c), style, color: a.color, text: a.text, priority: 30 });
       }
       for (let r = 0; r < rows; r += every) {
-        out.points.push({ id: `${cfg.id ?? 'grid'}.row.${r}`, on: cfg.id, xyz: [-w / 2 - gap, 0, -d / 2 + (r + 0.5) * s], label: axes.rowLabel(r), style, color: a.color, priority: 30 });
+        out.points.push({ id: `${cfg.id ?? 'grid'}.row.${r}`, object: cfg.id, xyz: [-w / 2 - gap, 0, -d / 2 + (r + 0.5) * s], label: axes.rowLabel(r), style, color: a.color, text: a.text, priority: 30 });
       }
     }
     for (const cell of Array.isArray(cfg.cells) ? cfg.cells : []) {
@@ -282,7 +282,7 @@ function ringLabels(cfg, R, out) {
   const start = num(rl.start, 0);
   for (let deg = start; deg < start + 360 - 1e-9; deg += step) {
     const b = ((deg % 360) + 360) % 360;
-    out.points.push({ id: `${cfg.id ?? 'grid'}.ring.${b}`, on: cfg.id, polar: [r, b], y: num(rl.y, 0), label: String(Math.round(b * 100) / 100), style: rl.style ?? 'minor', color: rl.color, priority: 50 });
+    out.points.push({ id: `${cfg.id ?? 'grid'}.ring.${b}`, object: cfg.id, polar: [r, b], alt: num(rl.alt, 0), label: String(Math.round(b * 100) / 100), style: rl.style ?? 'minor', color: rl.color, text: rl.text, priority: 50 });
   }
 }
 

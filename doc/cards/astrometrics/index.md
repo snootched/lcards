@@ -66,17 +66,17 @@ backdrop:
 points:
   - { id: core, xyz: [0, 0, 0], label: GALACTIC CORE, style: title }
   - { id: sagittarius, polar: [45, 300], label: Sagittarius Arm, style: major }
-  - { id: federation, polar: [75, 135], y: 22, label: FEDERATION, style: major, color: var(--lcars-blue) }
-  - { id: borg, polar: [30, 345], y: 44, label: BORG SPACE, style: major, color: var(--lcars-green) }
+  - { id: federation, polar: [75, 135], alt: 22, label: FEDERATION, style: major, color: var(--lcars-blue) }
+  - { id: borg, polar: [30, 345], alt: 44, label: BORG SPACE, style: major, color: var(--lcars-green) }
   - { id: talos, polar: [52, 310], marker: dot, label: Talos IV, style: tiny, max_distance: 200 }
   - { id: vega, polar: [64, 160], marker: triangle, label: Vega, style: minor }
   - id: nimbus
     polar: [72, 236]
-    y: 12
+    alt: 12
     marker: reticle
     label: NIMBUS III
     tap_action: { action: fly-to, view: planet }
-  - { id: away, latlon: [10, 40], on: planet, alt: 0.3, marker: dot, label: AWAY TEAM, style: tiny, color: var(--lcars-orange) }
+  - { id: away, latlon: [10, 40], object: planet, alt: 0.3, marker: dot, label: AWAY TEAM, style: tiny, color: var(--lcars-orange) }
 objects:
   - type: grid
     shape: disc
@@ -136,10 +136,10 @@ objects:
       - { from: AL2, to: AO5, color: var(--lcars-green), opacity: 0.25, shade: 0.4 }
       - { from: AL9, to: AP12, color: var(--lcars-red), opacity: 0.3, shade: 0.4 }
 points:
-  - { id: ufp, cell: AG4, on: sectors, label: UNITED FEDERATION OF PLANETS, style: major }
-  - { id: sb10, cell: AJ2, on: sectors, offset: [8, 0, 12], marker: triangle, label: Starbase 10 }
-  - { id: achernar, cell: AN3, on: sectors, marker: diamond, label: Achernar }
-  - { id: qualor, cell: AL6, on: sectors, marker: dot, label: Qualor, style: tiny, max_distance: 1300 }
+  - { id: ufp, cell: AG4, object: sectors, label: UNITED FEDERATION OF PLANETS, style: major }
+  - { id: sb10, cell: AJ2, object: sectors, offset: [8, 0, 12], marker: triangle, label: Starbase 10 }
+  - { id: achernar, cell: AN3, object: sectors, marker: diamond, label: Achernar }
+  - { id: qualor, cell: AL6, object: sectors, marker: dot, label: Qualor, style: tiny, max_distance: 1300 }
 ```
 
 ### Sky dome: the sun and moon
@@ -157,15 +157,15 @@ camera:
 objects:
   - { type: grid, id: sky, shape: dome, radius: 100, pattern: both, line_spacing_deg: 15 }
   - { type: ring, radius: 100, width: 3, color: theme:colors.ui.primary }
-  - { type: path, sky: sun, on: sky, dash: [6, 4], color: var(--lcars-yellow) }
-  - { type: path, sky: moon, on: sky, dash: [6, 4], color: var(--lcars-blue) }
+  - { type: path, sky: sun, object: sky, dash: [6, 4], color: var(--lcars-yellow) }
+  - { type: path, sky: moon, object: sky, dash: [6, 4], color: var(--lcars-blue) }
 points:
-  - { id: sun, sky: sun, on: sky, marker: reticle, label: SOL }
-  - { id: moon, sky: moon, on: sky, marker: moon_phase, label: LUNA }
-  - { id: n, altaz: [0, 0], on: sky, alt: 6, label: N, style: major }
-  - { id: e, altaz: [90, 0], on: sky, alt: 6, label: E, style: major }
-  - { id: s, altaz: [180, 0], on: sky, alt: 6, label: S, style: major }
-  - { id: w, altaz: [270, 0], on: sky, alt: 6, label: W, style: major }
+  - { id: sun, sky: sun, object: sky, marker: reticle, label: SOL }
+  - { id: moon, sky: moon, object: sky, marker: moon_phase, label: LUNA }
+  - { id: north, altaz: [0, 0], object: sky, label: "N", style: major, overlap: true }
+  - { id: east, altaz: [90, 0], object: sky, label: E, style: major, overlap: true }
+  - { id: south, altaz: [180, 0], object: sky, label: S, style: major, overlap: true }
+  - { id: west, altaz: [270, 0], object: sky, label: W, style: major, overlap: true }
 ```
 
 Below the horizon, sky points dim (`below_horizon: dim`, the default) and the tracks stop at the horizon. The moon marker shows its lit part.
@@ -195,7 +195,9 @@ camera:
 
 ## Labels
 
-Labels are text in the LCARS font over the scene, in four sizes: `title`, `major`, `minor` and `tiny`. When two overlap the larger style wins, then the nearer one. They move by sub-pixel steps, which looks smooth while the scene turns; on a weak device `labels: { snap: true }` rounds them to whole pixels.
+Point labels are LCARdS text, with the [text-field keys](/core/text-fields) of the other cards: fonts, sizes, weights, colours with state maps, background boxes, templates, several fields round one point. `labels.default` sets keys for every label, `labels.styles` changes the built-in styles (`title`, `major`, `minor`, `tiny`) or adds your own. See [Points: labels](./points#labels) and [Live data](./data).
+
+When two labels overlap the higher priority wins (the larger style), then the nearer one. They move by sub-pixel steps, which looks smooth while the scene turns; on a weak device `labels: { snap: true }` rounds them to whole pixels.
 
 ## Backdrop
 
@@ -235,8 +237,10 @@ The card is the scene only. For an LCARS frame round it (an "ALPHA QUADRANT" bar
 | `objects` | What is drawn ([Objects](./objects)) |
 | `backdrop` | `stars` ([Backdrop](#backdrop)) |
 | `background_animation` | Flat background effects behind the scene ([Backdrop](#backdrop)) |
-| `labels` | `snap` ([Labels](#labels)) |
-| `id`, `tags`, `rules`, `sounds`, `variables`, `grid_options`, `width`, `min_height`, `max_height`, ... | As on every card ([Common options](../common)) |
+| `labels` | `default`, `styles`, `overlap`, `snap` ([Labels](#labels)) |
+| `state_classification`, `triggers_update`, `data_sources` | For point entities and label templates ([Live data](./data)) |
+| `rules` | Rules on the card, its points and its objects ([Live data: rules](./data#rules)) |
+| `id`, `tags`, `sounds`, `variables`, `grid_options`, `width`, `min_height`, `max_height`, ... | As on every card ([Common options](../common)) |
 
 The [config checker](/getting-started/config-checker) also checks what the schema cannot: that each point has exactly one position, and that every id a point, path, ring, beam or view names exists.
 

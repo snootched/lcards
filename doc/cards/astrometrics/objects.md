@@ -42,7 +42,7 @@ objects:
 
 ### Sector maps
 
-A plane grid with `axis_labels` names its columns and rows (AF3 is column AF, row 3). `cells` fills ranges of them, and points can stand in a cell (`cell: AF3`, `on: <grid>`).
+A plane grid with `axis_labels` names its columns and rows (AF3 is column AF, row 3). `cells` fills ranges of them, and points can stand in a cell (`cell: AF3`, `object: <grid>`).
 
 | `axis_labels` key | What it does |
 |---|---|
@@ -79,7 +79,7 @@ objects:
 
 ## sphere
 
-A planet or globe: latitude and longitude lines (`lat_step`, `lon_step`) over a dark body (`fill`, `fill_opacity`) that hides what is behind it, labels included (`occlude: false` turns that off). `image` wraps your own map around it (an equirectangular picture, `/local/mars.jpg`). The grid line keys (`color`, `line_width`, ...) work as on a grid. `latlon` points stand on it and turn with its `spin`.
+A planet or globe: latitude and longitude lines (`lat_step`, `lon_step`) over a dark body (`fill`, `fill_opacity`) that hides what is behind it, labels included (`occlude: false` turns that off). `image` wraps a map around it: `builtin:earth_blue_marble` is the Earth, shipped with LCARdS (NASA's Blue Marble, July 2004), or your own equirectangular picture (`/local/mars.jpg`; longitude 0 in the middle). The grid line keys (`color`, `line_width`, ...) work as on a grid. `latlon` points stand on it and turn with its `spin`.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -88,10 +88,34 @@ camera:
   views:
     v: { target: [0, 0, 0], yaw: 0, tilt: 15, distance: 60 }
 points:
-  - { id: base, latlon: [15, -20], on: world, alt: 0.3, marker: dot, label: BASE CAMP, color: var(--lcars-orange) }
+  - { id: base, latlon: [15, -20], object: world, alt: 0.3, marker: dot, label: BASE CAMP, color: var(--lcars-orange) }
 objects:
   - { type: sphere, id: world, radius: 14, spin: 12, lat_step: 15, lon_step: 20, color: var(--lcars-blue) }
 ```
+
+The Earth, with your home on it (`zone.home` has its latitude and longitude):
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 320
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: -40, tilt: 30, distance: 55 }
+points:
+  - id: home
+    entity: zone.home
+    latlon: { entity: zone.home }
+    object: earth
+    alt: 0.3
+    marker: reticle
+    label: HOME
+    overlap: true
+  - { id: greenwich, latlon: [51.48, 0], object: earth, marker: dot, label: Greenwich, style: tiny }
+objects:
+  - { type: sphere, id: earth, radius: 15, image: builtin:earth_blue_marble, lat_step: 30, lon_step: 30, color: var(--lcars-blue) }
+```
+
+The image's credit: NASA Earth Observatory, Blue Marble: Next Generation. NASA texture maps are not subject to copyright in the United States.
 
 ## ring
 
@@ -99,7 +123,7 @@ A circle or ellipse: an orbit, a rim, a range ring. `radius` (or `[a, b]` for an
 
 ## path
 
-A line through `points` (ids or `[x, y, z]`), or `from` / `to`. `arc` lifts each leg into a curve by that height at its middle. With `sky: sun` or `sky: moon` and `on: <dome>`, it is today's track across the sky, cut at the horizon.
+A line through `points` (ids or `[x, y, z]`), or `from` / `to`. `arc` lifts each leg into a curve by that height at its middle. With `sky: sun` or `sky: moon` and `object: <dome>`, it is today's track across the sky, cut at the horizon.
 
 **Line keys** (`ring` and `path`): `width` (px), `dash: [on, off]` (px: the dashes keep their size however close the camera is), `color`, `color_to` (fades along the line), `glow` (`true`, or a width factor), `blend: add`.
 

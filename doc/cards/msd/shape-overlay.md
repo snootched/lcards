@@ -159,12 +159,12 @@ overlays:
 
     # Polyline geometry
     points:                       # polyline only, minimum 2
-      - [x, y]                    # literal coordinate...
+      - [120, 80]                 # literal coordinate [x, y]...
       - anchor_name                # ...or a static anchor name
     closed: boolean                # polyline only (default: false)
 
     # Rect/circle geometry
-    position: [x, y]               # or a named anchor string
+    position: [120, 80]            # [x, y], or a named anchor string
     size: [width, height]          # circle: rx=width/2, ry=height/2
 
     # Corner/smoothing

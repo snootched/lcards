@@ -69,7 +69,7 @@ test('visual: grid + zoom on WebGL (background canvas)', async ({ page }) => {
 // Astrometrics (E2b): the galaxy reference under reduced motion (the planet's
 // spin held, so the frame is still) and the sector map. The scene draws on
 // demand: wait until it is built and has stopped drawing.
-for (const name of ['astro-galaxy', 'astro-sector']) {
+for (const name of ['astro-galaxy', 'astro-sector', 'astro-labels']) {
     test(`visual: ${name}`, async ({ page }) => {
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await mountCase(page, name, { freeze: '1', width: '800' });

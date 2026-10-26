@@ -988,6 +988,294 @@ export const rulesSchema = {
 };
 
 /**
+ * Spacing between letters: px (a number) or any CSS letter-spacing.
+ * Shared by the text-field default block and every field.
+ */
+const letterSpacingSchema = {
+    type: ['number', 'string'],
+    description: 'Space between letters: px (a number) or a CSS letter-spacing such as 0.1em or 2px. Default normal.',
+    examples: [1, '0.1em', '2px']
+};
+
+/**
+ * The properties of one text field (`text.<field>`), as the text-field cards
+ * take them. Other renderers of LCARdS text (the astrometrics labels) pick the
+ * keys that mean something to them with `omit`, so every card describes a key
+ * the same way.
+ * @param {Object} [options]
+ * @param {Array<string>} [options.positionEnum] - Available position values
+ * @param {Array<string>} [options.omit] - Keys to leave out
+ * @param {Record<string, string>} [options.descriptions] - Descriptions to replace, by key
+ * @returns {Record<string, any>}
+ */
+export function textFieldProperties(options = {}) {
+    const { positionEnum = [], omit = [], descriptions = {} } = options;
+    /** @type {Record<string, any>} */
+    const props = {
+        content: {
+            type: 'string',
+            description: 'Text content. Templates are evaluated by default (set template:false to disable)',
+            examples: ['Temperature', '{entity.state}', '{entity.attributes.brightness}', '{{ states(...) }}']
+        },
+        show: {
+            type: 'boolean',
+            default: true,
+            description: 'Whether to show this text field'
+        },
+        position: {
+            type: 'string',
+            enum: positionEnum,
+            description: 'Text position (overrides default)'
+        },
+        x: {
+            type: 'number',
+            description: 'Absolute X coordinate in pixels'
+        },
+        y: {
+            type: 'number',
+            description: 'Absolute Y coordinate in pixels'
+        },
+        x_percent: {
+            type: 'number',
+            minimum: 0,
+            maximum: 100,
+            description: 'X position as percentage of card width (0-100)'
+        },
+        y_percent: {
+            type: 'number',
+            minimum: 0,
+            maximum: 100,
+            description: 'Y position as percentage of card height (0-100)'
+        },
+        rotation: {
+            type: 'number',
+            minimum: -360,
+            maximum: 360,
+            default: 0,
+            description: 'Text rotation in degrees (-360 to 360)',
+            'x-ui-hints': {
+                label: 'Rotation',
+                helper: 'Rotate text in degrees (negative = counter-clockwise)',
+                selector: {
+                    number: {
+                        mode: 'slider',
+                        min: -360,
+                        max: 360,
+                        step: 1,
+                        unit_of_measurement: '°'
+                    }
+                }
+            }
+        },
+        padding: paddingSchema,
+        font_size: {
+            oneOf: [
+                {
+                    type: 'number',
+                    minimum: 1,
+                    maximum: 200,
+                    description: 'Font size in pixels (1-200)'
+                },
+                {
+                    type: 'string',
+                    pattern: '^(\\d+px|\\d+\\.?\\d*rem|\\d+\\.?\\d*em|var\\(--[a-z-]+\\))$',
+                    description: 'CSS value or theme token',
+                    examples: ['14px', '1.2rem', 'var(--lcars-text-size)']
+                }
+            ],
+            'x-ui-hints': {
+                label: 'Font Size',
+                helper: 'Font size in pixels (1-200). Use YAML for theme tokens.',
+                selector: {
+                    number: {
+                        mode: 'box',
+                        min: 1,
+                        max: 200,
+                        step: 1,
+                        unit_of_measurement: 'px'
+                    }
+                }
+            }
+        },
+        color: stateColorSchema,
+        font_weight: {
+            type: ['string', 'number'],
+            default: 'normal',
+            description: 'Font weight: CSS keyword (normal, bold) or numeric value (100–900)',
+            examples: ['normal', 'bold', 100, 300, 400, 700, 900]
+        },
+        font_family: {
+            type: 'string',
+            format: 'font-family',
+            description: 'CSS font-family (single font, comma-separated stack, or CSS variable)',
+            examples: ['Arial', 'lcards_eurostile', 'Antonio, sans-serif', '"Roboto Mono", monospace', 'var(--lcars-font), Antonio, sans-serif']
+        },
+        text_transform: {
+            type: 'string',
+            enum: ['none', 'uppercase', 'lowercase', 'capitalize'],
+            default: 'none',
+            description: 'Text transformation',
+            enumDescriptions: [
+                'No transformation (original case)',
+                'ALL UPPERCASE',
+                'all lowercase',
+                'Capitalize First Letter'
+            ]
+        },
+        letter_spacing: letterSpacingSchema,
+        anchor: {
+            type: 'string',
+            enum: ['start', 'middle', 'end'],
+            default: 'middle',
+            description: 'Horizontal text alignment',
+            enumDescriptions: [
+                'Left-aligned',
+                'Center-aligned',
+                'Right-aligned'
+            ]
+        },
+        baseline: {
+            type: 'string',
+            enum: ['hanging', 'middle', 'central', 'alphabetic'],
+            default: 'middle',
+            description: 'Vertical text alignment',
+            enumDescriptions: [
+                'Top of text box',
+                'Center of text box',
+                'Mathematical center',
+                'Bottom of text (baseline)'
+            ]
+        },
+        template: {
+            type: 'boolean',
+            default: true,
+            description: 'Template evaluation is enabled by default for this field’s content (e.g. {entity.state}, {{ states(...) }}, [[[ ... ]]]). Set to false to render {...} / [[[...]]] text literally without evaluating it.'
+        },
+        stretch: {
+            oneOf: [
+                {
+                    type: 'boolean',
+                    description: 'true = stretch text to fill 100% of the available width'
+                },
+                {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 1,
+                    description: 'Fraction of available width to stretch text to (0–1)'
+                }
+            ],
+            description: 'Stretch text to fill a fraction of the available width using SVG textLength / lengthAdjust="spacingAndGlyphs". true = 100%, 0.8 = 80%.',
+            'x-ui-hints': {
+                label: 'Stretch Text',
+                helper: 'Expand or compress glyph spacing to fill the specified width fraction'
+            }
+        },
+        font_size_percent: {
+            type: 'number',
+            minimum: 1,
+            maximum: 100,
+            description: 'Font size as a percentage of the text area height (component mode). Overrides font_size when set.',
+            'x-ui-hints': {
+                label: 'Font Size (%)',
+                helper: 'Sets font size relative to the text area height. 50 = 50% of the area height.',
+                selector: {
+                    number: {
+                        mode: 'slider',
+                        min: 1,
+                        max: 100,
+                        step: 1,
+                        unit_of_measurement: '%'
+                    }
+                }
+            }
+        },
+        cap_height_ratio: {
+            type: 'number',
+            minimum: 0.1,
+            maximum: 1.0,
+            description: 'Ratio of the font cap-height to the em-square. Used to correct font_size_percent so visible glyph height matches the requested percentage. Defaults to the theme token value (0.86 for Antonio). Override when using a different font.',
+            'x-ui-hints': {
+                label: 'Cap Height Ratio',
+                helper: 'Correction factor for font_size_percent. Antonio = 0.86. 1.0 = no correction. Lower values increase rendered font-size.',
+                selector: {
+                    number: {
+                        mode: 'box',
+                        min: 0.1,
+                        max: 1.0,
+                        step: 0.01
+                    }
+                }
+            }
+        },
+        zone: {
+            type: 'string',
+            description: 'Named zone key to route this text field to. For component cards this matches a key in the component\'s zones map. For slider/elbow cards this matches a named layout zone (e.g. left, track, vertical_bar). Defaults to the first zone if not set.',
+            'x-ui-hints': {
+                label: 'Zone',
+                helper: 'Which named layout zone this text field is routed to'
+            }
+        },
+        display_format: {
+            type: 'string',
+            enum: ['friendly', 'raw', 'parts', 'unit'],
+            default: 'friendly',
+            description: 'How to format entity state or attribute values in this text field. "friendly" (default) uses Home Assistant\'s translated display string matching native cards. "raw" returns the unmodified state/attribute value. "parts" joins value and unit from Home Assistant\'s ToParts API. "unit" returns only the unit portion.',
+            examples: ['friendly', 'raw', 'parts', 'unit'],
+            'x-ui-hints': {
+                label: 'Display Format',
+                helper: 'friendly = translated by Home Assistant (e.g. "Open"), raw = actual state (e.g. "on"), parts = value+unit joined, unit = unit only'
+            }
+        },
+        background: stateColorSchema,
+        background_padding: {
+            type: 'number',
+            minimum: 0,
+            default: 8,
+            description: 'Horizontal padding between text glyphs and the background rect edges (px).',
+            'x-ui-hints': {
+                label: 'Background Padding',
+                selector: { number: { mode: 'box', min: 0, max: 100, step: 1, unit_of_measurement: 'px' } }
+            }
+        },
+        background_radius: {
+            type: 'number',
+            minimum: 0,
+            default: 4,
+            description: 'Corner radius of the background rect (px).',
+            'x-ui-hints': {
+                label: 'Background Corner Radius',
+                selector: { number: { mode: 'box', min: 0, max: 50, step: 1, unit_of_measurement: 'px' } }
+            }
+        },
+        background_width: {
+            type: ['number', 'null'],
+            minimum: 1,
+            description: 'Fixed explicit width of the background rect (px). Overrides auto-sizing from text metrics. Text will overflow if content is wider than this value.',
+            'x-ui-hints': {
+                label: 'Background Width (Fixed)',
+                helper: 'Pin to an exact px width. Use background_min_width for a safe lower bound with dynamic content.',
+                selector: { number: { mode: 'box', min: 1, max: 2000, step: 1, unit_of_measurement: 'px' } }
+            }
+        },
+        background_min_width: {
+            type: ['number', 'null'],
+            minimum: 1,
+            description: 'Minimum width of the background rect (px). Auto-sizes to text width but never smaller than this value. Safe for dynamic content.',
+            'x-ui-hints': {
+                label: 'Background Min Width',
+                helper: 'Auto-sizes with text but will not shrink below this value, so safe for dynamic content.',
+                selector: { number: { mode: 'box', min: 1, max: 2000, step: 1, unit_of_measurement: 'px' } }
+            }
+        }
+    };
+    for (const key of omit) delete props[key];
+    for (const [key, description] of Object.entries(descriptions)) {
+        if (props[key]) props[key] = { ...props[key], description };
+    }
+    return props;
+}
+
+/**
  * Get text schema for multi-text label system
  * @param {Object} [options] - Schema options
  * @param {Array<string>} [options.positionEnum] - Available position values
@@ -1087,7 +1375,7 @@ export function getTextSchema(options = {}) {
                         type: 'string',
                         format: 'font-family',
                         description: 'CSS font-family (single font, comma-separated stack, or CSS variable)',
-                        examples: ['Arial', 'lcards_title', 'Antonio, sans-serif', '"Roboto Mono", monospace', 'var(--lcars-font), Antonio, sans-serif']
+                        examples: ['Arial', 'lcards_eurostile', 'Antonio, sans-serif', '"Roboto Mono", monospace', 'var(--lcars-font), Antonio, sans-serif']
                     },
                     text_transform: {
                         type: 'string',
@@ -1101,6 +1389,7 @@ export function getTextSchema(options = {}) {
                             'Capitalize First Letter'
                         ]
                     },
+                    letter_spacing: letterSpacingSchema,
                     anchor: {
                         type: 'string',
                         enum: ['start', 'middle', 'end'],
@@ -1220,262 +1509,7 @@ export function getTextSchema(options = {}) {
             type: 'object',
             description: 'Text field configuration (key becomes field name)',
             $comment: 'Each key creates a separate SVG text element. Use descriptive names like "label1", "status", "title"',
-            properties: {
-                content: {
-                    type: 'string',
-                    description: 'Text content. Templates are evaluated by default (set template:false to disable)',
-                    examples: ['Temperature', '{entity.state}', '{entity.attributes.brightness}', '{{ states(...) }}']
-                },
-                show: {
-                    type: 'boolean',
-                    default: true,
-                    description: 'Whether to show this text field'
-                },
-                position: {
-                    type: 'string',
-                    enum: positionEnum,
-                    description: 'Text position (overrides default)'
-                },
-                x: {
-                    type: 'number',
-                    description: 'Absolute X coordinate in pixels'
-                },
-                y: {
-                    type: 'number',
-                    description: 'Absolute Y coordinate in pixels'
-                },
-                x_percent: {
-                    type: 'number',
-                    minimum: 0,
-                    maximum: 100,
-                    description: 'X position as percentage of card width (0-100)'
-                },
-                y_percent: {
-                    type: 'number',
-                    minimum: 0,
-                    maximum: 100,
-                    description: 'Y position as percentage of card height (0-100)'
-                },
-                rotation: {
-                    type: 'number',
-                    minimum: -360,
-                    maximum: 360,
-                    default: 0,
-                    description: 'Text rotation in degrees (-360 to 360)',
-                    'x-ui-hints': {
-                        label: 'Rotation',
-                        helper: 'Rotate text in degrees (negative = counter-clockwise)',
-                        selector: {
-                            number: {
-                                mode: 'slider',
-                                min: -360,
-                                max: 360,
-                                step: 1,
-                                unit_of_measurement: '°'
-                            }
-                        }
-                    }
-                },
-                padding: paddingSchema,
-                font_size: {
-                    oneOf: [
-                        {
-                            type: 'number',
-                            minimum: 1,
-                            maximum: 200,
-                            description: 'Font size in pixels (1-200)'
-                        },
-                        {
-                            type: 'string',
-                            pattern: '^(\\d+px|\\d+\\.?\\d*rem|\\d+\\.?\\d*em|var\\(--[a-z-]+\\))$',
-                            description: 'CSS value or theme token',
-                            examples: ['14px', '1.2rem', 'var(--lcars-text-size)']
-                        }
-                    ],
-                    'x-ui-hints': {
-                        label: 'Font Size',
-                        helper: 'Font size in pixels (1-200). Use YAML for theme tokens.',
-                        selector: {
-                            number: {
-                                mode: 'box',
-                                min: 1,
-                                max: 200,
-                                step: 1,
-                                unit_of_measurement: 'px'
-                            }
-                        }
-                    }
-                },
-                color: stateColorSchema,
-                font_weight: {
-                    type: ['string', 'number'],
-                    default: 'normal',
-                    description: 'Font weight: CSS keyword (normal, bold) or numeric value (100–900)',
-                    examples: ['normal', 'bold', 100, 300, 400, 700, 900]
-                },
-                font_family: {
-                    type: 'string',
-                    format: 'font-family',
-                    description: 'CSS font-family (single font, comma-separated stack, or CSS variable)',
-                    examples: ['Arial', 'lcards_title', 'Antonio, sans-serif', '"Roboto Mono", monospace', 'var(--lcars-font), Antonio, sans-serif']
-                },
-                text_transform: {
-                    type: 'string',
-                    enum: ['none', 'uppercase', 'lowercase', 'capitalize'],
-                    default: 'none',
-                    description: 'Text transformation',
-                    enumDescriptions: [
-                        'No transformation (original case)',
-                        'ALL UPPERCASE',
-                        'all lowercase',
-                        'Capitalize First Letter'
-                    ]
-                },
-                anchor: {
-                    type: 'string',
-                    enum: ['start', 'middle', 'end'],
-                    default: 'middle',
-                    description: 'Horizontal text alignment',
-                    enumDescriptions: [
-                        'Left-aligned',
-                        'Center-aligned',
-                        'Right-aligned'
-                    ]
-                },
-                baseline: {
-                    type: 'string',
-                    enum: ['hanging', 'middle', 'central', 'alphabetic'],
-                    default: 'middle',
-                    description: 'Vertical text alignment',
-                    enumDescriptions: [
-                        'Top of text box',
-                        'Center of text box',
-                        'Mathematical center',
-                        'Bottom of text (baseline)'
-                    ]
-                },
-                template: {
-                    type: 'boolean',
-                    default: true,
-                    description: 'Template evaluation is enabled by default for this field’s content (e.g. {entity.state}, {{ states(...) }}, [[[ ... ]]]). Set to false to render {...} / [[[...]]] text literally without evaluating it.'
-                },
-                stretch: {
-                    oneOf: [
-                        {
-                            type: 'boolean',
-                            description: 'true = stretch text to fill 100% of the available width'
-                        },
-                        {
-                            type: 'number',
-                            minimum: 0,
-                            maximum: 1,
-                            description: 'Fraction of available width to stretch text to (0–1)'
-                        }
-                    ],
-                    description: 'Stretch text to fill a fraction of the available width using SVG textLength / lengthAdjust="spacingAndGlyphs". true = 100%, 0.8 = 80%.',
-                    'x-ui-hints': {
-                        label: 'Stretch Text',
-                        helper: 'Expand or compress glyph spacing to fill the specified width fraction'
-                    }
-                },
-                font_size_percent: {
-                    type: 'number',
-                    minimum: 1,
-                    maximum: 100,
-                    description: 'Font size as a percentage of the text area height (component mode). Overrides font_size when set.',
-                    'x-ui-hints': {
-                        label: 'Font Size (%)',
-                        helper: 'Sets font size relative to the text area height. 50 = 50% of the area height.',
-                        selector: {
-                            number: {
-                                mode: 'slider',
-                                min: 1,
-                                max: 100,
-                                step: 1,
-                                unit_of_measurement: '%'
-                            }
-                        }
-                    }
-                },
-                cap_height_ratio: {
-                    type: 'number',
-                    minimum: 0.1,
-                    maximum: 1.0,
-                    description: 'Ratio of the font cap-height to the em-square. Used to correct font_size_percent so visible glyph height matches the requested percentage. Defaults to the theme token value (0.86 for Antonio). Override when using a different font.',
-                    'x-ui-hints': {
-                        label: 'Cap Height Ratio',
-                        helper: 'Correction factor for font_size_percent. Antonio = 0.86. 1.0 = no correction. Lower values increase rendered font-size.',
-                        selector: {
-                            number: {
-                                mode: 'box',
-                                min: 0.1,
-                                max: 1.0,
-                                step: 0.01
-                            }
-                        }
-                    }
-                },
-                zone: {
-                    type: 'string',
-                    description: 'Named zone key to route this text field to. For component cards this matches a key in the component\'s zones map. For slider/elbow cards this matches a named layout zone (e.g. left, track, vertical_bar). Defaults to the first zone if not set.',
-                    'x-ui-hints': {
-                        label: 'Zone',
-                        helper: 'Which named layout zone this text field is routed to'
-                    }
-                },
-                display_format: {
-                    type: 'string',
-                    enum: ['friendly', 'raw', 'parts', 'unit'],
-                    default: 'friendly',
-                    description: 'How to format entity state or attribute values in this text field. "friendly" (default) uses Home Assistant\'s translated display string matching native cards. "raw" returns the unmodified state/attribute value. "parts" joins value and unit from Home Assistant\'s ToParts API. "unit" returns only the unit portion.',
-                    examples: ['friendly', 'raw', 'parts', 'unit'],
-                    'x-ui-hints': {
-                        label: 'Display Format',
-                        helper: 'friendly = translated by Home Assistant (e.g. "Open"), raw = actual state (e.g. "on"), parts = value+unit joined, unit = unit only'
-                    }
-                },
-                background: stateColorSchema,
-                background_padding: {
-                    type: 'number',
-                    minimum: 0,
-                    default: 8,
-                    description: 'Horizontal padding between text glyphs and the background rect edges (px).',
-                    'x-ui-hints': {
-                        label: 'Background Padding',
-                        selector: { number: { mode: 'box', min: 0, max: 100, step: 1, unit_of_measurement: 'px' } }
-                    }
-                },
-                background_radius: {
-                    type: 'number',
-                    minimum: 0,
-                    default: 4,
-                    description: 'Corner radius of the background rect (px).',
-                    'x-ui-hints': {
-                        label: 'Background Corner Radius',
-                        selector: { number: { mode: 'box', min: 0, max: 50, step: 1, unit_of_measurement: 'px' } }
-                    }
-                },
-                background_width: {
-                    type: ['number', 'null'],
-                    minimum: 1,
-                    description: 'Fixed explicit width of the background rect (px). Overrides auto-sizing from text metrics. Text will overflow if content is wider than this value.',
-                    'x-ui-hints': {
-                        label: 'Background Width (Fixed)',
-                        helper: 'Pin to an exact px width. Use background_min_width for a safe lower bound with dynamic content.',
-                        selector: { number: { mode: 'box', min: 1, max: 2000, step: 1, unit_of_measurement: 'px' } }
-                    }
-                },
-                background_min_width: {
-                    type: ['number', 'null'],
-                    minimum: 1,
-                    description: 'Minimum width of the background rect (px). Auto-sizes to text width but never smaller than this value. Safe for dynamic content.',
-                    'x-ui-hints': {
-                        label: 'Background Min Width',
-                        helper: 'Auto-sizes with text but will not shrink below this value, so safe for dynamic content.',
-                        selector: { number: { mode: 'box', min: 1, max: 2000, step: 1, unit_of_measurement: 'px' } }
-                    }
-                }
-            }
+            properties: textFieldProperties({ positionEnum })
         }
     };
 }

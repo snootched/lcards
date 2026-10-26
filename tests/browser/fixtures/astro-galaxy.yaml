@@ -54,7 +54,7 @@ points:
     polar:
       - 75
       - 135
-    'y': 22
+    alt: 22
     label: FEDERATION
     style: major
     color: var(--lcars-blue)
@@ -62,7 +62,7 @@ points:
     polar:
       - 30
       - 345
-    'y': 44
+    alt: 44
     label: BORG SPACE
     style: major
     color: var(--lcars-green)
@@ -101,7 +101,7 @@ points:
     polar:
       - 72
       - 236
-    'y': 12
+    alt: 12
     marker: reticle
     label: NIMBUS III
     style: minor
@@ -109,7 +109,7 @@ points:
     latlon:
       - 10
       - 40
-    'on': planet
+    object: planet
     alt: 0.3
     marker: dot
     label: AWAY TEAM
@@ -119,7 +119,7 @@ points:
     latlon:
       - -20
       - 200
-    'on': planet
+    object: planet
     alt: 0.3
     marker: dot
     label: OUTPOST

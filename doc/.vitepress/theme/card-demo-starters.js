@@ -41,7 +41,7 @@ objects:
     cells:
       - { from: AF3, to: AH6, color: var(--lcars-blue), opacity: 0.3, shade: 0.4, border: true }
 points:
-  - { id: sb10, cell: AJ2, on: sectors, marker: triangle, label: Starbase 10 }
+  - { id: sb10, cell: AJ2, object: sectors, marker: triangle, label: Starbase 10 }
 ` },
     { key: 'sky', label: 'Sky dome', yaml: `type: custom:lcards-astrometrics-card
 height: 340
@@ -50,11 +50,11 @@ camera:
     horizon: { target: [0, 15, 0], yaw: 180, tilt: 28, distance: 260 }
 objects:
   - { type: grid, id: sky, shape: dome, radius: 100, line_spacing_deg: 15 }
-  - { type: path, sky: sun, on: sky, dash: [6, 4], color: var(--lcars-yellow) }
+  - { type: path, sky: sun, object: sky, dash: [6, 4], color: var(--lcars-yellow) }
 points:
-  - { id: sun, sky: sun, on: sky, marker: reticle, label: SOL }
-  - { id: moon, sky: moon, on: sky, marker: moon_phase, label: LUNA }
-  - { id: s, altaz: [180, 0], on: sky, alt: 6, label: S, style: major }
+  - { id: sun, sky: sun, object: sky, marker: reticle, label: SOL }
+  - { id: moon, sky: moon, object: sky, marker: moon_phase, label: LUNA }
+  - { id: south, altaz: [180, 0], object: sky, label: S, style: major, overlap: true }
 ` },
   ],
   'lcards-button': [

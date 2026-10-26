@@ -116,6 +116,8 @@ export class HATemplateEvaluator extends TemplateEvaluator {
           type: 'render_template',
           template: template,
           variables: {
+            // Card-supplied names (e.g. sky, point) as top-level variables
+            ...(this.context.extra && typeof this.context.extra === 'object' ? this.context.extra : {}),
             config: this.context.config,
             user: this.context.hass?.user?.name,
             variables: this.context.variables

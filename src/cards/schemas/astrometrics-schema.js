@@ -20,11 +20,13 @@
 import {
     actionSchema, simpleColorSchema, backgroundAnimationSchema, gridOptionsSchema, cardIdSchema, tagsSchema,
     cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema,
-    cardMaxWidthSchema, cardZIndexSchema, rulesSchema, soundsSchema
+    cardMaxWidthSchema, cardZIndexSchema, rulesSchema, soundsSchema, stateColorSchema, textFieldProperties, entitySchema,
+    stateClassificationSchema, triggersUpdateSchema, dataSourcesSchema
 } from './common-schemas.js';
 import {
     OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES
 } from '../../core/astrometrics/names.js';
+import { LABEL_POSITION_NAMES, LABEL_OMITTED_KEYS } from '../../core/astrometrics/label-text.js';
 
 // ── Small building blocks ────────────────────────────────────────────────────
 
@@ -156,7 +158,81 @@ const starsSchema = {
     ]
 };
 
+// ── Label text (the LCARdS text system) ─────────────────────────────────────
+
+/** A label style name: a built-in or one declared in labels.styles */
+const styleNameSchema = (/** @type {string} */ description) => ({
+    type: 'string',
+    description,
+    examples: [...LABEL_STYLE_NAMES]
+});
+
+/** The text-field keys a point label takes, worded for labels round a point */
+const labelFieldProperties = textFieldProperties({
+    positionEnum: LABEL_POSITION_NAMES,
+    omit: [...LABEL_OMITTED_KEYS],
+    descriptions: {
+        content: 'Text of this field. Templates are evaluated (the point\'s entity is entity; sky and point are available too); template: false shows it as written.',
+        position: 'Where this field sits round the point: center (on it), center-right (right of the marker), top-left, bottom-center, ... (right, left, top, bottom are short for the middle ones). Fields with the same position stack. Default center-right with a marker, center without.',
+        padding: 'Moves the field, px: a number for every side, or { top, right, bottom, left }.',
+        color: 'Text colour: a colour or a state map by the point\'s entity (default, active, inactive, unavailable, a state name, above:N, ...). A selected key colours the field while the point is selected. CSS variables stay live, so alert modes recolour.',
+        background: 'A box behind the text (the LCARS bar-break label): a colour or a state map, as color.',
+        background_padding: 'Space between the text and the sides of its background box, px.',
+        rotation: 'Turn the field, degrees.',
+        font_size: 'Font size: px (a number) or a CSS size (14px, 1.2rem, var(--lcars-text-size)).'
+    }
+});
+
+/** One label field, or text.default */
+const labelFieldSchema = {
+    type: 'object',
+    description: 'A text field of the label (the LCARdS text-field keys: content, font, colour, background, position round the point).',
+    properties: labelFieldProperties
+};
+
+/** A point's text: fields by name, with default under them */
+const pointTextSchema = {
+    type: 'object',
+    description: 'The label\'s text fields, as on other LCARdS cards: default holds keys every field inherits; every other key is a field (label is the main one; label: on the point is short for text.label.content).',
+    properties: { default: { ...labelFieldSchema, description: 'Keys every text field of this point inherits (not drawn itself).' } },
+    additionalProperties: labelFieldSchema
+};
+
+/** Generated labels (ring_labels, axis_labels): one field, styled by default */
+const generatedTextSchema = {
+    type: 'object',
+    description: 'Text keys for these labels (font, size, colour, background, ...): text.default applies to every one.',
+    properties: { default: { ...labelFieldSchema, description: 'Text keys every label of this set takes.' } }
+};
+
 // ── Points ───────────────────────────────────────────────────────────────────
+
+const bindingEntity = { ...entitySchema, description: 'The entity to read. Default: the point\'s entity.' };
+const attributeName = (/** @type {string} */ description) => ({ type: 'string', description });
+
+/**
+ * A placement form: the numbers, or where to read them (an entity's attributes).
+ * @param {number} n
+ * @param {string} description
+ * @param {Record<string, any>} binding - the binding's own keys
+ */
+const bindable = (n, description, binding) => ({
+    description,
+    oneOf: [
+        { type: 'array', items: { type: 'number' }, minItems: n, maxItems: n, description: 'The numbers.' },
+        {
+            type: 'object',
+            description: 'Read the numbers from an entity\'s attributes (state for its state). The point moves when they change and is hidden while one is missing.',
+            properties: { entity: bindingEntity, ...binding },
+            additionalProperties: false
+        }
+    ]
+});
+
+/** xyz / polar bindings: the attribute names in tuple order */
+const attributeList = (/** @type {number} */ n, /** @type {string} */ description) => ({
+    type: 'array', items: { type: 'string' }, minItems: n, maxItems: n, description
+});
 
 const pointSchema = {
     type: 'object',
@@ -165,24 +241,36 @@ const pointSchema = {
     properties: {
         id: { type: 'string', description: 'Unique name of the point (referenced by at, target, from, to, around, points).' },
         // placement forms
-        xyz: tuple(3, 'Position [x, y, z], scene units (y is up). With on: local to that object.'),
-        polar: tuple(2, 'Position on the scene plane as [distance, bearing]: bearing in degrees, 0 north, clockwise seen from above. With on: local to that object.'),
-        y: number('Height above the plane for polar, scene units. Default 0.'),
-        latlon: tuple(2, 'Latitude and longitude [lat, lon] in degrees on the sphere named in on. Longitude 0 faces the default camera, east to the right; the point turns with the sphere\'s spin.'),
-        altaz: tuple(2, 'Azimuth and altitude [azimuth, altitude] in degrees on the dome named in on: azimuth clockwise from north, altitude up from the horizon.'),
-        sky: { type: 'string', enum: [...SKY_BODIES], description: 'Follow the sun or moon on the dome named in on, from the time and the Home Assistant location (sun.sun when it exists). Updated every minute.' },
+        xyz: bindable(3, 'Position [x, y, z], scene units (y is up). With object: local to that object. Or { entity, attributes: [x, y, z] } to read it from an entity.', {
+            attributes: attributeList(3, 'The attributes holding x, y and z. Default [x, y, z].')
+        }),
+        polar: bindable(2, 'Position on the scene plane as [distance, bearing]: bearing in degrees, 0 north, clockwise seen from above; alt lifts it. With object: local to that object. Or { entity, attributes: [distance, bearing] }.', {
+            attributes: attributeList(2, 'The attributes holding the distance and bearing. Default [distance, bearing].')
+        }),
+        latlon: bindable(2, 'Latitude and longitude [lat, lon] in degrees on the sphere named in object. Longitude 0 faces the default camera, east to the right; the point turns with the sphere\'s spin. Or { entity } for a person, device tracker or zone (its latitude and longitude attributes).', {
+            latitude: attributeName('The attribute holding the latitude. Default latitude.'),
+            longitude: attributeName('The attribute holding the longitude. Default longitude.')
+        }),
+        altaz: bindable(2, 'Azimuth and altitude [azimuth, altitude] in degrees on the dome named in object: azimuth clockwise from north, altitude up from the horizon. Or { entity } (sun.sun: its azimuth and elevation attributes).', {
+            azimuth: attributeName('The attribute holding the azimuth. Default azimuth.'),
+            altitude: attributeName('The attribute holding the altitude. Default elevation.')
+        }),
+        sky: { type: 'string', enum: [...SKY_BODIES], description: 'Follow the sun or moon on the dome named in object, from the time and the Home Assistant location (sun.sun when it exists). Updated every minute.' },
         at: { type: 'string', description: 'Place it at another point (by id); add offset to move it from there.' },
-        cell: { type: 'string', description: 'The centre of a sector map cell, such as AF3, on the grid named in on (a plane grid; its axis_labels say how cells are named).' },
-        on: { type: 'string', description: 'The object the point stands on (an object id). Needed by latlon (a sphere), altaz and sky (a dome grid) and cell (a plane grid); with xyz or polar the point moves and spins with the object.' },
-        alt: number('Height above the surface of the object in on, scene units (latlon, altaz, sky).', { default: 0 }),
+        cell: { type: 'string', description: 'The centre of a sector map cell, such as AF3, on the grid named in object (a plane grid; its axis_labels say how cells are named).' },
+        object: { type: 'string', description: 'The object the point stands on (an object id). Needed by latlon (a sphere), altaz and sky (a dome grid) and cell (a plane grid); with xyz or polar the point moves and spins with the object.' },
+        alt: number('Height above the surface of the object in object (latlon, altaz, sky), or above the plane (polar), scene units.', { default: 0 }),
         offset: tuple(3, 'Moves the point by [x, y, z] scene units from where its form puts it.'),
         // label and marker
-        label: { type: ['string', 'number'], description: 'Text shown at the point (LCARS font). Leave out for a marker only, or for a point that only anchors other things.' },
-        style: { type: 'string', enum: [...LABEL_STYLE_NAMES], default: 'minor', description: 'Label size: title (34 px), major (20 px), minor (13 px) or tiny (10 px). Larger styles win when labels overlap.' },
+        entity: { ...entitySchema, description: 'The point\'s entity: its templates read it as entity, state colour maps follow its state, more-info and toggle actions use it, and latlon / altaz / xyz / polar can take their values from it.' },
+        tags: { ...tagsSchema, description: 'Tags for rules: a rule on tag:<name> patches every point with the tag.' },
+        label: { type: ['string', 'number'], description: 'Text shown at the point: short for text.label.content. Leave out for a marker only, or for a point that only anchors other things.' },
+        text: pointTextSchema,
+        style: styleNameSchema('Label style: a built-in (title 34 px, major 20 px, minor 13 px, tiny 10 px; larger ones win when labels overlap) or one of yours in labels.styles. Default minor.'),
         marker: { type: 'string', enum: [...MARKERS], default: 'none', description: 'Marker drawn at the point: dot, triangle, diamond, square, reticle (a target ring), moon_phase (the moon\'s lit part, from the sky) or none. A point with a marker can be tapped.' },
-        color: color('Label and marker colour (CSS variables stay live, so alert modes recolour them). Default by style: moonlight for title and major, the theme text colour for minor and tiny.'),
-        anchor: { type: 'string', enum: ['center', 'right', 'left'], description: 'Where the label sits: center on the point, right or left of it. Default right with a marker, center without.' },
-        priority: number('Which label wins when two overlap (higher wins; then the nearer one). Default by style: title 100, major 80, minor 40, tiny 10.'),
+        color: { ...stateColorSchema, description: 'The point\'s colour: the marker, and the default for its text fields. A colour or a state map by the point\'s entity (a selected key while it is selected). CSS variables stay live, so alert modes recolour. Default by style: moonlight for title and major, the theme text colour for minor and tiny.' },
+        priority: number('Which label wins when two overlap (higher wins; then the nearer one). Default by style: title 100, major 80, minor 40, tiny 10 (labels.styles can set its own).'),
+        overlap: { type: 'boolean', description: 'When labels overlap, this one is never hidden: it still moves to the other side of its point when that is free, else it shows where it is (over the other one). Default: the style\'s, else labels.overlap (false).' },
         fade: tuple(2, 'Distance fade [start, end], scene units from the camera: fully shown nearer than start, gone past end.'),
         min_distance: number('Hidden when the camera is closer than this, scene units.', { minimum: 0 }),
         max_distance: number('Hidden when the camera is farther than this, scene units (detail that appears as you zoom in).', { minimum: 0 }),
@@ -257,9 +345,10 @@ const gridObject = {
                 step: number('A label every N degrees.', { exclusiveMinimum: 0, default: 10 }),
                 radius: number('Distance of the labels from the centre, scene units. Default 1.06 x radius.', { minimum: 0 }),
                 start: number('First bearing labelled, degrees.', { default: 0 }),
-                y: number('Height of the labels, scene units.', { default: 0 }),
-                style: { type: 'string', enum: [...LABEL_STYLE_NAMES], default: 'minor', description: 'Label size.' },
-                color: color('Label colour.')
+                alt: number('Height of the labels above the plane, scene units.', { default: 0 }),
+                style: styleNameSchema('Label style (built-in or labels.styles). Default minor.'),
+                color: color('Label colour.'),
+                text: generatedTextSchema
             }
         },
         axis_labels: {
@@ -273,8 +362,9 @@ const gridObject = {
                 pad: { type: 'integer', minimum: 0, description: 'Zero-pad numbers to this many digits. Default: the widest label, at least 2 (01, 02, ...); 0 turns it off.' },
                 every: { type: 'integer', minimum: 1, default: 1, description: 'Label every Nth column and row.' },
                 offset: number('Distance of the labels outside the edge, scene units. Default 0.6 x line_spacing.', { minimum: 0 }),
-                style: { type: 'string', enum: [...LABEL_STYLE_NAMES], default: 'tiny', description: 'Label size.' },
-                color: color('Label colour.')
+                style: styleNameSchema('Label style (built-in or labels.styles). Default tiny.'),
+                color: color('Label colour.'),
+                text: generatedTextSchema
             }
         },
         cells: {
@@ -334,9 +424,9 @@ const volumeObject = {
                 ring: number('sector: radial cell size, scene units. Default a quarter of the depth.', { exclusiveMinimum: 0 }),
                 angle: number('sector: cell width round, degrees.', { exclusiveMinimum: 0, default: 10 }),
                 layer: number('sector: cell height, scene units. Default half the height.', { exclusiveMinimum: 0 }),
-                x: number('box: cell size along x, scene units. Default a quarter of the width.', { exclusiveMinimum: 0 }),
-                y: number('box: cell size along y. Default a quarter of the height.', { exclusiveMinimum: 0 }),
-                z: number('box: cell size along z. Default a quarter of the depth.', { exclusiveMinimum: 0 })
+                width: number('box: cell size across (x), scene units. Default a quarter of the width.', { exclusiveMinimum: 0 }),
+                height: number('box: cell size up (y), scene units. Default a quarter of the height.', { exclusiveMinimum: 0 }),
+                depth: number('box: cell size along z, scene units. Default a quarter of the depth.', { exclusiveMinimum: 0 })
             }
         },
         color: color('Colour of the faces and edges. Default var(--lcars-blue).'),
@@ -363,7 +453,7 @@ const sphereObject = {
         ...gridLook,
         fill: color('Body colour. Default black.'),
         fill_opacity: number('Body opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 0.85 }),
-        image: { type: 'string', description: 'Your own texture for the body (an equirectangular map URL, e.g. /local/mars.jpg), instead of fill. Longitude 0 is the middle of the image.' },
+        image: { type: 'string', description: 'A texture for the body instead of fill: an equirectangular map, longitude 0 in the middle. builtin:earth_blue_marble is the Earth (NASA Blue Marble, shipped with LCARdS); or your own, e.g. /local/mars.jpg.', examples: ['builtin:earth_blue_marble', '/local/mars.jpg'] },
         image_opacity: number('Texture opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
         occlude: { type: 'boolean', default: true, description: 'Hide labels behind the sphere.' }
     }
@@ -411,8 +501,8 @@ const pathObject = {
         from: pointRef('Start (instead of points).'),
         to: pointRef('End (instead of points).'),
         arc: number('Arch each leg upward by this height at its middle, scene units (0: straight).', { default: 0 }),
-        sky: { type: 'string', enum: [...SKY_BODIES], description: 'Draw today\'s track of the sun or moon on the dome in on, split where it goes under the horizon.' },
-        on: { type: 'string', description: 'sky: the dome grid the track is drawn on.' },
+        sky: { type: 'string', enum: [...SKY_BODIES], description: 'Draw today\'s track of the sun or moon on the dome named in object, split where it goes under the horizon.' },
+        object: { type: 'string', description: 'sky: the dome grid the track is drawn on.' },
         span: { type: 'string', enum: ['today'], description: 'sky: which track (only today, midnight to midnight local time).' },
         alt: number('sky: height above the dome, scene units.', { default: 0 }),
         ...lineCommon,
@@ -446,7 +536,7 @@ const imageObject = {
         src: { type: 'string', description: 'Image URL, e.g. /local/galaxy.jpg.' },
         size: numberOrPair('Width and depth [w, d], scene units (one number for a square); a disc takes the width as its diameter. Default 200.'),
         shape: { type: 'string', enum: [...IMAGE_SHAPES], default: 'plane', description: 'plane (a rectangle) or disc.' },
-        y: number('Height, scene units (just under the plane by default, so grids draw over it).', { default: -0.01 }),
+        alt: number('Height above the plane, scene units (just under it by default, so grids draw over it).', { default: -0.01 }),
         blend: { ...blendAdd, description: 'add: black in the image becomes see-through (a photo of space on black). Default normal.' }
     }
 };
@@ -499,8 +589,23 @@ export const astrometricsSchema = {
         background_animation: backgroundAnimationSchema,
         labels: {
             type: 'object',
-            description: 'How labels are drawn.',
+            description: 'How labels are drawn: text defaults for every label, your own label styles, pixel snapping.',
             properties: {
+                default: { ...labelFieldSchema, description: 'Text keys every label on this card inherits (font_family, text_transform, letter_spacing, ...), over the built-in styles.' },
+                styles: {
+                    type: 'object',
+                    description: 'Label styles by name: change a built-in (title, major, minor, tiny) or add your own; a point picks one with style.',
+                    additionalProperties: {
+                        type: 'object',
+                        description: 'A label style: text keys (font_size, color, font_weight, ...) and priority.',
+                        properties: {
+                            ...labelFieldProperties,
+                            priority: number('Which label wins when two overlap (higher wins).'),
+                            overlap: { type: 'boolean', description: 'Labels of this style are never hidden by another label (they still move to a free side when they can).' }
+                        }
+                    }
+                },
+                overlap: { type: 'boolean', default: false, description: 'Every label on the card: never hidden when labels overlap (each still moves to a free side of its point when it can). false hides the lower-priority one, which keeps busy scenes readable. A style or a point can set its own.' },
                 snap: { type: 'boolean', default: false, description: 'Round label positions to whole px (crisper text on weak devices; fast motion looks steppier). Default: sub-pixel.' }
             }
         },
@@ -520,6 +625,9 @@ export const astrometricsSchema = {
         z_index: cardZIndexSchema,
         rules: rulesSchema,
         sounds: soundsSchema,
+        state_classification: stateClassificationSchema,
+        triggers_update: triggersUpdateSchema,
+        data_sources: dataSourcesSchema,
         variables: {
             type: 'object',
             description: 'Your own named values, available to templates as variables.<name> and {variables.<name>}.',

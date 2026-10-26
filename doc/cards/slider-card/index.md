@@ -383,7 +383,7 @@ drag_badge:
     show_unit: true
     unit: ""              # blank = use the track's display unit
   font_size: 14
-  offset: { x: 0, y: 0 }
+  offset: { x: 0, "y": 0 }   # quoted: Home Assistant's editor reads a bare y as true
   color:
     default: "var(--lcars-text-light)"
   background:

@@ -16,7 +16,7 @@ const near = (v, xyz, eps = 1e-6) => {
 
 test('polar: bearing 0 is north (-z), 90 east (+x), clockwise from above', () => {
   const p = new Placements({ points: [
-    { id: 'n', polar: [10, 0] }, { id: 'e', polar: [10, 90] }, { id: 's', polar: [10, 180] }, { id: 'w', polar: [10, 270], y: 3 }
+    { id: 'n', polar: [10, 0] }, { id: 'e', polar: [10, 90] }, { id: 's', polar: [10, 180] }, { id: 'w', polar: [10, 270], alt: 3 }
   ] });
   near(p.get('n'), [0, 0, -10]);
   near(p.get('e'), [10, 0, 0]);
@@ -40,7 +40,7 @@ test('altaz on a dome: azimuth like polar, altitude up, radius + alt', () => {
   dome.position.set(0, 5, 0);
   dome.updateMatrixWorld();
   const p = new Placements({ points: [
-    { id: 'n', altaz: [0, 0], on: 'sky', alt: 10 }, { id: 'zenith', altaz: [123, 90], on: 'sky' }, { id: 'e45', altaz: [90, 45], on: 'sky' }
+    { id: 'n', altaz: [0, 0], object: 'sky', alt: 10 }, { id: 'zenith', altaz: [123, 90], object: 'sky' }, { id: 'e45', altaz: [90, 45], object: 'sky' }
   ], hosts: new Map([['sky', { node: dome, radius: 100 }]]) });
   near(p.get('n'), [0, 5, -110]);
   near(p.get('zenith'), [0, 105, 0], 1e-4);
@@ -54,7 +54,7 @@ test('latlon: lon 0 faces +z (the default camera), east to the right; follows a 
   planet.updateMatrixWorld();
   const hosts = new Map([['planet', { node: planet, radius: 5, moving: true }]]);
   const p = new Placements({ points: [
-    { id: 'front', latlon: [0, 0], on: 'planet' }, { id: 'east', latlon: [0, 90], on: 'planet' }, { id: 'pole', latlon: [90, 0], on: 'planet', alt: 1 }
+    { id: 'front', latlon: [0, 0], object: 'planet' }, { id: 'east', latlon: [0, 90], object: 'planet' }, { id: 'pole', latlon: [90, 0], object: 'planet', alt: 1 }
   ], hosts });
   near(p.get('front'), [10, 0, 5]);
   near(p.get('east'), [15, 0, 0]);
@@ -80,7 +80,7 @@ test('sky: the body altaz from the sky state; dynamic', () => {
   const dome = new Group();
   dome.updateMatrixWorld();
   let sky = { sun: { azimuth: 90, altitude: 0 }, moon: { azimuth: 180, altitude: 30 } };
-  const p = new Placements({ points: [{ id: 'sun', sky: 'sun', on: 'dome' }, { id: 'moon', sky: 'moon', on: 'dome' }, { id: 'tag', at: 'sun', offset: [0, 2, 0] }],
+  const p = new Placements({ points: [{ id: 'sun', sky: 'sun', object: 'dome' }, { id: 'moon', sky: 'moon', object: 'dome' }, { id: 'tag', at: 'sun', offset: [0, 2, 0] }],
     hosts: new Map([['dome', { node: dome, radius: 50 }]]), sky: () => /** @type {any} */ (sky) });
   near(p.get('sun'), [50, 0, 0]);
   near(p.get('tag'), [50, 2, 0]);
@@ -97,7 +97,7 @@ test('cell: the host turns a code into a local centre; unknown host or cell is n
   const grid = new Group();
   grid.position.set(100, 0, 0);
   grid.updateMatrixWorld();
-  const p = new Placements({ points: [{ id: 'x', cell: 'B2', on: 'map', offset: [0, 1, 0] }, { id: 'bad', cell: 'Z9', on: 'map' }, { id: 'lost', cell: 'A1', on: 'nothing' }],
+  const p = new Placements({ points: [{ id: 'x', cell: 'B2', object: 'map', offset: [0, 1, 0] }, { id: 'bad', cell: 'Z9', object: 'map' }, { id: 'lost', cell: 'A1', object: 'nothing' }],
     hosts: new Map([['map', { node: grid, cellPoint: (code) => (code === 'B2' ? new Vector3(5, 0, 5) : null) }]]) });
   near(p.get('x'), [105, 1, 5]);
   assert.equal(p.get('bad'), null);

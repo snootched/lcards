@@ -28,11 +28,16 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { CameraRig, viewToKeys, parseLimits, DEFAULT_KEYS } from './camera-rig.js';
 import { LabelLayer } from './label-layer.js';
 import { markerSvg } from './markers.js';
-import { buildScene, LABEL_COLORS } from './scene-builder.js';
+import { buildScene, makeLabelItem } from './scene-builder.js';
+import { BINDABLE_FORMS } from './placements.js';
 import { skyState } from './sky.js';
 import { num } from './objects/common.js';
 
 const DEG = Math.PI / 180;
+/** Point keys that place it: a rule patch on one moves the point */
+const PLACE_KEYS = ['xyz', 'polar', 'latlon', 'altaz', 'sky', 'at', 'cell', 'object', 'alt', 'offset'];
+/** Point keys that shape its label: a rule patch on one rebuilds that label */
+const LABEL_KEYS = ['label', 'text', 'style', 'color', 'marker', 'priority', 'overlap', 'fade', 'min_distance', 'max_distance', 'tap_action'];
 /** The sun crosses its own width in about 2 minutes: recompute the sky this often */
 const SKY_INTERVAL_MS = 60_000;
 /** A press this long is a hold (Home Assistant's hold time); a tap must be shorter */
@@ -55,6 +60,15 @@ const TAP_SLOP = 6;
  * @property {(hit: AstroTapHit) => boolean | void} [onTap] - return true when handled (else a point flies to itself)
  * @property {(hit: AstroTapHit) => void} [onHold] - a press held HOLD_MS within the tap distance, on a point or an object with a `hold_action`
  * @property {(reason: string) => void} [onFail] - no WebGL, or the context was lost
+ * @property {(sky: import('./sky.js').SkyState) => void} [onSky] - the sky changed (a recompute that moved the sun or moon, at most once a minute); for label templates that read it
+ */
+
+/**
+ * Run-time label values the card resolves (templates, state colours), CSS values.
+ * @typedef {Object} AstroLabelValues
+ * @property {string} [color] - the point's colour (marker)
+ * @property {string} [selectedColor]
+ * @property {Record<string, { text?: string, color?: string, selectedColor?: string, background?: string }>} [fields]
  */
 
 /**
@@ -64,6 +78,10 @@ const TAP_SLOP = 6;
  * @property {(view: string | Record<string, any>, opts?: { duration?: number }) => Promise<void>} flyTo
  * @property {() => void} requestFrame
  * @property {() => void} recolor - re-resolve theme colours (theme or alert change)
+ * @property {(values: Record<string, AstroLabelValues>) => void} setLabelValues - label text and colours by point id (no rebuild)
+ * @property {(values: Record<string, Record<string, number[] | null>>) => void} updatePoints - positions from entities by point id (no rebuild)
+ * @property {(patches: { points?: Record<string, any>, objects?: Record<string, any> }) => void} patch - rule effects on points and objects (no world rebuild)
+ * @property {() => import('./sky.js').SkyState | null} sky - the sky now (null when nothing follows the sky)
  * @property {() => void} dispose
  * @property {() => any} debug - state for tests and the console
  */
@@ -116,6 +134,14 @@ export function createAstroScene(host, config, options = {}) {
   let reduced = prefersReducedMotion();
   /** @type {string | null} */
   let selected = null;
+  /** @type {Map<string, AstroLabelValues>} */
+  const labelValues = new Map();
+  /** @type {Map<string, Record<string, number[] | null>>} positions from entities, by point id */
+  const boundValues = new Map();
+  /** @type {Map<string, number>} label opacity from rules (visible: false is 0), by point id */
+  const pointAlpha = new Map();
+  let builds = 0;
+  let objectBuilds = 0;
   /** @type {import('./sky.js').SkyState | null} */
   let sky = null;
   let usesSky = false;
@@ -143,7 +169,11 @@ export function createAstroScene(host, config, options = {}) {
     places: null,
     sky: () => sky,
     requestFrame: () => requestFrame(),
-    loadTexture: (url) => {
+    loadTexture: (src) => {
+      // builtin:<key>: an image from the LCARdS image library (builtin:earth_blue_marble)
+      const key = src.startsWith('builtin:') ? src.slice('builtin:'.length) : null;
+      const url = key ? (window.lcards?.core?.assetManager?.resolveImageUrl?.(key) ?? '') : src;
+      if (key && !url) lcardsLog.warn(`[Astrometrics] no built-in image '${key}'`);
       const t = loader.load(url, () => requestFrame(), undefined, () => lcardsLog.warn(`[Astrometrics] could not load image ${url}`));
       textures.add(t);
       return t;
@@ -176,6 +206,7 @@ export function createAstroScene(host, config, options = {}) {
     sky = next;
     if (changed) {
       for (const it of labels.items) if (it.marker === 'moon_phase') labels.style(it.id, { svg: markerSvg('moon_phase', sky.moon) });
+      options.onSky?.(sky);
     }
     return changed;
   }
@@ -199,14 +230,19 @@ export function createAstroScene(host, config, options = {}) {
     world = null;
     ready = false;
     ctx.places = null;
-    usesSky = (Array.isArray(cfg.points) && cfg.points.some((p) => p?.sky)) || (Array.isArray(cfg.objects) && cfg.objects.some((o) => o?.sky));
+    // The sky clock runs for sky points and paths, and for label templates that read sky.*
+    usesSky = (Array.isArray(cfg.points) && cfg.points.some((p) => p?.sky || /\bsky\./.test(JSON.stringify(p?.text ?? p?.label ?? ''))))
+      || (Array.isArray(cfg.objects) && cfg.objects.some((o) => o?.sky));
     if (usesSky) refreshSky();
     world = buildScene(cfg, ctx, { cssColor });
+    builds++;
     labels.snap = cfg.labels?.snap === true;
     labels.setItems(world.labels);
-    for (const it of world.labels) {
-      labels.style(it.id, { color: it.id === selected ? cssColor(null, LABEL_COLORS.selected) : it.color, svg: markerSvg(it.marker, sky?.moon) });
-    }
+    for (const it of world.labels) if (it.marker !== 'none') labels.style(it.id, { svg: markerSvg(it.marker, sky?.moon) });
+    labels.select(selected);
+    // What the card resolved before this build (templates, state colours, entity positions) stays
+    for (const [id, v] of labelValues) labels.style(id, v);
+    for (const [id, forms] of boundValues) for (const [form, value] of Object.entries(forms)) world.places.setPosition(id, /** @type {any} */ (form), value);
     for (const b of world.list) for (const f of b.gridFaces) {
       const u = f.userData.uniforms;
       f.userData.baseWidths ??= [u.uWidthMinor.value, u.uWidthMajor.value];
@@ -317,11 +353,11 @@ export function createAstroScene(host, config, options = {}) {
     for (const it of labels.items) {
       const def = /** @type {any} */ (it).def;
       it.world = world.places.get(it.id);
-      it.alphaScale = 1;
+      it.alphaScale = pointAlpha.get(it.id) ?? 1;
       const alt = def.sky ? sky?.[/** @type {'sun' | 'moon'} */ (def.sky)]?.altitude : Array.isArray(def.altaz) ? Number(def.altaz[1]) : undefined;
       if (alt !== undefined && alt < 0) {
         const mode = def.below_horizon ?? (def.sky ? 'dim' : 'show');
-        it.alphaScale = mode === 'hide' ? 0 : mode === 'dim' ? 0.35 : 1;
+        it.alphaScale *= mode === 'hide' ? 0 : mode === 'dim' ? 0.35 : 1;
       }
     }
     /** @type {import('./label-layer.js').Occluder[]} */
@@ -434,8 +470,98 @@ export function createAstroScene(host, config, options = {}) {
   function select(id) {
     selected = id;
     labels.select(id);
-    for (const it of labels.items) {
-      labels.style(it.id, { color: it.id === id ? cssColor(null, LABEL_COLORS.selected) : /** @type {any} */ (it).color });
+    requestFrame();
+  }
+
+  /**
+   * Rule effects, without rebuilding the world: new configs for some points
+   * and objects (the base config with the patch merged, or the base config
+   * again when a patch ends). A point's label is rebuilt only when a label
+   * key changed; visible / opacity act per frame; a position form moves it.
+   * An object's visible toggles it; any other change rebuilds that object.
+   * @param {{ points?: Record<string, any>, objects?: Record<string, any> }} patches
+   */
+  function patch({ points = {}, objects = {} } = {}) {
+    if (!world) return;
+    const w = world;
+    // Keep the config in step, so a rebuild (alert mode) keeps the rule effects
+    cfg = {
+      ...cfg,
+      points: Array.isArray(cfg.points) ? cfg.points.map((p) => (p && points[String(p.id)] !== undefined ? points[String(p.id)] : p)) : cfg.points,
+      objects: Array.isArray(cfg.objects) ? cfg.objects.map((o) => (o && o.id !== undefined && objects[String(o.id)] !== undefined ? objects[String(o.id)] : o)) : cfg.objects
+    };
+    for (const [id, def] of Object.entries(points)) {
+      const old = w.places.configs.get(id);
+      if (!old || !def) continue;
+      if (PLACE_KEYS.some((k) => JSON.stringify(old[k]) !== JSON.stringify(def[k]))) {
+        w.places.replaceDef(id, def);
+        for (const [form, value] of Object.entries(boundValues.get(id) ?? {})) w.places.setPosition(id, /** @type {any} */ (form), value);
+      }
+      if (LABEL_KEYS.some((k) => JSON.stringify(old[k]) !== JSON.stringify(def[k]))) {
+        if (!PLACE_KEYS.some((k) => JSON.stringify(old[k]) !== JSON.stringify(def[k]))) w.places.configs.set(id, { ...def, id });
+        const item = makeLabelItem({ ...def, id }, cfg.labels, cssColor);
+        labelValues.delete(id);
+        if (item) {
+          labels.upsertItem(item);
+          if (item.marker !== 'none') labels.style(id, { svg: markerSvg(item.marker, sky?.moon) });
+        } else labels.removeItem(id);
+        const i = w.labels.findIndex((l) => l.id === id);
+        if (i >= 0 && item) w.labels[i] = item;
+        else if (i >= 0) w.labels.splice(i, 1);
+        else if (item) w.labels.push(item);
+      }
+      const alpha = def.visible === false ? 0 : def.opacity !== undefined ? Math.min(1, Math.max(0, num(def.opacity, 1))) : 1;
+      if (alpha === 1) pointAlpha.delete(id);
+      else pointAlpha.set(id, alpha);
+    }
+    for (const [id, next] of Object.entries(objects)) {
+      const b = w.objects.get(id);
+      if (!b || !next) continue;
+      const { visible: _a, ...restOld } = b.config;
+      const { visible: _b, ...restNew } = next;
+      if (JSON.stringify(restOld) === JSON.stringify(restNew)) {
+        const g = w.outer.get(b);
+        if (g) g.visible = next.visible !== false;
+        b.config = { ...next, id };
+      } else if (w.rebuildObject(id, next)) {
+        objectBuilds++;
+        renderer?.compileAsync(w.scene, rig.camera).catch(() => {}).then(() => requestFrame());
+      }
+    }
+    requestFrame();
+  }
+
+  /**
+   * Positions from entities, by point id: `{ shuttle: { latlon: [lat, lon] } }`
+   * (null: no position until the next value). No rebuild: one frame.
+   * @param {Record<string, Record<string, number[] | null>>} values
+   */
+  function updatePoints(values) {
+    for (const [id, forms] of Object.entries(values ?? {})) {
+      const keep = { ...(boundValues.get(id) ?? {}) };
+      for (const [form, value] of Object.entries(forms ?? {})) {
+        if (!BINDABLE_FORMS.includes(/** @type {any} */ (form))) continue;
+        keep[form] = value;
+        world?.places.setPosition(id, /** @type {any} */ (form), value);
+      }
+      boundValues.set(id, keep);
+    }
+    requestFrame();
+  }
+
+  /**
+   * Label values from the card (evaluated templates, state colours), by
+   * point id; merged into what was set before and kept across rebuilds.
+   * @param {Record<string, import('./scene-runtime.js').AstroLabelValues>} values
+   */
+  function setLabelValues(values) {
+    for (const [id, v] of Object.entries(values ?? {})) {
+      const prev = labelValues.get(id) ?? {};
+      const fields = { ...(prev.fields ?? {}) };
+      for (const [name, f] of Object.entries(v.fields ?? {})) fields[name] = { ...(fields[name] ?? {}), ...f };
+      const next = { ...prev, ...v, fields };
+      labelValues.set(id, next);
+      labels.style(id, v);
     }
     requestFrame();
   }
@@ -510,6 +636,10 @@ export function createAstroScene(host, config, options = {}) {
     },
     flyTo,
     requestFrame,
+    setLabelValues,
+    updatePoints,
+    patch,
+    sky: () => sky,
     recolor() {
       build();
     },
@@ -537,6 +667,8 @@ export function createAstroScene(host, config, options = {}) {
     debug() {
       return {
         frames,
+        builds,
+        objectBuilds,
         ready,
         failed,
         keys: { ...rig.keys },
@@ -546,6 +678,7 @@ export function createAstroScene(host, config, options = {}) {
         world,
         rig,
         labelItems: labels.items,
+        labelLayer: labels,
         tap,
         hold
       };

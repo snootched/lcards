@@ -52,12 +52,12 @@ objects:
 points:
   - id: ufp
     cell: AG4
-    'on': sectors
+    object: sectors
     label: UNITED FEDERATION OF PLANETS
     style: major
   - id: sb10
     cell: AJ2
-    'on': sectors
+    object: sectors
     offset:
       - 8
       - 0
@@ -66,12 +66,12 @@ points:
     label: Starbase 10
   - id: achernar
     cell: AN3
-    'on': sectors
+    object: sectors
     marker: diamond
     label: Achernar
   - id: qualor
     cell: AL6
-    'on': sectors
+    object: sectors
     marker: dot
     label: Qualor
     style: tiny

@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PerspectiveCamera, OrthographicCamera, Vector3 } from 'three';
-import { layoutLabels, labelItem, pickLabel } from '../../src/core/astrometrics/label-layer.js';
+import { layoutLabels, labelItem, pickLabel, labelBox } from '../../src/core/astrometrics/label-layer.js';
 
 /** Camera at (0, 0, 100) looking at the origin, 800 x 600 */
 function camera() {
@@ -127,12 +127,77 @@ test('pickLabel: nearest visible pickable within 18 px', () => {
   assert.equal(pickLabel([a, b, c], 10, 10), null);
 });
 
-test('labelItem defaults: style priority, anchor right with a marker, centre without', () => {
-  const t = labelItem({ id: 't', style: 'title' });
-  assert.equal(t.priority, 100);
-  assert.equal(t.anchor, 'center');
-  const m = labelItem({ id: 'm', marker: 'dot' });
-  assert.equal(m.style, 'minor');
-  assert.equal(m.anchor, 'right');
-  assert.equal(labelItem({ id: 'x', style: /** @type {any} */ ('huge') }).style, 'minor');
+test('labelItem defaults: style priority, unknown style falls back to minor priority', () => {
+  assert.equal(labelItem({ id: 't', style: 'title' }).priority, 100);
+  assert.equal(labelItem({ id: 'm', marker: 'dot' }).style, 'minor');
+  assert.equal(labelItem({ id: 'x', style: 'mine' }).priority, 40);
+});
+
+test('layoutLabels: the measured anchor (ax, ay) is the point inside the box', () => {
+  const a = item('a', [0, 0, 0]);
+  Object.assign(a, { w: 100, h: 20, ax: 10, ay: 10 });
+  const b = item('b', [0, 0, 0]);
+  Object.assign(b, { w: 100, h: 20, ax: 10, ay: 10, priority: 1 });
+  layoutLabels([a, b], camera(), 800, 600);
+  // both boxes start 10 px left of the point: they overlap, the lower priority is culled
+  assert.equal(a.visible, true);
+  assert.equal(b.reason, 'culled');
+});
+
+test('layoutLabels: an empty label (no marker, no text yet) is not laid out', () => {
+  const a = item('a', [0, 0, 0], { empty: true });
+  layoutLabels([a], camera(), 800, 600);
+  assert.equal(a.visible, false);
+  assert.equal(a.reason, 'off');
+});
+
+test('a label that would be culled is mirrored first: to the left of its point', () => {
+  const right = (id, world, extra = {}) => Object.assign(item(id, world, extra), { w: 100, h: 20, ax: 5, ay: 10, fields: [{ name: 'label', position: 'center-right' }] });
+  // px per scene unit along x for this camera
+  const probe = right('p', [1, 0, 0]);
+  const origin = right('o', [0, 0, 0]);
+  layoutLabels([probe, origin], camera(), 800, 600);
+  const pxPerUnit = probe.sx - origin.sx;
+  const a = right('a', [0, 0, 0], { priority: 50 });
+  // b's point 50 px left of a's: its text to the right runs into a, to the left it is free
+  const b = right('b', [-50 / pxPerUnit, 0, 0], { priority: 10 });
+  layoutLabels([a, b], camera(), 800, 600);
+  assert.equal(a.flip, 0);
+  assert.equal(b.visible, true, 'not culled');
+  assert.equal(b.flip, 1, 'mirrored to the left of the point');
+  assert.deepEqual(labelBox(b, 1).map(Math.round), [Math.round(b.sx - 95), Math.round(b.sy - 10), Math.round(b.sx + 5), Math.round(b.sy + 10)]);
+  // a centred label cannot mirror: at a's point it is culled
+  const c = Object.assign(item('c', [0, 0, 0], { priority: 1 }), { w: 40, h: 20, fields: [{ name: 'label', position: 'center' }] });
+  layoutLabels([a, b, c], camera(), 800, 600);
+  assert.equal(c.reason, 'culled');
+});
+
+test('a mirrored label goes back as configured once there is room to spare', () => {
+  const lone = Object.assign(item('x', [0, 0, 0]), { w: 100, h: 20, ax: 5, ay: 10, flip: 1, fields: [{ name: 'label', position: 'center-right' }] });
+  layoutLabels([lone], camera(), 800, 600);
+  assert.equal(lone.flip, 0);
+});
+
+test('a label cut off by the card edge mirrors to stay on the card', () => {
+  const at = (id, world) => Object.assign(item(id, world), { w: 100, h: 20, ax: 5, ay: 10, fields: [{ name: 'label', position: 'center-right' }] });
+  const probe = at('p', [1, 0, 0]);
+  const origin = at('o', [0, 0, 0]);
+  layoutLabels([probe, origin], camera(), 800, 600);
+  // the point 60 px from the right edge: its label (95 px right of it) would be cut off
+  const near = at('n', [(800 - 60 - origin.sx) / (probe.sx - origin.sx), 0, 0]);
+  layoutLabels([near], camera(), 800, 600);
+  assert.equal(near.visible, true);
+  assert.equal(near.flip, 1);
+  assert.ok(labelBox(near, 1)[2] <= 800);
+});
+
+test('overlap: a label with nowhere to go is shown anyway instead of hidden', () => {
+  const at = (id, extra) => Object.assign(item(id, [0, 0, 0], extra), { w: 40, h: 20, fields: [{ name: 'label', position: 'center' }] });
+  const a = at('a', { priority: 50 });
+  const b = at('b', { priority: 10, overlap: true });
+  const c = at('c', { priority: 5 });
+  layoutLabels([a, b, c], camera(), 800, 600);
+  assert.equal(b.visible, true);
+  assert.equal(b.reason, 'ok');
+  assert.equal(c.reason, 'culled', 'labels without overlap still hide');
 });

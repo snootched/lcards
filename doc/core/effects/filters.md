@@ -56,7 +56,7 @@ filters:
   - type: drop-shadow
     value:
       x: 2px
-      y: 2px
+      "y": 2px
       blur: 6px
       color: "rgba(255, 100, 0, 0.6)"
 ```

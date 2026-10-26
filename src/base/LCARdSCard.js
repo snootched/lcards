@@ -2059,6 +2059,11 @@ export class LCARdSCard extends LCARdSNativeCard {
      * Process template content with support for JavaScript, tokens, and Jinja2
      *
      * @param {string} template - Template string to process
+     * @param {Object} [options]
+     * @param {string} [options.displayFormat] - friendly (default), raw, parts or unit
+     * @param {string} [options.field] - provenance field path
+     * @param {any} [options.entity] - evaluate against this entity instead of the card's (null: none)
+     * @param {Record<string, any>} [options.extra] - more names for the template (tokens, JavaScript, Jinja2)
      * @returns {Promise<string>} Processed template
      * @protected
      */
@@ -2069,8 +2074,15 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         try {
             // Create evaluation context
+            // options.extra: card-supplied context (e.g. the astrometrics card's
+            // sky and point), visible to tokens, JavaScript and Jinja2 alike
+            const extra = options.extra && typeof options.extra === 'object' ? options.extra : null;
             const context = {
-                entity: this._entity,
+                ...(extra ?? {}),
+                ...(extra ? { extra } : {}),
+                // options.entity: evaluate against another entity than the card's
+                // (a per-item entity, such as an astrometrics point's)
+                entity: options.entity !== undefined ? options.entity : this._entity,
                 config: this.config,
                 hass: this.hass,
                 // Mirrors the `states` variable already available to [[[JS]]] templates
@@ -2114,7 +2126,7 @@ export class LCARdSCard extends LCARdSNativeCard {
 
             // Track template provenance: by field, with what the template refers to
             if (this._provenanceTracker && TemplateDetector.hasTemplates(template)) {
-                const refs = templateRefs(template, { entityId: this._entity?.entity_id });
+                const refs = templateRefs(template, { entityId: (options.entity !== undefined ? options.entity : this._entity)?.entity_id });
                 const types = TemplateDetector.detectTemplateTypes(template);
                 const processor = [
                     types.hasJavaScript && 'javascript',

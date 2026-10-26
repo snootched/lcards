@@ -27,6 +27,8 @@ Every named key except `default` is rendered as an SVG `<text>` element. Fields 
 
 All options in the per-field table below are also valid in `text.default` as shared defaults.
 
+The [astrometrics card](/cards/astrometrics/points#labels) puts the same fields on its point labels, placed round the point instead of in zones.
+
 ---
 
 ## Per-Field Options
@@ -37,7 +39,7 @@ All options in the per-field table below are also valid in `text.default` as sha
 | `show` | boolean | `true` | Show or hide this field |
 | `position` | string | from `default` | Grid position: see Position Values below |
 | `x` | number | - | Absolute X in pixels (overrides `position`) |
-| `y` | number | - | Absolute Y in pixels (overrides `position`) |
+| `y` | number | - | Absolute Y in pixels (overrides `position`). Write the key quoted, `"y": 20`, in Home Assistant's code editor, which reads a bare `y` as `true` |
 | `x_percent` | number | - | X as percentage of the **zone width** (0–100); `0` = left edge, `100` = right edge of the zone |
 | `y_percent` | number | - | Y as percentage of the **zone height** (0–100); `0` = top edge, `100` = bottom edge of the zone |
 | `font_size` | number / string | from `default` | Size in px, or CSS value (`14px`, `1.2rem`, `var(--lcars-text-size)`) |
@@ -45,6 +47,7 @@ All options in the per-field table below are also valid in `text.default` as sha
 | `font_weight` | string / number | `"normal"` | CSS font-weight keyword (`normal`, `bold`) or numeric (100–900) |
 | `font_family` | string | from `default` | CSS font-family or variable, e.g. `"Antonio, sans-serif"` or `var(--lcars-font)` |
 | `text_transform` | string | `"none"` | `none`, `uppercase`, `lowercase`, `capitalize` |
+| `letter_spacing` | number / string | `normal` | Space between letters: px as a number (`2`), or a CSS value (`0.1em`, `2px`) |
 | `color` | string / object | from `default` | Colour string or [state-based colour map](colours.md) |
 | `anchor` | string | `"middle"` | SVG horizontal alignment: `start` (left), `middle` (centre), `end` (right) |
 | `baseline` | string | `"middle"` | SVG vertical alignment: `hanging` (top), `middle`, `central`, `alphabetic` (bottom) |
@@ -287,7 +290,7 @@ You can define additional zones or override auto-calculated ones with `config.zo
 zones:
   sidebar:
     x: 0
-    y: 0
+    "y": 0                  # quoted: Home Assistant's editor reads a bare y as true
     width: 80
     height_percent: 100     # full card height, fixed 80 px wide
 
@@ -301,7 +304,7 @@ zones:
 | Key | Type | Description |
 |-----|------|-------------|
 | `x` | number (px) | Left edge in pixels |
-| `y` | number (px) | Top edge in pixels |
+| `y` | number (px) | Top edge in pixels (quote the key, `"y": 0`, in Home Assistant's code editor) |
 | `width` | number (px) | Width in pixels |
 | `height` | number (px) | Height in pixels |
 | `x_percent` | number (0–100) | Left edge as % of card width |
@@ -327,7 +330,7 @@ debug_zones: true
 zones:
   sidebar:
     x: 0
-    y: 0
+    "y": 0
     width: 60
     height_percent: 100
 ```

@@ -23,7 +23,7 @@ import { isTemplateString } from '../../src/utils/template-string.js';
 import { migrateChartConfig } from '../../src/charts/chart-config-migration.js';
 import { migrateDataGridConfig } from '../../src/data-grid/data-grid-config-migration.js';
 import { classifyThemePath } from './theme-token-rules.js';
-import { PLACEMENT_FORMS } from '../../src/core/astrometrics/names.js';
+import { PLACEMENT_FORMS, LABEL_STYLE_NAMES } from '../../src/core/astrometrics/names.js';
 
 /**
  * Keys every card accepts that card schemas don't list (HA / layout plumbing, and the
@@ -233,6 +233,26 @@ export function registryIssues(node, tag, reg) {
 }
 
 /**
+ * Home Assistant's code editor (card dialogs, the raw dashboard editor) reads
+ * YAML 1.1 since Home Assistant 2026.8: unquoted on, off, y, n, yes, no (any
+ * case) become true / false. A key `true` or a boolean where text belongs is
+ * almost always that.
+ */
+const YAML11_KEY_HINT = 'Home Assistant\'s code editor reads a bare y, on or yes as true and n, off or no as false: quote the key, as "y": 20';
+const YAML11_VALUE_HINT = 'Home Assistant\'s code editor reads a bare N, no, off, on, Y or yes as true or false: quote the value, as label: "N"';
+
+/**
+ * The value at an ajv instancePath (/a/0/b).
+ * @param {any} node
+ * @param {string} path
+ */
+function valueAt(node, path) {
+  let v = node;
+  for (const part of path.split('/').slice(1)) v = v?.[part.replace(/~1/g, '/').replace(/~0/g, '~')];
+  return v;
+}
+
+/**
  * Astrometrics references (all card-local): each point has exactly one placement
  * form, ids are unique, and every id a reference names exists: points (`at`,
  * `target`, path `points` / `from` / `to`, ring `around`, beam ends, object `at`),
@@ -281,6 +301,9 @@ export function astrometricsIssues(node) {
       if (cfg?.[key]?.view !== undefined) viewRef(`${path}.${key}.view`, cfg[key].view);
     }
   };
+  const userStyles = node.labels?.styles && typeof node.labels.styles === 'object' ? Object.keys(node.labels.styles) : [];
+  const styleNames = [...LABEL_STYLE_NAMES, ...userStyles];
+  const isStyle = (name) => styleNames.includes(name);
   const isDome = (o) => o?.type === 'grid' && (o.shape === 'dome' || o.shape === 'sphere');
   const isGlobe = (o) => o?.type === 'sphere' || (o?.type === 'grid' && o.shape === 'sphere');
 
@@ -291,15 +314,24 @@ export function astrometricsIssues(node) {
     if (forms.length === 0) err(at, `point "${p.id}" has no position (one of ${PLACEMENT_FORMS.join(', ')})`);
     if (forms.length > 1) err(at, `point "${p.id}" has more than one position (${forms.join(', ')}); use one`);
     if (p.at !== undefined) pointRef(`${at}.at`, p.at);
-    if (p.on !== undefined && isLiteral(p.on)) {
-      const host = objectIds.get(p.on);
-      if (!host) err(`${at}.on`, `no object "${p.on}"${suggest(p.on, [...objectIds.keys()])}`);
-      else if (p.latlon !== undefined && !isGlobe(host)) warn(`${at}.on`, `latlon stands on a sphere; "${p.on}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
-      else if ((p.altaz !== undefined || p.sky !== undefined) && !isDome(host)) warn(`${at}.on`, `${p.sky !== undefined ? 'sky' : 'altaz'} stands on a dome grid; "${p.on}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
-      else if (p.cell !== undefined && !(host.type === 'grid' && (host.shape ?? 'plane') === 'plane')) err(`${at}.on`, `cell needs a plane grid; "${p.on}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
+    for (const f of ['xyz', 'polar', 'latlon', 'altaz']) {
+      const b = p[f];
+      if (b && typeof b === 'object' && !Array.isArray(b) && !b.entity && !p.entity) {
+        err(`${at}.${f}`, `${f} reads an entity: give it entity:, or the point an entity`);
+      }
+    }
+    if (typeof p.style === 'string' && !isStyle(p.style)) {
+      warn(`${at}.style`, `no label style "${p.style}" (built-in: ${LABEL_STYLE_NAMES.join(', ')}; or declare it in labels.styles)${suggest(p.style, styleNames)}`);
+    }
+    if (p.object !== undefined && isLiteral(p.object)) {
+      const host = objectIds.get(p.object);
+      if (!host) err(`${at}.object`, `no object "${p.object}"${suggest(p.object, [...objectIds.keys()])}`);
+      else if (p.latlon !== undefined && !isGlobe(host)) warn(`${at}.object`, `latlon stands on a sphere; "${p.object}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
+      else if ((p.altaz !== undefined || p.sky !== undefined) && !isDome(host)) warn(`${at}.object`, `${p.sky !== undefined ? 'sky' : 'altaz'} stands on a dome grid; "${p.object}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
+      else if (p.cell !== undefined && !(host.type === 'grid' && (host.shape ?? 'plane') === 'plane')) err(`${at}.object`, `cell needs a plane grid; "${p.object}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
     } else if (p.cell !== undefined || p.latlon !== undefined || p.altaz !== undefined || p.sky !== undefined) {
       const form = ['cell', 'latlon', 'altaz', 'sky'].find(f => p[f] !== undefined);
-      err(at, `${form} needs on: (the object it stands on)`);
+      err(at, `${form} needs object: (the object it stands on)`);
     }
     actionViews(at, p);
   });
@@ -309,11 +341,15 @@ export function astrometricsIssues(node) {
     const at = `objects[${i}]`;
     if (o.at !== undefined) pointRef(`${at}.at`, o.at);
     if (o.type === 'ring' && o.around !== undefined) pointRef(`${at}.around`, o.around);
+    for (const key of ['ring_labels', 'axis_labels']) {
+      const st = o[key]?.style;
+      if (typeof st === 'string' && !isStyle(st)) warn(`${at}.${key}.style`, `no label style "${st}" (built-in: ${LABEL_STYLE_NAMES.join(', ')}; or declare it in labels.styles)${suggest(st, styleNames)}`);
+    }
     if (o.type === 'path' || o.type === 'beam') {
       for (const key of ['from', 'to']) if (o[key] !== undefined) pointRef(`${at}.${key}`, o[key]);
     }
     if (o.type === 'path' && Array.isArray(o.points)) o.points.forEach((r, k) => pointRef(`${at}.points[${k}]`, r));
-    if (o.type === 'path' && o.on !== undefined && isLiteral(o.on) && !objectIds.has(o.on)) err(`${at}.on`, `no object "${o.on}"${suggest(o.on, [...objectIds.keys()])}`);
+    if (o.type === 'path' && o.object !== undefined && isLiteral(o.object) && !objectIds.has(o.object)) err(`${at}.object`, `no object "${o.object}"${suggest(o.object, [...objectIds.keys()])}`);
     actionViews(at, o);
   });
 
@@ -419,7 +455,9 @@ export function createConfigValidator({ entries, registries = null }) {
     }
     const hints = new Map();
     for (const key of unknownKeys(node, raw.get(tag), '', [], true, hints)) {
-      add('error', 'unknown-key', key, `unknown key (not in the schema)${hints.has(key) ? ` (did you mean "${hints.get(key)}"?)` : ''}`);
+      const last = key.split('.').pop();
+      const yaml11 = last === 'true' || last === 'false' ? ` (${YAML11_KEY_HINT})` : '';
+      add('error', 'unknown-key', key, `unknown key (not in the schema)${hints.has(key) ? ` (did you mean "${hints.get(key)}"?)` : ''}${yaml11}`);
     }
     if (!validate(node)) {
       for (const err of validate.errors ?? []) {
@@ -430,7 +468,11 @@ export function createConfigValidator({ entries, registries = null }) {
           add('error', 'schema', `${p}.type`, `unknown type "${err.params.tagValue}" (one of ${types.join(', ')})${suggest(String(err.params.tagValue), types)}`);
           continue;
         }
-        add('error', 'schema', p, err.message ?? 'invalid');
+        // A bare N, no, off, on, y or yes arrives as true/false from Home Assistant's code editor
+        const value = valueAt(node, err.instancePath);
+        const wantsBoolean = [err.params?.type].flat().includes('boolean');
+        const yaml11 = err.keyword === 'type' && typeof value === 'boolean' && !wantsBoolean ? ` (${YAML11_VALUE_HINT})` : '';
+        add('error', 'schema', p, `${err.message ?? 'invalid'}${yaml11}`);
       }
     }
     if (registries) {

@@ -5,6 +5,7 @@
 import jsYaml from 'js-yaml'
 import { parseDocument, LineCounter } from 'yaml'
 import { createConfigValidator, collectLcardsNodes } from '../../../scripts/lib/config-validator.js'
+import { yaml11Differences, yaml11Message } from '../../../scripts/lib/yaml-11.js'
 import { docsFor } from '../../../src/editor/utils/yaml-docs-links.js'
 
 export { BROKEN_SAMPLE, FIXED_SAMPLE, SAMPLE_FIXES } from './config-checker-samples.js'
@@ -123,9 +124,14 @@ export function createChecker({ entries, registries = null }) {
       return node?.range ? lines.linePos(node.range[0]).line : null
     }
 
+    // Pasted into Home Assistant's code editor (YAML 1.1), a bare y / on / N means something else
+    const yaml11 = yaml11Differences(text)
     const cards = collectLcardsNodes(config).map(({ node, path, tag }) => {
       const base = splitPath(path)
-      const issues = friendlyIssues(validator.validateNode(node, tag, '')).map(issue => ({
+      const inCard = yaml11
+        .filter(d => !path || d.path === path || d.path.startsWith(`${path}.`) || d.path.startsWith(`${path}[`))
+        .map(d => ({ path: path ? d.path.slice(path.length).replace(/^\./, '') : d.path, tag, severity: 'warning', code: 'yaml-1.1', message: yaml11Message(d) }))
+      const issues = friendlyIssues([...inCard, ...validator.validateNode(node, tag, '')]).map(issue => ({
         ...issue,
         line: lineOf([...base, ...splitPath(issue.path)]),
         docs: docsLink(tag, issue.path),

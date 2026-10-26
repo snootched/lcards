@@ -12,8 +12,10 @@
  * @module core/astrometrics
  */
 export { createAstroScene } from './scene-runtime.js';
-export { buildScene, OBJECT_TYPES, LABEL_COLORS } from './scene-builder.js';
+export { buildScene, OBJECT_TYPES } from './scene-builder.js';
 export { MARKERS } from './markers.js';
 export { LABEL_STYLES } from './label-layer.js';
+export { resolveLabel, plainColor, selectedColor } from './label-text.js';
+export { labelSources, fieldNeedsUpdate, bindingValue, bindingEntity } from './point-data.js';
 export { GRID_SHAPES } from './objects/grid.js';
 export { skyState, sunPosition, moonPosition } from './sky.js';
