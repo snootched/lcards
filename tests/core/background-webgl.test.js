@@ -208,6 +208,36 @@ test('warp-starfield: one time uniform, streak from speed', () => {
   s.dispose();
 });
 
+test('warp-starfield spectrum: off by default, none on dots, full on long streaks; the shader shares the ramp with astrometrics', async () => {
+  const plain = warpScene.createScene({ params: { count: 20, seed: 2, streak: 1 }, colors: {} });
+  plain.seek(100, { speed: 8 });
+  assert.equal(plain.scene.children[0].material.uniforms.uSpectrum.value, 0, 'off unless spectrum: true');
+  plain.dispose();
+  const s = warpScene.createScene({ params: { count: 20, seed: 2, streak: 1, spectrum: true }, colors: {} });
+  const u = s.scene.children[0].material.uniforms;
+  s.seek(100, { speed: 1 });
+  assert.equal(u.uSpectrum.value, 0, 'dots keep their colour');
+  s.seek(200, { speed: 1.3 });
+  const partway = u.uSpectrum.value;
+  assert.ok(partway > 0 && partway < 1, `fades in (${partway})`);
+  s.seek(300, { speed: 6 });
+  assert.equal(u.uSpectrum.value, 1);
+  assert.ok(s.scene.children[0].material.fragmentShader.includes('vec4 warpSpectrum('));
+  assert.equal(u.uSpectrumDir.value, 1, 'Doppler by default: violet toward the tail');
+  const rev = warpScene.createScene({ params: { count: 20, seed: 2, spectrum: true, spectrum_direction: 'reverse' }, colors: {} });
+  rev.seek(100, { speed: 6 });
+  assert.equal(rev.scene.children[0].material.uniforms.uSpectrumDir.value, -1);
+  rev.dispose();
+  const { SPECTRUM_GLSL } = await import('../../src/core/packs/backgrounds/webgl/scenes/spectrum-glsl.js');
+  const { createStarField } = await import('../../src/core/astrometrics/star-field.js');
+  const field = createStarField({ positions: new Float32Array(3), sizes: new Float32Array(1), colors: new Float32Array(4) });
+  assert.ok(field.mesh.material.fragmentShader.includes(SPECTRUM_GLSL.trim()), 'one ramp for both');
+  assert.equal(field.mesh.material.uniforms.uSpectrumDir.value, 1);
+  const reversed = createStarField({ positions: new Float32Array(3), sizes: new Float32Array(1), colors: new Float32Array(4), spectrum: true, reverse: true });
+  assert.equal(reversed.mesh.material.uniforms.uSpectrumDir.value, -1);
+  s.dispose();
+});
+
 test('warp-starfield camera_roll banks the camera round its line of sight (and is animatable)', () => {
   const params = { count: 20, seed: 1, camera_roll: 30 };
   const s = warpScene.createScene({ params, colors: {} });

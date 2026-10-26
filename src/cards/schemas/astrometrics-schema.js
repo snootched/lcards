@@ -219,7 +219,8 @@ const starsSchema = {
                 opacity: number('Opacity of the whole star layer, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
                 seed: number('Random seed: the same seed places the same stars.', { default: 7 }),
                 streak: number('How long stars and dust streak during a warp fly-to (camera.warp or a view\'s warp); 0: never.', { minimum: 0, default: 1 }),
-                spectrum: { type: 'boolean', default: false, description: 'Streaks shade from red at the tail to violet at the head (a warp spectrum).' }
+                spectrum: { type: 'boolean', default: false, description: 'Streaks split into colour: a Doppler shift of each star\'s own colour, violet toward the tail and red toward the head (white stars show the whole rainbow).' },
+                spectrum_direction: { type: 'string', enum: ['doppler', 'reverse'], default: 'doppler', description: 'doppler: violet toward the tail, as a real Doppler shift. reverse: violet toward the head.' }
             }
         }
     ]
@@ -242,7 +243,8 @@ const dustSchema = {
                 colors: { type: 'array', items: simpleColorSchema, description: 'Several colours, picked at random per particle (wins over color).' },
                 opacity: number('Opacity of the whole layer, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
                 seed: number('Random seed.', { default: 7 }),
-                spectrum: { type: 'boolean', default: false, description: 'Streaks shade from red to violet.' }
+                spectrum: { type: 'boolean', default: false, description: 'Streaks split into colour (a Doppler shift, as on the stars).' },
+                spectrum_direction: { type: 'string', enum: ['doppler', 'reverse'], default: 'doppler', description: 'doppler: violet toward the tail. reverse: violet toward the head.' }
             }
         }
     ]

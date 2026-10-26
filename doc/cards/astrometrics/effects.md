@@ -124,8 +124,8 @@ objects:
 A fly-to with `warp` streaks the stars past the camera. Turn it on for every fly-to with `camera.warp: true`, or for one view with `warp: true` in that view (a point's or object's `view` takes it too). The streaks grow with the camera's speed and shrink back to stars as it lands.
 
 - `backdrop.stars.streak` scales the streaks (default 1; 0 never streaks).
-- `backdrop.stars.spectrum: true` shades each streak from red at its tail to violet at its head.
-- `backdrop.dust` adds faint particles round the scene. Unlike the stars at infinity they stay put as the camera moves, so every pan and fly-to shows depth, and they streak in a warp too. It takes the stars' keys (`count`, default 400; `min_radius`, `max_radius`, `min_opacity`, `max_opacity`, `colors`, `opacity`, `seed`, `spectrum`) plus `radius`, the ball they fill round the scene's centre (default 1.5 times the scene's size).
+- `backdrop.stars.spectrum: true` splits each streak into colour, as a Doppler shift of the star's own colour: violet toward the tail (nearer the direction of flight) and red toward the head. White stars show the whole rainbow; a blue star streaks green to violet, its tail fading as it shifts past violet, and a red star the other way. `spectrum_direction: reverse` puts violet at the head instead.
+- `backdrop.dust` adds faint particles round the scene. Unlike the stars at infinity they stay put as the camera moves, so every pan and fly-to shows depth, and they streak in a warp too. It takes the stars' keys (`count`, default 400; `min_radius`, `max_radius`, `min_opacity`, `max_opacity`, `colors`, `opacity`, `seed`, `spectrum`) plus `spectrum_direction` and `radius`, the ball they fill round the scene's centre (default 1.5 times the scene's size).
 
 ```yaml live
 type: custom:lcards-astrometrics-card

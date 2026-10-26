@@ -2,6 +2,11 @@
  * `warp-starfield` scene (lazy chunk): stars on an InstancedMesh flying at
  * the camera; streaks stretch with the effect's `speed`.
  *
+ * `spectrum: true` splits each streak into colour along its length, a
+ * Doppler shift of the star's own colour (violet toward the tail, red toward
+ * the head; `spectrum_direction: reverse` flips it), fading in as the dots
+ * stretch (spectrum-glsl.js).
+ *
  * Camera keys (`camera_tilt`, `camera_yaw`, `fov`) turn the view away from
  * the direction of travel: the stars stream from a point off centre, as when
  * a ship turns at warp. `camera_roll` turns the view round its own line of
@@ -21,6 +26,7 @@ import {
   InstancedBufferAttribute, Matrix4, AdditiveBlending, Color, Vector2
 } from 'three';
 import { seededRandom, toColor } from './scene-helpers.js';
+import { SPECTRUM_GLSL } from './spectrum-glsl.js';
 
 /** Depth of the star volume and how close stars come before wrapping */
 const DEPTH = 60;
@@ -43,7 +49,10 @@ attribute float aPhase;
 attribute float aRate;
 varying vec3 vColor;
 varying float vViewDepth;
+// 0 at the streak's tail, 1 at its head
+varying float vAlong;
 void main() {
+  vAlong = position.z + 1.0;
   vec4 base = instanceMatrix * vec4( position.xy * uScaleXY, 0.0, 1.0 );
   float travel = fract( aPhase + uTime * aRate / ${PASS_MS.toFixed(1)} );
   float z = mix( ${(-DEPTH).toFixed(1)}, ${NEAR.toFixed(1)}, travel ) + position.z * uStretch;
@@ -63,10 +72,33 @@ void main() {
 const SHADER_FRAG = /* glsl */ `
 varying vec3 vColor;
 varying float vViewDepth;
+varying float vAlong;
+// spectrum on, times how far the stars have stretched (dots keep their colour)
+uniform float uSpectrum;
+// 1: Doppler (violet at the tail), -1: reversed
+uniform float uSpectrumDir;
+${SPECTRUM_GLSL}
 void main() {
   float fade = ( 1.0 - smoothstep( ${(DEPTH * 0.45).toFixed(1)}, ${DEPTH.toFixed(1)}, vViewDepth ) ) * smoothstep( 0.0, ${NEAR_FADE.toFixed(1)}, vViewDepth );
-  gl_FragColor = vec4( vColor * fade, fade );
+  vec3 rgb = vColor;
+  // (a uniform branch: no spectrum maths per pixel while it is off or on dots)
+  if ( uSpectrum > 0.0 ) {
+    vec4 w = warpSpectrum( vColor, vAlong, uSpectrumDir );
+    rgb = mix( vColor, w.rgb, uSpectrum );
+    fade *= mix( 1.0, w.a, uSpectrum );
+  }
+  gl_FragColor = vec4( rgb * fade, fade );
 }`;
+
+/**
+ * How much of the spectrum shows at a streak stretch (`uStretch`): none on
+ * dots (0.05 at speed 1), full once the streaks are long.
+ * @param {number} stretch
+ */
+export function spectrumAt(stretch) {
+  const t = Math.max(0, Math.min(1, (stretch - 0.15) / (0.9 - 0.15)));
+  return t * t * (3 - 2 * t);
+}
 
 /**
  * @param {{ params: Record<string, any>, colors: Record<string, Array<{ r: number, g: number, b: number }>> }} opts
@@ -101,7 +133,7 @@ export function createScene({ params, colors }) {
   const scaleXY = { value: 0.01 };
   const dir = { value: new Vector2() };
   const material = new ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uStretch: stretch, uScaleXY: scaleXY, uDir: dir },
+    uniforms: { uTime: { value: 0 }, uStretch: stretch, uScaleXY: scaleXY, uDir: dir, uSpectrum: { value: 0 }, uSpectrumDir: { value: 1 } },
     vertexShader: SHADER_VERT,
     fragmentShader: SHADER_FRAG,
     transparent: true,
@@ -168,6 +200,9 @@ export function createScene({ params, colors }) {
       const warp = Math.max(0, (effect.speed ?? 1) - 1) * (params.streak ?? 1);
       stretch.value = 0.05 + warp * 0.9;
       material.uniforms.uTime.value = t;
+      // the spectrum fades in as the dots become streaks
+      material.uniforms.uSpectrum.value = params.spectrum ? spectrumAt(stretch.value) : 0;
+      material.uniforms.uSpectrumDir.value = params.spectrum_direction === 'reverse' ? -1 : 1;
     },
     /** @param {number} w @param {number} h */
     resize(w, h) {

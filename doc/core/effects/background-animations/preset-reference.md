@@ -1115,6 +1115,8 @@ config:
     - "var(--lcards-moonlight)"
     - "var(--lcards-blue-lightest)"
   streak: 1                  # Streak length per unit of speed above 1 (0 = dots)
+  spectrum: false            # Streaks split into colour (a Doppler shift)
+  spectrum_direction: doppler # doppler (violet toward the tail) or reverse
   speed: 1                   # How fast the stars fly
   seed: 1                    # Same seed, same layout
 ```
@@ -1125,6 +1127,8 @@ config:
 | `min_radius` / `max_radius` | 0.5 / 2 | Star size range |
 | `colors` / `color` | `var(--lcards-moonlight)` | Star colours; `color` sets one colour for every star (the key to animate). The default follows the alert palette; a fixed colour such as `#ffffff` does not |
 | `streak` | 1 | How long the streaks grow per unit of speed above 1. `0` keeps dots at any speed |
+| `spectrum` | `false` | Each streak splits into colour along its length, as in some TNG warp shots: a Doppler shift of the star's own colour, violet toward the tail (nearer the direction of travel) and red toward the head. White stars show the whole rainbow; a blue star streaks green to violet, its tail fading as it shifts past violet. It fades in as the dots stretch, so stars at `speed: 1` keep their colour |
+| `spectrum_direction` | `doppler` | `reverse` puts violet toward the head instead |
 | `speed` | 1 | Time multiplier |
 | `seed` | random | Star layout |
 | `camera_tilt` | 0 | Looks down (positive) or up from the direction of travel, in degrees (-40 to 40): the stars stream from a point higher or lower on the card |
@@ -1137,12 +1141,13 @@ Animatable: `speed`, `streak`, `camera_tilt`, `camera_yaw`, `camera_roll`, `fov`
 **Examples:**
 
 ```yaml
-# Dense warp field, warping while the alert mode is red
+# Dense warp field, warping while the alert mode is red (with the warp spectrum)
 - preset: warp-starfield
   transition: 2000
   config:
     count: 1200
     streak: 1.5
+    spectrum: true
     speed: "[[[ return states['input_select.lcards_alert_mode']?.state === 'red_alert' ? 8 : 1 ]]]"
 
 # Banking: the stars stream from left or right as a value moves

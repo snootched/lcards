@@ -42,7 +42,7 @@ function field(cfg, ctx, d) {
     sizes[i] = Math.max(0.5, (r0 + size * (r1 - r0)) * 2);
     cols.set([c[0], c[1], c[2], (c[3] ?? 1) * alpha], i * 4);
   }
-  return createStarField({ positions, sizes, colors: cols, opacity: num(cfg.opacity, 1), spectrum: cfg.spectrum === true });
+  return createStarField({ positions, sizes, colors: cols, opacity: num(cfg.opacity, 1), spectrum: cfg.spectrum === true, reverse: cfg.spectrum_direction === 'reverse' });
 }
 
 /** @param {() => number} rnd @param {number} R a uniform point on a sphere of radius R */

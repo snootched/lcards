@@ -120,7 +120,7 @@ test('names.js lists match what the runtime draws, and are published in the regi
 test('E6 effects: every new key validates, and settings that silently do nothing warn', () => {
     const good = {
         camera: { warp: true, views: { near: { target: [0, 0, 0], distance: 20, warp: false } } },
-        backdrop: { stars: { count: 500, streak: 2, spectrum: true }, dust: { count: 100, radius: 300 } },
+        backdrop: { stars: { count: 500, streak: 2, spectrum: true, spectrum_direction: 'reverse' }, dust: { count: 100, radius: 300, spectrum: true, spectrum_direction: 'doppler' } },
         points: [{ id: 'a', xyz: [0, 0, 0] }, { id: 'b', xyz: [10, 0, 0], view: { distance: 5, warp: true } }],
         objects: [
             { type: 'nebula', size: [200, 40], cloud_count: 6, colors: ['var(--lcars-violet)', 'var(--lcars-blue)'], turbulence: 0.7, drift: [2, 1], seed: 3 },

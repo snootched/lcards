@@ -29,7 +29,7 @@ export const GRID_VIEW_KEYS = [
  */
 export const SCHEMA_SECTIONS = {
   'warp-starfield': [
-    { header: 'Stars', icon: 'mdi:star-shooting', keys: ['seed', 'count', 'min_radius', 'max_radius', 'streak', 'opacity'] },
+    { header: 'Stars', icon: 'mdi:star-shooting', keys: ['seed', 'count', 'min_radius', 'max_radius', 'streak', 'spectrum', 'spectrum_direction', 'opacity'] },
     { header: 'Camera', icon: 'mdi:axis-arrow', keys: ['camera_tilt', 'camera_yaw', 'camera_roll', 'fov'] }
   ],
   'holo-sphere': [

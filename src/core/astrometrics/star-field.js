@@ -9,12 +9,13 @@
  * vertex shader projects the star and the star moved by `tail` (scene
  * units, opposite the camera's motion), so streaks point away from the
  * direction of flight, longer the faster the camera moves, faint at the
- * tail. `spectrum` shades a streak from red at the tail to violet at the
- * head (the TNG warp look).
+ * tail. `spectrum` Doppler shifts each star's own colour along its streak
+ * (violet toward the tail, red toward the head; the TNG warp look).
  *
  * @module core/astrometrics/star-field
  */
 import { InstancedBufferGeometry, InstancedBufferAttribute, Float32BufferAttribute, Uint16BufferAttribute, Mesh, ShaderMaterial, Vector2, Vector3 } from 'three';
+import { SPECTRUM_GLSL } from '../packs/backgrounds/webgl/scenes/spectrum-glsl.js';
 
 const VERT = /* glsl */ `
 attribute vec2 corner;
@@ -61,13 +62,10 @@ varying float vLen;
 varying float vR;
 uniform float uOpacity;
 uniform float uSpectrum;
+// 1: Doppler (violet at the tail), -1: reversed
+uniform float uSpectrumDir;
 
-// red at 0 to violet at 1 (hue 0 to 0.8)
-vec3 spectral( float x ) {
-  vec3 k = abs( mod( 0.8 * x * 6.0 + vec3( 0.0, 4.0, 2.0 ), 6.0 ) - 3.0 ) - 1.0;
-  return clamp( k, 0.0, 1.0 );
-}
-
+${SPECTRUM_GLSL}
 void main() {
   // distance to the streak (a segment along x from the tail, 0, to the head, vLen)
   float along = clamp( vQ.x, 0.0, vLen );
@@ -78,7 +76,14 @@ void main() {
   float streaking = smoothstep( 2.0, 24.0, vLen );
   // a streak fades toward its tail, and spreads its light thinner the longer it is
   a *= mix( 1.0, mix( 0.1, 1.0, f ) * 0.8, streaking );
-  vec3 rgb = mix( vColor.rgb, spectral( f ), uSpectrum * streaking );
+  // the star's own colour Doppler shifted along the streak (spectrum-glsl.js)
+  float k = uSpectrum * streaking;
+  vec3 rgb = vColor.rgb;
+  if ( k > 0.0 ) {
+    vec4 w = warpSpectrum( vColor.rgb, f, uSpectrumDir );
+    rgb = mix( vColor.rgb, w.rgb, k );
+    a *= mix( 1.0, w.a, k );
+  }
   gl_FragColor = vec4( rgb, a * vColor.a * uOpacity );
 }`;
 
@@ -90,11 +95,11 @@ void main() {
  */
 
 /**
- * @param {{ positions: Float32Array, sizes: Float32Array, colors: Float32Array, opacity?: number, spectrum?: boolean }} o -
- *   positions xyz, sizes px across, colors straight sRGB rgba
+ * @param {{ positions: Float32Array, sizes: Float32Array, colors: Float32Array, opacity?: number, spectrum?: boolean, reverse?: boolean }} o -
+ *   positions xyz, sizes px across, colors straight sRGB rgba; reverse flips the spectrum (violet at the head)
  * @returns {StarField}
  */
-export function createStarField({ positions, sizes, colors, opacity = 1, spectrum = false }) {
+export function createStarField({ positions, sizes, colors, opacity = 1, spectrum = false, reverse = false }) {
   const n = sizes.length;
   const geo = new InstancedBufferGeometry();
   // x: 0 tail .. 1 head; y: across
@@ -111,7 +116,8 @@ export function createStarField({ positions, sizes, colors, opacity = 1, spectru
     uRes: { value: new Vector2(1, 1) },
     uDpr: { value: 1 },
     uOpacity: { value: opacity },
-    uSpectrum: { value: spectrum ? 1 : 0 }
+    uSpectrum: { value: spectrum ? 1 : 0 },
+    uSpectrumDir: { value: reverse ? -1 : 1 }
   };
   const material = new ShaderMaterial({ uniforms: u, vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false });
   const mesh = new Mesh(geo, material);
