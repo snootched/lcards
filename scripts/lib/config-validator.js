@@ -357,6 +357,11 @@ export function astrometricsIssues(node) {
     if (!o || typeof o !== 'object') return;
     const at = `objects[${i}]`;
     if (o.at !== undefined) pointRef(`${at}.at`, o.at);
+    // E6 effects: settings that silently do nothing
+    if (o.type === 'sphere' && o.fill_effect && o.image !== undefined) warn(`${at}.image`, 'fill_effect paints the body: image is not shown');
+    if (['ring', 'path', 'beam'].includes(o.type) && o.flow_speed && !o.pulse && !(o.type !== 'beam' && Array.isArray(o.dash))) {
+      warn(`${at}.flow_speed`, 'flow_speed moves dashes or pulses: this line has neither (add dash or pulse)');
+    }
     if (o.type === 'ring' && o.around !== undefined) pointRef(`${at}.around`, o.around);
     for (const key of ['ring_labels', 'axis_labels']) {
       const st = o[key]?.style;
@@ -374,6 +379,9 @@ export function astrometricsIssues(node) {
     if (v?.target !== undefined) pointRef(`camera.views.${name}.target`, v.target);
   }
   if (node.camera?.view !== undefined) viewRef('camera.view', node.camera.view);
+  const warps = node.camera?.warp === true || Object.values(views).some((v) => v?.warp === true)
+    || points.some((p) => p?.view?.warp === true) || objects.some((o) => o?.view?.warp === true);
+  if (warps && !node.backdrop?.stars && !node.backdrop?.dust) warn('backdrop', 'warp streaks the stars and dust: add backdrop.stars or backdrop.dust');
   return out;
 }
 

@@ -4,9 +4,9 @@
  * Two outputs from the same entries (scripts/lib/card-schemas.js):
  *
  *  - Split files, for loading only what a task needs: one self-contained file per
- *    card / view / strategy, plus `shared/<name>.json` for the big subsystems every
- *    card embeds (rules, animations, background animations, state colours,
- *    filters). A card file references those with `{"$ref": "../shared/<name>.json"}`;
+ *    card / view / strategy, plus `shared/<name>.json` for the big subsystems
+ *    (rules, animations, background animations, state colours, filters, which
+ *    every card embeds; the astrometrics scene objects, one card's but large). A card file references those with `{"$ref": "../shared/<name>.json"}`;
  *    anything else it repeats goes into its own `$defs`.
  *  - One full bundle (`lcards-schema.json`), the same content with every reference
  *    pointing into a single top-level `$defs`.
@@ -17,6 +17,7 @@
  */
 
 import * as commonSchemas from '../../src/cards/schemas/common-schemas.js';
+import { objectSchema as astrometricsObjectSchema } from '../../src/cards/schemas/astrometrics-schema.js';
 
 /** Subsystems published as their own files: [file name, source schema]. */
 export const SHARED_MODULES = [
@@ -25,6 +26,7 @@ export const SHARED_MODULES = [
   ['background-animation', commonSchemas.backgroundAnimationSchema],
   ['state-color',          commonSchemas.stateColorSchema],
   ['filter',               commonSchemas.filterSchema],
+  ['astrometrics-objects', astrometricsObjectSchema],
 ];
 
 /** Repeated sub-schemas smaller than this stay inline (a $ref would save little). */

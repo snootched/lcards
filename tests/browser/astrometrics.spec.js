@@ -21,7 +21,7 @@ const sceneState = (page) => page.evaluate(() => {
     const s = /** @type {any} */ (document.querySelector('#mount > *'))?._scene?.debug();
     if (!s) return null;
     return {
-        ready: s.ready, failed: s.failed, frames: s.frames, keys: s.keys, projection: s.projection,
+        ready: s.ready, failed: s.failed, frames: s.frames, clock: s.clock, keys: s.keys, projection: s.projection,
         labels: s.labels, objects: s.world?.list.length ?? 0, shown: s.labelItems.filter((l) => l.visible).length
     };
 });
@@ -593,4 +593,26 @@ test('editor pick: the preview places a point on the next tap (xyz, a cell), Esc
     await expect(page.locator('lcards-astrometrics-card .astro-pick')).toHaveCount(0);
     expect(await page.evaluate(() => window.__list._picking)).toBe('');
     await expectNoErrors(page);
+});
+
+test('nebula: the effects chunk loads, a drifting nebula keeps drawing, reduced motion holds it', async ({ page }) => {
+    await mountCase(page, 'astro-nebula', { width: '800' });
+    await sceneReady(page);
+    const neb = await page.evaluate(() => {
+        const w = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world;
+        const b = w.objects.get('neb');
+        return b ? { type: b.type, ticks: typeof b.tick, pick: b.pickMeshes.length } : null;
+    });
+    expect(neb).toEqual({ type: 'nebula', ticks: 'function', pick: 0 });
+    const f0 = (await sceneState(page)).frames;
+    await expect.poll(async () => (await sceneState(page)).frames, { timeout: 5_000 }).toBeGreaterThan(f0 + 10);
+    // reduced motion: the clock stops and the scene comes to rest
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.waitForTimeout(300);
+    const held = await sceneState(page);
+    await page.waitForTimeout(400);
+    const later = await sceneState(page);
+    expect(held.clock).toBeGreaterThan(0);
+    expect(later.clock).toBe(held.clock);
+    expect(later.frames - held.frames).toBeLessThanOrEqual(1);
 });

@@ -256,6 +256,8 @@ export class CameraRig {
     /** @type {any} running fly-to tween */
     this._tween = null;
     this._tweenStart = 0;
+    /** True while a warp fly-to runs (the runtime streaks the stars) */
+    this.warp = false;
     this._tweenDuration = 0;
     /** @type {(() => void) | null} */
     this._tweenDone = null;
@@ -337,10 +339,11 @@ export class CameraRig {
   /**
    * Fly to keys (partial). Resolves when it lands (or is cancelled).
    * @param {Partial<CameraKeys>} to
-   * @param {{ duration?: number, ease?: any, projection?: 'perspective' | 'orthographic' }} [opts]
+   * @param {{ duration?: number, ease?: any, projection?: 'perspective' | 'orthographic', warp?: boolean }} [opts] -
+   *   warp: stars streak while it flies (`warp` is true until it lands)
    * @returns {Promise<void>}
    */
-  flyTo(to, { duration = 1600, ease = 'inOutCubic', projection } = {}) {
+  flyTo(to, { duration = 1600, ease = 'inOutCubic', projection, warp = false } = {}) {
     this.cancel();
     if (projection) this.projection = projection;
     const target = clampKeys({ ...this.keys, ...to }, this.limits);
@@ -353,6 +356,7 @@ export class CameraRig {
     this._tween = animate(this.keys, { ...target, duration, ease: /** @type {any} */ (resolveEasing(ease) ?? 'inOutCubic'), autoplay: false });
     this._tweenStart = -1;
     this._tweenDuration = duration;
+    this.warp = warp;
     this.onChange();
     return new Promise((resolve) => { this._tweenDone = resolve; });
   }
@@ -362,6 +366,7 @@ export class CameraRig {
     if (!this._tween) return;
     this._tween.cancel?.();
     this._tween = null;
+    this.warp = false;
     const done = this._tweenDone;
     this._tweenDone = null;
     done?.();
@@ -385,6 +390,7 @@ export class CameraRig {
     this._tween.seek(t);
     if (t < this._tweenDuration) return true;
     this._tween = null;
+    this.warp = false;
     const done = this._tweenDone;
     this._tweenDone = null;
     done?.();

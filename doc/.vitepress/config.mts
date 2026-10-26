@@ -570,6 +570,7 @@ export default withMermaid(defineConfig({
                 { text: 'Points',   link: '/cards/astrometrics/points' },
                 { text: 'Live data', link: '/cards/astrometrics/data' },
                 { text: 'Objects',  link: '/cards/astrometrics/objects' },
+                { text: 'Effects',  link: '/cards/astrometrics/effects' },
               ],
             },
           ],

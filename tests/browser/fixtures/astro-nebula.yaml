@@ -1,0 +1,11 @@
+# Astrometrics scene effects (astrometrics.spec.js): a drifting nebula over a
+# disc loads the effects chunk and keeps frames coming; reduced motion holds it.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: wide
+  views:
+    wide: { target: [0, 0, 0], yaw: 20, tilt: 25, distance: 300 }
+objects:
+  - { type: grid, shape: disc, radius: 100 }
+  - { type: nebula, id: neb, size: [200, 40], cloud_count: 5, seed: 5, drift: 3, colors: ["var(--lcars-blue, blue)", "var(--lcars-red, red)"] }

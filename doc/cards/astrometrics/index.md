@@ -186,6 +186,7 @@ camera:
   auto_rotate: 2              # degrees per second (0 = off)
   fly_duration: 1600          # ms
   ease: inOutCubic
+  warp: false                 # stars streak on every fly-to (or warp: true in one view)
 ```
 
 - `target` is a point id (the camera follows the point if it moves) or `[x, y, z]`.
@@ -246,7 +247,9 @@ backdrop:
     seed: 7
 ```
 
-`background_animation` takes any [background animation](/core/effects/background-animations) (a nebula, a warp starfield, a grid) as a flat layer behind the scene, as on the MSD card. It does not turn with the camera.
+`backdrop.dust` adds particles round the scene that stay put as the camera moves (depth on every move), and `streak` / `spectrum` shape the stars in a warp fly-to: see [Effects: warp and dust](./effects#warp-and-dust).
+
+`background_animation` takes any [background animation](/core/effects/background-animations) (a nebula, a warp starfield, a grid) as a flat layer behind the scene, as on the MSD card. It does not turn with the camera; for clouds in the scene itself use a [nebula object](./effects#nebula).
 
 ```yaml
 background_animation:
@@ -263,10 +266,10 @@ The card is the scene only. For an LCARS frame round it (an "ALPHA QUADRANT" bar
 | Option | What it does |
 |---|---|
 | `height` | Card height, px or CSS (default 400). The scene fills the card. |
-| `camera` | `view`, `views`, `controls`, `drag`, `pan`, `zoom_to`, `zoom_step`, `double_tap`, `buttons`, `limits`, `auto_rotate`, `fly_duration`, `ease` ([Camera and views](#camera-and-views), [Controls](#controls)) |
+| `camera` | `view`, `views`, `controls`, `drag`, `pan`, `zoom_to`, `zoom_step`, `double_tap`, `buttons`, `limits`, `auto_rotate`, `fly_duration`, `ease`, `warp` ([Camera and views](#camera-and-views), [Controls](#controls), [Effects: warp](./effects#warp-and-dust)) |
 | `points` | Named points with labels and markers ([Points](./points)) |
-| `objects` | What is drawn ([Objects](./objects)) |
-| `backdrop` | `stars` ([Backdrop](#backdrop)) |
+| `objects` | What is drawn ([Objects](./objects), [Effects](./effects)) |
+| `backdrop` | `stars`, `dust` ([Backdrop](#backdrop)) |
 | `background_animation` | Flat background effects behind the scene ([Backdrop](#backdrop)) |
 | `labels` | `default`, `styles`, `overlap`, `snap` ([Labels](#labels)) |
 | `state_classification`, `triggers_update`, `data_sources` | For point entities and label templates ([Live data](./data)) |
@@ -277,9 +280,9 @@ The [config checker](/getting-started/config-checker) also checks what the schem
 
 ## Performance and motion
 
-- **Render on demand:** the scene draws when the camera moves, a fly-to runs, an object spins, the sky timer ticks or the theme changes. A still scene draws nothing. Off screen and in a hidden tab nothing draws.
+- **Render on demand:** the scene draws when the camera moves, a fly-to runs, an object spins or an [effect](./effects) moves, the sky timer ticks or the theme changes. A still scene draws nothing. Off screen and in a hidden tab nothing draws.
 - **One WebGL context** for every astrometrics card and WebGL background on the page.
-- **Reduced motion** (the system setting): spin and `auto_rotate` stop, and fly-to jumps instead of flying.
+- **Reduced motion** (the system setting): spin, `auto_rotate` and every [effect](./effects) (drift, scans, moving dashes, fills) stop, and fly-to jumps instead of flying (no warp streaks).
 - **Alert modes** recolour the scene; labels follow the palette at once.
 
 ## When the 3D view is unavailable

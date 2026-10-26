@@ -10,7 +10,7 @@
 import { Group, Mesh, MeshBasicMaterial, SphereGeometry, SRGBColorSpace } from 'three';
 import { gridFace } from '../grid-mesh-material.js';
 import { sphereGeometry } from '../surface.js';
-import { built, num, gridLook, DEFAULT_COLORS } from './common.js';
+import { built, num, gridLook, scanTicker, combineTicks, fillFor, DEFAULT_COLORS } from './common.js';
 
 const DEG = Math.PI / 180;
 
@@ -33,22 +33,31 @@ export function buildSphere(cfg, ctx) {
   node.add(face);
   out.gridFaces.push(face);
 
-  const fillMat = new MeshBasicMaterial({ transparent: true, depthWrite: true });
-  if (cfg.image) {
-    fillMat.map = ctx.loadTexture(String(cfg.image));
-    if (fillMat.map) fillMat.map.colorSpace = SRGBColorSpace;
-    fillMat.opacity = num(cfg.image_opacity, 1);
-  } else {
-    const c = ctx.color(cfg.fill, DEFAULT_COLORS.fill);
-    fillMat.color.setRGB(c[0], c[1], c[2], SRGBColorSpace);
-    fillMat.opacity = num(cfg.fill_opacity, 0.85) * (c[3] ?? 1);
+  const baseColor = ctx.color(cfg.fill, DEFAULT_COLORS.fill);
+  // fill_effect paints the body (over the fill colour) and still writes depth
+  const effect = fillFor(cfg, ctx, { radius: R, base: [baseColor[0], baseColor[1], baseColor[2], num(cfg.fill_opacity, 0.85) * (baseColor[3] ?? 1)], solid: true });
+  /** @type {import('three').Material} */
+  let bodyMat;
+  if (effect) bodyMat = effect.material;
+  else {
+    const fillMat = new MeshBasicMaterial({ transparent: true, depthWrite: true });
+    if (cfg.image) {
+      fillMat.map = ctx.loadTexture(String(cfg.image));
+      if (fillMat.map) fillMat.map.colorSpace = SRGBColorSpace;
+      fillMat.opacity = num(cfg.image_opacity, 1);
+    } else {
+      fillMat.color.setRGB(baseColor[0], baseColor[1], baseColor[2], SRGBColorSpace);
+      fillMat.opacity = num(cfg.fill_opacity, 0.85) * (baseColor[3] ?? 1);
+    }
+    bodyMat = fillMat;
   }
   // Just inside the grid, so the near lines pass the depth test
-  const body = new Mesh(new SphereGeometry(R * 0.995, 64, 32), fillMat);
+  const body = new Mesh(new SphereGeometry(R * 0.995, 64, 32), bodyMat);
   // three's sphere has u = 0 at -x; turn it so the texture's centre faces +z (lon 0)
   body.rotation.y = -Math.PI / 2;
   body.renderOrder = 0;
   node.add(body);
   out.pickMeshes.push(body);
+  out.tick = combineTicks(scanTicker(cfg, ctx, out.gridFaces), effect?.tick);
   return out;
 }

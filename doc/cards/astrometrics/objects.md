@@ -1,5 +1,5 @@
 ---
-description: "Astrometrics card objects: grid surfaces (plane, disc, dome, sphere, cylinder), sector maps, territory volumes, planets, rings, routes, beams, images and glows."
+description: "Astrometrics card objects: grid surfaces (plane, disc, dome, sphere, cylinder), sector maps, territory volumes, planets, rings, routes, beams, images, glows and nebulae."
 ---
 
 # Objects
@@ -20,6 +20,8 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 | `tap_action`, `hold_action`, `view` | As on [points](./points#actions). An object without a `tap_action` is not tappable. |
 
 Colours are theme tokens (`theme:colors.ui.primary`), CSS variables (`var(--lcars-blue)`) or plain colours. Widths and dashes are px.
+
+Moving effects (nebula clouds, scan bands on grids, spheres and volumes, moving dashes and pulses on lines, animated fills on spheres and grids, warp streaks) are on the [Effects](./effects) page.
 
 ## grid
 
@@ -146,6 +148,10 @@ objects:
 ## beam
 
 A glowing straight line from `from` to `to` (point ids or `[x, y, z]`): a wide soft glow (`width`, px) round a thin bright core.
+
+## nebula
+
+Clouds of gas in the scene, in the look of the nebula background preset: `radius` or `size` (the region), `cloud_count`, `seed`, `colors`, `turbulence`, `drift`. See [Effects: nebula](./effects#nebula).
 
 ## glow
 

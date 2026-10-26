@@ -87,13 +87,14 @@ export async function buildRegistries() {
     ha_lcars_commit: haLcars.source.commit,
     // The LCARdS palette the integration injects as `--lcards-<name>` on every page.
     lcards_palette_vars: sorted(Object.keys(GREEN_ALERT_PALETTE).map(k => `lcards-${k}`)),
-    // lcards-astrometrics-card: object types, shapes, markers, label styles, placement forms.
+    // lcards-astrometrics-card: object types, shapes, fill effects, markers, label styles, placement forms.
     astrometrics: {
       object_types: [...astro.OBJECT_TYPES],
       grid_shapes: [...astro.GRID_SHAPES],
       grid_patterns: [...astro.GRID_PATTERNS],
       volume_shapes: [...astro.VOLUME_SHAPES],
       image_shapes: [...astro.IMAGE_SHAPES],
+      fill_effects: [...astro.FILL_EFFECTS],
       markers: [...astro.MARKERS],
       label_styles: [...astro.LABEL_STYLE_NAMES],
       sky_bodies: [...astro.SKY_BODIES],

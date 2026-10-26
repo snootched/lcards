@@ -13,7 +13,7 @@ import { gridFace } from '../grid-mesh-material.js';
 import { discGeometry, cylinderGeometry, radialWallGeometry, rectGeometry } from '../surface.js';
 import { FatLine } from '../lines.js';
 import { bearingXZ } from '../placements.js';
-import { built, num, pair, withOpacity, DEFAULT_COLORS } from './common.js';
+import { built, num, pair, withOpacity, scanTicker, DEFAULT_COLORS } from './common.js';
 
 const DEG = Math.PI / 180;
 
@@ -40,12 +40,16 @@ export function buildVolume(cfg, ctx) {
     pattern: /** @type {const} */ ('both'), cell, color: col, colorMajor: colMajor, widthMinor: width, widthMajor: width,
     back, opacity, additive: cfg.blend === 'add', ...extra
   });
-  /** @param {import('three').BufferGeometry} geo @param {any} l */
-  const face = (geo, l) => {
+  /** The faces whose t is height (walls): the scan band climbs them */
+  /** @type {import('three').Group[]} */
+  const walls = [];
+  /** @param {import('three').BufferGeometry} geo @param {any} l @param {boolean} [wall] */
+  const face = (geo, l, wall = false) => {
     const f = gridFace(geo, l);
     node.add(f);
     out.gridFaces.push(f);
     out.pickMeshes.push(...f.children);
+    if (wall) walls.push(f);
   };
   /** @type {number[][]} */
   const edges = [];
@@ -58,8 +62,8 @@ export function buildVolume(cfg, ctx) {
     const cz = num(cells.depth, d / 4);
     // top, bottom (s = x, t = z), front, back (x, y), sides (z, y)
     for (const y of [-h / 2, h / 2]) face(rectGeometry(w, d, (a, b) => [a, y, b]), look([cx, cz]));
-    for (const z of [-d / 2, d / 2]) face(rectGeometry(w, h, (a, b) => [a, b, z]), look([cx, cy]));
-    for (const x of [-w / 2, w / 2]) face(rectGeometry(d, h, (a, b) => [x, b, a]), look([cz, cy]));
+    for (const z of [-d / 2, d / 2]) face(rectGeometry(w, h, (a, b) => [a, b, z]), look([cx, cy]), true);
+    for (const x of [-w / 2, w / 2]) face(rectGeometry(d, h, (a, b) => [x, b, a]), look([cz, cy]), true);
     const X = [-w / 2, w / 2];
     const Y = [-h / 2, h / 2];
     const Z = [-d / 2, d / 2];
@@ -77,8 +81,8 @@ export function buildVolume(cfg, ctx) {
     const polar = { pattern: /** @type {const} */ ('polar'), planePolar: true, spokes: Math.round(360 / step), majorRow: 0, majorCol: 0 };
     for (const y of [y0, y1]) face(discGeometry({ r0, r1, a0, a1, y }), look([ring, ring], polar));
     // Curved walls: arcs every `step` degrees (s = arc), layers every `layer`
-    for (const r of [r0, r1]) if (r > 0) face(cylinderGeometry({ radius: r, y0, y1, a0, a1 }), look([r * step * DEG, layer]));
-    for (const a of [a0, a1]) face(radialWallGeometry({ r0, r1, a, y0, y1 }), look([ring, layer]));
+    for (const r of [r0, r1]) if (r > 0) face(cylinderGeometry({ radius: r, y0, y1, a0, a1 }), look([r * step * DEG, layer]), true);
+    for (const a of [a0, a1]) face(radialWallGeometry({ r0, r1, a, y0, y1 }), look([ring, layer]), true);
     const n = Math.max(8, Math.ceil(Math.abs(a1 - a0) / 2));
     /** @param {number} r @param {number} y */
     const arc = (r, y) => {
@@ -108,5 +112,7 @@ export function buildVolume(cfg, ctx) {
     node.add(line.object);
     out.lines.push(line);
   }
+  // the band climbs the walls (the caps keep their polar grid)
+  out.tick = scanTicker(cfg, ctx, walls);
   return out;
 }

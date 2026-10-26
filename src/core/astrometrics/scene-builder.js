@@ -21,7 +21,8 @@ import { buildGrid } from './objects/grid.js';
 import { buildVolume } from './objects/volume.js';
 import { buildSphere } from './objects/sphere.js';
 import { buildRing, buildPath, buildBeam } from './objects/lines.js';
-import { buildImage, buildStars } from './objects/image.js';
+import { buildImage } from './objects/image.js';
+import { buildStars, buildDust } from './objects/stars.js';
 import { buildGlow } from './objects/glow.js';
 import { applyRotation, disposeNode, num } from './objects/common.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
@@ -40,6 +41,7 @@ const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image
  * @property {any[]} pointDefs - generated + user, the user's last
  * @property {(import('./label-layer.js').LabelItem & { color: string, selectedColor: string, def: any, spec: import('./label-text.js').LabelSpec })[]} labels
  * @property {import('./objects/common.js').BuiltObject | null} stars
+ * @property {import('./objects/common.js').BuiltObject | null} dust
  * @property {Sphere} bounds - of the objects (for a default view)
  * @property {() => void} layout - one frame's placement pass: matrices, objects on points (`at`), then what reads moving points
  * @property {(id: string, cfg: any) => boolean} rebuildObject - build one object again from a new config (a rule patch), in place; false for an unknown id
@@ -134,7 +136,11 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   for (const cfg of cfgs) {
     const fn = FIRST[/** @type {keyof typeof FIRST} */ (cfg.type)];
     if (fn) add(cfg, (c) => fn(c, ctx));
-    else if (!OBJECT_TYPES.includes(cfg.type)) lcardsLog.warn(`[Astrometrics] unknown object type '${cfg.type}'`);
+    else if (cfg.type === 'nebula') {
+      const effects = ctx.effects;
+      if (effects) add(cfg, (c) => effects.buildNebula(c, ctx));
+      else lcardsLog.warn('[Astrometrics] nebula skipped: the effects chunk is not loaded');
+    } else if (!OBJECT_TYPES.includes(cfg.type)) lcardsLog.warn(`[Astrometrics] unknown object type '${cfg.type}'`);
   }
 
   /** @type {Map<string, import('./placements.js').PlacementHost>} */
@@ -157,8 +163,14 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   // Bounds before the first placement pass (a default view frames them)
   scene.updateMatrixWorld(true);
   const box = new Box3();
-  for (const b of list) if (b.type in FIRST) box.expandByObject(b.node);
+  for (const b of list) if (b.type in FIRST || b.type === 'nebula') box.expandByObject(b.node);
   const bounds = box.isEmpty() ? new Sphere(new Vector3(), 100) : box.getBoundingSphere(new Sphere());
+
+  // Dust round the scene (after the bounds: it fills them)
+  const dust = config?.backdrop?.dust
+    ? buildDust(config.backdrop.dust === true ? {} : config.backdrop.dust, ctx, { center: bounds.center.toArray(), radius: bounds.radius })
+    : null;
+  if (dust) scene.add(dust.node);
 
   // Labels: the last definition of an id wins (the user's over generated ones)
   /** @type {Map<string, any>} */
@@ -203,6 +215,7 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
     pointDefs,
     labels,
     stars,
+    dust,
     bounds,
     layout,
     rebuildObject(id, cfg) {

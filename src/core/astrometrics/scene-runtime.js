@@ -31,7 +31,10 @@ import { markerSvg } from './markers.js';
 import { buildScene, makeLabelItem } from './scene-builder.js';
 import { BINDABLE_FORMS } from './placements.js';
 import { skyState } from './sky.js';
-import { num } from './objects/common.js';
+import { warpTails } from './star-field.js';
+import { STAR_SHELL } from './objects/stars.js';
+import { num, stepObjects } from './objects/common.js';
+import { usesEffects } from './names.js';
 
 const DEG = Math.PI / 180;
 /** Point keys that place it: a rule patch on one moves the point */
@@ -108,7 +111,7 @@ const KEY_COMMANDS = {
  * @typedef {Object} AstroSceneApi
  * @property {(config: any) => void} setConfig
  * @property {(hass: any) => void} setHass
- * @property {(view: string | Record<string, any>, opts?: { duration?: number }) => Promise<void>} flyTo
+ * @property {(view: string | Record<string, any>, opts?: { duration?: number, warp?: boolean }) => Promise<void>} flyTo
  * @property {() => void} requestFrame
  * @property {() => void} recolor - re-resolve theme colours (theme or alert change)
  * @property {(command: string) => void} press - start a camera command (CAMERA_COMMANDS name, or `reset`): one step, then held motion
@@ -169,6 +172,10 @@ export function createAstroScene(host, config, options = {}) {
   let disposed = false;
   let last = 0;
   let frames = 0;
+  /** The scene clock (ms): object motion (drift, scan, flow) reads it; it holds under reduced motion */
+  let clock = 0;
+  /** @type {Vector3 | null} the camera position last frame (warp streaks) */
+  let lastCamera = null;
   let cssW = 1;
   let cssH = 1;
   let dpr = 1;
@@ -296,11 +303,27 @@ export function createAstroScene(host, config, options = {}) {
     rig.limits = parseLimits(cam.limits, sceneSphere());
   }
 
+  /** @type {Promise<void> | null} the effects chunk loading */
+  let effectsLoad = null;
+  /** Bumped per waiting build, so only the last one builds when the chunk arrives */
+  let effectsWait = 0;
+
   function build() {
     world?.dispose();
     world = null;
     ready = false;
     ctx.places = null;
+    // A nebula (or another noise effect) needs the effects chunk: build once it is in
+    // (null after a failed load: build without the effects)
+    if (usesEffects(cfg) && ctx.effects === undefined) {
+      effectsLoad ??= import('./effects/index.js').then((m) => { ctx.effects = m; }, (error) => {
+        lcardsLog.warn('[Astrometrics] could not load the scene effects:', error);
+        ctx.effects = null;
+      });
+      const gen = ++effectsWait;
+      effectsLoad.then(() => { if (!disposed && gen === effectsWait) build(); });
+      return;
+    }
     // The sky clock runs for sky points and paths, and for label templates that read sky.*
     usesSky = (Array.isArray(cfg.points) && cfg.points.some((p) => p?.sky || /\bsky\./.test(JSON.stringify(p?.text ?? p?.label ?? ''))))
       || (Array.isArray(cfg.objects) && cfg.objects.some((o) => o?.sky));
@@ -354,11 +377,7 @@ export function createAstroScene(host, config, options = {}) {
           f.userData.uniforms.uWidthMajor.value = major * dpr;
         }
       }
-      for (const pts of /** @type {any[]} */ (world.stars?.node.children ?? [])) {
-        if (!pts.material) continue;
-        pts.userData.baseSize ??= pts.material.size;
-        pts.material.size = pts.userData.baseSize * dpr;
-      }
+      for (const f of [world.stars?.field, world.dust?.field]) f?.setResolution(cssW, cssH, dpr);
     }
     labels.invalidateSizes();
     requestFrame();
@@ -380,11 +399,8 @@ export function createAstroScene(host, config, options = {}) {
     last = now;
     let moving = false;
     if (!reduced) {
-      for (const b of world.list) {
-        if (!b.spin) continue;
-        b.node.rotation.y += b.spin * DEG * (dt / 1000);
-        moving = true;
-      }
+      clock += dt;
+      moving = stepObjects(world.list, dt, clock);
       const auto = num(cfg.camera?.auto_rotate, 0);
       if (auto && !dragging && !rig.flying) {
         rig.keys.yaw += auto * (dt / 1000);
@@ -394,6 +410,7 @@ export function createAstroScene(host, config, options = {}) {
     const flying = rig.step(now);
     rig.apply();
     const camera = rig.camera;
+    streaks(camera.position, dt, flying);
     // Stars sit at infinity: they move with the camera
     world.stars?.node.position.copy(camera.position);
     world.layout();
@@ -417,6 +434,27 @@ export function createAstroScene(host, config, options = {}) {
     updateLabels(camera);
     frames++;
     if (moving || flying) requestFrame();
+  }
+
+  /**
+   * Warp streaks: while a warp fly-to moves the camera, stars and dust
+   * stretch along the motion (`backdrop.stars.streak`, default 1); round
+   * again when it lands. Off under reduced motion (the fly jumps).
+   * @param {Vector3} position - the camera's, this frame
+   * @param {number} dt - ms
+   * @param {boolean} flying
+   */
+  function streaks(position, dt, flying) {
+    if (!world) return;
+    const fields = [world.stars?.field, world.dust?.field].filter((f) => !!f);
+    const warping = flying && rig.warp && !reduced;
+    const tails = warping && lastCamera
+      ? warpTails(position.clone().sub(lastCamera), dt, { sceneRadius: world.bounds.radius, shell: STAR_SHELL, streak: num(cfg.backdrop?.stars?.streak, 1) })
+      : null;
+    lastCamera = position.clone();
+    if (!fields.length) return;
+    world.stars?.field?.setTail(tails?.stars ?? null);
+    world.dust?.field?.setTail(tails?.dust ?? null);
   }
 
   /** @param {import('three').Camera} camera */
@@ -708,12 +746,12 @@ export function createAstroScene(host, config, options = {}) {
     const base = views[cfg.camera?.view] ?? views[Object.keys(views)[0]];
     const startDist = num(base?.distance, (world?.bounds.radius ?? 100) * 2.8);
     const keys = { tx: p.x, ty: p.y, tz: p.z, distance: Math.min(rig.keys.distance, startDist * 0.35), ...viewToKeys(view, () => null) };
-    return rig.flyTo(keys, { duration: num(cfg.camera?.fly_duration, 1600), ease: cfg.camera?.ease });
+    return rig.flyTo(keys, { duration: num(cfg.camera?.fly_duration, 1600), ease: cfg.camera?.ease, warp: warpFor(view) });
   }
 
   /**
    * @param {string | Record<string, any>} view - a view name, a point id (`{ point: id }`), or keys
-   * @param {{ duration?: number }} [opts]
+   * @param {{ duration?: number, warp?: boolean }} [opts] - warp: stars streak on the way (default the view's `warp`, else `camera.warp`)
    */
   function flyTo(view, opts = {}) {
     if (!world) return Promise.resolve();
@@ -721,7 +759,7 @@ export function createAstroScene(host, config, options = {}) {
     if (typeof view === 'string') {
       if (views[view]) {
         const v = views[view];
-        return rig.flyTo(viewToKeys(v, (r) => world?.places.resolve(r) ?? null), { duration, ease: cfg.camera?.ease, projection: v.projection === 'orthographic' ? 'orthographic' : 'perspective' });
+        return rig.flyTo(viewToKeys(v, (r) => world?.places.resolve(r) ?? null), { duration, ease: cfg.camera?.ease, projection: v.projection === 'orthographic' ? 'orthographic' : 'perspective', warp: opts.warp ?? warpFor(v) });
       }
       const p = world.places.get(view);
       if (p) return flyToPosition(p);
@@ -730,9 +768,17 @@ export function createAstroScene(host, config, options = {}) {
     }
     if (view && typeof view === 'object' && typeof view.point === 'string') {
       const p = world.places.get(view.point);
-      return p ? flyToPosition(p, view) : Promise.resolve();
+      return p ? flyToPosition(p, opts.warp !== undefined ? { ...view, warp: opts.warp } : view) : Promise.resolve();
     }
-    return rig.flyTo(viewToKeys(view, (r) => world?.places.resolve(r) ?? null), { duration, ease: cfg.camera?.ease });
+    return rig.flyTo(viewToKeys(view, (r) => world?.places.resolve(r) ?? null), { duration, ease: cfg.camera?.ease, warp: opts.warp ?? warpFor(view) });
+  }
+
+  /**
+   * Whether a fly-to streaks the stars: the view's (or landing keys') `warp`, else the card's `camera.warp`.
+   * @param {any} [view]
+   */
+  function warpFor(view) {
+    return (view && typeof view === 'object' && typeof view.warp === 'boolean') ? view.warp : cfg.camera?.warp === true;
   }
 
   /**
@@ -896,6 +942,7 @@ export function createAstroScene(host, config, options = {}) {
     debug() {
       return {
         frames,
+        clock,
         builds,
         objectBuilds,
         ready,

@@ -19,7 +19,7 @@ import { gridFace } from '../grid-mesh-material.js';
 import { planeGeometry, discGeometry, domeGeometry, sphereGeometry, cylinderGeometry, aroundScale } from '../surface.js';
 import { FatLine } from '../lines.js';
 import { lettersToIndex, indexToLetters, parseCell, bearingXZ } from '../placements.js';
-import { built, num, pair, gridLook, DEFAULT_COLORS } from './common.js';
+import { built, num, pair, gridLook, scanTicker, combineTicks, fillFor, DEFAULT_COLORS } from './common.js';
 import { GRID_SHAPES } from '../names.js';
 
 const DEG = Math.PI / 180;
@@ -230,6 +230,17 @@ export function buildGrid(cfg, ctx) {
     out.radius = R;
     ringLabels(cfg, R, out);
   }
+  // fill_effect: one material under every face's lines (drawn after the far side, before the near side)
+  const size = pair(cfg.size, [200, 200]);
+  const effect = fillFor(cfg, ctx, { radius: out.radius ?? Math.max(size[0], size[1]) / 2, opacity });
+  if (effect) {
+    for (const face of out.gridFaces) {
+      const mesh = new Mesh(/** @type {any} */ (face.children[0]).geometry, effect.material);
+      mesh.renderOrder = 1.5;
+      node.add(mesh);
+    }
+  }
+  out.tick = combineTicks(scanTicker(cfg, ctx, out.gridFaces), effect?.tick);
   return out;
 }
 

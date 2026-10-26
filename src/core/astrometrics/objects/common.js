@@ -12,6 +12,9 @@
  * @module core/astrometrics/objects/common
  */
 import { MathUtils } from 'three';
+import { scanAt } from '../../packs/backgrounds/webgl/scenes/scan-band.js';
+import { scanRange, setScan } from '../grid-mesh-material.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
 
 /** Default colours (theme tokens and LCARdS variables; resolved concrete for WebGL) */
 export const DEFAULT_COLORS = {
@@ -21,7 +24,10 @@ export const DEFAULT_COLORS = {
   path: 'var(--lcars-orange, var(--lcards-orange-medium))',
   fill: 'black',
   glow: 'var(--lcards-moonlight)',
-  stars: 'var(--lcards-moonlight)'
+  nebula: 'var(--lcars-violet, var(--lcards-blue-medium))',
+  stars: 'var(--lcards-moonlight)',
+  scan: 'var(--lcards-moonlight)',
+  pulse: 'var(--lcards-moonlight)'
 };
 
 /**
@@ -31,6 +37,7 @@ export const DEFAULT_COLORS = {
  * @property {() => (import('../sky.js').SkyState | null)} sky
  * @property {() => void} requestFrame
  * @property {(url: string) => any} loadTexture - three.js texture, redraws when loaded
+ * @property {typeof import('../effects/index.js') | null} [effects] - the effects chunk, when the config uses it (`usesEffects`)
  */
 
 /**
@@ -51,6 +58,8 @@ export const DEFAULT_COLORS = {
  * @property {import('three').Group[]} gridFaces
  * @property {(() => void) | null} update
  * @property {boolean} dynamic
+ * @property {import('../star-field.js').StarField} [field] - backdrop stars and dust
+ * @property {((dt: number, t: number) => boolean) | null} tick - own motion per frame (drift, scan, flow): dt and the scene clock in ms; true while it still moves
  */
 
 /**
@@ -75,8 +84,30 @@ export function built(config, node, extra = {}) {
     gridFaces: [],
     update: null,
     dynamic: false,
+    tick: null,
     ...extra
   };
+}
+
+/**
+ * One frame of object motion: spin, then each object's own `tick`. The
+ * runtime skips it under reduced motion, and its clock holds there, so
+ * motion carries on from where it stopped.
+ * @param {BuiltObject[]} list
+ * @param {number} dt - ms since the last frame
+ * @param {number} t - the scene clock, ms
+ * @returns {boolean} true while something moves (draw another frame)
+ */
+export function stepObjects(list, dt, t) {
+  let moving = false;
+  for (const b of list) {
+    if (b.spin) {
+      b.node.rotation.y += MathUtils.degToRad(b.spin) * (dt / 1000);
+      moving = true;
+    }
+    if (b.tick?.(dt, t)) moving = true;
+  }
+  return moving;
 }
 
 /**
@@ -168,4 +199,57 @@ export function gridLook(cfg, ctx, o) {
     opacity,
     additive: cfg.blend === 'add'
   };
+}
+
+/**
+ * The scan band (`scan_period`, `scan_color`: the background grid's keys)
+ * on an object's grid faces: each face sweeps its own range (see
+ * `scanRange`) on the scene clock. Null when `scan_period` is not set.
+ * @param {any} cfg
+ * @param {BuildContext} ctx
+ * @param {import('three').Group[]} faces
+ * @returns {((dt: number, t: number) => boolean) | null}
+ */
+export function scanTicker(cfg, ctx, faces) {
+  const period = num(cfg.scan_period, 0);
+  if (!(period > 0) || !faces.length) return null;
+  const color = ctx.color(cfg.scan_color, DEFAULT_COLORS.scan);
+  const runs = faces.map((face) => ({ face, range: scanRange(face) }));
+  for (const { face } of runs) face.userData.uniforms.uScan.value = withOpacity(color, num(cfg.opacity, 1));
+  return (_dt, t) => {
+    const { pos, strength } = scanAt(t, period);
+    for (const { face, range } of runs) setScan(face, range, pos, strength);
+    return true;
+  };
+}
+
+/**
+ * One tick from several (scan and fill on one object); null when none.
+ * @param {(((dt: number, t: number) => boolean) | null | undefined)[]} ticks
+ * @returns {((dt: number, t: number) => boolean) | null}
+ */
+export function combineTicks(...ticks) {
+  const list = /** @type {((dt: number, t: number) => boolean)[]} */ (ticks.filter(Boolean));
+  if (list.length < 2) return list[0] ?? null;
+  return (dt, t) => {
+    let moving = false;
+    for (const tick of list) if (tick(dt, t)) moving = true;
+    return moving;
+  };
+}
+
+/**
+ * The `fill_effect` material for an object, from the effects chunk; null
+ * without one (or with the chunk missing: a warning, the object draws without it).
+ * @param {any} cfg
+ * @param {BuildContext} ctx
+ * @param {{ radius: number, base?: number[], opacity?: number, solid?: boolean }} o
+ */
+export function fillFor(cfg, ctx, o) {
+  if (!cfg.fill_effect) return null;
+  if (!ctx.effects) {
+    lcardsLog.warn(`[Astrometrics] fill_effect on '${cfg.id ?? cfg.type}' skipped: the effects chunk is not loaded`);
+    return null;
+  }
+  return ctx.effects.fillMaterial(cfg.fill_effect, ctx, o);
 }

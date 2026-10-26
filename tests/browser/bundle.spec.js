@@ -120,6 +120,12 @@ test('size budget: the astrometrics runtime and schema are lazy chunks of their 
     const size = (f) => statSync(new URL(`chunks/${f}`, DIST)).size;
     expect(size(/** @type {string} */ (runtime))).toBeLessThanOrEqual(105_000);
     expect(size(`${runtime}.br`)).toBeLessThanOrEqual(34_000);
+    // E6: the scene effects (nebula and their noise shaders) are a chunk of their own, loaded only
+    // when a config uses them; 6 KB raw when it began (2026-10-25)
+    const effects = js.find(f => readFileSync(new URL(`chunks/${f}`, DIST), 'utf8').includes('pull the gradient inside'));
+    expect(effects, 'a lazy chunk holds the scene effects').toBeTruthy();
+    expect(effects).not.toBe(runtime);
+    expect(mainSource.includes('pull the gradient inside'), 'scene effects in the main chunk').toBe(false);
 });
 
 test('rules: editing an existing rule keeps the old rule until a page refresh (documented)', async ({ page }) => {

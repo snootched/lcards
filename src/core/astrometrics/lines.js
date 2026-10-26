@@ -219,6 +219,18 @@ export class FatLine {
   }
 
   /**
+   * Slide the dashes along the line: positive moves them from each run's
+   * start toward its end, `px` CSS px from rest (kept inside one dash
+   * period, so float precision holds however long it runs).
+   * @param {number} px
+   */
+  setFlow(px) {
+    if (!this.dashed) return;
+    const period = this.material.dashSize + this.material.gapSize;
+    this.material.dashOffset = period > 0 ? -(((px % period) + period) % period) : 0;
+  }
+
+  /**
    * @param {number[]} color - sRGB rgba
    * @param {number[]} [colorTo]
    */

@@ -35,6 +35,8 @@ varying vec2 vSurf;
 uniform float uMul;
 // 1: polar rings and spokes from the plane coordinates (a flat disc)
 uniform bool uPlanePolar;
+// 1: the scan band rings out from the polar centre (a disc's ping) instead of sweeping t
+uniform bool uScanRadial;
 uniform float uOpacity;
 void main() {
   acc = vec4( 0.0 );
@@ -52,7 +54,13 @@ void main() {
     vec2 e = r > 1e-6 ? q / r : vec2( 1.0, 0.0 );
     gPolar = vec4( r, atan( q.y, q.x ), length( toPx * e ), length( toPx * vec2( -e.y, e.x ) ) );
   }
-  drawHit( p - uScroll, kx, ky, p.y, ky );
+  float scanV = p.y;
+  float scanK = ky;
+  if ( uScanRadial && uPlanePolar ) {
+    scanV = gPolar.x;
+    scanK = gPolar.z;
+  }
+  drawHit( p - uScroll, kx, ky, scanV, scanK );
   if ( acc.a <= 0.0 ) discard;
   gl_FragColor = acc;
 }`;
@@ -107,6 +115,7 @@ export function gridUniforms(look) {
     uSpokes: { value: look.spokes ?? 12 },
     uSpokeOff: { value: 0 },
     uPlanePolar: { value: !!look.planePolar },
+    uScanRadial: { value: false },
     uOpacity: { value: look.opacity ?? 1 }
   };
 }
@@ -157,4 +166,45 @@ export function setGridColors(face, c) {
   if (c.color) u.uColor.value = c.color;
   if (c.colorMajor) u.uColorMajor.value = c.colorMajor;
   if (c.fill) u.uFill.value = c.fill;
+}
+
+/**
+ * Where a face's scan band runs, in the face's own coordinates: from the
+ * top of `t` (a sphere's north pole, a dome's zenith, a cylinder's or
+ * wall's top, a plane's far edge) to the bottom, or for a polar disc from
+ * the centre out to its rim.
+ * @param {Group} face
+ * @returns {{ from: number, to: number, radial: boolean }}
+ */
+export function scanRange(face) {
+  const u = face.userData.uniforms;
+  const geo = /** @type {any} */ (face.children[0])?.geometry;
+  const surf = geo?.getAttribute('surf');
+  const radial = !!u?.uPlanePolar.value;
+  const c = u?.uPolarC.value ?? { x: 0, y: 0 };
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (let i = 0; i < (surf?.count ?? 0); i++) {
+    const v = radial ? Math.hypot(surf.getX(i) - c.x, surf.getY(i) - c.y) : surf.getY(i);
+    lo = Math.min(lo, v);
+    hi = Math.max(hi, v);
+  }
+  if (!(hi >= lo)) return { from: 0, to: 0, radial };
+  return radial ? { from: 0, to: hi, radial } : { from: hi, to: lo, radial };
+}
+
+/**
+ * Set a face's scan band: `pos` 0 (start) to 1 (end) along its range,
+ * `strength` 0 hides it.
+ * @param {Group} face
+ * @param {{ from: number, to: number, radial: boolean }} range
+ * @param {number} pos
+ * @param {number} strength
+ */
+export function setScan(face, range, pos, strength) {
+  const u = face.userData.uniforms;
+  if (!u) return;
+  u.uScanRadial.value = range.radial;
+  u.uScanStrength.value = strength;
+  u.uScanZ.value = range.from + (range.to - range.from) * pos;
 }

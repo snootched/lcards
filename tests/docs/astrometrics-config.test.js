@@ -39,7 +39,7 @@ test('objects are checked against their own type: a sphere key on a grid is unkn
 test('an unknown object type names the choices and the closest one', () => {
     const out = issues({ objects: [{ type: 'sphear', radius: 4 }] });
     assert.equal(out.length, 1);
-    assert.match(out[0], /^error schema objects\[0\]\.type: unknown type "sphear" \(one of grid, volume, sphere, image, glow, ring, path, beam\) \(did you mean "sphere"\?\)$/);
+    assert.match(out[0], /^error schema objects\[0\]\.type: unknown type "sphear" \(one of grid, volume, sphere, image, glow, nebula, ring, path, beam\) \(did you mean "sphere"\?\)$/);
 });
 
 test('reference checks: placement forms, ids that must exist, object: of the right kind, views', () => {
@@ -114,6 +114,38 @@ test('names.js lists match what the runtime draws, and are published in the regi
     assert.deepEqual(registries.astrometrics.object_types, [...names.OBJECT_TYPES]);
     assert.deepEqual(registries.astrometrics.markers, [...names.MARKERS]);
     assert.deepEqual(registries.astrometrics.placement_forms, [...names.PLACEMENT_FORMS]);
+    assert.deepEqual(registries.astrometrics.fill_effects, [...names.FILL_EFFECTS]);
+});
+
+test('E6 effects: every new key validates, and settings that silently do nothing warn', () => {
+    const good = {
+        camera: { warp: true, views: { near: { target: [0, 0, 0], distance: 20, warp: false } } },
+        backdrop: { stars: { count: 500, streak: 2, spectrum: true }, dust: { count: 100, radius: 300 } },
+        points: [{ id: 'a', xyz: [0, 0, 0] }, { id: 'b', xyz: [10, 0, 0], view: { distance: 5, warp: true } }],
+        objects: [
+            { type: 'nebula', size: [200, 40], cloud_count: 6, colors: ['var(--lcars-violet)', 'var(--lcars-blue)'], turbulence: 0.7, drift: [2, 1], seed: 3 },
+            { type: 'nebula', clouds: [{ xyz: [10, 0, 0], radius: 20, color: 'var(--lcars-red)' }], blend: 'normal' },
+            { type: 'grid', shape: 'disc', radius: 100, scan_period: 5, scan_color: 'var(--lcars-yellow)', fill_effect: { type: 'contour', colors: ['var(--lcars-blue)', 'var(--lcars-orange)'], num_bands: 6, fill_level: 0.3 } },
+            { type: 'sphere', radius: 10, scan_period: 4, fill_effect: { type: 'plasma', color_a: 'var(--lcars-orange)', color_b: 'var(--lcars-yellow)', speed: 2 } },
+            { type: 'volume', shape: 'box', size: [10, 6, 10], scan_period: 3 },
+            { type: 'path', from: 'a', to: 'b', dash: [6, 4], flow_speed: 30 },
+            { type: 'ring', radius: 30, pulse: { length: 20, gap: 80, color: 'var(--lcars-yellow)' } },
+            { type: 'beam', from: 'a', to: 'b', pulse: true, flow_speed: -40 }
+        ]
+    };
+    assert.deepEqual(issues(good), []);
+    const bad = issues({
+        camera: { views: { v: { target: [0, 0, 0], warp: true } } },
+        objects: [
+            { type: 'sphere', image: '/local/x.jpg', fill_effect: { type: 'fluid' } },
+            { type: 'path', from: [0, 0, 0], to: [1, 0, 0], flow_speed: 20 },
+            { type: 'grid', fill_effect: { type: 'lava' } }
+        ]
+    });
+    assert.ok(bad.some((m) => m.startsWith('warning') && m.includes('objects[0].image') && m.includes('image is not shown')), bad.join('\n'));
+    assert.ok(bad.some((m) => m.startsWith('warning') && m.includes('objects[1].flow_speed')), bad.join('\n'));
+    assert.ok(bad.some((m) => m.startsWith('warning') && m.includes('backdrop') && m.includes('warp')), bad.join('\n'));
+    assert.ok(bad.some((m) => m.startsWith('error') && m.includes('fill_effect.type')), bad.join('\n'));
 });
 
 test('the browser fixtures of the references match the shared reference YAML', () => {

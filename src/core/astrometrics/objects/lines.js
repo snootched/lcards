@@ -84,6 +84,51 @@ function addLine(out, cfg, style) {
   return made;
 }
 
+/** `pulse: true` defaults: length and gap in px along the line, speed in px per second */
+const PULSE = { length: 14, gap: 90, speed: 80 };
+
+/**
+ * `pulse`: bright dashes travelling along the line (the `flow` background
+ * preset's streaks), an additive dashed line over it.
+ * @param {import('./common.js').BuiltObject} out
+ * @param {any} cfg
+ * @param {import('./common.js').BuildContext} ctx
+ * @param {number} width - the line's width, px
+ * @returns {FatLine | null}
+ */
+function addPulse(out, cfg, ctx, width) {
+  if (!cfg.pulse) return null;
+  const p = cfg.pulse === true ? {} : cfg.pulse;
+  const line = new FatLine([], {
+    color: ctx.color(p.color, DEFAULT_COLORS.pulse),
+    width: num(p.width, width + 1),
+    opacity: num(cfg.opacity, 1),
+    dash: [Math.max(0.5, num(p.length, PULSE.length)), Math.max(0, num(p.gap, PULSE.gap))],
+    additive: true
+  });
+  line.object.renderOrder = 3.5;
+  out.node.add(line.object);
+  out.lines.push(line);
+  return line;
+}
+
+/**
+ * Dashes and pulses moving along the line at `flow_speed` px per second
+ * (a pulse alone moves at 80); null when nothing moves.
+ * @param {any} cfg
+ * @param {FatLine[]} lines
+ * @returns {((dt: number, t: number) => boolean) | null}
+ */
+export function flowTicker(cfg, lines) {
+  const speed = num(cfg.flow_speed, cfg.pulse ? num(cfg.pulse?.speed, PULSE.speed) : 0);
+  const moving = lines.filter((l) => l.dashed);
+  if (!speed || !moving.length) return null;
+  return (_dt, t) => {
+    for (const l of moving) l.setFlow((speed * t) / 1000);
+    return true;
+  };
+}
+
 /**
  * @param {any} cfg
  * @param {import('./common.js').BuildContext} ctx
@@ -96,7 +141,12 @@ export function buildRing(cfg, ctx) {
   const [a, b] = pair(cfg.radius, [100, 100]);
   const [from, to] = Array.isArray(cfg.arc) ? pair(cfg.arc, [0, 360]) : [0, 360];
   const run = ellipseRun({ a, b, inclination: num(cfg.inclination, 0), node: num(cfg.node, 0), from, to });
-  for (const l of addLine(out, cfg, lineStyle(cfg, ctx, DEFAULT_COLORS.line))) l.setRuns([run]);
+  const style = lineStyle(cfg, ctx, DEFAULT_COLORS.line);
+  const lines = addLine(out, cfg, style);
+  const pulse = addPulse(out, cfg, ctx, style.width ?? 1.5);
+  if (pulse) lines.push(pulse);
+  for (const l of lines) l.setRuns([run]);
+  out.tick = flowTicker(cfg, lines);
   out.radius = Math.max(a, b);
   // centred on `around` (a point or [x, y, z]); followed every frame when it moves
   if (cfg.around !== undefined) {
@@ -181,7 +231,11 @@ export function buildPath(cfg, ctx, objects) {
   const node = new Group();
   node.name = `path:${cfg.id ?? ''}`;
   const out = built(cfg, node);
-  const lines = addLine(out, cfg, lineStyle(cfg, ctx, DEFAULT_COLORS.path));
+  const style = lineStyle(cfg, ctx, DEFAULT_COLORS.path);
+  const lines = addLine(out, cfg, style);
+  const pulse = addPulse(out, cfg, ctx, style.width ?? 1.5);
+  if (pulse) lines.push(pulse);
+  out.tick = flowTicker(cfg, lines);
   /** @param {number[][]} runs */
   const set = (runs) => lines.forEach((l) => l.setRuns(runs));
   if (cfg.sky === 'sun' || cfg.sky === 'moon') {
@@ -244,6 +298,9 @@ export function buildBeam(cfg, ctx) {
     node.add(l.object);
     out.lines.push(l);
   }
+  const pulse = addPulse(out, cfg, ctx, Math.min(1.5, width) * 2);
+  if (pulse) lines.push(pulse);
+  out.tick = flowTicker(cfg, lines);
   out.update = () => {
     const a = ctx.places?.resolve(cfg.from);
     const b = ctx.places?.resolve(cfg.to);

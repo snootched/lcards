@@ -31,6 +31,10 @@ import { lcm, linePeriod, polarPeriods } from '../../effects/GridEffect.js';
 import { SURFACES, surfaceSize, wrapAround, surfaceFrame, curvedCamera, curvedTilt, wellProfile, wellArc, rippleProfile, surfaceRotation, toSurface, WELL_SEGMENTS } from '../../effects/grid-surface-model.js';
 import { lcardsLog } from '../../../../../utils/lcards-logging.js';
 import { GRID_LINES_GLSL } from './grid-lines-glsl.js';
+import { scanAt } from './scan-band.js';
+
+/** Re-exported: the scan band timing lives in scan-band.js (shared with the astrometrics scene) */
+export { scanAt };
 
 const PATTERNS = { both: 0, horizontal: 1, vertical: 2, diagonal: 3, hexagonal: 4, dots: 5, polar: 6 };
 
@@ -288,23 +292,6 @@ void main() {
  * @type {Record<string, { tilt: number, distance: number }>}
  */
 export const VIEWS = { flat: { tilt: 90, distance: 1 }, floor: { tilt: 10, distance: 1 } };
-
-/**
- * The scan band: sweeps from the far end to the near end (inQuad), fading in
- * and out, then rests. Pure function of the effect clock.
- * @param {number} t - ms
- * @param {number} periodS - seconds, 0 = off
- * @returns {{ pos: number, strength: number }} pos 0 (far) to 1 (near)
- */
-export function scanAt(t, periodS) {
-  if (!(periodS > 0)) return { pos: 0, strength: 0 };
-  const total = periodS * 1000;
-  const sweep = total * 0.75;
-  const local = ((t % total) + total) % total;
-  if (local >= sweep) return { pos: 1, strength: 0 };
-  const q = local / sweep;
-  return { pos: q * q, strength: Math.min(1, q / 0.15, (1 - q) / 0.15) };
-}
 
 /**
  * @param {{ params: Record<string, any>, colors: Record<string, Array<{ r: number, g: number, b: number, a: number }>> }} opts

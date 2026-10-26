@@ -270,6 +270,33 @@ ${ASTRO_FLOOR}  - { type: glow, at: [0, 5, 0], size: 50 }
 `),
     ],
   },
+  'astro-effects': {
+    hint: 'Drag to turn a tile: the clouds shift against the grid.',
+    minWidth: 260,
+    tiles: [
+      astroTile('type: nebula', `objects:
+${ASTRO_FLOOR}  - { type: nebula, size: [110, 30], cloud_count: 5, seed: 5, drift: 2, colors: [var(--lcars-violet), var(--lcars-blue)] }
+`),
+      astroTile('scan_period (disc)', `objects:
+  - { type: grid, shape: disc, radius: 50, pattern: polar, line_spacing: 10, spoke_count: 24, scan_period: 3 }
+`),
+      astroTile('scan_period (sphere)', `objects:
+  - { type: sphere, radius: 22, scan_period: 3, color: var(--lcars-blue) }
+`, '{ target: [0, 0, 0], yaw: 0, tilt: 15, distance: 90 }'),
+      astroTile('pulse', `points:
+  - { id: a, polar: [45, 250], marker: dot }
+  - { id: b, polar: [45, 70], marker: dot }
+objects:
+${ASTRO_FLOOR}  - { type: path, from: a, to: b, arc: 20, width: 2, color: var(--lcars-orange), pulse: true }
+`),
+      astroTile('fill_effect: plasma', `objects:
+  - { type: sphere, radius: 22, opacity: 0.4, fill_effect: { type: plasma, color_a: var(--lcars-orange), color_b: var(--lcars-yellow), speed: 2 } }
+`, '{ target: [0, 0, 0], yaw: 0, tilt: 15, distance: 90 }'),
+      astroTile('fill_effect: contour', `objects:
+  - { type: sphere, radius: 22, opacity: 0.3, spin: 6, fill_effect: { type: contour, colors: [var(--lcars-orange), var(--lcars-yellow), var(--lcars-red)], num_bands: 8 } }
+`, '{ target: [0, 0, 0], yaw: 0, tilt: 15, distance: 90 }'),
+    ],
+  },
   'background-webgl': {
     hint: 'Drawn with WebGL in your browser; without it each falls back to its Canvas2D version.',
     minWidth: 280,
