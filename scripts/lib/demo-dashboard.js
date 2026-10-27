@@ -1,0 +1,181 @@
+/**
+ * The demo boards, assembled from tracked files (no network here): demo/order.yaml
+ * lists the views in demo/views/<file>.yaml by release, with each view's header text
+ * and whether it is public. The header of every view and the index view are built
+ * here, from LCARdS cards only, so the Home Assistant boards and the docs site's live
+ * demo render the same chrome.
+ *
+ * Boards: `dev` (lcards-demo, every view) and `public` (lcards-demo-public, the
+ * public views). scripts/demo-push.mjs pushes them, doc/.vitepress/theme/demo.data.js
+ * gives the docs one release of the public board, tests/docs/demo-dashboard.test.js
+ * checks it all offline.
+ */
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import yaml from 'js-yaml';
+
+export const DEMO_DIR = fileURLToPath(new URL('../../demo', import.meta.url));
+export const BOARDS = {
+    dev: { urlPath: 'lcards-demo', title: 'LCARdS Demo (dev)' },
+    public: { urlPath: 'lcards-demo-public', title: 'LCARdS Demo' },
+};
+/** The docs channel the Home Assistant boards link to (their features are documented there first). */
+export const DOCS_SITE = 'https://lcards.unimatrix01.ca/dev';
+const ENTRY_KEYS = new Set(['file', 'summary', 'description', 'session', 'docs', 'public']);
+/** Card labels default to black, unreadable over the dark backgrounds. */
+const LABEL = 'var(--lcards-blue)';
+
+/**
+ * Read demo/order.yaml and every view it lists.
+ * @returns {{ title: string, releases: Array<{ version: string, views: DemoView[] }>, unlisted: string[], missing: string[] }}
+ * @typedef {{ file: string, summary: string, description: string, session: string, docs: string|null, public: boolean, path: string, title: string, text: string, config: any }} DemoView
+ */
+export function loadDemo(dir = DEMO_DIR) {
+    const order = yaml.load(readFileSync(join(dir, 'order.yaml'), 'utf8'));
+    const files = new Set(readdirSync(join(dir, 'views')).filter(f => f.endsWith('.yaml')).map(f => f.slice(0, -5)));
+    const listed = new Set();
+    const missing = [];
+    const releases = (order.releases ?? []).map(release => ({
+        version: String(release.version),
+        views: (release.views ?? []).flatMap((entry) => {
+            const { file } = entry;
+            listed.add(file);
+            const extra = Object.keys(entry).filter(k => !ENTRY_KEYS.has(k));
+            if (extra.length) throw new Error(`demo/order.yaml ${file}: unknown keys ${extra.join(', ')}`);
+            if (!files.has(file)) {
+                missing.push(file);
+                return [];
+            }
+            const text = readFileSync(join(dir, 'views', `${file}.yaml`), 'utf8');
+            const config = yaml.load(text);
+            return [{
+                file, summary: entry.summary ?? '', description: entry.description ?? '', session: entry.session ?? '',
+                docs: entry.docs ?? null, public: entry.public === true,
+                path: config.path ?? file, title: config.title ?? file, text, config: { path: file, ...config },
+            }];
+        }),
+    }));
+    const unlisted = [...files].filter(f => !listed.has(f)).sort();
+    return { title: order.title ?? 'LCARdS Demo', releases, unlisted, missing };
+}
+
+/** Every view, in dashboard order. */
+export const demoViews = (demo) => demo.releases.flatMap(r => r.views);
+
+/** Every view file as { name, text }, for the config checker (validateTexts in scripts/lcards-validate.mjs). */
+export function viewTexts(demo, dir = DEMO_DIR) {
+    return demoViews(demo).map(v => ({ name: join(dir, 'views', `${v.file}.yaml`), text: v.text }));
+}
+
+/** An elbow title bar: the title on the left, a note on the right. */
+function titleBar(title, note) {
+    return {
+        type: 'custom:lcards-elbow',
+        elbow: { type: 'header-left', segment: { bar_width: 90, bar_height: 20 } },
+        text: {
+            title: { content: title.toUpperCase(), show: true, position: 'center-left', font_size: 26, color: LABEL },
+            ...(note ? { note: { content: note.toUpperCase(), show: true, position: 'center-right', font_size: 16, color: LABEL } } : {}),
+        },
+        grid_options: { columns: 'full', rows: 2 },
+    };
+}
+
+/** One wrapping text cell (a data grid in data mode). */
+function textBlock(text) {
+    return {
+        type: 'custom:lcards-data-grid',
+        data_mode: 'data',
+        rows: [[text]],
+        grid: { 'grid-template-columns': '1fr' },
+        style: { font_size: 18, align: 'left', white_space: 'normal', line_height: 1.4, color: 'var(--lcards-moonlight)' },
+        // about 150 characters a line across a wide view; a narrow screen scrolls the cell
+        grid_options: { columns: 'full', rows: text.length > 150 ? 2 : 1 },
+    };
+}
+
+/** A lozenge button. */
+function lozenge(content, tapAction, columns = 8) {
+    return {
+        type: 'custom:lcards-button',
+        preset: 'lozenge',
+        text: { name: { content: content.toUpperCase(), show: true } },
+        tap_action: tapAction,
+        grid_options: { columns, rows: 1 },
+    };
+}
+
+/** The header section of a view: title bar, description, docs button. */
+export function headerSection(view, { board = 'dev', release = '', docsBase = DOCS_SITE } = {}) {
+    const note = [release, board === 'dev' ? view.session : ''].filter(Boolean).join(' · ');
+    return {
+        type: 'grid',
+        column_span: 4,
+        cards: [
+            titleBar(view.title, note),
+            ...(view.description ? [textBlock(view.description)] : []),
+            ...(view.docs ? [lozenge('Docs', { action: 'url', url_path: `${docsBase}${view.docs}` })] : []),
+        ],
+    };
+}
+
+/** The index view: per release, a title bar, a button per view and a table of summaries. */
+export function indexView(releases, { board = 'dev' } = {}) {
+    const { urlPath, title } = BOARDS[board];
+    const navigate = (v) => ({ action: 'navigate', navigation_path: `/${urlPath}/${v.path}` });
+    const intro = board === 'dev'
+        ? 'Every feature since the last release, one view each, plus checks and benchmarks. The views live in demo/views/ in the LCARdS repo; npm run demo:push rebuilds this board and the public one.'
+        : 'What is new in LCARdS, one view per feature, with the cards running live. Open a view, change things, and follow the Docs button for the config.';
+    return {
+        title: 'Index', path: 'index', type: 'sections', max_columns: 4,
+        sections: [
+            { type: 'grid', column_span: 4, cards: [titleBar(title, ''), textBlock(intro)] },
+            ...releases.map(release => ({
+                type: 'grid',
+                column_span: 4,
+                cards: [
+                    titleBar(release.version, `${release.views.length} views`),
+                    ...release.views.map(v => lozenge(v.title, navigate(v), 12)),
+                    {
+                        type: 'custom:lcards-data-grid',
+                        data_mode: 'data',
+                        rows: release.views.map(v => [{ value: v.title, tap_action: navigate(v) }, v.summary]),
+                        grid: { 'grid-template-columns': 'minmax(0, 1fr) minmax(0, 2fr)' },
+                        style: { font_size: 16, align: 'left', white_space: 'normal', color: 'var(--lcards-moonlight)' },
+                        columns: [{ style: { color: LABEL, text_transform: 'uppercase' } }],
+                        grid_options: { columns: 'full' },
+                    },
+                ],
+            })),
+        ],
+    };
+}
+
+/** A view with its generated header on top. */
+export function viewWithHeader(view, opts = {}) {
+    const { config } = view;
+    return { ...config, sections: [headerSection(view, opts), ...(config.sections ?? [])] };
+}
+
+/**
+ * A board's releases: `public` keeps only the public views (and the releases that have
+ * any); `release` keeps one release (the docs site shows its own version only).
+ */
+export function boardReleases(demo, { board = 'dev', release = null } = {}) {
+    return demo.releases
+        .filter(r => !release || r.version === release)
+        .map(r => ({ ...r, views: r.views.filter(v => board === 'dev' || v.public) }))
+        .filter(r => r.views.length);
+}
+
+/** A whole board's dashboard config: the index, then every view with its header. */
+export function buildDashboard(demo, { board = 'dev', release = null, docsBase = DOCS_SITE } = {}) {
+    const releases = boardReleases(demo, { board, release });
+    return {
+        title: BOARDS[board].title,
+        views: [
+            indexView(releases, { board }),
+            ...releases.flatMap(r => r.views.map(v => viewWithHeader(v, { board, release: r.version, docsBase }))),
+        ],
+    };
+}

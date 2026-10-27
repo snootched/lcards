@@ -1,0 +1,41 @@
+# Bench: 500 stars, shader (C2). Rescued from reports/c2-review/c2.yaml.
+title: "Bench: 500 stars, shader"
+path: bench-stars-500-shader
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: RED ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.red_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: YELLOW ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLEAR, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: warp-starfield, config: { count: 500, speed: 2 } }
+        text: { label: { content: "500 STARS, SHADER", show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 12, rows: 6 }

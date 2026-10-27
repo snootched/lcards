@@ -1,0 +1,90 @@
+# Grid surfaces from inside (C4). Rescued from reports/c2-review/c4.yaml.
+title: Grid surfaces from inside
+path: grid-surfaces-inside
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: RED ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.red_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: YELLOW ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLEAR, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: cylinder
+                surface_axis: horizontal
+                surface_side: inside
+                surface_length: 0
+                color: var(--lcards-orange)
+                scroll_speed_x: 60
+                scroll_speed_y: 0
+                major_col_interval: 4
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: "9 TUNNEL (INSIDE, HORIZONTAL)", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 12, rows: 6 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: dome
+                surface_side: inside
+                camera_tilt: 35
+                color: "var(--lcards-blue-light, #99ccff)"
+                line_spacing: 20
+                scroll_speed_x: 8
+        text:
+          label: { content: 10 PLANETARIUM (INSIDE A DOME), show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: sphere
+                surface_side: inside
+                camera_tilt: 10
+                color: var(--lcards-orange)
+                line_spacing: 20
+                major_row_interval: 3
+                color_major: var(--lcards-moonlight)
+        text: { label: { content: 11 INSIDE A SPHERE, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 5 }

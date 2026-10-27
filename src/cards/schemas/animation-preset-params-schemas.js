@@ -41,7 +41,7 @@ const simpleColorSchema = {
  */
 export const _CANONICAL_REDECLARED = {
   duration: {
-    type: ['number', 'object'], minimum: 0, maximum: 10000,
+    type: ['number', 'object'], minimum: 0,
     description: 'Also accepted nested here (top-level wins if both set). Also accepts a map_range descriptor for entity-driven, live-adjusting duration on looping animations.'
   },
   ease: {
@@ -462,7 +462,7 @@ export const sequenceParamsSchema = {
   type: 'object',
   description: "Params for the \"sequence\" preset: timeline of steps. Each step may set its own duration/ease (falling back to this preset's own duration/ease as per-step defaults). Step positioning uses `offset`; the preset factory also accepts the older `at` name as a fallback (translated to `offset` internally); `offset` wins if a step sets both.",
   properties: {
-    duration: { type: 'number', minimum: 0, maximum: 10000, default: 2000, description: 'Fallback duration for steps missing their own duration.' },
+    duration: { type: 'number', minimum: 0, default: 2000, description: 'Fallback duration for steps missing their own duration.' },
     ease: { type: ['string', 'object'], description: "Fallback easing for steps missing their own ease. Default 'outQuad'." },
     loop: { ..._CANONICAL_REDECLARED.loop, default: false },
     steps: {

@@ -1,0 +1,178 @@
+# The demo boards (npm run demo:push): the views in demo/views/, grouped by release,
+# newest first. Every view file is listed exactly once (tests/docs/demo-dashboard.test.js).
+# Per view: summary (index line), description (header text), session (dev board only),
+# docs (a docs page path, optional) and public (also on the public board and the docs
+# site's live demo; false for checks, benchmarks and comparisons).
+# The header and the index are generated from this file (scripts/lib/demo-dashboard.js).
+title: LCARdS Demo
+releases:
+  - version: "2026.10.0"
+    views:
+      - file: astro-scenes
+        summary: "The astrometrics card's reference scenes"
+        description: "The reference scenes of the astrometrics card: quick start, a galaxy with territories, a sector map and the sky dome with the sun and moon."
+        session: "E2b"
+        docs: /cards/astrometrics/
+        public: true
+      - file: astro-objects
+        summary: "Every astrometrics object type"
+        description: "One card per object type: grid, volume, sphere (plain and textured) and path."
+        session: "E2b"
+        docs: /cards/astrometrics/objects
+        public: true
+      - file: astro-points-data
+        summary: "Points, labels, live data, globe and sky"
+        description: "Placement forms, label styles, point actions, a point following an entity, templates, a globe with your home on it (zone.home) and the sky from your location (sun.sun)."
+        session: "E3a"
+        docs: /cards/astrometrics/points
+        public: true
+      - file: astro-camera
+        summary: "Camera controls and fly-to from other cards"
+        description: "Drag to orbit, shift-drag or two fingers to pan, wheel or pinch to zoom to the pointer, double-tap blank space to fly in (shift: out), the on-card buttons, and fly-to from other cards (the buttons below name the card by its id). The second card is a map: a one-finger drag pans."
+        session: "E3b"
+        docs: /cards/astrometrics/#controls
+        public: true
+      - file: astro-effects
+        summary: "Nebula, scans, flows, fills, warp and dust in 3D"
+        description: "Background effects in 3D space: nebula, scan bands, moving dashes and pulses, animated surface fills, warp and dust."
+        session: "E6"
+        docs: /cards/astrometrics/effects
+        public: true
+      - file: webgl-scenes
+        summary: "WebGL background scenes, alone and stacked"
+        description: "three.js background scenes: the WebGL noise presets, grid floor and warp starfield, alone and stacked."
+        session: "C2"
+        docs: /core/effects/background-animations#webgl-presets
+        public: true
+      - file: webgl-fields
+        summary: "Noise presets on the GPU"
+        description: "contour-field, plasma, fluid and the other noise presets on the GPU, with the renderer key."
+        session: "C3"
+        docs: /core/effects/background-animations/preset-reference#contour-field
+        public: true
+      - file: holo-sphere
+        summary: "The holographic planet"
+        description: "The holographic planet: lines, scan band, rotation and tilt."
+        session: "C3"
+        docs: /core/effects/background-animations/preset-reference#holo-sphere
+        public: true
+      - file: nebula-volumetric
+        summary: "The nebula, flat and volumetric"
+        description: "The nebula preset on WebGL, flat and volumetric."
+        session: "C3"
+        docs: /core/effects/background-animations/preset-reference#nebula
+        public: true
+      - file: warp-spectrum
+        summary: "Doppler-shifted warp streaks"
+        description: "spectrum: true splits each streak into colour, a Doppler shift of the star's own colour (violet toward the tail). White stars show the whole rainbow, coloured stars a part of it; reverse puts violet at the head. The last card warps on red alert and drops to dots when it clears: the colour fades in as the dots stretch."
+        session: "warp-starfield spectrum"
+        docs: /core/effects/background-animations/preset-reference#warp-starfield
+        public: true
+      - file: grid-views
+        summary: "Grid floors, camera and line widths"
+        description: "grid, grid-diagonal and grid-hexagonal on WebGL: flat and floor views, camera, line widths, scan line."
+        session: "C3"
+        docs: /core/effects/background-animations/preset-reference#grid-views-and-camera
+        public: true
+      - file: grid-surfaces
+        summary: "Grids on cylinders, domes and spheres"
+        description: "Grids wrapped round a cylinder, dome or sphere, with rims."
+        session: "C4"
+        docs: /core/effects/background-animations/preset-reference#grid-surfaces
+        public: true
+      - file: grid-surfaces-inside
+        summary: "Grid surfaces seen from inside"
+        description: "The camera inside a cylinder, dome or sphere."
+        session: "C4"
+        docs: /core/effects/background-animations/preset-reference#grid-surfaces
+        public: true
+      - file: grid-polar
+        summary: "Polar grids"
+        description: "pattern: polar, flat, as a floor and on surfaces."
+        session: "C5"
+        docs: /core/effects/background-animations/preset-reference#polar-pattern
+        public: true
+      - file: grid-wells
+        summary: "Grid wells, morph and ripple"
+        description: "surface: well: funnels of any profile, morph and ripple."
+        session: "C5"
+        docs: /core/effects/background-animations/preset-reference#grid-wells
+        public: true
+      - file: grid-motion
+        summary: "Camera roll and surface rotation"
+        description: "camera_roll and the surface_rotate_* keys: surfaces facing any way, animated."
+        session: "C5"
+        docs: /core/effects/background-animations/preset-reference#grid-surfaces
+        public: true
+      - file: zoom-webgl
+        summary: "The zoom wrapper over WebGL"
+        description: "The zoom wrapper over the WebGL presets."
+        session: "C5"
+        docs: /core/effects/background-animations#zoom-wrapper
+        public: true
+      - file: alert-recolour
+        summary: "Backgrounds through alert modes"
+        description: "Every background should keep moving without a jump when the alert mode changes (press the alert buttons)."
+        session: "F1"
+        docs: /core/effects/background-animations
+        public: false
+      - file: anim-presets
+        summary: "New animation presets"
+        description: "boot-sequence (tap a card to boot it again), text-decode (tap to decode), tap-ripple (tap a cell), sensor-sweep and morph on MSD overlays."
+        session: "A4, B1"
+        docs: /core/animations/preset-reference
+        public: true
+      - file: ring-gauge
+        summary: "The slider's ring gauge"
+        description: "The slider's ring component: full and partial rings, value markers and centre text. The rings follow the test value; drag one to change it."
+        session: "slider component: ring"
+        docs: /cards/slider-card/#ring-gauge
+        public: true
+      - file: alert-band
+        summary: "The alert band"
+        description: "display: band: a row of dashes across the screen with the alert symbol in the middle; the dashboard stays usable. Yellow alert shows the band (the symbol's bars sweep in, the dashes carry it out); red alert keeps the full-screen overlay. Click the symbol to dismiss."
+        session: "alert overlay display: band"
+        docs: /cards/alert-overlay/#alert-band
+        public: true
+  - version: Benchmarks
+    views:
+      - file: bench-12
+        summary: "12 WebGL backgrounds"
+        description: "Frame cost with 12 WebGL backgrounds on one view."
+        session: "C2"
+        public: false
+      - file: bench-20
+        summary: "20 WebGL backgrounds"
+        description: "Frame cost with 20 WebGL backgrounds on one view."
+        session: "C2"
+        public: false
+      - file: bench-stars-500-instances
+        summary: "500 stars, instanced"
+        description: "warp-starfield drawn with instanced quads, 500 stars."
+        session: "C2"
+        public: false
+      - file: bench-stars-500-shader
+        summary: "500 stars, one shader"
+        description: "warp-starfield drawn in one shader, 500 stars."
+        session: "C2"
+        public: false
+      - file: bench-stars-2000-instances
+        summary: "2000 stars, instanced"
+        description: "warp-starfield drawn with instanced quads, 2000 stars."
+        session: "C2"
+        public: false
+      - file: bench-stars-2000-shader
+        summary: "2000 stars, one shader"
+        description: "warp-starfield drawn in one shader, 2000 stars."
+        session: "C2"
+        public: false
+      - file: bench-stars-5000-instances
+        summary: "5000 stars, instanced"
+        description: "warp-starfield drawn with instanced quads, 5000 stars."
+        session: "C2"
+        public: false
+      - file: bench-stars-5000-shader
+        summary: "5000 stars, one shader"
+        description: "warp-starfield drawn in one shader, 5000 stars."
+        session: "C2"
+        public: false

@@ -1,0 +1,222 @@
+# Grid views and camera (C3). Rescued from reports/c2-review/c3.yaml.
+title: Grid views and camera
+path: grid-views
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: RED ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.red_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: YELLOW ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLEAR, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                color: var(--lcards-orange)
+                line_spacing: 30
+                major_row_interval: 4
+                major_col_interval: 4
+                color_major: var(--lcards-moonlight)
+                line_width_major: 3
+        text: { label: { content: 1A GRID MAJORS (WEBGL), show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              renderer: canvas
+              config:
+                color: var(--lcards-orange)
+                line_spacing: 30
+                major_row_interval: 4
+                major_col_interval: 4
+                color_major: var(--lcards-moonlight)
+                line_width_major: 3
+        text: { label: { content: 1B SAME (CANVAS), show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: grid-hexagonal, config: { hex_radius: 25 } }
+        text: { label: { content: 2A HEX (WEBGL), show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: grid-hexagonal, renderer: canvas, config: { hex_radius: 25 } }
+        text: { label: { content: 2B HEX (CANVAS), show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: grid, config: { view: floor, color: var(--lcards-orange) } }
+        text: { label: { content: "3 FLOOR, DEFAULTS", show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 12, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                view: floor
+                color: var(--lcards-orange)
+                line_width: 2
+                major_row_interval: 4
+                major_col_interval: 4
+                color_major: var(--lcards-moonlight)
+                line_width_major: 3
+        text:
+          label: { content: "4 FLOOR, WIDTH 2, MAJORS 3 PX", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 12, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config: { color: var(--lcards-orange), line_width: 2, scroll_speed_x: 0, scroll_speed_y: 20 }
+        text:
+          label: { content: "5 TAP: TIP FLAT INTO FLOOR AND BACK", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 12, rows: 4 }
+        tap_action: { action: none }
+        animations:
+          - trigger: on_tap
+            target: background
+            preset: custom
+            params: { camera_tilt: [ 90, 10 ], duration: 2500, ease: inOutSine, alternate: true, loop: 1 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config: { view: floor, color: var(--lcards-orange), line_width: 1.5, camera_tilt: 25 }
+        text:
+          label: { content: "6 FLOOR, YAW SWEEP (ANIMATION)", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 12, rows: 4 }
+        animations:
+          - trigger: on_load
+            target: background
+            preset: custom
+            params: { camera_yaw: [ -30, 30 ], duration: 8000, ease: inOutSine, alternate: true, loop: true }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: grid-hexagonal, config: { view: floor, line_width_minor: 2, hex_radius: 30 } }
+        text: { label: { content: 7 HEX FLOOR, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid-diagonal
+              config: { view: floor, scan_period: 0, line_width: 2, color: var(--lcards-orange) }
+        text: { label: { content: "8 DIAGONAL FLOOR, NO SCAN", show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: holo-sphere, config: { line_width: 2.5 } }
+        text:
+          label: { content: 9A SPHERE LINE WIDTH 2.5 (WEBGL), show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: holo-sphere, renderer: canvas, config: { line_width: 2.5 } }
+        text: { label: { content: 9B SAME (CANVAS), show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: warp-starfield
+              transition: 1200
+              config:
+                count: 1200
+                speed: 4
+                camera_yaw: { map_range: { input: [ 0, 100 ], output: [ -35, 35 ] } }
+                camera_tilt: { map_range: { input: [ 0, 100 ], output: [ 10, -10 ] } }
+        text:
+          label: { content: "10 WARP: SLIDER BANKS THE CAMERA", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 12, rows: 4 }

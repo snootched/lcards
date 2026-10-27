@@ -1,0 +1,142 @@
+# Backgrounds through alert modes (F1). Rescued from reports/c2-review/f1.yaml.
+title: Backgrounds through alert modes
+path: alert-recolour
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: RED ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.red_alert }
+        grid_options: { columns: 4, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: YELLOW ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
+        grid_options: { columns: 4, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLEAR, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
+        grid_options: { columns: 4, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: starfield, config: { count: 220, color: theme:colors.ui.primary } }
+        text: { label: { content: "1 STARFIELD, NO SEED", show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: starfield
+              zoom: { layers: 4, duration: 12 }
+              config: { scroll_speed_x: 0, color: theme:colors.ui.secondary }
+        text: { label: { content: 2 ZOOMED STARFIELD, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: starfield
+              config: { count: 240, colors: [ theme:colors.ui.primary, theme:colors.ui.secondary, "#ffffff" ] }
+        text: { label: { content: 3 MULTI-COLOUR STARFIELD, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config: { color: theme:colors.ui.primary, major_row_interval: 4, major_col_interval: 4 }
+        text: { label: { content: 4 GRID, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: nebula
+              config: { colors: [ theme:colors.ui.primary, theme:colors.ui.tertiary ] }
+        text: { label: { content: 5 NEBULA, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: nebula, config: { colors: [ theme:colors.ui.tertiary ] } }
+            - { preset: grid, config: { color: theme:colors.ui.secondary } }
+        text:
+          label: { content: "6 STACK: NEBULA UNDER GRID", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: plasma
+              config: { color_a: theme:colors.ui.primary, color_b: theme:colors.ui.tertiary }
+        text: { label: { content: 7 PLASMA (REBUILT PATH), show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: contour-field
+              config: { colors: [ theme:colors.ui.primary, theme:colors.ui.secondary ] }
+        text: { label: { content: 8 CONTOUR FIELD, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        entity: input_select.lcards_alert_mode
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: starfield
+              transition: 2000
+              zoom: { layers: 4, duration: 12 }
+              config:
+                scroll_speed_x: 0
+                color: theme:colors.ui.primary
+                speed: "[[[ return entity.state === 'red_alert' ? 8 : 1 ]]]"
+        text: { label: { content: 9 WARP ON RED ALERT, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 12, rows: 4 }

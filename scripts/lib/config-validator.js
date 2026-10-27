@@ -46,6 +46,12 @@ export function stripSchemaRestrictions(node) {
       if (k === '$ref') continue;
       if (typeof v === 'function') continue;
       if (k === 'enum' && Array.isArray(v) && v.length === 0) continue;
+      // CoreValidationService's per-property `required: true` becomes the parent's `required` list
+      if (k === 'required' && !Array.isArray(v)) continue;
+      if (k === 'properties' && v && typeof v === 'object') {
+        const own = Object.keys(v).filter(p => v[p]?.required === true);
+        if (own.length) out.required = [...new Set([...(Array.isArray(node.required) ? node.required : []), ...own, ...(out.required ?? [])])];
+      }
       if ((k === 'oneOf' || k === 'anyOf' || k === 'allOf') && Array.isArray(v)) {
         const stripped = v
           .map(stripSchemaRestrictions)
@@ -58,6 +64,13 @@ export function stripSchemaRestrictions(node) {
     return out;
   }
   return node;
+}
+
+/** `oneOf` read as `anyOf` (CoreValidationService tolerates a value matching several branches). */
+function oneOfAsAnyOf(node) {
+  if (Array.isArray(node)) return node.map(oneOfAsAnyOf);
+  if (!node || typeof node !== 'object') return node;
+  return Object.fromEntries(Object.entries(node).map(([k, v]) => [k === 'oneOf' ? 'anyOf' : k, oneOfAsAnyOf(v)]));
 }
 
 // ── Unknown keys ─────────────────────────────────────────────────────────────
@@ -443,6 +456,25 @@ export function createConfigValidator({ entries, registries = null }) {
     type: 'string',
     schemaType: 'string',
     validate: (pattern, data) => isTemplateString(data) || new RegExp(pattern, 'u').test(data),
+  });
+  // `discriminatedBy` (CoreValidationService's own keyword): a value's schema picked by a
+  // sibling's value, e.g. an animation's `params` by its `preset`. Unknown names pass
+  // (user packs add presets; registryIssues reports them).
+  const bySchema = new WeakMap();
+  ajv.addKeyword({
+    keyword: 'discriminatedBy',
+    schemaType: 'object',
+    validate: function discriminated(spec, data, _parent, cxt) {
+      const name = cxt?.parentData?.[spec.field];
+      const sub = typeof name === 'string' && Object.prototype.hasOwnProperty.call(spec.schemas ?? {}, name) ? spec.schemas[name] : null;
+      if (!sub) return true;
+      let check = bySchema.get(sub);
+      // The runtime's oneOf passes when any branch matches (_validateOneOf): the same here
+      if (!check) bySchema.set(sub, check = ajv.compile(oneOfAsAnyOf(sub)));
+      if (check(data)) return true;
+      discriminated.errors = check.errors.map(e => ({ ...e, instancePath: `${cxt.instancePath}${e.instancePath}` }));
+      return false;
+    },
   });
   const raw = new Map();
   const compiled = new Map();

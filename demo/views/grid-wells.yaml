@@ -1,0 +1,205 @@
+# Grid wells (C5). Rescued from reports/c2-review/c5.yaml.
+title: Grid wells
+path: grid-wells
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: RED ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.red_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: YELLOW ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLEAR, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: well
+                color: var(--lcards-blue-light)
+                color_major: var(--lcards-moonlight)
+                major_row_interval: 4
+        text: { label: { content: 1 TRUMPET (DEFAULT SHAPE), show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: well
+                well_profile: [ 1.2, 0.5, 0.2, 0.12, 0.1 ]
+                pattern: polar
+                spoke_count: 24
+                major_col_interval: 6
+                line_spacing: 20
+                camera_tilt: 45
+                color: var(--lcards-orange)
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: "2 GRAVITY WELL: PROFILE + POLAR", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: well
+                well_shape: cone
+                camera_tilt: 60
+                color: var(--lcards-blue-light)
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: "3 CONE, STEEP (camera_tilt 60)", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: well
+                well_shape: bowl
+                well_throat: 0.05
+                color: var(--lcards-orange)
+                color_major: var(--lcards-moonlight)
+        text: { label: { content: 4 BOWL, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: well
+                well_profile: [ 1, 0.25, 1 ]
+                camera_tilt: 15
+                color: var(--lcards-orange)
+                color_major: var(--lcards-moonlight)
+        text: { label: { content: "5 HOURGLASS [1, 0.25, 1]", show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: well
+                surface_axis: horizontal
+                camera_tilt: 0
+                color: var(--lcards-blue-light)
+                color_major: var(--lcards-moonlight)
+        text: { label: { content: 6 WORMHOLE HEAD ON, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 5 }
+      - animations:
+          - trigger: on_load
+            target: background
+            effect: 0
+            preset: custom
+            params: { well_throat: [ 0.05, 0.4 ], duration: 4000, ease: inOutSine, loop: true, alternate: true }
+        type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: well
+                color: var(--lcards-blue-light)
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: 7 TRUMPET THROAT BREATHING, show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: well
+                well_profile: [ 0.6, 1, 0.3, 0.3, 0.8 ]
+                scan_period: 5
+                color: var(--lcards-blue-light)
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: "8 BULB [0.6, 1, 0.3, 0.3, 0.8]", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: grid-hexagonal, config: { surface: well } }
+        text: { label: { content: 9 TRUMPET HEXAGONAL, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                surface: well
+                scan_period: 5
+                scroll_speed_x: 30
+                color: var(--lcards-orange)
+                color_major: var(--lcards-moonlight)
+        text: { label: { content: "10 TRUMPET + SCAN, SPIN", show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 5 }

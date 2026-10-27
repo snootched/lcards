@@ -1,0 +1,157 @@
+# Astrometrics effects (E6). Seeded from the docs examples.
+title: Astrometrics effects
+path: astro-effects
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 340
+        camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 20, tilt: 25, distance: 300 } } }
+        backdrop: { stars: { count: 2000 } }
+        objects:
+          - type: grid
+            shape: disc
+            radius: 100
+            pattern: polar
+            line_spacing: 10
+            spoke_count: 36
+          - type: nebula
+            size: [ 220, 50 ]
+            cloud_count: 8
+            seed: 5
+            drift: 3
+            colors: [ var(--lcars-violet), var(--lcars-blue), var(--lcars-red) ]
+        grid_options: &a1 { columns: 24 }
+      - type: custom:lcards-astrometrics-card
+        height: 320
+        camera: { views: { v: { target: [ 0, 10, 0 ], yaw: 20, tilt: 25, distance: 260 } } }
+        objects:
+          - type: grid
+            shape: disc
+            radius: 100
+            pattern: polar
+            line_spacing: 10
+            spoke_count: 36
+            scan_period: 6
+            scan_color: var(--lcars-yellow)
+          - { type: sphere, at: [ -50, 25, 0 ], radius: 22, scan_period: 5, color: var(--lcars-blue) }
+          - type: volume
+            shape: sector
+            radius: [ 55, 95 ]
+            angle: [ 100, 170 ]
+            height: [ 0, 30 ]
+            scan_period: 4
+            color: var(--lcars-green)
+        grid_options: *a1
+      - type: custom:lcards-astrometrics-card
+        height: 340
+        camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 20, tilt: 40, distance: 320 } } }
+        points:
+          - { id: hub, xyz: [ 0, 0, 0 ], marker: diamond, label: HUB, style: major }
+          - { id: alpha, polar: [ 70, 30 ], marker: dot, label: ALPHA }
+          - { id: beta, polar: [ 60, 150 ], marker: dot, label: BETA }
+          - { id: gamma, polar: [ 80, 260 ], marker: dot, label: GAMMA }
+        objects:
+          - type: grid
+            shape: disc
+            radius: 100
+            pattern: polar
+            line_spacing: 20
+            spoke_count: 12
+            opacity: 0.5
+          - type: path
+            from: hub
+            to: alpha
+            arc: 10
+            color: var(--lcars-orange)
+            pulse: true
+          - type: path
+            from: hub
+            to: beta
+            arc: 10
+            color: var(--lcars-orange)
+            dash: [ 8, 6 ]
+            flow_speed: 30
+          - type: path
+            from: hub
+            to: gamma
+            arc: 10
+            width: 2
+            color: var(--lcars-blue)
+            pulse: { length: 24, gap: 120, color: var(--lcars-yellow) }
+          - { type: ring, radius: 100, width: 2, dash: [ 12, 8 ], flow_speed: 20 }
+        grid_options: *a1
+      - type: custom:lcards-astrometrics-card
+        height: 320
+        camera: { views: { v: { target: [ 0, 10, 0 ], yaw: 15, tilt: 30, distance: 230 } } }
+        objects:
+          - type: grid
+            shape: plane
+            size: [ 220, 140 ]
+            line_spacing: 20
+            opacity: 0.6
+            fill_effect:
+              type: contour
+              colors: [ var(--lcars-blue), var(--lcars-green), var(--lcars-yellow), var(--lcars-orange) ]
+              num_bands: 6
+              fill_level: 0.3
+              opacity: 0.5
+          - type: sphere
+            at: [ -60, 30, 0 ]
+            radius: 24
+            lat_step: 30
+            lon_step: 30
+            opacity: 0.4
+            fill_effect:
+              type: plasma
+              color_a: var(--lcars-orange)
+              color_b: var(--lcars-yellow)
+              speed: 2
+          - type: sphere
+            at: [ 10, 30, -10 ]
+            radius: 20
+            opacity: 0.3
+            spin: 4
+            fill_effect:
+              type: contour
+              colors: [ var(--lcars-orange), var(--lcars-yellow), var(--lcars-red) ]
+              num_bands: 8
+          - type: sphere
+            at: [ 70, 25, 10 ]
+            radius: 18
+            color: var(--lcars-blue)
+            fill_effect: { type: fluid, color: var(--lcars-blue) }
+        grid_options: *a1
+      - type: custom:lcards-astrometrics-card
+        height: 340
+        camera:
+          view: far
+          fly_duration: 2400
+          views:
+            far: { target: [ 0, 0, 0 ], yaw: 20, tilt: 20, distance: 600 }
+            near: { target: [ 40, 5, 30 ], yaw: 30, tilt: 10, distance: 25, warp: true }
+          buttons: true
+        backdrop: { stars: { count: 4000, max_radius: 1.4, spectrum: true }, dust: { count: 600 } }
+        points:
+          - id: core
+            xyz: [ 0, 0, 0 ]
+            label: GALACTIC CORE
+            style: title
+            tap_action: { action: fly-to, view: near }
+        objects:
+          - type: grid
+            shape: disc
+            radius: 100
+            pattern: polar
+            line_spacing: 10
+            spoke_count: 36
+            opacity: 0.6
+          - type: glow
+            at: core
+            size: 50
+            color: var(--lcars-yellow)
+            tap_action: { action: fly-to, view: far }
+        grid_options: { columns: full }

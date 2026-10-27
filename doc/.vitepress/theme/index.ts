@@ -11,6 +11,7 @@ import ChartDemo from './ChartDemo.vue'
 import DataGridDemo from './DataGridDemo.vue'
 import CardDemo from './CardDemo.vue'
 import CardGallery from './CardGallery.vue'
+import DemoBoard from './DemoBoard.vue'
 import ProcessorLab from './ProcessorLab.vue'
 import ReleaseList from './ReleaseList.vue'
 import ReleaseMeta from './ReleaseMeta.vue'
@@ -101,6 +102,8 @@ export default {
     app.component('CardDemo', CardDemo)
     // A grid of real cards, one per option value: <CardGallery set="button-presets" />.
     app.component('CardGallery', CardGallery)
+    // The public demo board of this release, live: <DemoBoard /> (getting-started/live-demo.md).
+    app.component('DemoBoard', DemoBoard)
     // ```yaml lab blocks on the processor reference page.
     app.component('ProcessorLab', ProcessorLab)
     // Releases section: the index cards and the line under each release page's title.

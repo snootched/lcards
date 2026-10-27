@@ -293,6 +293,11 @@ export const actionSchema = {
             description: 'Path to navigate to (must start with /)',
             examples: ['/lovelace/dashboard', '/lovelace/0']
         },
+        url_path: {
+            type: 'string',
+            description: 'url only: the address to open, in a new tab',
+            examples: ['https://www.home-assistant.io']
+        },
         entity: {
             type: 'string',
             format: 'entity',
@@ -371,9 +376,8 @@ export const animationSchema = {
         duration: {
             type: ['number', 'object'],
             minimum: 0,
-            maximum: 10000,
             default: 500,
-            description: 'Animation duration in milliseconds (0-10000). Also accepts a map_range descriptor for entity-driven, live-adjusting duration on looping animations.'
+            description: 'Animation duration in milliseconds (no upper limit: a slow looping background motion can take 20000 or more). Also accepts a map_range descriptor for entity-driven, live-adjusting duration on looping animations.'
         },
         ease: {
             type: ['string', 'object'],
@@ -396,7 +400,6 @@ export const animationSchema = {
         delay: {
             type: ['number', 'object'],
             minimum: 0,
-            maximum: 10000,
             default: 0,
             description: 'Delay before animation starts (milliseconds). Also accepts a map_range descriptor, matching rulesSchema\'s equivalent field.'
         },
@@ -782,11 +785,10 @@ export const gridOptionsSchema = {
                 {
                     type: 'number',
                     minimum: 1,
-                    maximum: 24,
-                    description: 'Number of columns this card spans (1-24)'
+                    description: 'Number of grid columns this card spans: 12 per section column, so a section with column_span: 4 has 48'
                 }
             ],
-            description: 'Number of columns (1-24) or "full" to span all columns'
+            description: 'Number of grid columns (12 per section column; Home Assistant clamps to the section width) or "full" to span all columns'
         },
         rows: {
             type: 'number',

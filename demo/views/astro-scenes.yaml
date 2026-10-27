@@ -1,0 +1,186 @@
+# Astrometrics scenes (E2b). Seeded from the docs examples.
+title: Astrometrics scenes
+path: astro-scenes
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 360
+        camera:
+          view: galaxy
+          views:
+            galaxy: { target: core, yaw: 20, tilt: 35, distance: 260 }
+            map: { target: core, tilt: 90, distance: 300 }
+        backdrop: { stars: true }
+        points:
+          - { id: core, xyz: [ 0, 0, 0 ], label: GALACTIC CORE, style: title }
+          - { id: vega, polar: [ 64, 160 ], marker: triangle, label: Vega }
+          - { id: rigel, polar: [ 88, 95 ], marker: diamond, label: Rigel }
+          - id: home
+            polar: [ 45, 300 ]
+            marker: reticle
+            label: MAP VIEW
+            tap_action: { action: fly-to, view: map }
+        objects:
+          - type: grid
+            shape: disc
+            radius: 100
+            pattern: polar
+            line_spacing: 10
+            spoke_count: 36
+            ring_labels: { step: 30 }
+          - { type: ring, radius: 100, width: 2 }
+          - { type: glow, at: core, size: 50 }
+        grid_options: &a1 { columns: 24 }
+      - type: custom:lcards-astrometrics-card
+        height: 380
+        camera:
+          view: map
+          views: { map: { target: [ 0, 0, 0 ], tilt: 90, distance: 1250, projection: orthographic } }
+          limits: { tilt: [ 90, 90 ] }
+        objects:
+          - type: grid
+            id: sectors
+            shape: plane
+            size: [ 1200, 600 ]
+            line_spacing: 40
+            axis_labels: { columns: letters, rows: numbers, column_start: AD }
+            cells:
+              - from: AF3
+                to: AH6
+                color: var(--lcars-blue)
+                opacity: 0.3
+                shade: 0.4
+                border: true
+              - { from: AL2, to: AO5, color: var(--lcars-green), opacity: 0.25, shade: 0.4 }
+              - { from: AL9, to: AP12, color: var(--lcars-red), opacity: 0.3, shade: 0.4 }
+        points:
+          - id: ufp
+            cell: AG4
+            object: sectors
+            label: UNITED FEDERATION OF PLANETS
+            style: major
+          - id: sb10
+            cell: AJ2
+            object: sectors
+            offset: [ 8, 0, 12 ]
+            marker: triangle
+            label: Starbase 10
+          - { id: achernar, cell: AN3, object: sectors, marker: diamond, label: Achernar }
+          - id: qualor
+            cell: AL6
+            object: sectors
+            marker: dot
+            label: Qualor
+            style: tiny
+            max_distance: 1300
+        grid_options: *a1
+      - type: custom:lcards-astrometrics-card
+        height: 460
+        camera:
+          view: galaxy
+          views:
+            galaxy: { target: core, yaw: 20, tilt: 35, distance: 280 }
+            map: { target: core, tilt: 90, distance: 300 }
+            planet: { target: nimbus, yaw: 60, tilt: 20, distance: 40 }
+        backdrop: { stars: { count: 2500 } }
+        points:
+          - { id: core, xyz: [ 0, 0, 0 ], label: GALACTIC CORE, style: title }
+          - { id: sagittarius, polar: [ 45, 300 ], label: Sagittarius Arm, style: major }
+          - id: federation
+            polar: [ 75, 135 ]
+            alt: 22
+            label: FEDERATION
+            style: major
+            color: var(--lcars-blue)
+          - id: borg
+            polar: [ 30, 345 ]
+            alt: 44
+            label: BORG SPACE
+            style: major
+            color: var(--lcars-green)
+          - id: talos
+            polar: [ 52, 310 ]
+            marker: dot
+            label: Talos IV
+            style: tiny
+            max_distance: 200
+          - { id: vega, polar: [ 64, 160 ], marker: triangle, label: Vega, style: minor }
+          - id: nimbus
+            polar: [ 72, 236 ]
+            alt: 12
+            marker: reticle
+            label: NIMBUS III
+            tap_action: { action: fly-to, view: planet }
+          - id: away
+            latlon: [ 10, 40 ]
+            object: planet
+            alt: 0.3
+            marker: dot
+            label: AWAY TEAM
+            style: tiny
+            color: var(--lcars-orange)
+        objects:
+          - type: grid
+            shape: disc
+            radius: 100
+            pattern: polar
+            line_spacing: 10
+            spoke_count: 36
+            major_row_interval: 3
+            ring_labels: { step: 10, radius: 106 }
+          - { type: ring, radius: 100, width: 3, color: theme:colors.ui.secondary }
+          - type: volume
+            id: federation_space
+            shape: sector
+            radius: [ 55, 95 ]
+            angle: [ 100, 170 ]
+            height: [ -6, 18 ]
+            cells: { ring: 10, angle: 10, layer: 8 }
+            color: var(--lcars-blue)
+            tap_action: { action: fly-to }
+          - type: volume
+            shape: sector
+            radius: [ 18, 42 ]
+            angle: [ 330, 360 ]
+            height: [ 0, 40 ]
+            color: var(--lcars-green)
+          - { type: glow, at: core, size: 70 }
+          - { type: beam, from: [ -180, 0, 0 ], to: [ 180, 0, 0 ] }
+          - { type: beam, from: [ 0, 0, -180 ], to: [ 0, 0, 180 ] }
+          - { type: sphere, id: planet, at: nimbus, radius: 6, spin: 8 }
+          - { type: ring, around: nimbus, radius: 10, inclination: 20, width: 1.5 }
+          - type: path
+            points: [ talos, vega ]
+            arc: 12
+            dash: [ 6, 4 ]
+            color: var(--lcars-orange)
+        grid_options: &a2 { columns: full }
+      - type: custom:lcards-astrometrics-card
+        height: 380
+        camera:
+          view: horizon
+          views:
+            horizon: { target: [ 0, 15, 0 ], yaw: 180, tilt: 28, distance: 260 }
+            zenith: { target: [ 0, 0, 0 ], tilt: 90, distance: 260 }
+        objects:
+          - type: grid
+            id: sky
+            shape: dome
+            radius: 100
+            pattern: both
+            line_spacing_deg: 15
+          - { type: ring, radius: 100, width: 3, color: theme:colors.ui.primary }
+          - { type: path, sky: sun, object: sky, dash: [ 6, 4 ], color: var(--lcars-yellow) }
+          - { type: path, sky: moon, object: sky, dash: [ 6, 4 ], color: var(--lcars-blue) }
+        points:
+          - { id: sun, sky: sun, object: sky, marker: reticle, label: SOL }
+          - { id: moon, sky: moon, object: sky, marker: moon_phase, label: LUNA }
+          - { id: north, altaz: [ 0, 0 ], object: sky, label: "N", style: major, overlap: true }
+          - { id: east, altaz: [ 90, 0 ], object: sky, label: E, style: major, overlap: true }
+          - { id: south, altaz: [ 180, 0 ], object: sky, label: S, style: major, overlap: true }
+          - { id: west, altaz: [ 270, 0 ], object: sky, label: W, style: major, overlap: true }
+        grid_options: *a2

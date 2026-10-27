@@ -15,6 +15,7 @@ const DEV = BUILT + 1;
 // The docs channel's base (DOCS_BASE, e.g. /dev/): both servers serve the site under it,
 // and tests/docs-site/support.js puts every spec path under it.
 const BASE = process.env.DOCS_BASE ?? '/';
+const GPU_ARGS = ['--ignore-gpu-blocklist', '--enable-gpu', '--use-angle=vulkan', '--enable-features=Vulkan'];
 const chromium = process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
 
 export default defineConfig({
@@ -27,7 +28,10 @@ export default defineConfig({
     use: {
         viewport: { width: 1300, height: 900 },
         // System Chromium locally (no download); CI installs Playwright's own build.
-        launchOptions: { executablePath: chromium },
+        // Locally WebGL runs on the real GPU (Vulkan through ANGLE): without these flags
+        // headless Chromium draws with SwiftShader on the CPU, and the WebGL demos crawl.
+        // CI has no GPU and keeps the default.
+        launchOptions: { executablePath: chromium, args: process.env.CI ? [] : GPU_ARGS },
     },
     webServer: [
         {

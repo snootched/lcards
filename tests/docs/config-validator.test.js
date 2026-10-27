@@ -158,6 +158,39 @@ test('schema fixes found by checking real configs: CSS functions for sizes, 0 sp
     assert.ok(messages(check({ type: 'custom:lcards-layout-card', layout: { margin: 10 } })).length > 0, 'a bare number other than 0 is not CSS');
 });
 
+test('discriminatedBy: animation params and background config are checked by their preset or type, like the runtime', () => {
+    const issues = messages(check({
+        type: 'custom:lcards-button',
+        animations: [
+            { trigger: 'on_load', preset: 'pulse', params: { scale: 'big' } },
+            { trigger: 'on_load', preset: 'my-pack-preset', params: { anything: 'goes' } },
+        ],
+        background_animation: [{ preset: 'grid', config: { line_spacing: true } }], // any string is a template there
+    }));
+    assert.ok(issues.some(m => m.startsWith('error animations[0].params.scale')), issues.join('\n'));
+    assert.ok(!issues.some(m => m.includes('animations[1].params')), 'an unknown preset (user pack) is not schema-checked');
+    assert.ok(issues.some(m => m.startsWith('error background_animation[0].config.line_spacing')), issues.join('\n'));
+    // Reactive values and overlapping oneOf branches pass, as at runtime (CoreValidationService reads oneOf as anyOf)
+    assert.deepEqual(messages(check({
+        type: 'custom:lcards-button',
+        background_animation: [{ preset: 'grid', config: { color: 'var(--lcards-blue)', line_spacing: { map_range: { entity_id: 'input_number.x', input: [0, 1], output: [10, 40] } } } }],
+    })), []);
+});
+
+test('grid_options.columns: any width up to the section (12 per section column, 48 in a column_span: 4 section)', () => {
+    assert.deepEqual(messages(check({ type: 'custom:lcards-button', grid_options: { columns: 48, rows: 2 } })), []);
+});
+
+test('animation duration and delay have no upper limit (slow background loops)', () => {
+    assert.deepEqual(messages(check({
+        type: 'custom:lcards-elbow', elbow: { type: 'header-left' },
+        animations: [
+            { trigger: 'on_load', preset: 'custom', target: 'background', effect: 0, params: { surface_rotate_x: [0, 360], duration: 20000, loop: true } },
+            { trigger: 'on_load', preset: 'pulse', duration: 60000, delay: 15000 },
+        ],
+    })), []);
+});
+
 test('CLI: HA YAML tags are placeholders, not errors; whole dashboards and JSON parse', async () => {
     const yamlText = 'views:\n  - cards:\n      - type: custom:lcards-elbow\n        elbow: !include elbow.yaml\n        text: !secret elbow_text\n';
     assert.equal(parseConfig(yamlText).views[0].cards[0].text, '!secret elbow_text');

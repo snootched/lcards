@@ -1,0 +1,128 @@
+# Astrometrics objects (E2b). Seeded from the docs examples.
+title: Astrometrics objects
+path: astro-objects
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 320
+        camera: { views: { v: { target: [ 0, 20, 0 ], yaw: 30, tilt: 25, distance: 230 } } }
+        objects:
+          - type: grid
+            shape: disc
+            radius: 60
+            at: [ -70, 0, 0 ]
+            pattern: polar
+            line_spacing: 10
+            spoke_count: 24
+            ring_labels: { step: 45, style: tiny }
+          - type: grid
+            shape: dome
+            radius: 45
+            at: [ 50, 0, 0 ]
+            line_spacing_deg: 15
+            color: var(--lcars-blue)
+          - type: grid
+            shape: cylinder
+            radius: 15
+            height: 60
+            at: [ 0, 30, -70 ]
+            line_spacing_deg: 30
+            color: var(--lcars-orange)
+        grid_options: &a1 { columns: 24 }
+      - type: custom:lcards-astrometrics-card
+        height: 300
+        camera: { views: { v: { target: [ 0, 5, 0 ], yaw: 200, tilt: 30, distance: 190 } } }
+        objects:
+          - type: grid
+            shape: disc
+            radius: 80
+            pattern: polar
+            line_spacing: 20
+            spoke_count: 12
+          - type: volume
+            shape: sector
+            radius: [ 30, 75 ]
+            angle: [ 100, 170 ]
+            height: [ 0, 20 ]
+            cells: { ring: 9, angle: 10, layer: 10 }
+            color: var(--lcars-blue)
+          - type: volume
+            shape: box
+            at: [ -40, 10, -30 ]
+            size: [ 30, 20, 20 ]
+            color: var(--lcars-orange)
+        grid_options: *a1
+      - type: custom:lcards-astrometrics-card
+        height: 300
+        camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 0, tilt: 15, distance: 60 } } }
+        points:
+          - id: base
+            latlon: [ 15, -20 ]
+            object: world
+            alt: 0.3
+            marker: dot
+            label: BASE CAMP
+            color: var(--lcars-orange)
+        objects:
+          - type: sphere
+            id: world
+            radius: 14
+            spin: 12
+            lat_step: 15
+            lon_step: 20
+            color: var(--lcars-blue)
+        grid_options: *a1
+      - type: custom:lcards-astrometrics-card
+        height: 320
+        camera: { views: { v: { target: [ 0, 0, 0 ], yaw: -40, tilt: 30, distance: 55 } } }
+        points:
+          - id: home
+            entity: zone.home
+            latlon: { entity: zone.home }
+            object: earth
+            alt: 0.3
+            marker: reticle
+            label: HOME
+            overlap: true
+          - id: greenwich
+            latlon: [ 51.48, 0 ]
+            object: earth
+            marker: dot
+            label: Greenwich
+            style: tiny
+        objects:
+          - type: sphere
+            id: earth
+            radius: 15
+            image: builtin:earth_blue_marble
+            lat_step: 30
+            lon_step: 30
+            color: var(--lcars-blue)
+        grid_options: *a1
+      - type: custom:lcards-astrometrics-card
+        height: 300
+        camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 20, tilt: 40, distance: 170 } } }
+        points:
+          - { id: star, xyz: [ 0, 0, 0 ], marker: reticle, label: STAR }
+          - { id: a, polar: [ 60, 250 ], marker: dot, label: OUTPOST }
+          - { id: b, polar: [ 55, 60 ], marker: dot, label: RELAY }
+        objects:
+          - type: ring
+            around: star
+            radius: 30
+            inclination: 25
+            node: 40
+            color: var(--lcars-blue)
+          - { type: ring, around: star, radius: [ 70, 50 ], dash: [ 4, 4 ] }
+          - type: path
+            points: [ a, star, b ]
+            arc: 15
+            width: 2
+            color: var(--lcars-orange)
+            color_to: var(--lcars-yellow)
+            glow: true
+        grid_options: *a1

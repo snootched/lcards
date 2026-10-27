@@ -13,16 +13,13 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateTexts } from '../../scripts/lcards-validate.mjs';
 import yaml from 'js-yaml';
+import { disallowedEntities } from '../helpers/allowed-entities.js';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const DIR = join(ROOT, 'doc/gallery/dashboards');
 const dashboards = readdirSync(DIR).filter(f => f.endsWith('.yaml')).sort();
 const page = readFileSync(join(ROOT, 'doc/getting-started/dashboard-gallery.md'), 'utf8');
 
-const ENTITY = /\b(input_boolean|input_number|input_select|input_text|sensor|binary_sensor|light|switch|lock|camera|climate|media_player|cover|fan|alarm_control_panel)\.([a-z0-9_]+)/g;
-/** Service calls in the YAML look like entity ids; these are services, not entities. */
-const SERVICES = new Set(['increment', 'decrement', 'set_value', 'select_option', 'toggle', 'turn_on', 'turn_off']);
-const ALLOWED = (domain, id) => id.startsWith('lcards_test_') || `${domain}.${id}` === 'sensor.desk_sensor_temperature';
 
 test('there are gallery dashboards', () => {
     assert.ok(dashboards.length >= 5, dashboards.join(', '));
@@ -37,9 +34,7 @@ for (const file of dashboards) {
 
     test(`${name}: only lcards_test_* helpers and the sample sensor`, () => {
         const text = readFileSync(join(DIR, file), 'utf8');
-        const used = [...text.matchAll(ENTITY)].filter(([, domain, id]) => !SERVICES.has(id)).map(m => m[0]);
-        const personal = used.filter(id => !ALLOWED(...id.split('.')));
-        assert.deepEqual([...new Set(personal)], []);
+        assert.deepEqual(disallowedEntities(text, ['sensor.desk_sensor_temperature']), []);
     });
 
     test(`${name}: recording exists and the page shows it with its YAML`, () => {

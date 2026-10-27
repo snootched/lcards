@@ -1,0 +1,109 @@
+# New animation presets (A4, B1). Seeded from the docs examples.
+title: New animation presets
+path: anim-presets
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: WARP CORE, show: true } }
+        grid_options: { columns: 8, rows: 1 }
+        tap_action: { action: none }
+        animations:
+          - { trigger: on_show, preset: boot-sequence }
+          - { trigger: on_tap, preset: boot-sequence }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SHIELDS, show: true } }
+        grid_options: { columns: 8, rows: 1 }
+        tap_action: { action: none }
+        animations:
+          - { trigger: on_show, preset: boot-sequence, params: &a1 { fill: sweep } }
+          - { trigger: on_tap, preset: boot-sequence, params: *a1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: DEFLECTOR, show: true } }
+        grid_options: { columns: 8, rows: 1 }
+        style: { border: { width: 3, color: var(--lcars-orange) } }
+        tap_action: { action: none }
+        animations:
+          - { trigger: on_show, preset: boot-sequence, params: &a2 { fill: fade, duration: 1600 } }
+          - { trigger: on_tap, preset: boot-sequence, params: *a2 }
+      - type: custom:lcards-elbow
+        elbow: { type: header-left, segment: { bar_width: 90, bar_height: 24 } }
+        grid_options: { columns: 12, rows: 2 }
+        tap_action: { action: none }
+        animations:
+          - { trigger: on_show, preset: boot-sequence, params: &a3 { fill: sweep, from: top } }
+          - { trigger: on_tap, preset: boot-sequence, params: *a3 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: DECODE, show: true }, state: { show: true } }
+        grid_options: { columns: 16, rows: 1 }
+        entity: sensor.desk_sensor_temperature
+        tap_action: { action: none }
+        animations:
+          - { trigger: on_show, preset: text-decode }
+          - { trigger: on_tap, preset: text-decode }
+          - trigger: on_entity_change
+            entity: sensor.desk_sensor_temperature
+            preset: text-decode
+            params: { chars: numbers, duration: 600 }
+      - type: custom:lcards-data-grid
+        data_mode: decorative
+        grid: { grid-template-columns: "repeat(8, 1fr)", grid-template-rows: "repeat(4, auto)" }
+        animations:
+          - trigger: on_tap
+            preset: tap-ripple
+            target: .grid-cell
+            params: { color: var(--lcars-orange), jitter: 30 }
+        grid_options: { columns: 24, rows: 2 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg: { source: none }
+          view_box: [ 0, 0, 400, 200 ]
+          overlays:
+            - id: scanner
+              type: shape
+              kind: circle
+              position: [ 130, 30 ]
+              size: [ 140, 140 ]
+              style: { color: var(--lcars-blue), width: 2 }
+              animations:
+                - { trigger: on_load, preset: sensor-sweep, params: { color: var(--lcars-orange) } }
+        grid_options: &a4 { columns: 24 }
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg: { source: none }
+          view_box: [ 0, 0, 400, 200 ]
+          overlays:
+            - id: status_shape
+              type: shape
+              kind: polyline
+              closed: true
+              points: [ [ 150, 40 ], [ 250, 40 ], [ 250, 140 ], [ 150, 140 ] ]
+              corner_style: miter
+              style: { color: var(--lcars-orange), fill: var(--lcars-orange) }
+              animations:
+                - trigger: on_load
+                  preset: morph
+                  loop: true
+                  alternate: true
+                  params: { to: '[data-overlay-id="warn_shape"]', duration: 1200 }
+            - id: warn_shape
+              type: shape
+              kind: polyline
+              closed: true
+              points: [ [ 200, 40 ], [ 250, 140 ], [ 150, 140 ] ]
+              corner_style: miter
+              style: { color: transparent, fill: transparent }
+        grid_options: *a4

@@ -1,0 +1,46 @@
+# Ring gauge (slider component: ring). Seeded from the docs examples.
+title: Ring gauge
+path: ring-gauge
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: ring
+        grid_options: { columns: 12, rows: 4 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: picard-ring
+        grid_options: { columns: 12, rows: 4 }
+        text: { name: { content: Zone N } }
+        style:
+          ring:
+            scale:
+              tick_marks: { major: { interval: 20 }, minor: { interval: 5 } }
+              labels: { show_unit: false }
+          ranges:
+            - { min: 80, max: 100, color: theme:colors.status.error }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: ring
+        control: { min: 10, max: 30, step: 0.5 }
+        grid_options: { columns: 12, rows: 4 }
+        text: { state: { content: "{entity.attributes.temperature}°" } }
+        style:
+          ring: { scale: { tick_marks: { major: { interval: 5 } }, labels: {} } }
+          ranges:
+            - value: "{entity.attributes.current_temperature}"
+              indicator: { type: triangle, color: theme:colors.status.success }
+              label: { text: NOW }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: ring
+        grid_options: { columns: 12, rows: 4 }
+        style: { ring: { start_angle: -90, end_angle: 90, thickness: 20% } }
+        text: { name: { zone: sublabel, position: top } }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        grid_options: { columns: full, rows: 1 }

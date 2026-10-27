@@ -1,0 +1,200 @@
+# Noise fields on WebGL (C3). Rescued from reports/c2-review/c3.yaml.
+title: Noise fields on WebGL
+path: webgl-fields
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: RED ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.red_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: YELLOW ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLEAR, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: contour-field
+              config: &a1 { seed: 7, num_bands: 6, colors: [ theme:colors.ui.primary, theme:colors.ui.secondary ] }
+        text: { label: { content: 1A CONTOUR (WEBGL), show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: contour-field, renderer: canvas, config: *a1 }
+        text: { label: { content: 1B CONTOUR (CANVAS), show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: contour-field
+              config: &a2 { seed: 5, cell_size: 4, num_bands: 4, blend_colors: false }
+        text: { label: { content: 2A CONTOUR BLOCKY (WEBGL), show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: contour-field, renderer: canvas, config: *a2 }
+        text:
+          label: { content: 2B CONTOUR BLOCKY (CANVAS), show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: plasma, config: &a3 {} }
+        text: { label: { content: 3A PLASMA (WEBGL), show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: plasma, renderer: canvas, config: *a3 }
+        text: { label: { content: 3B PLASMA (CANVAS), show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: fluid, config: &a4 { color: theme:colors.ui.primary } }
+        text: { label: { content: 4A FLUID (WEBGL), show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: fluid, renderer: canvas, config: *a4 }
+        text: { label: { content: 4B FLUID (CANVAS), show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: contour-field
+              config: &a5 { seed: 3, num_octaves: 8, cell_size: 1, num_bands: 12 }
+        text:
+          label:
+            content: 5A CONTOUR 8 OCTAVES FULL WIDTH (WEBGL)
+            show: true
+            color: var(--lcards-blue)
+        grid_options: { columns: 12, rows: 6 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: contour-field, renderer: canvas, config: *a5 }
+        text:
+          label:
+            content: 5B CONTOUR 8 OCTAVES FULL WIDTH (CANVAS)
+            show: true
+            color: var(--lcards-blue)
+        grid_options: { columns: 12, rows: 6 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: contour-field
+              transition: 800
+              config: &a6
+                seed: 7
+                num_bands: 8
+                fill_color: alpha(theme:colors.ui.primary, 0.35)
+                fill_level: { map_range: { input: [ 0, 100 ], output: [ 0, 0.9 ] } }
+                noise_scale: { map_range: { input: [ 0, 100 ], output: [ 0.002, 0.02 ] } }
+        text:
+          label:
+            content: "6A SLIDER: FILL LEVEL + NOISE SCALE (WEBGL, GLIDES)"
+            show: true
+            color: var(--lcards-blue)
+        grid_options: { columns: 6, rows: 4 }
+        entity: input_number.lcards_test_value
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: contour-field, renderer: canvas, transition: 800, config: *a6 }
+        text:
+          label: { content: "6B SAME, CANVAS (SNAPS, RE-BAKES)", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 4 }
+        entity: input_number.lcards_test_value
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: warp-starfield, config: { count: 1500, speed: 3 } }
+        text:
+          label: { content: 7 WARP STARFIELD (SHADER ONLY NOW), show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 12, rows: 4 }

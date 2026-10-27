@@ -1,0 +1,130 @@
+# Holo-sphere (C3). Rescued from reports/c2-review/c3.yaml.
+title: Holo-sphere
+path: holo-sphere
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: RED ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.red_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: YELLOW ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLEAR, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: holo-sphere, config: {} }
+        text: { label: { content: 1A SPHERE (WEBGL), show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: holo-sphere, config: {}, renderer: canvas }
+        text: { label: { content: 1B SPHERE (CANVAS), show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: holo-sphere
+              config: { size: 1.4, position_x: 0.85, tilt: 15, rotate_speed: 0.5 }
+        text:
+          label: { content: "2 PLANET OFF TO THE RIGHT, SIZE 1.4", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 12, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: holo-sphere
+              config:
+                rotate_speed: { map_range: { input: [ 0, 100 ], output: [ -6, 6 ] } }
+                size: { map_range: { input: [ 0, 100 ], output: [ 0.4, 1.2 ] } }
+              transition: 1200
+        text:
+          label:
+            content: "3 SLIDER: ROTATE SPEED + SIZE (GLIDES)"
+            show: true
+            color: var(--lcards-blue)
+        grid_options: { columns: 6, rows: 4 }
+        entity: input_number.lcards_test_value
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: holo-sphere, config: { tilt: 20 } }
+        text:
+          label: { content: "4 TAP: TILT 20 TO 75 AND BACK", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 4 }
+        tap_action: { action: none }
+        animations:
+          - trigger: on_tap
+            target: background
+            preset: custom
+            params: { tilt: [ 20, 75 ], duration: 1500, ease: inOutSine, alternate: true, loop: 1 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - { preset: contour-field, config: { seed: 11, num_bands: 6 } }
+            - { preset: holo-sphere, config: { back_opacity: 0, scan_period: 4 } }
+        text:
+          label: { content: 5 SPHERE OVER CONTOUR FIELD, show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 4 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: holo-sphere
+              config: { latitude_lines: 17, longitude_lines: 36, size: 0.6, scan_period: 0, back_opacity: 0.35 }
+              renderer: canvas
+        text:
+          label: { content: "6 DENSE, SMALL, NO BAND (CANVAS)", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 4 }

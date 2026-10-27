@@ -1,0 +1,261 @@
+# Astrometrics points and live data (E3a). Seeded from the docs examples.
+title: Astrometrics points and live data
+path: astro-points-data
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 340
+        camera: { views: { side: { target: [ 0, 0, 0 ], yaw: 30, tilt: 25, distance: 120 } } }
+        points:
+          - { id: origin, xyz: [ 0, 0, 0 ], marker: dot, label: XYZ }
+          - { id: bearing, polar: [ 35, 90 ], marker: diamond, label: POLAR 35 AT 90 }
+          - { id: lifted, at: bearing, offset: [ 0, 15, 0 ], marker: triangle, label: AT + OFFSET }
+          - id: lander
+            latlon: [ 20, 0 ]
+            object: globe
+            alt: 0.5
+            marker: reticle
+            label: LATLON 20 0
+        objects:
+          - type: grid
+            shape: disc
+            radius: 50
+            pattern: polar
+            line_spacing: 10
+            spoke_count: 12
+          - { type: sphere, id: globe, at: [ -30, 12, 0 ], radius: 10, spin: 10 }
+        grid_options: &a1 { columns: 24 }
+      - type: custom:lcards-astrometrics-card
+        height: 300
+        camera: { views: { top: { target: [ 0, 0, 0 ], tilt: 70, distance: 140 } } }
+        labels:
+          default: { text_transform: uppercase, letter_spacing: 1 }
+          styles:
+            hostile: { font_size: 16, font_weight: bold, color: var(--lcars-alert-red), priority: 90 }
+        points:
+          - { id: base, xyz: [ -30, 0, 10 ], marker: square, style: major, label: Starbase 12 }
+          - id: warbird
+            xyz: [ 25, 0, -15 ]
+            marker: triangle
+            style: hostile
+            text:
+              label: { content: Warbird }
+              class:
+                content: D'deridex class
+                position: bottom-right
+                font_size: 10
+                font_weight: normal
+                color: var(--lcards-moonlight)
+          - id: buoy
+            xyz: [ 20, 0, 25 ]
+            marker: dot
+            text:
+              label:
+                content: Buoy 7
+                background: { default: var(--lcars-orange) }
+                color: black
+                background_radius: 8
+        objects:
+          - { type: grid, shape: plane, size: 120, line_spacing: 10 }
+        grid_options: *a1
+      - type: custom:lcards-astrometrics-card
+        height: 340
+        camera: { view: wide, views: { wide: { target: [ 0, 0, 0 ], yaw: 20, tilt: 40, distance: 160 } } }
+        points:
+          - id: lamp
+            xyz: [ -30, 0, 0 ]
+            marker: square
+            label: LIGHT
+            tap_action: { action: toggle, entity: input_boolean.lcards_test_lights }
+            hold_action: { action: more-info, entity: input_boolean.lcards_test_lights }
+          - id: probe
+            xyz: [ 30, 0, 10 ]
+            marker: diamond
+            label: PROBE
+            view: { distance: 30, tilt: 15 }
+        objects:
+          - { type: grid, shape: plane, size: 120, line_spacing: 10 }
+        grid_options: *a1
+      - type: custom:lcards-astrometrics-card
+        height: 280
+        camera: { views: { top: { target: [ 0, 0, 0 ], tilt: 70, distance: 120 } } }
+        points:
+          - id: lamp
+            entity: input_boolean.lcards_test_toggle
+            xyz: [ -20, 0, 0 ]
+            marker: square
+            style: major
+            color: { active: var(--lcars-orange), inactive: var(--lcars-gray) }
+            text:
+              label: { content: "{entity.attributes.friendly_name}" }
+              state: { content: "{entity.state}", position: bottom-right, font_size: 11 }
+            tap_action: { action: toggle }
+        objects:
+          - { type: grid, shape: plane, size: 100, line_spacing: 10 }
+        grid_options: *a1
+      - type: custom:lcards-astrometrics-card
+        height: 300
+        camera: { views: { sky: { target: [ 0, 20, 0 ], yaw: 180, tilt: 20, distance: 190 } } }
+        points:
+          - id: sun
+            sky: sun
+            object: dome
+            marker: dot
+            label: SOL {sky.sun.altitude}°
+            color: var(--lcars-yellow)
+          - id: moon
+            sky: moon
+            object: dome
+            marker: moon_phase
+            label: LUNA {sky.moon.illumination}%
+        objects:
+          - { type: grid, id: dome, shape: dome, radius: 80, line_spacing_deg: 15 }
+        grid_options: *a1
+      - type: custom:lcards-astrometrics-card
+        height: 420
+        camera:
+          view: home
+          views:
+            home: { target: [ 0, 0, 0 ], yaw: -79, tilt: 35, distance: 60 }
+            north: { target: [ 0, 0, 0 ], tilt: 90, distance: 60 }
+            side: { target: [ 0, 0, 0 ], yaw: 0, tilt: 0, distance: 70 }
+          auto_rotate: 0
+        labels:
+          default: { font_family: lcards_eurostile, text_transform: uppercase, letter_spacing: 1 }
+        objects:
+          - type: sphere
+            id: earth
+            radius: 15
+            lat_step: 15
+            lon_step: 15
+            image: builtin:earth_blue_marble
+          - { type: ring, around: core, radius: 15.2, width: 2, color: var(--lcars-orange) }
+        points:
+          - { id: core, xyz: [ 0, 0, 0 ] }
+          - id: home
+            entity: zone.home
+            latlon: { entity: zone.home }
+            object: earth
+            alt: 0.3
+            marker: reticle
+            style: major
+            overlap: true
+            color: var(--lcars-yellow)
+            text:
+              label: { content: "{entity.attributes.friendly_name}" }
+              where:
+                content: "{entity.attributes.latitude}, {entity.attributes.longitude}"
+                position: bottom-right
+                font_size: 10
+            tap_action: { action: fly-to, view: home }
+          - id: np
+            latlon: [ 90, 0 ]
+            object: earth
+            alt: 1
+            marker: triangle
+            label: N POLE
+            tap_action: { action: fly-to, view: north }
+          - { id: sp, latlon: [ -90, 0 ], object: earth, alt: 1, marker: triangle, label: S POLE }
+          - { id: eq, latlon: [ 0, -79 ], object: earth, alt: 0.3, label: EQUATOR, style: tiny }
+          - id: greenwich
+            latlon: [ 51.48, 0 ]
+            object: earth
+            marker: dot
+            label: Greenwich
+            style: tiny
+          - id: tokyo
+            latlon: [ 35.68, 139.69 ]
+            object: earth
+            marker: dot
+            label: Tokyo
+            style: tiny
+          - id: sydney
+            latlon: [ -33.87, 151.21 ]
+            object: earth
+            marker: dot
+            label: Sydney
+            style: tiny
+          - id: rio
+            latlon: [ -22.91, -43.17 ]
+            object: earth
+            marker: dot
+            label: Rio
+            style: tiny
+        grid_options: *a1
+      - type: custom:lcards-astrometrics-card
+        height: 420
+        camera:
+          view: horizon
+          views:
+            horizon: { target: [ 0, 15, 0 ], yaw: 180, tilt: 28, distance: 260 }
+            zenith: { target: [ 0, 0, 0 ], tilt: 90, distance: 260 }
+        labels:
+          default: { font_family: lcards_eurostile, text_transform: uppercase, letter_spacing: 1 }
+          styles:
+            alert: { font_size: 18, font_weight: bold, color: var(--lcars-alert-red), priority: 90 }
+        objects:
+          - type: grid
+            id: sky
+            shape: dome
+            radius: 100
+            pattern: both
+            line_spacing_deg: 15
+          - { type: ring, radius: 100, width: 3, color: theme:colors.ui.primary }
+          - type: path
+            id: sun_track
+            sky: sun
+            object: sky
+            dash: [ 6, 4 ]
+            color: var(--lcars-yellow)
+          - type: path
+            id: moon_track
+            sky: moon
+            object: sky
+            dash: [ 6, 4 ]
+            color: var(--lcars-blue)
+        points:
+          - id: sun
+            entity: sun.sun
+            altaz: { entity: sun.sun }
+            object: sky
+            marker: reticle
+            style: major
+            tags: [ watch ]
+            color: { above_horizon: var(--lcars-yellow), below_horizon: var(--lcars-gray) }
+            text:
+              label: { content: SOL }
+              detail:
+                content: ALT {sky.sun.altitude}° · AZ {sky.sun.azimuth}°
+                position: bottom-right
+                font_size: 10
+              state:
+                content: "{entity.state}"
+                position: top-right
+                font_size: 10
+                color: black
+                background: { above_horizon: var(--lcars-yellow), below_horizon: var(--lcars-gray) }
+            tap_action: { action: more-info }
+          - id: moon
+            sky: moon
+            object: sky
+            marker: moon_phase
+            text:
+              label: { content: LUNA }
+              detail:
+                content: "{sky.moon.illumination}% LIT · ALT {sky.moon.altitude}°"
+                position: bottom-right
+                font_size: 10
+          - { id: north, altaz: [ 0, 0 ], object: sky, label: "N", style: major, overlap: true }
+          - { id: east, altaz: [ 90, 0 ], object: sky, label: E, style: major, overlap: true }
+          - { id: south, altaz: [ 180, 0 ], object: sky, label: S, style: major, overlap: true }
+          - { id: west, altaz: [ 270, 0 ], object: sky, label: W, style: major, overlap: true }
+        rules:
+          - id: e3a_sky_alert
+            when: { entity: input_boolean.lcards_test_toggle, state: "on" }
+            apply:
+              overlays: { tag:watch: { style: alert, label: SOL ALERT }, moon_track: { visible: false } }
+        grid_options: { columns: full }

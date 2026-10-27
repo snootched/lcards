@@ -29,11 +29,16 @@ export function loadBundle() {
 
 /** One shared environment per page: every demo on the page sees the same sample states. */
 export function sharedEnv() {
-  globalThis.__lcardsDocsEnv ??= import('../../../tests/helpers/card-env.js').then(mod => {
+  globalThis.__lcardsDocsEnv ??= Promise.all([
+    import('../../../tests/helpers/card-env.js'),
+    import('../../../tests/helpers/demo-states.js'),
+  ]).then(([mod, { DEMO_STATES }]) => {
     mod.defineHaStubs()
     return mod.createDemoEnv({
       sample: { SAMPLE_ENTITIES, samplePoints, sampleStatistics },
       simulateServices: true,
+      // the entities the live demo's views use (demo/views/, DemoBoard.vue)
+      extraStates: DEMO_STATES,
     })
   })
   return globalThis.__lcardsDocsEnv

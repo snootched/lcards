@@ -12,6 +12,7 @@
  *   env.setState('light.demo', 'off');          // HA-style update: new snapshot + state_changed
  */
 import { createFakeHass, makeStates } from './fake-hass.js';
+import { ALERT_SERVICES } from './demo-states.js';
 
 /** Stub the HA elements cards use outside HA (they render nothing useful but must exist). */
 export function defineHaStubs() {
@@ -60,7 +61,7 @@ const ENTITY_ID = /^(light|switch|sensor|binary_sensor|input_boolean|input_numbe
  * @param {object} opts
  * @param {{ SAMPLE_ENTITIES: string[], samplePoints: Function, sampleStatistics: Function }} opts.sample
  * @param {number} [opts.now] - pin the sample data (values follow the time of day)
- * @param {boolean} [opts.simulateServices] - toggle/turn_on/turn_off change the fake state
+ * @param {boolean} [opts.simulateServices] - toggle/turn_on/turn_off change the fake state; lcards.*_alert set the alert mode
  * @param {Record<string, object>} [opts.extraStates]
  * @param {Record<string, number>} [opts.historyDelay] - entity id -> ms before its history/stream answer
  */
@@ -239,6 +240,14 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
         const LIGHT_ATTRS = ['brightness', 'color_temp', 'color_temp_kelvin', 'rgb_color', 'hs_color'];
         const simulated = async (domain, service, data = {}, target) => {
             await record(domain, service, data, target);
+            // lcards.red_alert ... clear_alert, set_alert_mode: the alert helper's state, and
+            // the alert mode itself in this tab (no LCARdS integration here to do it)
+            const alert = domain === 'lcards' ? (service === 'set_alert_mode' ? data.mode : ALERT_SERVICES[service]) : null;
+            if (alert) {
+                if (current.states['input_select.lcards_alert_mode']) env.setState('input_select.lcards_alert_mode', alert);
+                await globalThis.window?.lcards?.setAlertMode?.(alert, { skipHelperSync: true });
+                return { context: { id: 'demo' } };
+            }
             const ids = [data.entity_id ?? target?.entity_id].flat().filter(Boolean);
             for (const id of ids) {
                 const state = current.states[id]?.state;

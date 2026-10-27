@@ -286,6 +286,7 @@ export default withMermaid(defineConfig({
           { text: 'Building a Dashboard', link: '/getting-started/building-dashboards' },
           { text: 'Designing LCARS Screens', link: '/getting-started/lcars-design' },
           { text: 'Dashboard Gallery',    link: '/getting-started/dashboard-gallery' },
+          { text: 'Live Demo',            link: '/getting-started/live-demo' },
           { text: 'Getting AI Help',      link: '/getting-started/ai-assistance' },
           { text: 'Check Your Config',    link: '/getting-started/config-checker' },
           { text: 'Getting Help',         link: '/getting-started/getting-help' },

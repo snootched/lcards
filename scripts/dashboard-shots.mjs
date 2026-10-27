@@ -45,11 +45,11 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node
 import { basename, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { chromium } from '@playwright/test';
-import { HAClient, HA_URL, readToken, ensureHelpers, TEST_HELPERS, GALLERY_HELPERS, GALLERY_STATES } from '../tests/ha/ha-client.mjs';
+import { HAClient, readToken, ensureHelpers, TEST_HELPERS, GALLERY_HELPERS, GALLERY_STATES } from '../tests/ha/ha-client.mjs';
 import { validateTexts, parseConfig } from './lcards-validate.mjs';
 import yaml from 'js-yaml';
 import { runSteps, restoreStates, recordScreencast, encodeFrames, hideToolbarElbow } from './lib/shot-video.mjs';
+import { launchChromium, newHAContext, openDashboardView, collectLcardsErrors } from './lib/ha-browser.mjs';
 
 const ROOT = resolve(new URL('..', import.meta.url).pathname);
 export const GALLERY_DASHBOARD = 'lcards-gallery';
@@ -88,31 +88,13 @@ if (!dashboards.some(d => d.url_path === GALLERY_DASHBOARD)) {
     });
 }
 mkdirSync(outDir, { recursive: true });
-const browser = await chromium.launch({
-    headless: !args.includes('--headed'),
-    executablePath: process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined),
-});
+const browser = await launchChromium({ headless: !args.includes('--headed') });
 
 /** Log in with the token, sidebar hidden. */
-async function newContext(scale) {
-    const context = await browser.newContext({ baseURL: HA_URL, viewport: { width, height }, deviceScaleFactor: scale, serviceWorkers: 'block' });
-    await context.addInitScript(({ token, hassUrl }) => {
-        localStorage.setItem('hassTokens', JSON.stringify({
-            access_token: token, token_type: 'Bearer', expires_in: 1e9, hassUrl,
-            clientId: `${hassUrl}/`, expires: Date.now() + 1e12, refresh_token: '',
-        }));
-        localStorage.setItem('dockedSidebar', JSON.stringify('always_hidden'));
-    }, { token, hassUrl: HA_URL });
-    return context;
-}
+const newContext = (scale) => newHAContext(browser, token, { width, height, scale });
 
 /** Open a gallery view and wait for the LCARdS cards to settle. */
-async function openView(page, viewPath) {
-    await page.goto(`/${GALLERY_DASHBOARD}/${viewPath}`);
-    await page.waitForFunction(() => !!window.lcards?.core?.themeManager, null, { timeout: 30_000 });
-    await page.waitForLoadState('networkidle').catch(() => {});
-    await page.waitForTimeout(3000);
-}
+const openView = (page, viewPath) => openDashboardView(page, GALLERY_DASHBOARD, viewPath);
 
 /** Record the motion file's steps as <outDir>/<name>.webm. */
 async function recordMotion(motionFile, viewPath, name) {
@@ -166,14 +148,8 @@ for (const file of files) {
 
     const context = await newContext(2);
     const page = await context.newPage();
-    const errors = [];
     // LCARdS errors only (message plus the top stack frames, enough to find the card).
-    // HA's own frontend throws one on load here because service workers are blocked.
-    page.on('pageerror', e => {
-        if (!/lcards/i.test(`${e.message}\n${e.stack ?? ''}`)) return;
-        errors.push([e.message, ...(e.stack ?? '').split('\n').slice(1, 4).map(l => l.trim())].join(' | '));
-    });
-    page.on('console', m => { if (m.type() === 'error' && /lcards/i.test(m.text())) errors.push(m.text().slice(0, 200)); });
+    const errors = collectLcardsErrors(page);
     try {
         const viewPath = config.views?.[viewIndex]?.path ?? String(viewIndex);
         await openView(page, viewPath); // animations, charts and MSD routing settle
