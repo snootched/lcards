@@ -55,6 +55,7 @@ export const LABEL_STYLES = /** @type {Record<'title' | 'major' | 'minor' | 'tin
  * @property {number} ax - the point inside the box (the marker's centre, or the centre cell's), CSS px
  * @property {number} ay
  * @property {boolean} empty - no marker and no text to show
+ * @property {boolean} anchor - laid out even when empty (a card is pinned to the point); an empty anchor takes no room from other labels
  * @property {boolean} overlap - never hidden by a collision (shown where it is when no side is free)
  * @property {number} flip - placement this frame: 0 as configured, 1 mirrored left-right, 2 up-down, 3 both (to dodge another label)
  * @property {Vector3 | null} world - position this frame
@@ -91,6 +92,7 @@ export function labelItem(o) {
     ax: NaN,
     ay: NaN,
     empty: false,
+    anchor: false,
     overlap: false,
     flip: 0,
     world: null,
@@ -167,7 +169,7 @@ export function layoutLabels(items, camera, width, height, occluders = []) {
     it.visible = false;
     it.reason = 'off';
     const p = it.world;
-    if (!p || it.alphaScale <= 0 || it.empty) continue;
+    if (!p || it.alphaScale <= 0 || (it.empty && !it.anchor)) continue;
     v.copy(p).project(camera);
     if (v.z > 1 || v.z < -1 || v.x < -1.2 || v.x > 1.2 || v.y < -1.2 || v.y > 1.2) continue;
     it.sx = (v.x * 0.5 + 0.5) * width;
@@ -198,6 +200,8 @@ export function layoutLabels(items, camera, width, height, occluders = []) {
     if (it.minDistance > 0) a *= Math.min(1, Math.max(0, (dist - it.minDistance * 0.9) / (it.minDistance * 0.1)));
     it.alpha = a;
     if (a <= 0.02) { it.reason = 'range'; continue; }
+    // Nothing drawn (only a card on the point): placed, but no box to collide
+    if (it.empty) { it.visible = true; it.reason = 'ok'; continue; }
     live.push(it);
   }
   // Collision: selected first, then priority, then nearer; boxes in CSS px
@@ -531,6 +535,11 @@ export class LabelLayer {
       const y = this.snap ? Math.round(ry) : Math.round(ry * 100) / 100;
       if (x !== e.x || y !== e.y) { e.el.style.transform = `translate3d(${x}px, ${y}px, 0)`; e.x = x; e.y = y; }
     }
+  }
+
+  /** @param {string} id */
+  item(id) {
+    return this._byId.get(id);
   }
 
   /** @param {number} x @param {number} y */

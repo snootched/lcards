@@ -27,6 +27,7 @@ import { prefersReducedMotion, onReducedMotionChange } from '../../utils/reduced
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { CameraRig, viewToKeys, parseLimits, clampKeys, screenRay, rayPlane, DEFAULT_KEYS } from './camera-rig.js';
 import { LabelLayer } from './label-layer.js';
+import { CardLayer, pointCard } from './card-layer.js';
 import { markerSvg } from './markers.js';
 import { buildScene, makeLabelItem } from './scene-builder.js';
 import { BINDABLE_FORMS } from './placements.js';
@@ -40,7 +41,7 @@ const DEG = Math.PI / 180;
 /** Point keys that place it: a rule patch on one moves the point */
 const PLACE_KEYS = ['xyz', 'polar', 'latlon', 'altaz', 'sky', 'at', 'cell', 'object', 'alt', 'offset'];
 /** Point keys that shape its label: a rule patch on one rebuilds that label */
-const LABEL_KEYS = ['label', 'text', 'style', 'color', 'marker', 'priority', 'overlap', 'fade', 'min_distance', 'max_distance', 'tap_action'];
+const LABEL_KEYS = ['label', 'text', 'style', 'color', 'marker', 'priority', 'overlap', 'fade', 'min_distance', 'max_distance', 'tap_action', 'card'];
 /** The sun crosses its own width in about 2 minutes: recompute the sky this often */
 const SKY_INTERVAL_MS = 60_000;
 /** A press this long is a hold (Home Assistant's hold time); a tap must be shorter */
@@ -97,6 +98,8 @@ const KEY_COMMANDS = {
  * @property {(hit: AstroTapHit) => void} [onHold] - a press held HOLD_MS within the tap distance, on a point or an object with a `hold_action`
  * @property {(reason: string) => void} [onFail] - no WebGL, or the context was lost
  * @property {(sky: import('./sky.js').SkyState) => void} [onSky] - the sky changed (a recompute that moved the sun or moon, at most once a minute); for label templates that read it
+ * @property {(card: Record<string, any>) => HTMLElement | null} [mountCard] - build the element for a point's Lovelace card (`card.card`); without it points show no cards
+ * @property {(el: HTMLElement, hass: any) => void} [setCardHass] - give a mounted card hass
  */
 
 /**
@@ -158,6 +161,10 @@ export function createAstroScene(host, config, options = {}) {
   host.append(wrap);
   const ctx2d = canvas.getContext('2d');
   const labels = new LabelLayer(wrap, { snap: cfg.labels?.snap === true });
+  const cards = new CardLayer(wrap, { mount: options.mountCard, setHass: options.setCardHass, onResize: () => requestFrame() });
+  cards.setHass(hass);
+  /** The points' cards, from the label items (the last definition of an id wins) */
+  const syncCards = () => cards.setCards(/** @type {import('./card-layer.js').PointCard[]} */ ((world?.labels ?? []).map((l) => pointCard(l.def)).filter(Boolean)));
 
   const user = { onContextLost: () => fail('context lost') };
   let failed = false;
@@ -332,6 +339,7 @@ export function createAstroScene(host, config, options = {}) {
     builds++;
     labels.snap = cfg.labels?.snap === true;
     labels.setItems(world.labels);
+    syncCards();
     for (const it of world.labels) if (it.marker !== 'none') labels.style(it.id, { svg: markerSvg(it.marker, sky?.moon) });
     labels.select(selected);
     // What the card resolved before this build (templates, state colours, entity positions) stays
@@ -479,6 +487,7 @@ export function createAstroScene(host, config, options = {}) {
       occluders.push({ center, radius: b.radius * scale, id: b.id });
     }
     labels.update(camera, cssW, cssH, occluders);
+    cards.update((id) => labels.item(id), cssW, cssH);
   }
 
   // Picking ----------------------------------------------------------------
@@ -615,6 +624,12 @@ export function createAstroScene(host, config, options = {}) {
       return;
     }
     const hit = pickAt(x, y, 'tap_action');
+    // A tap anywhere but on the open card's point closes it
+    if (cards.openId && cards.openId !== hit?.id) {
+      if (selected === cards.openId) select(null);
+      cards.close();
+      requestFrame();
+    }
     if (!hit) {
       const now = performance.now();
       const b = blankTap;
@@ -627,8 +642,16 @@ export function createAstroScene(host, config, options = {}) {
       return;
     }
     blankTap = null;
-    if (options.onTap?.(hit) === true) return;
     const action = hit.config?.tap_action;
+    // A point with a tap card: the tap opens (or closes) it and selects the
+    // point; an explicit fly-to tap_action flies too, other actions do not run
+    if (hit.kind === 'point' && cards.showsOnTap(hit.id)) {
+      const opened = cards.toggle(hit.id);
+      select(opened ? hit.id : null);
+      if (action?.action === 'fly-to' && options.onTap?.(hit) !== true) flyToPosition(hit.position, hit.config.view);
+      return;
+    }
+    if (options.onTap?.(hit) === true) return;
     if (hit.kind === 'point') {
       if (action && action.action !== 'fly-to') return;
       select(hit.id);
@@ -686,6 +709,7 @@ export function createAstroScene(host, config, options = {}) {
       if (alpha === 1) pointAlpha.delete(id);
       else pointAlpha.set(id, alpha);
     }
+    if (Object.keys(points).length) syncCards();
     for (const [id, next] of Object.entries(objects)) {
       const b = w.objects.get(id);
       if (!b || !next) continue;
@@ -844,6 +868,14 @@ export function createAstroScene(host, config, options = {}) {
 
   /** @param {KeyboardEvent} e */
   const onKeyDown = (e) => {
+    if (e.key === 'Escape' && cards.openId) {
+      if (selected === cards.openId) select(null);
+      cards.close();
+      requestFrame();
+      return;
+    }
+    // Keys typed into a card on a point are the card's
+    if (cards.contains(e)) return;
     if (cfg.camera?.controls === false || e.altKey || e.ctrlKey || e.metaKey) return;
     if (e.key === 'Home') {
       e.preventDefault();
@@ -893,6 +925,7 @@ export function createAstroScene(host, config, options = {}) {
     },
     setHass(next) {
       hass = next;
+      cards.setHass(next);
       if (refreshSky()) requestFrame();
     },
     flyTo,
@@ -931,6 +964,7 @@ export function createAstroScene(host, config, options = {}) {
       offReduced();
       rig.dispose();
       labels.dispose();
+      cards.dispose();
       world?.dispose();
       world = null;
       for (const t of textures) t.dispose();
@@ -955,6 +989,7 @@ export function createAstroScene(host, config, options = {}) {
         rig,
         labelItems: labels.items,
         labelLayer: labels,
+        cardLayer: cards,
         tap,
         hold,
         limits: rig.limits,

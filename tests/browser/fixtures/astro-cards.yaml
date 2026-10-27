@@ -1,0 +1,36 @@
+# Cards on astrometrics points (astro-cards.spec.js): a top-down orthographic
+# map. bridge: an always-shown LCARdS button pinned to the point. eng: a tap
+# card (opens on a tap on its marker, closes on a blank tap or Escape). deep:
+# a card point under the sphere: hidden from the side view.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: top
+  views:
+    top: { target: [0, 0, 0], tilt: 90, distance: 200, projection: orthographic }
+    side: { target: [0, 0, 0], yaw: 0, tilt: 0, distance: 300 }
+points:
+  - id: bridge
+    xyz: [-60, 0, 0]
+    marker: square
+    label: BRIDGE
+    card:
+      show: always
+      position: bottom-right
+      width: 160
+      card: { type: custom:lcards-button, entity: light.demo, preset: lozenge, text: { name: { content: BRIDGE LIGHT, show: true } } }
+  - id: eng
+    xyz: [60, 0, 0]
+    marker: diamond
+    label: ENGINEERING
+    card:
+      card: { type: custom:lcards-button, entity: switch.demo_switch, preset: lozenge }
+  - id: deep
+    xyz: [0, 0, -40]
+    card:
+      show: always
+      width: 120
+      card: { type: custom:lcards-button, entity: light.demo, preset: lozenge }
+objects:
+  - { type: grid, id: floor, shape: plane, size: [240, 160], line_spacing: 20 }
+  - { type: sphere, id: globe, at: [0, 0, 0], radius: 25 }

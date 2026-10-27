@@ -40,6 +40,7 @@ import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/Backgroun
 import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { deepMergeImmutable } from '../utils/deepMerge.js';
 import { registerAstrometricsCard, unregisterAstrometricsCard } from './astrometrics-registry.js';
+import { createHuiCardWrapper, createCardElement, applyHassToCard, applyCardConfig } from '../utils/ha-card-factory.js';
 
 /** Keys a rules engine patch carries besides the patch itself */
 const PATCH_META = new Set(['id', 'ruleId', 'ruleCondition']);
@@ -467,7 +468,9 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             onTap: (hit) => this._onSceneAction(hit, 'tap_action'),
             onHold: (hit) => { this._onSceneAction(hit, 'hold_action'); },
             onFail: (reason) => { this._failure = reason in FAILURES ? reason : 'render failed'; },
-            onSky: () => { this._refreshLabels({ sky: true }); }
+            onSky: () => { this._refreshLabels({ sky: true }); },
+            mountCard: (card) => this._mountPointCard(card),
+            setCardHass: (el, hass) => this._setPointCardHass(el, hass)
         });
         this._rebuildPointData();
         this._syncBackground();
@@ -848,6 +851,39 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         // A point's own entity, else the card's, for more-info and toggle
         this._actionHandler.runAction(action, this.hass, this, hit.config?.entity ?? this.config?.entity ?? null);
         return true;
+    }
+
+    /**
+     * The element for a point's Lovelace card: HA's `hui-card` (it loads
+     * lazy card types and applies the card's own visibility conditions;
+     * preview in the card editor shows it whatever they say), else the
+     * element itself, created into a holder (no `hui-card`: outside a
+     * dashboard, such as the test harness).
+     * @private
+     * @param {Record<string, any>} card
+     * @returns {HTMLElement}
+     */
+    _mountPointCard(card) {
+        if (customElements.get('hui-card')) return createHuiCardWrapper(card, this.hass, { editMode: this._inEditDialog });
+        const holder = document.createElement('div');
+        holder.className = 'astro-card-holder';
+        createCardElement(card.type, 'astrometrics-point').then(async (el) => {
+            if (!el || !holder.parentElement) return;
+            holder.append(el);
+            if (this.hass) applyHassToCard(el, this.hass, 'astrometrics-point');
+            await applyCardConfig(el, card, 'astrometrics-point');
+        });
+        return holder;
+    }
+
+    /**
+     * @private
+     * @param {HTMLElement} el - from _mountPointCard
+     * @param {any} hass
+     */
+    _setPointCardHass(el, hass) {
+        if (el.tagName === 'HUI-CARD') /** @type {any} */ (el).hass = hass;
+        else if (el.firstElementChild) applyHassToCard(el.firstElementChild, hass, 'astrometrics-point');
     }
 
     /** @protected */

@@ -17,6 +17,7 @@ import { labelItem } from './label-layer.js';
 import { resolveLabel, plainColor, selectedColor, fieldCss } from './label-text.js';
 import { TemplateDetector } from '../templates/TemplateDetector.js';
 import { MARKERS, OBJECT_TYPES } from './names.js';
+import { pointCard } from './card-layer.js';
 import { buildGrid } from './objects/grid.js';
 import { buildVolume } from './objects/volume.js';
 import { buildSphere } from './objects/sphere.js';
@@ -49,7 +50,8 @@ const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image
  */
 
 /**
- * The label item for a point, or null when it shows nothing (no text, no marker).
+ * The label item for a point, or null when it shows nothing (no text, no
+ * marker, no card).
  * @param {any} def - the point config
  * @param {any} labelsCfg - the card's `labels`
  * @param {(value: any, fallback: string) => string} cssColor
@@ -58,7 +60,8 @@ const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image
 export function makeLabelItem(def, labelsCfg, cssColor) {
   const marker = MARKERS.includes(def.marker) ? def.marker : 'none';
   const spec = resolveLabel(def, labelsCfg);
-  if (!spec.fields.length && marker === 'none') return null;
+  const card = pointCard(def);
+  if (!spec.fields.length && marker === 'none' && !card) return null;
   const item = labelItem({
     id: String(def.id),
     style: spec.style,
@@ -78,7 +81,9 @@ export function makeLabelItem(def, labelsCfg, cssColor) {
     fade: Array.isArray(def.fade) && def.fade.length === 2 ? [num(def.fade[0], 0), num(def.fade[1], 1)] : null,
     minDistance: num(def.min_distance, 0),
     maxDistance: num(def.max_distance, Infinity),
-    pickable: def.tap_action !== undefined ? def.tap_action?.action !== 'none' : marker !== 'none'
+    anchor: card !== null,
+    // A tap card opens on a tap, whatever the tap_action
+    pickable: card?.show === 'tap' || (def.tap_action !== undefined ? def.tap_action?.action !== 'none' : marker !== 'none')
   });
   return {
     ...item,

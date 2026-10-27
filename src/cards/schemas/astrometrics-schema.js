@@ -326,6 +326,27 @@ const attributeList = (/** @type {number} */ n, /** @type {string} */ descriptio
     type: 'array', items: { type: 'string' }, minItems: n, maxItems: n, description
 });
 
+/** A Lovelace card pinned to a point */
+const pointCardSchema = {
+    type: 'object',
+    required: ['card'],
+    additionalProperties: false,
+    description: 'A Lovelace card (any card: tile, entities, an LCARdS card) pinned to the point. It follows the point, and hides when the point is off screen, behind an object or out of its distance range.',
+    properties: {
+        show: { type: 'string', enum: ['tap', 'always'], default: 'tap', description: 'tap: a tap on the point opens the card and selects the point (one card open at a time; a tap elsewhere or Escape closes it); the tap_action then runs only when it is fly-to. always: the card is always shown.' },
+        position: { type: 'string', enum: [...LABEL_POSITION_NAMES], default: 'center-right', description: 'Where the card sits round the point (the label position names). It stays inside the scene.' },
+        offset: tuple(2, 'Moves the card by [x, y] px from where position puts it.'),
+        width: number('Card width, px; its height follows the card.', { minimum: 80, default: 280 }),
+        card: {
+            type: 'object',
+            required: ['type'],
+            additionalProperties: true,
+            description: 'The card config, as on a dashboard (type and its own keys). Its visibility conditions apply.',
+            properties: { type: { type: 'string', description: 'The card type, such as tile or custom:lcards-button.' } }
+        }
+    }
+};
+
 const pointSchema = {
     type: 'object',
     required: ['id'],
@@ -369,7 +390,8 @@ const pointSchema = {
         below_horizon: { type: 'string', enum: ['dim', 'hide', 'show'], description: 'altaz and sky points under the horizon: dim (default for sky), hide, or show (default for altaz).' },
         tap_action: sceneActionSchema,
         hold_action: sceneActionSchema,
-        view: landingViewSchema
+        view: landingViewSchema,
+        card: pointCardSchema
     }
 };
 
