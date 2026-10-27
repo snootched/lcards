@@ -88,6 +88,8 @@ export class LCARdSSoundConfigTab extends LitElement {
     this._helpers             = [];
     this._audioAssets         = [];
     this._overrides           = {};
+    /** @type {string|undefined} Scheme the shown overrides belong to */
+    this._overridesScheme     = undefined;
     this._schemeNames         = ['none'];
     this._eventTypes          = [];
     this._creatingHelpers     = false;
@@ -176,7 +178,10 @@ export class LCARdSSoundConfigTab extends LitElement {
     if (sm) {
       this._schemeNames = sm.getSchemeNames();
       this._eventTypes  = sm.getEventTypes();
-      this._reloadOverridesForActiveScheme();
+      // Every hass update lands here (any entity changing state): keep staged
+      // edits unless the active scheme changed, which discards them on purpose
+      const scheme = this._getHelperValue('sound_scheme') || 'none';
+      if (!this._overridesDirty || scheme !== this._overridesScheme) this._reloadOverridesForActiveScheme();
     }
 
     this.requestUpdate();
@@ -199,6 +204,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     const sm = window.lcards?.core?.soundManager;
     if (!sm) return;
     const schemeValue = this._getHelperValue('sound_scheme') || 'none';
+    this._overridesScheme = schemeValue;
     this._overrides = sm.isCustomScheme(schemeValue)
       ? sm.getSchemeMapping(schemeValue)
       : sm.getOverrides('global');

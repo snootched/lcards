@@ -62,6 +62,8 @@ const EVENT_CATEGORY = {
   system_ready:      'alerts',
   error:             'alerts',
   notification:      'alerts',
+  borg_assimilate:   'alerts',
+  borg_deassimilate: 'alerts',
 };
 
 /**
@@ -95,6 +97,8 @@ export const SOUND_EVENT_LABELS = {
   system_ready:      'System Ready',
   error:             'System Error',
   notification:      'Notification',
+  borg_assimilate:   'Borg assimilation',
+  borg_deassimilate: 'Borg deassimilation',
 };
 
 /**
@@ -843,6 +847,20 @@ export class SoundManager extends BaseService {
   }
 
   /**
+   * Play a one-off sound for an event: an asset key, a `media-source://…` id or a
+   * URL (`/local/sounds/borg.mp3`). Respects the master switch and the event's
+   * category switch, but not the scheme or overrides (the caller chose the sound).
+   * @param {string} source - Asset key, media-source id or URL
+   * @param {string} [eventType] - Event whose category switch applies
+   */
+  playSource(source, eventType) {
+    if (!source || !this._isEnabled()) return;
+    const category = eventType ? EVENT_CATEGORY[eventType] : undefined;
+    if (category && !this._isCategoryEnabled(category)) return;
+    this._playAsset(source);
+  }
+
+  /**
    * Preview the active (or specified) scheme by playing a representative event.
    * @param {string} [schemeName] - Scheme to preview (defaults to active)
    * @param {string} [eventType='card_tap'] - Event type to use for preview
@@ -1262,8 +1280,9 @@ export class SoundManager extends BaseService {
    * Sites that allow autoplay (browser site settings) will hear sounds on page load;
    * others will have play() silently rejected until the first user gesture.
    *
-   * @param {string} assetKey - Asset key registered in AssetManager, or a
-   *   `media-source://…` content ID picked via the HA media library.
+   * @param {string} assetKey - Asset key registered in AssetManager, a
+   *   `media-source://…` content ID picked via the HA media library, or a URL
+   *   (`/local/…`, `https://…`) to play as is.
    * @private
    */
   _playAsset(assetKey) {
@@ -1272,10 +1291,10 @@ export class SoundManager extends BaseService {
       return;
     }
 
-    // Read URL directly from registry metadata — no async required
-    const registry = this._core?.assetManager?.getRegistry('audio');
-    const entry = registry?.assets?.get(assetKey);
-    const url = entry?.url;
+    // A URL plays as is; anything else is a registry key (read from its metadata, no async)
+    const isUrl = typeof assetKey === 'string' && /^(\/|https?:\/\/)/.test(assetKey);
+    const registry = isUrl ? null : this._core?.assetManager?.getRegistry('audio');
+    const url = isUrl ? assetKey : registry?.assets?.get(assetKey)?.url;
 
     if (!url) {
       lcardsLog.warn(`[SoundManager] No audio URL for asset key: ${assetKey}`);

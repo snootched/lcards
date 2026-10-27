@@ -42,6 +42,7 @@ export const BORG_MAX_SITES = 20;
  * @property {BorgCurve[]} curves
  * @property {{ x: number, y: number, appearAt: number, seed: number }[]} junctions
  * @property {number[][]} cube - segments [ax, ay, az, bx, by, bz, weight] in a -1..1 cube
+ * @property {number[][]} cubeSpots - glow spots on the detailed cube's faces [face, u, v, phase]
  * @property {number} cubeAt - ms the cube starts to emerge
  * @property {number} allGrownAt - ms every tendril has grown
  * @property {number} settledAt - ms the picture is complete (the reduced-motion frame)
@@ -118,6 +119,25 @@ export function borgCubeSegments(rand) {
     }
     for (const c of corners) segs.push([...c.map(x => x * inner), ...c, 0.3]);
     return segs;
+}
+
+/** Glow spots on the detailed cube (the shader's array holds this many) */
+export const BORG_CUBE_SPOTS = 18;
+
+/**
+ * Glow spots deep in the detailed cube: face 0-5 (axis * 2 + positive side),
+ * u and v inside -0.8..0.8 on that face, and a pulse phase 0-1. Every face
+ * gets at least one so any rotation shows a few.
+ * @param {() => number} rand
+ * @returns {number[][]}
+ */
+export function borgCubeSpots(rand) {
+    const spots = [];
+    for (let i = 0; i < BORG_CUBE_SPOTS; i++) {
+        const face = i < 6 ? i : Math.floor(rand() * 6);
+        spots.push([face, (rand() * 2 - 1) * 0.8, (rand() * 2 - 1) * 0.8, rand()]);
+    }
+    return spots;
 }
 
 /**
@@ -221,6 +241,8 @@ export function buildBorgLayout(width, height, params = {}) {
         curves,
         junctions,
         cube: borgCubeSegments(rand),
+        // After the segments, so seeded layouts before F2 stay the same
+        cubeSpots: borgCubeSpots(rand),
         cubeAt: allGrownAt - 1500,
         allGrownAt,
         settledAt: allGrownAt + 2000 + 600 + 3000,

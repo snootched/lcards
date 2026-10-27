@@ -69,6 +69,20 @@ const DEFAULTS = {
     },
 };
 
+/**
+ * Play a Borg sound: the `sound` option when given (an asset key, a
+ * `media-source://` id or a URL; `'none'` stays silent), otherwise the event
+ * through the sound scheme and overrides (silent in the default scheme).
+ * @param {string} event - 'borg_assimilate' | 'borg_deassimilate'
+ * @param {string|null|undefined} sound
+ */
+function playBorgSound(event, sound) {
+    const sm = window.lcards?.core?.soundManager;
+    if (!sm || sound === 'none' || sound === null) return;
+    if (typeof sound === 'string' && sound) sm.playSource(sound, event);
+    else sm.play(event);
+}
+
 export class BorgAssimilationManager extends BaseService {
 
     constructor() {
@@ -127,6 +141,10 @@ export class BorgAssimilationManager extends BaseService {
      * @param {boolean}     [opts.fontSwap=true]                Whether to inject the Borg typeface.
      *                                                          Set to `false` to keep the existing dashboard font
      *                                                          while all other assimilation effects still run.
+     * @param {string}      [opts.sound]                        Sound to play at the start: an asset key, a
+     *                                                          `media-source://` id or a URL (`/local/…`);
+     *                                                          `'none'` for silence. Omitted: the
+     *                                                          `borg_assimilate` sound event (scheme, overrides).
      * @returns {Promise<void>}
      */
     async assimilate(opts = {}) {
@@ -137,6 +155,7 @@ export class BorgAssimilationManager extends BaseService {
             persistentLayers,            // undefined → use DEFAULTS.persistentLayers
             paletteHue       = null,     // null → use alertModeTransform default (110°)
             fontSwap         = true,     // false = skip font injection
+            sound,                       // undefined → the borg_assimilate sound event
         } = opts;
 
         if (this._assimilated) {
@@ -146,6 +165,7 @@ export class BorgAssimilationManager extends BaseService {
 
         this._assimilated = true;
         lcardsLog.info('[BorgAssimilationManager] Initiating Borg assimilation sequence…');
+        playBorgSound('borg_assimilate', sound);
 
         const tm  = window.lcards?.core?.themeManager;
         const sem = window.lcards?.core?.screenEffectManager;
@@ -255,6 +275,8 @@ export class BorgAssimilationManager extends BaseService {
      *                                                           e.g. { canvas: { preset: 'glitch', duration: 800 } }
      * @param {string}  [opts.revertTransitionStyle='fade_only']  Palette transition back to normal.
      *                                                           One of: 'flash', 'fade_only', 'blur_fade', 'off'.
+     * @param {string}  [opts.sound]                             Sound to play at the start, as for assimilate();
+     *                                                           omitted: the `borg_deassimilate` sound event.
      * @returns {Promise<void>}
      */
     async deassimilate(opts = {}) {
@@ -262,6 +284,7 @@ export class BorgAssimilationManager extends BaseService {
             withOutro             = true,
             outroLayers,                  // undefined → use DEFAULTS.outroLayers
             revertTransitionStyle = 'fade_only',
+            sound,                        // undefined → the borg_deassimilate sound event
         } = opts;
 
         if (!this._assimilated) {
@@ -280,6 +303,7 @@ export class BorgAssimilationManager extends BaseService {
         }
 
         lcardsLog.info('[BorgAssimilationManager] Initiating deassimilation sequence…');
+        playBorgSound('borg_deassimilate', sound);
 
         const tm  = window.lcards?.core?.themeManager;
         const sem = window.lcards?.core?.screenEffectManager;

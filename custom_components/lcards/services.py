@@ -424,6 +424,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         for key in ("renderer", "cube", "corruption", "overrun"):
             if call.data.get(key) is not None:
                 canvas_overrides[key] = call.data[key]
+        if call.data.get("cube_style") is not None:
+            canvas_overrides["cubeStyle"] = call.data["cube_style"]
 
         # Mapping from snake_case YAML keys → camelCase JS params.
         # Allows intro_layers.canvas to use either convention in YAML.
@@ -433,6 +435,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             "tendril_length":    "tendrilLength",
             "particle_count":    "particleCount",
             "glow_color":        "glowColor",
+            "cube_style":        "cubeStyle",
         }
 
         def _norm_canvas(d: dict) -> dict:
@@ -466,6 +469,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         font_swap = call.data.get("font_swap")
         if font_swap is not None:
             payload["fontSwap"] = font_swap
+        if call.data.get("sound"):
+            payload["sound"] = call.data["sound"]
 
         _fire_targeted_event(hass, "borg_assimilate", payload, device_ids, user_ids)
 
@@ -485,6 +490,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             payload["outro_layers"] = call.data["outro_layers"]
         if call.data.get("revert_transition_style") is not None:
             payload["revert_transition_style"] = call.data["revert_transition_style"]
+        if call.data.get("sound"):
+            payload["sound"] = call.data["sound"]
         _fire_targeted_event(hass, "borg_deassimilate", payload, device_ids, user_ids)
 
     # --- Register all services ---
@@ -597,10 +604,12 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             vol.Optional("particle_count"):    vol.All(int, vol.Range(min=0, max=6)),
             vol.Optional("renderer"):          vol.In(["auto", "webgl", "canvas"]),
             vol.Optional("cube"):              bool,
+            vol.Optional("cube_style"):        vol.In(["detailed", "classic"]),
             vol.Optional("corruption"):        vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
             vol.Optional("overrun"):           vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
             vol.Optional("suppress_persistent"): bool,
             vol.Optional("font_swap"):         bool,
+            vol.Optional("sound"):             str,
             vol.Optional("intro_layers"):      dict,
             vol.Optional("persistent_layers"): dict,
             **_TARGET_FIELDS,
@@ -612,6 +621,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             vol.Optional("with_outro"):             bool,
             vol.Optional("outro_layers"):           dict,
             vol.Optional("revert_transition_style"): vol.In(["flash", "fade_only", "blur_fade", "off"]),
+            vol.Optional("sound"):                  str,
             **_TARGET_FIELDS,
         }),
     )

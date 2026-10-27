@@ -134,6 +134,12 @@ releases:
         session: "alert overlay display: band"
         docs: /cards/alert-overlay/#alert-band
         public: true
+      - file: borg
+        summary: "Borg assimilation: the detailed cube and Borg sounds"
+        description: "Assimilate plays the WebGL intro with the detailed Borg cube (it dismisses itself after 30 seconds, or click it). Classic cube shows the wireframe cube. With sound file plays /local/sounds/borg.mp3 (put a file in the www/sounds folder of your Home Assistant configuration first). Assign your own sound to the Borg assimilation and Borg deassimilation events in the sound overrides to hear them on every assimilation."
+        session: "F2"
+        docs: /core/borg
+        public: true
   - version: Benchmarks
     views:
       - file: bench-12

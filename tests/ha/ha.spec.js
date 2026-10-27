@@ -109,6 +109,28 @@ test('lcards.fly_to flies the astrometrics card on the page', async ({ page }) =
     expect(errors).toEqual([]);
 });
 
+test('lcards.borg_assimilate / borg_deassimilate pass sound and cube_style to the page', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    // Record the calls instead of running the sequence
+    await page.evaluate(() => {
+        const bam = window.lcards.core.borgAssimilationManager;
+        window.__borgCalls = [];
+        bam.assimilate = async (opts) => { window.__borgCalls.push(['assimilate', opts]); };
+        bam.deassimilate = async (opts) => { window.__borgCalls.push(['deassimilate', opts]); };
+    });
+    const calls = () => page.evaluate(() => window.__borgCalls);
+    await client.callService('lcards', 'borg_assimilate', { sound: '/local/sounds/borg.mp3', cube_style: 'classic', font_swap: false });
+    await expect.poll(async () => (await calls()).length, { timeout: 15_000 }).toBe(1);
+    await client.callService('lcards', 'borg_deassimilate', { sound: 'none' });
+    await expect.poll(async () => (await calls()).length, { timeout: 15_000 }).toBe(2);
+    const [[, a], [, d]] = await calls();
+    expect(a.sound).toBe('/local/sounds/borg.mp3');
+    expect(a.fontSwap).toBe(false);
+    expect(a.intro.canvas.cubeStyle).toBe('classic');
+    expect(d.sound).toBe('none');
+    expect(errors).toEqual([]);
+});
+
 /** Every lazily loaded card editor and a config that opens it. */
 const EDITORS = [
     ['lcards-button', { type: 'custom:lcards-button', entity: 'input_boolean.lcards_test_toggle', preset: 'lozenge' }],

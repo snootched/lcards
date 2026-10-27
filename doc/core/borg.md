@@ -108,6 +108,7 @@ window.lcards.alert.borg()
 | `persistentLayers` | `Object` (layers dict) | glitch on `canvas` + color-tint on `color` + saturate on `backdrop` | Layers applied after the intro is dismissed and held until `deassimilate()`. Omit to use defaults; pass `{}` to suppress all persistent effects. See [Preset Reference](effects/screen-effects.md#preset-reference) for all available presets and params. |
 | `paletteHue` | `number` (0–359) | `110` | HSL hue the UI palette is shifted toward during assimilation. `110` = Borg yellow-green (default). `240` = blue, `0` or `360` = red. Applied before the palette swap fires. Automatically reset to the built-in default on `deassimilate()`. |
 | `fontSwap` | `boolean` | `true` | Whether to inject the Borg typeface across all dashboard text. Set to `false` to keep the existing font while all other assimilation effects (palette, canvas intro, persistent layers) still run. |
+| `sound` | `string` | - | A sound to play as the assimilation starts: a file URL (`'/local/sounds/borg.mp3'`), a media library id (`'media-source://…'`) or a sound asset key. `'none'` plays nothing. Omitted: the `borg_assimilate` [sound event](#sounds). |
 
 #### `intro.canvas` params (`borg-assimilation` effect)
 
@@ -121,6 +122,7 @@ window.lcards.alert.borg()
 | `glowColor` | `'var(--lcards-yellow)'` | Inner glow colour at each injection site and nano-probe particle halos |
 | `renderer` | `'auto'` | `'auto'` and `'webgl'` play the WebGL intro where the browser supports WebGL2; `'canvas'` plays the [classic intro](#classic-intro). Without WebGL2 every value plays the classic one |
 | `cube` | `true` | WebGL intro: a rotating Borg cube emerges at the centre of the screen. `false` leaves it out |
+| `cubeStyle` | `'detailed'` | WebGL intro: `'detailed'` draws a solid cube coming in corner first, covered in machinery that rises and sinks at several scales, with a thin rail lattice among the blocks, slowly pulsing green glows deep inside and a soft halo. `'classic'` draws the lighter glowing wireframe cube |
 | `corruption` | `0.5` | WebGL intro: strength of the signal corruption bursts (block displacement, scanline tearing, colour fringing), 0 to 1. `0` turns them off |
 | `overrun` | `0.65` | WebGL intro: how dark the screen gets behind the assimilation front, 0 to 1. `0` draws only the circuitry over your dashboard |
 | `seed` | - | WebGL intro: a number gives the same layout every time |
@@ -139,7 +141,7 @@ From an automation, add `renderer: canvas` to the `lcards.borg_assimilate` actio
 
 #### Performance
 
-The WebGL intro draws the whole screen every frame on the graphics card while it shows. On a slow wall tablet, lower `corruption` or turn off the `cube`, or use the classic intro. With the browser console at debug level (`window.lcards.setGlobalLogLevel('debug')`) the frame rate is logged every 5 seconds.
+The WebGL intro draws the whole screen every frame on the graphics card while it shows. On a slow wall tablet, lower `corruption`, use `cubeStyle: 'classic'` or turn off the `cube`, or use the classic intro. With the browser console at debug level (`window.lcards.setGlobalLogLevel('debug')`) the frame rate is logged every 5 seconds.
 
 ### `deassimilate(opts?)` options
 
@@ -148,12 +150,29 @@ The WebGL intro draws the whole screen every frame on the graphics card while it
 | `withOutro` | `boolean` | `true` | Play outro layers before reverting. Set to `false` for an immediate silent revert. |
 | `outroLayers` | `Object` (layers dict) | `{ canvas: { preset: 'glitch', duration: 1200, intensity: 0.4, opacity: 0.7 } }` | Layers applied as the outro. The longest `duration` value found in any layer's params determines how long to wait before reverting. Falls back to 1200 ms if none are specified. Omit to use defaults. See [glitch params](effects/screen-effects.md#glitch) for all available options. |
 | `revertTransitionStyle` | `string` | `'fade_only'` | Palette transition back to normal: `'flash'`, `'fade_only'`, `'blur_fade'`, or `'off'` |
+| `sound` | `string` | - | A sound to play as the deassimilation starts, as for `assimilate()`. Omitted: the `borg_deassimilate` [sound event](#sounds). |
+
+### Sounds
+
+Assimilation and deassimilation each fire a sound event, **Borg assimilation** (`borg_assimilate`) and **Borg deassimilation** (`borg_deassimilate`), in the Alerts category. LCARdS ships no Borg audio, so both are silent until you give them a sound. Three ways:
+
+- **Config Panel:** in the sound overrides, pick a file for the two Borg rows from the Home Assistant media library.
+- **A sound scheme of your own** (saved from the Config Panel, or a pack's `sound_schemes`): map the events to a file. A scheme value can be a sound asset key, a media library id or a URL; a file in the `www` folder of your Home Assistant configuration is served under `/local/`:
+
+  ```yaml
+  borg_assimilate: /local/sounds/borg.mp3
+  borg_deassimilate: /local/sounds/borg-restore.mp3
+  ```
+
+- **One call:** the `sound` option (console) or the `sound` field (Home Assistant action) plays a file for that call only; `none` keeps it silent.
+
+The Alerts sound switch and the master sound switch apply to all three.
 
 ### Sequence of events
 
 When `assimilate()` is called:
 
-1. `borg_alert` palette is applied immediately (HSL hue-shift to ~110°, slightly desaturated and darkened)
+1. The `borg_assimilate` sound plays (or the `sound` option's file); the `borg_alert` palette is applied immediately (HSL hue-shift to ~110°, slightly desaturated and darkened)
 2. `lcards_borg` font is loaded and injected as a `:root` CSS override; both fire in parallel (skipped if `fontSwap: false`)
 3. Intro layers are applied:
    - `intro.canvas` → `borg-assimilation` effect (signal flicker → injection sites → growing tendrils → assimilation front and Borg cube on WebGL)
@@ -165,7 +184,7 @@ When `assimilate()` is called:
 When `deassimilate()` is called:
 
 1. `_assimilated` is set to `false` immediately: if the intro is still showing, it is cancelled (no click required)
-2. `outroLayers` are applied to their SEM slots (unless `withOutro: false`)
+2. The `borg_deassimilate` sound plays (or the `sound` option's file); `outroLayers` are applied to their SEM slots (unless `withOutro: false`)
 3. The manager waits for the longest `duration` param across all outro layers (minimum 1200 ms)
 4. Palette is transitioned back to `green_alert` using `revertTransitionStyle`
 5. The Borg font override `<style>` tag is removed from `document.head` (only if font was injected during assimilation; skipped when `fontSwap: false` was passed)
@@ -190,10 +209,12 @@ Trigger the Borg assimilation on one or all connected browsers.
 | `particle_count` | No | `2` | Nano-probe particles per tendril (0–6); `0` disables particles |
 | `renderer` | No | `auto` | `auto` or `webgl`: the WebGL intro where the browser supports it; `canvas`: the [classic intro](#classic-intro) |
 | `cube` | No | `true` | WebGL intro: show the Borg cube |
+| `cube_style` | No | `detailed` | WebGL intro: `detailed` (solid cube with machinery, lattice, glows and halo) or `classic` (wireframe) |
 | `corruption` | No | `0.5` | WebGL intro: signal corruption strength (0–1); `0` turns it off |
 | `overrun` | No | `0.65` | WebGL intro: darkness behind the assimilation front (0–1) |
 | `transition_style` | No | `blur_fade` | Palette transition: `blur_fade`, `flash`, `fade_only`, `off` |
 | `font_swap` | No | `true` | Set to `false` to skip the Borg font injection; all other effects (palette, canvas intro, persistent layers) still run. |
+| `sound` | No | - | A sound for this call: a file URL (`/local/sounds/borg.mp3`), a media library id or a sound asset key; `none` for silence. Empty: the `borg_assimilate` [sound event](#sounds). |
 | `suppress_persistent` | No | `false` | Suppress all persistent effects after intro. Ignored if `persistent_layers` is also set. |
 | `intro_layers` | No | - | **Advanced.** Full per-slot layers dict. `intro_layers.canvas` canvas param keys can use either snake_case (`site_count`, `tendrils_per_site`, `glow_color`) or camelCase; both are normalised server-side. Values override the corresponding flat shortcuts; missing keys fall back to the flat values. See [Preset Reference](effects/screen-effects.md#preset-reference) for all available presets and params per slot. |
 | `persistent_layers` | No | - | **Advanced.** Full per-slot layers dict. Overrides `suppress_persistent` when set. Pass `{}` to suppress all. See [Preset Reference](effects/screen-effects.md#preset-reference) for all available presets and params per slot. |
@@ -325,6 +346,7 @@ Reverse the Borg assimilation and restore all browsers to normal.
 | `with_outro` | No | `true` | Play outro layers before reverting. Set to `false` for an immediate silent revert. |
 | `outro_layers` | No | - | Layers dict for the outro. The longest `duration` param across all layers determines the wait time. Omit for defaults (glitch on canvas, 1200 ms). See [glitch params](effects/screen-effects.md#glitch) for all available options. |
 | `revert_transition_style` | No | `fade_only` | Palette transition back to normal: `flash`, `fade_only`, `blur_fade`, `off` |
+| `sound` | No | - | A sound for this call, as for `lcards.borg_assimilate`. Empty: the `borg_deassimilate` [sound event](#sounds). |
 | `target_device_ids` | No | - | List of browser device UUIDs: leave empty for all |
 | `target_device_names` | No | - | List of device display names (resolved server-side) |
 | `target_user_ids` | No | - | List of Home Assistant user IDs: leave empty for all |

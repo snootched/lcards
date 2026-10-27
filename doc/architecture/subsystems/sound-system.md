@@ -91,6 +91,8 @@ Event types are grouped into three categories, each controlled by an independent
 | `system_ready` | LCARdS initialization complete |
 | `error` | System error condition |
 | `notification` | General notification event |
+| `borg_assimilate` | `BorgAssimilationManager.assimilate()` starts (no built-in sound) |
+| `borg_deassimilate` | `BorgAssimilationManager.deassimilate()` starts (no built-in sound) |
 
 ---
 
@@ -189,13 +191,14 @@ Users configure scoped overrides in **LCARdS Config Panel → Sounds → Per-Use
 
 ## Audio Asset Resolution
 
-Asset URLs are resolved synchronously from `AssetManager`'s internal registry:
+`_playAsset(key)` takes three kinds of value. A `media-source://…` id is resolved through the media library (`_playMediaSourceAsset`). A URL (starting with `/` or `http(s)://`, such as `/local/sounds/borg.mp3`) plays as is. Anything else is an asset key, resolved synchronously from `AssetManager`'s internal registry:
 
 ```javascript
 const registry = this._core?.assetManager?.getRegistry('audio');
-const entry = registry?.assets?.get(assetKey);
-const url = entry?.url;
+const url = registry?.assets?.get(assetKey)?.url;
 ```
+
+So a scheme value, an override, `lcards.play_sound`'s `asset_key` and the Borg `sound` option all accept any of the three. `playSource(source, eventType)` plays one of them directly under an event's category switch (used by the Borg `sound` option).
 
 `Audio` elements are created once per asset key and cached in `_audioCache`. On each play:
 1. `audio.volume` is set from `_getVolume()`

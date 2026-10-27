@@ -1,0 +1,40 @@
+# Borg assimilation: the detailed cube (F2), the classic wireframe cube and the Borg sound events.
+title: Borg
+path: borg
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: ASSIMILATE, show: true } }
+        tap_action:
+          action: perform-action
+          perform_action: lcards.borg_assimilate
+          data: { intro_duration: 30000 }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLASSIC CUBE, show: true } }
+        tap_action:
+          action: perform-action
+          perform_action: lcards.borg_assimilate
+          data: { intro_duration: 30000, cube_style: classic }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: WITH SOUND FILE, show: true } }
+        tap_action:
+          action: perform-action
+          perform_action: lcards.borg_assimilate
+          data: { intro_duration: 30000, sound: /local/sounds/borg.mp3 }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: DEASSIMILATE, show: true } }
+        tap_action:
+          action: perform-action
+          perform_action: lcards.borg_deassimilate
+        grid_options: { columns: 6, rows: 1 }

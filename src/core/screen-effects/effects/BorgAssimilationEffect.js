@@ -52,6 +52,8 @@ function colorFloats(value, fallback) {
  * @param {string}  [params.glowColor='#00ff66']  - Inner glow colour at each site.
  * @param {string}  [params.renderer='auto']      - 'auto' | 'webgl' | 'canvas' (the classic intro).
  * @param {boolean} [params.cube=true]            - WebGL: the Borg cube at the centre.
+ * @param {string}  [params.cubeStyle='detailed'] - WebGL: 'detailed' (solid cube with machinery,
+ *                                                  lattice, glow spots, halo) or 'classic' (wireframe).
  * @param {number}  [params.corruption=0.5]       - WebGL: signal corruption strength, 0 to 1.
  * @param {number}  [params.overrun=0.65]         - WebGL: darkness behind the assimilation front, 0 to 1.
  * @param {number}  [params.seed]                 - WebGL: the same layout every time.
@@ -142,6 +144,7 @@ export function BorgAssimilationEffect(canvas, params = {}) {
             },
             options: {
                 cube: params.cube !== false,
+                cubeStyle: params.cubeStyle === 'classic' ? 'classic' : 'detailed',
                 corruption: Number.isFinite(Number(params.corruption)) ? Number(params.corruption) : 0.5,
                 overrun: Number.isFinite(Number(params.overrun)) ? Number(params.overrun) : 0.65,
                 particleCount: Number.isFinite(Number(params.particleCount)) ? Number(params.particleCount) : 2,

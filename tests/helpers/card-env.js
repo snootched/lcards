@@ -248,6 +248,19 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
                 await globalThis.window?.lcards?.setAlertMode?.(alert, { skipHelperSync: true });
                 return { context: { id: 'demo' } };
             }
+            // lcards.borg_assimilate / borg_deassimilate: run the sequence in this tab, as
+            // IntegrationService does for the integration's event (the fields the demos use)
+            const bam = domain === 'lcards' && service.startsWith('borg_') ? globalThis.window?.lcards?.core?.borgAssimilationManager : null;
+            if (bam) {
+                const opts = {};
+                if (data.sound) opts.sound = data.sound;
+                if (service === 'borg_assimilate') {
+                    if (data.intro_duration) opts.duration = data.intro_duration;
+                    if (data.cube_style) opts.intro = { canvas: { cubeStyle: data.cube_style } };
+                    bam.assimilate(opts);
+                } else if (service === 'borg_deassimilate') bam.deassimilate(opts);
+                return { context: { id: 'demo' } };
+            }
             const ids = [data.entity_id ?? target?.entity_id].flat().filter(Boolean);
             for (const id of ids) {
                 const state = current.states[id]?.state;

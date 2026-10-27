@@ -131,12 +131,14 @@ Home Assistant admin users see an **Edit as admin** dropdown in each scope secti
 | System Ready | LCARdS initialization complete |
 | System Error | System error condition |
 | Notification | General notification |
+| Borg assimilation | [Borg assimilation](/core/borg#sounds) starts (silent until you assign a sound) |
+| Borg deassimilation | Borg deassimilation starts (silent until you assign a sound) |
 
 ---
 
 ## Triggering from Automations
 
-Use [`lcards.play_sound`](/configuration/ha-actions#lcards-play-sound) to play a sound on demand from an automation (e.g. a subtle chime alongside a kiosk tablet wake routine) without changing alert mode or any screen effect. It respects the master **Sound Effects Enabled** toggle but not the category toggles, and supports the same per-device/per-user [targeting](/configuration/ha-actions#targeting) as every other LCARdS action.
+Use [`lcards.play_sound`](/configuration/ha-actions#lcards-play-sound) to play a sound on demand from an automation (e.g. a subtle chime alongside a kiosk tablet wake routine) without changing alert mode or any screen effect. Its `asset_key` can also be a file URL such as `/local/sounds/chime.mp3` (a file in the `www` folder of your Home Assistant configuration). It respects the master **Sound Effects Enabled** toggle but not the category toggles, and supports the same per-device/per-user [targeting](/configuration/ha-actions#targeting) as every other LCARdS action.
 
 ---
 

@@ -221,6 +221,12 @@ uniform float u_overrun;
 uniform float u_corruption;
 uniform float u_motion;      // 0 under reduced motion: no flicker, no tearing
 uniform vec3 u_cube;         // centre x, y, darkening radius (0 = no cube)
+uniform float u_detail;      // 1 = the detailed cube, ray-cast here (0 = classic wireframe from pass 1)
+uniform mat3 u_rot;
+uniform float u_cubeSize;
+uniform float u_cubeAmt;
+uniform vec4 u_spots[18];    // face, u, v, phase
+uniform int u_spotCount;
 out vec4 o;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -268,6 +274,220 @@ vec3 circuit(vec2 p, float cell, float lineW, float salt) {
         plate = step(max(aq.x, aq.y), 0.0);
     }
     return vec3(trace, pad, plate);
+}
+
+// ── The detailed Borg cube: ray-cast against the box, same camera as CUBE_VS ──
+const float CAM_D = 4.2;
+
+// Ray against an axis-aligned box of half size b: near t (or -1) and the face normal
+float boxHit(vec3 ro, vec3 rd, float b, out vec3 n) {
+    vec3 m = 1.0 / rd;
+    vec3 k = abs(m) * b;
+    vec3 t1 = -m * ro - k, t2 = -m * ro + k;
+    float tN = max(max(t1.x, t1.y), t1.z);
+    float tF = min(min(t2.x, t2.y), t2.z);
+    n = -sign(rd) * step(t1.yzx, t1.xyz) * step(t1.zxy, t1.xyz);
+    return (tN > tF || tF < 0.0) ? -1.0 : tN;
+}
+float sdBox(vec3 p, float b) {
+    vec3 q = abs(p) - b;
+    return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
+}
+// Face axis and the two in-face coordinates of a hit
+vec2 faceUV(vec3 p, vec3 n, out float axis) {
+    vec3 an = abs(n);
+    axis = an.x > 0.5 ? 0.0 : an.y > 0.5 ? 1.0 : 2.0;
+    return axis == 0.0 ? p.yz : axis == 1.0 ? p.zx : p.xy;
+}
+
+// One layer of boxy machinery. Each cell splits into two blocks, raised or recessed,
+// bevelled toward a light from the face's -u -v corner, with dark seams.
+// x = height -1..1, y = bevel light -1..1, z = seam, w = block hash
+vec4 greebleLayer(vec2 g, float salt) {
+    vec2 c = floor(g), f = fract(g);
+    float h1 = hash(c + salt), h2 = hash(c.yx + salt * 1.31 + 7.0);
+    float cut = 0.3 + 0.4 * h2;
+    vec2 lo = vec2(0.0), hi = vec2(1.0);
+    float id;
+    if (h1 < 0.5) { bool a = f.x < cut; lo.x = a ? 0.0 : cut; hi.x = a ? cut : 1.0; id = a ? 0.0 : 1.0; }
+    else          { bool a = f.y < cut; lo.y = a ? 0.0 : cut; hi.y = a ? cut : 1.0; id = a ? 2.0 : 3.0; }
+    float hb = hash(c * 1.7 + id * 3.7 + salt * 2.1);
+    float height = hb * 2.0 - 1.0;
+    vec2 q = f - lo, Q = hi - lo;
+    float dlo = min(q.x, q.y), dhi = min(Q.x - q.x, Q.y - q.y);
+    float e = min(dlo, dhi);
+    float bevel = 1.0 - smoothstep(0.02, 0.1, e);
+    float light = bevel * (dlo < dhi ? 1.0 : -1.0) * sign(height);
+    float seam = 1.0 - smoothstep(0.0, 0.03, e);
+    return vec4(height, light, seam, hb);
+}
+
+// How deep the machinery cuts into each face (cube half size is 1)
+const float DEPTH = 0.15;
+
+// Depth of the machinery under a face at in-face uv: 0 = flush with the face, DEPTH = deepest.
+// Two block layers stacked (towers on platforms), piecewise constant: real walls.
+float reliefDepth(vec2 uv, float face) {
+    vec2 g = uv * 0.5 + 0.5;
+    float salt = face * 17.0;
+    float ha = greebleLayer(g * 6.0, salt).x * 0.5 + 0.5;
+    float hb = greebleLayer(g * 14.0 + 0.37, salt + 5.0).x * 0.5 + 0.5;
+    return (1.0 - (0.55 * ha + 0.45 * hb)) * DEPTH;
+}
+
+// In-face coordinates for axis k (same order as faceUV)
+vec2 axisUV(vec3 p, int k) { return k == 0 ? p.yz : k == 1 ? p.zx : p.xy; }
+float axisFace(vec3 p, int k) { return float(k) * 2.0 + (p[k] > 0.0 ? 1.0 : 0.0); }
+
+// The axis whose carved face leaves p outside the cube (-1: p is solid). The cube is the
+// intersection of three slabs, each carved by its two faces' machinery, so edges and corners
+// come out ragged like the reference.
+int outsideAxis(vec3 p) {
+    vec3 ap = abs(p);
+    for (int k = 0; k < 3; k++) {
+        if (ap[k] > 1.0 - DEPTH && ap[k] > 1.0 - reliefDepth(axisUV(p, k), axisFace(p, k))) return k;
+    }
+    return -1;
+}
+
+// The rail lattice a little off each face: an 8 x 8 grid with seeded gaps, edges always drawn
+float lattice(vec2 uv, float face, float pxUV) {
+    vec2 g = (uv * 0.5 + 0.5) * 8.0;
+    vec2 cell = floor(g);
+    vec2 d = abs(fract(g) - 0.5);           // distance to a cell centre line, 0..0.5
+    vec2 toLine = (0.5 - d) / 8.0 * 2.0;     // in face units
+    float w = pxUV * 0.9;                    // about a pixel wide at any size
+    // A line along v (constant u) at the cell's lower edge: gapped per segment
+    float gapU = step(0.3, hash(vec2(floor(g.x + 0.5), cell.y) + face * 3.1));
+    float gapV = step(0.3, hash(vec2(cell.x, floor(g.y + 0.5)) + face * 5.7 + 11.0));
+    float lu = (1.0 - smoothstep(w * 0.5, w * 1.5, toLine.x)) * gapU;
+    float lv = (1.0 - smoothstep(w * 0.5, w * 1.5, toLine.y)) * gapV;
+    float edge = 1.0 - smoothstep(w * 0.5, w * 1.5, 1.0 - max(abs(uv.x), abs(uv.y)));
+    return max(max(lu, lv) * 0.85, edge);
+}
+
+// The cube at screen pixel px: rgb (premultiplied) and coverage; halo separately
+vec4 borgCube(vec2 px, float t, out float halo) {
+    halo = 0.0;
+    vec2 s = (px - u_cube.xy) / (u_cubeSize * CAM_D);
+    mat3 inv = transpose(u_rot);
+    vec3 ro = inv * vec3(0.0, 0.0, -CAM_D);
+    vec3 rd = inv * vec3(s, 1.0);
+    rd += vec3(equal(rd, vec3(0.0))) * 1e-6;
+    float pxUnit = 1.0 / u_cubeSize;        // cube units per pixel near the cube's centre
+
+    // Distance from the ray to the box (convex along the ray: a ternary search finds it), for the halo
+    float tc = -dot(ro, rd) / dot(rd, rd);
+    float lo = tc - 2.5, hi = tc + 2.5;
+    for (int i = 0; i < 10; i++) {
+        float m1 = mix(lo, hi, 0.382), m2 = mix(lo, hi, 0.618);
+        if (sdBox(ro + rd * m1, 1.0) < sdBox(ro + rd * m2, 1.0)) hi = m2; else lo = m1;
+    }
+    float sil = sdBox(ro + rd * (lo + hi) * 0.5, 1.0) / length(rd);
+    float lobes = 0.6 + 0.8 * noise(normalize(s + 1e-5) * 2.2 + vec2(t * 0.00005, 0.0));
+    halo = exp(-max(sil, 0.0) * 5.0 / lobes) * 0.55;
+
+    vec3 nC, nL;
+    float tIn = boxHit(ro, rd, 1.0, nC);
+    float latB = 1.0 - DEPTH * 0.3;          // rails sit among the taller blocks
+    float tLat = boxHit(ro, rd, latB, nL);
+    if (tIn < 0.0) return vec4(0.0);
+
+    // ── Relief march through the carved shell ──
+    float tHit = -1.0;
+    vec3 n = vec3(0.0);
+    float t0 = tIn, t1 = tIn;
+    int k0 = outsideAxis(ro + rd * (tIn + 1e-4));
+    if (k0 < 0) { tHit = tIn; n = nC; }
+    else {
+        float dt = DEPTH / 6.0 / length(rd);
+        for (int i = 0; i < 56; i++) {
+            t1 = t0 + dt;
+            vec3 p = ro + rd * t1;
+            if (max(abs(p.x), max(abs(p.y), abs(p.z))) > 1.0001) break;   // out the far side
+            int k = outsideAxis(p);
+            if (k < 0) { tHit = t1; break; }
+            t0 = t1; k0 = k;
+        }
+        if (tHit > 0.0) {
+            for (int i = 0; i < 6; i++) {
+                float tm = (t0 + tHit) * 0.5;
+                int k = outsideAxis(ro + rd * tm);
+                if (k < 0) tHit = tm; else { t0 = tm; k0 = k; }
+            }
+            // The face that stopped the ray: the top of a block (its depth did not change)
+            // or a block's wall (the ray moved over a taller block)
+            vec3 pa = ro + rd * t0, pb = ro + rd * tHit;
+            float da = reliefDepth(axisUV(pa, k0), axisFace(pa, k0));
+            float db = reliefDepth(axisUV(pb, k0), axisFace(pb, k0));
+            if (abs(da - db) < 1e-4) {
+                n[k0] = sign(pb[k0]);
+            } else {
+                int u = (k0 + 1) - 3 * ((k0 + 1) / 3), v = (k0 + 2) - 3 * ((k0 + 2) / 3);
+                int w = abs(rd[u]) > abs(rd[v]) ? u : v;
+                n[w] = -sign(rd[w]);
+            }
+        }
+    }
+
+    vec3 col = vec3(0.0);
+    float a = 0.0;
+    if (tHit > 0.0) {
+        vec3 p = ro + rd * tHit;
+        // The face this point belongs to: the axis it sits closest to the outside on
+        vec3 ap = abs(p);
+        int k = ap.x > ap.y ? (ap.x > ap.z ? 0 : 2) : (ap.y > ap.z ? 1 : 2);
+        vec2 uv = axisUV(p, k);
+        float face = axisFace(p, k);
+        float rise = 1.0 - clamp((1.0 - ap[k]) / DEPTH, 0.0, 1.0);    // 1 on the tallest tops
+        bool wall = abs(n[k]) < 0.5;
+        vec3 nv = u_rot * n;                // view space: +y is down, the camera looks along +z
+        vec3 faceNv = u_rot * (vec3(k == 0, k == 1, k == 2) * sign(p[k]));
+        float pxUV = pxUnit * tHit / CAM_D / max(0.25, abs(faceNv.z));
+
+        // Key light from the upper left front; the top face reads darker and greyer
+        vec3 L = normalize(vec3(-0.45, -0.55, -0.7));
+        float diff = max(dot(nv, L), 0.0);
+        float top = smoothstep(0.35, 0.85, -faceNv.y);
+        vec3 side = mix(vec3(0.2, 0.25, 0.21), u_color * 0.5, 0.6);
+        vec3 metal = mix(side, vec3(0.34, 0.38, 0.35), top);
+        metal *= 0.7 + 0.6 * hash(floor((uv * 0.5 + 0.5) * 14.0 + 0.37) + face);
+        // Fine plating on block tops, vent stripes on walls
+        vec4 fine = greebleLayer((uv * 0.5 + 0.5) * 36.0 + 0.71, face * 17.0 + 9.0);
+        float fineK = 1.0 - smoothstep(0.2, 0.45, pxUV * 36.0);
+        float detail = wall
+            ? 0.75 + 0.25 * step(0.5, fract((1.0 - ap[k]) * 90.0))
+            : (1.0 + 0.6 * fine.y * fineK) * (1.0 - 0.6 * fine.z * fineK);
+        float ao = mix(0.3, 1.0, rise);
+        col = metal * (0.3 + 1.0 * diff) * ao * detail;
+        // Green light from inside, deepest in the recesses
+        col += u_color * 0.16 * (1.0 - rise) * (1.0 - top);
+        // Glow spots pulsing deep in the structure
+        for (int i = 0; i < 18; i++) {
+            if (i >= u_spotCount) break;
+            vec4 sp = u_spots[i];
+            if (abs(sp.x - face) > 0.5) continue;
+            float d = length(uv - sp.yz);
+            float period = 2000.0 + 3000.0 * fract(sp.w * 7.31);
+            float pulse = 0.55 + 0.45 * sin(t / period * 6.2832 + sp.w * 6.2832);
+            float gl = exp(-d * d / 0.03) * pulse;
+            col += mix(u_color, u_glow, 0.3) * gl * (0.6 + 2.2 * (1.0 - rise) + 0.8 * diff);
+        }
+        a = 1.0;
+    }
+    // Lattice rails over the machinery in front of them
+    if (tLat > 0.0 && (tHit < 0.0 || tLat < tHit)) {
+        vec3 pl = ro + rd * tLat;
+        float axisL;
+        vec2 uvL = faceUV(pl, nL, axisL) / latB;
+        float faceL = axisL * 2.0 + (dot(nL, vec3(1.0)) > 0.0 ? 1.0 : 0.0);
+        float pxUVL = pxUnit * tLat / CAM_D / max(0.3, abs((u_rot * nL).z));
+        float lat = lattice(uvL, faceL, pxUVL) * 0.9;
+        vec3 latCol = mix(vec3(0.55, 0.6, 0.57), u_color * 0.8, 0.25) * (0.5 + 0.5 * max(dot(u_rot * nL, normalize(vec3(-0.45, -0.55, -0.7))), 0.0));
+        col = latCol * lat + col * (1.0 - lat);
+        a = lat + a * (1.0 - lat);
+    }
+    return vec4(col, a);
 }
 
 void main() {
@@ -320,7 +540,7 @@ void main() {
 
     // Behind the cube: darker, so its edges read over the circuitry and tendrils
     float cubeK = 0.0;
-    if (u_cube.z > 0.0) {
+    if (u_cube.z > 0.0 && u_detail < 0.5) {
         cubeK = (1.0 - smoothstep(0.0, u_cube.z, length(px - u_cube.xy))) * 0.6;
         rgb *= 1.0 - cubeK;
         alpha = max(alpha, cubeK);
@@ -334,6 +554,18 @@ void main() {
     vec3 tex = vec3(texture(u_tex, uv + off).r, mid.g, texture(u_tex, uv - off).b);
     rgb += tex * (1.0 - cubeK * 0.5);
     alpha = max(alpha, max(mid.a, max(tex.r, max(tex.g, tex.b))));
+
+    // The detailed cube, in front of the tendrils, with a soft halo round it
+    if (u_detail > 0.5 && u_cubeAmt > 0.0 && length(pd - u_cube.xy) < u_cube.z) {
+        float halo;
+        vec4 cb = borgCube(pd, t, halo);
+        float h = halo * u_cubeAmt * (1.0 - cb.a);
+        rgb += mix(u_color, u_glow, 0.2) * h;
+        alpha = max(alpha, h);
+        float ca2 = cb.a * u_cubeAmt;
+        rgb = cb.rgb * u_cubeAmt + rgb * (1.0 - ca2);
+        alpha = ca2 + alpha * (1.0 - ca2);
+    }
 
     // ── Opening flicker and scan bars, scanlines ─────────────────────────────
     if (intro > 0.0) {
@@ -480,9 +712,12 @@ function _cubeData(segs) {
     return { verts, idx: _quadIndices(segs.length) };
 }
 
-function _rotation(t) {
-    // Slow tumble round a tilted axis
-    const ax = 0.42 + 0.0 * t, ay = t * 0.00021, az = 0.18;
+function _rotation(t, cornerOn = false) {
+    // Classic: a slow tumble round a tilted axis. Detailed: a corner toward the camera,
+    // tilted forward so the top shows (like the reference), swaying a little either way
+    const ax = cornerOn ? 0.36 : 0.42;
+    const ay = cornerOn ? 0.62 + 0.3 * Math.sin(t * 0.00011) : t * 0.00021;
+    const az = cornerOn ? 0 : 0.18;
     const cx = Math.cos(ax), sx = Math.sin(ax), cy = Math.cos(ay), sy = Math.sin(ay), cz = Math.cos(az), sz = Math.sin(az);
     // R = Rz * Rx * Ry, column-major for uniformMatrix3fv
     const ry = [cy, 0, -sy, 0, 1, 0, sy, 0, cy];
@@ -531,7 +766,8 @@ function _start(canvas, layout, colors, options) {
     const nd = _nodeData(layout.sites, layout.junctions);
     const nodeMesh = _mesh(gl, node, nd.verts, [['a_center', 2], ['a_corner', 2], ['a_extent', 1],
         ['a_start', 1], ['a_maxR', 1], ['a_seed', 1], ['a_kind', 1]], nd.idx);
-    const cd = _cubeData(options.cube ? layout.cube : []);
+    const detailed = !!options.cube && options.cubeStyle !== 'classic';
+    const cd = _cubeData(options.cube && !detailed ? layout.cube : []);
     const cubeMesh = _mesh(gl, cube, cd.verts, [['a_a', 3], ['a_b', 3], ['a_corner', 2], ['a_w', 1]], cd.idx);
     const fullMesh = _mesh(gl, comp, new Float32Array([-1, -1, 3, -1, -1, 3]), [['a_pos', 2]], null);
 
@@ -541,10 +777,13 @@ function _start(canvas, layout, colors, options) {
     const uNode = uniforms(node, common);
     const uCube = uniforms(cube, [...common, 'u_rot', 'u_center', 'u_size', 'u_alpha']);
     const uComp = uniforms(comp, [...common, 'u_tex', 'u_sites', 'u_siteCount', 'u_frontMs', 'u_overrun',
-        'u_corruption', 'u_motion', 'u_cube']);
+        'u_corruption', 'u_motion', 'u_cube', 'u_detail', 'u_rot', 'u_cubeSize', 'u_cubeAmt', 'u_spots', 'u_spotCount']);
 
     const siteData = new Float32Array(20 * 4);
     layout.sites.slice(0, 20).forEach((s, i) => siteData.set([s.x, s.y, s.spawnAt, s.reach], i * 4));
+    const spots = (layout.cubeSpots || []).slice(0, 18);
+    const spotData = new Float32Array(18 * 4);
+    spots.forEach((s, i) => spotData.set(s, i * 4));
 
     // Pass 1 target
     let tex = null, fbo = null, fw = 0, fh = 0;
@@ -596,15 +835,15 @@ function _start(canvas, layout, colors, options) {
         gl.blendFunc(gl.ONE, gl.ONE);
 
         let cubeAmt = 0;
-        if (cubeMesh.count) {
+        if (cubeMesh.count || detailed) {
             cubeAmt = Math.min(1, Math.max(0, (time - layout.cubeAt) / 3000));
             cubeAmt = cubeAmt * cubeAmt * (3 - 2 * cubeAmt);
         }
         const cubeSize = Math.min(w, h) * 0.2 * (0.35 + 0.65 * cubeAmt);
-        if (cubeAmt > 0) {
+        if (cubeAmt > 0 && cubeMesh.count) {
             gl.useProgram(cube);
             setCommon(uCube, w, h, time);
-            gl.uniformMatrix3fv(uCube.u_rot, false, _rotation(time));
+            gl.uniformMatrix3fv(uCube.u_rot, false, _rotation(time, false));
             gl.uniform2f(uCube.u_center, w / 2, h / 2);
             gl.uniform1f(uCube.u_size, cubeSize);
             gl.uniform1f(uCube.u_alpha, cubeAmt);
@@ -638,7 +877,14 @@ function _start(canvas, layout, colors, options) {
         gl.uniform1f(uComp.u_overrun, overrun);
         gl.uniform1f(uComp.u_corruption, _reduced ? 0 : corruption);
         gl.uniform1f(uComp.u_motion, _reduced ? 0 : 1);
-        gl.uniform3f(uComp.u_cube, w / 2, h / 2, cubeAmt > 0 ? cubeSize * 1.9 * cubeAmt : 0);
+        // The detailed cube's corners and halo reach further than the classic darkening
+        gl.uniform3f(uComp.u_cube, w / 2, h / 2, cubeAmt > 0 ? cubeSize * (detailed ? 3.4 : 1.9 * cubeAmt) : 0);
+        gl.uniform1f(uComp.u_detail, detailed ? 1 : 0);
+        gl.uniform1f(uComp.u_cubeAmt, cubeAmt);
+        gl.uniform1f(uComp.u_cubeSize, cubeSize);
+        gl.uniformMatrix3fv(uComp.u_rot, false, _rotation(time, detailed));
+        gl.uniform4fv(uComp.u_spots, spotData);
+        gl.uniform1i(uComp.u_spotCount, spots.length);
         gl.bindVertexArray(fullMesh.vao);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
         gl.bindVertexArray(null);

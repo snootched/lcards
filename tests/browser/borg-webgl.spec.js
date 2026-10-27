@@ -79,3 +79,24 @@ test('cube, corruption and overrun can be turned off', async ({ page }) => {
     await shot(page, 'webgl-plain-9s');
     await expectNoErrors(page);
 });
+
+test('cubeStyle: the detailed cube (default) and the classic wireframe both draw, and differ', async ({ page }) => {
+    // The cube is fully in about 11 s after the start; seeded, so both runs share the layout
+    test.setTimeout(60_000);
+    const centre = async () => page.screenshot({ clip: { x: 300, y: 200, width: 200, height: 200 } });
+    const canvas = await play(page);
+    await expect(canvas).toHaveAttribute('data-lcards-ready', 'true');
+    await page.waitForTimeout(12_000);
+    const detailed = await centre();
+    await shot(page, 'cube-detailed-12s');
+    if (SHOTS) for (const s of [6, 12]) { await page.waitForTimeout(6000); await shot(page, `cube-detailed-${12 + s}s`); }
+    await expectNoErrors(page);
+
+    const classicCanvas = await play(page, { cubeStyle: 'classic' });
+    await expect(classicCanvas).toHaveAttribute('data-lcards-ready', 'true');
+    await page.waitForTimeout(12_000);
+    const classic = await centre();
+    await shot(page, 'cube-classic-12s');
+    expect(detailed.equals(classic), 'the styles differ').toBe(false);
+    await expectNoErrors(page);
+});

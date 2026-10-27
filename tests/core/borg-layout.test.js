@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildBorgLayout, borgCubeSegments, BORG_INTRO_MS, BORG_GROW_MS, BORG_MAX_SITES } from '../../src/core/screen-effects/effects/borg-layout.js';
+import { buildBorgLayout, borgCubeSegments, BORG_INTRO_MS, BORG_GROW_MS, BORG_MAX_SITES, BORG_CUBE_SPOTS } from '../../src/core/screen-effects/effects/borg-layout.js';
 
 test('sites and tendrils follow the params', () => {
     const l = buildBorgLayout(1000, 600, { siteCount: 5, tendrilsPerSite: 3, seed: 1 });
@@ -53,4 +53,16 @@ test('the cube has its 12 outer edges inside the unit cube', () => {
         assert.equal(s.length, 7);
         for (const v of s.slice(0, 6)) assert.ok(Math.abs(v) <= 1.05, `vertex ${v}`);
     }
+});
+
+test('the detailed cube has seeded glow spots on every face', () => {
+    const a = buildBorgLayout(1200, 800, { seed: 9 });
+    assert.equal(a.cubeSpots.length, BORG_CUBE_SPOTS);
+    assert.deepEqual(new Set(a.cubeSpots.map(s => s[0])), new Set([0, 1, 2, 3, 4, 5]));
+    for (const [face, u, v, phase] of a.cubeSpots) {
+        assert.ok(Number.isInteger(face) && face >= 0 && face <= 5);
+        assert.ok(Math.abs(u) <= 0.8 && Math.abs(v) <= 0.8);
+        assert.ok(phase >= 0 && phase < 1);
+    }
+    assert.deepEqual(buildBorgLayout(1200, 800, { seed: 9 }).cubeSpots, a.cubeSpots);
 });

@@ -248,6 +248,7 @@ Green tendrils grow across the screen from several injection sites while an assi
 | `glowColor` | string | `'#00ff66'` | Glow at each site and around particles |
 | `renderer` | string | `'auto'` | `auto` or `webgl`: the WebGL intro where the browser supports it; `canvas`: the classic intro |
 | `cube` | boolean | `true` | WebGL: the Borg cube at the centre |
+| `cubeStyle` | string | `'detailed'` | WebGL: `detailed` (solid cube with machinery, rail lattice, pulsing glows, halo) or `classic` (wireframe) |
 | `corruption` | number | `0.5` | WebGL: signal corruption strength (0 to 1; `0` turns it off) |
 | `overrun` | number | `0.65` | WebGL: darkness behind the assimilation front (0 to 1) |
 | `seed` | number | - | WebGL: the same layout every time |

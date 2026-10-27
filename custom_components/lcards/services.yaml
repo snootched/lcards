@@ -1039,6 +1039,19 @@ borg_assimilate:
       default: true
       selector:
         boolean:
+    cube_style:
+      name: Cube style
+      description: >
+        WebGL intro only: `detailed` (default) draws a solid cube covered in
+        machinery, with a rail lattice, glowing spots and a soft halo.
+        `classic` draws the lighter wireframe cube.
+      required: false
+      default: detailed
+      selector:
+        select:
+          options:
+            - detailed
+            - classic
     corruption:
       name: Signal Corruption
       description: >
@@ -1090,6 +1103,18 @@ borg_assimilate:
       default: false
       selector:
         boolean:
+    sound:
+      name: Sound
+      description: >
+        A sound to play as the assimilation starts: a file URL such as
+        `/local/sounds/borg.mp3` (a file in the `www/sounds` folder of your
+        Home Assistant configuration), a media library id
+        (`media-source://...`) or a sound asset key. `none` plays nothing.
+        Left empty, the `borg_assimilate` sound event plays: silent unless
+        your sound scheme or a sound override assigns it.
+      required: false
+      selector:
+        text:
     font_swap:
       name: Font Swap
       description: >
@@ -1260,6 +1285,17 @@ borg_deassimilate:
           duration: 1200
       selector:
         object:
+    sound:
+      name: Sound
+      description: >
+        A sound to play as the deassimilation starts: a file URL such as
+        `/local/sounds/borg-restore.mp3`, a media library id
+        (`media-source://...`) or a sound asset key. `none` plays nothing.
+        Left empty, the `borg_deassimilate` sound event plays: silent unless
+        your sound scheme or a sound override assigns it.
+      required: false
+      selector:
+        text:
     revert_transition_style:
       name: Palette Revert Transition
       description: >

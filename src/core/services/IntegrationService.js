@@ -541,6 +541,8 @@ export class IntegrationService extends BaseService {
                     if (payload.transition_style  != null) opts.transitionStyle  = payload.transition_style;
                     if (payload.intro_layers      != null) opts.intro            = payload.intro_layers;
                     if (payload.persistent_layers != null) opts.persistentLayers = payload.persistent_layers;
+                    if (payload.fontSwap          != null) opts.fontSwap         = payload.fontSwap;
+                    if (payload.sound             != null) opts.sound            = payload.sound;
                     bam.assimilate(opts);
                 } else {
                     lcardsLog.warn('[IntegrationService] borg_assimilate: BorgAssimilationManager unavailable');
@@ -556,6 +558,7 @@ export class IntegrationService extends BaseService {
                     if (payload.with_outro              != null) opts.withOutro             = payload.with_outro;
                     if (payload.outro_layers            != null) opts.outroLayers           = payload.outro_layers;
                     if (payload.revert_transition_style != null) opts.revertTransitionStyle = payload.revert_transition_style;
+                    if (payload.sound                   != null) opts.sound                 = payload.sound;
                     bam.deassimilate(opts);
                 } else {
                     lcardsLog.warn('[IntegrationService] borg_deassimilate: BorgAssimilationManager unavailable');

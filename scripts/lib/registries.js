@@ -75,7 +75,8 @@ export async function buildRegistries() {
     animation_presets: sorted(listAnimationPresets()),
     background_presets: sorted(Object.keys(BACKGROUND_PRESETS)),
     filters: sorted(Object.keys(FILTER_PARAMS_SCHEMAS)),
-    sound_events: sorted(Object.values(BUILTIN_SOUNDS_PACK.sound_schemes).flatMap(s => Object.keys(s))),
+    // Plus the events no built-in scheme assigns (SoundManager's EVENT_CATEGORY; it doesn't import in plain node)
+    sound_events: sorted([...Object.values(BUILTIN_SOUNDS_PACK.sound_schemes).flatMap(s => Object.keys(s)), 'borg_assimilate', 'borg_deassimilate']),
     sound_schemes: sorted(Object.keys(BUILTIN_SOUNDS_PACK.sound_schemes)),
     sound_assets: sorted(audioPacks.flatMap(p => Object.keys(p.audio_assets))),
     msd_backgrounds: sorted(Object.keys(BUILTIN_MSD_SVG_PACK.svg_assets).map(k => `builtin:${k}`)),
