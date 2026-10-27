@@ -116,6 +116,9 @@ export function cameraButtonLayout(cfg) {
 export const PICK_REQUEST = 'lcards-astro-pick-request';
 export const PICK_RESULT = 'lcards-astro-pick-result';
 export const PICK_CANCEL = 'lcards-astro-pick-cancel';
+/** The editor asks the preview for a model object's part names (window events) */
+export const PARTS_REQUEST = 'lcards-astro-parts-request';
+export const PARTS_RESULT = 'lcards-astro-parts-result';
 
 /** Config keys the scene reads; a change to anything else does not rebuild it */
 const SCENE_KEYS = ['camera', 'backdrop', 'labels', 'points', 'objects'];
@@ -366,6 +369,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._pick = null;
         this._inEditDialog = false;
         this._onPickRequest = this._onPickRequest.bind(this);
+        this._onPartsRequest = this._onPartsRequest.bind(this);
         this._onPickCancel = this._onPickCancel.bind(this);
         this._onPickKey = this._onPickKey.bind(this);
     }
@@ -979,6 +983,21 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         if (!this._inEditDialog) return;
         window.addEventListener(PICK_REQUEST, this._onPickRequest);
         window.addEventListener(PICK_CANCEL, this._onPickCancel);
+        window.addEventListener(PARTS_REQUEST, this._onPartsRequest);
+    }
+
+    /**
+     * The editor wants a model's part names (for the part dropdown): the
+     * names once the model is in, null while it loads.
+     * @private
+     * @param {Event} e
+     */
+    _onPartsRequest(e) {
+        const d = /** @type {CustomEvent} */ (e).detail ?? {};
+        if ((d.cardId ?? null) !== (this.config?.id ?? null) || !this._scene || !d.requestId) return;
+        window.dispatchEvent(new CustomEvent(PARTS_RESULT, {
+            detail: { requestId: d.requestId, object: d.object, parts: this._scene.partNames(String(d.object)) }
+        }));
     }
 
     /**
@@ -1108,6 +1127,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._endPick(null);
         window.removeEventListener(PICK_REQUEST, this._onPickRequest);
         window.removeEventListener(PICK_CANCEL, this._onPickCancel);
+        window.removeEventListener(PARTS_REQUEST, this._onPartsRequest);
         this._stopScene();
         super._onDisconnected();
     }

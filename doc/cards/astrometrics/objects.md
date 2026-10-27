@@ -1,5 +1,5 @@
 ---
-description: "Astrometrics card objects: grid surfaces (plane, disc, dome, sphere, cylinder), sector maps, territory volumes, planets, rings, routes, beams, images, glows and nebulae."
+description: "Astrometrics card objects: grid surfaces (plane, disc, dome, sphere, cylinder), sector maps, territory volumes, planets, rings, routes, beams, images, glows, nebulae and 3D models (glTF) as holograms."
 ---
 
 # Objects
@@ -164,3 +164,59 @@ Your own picture lying on the scene plane: `src` (`/local/galaxy.jpg`), `size` (
 ```yaml
 - { type: image, src: /local/milky-way.jpg, size: 220, shape: disc, blend: add, opacity: 0.8 }
 ```
+
+## model
+
+A 3D model from a glTF file (`.glb` or `.gltf`): a starship, your house, a satellite. By default it is drawn as a hologram (a glow with a bright rim, scanlines and its feature edges); `material: original` shows the file's own materials, lit.
+
+```yaml
+- type: model
+  id: ship
+  src: builtin:constitution     # or /local/models/ship.glb
+  size: 70                      # its largest extent, scene units
+  scan_period: 5                # a scan band sweeps along it every 5 seconds
+  animation: all                # loop the file's animation clips
+```
+
+| Key | What it does |
+|---|---|
+| `src` | The file. `builtin:constitution` is a Constitution-class starship shipped with LCARdS. Your own goes in `/config/www/` and is `/local/...` here. |
+| `size` | Its largest extent in scene units (default 50): the file is scaled and centred to fit. |
+| `material` | `hologram` (default) or `original`. |
+| `color`, `rim_color`, `opacity`, `scanlines` | The hologram's body colour, rim colour, brightness and scanline strength. |
+| `solid` | `true` (default): the hologram hides its own far side. `false`: see-through. |
+| `blend` | `add` (default) or `normal`. |
+| `scan_period`, `scan_color` | A scan band sweeping along the model, seconds per sweep. |
+| `edges`, `edge_angle`, `edge_color` | Feature edges as lines (on for holograms): where faces meet at more than `edge_angle` degrees. |
+| `animation` | Clips to loop: `all`, a clip name or a list. The built-in ship's clip is `bussards`. |
+| `occlude` | Hide labels and cards behind it (default `true`). |
+| `max_file_size` | The largest file it loads, MB (default 20). |
+
+A stand-in box shows while the file loads. Files compressed with meshopt load; Draco-compressed files do not (the browser console says why).
+
+**Points on a model** use `object:` with the model's id. `xyz` is then in the file's own coordinates, so `size` never moves them, and `part:` puts a point on a named part (a node in the file) so it follows that part when an animation moves it. In the card editor, **Pick on preview** places a point on the model's surface, and the part list fills in from the file. See [placement forms](./points#placement-forms).
+
+The built-in ship's parts: `saucer`, `bridge`, `sensor_dome`, `impulse`, `neck`, `secondary_hull`, `deflector`, `shuttle_bay`, `pylon_port`, `pylon_starboard`, `nacelle_port`, `nacelle_starboard`, `bussard_port`, `bussard_starboard`, `grille_port`, `grille_starboard`. It is 289 m long with the bow toward +z and Y up: fan art made in code for LCARdS, no third-party model.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 380
+camera:
+  view: three
+  views:
+    three: { target: [0, -6, 0], yaw: 145, tilt: 22, distance: 105 }
+backdrop:
+  stars: { count: 1500 }
+points:
+  - { id: bridge, object: ship, part: bridge, label: BRIDGE, marker: dot, style: major }
+  - { id: deflector, object: ship, part: deflector, label: DEFLECTOR, marker: dot }
+  - { id: port, object: ship, part: nacelle_port, label: PORT NACELLE, marker: dot }
+  - { id: starboard, object: ship, part: nacelle_starboard, label: STARBOARD NACELLE, marker: dot }
+objects:
+  - { type: grid, shape: disc, radius: 70, pattern: polar, line_spacing: 10, spoke_count: 24, at: [0, -25, 0] }
+  - { type: model, id: ship, src: builtin:constitution, size: 70, scan_period: 5, animation: all }
+```
+
+Labels on the far side of the ship hide behind it: drag to turn the ship until the port nacelle is behind the hull, and its label goes. Models hide labels by their real shape (a small depth image of the scene, taken only when the camera or the model moves), not by a bounding sphere.
+
+**Your own models.** The built-in ship (6,500 triangles, 147 KB) costs about 1.5 ms a frame on a laptop GPU, depth image included. Every extra triangle costs a little more, so simplify a model before you use it (Blender's Decimate modifier, or `gltf-transform simplify`) and compress it with `gltf-transform meshopt`. Name the parts you want points on in the file. The model loader is a separate download the first time a card uses a model.

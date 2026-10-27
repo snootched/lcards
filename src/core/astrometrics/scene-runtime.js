@@ -124,6 +124,7 @@ const KEY_COMMANDS = {
  * @property {(x: number, y: number, opts?: { out?: boolean }) => Promise<void>} zoomTo - the double-tap zoom at CSS px (x, y)
  * @property {(handler: ((x: number, y: number) => void) | null) => void} setPickHandler - while set, a tap goes to it (no actions, no double-tap)
  * @property {(x: number, y: number, form: string, object?: string) => (number[] | string | null)} placeAt - a placement form's value for the spot at CSS px (x, y), or null
+ * @property {(id: string) => (string[] | null)} partNames - a model object's named parts, null until it has loaded (or not a model)
  * @property {(values: Record<string, AstroLabelValues>) => void} setLabelValues - label text and colours by point id (no rebuild)
  * @property {(values: Record<string, Record<string, number[] | null>>) => void} updatePoints - positions from entities by point id (no rebuild)
  * @property {(patches: { points?: Record<string, any>, objects?: Record<string, any> }) => void} patch - rule effects on points and objects (no world rebuild)
@@ -1019,6 +1020,10 @@ export function createAstroScene(host, config, options = {}) {
       canvas.style.cursor = handler ? 'crosshair' : '';
     },
     placeAt,
+    partNames(id) {
+      const b = world?.objects.get(id);
+      return b?.partNames && b.loadState?.() === 'ready' ? b.partNames() : null;
+    },
     requestFrame,
     setLabelValues,
     updatePoints,

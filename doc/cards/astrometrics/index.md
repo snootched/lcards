@@ -282,6 +282,7 @@ The [config checker](/getting-started/config-checker) also checks what the schem
 
 - **Render on demand:** the scene draws when the camera moves, a fly-to runs, an object spins or an [effect](./effects) moves, the sky timer ticks or the theme changes. A still scene draws nothing. Off screen and in a hidden tab nothing draws.
 - **One WebGL context** for every astrometrics card and WebGL background on the page.
+- **Models:** measured on an Intel Arc laptop GPU at 1300 x 866 px, the scene with the built-in ship draws in about 1.5 ms a frame; the depth image that hides labels behind it adds about 0.2 ms, only while something moves. See [model](./objects#model).
 - **Reduced motion** (the system setting): spin, `auto_rotate` and every [effect](./effects) (drift, scans, moving dashes, fills) stop, and fly-to jumps instead of flying (no warp streaks).
 - **Alert modes** recolour the scene; labels follow the palette at once.
 

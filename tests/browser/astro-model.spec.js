@@ -64,3 +64,54 @@ test('a point on an animated part follows it', async ({ page }) => {
         return Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
     }, { timeout: 5_000 }).toBeGreaterThan(0.2);
 });
+
+test('editor: a point on a model part (parts from the built-in list and from the preview), a pinned card', async ({ page }) => {
+    await mountCase(page, 'astro-model', { width: '800' });
+    await expect.poll(async () => (await model(page))?.state, { timeout: 15_000 }).toBe('ready');
+    await page.evaluate(async () => {
+        const card = /** @type {any} */ (document.querySelector('#mount > *'));
+        await customElements.get('lcards-astrometrics-card').getConfigElement(); // loads the editor chunk
+        await customElements.whenDefined('lcards-astro-points-editor');
+        card._inEditDialog = true;
+        card._listenForPicks();
+        const list = /** @type {any} */ (document.createElement('lcards-astro-points-editor'));
+        list.config = JSON.parse(JSON.stringify(card._rawConfig));
+        list.addEventListener('points-changed', (e) => { window.__points = e.detail.value; list.config = { ...list.config, points: e.detail.value }; });
+        document.body.appendChild(list);
+        await list.updateComplete;
+        window.__list = list;
+    });
+    // the built-in model's parts come from the asset registry
+    expect(await page.evaluate(() => window.__list._partsFor('ship'))).toContain('nacelle_port');
+    // a user file: the preview reports the parts once the model is in
+    const fromPreview = await page.evaluate(async () => {
+        const list = window.__list;
+        list.config = { ...list.config, objects: list.config.objects.map((o) => (o.id === 'ship' ? { ...o, src: '/local/ship.glb' } : o)) };
+        list._partsFor('ship');
+        await new Promise((r) => setTimeout(r, 50));
+        return list._parts.ship;
+    });
+    expect(fromPreview).toEqual(expect.arrayContaining(['bridge', 'nacelle_port', 'bussard_starboard']));
+    // switching a point to "part" puts it on the model at its first part; the offset is xyz
+    const placed = await page.evaluate(() => {
+        const list = window.__list;
+        const i = list.config.points.findIndex((p) => p.id === 'bridge');
+        list._setForm(i, { id: 'bridge', xyz: [1, 2, 3], label: 'BRIDGE' }, 'part');
+        return window.__points[i];
+    });
+    expect(placed).toMatchObject({ id: 'bridge', object: 'ship', part: expect.any(String) });
+    expect(placed.xyz).toBeUndefined();
+    // the inline card editor's change goes into the point's card, not up as the card's own config
+    const pinned = await page.evaluate(() => {
+        const list = window.__list;
+        let leaked = false;
+        list.addEventListener('config-changed', () => { leaked = true; });
+        const i = list.config.points.findIndex((p) => p.id === 'port');
+        const ev = new CustomEvent('config-changed', { detail: { config: { type: 'tile', entity: 'light.demo' } }, bubbles: true, composed: true });
+        list._onCardConfigChanged(i, ev);
+        return { card: window.__points[i].card, leaked: leaked || !ev.cancelBubble };
+    });
+    expect(pinned.card).toEqual({ show: 'always', width: 120, card: { type: 'tile', entity: 'light.demo' } });
+    expect(pinned.leaked).toBe(false);
+    expect(await cardErrors(page)).toEqual([]);
+});

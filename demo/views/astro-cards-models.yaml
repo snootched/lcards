@@ -1,0 +1,103 @@
+# Astrometrics cards and models (E4): the built-in ship as a hologram with
+# points on its parts, LCARdS cards pinned to points (always and on tap), the
+# ship with its own materials, and labels hiding behind it.
+title: Astrometrics cards and models
+path: astro-cards-models
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        id: demo_ship
+        height: 520
+        camera:
+          view: three
+          views:
+            three: { target: [0, 0, 0], yaw: 145, tilt: 22, distance: 120 }
+            side: { target: [0, 0, 0], yaw: 90, tilt: 4, distance: 110 }
+            top: { target: [0, 0, 0], tilt: 88, distance: 120 }
+          buttons: true
+        backdrop: { stars: { count: 1500 } }
+        points:
+          - id: bridge
+            object: ship
+            part: bridge
+            label: BRIDGE
+            marker: dot
+            style: major
+            card:
+              position: top-right
+              width: 180
+              card:
+                type: custom:lcards-button
+                entity: input_boolean.lcards_test_toggle
+                preset: lozenge
+                text: { name: { content: RED ALERT, show: true } }
+          - { id: deflector, object: ship, part: deflector, label: DEFLECTOR, marker: dot }
+          - { id: collector, object: ship, part: bussard_starboard, xyz: [0, 5, 0], label: COLLECTOR, marker: diamond }
+          - id: port
+            object: ship
+            part: nacelle_port
+            label: PORT NACELLE
+            marker: dot
+            card:
+              show: always
+              width: 160
+              card:
+                type: custom:lcards-button
+                entity: input_boolean.lcards_test_lights
+                preset: lozenge
+                text: { name: { content: WARP FIELD, show: true } }
+          - id: starboard
+            object: ship
+            part: nacelle_starboard
+            label: STARBOARD NACELLE
+            marker: dot
+            card:
+              show: always
+              position: bottom-left
+              offset: [-60, 50]
+              width: 220
+              card:
+                type: custom:lcards-slider
+                entity: input_number.lcards_test_power
+          - { id: v_three, xyz: [-60, -24, 60], label: THREE QUARTER, marker: square, tap_action: { action: fly-to, view: three } }
+          - { id: v_side, xyz: [0, -24, 60], label: SIDE, marker: square, tap_action: { action: fly-to, view: side } }
+          - { id: v_top, xyz: [60, -24, 60], label: TOP, marker: square, tap_action: { action: fly-to, view: top } }
+        objects:
+          - { type: grid, shape: disc, radius: 70, pattern: polar, line_spacing: 10, spoke_count: 24, at: [0, -25, 0] }
+          - { type: model, id: ship, src: builtin:constitution, size: 70, scan_period: 5, animation: all }
+        grid_options: { columns: 24 }
+      - type: custom:lcards-astrometrics-card
+        height: 380
+        camera:
+          views:
+            v: { target: [0, 0, 0], yaw: 210, tilt: 18, distance: 95 }
+        points:
+          - { id: bridge, object: ship, part: bridge, label: BRIDGE, marker: dot }
+          - { id: shuttle_bay, object: ship, part: shuttle_bay, label: SHUTTLE BAY, marker: dot }
+        objects:
+          - { type: model, id: ship, src: builtin:constitution, size: 60, material: original, spin: 6 }
+        grid_options: { columns: 12 }
+      - type: custom:lcards-astrometrics-card
+        height: 380
+        camera:
+          views:
+            v: { target: [0, 0, 0], yaw: 30, tilt: 30, distance: 100 }
+        points:
+          - { id: saucer, object: ship, part: saucer, label: SAUCER, marker: dot }
+          - { id: grille, object: ship, part: grille_port, label: GRILLE, marker: dot }
+        objects:
+          - type: model
+            id: ship
+            src: builtin:constitution
+            size: 60
+            color: var(--lcars-orange)
+            rim_color: var(--lcars-yellow)
+            scanlines: 0.9
+            solid: false
+            spin: 10
+            edge_angle: 50
+        grid_options: { columns: 12 }

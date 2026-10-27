@@ -38,6 +38,12 @@ releases:
         session: "E6"
         docs: /cards/astrometrics/effects
         public: true
+      - file: astro-cards-models
+        summary: "Cards and 3D models in the scene"
+        description: "The built-in starship as a hologram with points on its parts, LCARdS cards pinned to points (always shown, or opened with a tap on BRIDGE), labels hiding behind the hull, the ship with its own materials, and a see-through orange hologram."
+        session: "E4"
+        docs: /cards/astrometrics/objects#model
+        public: true
       - file: webgl-scenes
         summary: "WebGL background scenes, alone and stacked"
         description: "three.js background scenes: the WebGL noise presets, grid floor and warp starfield, alone and stacked."

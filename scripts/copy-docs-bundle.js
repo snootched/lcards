@@ -30,6 +30,6 @@ cpSync(join(SRC, 'lcards.js'), join(DEST, 'lcards.js'));
 for (const name of readdirSync(join(SRC, 'chunks'))) {
     if (name.endsWith('.js')) cpSync(join(SRC, 'chunks', name), join(DEST, 'chunks', name));
 }
-for (const dir of ['fonts', 'msd', 'images']) cpSync(join(SRC, dir), join(DEST, dir), { recursive: true });
+for (const dir of ['fonts', 'msd', 'images', 'models']) cpSync(join(SRC, dir), join(DEST, dir), { recursive: true });
 
-console.log('Copied the LCARdS bundle (stub, chunks, fonts, msd, images) to doc/public/lcards/.');
+console.log('Copied the LCARdS bundle (stub, chunks, fonts, msd, images, models) to doc/public/lcards/.');

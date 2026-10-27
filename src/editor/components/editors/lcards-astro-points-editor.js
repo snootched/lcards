@@ -9,7 +9,12 @@
  *
  * Pick: asks the card preview in the edit dialog for a position (window
  * events PICK_REQUEST / PICK_RESULT, see lcards-astrometrics-card.js); the
- * next tap on the preview writes the point's form.
+ * next tap on the preview writes the point's form. A point on a model can
+ * stand on one of its parts: the part names come from the built-in model's
+ * registry entry, else from the live preview (PARTS_REQUEST / PARTS_RESULT).
+ *
+ * Card: a Lovelace card pinned to the point (`card:`), chosen with HA's card
+ * picker and edited inline with `hui-card-element-editor`.
  *
  * Emits `points-changed` with `{ value: points }`.
  */
@@ -18,7 +23,9 @@ import { LitElement, html, css, nothing } from 'lit';
 import { fireEvent } from 'custom-card-helpers';
 import { MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, PLACEMENT_FORMS } from '../../../core/astrometrics/names.js';
 import { LABEL_POSITIONS } from '../../../core/astrometrics/label-text.js';
-import { PICK_REQUEST, PICK_RESULT, PICK_CANCEL } from '../../../cards/lcards-astrometrics-card.js';
+import { PICK_REQUEST, PICK_RESULT, PICK_CANCEL, PARTS_REQUEST, PARTS_RESULT } from '../../../cards/lcards-astrometrics-card.js';
+import { mountDialogNearHomeAssistant } from '../../../utils/lcards-shared-helpers.js';
+import { showInfoDialog } from '../../../views/layout-edit-dialogs.js';
 import '../shared/lcards-form-section.js';
 import '../shared/lcards-message.js';
 import '../shared/lcards-color-picker.js';
@@ -31,8 +38,15 @@ const FORMS = {
   altaz: { label: 'Azimuth and altitude (a dome)', inputs: ['Azimuth (°)', 'Altitude (°)'], host: 'dome', pick: true, value: [0, 30] },
   sky: { label: 'Sun or moon (a dome)', host: 'dome', value: 'sun' },
   at: { label: 'At another point', value: '' },
-  cell: { label: 'Sector map cell (a plane grid)', host: 'plane', pick: true, value: '' }
+  cell: { label: 'Sector map cell (a plane grid)', host: 'plane', pick: true, value: '' },
+  part: { label: 'A part of a model', host: 'model', value: '' }
 };
+
+/** How a pinned card is shown, and where round the point */
+const CARD_SHOW = [
+  { value: 'tap', label: 'On tap (opens with a tap on the point)' },
+  { value: 'always', label: 'Always' }
+];
 
 /** Forms that take `alt` */
 const ALT_FORMS = ['polar', 'latlon', 'altaz', 'sky'];
@@ -45,15 +59,17 @@ const prune = (/** @type {Record<string, any>} */ obj) => Object.fromEntries(Obj
  * The placement form a point uses (the first present), or null.
  * @param {any} point
  */
-export const formOf = (point) => PLACEMENT_FORMS.find((f) => point?.[f] !== undefined) ?? null;
+export const formOf = (point) => (point?.part !== undefined ? 'part' : PLACEMENT_FORMS.find((f) => point?.[f] !== undefined) ?? null);
 
 /**
- * What an object can carry: sphere (latlon), dome (altaz, sky), plane (cell).
+ * What an object can carry: sphere (latlon), dome (altaz, sky), plane (cell),
+ * model (part).
  * @param {any} obj
  * @returns {string | null}
  */
 export const hostKind = (obj) => {
   if (obj?.type === 'sphere') return 'sphere';
+  if (obj?.type === 'model') return 'model';
   if (obj?.type !== 'grid') return null;
   const shape = obj.shape ?? 'plane';
   return ['dome', 'sphere', 'plane'].includes(shape) ? shape : null;
@@ -67,8 +83,26 @@ export const hostKind = (obj) => {
 export const withForm = (point, form) => {
   const next = { ...point };
   for (const f of PLACEMENT_FORMS) delete next[f];
+  delete next.part;
   next[form] = structuredClone(FORMS[form]?.value ?? null);
   return next;
+};
+
+/**
+ * Part names of a built-in model (`builtin:<key>`) from the asset registry,
+ * or null (a user file, or not registered).
+ * @param {any} obj - the model object config
+ * @returns {string[] | null}
+ */
+export const builtinParts = (obj) => {
+  const src = typeof obj?.src === 'string' ? obj.src : '';
+  if (!src.startsWith('builtin:')) return null;
+  try {
+    const parts = /** @type {any} */ (window).lcards?.core?.assetManager?.getRegistry?.('model')?.assets?.get(src.slice(8))?.metadata?.parts;
+    return Array.isArray(parts) ? parts : null;
+  } catch (_) {
+    return null;
+  }
 };
 
 let pickSeq = 0;
@@ -79,7 +113,8 @@ export class LCARdSAstroPointsEditor extends LitElement {
       hass: { type: Object },
       config: { type: Object },
       _expanded: { type: Number, state: true },
-      _picking: { type: String, state: true }
+      _picking: { type: String, state: true },
+      _parts: { type: Object, state: true }
     };
   }
 
@@ -95,6 +130,8 @@ export class LCARdSAstroPointsEditor extends LitElement {
       .pick-row { display: flex; align-items: center; gap: var(--ha-space-2); grid-column: 1 / -1; }
       .hint { font-size: var(--ha-font-size-s); color: var(--secondary-text-color); }
       .empty { padding: var(--ha-space-4); text-align: center; color: var(--secondary-text-color); }
+      .card-actions { display: flex; justify-content: flex-end; }
+      .card-editor-host { margin-top: var(--ha-space-2); }
     `;
   }
 
@@ -110,15 +147,29 @@ export class LCARdSAstroPointsEditor extends LitElement {
     /** @type {string} */
     this._pickRequest = '';
     this._onPickResult = this._onPickResult.bind(this);
+    /** @type {Record<string, string[]>} model part names by object id (from the preview) */
+    this._parts = {};
+    /** @type {Map<string, string>} parts request id by object id, while one is out */
+    this._partsAsked = new Map();
+    /** @type {ReturnType<typeof setTimeout>[]} */
+    this._partsTimers = [];
+    /** @type {HTMLElement | null} */
+    this._pickerDialog = null;
+    this._onPartsResult = this._onPartsResult.bind(this);
   }
 
   connectedCallback() {
     super.connectedCallback();
     window.addEventListener(PICK_RESULT, this._onPickResult);
+    window.addEventListener(PARTS_RESULT, this._onPartsResult);
   }
 
   disconnectedCallback() {
     window.removeEventListener(PICK_RESULT, this._onPickResult);
+    window.removeEventListener(PARTS_RESULT, this._onPartsResult);
+    this._partsTimers.forEach(clearTimeout);
+    this._partsTimers = [];
+    this._pickerDialog?.remove();
     this._cancelPick();
     super.disconnectedCallback();
   }
@@ -226,6 +277,64 @@ export class LCARdSAstroPointsEditor extends LitElement {
     this._replace(index, { ...withForm(this._points[index], d.form), [d.form]: d.value });
   }
 
+  // ── Model parts ────────────────────────────────────────────────────────────
+
+  /**
+   * A model object's part names: the built-in list, else what the preview
+   * reported (asked for once per object; re-asked while the model loads).
+   * @param {string} objectId
+   * @returns {string[] | null}
+   */
+  _partsFor(objectId) {
+    const obj = (Array.isArray(this.config?.objects) ? this.config.objects : []).find((o) => o?.id === objectId);
+    if (obj?.type !== 'model') return null;
+    const known = builtinParts(obj) ?? this._parts[objectId];
+    if (known) return known;
+    if (!this._partsAsked.has(objectId)) this._askParts(objectId, 0);
+    return null;
+  }
+
+  /** @param {string} objectId @param {number} attempt */
+  _askParts(objectId, attempt) {
+    const requestId = `parts-${++pickSeq}-${Date.now()}`;
+    this._partsAsked.set(objectId, requestId);
+    window.dispatchEvent(new CustomEvent(PARTS_REQUEST, { detail: { requestId, cardId: this.config?.id ?? null, object: objectId } }));
+    // No answer (no preview yet) or still loading: ask again a few times
+    this._partsTimers.push(setTimeout(() => {
+      if (this._parts[objectId] || this._partsAsked.get(objectId) !== requestId || !this.isConnected) return;
+      if (attempt < 8) this._askParts(objectId, attempt + 1);
+    }, 1500));
+  }
+
+  /** @param {Event} e */
+  _onPartsResult(e) {
+    const d = /** @type {CustomEvent} */ (e).detail ?? {};
+    if (!d.object || this._partsAsked.get(d.object) !== d.requestId || !Array.isArray(d.parts)) return;
+    this._parts = { ...this._parts, [d.object]: d.parts };
+  }
+
+  /** Model object ids */
+  _modelIds() {
+    return (Array.isArray(this.config?.objects) ? this.config.objects : [])
+      .filter((o) => o?.type === 'model' && typeof o.id === 'string').map((o) => /** @type {string} */ (o.id));
+  }
+
+  /**
+   * Switch a point's placement form. A part goes on the point's model (or the
+   * first one) at its first part.
+   * @param {number} index @param {any} point @param {string} form
+   */
+  _setForm(index, point, form) {
+    const next = withForm(point, form);
+    if (form === 'part') {
+      const models = this._modelIds();
+      const model = models.includes(point.object) ? point.object : models[0];
+      next.object = model;
+      next.part = (model && this._partsFor(model)?.[0]) || 'part';
+    }
+    this._replace(index, next);
+  }
+
   // ── Fields ─────────────────────────────────────────────────────────────────
 
   /**
@@ -289,8 +398,10 @@ export class LCARdSAstroPointsEditor extends LitElement {
     return html`
       <div class="grid">
         <div class="full">
-          ${this._select('Placed by', form ?? '', Object.entries(FORMS).map(([v, f]) => ({ value: v, label: f.label })),
-            (v) => v && v !== form && this._replace(index, withForm(point, v)))}
+          ${this._select('Placed by', form ?? '', Object.entries(FORMS)
+            .filter(([v]) => v !== 'part' || form === 'part' || this._modelIds().length)
+            .map(([v, f]) => ({ value: v, label: f.label })),
+            (v) => v && v !== form && this._setForm(index, point, v))}
         </div>
         ${bound ? html`<div class="full hint">Position from ${value.entity ?? 'the point\'s entity'} (edit the binding in YAML).</div>` : nothing}
         ${!bound && spec?.inputs ? html`
@@ -304,6 +415,7 @@ export class LCARdSAstroPointsEditor extends LitElement {
         ${form === 'sky' ? this._select('Body', value, SKY_BODIES.map((b) => ({ value: b, label: b })), (v) => this._patch(index, { sky: v })) : nothing}
         ${form === 'at' ? this._select('Point', value, this._points.filter((p) => p !== point && p?.id !== undefined).map((p) => ({ value: String(p.id), label: String(p.id) })), (v) => this._patch(index, { at: v })) : nothing}
         ${form === 'cell' ? this._text('Cell', value, (v) => this._patch(index, { cell: v }), 'Such as AF3') : nothing}
+        ${form === 'part' ? this._renderPart(point, index) : nothing}
         ${form !== 'at' ? this._select(spec?.host ? 'On object' : 'On object (optional)', point.object ?? '',
           [{ value: '', label: '(None)' }, ...hostOptions], (v) => this._patch(index, { object: v || undefined }), { custom_value: true }) : nothing}
         ${form && ALT_FORMS.includes(form) ? this._number('Height above (alt)', point.alt, (v) => this._patch(index, { alt: v })) : nothing}
@@ -316,6 +428,149 @@ export class LCARdSAstroPointsEditor extends LitElement {
             <span class="hint">${picking ? 'Tap the preview where the point goes.' : 'Then tap the preview where the point goes.'}</span>
           </div>` : nothing}
       </div>
+    `;
+  }
+
+  /**
+   * A point on a model part: the part (a dropdown of the model's parts, or
+   * free text while they are unknown) and an optional offset.
+   * @param {any} point @param {number} index
+   */
+  _renderPart(point, index) {
+    const parts = point.object ? this._partsFor(point.object) : null;
+    const offset = Array.isArray(point.xyz) ? point.xyz : undefined;
+    return html`
+      <div class="full">
+        ${parts
+          ? this._select('Part', point.part, parts.map((p) => ({ value: p, label: p })), (v) => v && this._patch(index, { part: v }), { custom_value: true })
+          : this._text('Part', point.part, (v) => v && this._patch(index, { part: v }), 'The name of a node in the model file (the list fills in when the preview has loaded it)')}
+      </div>
+      <div class="full grid3">
+        ${['Offset x', 'Offset y', 'Offset z'].map((label, i) => this._number(label, offset?.[i], (v) => {
+          const next = offset ? [...offset] : [0, 0, 0];
+          next[i] = v ?? 0;
+          this._patch(index, { xyz: next.every((n) => n === 0) ? undefined : next });
+        }))}
+      </div>
+      <div class="full hint">The offset is in the part's own coordinates (the model file's units).</div>
+    `;
+  }
+
+  // ── Card on the point ──────────────────────────────────────────────────────
+
+  _childLovelace() {
+    return { views: [{ title: 'Home', path: 'home', cards: [] }] };
+  }
+
+  /**
+   * HA's card picker in a dialog; `onPick` gets the chosen card config.
+   * @param {(card: any) => void} onPick
+   */
+  async _openCardPicker(onPick) {
+    if (!customElements.get('hui-card-picker')) {
+      // HA registers its picker only after its own "Add card" dialog has opened once
+      showInfoDialog({
+        title: 'Card picker not ready',
+        message: 'Home Assistant has not loaded its card picker yet. On any dashboard, '
+          + 'select "Add card" once (you can cancel it), then come back and try again.'
+      });
+      return;
+    }
+    this._pickerDialog?.remove();
+    const dialog = /** @type {any} */ (document.createElement('ha-dialog'));
+    dialog.headerTitle = 'Select a card';
+    this._pickerDialog = dialog;
+    mountDialogNearHomeAssistant(dialog, this);
+    dialog.open = true;
+    await dialog.updateComplete;
+
+    const picker = /** @type {any} */ (document.createElement('hui-card-picker'));
+    picker.hass = this.hass;
+    picker.lovelace = this._childLovelace();
+    picker.style.cssText = 'padding: var(--ha-space-6); display: block;';
+    dialog.appendChild(picker);
+    await new Promise((r) => setTimeout(r, 80));
+    picker.requestUpdate?.();
+
+    picker.addEventListener('config-changed', (/** @type {CustomEvent} */ e) => {
+      e.stopPropagation();
+      const selected = e.detail?.config;
+      dialog.open = false;
+      if (selected) onPick(JSON.parse(JSON.stringify(selected)));
+    });
+    dialog.addEventListener('closed', (/** @type {Event} */ e) => {
+      e.stopPropagation();
+      if (e.target !== e.currentTarget) return;
+      dialog.remove();
+      if (this._pickerDialog === dialog) this._pickerDialog = null;
+    });
+  }
+
+  /** @param {number} index */
+  _chooseCard(index) {
+    this._openCardPicker((card) => {
+      const point = this._points[index];
+      if (!point) return;
+      this._patch(index, { card: { ...(point.card ?? {}), card } });
+    });
+  }
+
+  /**
+   * The inline card editor changed the pinned card.
+   * @param {number} index @param {CustomEvent} e
+   */
+  _onCardConfigChanged(index, e) {
+    // Not the astrometrics card's own config: keep it from HA's edit dialog
+    e.stopPropagation();
+    const card = e.detail?.config ?? e.detail?.value;
+    const point = this._points[index];
+    if (!card?.type || !point?.card) return;
+    this._patch(index, { card: { ...point.card, card } });
+  }
+
+  /** @param {any} point @param {number} index */
+  _renderCard(point, index) {
+    const pin = point.card && typeof point.card === 'object' ? point.card : null;
+    /** @param {Record<string, any>} patch */
+    const patchPin = (patch) => this._patch(index, { card: prune({ ...pin, ...patch }) });
+    if (!pin?.card) {
+      return html`
+        <div class="pick-row">
+          <ha-button appearance="outlined" @click=${() => this._chooseCard(index)}>
+            <ha-icon icon="mdi:card-plus-outline" slot="start"></ha-icon>
+            Add card
+          </ha-button>
+          <span class="hint">Any Lovelace card, shown beside the point.</span>
+        </div>
+      `;
+    }
+    const type = String(pin.card.type ?? 'card').replace('custom:', '');
+    return html`
+      <div class="grid">
+        ${this._select('Show', pin.show ?? 'tap', CARD_SHOW, (v) => patchPin({ show: v === 'tap' ? undefined : v }))}
+        ${this._select('Position', pin.position ?? '', [{ value: '', label: '(Default: center-right)' }, ...Object.keys(LABEL_POSITIONS).map((p) => ({ value: p, label: p }))],
+          (v) => patchPin({ position: v || undefined }))}
+        ${this._number('Width (px)', pin.width, (v) => patchPin({ width: v }), { min: 80, max: 1200 })}
+        <div class="card-actions">
+          <ha-button appearance="plain" @click=${() => this._chooseCard(index)}>
+            <ha-icon icon="mdi:swap-horizontal" slot="start"></ha-icon>Change card
+          </ha-button>
+          <ha-button variant="danger" appearance="plain" @click=${() => this._patch(index, { card: undefined })}>
+            <ha-icon icon="mdi:delete-outline" slot="start"></ha-icon>Remove card
+          </ha-button>
+        </div>
+      </div>
+      ${customElements.get('hui-card-element-editor')
+        ? html`
+          <div class="card-editor-host">
+            <hui-card-element-editor
+              .hass=${this.hass}
+              .lovelace=${this._childLovelace()}
+              .value=${pin.card}
+              @config-changed=${(/** @type {CustomEvent} */ e) => this._onCardConfigChanged(index, e)}>
+            </hui-card-element-editor>
+          </div>`
+        : html`<lcards-message type="info">Edit the ${type} card in YAML (Home Assistant's card editor is not loaded here).</lcards-message>`}
     `;
   }
 
@@ -407,6 +662,10 @@ export class LCARdSAstroPointsEditor extends LitElement {
         </lcards-form-section>
         <lcards-form-section header="Label and marker" icon="mdi:label-outline" nested outlined ?expanded=${true}>
           ${this._renderLabel(point, index)}
+        </lcards-form-section>
+        <lcards-form-section header="Card" description="A Lovelace card pinned to the point" icon="mdi:card-text-outline" nested outlined
+          ?expanded=${!!point.card}>
+          ${this._renderCard(point, index)}
         </lcards-form-section>
       </lcards-form-section>
     `;

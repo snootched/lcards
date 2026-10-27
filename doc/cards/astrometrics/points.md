@@ -1,5 +1,5 @@
 ---
-description: "Astrometrics card points: named places on the plane, on a planet, in the sky or in a sector map cell, with labels on the LCARdS text system, markers, visibility ranges and tap actions."
+description: "Astrometrics card points: named places on the plane, on a planet, in the sky, in a sector map cell or on a part of a 3D model, with labels on the LCARdS text system, markers, visibility ranges, tap actions and Lovelace cards pinned to them."
 ---
 
 # Points
@@ -20,7 +20,11 @@ points:
 
 The editor's **Points** tab lists the points: add, duplicate, reorder and remove them, and set each one's placement, the object it stands on, entity, label, style, marker, colour and the main label text keys. Other keys stay as they are; edit them in the YAML tab.
 
-**Pick on preview** (the crosshair on a row) places a point with a tap: the preview shows "TAP TO PLACE ..." and the next tap writes the point's numbers, in its own form. `xyz` and `polar` land on the ground (y = 0), or on the surface of the object in `object`; `latlon` lands on a sphere, `altaz` on a dome, `cell` on a plane grid's cell. Drag to turn the view first if you need to; Escape or Cancel stops picking. Points placed by `sky`, `at` or an entity are not picked.
+**Pick on preview** (the crosshair on a row) places a point with a tap: the preview shows "TAP TO PLACE ..." and the next tap writes the point's numbers, in its own form. `xyz` and `polar` land on the ground (y = 0), or on the surface of the object in `object`; `latlon` lands on a sphere, `altaz` on a dome, `cell` on a plane grid's cell. Drag to turn the view first if you need to; Escape or Cancel stops picking. Points placed by `sky`, `at` or an entity are not picked. On a [model](./objects#model), `xyz` lands on the model's surface, in the model file's own coordinates.
+
+**A part of a model** puts a point on a named part of a model object: the part list comes from the built-in model, or from the preview once it has loaded your file. The offset moves the point from the part's origin.
+
+The **Card** section pins a Lovelace card to the point: **Add card** opens Home Assistant's card picker, and the card's own editor opens below, as in a stack card. Show, position and width set how it appears. If the picker says it is not ready, select **Add card** on any dashboard once (you can cancel it) and try again.
 
 ## Placement forms
 
@@ -35,6 +39,7 @@ Each point takes exactly one of these. `offset: [x, y, z]` moves any of them by 
 | `sky: sun` or `sky: moon` + `object` | The sun or moon on a dome, now (from the time and your Home Assistant location). |
 | `cell: AF3` + `object` | The centre of a cell of a sector map (a plane grid with `axis_labels`). |
 | `at: <point>` | At another point; add `offset` to move away from it. |
+| `part: <name>` + `object` | On a named part of a [model](./objects#model); it follows the part as it moves. `xyz` is then an offset in the part's coordinates. |
 
 `object` names the object the point stands on. With `xyz` or `polar` it is optional: the point then moves and spins with that object. `alt` lifts a point off the surface (`latlon`, `altaz`, `sky`) or the plane (`polar`).
 
@@ -203,3 +208,66 @@ points:
 objects:
   - { type: grid, shape: plane, size: 120, line_spacing: 10 }
 ```
+
+## Cards on points
+
+`card` pins any Lovelace card to the point: a tile, an entities card, an LCARdS button. It follows the point as the camera moves and hides when the point is off screen, behind a planet or a model, or out of its `max_distance` range. Its visibility conditions work as on a dashboard.
+
+```yaml
+points:
+  - id: bridge
+    object: ship
+    part: bridge
+    label: BRIDGE
+    marker: dot
+    card:
+      show: tap               # tap (the default) or always
+      position: top-right     # where the card sits round the point (the label positions)
+      offset: [8, 0]          # px
+      width: 260              # px; the height follows the card
+      card:
+        type: tile
+        entity: light.bridge
+```
+
+- `show: tap`: a tap on the point opens its card and selects the point; a tap anywhere else, another point or Escape closes it. One card is open at a time. A `tap_action` then runs only when it is `fly-to` (the card opens and the camera flies).
+- `show: always`: the card is always shown, a small control panel standing in the scene.
+- A point with a card needs no label or marker: the card is what shows.
+- A rule can patch `card` like any other point key; only that card is built again.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 360
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 25, tilt: 30, distance: 110 }
+points:
+  - id: relay
+    xyz: [-25, 0, 0]
+    marker: diamond
+    label: RELAY
+    card:
+      show: always
+      position: top-left
+      width: 150
+      card:
+        type: custom:lcards-button
+        entity: input_boolean.demo_toggle
+        preset: lozenge
+        text: { name: { content: RELAY POWER, show: true } }
+  - id: outpost
+    xyz: [25, 0, 10]
+    marker: dot
+    label: OUTPOST (TAP)
+    card:
+      position: top-right
+      width: 170
+      card:
+        type: custom:lcards-button
+        entity: switch.demo_switch
+        preset: lozenge
+        text: { name: { content: SHIELDS, show: true } }
+objects:
+  - { type: grid, shape: disc, radius: 50, pattern: polar, line_spacing: 10, spoke_count: 12 }
+```
+
