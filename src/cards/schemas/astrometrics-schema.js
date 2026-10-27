@@ -24,7 +24,7 @@ import {
     stateClassificationSchema, triggersUpdateSchema, dataSourcesSchema
 } from './common-schemas.js';
 import {
-    OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, FILL_EFFECTS
+    OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, FILL_EFFECTS, MODEL_MATERIALS
 } from '../../core/astrometrics/names.js';
 import { LABEL_POSITION_NAMES, LABEL_OMITTED_KEYS } from '../../core/astrometrics/label-text.js';
 
@@ -350,7 +350,7 @@ const pointCardSchema = {
 const pointSchema = {
     type: 'object',
     required: ['id'],
-    description: 'A named point: placed once (one of xyz, polar, latlon, altaz, sky, at, cell), referenced by id from paths, rings, beams, objects and views. With a label or marker it shows on the scene.',
+    description: 'A named point: placed once (one of xyz, polar, latlon, altaz, sky, at, cell, or part on a model), referenced by id from paths, rings, beams, objects and views. With a label or marker it shows on the scene.',
     properties: {
         id: { type: 'string', description: 'Unique name of the point (referenced by at, target, from, to, around, points).' },
         // placement forms
@@ -371,7 +371,8 @@ const pointSchema = {
         sky: { type: 'string', enum: [...SKY_BODIES], description: 'Follow the sun or moon on the dome named in object, from the time and the Home Assistant location (sun.sun when it exists). Updated every minute.' },
         at: { type: 'string', description: 'Place it at another point (by id); add offset to move it from there.' },
         cell: { type: 'string', description: 'The centre of a sector map cell, such as AF3, on the grid named in object (a plane grid; its axis_labels say how cells are named).' },
-        object: { type: 'string', description: 'The object the point stands on (an object id). Needed by latlon (a sphere), altaz and sky (a dome grid) and cell (a plane grid); with xyz or polar the point moves and spins with the object.' },
+        object: { type: 'string', description: 'The object the point stands on (an object id). Needed by latlon (a sphere), altaz and sky (a dome grid), cell (a plane grid) and part (a model); with xyz or polar the point moves and spins with the object (on a model: in the file\'s coordinates).' },
+        part: { type: 'string', description: 'A named part (node) of the model in object: the point sits on it and follows it; xyz is an offset in the part\'s coordinates.' },
         alt: number('Height above the surface of the object in object (latlon, altaz, sky), or above the plane (polar), scene units.', { default: 0 }),
         offset: tuple(3, 'Moves the point by [x, y, z] scene units from where its form puts it.'),
         // label and marker
@@ -777,7 +778,38 @@ const nebulaObject = {
     }
 };
 
-const OBJECT_SCHEMAS = { grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject };
+const modelObject = {
+    type: 'object',
+    title: 'model',
+    required: ['type', 'src'],
+    allOf: [objectCommonSchema],
+    description: 'A glTF / GLB model. Points stand on it with object: (and xyz or part).',
+    properties: {
+        type: { type: 'string', const: 'model', description: 'model: a glTF / GLB model.' },
+        src: { type: 'string', description: 'The file: builtin:constitution (a starship shipped with LCARdS) or your own .glb / .gltf. Meshopt compression works, Draco does not.' },
+        size: number('Largest extent, scene units (the file is scaled and centred).', { exclusiveMinimum: 0, default: 50 }),
+        material: { type: 'string', enum: [...MODEL_MATERIALS], default: 'hologram', description: 'hologram (default): a glow with a bright rim and scanlines. original: the file\'s materials, lit.' },
+        color: color('Hologram body colour. Default var(--lcars-blue).'),
+        rim_color: color('Hologram rim colour. Default var(--lcards-moonlight).'),
+        opacity: number('Hologram brightness, 0 to 1.', { minimum: 0, maximum: 1, default: 0.85 }),
+        scanlines: number('Scanline strength, 0 (none) to 1.', { minimum: 0, maximum: 1, default: 0.5 }),
+        scan_period: number('Seconds per scan band sweep along the model (0: none).', { minimum: 0, default: 0 }),
+        scan_color: color('Scan band colour. Default var(--lcards-moonlight).'),
+        solid: { type: 'boolean', default: true, description: 'false: see-through.' },
+        blend: { type: 'string', enum: ['add', 'normal'], default: 'add', description: 'Hologram blending: add (default) or normal.' },
+        edges: { type: 'boolean', description: 'Draw feature edges. Default true for hologram.' },
+        edge_angle: number('Edges where faces meet at more than this angle, degrees.', { minimum: 0, maximum: 180, default: 30 }),
+        edge_color: color('Edge colour. Default the rim colour.'),
+        animation: {
+            description: 'Clips to loop: all, a name or a list. None when left out.',
+            oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' }, minItems: 1 }]
+        },
+        occlude: { type: 'boolean', default: true, description: 'Hide labels behind it.' },
+        max_file_size: number('The largest file to load, MB.', { exclusiveMinimum: 0, default: 20 })
+    }
+};
+
+const OBJECT_SCHEMAS = { model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject };
 
 /** One scene object (published as its own shared file, scripts/lib/schema-publish.js) */
 export const objectSchema = {

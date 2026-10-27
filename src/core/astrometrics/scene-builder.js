@@ -50,6 +50,15 @@ const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image
  */
 
 /**
+ * What points on an object stand on.
+ * @param {import('./objects/common.js').BuiltObject} b
+ * @returns {import('./placements.js').PlacementHost}
+ */
+function hostOf(b) {
+  return { node: b.placeNode ?? b.node, radius: b.radius, cellPoint: b.cellPoint, moving: b.spin !== 0 || b.moving === true, ready: b.isReady, partNode: b.partNode };
+}
+
+/**
  * The label item for a point, or null when it shows nothing (no text, no
  * marker, no card).
  * @param {any} def - the point config
@@ -82,6 +91,7 @@ export function makeLabelItem(def, labelsCfg, cssColor) {
     minDistance: num(def.min_distance, 0),
     maxDistance: num(def.max_distance, Infinity),
     anchor: card !== null,
+    host: def.object !== undefined && def.object !== null ? String(def.object) : null,
     // A tap card opens on a tap, whatever the tap_action
     pickable: card?.show === 'tap' || (def.tap_action !== undefined ? def.tap_action?.action !== 'none' : marker !== 'none')
   });
@@ -145,12 +155,16 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
       const effects = ctx.effects;
       if (effects) add(cfg, (c) => effects.buildNebula(c, ctx));
       else lcardsLog.warn('[Astrometrics] nebula skipped: the effects chunk is not loaded');
+    } else if (cfg.type === 'model') {
+      const models = ctx.models;
+      if (models) add(cfg, (c) => models.buildModel(c, ctx));
+      else lcardsLog.warn('[Astrometrics] model skipped: the model chunk is not loaded');
     } else if (!OBJECT_TYPES.includes(cfg.type)) lcardsLog.warn(`[Astrometrics] unknown object type '${cfg.type}'`);
   }
 
   /** @type {Map<string, import('./placements.js').PlacementHost>} */
   const hosts = new Map();
-  for (const [id, b] of objects) hosts.set(id, { node: b.node, radius: b.radius, cellPoint: b.cellPoint, moving: b.spin !== 0 });
+  for (const [id, b] of objects) hosts.set(id, hostOf(b));
   const userPoints = Array.isArray(config?.points) ? config.points.filter((p) => p && typeof p === 'object' && p.id !== undefined) : [];
   const pointDefs = [...list.flatMap((b) => b.points), ...userPoints.map((p) => ({ ...p, id: String(p.id) }))];
   const places = new Placements({ points: pointDefs, hosts, sky: ctx.sky });
@@ -168,7 +182,7 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   // Bounds before the first placement pass (a default view frames them)
   scene.updateMatrixWorld(true);
   const box = new Box3();
-  for (const b of list) if (b.type in FIRST || b.type === 'nebula') box.expandByObject(b.node);
+  for (const b of list) if (b.type in FIRST || b.type === 'nebula' || b.type === 'model') box.expandByObject(b.node);
   const bounds = box.isEmpty() ? new Sphere(new Vector3(), 100) : box.getBoundingSphere(new Sphere());
 
   // Dust round the scene (after the bounds: it fills them)
@@ -236,6 +250,7 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
         return false;
       }
       g.remove(old.node);
+      old.dispose?.();
       old.lines.forEach((l) => l.dispose());
       disposeNode(old.node);
       g.rotation.set(0, 0, 0);
@@ -246,14 +261,17 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
       outer.set(b, g);
       objects.set(id, b);
       list[list.indexOf(old)] = b;
-      hosts.set(id, { node: b.node, radius: b.radius, cellPoint: b.cellPoint, moving: b.spin !== 0 });
+      hosts.set(id, hostOf(b));
       scene.updateMatrixWorld(true);
       places.invalidate();
       if (!b.dynamic) b.update?.();
       return true;
     },
     dispose() {
-      for (const b of list) b.lines.forEach((l) => l.dispose());
+      for (const b of list) {
+        b.dispose?.();
+        b.lines.forEach((l) => l.dispose());
+      }
       disposeNode(scene);
       scene.clear();
     }

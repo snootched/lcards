@@ -103,7 +103,7 @@ export class PackManager {
     }
 
     // ✅ 4. Register assets to AssetManager
-    if ((pack.svg_assets || pack.font_assets || pack.audio_assets || pack.image_assets) && this.core.assetManager) {
+    if ((pack.svg_assets || pack.font_assets || pack.audio_assets || pack.image_assets || pack.model_assets) && this.core.assetManager) {
       await this.core.assetManager.preloadFromPack(pack);
     }
 

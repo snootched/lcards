@@ -98,10 +98,14 @@ test('size budget: three.js and the anime.js three adapter stay out of the main 
     expect(mainSource.includes(`"./${three}"`) && !mainSource.includes(`import("./${three}")`), 'main imports the three.js chunk statically').toBe(false);
     const tier = [three, ...js.filter(f => /^(three-runtime|warp-starfield|grid|holo-sphere|field-scene|contour-field|plasma|fluid|nebula|noise-glsl|scene-helpers)-[\w-]{8}\.js$/.test(f))];
     const total = (ext) => tier.reduce((sum, f) => sum + statSync(new URL(`chunks/${f}${ext}`, DIST)).size, 0);
-    expect(total('')).toBeLessThanOrEqual(640_000);
+    // 640 to 700 KB raw, 136 to 155 KB br (2026-10-27, E4 models): three.js is one module, so
+    // the classes only the lazy glTF loader uses (its materials, interpolants, AnimationMixer,
+    // EdgesGeometry) join the shared three chunk: measured 671 KB / 149 KB br. The Line2 family
+    // moved out to the astrometrics runtime chunk at the same time.
+    expect(total('')).toBeLessThanOrEqual(700_000);
     // 135 to 136 KB br (2026-10-25, E3a): the same raw bytes compress ~150 B larger when the
     // main chunk's export names shift (the three chunk imports a few short names from it).
-    expect(total('.br')).toBeLessThanOrEqual(136_000);
+    expect(total('.br')).toBeLessThanOrEqual(155_000);
 });
 
 test('size budget: the astrometrics runtime and schema are lazy chunks of their own', () => {
@@ -117,15 +121,24 @@ test('size budget: the astrometrics runtime and schema are lazy chunks of their 
     // Measured 2026-10-25: runtime 76 KB raw / 25 KB br (three.js and the Line2 family are in the three chunk).
     // E3a (labels on the text system) and E3b (zoom to cursor, keys, picking) took it to
     // 95 KB raw / 30.6 KB br the same day; ceilings ~10% over that.
+    // E4 (2026-10-27): 114 KB raw / 36.7 KB br: cards on points, the depth pass, and the Line2
+    // family (~15 KB raw) moving here from the three chunk once the model chunk imported three too.
     const size = (f) => statSync(new URL(`chunks/${f}`, DIST)).size;
-    expect(size(/** @type {string} */ (runtime))).toBeLessThanOrEqual(105_000);
-    expect(size(`${runtime}.br`)).toBeLessThanOrEqual(34_000);
+    expect(size(/** @type {string} */ (runtime))).toBeLessThanOrEqual(125_000);
+    expect(size(`${runtime}.br`)).toBeLessThanOrEqual(40_000);
     // E6: the scene effects (nebula and their noise shaders) are a chunk of their own, loaded only
     // when a config uses them; 6 KB raw when it began (2026-10-25)
     const effects = js.find(f => readFileSync(new URL(`chunks/${f}`, DIST), 'utf8').includes('pull the gradient inside'));
     expect(effects, 'a lazy chunk holds the scene effects').toBeTruthy();
     expect(effects).not.toBe(runtime);
     expect(mainSource.includes('pull the gradient inside'), 'scene effects in the main chunk').toBe(false);
+    // E4: the glTF loader and meshopt decoder are a chunk of their own, loaded only for a model
+    // (82 KB raw when it began, 2026-10-27)
+    const models = js.find(f => readFileSync(new URL(`chunks/${f}`, DIST), 'utf8').includes('Draco-compressed files are not supported'));
+    expect(models, 'a lazy chunk holds the model loader').toBeTruthy();
+    expect(models).not.toBe(runtime);
+    expect(mainSource.includes('Draco-compressed files are not supported'), 'model loader in the main chunk').toBe(false);
+    expect(size(/** @type {string} */ (models))).toBeLessThanOrEqual(95_000);
 });
 
 test('rules: editing an existing rule keeps the old rule until a page refresh (documented)', async ({ page }) => {

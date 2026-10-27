@@ -27,6 +27,8 @@ export const DEFAULT_COLORS = {
   nebula: 'var(--lcars-violet, var(--lcards-blue-medium))',
   stars: 'var(--lcards-moonlight)',
   scan: 'var(--lcards-moonlight)',
+  model: 'var(--lcars-blue, var(--lcards-blue-medium))',
+  modelRim: 'var(--lcards-moonlight)',
   pulse: 'var(--lcards-moonlight)'
 };
 
@@ -38,6 +40,8 @@ export const DEFAULT_COLORS = {
  * @property {() => void} requestFrame
  * @property {(url: string) => any} loadTexture - three.js texture, redraws when loaded
  * @property {typeof import('../effects/index.js') | null} [effects] - the effects chunk, when the config uses it (`usesEffects`)
+ * @property {typeof import('../model/index.js') | null} [models] - the model chunk, when the config has a model (`usesModels`)
+ * @property {(src: string, maxMB: number) => (Promise<import('three/examples/jsm/loaders/GLTFLoader.js').GLTF> | null)} [loadModel] - a model file, parsed (once per src)
  */
 
 /**
@@ -60,6 +64,14 @@ export const DEFAULT_COLORS = {
  * @property {boolean} dynamic
  * @property {import('../star-field.js').StarField} [field] - backdrop stars and dust
  * @property {((dt: number, t: number) => boolean) | null} tick - own motion per frame (drift, scan, flow): dt and the scene clock in ms; true while it still moves
+ * @property {import('three').Object3D} [placeNode] - what points on it are local to, when not `node` (a model's file space)
+ * @property {'sphere' | 'depth'} [occluder] - how it hides labels when `occludes`: a sphere of `radius` (default), or its depth (meshes)
+ * @property {boolean} [moving] - moves on its own besides spin (animation): points on it change every frame
+ * @property {() => boolean} [isReady] - false while it loads (points on it wait)
+ * @property {(name: string) => (import('three').Object3D | null)} [partNode] - a named node (a model's part)
+ * @property {() => string[]} [partNames]
+ * @property {() => string} [loadState]
+ * @property {() => void} [dispose] - its own cleanup besides geometry and materials
  */
 
 /**

@@ -17,6 +17,11 @@
  *   at: <point>                                 another point
  *   cell: AF3, object: <grid>                   the centre of a lettered grid cell
  *
+ * `part: <node name>` with `object: <model>` puts the point on that part of
+ * a model (its origin, `xyz` an offset in the part's own space), so it
+ * follows the part when it moves (an animation). Points on a model wait
+ * (no position) until its file is in.
+ *
  * Key names avoid YAML 1.1 booleans (on, off, y, n, yes, no): Home
  * Assistant's code editor reads `on: sky` as `true: sky`.
  *
@@ -109,6 +114,8 @@ export function parseCell(code) {
  * @property {number} [radius]
  * @property {(code: string) => Vector3 | null} [cellPoint] - local centre of a cell
  * @property {boolean} [moving] - spins or moves (points on it change every frame)
+ * @property {() => boolean} [ready] - false while it loads: points on it have no position yet
+ * @property {(name: string) => (import('three').Object3D | null)} [partNode] - a named part (a model's glTF node)
  */
 
 /**
@@ -122,6 +129,7 @@ export function parseCell(code) {
  * @property {string} [at]
  * @property {string} [cell]
  * @property {string} [object]
+ * @property {string} [part]
  * @property {number} [alt]
  * @property {number[]} [offset]
  * @property {boolean} [_bound] - its position comes from an entity (setPosition)
@@ -275,6 +283,17 @@ export class Placements {
     if (d.object && !host) {
       this._warn(d.id, `point '${d.id}': no object '${d.object}'`);
       return null;
+    }
+    if (host?.ready && !host.ready()) return null;
+    if (d.part !== undefined && d.part !== null && d.part !== '') {
+      if (!host?.partNode) {
+        this._warn(d.id, `point '${d.id}': part '${d.part}' needs a model object`);
+        return null;
+      }
+      const node = host.partNode(String(d.part));
+      if (!node) return null;
+      const o = Array.isArray(d.xyz) ? d.xyz : [0, 0, 0];
+      return new Vector3(+o[0] || 0, +o[1] || 0, +o[2] || 0).applyMatrix4(node.matrixWorld);
     }
     /** Local to the host when there is one */
     const world = (/** @type {Vector3} */ v) => (host ? v.applyMatrix4(host.node.matrixWorld) : v);

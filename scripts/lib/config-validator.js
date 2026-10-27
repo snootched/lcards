@@ -208,6 +208,18 @@ export function registryIssues(node, tag, reg) {
   }
   if (tag === 'lcards-button') check('component', node.component, Object.values(reg.components).flat(), 'component');
   if (tag === 'lcards-msd-card') check('msd.base_svg.source', builtinOnly(node.msd?.base_svg?.source), reg.msd_backgrounds, 'built-in MSD background');
+  if (tag === 'lcards-astrometrics-card' && reg.astrometrics?.builtin_models) {
+    const models = reg.astrometrics.builtin_models;
+    const objects = Array.isArray(node.objects) ? node.objects : [];
+    objects.forEach((o, i) => { if (o?.type === 'model') check(`objects[${i}].src`, builtinOnly(o.src), Object.keys(models), 'built-in model'); });
+    // A part on a built-in model must be one of its parts
+    (Array.isArray(node.points) ? node.points : []).forEach((p, i) => {
+      if (!isLiteral(p?.part) || !isLiteral(p?.object)) return;
+      const host = objects.find((o) => o?.type === 'model' && String(o.id) === p.object);
+      const parts = host && typeof host.src === 'string' ? models[host.src] : undefined;
+      if (parts) check(`points[${i}].part`, p.part, parts, `part of ${host.src}`);
+    });
+  }
 
   walk(node, '', (value, path) => {
     if (typeof value === 'string') {
@@ -341,7 +353,8 @@ export function astrometricsIssues(node) {
     if (!p || typeof p !== 'object') return;
     const at = `points[${i}]`;
     const forms = PLACEMENT_FORMS.filter(f => p[f] !== undefined);
-    if (forms.length === 0) err(at, `point "${p.id}" has no position (one of ${PLACEMENT_FORMS.join(', ')})`);
+    if (forms.length === 0 && p.part === undefined) err(at, `point "${p.id}" has no position (one of ${PLACEMENT_FORMS.join(', ')}, or part)`);
+    if (p.part !== undefined && forms.some((f) => f !== 'xyz')) err(`${at}.part`, `part places the point on a model part (xyz is an offset from it); drop ${forms.filter((f) => f !== 'xyz').join(', ')}`);
     if (forms.length > 1) err(at, `point "${p.id}" has more than one position (${forms.join(', ')}); use one`);
     if (p.at !== undefined) pointRef(`${at}.at`, p.at);
     for (const f of ['xyz', 'polar', 'latlon', 'altaz']) {
@@ -358,9 +371,10 @@ export function astrometricsIssues(node) {
       if (!host) err(`${at}.object`, `no object "${p.object}"${suggest(p.object, [...objectIds.keys()])}`);
       else if (p.latlon !== undefined && !isGlobe(host)) warn(`${at}.object`, `latlon stands on a sphere; "${p.object}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
       else if ((p.altaz !== undefined || p.sky !== undefined) && !isDome(host)) warn(`${at}.object`, `${p.sky !== undefined ? 'sky' : 'altaz'} stands on a dome grid; "${p.object}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
+      else if (p.part !== undefined && host.type !== 'model') err(`${at}.part`, `part needs a model object; "${p.object}" is a ${host.type}`);
       else if (p.cell !== undefined && !(host.type === 'grid' && (host.shape ?? 'plane') === 'plane')) err(`${at}.object`, `cell needs a plane grid; "${p.object}" is a ${host.type}${host.shape ? ` (${host.shape})` : ''}`);
-    } else if (p.cell !== undefined || p.latlon !== undefined || p.altaz !== undefined || p.sky !== undefined) {
-      const form = ['cell', 'latlon', 'altaz', 'sky'].find(f => p[f] !== undefined);
+    } else if (p.cell !== undefined || p.latlon !== undefined || p.altaz !== undefined || p.sky !== undefined || p.part !== undefined) {
+      const form = ['cell', 'latlon', 'altaz', 'sky', 'part'].find(f => p[f] !== undefined);
       err(at, `${form} needs object: (the object it stands on)`);
     }
     actionViews(at, p);

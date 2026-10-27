@@ -29,17 +29,18 @@ import { CameraRig, viewToKeys, parseLimits, clampKeys, screenRay, rayPlane, DEF
 import { LabelLayer } from './label-layer.js';
 import { CardLayer, pointCard } from './card-layer.js';
 import { markerSvg } from './markers.js';
+import { DepthOcclusion } from './depth-occlusion.js';
 import { buildScene, makeLabelItem } from './scene-builder.js';
 import { BINDABLE_FORMS } from './placements.js';
 import { skyState } from './sky.js';
 import { warpTails } from './star-field.js';
 import { STAR_SHELL } from './objects/stars.js';
 import { num, stepObjects } from './objects/common.js';
-import { usesEffects } from './names.js';
+import { usesEffects, usesModels } from './names.js';
 
 const DEG = Math.PI / 180;
 /** Point keys that place it: a rule patch on one moves the point */
-const PLACE_KEYS = ['xyz', 'polar', 'latlon', 'altaz', 'sky', 'at', 'cell', 'object', 'alt', 'offset'];
+const PLACE_KEYS = ['xyz', 'polar', 'latlon', 'altaz', 'sky', 'at', 'cell', 'object', 'part', 'alt', 'offset'];
 /** Point keys that shape its label: a rule patch on one rebuilds that label */
 const LABEL_KEYS = ['label', 'text', 'style', 'color', 'marker', 'priority', 'overlap', 'fade', 'min_distance', 'max_distance', 'tap_action', 'card'];
 /** The sun crosses its own width in about 2 minutes: recompute the sky this often */
@@ -205,8 +206,14 @@ export function createAstroScene(host, config, options = {}) {
   const textures = new Set();
   const loader = new TextureLoader();
   loader.setCrossOrigin('anonymous');
+  /** @type {Map<string, Promise<import('three/examples/jsm/loaders/GLTFLoader.js').GLTF>>} model files by URL, parsed once for every build */
+  const modelFiles = new Map();
 
   const rig = new CameraRig({ onChange: () => requestFrame() });
+  /** Labels hidden behind meshes (models): a small depth pass, read back a frame late */
+  const depth = new DepthOcclusion({ onSnapshot: () => { depthFresh = true; requestFrame(); } });
+  /** A new depth image is in: lay the labels out again once, without a new capture */
+  let depthFresh = false;
   /** @type {import('./scene-builder.js').AstroScene | null} */
   let world = null;
   /** @type {Record<string, any>} */
@@ -235,6 +242,23 @@ export function createAstroScene(host, config, options = {}) {
       const t = loader.load(url, () => requestFrame(), undefined, () => lcardsLog.warn(`[Astrometrics] could not load image ${url}`));
       textures.add(t);
       return t;
+    },
+    loadModel: (src, maxMB) => {
+      const models = ctx.models;
+      if (!models) return null;
+      // builtin:<key>: a model from the LCARdS model library (builtin:constitution)
+      const key = src.startsWith('builtin:') ? src.slice('builtin:'.length) : null;
+      const url = key ? (window.lcards?.core?.assetManager?.resolveModelUrl?.(key) ?? '') : src;
+      if (!url) return Promise.reject(new Error(`no built-in model '${key}'`));
+      const cacheKey = `${url}|${maxMB}`;
+      let p = modelFiles.get(cacheKey);
+      if (!p) {
+        p = models.loadModelFile(url, { maxBytes: maxMB * 1024 * 1024 });
+        modelFiles.set(cacheKey, p);
+        // a failed load is tried again on the next build
+        p.catch(() => modelFiles.delete(cacheKey));
+      }
+      return p;
     }
   };
   /** @param {any} value @param {string} fallback */
@@ -310,25 +334,43 @@ export function createAstroScene(host, config, options = {}) {
     rig.limits = parseLimits(cam.limits, sceneSphere());
   }
 
-  /** @type {Promise<void> | null} the effects chunk loading */
-  let effectsLoad = null;
-  /** Bumped per waiting build, so only the last one builds when the chunk arrives */
-  let effectsWait = 0;
+  /** @type {{ effects?: Promise<void>, models?: Promise<void> }} the lazy chunks loading */
+  const chunkLoads = {};
+  /** Bumped per waiting build, so only the last one builds when the chunks arrive */
+  let chunkWait = 0;
+
+  /**
+   * The lazy chunks this config needs that are not in yet (a failed load
+   * leaves null: the scene builds without them).
+   * @returns {Promise<void>[]}
+   */
+  function missingChunks() {
+    const want = [];
+    if (usesEffects(cfg) && ctx.effects === undefined) {
+      want.push(chunkLoads.effects ??= import('./effects/index.js').then((m) => { ctx.effects = m; }, (error) => {
+        lcardsLog.warn('[Astrometrics] could not load the scene effects:', error);
+        ctx.effects = null;
+      }));
+    }
+    if (usesModels(cfg) && ctx.models === undefined) {
+      want.push(chunkLoads.models ??= import('./model/index.js').then((m) => { ctx.models = m; }, (error) => {
+        lcardsLog.warn('[Astrometrics] could not load the model loader:', error);
+        ctx.models = null;
+      }));
+    }
+    return want;
+  }
 
   function build() {
     world?.dispose();
     world = null;
     ready = false;
     ctx.places = null;
-    // A nebula (or another noise effect) needs the effects chunk: build once it is in
-    // (null after a failed load: build without the effects)
-    if (usesEffects(cfg) && ctx.effects === undefined) {
-      effectsLoad ??= import('./effects/index.js').then((m) => { ctx.effects = m; }, (error) => {
-        lcardsLog.warn('[Astrometrics] could not load the scene effects:', error);
-        ctx.effects = null;
-      });
-      const gen = ++effectsWait;
-      effectsLoad.then(() => { if (!disposed && gen === effectsWait) build(); });
+    // A nebula (or another noise effect) needs the effects chunk, a model the model chunk: build once they are in
+    const want = missingChunks();
+    if (want.length) {
+      const gen = ++chunkWait;
+      Promise.all(want).then(() => { if (!disposed && gen === chunkWait) build(); });
       return;
     }
     // The sky clock runs for sky points and paths, and for label templates that read sky.*
@@ -415,6 +457,8 @@ export function createAstroScene(host, config, options = {}) {
         moving = true;
       }
     }
+    const settle = depthFresh;
+    depthFresh = false;
     const flying = rig.step(now);
     rig.apply();
     const camera = rig.camera;
@@ -439,6 +483,7 @@ export function createAstroScene(host, config, options = {}) {
       ctx2d.drawImage(out.source, 0, out.sy, W, H, 0, 0, W, H);
       out.done?.();
     }
+    if (!settle) captureDepth(camera);
     updateLabels(camera);
     frames++;
     if (moving || flying) requestFrame();
@@ -465,6 +510,27 @@ export function createAstroScene(host, config, options = {}) {
     world.dust?.field?.setTail(tails?.dust ?? null);
   }
 
+  /** Objects whose meshes hide labels by depth (loaded models), this frame */
+  function depthOccluders() {
+    return world ? world.list.filter((b) => b.occludes && b.occluder === 'depth' && (b.isReady?.() ?? true) && (world?.outer.get(b)?.visible ?? true)) : [];
+  }
+
+  /**
+   * Render the depth occluders for the label pass, when the camera or one
+   * of them changed since the last capture (a moving one: every frame).
+   * @param {import('three').PerspectiveCamera | import('three').OrthographicCamera} camera
+   */
+  function captureDepth(camera) {
+    const list = depthOccluders();
+    if (!renderer || !world || !list.length) {
+      depth.clear();
+      return;
+    }
+    const moving = list.some((b) => b.spin || b.moving || b.config.at !== undefined);
+    const key = moving ? String(frames) : `${camera.matrixWorld.elements.join(',')}|${camera.projectionMatrix.elements.join(',')}|${cssW}x${cssH}|${builds}|${objectBuilds}|${list.map((b) => b.id).join(',')}`;
+    depth.capture(renderer, world.scene, camera, cssW, cssH, key);
+  }
+
   /** @param {import('three').Camera} camera */
   function updateLabels(camera) {
     if (!world) return;
@@ -484,7 +550,20 @@ export function createAstroScene(host, config, options = {}) {
       if (!b.occludes || !b.radius) continue;
       const center = new Vector3().setFromMatrixPosition(b.node.matrixWorld);
       const scale = new Vector3().setFromMatrixScale(b.node.matrixWorld).x;
+      if (b.occluder === 'depth') continue;
       occluders.push({ center, radius: b.radius * scale, id: b.id });
+    }
+    const snapshot = depth.snapshot;
+    if (snapshot && depthOccluders().length) {
+      // A point on a model may sit a little inside it (a part's origin, seen along the part): 5 % of the model's size
+      /** @type {Map<string, number>} */
+      const biases = new Map();
+      for (const b of depthOccluders()) {
+        const scale = new Vector3().setFromMatrixScale(b.node.matrixWorld).x;
+        biases.set(b.id, (b.radius ?? 1) * 2 * scale * 0.05);
+      }
+      const near = (world.bounds.radius || 100) * 0.002;
+      occluders.push({ kind: 'depth', snapshot, id: '', bias: (host) => (host !== null && biases.get(host)) || near });
     }
     labels.update(camera, cssW, cssH, occluders);
     cards.update((id) => labels.item(id), cssW, cssH);
@@ -590,7 +669,8 @@ export function createAstroScene(host, config, options = {}) {
     let local = null;
     if (host) {
       const hit = ray.intersectObjects(host.pickMeshes, false)[0];
-      if (hit) local = host.node.worldToLocal(hit.point.clone());
+      // a model's points are in its file's coordinates
+      if (hit) local = (host.placeNode ?? host.node).worldToLocal(hit.point.clone());
     } else {
       const r = screenRay(rig.keys, rig.projection, x, y, cssW, cssH);
       const g = rayPlane(r, [0, 0, 0], [0, 1, 0], 0.02);
@@ -963,6 +1043,7 @@ export function createAstroScene(host, config, options = {}) {
       document.fonts?.removeEventListener?.('loadingdone', onFonts);
       offReduced();
       rig.dispose();
+      depth.dispose();
       labels.dispose();
       cards.dispose();
       world?.dispose();
@@ -990,6 +1071,7 @@ export function createAstroScene(host, config, options = {}) {
         labelItems: labels.items,
         labelLayer: labels,
         cardLayer: cards,
+        depth,
         tap,
         hold,
         limits: rig.limits,

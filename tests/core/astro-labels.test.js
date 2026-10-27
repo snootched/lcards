@@ -2,12 +2,14 @@
  * Astrometrics label layout (layoutLabels in src/core/astrometrics/label-layer.js):
  * collision by priority then distance, the selected label first, level of
  * detail by min/max distance, distance fade, occlusion by spheres (and a
- * point never hidden by its own sphere), orthographic occlusion, picking.
+ * point never hidden by its own sphere), orthographic occlusion, oriented
+ * boxes, the depth image of meshes (models), picking.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PerspectiveCamera, OrthographicCamera, Vector3 } from 'three';
-import { layoutLabels, labelItem, pickLabel, labelBox } from '../../src/core/astrometrics/label-layer.js';
+import { PerspectiveCamera, OrthographicCamera, Vector3, Matrix4, Euler } from 'three';
+import { layoutLabels, labelItem, pickLabel, labelBox, rayHitsBox } from '../../src/core/astrometrics/label-layer.js';
+import { decodeViewDepth, depthNear } from '../../src/core/astrometrics/depth-occlusion.js';
 
 /** Camera at (0, 0, 100) looking at the origin, 800 x 600 */
 function camera() {
@@ -200,4 +202,70 @@ test('overlap: a label with nowhere to go is shown anyway instead of hidden', ()
   assert.equal(b.visible, true);
   assert.equal(b.reason, 'ok');
   assert.equal(c.reason, 'culled', 'labels without overlap still hide');
+});
+
+test('box occluder: a point behind a turned box hides, beside it shows; a point on the box is never hidden by it', () => {
+  // a 20 x 20 x 20 box at the origin, turned 45 degrees round y
+  const world = new Matrix4().makeRotationFromEuler(new Euler(0, Math.PI / 4, 0));
+  const box = { kind: /** @type {const} */ ('box'), inverse: world.clone().invert(), half: [10, 10, 10], id: 'cube' };
+  const behind = item('behind', [0, 0, -30]);
+  const beside = item('beside', [40, 0, -30]);
+  const on = item('on', [0, 0, -9], { host: 'cube' });
+  const r = layoutLabels([behind, beside, on], camera(), 800, 600, [box]);
+  assert.equal(behind.reason, 'occluded');
+  assert.notEqual(beside.reason, 'occluded');
+  assert.notEqual(on.reason, 'occluded');
+  assert.equal(r.occluded, 1);
+  // the slab test itself: a turned box's corner sticks out past its half size
+  assert.equal(rayHitsBox(new Vector3(13, 0, -30), new Vector3(0, 0, 1), 100, box.inverse, box.half), true);
+  assert.equal(rayHitsBox(new Vector3(15, 0, -30), new Vector3(0, 0, 1), 100, box.inverse, box.half), false);
+  // the segment stops at the camera: a box past it hides nothing
+  assert.equal(rayHitsBox(new Vector3(0, 0, -30), new Vector3(0, 0, 1), 10, box.inverse, box.half), false);
+});
+
+/**
+ * A fake depth image: 80 x 60 texels, a mesh covering the left half at view
+ * depth `d` (nothing on the right).
+ * @param {number} d
+ * @param {number} far
+ */
+function depthImage(d, far) {
+  const w = 80, h = 60;
+  const data = new Uint8Array(w * h * 4);
+  const x = Math.min(1 - 1 / 16777216, d / far);
+  // the shader's packing, in JS
+  let r = x, g = (x * 255) % 1, b = (x * 65025) % 1;
+  r -= g / 255;
+  g -= b / 255;
+  for (let y = 0; y < h; y++) for (let i = 0; i < w / 2; i++) {
+    const k = (y * w + i) * 4;
+    data[k] = Math.round(r * 255);
+    data[k + 1] = Math.round(g * 255);
+    data[k + 2] = Math.round(b * 255);
+    data[k + 3] = 255;
+  }
+  return { w, h, data, far };
+}
+
+test('depth occluder: decode round trip; behind the mesh hides, in front or where there is none shows; points on the model get its bias', () => {
+  const snap = depthImage(90, 5000);
+  assert.ok(Math.abs(decodeViewDepth(snap.data, 0, snap.far) - 90) < 0.01);
+  assert.equal(decodeViewDepth(snap.data, (snap.w - 1) * 4, snap.far), Infinity);
+  // the 3x3 window reaches over the edge; the texel alone does not
+  assert.ok(Math.abs(depthNear(snap, 40.5 / 80, 0.5) - 90) < 0.01);
+  assert.equal(depthNear(snap, 40.5 / 80, 0.5, 0), Infinity);
+
+  const occ = { kind: /** @type {const} */ ('depth'), snapshot: snap, id: '', bias: (/** @type {string | null} */ host) => (host === 'ship' ? 4 : 0.1) };
+  // the camera is at z = 100: view depth 90 is z = 10
+  const behind = item('behind', [-10, 0, 0]);
+  const front = item('front', [-10, 0, 20]);
+  const right = item('right', [10, 0, 0]);
+  const onShip = item('onShip', [-10, 0, 7], { host: 'ship' });
+  const farSide = item('farSide', [-10, 0, 0], { host: 'ship' });
+  layoutLabels([behind, front, right, onShip, farSide], camera(), 800, 600, [occ]);
+  assert.equal(behind.reason, 'occluded');
+  assert.notEqual(front.reason, 'occluded');
+  assert.notEqual(right.reason, 'occluded');
+  assert.notEqual(onShip.reason, 'occluded', '3 behind the surface, within its bias of 4');
+  assert.equal(farSide.reason, 'occluded', '10 behind the surface');
 });

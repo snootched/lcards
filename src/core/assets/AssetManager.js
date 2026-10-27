@@ -41,6 +41,17 @@ const ASSET_TYPES = {
     lazyLoad: false,
     urlOnly: true  // marker: only url metadata is stored; get() returns null by design
   },
+  /**
+   * 3D models (glTF / GLB): URL-only like images. The astrometrics card
+   * fetches the file itself (`builtin:<key>` in a `model` object's `src`).
+   */
+  model: {
+    description: '3D model files, glTF / GLB (URL registry, no content fetch)',
+    sanitize: false,
+    cache: false,
+    lazyLoad: false,
+    urlOnly: true
+  },
   font: {
     description: 'Custom font files',
     sanitize: false,
@@ -395,6 +406,21 @@ export class AssetManager extends BaseService {
       });
     }
 
+    // Model assets (URL-only registry, like images)
+    if (packDef.model_assets) {
+      Object.entries(packDef.model_assets).forEach(([key, def]) => {
+        if (def.url) {
+          this.register('model', key, null, {
+            pack: packName,
+            url: def.url,
+            description: def.description,
+            label: def.label,
+            parts: def.parts
+          });
+        }
+      });
+    }
+
     // Audio assets
     if (packDef.audio_assets) {
       Object.entries(packDef.audio_assets).forEach(([key, def]) => {
@@ -414,7 +440,8 @@ export class AssetManager extends BaseService {
       svg:   packDef.svg_assets   ? Object.keys(packDef.svg_assets).length   : 0,
       font:  packDef.font_assets  ? Object.keys(packDef.font_assets).length  : 0,
       audio: packDef.audio_assets ? Object.keys(packDef.audio_assets).length : 0,
-      image: packDef.image_assets ? Object.keys(packDef.image_assets).length : 0
+      image: packDef.image_assets ? Object.keys(packDef.image_assets).length : 0,
+      model: packDef.model_assets ? Object.keys(packDef.model_assets).length : 0
     };
 
     lcardsLog.info(`[AssetManager] Preloaded from pack ${packName}:`, assetCounts);
@@ -474,6 +501,20 @@ export class AssetManager extends BaseService {
       // Fall back: SVG assets (ships, backgrounds, etc.) are also usable as <img> sources
       const svgAsset = this.getRegistry('svg').assets.get(key);
       return svgAsset?.url ?? null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /**
+   * Resolve a model asset key (`builtin:<key>` without the prefix) to its URL
+   * (no I/O); null when not registered.
+   * @param {string} key
+   * @returns {string|null}
+   */
+  resolveModelUrl(key) {
+    try {
+      return this.getRegistry('model').assets.get(key)?.url ?? null;
     } catch (_) {
       return null;
     }

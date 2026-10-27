@@ -39,7 +39,7 @@ test('objects are checked against their own type: a sphere key on a grid is unkn
 test('an unknown object type names the choices and the closest one', () => {
     const out = issues({ objects: [{ type: 'sphear', radius: 4 }] });
     assert.equal(out.length, 1);
-    assert.match(out[0], /^error schema objects\[0\]\.type: unknown type "sphear" \(one of grid, volume, sphere, image, glow, nebula, ring, path, beam\) \(did you mean "sphere"\?\)$/);
+    assert.match(out[0], /^error schema objects\[0\]\.type: unknown type "sphear" \(one of grid, volume, sphere, image, glow, nebula, model, ring, path, beam\) \(did you mean "sphere"\?\)$/);
 });
 
 test('reference checks: placement forms, ids that must exist, object: of the right kind, views', () => {
@@ -68,7 +68,7 @@ test('reference checks: placement forms, ids that must exist, object: of the rig
         'error reference objects[2].points[1]: no point "grid#1.ring.90"',
         'error reference objects[2].tap_action.view: no view "zz" in camera.views',
         'error reference points[0]: point "a" has more than one position (xyz, polar); use one',
-        'error reference points[1]: point "b" has no position (one of xyz, polar, latlon, altaz, sky, at, cell)',
+        'error reference points[1]: point "b" has no position (one of xyz, polar, latlon, altaz, sky, at, cell, or part)',
         'error reference points[2]: cell needs object: (the object it stands on)',
         'error reference points[4].object: cell needs a plane grid; "disc" is a grid (disc)',
         'error reference points[5].at: no point "zz" (did you mean "a"?)',
@@ -169,4 +169,33 @@ test('docs starters and gallery tiles pass the full checker (references included
         const out = checker.validateConfig(yaml.load(text)).map(i => `${i.severity} ${i.path}: ${i.message}`);
         assert.deepEqual(out, [], label);
     }
+});
+
+test('E4 models: part needs a model, combines with xyz only, names a part of a built-in model; built-in model names are checked', () => {
+    const reg = /** @type {any} */ (registries);
+    assert.ok(reg.astrometrics.builtin_models['builtin:constitution'].includes('bridge'));
+    assert.deepEqual(reg.astrometrics.model_materials, ['hologram', 'original']);
+    const out = issues({
+        objects: [
+            { type: 'model', id: 'ship', src: 'builtin:constitution', size: 40, material: 'hologram', animation: 'bussards' },
+            { type: 'model', id: 'mine', src: '/local/station.glb' },
+            { type: 'model', id: 'typo', src: 'builtin:constitutoin' },
+            { type: 'sphere', id: 'globe' },
+        ],
+        points: [
+            { id: 'ok', object: 'ship', part: 'bridge', xyz: [0, 1, 0] },
+            { id: 'free', object: 'mine', part: 'anything' },
+            { id: 'bad', object: 'ship', part: 'brige' },
+            { id: 'two', object: 'ship', part: 'bridge', polar: [1, 2] },
+            { id: 'globe', object: 'globe', part: 'x' },
+            { id: 'loose', part: 'bridge' },
+        ],
+    });
+    assert.deepEqual(out.sort(), [
+        'error reference points[3].part: part places the point on a model part (xyz is an offset from it); drop polar',
+        'error reference points[4].part: part needs a model object; "globe" is a sphere',
+        'error reference points[5]: part needs object: (the object it stands on)',
+        'warning registry objects[2].src: unknown built-in model "builtin:constitutoin" (did you mean "builtin:constitution"?)',
+        'warning registry points[2].part: unknown part of builtin:constitution "brige" (did you mean "bridge"?)',
+    ]);
 });

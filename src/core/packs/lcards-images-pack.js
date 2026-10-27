@@ -33,7 +33,7 @@
 export const LCARDS_IMAGES_PACK = {
     id: 'lcards_images',
     version: __LCARDS_VERSION__,
-    description: 'LCARdS built-in image library: named raster and SVG images for card backgrounds and shape textures',
+    description: 'LCARdS built-in image library: named raster and SVG images for card backgrounds and shape textures, and 3D models for astrometrics scenes',
 
     /**
      * Image asset definitions.
@@ -52,6 +52,19 @@ export const LCARDS_IMAGES_PACK = {
      * },
      * ```
      */
+    /**
+     * 3D models (glTF / GLB) for the astrometrics card's `model` objects
+     * (`src: builtin:<key>`). `parts` lists the named nodes points can sit on.
+     */
+    model_assets: {
+        constitution: {
+            url: '/lcards/models/constitution.glb',
+            label: 'Constitution-class starship',
+            description: 'A Constitution-class starship in TOS proportions (289 m long, the bow toward +z, Y up, metres): fan art made in code by scripts/make-demo-ship.mjs, no third-party mesh. One animation clip, bussards.',
+            parts: ['saucer', 'bridge', 'sensor_dome', 'impulse', 'neck', 'secondary_hull', 'deflector', 'shuttle_bay', 'pylon_port', 'pylon_starboard', 'nacelle_port', 'nacelle_starboard', 'bussard_port', 'bussard_starboard', 'grille_port', 'grille_starboard']
+        }
+    },
+
     image_assets: {
         // Built-in entries will be added here as they are sourced and licensed.
         // Users add their own via the Config Panel → Image Library.

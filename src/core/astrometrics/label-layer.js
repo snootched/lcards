@@ -19,6 +19,7 @@
  */
 import { Vector3 } from 'three';
 import { markerSvg } from './markers.js';
+import { viewDepth, depthNear } from './depth-occlusion.js';
 import { BUILTIN_LABEL_STYLES, LABEL_POSITIONS, fieldCss } from './label-text.js';
 
 /** Built-in label styles: font size (px) and default priority */
@@ -49,6 +50,7 @@ export const LABEL_STYLES = /** @type {Record<'title' | 'major' | 'minor' | 'tin
  * @property {number} minDistance
  * @property {number} maxDistance
  * @property {string | null} occluderSkip - the sphere this point belongs to (never hides it)
+ * @property {string | null} host - the object the point stands on (`object:`): a depth occluder lets it sit a little inside, a box occluder never hides it
  * @property {boolean} pickable
  * @property {number} w - measured box, CSS px
  * @property {number} h
@@ -69,7 +71,15 @@ export const LABEL_STYLES = /** @type {Record<'title' | 'major' | 'minor' | 'tin
  * @property {'ok' | 'off' | 'occluded' | 'range' | 'culled'} reason
  */
 
-/** @typedef {{ center: Vector3, radius: number, id: string }} Occluder */
+/**
+ * What hides labels behind it: a sphere (globes), an oriented box (`inverse`:
+ * world to box space, the box centred there with half sizes `half`), or a
+ * depth image of meshes (models; `bias(host)`: how far, scene units, a point
+ * may sit behind the image and still show, for points on that object).
+ * @typedef {{ kind?: 'sphere', center: Vector3, radius: number, id: string }
+ *   | { kind: 'box', inverse: import('three').Matrix4, half: number[], id: string }
+ *   | { kind: 'depth', snapshot: import('./depth-occlusion.js').DepthSnapshot, bias: (host: string | null) => number, id: string }} Occluder
+ */
 
 /**
  * A label item with defaults (the per-frame fields cleared).
@@ -86,6 +96,7 @@ export function labelItem(o) {
     minDistance: 0,
     maxDistance: Infinity,
     occluderSkip: null,
+    host: null,
     pickable: false,
     w: 0,
     h: 0,
@@ -146,6 +157,44 @@ export function labelBox(it, flip = 0) {
   return [x0, y0, x0 + it.w, y0 + it.h];
 }
 
+const _o = new Vector3();
+const _d = new Vector3();
+const _e = new Vector3();
+/**
+ * Whether the segment from p along dir (unit, world) for `reach` passes
+ * through an oriented box (slab test in box space; the box shrunk 2 % so a
+ * point on its face is not hidden by it).
+ * @param {Vector3} p
+ * @param {Vector3} dir
+ * @param {number} reach - Infinity for an orthographic camera
+ * @param {import('three').Matrix4} inverse - world to box space
+ * @param {number[]} half
+ */
+export function rayHitsBox(p, dir, reach, inverse, half) {
+  _o.copy(p).applyMatrix4(inverse);
+  // the direction in box space (no translation; scale kept so t stays in world units)
+  _e.copy(p).add(dir).applyMatrix4(inverse);
+  _d.copy(_e).sub(_o);
+  let t0 = 1e-6;
+  let t1 = reach;
+  for (let a = 0; a < 3; a++) {
+    const o = _o.getComponent(a);
+    const d = _d.getComponent(a);
+    const h = half[a] * 0.98;
+    if (Math.abs(d) < 1e-12) {
+      if (o < -h || o > h) return false;
+      continue;
+    }
+    let ta = (-h - o) / d;
+    let tb = (h - o) / d;
+    if (ta > tb) [ta, tb] = [tb, ta];
+    t0 = Math.max(t0, ta);
+    t1 = Math.min(t1, tb);
+    if (t0 > t1) return false;
+  }
+  return true;
+}
+
 /**
  * Lay out the labels for one frame (in place): which show, where, how opaque.
  * @param {LabelItem[]} items
@@ -183,6 +232,16 @@ export function layoutLabels(items, camera, width, height, occluders = []) {
     let hidden = false;
     for (const s of occluders) {
       if (s.id === it.occluderSkip) continue;
+      if (s.kind === 'depth') {
+        const behind = viewDepth(p, camera, oc) - depthNear(s.snapshot, it.sx / width, it.sy / height, it.host === null ? 1 : 0);
+        if (behind > s.bias(it.host)) { hidden = true; break; }
+        continue;
+      }
+      if (s.kind === 'box') {
+        if (s.id === it.host) continue;
+        if (rayHitsBox(p, dir, reach, s.inverse, s.half)) { hidden = true; break; }
+        continue;
+      }
       oc.copy(s.center).sub(p);
       const tc = oc.dot(dir);
       if (tc <= 0 || tc >= reach) continue;

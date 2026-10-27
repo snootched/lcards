@@ -34,7 +34,7 @@ export async function buildRegistries() {
 
   const src = (p) => new URL(`../../src/${p}`, import.meta.url).href;
   const [{ components }, { BACKGROUND_PRESETS }, { listAnimationPresets }, animations,
-    { FILTER_PARAMS_SCHEMAS }, { BUILTIN_SOUNDS_PACK }, { BUILTIN_MSD_SVG_PACK }, { lcardsDefaultTokens }, { GREEN_ALERT_PALETTE }, astro, ...soundPacks] = await Promise.all([
+    { FILTER_PARAMS_SCHEMAS }, { BUILTIN_SOUNDS_PACK }, { BUILTIN_MSD_SVG_PACK }, { lcardsDefaultTokens }, { GREEN_ALERT_PALETTE }, astro, { LCARDS_IMAGES_PACK }, ...soundPacks] = await Promise.all([
     import(src('core/packs/components/index.js')),
     import(src('core/packs/backgrounds/presets/index.js')),
     import(src('core/animation/presets.js')),
@@ -45,6 +45,7 @@ export async function buildRegistries() {
     import(src('core/packs/themes/tokens/lcardsDefaultTokens.js')),
     import(src('core/themes/paletteInjector.js')),
     import(src('core/astrometrics/names.js')),
+    import(src('core/packs/lcards-images-pack.js')),
     // Every built-in pack that ships audio assets (their keys are what `sounds:` takes).
     import(src('core/packs/lcards-beeps-pack.js')),
     import(src('core/packs/lcards-alerts-pack.js')),
@@ -100,6 +101,9 @@ export async function buildRegistries() {
       label_styles: [...astro.LABEL_STYLE_NAMES],
       sky_bodies: [...astro.SKY_BODIES],
       placement_forms: [...astro.PLACEMENT_FORMS],
+      model_materials: [...astro.MODEL_MATERIALS],
+      // `builtin:<key>` models and their named parts (what `part:` takes)
+      builtin_models: Object.fromEntries(Object.entries(LCARDS_IMAGES_PACK.model_assets ?? {}).map(([k, m]) => [`builtin:${k}`, [...(m.parts ?? [])]])),
     },
   };
 }

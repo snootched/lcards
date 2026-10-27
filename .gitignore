@@ -429,6 +429,7 @@ custom_components/lcards/fonts/
 custom_components/lcards/msd/
 custom_components/lcards/sounds/
 custom_components/lcards/images/
+custom_components/lcards/models/
 
 # VitePress build output & cache
 docs/site/
