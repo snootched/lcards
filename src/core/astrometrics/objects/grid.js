@@ -6,11 +6,11 @@
  * (rings and meridians every N degrees) and always fit a whole number of
  * cells round (no seam).
  *
- * Extras: `border` (fat lines on the open edges, on by default),
+ * Extras: `edges` (fat lines on the open edges, on by default),
  * `ring_labels` (bearing labels round a disc or dome), and on a plane
  * `axis_labels` + `cells` (a lettered sector map: column letters, row
  * numbers zero-padded, filled cell ranges with per-cell `shade` and an
- * optional `border`, and `cell: AF3` placements).
+ * optional `edges` outline, and `cell: AF3` placements).
  *
  * `shape: well` is a funnel round the y axis (the background grid's
  * `well_shape` / `well_throat` / `well_profile`), rim at y = 0. `deform:`
@@ -122,9 +122,11 @@ export function buildGrid(cfg, ctx) {
   const node = new Group();
   node.name = `grid:${cfg.id ?? ''}`;
   const out = built(cfg, node);
-  const border = cfg.border !== false;
-  const edgeColor = cfg.color_major !== undefined ? ctx.color(cfg.color_major, DEFAULT_COLORS.grid) : ctx.color(cfg.color, DEFAULT_COLORS.grid);
-  const edgeWidth = num(cfg.line_width_major, Math.max(1.5, num(cfg.line_width, 1) * 1.5));
+  const border = cfg.edges !== false;
+  const edgeColor = ctx.color(cfg.edge_color ?? cfg.color_major ?? cfg.color, DEFAULT_COLORS.grid);
+  const edgeWidth = num(cfg.edge_width, num(cfg.line_width_major, Math.max(1.5, num(cfg.line_width, 1) * 1.5)));
+  // radius: a number, or [inner, outer] (a disc with a hole)
+  const [innerR, outerR] = Array.isArray(cfg.radius) ? [num(cfg.radius[0], 0), num(cfg.radius[1], 100)] : [0, num(cfg.radius, 100)];
   const opacity = num(cfg.opacity, 1);
   const deforming = (Array.isArray(cfg.deform) ? cfg.deform : []).length > 0;
   // a deformed surface bends between patches: twice as many
@@ -200,8 +202,8 @@ export function buildGrid(cfg, ctx) {
       fill.material.opacity = num(cell.opacity, 0.25) * (col[3] ?? 1) * opacity;
       node.add(fill);
       warpGeos.push(fill.geometry);
-      if (cell.border) {
-        const b = typeof cell.border === 'object' ? cell.border : {};
+      if (cell.edges) {
+        const b = typeof cell.edges === 'object' ? cell.edges : {};
         const x0 = -w / 2 + c0 * s;
         const x1 = -w / 2 + (c1 + 1) * s;
         const z0 = -d / 2 + r0 * s;
@@ -220,8 +222,8 @@ export function buildGrid(cfg, ctx) {
       }
     }
   } else if (shape === 'disc') {
-    const R = Math.max(1e-3, num(cfg.radius, 100));
-    const r0 = Math.max(0, num(cfg.inner_radius, 0));
+    const R = Math.max(1e-3, outerR);
+    const r0 = Math.max(0, Math.min(innerR, R));
     const spokes = cfg.line_spacing_deg !== undefined ? Math.round(360 / Math.max(1, num(cfg.line_spacing_deg, 10))) : num(cfg.spoke_count, 36);
     const s = Math.max(1e-3, num(cfg.line_spacing, R / 10));
     addFace(discGeometry({ r0, r1: R, detail }), { ...gridLook({ pattern: 'polar', ...cfg, spoke_count: spokes }, ctx, { cell: [s, s], back: 1, planePolar: (cfg.pattern ?? 'polar') === 'polar' }) });
@@ -229,7 +231,7 @@ export function buildGrid(cfg, ctx) {
     out.radius = R;
     ringLabels(cfg, R, out);
   } else {
-    const R = Math.max(1e-3, num(cfg.radius, 100));
+    const R = Math.max(1e-3, outerR);
     const deg = cfg.line_spacing_deg !== undefined ? Math.max(0.5, num(cfg.line_spacing_deg, 15)) : null;
     const sAlong = deg ? R * deg * DEG : Math.max(1e-3, num(cfg.line_spacing, R * 15 * DEG));
     // round: a whole number of cells (the arc coordinate is scaled to fit)
@@ -377,7 +379,7 @@ export function densify(run, step) {
  * Point spacing for straight edges on a deformed grid: 1/64 of its size.
  * @param {any} cfg
  */
-const edgeStep = (cfg) => Math.max(...pair(cfg.size, [200, 200]), num(cfg.radius, 0)) / 64;
+const edgeStep = (cfg) => Math.max(...pair(cfg.size, [200, 200]), ...pair(cfg.radius, [0, 0])) / 64;
 
 /**
  * A deterministic 0..1 per cell (the same cell always gets the same shade).

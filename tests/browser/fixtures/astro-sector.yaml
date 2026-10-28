@@ -35,7 +35,7 @@ objects:
         color: var(--lcars-blue)
         opacity: 0.3
         shade: 0.25
-        border: true
+        edges: true
       - from: AL2
         to: AO5
         color: var(--lcars-green)
@@ -46,7 +46,7 @@ objects:
         color: var(--lcars-red)
         opacity: 0.35
         shade: 0.25
-        border:
+        edges:
           width: 2
           opacity: 0.6
 points:

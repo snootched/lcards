@@ -275,7 +275,7 @@ ${ASTRO_FLOOR}  - { type: glow, at: [0, 5, 0], size: 50 }
     minWidth: 260,
     tiles: [
       astroTile('type: nebula', `objects:
-${ASTRO_FLOOR}  - { type: nebula, size: [110, 30], cloud_count: 5, seed: 5, drift: 2, colors: [var(--lcars-violet), var(--lcars-blue)] }
+${ASTRO_FLOOR}  - { type: nebula, size: [110, 30, 110], cloud_count: 5, seed: 5, drift: 2, colors: [var(--lcars-violet), var(--lcars-blue)] }
 `),
       astroTile('scan_period (disc)', `objects:
   - { type: grid, shape: disc, radius: 50, pattern: polar, line_spacing: 10, spoke_count: 24, scan_period: 3 }

@@ -19,7 +19,7 @@ objects:
     line_spacing_deg: 20
     deform:
       - { type: twist, angle: 120, anchor: top }
-      - { type: bend, amplitude: 0.5, motion: circle, speed: 0.5, anchor: top }
+      - { type: bend, amplitude: 0.5, motion: circle, period: 2, anchor: top }
   - id: wormhole
     type: grid
     shape: well
@@ -35,6 +35,6 @@ objects:
     at: [0, -40, 80]
     axis_labels: { style: tiny }
     cells:
-      - { from: A1, to: B2, color: var(--lcars-orange), border: true }
+      - { from: A1, to: B2, color: var(--lcars-orange), edges: true }
     deform:
-      - { type: noise, amplitude: 0.1, speed: 0 }
+      - { type: noise, amplitude: 0.1 }

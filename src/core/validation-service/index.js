@@ -410,6 +410,14 @@ export class CoreValidationService {
    * @private
    */
   _validateOneOf(data, schema, result, path) {
+    // A discriminator (`{ propertyName: 'type' }`) names the one branch to check:
+    // the one whose property is that const (otherwise the first branch that
+    // loosely fits would report its own warnings for another type's keys)
+    const prop = schema.discriminator?.propertyName;
+    if (prop && data && typeof data === 'object' && !Array.isArray(data) && data[prop] !== undefined) {
+      const branch = (schema.oneOf ?? schema.anyOf).find((/** @type {any} */ o) => o?.properties?.[prop]?.const === data[prop]);
+      if (branch) return this._validateAgainstSchema(data, branch, result, path);
+    }
     const matchedSchemas = [];
     const options = schema.oneOf ?? schema.anyOf;
     /** @type {{valid: boolean, errors: any[], warnings: any[]}[]} */

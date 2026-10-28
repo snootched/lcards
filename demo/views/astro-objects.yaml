@@ -99,8 +99,7 @@ sections:
             id: earth
             radius: 15
             image: builtin:earth_blue_marble
-            lat_step: 30
-            lon_step: 30
+            line_spacing_deg: 30
             color: var(--lcars-blue)
         grid_options: *a1
       - type: custom:lcards-astrometrics-card
@@ -112,12 +111,12 @@ sections:
           - { id: b, polar: [ 55, 60 ], marker: dot, label: RELAY }
         objects:
           - type: ring
-            around: star
+            at: star
             radius: 30
             inclination: 25
             node: 40
             color: var(--lcars-blue)
-          - { type: ring, around: star, radius: [ 70, 50 ], dash: [ 4, 4 ] }
+          - { type: ring, at: star, radius: [ 70, 50 ], dash: [ 4, 4 ] }
           - type: path
             points: [ a, star, b ]
             arc: 15

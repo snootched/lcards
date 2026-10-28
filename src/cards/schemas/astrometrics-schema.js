@@ -384,6 +384,8 @@ const pointSchema = {
         style: styleNameSchema('Label style: a built-in (title 34 px, major 20 px, minor 13 px, tiny 10 px; larger ones win when labels overlap) or one of yours in labels.styles. Default minor.'),
         marker: { type: 'string', enum: [...MARKERS], default: 'none', description: 'Marker drawn at the point: dot, triangle, diamond, square, reticle (a target ring), moon_phase (the moon\'s lit part, from the sky) or none. A point with a marker can be tapped.' },
         color: { ...stateColorSchema, description: 'The point\'s colour: the marker, and the default for its text fields. A colour or a state map by the point\'s entity (a selected key while it is selected). CSS variables stay live, so alert modes recolour. Default by style: moonlight for title and major, the theme text colour for minor and tiny.' },
+        visible: { type: 'boolean', default: true, description: 'false hides the label, marker and card (the point still places other things). Rules use it to hide and show points.' },
+        opacity: number('Opacity of the label and marker, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
         priority: number('Which label wins when two overlap (higher wins; then the nearer one). Default by style: title 100, major 80, minor 40, tiny 10 (labels.styles can set its own).'),
         overlap: { type: 'boolean', description: 'When labels overlap, this one is never hidden: it still moves to the other side of its point when that is free, else it shows where it is (over the other one). Default: the style\'s, else labels.overlap (false).' },
         fade: tuple(2, 'Distance fade [start, end], scene units from the camera: fully shown nearer than start, gone past end.'),
@@ -401,7 +403,8 @@ const pointSchema = {
 
 /** Keys every object takes */
 const objectCommon = {
-    id: { type: 'string', description: 'Name of the object, for points (on), paths and rings. Default type#n (grid#1, ...).' },
+    id: { type: 'string', description: 'Name of the object: points stand on it (object), rules target it. Default type#n (grid#1, ...).' },
+    tags: { ...tagsSchema, description: 'Tags for rules: a rule on tag:<name> patches every object with the tag.' },
     at: pointRef('Where the object sits: a point id (it follows the point) or [x, y, z]. Default the origin.'),
     rotation: tuple(3, 'Turn the object [x, y, z] in degrees: y is a bearing (clockwise from above), x tips it toward the camera, z rolls it.'),
     spin: number('Turn round the object\'s own vertical axis, degrees per second (positive is prograde). Off under reduced motion.', { default: 0 }),
@@ -459,9 +462,9 @@ const gridLook = {
     major_row_interval: { type: 'integer', minimum: 0, default: 0, description: 'A major (brighter, wider) line every N rows (rings on a disc); 0 for none.' },
     major_col_interval: { type: 'integer', minimum: 0, default: 0, description: 'A major line every N columns (spokes on a disc); 0 for none.' },
     line_width: number('Line width, px.', { minimum: 0, default: 1 }),
-    line_width_major: number('Major line and edge width, px. Default 1.5 x line_width (at least 1.5).', { minimum: 0 }),
+    line_width_major: number('Major line width, px. Default 1.5 x line_width (at least 1.5).', { minimum: 0 }),
     color: color('Line colour. Default theme:colors.ui.tertiary.'),
-    color_major: color('Major line and edge colour. Default: color, brighter.'),
+    color_major: color('Major line colour. Default: color, brighter.'),
     back_opacity: number('Opacity of the far side seen through the surface, 0 to 1 (0 hides it).', { minimum: 0, maximum: 1 }),
     blend: blendAdd,
     ...scanKeys
@@ -472,19 +475,20 @@ const deformSchema = {
     type: 'object',
     required: ['type'],
     additionalProperties: false,
-    description: 'A deformation of the grid surface. Round the axis on a cylinder, sphere, dome or well; up and down on a plane or disc. The lines, the rims and the points on the grid move with it. Moves on the scene clock and holds still under reduced motion.',
+    description: 'A deformation of the surface. Round the axis on a cylinder, sphere, dome or well; up and down on a plane or disc. The lines, the edges and the points on it move with it. Still unless period (or drift for noise) is set; holds still under reduced motion.',
     properties: {
         type: { type: 'string', enum: [...DEFORM_TYPES], description: 'wobble (bulges travelling round, or ripples across a flat grid), bend (the axis bends or sways; a flat grid curls), twist (turns more toward the far end; a flat grid swirls like a whirlpool) or noise (smooth random lumps).', enumDescriptions: { wobble: 'Travelling bulges or ripples', bend: 'Bending or swaying axis', twist: 'Twist or whirlpool', noise: 'Smooth random lumps' } },
         amplitude: number('wobble, bend, noise: how far the surface moves, as a fraction of the grid\'s size (its radius, or half a plane\'s longer side). Default wobble 0.08, bend 0.25, noise 0.05.'),
         lobes: { type: 'integer', minimum: 0, default: 3, description: 'wobble: bulges round the circumference (0: the whole ring swells at once; on a flat grid, ripples ring out from the centre).' },
         waves: number('wobble: waves along the axis (or out from the centre of a flat grid) between bulges, so they spiral.', { default: 1 }),
-        speed: number('How fast it moves, cycles per second (noise: noise cells per second). 0 holds it still. Default wobble 0.25, bend 0.2, twist 0, noise 0.1.'),
+        period: number('wobble, bend, twist: seconds per cycle (a bulge travels round once, a sway goes to and fro, the bend turns once, the twist swings). 0: a still shape.', { minimum: 0, default: 0 }),
+        drift: number('noise: how fast the lumps drift through the grid, scene units per second; 0 holds them still.', { default: 0 }),
         bearing: number('bend: direction the axis bends toward, degrees (0 north, clockwise from above).', { default: 0 }),
         motion: { type: 'string', enum: [...BEND_MOTIONS], default: 'sway', description: 'bend: sway (bends to and fro), circle (the bend turns round, a tornado) or none (a still bend).', enumDescriptions: { sway: 'Bends to and fro', circle: 'The bend turns round', none: 'Still bend' } },
         angle: number('twist: degrees turned at the far end (at the centre of a flat grid). With speed the twist swings between plus and minus this.', { default: 90 }),
         anchor: { type: 'string', enum: [...DEFORM_ANCHORS], default: 'bottom', description: 'bend, twist round an axis: the end that stays put (middle: both ends move).' },
-        frequency: number('noise: noise cells across the grid\'s size (higher is smaller lumps).', { exclusiveMinimum: 0, default: 3 }),
-        octaves: { type: 'integer', minimum: 1, maximum: 6, default: 2, description: 'noise: layers of finer detail.' },
+        base_frequency: number('noise: detail per scene unit, lower is larger lumps (as on fill_effect). Default about 3 lumps across the grid\'s size.', { exclusiveMinimum: 0 }),
+        num_octaves: { type: 'integer', minimum: 1, maximum: 6, default: 2, description: 'noise: layers of finer detail (as on fill_effect).' },
         seed: number('noise: changes the pattern.', { default: 0 })
     }
 };
@@ -494,13 +498,15 @@ const gridObject = {
     title: 'grid',
     required: ['type'],
     allOf: [objectCommonSchema],
-    description: 'A grid surface: plane (a sector map), disc (a galaxy disc), dome (a sky), sphere, cylinder or well (a funnel, a wormhole), optionally deformed (deform).',
+    description: 'A see-through grid surface: plane (a sector map), disc (a galaxy disc), dome (a sky), sphere (a wireframe ball; for a solid planet use sphere), cylinder or well (a funnel, a wormhole), optionally deformed (deform).',
     properties: {
         type: { type: 'string', const: 'grid', description: 'grid: a grid surface.' },
-        shape: { type: 'string', enum: [...GRID_SHAPES], default: 'plane', description: 'plane (size), disc (radius, inner_radius), dome (a half sphere, radius), sphere (radius), cylinder (radius, height) or well (a funnel down from its rim: radius, depth, well_shape).' },
+        shape: { type: 'string', enum: [...GRID_SHAPES], default: 'plane', description: 'plane (size), disc (radius, or [inner, outer] for a hole in the middle), dome (a half sphere, radius), sphere (radius), cylinder (radius, height) or well (a funnel down from its rim: radius, depth, well_shape).' },
         size: numberOrPair('plane: width and depth [w, d], scene units (one number for a square). Default 200.'),
-        radius: number('disc, dome, sphere, cylinder, well (its rim): radius, scene units. Default 100.', { exclusiveMinimum: 0 }),
-        inner_radius: number('disc: radius of the hole in the middle, scene units. Default 0.', { minimum: 0 }),
+        radius: {
+            description: 'disc, dome, sphere, cylinder, well (its rim): radius, scene units. A disc also takes [inner, outer] for a hole in the middle. Default 100.',
+            oneOf: [{ type: 'number', exclusiveMinimum: 0 }, { type: 'array', items: { type: 'number', minimum: 0 }, minItems: 2, maxItems: 2 }]
+        },
         height: number('cylinder: height, scene units. Default the radius.', { exclusiveMinimum: 0 }),
         depth: number('well: depth below the rim, scene units (the rim is at the object\'s position). Default the radius.', { exclusiveMinimum: 0 }),
         well_shape: { type: 'string', enum: [...WELL_SHAPE_NAMES], default: 'trumpet', description: 'well: profile from the rim down. trumpet (a gravity well: flat at the rim, plunging to the throat), cone, bowl or wormhole (two trumpets throat to throat, the throat halfway down). well_profile replaces it.', enumDescriptions: { trumpet: 'Gravity well', cone: 'Straight sides', bowl: 'Rounded bottom', wormhole: 'Hourglass' } },
@@ -514,7 +520,9 @@ const gridObject = {
         spoke_count: { type: 'integer', minimum: 0, default: 36, description: 'pattern polar: spokes round the centre (meridians on a curved shape). line_spacing_deg wins on a disc.' },
         hex_radius: number('pattern hexagonal: hexagon size, scene units. Default line_spacing.', { exclusiveMinimum: 0 }),
         dot_radius: number('pattern dots: dot radius, scene units. Default 8% of line_spacing.', { exclusiveMinimum: 0 }),
-        border: { type: 'boolean', default: true, description: 'Edge lines on the open edges (the rim of a disc or dome, the frame of a plane) in color_major and line_width_major.' },
+        edges: { type: 'boolean', default: true, description: 'Outline the open edges: the rim of a disc, dome or well, the ends of a cylinder, the frame of a plane.' },
+        edge_width: number('Edge width, px. Default line_width_major.', { minimum: 0 }),
+        edge_color: color('Edge colour. Default color_major.'),
         ring_labels: {
             type: 'object',
             description: 'disc or dome: bearing labels round the edge (0, 10, 20, ...).',
@@ -558,7 +566,7 @@ const gridObject = {
                     opacity: number('Fill opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 0.25 }),
                     shade: number('Per-cell brightness variation, 0 to 1 (a printed sector map look); the same cell always gets the same shade.', { minimum: 0, maximum: 1, default: 0 }),
                     seed: number('Changes which cells are lighter and darker with shade.', { default: 0 }),
-                    border: {
+                    edges: {
                         description: 'An outline round the range: true, or { width, color, opacity }.',
                         oneOf: [
                             { type: 'boolean' },
@@ -606,11 +614,12 @@ const volumeObject = {
                 depth: number('box: cell size along z, scene units. Default a quarter of the depth.', { exclusiveMinimum: 0 })
             }
         },
-        color: color('Colour of the faces and edges. Default var(--lcars-blue).'),
+        color: color('Colour of the faces (and the edges, unless edge_color). Default var(--lcars-blue).'),
         face_opacity: number('Opacity of the face grid lines (the edges stay brighter), 0 to 1.', { minimum: 0, maximum: 1, default: 0.45 }),
         line_width: number('Face line width, px.', { minimum: 0, default: 1 }),
         edges: { type: 'boolean', default: true, description: 'Draw the outline edges.' },
         edge_width: number('Edge width, px.', { minimum: 0, default: 1.5 }),
+        edge_color: color('Edge colour. Default color.'),
         back_opacity: number('Opacity of the far faces, 0 to 1 (1: a wireframe, nothing hidden).', { minimum: 0, maximum: 1, default: 1 }),
         blend: blendAdd,
         scan_period: number('Seconds per scan band sweep down the walls, top to bottom (0: none). Off under reduced motion.', { minimum: 0, default: 0 }),
@@ -623,19 +632,21 @@ const sphereObject = {
     title: 'sphere',
     required: ['type'],
     allOf: [objectCommonSchema],
-    description: 'A planet or globe: latitude and longitude lines over a dark body that hides what is behind it.',
+    description: 'A planet or globe: latitude and longitude lines over a solid body that hides what is behind it (labels too), with an optional map image. For a see-through wireframe ball use a grid with shape: sphere.',
     properties: {
         type: { type: 'string', const: 'sphere', description: 'sphere: a planet or globe.' },
         radius: number('Radius, scene units.', { exclusiveMinimum: 0, default: 10 }),
-        lat_step: number('A latitude line every N degrees.', { minimum: 1, default: 15 }),
-        lon_step: number('A longitude line every N degrees (rounded to fit round).', { minimum: 1, default: 15 }),
+        line_spacing_deg: number('A latitude and a longitude line every N degrees (longitude rounded to fit round), as on curved grids.', { minimum: 1, default: 15 }),
+        lat_step: number('Latitude lines every N degrees, when different from line_spacing_deg.', { minimum: 1 }),
+        lon_step: number('Longitude lines every N degrees, when different from line_spacing_deg (rounded to fit round).', { minimum: 1 }),
         ...gridLook,
-        fill: color('Body colour. Default black.'),
+        fill_color: color('Body colour. Default black.'),
         fill_opacity: number('Body opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 0.85 }),
         image: { type: 'string', description: 'A texture for the body instead of fill: an equirectangular map, longitude 0 in the middle. builtin:earth_blue_marble is the Earth (NASA Blue Marble, shipped with LCARdS); or your own, e.g. /local/mars.jpg.', examples: ['builtin:earth_blue_marble', '/local/mars.jpg'] },
         image_opacity: number('Texture opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
         occlude: { type: 'boolean', default: true, description: 'Hide labels behind the sphere.' },
-        fill_effect: fillEffectSchema
+        fill_effect: fillEffectSchema,
+        deform: { type: 'array', items: deformSchema, description: 'Deformations of the planet, applied in order (as on a grid sphere): wobble, bend, twist, noise. The body, lines and points on it move with them.' }
     }
 };
 
@@ -679,10 +690,9 @@ const ringObject = {
     title: 'ring',
     required: ['type'],
     allOf: [objectCommonSchema],
-    description: 'A circle or ellipse: an orbit, a rim, a range ring.',
+    description: 'A circle or ellipse: an orbit, a rim, a range ring. at is its centre (a point id: the ring follows it).',
     properties: {
         type: { type: 'string', const: 'ring', description: 'ring: a circle or ellipse.' },
-        around: pointRef('Centre: a point id (the ring follows it) or [x, y, z]. Default the origin.'),
         radius: numberOrPair('Radius, scene units, or [a, b] for an ellipse (a along the line of nodes). Default 100.'),
         inclination: number('Tilt of the ring\'s plane, degrees, about the line of nodes.', { default: 0 }),
         node: number('Bearing of the line of nodes (where an inclined ring crosses the plane), degrees.', { default: 0 }),
@@ -771,8 +781,8 @@ const nebulaObject = {
         type: { type: 'string', const: 'nebula', description: 'nebula: clouds of gas.' },
         radius: number('The clouds sit inside a ball this big round the object, scene units. Default 100.', { exclusiveMinimum: 0 }),
         size: {
-            description: 'Or inside a box [width, height, depth] (2 numbers: [width and depth, height]; one number for a cube), scene units. Replaces radius.',
-            oneOf: [{ type: 'number', exclusiveMinimum: 0 }, { type: 'array', items: { type: 'number', exclusiveMinimum: 0 }, minItems: 2, maxItems: 3 }]
+            description: 'Or inside a box [width, height, depth] (one number for a cube), scene units. Replaces radius.',
+            oneOf: [{ type: 'number', exclusiveMinimum: 0 }, { type: 'array', items: { type: 'number', exclusiveMinimum: 0 }, minItems: 3, maxItems: 3 }]
         },
         cloud_count: { type: 'integer', minimum: 1, maximum: 10, default: 4, description: 'How many clouds the seed places (the background preset\'s key).' },
         clouds: {
@@ -819,7 +829,7 @@ const modelObject = {
         material: { type: 'string', enum: [...MODEL_MATERIALS], default: 'hologram', description: 'hologram (default): a glow with a bright rim and scanlines. original: the file\'s materials, lit.' },
         color: color('Hologram body colour. Default var(--lcars-blue).'),
         rim_color: color('Hologram rim colour. Default var(--lcards-moonlight).'),
-        opacity: number('Hologram brightness, 0 to 1.', { minimum: 0, maximum: 1, default: 0.85 }),
+        opacity: number('Opacity, 0 to 1 (a hologram\'s brightness).', { minimum: 0, maximum: 1, default: 0.85 }),
         scanlines: number('Scanline strength, 0 (none) to 1.', { minimum: 0, maximum: 1, default: 0.5 }),
         scan_period: number('Seconds per scan band sweep along the model (0: none).', { minimum: 0, default: 0 }),
         scan_color: color('Scan band colour. Default var(--lcards-moonlight).'),
@@ -891,7 +901,7 @@ export const astrometricsSchema = {
             }
         },
         points: { type: 'array', description: 'Named points with optional labels and markers (the placement system).', items: pointSchema },
-        objects: { type: 'array', description: 'What is drawn: grids, volumes, spheres, images, glows, nebulae, rings, paths and beams, in this order.', items: objectSchema },
+        objects: { type: 'array', description: 'What is drawn: grids, volumes, spheres, models, images, glows, nebulae, rings, paths and beams.', items: objectSchema },
 
         // ── Identity & sizing ───────────────────────────────────────────────
         id: cardIdSchema,

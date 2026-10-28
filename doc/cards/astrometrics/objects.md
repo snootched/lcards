@@ -8,15 +8,31 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 
 <CardGallery set="astro-objects" />
 
+## Which type for what
+
+| You want | Use |
+|---|---|
+| A planet, moon or globe (solid, hides what is behind it, can wear a map) | [`sphere`](#sphere) |
+| A wireframe: a sector map, a galaxy disc, a sky dome, a see-through ball, a tube, a gravity well | [`grid`](#grid) |
+| A territory or region of space (a see-through box of cells) | [`volume`](#volume) |
+| An orbit, a range ring, a rim | [`ring`](#ring) |
+| A route through points, an arched route, the sun's track | [`path`](#path) |
+| A weapon, transporter or sensor beam (a glowing straight line) | [`beam`](#beam) |
+| A star, a galactic core, a beacon (a soft light) | [`glow`](#glow) |
+| Clouds of gas | [`nebula`](#nebula) |
+| Your own picture on the plane | [`image`](#image) |
+| A ship, a station, any 3D model | [`model`](#model) |
+
 ## Keys every object takes
 
 | Key | What it does |
 |---|---|
-| `id` | A name for points (`on`), paths and rings. Default `type#n`: the first grid is `grid#1`. |
+| `id` | A name for points standing on it (`object`), rules and fly-to. Default `type#n`: the first grid is `grid#1`. |
 | `at` | Where it sits: a point id (it follows the point) or `[x, y, z]`. Default the origin. |
 | `rotation: [x, y, z]` | Turns it, degrees: y is a bearing, x tips it toward the camera, z rolls it. |
 | `spin` | Turns it round its own vertical axis, degrees per second. Points on it turn with it. |
 | `opacity`, `visible` | Opacity 0 to 1; `visible: false` hides it (its points still work). |
+| `tags` | Tags for [rules](./data#rules): a rule on `tag:<name>` changes every object with the tag. |
 | `tap_action`, `hold_action`, `view` | As on [points](./points#actions). An object without a `tap_action` is not tappable. |
 
 Colours are theme tokens (`theme:colors.ui.primary`), CSS variables (`var(--lcars-blue)`) or plain colours. Widths and dashes are px.
@@ -25,10 +41,10 @@ Moving effects (nebula clouds, scan bands on grids, spheres and volumes, moving 
 
 ## grid
 
-A grid surface. `shape` picks it: `plane` (`size`), `disc` (`radius`, `inner_radius`), `dome` (a half sphere), `sphere`, `cylinder` (`radius`, `height`) or `well` (a funnel, [below](#wells-and-wormholes)). Any shape can be [deformed](#deformed-grids). The line keys are the [background grid](/core/effects/background-animations/preset-reference#grid)'s: `pattern`, `line_spacing`, `major_row_interval`, `major_col_interval`, `line_width`, `line_width_major`, `color`, `color_major`, `fill_color`, `spoke_count`, `hex_radius`, `dot_radius`, `back_opacity`. On curved shapes `line_spacing_deg` puts rings and meridians every N degrees.
+A grid surface. `shape` picks it: `plane` (`size`), `disc` (`radius`, or `[inner, outer]` for a hole in the middle), `dome` (a half sphere), `sphere`, `cylinder` (`radius`, `height`) or `well` (a funnel, [below](#wells-and-wormholes)). Any shape can be [deformed](#deformed-grids). The line keys are the [background grid](/core/effects/background-animations/preset-reference#grid)'s: `pattern`, `line_spacing`, `major_row_interval`, `major_col_interval`, `line_width`, `line_width_major`, `color`, `color_major`, `fill_color`, `spoke_count`, `hex_radius`, `dot_radius`, `back_opacity`. On curved shapes `line_spacing_deg` puts rings and meridians every N degrees.
 
-- `border` (default on): edge lines on the rim of a disc or dome and the frame of a plane.
-- `ring_labels: { step, radius, start, y, style, color }`: bearing labels round a disc or dome.
+- `edges` (default on): outlines on the open edges: the rim of a disc, dome or well, the ends of a cylinder, the frame of a plane; `edge_width` (default `line_width_major`) and `edge_color` (default `color_major`).
+- `ring_labels: { step, radius, start, alt, style, color }`: bearing labels round a disc or dome.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -53,23 +69,23 @@ camera:
   views:
     v: { target: [0, -40, 0], yaw: 20, tilt: 25, distance: 260 }
 objects:
-  - { type: grid, shape: disc, radius: 60, inner_radius: 50, at: [-65, 0, 0], pattern: polar, spoke_count: 24, line_spacing: 5 }
+  - { type: grid, shape: disc, radius: [50, 60], at: [-65, 0, 0], pattern: polar, spoke_count: 24, line_spacing: 5 }
   - { type: grid, shape: well, radius: 50, depth: 60, at: [-65, 0, 0], line_spacing_deg: 15 }
   - { type: grid, shape: well, well_shape: wormhole, well_throat: 0.25, radius: 40, depth: 110, at: [65, 0, 0], line_spacing_deg: 20, color: var(--lcars-blue) }
 ```
 
 ### Deformed grids
 
-`deform` is a list of deformations applied in order to any grid. Round the axis on a cylinder, sphere, dome or well; up and down on a plane or disc. The lines are painted on the surface and stretch with it; rims, cell fills and points standing on the grid (`object: <grid>`) move with it, and picking a point on it in the editor gives its place on the undeformed grid. Amplitudes are fractions of the grid's size (its radius, or half a plane's longer side). Deformations move on the scene clock and hold still under reduced motion; with `speed: 0` a deformation is a still shape.
+`deform` is a list of deformations applied in order to any grid, and to a [sphere](#sphere). Round the axis on a cylinder, sphere, dome or well; up and down on a plane or disc. The lines are painted on the surface and stretch with it; edges, cell fills and points standing on the grid (`object: <grid>`) move with it, and picking a point on it in the editor gives its place on the undeformed grid. Amplitudes are fractions of the grid's size (its radius, or half a plane's longer side). A deformation is a still shape until you give it a `period` (seconds per cycle) or, for noise, a `drift`; moving ones run on the scene clock and hold still under reduced motion.
 
 | `type` | Round an axis | On a plane or disc | Keys (defaults) |
 |---|---|---|---|
-| `wobble` | Bulges travelling round (jelly) | Ripples across it, larger toward the edge | `amplitude` (0.08), `lobes` (3; 0 swells the whole ring), `waves` (1: along the axis, so the bulges spiral), `speed` (0.25 cycles/s) |
-| `bend` | The axis bends toward `bearing` | The sheet curls up along `bearing` | `amplitude` (0.25), `bearing` (0), `motion`: `sway` (to and fro), `circle` (the bend turns round: a tornado) or `none`; `speed` (0.2), `anchor` |
-| `twist` | Turns more toward the far end | A whirlpool: most at the centre, none at the rim | `angle` (90 degrees), `speed` (0: still; else it swings between plus and minus `angle`), `anchor` |
-| `noise` | Smooth lumps in and out | Smooth hills and hollows | `amplitude` (0.05), `frequency` (3 lumps across), `octaves` (2), `speed` (0.1 cells/s drift), `seed` |
+| `wobble` | Bulges travelling round (jelly) | Ripples across it, larger toward the edge | `amplitude` (0.08), `lobes` (3; 0 swells the whole ring), `waves` (1: along the axis, so the bulges spiral), `period` (seconds for a bulge to travel round) |
+| `bend` | The axis bends toward `bearing` | The sheet curls up along `bearing` | `amplitude` (0.25), `bearing` (0), `motion`: `sway` (to and fro), `circle` (the bend turns round: a tornado) or `none`; `period` (seconds per sway or turn), `anchor` |
+| `twist` | Turns more toward the far end | A whirlpool: most at the centre, none at the rim | `angle` (90 degrees), `period` (with one, it swings between plus and minus `angle`), `anchor` |
+| `noise` | Smooth lumps in and out | Smooth hills and hollows | `amplitude` (0.05), `base_frequency` (detail per scene unit, as on [fills](./effects#animated-surface-fills); default about 3 lumps across), `num_octaves` (2), `drift` (scene units per second), `seed` |
 
-`anchor` (`bottom`, `top` or `middle`) is the end of the axis that stays put. A deformed grid is drawn with finer patches than a plain one and is moved on the CPU each frame while it moves: about 0.05 ms per grid for wobble, bend and twist on a desktop; moving noise costs more (about 0.25 ms for a plane).
+`anchor` (`bottom`, `top` or `middle`) is the end of the axis that stays put. A deformed grid is drawn with finer patches than a plain one and is moved on the CPU each frame while it moves: about 0.05 ms per grid for wobble, bend and twist on a desktop; drifting noise costs more (about 0.25 ms for a plane).
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -87,7 +103,7 @@ objects:
     line_spacing_deg: 20
     color: var(--lcars-orange)
     deform:
-      - { type: wobble, amplitude: 0.15, lobes: 3, waves: 1 }
+      - { type: wobble, amplitude: 0.15, lobes: 3, waves: 1, period: 4 }
   - id: tornado
     type: grid
     shape: well
@@ -99,7 +115,7 @@ objects:
     color: var(--lcars-blue)
     deform:
       - { type: twist, angle: 120, anchor: top }
-      - { type: bend, amplitude: 0.5, motion: circle, speed: 0.15, anchor: top }
+      - { type: bend, amplitude: 0.5, motion: circle, period: 7, anchor: top }
   - id: whirlpool
     type: grid
     shape: disc
@@ -110,7 +126,7 @@ objects:
     line_spacing: 6
     deform:
       - { type: twist, angle: 150 }
-      - { type: wobble, amplitude: 0.06, lobes: 0, waves: 3, speed: 0.4 }
+      - { type: wobble, amplitude: 0.06, lobes: 0, waves: 3, period: 2.5 }
 ```
 
 ### Sector maps
@@ -125,7 +141,7 @@ A plane grid with `axis_labels` names its columns and rows (AF3 is column AF, ro
 | `every` | Label every Nth column and row |
 | `offset`, `style`, `color` | Distance outside the edge, label size and colour |
 
-Each `cells` entry is a range `from` one corner cell `to` the other (or one `cell`), with `color`, `opacity`, `shade` (0 to 1: each cell a little lighter or darker, as on a printed map; the same cell always gets the same shade), `seed` and `border` (`true` or `{ width, color, opacity }`). The [sector map reference](./#sector-map) shows them together.
+Each `cells` entry is a range `from` one corner cell `to` the other (or one `cell`), with `color`, `opacity`, `shade` (0 to 1: each cell a little lighter or darker, as on a printed map; the same cell always gets the same shade), `seed` and `edges` (an outline: `true` or `{ width, color, opacity }`). The [sector map reference](./#sector-map) shows them together.
 
 ## volume
 
@@ -135,7 +151,7 @@ A see-through box of grid cells: a territory. `shape: sector` spans `radius: [in
 |---|---|
 | `cells` | Cell size on the faces: `ring`, `angle` (degrees), `layer` for a sector; `x`, `y`, `z` for a box |
 | `color`, `face_opacity` | Colour, and the face lines' opacity (the edges stay brighter) |
-| `line_width`, `edges`, `edge_width` | Face line width; outline on or off; outline width |
+| `line_width`, `edges`, `edge_width`, `edge_color` | Face line width; outline on or off; outline width and colour (default `color`) |
 | `back_opacity` | The far faces (1: a wireframe, nothing hidden) |
 
 ```yaml live
@@ -152,7 +168,7 @@ objects:
 
 ## sphere
 
-A planet or globe: latitude and longitude lines (`lat_step`, `lon_step`) over a dark body (`fill`, `fill_opacity`) that hides what is behind it, labels included (`occlude: false` turns that off). `image` wraps a map around it: `builtin:earth_blue_marble` is the Earth, shipped with LCARdS (NASA's Blue Marble, July 2004), or your own equirectangular picture (`/local/mars.jpg`; longitude 0 in the middle). The grid line keys (`color`, `line_width`, ...) work as on a grid. `latlon` points stand on it and turn with its `spin`.
+A planet or globe: latitude and longitude lines (`line_spacing_deg`, or `lat_step` and `lon_step` for different spacings) over a solid body (`fill_color`, `fill_opacity`) that hides what is behind it, labels included (`occlude: false` turns that off). `image` wraps a map around it: `builtin:earth_blue_marble` is the Earth, shipped with LCARdS (NASA's Blue Marble, July 2004), or your own equirectangular picture (`/local/mars.jpg`; longitude 0 in the middle). The grid line keys (`color`, `line_width`, ...) work as on a grid, and `deform` as on a grid sphere. `latlon` points stand on it and turn with its `spin`. For a see-through wireframe ball with no body, use a [grid](#grid) with `shape: sphere`.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -185,14 +201,14 @@ points:
     overlap: true
   - { id: greenwich, latlon: [51.48, 0], object: earth, marker: dot, label: Greenwich, style: tiny }
 objects:
-  - { type: sphere, id: earth, radius: 15, image: builtin:earth_blue_marble, lat_step: 30, lon_step: 30, color: var(--lcars-blue) }
+  - { type: sphere, id: earth, radius: 15, image: builtin:earth_blue_marble, line_spacing_deg: 30, color: var(--lcars-blue) }
 ```
 
 The image's credit: NASA Earth Observatory, Blue Marble: Next Generation. NASA texture maps are not subject to copyright in the United States.
 
 ## ring
 
-A circle or ellipse: an orbit, a rim, a range ring. `radius` (or `[a, b]` for an ellipse), `around` (a point; the ring follows it), `inclination` and `node` (the bearing of the line where an inclined ring crosses the plane), `arc: [from, to]` for part of it, and the line keys below.
+A circle or ellipse: an orbit, a rim, a range ring. `at` is its centre (a point id: the ring follows it), `radius` (or `[a, b]` for an ellipse), `inclination` and `node` (the bearing of the line where an inclined ring crosses the plane), `arc: [from, to]` for part of it, and the line keys below.
 
 ## path
 
@@ -211,8 +227,8 @@ points:
   - { id: a, polar: [60, 250], marker: dot, label: OUTPOST }
   - { id: b, polar: [55, 60], marker: dot, label: RELAY }
 objects:
-  - { type: ring, around: star, radius: 30, inclination: 25, node: 40, color: var(--lcars-blue) }
-  - { type: ring, around: star, radius: [70, 50], dash: [4, 4] }
+  - { type: ring, at: star, radius: 30, inclination: 25, node: 40, color: var(--lcars-blue) }
+  - { type: ring, at: star, radius: [70, 50], dash: [4, 4] }
   - { type: path, points: [a, star, b], arc: 15, width: 2, color: var(--lcars-orange), color_to: var(--lcars-yellow), glow: true }
 ```
 

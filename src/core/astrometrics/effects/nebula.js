@@ -99,7 +99,7 @@ export function nebulaLayout(cfg) {
 function boxSize(v) {
   if (Array.isArray(v)) {
     const w = Math.max(1e-3, num(v[0], 200));
-    return [w, Math.max(1e-3, num(v[1], w / 5)), v.length > 2 ? Math.max(1e-3, num(v[2], w)) : w];
+    return [w, Math.max(1e-3, num(v[1], w / 5)), Math.max(1e-3, num(v[2], w))];
   }
   const s = Math.max(1e-3, num(v, 200));
   return [s, s, s];

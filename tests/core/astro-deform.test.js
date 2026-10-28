@@ -39,16 +39,16 @@ test('no deformer without a known type or an amplitude', () => {
 });
 
 test('wobble: radius scales round the axis, lobes round, travels with speed; flat: height from the rim in', () => {
-  const d = { type: 'wobble', amplitude: 0.1, lobes: 2, waves: 0, speed: 0.5 };
+  const d = { type: 'wobble', amplitude: 0.1, lobes: 2, waves: 0, period: 2 };
   // bearing 45 (lobes 2: sin 90 = 1) at t 0: 10 % out
   const p = warp1(d, AXIAL, [Math.SQRT1_2 * 100, 0, -Math.SQRT1_2 * 100]);
   assert.ok(close(Math.hypot(p[0], p[2]), 110, 1e-4));
   assert.equal(p[1], 0);
-  // half a cycle later (speed 0.5: 1 s) the lobe has turned to 10 % in
+  // half a cycle later (period 2: 1 s) the lobe has turned to 10 % in
   const q = warp1(d, AXIAL, [Math.SQRT1_2 * 100, 0, -Math.SQRT1_2 * 100], 1000);
   assert.ok(close(Math.hypot(q[0], q[2]), 90, 1e-4));
   assert.equal(makeDeformer([d], AXIAL)?.moving, true);
-  assert.equal(makeDeformer([{ ...d, speed: 0 }], AXIAL)?.moving, false);
+  assert.equal(makeDeformer([{ ...d, period: 0 }], AXIAL)?.moving, false);
   // flat: the centre stays, the rim lifts by up to amplitude x size
   assert.deepEqual(warp1(d, FLAT, [0, 0, 0]), [0, 0, 0]);
   const r = warp1(d, FLAT, [Math.SQRT1_2 * 100, 0, -Math.SQRT1_2 * 100]);
@@ -64,12 +64,12 @@ test('bend: the anchor stays, the far end moves along the bearing; circle turns 
   assert.ok(close(top[0], 20) && close(top[2], 0) && top[1] === 50);
   const anchoredTop = warp1({ ...d, anchor: 'top' }, AXIAL, [0, 50, 0]);
   assert.ok(close(anchoredTop[0], 0));
-  // circle at 0.25 cycles/s: after 1 s the bearing has turned 90 degrees (east to south, +z)
-  const turned = warp1({ ...d, motion: 'circle', speed: 0.25 }, AXIAL, [0, 50, 0], 1000);
+  // circle with period 4: after 1 s the bearing has turned 90 degrees (east to south, +z)
+  const turned = warp1({ ...d, motion: 'circle', period: 4 }, AXIAL, [0, 50, 0], 1000);
   assert.ok(close(turned[0], 0, 1e-6) && close(turned[2], 20, 1e-6));
   // sway: none at t 0 (sin 0), full a quarter cycle on
-  assert.ok(close(warp1({ ...d, motion: 'sway', speed: 0.25 }, AXIAL, [0, 50, 0])[0], 0));
-  assert.ok(close(warp1({ ...d, motion: 'sway', speed: 0.25 }, AXIAL, [0, 50, 0], 1000)[0], 20));
+  assert.ok(close(warp1({ ...d, motion: 'sway', period: 4 }, AXIAL, [0, 50, 0])[0], 0));
+  assert.ok(close(warp1({ ...d, motion: 'sway', period: 4 }, AXIAL, [0, 50, 0], 1000)[0], 20));
   // flat: the sheet curls up along the bearing, not across it
   assert.ok(close(warp1(d, FLAT, [100, 0, 0])[1], 20));
   assert.ok(close(warp1(d, FLAT, [0, 0, 100])[1], 0));
@@ -99,7 +99,7 @@ test('noise: deterministic, bounded, drifts with speed; axial moves along the ra
   assert.equal(valueNoise3(1.3, 2.7, 0.4, 5), valueNoise3(1.3, 2.7, 0.4, 5));
   assert.notEqual(valueNoise3(1.3, 2.7, 0.4, 5), valueNoise3(1.3, 2.7, 0.4, 6));
   assert.ok(Math.abs(fbm3(0.5, 0.5, 0.5, 3, 0)) <= 1);
-  const d = { type: 'noise', amplitude: 0.1, speed: 0.5 };
+  const d = { type: 'noise', amplitude: 0.1, drift: 20 };
   const p = warp1(d, AXIAL, [60, 10, -80]);
   // same bearing, same height, radius within 10 of 100
   assert.ok(close(Math.atan2(p[0], -p[2]), Math.atan2(60, 80), 1e-9));
@@ -149,7 +149,7 @@ test('wormhole: an hourglass, symmetric, throat halfway down; the well geometry 
 test('a deformed grid in a scene: vertices, rim and points move with the clock; static deforms do not tick', () => {
   const config = {
     objects: [
-      { id: 'tube', type: 'grid', shape: 'cylinder', radius: 50, height: 100, deform: [{ type: 'bend', amplitude: 0.4, motion: 'circle', speed: 0.25 }] },
+      { id: 'tube', type: 'grid', shape: 'cylinder', radius: 50, height: 100, deform: [{ type: 'bend', amplitude: 0.4, motion: 'circle', period: 4 }] },
       { id: 'still', type: 'grid', shape: 'well', radius: 50, well_shape: 'wormhole', deform: [{ type: 'twist', angle: 60 }] },
       { id: 'sheet', type: 'grid', size: 100 }
     ],
@@ -202,11 +202,11 @@ test('a deformed grid in a scene: vertices, rim and points move with the clock; 
 
 test('the batch form matches warp point by point (still steps first, a prepared moving step, steps after it)', () => {
   const lists = [
-    [{ type: 'wobble', amplitude: 0.1, lobes: 4, waves: 2 }],
-    [{ type: 'twist', angle: 80 }, { type: 'bend', amplitude: 0.3, motion: 'circle', speed: 0.3, anchor: 'top' }],
-    [{ type: 'twist', angle: 60, speed: 0.2 }, { type: 'wobble', amplitude: 0.05, lobes: 0 }, { type: 'noise', amplitude: 0.04 }],
-    [{ type: 'noise', amplitude: 0.1, speed: 0 }, { type: 'bend', amplitude: 0.2, motion: 'sway', anchor: 'middle' }],
-    [{ type: 'twist', angle: 45 }, { type: 'noise', amplitude: 0.05, speed: 0 }]
+    [{ type: 'wobble', amplitude: 0.1, lobes: 4, waves: 2, period: 2 }],
+    [{ type: 'twist', angle: 80 }, { type: 'bend', amplitude: 0.3, motion: 'circle', period: 3, anchor: 'top' }],
+    [{ type: 'twist', angle: 60, period: 5 }, { type: 'wobble', amplitude: 0.05, lobes: 0, period: 3 }, { type: 'noise', amplitude: 0.04, drift: 10 }],
+    [{ type: 'noise', amplitude: 0.1 }, { type: 'bend', amplitude: 0.2, motion: 'sway', period: 5, anchor: 'middle' }],
+    [{ type: 'twist', angle: 45 }, { type: 'noise', amplitude: 0.05 }]
   ];
   const base = new Float32Array(300);
   for (let i = 0; i < base.length; i++) base[i] = Math.sin(i * 12.9898) * 50;
@@ -233,4 +233,36 @@ test('straight edges on a deformed grid get points to bend with (densify)', asyn
   assert.deepEqual(run.slice(0, 6), [0, 0, 0, 2.5, 0, 0]);
   assert.deepEqual(run.slice(-3), [10, 0, 10]);
   assert.deepEqual(densify([1, 2, 3], 1), [1, 2, 3]);
+});
+
+test('deformations are still unless they have a period (or drift); a sphere deforms body and lines; a disc takes [inner, outer]', () => {
+  assert.equal(makeDeformer([{ type: 'wobble' }], AXIAL)?.moving, false);
+  assert.equal(makeDeformer([{ type: 'bend', motion: 'circle' }], AXIAL)?.moving, false);
+  assert.equal(makeDeformer([{ type: 'noise' }], AXIAL)?.moving, false);
+  assert.equal(makeDeformer([{ type: 'noise', drift: 5 }], AXIAL)?.moving, true);
+  const w = buildScene({
+    objects: [
+      { id: 'blob', type: 'sphere', radius: 20, fill_color: 'black', deform: [{ type: 'wobble', amplitude: 0.2, lobes: 2, waves: 0, period: 2 }] },
+      { id: 'ring', type: 'grid', shape: 'disc', radius: [20, 60] }
+    ],
+    points: [{ id: 'eq', object: 'blob', latlon: [0, 45], label: 'EQ' }]
+  }, /** @type {any} */ (ctx()));
+  const blob = w.objects.get('blob');
+  assert.ok(blob && typeof blob.tick === 'function' && blob.moving);
+  const body = /** @type {any} */ (blob.pickMeshes[0]).geometry.getAttribute('position');
+  const radii = () => { let lo = Infinity, hi = 0; for (let i = 0; i < body.count; i++) { const r = Math.hypot(body.getX(i), body.getZ(i)); if (Math.abs(body.getY(i)) < 1) { lo = Math.min(lo, r); hi = Math.max(hi, r); } } return [lo, hi]; };
+  const [lo, hi] = radii();
+  assert.ok(hi - lo > 5, 'the body bulges round the equator');
+  const before = w.places.get('eq')?.clone();
+  stepObjects(w.list, 500, 500);
+  w.layout();
+  const after = w.places.get('eq');
+  assert.ok(before && after && before.distanceTo(after) > 0.5, 'a point on it moves with the wobble');
+  // the disc's hole: no vertex inside radius 20
+  const disc = /** @type {any} */ (w.objects.get('ring')?.gridFaces[0].children[0]).geometry.getAttribute('position');
+  let inner = Infinity;
+  for (let i = 0; i < disc.count; i++) inner = Math.min(inner, Math.hypot(disc.getX(i), disc.getZ(i)));
+  assert.ok(Math.abs(inner - 20) < 1e-3);
+  assert.equal(w.objects.get('ring')?.radius, 60);
+  w.dispose();
 });

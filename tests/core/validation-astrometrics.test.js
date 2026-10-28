@@ -28,3 +28,11 @@ test('a wrong value type still fails at runtime', () => {
     assert.ok(result.errors.some((e) => e.field === 'labels.snap'), JSON.stringify(result.errors));
     assert.ok(result.errors.some((e) => e.field === 'points[0].color'), JSON.stringify(result.errors));
 });
+
+test('objects are checked against their own type only (the discriminator): a nebula box size is not judged by the grid\'s size', () => {
+    const v = new CoreValidationService({ cacheResults: false });
+    const ok = v.validate({ type: 'custom:lcards-astrometrics-card', objects: [{ type: 'grid', size: [100, 80] }, { type: 'nebula', size: [110, 30, 110] }] }, astrometricsSchema);
+    assert.deepEqual([...ok.errors, ...ok.warnings], []);
+    const bad = v.validate({ type: 'custom:lcards-astrometrics-card', objects: [{ type: 'grid', size: [1, 2, 3] }] }, astrometricsSchema);
+    assert.ok([...bad.errors, ...bad.warnings].some((e) => e.field === 'objects[0].size'));
+});

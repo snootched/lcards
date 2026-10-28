@@ -23,7 +23,7 @@ backdrop:
 objects:
   - { type: grid, shape: disc, radius: 100, pattern: polar, line_spacing: 10, spoke_count: 36 }
   - type: nebula
-    size: [220, 50]
+    size: [220, 50, 220]
     cloud_count: 8
     seed: 5
     drift: 3
@@ -32,7 +32,7 @@ objects:
 
 | Key | What it does |
 |---|---|
-| `radius` or `size` | The region the clouds fill: a ball of `radius` (default 100), or a box `[width, height, depth]` (`[width, height]` for a square box; one number for a cube), round `at`. |
+| `radius` or `size` | The region the clouds fill: a ball of `radius` (default 100), or a box `[width, height, depth]` (one number for a cube), round `at`. |
 | `cloud_count`, `seed` | How many clouds (1 to 10, default 4) the seed places; the same seed always places the same clouds. |
 | `clouds` | Place them yourself instead: a list of `{ xyz, radius, color, opacity }`. |
 | `min_radius`, `max_radius` | Cloud sizes, scene units (default 0.15 and 0.4 of the region). |
@@ -104,7 +104,7 @@ objects:
     line_spacing: 20
     opacity: 0.6
     fill_effect: { type: contour, colors: [var(--lcars-blue), var(--lcars-green), var(--lcars-yellow), var(--lcars-orange)], num_bands: 6, fill_level: 0.3, opacity: 0.5 }
-  - { type: sphere, at: [-60, 30, 0], radius: 24, lat_step: 30, lon_step: 30, opacity: 0.4, fill_effect: { type: plasma, color_a: var(--lcars-orange), color_b: var(--lcars-yellow), speed: 2 } }
+  - { type: sphere, at: [-60, 30, 0], radius: 24, line_spacing_deg: 30, opacity: 0.4, fill_effect: { type: plasma, color_a: var(--lcars-orange), color_b: var(--lcars-yellow), speed: 2 } }
   - { type: sphere, at: [10, 30, -10], radius: 20, opacity: 0.3, spin: 4, fill_effect: { type: contour, colors: [var(--lcars-orange), var(--lcars-yellow), var(--lcars-red)], num_bands: 8 } }
   - { type: sphere, at: [70, 25, 10], radius: 18, color: var(--lcars-blue), fill_effect: { type: fluid, color: var(--lcars-blue) } }
 ```

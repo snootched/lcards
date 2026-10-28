@@ -102,7 +102,7 @@ sections:
           - { type: beam, from: [ -180, 0, 0 ], to: [ 180, 0, 0 ] }
           - { type: beam, from: [ 0, 0, -180 ], to: [ 0, 0, 180 ] }
           - { type: sphere, id: planet, at: nimbus, radius: 6, spin: 8 }
-          - { type: ring, around: nimbus, radius: 10, inclination: 20, width: 1.5 }
+          - { type: ring, at: nimbus, radius: 10, inclination: 20, width: 1.5 }
           - type: path
             points: [ talos, vega ]
             arc: 12

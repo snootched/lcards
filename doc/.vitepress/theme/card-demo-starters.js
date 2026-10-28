@@ -39,7 +39,7 @@ objects:
     line_spacing: 40
     axis_labels: { column_start: AD }
     cells:
-      - { from: AF3, to: AH6, color: var(--lcars-blue), opacity: 0.3, shade: 0.4, border: true }
+      - { from: AF3, to: AH6, color: var(--lcars-blue), opacity: 0.3, shade: 0.4, edges: true }
 points:
   - { id: sb10, cell: AJ2, object: sectors, marker: triangle, label: Starbase 10 }
 ` },

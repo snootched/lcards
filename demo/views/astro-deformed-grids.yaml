@@ -35,7 +35,7 @@ sections:
             line_spacing_deg: 20
             color: var(--lcars-orange)
             deform:
-              - { type: wobble, amplitude: 0.15, lobes: 3, waves: 1 }
+              - { type: wobble, amplitude: 0.15, lobes: 3, waves: 1, period: 4 }
           - id: tornado
             type: grid
             shape: well
@@ -47,7 +47,7 @@ sections:
             color: var(--lcars-blue)
             deform:
               - { type: twist, angle: 120, anchor: top }
-              - { type: bend, amplitude: 0.5, motion: circle, speed: 0.15, anchor: top }
+              - { type: bend, amplitude: 0.5, motion: circle, period: 7, anchor: top }
           - id: wormhole
             type: grid
             shape: well
@@ -59,7 +59,7 @@ sections:
             line_spacing_deg: 20
             scan_period: 4
             deform:
-              - { type: wobble, amplitude: 0.05, lobes: 0, waves: 2, speed: 0.3 }
+              - { type: wobble, amplitude: 0.05, lobes: 0, waves: 2, period: 3 }
           - id: whirlpool
             type: grid
             shape: disc
@@ -71,7 +71,7 @@ sections:
             color: var(--lcars-violet, var(--lcards-blue-medium))
             deform:
               - { type: twist, angle: 150 }
-              - { type: wobble, amplitude: 0.06, lobes: 0, waves: 3, speed: 0.4 }
+              - { type: wobble, amplitude: 0.06, lobes: 0, waves: 3, period: 2.5 }
   - type: grid
     column_span: 4
     cards:
@@ -92,6 +92,6 @@ sections:
             line_spacing: 20
             axis_labels: { style: tiny }
             cells:
-              - { from: B2, to: D4, color: var(--lcars-orange), opacity: 0.3, border: true }
+              - { from: B2, to: D4, color: var(--lcars-orange), opacity: 0.3, edges: true }
             deform:
-              - { type: noise, amplitude: 0.12, frequency: 2.5, speed: 0.08 }
+              - { type: noise, amplitude: 0.12, base_frequency: 0.03, drift: 3 }

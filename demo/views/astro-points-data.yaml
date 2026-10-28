@@ -130,10 +130,9 @@ sections:
           - type: sphere
             id: earth
             radius: 15
-            lat_step: 15
-            lon_step: 15
+            line_spacing_deg: 15
             image: builtin:earth_blue_marble
-          - { type: ring, around: core, radius: 15.2, width: 2, color: var(--lcars-orange) }
+          - { type: ring, at: core, radius: 15.2, width: 2, color: var(--lcars-orange) }
         points:
           - { id: core, xyz: [ 0, 0, 0 ] }
           - id: home

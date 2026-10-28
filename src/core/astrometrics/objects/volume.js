@@ -108,7 +108,7 @@ export function buildVolume(cfg, ctx) {
     out.centre = [mx, (y0 + y1) / 2, mz];
   }
   if (cfg.edges !== false) {
-    const line = new FatLine(edges, { color: base, width: num(cfg.edge_width, 1.5), opacity: opacity * 0.9, additive: cfg.blend === 'add' });
+    const line = new FatLine(edges, { color: cfg.edge_color !== undefined ? ctx.color(cfg.edge_color, DEFAULT_COLORS.volume) : base, width: num(cfg.edge_width, 1.5), opacity: opacity * 0.9, additive: cfg.blend === 'add' });
     node.add(line.object);
     out.lines.push(line);
   }

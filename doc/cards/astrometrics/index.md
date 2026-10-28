@@ -106,7 +106,7 @@ objects:
   - { type: beam, from: [-180, 0, 0], to: [180, 0, 0] }
   - { type: beam, from: [0, 0, -180], to: [0, 0, 180] }
   - { type: sphere, id: planet, at: nimbus, radius: 6, spin: 8 }
-  - { type: ring, around: nimbus, radius: 10, inclination: 20, width: 1.5 }
+  - { type: ring, at: nimbus, radius: 10, inclination: 20, width: 1.5 }
   - { type: path, points: [talos, vega], arc: 12, dash: [6, 4], color: var(--lcars-orange) }
 ```
 
@@ -132,7 +132,7 @@ objects:
     line_spacing: 40
     axis_labels: { columns: letters, rows: numbers, column_start: AD }
     cells:
-      - { from: AF3, to: AH6, color: var(--lcars-blue), opacity: 0.3, shade: 0.4, border: true }
+      - { from: AF3, to: AH6, color: var(--lcars-blue), opacity: 0.3, shade: 0.4, edges: true }
       - { from: AL2, to: AO5, color: var(--lcars-green), opacity: 0.25, shade: 0.4 }
       - { from: AL9, to: AP12, color: var(--lcars-red), opacity: 0.3, shade: 0.4 }
 points:
@@ -278,12 +278,18 @@ The card is the scene only. For an LCARS frame round it (an "ALPHA QUADRANT" bar
 
 The [config checker](/getting-started/config-checker) also checks what the schema cannot: that each point has exactly one position, and that every id a point, path, ring, beam or view names exists.
 
+## Units and motion
+
+- **Scene units** are yours to pick: a galaxy disc of radius 100, a planet of radius 10. Sizes, distances and positions are in scene units; line widths, dashes, label sizes and card offsets are in px, so they hold their size at any zoom.
+- **Bearings** are degrees clockwise from north (north is away from the default camera), as on a compass seen from above.
+- **Motion is off until you set it,** and every moving key follows one rule: turning in degrees per second (`spin`, `camera.auto_rotate`); travel in its own units per second (`flow_speed` in px, a fill's `speed` and a nebula's or noise's `drift` in scene units); repeating cycles as a `period` in seconds (`scan_period`, a deformation's `period`). Fly-to times are in ms, as everywhere in LCARdS.
+
 ## Performance and motion
 
 - **Render on demand:** the scene draws when the camera moves, a fly-to runs, an object spins or an [effect](./effects) moves, the sky timer ticks or the theme changes. A still scene draws nothing. Off screen and in a hidden tab nothing draws.
 - **One WebGL context** for every astrometrics card and WebGL background on the page.
 - **Models:** measured on an Intel Arc laptop GPU at 1300 x 866 px, the scene with the built-in ship draws in about 1.5 ms a frame; the depth image that hides labels behind it adds about 0.2 ms, only while something moves. See [model](./objects#model).
-- **Reduced motion** (the system setting): spin, `auto_rotate` and every [effect](./effects) (drift, scans, moving dashes, fills) stop, and fly-to jumps instead of flying (no warp streaks).
+- **Reduced motion** (the system setting): spin, `auto_rotate`, [deformations](./objects#deformed-grids) and every [effect](./effects) (drift, scans, moving dashes, fills) stop, and fly-to jumps instead of flying (no warp streaks).
 - **Alert modes** recolour the scene; labels follow the palette at once.
 
 ## When the 3D view is unavailable

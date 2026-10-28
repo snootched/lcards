@@ -297,7 +297,7 @@ function valueAt(node, path) {
 /**
  * Astrometrics references (all card-local): each point has exactly one placement
  * form, ids are unique, and every id a reference names exists: points (`at`,
- * `target`, path `points` / `from` / `to`, ring `around`, beam ends, object `at`),
+ * `target`, path `points` / `from` / `to`, beam ends, object `at`),
  * objects (`on`, of a kind that carries the form) and views (`camera.view`, an
  * action's `view`). Generated label points (`<object>.ring.<deg>`, `.col.`, `.row.`)
  * count as points.
@@ -389,7 +389,6 @@ export function astrometricsIssues(node) {
     if (['ring', 'path', 'beam'].includes(o.type) && o.flow_speed && !o.pulse && !(o.type !== 'beam' && Array.isArray(o.dash))) {
       warn(`${at}.flow_speed`, 'flow_speed moves dashes or pulses: this line has neither (add dash or pulse)');
     }
-    if (o.type === 'ring' && o.around !== undefined) pointRef(`${at}.around`, o.around);
     for (const key of ['ring_labels', 'axis_labels']) {
       const st = o[key]?.style;
       if (typeof st === 'string' && !isStyle(st)) warn(`${at}.${key}.style`, `no label style "${st}" (built-in: ${LABEL_STYLE_NAMES.join(', ')}; or declare it in labels.styles)${suggest(st, styleNames)}`);

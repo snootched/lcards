@@ -79,7 +79,7 @@ test('galaxy reference: every object builds, ring labels are generated, the plan
   const glowing = w.list.filter((b) => b.type === 'path')[1];
   assert.equal(glowing?.lines.length, 2, 'glow adds a line under the path');
   // a ring round a point is centred on it
-  const orbit = w.list.find((b) => b.type === 'ring' && b.config.around === 'nimbus');
+  const orbit = w.list.find((b) => b.type === 'ring' && b.config.at === 'nimbus');
   assert.ok(orbit && orbit.node.getWorldPosition(new (nimbus.constructor)()).distanceTo(nimbus) < 1e-6);
   // the volume is tappable (its faces are pick meshes) and has a middle
   const fed = w.objects.get('federation_space');

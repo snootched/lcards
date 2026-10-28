@@ -148,14 +148,7 @@ export function buildRing(cfg, ctx) {
   for (const l of lines) l.setRuns([run]);
   out.tick = flowTicker(cfg, lines);
   out.radius = Math.max(a, b);
-  // centred on `around` (a point or [x, y, z]); followed every frame when it moves
-  if (cfg.around !== undefined) {
-    out.update = () => {
-      const p = ctx.places?.resolve(cfg.around);
-      if (p) node.position.copy(p);
-    };
-    out.dynamic = !!ctx.places?.isDynamic(cfg.around);
-  }
+  // (centred on its `at`, as every object)
   return out;
 }
 
@@ -224,7 +217,7 @@ const shortDelta = (a, b) => ((((b - a) % 360) + 540) % 360) - 180;
 /**
  * @param {any} cfg
  * @param {import('./common.js').BuildContext} ctx
- * @param {Map<string, import('./common.js').BuiltObject>} objects - for `on` (the sky dome)
+ * @param {Map<string, import('./common.js').BuiltObject>} objects - for `object` (the sky dome)
  * @returns {import('./common.js').BuiltObject}
  */
 export function buildPath(cfg, ctx, objects) {
@@ -239,7 +232,7 @@ export function buildPath(cfg, ctx, objects) {
   /** @param {number[][]} runs */
   const set = (runs) => lines.forEach((l) => l.setRuns(runs));
   if (cfg.sky === 'sun' || cfg.sky === 'moon') {
-    // A day's track on the dome `on`, local to it
+    // A day's track on the dome `object`, local to it
     let dayKey = '';
     out.update = () => {
       const dome = cfg.object ? objects.get(cfg.object) : undefined;

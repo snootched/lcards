@@ -229,7 +229,7 @@ objects:
     spin: 6
     color: var(--lcars-blue)
   - type: ring
-    around: nimbus
+    at: nimbus
     radius:
       - 14
       - 12
@@ -237,7 +237,7 @@ objects:
     width: 1.5
     color: var(--lcars-blue)
   - type: ring
-    around: nimbus
+    at: nimbus
     radius: 19
     inclination: -35
     node: 40

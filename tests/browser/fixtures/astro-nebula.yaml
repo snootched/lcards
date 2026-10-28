@@ -8,4 +8,4 @@ camera:
     wide: { target: [0, 0, 0], yaw: 20, tilt: 25, distance: 300 }
 objects:
   - { type: grid, shape: disc, radius: 100 }
-  - { type: nebula, id: neb, size: [200, 40], cloud_count: 5, seed: 5, drift: 3, colors: ["var(--lcars-blue, blue)", "var(--lcars-red, red)"] }
+  - { type: nebula, id: neb, size: [200, 40, 200], cloud_count: 5, seed: 5, drift: 3, colors: ["var(--lcars-blue, blue)", "var(--lcars-red, red)"] }

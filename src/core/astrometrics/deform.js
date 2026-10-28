@@ -9,7 +9,9 @@
  * Two frames, by shape: axial (cylinder, sphere, dome, well: round the
  * local y axis, h = 0 at the bottom, 1 at the top) and flat (plane, disc:
  * polar on the plane, outward is +y). Amplitudes are fractions of the
- * object's size S (its radius, or half a plane's larger side).
+ * object's size S (its radius, or half a plane's larger side). Repeating
+ * motion is a `period` (seconds per cycle), noise moves by `drift` (scene
+ * units per second); without them a deformation is a still shape.
  *
  * Free of three.js (node tests, the config checker).
  *
@@ -61,8 +63,17 @@ function fromAnchor(y, y0, y1, anchor) {
 }
 
 /**
- * How much of a still deformation shows at t: 1 when `speed` is 0, else
- * a swing between -1 and 1.
+ * Cycles per second from a `period` in seconds (0 or none: still).
+ * @param {any} period
+ */
+const rate = (period) => {
+  const p = num(period, 0);
+  return p > 0 ? 1 / p : 0;
+};
+
+/**
+ * How much of a deformation shows at t: 1 when it is still, else a swing
+ * between -1 and 1.
  * @param {number} speed - cycles per second
  * @param {number} ts - seconds
  */
@@ -157,7 +168,7 @@ export function deformStep(d, frame) {
     const a = num(d.amplitude, 0.08);
     const lobes = Math.round(num(d.lobes, 3));
     const waves = num(d.waves, 1);
-    const speed = num(d.speed, 0.25);
+    const speed = rate(d.period);
     if (!a) return null;
     /** The phase of a position (fixed) and how far out it moves (axial: a fraction of the radius) */
     const phase = (/** @type {number} */ x, /** @type {number} */ y, /** @type {number} */ z) => {
@@ -214,7 +225,7 @@ export function deformStep(d, frame) {
     const a = num(d.amplitude, 0.25);
     const bearing = num(d.bearing, 0) * DEG;
     const motion = ['sway', 'circle', 'none'].includes(d.motion) ? d.motion : 'sway';
-    const speed = motion === 'none' ? 0 : num(d.speed, 0.2);
+    const speed = motion === 'none' ? 0 : rate(d.period);
     if (!a) return null;
     return {
       moving: speed !== 0,
@@ -261,7 +272,7 @@ export function deformStep(d, frame) {
   }
   if (d.type === 'twist') {
     const angle = num(d.angle, 90) * DEG;
-    const speed = num(d.speed, 0);
+    const speed = rate(d.period);
     if (!angle) return null;
     return {
       moving: speed !== 0,
@@ -282,9 +293,10 @@ export function deformStep(d, frame) {
   }
   // noise
   const a = num(d.amplitude, 0.05);
-  const f = Math.max(1e-6, num(d.frequency, 3)) / S;
-  const octaves = Math.max(1, Math.min(6, Math.round(num(d.octaves, 2))));
-  const speed = num(d.speed, 0.1);
+  const f = Math.max(1e-6, num(d.base_frequency, 3 / S));
+  const octaves = Math.max(1, Math.min(6, Math.round(num(d.num_octaves, 2))));
+  // drift in scene units per second, as noise cells per second
+  const speed = num(d.drift, 0) * f;
   const seed = Math.round(num(d.seed, 0));
   if (!a) return null;
   return {

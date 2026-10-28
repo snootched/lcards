@@ -19,7 +19,7 @@ sections:
             line_spacing: 10
             spoke_count: 36
           - type: nebula
-            size: [ 220, 50 ]
+            size: [ 220, 50, 220 ]
             cloud_count: 8
             seed: 5
             drift: 3
@@ -102,8 +102,7 @@ sections:
           - type: sphere
             at: [ -60, 30, 0 ]
             radius: 24
-            lat_step: 30
-            lon_step: 30
+            line_spacing_deg: 30
             opacity: 0.4
             fill_effect:
               type: plasma

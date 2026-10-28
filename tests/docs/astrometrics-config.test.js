@@ -55,7 +55,7 @@ test('reference checks: placement forms, ids that must exist, object: of the rig
         ],
         objects: [
             { type: 'grid', id: 'disc', shape: 'disc' },
-            { type: 'ring', around: 'nope' },
+            { type: 'ring', at: 'nope' },
             { type: 'path', points: ['a', 'grid#1.ring.90', 'disc.ring.90'], tap_action: { action: 'fly-to', view: 'zz' } },
             { type: 'beam', from: 'a', to: [1, 2, 3] },
         ],
@@ -63,7 +63,7 @@ test('reference checks: placement forms, ids that must exist, object: of the rig
     assert.deepEqual(out.sort(), [
         'error reference camera.view: no view "mapp" in camera.views (did you mean "map"?)',
         'error reference camera.views.map.target: no point "cor" (did you mean "c"?)',
-        'error reference objects[1].around: no point "nope"',
+        'error reference objects[1].at: no point "nope"',
         // the disc has an id, so there is no grid#1; its own ring labels are points
         'error reference objects[2].points[1]: no point "grid#1.ring.90"',
         'error reference objects[2].tap_action.view: no view "zz" in camera.views',
@@ -123,7 +123,7 @@ test('E6 effects: every new key validates, and settings that silently do nothing
         backdrop: { stars: { count: 500, streak: 2, spectrum: true, spectrum_direction: 'reverse' }, dust: { count: 100, radius: 300, spectrum: true, spectrum_direction: 'doppler' } },
         points: [{ id: 'a', xyz: [0, 0, 0] }, { id: 'b', xyz: [10, 0, 0], view: { distance: 5, warp: true } }],
         objects: [
-            { type: 'nebula', size: [200, 40], cloud_count: 6, colors: ['var(--lcars-violet)', 'var(--lcars-blue)'], turbulence: 0.7, drift: [2, 1], seed: 3 },
+            { type: 'nebula', size: [200, 40, 200], cloud_count: 6, colors: ['var(--lcars-violet)', 'var(--lcars-blue)'], turbulence: 0.7, drift: [2, 1], seed: 3 },
             { type: 'nebula', clouds: [{ xyz: [10, 0, 0], radius: 20, color: 'var(--lcars-red)' }], blend: 'normal' },
             { type: 'grid', shape: 'disc', radius: 100, scan_period: 5, scan_color: 'var(--lcars-yellow)', fill_effect: { type: 'contour', colors: ['var(--lcars-blue)', 'var(--lcars-orange)'], num_bands: 6, fill_level: 0.3 } },
             { type: 'sphere', radius: 10, scan_period: 4, fill_effect: { type: 'plasma', color_a: 'var(--lcars-orange)', color_b: 'var(--lcars-yellow)', speed: 2 } },
@@ -198,4 +198,30 @@ test('E4 models: part needs a model, combines with xyz only, names a part of a b
         'warning registry objects[2].src: unknown built-in model "builtin:constitutoin" (did you mean "builtin:constitution"?)',
         'warning registry points[2].part: unknown part of builtin:constitution "brige" (did you mean "bridge"?)',
     ]);
+});
+
+test('cohesion review (AR): keys the runtime and docs support validate; the old names are gone', () => {
+    const ok = issues({
+        points: [{ id: 'a', xyz: [0, 0, 0], label: 'A', visible: false, opacity: 0.5 }],
+        objects: [
+            { type: 'grid', id: 'g', shape: 'disc', radius: [20, 60], tags: ['map'], edges: true, edge_width: 2, edge_color: 'var(--lcars-blue)' },
+            { type: 'sphere', radius: 10, line_spacing_deg: 30, fill_color: 'black', deform: [{ type: 'wobble', period: 4 }, { type: 'noise', base_frequency: 0.1, num_octaves: 3, drift: 2 }] },
+            { type: 'volume', edge_color: 'var(--lcars-orange)' },
+            { type: 'ring', at: 'a', radius: 30 },
+            { type: 'nebula', size: [100, 30, 100] }
+        ]
+    });
+    assert.deepEqual(ok, []);
+    const old = issues({
+        objects: [
+            { type: 'grid', shape: 'disc', inner_radius: 10, border: false, deform: [{ type: 'wobble', speed: 1 }, { type: 'noise', frequency: 3, octaves: 2 }] },
+            { type: 'sphere', fill: 'black' },
+            { type: 'ring', around: [0, 0, 0] },
+            { type: 'nebula', size: [100, 30] }
+        ]
+    });
+    for (const key of ['objects[0].inner_radius', 'objects[0].border', 'objects[0].deform[0].speed', 'objects[0].deform[1].frequency', 'objects[0].deform[1].octaves', 'objects[1].fill', 'objects[2].around']) {
+        assert.ok(old.some((m) => m.includes(key)), `${key} is rejected`);
+    }
+    assert.ok(old.some((m) => m.includes('objects[3].size')));
 });

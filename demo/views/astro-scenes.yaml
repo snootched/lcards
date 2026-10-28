@@ -54,7 +54,7 @@ sections:
                 color: var(--lcars-blue)
                 opacity: 0.3
                 shade: 0.4
-                border: true
+                edges: true
               - { from: AL2, to: AO5, color: var(--lcars-green), opacity: 0.25, shade: 0.4 }
               - { from: AL9, to: AP12, color: var(--lcars-red), opacity: 0.3, shade: 0.4 }
         points:
@@ -152,7 +152,7 @@ sections:
           - { type: beam, from: [ -180, 0, 0 ], to: [ 180, 0, 0 ] }
           - { type: beam, from: [ 0, 0, -180 ], to: [ 0, 0, 180 ] }
           - { type: sphere, id: planet, at: nimbus, radius: 6, spin: 8 }
-          - { type: ring, around: nimbus, radius: 10, inclination: 20, width: 1.5 }
+          - { type: ring, at: nimbus, radius: 10, inclination: 20, width: 1.5 }
           - type: path
             points: [ talos, vega ]
             arc: 12
