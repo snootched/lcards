@@ -1,5 +1,6 @@
 /**
- * Line objects: `ring` (a circle or ellipse round a point: orbits, rims),
+ * Line objects: `ring` (a circle or ellipse round a point: orbits, rims;
+ * with `image`, a flat textured band, Saturn's rings),
  * `path` (a line through points, or an arched route between two; a
  * `sky: sun | moon` path is the body's track across today, split where it
  * goes below the horizon), and `beam` (a glowing straight line). Widths and
@@ -8,7 +9,7 @@
  *
  * @module core/astrometrics/objects/lines
  */
-import { Group, Vector3 } from 'three';
+import { Group, Vector3, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, DoubleSide, SRGBColorSpace } from 'three';
 import { FatLine } from '../lines.js';
 import { altazToLocal } from '../placements.js';
 import { dayPath } from '../sky.js';
@@ -141,8 +142,10 @@ export function buildRing(cfg, ctx) {
   const [a, b] = pair(cfg.radius, [100, 100]);
   const [from, to] = Array.isArray(cfg.arc) ? pair(cfg.arc, [0, 360]) : [0, 360];
   const run = ellipseRun({ a, b, inclination: num(cfg.inclination, 0), node: num(cfg.node, 0), from, to });
+  if (cfg.image) addBand(out, cfg, ctx, { a, b, from, to });
+  // a textured band draws its line only when a width is set
   const style = lineStyle(cfg, ctx, DEFAULT_COLORS.line);
-  const lines = addLine(out, cfg, style);
+  const lines = cfg.image && cfg.width === undefined ? [] : addLine(out, cfg, style);
   const pulse = addPulse(out, cfg, ctx, style.width ?? 1.5);
   if (pulse) lines.push(pulse);
   for (const l of lines) l.setRuns([run]);
@@ -150,6 +153,53 @@ export function buildRing(cfg, ctx) {
   out.radius = Math.max(a, b);
   // (centred on its `at`, as every object)
   return out;
+}
+
+/**
+ * A ring's `image` band: a flat strip from `inner_radius` out to the ring,
+ * in the ring's plane, the texture's u running across it (inner rim 0,
+ * outer 1). Drawn after solid bodies, so a planet in its middle hides the
+ * far side and the near side passes in front.
+ * @param {import('./common.js').BuiltObject} out
+ * @param {any} cfg
+ * @param {import('./common.js').BuildContext} ctx
+ * @param {{ a: number, b: number, from: number, to: number }} o
+ */
+function addBand(out, cfg, ctx, { a, b, from, to }) {
+  const [ia, ib] = pair(cfg.inner_radius, [a / 2, (a / 2) * (b / a)]);
+  const shape = { inclination: num(cfg.inclination, 0), node: num(cfg.node, 0), from, to };
+  const outer = ellipseRun({ a, b, ...shape });
+  const inner = ellipseRun({ a: ia, b: ib, ...shape });
+  const n = outer.length / 3;
+  const pos = new Float32Array(n * 6);
+  const uv = new Float32Array(n * 4);
+  /** @type {number[]} */
+  const index = [];
+  for (let i = 0; i < n; i++) {
+    pos.set(inner.slice(i * 3, i * 3 + 3), i * 6);
+    pos.set(outer.slice(i * 3, i * 3 + 3), i * 6 + 3);
+    const v = i / Math.max(1, n - 1);
+    uv.set([0, v, 1, v], i * 4);
+    if (i < n - 1) {
+      const k = i * 2;
+      index.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
+    }
+  }
+  const geo = new BufferGeometry();
+  geo.setAttribute('position', new Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new Float32BufferAttribute(uv, 2));
+  geo.setIndex(index);
+  const mat = new MeshBasicMaterial({ transparent: true, depthWrite: false, side: DoubleSide, opacity: num(cfg.image_opacity, 1) * num(cfg.opacity, 1) });
+  mat.map = ctx.loadTexture(String(cfg.image));
+  if (mat.map) mat.map.colorSpace = SRGBColorSpace;
+  if (cfg.image_color !== undefined) {
+    const c = ctx.color(cfg.image_color, '#ffffff');
+    mat.color.setRGB(c[0], c[1], c[2], SRGBColorSpace);
+  }
+  const mesh = new Mesh(geo, mat);
+  mesh.renderOrder = 1;
+  out.node.add(mesh);
+  out.pickMeshes.push(mesh);
 }
 
 /**

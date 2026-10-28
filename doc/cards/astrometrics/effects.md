@@ -89,7 +89,7 @@ objects:
 
 ## Animated surface fills
 
-`fill_effect` paints a [plasma](/core/effects/background-animations/preset-reference#plasma), [fluid](/core/effects/background-animations/preset-reference#fluid) or [contour-field](/core/effects/background-animations/preset-reference#contour-field) pattern on a `sphere`'s body or under a `grid`'s lines: a star's surface, a gas giant's bands, an ocean, a density map. The pattern is drawn in 3D, so it has no seam round a sphere and no pinch at its poles, and it turns with `spin`. On a sphere it is painted over `fill` in place of `image`, and the body still hides what is behind it.
+`fill_effect` paints a [plasma](/core/effects/background-animations/preset-reference#plasma), [fluid](/core/effects/background-animations/preset-reference#fluid) or [contour-field](/core/effects/background-animations/preset-reference#contour-field) pattern, or `bands` (belts round the latitude, a gas giant), on a `sphere`'s body or under a `grid`'s lines: a star's surface, a gas giant's bands, an ocean, a density map. The pattern is drawn in 3D, so it has no seam round a sphere and no pinch at its poles, and it turns with `spin`. On a sphere it is painted over `fill` in place of `image`, and the body still hides what is behind it.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -111,13 +111,48 @@ objects:
 
 | Key | What it does |
 |---|---|
-| `type` | `plasma` (two-colour bands), `fluid` (a one-colour wash) or `contour` (stepped topographic bands). |
+| `preset` | A [planet type](#planet-types) to start from; the keys you set win over it. |
+| `type` | `plasma` (two-colour bands), `fluid` (a one-colour wash), `contour` (stepped topographic bands) or `bands` (belts round the latitude). Default the preset's type, else `plasma`. |
 | `color_a`, `color_b` | `plasma`: its two colours (default `var(--lcars-blue)` and `var(--lcars-orange)`). |
 | `color` | `fluid`: the wash colour; its alpha is how strong the wash is. |
 | `colors`, `num_bands`, `fill_level`, `fill_color`, `blend_colors` | `contour`: as on the contour-field preset (stops from low to high, how many bands, flooding the lowest ones). |
+| `colors`, `num_bands`, `turbulence`, `blend_colors` | `bands`: the belt colours, repeated from the south pole to the north; how many belts pole to pole; how much their edges swirl (0 straight to 1 stormy, default 0.3); soft or hard edges. The belts follow the object's y axis, so they suit a sphere. |
 | `base_frequency`, `num_octaves` | Detail: features per scene unit (default about 3 across the radius) and layers of finer detail. |
 | `speed` | How fast the pattern flows through the object, scene units per second. Default 0, still. |
 | `opacity` | The fill's opacity. |
+
+### Planet types
+
+`preset` starts the fill from a planet type: its type, colours (from the LCARdS palette, so they follow the theme) and detail. Anything you set on top wins, so `{ preset: gas_giant, num_bands: 9 }` is a gas giant with fewer belts.
+
+| `preset` | Looks like | Built on |
+|---|---|---|
+| `gas_giant` | Jupiter: orange and cream belts, stormy edges | `bands` |
+| `ringed_giant` | Saturn: pale gold belts, calm | `bands` |
+| `ice_giant` | Uranus: pale blue, faint belts | `bands` |
+| `storm_giant` | Neptune: deep blue belts, streaked | `bands` |
+| `clouds` | Venus from space: a cream cloud deck, slowly churning | `bands` |
+| `lava` | Dark crust with glowing cracks | `contour` |
+| `ice` | White and pale blue ice | `contour` |
+| `rocky` | Grey highlands and plains | `contour` |
+| `terran` | Oceans, land and ice caps | `contour` |
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 340
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 0, tilt: 10, distance: 130 }
+objects:
+  - { type: sphere, at: [-48, 14, 0], radius: 10, fill_effect: { preset: gas_giant }, line_width: 0.5, spin: 8 }
+  - { type: sphere, at: [-16, 14, 0], radius: 10, fill_effect: { preset: ringed_giant }, line_width: 0.5, spin: 8 }
+  - { type: sphere, at: [16, 14, 0], radius: 10, fill_effect: { preset: ice_giant }, line_width: 0.5, spin: 8 }
+  - { type: sphere, at: [48, 14, 0], radius: 10, fill_effect: { preset: storm_giant }, line_width: 0.5, spin: 8 }
+  - { type: sphere, at: [-48, -14, 0], radius: 10, fill_effect: { preset: clouds }, line_width: 0.5, spin: 8 }
+  - { type: sphere, at: [-16, -14, 0], radius: 10, fill_effect: { preset: lava }, line_width: 0.5, spin: 8 }
+  - { type: sphere, at: [16, -14, 0], radius: 10, fill_effect: { preset: ice }, line_width: 0.5, spin: 8 }
+  - { type: sphere, at: [48, -14, 0], radius: 10, fill_effect: { preset: terran }, line_width: 0.5, spin: 8 }
+```
 
 ## Warp and dust
 

@@ -225,3 +225,36 @@ test('cohesion review (AR): keys the runtime and docs support validate; the old 
     }
     assert.ok(old.some((m) => m.includes('objects[3].size')));
 });
+
+test('E8 content: planet maps and the ring band validate, built-in image names are checked, fill presets are published', () => {
+    const reg = /** @type {any} */ (registries);
+    for (const k of ['earth_blue_marble', 'moon_lroc', 'mars_viking', 'mercury_messenger', 'venus_magellan', 'jupiter_cassini', 'pluto_new_horizons', 'saturn_rings']) {
+        assert.ok(reg.astrometrics.builtin_images.includes(`builtin:${k}`), k);
+    }
+    assert.deepEqual(reg.astrometrics.fill_presets, [...names.FILL_PRESETS]);
+    const out = issues({
+        objects: [
+            { type: 'sphere', id: 'mars', image: 'builtin:mars_viking' },
+            { type: 'sphere', id: 'saturn', fill_effect: { preset: 'ringed_giant', turbulence: 0.2 } },
+            { type: 'ring', at: [0, 0, 0], radius: 9.8, inner_radius: 4.66, inclination: 27, image: 'builtin:saturn_rings', image_opacity: 0.9, image_color: 'var(--lcars-orange)' },
+            { type: 'sphere', id: 'own', image: '/local/planet.jpg' },
+            { type: 'sphere', id: 'typo', image: 'builtin:mars_vikng' },
+            { type: 'image', src: 'builtin:nope' },
+            { type: 'sphere', id: 'bad', fill_effect: { preset: 'jupiter' } },
+        ],
+    });
+    assert.deepEqual(out.sort(), [
+        'error schema objects[6].fill_effect.preset: must be equal to one of the allowed values',
+        'warning registry objects[4].image: unknown built-in image "builtin:mars_vikng" (did you mean "builtin:mars_viking"?)',
+        'warning registry objects[5].src: unknown built-in image "builtin:nope"',
+    ]);
+});
+
+test('E8 content: every built-in image and model file in the pack exists in src/assets', async () => {
+    const { LCARDS_IMAGES_PACK } = await import('../../src/core/packs/lcards-images-pack.js');
+    const { existsSync } = await import('node:fs');
+    for (const [k, a] of Object.entries({ ...LCARDS_IMAGES_PACK.image_assets, ...LCARDS_IMAGES_PACK.model_assets })) {
+        const file = String(/** @type {any} */ (a).url).replace(/^\/lcards\//, 'src/assets/');
+        assert.ok(existsSync(new URL(`../../${file}`, import.meta.url)), `${k}: ${file}`);
+    }
+});

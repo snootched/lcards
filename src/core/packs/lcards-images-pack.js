@@ -74,6 +74,48 @@ export const LCARDS_IMAGES_PACK = {
             category: 'planets',
             description: 'Earth, an equirectangular map for globes (2048 x 1024, longitude 0 in the middle): NASA Earth Observatory, Blue Marble: Next Generation (July 2004). NASA texture maps are not subject to copyright in the United States.',
         },
+        moon_lroc: {
+            url: '/lcards/images/nasa-lroc-moon-2048.webp',
+            label: 'Moon (LRO)',
+            category: 'planets',
+            description: 'The Moon, an equirectangular map for globes (2048 x 1024, longitude 0, the near side, in the middle): NASA Scientific Visualization Studio, CGI Moon Kit (Lunar Reconnaissance Orbiter LROC colour, poles filled). Public domain (NASA and USGS imagery is not subject to copyright in the United States).',
+        },
+        mars_viking: {
+            url: '/lcards/images/usgs-viking-mars-2048.webp',
+            label: 'Mars (Viking)',
+            category: 'planets',
+            description: 'Mars, an equirectangular map for globes (2048 x 1024, longitude 0 in the middle): USGS Astrogeology, Viking global colour mosaic (925 m, colour by NASA Ames). Public domain (NASA and USGS imagery is not subject to copyright in the United States).',
+        },
+        mercury_messenger: {
+            url: '/lcards/images/usgs-messenger-mercury-2048.webp',
+            label: 'Mercury (MESSENGER)',
+            category: 'planets',
+            description: 'Mercury, an equirectangular map for globes (2048 x 1024, longitude 0 in the middle): USGS Astrogeology, MESSENGER MDIS basemap MD3 colour global mosaic (665 m). Public domain (NASA and USGS imagery is not subject to copyright in the United States).',
+        },
+        venus_magellan: {
+            url: '/lcards/images/usgs-magellan-venus-2048.webp',
+            label: 'Venus surface (Magellan)',
+            category: 'planets',
+            description: 'Venus under its clouds, an equirectangular map for globes (2048 x 1024, longitude 0 in the middle): USGS Astrogeology, Magellan C3-MDIR synthetic colour global mosaic (radar, coloured to simulate the surface). Public domain (NASA and USGS imagery is not subject to copyright in the United States).',
+        },
+        jupiter_cassini: {
+            url: '/lcards/images/nasa-cassini-jupiter-2048.webp',
+            label: 'Jupiter (Cassini)',
+            category: 'planets',
+            description: 'Jupiter, an equirectangular map for globes (2048 x 1024): NASA/JPL/Space Science Institute, PIA07782, Cassini cylindrical map (December 2000). Public domain (NASA and USGS imagery is not subject to copyright in the United States).',
+        },
+        pluto_new_horizons: {
+            url: '/lcards/images/usgs-new-horizons-pluto-2048.webp',
+            label: 'Pluto (New Horizons)',
+            category: 'planets',
+            description: 'Pluto, an equirectangular map for globes (2048 x 1024, longitude 0 in the middle): USGS Astrogeology, New Horizons LORRI and MVIC global mosaic (July 2017); the far south was never seen and is blank. Public domain (NASA and USGS imagery is not subject to copyright in the United States).',
+        },
+        saturn_rings: {
+            url: '/lcards/images/saturn-rings-profile.webp',
+            label: 'Saturn rings (profile)',
+            category: 'planets',
+            description: 'Saturn\'s rings across their width for a ring band (image on a ring; 1024 x 4, the D ring\'s inner edge on the left, just past the F ring on the right): drawn by scripts/make-planet-maps.mjs from the published ring radii (D, C, B rings, Cassini Division, A ring with the Encke and Keeler gaps, F ring). No third-party image.',
+        },
         sun: {
             url: '/lcards/images/astrographix_visuals-sun-1494070_1920.jpg',
             label: 'Sun',

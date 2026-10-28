@@ -2,6 +2,17 @@
 
 import { centreRef } from './shared.js';
 
+/**
+ * The globe's surface from the Surface field: a picture (builtin: or a path)
+ * as its image, anything else as a fill_effect preset; empty for none.
+ * @param {any} look
+ */
+function surface(look) {
+  const v = String(look ?? '').trim();
+  if (!v) return {};
+  return /^(builtin:|\/|https?:)/.test(v) ? { image: v } : { fill_effect: { preset: v } };
+}
+
 /** Moon orbit spins, degrees per second (the first moons go round fastest) */
 const MOON_SPINS = [36, 22, 14, 9];
 
@@ -17,9 +28,10 @@ export default /** @type {import('./index.js').Starter} */ ({
     { key: 'centre', label: 'Orbits round', type: 'point', default: [0, 0, 0], helper: 'A point id (a star) or x, y, z.' },
     { key: 'orbit', label: 'Orbit radius', type: 'number', default: 40 },
     { key: 'radius', label: 'Planet radius', type: 'number', default: 3 },
-    { key: 'moons', label: 'Moons (0 to 4)', type: 'number', default: 2 }
+    { key: 'moons', label: 'Moons (0 to 4)', type: 'number', default: 2 },
+    { key: 'look', label: 'Surface', type: 'text', default: 'rocky', helper: 'A planet type (gas_giant, ringed_giant, ice_giant, storm_giant, clouds, lava, ice, rocky, terran), a map (builtin:mars_viking) or your own picture (/local/planet.jpg).' }
   ],
-  build: ({ label, centre, orbit, radius, moons }) => {
+  build: ({ label, centre, orbit, radius, moons, look }) => {
     const c = centreRef(centre);
     const r = Number(radius) || 3;
     const count = Math.max(0, Math.min(4, Math.round(Number(moons) || 0)));
@@ -32,7 +44,7 @@ export default /** @type {import('./index.js').Starter} */ ({
       ],
       objects: [
         { type: 'ring', id: 'orbit', at: c.ref, radius: Number(orbit) || 40, spin: 5, width: 1, color: 'theme:colors.ui.secondary', opacity: 0.6 },
-        { type: 'sphere', id: 'globe', at: 'body', radius: r, line_spacing_deg: 30, spin: 15 },
+        { type: 'sphere', id: 'globe', at: 'body', radius: r, ...surface(look), line_spacing_deg: 30, spin: 15 },
         ...moonList.flatMap((m) => [
           { type: 'ring', id: `${m.id}_orbit`, at: 'body', radius: m.orbit, spin: m.spin, width: 1, dash: [3, 3], opacity: 0.5 },
           { type: 'sphere', id: `${m.id}_globe`, at: m.id, radius: Math.max(0.3, r * 0.25), line_spacing_deg: 45 }

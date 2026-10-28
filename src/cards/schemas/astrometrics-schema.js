@@ -24,7 +24,7 @@ import {
     stateClassificationSchema, triggersUpdateSchema, dataSourcesSchema
 } from './common-schemas.js';
 import {
-    OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, FILL_EFFECTS, MODEL_MATERIALS,
+    OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, FILL_EFFECTS, FILL_PRESETS, MODEL_MATERIALS,
     WELL_SHAPE_NAMES, DEFORM_TYPES, BEND_MOTIONS, DEFORM_ANCHORS
 } from '../../core/astrometrics/names.js';
 import { LABEL_POSITION_NAMES, LABEL_OMITTED_KEYS } from '../../core/astrometrics/label-text.js';
@@ -102,7 +102,7 @@ const viewSchema = {
         yaw: number('Bearing the camera looks from, degrees: 0 looks north (the default camera), 90 looks east. Default 0.'),
         tilt: number('Camera height angle, degrees: 0 level with the target, 90 straight down. Default 35.', { minimum: -90, maximum: 90 }),
         distance: number('Distance from the target, scene units.', { minimum: 0 }),
-        fov: number('Field of view, degrees (perspective only). Default 40.', { minimum: 1, maximum: 170 }),
+        fov: number('Vertical field of view, degrees (perspective only). Default 40. On a card wider than 2:1 it narrows so the view is never wider than on a 2:1 card (no wide-angle stretching at the sides).', { minimum: 1, maximum: 170 }),
         projection: {
             type: 'string', enum: ['perspective', 'orthographic'], default: 'perspective',
             description: 'perspective: far things look smaller. orthographic: no perspective (a flat map); distance then sets the zoom.'
@@ -432,24 +432,40 @@ const scanKeys = {
 /** An animated fill painted on a sphere's body or under a grid's lines (the plasma, fluid and contour-field background presets) */
 const fillEffectSchema = {
     type: 'object',
-    required: ['type'],
     additionalProperties: false,
-    description: 'An animated fill on the surface, from the background presets: plasma (two-colour bands), fluid (a one-colour wash) or contour (topographic bands). Seamless round a sphere, and it turns with spin. On a sphere it paints the body over fill, in place of image (the body still hides what is behind it).',
+    description: 'An animated fill on the surface, from the background presets: plasma (two-colour bands), fluid (a one-colour wash) or contour (topographic bands); or bands (latitude belts, a gas giant). Seamless round a sphere, and it turns with spin. On a sphere it paints the body over fill, in place of image (the body still hides what is behind it). A preset is a planet type to start from; the keys you set win over it.',
     properties: {
-        type: { type: 'string', enum: [...FILL_EFFECTS], description: 'plasma, fluid or contour (the contour-field preset).' },
+        preset: {
+            type: 'string',
+            enum: [...FILL_PRESETS],
+            description: 'A planet type to start from (its type, colours and detail; your own keys win): gas_giant (Jupiter), ringed_giant (Saturn), ice_giant (Uranus), storm_giant (Neptune), clouds (Venus), lava, ice, rocky, terran (oceans and land).',
+            enumDescriptions: {
+                gas_giant: 'Orange and cream belts, stormy edges',
+                ringed_giant: 'Pale gold belts, calm',
+                ice_giant: 'Pale blue, faint belts',
+                storm_giant: 'Deep blue belts, streaked',
+                clouds: 'A cream cloud deck',
+                lava: 'Dark crust, glowing cracks',
+                ice: 'White and pale blue ice',
+                rocky: 'Grey highlands and plains',
+                terran: 'Oceans, land and ice caps'
+            }
+        },
+        type: { type: 'string', enum: [...FILL_EFFECTS], description: 'plasma, fluid, contour (the contour-field preset) or bands (belts round the latitude, from the object\'s y axis). Default the preset\'s type, else plasma.' },
         color_a: color('plasma: first colour. Default var(--lcars-blue).'),
         color_b: color('plasma: second colour. Default var(--lcars-orange).'),
         color: color('fluid: wash colour (its alpha is how strong). Default var(--lcars-blue).'),
         colors: {
-            description: 'contour: one colour, or stops spread over the bands from low to high. Default blue to orange.',
+            description: 'contour: one colour, or stops spread over the bands from low to high. bands: the belt colours, repeated from the south pole to the north. Default blue to orange.',
             oneOf: [color('A colour.'), { type: 'array', items: color('A colour.'), minItems: 1 }]
         },
         base_frequency: number('Noise detail per scene unit: lower is larger features. Default about 3 noise cells across the radius.', { minimum: 0 }),
         num_octaves: { type: 'integer', minimum: 1, maximum: 8, description: 'Layers of finer detail (1 smooth, 8 rough). Default plasma 3, fluid 4, contour 2.' },
-        num_bands: number('contour: how many bands (low is bold steps, high is near smooth).', { minimum: 2, maximum: 64, default: 5 }),
+        num_bands: number('contour: how many bands (low is bold steps, high is near smooth). bands: how many belts pole to pole.', { minimum: 2, maximum: 64, default: 5 }),
+        turbulence: number('bands: how much the belt edges swirl, 0 (straight) to 1 (stormy).', { minimum: 0, maximum: 1, default: 0.3 }),
         fill_level: number('contour: flood the lowest bands, 0 to 0.95 (0: none).', { minimum: 0, maximum: 0.95, default: 0 }),
         fill_color: color('contour: colour over the flooded bands. Default see-through.'),
-        blend_colors: { type: 'boolean', default: true, description: 'contour: colours fade between bands (false: flat bands with hard edges).' },
+        blend_colors: { type: 'boolean', default: true, description: 'contour and bands: colours fade between bands (false: flat bands with hard edges).' },
         speed: number('How fast the pattern flows through the object, scene units per second (0: still). Off under reduced motion.', { default: 0 }),
         opacity: number('Fill opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 })
     }
@@ -642,7 +658,7 @@ const sphereObject = {
         ...gridLook,
         fill_color: color('Body colour. Default black.'),
         fill_opacity: number('Body opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 0.85 }),
-        image: { type: 'string', description: 'A texture for the body instead of fill: an equirectangular map, longitude 0 in the middle. builtin:earth_blue_marble is the Earth (NASA Blue Marble, shipped with LCARdS); or your own, e.g. /local/mars.jpg.', examples: ['builtin:earth_blue_marble', '/local/mars.jpg'] },
+        image: { type: 'string', description: 'A texture for the body instead of fill: an equirectangular map, longitude 0 in the middle. Built in (NASA and USGS maps, public domain): builtin:earth_blue_marble, builtin:moon_lroc, builtin:mars_viking, builtin:mercury_messenger, builtin:venus_magellan (the surface under the clouds), builtin:jupiter_cassini, builtin:pluto_new_horizons. Or your own, e.g. /local/mars.jpg. Planets without a map: fill_effect presets.', examples: ['builtin:earth_blue_marble', 'builtin:mars_viking', '/local/mars.jpg'] },
         image_opacity: number('Texture opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
         occlude: { type: 'boolean', default: true, description: 'Hide labels behind the sphere.' },
         fill_effect: fillEffectSchema,
@@ -697,6 +713,10 @@ const ringObject = {
         inclination: number('Tilt of the ring\'s plane, degrees, about the line of nodes.', { default: 0 }),
         node: number('Bearing of the line of nodes (where an inclined ring crosses the plane), degrees.', { default: 0 }),
         arc: tuple(2, 'Only part of the ring: [from, to] in degrees round it.'),
+        image: { type: 'string', description: 'A flat band from inner_radius out to radius, textured across its width: the image\'s left edge is the inner rim, its right edge the outer (its height is not used). builtin:saturn_rings is Saturn\'s rings, D ring to F ring (radius 2.33 and inner_radius 1.11 times the planet\'s radius). The line is drawn too only when width is set.', examples: ['builtin:saturn_rings', '/local/rings.png'] },
+        inner_radius: numberOrPair('image: the band\'s inner radius, scene units, or [a, b] for an ellipse. Default half the radius.'),
+        image_opacity: number('image: the band\'s opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
+        image_color: color('image: a colour the texture is multiplied by (a tint). Default none (the image\'s own colours).'),
         ...lineCommon,
         color: color('Line colour. Default theme:colors.ui.secondary.')
     }

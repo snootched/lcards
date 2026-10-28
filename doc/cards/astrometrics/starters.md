@@ -130,7 +130,7 @@ camera:
 
 ### Solar system
 
-The Sun and five planets on their orbits, the Earth with its map and the Moon going round it. Tap a planet to fly to it.
+The Sun and eight planets on their orbits, each with its map or planet type, Saturn with its rings and the Moon going round the Earth. Tap a planet to fly to it.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -154,6 +154,27 @@ points:
     label: JUPITER
     style: minor
     tap_action: { action: fly-to }
+  - id: saturn
+    polar: [112, 200]
+    object: saturn_orbit
+    marker: dot
+    label: SATURN
+    style: minor
+    tap_action: { action: fly-to }
+  - id: uranus
+    polar: [138, 20]
+    object: uranus_orbit
+    marker: dot
+    label: URANUS
+    style: minor
+    tap_action: { action: fly-to }
+  - id: neptune
+    polar: [160, 280]
+    object: neptune_orbit
+    marker: dot
+    label: NEPTUNE
+    style: minor
+    tap_action: { action: fly-to }
   - { id: moon, polar: [5, 0], object: moon_orbit, marker: dot, label: LUNA, style: tiny, max_distance: 80 }
 objects:
   - { type: glow, at: sun, size: 40, color: var(--lcars-yellow) }
@@ -165,22 +186,85 @@ objects:
     color: var(--lcars-orange)
     line_spacing_deg: 30
   - { type: ring, id: mercury_orbit, radius: 20, spin: 24, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
-  - { type: sphere, id: mercury_body, at: mercury, radius: 1.2, line_spacing_deg: 30, spin: 15 }
+  - type: sphere
+    id: mercury_body
+    at: mercury
+    radius: 1.2
+    image: builtin:mercury_messenger
+    line_spacing_deg: 30
+    line_width: 0.5
+    spin: 15
   - { type: ring, id: venus_orbit, radius: 30, spin: 16, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
-  - { type: sphere, id: venus_body, at: venus, radius: 2, line_spacing_deg: 30, spin: 15 }
+  - type: sphere
+    id: venus_body
+    at: venus
+    radius: 2
+    fill_effect: { preset: clouds }
+    line_spacing_deg: 30
+    line_width: 0.5
+    spin: 15
   - { type: ring, id: earth_orbit, radius: 42, spin: 10, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
-  - { type: sphere, id: earth_body, at: earth, radius: 2.4, image: builtin:earth_blue_marble, line_spacing_deg: 30, spin: 20 }
+  - type: sphere
+    id: earth_body
+    at: earth
+    radius: 2.4
+    image: builtin:earth_blue_marble
+    line_spacing_deg: 30
+    line_width: 0.5
+    spin: 20
   - { type: ring, id: mars_orbit, radius: 56, spin: 6, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
-  - { type: sphere, id: mars_body, at: mars, radius: 1.6, line_spacing_deg: 30, spin: 15 }
+  - type: sphere
+    id: mars_body
+    at: mars
+    radius: 1.6
+    image: builtin:mars_viking
+    line_spacing_deg: 30
+    line_width: 0.5
+    spin: 15
   - { type: ring, id: jupiter_orbit, radius: 82, spin: 2.5, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
-  - { type: sphere, id: jupiter_body, at: jupiter, radius: 5, line_spacing_deg: 30, spin: 15 }
+  - type: sphere
+    id: jupiter_body
+    at: jupiter
+    radius: 5
+    image: builtin:jupiter_cassini
+    line_spacing_deg: 30
+    line_width: 0.5
+    spin: 15
+  - { type: ring, id: saturn_orbit, radius: 112, spin: 1.6, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+  - type: sphere
+    id: saturn_body
+    at: saturn
+    radius: 4.2
+    fill_effect: { preset: ringed_giant }
+    line_spacing_deg: 30
+    line_width: 0.5
+    spin: 15
+  - { type: ring, id: uranus_orbit, radius: 138, spin: 1.1, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+  - type: sphere
+    id: uranus_body
+    at: uranus
+    radius: 3
+    fill_effect: { preset: ice_giant }
+    line_spacing_deg: 30
+    line_width: 0.5
+    spin: 15
+  - { type: ring, id: neptune_orbit, radius: 160, spin: 0.8, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+  - type: sphere
+    id: neptune_body
+    at: neptune
+    radius: 3
+    fill_effect: { preset: storm_giant }
+    line_spacing_deg: 30
+    line_width: 0.5
+    spin: 15
+  - { type: ring, id: saturn_rings, at: saturn, radius: 9.8, inner_radius: 4.66, inclination: 27, image: builtin:saturn_rings }
   - { type: ring, id: moon_orbit, at: earth, radius: 5, spin: 40, width: 1, dash: [3, 3], opacity: 0.6 }
-  - { type: sphere, id: moon_body, at: moon, radius: 0.6, line_spacing_deg: 45 }
+  - { type: sphere, id: moon_body, at: moon, radius: 0.6, image: builtin:moon_lroc, line_spacing_deg: 45, line_width: 0.5 }
 camera:
   view: system
   views:
-    system: { target: sun, yaw: 20, tilt: 40, distance: 230 }
-    top: { target: sun, tilt: 90, distance: 250 }
+    system: { target: sun, yaw: 20, tilt: 40, distance: 380 }
+    top: { target: sun, tilt: 90, distance: 400 }
     earth: { target: earth, yaw: 30, tilt: 20, distance: 22 }
 backdrop: { stars: { count: 2000 } }
 ```
@@ -328,6 +412,7 @@ Its ids start with its name (default `planet_`).
 | Orbit radius | `40` |  |
 | Planet radius | `3` |  |
 | Moons (0 to 4) | `2` |  |
+| Surface | `rocky` | A planet type (gas_giant, ringed_giant, ice_giant, storm_giant, clouds, lava, ice, rocky, terran), a map (builtin:mars_viking) or your own picture (/local/planet.jpg). |
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -352,7 +437,7 @@ objects:
     width: 1
     color: theme:colors.ui.secondary
     opacity: 0.6
-  - { type: sphere, id: planet_globe, at: planet_body, radius: 3, line_spacing_deg: 30, spin: 15 }
+  - { type: sphere, id: planet_globe, at: planet_body, radius: 3, fill_effect: { preset: rocky }, line_spacing_deg: 30, spin: 15 }
   - { type: ring, id: planet_moon1_orbit, at: planet_body, radius: 6, spin: 36, width: 1, dash: [3, 3], opacity: 0.5 }
   - { type: sphere, id: planet_moon1_globe, at: planet_moon1, radius: 0.75, line_spacing_deg: 45 }
   - { type: ring, id: planet_moon2_orbit, at: planet_body, radius: 9.6, spin: 22, width: 1, dash: [3, 3], opacity: 0.5 }

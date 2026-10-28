@@ -135,13 +135,15 @@ test('studio: drag a point on its plane (no orbit), box an object, place a point
     await page.mouse.move(p.x + 120, p.y, { steps: 5 });
     await page.mouse.up();
     const xyz = await page.evaluate(() => window.__studio._workingConfig.points[0].xyz);
-    expect(xyz[0]).toBeGreaterThan(-20);
+    // well to the right (the preview starts wider than 2:1, so its view is narrowed and closer)
+    expect(xyz[0]).toBeGreaterThan(-30);
     expect(xyz[1]).toBe(0);
     expect(Math.abs(xyz[2])).toBeLessThan(2);
     expect(await page.evaluate(() => window.__studio._previewCard._scene.debug().keys.yaw)).toBe(yaw0);
     expect(await page.evaluate(() => [window.__studio._activeTab, window.__studio._selectedPoint])).toEqual(['points', 'svc']);
     // the marker followed the pointer
-    await expect.poll(async () => Math.round(((await previewPoint(page, 'svc'))?.x ?? 0) - p.x)).toBeGreaterThan(100);
+    // (selecting opens the Points tab, the preview grows taller and its view widens back to 40 degrees)
+    await expect.poll(async () => Math.round(((await previewPoint(page, 'svc'))?.x ?? 0) - p.x)).toBeGreaterThan(80);
 
     // opening the floor's row boxes it on the scene; closing it clears the box
     await page.evaluate(() => { window.__studio._activeTab = 'objects'; return window.__studio._selectObject(0); });

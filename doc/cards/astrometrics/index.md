@@ -53,7 +53,7 @@ Rather than start from an empty scene, start from a [starter](./starters) and ch
 
 ## Camera and views
 
-The camera orbits a target. Four numbers place it: `yaw` (the bearing it looks from: 0 looks north, 90 looks east), `tilt` (0 is level with the target, 90 is straight down), `distance` and `fov`. A view is a named set of them:
+The camera orbits a target. Four numbers place it: `yaw` (the bearing it looks from: 0 looks north, 90 looks east), `tilt` (0 is level with the target, 90 is straight down), `distance` and `fov` (the vertical field of view, default 40 degrees). On a card wider than 2:1 the field of view narrows so the view is never wider than on a 2:1 card: a very wide angle would stretch planets near the sides out of shape. A wide, short card therefore shows the scene closer; move `distance` back to fit more in. A view is a named set of them:
 
 ```yaml
 camera:

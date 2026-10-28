@@ -8,6 +8,12 @@ title: LCARdS Demo
 releases:
   - version: "2026.10.0"
     views:
+      - file: astro-planets
+        summary: "Astrometrics planets: maps, planet types, Saturn's rings"
+        description: "The built-in planet maps (NASA and USGS, public domain), the nine fill_effect planet types (gas giant to terran), Saturn with its ring band, and a gas giant preset with its own keys on top (fewer belts, stormier, churning)."
+        session: "E8"
+        docs: /cards/astrometrics/objects#built-in-planet-maps
+        public: true
       - file: astro-starters
         summary: "Astrometrics starters: scenes and parts"
         description: "Every scene of the Astrometrics Studio's Starters tab with its defaults (galaxy, sector map, sky dome, solar system, Federation map, starbase approach), and the four parts added round one star: a planet with a moon, an asteroid belt, territories and a nebula."

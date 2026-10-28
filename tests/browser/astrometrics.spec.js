@@ -614,3 +614,24 @@ test('nebula: the effects chunk loads, a drifting nebula keeps drawing, reduced 
     expect(later.clock).toBe(held.clock);
     expect(later.frames - held.frames).toBeLessThanOrEqual(1);
 });
+
+test('E8 planets: built-in maps load, fill_effect planet types and the Saturn ring band draw', async ({ page }) => {
+    const failed = [];
+    page.on('response', (r) => { if (r.url().includes('/lcards/images/') && !r.ok()) failed.push(r.url()); });
+    await mountCase(page, 'astro-planets', { width: '800' });
+    await sceneReady(page);
+    const info = await page.evaluate(() => {
+        const w = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world;
+        return { objects: w.list.length, bands: w.objects.get('giant')?.pickMeshes[0]?.material?.uniforms?.uType?.value };
+    });
+    // textures arrive after the first frame: wait for every image to load
+    await expect.poll(() => page.evaluate(() => {
+        const w = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world;
+        return ['jupiter', 'mars', 'moon', 'venus', 'rings'].map((id) => w.objects.get(id)?.pickMeshes[0]?.material?.map?.image?.width ?? 0);
+    }), { timeout: 10_000 }).toEqual([2048, 2048, 2048, 2048, 1024]);
+    expect(info.objects).toBe(13);
+    expect(info.bands).toBe(3);
+    expect(failed).toEqual([]);
+    expect(await litPixels(page)).toBeGreaterThan(20_000);
+    await expectNoErrors(page);
+});

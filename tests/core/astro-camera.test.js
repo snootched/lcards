@@ -266,3 +266,15 @@ test('nudge: pan in view heights, zoom in steps, orbit in degrees; held motion r
   assert.equal(rig.step(1600), false);
   assert.equal(rig.flying, false);
 });
+
+test('lensFov: the field of view as set up to 2:1, narrower on wider cards so the view is never wider than at 2:1', async () => {
+  const { lensFov, MAX_VIEW_ASPECT } = await import('../../src/core/astrometrics/camera-rig.js');
+  const across = (fov, aspect) => (2 * Math.atan(Math.tan((lensFov(fov, aspect) * Math.PI) / 360) * aspect) * 180) / Math.PI;
+  assert.equal(lensFov(40, 1), 40);
+  assert.equal(lensFov(40, MAX_VIEW_ASPECT), 40);
+  const at2 = across(40, MAX_VIEW_ASPECT);
+  for (const aspect of [3, 5, 8]) {
+    assert.ok(lensFov(40, aspect) < 40, `narrower at ${aspect}:1`);
+    assert.ok(Math.abs(across(40, aspect) - at2) < 1e-9, `${aspect}:1 is as wide as 2:1 (${at2.toFixed(1)} degrees)`);
+  }
+});

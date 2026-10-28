@@ -105,3 +105,30 @@ test('skyRuns: split below the horizon, each run closed on it', () => {
   assert.equal(run.length / 3, 5);
   assert.equal(skyRuns([{ azimuth: 0, altitude: -1 }, { azimuth: 10, altitude: -2 }], 100).length, 0);
 });
+
+test('E8 ring image: a flat band from inner_radius to radius, u across it; the line only with a width', async () => {
+  const { installJsdom } = await import('../helpers/jsdom-env.js');
+  const env = installJsdom();
+  try {
+    const { buildRing } = await import('../../src/core/astrometrics/objects/lines.js');
+    const ctx = /** @type {any} */ ({ color: () => [1, 1, 1, 1], loadTexture: () => null, requestFrame: () => {} });
+    const band = buildRing({ type: 'ring', radius: 10, inner_radius: 4, image: '/local/r.png' }, ctx);
+    assert.equal(band.lines.length, 0, 'no line without a width');
+    const mesh = /** @type {any} */ (band.pickMeshes[0]);
+    const pos = mesh.geometry.getAttribute('position');
+    const uv = mesh.geometry.getAttribute('uv');
+    close(Math.hypot(pos.getX(0), pos.getZ(0)), 4);
+    close(Math.hypot(pos.getX(1), pos.getZ(1)), 10);
+    assert.deepEqual([uv.getX(0), uv.getX(1)], [0, 1], 'inner rim u 0, outer u 1');
+    assert.equal(mesh.material.depthWrite, false);
+    // default inner: half the radius; a width draws the line too
+    const lined = buildRing({ type: 'ring', radius: [10, 6], image: '/local/r.png', width: 1 }, ctx);
+    assert.equal(lined.lines.length, 1);
+    const p2 = /** @type {any} */ (lined.pickMeshes[0]).geometry.getAttribute('position');
+    close(Math.hypot(p2.getX(0), p2.getZ(0)), 3, 1e-4);
+    // a plain ring has no band
+    assert.equal(buildRing({ type: 'ring', radius: 10 }, ctx).pickMeshes.length, 0);
+  } finally {
+    env.restore();
+  }
+});

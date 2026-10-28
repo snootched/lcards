@@ -212,6 +212,11 @@ export function registryIssues(node, tag, reg) {
     const models = reg.astrometrics.builtin_models;
     const objects = Array.isArray(node.objects) ? node.objects : [];
     objects.forEach((o, i) => { if (o?.type === 'model') check(`objects[${i}].src`, builtinOnly(o.src), Object.keys(models), 'built-in model'); });
+    const images = reg.astrometrics.builtin_images ?? [];
+    objects.forEach((o, i) => {
+      if (o?.type === 'image') check(`objects[${i}].src`, builtinOnly(o.src), images, 'built-in image');
+      if (o?.type === 'sphere' || o?.type === 'ring') check(`objects[${i}].image`, builtinOnly(o.image), images, 'built-in image');
+    });
     // A part on a built-in model must be one of its parts
     (Array.isArray(node.points) ? node.points : []).forEach((p, i) => {
       if (!isLiteral(p?.part) || !isLiteral(p?.object)) return;

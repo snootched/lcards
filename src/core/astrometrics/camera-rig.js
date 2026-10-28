@@ -87,9 +87,32 @@ export function screenBasis(k) {
   };
 }
 
-/** World units the view is high at the target (orthographic: everywhere) */
-function viewHeight(k) {
-  return 2 * k.distance * Math.tan((k.fov * DEG) / 2);
+/**
+ * The widest view, width over height: on a wider card the vertical field of
+ * view narrows so the view is no wider than at this shape. A 40 degree view
+ * on a 5:1 card would be about 122 degrees across, and spheres near its
+ * edges would stretch out from the centre (wide-angle distortion).
+ */
+export const MAX_VIEW_ASPECT = 2;
+
+/**
+ * The vertical field of view drawn for `fov` on a card of `aspect` (w / h):
+ * `fov` up to MAX_VIEW_ASPECT, narrower beyond it.
+ * @param {number} fov - degrees
+ * @param {number} aspect
+ */
+export function lensFov(fov, aspect) {
+  if (!(aspect > MAX_VIEW_ASPECT)) return fov;
+  return (2 * Math.atan((Math.tan((fov * DEG) / 2) * MAX_VIEW_ASPECT) / aspect)) / DEG;
+}
+
+/**
+ * World units the view is high at the target (orthographic: everywhere)
+ * @param {CameraKeys} k
+ * @param {number} [aspect] - the card's w / h
+ */
+function viewHeight(k, aspect = 1) {
+  return 2 * k.distance * Math.tan((lensFov(k.fov, aspect) * DEG) / 2);
 }
 
 /**
@@ -105,7 +128,7 @@ function viewHeight(k) {
 export function screenRay(k, projection, x, y, w, h) {
   const pose = cameraPose(k);
   const { right, up } = screenBasis(k);
-  const halfH = viewHeight(k) / 2;
+  const halfH = viewHeight(k, w / Math.max(1, h)) / 2;
   // Offsets from the centre in world units at the target
   const ox = ((x / Math.max(1, w)) * 2 - 1) * halfH * (w / Math.max(1, h));
   const oy = (1 - (y / Math.max(1, h)) * 2) * halfH;
@@ -299,7 +322,7 @@ export class CameraRig {
     const far = k.distance * 50 + 5000;
     if (this.projection === 'orthographic') {
       const cam = this.orthographic;
-      const halfH = k.distance * Math.tan((k.fov * DEG) / 2);
+      const halfH = viewHeight(k, this.aspect) / 2;
       cam.left = -halfH * this.aspect;
       cam.right = halfH * this.aspect;
       cam.top = halfH;
@@ -313,7 +336,7 @@ export class CameraRig {
       return;
     }
     const cam = this.perspective;
-    cam.fov = k.fov;
+    cam.fov = lensFov(k.fov, this.aspect);
     cam.aspect = this.aspect;
     cam.near = near;
     cam.far = far;
@@ -402,7 +425,7 @@ export class CameraRig {
    * @param {number} heightPx
    */
   unitsPerPx(heightPx) {
-    return (2 * this.keys.distance * Math.tan((this.keys.fov * DEG) / 2)) / Math.max(1, heightPx);
+    return viewHeight(this.keys, this.aspect) / Math.max(1, heightPx);
   }
 
   /**
@@ -483,7 +506,7 @@ export class CameraRig {
     const k = { ...this.keys };
     if (n.pan) {
       const { right, up } = this.panBasis();
-      const s = viewHeight(k) * scale;
+      const s = viewHeight(k, this.aspect) * scale;
       k.tx += (right[0] * n.pan[0] + up[0] * n.pan[1]) * s;
       k.ty += (right[1] * n.pan[0] + up[1] * n.pan[1]) * s;
       k.tz += (right[2] * n.pan[0] + up[2] * n.pan[1]) * s;

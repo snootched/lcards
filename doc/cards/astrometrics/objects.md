@@ -168,7 +168,7 @@ objects:
 
 ## sphere
 
-A planet or globe: latitude and longitude lines (`line_spacing_deg`, or `lat_step` and `lon_step` for different spacings) over a solid body (`fill_color`, `fill_opacity`) that hides what is behind it, labels included (`occlude: false` turns that off). `image` wraps a map around it: `builtin:earth_blue_marble` is the Earth, shipped with LCARdS (NASA's Blue Marble, July 2004), or your own equirectangular picture (`/local/mars.jpg`; longitude 0 in the middle). The grid line keys (`color`, `line_width`, ...) work as on a grid, and `deform` as on a grid sphere. `latlon` points stand on it and turn with its `spin`. For a see-through wireframe ball with no body, use a [grid](#grid) with `shape: sphere`.
+A planet or globe: latitude and longitude lines (`line_spacing_deg`, or `lat_step` and `lon_step` for different spacings) over a solid body (`fill_color`, `fill_opacity`) that hides what is behind it, labels included (`occlude: false` turns that off). `image` wraps a map around it: one of the [built-in planet maps](#built-in-planet-maps), or your own equirectangular picture (`/local/mars.jpg`; longitude 0 in the middle). For a planet with no map (or a made-up one), a [`fill_effect` preset](./effects#planet-types) paints a planet type. The grid line keys (`color`, `line_width`, ...) work as on a grid, and `deform` as on a grid sphere. `latlon` points stand on it and turn with its `spin`. For a see-through wireframe ball with no body, use a [grid](#grid) with `shape: sphere`.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -204,11 +204,52 @@ objects:
   - { type: sphere, id: earth, radius: 15, image: builtin:earth_blue_marble, line_spacing_deg: 30, color: var(--lcars-blue) }
 ```
 
-The image's credit: NASA Earth Observatory, Blue Marble: Next Generation. NASA texture maps are not subject to copyright in the United States.
+### Built-in planet maps
+
+LCARdS ships these maps (2048 x 1024, longitude 0 in the middle). All are public domain: NASA and USGS imagery is not subject to copyright in the United States.
+
+| `image` | Planet | Source |
+|---|---|---|
+| `builtin:earth_blue_marble` | Earth | NASA Earth Observatory, Blue Marble: Next Generation (July 2004) |
+| `builtin:moon_lroc` | Moon | NASA Scientific Visualization Studio, CGI Moon Kit (Lunar Reconnaissance Orbiter colour) |
+| `builtin:mercury_messenger` | Mercury | USGS Astrogeology, MESSENGER MDIS colour global mosaic |
+| `builtin:venus_magellan` | Venus (the surface under its clouds) | USGS Astrogeology, Magellan radar mosaic in synthetic colour |
+| `builtin:mars_viking` | Mars | USGS Astrogeology, Viking global colour mosaic |
+| `builtin:jupiter_cassini` | Jupiter | NASA/JPL/Space Science Institute, Cassini map PIA07782 (December 2000) |
+| `builtin:pluto_new_horizons` | Pluto | USGS Astrogeology, New Horizons global mosaic (July 2017); the far south was never seen and is grey |
+
+Saturn, Uranus and Neptune have no public-domain global maps: use the `ringed_giant`, `ice_giant` and `storm_giant` [planet types](./effects#planet-types), and Venus as seen from space (a cloud deck) is the `clouds` type. Saturn's rings are a [ring band](#ring).
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 300
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 0, tilt: 12, distance: 120 }
+objects:
+  - { type: sphere, at: [-45, 0, 0], radius: 9, image: builtin:mercury_messenger, line_width: 0.5, spin: 10 }
+  - { type: sphere, at: [-22, 0, 0], radius: 9, image: builtin:venus_magellan, line_width: 0.5, spin: 10 }
+  - { type: sphere, at: [0, 0, 0], radius: 9, image: builtin:moon_lroc, line_width: 0.5, spin: 10 }
+  - { type: sphere, at: [22, 0, 0], radius: 9, image: builtin:mars_viking, line_width: 0.5, spin: 10 }
+  - { type: sphere, at: [45, 0, 0], radius: 9, image: builtin:jupiter_cassini, line_width: 0.5, spin: 10 }
+```
 
 ## ring
 
 A circle or ellipse: an orbit, a rim, a range ring. `at` is its centre (a point id: the ring follows it), `radius` (or `[a, b]` for an ellipse), `inclination` and `node` (the bearing of the line where an inclined ring crosses the plane), `arc: [from, to]` for part of it, and the line keys below.
+
+With `image`, the ring is a flat band from `inner_radius` (default half the radius) out to `radius`, the picture laid across its width: its left edge on the inner rim, its right edge on the outer. `builtin:saturn_rings` is Saturn's rings from the D ring to the F ring, drawn from their published radii: use `radius` 2.33 and `inner_radius` 1.11 times the planet's radius. `image_opacity` fades it and `image_color` tints it. A planet in its middle hides the far side of the band, and the near side passes in front. The ring's line is drawn too only when you set `width`.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 300
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 25, tilt: 18, distance: 50 }
+objects:
+  - { type: sphere, id: saturn, radius: 8, fill_effect: { preset: ringed_giant }, line_width: 0.5, spin: 12 }
+  - { type: ring, radius: 18.6, inner_radius: 8.9, inclination: 27, image: builtin:saturn_rings }
+```
 
 ## path
 

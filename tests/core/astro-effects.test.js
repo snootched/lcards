@@ -305,3 +305,30 @@ test('warp: streak tails from the camera motion, dust round the scene, the rig f
   assert.equal(rig.warp, false, 'a plain fly-to never streaks');
   rig.cancel();
 });
+
+test('E8 fill presets: names match, a preset gives its type and colours, the config\'s own keys win; bands draw round the latitude', async () => {
+  const { FILL_PRESETS: NAMES } = await import('../../src/core/astrometrics/names.js');
+  const { FILL_PRESETS, resolveFill } = await import('../../src/core/astrometrics/effects/fills.js');
+  assert.deepEqual(Object.keys(FILL_PRESETS), [...NAMES]);
+  for (const [name, p] of Object.entries(FILL_PRESETS)) {
+    assert.ok(Object.keys(effects.FILL_TYPES).includes(p.type), `${name}: a known type`);
+    // colours from the LCARdS palette only (always injected), never hex
+    for (const c of p.colors ?? []) assert.match(c, /^var\(--lcards-[a-z-]+\)$/, `${name}: ${c}`);
+  }
+  assert.equal(resolveFill({ preset: 'gas_giant' }).type, 'bands');
+  assert.deepEqual(resolveFill({ preset: 'gas_giant', num_bands: 4, speed: 1 }).num_bands, 4, 'own keys win');
+  assert.equal(resolveFill({ preset: 'nope', type: 'fluid' }).type, 'fluid', 'an unknown preset adds nothing');
+
+  const w = buildScene({ objects: [
+    { type: 'sphere', id: 'jove', radius: 8, fill_effect: { preset: 'gas_giant' } },
+    { type: 'sphere', id: 'calm', radius: 8, fill_effect: { type: 'bands', colors: ['red', 'blue'], turbulence: 0 } }
+  ] }, /** @type {any} */ (ctx()));
+  const u = /** @type {any} */ (w.objects.get('jove')).pickMeshes[0].material.uniforms;
+  assert.equal(u.uType.value, effects.FILL_TYPES.bands);
+  assert.equal(u.uStopCount.value, FILL_PRESETS.gas_giant.colors.length, 'the belt colours are the stops');
+  assert.equal(u.uBands.value, FILL_PRESETS.gas_giant.num_bands);
+  assert.equal(u.uRadius.value, 8, 'latitude from the radius');
+  const calm = /** @type {any} */ (w.objects.get('calm')).pickMeshes[0].material.uniforms;
+  assert.equal(calm.uTurb.value, 0);
+  assert.equal(calm.uStopCount.value, 2);
+});

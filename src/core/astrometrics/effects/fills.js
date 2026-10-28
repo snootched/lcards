@@ -4,7 +4,10 @@
  * wash) and `contour-field` (topographic bands) painted on the object, with
  * the same formulas as their background shaders but sampled from 3D noise
  * at the object-space position (`noise3-glsl.js`): seamless round a sphere,
- * and it turns with a spinning planet.
+ * and it turns with a spinning planet. `bands` draws belts round the
+ * latitude (the object's y axis), their edges swirled by the noise: a gas
+ * giant. `preset` names a planet type (FILL_PRESETS) the config's own keys
+ * are merged over.
  *
  * `speed` (scene units per second) moves the noise field through the
  * object, so the surface churns; still by default.
@@ -17,13 +20,44 @@ import { splitCoord } from '../../packs/backgrounds/webgl/scenes/noise-glsl.js';
 import { num } from '../objects/common.js';
 
 /** Fill effect names (the background presets they come from) */
-export const FILL_TYPES = { plasma: 0, fluid: 1, contour: 2 };
+export const FILL_TYPES = { plasma: 0, fluid: 1, contour: 2, bands: 3 };
 /** Colour stops a contour fill holds; longer lists are resampled to this many */
 export const MAX_STOPS = 16;
 /** Noise cells across the object's radius when base_frequency is not set */
 const CELLS_PER_RADIUS = 3;
 /** The direction the field flows (`speed`), normalised */
 const FLOW = new Vector3(1, 0.35, 0.6).normalize();
+
+/** @param {string} name - an LCARdS palette colour (always injected, whatever the theme) */
+const pal = (name) => `var(--lcards-${name})`;
+
+/**
+ * Planet types for `fill_effect.preset` (names in `names.js` FILL_PRESETS):
+ * a type and its settings, with the config's own keys merged over.
+ * @type {Record<string, Record<string, any>>}
+ */
+export const FILL_PRESETS = {
+  gas_giant: { type: 'bands', colors: [pal('yellow-light'), pal('yellow-dark'), pal('yellow-lightest'), pal('orange-light'), pal('yellow-light'), pal('yellow-darkest')], num_bands: 15, turbulence: 0.35, num_octaves: 5 },
+  ringed_giant: { type: 'bands', colors: [pal('yellow-lightest'), pal('yellow-light'), pal('yellow-medium-light'), pal('yellow-dark')], num_bands: 19, turbulence: 0.15, num_octaves: 4 },
+  ice_giant: { type: 'bands', colors: [pal('blue-light'), pal('blue-medium-light'), pal('blue-light'), pal('green-lightest')], num_bands: 7, turbulence: 0.08, num_octaves: 3 },
+  storm_giant: { type: 'bands', colors: [pal('blue-medium'), pal('blue-medium-dark'), pal('blue-medium-light'), pal('blue-dark')], num_bands: 9, turbulence: 0.4, num_octaves: 5 },
+  clouds: { type: 'bands', colors: [pal('yellow-lightest'), pal('yellow-medium'), pal('yellow-light'), pal('orange-lightest')], num_bands: 5, turbulence: 0.9, num_octaves: 5, speed: 0.4 },
+  lava: { type: 'contour', colors: [pal('gray-darkest'), pal('gray-darkest'), pal('gray-darkest'), pal('gray-dark'), pal('orange-dark'), pal('yellow-medium')], num_bands: 9, num_octaves: 4, blend_colors: false },
+  ice: { type: 'contour', colors: [pal('blue-medium-light'), pal('blue-light'), pal('moonlight'), pal('gray-lightest')], num_bands: 6, num_octaves: 5 },
+  rocky: { type: 'contour', colors: [pal('gray-medium-dark'), pal('gray-medium'), pal('gray-medium-light'), pal('gray-light')], num_bands: 7, num_octaves: 6 },
+  terran: { type: 'contour', colors: [pal('blue-dark'), pal('blue-medium-dark'), pal('green-medium'), pal('green-medium-light'), pal('yellow-dark'), pal('gray-lightest')], num_bands: 8, num_octaves: 5, blend_colors: false }
+};
+
+/**
+ * A fill_effect config with its preset merged under it.
+ * @param {any} fill
+ * @returns {Record<string, any>}
+ */
+export function resolveFill(fill) {
+  const f = fill && typeof fill === 'object' ? fill : {};
+  const preset = typeof f.preset === 'string' ? FILL_PRESETS[f.preset] : undefined;
+  return preset ? { ...preset, ...f } : f;
+}
 
 /** Default colours (theme variables; resolved concrete for WebGL) */
 export const FILL_COLORS = {
@@ -59,6 +93,8 @@ uniform vec4 uFillColor;
 uniform bool uHasFill;
 uniform vec4 uBase;
 uniform float uOpacity;
+uniform float uRadius;
+uniform float uTurb;
 
 vec4 colorAtBand( float bandValue ) {
   float p = bandValue * float( uStopCount - 1 );
@@ -82,6 +118,21 @@ void main() {
   } else if ( uType == 1 ) {
     // fluid: the noise is the wash's alpha
     c = vec4( uColorA.rgb, n * uColorA.a );
+  } else if ( uType == 3 ) {
+    // bands: belts evenly spaced in latitude, colours repeating from the
+    // south pole, the edges swirled by the noise and the belts mottled
+    float lat = clamp( vPos.y / uRadius, -1.0, 1.0 );
+    float bands = max( 2.0, floor( uBands + 0.5 ) );
+    // noise stretched along the latitude, so the swirls run east-west
+    float swirl = lcFbm3( uCell, vPos * vec3( 1.0, 4.0, 1.0 ) * uFreq * 1.5 + uLocal, uOctaves );
+    float t = asin( lat ) / 3.141592653589793 + 0.5 + uTurb * swirl * ( 2.0 / bands );
+    float s = max( 0.0, t ) * bands;
+    int idx = int( floor( s ) );
+    int i0 = idx - ( idx / uStopCount ) * uStopCount;
+    int i1 = ( i0 + 1 ) - ( ( i0 + 1 ) / uStopCount ) * uStopCount;
+    vec4 c0 = uStops[ i0 ];
+    c = uBlend ? mix( c0, uStops[ i1 ], smoothstep( 0.55, 1.0, fract( s ) ) ) : c0;
+    c.rgb *= 0.9 + 0.2 * n;
   } else {
     // contour: stepped bands, the lowest flooded below fill_level
     float bands = max( 2.0, floor( uBands + 0.5 ) );
@@ -126,14 +177,14 @@ export function contourStops(list) {
  * @returns {{ material: ShaderMaterial, tick: ((dt: number, t: number) => boolean) | null }}
  */
 export function fillMaterial(fill, ctx, o) {
-  const f = fill && typeof fill === 'object' ? fill : {};
+  const f = resolveFill(fill);
   const type = FILL_TYPES[/** @type {keyof typeof FILL_TYPES} */ (f.type)] ?? FILL_TYPES.plasma;
   const radius = Math.max(1e-3, o.radius);
   const freq = f.base_frequency !== undefined ? Math.max(0, num(f.base_frequency, 0)) : CELLS_PER_RADIUS / radius;
   const octaves = Math.max(1, Math.min(MAX_OCTAVES3, Math.round(num(f.num_octaves, type === FILL_TYPES.contour ? 2 : type === FILL_TYPES.plasma ? 3 : 4))));
   const stops = new Float32Array(MAX_STOPS * 4);
   let stopCount = 2;
-  if (type === FILL_TYPES.contour) {
+  if (type === FILL_TYPES.contour || type === FILL_TYPES.bands) {
     const list = Array.isArray(f.colors) ? f.colors : f.colors !== undefined ? [f.colors] : [FILL_COLORS.a, FILL_COLORS.b];
     const resolved = contourStops(list.map((/** @type {any} */ c) => ctx.color(c, FILL_COLORS.a)));
     resolved.forEach((c, i) => stops.set([c[0], c[1], c[2], c[3] ?? 1], i * 4));
@@ -155,7 +206,9 @@ export function fillMaterial(fill, ctx, o) {
     uFillColor: { value: f.fill_color !== undefined ? ctx.color(f.fill_color, 'transparent') : [0, 0, 0, 0] },
     uHasFill: { value: f.fill_color !== undefined },
     uBase: { value: o.base ?? [0, 0, 0, 0] },
-    uOpacity: { value: Math.max(0, Math.min(1, num(f.opacity, 1))) * (o.opacity ?? 1) }
+    uOpacity: { value: Math.max(0, Math.min(1, num(f.opacity, 1))) * (o.opacity ?? 1) },
+    uRadius: { value: radius },
+    uTurb: { value: Math.max(0, Math.min(1, num(f.turbulence, 0.3))) }
   };
   const material = new ShaderMaterial({
     uniforms: u,

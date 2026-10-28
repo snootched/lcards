@@ -1,6 +1,8 @@
 /**
  * Solar system: planets orbit by standing on their orbit rings, which spin
  * (a point on an object turns with it); the Moon orbits the Earth the same way.
+ * Each planet wears its NASA / USGS map, or a fill_effect preset where no
+ * map exists (Venus's clouds, Saturn, Uranus, Neptune).
  */
 
 /** [id, label, orbit radius, planet radius, orbit spin (degrees per second), start bearing] */
@@ -9,20 +11,35 @@ const PLANETS = /** @type {const} */ ([
   ['venus', 'VENUS', 30, 2, 16, 150],
   ['earth', 'EARTH', 42, 2.4, 10, 250],
   ['mars', 'MARS', 56, 1.6, 6, 320],
-  ['jupiter', 'JUPITER', 82, 5, 2.5, 100]
+  ['jupiter', 'JUPITER', 82, 5, 2.5, 100],
+  ['saturn', 'SATURN', 112, 4.2, 1.6, 200],
+  ['uranus', 'URANUS', 138, 3, 1.1, 20],
+  ['neptune', 'NEPTUNE', 160, 3, 0.8, 280]
 ]);
+
+/** Each planet's surface: a built-in map, or a fill_effect preset */
+const LOOKS = /** @type {Record<string, Record<string, any>>} */ ({
+  mercury: { image: 'builtin:mercury_messenger' },
+  venus: { fill_effect: { preset: 'clouds' } },
+  earth: { image: 'builtin:earth_blue_marble' },
+  mars: { image: 'builtin:mars_viking' },
+  jupiter: { image: 'builtin:jupiter_cassini' },
+  saturn: { fill_effect: { preset: 'ringed_giant' } },
+  uranus: { fill_effect: { preset: 'ice_giant' } },
+  neptune: { fill_effect: { preset: 'storm_giant' } }
+});
 
 export default /** @type {import('./index.js').Starter} */ ({
   id: 'solar_system',
   kind: 'scene',
   title: 'Solar system',
-  description: 'The Sun and five planets on their orbits, the Earth with its map and the Moon going round it. Tap a planet to fly to it.',
+  description: 'The Sun and eight planets on their orbits, each with its map or planet type, Saturn with its rings and the Moon going round the Earth. Tap a planet to fly to it.',
   icon: 'mdi:orbit',
   params: [],
   build: () => ({
     views: {
-      system: { target: 'sun', yaw: 20, tilt: 40, distance: 230 },
-      top: { target: 'sun', tilt: 90, distance: 250 },
+      system: { target: 'sun', yaw: 20, tilt: 40, distance: 380 },
+      top: { target: 'sun', tilt: 90, distance: 400 },
       earth: { target: 'earth', yaw: 30, tilt: 20, distance: 22 }
     },
     camera: { view: 'system' },
@@ -39,12 +56,12 @@ export default /** @type {import('./index.js').Starter} */ ({
       { type: 'sphere', id: 'sun_body', at: 'sun', radius: 5, fill_color: 'var(--lcars-yellow)', color: 'var(--lcars-orange)', line_spacing_deg: 30 },
       ...PLANETS.flatMap(([id, , orbit, radius, spin]) => [
         { type: 'ring', id: `${id}_orbit`, radius: orbit, spin, width: 1, color: 'theme:colors.ui.secondary', opacity: 0.6 },
-        id === 'earth'
-          ? { type: 'sphere', id: 'earth_body', at: 'earth', radius, image: 'builtin:earth_blue_marble', line_spacing_deg: 30, spin: 20 }
-          : { type: 'sphere', id: `${id}_body`, at: id, radius, line_spacing_deg: 30, spin: 15 }
+        { type: 'sphere', id: `${id}_body`, at: id, radius, ...LOOKS[id], line_spacing_deg: 30, line_width: 0.5, spin: id === 'earth' ? 20 : 15 }
       ]),
+      // Saturn's rings, D ring to F ring, tilted as the planet is
+      { type: 'ring', id: 'saturn_rings', at: 'saturn', radius: 9.8, inner_radius: 4.66, inclination: 27, image: 'builtin:saturn_rings' },
       { type: 'ring', id: 'moon_orbit', at: 'earth', radius: 5, spin: 40, width: 1, dash: [3, 3], opacity: 0.6 },
-      { type: 'sphere', id: 'moon_body', at: 'moon', radius: 0.6, line_spacing_deg: 45 }
+      { type: 'sphere', id: 'moon_body', at: 'moon', radius: 0.6, image: 'builtin:moon_lroc', line_spacing_deg: 45, line_width: 0.5 }
     ]
   })
 });
