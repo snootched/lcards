@@ -531,9 +531,10 @@ export class CameraRig {
    * tilt; `dragMode` pan swaps the two), wheel and pinch to zoom (toward
    * the pointer with `zoomTo` cursor).
    * @param {HTMLElement} el
-   * @param {{ onStart?: () => void }} [hooks]
+   * @param {{ onStart?: () => void, shouldStart?: (e: PointerEvent) => boolean }} [hooks] - `shouldStart` false leaves
+   *   that press alone (a point drag in the Studio)
    */
-  attach(el, { onStart } = {}) {
+  attach(el, { onStart, shouldStart } = {}) {
     this.detach();
     /** @type {Map<number, { x: number, y: number }>} */
     const pts = new Map();
@@ -547,6 +548,7 @@ export class CameraRig {
     let last = { x: 0, y: 0 };
     /** @param {PointerEvent} e */
     const down = (e) => {
+      if (shouldStart && !shouldStart(e)) return;
       el.setPointerCapture?.(e.pointerId);
       pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
       this.cancel();

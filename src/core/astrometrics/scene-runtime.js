@@ -32,6 +32,7 @@ import { markerSvg } from './markers.js';
 import { DepthOcclusion } from './depth-occlusion.js';
 import { buildScene, makeLabelItem } from './scene-builder.js';
 import { BINDABLE_FORMS } from './placements.js';
+import { FatLine } from './lines.js';
 import { skyState } from './sky.js';
 import { warpTails } from './star-field.js';
 import { STAR_SHELL } from './objects/stars.js';
@@ -107,6 +108,8 @@ const KEY_COMMANDS = {
  * Edit mode (the Astrometrics Studio): taps select instead of acting.
  * @typedef {Object} AstroEditHooks
  * @property {(hit: AstroTapHit | null) => void} [onSelect] - a tap: what is under it (any point or object), null in blank space
+ * @property {(id: string, form: string, value: number[] | string, done: boolean) => void} [onDrag] - set to let points be dragged:
+ *   the point's new value in its own placement form (`dragForm`), per move and once more with `done` on release (shown live, no rebuild)
  */
 
 /**
@@ -129,9 +132,15 @@ const KEY_COMMANDS = {
  * @property {(opts?: { duration?: number }) => Promise<void>} home - fly back to the start view
  * @property {(x: number, y: number, opts?: { out?: boolean }) => Promise<void>} zoomTo - the double-tap zoom at CSS px (x, y)
  * @property {(hooks: AstroEditHooks | null) => void} setEditMode - while set, taps select (any point or object) and run no actions; no double-tap zoom
- * @property {(id: string | null) => void} highlight - mark a point as selected (null clears)
+ * @property {(id: string | null, kind?: 'point' | 'object') => void} highlight - mark a point (the default) or an object as selected
+ *   (an object gets a box round it); null clears
+ * @property {() => { target: number[], yaw: number, tilt: number, distance: number, fov: number, projection: 'perspective' | 'orthographic' }} cameraKeys -
+ *   the camera now, as a view's keys
  * @property {(handler: ((x: number, y: number) => void) | null) => void} setPickHandler - while set, a tap goes to it (no actions, no double-tap)
  * @property {(x: number, y: number, form: string, object?: string) => (number[] | string | null)} placeAt - a placement form's value for the spot at CSS px (x, y), or null
+ * @property {(x: number, y: number) => ({ form: string, value: number[] | string, object?: string } | null)} placementAt - a new
+ *   point's placement for the spot at CSS px (x, y): on the object under it in its natural form (`latlon` on a sphere,
+ *   `altaz` on a dome, `cell` on a lettered grid, else `xyz` local to it), else `xyz` on the ground; null when neither is hit
  * @property {(id: string) => (string[] | null)} partNames - a model object's named parts, null until it has loaded (or not a model)
  * @property {(values: Record<string, AstroLabelValues>) => void} setLabelValues - label text and colours by point id (no rebuild)
  * @property {(values: Record<string, Record<string, number[] | null>>) => void} updatePoints - positions from entities by point id (no rebuild)
@@ -200,6 +209,12 @@ export function createAstroScene(host, config, options = {}) {
   let reduced = prefersReducedMotion();
   /** @type {string | null} */
   let selected = null;
+  /** @type {string | null} the object with the selection box (edit mode) */
+  let boxed = null;
+  /** @type {FatLine | null} */
+  let boxLine = null;
+  /** @type {typeof import('./edit-tools.js') | null} edit-mode maths, loaded with the first edit mode (dashboards never need it) */
+  let tools = null;
   /** @type {Map<string, AstroLabelValues>} */
   const labelValues = new Map();
   /** @type {Map<string, Record<string, number[] | null>>} positions from entities, by point id */
@@ -393,6 +408,7 @@ export function createAstroScene(host, config, options = {}) {
     syncCards();
     for (const it of world.labels) if (it.marker !== 'none') labels.style(it.id, { svg: markerSvg(it.marker, sky?.moon) });
     labels.select(selected);
+    showBox();
     // What the card resolved before this build (templates, state colours, entity positions) stays
     for (const [id, v] of labelValues) labels.style(id, v);
     for (const [id, forms] of boundValues) for (const [form, value] of Object.entries(forms)) world.places.setPosition(id, /** @type {any} */ (form), value);
@@ -437,6 +453,7 @@ export function createAstroScene(host, config, options = {}) {
         }
       }
       for (const f of [world.stars?.field, world.dust?.field]) f?.setResolution(cssW, cssH, dpr);
+      boxLine?.setResolution(cssW, cssH);
     }
     labels.invalidateSizes();
     requestFrame();
@@ -584,12 +601,33 @@ export function createAstroScene(host, config, options = {}) {
   /** @type {{ x: number, y: number, t: number, moved: boolean, held: boolean } | null} */
   let down = null;
   let holdTimer = /** @type {ReturnType<typeof setTimeout> | undefined} */ (undefined);
+  /** @type {{ id: string, form: string, def: any, value: number[] | string | null } | null} a point being dragged (edit mode) */
+  let pointDrag = null;
+  /**
+   * The draggable point under (x, y) CSS px in edit mode, or null.
+   * @param {number} x
+   * @param {number} y
+   */
+  const draggableAt = (x, y) => {
+    if (!world || !tools || !editHooks?.onDrag || pickHandler) return null;
+    const hit = labels.pick(x, y);
+    const def = hit ? world.places.configs.get(hit.id) : undefined;
+    const form = tools.dragForm(def);
+    return hit && form ? { id: hit.id, form, def } : null;
+  };
   /** @param {PointerEvent} e */
   const onDown = (e) => {
     if (e.button > 0) return;
     const d = { x: e.clientX, y: e.clientY, t: performance.now(), moved: false, held: false };
     down = d;
     dragging = true;
+    const r0 = canvas.getBoundingClientRect();
+    const grab = draggableAt(e.clientX - r0.left, e.clientY - r0.top);
+    pointDrag = grab ? { ...grab, value: null } : null;
+    if (pointDrag) {
+      canvas.setPointerCapture?.(e.pointerId);
+      canvas.style.cursor = 'grabbing';
+    }
     clearTimeout(holdTimer);
     if (options.onHold) {
       holdTimer = setTimeout(() => {
@@ -603,6 +641,12 @@ export function createAstroScene(host, config, options = {}) {
   /** @param {PointerEvent} e */
   const onMove = (e) => {
     if (down && !down.moved && Math.hypot(e.clientX - down.x, e.clientY - down.y) > TAP_SLOP) down.moved = true;
+    const r = canvas.getBoundingClientRect();
+    if (pointDrag && down?.moved) {
+      dragPoint(pointDrag, e.clientX - r.left, e.clientY - r.top);
+    } else if (!down && editHooks?.onDrag && !pickHandler) {
+      canvas.style.cursor = draggableAt(e.clientX - r.left, e.clientY - r.top) ? 'grab' : '';
+    }
   };
   /** @param {PointerEvent} e */
   const onUp = (e) => {
@@ -610,11 +654,50 @@ export function createAstroScene(host, config, options = {}) {
     clearTimeout(holdTimer);
     const d = down;
     down = null;
+    const drag = pointDrag;
+    pointDrag = null;
+    if (drag) {
+      canvas.style.cursor = 'grab';
+      if (d?.moved) {
+        if (drag.value !== null) editHooks?.onDrag?.(drag.id, drag.form, drag.value, true);
+        return;
+      }
+    }
     if (!d || !world || d.held || d.moved || Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_SLOP || performance.now() - d.t >= HOLD_MS) return;
     const r = canvas.getBoundingClientRect();
     tap(e.clientX - r.left, e.clientY - r.top, e.shiftKey);
   };
-  const onCancel = () => { dragging = false; down = null; clearTimeout(holdTimer); };
+  const onCancel = () => {
+    dragging = false;
+    down = null;
+    clearTimeout(holdTimer);
+    // A cancelled drag puts the point back
+    if (pointDrag && world) world.places.replaceDef(pointDrag.id, pointDrag.def);
+    pointDrag = null;
+    canvas.style.cursor = '';
+    requestFrame();
+  };
+
+  /**
+   * Move a dragged point to (x, y) CSS px, live (no rebuild), and tell the
+   * hooks. `xyz` and `polar` slide on the point's own horizontal plane; the
+   * surface forms follow the object under the pointer.
+   * @param {{ id: string, form: string, def: any, value: number[] | string | null }} drag
+   * @param {number} x
+   * @param {number} y
+   */
+  function dragPoint(drag, x, y) {
+    if (!world || !tools) return;
+    const host = drag.def.object ? world.objects.get(String(drag.def.object)) : undefined;
+    const value = drag.form === 'xyz' || drag.form === 'polar'
+      ? tools.planeDragValue(screenRay(rig.keys, rig.projection, x, y, cssW, cssH), drag.def, drag.form, host ? (host.placeNode ?? host.node) : null)
+      : placeAt(x, y, drag.form, host ? String(drag.def.object) : undefined);
+    if (value === null || value === undefined) return;
+    drag.value = value;
+    world.places.replaceDef(drag.id, { ...drag.def, [drag.form]: value });
+    requestFrame();
+    editHooks?.onDrag?.(drag.id, drag.form, value, false);
+  }
   canvas.addEventListener('pointerdown', onDown);
   canvas.addEventListener('pointermove', onMove);
   canvas.addEventListener('pointerup', onUp);
@@ -633,14 +716,60 @@ export function createAstroScene(host, config, options = {}) {
     if (!world) return null;
     const hit = labels.pick(x, y);
     if (hit && hit.world) return { kind: 'point', id: hit.id, config: /** @type {any} */ (hit).def, position: hit.world.clone() };
+    /** @param {import('./objects/common.js').BuiltObject} obj @returns {AstroTapHit} */
+    const objectHit = (obj) => {
+      const c = obj.centre ?? [0, 0, 0];
+      return { kind: 'object', id: obj.id, config: obj.config, position: new Vector3(c[0], c[1], c[2]).applyMatrix4(obj.node.matrixWorld) };
+    };
+    // Edit mode: what is drawn only with lines (rings, paths, beams, glows) is picked by its distance on screen
+    if (key === null && tools) {
+      let near = null;
+      let best = tools.SELECT_RADIUS;
+      for (const b of world.list) {
+        if (b.pickMeshes.length || w0(b)) continue;
+        const dist = tools.screenDistance(b, rig.camera, cssW, cssH, x, y);
+        if (dist <= best) { best = dist; near = b; }
+      }
+      if (near) return objectHit(near);
+    }
     ndc.set((x / cssW) * 2 - 1, -(y / cssH) * 2 + 1);
     ray.setFromCamera(ndc, rig.camera);
     const candidates = world.list.filter((b) => (key === null || b.config[key] !== undefined) && b.pickMeshes.length);
     const hits = ray.intersectObjects(candidates.flatMap((b) => b.pickMeshes), false);
     const obj = hits.length ? candidates.find((b) => b.pickMeshes.includes(hits[0].object)) : undefined;
-    if (!obj) return null;
-    const c = obj.centre ?? [0, 0, 0];
-    return { kind: 'object', id: obj.id, config: obj.config, position: new Vector3(c[0], c[1], c[2]).applyMatrix4(obj.node.matrixWorld) };
+    return obj ? objectHit(obj) : null;
+  }
+
+  /**
+   * Whether an object is hidden (its `visible`, a rule): not picked.
+   * @param {import('./objects/common.js').BuiltObject} b
+   */
+  function w0(b) {
+    return world?.outer.get(b)?.visible === false;
+  }
+
+  /**
+   * The selection box round the `boxed` object, in a theme colour, drawn
+   * through everything; rebuilt with the world.
+   */
+  function showBox() {
+    if (boxLine) {
+      boxLine.object.removeFromParent();
+      boxLine.dispose();
+      boxLine = null;
+    }
+    const b = boxed && world ? world.objects.get(boxed) : undefined;
+    if (!b || !tools) return;
+    const box = tools.localBox(b.node);
+    if (box.isEmpty()) return;
+    // A little larger than the object, so the box does not sit on its edges
+    box.expandByScalar(Math.max(0.5, box.getSize(new Vector3()).length() * 0.02));
+    boxLine = new FatLine(tools.boxRuns(box), { color: ctx.color('var(--lcards-moonlight)', '#ffffff'), width: 2, opacity: 0.9, renderOrder: 20 });
+    boxLine.material.depthTest = false;
+    boxLine.material.transparent = true;
+    boxLine.setResolution(cssW, cssH);
+    b.node.add(boxLine.object);
+    requestFrame();
   }
 
   /**
@@ -701,6 +830,34 @@ export function createAstroScene(host, config, options = {}) {
       case 'cell': return host?.cellAt?.(local) ?? null;
       default: return null;
     }
+  }
+
+  /**
+   * A new point's placement for (x, y) CSS px: on the object (with a pick
+   * mesh and an id) under it in the form that suits its surface, else on
+   * the ground.
+   * @param {number} x
+   * @param {number} y
+   * @returns {{ form: string, value: number[] | string, object?: string } | null}
+   */
+  function placementAt(x, y) {
+    if (!world) return null;
+    ndc.set((x / cssW) * 2 - 1, -(y / cssH) * 2 + 1);
+    ray.setFromCamera(ndc, rig.camera);
+    // A point names its object by id: objects without one are not stood on
+    const candidates = world.list.filter((o) => o.pickMeshes.length && !w0(o) && o.config.id !== undefined);
+    const hits = ray.intersectObjects(candidates.flatMap((o) => o.pickMeshes), false);
+    const b = hits.length ? candidates.find((o) => o.pickMeshes.includes(hits[0].object)) : undefined;
+    if (b) {
+      const shape = b.type === 'grid' ? String(b.config.shape ?? 'plane') : '';
+      const forms = b.type === 'sphere' || shape === 'sphere' ? ['latlon', 'xyz'] : shape === 'dome' ? ['altaz', 'xyz'] : b.cellAt ? ['cell', 'xyz'] : ['xyz'];
+      for (const form of forms) {
+        const value = placeAt(x, y, form, b.id);
+        if (value !== null) return { form, value, object: b.id };
+      }
+    }
+    const value = placeAt(x, y, 'xyz');
+    return value === null ? null : { form: 'xyz', value };
   }
 
   /**
@@ -818,6 +975,7 @@ export function createAstroScene(host, config, options = {}) {
         b.config = { ...next, id };
       } else if (w.rebuildObject(id, next)) {
         objectBuilds++;
+        if (id === boxed) showBox();
         renderer?.compileAsync(w.scene, rig.camera).catch(() => {}).then(() => requestFrame());
       }
     }
@@ -1004,7 +1162,7 @@ export function createAstroScene(host, config, options = {}) {
   document.fonts?.addEventListener?.('loadingdone', onFonts);
   /** @param {boolean} on */
   const setControls = (on) => {
-    if (on) rig.attach(canvas, { onStart: () => { dragging = true; endPress(); } });
+    if (on) rig.attach(canvas, { onStart: () => { dragging = true; endPress(); }, shouldStart: () => !pointDrag });
     else { rig.detach(); endPress(); }
     wrap.style.touchAction = on ? 'none' : 'auto';
     if (on) wrap.tabIndex = 0;
@@ -1033,9 +1191,27 @@ export function createAstroScene(host, config, options = {}) {
     setEditMode(hooks) {
       editHooks = hooks;
       blankTap = null;
+      if (hooks && !tools) {
+        import('./edit-tools.js').then((m) => {
+          tools = m;
+          showBox();
+        }, (error) => lcardsLog.warn('[Astrometrics] could not load the edit tools:', error));
+      }
+      if (!hooks) {
+        canvas.style.cursor = pickHandler ? 'crosshair' : '';
+        boxed = null;
+        showBox();
+      }
     },
-    highlight(id) {
-      select(id);
+    highlight(id, kind = 'point') {
+      select(kind === 'point' ? id : null);
+      boxed = kind === 'object' ? id : null;
+      showBox();
+    },
+    cameraKeys() {
+      const k = rig.keys;
+      const r1 = (/** @type {number} */ v) => Math.round(v * 10) / 10;
+      return { target: [r1(k.tx), r1(k.ty), r1(k.tz)], yaw: r1(k.yaw), tilt: r1(k.tilt), distance: r1(k.distance), fov: r1(k.fov), projection: rig.projection };
     },
     setPickHandler(handler) {
       pickHandler = handler;
@@ -1043,6 +1219,7 @@ export function createAstroScene(host, config, options = {}) {
       canvas.style.cursor = handler ? 'crosshair' : '';
     },
     placeAt,
+    placementAt,
     partNames(id) {
       const b = world?.objects.get(id);
       return b?.partNames && b.loadState?.() === 'ready' ? b.partNames() : null;
@@ -1074,6 +1251,7 @@ export function createAstroScene(host, config, options = {}) {
       depth.dispose();
       labels.dispose();
       cards.dispose();
+      boxLine?.dispose();
       world?.dispose();
       world = null;
       for (const t of textures) t.dispose();
@@ -1102,6 +1280,8 @@ export function createAstroScene(host, config, options = {}) {
         depth,
         tap,
         hold,
+        boxed,
+        selectionBox: boxLine,
         limits: rig.limits,
         home
       };

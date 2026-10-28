@@ -123,9 +123,14 @@ test('size budget: the astrometrics runtime and schema are lazy chunks of their 
     // 95 KB raw / 30.6 KB br the same day; ceilings ~10% over that.
     // E4 (2026-10-27): 114 KB raw / 36.7 KB br: cards on points, the depth pass, and the Line2
     // family (~15 KB raw) moving here from the three chunk once the model chunk imported three too.
+    // E7 Part 2 (2026-10-27): 125 KB raw / 40.8 KB br: Studio edit mode (select any object, point drag,
+    // selection box, placement for new points); its maths is a lazy chunk of its own (edit-tools, 3 KB),
+    // loaded with the first edit mode. Ceilings ~10% over that.
     const size = (f) => statSync(new URL(`chunks/${f}`, DIST)).size;
-    expect(size(/** @type {string} */ (runtime))).toBeLessThanOrEqual(125_000);
-    expect(size(`${runtime}.br`)).toBeLessThanOrEqual(40_000);
+    expect(size(/** @type {string} */ (runtime))).toBeLessThanOrEqual(138_000);
+    expect(size(`${runtime}.br`)).toBeLessThanOrEqual(45_000);
+    // the edit maths stays out of the runtime chunk
+    expect(js.some(f => /^edit-tools-[\w-]{8}\.js$/.test(f)), 'the edit-tools chunk').toBe(true);
     // E6: the scene effects (nebula and their noise shaders) are a chunk of their own, loaded only
     // when a config uses them; 6 KB raw when it began (2026-10-25)
     const effects = js.find(f => readFileSync(new URL(`chunks/${f}`, DIST), 'utf8').includes('pull the gradient inside'));

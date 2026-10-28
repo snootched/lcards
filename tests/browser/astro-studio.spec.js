@@ -116,3 +116,73 @@ test('studio: Pick on preview places a point through the preview card, no window
     expect(Math.abs(xyz[0])).toBeLessThan(1);
     expect(Math.abs(xyz[2])).toBeLessThan(1);
 });
+
+test('studio: drag a point on its plane (no orbit), box an object, place a point on the floor', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await openStudio(page);
+    const yaw0 = await page.evaluate(() => window.__studio._previewCard._scene.debug().keys.yaw);
+
+    // drag svc 120 px to the right: xyz x grows, y (height) stays 0, the camera does not turn
+    const p = await previewPoint(page, 'svc');
+    expect(p).not.toBeNull();
+    await page.mouse.move(p.x, p.y);
+    await page.mouse.down();
+    await page.mouse.move(p.x + 60, p.y, { steps: 5 });
+    // shown live before the release, the config untouched until then
+    await expect.poll(() => page.evaluate(() => window.__studio._status)).toMatch(/^svc: xyz /);
+    expect(await page.evaluate(() => window.__studio._workingConfig.points[0].xyz)).toEqual([-60, 0, 0]);
+    await page.mouse.move(p.x + 120, p.y, { steps: 5 });
+    await page.mouse.up();
+    const xyz = await page.evaluate(() => window.__studio._workingConfig.points[0].xyz);
+    expect(xyz[0]).toBeGreaterThan(-20);
+    expect(xyz[1]).toBe(0);
+    expect(Math.abs(xyz[2])).toBeLessThan(2);
+    expect(await page.evaluate(() => window.__studio._previewCard._scene.debug().keys.yaw)).toBe(yaw0);
+    expect(await page.evaluate(() => [window.__studio._activeTab, window.__studio._selectedPoint])).toEqual(['points', 'svc']);
+    // the marker followed the pointer
+    await expect.poll(async () => Math.round(((await previewPoint(page, 'svc'))?.x ?? 0) - p.x)).toBeGreaterThan(100);
+
+    // opening the floor's row boxes it on the scene; closing it clears the box
+    await page.evaluate(() => { window.__studio._activeTab = 'objects'; return window.__studio._selectObject(0); });
+    await expect.poll(() => page.evaluate(() => {
+        const d = window.__studio._previewCard._scene.debug();
+        return [d.boxed, !!d.selectionBox];
+    })).toEqual(['floor', true]);
+    await page.evaluate(() => window.__studio._selectObject(-1));
+    await expect.poll(() => page.evaluate(() => !!window.__studio._previewCard._scene.debug().selectionBox)).toBe(false);
+
+    // place mode: a tap on the floor adds a point on its cell
+    await page.evaluate(() => window.__studio._setPlacing(true));
+    await expect.poll(() => page.evaluate(() => window.__studio._placing)).toBe(true);
+    const r = await page.evaluate(() => window.__studio._previewCard.renderRoot.querySelector('.astro-scene').getBoundingClientRect().toJSON());
+    await page.mouse.click(r.x + r.width / 2 + 40, r.y + r.height / 2 + 40);
+    await expect.poll(() => page.evaluate(() => window.__studio._workingConfig.points.length)).toBe(2);
+    const placed = await page.evaluate(() => window.__studio._workingConfig.points[1]);
+    expect(placed).toMatchObject({ id: 'point1', object: 'floor', marker: 'dot', label: 'NEW POINT' });
+    expect(placed.cell).toMatch(/^[A-Z]+\d+$/);
+    expect(await page.evaluate(() => [window.__studio._placing, window.__studio._activeTab, window.__studio._selectedPoint])).toEqual([false, 'points', 'point1']);
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
+});
+
+test('studio: a ring (lines only, no pick mesh) is selected by a tap near its line', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await openStudio(page);
+    await page.evaluate(() => window.__studio._addObject('ring'));
+    await expect.poll(() => page.evaluate(() => window.__studio._previewCard._scene.debug().world?.list.length)).toBe(2);
+    await page.evaluate(() => window.__studio._selectObject(-1));
+    await page.waitForTimeout(300);
+    // the ring (radius 50, top view): its east edge on screen, 5 px off the line
+    const spot = await page.evaluate(() => {
+        const card = window.__studio._previewCard;
+        const d = card._scene.debug();
+        const r = card.renderRoot.querySelector('.astro-scene').getBoundingClientRect();
+        d.rig.apply(); // the camera as the next frame has it (a resize may not have drawn yet)
+        const v = d.world.scene.position.clone().set(50, 0, 0).project(d.rig.camera);
+        return { x: r.left + ((v.x + 1) / 2) * r.width + 5, y: r.top + ((1 - v.y) / 2) * r.height };
+    });
+    await page.mouse.click(spot.x, spot.y);
+    await expect.poll(() => page.evaluate(() => [window.__studio._activeTab, window.__studio._expandedObject])).toEqual(['objects', 1]);
+    expect(await page.evaluate(() => window.__studio._previewCard._scene.debug().boxed)).toBe('ring1');
+});

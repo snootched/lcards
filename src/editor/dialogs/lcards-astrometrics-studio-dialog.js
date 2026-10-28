@@ -4,7 +4,10 @@
  * Full-screen editor for the astrometrics card with a live preview: the real
  * card (labels, templates, state colours, pinned cards all as on the
  * dashboard), in edit mode (`attachStudio`): a tap on the preview selects the
- * point or object under it instead of running its action.
+ * point or object under it instead of running its action, a point can be
+ * dragged on its placement surface, and place mode (toolbar) adds a point
+ * where the next tap lands. Selection follows both ways: opening a row
+ * highlights its point or object on the scene.
  *
  * Tabs: Scene (backdrop, labels, background), Points (the points list with
  * Pick), Objects (a list; each object's form is generated from its type's
@@ -51,7 +54,9 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       _expandedObject: { state: true },
       _selectedPoint: { state: true },
       _addingObject: { state: true },
-      _showAll: { state: true }
+      _showAll: { state: true },
+      _placing: { state: true },
+      _status: { state: true }
     };
   }
 
@@ -69,7 +74,11 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     this._selectedPoint = null;
     this._addingObject = false;
     this._showAll = false;
+    this._placing = false;
+    /** @type {string} the toolbar's line while dragging or placing (else the hint) */
+    this._status = '';
     this._previewRef = createRef();
+    this._onPlaceKey = this._onPlaceKey.bind(this);
     /** @type {any} the preview card */
     this._previewCard = null;
     /** @type {ReturnType<typeof setTimeout> | undefined} */
@@ -95,6 +104,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     clearTimeout(this._previewTimer);
+    window.removeEventListener('keydown', this._onPlaceKey, true);
     this._previewCard?.attachStudio?.(null);
   }
 
@@ -168,7 +178,10 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     card.hass = this.hass;
     host.replaceChildren(card);
     this._previewCard = card;
-    card.attachStudio?.({ onSelect: (/** @type {any} */ hit) => this._onSceneSelect(hit) });
+    card.attachStudio?.({
+      onSelect: (/** @type {any} */ hit) => this._onSceneSelect(hit),
+      onDrag: (/** @type {string} */ id, /** @type {string} */ form, /** @type {any} */ value, /** @type {boolean} */ done) => this._onPointDrag(id, form, value, done)
+    });
   }
 
   /** @private */
@@ -190,6 +203,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   _onSceneSelect(hit) {
     if (!hit) {
       this._selectPoint(null);
+      if (this._activeTab === 'objects') this._expandedObject = -1;
       return;
     }
     if (hit.kind === 'point') {
@@ -200,8 +214,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     const index = this._objects.findIndex((o, i) => this._objectId(o, i) === hit.id);
     if (index < 0) return;
     this._activeTab = 'objects';
-    this._expandedObject = index;
-    this._selectPoint(null);
+    this._selectObject(index);
     this.updateComplete.then(() => this.renderRoot.querySelector(`[data-object="${index}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
   }
 
@@ -210,6 +223,96 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     this._selectedPoint = id;
     const scene = await this._previewCard?.studioScene?.();
     scene?.highlight(id);
+  }
+
+  /**
+   * Open an object's row (-1 closes) and box it on the scene.
+   * @param {number} index
+   * @private
+   */
+  async _selectObject(index) {
+    this._expandedObject = index;
+    this._selectedPoint = null;
+    const obj = this._objects[index];
+    const scene = await this._previewCard?.studioScene?.();
+    scene?.highlight(obj ? this._objectId(obj, index) : null, 'object');
+  }
+
+  /**
+   * A point dragged on the preview: shown live by the scene; the value goes
+   * into the working copy on release (and the point opens in its list).
+   * @param {string} id
+   * @param {string} form
+   * @param {number[] | string} value
+   * @param {boolean} done
+   * @private
+   */
+  _onPointDrag(id, form, value, done) {
+    const shown = Array.isArray(value) ? value.join(', ') : value;
+    if (!done) {
+      this._status = `${id}: ${form} ${shown}`;
+      return;
+    }
+    this._status = '';
+    const points = this._points.map((p) => (p && String(p.id) === id ? { ...p, [form]: value } : p));
+    this._setTop('points', points);
+    this._activeTab = 'points';
+    this._selectPoint(id);
+  }
+
+  // ── Place mode ─────────────────────────────────────────────────────────────
+
+  /**
+   * Place mode on or off: while on, the next tap on the preview adds a point
+   * there (on the object under it in its natural form, else on the ground).
+   * @param {boolean} on
+   * @private
+   */
+  async _setPlacing(on) {
+    const card = this._previewCard;
+    const scene = await card?.studioScene?.();
+    if (!scene) return;
+    if (on) {
+      card.cancelPick?.();
+      this._placing = true;
+      this._status = 'Tap the scene to place a new point. Escape cancels.';
+      window.addEventListener('keydown', this._onPlaceKey, true);
+      scene.setPickHandler((/** @type {number} */ x, /** @type {number} */ y) => {
+        const place = scene.placementAt(x, y);
+        if (!place) {
+          this._status = 'Nothing to stand on there: tap an object or the ground plane.';
+          return;
+        }
+        this._setPlacing(false);
+        this._addPlacedPoint(place);
+      });
+    } else if (this._placing) {
+      this._placing = false;
+      this._status = '';
+      window.removeEventListener('keydown', this._onPlaceKey, true);
+      scene.setPickHandler(null);
+    }
+  }
+
+  /** @param {KeyboardEvent} e @private */
+  _onPlaceKey(e) {
+    if (e.key !== 'Escape' || !this._placing) return;
+    e.stopPropagation();
+    e.preventDefault();
+    this._setPlacing(false);
+  }
+
+  /**
+   * Add a point at a placement from the scene, open in the Points tab.
+   * @param {{ form: string, value: number[] | string, object?: string }} place
+   * @private
+   */
+  _addPlacedPoint({ form, value, object }) {
+    const id = freshId('point', this._pointIds);
+    const point = { id, ...(object ? { object } : {}), [form]: value, marker: 'dot', label: 'NEW POINT' };
+    this._setTop('points', [...this._points, point]);
+    this._activeTab = 'points';
+    this._selectPoint(id);
   }
 
   /**
@@ -246,6 +349,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         .type-picker { margin-bottom: var(--ha-space-3); }
         .type-picker-actions { display: flex; justify-content: flex-end; gap: var(--ha-space-2); margin-top: var(--ha-space-2); }
         lcards-form-section { display: block; }
+        .canvas-toolbar { align-items: center; }
+        .toolbar-status { color: white; font-size: var(--ha-font-size-s, 12px); padding-right: var(--ha-space-2); max-width: 32ch; }
       `
     ];
   }
@@ -275,11 +380,15 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
             <div class="preview-panel">
               <div class="canvas-toolbar">
                 <div class="canvas-toolbar-buttons">
-                  <ha-icon-button .label=${'Back to the start view'} @click=${this._home}>
+                  <button class="canvas-toolbar-button" title="Back to the start view" aria-label="Back to the start view" @click=${this._home}>
                     <ha-icon icon="mdi:home-outline"></ha-icon>
-                  </ha-icon-button>
+                  </button>
+                  <button class="canvas-toolbar-button ${this._placing ? 'active' : ''}" title="Place a point" aria-label="Place a point"
+                    aria-pressed=${this._placing ? 'true' : 'false'} @click=${() => this._setPlacing(!this._placing)}>
+                    <ha-icon icon="mdi:map-marker-plus-outline"></ha-icon>
+                  </button>
                 </div>
-                <span class="hint">Tap a point or object to edit it.</span>
+                <span class="hint toolbar-status">${this._status || 'Tap a point or object to edit it, drag a point to move it.'}</span>
               </div>
               <div class="preview-stage"><div ${ref(this._previewRef)}></div></div>
             </div>
@@ -424,7 +533,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       <lcards-form-section class="object" data-object=${index} header=${id}
         secondary=${[obj?.type, objectSummary(obj)].filter(Boolean).join(' · ')}
         icon=${guide?.icon ?? 'mdi:shape-outline'} outlined ?expanded=${expanded}
-        @expanded-changed=${(/** @type {CustomEvent} */ e) => { this._expandedObject = e.detail.expanded ? index : (this._expandedObject === index ? -1 : this._expandedObject); }}>
+        @expanded-changed=${(/** @type {CustomEvent} */ e) => { if (e.detail.expanded) this._selectObject(index); else if (this._expandedObject === index) this._selectObject(-1); }}>
         <ha-icon-button slot="header-icons" .label=${'Move up'} ?disabled=${index === 0}
           @click=${(/** @type {Event} */ e) => { e.stopPropagation(); this._moveObject(index, -1); }}>
           <ha-icon icon="mdi:arrow-up"></ha-icon>
