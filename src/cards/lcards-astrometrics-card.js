@@ -112,14 +112,6 @@ export function cameraButtonLayout(cfg) {
     return { position: typeof o.position === 'string' ? o.position : 'bottom-right', areas: rows.join(' '), buttons };
 }
 
-/** The editor asks the preview to pick a point's position, and hears back (window events) */
-export const PICK_REQUEST = 'lcards-astro-pick-request';
-export const PICK_RESULT = 'lcards-astro-pick-result';
-export const PICK_CANCEL = 'lcards-astro-pick-cancel';
-/** The editor asks the preview for a model object's part names (window events) */
-export const PARTS_REQUEST = 'lcards-astro-parts-request';
-export const PARTS_RESULT = 'lcards-astro-parts-result';
-
 /** Config keys the scene reads; a change to anything else does not rebuild it */
 const SCENE_KEYS = ['camera', 'backdrop', 'labels', 'points', 'objects'];
 
@@ -365,12 +357,13 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._sceneTargets = { points: new Set(), objects: new Set() };
         /** @type {Record<string, any>} the merged rule patch per point or object id */
         this._scenePatches = {};
-        /** @type {{ requestId: string, pointId: string, form: string, object?: string, label: string, missed?: boolean } | null} picking a position for the editor */
+        /** @type {{ pointId: string, form: string, object?: string, label: string, missed?: boolean, resolve: (value: number[] | string | null) => void } | null} picking a position for the Studio */
         this._pick = null;
         this._inEditDialog = false;
-        this._onPickRequest = this._onPickRequest.bind(this);
-        this._onPartsRequest = this._onPartsRequest.bind(this);
-        this._onPickCancel = this._onPickCancel.bind(this);
+        /** @type {import('../core/astrometrics/scene-runtime.js').AstroEditHooks | null} the Astrometrics Studio's hooks (attachStudio) */
+        this._studioHooks = null;
+        /** @type {((scene: import('../core/astrometrics/scene-runtime.js').AstroSceneApi) => void)[]} waiting for the scene (studioScene) */
+        this._sceneWaiters = [];
         this._onPickKey = this._onPickKey.bind(this);
     }
 
@@ -400,7 +393,6 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         }
         registerAstrometricsCard(this);
         this._inEditDialog = this._checkForAncestor(['hui-dialog-edit-card']);
-        this._listenForPicks();
         this._startScene();
     }
 
@@ -410,10 +402,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
      */
     async _onConnected() {
         await super._onConnected();
-        if (this._firstUpdateDone && !this._inPicker && this.isConnected) {
-            registerAstrometricsCard(this);
-            this._listenForPicks();
-        }
+        if (this._firstUpdateDone && !this._inPicker && this.isConnected) registerAstrometricsCard(this);
         if (this._firstUpdateDone && !this._inPicker && !this._scene && this.isConnected) this._startScene();
     }
 
@@ -476,8 +465,12 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             mountCard: (card) => this._mountPointCard(card),
             setCardHass: (el, hass) => this._setPointCardHass(el, hass)
         });
+        if (this._studioHooks) this._scene.setEditMode(this._studioHooks);
         this._rebuildPointData();
         this._syncBackground();
+        const waiters = this._sceneWaiters;
+        this._sceneWaiters = [];
+        for (const w of waiters) w(this._scene);
         lcardsLog.debug(`[LCARdSAstrometricsCard] Scene created for ${this.config?.id || this._cardGuid}`);
     }
 
@@ -976,59 +969,67 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         return this._scene.flyTo(view, opts);
     }
 
-    // ── Picking a point's position for the editor (the edit dialog's preview only) ──
+    // ── The Astrometrics Studio (its live preview is this card) ──
 
-    /** @private */
-    _listenForPicks() {
-        if (!this._inEditDialog) return;
-        window.addEventListener(PICK_REQUEST, this._onPickRequest);
-        window.addEventListener(PICK_CANCEL, this._onPickCancel);
-        window.addEventListener(PARTS_REQUEST, this._onPartsRequest);
+    /**
+     * Edit mode for the Studio: taps select (hooks.onSelect) instead of
+     * running actions, points can be dragged (hooks.onDrag). Kept across
+     * scene rebuilds; null ends it.
+     * @param {import('../core/astrometrics/scene-runtime.js').AstroEditHooks | null} hooks
+     */
+    attachStudio(hooks) {
+        this._studioHooks = hooks;
+        this._scene?.setEditMode(hooks);
     }
 
     /**
-     * The editor wants a model's part names (for the part dropdown): the
-     * names once the model is in, null while it loads.
-     * @private
-     * @param {Event} e
+     * The scene API, once the scene exists (the Studio's camera views,
+     * highlight, fly-to).
+     * @returns {Promise<import('../core/astrometrics/scene-runtime.js').AstroSceneApi>}
      */
-    _onPartsRequest(e) {
-        const d = /** @type {CustomEvent} */ (e).detail ?? {};
-        if ((d.cardId ?? null) !== (this.config?.id ?? null) || !this._scene || !d.requestId) return;
-        window.dispatchEvent(new CustomEvent(PARTS_RESULT, {
-            detail: { requestId: d.requestId, object: d.object, parts: this._scene.partNames(String(d.object)) }
-        }));
+    studioScene() {
+        if (this._scene) return Promise.resolve(this._scene);
+        return new Promise((resolve) => this._sceneWaiters.push(resolve));
     }
 
     /**
-     * The editor wants a position: the next tap on the scene places the point.
-     * @private
-     * @param {Event} e
+     * A model object's part names: null until it has loaded (or not a model).
+     * @param {string} objectId
+     * @returns {string[] | null}
      */
-    _onPickRequest(e) {
-        const d = /** @type {CustomEvent} */ (e).detail ?? {};
-        // The editor of this card: same id (both may have none)
-        if ((d.cardId ?? null) !== (this.config?.id ?? null) || !this._scene || !d.requestId) return;
+    partNames(objectId) {
+        return this._scene?.partNames(String(objectId)) ?? null;
+    }
+
+    /**
+     * The next tap on the scene places a point: resolves with the placement
+     * form's value, or null when cancelled (Cancel, Escape, a new pick).
+     * @param {{ pointId: string, form: string, object?: string, label?: string }} request
+     * @returns {Promise<number[] | string | null>}
+     */
+    pickPosition(request) {
         this._endPick(null);
-        this._pick = { requestId: d.requestId, pointId: String(d.pointId), form: d.form, object: d.object || undefined, label: String(d.label || d.pointId) };
-        this._scene.setPickHandler((x, y) => {
-            const pick = this._pick;
-            if (!pick || !this._scene) return;
-            const value = this._scene.placeAt(x, y, pick.form, pick.object);
-            if (value === null || value === undefined) {
-                this._pick = { ...pick, missed: true };
-                return;
-            }
-            this._playSound('card_tap');
-            this._endPick(value);
+        if (!this._scene) return Promise.resolve(null);
+        return new Promise((resolve) => {
+            this._pick = { pointId: String(request.pointId), form: request.form, object: request.object || undefined, label: String(request.label || request.pointId), resolve };
+            this._scene?.setPickHandler((x, y) => {
+                const pick = this._pick;
+                if (!pick || !this._scene) return;
+                const value = this._scene.placeAt(x, y, pick.form, pick.object);
+                if (value === null || value === undefined) {
+                    this._pick = { ...pick, missed: true };
+                    return;
+                }
+                this._playSound('card_tap');
+                this._endPick(value);
+            });
+            window.addEventListener('keydown', this._onPickKey, true);
         });
-        window.addEventListener('keydown', this._onPickKey, true);
     }
 
-    /** @private @param {Event} e */
-    _onPickCancel(e) {
-        const id = /** @type {CustomEvent} */ (e).detail?.requestId;
-        if (this._pick && (!id || id === this._pick.requestId)) this._endPick(null);
+    /** End a pick without a value. */
+    cancelPick() {
+        this._endPick(null);
     }
 
     /** @private @param {KeyboardEvent} e */
@@ -1040,7 +1041,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
     }
 
     /**
-     * Leave pick mode and tell the editor (a value, or null when cancelled).
+     * Leave pick mode with a value, or null when cancelled.
      * @private
      * @param {number[] | string | null} value
      */
@@ -1050,9 +1051,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._pick = null;
         this._scene?.setPickHandler(null);
         window.removeEventListener('keydown', this._onPickKey, true);
-        window.dispatchEvent(new CustomEvent(PICK_RESULT, {
-            detail: { requestId: pick.requestId, pointId: pick.pointId, form: pick.form, value, cancelled: value === null }
-        }));
+        pick.resolve(value);
     }
 
     /**
@@ -1125,9 +1124,6 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
     _onDisconnected() {
         unregisterAstrometricsCard(this);
         this._endPick(null);
-        window.removeEventListener(PICK_REQUEST, this._onPickRequest);
-        window.removeEventListener(PICK_CANCEL, this._onPickCancel);
-        window.removeEventListener(PARTS_REQUEST, this._onPartsRequest);
         this._stopScene();
         super._onDisconnected();
     }

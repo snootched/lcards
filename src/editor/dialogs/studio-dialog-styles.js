@@ -59,8 +59,14 @@ export const studioDialogStyles = css`
        scroll instead of just .tab-content. Keeping it in the same flex chain
        (flex:1, min-height:0, overflow:hidden) means only .tab-content (which
        opts in below) ever actually scrolls; the tab headers and canvas
-       toolbar stay put. */
+       toolbar stay put.
+
+       font-family: Home Assistant's panel typography (as haStyle and the
+       config panel host). Without it LCARdS text inherits the page's
+       hardcoded Roboto while HA controls follow the theme font (Antonio
+       under HA-LCARS), so one studio showed two fonts. */
     .dialog-content {
+        font-family: var(--ha-font-family-body);
         flex: 1;
         display: flex;
         flex-direction: column;

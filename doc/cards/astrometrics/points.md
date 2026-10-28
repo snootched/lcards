@@ -16,11 +16,11 @@ points:
     tap_action: { action: fly-to }
 ```
 
-## In the card editor
+## In the Astrometrics Studio
 
-The editor's **Points** tab lists the points: add, duplicate, reorder and remove them, and set each one's placement, the object it stands on, entity, label, style, marker, colour and the main label text keys. Other keys stay as they are; edit them in the YAML tab.
+The card editor opens the **Astrometrics Studio** (a full-screen editor with the live scene). Its **Points** tab lists the points: add, duplicate, reorder and remove them, and set each one's placement, the object it stands on, entity, label, style, marker, colour and the main label text keys. Other keys stay as they are; edit them in the YAML tab.
 
-**Pick on preview** (the crosshair on a row) places a point with a tap: the preview shows "TAP TO PLACE ..." and the next tap writes the point's numbers, in its own form. `xyz` and `polar` land on the ground (y = 0), or on the surface of the object in `object`; `latlon` lands on a sphere, `altaz` on a dome, `cell` on a plane grid's cell. Drag to turn the view first if you need to; Escape or Cancel stops picking. Points placed by `sky`, `at` or an entity are not picked. On a [model](./objects#model), `xyz` lands on the model's surface, in the model file's own coordinates.
+**Pick on preview** (the crosshair on a row) places a point with a tap: the Studio's preview shows "TAP TO PLACE ..." and the next tap writes the point's numbers, in its own form. `xyz` and `polar` land on the ground (y = 0), or on the surface of the object in `object`; `latlon` lands on a sphere, `altaz` on a dome, `cell` on a plane grid's cell. Drag to turn the view first if you need to; Escape or Cancel stops picking. Points placed by `sky`, `at` or an entity are not picked. On a [model](./objects#model), `xyz` lands on the model's surface, in the model file's own coordinates.
 
 **A part of a model** puts a point on a named part of a model object: the part list comes from the built-in model, or from the preview once it has loaded your file. The offset moves the point from the part's origin.
 

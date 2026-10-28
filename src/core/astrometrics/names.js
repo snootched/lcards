@@ -11,6 +11,24 @@
 /** Object types; line objects (`ring`, `path`, `beam`) read points, so they build second */
 export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam']);
 
+/**
+ * Which type for what: the objects docs page's table (doc/cards/astrometrics/objects.md,
+ * kept in step by tests/core/astrometrics-names.test.js) and the Studio's type picker.
+ * @type {readonly { type: typeof OBJECT_TYPES[number], use: string, icon: string }[]}
+ */
+export const TYPE_GUIDE = [
+  { type: 'sphere', use: 'A planet, moon or globe (solid, hides what is behind it, can wear a map)', icon: 'mdi:earth' },
+  { type: 'grid', use: 'A wireframe: a sector map, a galaxy disc, a sky dome, a see-through ball, a tube, a gravity well', icon: 'mdi:grid' },
+  { type: 'volume', use: 'A territory or region of space (a see-through box of cells)', icon: 'mdi:cube-outline' },
+  { type: 'ring', use: 'An orbit, a range ring, a rim', icon: 'mdi:orbit' },
+  { type: 'path', use: 'A route through points, an arched route, the sun\'s track', icon: 'mdi:vector-polyline' },
+  { type: 'beam', use: 'A weapon, transporter or sensor beam (a glowing straight line)', icon: 'mdi:flash' },
+  { type: 'glow', use: 'A star, a galactic core, a beacon (a soft light)', icon: 'mdi:white-balance-sunny' },
+  { type: 'nebula', use: 'Clouds of gas', icon: 'mdi:weather-cloudy' },
+  { type: 'image', use: 'Your own picture on the plane', icon: 'mdi:image' },
+  { type: 'model', use: 'A ship, a station, any 3D model', icon: 'mdi:rocket' }
+];
+
 /** Object types built from the effects chunk (`core/astrometrics/effects`) */
 export const EFFECT_TYPES = /** @type {const} */ (['nebula']);
 

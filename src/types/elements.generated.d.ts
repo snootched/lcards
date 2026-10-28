@@ -12,8 +12,10 @@ declare global {
         'lcards-alert-overlay-editor': import('../editor/cards/lcards-alert-overlay-editor.js').LCARdSAlertOverlayEditor;
         'lcards-animation-editor': import('../editor/components/lcards-animation-editor.js').LCARdSAnimationEditor;
         'lcards-astro-points-editor': import('../editor/components/editors/lcards-astro-points-editor.js').LCARdSAstroPointsEditor;
+        'lcards-astro-schema-form': import('../editor/dialogs/astro-studio/lcards-astro-schema-form.js').LCARdSAstroSchemaForm;
         'lcards-astrometrics-card': import('../cards/lcards-astrometrics-card.js').LCARdSAstrometricsCard;
         'lcards-astrometrics-editor': import('../editor/cards/lcards-astrometrics-editor.js').LCARdSAstrometricsEditor;
+        'lcards-astrometrics-studio-dialog': import('../editor/dialogs/lcards-astrometrics-studio-dialog.js').LCARdSAstrometricsStudioDialog;
         'lcards-background-animation-editor': import('../editor/components/lcards-background-animation-editor.js').LCARdSBackgroundAnimationEditor;
         'lcards-border-editor': import('../editor/components/editors/lcards-border-editor.js').LCARdSBorderEditor;
         'lcards-button': import('../cards/lcards-button.js').LCARdSButton;

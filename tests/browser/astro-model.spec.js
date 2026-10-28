@@ -72,9 +72,8 @@ test('editor: a point on a model part (parts from the built-in list and from the
         const card = /** @type {any} */ (document.querySelector('#mount > *'));
         await customElements.get('lcards-astrometrics-card').getConfigElement(); // loads the editor chunk
         await customElements.whenDefined('lcards-astro-points-editor');
-        card._inEditDialog = true;
-        card._listenForPicks();
         const list = /** @type {any} */ (document.createElement('lcards-astro-points-editor'));
+        list.preview = card; // the Studio's live card
         list.config = JSON.parse(JSON.stringify(card._rawConfig));
         list.addEventListener('points-changed', (e) => { window.__points = e.detail.value; list.config = { ...list.config, points: e.detail.value }; });
         document.body.appendChild(list);

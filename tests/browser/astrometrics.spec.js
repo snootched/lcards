@@ -547,17 +547,15 @@ test('fly-to from outside: the registry, lcards_event fly_to, and a fly-to actio
     await expectNoErrors(page);
 });
 
-test('editor pick: the preview places a point on the next tap (xyz, a cell), Escape cancels', async ({ page }) => {
+test('points list pick: the preview places a point on the next tap (xyz, a cell), Escape cancels', async ({ page }) => {
     await mountCase(page, 'astro-camera', { width: '800' });
     await sceneReady(page);
     await page.evaluate(async () => {
         const card = /** @type {any} */ (document.querySelector('#mount > *'));
         await customElements.get('lcards-astrometrics-card').getConfigElement(); // loads the editor chunk
         await customElements.whenDefined('lcards-astro-points-editor');
-        // the harness has no edit dialog: let the card listen as if it were the preview
-        card._inEditDialog = true;
-        card._listenForPicks();
         const list = /** @type {any} */ (document.createElement('lcards-astro-points-editor'));
+        list.preview = card; // the Studio's live card
         list.config = JSON.parse(JSON.stringify(card._rawConfig));
         list.addEventListener('points-changed', (e) => { window.__points = e.detail.value; list.config = { ...list.config, points: e.detail.value }; });
         document.body.appendChild(list);
@@ -567,7 +565,7 @@ test('editor pick: the preview places a point on the next tap (xyz, a cell), Esc
     const b = await sceneBox(page);
     const perPx = (2 * 200 * Math.tan((20 * Math.PI) / 180)) / b.h;
     // xyz on the ground
-    await page.evaluate(() => window.__list._pick({ id: 'svc', xyz: [-60, 0, 0] }));
+    await page.evaluate(() => { window.__list._pick({ id: 'svc', xyz: [-60, 0, 0] }); });
     await expect(page.locator('lcards-astrometrics-card .astro-pick')).toContainText('TAP TO PLACE SVC');
     await page.mouse.click(b.x + b.w / 2 + 100, b.y + b.h / 2);
     await expect(page.locator('lcards-astrometrics-card .astro-pick')).toHaveCount(0);
@@ -587,7 +585,7 @@ test('editor pick: the preview places a point on the next tap (xyz, a cell), Esc
     await expect.poll(() => page.evaluate(() => window.__points.find((p) => p.id === 'svc'))).toMatchObject({ cell: 'H5', object: 'floor' });
     expect(await page.evaluate(() => window.__points.find((p) => p.id === 'svc').xyz)).toBeUndefined();
     // Escape cancels; the next tap runs the point's action again
-    await page.evaluate(() => window.__list._pick({ id: 'svc', xyz: [0, 0, 0] }));
+    await page.evaluate(() => { window.__list._pick({ id: 'svc', xyz: [0, 0, 0] }); });
     await expect(page.locator('lcards-astrometrics-card .astro-pick')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.locator('lcards-astrometrics-card .astro-pick')).toHaveCount(0);

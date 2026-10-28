@@ -7,11 +7,14 @@
  * added, duplicated, removed and reordered. Keys the form does not show
  * stay as they are (edit them in YAML).
  *
- * Pick: asks the card preview in the edit dialog for a position (window
- * events PICK_REQUEST / PICK_RESULT, see lcards-astrometrics-card.js); the
- * next tap on the preview writes the point's form. A point on a model can
- * stand on one of its parts: the part names come from the built-in model's
- * registry entry, else from the live preview (PARTS_REQUEST / PARTS_RESULT).
+ * Pick: asks the preview card (`preview`, the Astrometrics Studio's live
+ * card: `pickPosition()`, see lcards-astrometrics-card.js) for a position;
+ * the next tap on the preview writes the point's form. A point on a model
+ * can stand on one of its parts: the part names come from the built-in
+ * model's registry entry, else from the live preview (`partNames()`).
+ *
+ * `selected` (a point id) opens that row and scrolls to it; opening a row
+ * emits `point-selected` with `{ id }` (null when closed).
  *
  * Card: a Lovelace card pinned to the point (`card:`), chosen with HA's card
  * picker and edited inline with `hui-card-element-editor`.
@@ -23,7 +26,6 @@ import { LitElement, html, css, nothing } from 'lit';
 import { fireEvent } from 'custom-card-helpers';
 import { MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, PLACEMENT_FORMS } from '../../../core/astrometrics/names.js';
 import { LABEL_POSITIONS } from '../../../core/astrometrics/label-text.js';
-import { PICK_REQUEST, PICK_RESULT, PICK_CANCEL, PARTS_REQUEST, PARTS_RESULT } from '../../../cards/lcards-astrometrics-card.js';
 import { mountDialogNearHomeAssistant } from '../../../utils/lcards-shared-helpers.js';
 import { showInfoDialog } from '../../../views/layout-edit-dialogs.js';
 import '../shared/lcards-form-section.js';
@@ -112,6 +114,8 @@ export class LCARdSAstroPointsEditor extends LitElement {
     return {
       hass: { type: Object },
       config: { type: Object },
+      preview: { attribute: false },
+      selected: { type: String },
       _expanded: { type: Number, state: true },
       _picking: { type: String, state: true },
       _parts: { type: Object, state: true }
@@ -142,31 +146,43 @@ export class LCARdSAstroPointsEditor extends LitElement {
     /** @type {any} */
     this.config = {};
     this._expanded = -1;
+    /** @type {any} the preview card (pickPosition, cancelPick, partNames) */
+    this.preview = null;
+    /** @type {string | null} */
+    this.selected = null;
     /** @type {string} the point id being picked, '' when none */
     this._picking = '';
-    /** @type {string} */
-    this._pickRequest = '';
-    this._onPickResult = this._onPickResult.bind(this);
+    /** the current pick (a newer pick or a cancel drops an older answer) */
+    this._pickSeq = 0;
     /** @type {Record<string, string[]>} model part names by object id (from the preview) */
     this._parts = {};
-    /** @type {Map<string, string>} parts request id by object id, while one is out */
-    this._partsAsked = new Map();
+    /** @type {Set<string>} objects whose part names are being polled */
+    this._partsAsked = new Set();
     /** @type {ReturnType<typeof setTimeout>[]} */
     this._partsTimers = [];
     /** @type {HTMLElement | null} */
     this._pickerDialog = null;
-    this._onPartsResult = this._onPartsResult.bind(this);
   }
 
-  connectedCallback() {
-    super.connectedCallback();
-    window.addEventListener(PICK_RESULT, this._onPickResult);
-    window.addEventListener(PARTS_RESULT, this._onPartsResult);
+  /** @param {Map<string, unknown>} changed */
+  willUpdate(changed) {
+    if (changed.has('selected') && this.selected) {
+      const index = this._points.findIndex((p) => String(p?.id) === this.selected);
+      if (index >= 0 && index !== this._expanded) {
+        this._expanded = index;
+        this.updateComplete.then(() => this.renderRoot.querySelector(`[data-index="${index}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+      }
+    }
+  }
+
+  /** Open or close a row, and say which point is selected. @param {number} index */
+  _toggle(index) {
+    this._expanded = this._expanded === index ? -1 : index;
+    const id = this._expanded >= 0 ? String(this._points[this._expanded]?.id ?? '') : null;
+    fireEvent(this, /** @type {any} */ ('point-selected'), /** @type {any} */ ({ id }));
   }
 
   disconnectedCallback() {
-    window.removeEventListener(PICK_RESULT, this._onPickResult);
-    window.removeEventListener(PARTS_RESULT, this._onPartsResult);
     this._partsTimers.forEach(clearTimeout);
     this._partsTimers = [];
     this._pickerDialog?.remove();
@@ -239,42 +255,29 @@ export class LCARdSAstroPointsEditor extends LitElement {
   // ── Picking ────────────────────────────────────────────────────────────────
 
   /** @param {any} point */
-  _pick(point) {
+  async _pick(point) {
     const form = formOf(point);
     const value = form ? point[form] : undefined;
-    if (!form || !FORMS[form]?.pick || (value && typeof value === 'object' && !Array.isArray(value))) return;
+    if (!this.preview || !form || !FORMS[form]?.pick || (value && typeof value === 'object' && !Array.isArray(value))) return;
     this._cancelPick();
-    this._pickRequest = `pick-${++pickSeq}-${Date.now()}`;
-    this._picking = String(point.id);
-    window.dispatchEvent(new CustomEvent(PICK_REQUEST, {
-      detail: {
-        requestId: this._pickRequest,
-        cardId: this.config?.id ?? null,
-        pointId: String(point.id),
-        form,
-        object: point.object,
-        label: point.label ?? point.text?.label?.content ?? point.id
-      }
-    }));
+    const id = String(point.id);
+    const seq = ++pickSeq;
+    this._pickSeq = seq;
+    this._picking = id;
+    const picked = await this.preview.pickPosition({ pointId: id, form, object: point.object, label: point.label ?? point.text?.label?.content ?? id });
+    if (this._pickSeq !== seq) return;
+    this._picking = '';
+    if (picked === null || picked === undefined) return;
+    const index = this._points.findIndex((p) => String(p?.id) === id);
+    if (index < 0) return;
+    this._replace(index, { ...withForm(this._points[index], form), [form]: picked });
   }
 
   _cancelPick() {
-    if (!this._pickRequest) return;
-    window.dispatchEvent(new CustomEvent(PICK_CANCEL, { detail: { requestId: this._pickRequest } }));
-    this._pickRequest = '';
+    if (!this._picking) return;
+    this._pickSeq = 0;
     this._picking = '';
-  }
-
-  /** @param {Event} e */
-  _onPickResult(e) {
-    const d = /** @type {CustomEvent} */ (e).detail ?? {};
-    if (!this._pickRequest || d.requestId !== this._pickRequest) return;
-    this._pickRequest = '';
-    this._picking = '';
-    if (d.cancelled || d.value === null || d.value === undefined) return;
-    const index = this._points.findIndex((p) => String(p?.id) === d.pointId);
-    if (index < 0) return;
-    this._replace(index, { ...withForm(this._points[index], d.form), [d.form]: d.value });
+    this.preview?.cancelPick();
   }
 
   // ── Model parts ────────────────────────────────────────────────────────────
@@ -290,27 +293,28 @@ export class LCARdSAstroPointsEditor extends LitElement {
     if (obj?.type !== 'model') return null;
     const known = builtinParts(obj) ?? this._parts[objectId];
     if (known) return known;
-    if (!this._partsAsked.has(objectId)) this._askParts(objectId, 0);
+    if (!this._partsAsked.has(objectId)) {
+      this._partsAsked.add(objectId);
+      this._askParts(objectId, 0);
+    }
     return null;
   }
 
-  /** @param {string} objectId @param {number} attempt */
+  /**
+   * Ask the preview for a model's part names; null while it loads (or no
+   * preview yet), so ask again a few times.
+   * @param {string} objectId @param {number} attempt
+   */
   _askParts(objectId, attempt) {
-    const requestId = `parts-${++pickSeq}-${Date.now()}`;
-    this._partsAsked.set(objectId, requestId);
-    window.dispatchEvent(new CustomEvent(PARTS_REQUEST, { detail: { requestId, cardId: this.config?.id ?? null, object: objectId } }));
-    // No answer (no preview yet) or still loading: ask again a few times
+    const parts = this.preview?.partNames?.(objectId);
+    if (Array.isArray(parts)) {
+      this._parts = { ...this._parts, [objectId]: parts };
+      return;
+    }
+    if (attempt >= 8) return;
     this._partsTimers.push(setTimeout(() => {
-      if (this._parts[objectId] || this._partsAsked.get(objectId) !== requestId || !this.isConnected) return;
-      if (attempt < 8) this._askParts(objectId, attempt + 1);
+      if (this.isConnected && !this._parts[objectId]) this._askParts(objectId, attempt + 1);
     }, 1500));
-  }
-
-  /** @param {Event} e */
-  _onPartsResult(e) {
-    const d = /** @type {CustomEvent} */ (e).detail ?? {};
-    if (!d.object || this._partsAsked.get(d.object) !== d.requestId || !Array.isArray(d.parts)) return;
-    this._parts = { ...this._parts, [d.object]: d.parts };
   }
 
   /** Model object ids */
@@ -626,10 +630,11 @@ export class LCARdSAstroPointsEditor extends LitElement {
     const v = form ? point[form] : undefined;
     const pickable = !!(form && FORMS[form]?.pick && !(v && typeof v === 'object' && !Array.isArray(v)));
     return html`
-      <lcards-form-section class="point" header=${title}
+      <lcards-form-section class="point" header=${title} data-index=${index}
         secondary=${[point.label, form ? FORMS[form]?.label : 'no position'].filter(Boolean).join(' · ')}
         icon="mdi:map-marker"
         ?expanded=${this._expanded === index}
+        @expanded-changed=${(/** @type {CustomEvent} */ e) => { if (e.detail.expanded !== (this._expanded === index)) this._toggle(index); }}
         outlined>
         ${pickable ? html`
           <ha-icon-button slot="header-icons" .label=${'Pick on preview'}

@@ -104,6 +104,12 @@ const KEY_COMMANDS = {
  */
 
 /**
+ * Edit mode (the Astrometrics Studio): taps select instead of acting.
+ * @typedef {Object} AstroEditHooks
+ * @property {(hit: AstroTapHit | null) => void} [onSelect] - a tap: what is under it (any point or object), null in blank space
+ */
+
+/**
  * Run-time label values the card resolves (templates, state colours), CSS values.
  * @typedef {Object} AstroLabelValues
  * @property {string} [color] - the point's colour (marker)
@@ -122,6 +128,8 @@ const KEY_COMMANDS = {
  * @property {() => void} release - end the pressed command
  * @property {(opts?: { duration?: number }) => Promise<void>} home - fly back to the start view
  * @property {(x: number, y: number, opts?: { out?: boolean }) => Promise<void>} zoomTo - the double-tap zoom at CSS px (x, y)
+ * @property {(hooks: AstroEditHooks | null) => void} setEditMode - while set, taps select (any point or object) and run no actions; no double-tap zoom
+ * @property {(id: string | null) => void} highlight - mark a point as selected (null clears)
  * @property {(handler: ((x: number, y: number) => void) | null) => void} setPickHandler - while set, a tap goes to it (no actions, no double-tap)
  * @property {(x: number, y: number, form: string, object?: string) => (number[] | string | null)} placeAt - a placement form's value for the spot at CSS px (x, y), or null
  * @property {(id: string) => (string[] | null)} partNames - a model object's named parts, null until it has loaded (or not a model)
@@ -614,10 +622,11 @@ export function createAstroScene(host, config, options = {}) {
 
   /**
    * What is under (x, y) CSS px: the nearest point marker, else an object
-   * whose config has `key` (`tap_action`, `hold_action`) under it.
+   * whose config has `key` (`tap_action`, `hold_action`) under it (any
+   * object when `key` is null).
    * @param {number} x
    * @param {number} y
-   * @param {string} key
+   * @param {string | null} key
    * @returns {AstroTapHit | null}
    */
   function pickAt(x, y, key) {
@@ -626,7 +635,7 @@ export function createAstroScene(host, config, options = {}) {
     if (hit && hit.world) return { kind: 'point', id: hit.id, config: /** @type {any} */ (hit).def, position: hit.world.clone() };
     ndc.set((x / cssW) * 2 - 1, -(y / cssH) * 2 + 1);
     ray.setFromCamera(ndc, rig.camera);
-    const candidates = world.list.filter((b) => b.config[key] !== undefined && b.pickMeshes.length);
+    const candidates = world.list.filter((b) => (key === null || b.config[key] !== undefined) && b.pickMeshes.length);
     const hits = ray.intersectObjects(candidates.flatMap((b) => b.pickMeshes), false);
     const obj = hits.length ? candidates.find((b) => b.pickMeshes.includes(hits[0].object)) : undefined;
     if (!obj) return null;
@@ -641,6 +650,7 @@ export function createAstroScene(host, config, options = {}) {
    * @param {number} y
    */
   function hold(x, y) {
+    if (editHooks) return;
     const hit = pickAt(x, y, 'hold_action');
     if (hit && hit.config?.hold_action !== undefined) options.onHold?.(hit);
   }
@@ -649,6 +659,8 @@ export function createAstroScene(host, config, options = {}) {
   let blankTap = null;
   /** @type {((x: number, y: number) => void) | null} picking a position (the editor) */
   let pickHandler = null;
+  /** @type {AstroEditHooks | null} edit mode (the Studio) */
+  let editHooks = null;
 
   /**
    * A placement form's value for what is under (x, y) CSS px: on the
@@ -702,6 +714,10 @@ export function createAstroScene(host, config, options = {}) {
   function tap(x, y, shift = false) {
     if (pickHandler) {
       pickHandler(x, y);
+      return;
+    }
+    if (editHooks) {
+      editHooks.onSelect?.(pickAt(x, y, null));
       return;
     }
     const hit = pickAt(x, y, 'tap_action');
@@ -1014,6 +1030,13 @@ export function createAstroScene(host, config, options = {}) {
     release: endPress,
     home: goHome,
     zoomTo,
+    setEditMode(hooks) {
+      editHooks = hooks;
+      blankTap = null;
+    },
+    highlight(id) {
+      select(id);
+    },
     setPickHandler(handler) {
       pickHandler = handler;
       blankTap = null;

@@ -76,7 +76,7 @@ objects:
 
 ### Deformed grids
 
-`deform` is a list of deformations applied in order to any grid, and to a [sphere](#sphere). Round the axis on a cylinder, sphere, dome or well; up and down on a plane or disc. The lines are painted on the surface and stretch with it; edges, cell fills and points standing on the grid (`object: <grid>`) move with it, and picking a point on it in the editor gives its place on the undeformed grid. Amplitudes are fractions of the grid's size (its radius, or half a plane's longer side). A deformation is a still shape until you give it a `period` (seconds per cycle) or, for noise, a `drift`; moving ones run on the scene clock and hold still under reduced motion.
+`deform` is a list of deformations applied in order to any grid, and to a [sphere](#sphere). Round the axis on a cylinder, sphere, dome or well; up and down on a plane or disc. The lines are painted on the surface and stretch with it; edges, cell fills and points standing on the grid (`object: <grid>`) move with it, and picking a point on it in the Studio gives its place on the undeformed grid. Amplitudes are fractions of the grid's size (its radius, or half a plane's longer side). A deformation is a still shape until you give it a `period` (seconds per cycle) or, for noise, a `drift`; moving ones run on the scene clock and hold still under reduced motion.
 
 | `type` | Round an axis | On a plane or disc | Keys (defaults) |
 |---|---|---|---|
@@ -281,7 +281,7 @@ A 3D model from a glTF file (`.glb` or `.gltf`): a starship, your house, a satel
 
 A stand-in box shows while the file loads. Files compressed with meshopt load; Draco-compressed files do not (the browser console says why).
 
-**Points on a model** use `object:` with the model's id. `xyz` is then in the file's own coordinates, so `size` never moves them, and `part:` puts a point on a named part (a node in the file) so it follows that part when an animation moves it. In the card editor, **Pick on preview** places a point on the model's surface, and the part list fills in from the file. See [placement forms](./points#placement-forms).
+**Points on a model** use `object:` with the model's id. `xyz` is then in the file's own coordinates, so `size` never moves them, and `part:` puts a point on a named part (a node in the file) so it follows that part when an animation moves it. In the Astrometrics Studio, **Pick on preview** places a point on the model's surface, and the part list fills in from the file. See [placement forms](./points#placement-forms).
 
 The built-in ship's parts: `saucer`, `bridge`, `sensor_dome`, `impulse`, `neck`, `secondary_hull`, `deflector`, `shuttle_bay`, `pylon_port`, `pylon_starboard`, `nacelle_port`, `nacelle_starboard`, `bussard_port`, `bussard_starboard`, `grille_port`, `grille_starboard`. It is 289 m long with the bow toward +z and Y up: fan art made in code for LCARdS, no third-party model.
 

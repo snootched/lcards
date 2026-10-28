@@ -1,20 +1,21 @@
 /**
  * @fileoverview LCARdS Astrometrics Editor
  *
- * The Configuration tab holds the card-level settings: the first view,
- * camera controls and buttons, label defaults, identification and sizing.
- * The Points tab is a list of the points (placement, label, marker), with
- * Pick: the next tap on the preview places the point. Objects are written
- * in the YAML tab (schema completion knows every object type's keys).
+ * A launcher for the Astrometrics Studio (points, objects, camera views and
+ * scene settings with a live preview), plus identification and sizing. The
+ * YAML tab holds the whole config (schema completion knows every key).
  */
 
 import { html, css } from 'lit';
+import { fireEvent } from 'custom-card-helpers';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
+import { configToYaml } from '../utils/yaml-utils.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
+import { mountDialogNearHomeAssistant } from '../../utils/lcards-shared-helpers.js';
 import { ensureAstrometricsSchema } from '../../cards/lcards-astrometrics-card.js';
 
 import '../components/shared/lcards-form-section.js';
-import '../components/editors/lcards-astro-points-editor.js';
+import '../dialogs/lcards-astrometrics-studio-dialog.js';
 import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 
 export class LCARdSAstrometricsEditor extends LCARdSBaseEditor {
@@ -22,8 +23,16 @@ export class LCARdSAstrometricsEditor extends LCARdSBaseEditor {
     constructor() {
         super();
         this.cardType = 'astrometrics';
+        /** @type {any} Open studio dialog, kept in sync with hass */
+        this._studio = null;
         // The schema loads lazily; the fields and YAML completion read it
         ensureAstrometricsSchema().then(() => this.requestUpdate());
+    }
+
+    /** @param {Map<string, unknown>} changedProps */
+    updated(changedProps) {
+        super.updated(changedProps);
+        if (changedProps.has('hass') && this._studio) this._studio.hass = this.hass;
     }
 
     /**
@@ -33,7 +42,6 @@ export class LCARdSAstrometricsEditor extends LCARdSBaseEditor {
     _getTabDefinitions() {
         return [
             { label: 'Configuration', content: () => this._renderConfigurationTab() },
-            { label: 'Points', content: () => this._renderPointsTab() },
             ...this._getUtilityTabs()
         ];
     }
@@ -50,12 +58,10 @@ export class LCARdSAstrometricsEditor extends LCARdSBaseEditor {
         return html`
             <div class="info-card">
                 <div class="info-card-content">
-                    <h3>Scene</h3>
+                    <h3>Astrometrics Studio</h3>
                     <p>
-                        Points (labels, markers, where things are) are listed in the
-                        <strong>Points</strong> tab, where Pick places one with a tap on the preview.
-                        Objects (grids, volumes, spheres, rings, paths, beams, images, glows) are
-                        written in the <strong>YAML</strong> tab, which completes every key.
+                        <strong>Full-screen workspace</strong> with the live scene: points and objects
+                        (tap one on the scene to edit it), camera views and scene settings.
                     </p>
                     <div class="astro-stats">
                         <span><b>${points}</b> point${points === 1 ? '' : 's'}</span>
@@ -64,68 +70,16 @@ export class LCARdSAstrometricsEditor extends LCARdSBaseEditor {
                     </div>
                 </div>
                 <div class="info-card-actions">
+                    <ha-button @click=${this._openStudio}>
+                        <ha-icon icon="mdi:pencil-ruler" slot="start"></ha-icon>
+                        Open Astrometrics Studio
+                    </ha-button>
                     <ha-button appearance="plain" @click=${() => window.open(docsUrl(DOCS.astrometrics), '_blank', 'noopener')}>
                         Docs
                         <ha-icon icon="mdi:open-in-new" slot="end"></ha-icon>
                     </ha-button>
                 </div>
             </div>
-
-            <lcards-form-section
-                header="Camera"
-                description="The first view, drag and zoom, turning"
-                icon="mdi:video-3d"
-                ?expanded=${true}
-                ?outlined=${true}
-                headerLevel="4">
-
-                ${views.length ? FormField.renderField(this, 'camera.view', {
-                    label: 'First view',
-                    helper: 'Shown when the card opens. Views are named under camera.views in YAML.',
-                    selectorOverride: { select: { mode: 'dropdown', options: views.map(v => ({ value: v, label: v })) } }
-                }) : html`<div class="hint">No named views yet: the camera frames the whole scene. Add camera.views in YAML to fly between views.</div>`}
-
-                ${FormField.renderField(this, 'camera.controls', { label: 'Drag, zoom, double-tap and keys' })}
-                <div class="astro-pair">
-                    ${FormField.renderField(this, 'camera.drag', { label: 'One-finger drag' })}
-                    ${FormField.renderField(this, 'camera.pan', { label: 'Pan along' })}
-                    ${FormField.renderField(this, 'camera.zoom_to', { label: 'Wheel and pinch zoom toward' })}
-                    ${FormField.renderField(this, 'camera.double_tap', { label: 'Double-tap blank space' })}
-                </div>
-                ${FormField.renderField(this, 'camera.zoom_step', {
-                    label: 'Zoom step',
-                    selectorOverride: { number: { min: 1.1, max: 4, step: 0.1, mode: 'slider' } }
-                })}
-                ${this._renderCameraButtonsFields()}
-
-                <div class="astro-pair">
-                    ${FormField.renderField(this, 'camera.auto_rotate', {
-                        label: 'Auto rotate',
-                        selectorOverride: { number: { min: -30, max: 30, step: 0.5, mode: 'slider', unit_of_measurement: '°/s' } }
-                    })}
-                    ${FormField.renderField(this, 'camera.fly_duration', {
-                        label: 'Fly-to duration',
-                        selectorOverride: { number: { min: 0, max: 5000, step: 100, mode: 'box', unit_of_measurement: 'ms' } }
-                    })}
-                </div>
-            </lcards-form-section>
-
-            <lcards-form-section
-                header="Labels"
-                icon="mdi:label-outline"
-                ?expanded=${false}
-                ?outlined=${true}
-                headerLevel="4">
-                ${FormField.renderField(this, 'labels.overlap', { label: 'Overlapping labels all show' })}
-                ${FormField.renderField(this, 'labels.snap', { label: 'Snap labels to whole pixels' })}
-                <div class="astro-pair">
-                    ${FormField.renderField(this, 'labels.default.position', { label: 'Default position' })}
-                    ${FormField.renderField(this, 'labels.default.font_size', { label: 'Default font size' })}
-                    ${FormField.renderField(this, 'labels.default.font_weight', { label: 'Default weight' })}
-                    ${FormField.renderField(this, 'labels.default.text_transform', { label: 'Default case' })}
-                </div>
-                <div class="hint">Every point label inherits these. Label styles (labels.styles) are written in YAML.</div>
-            </lcards-form-section>
 
             <lcards-form-section
                 header="Card Identification"
@@ -157,48 +111,28 @@ export class LCARdSAstrometricsEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * camera.buttons: on or off, and where (true is every button at bottom-right).
+     * Open the Astrometrics Studio on a copy of the config; Save replaces the
+     * config (deleted keys must go).
      * @private
      */
-    _renderCameraButtonsFields() {
-        const b = this.config?.camera?.buttons;
-        const on = !!b;
-        const o = b && typeof b === 'object' ? b : {};
-        /** @param {Record<string, any>} patch */
-        const set = (patch) => this._updateConfig({ camera: { buttons: { ...o, ...patch } } });
-        return html`
-            <ha-selector .hass=${this.hass} .required=${false} .label=${'On-card buttons (pan, zoom, reset)'} .value=${on}
-                .selector=${{ boolean: {} }}
-                @value-changed=${(/** @type {CustomEvent} */ e) => this._updateConfig({ camera: { buttons: e.detail.value ? true : false } })}>
-            </ha-selector>
-            ${on ? html`
-                <div class="astro-pair">
-                    <ha-selector .hass=${this.hass} .required=${false} .label=${'Buttons position'} .value=${o.position ?? 'bottom-right'}
-                        .selector=${{ select: { mode: 'dropdown', options: ['top-left', 'top-center', 'top-right', 'center-left', 'center', 'center-right', 'bottom-left', 'bottom-center', 'bottom-right'].map(p => ({ value: p, label: p })) } }}
-                        @value-changed=${(/** @type {CustomEvent} */ e) => set({ position: e.detail.value })}>
-                    </ha-selector>
-                    <div></div>
-                    ${['pan', 'zoom', 'reset'].map(k => html`
-                        <ha-selector .hass=${this.hass} .required=${false} .label=${k === 'pan' ? 'Pan arrows' : k === 'zoom' ? 'Zoom in and out' : 'Reset'} .value=${o[k] !== false}
-                            .selector=${{ boolean: {} }}
-                            @value-changed=${(/** @type {CustomEvent} */ e) => set({ [k]: e.detail.value })}>
-                        </ha-selector>`)}
-                </div>` : ''}
-        `;
-    }
-
-    /**
-     * @returns {import('lit').TemplateResult}
-     * @private
-     */
-    _renderPointsTab() {
-        return html`
-            <lcards-astro-points-editor
-                .hass=${this.hass}
-                .config=${this.config ?? {}}
-                @points-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); this._updateConfig({ points: e.detail.value }); }}>
-            </lcards-astro-points-editor>
-        `;
+    _openStudio() {
+        const dialog = /** @type {any} */ (document.createElement('lcards-astrometrics-studio-dialog'));
+        dialog.hass = this.hass;
+        dialog.config = JSON.parse(JSON.stringify(this.config || {}));
+        this._studio = dialog;
+        dialog.addEventListener('config-changed', (/** @type {CustomEvent} */ e) => {
+            this.config = e.detail.config;
+            this._isUpdatingYaml = true;
+            this._yamlValue = configToYaml(this.config);
+            requestAnimationFrame(() => { this._isUpdatingYaml = false; });
+            fireEvent(this, 'config-changed', { config: this.config });
+            this.requestUpdate();
+        });
+        dialog.addEventListener('closed', () => {
+            dialog.remove();
+            if (this._studio === dialog) this._studio = null;
+        });
+        mountDialogNearHomeAssistant(dialog, this);
     }
 
     static get styles() {
