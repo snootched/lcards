@@ -12,15 +12,22 @@
  * numbers zero-padded, filled cell ranges with per-cell `shade` and an
  * optional `border`, and `cell: AF3` placements).
  *
+ * `shape: well` is a funnel round the y axis (the background grid's
+ * `well_shape` / `well_throat` / `well_profile`), rim at y = 0. `deform:`
+ * warps any shape (wobble, bend, twist, noise; `deform.js`): the faces,
+ * rims, cell fills and the points on the grid all move with it.
+ *
  * @module core/astrometrics/objects/grid
  */
-import { Group, Mesh, MeshBasicMaterial, Vector3, DoubleSide, BufferGeometry, BufferAttribute } from 'three';
+import { Group, Mesh, MeshBasicMaterial, Vector3, DoubleSide, BufferGeometry, BufferAttribute, Triangle } from 'three';
 import { gridFace } from '../grid-mesh-material.js';
-import { planeGeometry, discGeometry, domeGeometry, sphereGeometry, cylinderGeometry, aroundScale } from '../surface.js';
+import { planeGeometry, discGeometry, domeGeometry, sphereGeometry, cylinderGeometry, wellGeometry, aroundScale } from '../surface.js';
+import { makeDeformer } from '../deform.js';
+import { wellProfile } from '../../packs/backgrounds/effects/grid-surface-model.js';
 import { FatLine } from '../lines.js';
 import { lettersToIndex, indexToLetters, parseCell, bearingXZ } from '../placements.js';
 import { built, num, pair, gridLook, scanTicker, combineTicks, fillFor, DEFAULT_COLORS } from './common.js';
-import { GRID_SHAPES } from '../names.js';
+import { GRID_SHAPES, AXIAL_GRID_SHAPES } from '../names.js';
 
 const DEG = Math.PI / 180;
 export { GRID_SHAPES };
@@ -119,14 +126,26 @@ export function buildGrid(cfg, ctx) {
   const edgeColor = cfg.color_major !== undefined ? ctx.color(cfg.color_major, DEFAULT_COLORS.grid) : ctx.color(cfg.color, DEFAULT_COLORS.grid);
   const edgeWidth = num(cfg.line_width_major, Math.max(1.5, num(cfg.line_width, 1) * 1.5));
   const opacity = num(cfg.opacity, 1);
+  const deforming = (Array.isArray(cfg.deform) ? cfg.deform : []).length > 0;
+  // a deformed surface bends between patches: twice as many
+  const detail = deforming ? 2 : 1;
+  /** @type {{ line: FatLine }[]} what the deformer moves besides the faces */
+  const warpLines = [];
+  /** @type {BufferGeometry[]} */
+  const warpGeos = [];
+  /** @type {number[] | undefined} the y range round the axis (axial deforms) */
+  let extent;
   /** @param {number[][]} runs */
   const addEdge = (runs) => {
+    if (deforming) runs = runs.map((r) => densify(r, edgeStep(cfg)));
     const line = new FatLine(runs, { color: edgeColor, width: edgeWidth, opacity, additive: cfg.blend === 'add' });
     node.add(line.object);
     out.lines.push(line);
+    warpLines.push({ line });
   };
   /** @param {import('three').BufferGeometry} geo @param {import('../grid-mesh-material.js').GridLook} look */
   const addFace = (geo, look) => {
+    warpGeos.push(geo);
     const face = gridFace(geo, look);
     node.add(face);
     out.gridFaces.push(face);
@@ -137,7 +156,7 @@ export function buildGrid(cfg, ctx) {
   if (shape === 'plane') {
     const [w, d] = pair(cfg.size, [200, 200]);
     const s = Math.max(1e-3, num(cfg.line_spacing, 10));
-    const face = addFace(planeGeometry(w, d), gridLook(cfg, ctx, { cell: [s, s], back: 1, planePolar: cfg.pattern === 'polar' }));
+    const face = addFace(planeGeometry(w, d, detail), gridLook(cfg, ctx, { cell: [s, s], back: 1, planePolar: cfg.pattern === 'polar' }));
     // Lines from the north-west corner, so cells line up with the edges
     shiftSurf(face, w / 2, d / 2);
     face.userData.uniforms.uPolarC.value.set(w / 2, d / 2);
@@ -177,16 +196,19 @@ export function buildGrid(cfg, ctx) {
       const r1 = Math.min(rows - 1, Math.max(a.r, b.r));
       if (c1 < c0 || r1 < r0) continue;
       const col = ctx.color(cell.color, DEFAULT_COLORS.volume);
-      const fill = cellFill(c0, c1, r0, r1, { s, x0: -w / 2, z0: -d / 2, color: col, shade: num(cell.shade, 0), seed: num(cell.seed, 0) });
+      const fill = cellFill(c0, c1, r0, r1, { s, x0: -w / 2, z0: -d / 2, color: col, shade: num(cell.shade, 0), seed: num(cell.seed, 0), sub: deforming ? 4 : 1 });
       fill.material.opacity = num(cell.opacity, 0.25) * (col[3] ?? 1) * opacity;
       node.add(fill);
+      warpGeos.push(fill.geometry);
       if (cell.border) {
         const b = typeof cell.border === 'object' ? cell.border : {};
         const x0 = -w / 2 + c0 * s;
         const x1 = -w / 2 + (c1 + 1) * s;
         const z0 = -d / 2 + r0 * s;
         const z1 = -d / 2 + (r1 + 1) * s;
-        const line = new FatLine([[x0, 0.02, z0, x1, 0.02, z0, x1, 0.02, z1, x0, 0.02, z1, x0, 0.02, z0]], {
+        const box = [x0, 0.02, z0, x1, 0.02, z0, x1, 0.02, z1, x0, 0.02, z1, x0, 0.02, z0];
+        const runs = [deforming ? densify(box, edgeStep(cfg)) : box];
+        const line = new FatLine(runs, {
           color: b.color !== undefined ? ctx.color(b.color, DEFAULT_COLORS.volume) : col,
           width: num(b.width, 1.5),
           opacity: num(b.opacity, 0.9) * opacity,
@@ -194,6 +216,7 @@ export function buildGrid(cfg, ctx) {
         });
         node.add(line.object);
         out.lines.push(line);
+        warpLines.push({ line });
       }
     }
   } else if (shape === 'disc') {
@@ -201,7 +224,7 @@ export function buildGrid(cfg, ctx) {
     const r0 = Math.max(0, num(cfg.inner_radius, 0));
     const spokes = cfg.line_spacing_deg !== undefined ? Math.round(360 / Math.max(1, num(cfg.line_spacing_deg, 10))) : num(cfg.spoke_count, 36);
     const s = Math.max(1e-3, num(cfg.line_spacing, R / 10));
-    addFace(discGeometry({ r0, r1: R }), { ...gridLook({ pattern: 'polar', ...cfg, spoke_count: spokes }, ctx, { cell: [s, s], back: 1, planePolar: (cfg.pattern ?? 'polar') === 'polar' }) });
+    addFace(discGeometry({ r0, r1: R, detail }), { ...gridLook({ pattern: 'polar', ...cfg, spoke_count: spokes }, ctx, { cell: [s, s], back: 1, planePolar: (cfg.pattern ?? 'polar') === 'polar' }) });
     if (border) addEdge(r0 > 0 ? [circleRun(R), circleRun(r0)] : [circleRun(R)]);
     out.radius = R;
     ringLabels(cfg, R, out);
@@ -218,14 +241,24 @@ export function buildGrid(cfg, ctx) {
     const look = gridLook(cfg, ctx, { cell: [meridian, sAlong], pattern: polar ? 'both' : cfg.pattern, back: shape === 'cylinder' ? 0.25 : 0.25 });
     const scale = polar ? 1 : around;
     if (shape === 'dome') {
-      addFace(domeGeometry({ radius: R, around: scale }), look);
+      addFace(domeGeometry({ radius: R, around: scale, detail }), look);
       if (border) addEdge([circleRun(R)]);
+      extent = [0, R];
     } else if (shape === 'sphere') {
-      addFace(sphereGeometry({ radius: R, around: scale }), look);
+      addFace(sphereGeometry({ radius: R, around: scale, detail }), look);
+      extent = [-R, R];
+    } else if (shape === 'well') {
+      const depth = Math.max(1e-3, num(cfg.depth, R));
+      const profile = wellProfile(cfg, R);
+      addFace(wellGeometry({ profile, depth, around: scale, detail }), look);
+      if (border) addEdge(profile[0] > 1e-3 ? [circleRun(R), circleRun(profile[0], -depth)] : [circleRun(R)]);
+      extent = [-depth, 0];
+      out.centre = [0, -depth / 2, 0];
     } else {
       const h = Math.max(1e-3, num(cfg.height, R));
-      addFace(cylinderGeometry({ radius: R, y0: -h / 2, y1: h / 2, around: scale }), look);
+      addFace(cylinderGeometry({ radius: R, y0: -h / 2, y1: h / 2, around: scale, detail }), look);
       if (border) addEdge([circleRun(R, -h / 2), circleRun(R, h / 2)]);
+      extent = [-h / 2, h / 2];
     }
     out.radius = R;
     ringLabels(cfg, R, out);
@@ -240,9 +273,111 @@ export function buildGrid(cfg, ctx) {
       node.add(mesh);
     }
   }
-  out.tick = combineTicks(scanTicker(cfg, ctx, out.gridFaces), effect?.tick);
+  out.tick = combineTicks(deformTicker(cfg, shape, out, extent, warpGeos, warpLines), scanTicker(cfg, ctx, out.gridFaces), effect?.tick);
   return out;
 }
+
+/**
+ * The grid's `deform:` list on its geometry, rims and points: applied once
+ * now, and per frame on the scene clock when it moves. Sets `warp` (points
+ * on the grid), `unwarpHit` (picks map back to the undeformed surface) and
+ * `moving`. Null tick when nothing deforms or nothing moves.
+ * @param {any} cfg
+ * @param {string} shape
+ * @param {import('./common.js').BuiltObject} out
+ * @param {number[] | undefined} extent - [y0, y1] round the axis
+ * @param {BufferGeometry[]} geos
+ * @param {{ line: FatLine }[]} lines
+ * @returns {((dt: number, t: number) => boolean) | null}
+ */
+export function deformTicker(cfg, shape, out, extent, geos, lines) {
+  const axial = /** @type {readonly string[]} */ (AXIAL_GRID_SHAPES).includes(shape);
+  const size = axial || shape === 'disc' ? (out.radius ?? 100) : Math.max(...pair(cfg.size, [200, 200])) / 2;
+  const [y0, y1] = extent ?? [-size, size];
+  const deformer = makeDeformer(cfg.deform, { kind: axial ? 'axial' : 'flat', size, y0, y1 });
+  if (!deformer) return null;
+  const bases = geos.map((g) => /** @type {Float32Array} */ (g.getAttribute('position').array).slice());
+  const faceRuns = bases.map((b) => deformer.batch(b));
+  const lineRuns = lines.map(({ line }) => deformer.batch(line.segmentPositions()));
+  const lineOut = lines.map(({ line }) => new Float32Array(line.segmentPositions().length));
+  const p = [0, 0, 0];
+  let now = 0;
+  /** @param {number} t */
+  const apply = (t) => {
+    now = t;
+    geos.forEach((g, i) => {
+      const attr = g.getAttribute('position');
+      faceRuns[i](t, /** @type {Float32Array} */ (attr.array));
+      attr.needsUpdate = true;
+    });
+    lines.forEach(({ line }, i) => {
+      lineRuns[i](t, lineOut[i]);
+      line.moveSegments(lineOut[i]);
+    });
+  };
+  apply(0);
+  // Bounds once, grown by the furthest a vertex moves (culling and picks stay right)
+  for (const g of geos) {
+    g.computeBoundingSphere();
+    if (g.boundingSphere) g.boundingSphere.radius += deformer.reach;
+  }
+  out.moving = deformer.moving;
+  out.warp = (v) => {
+    deformer.warp(v.x, v.y, v.z, now, p);
+    return v.set(p[0], p[1], p[2]);
+  };
+  const tri = new Triangle();
+  const bary = new Vector3();
+  const [va, vb, vc] = [new Vector3(), new Vector3(), new Vector3()];
+  out.unwarpHit = (hit) => {
+    const mesh = /** @type {Mesh} */ (hit.object);
+    const i = geos.indexOf(mesh.geometry);
+    if (i < 0 || !hit.face) return null;
+    const pos = mesh.geometry.getAttribute('position');
+    const { a, b, c } = hit.face;
+    const local = mesh.worldToLocal(hit.point.clone());
+    tri.set(va.fromBufferAttribute(pos, a), vb.fromBufferAttribute(pos, b), vc.fromBufferAttribute(pos, c));
+    if (!tri.getBarycoord(local, bary)) return null;
+    const base = bases[i];
+    /** @param {number} n @param {number} k */
+    const at = (n, k) => base[n * 3 + k];
+    return new Vector3(
+      at(a, 0) * bary.x + at(b, 0) * bary.y + at(c, 0) * bary.z,
+      at(a, 1) * bary.x + at(b, 1) * bary.y + at(c, 1) * bary.z,
+      at(a, 2) * bary.x + at(b, 2) * bary.y + at(c, 2) * bary.z
+    );
+  };
+  if (!deformer.moving) return null;
+  return (_dt, t) => {
+    apply(t);
+    return true;
+  };
+}
+
+/**
+ * A polyline with points added so no segment is longer than `step` (a
+ * straight edge on a deformed grid bends with it).
+ * @param {number[]} run - x, y, z, ...
+ * @param {number} step
+ * @returns {number[]}
+ */
+export function densify(run, step) {
+  if (run.length < 6 || !(step > 0)) return run;
+  const out = [run[0], run[1], run[2]];
+  for (let k = 3; k < run.length; k += 3) {
+    const [ax, ay, az] = [run[k - 3], run[k - 2], run[k - 1]];
+    const [bx, by, bz] = [run[k], run[k + 1], run[k + 2]];
+    const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay, bz - az) / step));
+    for (let i = 1; i <= n; i++) out.push(ax + ((bx - ax) * i) / n, ay + ((by - ay) * i) / n, az + ((bz - az) * i) / n);
+  }
+  return out;
+}
+
+/**
+ * Point spacing for straight edges on a deformed grid: 1/64 of its size.
+ * @param {any} cfg
+ */
+const edgeStep = (cfg) => Math.max(...pair(cfg.size, [200, 200]), num(cfg.radius, 0)) / 64;
 
 /**
  * A deterministic 0..1 per cell (the same cell always gets the same shade).
@@ -260,14 +395,17 @@ export function cellHash(c, r, seed = 0) {
 /**
  * A filled cell range, one quad per cell; `shade` (0..1) varies each cell's
  * brightness up and down by that fraction, as on a printed sector map.
+ * `sub` splits each cell into sub x sub quads (a deformed grid bends inside a cell).
  * @param {number} c0
  * @param {number} c1
  * @param {number} r0
  * @param {number} r1
- * @param {{ s: number, x0: number, z0: number, color: number[], shade: number, seed: number }} o
+ * @param {{ s: number, x0: number, z0: number, color: number[], shade: number, seed: number, sub?: number }} o
  */
-export function cellFill(c0, c1, r0, r1, { s, x0, z0, color, shade, seed }) {
-  const n = (c1 - c0 + 1) * (r1 - r0 + 1);
+export function cellFill(c0, c1, r0, r1, { s, x0, z0, color, shade, seed, sub = 1 }) {
+  const m = Math.max(1, Math.round(sub));
+  const e = s / m;
+  const n = (c1 - c0 + 1) * (r1 - r0 + 1) * m * m;
   const pos = new Float32Array(n * 12);
   const colors = new Float32Array(n * 12);
   const index = new Uint32Array(n * 6);
@@ -275,14 +413,18 @@ export function cellFill(c0, c1, r0, r1, { s, x0, z0, color, shade, seed }) {
   const lin = (/** @type {number} */ v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
   let q = 0;
   for (let r = r0; r <= r1; r++) {
-    for (let c = c0; c <= c1; c++, q++) {
+    for (let c = c0; c <= c1; c++) {
       const k = 1 + Math.max(0, Math.min(1, shade)) * (2 * cellHash(c, r, seed) - 1);
       const rgb = [0, 1, 2].map((i) => lin(Math.max(0, Math.min(1, color[i] * k))));
-      const xa = x0 + c * s;
-      const za = z0 + r * s;
-      pos.set([xa, 0.01, za, xa + s, 0.01, za, xa, 0.01, za + s, xa + s, 0.01, za + s], q * 12);
-      for (let v = 0; v < 4; v++) colors.set(rgb, q * 12 + v * 3);
-      index.set([q * 4, q * 4 + 2, q * 4 + 1, q * 4 + 1, q * 4 + 2, q * 4 + 3], q * 6);
+      for (let j = 0; j < m; j++) {
+        for (let i = 0; i < m; i++, q++) {
+          const xa = x0 + c * s + i * e;
+          const za = z0 + r * s + j * e;
+          pos.set([xa, 0.01, za, xa + e, 0.01, za, xa, 0.01, za + e, xa + e, 0.01, za + e], q * 12);
+          for (let v = 0; v < 4; v++) colors.set(rgb, q * 12 + v * 3);
+          index.set([q * 4, q * 4 + 2, q * 4 + 1, q * 4 + 1, q * 4 + 2, q * 4 + 3], q * 6);
+        }
+      }
     }
   }
   const geo = new BufferGeometry();

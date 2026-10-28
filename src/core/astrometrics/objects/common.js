@@ -67,6 +67,8 @@ export const DEFAULT_COLORS = {
  * @property {import('three').Object3D} [placeNode] - what points on it are local to, when not `node` (a model's file space)
  * @property {'sphere' | 'depth'} [occluder] - how it hides labels when `occludes`: a sphere of `radius` (default), or its depth (meshes)
  * @property {boolean} [moving] - moves on its own besides spin (animation): points on it change every frame
+ * @property {(local: import('three').Vector3) => import('three').Vector3} [warp] - a deformed grid: moves an undeformed local position (in place) where the surface is now
+ * @property {(hit: import('three').Intersection) => (import('three').Vector3 | null)} [unwarpHit] - a deformed grid: a pick on it as an undeformed local position
  * @property {() => boolean} [isReady] - false while it loads (points on it wait)
  * @property {(name: string) => (import('three').Object3D | null)} [partNode] - a named node (a model's part)
  * @property {() => string[]} [partNames]

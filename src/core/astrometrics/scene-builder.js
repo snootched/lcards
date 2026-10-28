@@ -55,7 +55,7 @@ const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image
  * @returns {import('./placements.js').PlacementHost}
  */
 function hostOf(b) {
-  return { node: b.placeNode ?? b.node, radius: b.radius, cellPoint: b.cellPoint, moving: b.spin !== 0 || b.moving === true, ready: b.isReady, partNode: b.partNode };
+  return { node: b.placeNode ?? b.node, radius: b.radius, cellPoint: b.cellPoint, moving: b.spin !== 0 || b.moving === true, ready: b.isReady, partNode: b.partNode, warp: b.warp };
 }
 
 /**

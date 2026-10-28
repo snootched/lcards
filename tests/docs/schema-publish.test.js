@@ -132,7 +132,7 @@ test('every split file compiles in ajv with its shared refs, and real fixture co
     assert.equal(msd({ type: 'custom:lcards-msd-card', msd: { view_box: [0, 0, 1, 1], overlays: 'nope' } }), false);
 });
 
-test('size budgets: each card/view/strategy file under 100 KB, the full bundle under 650 KB', () => {
+test('size budgets: each card/view/strategy file under 100 KB, the full bundle under 700 KB', () => {
     for (const [rel, doc] of files) {
         if (rel.startsWith('shared/')) continue;
         const kb = Buffer.byteLength(JSON.stringify(doc)) / 1024;
@@ -141,7 +141,8 @@ test('size budgets: each card/view/strategy file under 100 KB, the full bundle u
     const bundleKb = Buffer.byteLength(JSON.stringify(bundle)) / 1024;
     // 600 until 2026-10-25: the astrometrics card (8 object types, ~150 described keys) added
     // 35 KB (572 to 607 KB) after its colours and common object keys were shared.
-    assert.ok(bundleKb < 650, `lcards-schema.json is ${bundleKb.toFixed(1)} KB`);
+    // 650 until 2026-10-27: grid deform + well keys (E5) took it to 654 KB.
+    assert.ok(bundleKb < 700, `lcards-schema.json is ${bundleKb.toFixed(1)} KB`);
 });
 
 test('published text has no em dashes (CLAUDE.md: schema descriptions are user-facing)', () => {

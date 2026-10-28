@@ -25,7 +25,7 @@ Moving effects (nebula clouds, scan bands on grids, spheres and volumes, moving 
 
 ## grid
 
-A grid surface. `shape` picks it: `plane` (`size`), `disc` (`radius`, `inner_radius`), `dome` (a half sphere), `sphere` or `cylinder` (`radius`, `height`). The line keys are the [background grid](/core/effects/background-animations/preset-reference#grid)'s: `pattern`, `line_spacing`, `major_row_interval`, `major_col_interval`, `line_width`, `line_width_major`, `color`, `color_major`, `fill_color`, `spoke_count`, `hex_radius`, `dot_radius`, `back_opacity`. On curved shapes `line_spacing_deg` puts rings and meridians every N degrees.
+A grid surface. `shape` picks it: `plane` (`size`), `disc` (`radius`, `inner_radius`), `dome` (a half sphere), `sphere`, `cylinder` (`radius`, `height`) or `well` (a funnel, [below](#wells-and-wormholes)). Any shape can be [deformed](#deformed-grids). The line keys are the [background grid](/core/effects/background-animations/preset-reference#grid)'s: `pattern`, `line_spacing`, `major_row_interval`, `major_col_interval`, `line_width`, `line_width_major`, `color`, `color_major`, `fill_color`, `spoke_count`, `hex_radius`, `dot_radius`, `back_opacity`. On curved shapes `line_spacing_deg` puts rings and meridians every N degrees.
 
 - `border` (default on): edge lines on the rim of a disc or dome and the frame of a plane.
 - `ring_labels: { step, radius, start, y, style, color }`: bearing labels round a disc or dome.
@@ -40,6 +40,77 @@ objects:
   - { type: grid, shape: disc, radius: 60, at: [-70, 0, 0], pattern: polar, line_spacing: 10, spoke_count: 24, ring_labels: { step: 45, style: tiny } }
   - { type: grid, shape: dome, radius: 45, at: [50, 0, 0], line_spacing_deg: 15, color: var(--lcars-blue) }
   - { type: grid, shape: cylinder, radius: 15, height: 60, at: [0, 30, -70], line_spacing_deg: 30, color: var(--lcars-orange) }
+```
+
+### Wells and wormholes
+
+`shape: well` is a funnel down from its rim: `radius` is the rim, `depth` how far down it goes (default the radius), and the profile is the background grid well's: `well_shape` (`trumpet`, the gravity well; `cone`; `bowl`; `wormhole`, two trumpets throat to throat) with `well_throat` (the throat as a fraction of the rim, default 0.15), or any `well_profile` (diameters from the rim down, such as `[1, 0.3, 0.6]`). The rim sits at the object's position, and the rings are spaced evenly along the surface however steep it gets. `border` draws the rim, and a wormhole's lower mouth.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 320
+camera:
+  views:
+    v: { target: [0, -40, 0], yaw: 20, tilt: 25, distance: 260 }
+objects:
+  - { type: grid, shape: disc, radius: 60, inner_radius: 50, at: [-65, 0, 0], pattern: polar, spoke_count: 24, line_spacing: 5 }
+  - { type: grid, shape: well, radius: 50, depth: 60, at: [-65, 0, 0], line_spacing_deg: 15 }
+  - { type: grid, shape: well, well_shape: wormhole, well_throat: 0.25, radius: 40, depth: 110, at: [65, 0, 0], line_spacing_deg: 20, color: var(--lcars-blue) }
+```
+
+### Deformed grids
+
+`deform` is a list of deformations applied in order to any grid. Round the axis on a cylinder, sphere, dome or well; up and down on a plane or disc. The lines are painted on the surface and stretch with it; rims, cell fills and points standing on the grid (`object: <grid>`) move with it, and picking a point on it in the editor gives its place on the undeformed grid. Amplitudes are fractions of the grid's size (its radius, or half a plane's longer side). Deformations move on the scene clock and hold still under reduced motion; with `speed: 0` a deformation is a still shape.
+
+| `type` | Round an axis | On a plane or disc | Keys (defaults) |
+|---|---|---|---|
+| `wobble` | Bulges travelling round (jelly) | Ripples across it, larger toward the edge | `amplitude` (0.08), `lobes` (3; 0 swells the whole ring), `waves` (1: along the axis, so the bulges spiral), `speed` (0.25 cycles/s) |
+| `bend` | The axis bends toward `bearing` | The sheet curls up along `bearing` | `amplitude` (0.25), `bearing` (0), `motion`: `sway` (to and fro), `circle` (the bend turns round: a tornado) or `none`; `speed` (0.2), `anchor` |
+| `twist` | Turns more toward the far end | A whirlpool: most at the centre, none at the rim | `angle` (90 degrees), `speed` (0: still; else it swings between plus and minus `angle`), `anchor` |
+| `noise` | Smooth lumps in and out | Smooth hills and hollows | `amplitude` (0.05), `frequency` (3 lumps across), `octaves` (2), `speed` (0.1 cells/s drift), `seed` |
+
+`anchor` (`bottom`, `top` or `middle`) is the end of the axis that stays put. A deformed grid is drawn with finer patches than a plain one and is moved on the CPU each frame while it moves: about 0.05 ms per grid for wobble, bend and twist on a desktop; moving noise costs more (about 0.25 ms for a plane).
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 340
+camera:
+  views:
+    v: { target: [0, 30, 0], yaw: 15, tilt: 15, distance: 300 }
+objects:
+  - id: jelly
+    type: grid
+    shape: cylinder
+    radius: 25
+    height: 70
+    at: [-85, 35, 0]
+    line_spacing_deg: 20
+    color: var(--lcars-orange)
+    deform:
+      - { type: wobble, amplitude: 0.15, lobes: 3, waves: 1 }
+  - id: tornado
+    type: grid
+    shape: well
+    well_profile: [1, 0.35, 0.15, 0.08]
+    radius: 40
+    depth: 110
+    at: [0, 110, 0]
+    line_spacing_deg: 20
+    color: var(--lcars-blue)
+    deform:
+      - { type: twist, angle: 120, anchor: top }
+      - { type: bend, amplitude: 0.5, motion: circle, speed: 0.15, anchor: top }
+  - id: whirlpool
+    type: grid
+    shape: disc
+    radius: 45
+    at: [85, 0, 0]
+    pattern: polar
+    spoke_count: 18
+    line_spacing: 6
+    deform:
+      - { type: twist, angle: 150 }
+      - { type: wobble, amplitude: 0.06, lobes: 0, waves: 3, speed: 0.4 }
 ```
 
 ### Sector maps

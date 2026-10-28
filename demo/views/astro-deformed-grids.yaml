@@ -1,0 +1,97 @@
+# Astrometrics deformed grids (E5): wells and a wormhole, a jelly cylinder,
+# a tornado (twist + circling bend), a whirlpool disc, and a sector map on
+# rolling noise with its cells and points riding the surface.
+title: Astrometrics deformed grids
+path: astro-deformed-grids
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        id: demo_deform
+        height: 520
+        camera:
+          view: wide
+          views:
+            wide: { target: [0, 20, 0], yaw: 15, tilt: 14, distance: 380 }
+            tornado: { target: [0, 60, 0], yaw: 40, tilt: 6, distance: 200 }
+            wormhole: { target: [130, 5, 0], yaw: 0, tilt: 10, distance: 190 }
+          buttons: true
+        backdrop: { stars: { count: 1500 } }
+        points:
+          - { id: jelly_top, object: jelly, xyz: [0, 35, -25], label: SPECIMEN, marker: dot, style: minor }
+          - { id: eye, object: tornado, xyz: [0, -110, 0], label: VORTEX, marker: reticle, style: major }
+          - { id: mouth, object: wormhole, polar: [40, 90], label: APERTURE, marker: diamond, style: minor }
+          - { id: drain, object: whirlpool, xyz: [0, 0, 0], label: MAELSTROM, marker: dot, style: minor }
+        objects:
+          - id: jelly
+            type: grid
+            shape: cylinder
+            radius: 25
+            height: 70
+            at: [-130, 35, 0]
+            line_spacing_deg: 20
+            color: var(--lcars-orange)
+            deform:
+              - { type: wobble, amplitude: 0.15, lobes: 3, waves: 1 }
+          - id: tornado
+            type: grid
+            shape: well
+            well_profile: [1, 0.35, 0.15, 0.08]
+            radius: 40
+            depth: 110
+            at: [0, 110, 0]
+            line_spacing_deg: 20
+            color: var(--lcars-blue)
+            deform:
+              - { type: twist, angle: 120, anchor: top }
+              - { type: bend, amplitude: 0.5, motion: circle, speed: 0.15, anchor: top }
+          - id: wormhole
+            type: grid
+            shape: well
+            well_shape: wormhole
+            well_throat: 0.25
+            radius: 40
+            depth: 110
+            at: [130, 60, 0]
+            line_spacing_deg: 20
+            scan_period: 4
+            deform:
+              - { type: wobble, amplitude: 0.05, lobes: 0, waves: 2, speed: 0.3 }
+          - id: whirlpool
+            type: grid
+            shape: disc
+            radius: 55
+            at: [0, -40, 90]
+            pattern: polar
+            spoke_count: 18
+            line_spacing: 6
+            color: var(--lcars-violet, var(--lcards-blue-medium))
+            deform:
+              - { type: twist, angle: 150 }
+              - { type: wobble, amplitude: 0.06, lobes: 0, waves: 3, speed: 0.4 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        id: demo_terrain
+        height: 420
+        camera:
+          view: v
+          views:
+            v: { target: [0, 0, 0], yaw: 25, tilt: 30, distance: 230 }
+        points:
+          - { id: outpost, object: terrain, cell: C3, label: OUTPOST, marker: triangle, style: major }
+          - { id: relay, object: terrain, cell: F6, label: RELAY, marker: dot, style: minor }
+        objects:
+          - id: terrain
+            type: grid
+            size: 160
+            line_spacing: 20
+            axis_labels: { style: tiny }
+            cells:
+              - { from: B2, to: D4, color: var(--lcars-orange), opacity: 0.3, border: true }
+            deform:
+              - { type: noise, amplitude: 0.12, frequency: 2.5, speed: 0.08 }

@@ -1,0 +1,40 @@
+# Deformed grids (astro-deform.spec.js): a tornado well (twist + circling bend) with a point on it, a wormhole, a noisy sector map with a cell point.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: v
+  views:
+    v: { target: [0, 20, 0], yaw: 15, tilt: 14, distance: 320 }
+points:
+  - { id: eye, object: tornado, xyz: [0, -110, 0], label: VORTEX, marker: dot }
+  - { id: outpost, object: terrain, cell: B2, label: OUTPOST, marker: dot }
+objects:
+  - id: tornado
+    type: grid
+    shape: well
+    well_profile: [1, 0.35, 0.15, 0.08]
+    radius: 40
+    depth: 110
+    at: [-60, 110, 0]
+    line_spacing_deg: 20
+    deform:
+      - { type: twist, angle: 120, anchor: top }
+      - { type: bend, amplitude: 0.5, motion: circle, speed: 0.5, anchor: top }
+  - id: wormhole
+    type: grid
+    shape: well
+    well_shape: wormhole
+    radius: 35
+    depth: 90
+    at: [70, 40, 0]
+    line_spacing_deg: 20
+  - id: terrain
+    type: grid
+    size: 120
+    line_spacing: 20
+    at: [0, -40, 80]
+    axis_labels: { style: tiny }
+    cells:
+      - { from: A1, to: B2, color: var(--lcars-orange), border: true }
+    deform:
+      - { type: noise, amplitude: 0.1, speed: 0 }

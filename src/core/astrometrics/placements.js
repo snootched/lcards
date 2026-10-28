@@ -114,6 +114,7 @@ export function parseCell(code) {
  * @property {number} [radius]
  * @property {(code: string) => Vector3 | null} [cellPoint] - local centre of a cell
  * @property {boolean} [moving] - spins or moves (points on it change every frame)
+ * @property {(local: Vector3) => Vector3} [warp] - a deformed grid: moves a local position with the surface (in place)
  * @property {() => boolean} [ready] - false while it loads: points on it have no position yet
  * @property {(name: string) => (import('three').Object3D | null)} [partNode] - a named part (a model's glTF node)
  */
@@ -296,7 +297,7 @@ export class Placements {
       return new Vector3(+o[0] || 0, +o[1] || 0, +o[2] || 0).applyMatrix4(node.matrixWorld);
     }
     /** Local to the host when there is one */
-    const world = (/** @type {Vector3} */ v) => (host ? v.applyMatrix4(host.node.matrixWorld) : v);
+    const world = (/** @type {Vector3} */ v) => (host ? (host.warp ? host.warp(v) : v).applyMatrix4(host.node.matrixWorld) : v);
     const R = (host?.radius ?? 1) + (Number(d.alt) || 0);
     if (Array.isArray(d.xyz)) return world(new Vector3(+d.xyz[0] || 0, +d.xyz[1] || 0, +d.xyz[2] || 0));
     if (Array.isArray(d.polar)) {

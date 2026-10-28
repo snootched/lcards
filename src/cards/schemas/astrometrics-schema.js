@@ -24,7 +24,8 @@ import {
     stateClassificationSchema, triggersUpdateSchema, dataSourcesSchema
 } from './common-schemas.js';
 import {
-    OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, FILL_EFFECTS, MODEL_MATERIALS
+    OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, FILL_EFFECTS, MODEL_MATERIALS,
+    WELL_SHAPE_NAMES, DEFORM_TYPES, BEND_MOTIONS, DEFORM_ANCHORS
 } from '../../core/astrometrics/names.js';
 import { LABEL_POSITION_NAMES, LABEL_OMITTED_KEYS } from '../../core/astrometrics/label-text.js';
 
@@ -466,20 +467,47 @@ const gridLook = {
     ...scanKeys
 };
 
+/** One `deform:` entry on a grid: a warp of its surface (core/astrometrics/deform.js) */
+const deformSchema = {
+    type: 'object',
+    required: ['type'],
+    additionalProperties: false,
+    description: 'A deformation of the grid surface. Round the axis on a cylinder, sphere, dome or well; up and down on a plane or disc. The lines, the rims and the points on the grid move with it. Moves on the scene clock and holds still under reduced motion.',
+    properties: {
+        type: { type: 'string', enum: [...DEFORM_TYPES], description: 'wobble (bulges travelling round, or ripples across a flat grid), bend (the axis bends or sways; a flat grid curls), twist (turns more toward the far end; a flat grid swirls like a whirlpool) or noise (smooth random lumps).', enumDescriptions: { wobble: 'Travelling bulges or ripples', bend: 'Bending or swaying axis', twist: 'Twist or whirlpool', noise: 'Smooth random lumps' } },
+        amplitude: number('wobble, bend, noise: how far the surface moves, as a fraction of the grid\'s size (its radius, or half a plane\'s longer side). Default wobble 0.08, bend 0.25, noise 0.05.'),
+        lobes: { type: 'integer', minimum: 0, default: 3, description: 'wobble: bulges round the circumference (0: the whole ring swells at once; on a flat grid, ripples ring out from the centre).' },
+        waves: number('wobble: waves along the axis (or out from the centre of a flat grid) between bulges, so they spiral.', { default: 1 }),
+        speed: number('How fast it moves, cycles per second (noise: noise cells per second). 0 holds it still. Default wobble 0.25, bend 0.2, twist 0, noise 0.1.'),
+        bearing: number('bend: direction the axis bends toward, degrees (0 north, clockwise from above).', { default: 0 }),
+        motion: { type: 'string', enum: [...BEND_MOTIONS], default: 'sway', description: 'bend: sway (bends to and fro), circle (the bend turns round, a tornado) or none (a still bend).', enumDescriptions: { sway: 'Bends to and fro', circle: 'The bend turns round', none: 'Still bend' } },
+        angle: number('twist: degrees turned at the far end (at the centre of a flat grid). With speed the twist swings between plus and minus this.', { default: 90 }),
+        anchor: { type: 'string', enum: [...DEFORM_ANCHORS], default: 'bottom', description: 'bend, twist round an axis: the end that stays put (middle: both ends move).' },
+        frequency: number('noise: noise cells across the grid\'s size (higher is smaller lumps).', { exclusiveMinimum: 0, default: 3 }),
+        octaves: { type: 'integer', minimum: 1, maximum: 6, default: 2, description: 'noise: layers of finer detail.' },
+        seed: number('noise: changes the pattern.', { default: 0 })
+    }
+};
+
 const gridObject = {
     type: 'object',
     title: 'grid',
     required: ['type'],
     allOf: [objectCommonSchema],
-    description: 'A grid surface: plane (a sector map), disc (a galaxy disc), dome (a sky), sphere or cylinder.',
+    description: 'A grid surface: plane (a sector map), disc (a galaxy disc), dome (a sky), sphere, cylinder or well (a funnel, a wormhole), optionally deformed (deform).',
     properties: {
         type: { type: 'string', const: 'grid', description: 'grid: a grid surface.' },
-        shape: { type: 'string', enum: [...GRID_SHAPES], default: 'plane', description: 'plane (size), disc (radius, inner_radius), dome (a half sphere, radius), sphere (radius) or cylinder (radius, height).' },
+        shape: { type: 'string', enum: [...GRID_SHAPES], default: 'plane', description: 'plane (size), disc (radius, inner_radius), dome (a half sphere, radius), sphere (radius), cylinder (radius, height) or well (a funnel down from its rim: radius, depth, well_shape).' },
         size: numberOrPair('plane: width and depth [w, d], scene units (one number for a square). Default 200.'),
-        radius: number('disc, dome, sphere, cylinder: radius, scene units. Default 100.', { exclusiveMinimum: 0 }),
+        radius: number('disc, dome, sphere, cylinder, well (its rim): radius, scene units. Default 100.', { exclusiveMinimum: 0 }),
         inner_radius: number('disc: radius of the hole in the middle, scene units. Default 0.', { minimum: 0 }),
         height: number('cylinder: height, scene units. Default the radius.', { exclusiveMinimum: 0 }),
-        line_spacing_deg: number('disc: a spoke every N degrees; dome, sphere, cylinder: rings and meridians every N degrees (a whole number fits round). Default 15 on curved shapes.', { exclusiveMinimum: 0 }),
+        depth: number('well: depth below the rim, scene units (the rim is at the object\'s position). Default the radius.', { exclusiveMinimum: 0 }),
+        well_shape: { type: 'string', enum: [...WELL_SHAPE_NAMES], default: 'trumpet', description: 'well: profile from the rim down. trumpet (a gravity well: flat at the rim, plunging to the throat), cone, bowl or wormhole (two trumpets throat to throat, the throat halfway down). well_profile replaces it.', enumDescriptions: { trumpet: 'Gravity well', cone: 'Straight sides', bowl: 'Rounded bottom', wormhole: 'Hourglass' } },
+        well_throat: number('well: throat diameter as a fraction of the rim (well_shape).', { minimum: 0.02, maximum: 1, default: 0.15 }),
+        well_profile: { type: 'array', items: { type: 'number', minimum: 0 }, minItems: 2, maxItems: 32, description: 'well: any profile, diameters as fractions of the rim from the rim down, evenly spaced along the depth; a smooth curve passes through each. [1, 0.4, 0.2, 0.15] is a trumpet, [1, 0.2, 1] an hourglass. Replaces well_shape.' },
+        deform: { type: 'array', items: deformSchema, description: 'Deformations of the surface, applied in order: wobble, bend, twist, noise. A wobbling cylinder is jelly; a well with bend (motion: circle) and twist is a tornado; a disc with twist is a whirlpool.' },
+        line_spacing_deg: number('disc: a spoke every N degrees; dome, sphere, cylinder, well: rings and meridians every N degrees (a whole number fits round). Default 15 on curved shapes.', { exclusiveMinimum: 0 }),
         ...gridLook,
         fill_color: color('Colour filling the cells behind the lines. Default none.'),
         fill_effect: fillEffectSchema,

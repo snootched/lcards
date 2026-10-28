@@ -670,8 +670,8 @@ export function createAstroScene(host, config, options = {}) {
     let local = null;
     if (host) {
       const hit = ray.intersectObjects(host.pickMeshes, false)[0];
-      // a model's points are in its file's coordinates
-      if (hit) local = (host.placeNode ?? host.node).worldToLocal(hit.point.clone());
+      // a model's points are in its file's coordinates; a deformed grid's on its undeformed surface
+      if (hit) local = host.unwarpHit?.(hit) ?? (host.placeNode ?? host.node).worldToLocal(hit.point.clone());
     } else {
       const r = screenRay(rig.keys, rig.projection, x, y, cssW, cssH);
       const g = rayPlane(r, [0, 0, 0], [0, 1, 0], 0.02);

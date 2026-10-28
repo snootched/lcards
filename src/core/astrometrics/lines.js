@@ -175,6 +175,27 @@ export class FatLine {
   }
 
   /**
+   * The segment end points as drawn (x, y, z per end, two ends per segment):
+   * a copy to move with `moveSegments`.
+   * @returns {Float32Array}
+   */
+  segmentPositions() {
+    return this._segs.positions.slice();
+  }
+
+  /**
+   * Move the segment ends in place (a deforming rim each frame), without new
+   * buffers: `positions` as `segmentPositions()` gave them, moved.
+   * @param {Float32Array} positions
+   */
+  moveSegments(positions) {
+    const attr = /** @type {any} */ (this.geometry.getAttribute('instanceStart'));
+    if (!attr || attr.data.array.length !== positions.length) return;
+    attr.data.array.set(positions);
+    attr.data.needsUpdate = true;
+  }
+
+  /**
    * Per-segment colours, fading from `color` to `colorTo` along each run.
    * @param {number[][]} runs
    * @private

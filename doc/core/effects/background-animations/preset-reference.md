@@ -220,7 +220,7 @@ background_animation:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `well_shape` | `trumpet` | `trumpet`: the gravity well, nearly flat at the rim and plunging to the throat. `cone`: straight sides. `bowl`: rounded toward the bottom |
+| `well_shape` | `trumpet` | `trumpet`: the gravity well, nearly flat at the rim and plunging to the throat. `cone`: straight sides. `bowl`: rounded toward the bottom. `wormhole`: two trumpets throat to throat (an hourglass, the throat halfway down) |
 | `well_throat` | 0.15 | The throat of a `well_shape`, as a fraction of the rim (1 is a cylinder) |
 | `well_profile` | | Any shape: diameters as fractions of `surface_size`, from the rim down to the bottom, evenly spaced along the depth. A smooth curve passes through every one. Replaces `well_shape` and `well_throat` |
 | `well_profile_to` | | A second profile in the same form, for `well_morph` |

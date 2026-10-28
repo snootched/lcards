@@ -35,7 +35,9 @@ export const WELL_SHAPES = {
   trumpet: (/** @type {number} */ h, /** @type {number} */ a) => 1 / (1 / a - h * (1 / a - 1)),
   cone: (/** @type {number} */ h, /** @type {number} */ a) => a + (1 - a) * h,
   // A paraboloid: round at the bottom
-  bowl: (/** @type {number} */ h, /** @type {number} */ a) => Math.sqrt(a * a + (1 - a * a) * h)
+  bowl: (/** @type {number} */ h, /** @type {number} */ a) => Math.sqrt(a * a + (1 - a * a) * h),
+  // Two trumpets throat to throat (an hourglass): the throat halfway down
+  wormhole: (/** @type {number} */ h, /** @type {number} */ a) => WELL_SHAPES.trumpet(Math.abs(2 * h - 1), a)
 };
 
 /**

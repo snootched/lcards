@@ -39,7 +39,7 @@ const GRID_VIEW_GUIDE = [
   { key: 'surface', default: 'plane', description: "'plane', 'cylinder', 'dome', 'sphere' or 'well' (a funnel): the grid on a curved surface (astrometrics wireframes). Needs WebGL; without it the flat grid is drawn." },
   { key: 'surface_size', default: 0.8, description: "Curved surface diameter, as a fraction of the card's shorter side." },
   { key: 'surface_length', default: 1, description: "Cylinder length or well depth, as a fraction of the card's size along its axis (0 = a cylinder runs off the card)." },
-  { key: 'well_shape', default: 'trumpet', description: "'trumpet' (the gravity well), 'cone' or 'bowl': the well's profile from rim to throat." },
+  { key: 'well_shape', default: 'trumpet', description: "'trumpet' (the gravity well), 'cone', 'bowl' or 'wormhole' (an hourglass): the well's profile from rim to throat." },
   { key: 'well_throat', default: 0.15, description: 'Throat diameter of a well_shape, as a fraction of its rim (1 = a cylinder).' },
   { key: 'well_profile', description: 'Any well shape: diameters (fractions of surface_size) from the rim down, evenly spaced; a smooth curve passes through them. Replaces well_shape.' },
   { key: 'surface_axis', default: 'vertical', description: "'vertical' or 'horizontal': a cylinder upright or lying across the card; a dome opening down or facing you." },

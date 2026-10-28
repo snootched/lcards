@@ -24,7 +24,22 @@ export const MODEL_MATERIALS = /** @type {const} */ (['hologram', 'original']);
 export const FILL_EFFECTS = /** @type {const} */ (['plasma', 'fluid', 'contour']);
 
 /** `grid` shapes */
-export const GRID_SHAPES = /** @type {const} */ (['plane', 'disc', 'dome', 'sphere', 'cylinder']);
+export const GRID_SHAPES = /** @type {const} */ (['plane', 'disc', 'dome', 'sphere', 'cylinder', 'well']);
+
+/** Grid shapes deformed round their y axis (the others are flat) */
+export const AXIAL_GRID_SHAPES = /** @type {const} */ (['dome', 'sphere', 'cylinder', 'well']);
+
+/** `well_shape` names (the background grid's well shapes, `grid-surface-model.js` WELL_SHAPES) */
+export const WELL_SHAPE_NAMES = /** @type {const} */ (['trumpet', 'cone', 'bowl', 'wormhole']);
+
+/** `deform:` types on a grid */
+export const DEFORM_TYPES = /** @type {const} */ (['wobble', 'bend', 'twist', 'noise']);
+
+/** `deform` bend motions */
+export const BEND_MOTIONS = /** @type {const} */ (['sway', 'circle', 'none']);
+
+/** Where a bend or twist starts (stays put) */
+export const DEFORM_ANCHORS = /** @type {const} */ (['bottom', 'top', 'middle']);
 
 /** `grid` line patterns (the background grid effect's names) */
 export const GRID_PATTERNS = /** @type {const} */ (['both', 'horizontal', 'vertical', 'diagonal', 'hexagonal', 'dots', 'polar']);

@@ -44,6 +44,12 @@ releases:
         session: "E4"
         docs: /cards/astrometrics/objects#model
         public: true
+      - file: astro-deformed-grids
+        summary: "Deformed grids, wells and a wormhole"
+        description: "A jelly cylinder, a tornado (a twisted well whose bend circles), a wormhole with a ripple, a whirlpool disc, and a sector map on rolling noise with its cells and points riding the surface."
+        session: "E5"
+        docs: /cards/astrometrics/objects#deformed-grids
+        public: true
       - file: webgl-scenes
         summary: "WebGL background scenes, alone and stacked"
         description: "three.js background scenes: the WebGL noise presets, grid floor and warp starfield, alone and stacked."
