@@ -175,6 +175,9 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
     else if (cfg.type === 'path') add(cfg, (c) => buildPath(c, ctx, objects));
     else if (cfg.type === 'beam') add(cfg, (c) => buildBeam(c, ctx));
   }
+  // Line objects need the placements to draw, so they come second; points can
+  // still stand on them (a planet on its spinning orbit ring)
+  for (const [id, b] of objects) if (!hosts.has(id)) hosts.set(id, hostOf(b));
 
   const stars = config?.backdrop?.stars ? buildStars(config.backdrop.stars === true ? {} : config.backdrop.stars, ctx) : null;
   if (stars) scene.add(stars.node);

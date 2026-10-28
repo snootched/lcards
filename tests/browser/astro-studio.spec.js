@@ -218,3 +218,46 @@ test('studio: capture a view where the camera is (no jump), target named by its 
     await expect.poll(async () => (await scene()).tilt).toBe(90);
     expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
 });
+
+test('studio: starters: a part round a card point (it orbits), clashes refused, a scene merged', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await openStudio(page);
+    const dialog = page.locator('lcards-astrometrics-studio-dialog');
+    const button = (starter, text) => dialog.locator(`[data-starter="${starter}"] ha-button`).filter({ hasText: text });
+    await page.evaluate(() => { window.__studio._activeTab = 'starters'; window.__studio._openStarter = 'planet'; });
+    await expect(dialog.locator('pre.starter-yaml')).toContainText('planet_body');
+    await page.evaluate(() => {
+        window.__studio._setStarterParam('planet', 'prefix', 'mars');
+        window.__studio._setStarterParam('planet', 'centre', 'svc');
+    });
+    await expect(dialog.locator('pre.starter-yaml')).toContainText('mars_body');
+
+    await button('planet', 'Add to the scene').click();
+    await expect.poll(() => page.evaluate(() => window.__studio._workingConfig.points.map((p) => p.id))).toEqual(['svc', 'mars_body', 'mars_moon1', 'mars_moon2']);
+    expect(await page.evaluate(() => window.__studio._workingConfig.objects.find((o) => o.id === 'mars_orbit').at)).toBe('svc');
+    expect(await page.evaluate(() => window.__studio._starterMessage)).toEqual({ starter: 'planet', type: 'success', text: 'Planet with moons: added 3 points, 6 objects.' });
+    // the planet goes round: the orbit ring spins and the point stands on it
+    await expect.poll(() => page.evaluate(() => window.__studio._previewCard._scene.debug().world?.list.length)).toBe(7);
+    const at = () => page.evaluate(() => window.__studio._previewCard._scene.pointPositions().mars_body);
+    const p0 = await at();
+    await page.waitForTimeout(800);
+    const p1 = await at();
+    expect(Math.hypot(p1[0] - p0[0], p1[2] - p0[2])).toBeGreaterThan(0.5);
+
+    // the same prefix again is refused, naming the clash
+    await button('planet', 'Add to the scene').click();
+    await expect.poll(() => page.evaluate(() => window.__studio._starterMessage?.type)).toBe('error');
+    expect(await page.evaluate(() => window.__studio._starterMessage.text)).toMatch(/^Already in this card: point mars_body, /);
+
+    // the solar system's top view clashes with the card's; the sector map merges: its views join, the start view stays
+    await page.evaluate(() => { window.__studio._openStarter = 'solar_system'; });
+    await button('solar_system', 'Merge into the scene').click();
+    await expect.poll(() => page.evaluate(() => window.__studio._starterMessage?.text)).toMatch(/view top\. Replace the scene/);
+    await page.evaluate(() => { window.__studio._openStarter = 'sector_map'; });
+    await button('sector_map', 'Merge into the scene').click();
+    await expect.poll(() => page.evaluate(() => Object.keys(window.__studio._workingConfig.camera.views))).toEqual(['top', 'map']);
+    expect(await page.evaluate(() => window.__studio._workingConfig.camera.view)).toBe('top');
+    expect(await page.evaluate(() => window.__studio._workingConfig.objects.map((o) => o.id).slice(-1))).toEqual(['sectors']);
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
+});

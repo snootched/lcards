@@ -13,7 +13,8 @@
  * Pick), Objects (a list; each object's form is generated from its type's
  * schema branch, so new object types need no Studio work), Camera (named
  * views captured from the preview, flown to, set first; then the camera keys),
- * YAML.
+ * Starters (whole scenes and parts copied into the config, with a few
+ * params), YAML.
  *
  * The working copy is plain config: Save sends it whole.
  *
@@ -23,6 +24,7 @@
  */
 
 import { LitElement, html, css, nothing } from 'lit';
+import jsYaml from 'js-yaml';
 import { createRef, ref } from 'lit/directives/ref.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { editorStyles } from '../base/editor-styles.js';
@@ -34,6 +36,7 @@ import { objectBranch, objectSummary, freshId, newObject, COMMON_GROUPS } from '
 import {
   viewsOf, startViewName, captureView, freshViewName, setView, deleteView, moveView, renameView, viewNameProblem, viewSummary
 } from './astro-studio/camera-views.js';
+import { STARTERS, applyStarter, starterParams, hasScene } from '../../core/astrometrics/starters/index.js';
 import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
 import './astro-studio/lcards-astro-schema-form.js';
@@ -63,6 +66,9 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       _placing: { state: true },
       _status: { state: true },
       _expandedView: { state: true },
+      _openStarter: { state: true },
+      _starterParams: { state: true },
+      _starterMessage: { state: true },
       _viewError: { state: true }
     };
   }
@@ -88,6 +94,12 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     this._expandedView = null;
     /** @type {string} why the last rename was refused */
     this._viewError = '';
+    /** @type {string | null} the open starter in the Starters tab */
+    this._openStarter = null;
+    /** @type {Record<string, Record<string, any>>} what was typed into each starter's params */
+    this._starterParams = {};
+    /** @type {{ starter: string, type: 'error' | 'success', text: string } | null} the last insert's outcome, shown in that starter */
+    this._starterMessage = null;
     this._previewRef = createRef();
     this._onPlaceKey = this._onPlaceKey.bind(this);
     /** @type {any} the preview card */
@@ -365,6 +377,12 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         .view-name { display: block; margin-bottom: var(--ha-space-3); }
         .views-section { margin-bottom: var(--ha-space-4); }
         .views-section > .hint { margin-bottom: var(--ha-space-2); }
+        .starter-group { margin: var(--ha-space-4) 0 var(--ha-space-2); }
+        .starter-params { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ha-space-3); margin-bottom: var(--ha-space-3); }
+        .starter-yaml { max-height: 220px; overflow: auto; margin: 0 0 var(--ha-space-3); padding: var(--ha-space-2) var(--ha-space-3);
+          font-family: var(--ha-font-family-code, monospace); font-size: var(--ha-font-size-s, 12px); white-space: pre;
+          border-radius: var(--ha-border-radius-md); background-color: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent)); }
+        .starter-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--ha-space-2); }
         .toolbar-status { color: white; font-size: var(--ha-font-size-s, 12px); padding-right: var(--ha-space-2); max-width: 32ch; }
       `
     ];
@@ -376,6 +394,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       { id: 'points', label: 'Points', icon: 'mdi:map-marker-multiple' },
       { id: 'objects', label: 'Objects', icon: 'mdi:shape-outline' },
       { id: 'camera', label: 'Camera', icon: 'mdi:video-3d' },
+      { id: 'starters', label: 'Starters', icon: 'mdi:rocket-launch-outline' },
       { id: 'yaml', label: 'YAML', icon: 'mdi:code-braces' }
     ];
     return html`
@@ -432,6 +451,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       case 'scene': return this._renderSceneTab();
       case 'points': return this._renderPointsTab();
       case 'camera': return this._renderCameraTab();
+      case 'starters': return this._renderStartersTab();
       case 'yaml': return html`
         <lcards-studio-yaml-tab
           .hass=${this.hass}
@@ -616,6 +636,109 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     if (!ok) return;
     if (this._expandedView === name) this._expandedView = null;
     this._setCamera(deleteView(this._workingConfig.camera, name));
+  }
+
+  /** @private */
+  _renderStartersTab() {
+    const group = (/** @type {'scene' | 'part'} */ kind) => STARTERS.filter((st) => st.kind === kind).map((st) => this._renderStarter(st));
+    return html`
+      <div class="hint">Starters are copied into your config: change anything afterwards, nothing refers back to them. A scene replaces what is here (or merges into it); a part adds itself, its ids starting with the name you give it.</div>
+      <h3 class="starter-group">Scenes</h3>
+      ${group('scene')}
+      <h3 class="starter-group">Parts</h3>
+      ${group('part')}
+    `;
+  }
+
+  /**
+   * @param {import('../../core/astrometrics/starters/index.js').Starter} starter
+   * @private
+   */
+  _renderStarter(starter) {
+    const expanded = this._openStarter === starter.id;
+    const typed = this._starterParams[starter.id] ?? {};
+    return html`
+      <lcards-form-section class="object" data-starter=${starter.id} header=${starter.title} secondary=${starter.description}
+        icon=${starter.icon} outlined ?expanded=${expanded}
+        @expanded-changed=${(/** @type {CustomEvent} */ e) => {
+          if (e.detail.expanded) this._openStarter = starter.id;
+          else if (this._openStarter === starter.id) this._openStarter = null;
+        }}>
+        ${expanded ? html`
+          ${starter.params.length ? html`
+            <div class="starter-params">
+              ${starter.params.map((p) => html`
+                <ha-input .label=${p.label} .value=${String(typed[p.key] ?? (Array.isArray(p.default) ? p.default.join(', ') : p.default))}
+                  type=${p.type === 'number' ? 'number' : 'text'} .hint=${p.helper ?? ''}
+                  @change=${(/** @type {Event} */ e) => this._setStarterParam(starter.id, p.key, /** @type {any} */ (e.target).value)}></ha-input>`)}
+            </div>` : nothing}
+          <pre class="starter-yaml">${this._starterYaml(starter, typed)}</pre>
+          ${this._starterMessage?.starter === starter.id
+            ? html`<lcards-message type=${this._starterMessage.type}>${this._starterMessage.text}</lcards-message>` : nothing}
+          <div class="starter-actions">
+            ${starter.kind === 'scene' ? html`
+              <ha-button appearance="plain" ?disabled=${!hasScene(this._workingConfig)} @click=${() => this._insertStarter(starter, 'merge')}>
+                <ha-icon icon="mdi:plus" slot="start"></ha-icon>
+                Merge into the scene
+              </ha-button>
+              <ha-button @click=${() => this._insertStarter(starter, 'replace')}>
+                <ha-icon icon="mdi:swap-horizontal" slot="start"></ha-icon>
+                Use this scene
+              </ha-button>` : html`
+              <ha-button @click=${() => this._insertStarter(starter, 'merge')}>
+                <ha-icon icon="mdi:plus" slot="start"></ha-icon>
+                Add to the scene
+              </ha-button>`}
+          </div>` : nothing}
+      </lcards-form-section>
+    `;
+  }
+
+  /** @param {string} id @param {string} key @param {any} value @private */
+  _setStarterParam(id, key, value) {
+    this._starterParams = { ...this._starterParams, [id]: { ...this._starterParams[id], [key]: value } };
+  }
+
+  /**
+   * The YAML a starter adds, with the params as typed.
+   * @param {import('../../core/astrometrics/starters/index.js').Starter} starter
+   * @param {Record<string, any>} typed
+   * @private
+   */
+  _starterYaml(starter, typed) {
+    const out = applyStarter({}, starter, typed);
+    if (!out.config) return out.error;
+    const { type: _type, ...added } = out.config;
+    return jsYaml.dump(added, { flowLevel: 3, lineWidth: 120, noRefs: true });
+  }
+
+  /**
+   * Put a starter into the working copy: a scene replaces (confirmed when
+   * there is a scene) or merges; a part adds. Clashing ids are refused.
+   * @param {import('../../core/astrometrics/starters/index.js').Starter} starter
+   * @param {'replace' | 'merge'} mode
+   * @private
+   */
+  async _insertStarter(starter, mode) {
+    if (starter.kind === 'scene' && mode === 'replace' && hasScene(this._workingConfig)) {
+      const ok = await showConfirmDeleteDialog({
+        title: 'Replace the scene',
+        message: `Replace the points, objects, camera, backdrop and labels with ${starter.title}? Cancel in the Studio still brings them back.`,
+        confirmText: 'Replace'
+      });
+      if (!ok) return;
+    }
+    const out = applyStarter(this._workingConfig, starter, this._starterParams[starter.id] ?? {}, { mode });
+    if (!out.config || !out.added) {
+      this._starterMessage = { starter: starter.id, type: 'error', text: String(out.error) };
+      return;
+    }
+    const n = (/** @type {any[] | undefined} */ list, /** @type {string} */ word) => (list?.length ? `${list.length} ${word}${list.length === 1 ? '' : 's'}` : null);
+    const what = [n(out.added.points, 'point'), n(out.added.objects, 'object'), n(Object.keys(out.added.views ?? {}), 'view')].filter(Boolean).join(', ');
+    this._starterMessage = { starter: starter.id, type: 'success', text: `${starter.title}: added ${what}.` };
+    this._expandedObject = -1;
+    this._selectedPoint = null;
+    this._commit(out.config, { now: true });
   }
 
   /** @private */
