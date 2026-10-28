@@ -141,7 +141,7 @@ A plane grid with `axis_labels` names its columns and rows (AF3 is column AF, ro
 | `every` | Label every Nth column and row |
 | `offset`, `style`, `color` | Distance outside the edge, label size and colour |
 
-Each `cells` entry is a range `from` one corner cell `to` the other (or one `cell`), with `color`, `opacity`, `shade` (0 to 1: each cell a little lighter or darker, as on a printed map; the same cell always gets the same shade), `seed` and `edges` (an outline: `true` or `{ width, color, opacity }`). The [sector map reference](./#sector-map) shows them together.
+Each `cells` entry is a range `from` one corner cell `to` the other (or one `cell`), with `color`, `opacity`, `shade` (0 to 1: each cell a little lighter or darker, as on a printed map; the same cell always gets the same shade), `seed` and `edges` (an outline: `true` or `{ width, color, opacity }`). The [sector map starter](./starters#sector-map) shows them together.
 
 ## volume
 

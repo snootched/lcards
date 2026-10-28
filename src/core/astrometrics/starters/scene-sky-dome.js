@@ -1,4 +1,4 @@
-/** Sky dome, the sun and moon: the docs reference (index page) */
+/** Sky dome: the sun and moon over your home, now */
 export default /** @type {import('./index.js').Starter} */ ({
   id: 'sky_dome',
   kind: 'scene',

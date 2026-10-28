@@ -8,11 +8,11 @@ title: LCARdS Demo
 releases:
   - version: "2026.10.0"
     views:
-      - file: astro-scenes
-        summary: "The astrometrics card's reference scenes"
-        description: "The reference scenes of the astrometrics card: quick start, a galaxy with territories, a sector map and the sky dome with the sun and moon."
-        session: "E2b"
-        docs: /cards/astrometrics/
+      - file: astro-starters
+        summary: "Astrometrics starters: scenes and parts"
+        description: "Every scene of the Astrometrics Studio's Starters tab with its defaults (galaxy, sector map, sky dome, solar system, Federation map, starbase approach), and the four parts added round one star: a planet with a moon, an asteroid belt, territories and a nebula."
+        session: "E7"
+        docs: /cards/astrometrics/starters
         public: true
       - file: astro-objects
         summary: "Every astrometrics object type"
@@ -49,12 +49,6 @@ releases:
         description: "A jelly cylinder, a tornado (a twisted well whose bend circles), a wormhole with a ripple, a whirlpool disc, and a sector map on rolling noise with its cells and points riding the surface."
         session: "E5"
         docs: /cards/astrometrics/objects#deformed-grids
-        public: true
-      - file: astro-starters
-        summary: "Astrometrics starters: scenes and parts"
-        description: "Every scene of the Astrometrics Studio's Starters tab with its defaults (galaxy, sector map, sky dome, solar system, Federation map, starbase approach), and the four parts added round one star: a planet with a moon, an asteroid belt, territories and a nebula."
-        session: "E7"
-        docs: /cards/astrometrics/starters
         public: true
       - file: webgl-scenes
         summary: "WebGL background scenes, alone and stacked"

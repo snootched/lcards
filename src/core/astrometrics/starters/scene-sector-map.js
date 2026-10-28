@@ -1,4 +1,4 @@
-/** Sector map: the docs reference (index page) */
+/** Sector map: a lettered grid from straight above, territories filled cell by cell */
 export default /** @type {import('./index.js').Starter} */ ({
   id: 'sector_map',
   kind: 'scene',

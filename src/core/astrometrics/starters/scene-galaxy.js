@@ -1,4 +1,4 @@
-/** Galaxy with territories: the docs reference (index page) */
+/** Galaxy with territories: a galaxy disc, territories, beams, a planet with an away team */
 export default /** @type {import('./index.js').Starter} */ ({
   id: 'galaxy',
   kind: 'scene',
