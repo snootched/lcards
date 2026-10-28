@@ -23,7 +23,7 @@ export default /** @type {import('./index.js').Starter} */ ({
     const c = centreRef(centre);
     const r = Number(radius) || 3;
     const count = Math.max(0, Math.min(4, Math.round(Number(moons) || 0)));
-    const moonList = Array.from({ length: count }, (_, i) => ({ id: `moon${i + 1}`, orbit: r * (2 + i * 1.2), spin: MOON_SPINS[i], bearing: i * 110 }));
+    const moonList = Array.from({ length: count }, (_, i) => ({ id: `moon${i + 1}`, orbit: Math.round(r * (2 + i * 1.2) * 10) / 10, spin: MOON_SPINS[i], bearing: i * 110 }));
     return {
       points: [
         ...c.points,

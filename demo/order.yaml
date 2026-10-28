@@ -50,6 +50,12 @@ releases:
         session: "E5"
         docs: /cards/astrometrics/objects#deformed-grids
         public: true
+      - file: astro-starters
+        summary: "Astrometrics starters: scenes and parts"
+        description: "Every scene of the Astrometrics Studio's Starters tab with its defaults (galaxy, sector map, sky dome, solar system, Federation map, starbase approach), and the four parts added round one star: a planet with a moon, an asteroid belt, territories and a nebula."
+        session: "E7"
+        docs: /cards/astrometrics/starters
+        public: true
       - file: webgl-scenes
         summary: "WebGL background scenes, alone and stacked"
         description: "three.js background scenes: the WebGL noise presets, grid floor and warp starfield, alone and stacked."

@@ -100,6 +100,7 @@ const CATEGORIES = [
       'docs:serve:network': { when: 'as needed', desc: 'Same, bound to 0.0.0.0 — for viewing docs from another device on the LAN.' },
       'docs:preview': { when: 'as needed', desc: 'Serves the already-built doc/ output, to sanity-check a production doc build locally.' },
       'docs:routing-diagrams': { when: 'as needed', desc: 'Regenerates the routing scenario diagrams embedded in the routing docs.' },
+      'docs:astro-starters': { when: 'after changing a starter', desc: 'Regenerates the starter list on doc/cards/astrometrics/starters.md from src/core/astrometrics/starters/ (--check fails if stale; tests/docs/astro-starters-doc.test.js checks it too).' },
     },
   },
   {

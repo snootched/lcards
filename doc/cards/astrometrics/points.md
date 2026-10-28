@@ -18,11 +18,11 @@ points:
 
 ## In the Astrometrics Studio
 
-The card editor opens the **Astrometrics Studio** (a full-screen editor with the live scene). Its **Points** tab lists the points: add, duplicate, reorder and remove them, and set each one's placement, the object it stands on, entity, label, style, marker, colour and the main label text keys. Other keys stay as they are; edit them in the YAML tab.
+The card editor opens the [Astrometrics Studio](./studio) (a full-screen editor with the live scene). Its **Points** tab lists the points: add, duplicate, reorder and remove them, and set each one's placement, the object it stands on, entity, label, style, marker, colour and the main label text keys. Other keys stay as they are; edit them in the YAML tab.
 
 **Pick on preview** (the crosshair on a row) places a point with a tap: the Studio's preview shows "TAP TO PLACE ..." and the next tap writes the point's numbers, in its own form. `xyz` and `polar` land on the ground (y = 0), or on the surface of the object in `object`; `latlon` lands on a sphere, `altaz` on a dome, `cell` on a plane grid's cell. Drag to turn the view first if you need to; Escape or Cancel stops picking. Points placed by `sky`, `at` or an entity are not picked. On a [model](./objects#model), `xyz` lands on the model's surface, in the model file's own coordinates.
 
-**On the scene:** tap a point or an object to open it in its list (an object gets a box round it); a ring, path or beam is selected by tapping near its line. **Drag a point** to move it: `xyz` and `polar` points slide at their own height, so a drag never changes `y` or `alt`, and `latlon`, `altaz` and `cell` points follow the surface of their object. The toolbar shows the new numbers while you drag, and the point keeps its placement form. Points placed by `sky`, `at`, `part` or an entity do not drag. **Place a point** (the marker button in the toolbar) adds a new point where you tap next: on a sphere it gets `latlon`, on a dome `altaz`, on a plane grid its `cell`, on another object `xyz` on that object, and on blank space `xyz` on the ground. Escape cancels. An object needs an `id` for a point to stand on it.
+**On the scene:** tap a point to open its row, drag it to move it, or add one with **Place a point** in the toolbar. See [Astrometrics Studio: on the scene](./studio#on-the-scene).
 
 **A part of a model** puts a point on a named part of a model object: the part list comes from the built-in model, or from the preview once it has loaded your file. The offset moves the point from the part's origin.
 

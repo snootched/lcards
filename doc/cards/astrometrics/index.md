@@ -13,6 +13,7 @@ A 3D scene in the style of the astrometrics lab and stellar cartography: a lette
 - **Objects** draw the scene: grids (plane, disc, dome, sphere, cylinder), see-through territory volumes, planets, orbits and rings, routes, beams, images and glows. See [Objects](./objects).
 - **Points** are named places with an optional label and marker: on the plane, on a planet, in the sky, in a sector map cell. Paths, rings, beams and the camera refer to them by id. See [Points](./points).
 - **Camera** orbits a target. Named views let a tap fly the camera from the galaxy to a planet and back.
+- **Studio:** the card editor opens the [Astrometrics Studio](./studio), a full-screen editor with the live scene: tap, drag and place points on it, edit every object in a form, capture camera views, and start from a [starter](./starters) scene or part.
 - **Light on the device:** the scene draws only when something moves (a drag, a fly-to, a spinning planet). An idle card costs nothing, and every astrometrics card on a page shares one WebGL context.
 
 ## Quick start
@@ -47,6 +48,8 @@ Drag to turn the disc, scroll or pinch to zoom. Tap **Vega** to fly to it; tap *
 Scene units are yours to choose: here the disc has a radius of 100. Line widths, dashes and label sizes are in px, so they look the same at any zoom. Bearings are in degrees: **0 is north** (away from the camera in the default view), **clockwise** seen from above.
 
 ## The three references
+
+These three are also [starters](./starters): the Studio's Starters tab copies them into your card.
 
 ### Galaxy with territories
 
@@ -193,7 +196,7 @@ camera:
 - A view without `yaw` faces north. With no views at all the camera frames the whole scene.
 - `projection: orthographic` removes the perspective (a flat map); `distance` then sets the zoom.
 - Fly between views with a `tap_action` on a point or object: `{ action: fly-to, view: map }` (see [Points: actions](./points#actions)), or from other cards and automations ([Live data: fly-to](./data#fly-to-from-other-cards-and-automations)).
-- In the Astrometrics Studio's Camera tab, move the preview's camera and **Capture view** to write a view where it is: the target is written as a point's id when the camera looks at a point (after flying to it), else as coordinates. Each view flies, renames (actions that fly to it follow the new name), reorders and becomes the start view with **Start here**.
+- In the [Astrometrics Studio](./studio#camera-views)'s Camera tab, move the preview's camera and **Capture view** to write a view where it is: the target is written as a point's id when the camera looks at a point (after flying to it), else as coordinates. Each view flies, renames (actions that fly to it follow the new name), reorders and becomes the start view with **Start here**.
 
 ### Controls
 

@@ -55,6 +55,7 @@
     "docs:serve:network": "node scripts/generate-llm-schema.js && vitepress dev doc --host",
     "docs:preview": "vitepress preview doc",
     "docs:routing-diagrams": "node scripts/generate-routing-diagrams.js",
+    "docs:astro-starters": "node scripts/generate-astro-starters-doc.js",
     "lcars:palette-scale": "node scripts/generate-lcards-palette-scale.js",
     "lcars:palette-scale:write": "node scripts/generate-lcards-palette-scale.js --write && cp reports/palette-scale-review.html doc/public/reports/palette-scale-review.html",
     "lcars:semantic-tokens": "node scripts/generate-lcards-ha-semantic-tokens.js",

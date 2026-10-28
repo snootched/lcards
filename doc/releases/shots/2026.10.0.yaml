@@ -551,3 +551,70 @@
     - 800
   selector: '#lcards-release-card'
   padding: 0
+
+# The Astrometrics Studio's Starters tab: a planet with moons about to be added to the solar system.
+- name: astrometrics-studio
+  card:
+    type: custom:lcards-astrometrics-card
+    height: 560
+    points:
+      - { id: sun, xyz: [0, 0, 0], label: SOL, style: major }
+      - id: mercury
+        polar: [20, 40]
+        object: mercury_orbit
+        marker: dot
+        label: MERCURY
+        style: minor
+        tap_action: { action: fly-to }
+      - { id: venus, polar: [30, 150], object: venus_orbit, marker: dot, label: VENUS, style: minor, tap_action: { action: fly-to } }
+      - { id: earth, polar: [42, 250], object: earth_orbit, marker: dot, label: EARTH, style: minor, tap_action: { action: fly-to } }
+      - { id: mars, polar: [56, 320], object: mars_orbit, marker: dot, label: MARS, style: minor, tap_action: { action: fly-to } }
+      - id: jupiter
+        polar: [82, 100]
+        object: jupiter_orbit
+        marker: dot
+        label: JUPITER
+        style: minor
+        tap_action: { action: fly-to }
+      - { id: moon, polar: [5, 0], object: moon_orbit, marker: dot, label: LUNA, style: tiny, max_distance: 80 }
+    objects:
+      - { type: glow, at: sun, size: 40, color: var(--lcars-yellow) }
+      - type: sphere
+        id: sun_body
+        at: sun
+        radius: 5
+        fill_color: var(--lcars-yellow)
+        color: var(--lcars-orange)
+        line_spacing_deg: 30
+      - { type: ring, id: mercury_orbit, radius: 20, spin: 24, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+      - { type: sphere, id: mercury_body, at: mercury, radius: 1.2, line_spacing_deg: 30, spin: 15 }
+      - { type: ring, id: venus_orbit, radius: 30, spin: 16, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+      - { type: sphere, id: venus_body, at: venus, radius: 2, line_spacing_deg: 30, spin: 15 }
+      - { type: ring, id: earth_orbit, radius: 42, spin: 10, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+      - { type: sphere, id: earth_body, at: earth, radius: 2.4, image: builtin:earth_blue_marble, line_spacing_deg: 30, spin: 20 }
+      - { type: ring, id: mars_orbit, radius: 56, spin: 6, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+      - { type: sphere, id: mars_body, at: mars, radius: 1.6, line_spacing_deg: 30, spin: 15 }
+      - { type: ring, id: jupiter_orbit, radius: 82, spin: 2.5, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+      - { type: sphere, id: jupiter_body, at: jupiter, radius: 5, line_spacing_deg: 30, spin: 15 }
+      - { type: ring, id: moon_orbit, at: earth, radius: 5, spin: 40, width: 1, dash: [3, 3], opacity: 0.6 }
+      - { type: sphere, id: moon_body, at: moon, radius: 0.6, line_spacing_deg: 45 }
+    camera:
+      view: system
+      views:
+        system: { target: sun, yaw: 20, tilt: 40, distance: 230 }
+        top: { target: sun, tilt: 90, distance: 250 }
+        earth: { target: earth, yaw: 30, tilt: 20, distance: 22 }
+    backdrop: { stars: { count: 2000 } }
+  editor: true
+  open: _openStudio
+  steps:
+    - wait: 3000
+    - click: 'lcards-astrometrics-studio-dialog ha-tab-group-tab:has-text("Starters")'
+    - wait: 800
+    - click: 'lcards-astrometrics-studio-dialog lcards-form-section[data-starter="planet"] [slot="header"] span >> nth=0'
+    - wait: 600
+    - eval: 'const f = (r) => r.querySelector(`lcards-form-section[data-starter="planet"]`) ?? [...r.querySelectorAll("*")].filter((e) => e.shadowRoot).map((e) => f(e.shadowRoot)).find(Boolean); f(document)?.scrollIntoView({ block: "start" })'
+    - wait: 600
+  settle: 4000
+  viewport: [1400, 900]
+  selector: 'lcards-astrometrics-studio-dialog wa-dialog [part~="dialog"]'

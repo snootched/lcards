@@ -50,8 +50,9 @@ test('URLs carry the channel base; llms-full has the user docs only, cleaned', (
     assert.ok(!/^---\ndescription:/m.test(full), 'frontmatter removed');
     assert.ok(!full.includes('<!-- https://lcards.unimatrix01.ca/architecture/'), 'architecture is optional, not in the full file');
     // 900 KB until 2026-10-24 (C3's WebGL background docs took it to 900.7 KB);
-    // 950 KB until 2026-10-25 (the astrometrics Live data page and labels took it to 952 KB)
-    assert.ok(Buffer.byteLength(full) < 1000 * 1024, 'llms-full.txt stays loadable');
+    // 950 KB until 2026-10-25 (the astrometrics Live data page and labels took it to 952 KB);
+    // 1000 KB until 2026-10-28 (the astrometrics Studio and starters pages took it to 1010 KB)
+    assert.ok(Buffer.byteLength(full) < 1050 * 1024, 'llms-full.txt stays loadable');
 });
 
 test('page summaries: frontmatter description wins, callouts and bare type names are skipped', () => {

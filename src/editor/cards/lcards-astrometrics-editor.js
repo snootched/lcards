@@ -74,7 +74,7 @@ export class LCARdSAstrometricsEditor extends LCARdSBaseEditor {
                         <ha-icon icon="mdi:pencil-ruler" slot="start"></ha-icon>
                         Open Astrometrics Studio
                     </ha-button>
-                    <ha-button appearance="plain" @click=${() => window.open(docsUrl(DOCS.astrometrics), '_blank', 'noopener')}>
+                    <ha-button appearance="plain" @click=${() => window.open(docsUrl(DOCS.astrometricsStudio), '_blank', 'noopener')}>
                         Docs
                         <ha-icon icon="mdi:open-in-new" slot="end"></ha-icon>
                     </ha-button>

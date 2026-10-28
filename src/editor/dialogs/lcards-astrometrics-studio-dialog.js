@@ -24,7 +24,6 @@
  */
 
 import { LitElement, html, css, nothing } from 'lit';
-import jsYaml from 'js-yaml';
 import { createRef, ref } from 'lit/directives/ref.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { editorStyles } from '../base/editor-styles.js';
@@ -37,6 +36,7 @@ import {
   viewsOf, startViewName, captureView, freshViewName, setView, deleteView, moveView, renameView, viewNameProblem, viewSummary
 } from './astro-studio/camera-views.js';
 import { STARTERS, applyStarter, starterParams, hasScene } from '../../core/astrometrics/starters/index.js';
+import { starterYaml } from '../../core/astrometrics/starters/yaml.js';
 import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
 import './astro-studio/lcards-astro-schema-form.js';
@@ -430,7 +430,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         </div>
         <ha-dialog-footer slot="footer">
           <div class="footer-start" slot="secondaryAction">
-            <ha-button appearance="plain" @click=${() => window.open(docsUrl(DOCS.astrometrics), '_blank', 'noopener')}>
+            <ha-button appearance="plain" @click=${() => window.open(docsUrl(DOCS.astrometricsStudio), '_blank', 'noopener')}>
               <ha-icon icon="mdi:book-open-variant" slot="start"></ha-icon>
               Documentation
             </ha-button>
@@ -709,7 +709,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     const out = applyStarter({}, starter, typed);
     if (!out.config) return out.error;
     const { type: _type, ...added } = out.config;
-    return jsYaml.dump(added, { flowLevel: 3, lineWidth: 120, noRefs: true });
+    return starterYaml(added);
   }
 
   /**
