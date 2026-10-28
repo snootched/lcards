@@ -11,7 +11,9 @@
  *
  * Tabs: Scene (backdrop, labels, background), Points (the points list with
  * Pick), Objects (a list; each object's form is generated from its type's
- * schema branch, so new object types need no Studio work), Camera, YAML.
+ * schema branch, so new object types need no Studio work), Camera (named
+ * views captured from the preview, flown to, set first; then the camera keys),
+ * YAML.
  *
  * The working copy is plain config: Save sends it whole.
  *
@@ -29,6 +31,9 @@ import { studioDialogStyles } from './studio-dialog-styles.js';
 import { astrometricsSchema, objectSchema } from '../../cards/schemas/astrometrics-schema.js';
 import { TYPE_GUIDE } from '../../core/astrometrics/names.js';
 import { objectBranch, objectSummary, freshId, newObject, COMMON_GROUPS } from './astro-studio/schema-fields.js';
+import {
+  viewsOf, startViewName, captureView, freshViewName, setView, deleteView, moveView, renameView, viewNameProblem, viewSummary
+} from './astro-studio/camera-views.js';
 import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
 import './astro-studio/lcards-astro-schema-form.js';
@@ -56,7 +61,9 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       _addingObject: { state: true },
       _showAll: { state: true },
       _placing: { state: true },
-      _status: { state: true }
+      _status: { state: true },
+      _expandedView: { state: true },
+      _viewError: { state: true }
     };
   }
 
@@ -77,6 +84,10 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     this._placing = false;
     /** @type {string} the toolbar's line while dragging or placing (else the hint) */
     this._status = '';
+    /** @type {string | null} the open view row in the Camera tab */
+    this._expandedView = null;
+    /** @type {string} why the last rename was refused */
+    this._viewError = '';
     this._previewRef = createRef();
     this._onPlaceKey = this._onPlaceKey.bind(this);
     /** @type {any} the preview card */
@@ -350,6 +361,10 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         .type-picker-actions { display: flex; justify-content: flex-end; gap: var(--ha-space-2); margin-top: var(--ha-space-2); }
         lcards-form-section { display: block; }
         .canvas-toolbar { align-items: center; }
+        .view-actions { display: flex; flex-wrap: wrap; gap: var(--ha-space-2); margin-bottom: var(--ha-space-3); }
+        .view-name { display: block; margin-bottom: var(--ha-space-3); }
+        .views-section { margin-bottom: var(--ha-space-4); }
+        .views-section > .hint { margin-bottom: var(--ha-space-2); }
         .toolbar-status { color: white; font-size: var(--ha-font-size-s, 12px); padding-right: var(--ha-space-2); max-width: 32ch; }
       `
     ];
@@ -459,11 +474,148 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     const keys = Object.keys(props).filter((k) => k !== 'views');
     const camera = isObj(this._workingConfig.camera) ? this._workingConfig.camera : {};
     return html`
+      ${this._renderViews(camera)}
       <lcards-astro-schema-form .hass=${this.hass} .schema=${props} .keys=${keys} .value=${camera} .pointIds=${this._pointIds}
-        .choices=${{ view: Object.keys(isObj(camera.views) ? camera.views : {}) }}
+        .choices=${{ view: Object.keys(viewsOf(camera)) }}
         @form-changed=${(/** @type {CustomEvent} */ e) => this._setTop('camera', Object.keys(e.detail.value).length ? e.detail.value : undefined)}>
       </lcards-astro-schema-form>
     `;
+  }
+
+  /**
+   * The named views: capture from the preview, fly to, set first, rename,
+   * reorder, delete; each view's keys in a generated form.
+   * @param {Record<string, any>} camera
+   * @private
+   */
+  _renderViews(camera) {
+    const views = viewsOf(camera);
+    const names = Object.keys(views);
+    const first = startViewName(camera);
+    return html`
+      <div class="views-section">
+        <div class="tab-header">
+          <h3>Views</h3>
+          <ha-button @click=${() => this._captureView(null)}>
+            <ha-icon icon="mdi:camera-plus-outline" slot="start"></ha-icon>
+            Capture view
+          </ha-button>
+        </div>
+        <div class="hint">Move the preview's camera, then capture it as a named view. A tap_action with action: fly-to and view: its name flies there.</div>
+        ${names.length
+          ? names.map((name, i) => this._renderView(name, views[name], i, names.length, name === first))
+          : html`<div class="empty">No views yet: the card frames the whole scene.</div>`}
+      </div>
+    `;
+  }
+
+  /**
+   * @param {string} name
+   * @param {any} view
+   * @param {number} index
+   * @param {number} total
+   * @param {boolean} isFirst
+   * @private
+   */
+  _renderView(name, view, index, total, isFirst) {
+    const expanded = this._expandedView === name;
+    const viewProps = astrometricsSchema.properties.camera.properties.views.additionalProperties.properties;
+    return html`
+      <lcards-form-section class="object" data-view=${name} header=${name}
+        secondary=${[isFirst ? 'start view' : null, viewSummary(view)].filter(Boolean).join(' · ')}
+        icon=${isFirst ? 'mdi:star' : 'mdi:video-outline'} outlined ?expanded=${expanded}
+        @expanded-changed=${(/** @type {CustomEvent} */ e) => {
+          if (e.detail.expanded) this._expandedView = name;
+          else if (this._expandedView === name) this._expandedView = null;
+          this._viewError = '';
+        }}>
+        <ha-icon-button slot="header-icons" .label=${'Fly to'}
+          @click=${(/** @type {Event} */ e) => { e.stopPropagation(); this._flyToView(view); }}>
+          <ha-icon icon="mdi:airplane"></ha-icon>
+        </ha-icon-button>
+        <ha-icon-button slot="header-icons" .label=${'Move up'} ?disabled=${index === 0}
+          @click=${(/** @type {Event} */ e) => { e.stopPropagation(); this._setCamera(moveView(this._workingConfig.camera, name, -1)); }}>
+          <ha-icon icon="mdi:arrow-up"></ha-icon>
+        </ha-icon-button>
+        <ha-icon-button slot="header-icons" .label=${'Move down'} ?disabled=${index === total - 1}
+          @click=${(/** @type {Event} */ e) => { e.stopPropagation(); this._setCamera(moveView(this._workingConfig.camera, name, 1)); }}>
+          <ha-icon icon="mdi:arrow-down"></ha-icon>
+        </ha-icon-button>
+        <ha-icon-button slot="header-icons" .label=${'Delete view'}
+          @click=${(/** @type {Event} */ e) => { e.stopPropagation(); this._deleteView(name); }}>
+          <ha-icon icon="mdi:delete"></ha-icon>
+        </ha-icon-button>
+        ${expanded ? html`
+          <div class="view-actions">
+            <ha-button appearance="plain" @click=${() => this._captureView(name)}>
+              <ha-icon icon="mdi:camera-outline" slot="start"></ha-icon>
+              Capture over this view
+            </ha-button>
+            <ha-button appearance="plain" ?disabled=${isFirst && this._workingConfig.camera?.view === name}
+              @click=${() => this._setCamera({ ...this._workingConfig.camera, view: name })}>
+              <ha-icon icon="mdi:star-outline" slot="start"></ha-icon>
+              Start here
+            </ha-button>
+          </div>
+          <ha-input class="view-name" .label=${'Name'} .value=${name}
+            @change=${(/** @type {Event} */ e) => this._renameView(name, /** @type {any} */ (e.target).value)}></ha-input>
+          ${this._viewError ? html`<lcards-message type="error">${this._viewError}</lcards-message>` : nothing}
+          <lcards-astro-schema-form .hass=${this.hass} .schema=${viewProps} .keys=${Object.keys(viewProps)} .value=${view} .pointIds=${this._pointIds}
+            @form-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); this._setCamera(setView(this._workingConfig.camera, name, e.detail.value)); }}>
+          </lcards-astro-schema-form>` : nothing}
+      </lcards-form-section>
+    `;
+  }
+
+  /** @param {Record<string, any> | undefined} camera @param {{ now?: boolean }} [opts] @private */
+  _setCamera(camera, { now = false } = {}) {
+    const next = { ...this._workingConfig };
+    if (camera) next.camera = camera;
+    else delete next.camera;
+    this._commit(next, { now });
+  }
+
+  /**
+   * The preview's camera as a view: a new one (name null) or over a view.
+   * @param {string | null} name
+   * @private
+   */
+  async _captureView(name) {
+    const scene = await this._previewCard?.studioScene?.();
+    if (!scene) return;
+    const camera = this._workingConfig.camera;
+    const views = viewsOf(camera);
+    const target = name ?? freshViewName(views);
+    this._setCamera(setView(camera, target, captureView(scene.cameraKeys(), scene.pointPositions(), views[target])), { now: true });
+    this._expandedView = target;
+    this._viewError = '';
+  }
+
+  /** @param {any} view @private */
+  async _flyToView(view) {
+    const scene = await this._previewCard?.studioScene?.();
+    scene?.flyTo(view);
+  }
+
+  /** @param {string} from @param {string} to @private */
+  _renameView(from, to) {
+    const name = String(to ?? '').trim();
+    const problem = viewNameProblem(viewsOf(this._workingConfig.camera), name, from);
+    this._viewError = problem ?? '';
+    if (problem || name === from) return;
+    this._expandedView = name;
+    this._commit(renameView(this._workingConfig, from, name));
+  }
+
+  /** @param {string} name @private */
+  async _deleteView(name) {
+    const ok = await showConfirmDeleteDialog({
+      title: 'Delete view',
+      message: `Delete the view ${name}? Actions that fly to it stop working.`
+    });
+    if (!ok) return;
+    if (this._expandedView === name) this._expandedView = null;
+    this._setCamera(deleteView(this._workingConfig.camera, name));
   }
 
   /** @private */

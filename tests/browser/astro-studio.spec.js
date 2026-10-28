@@ -186,3 +186,35 @@ test('studio: a ring (lines only, no pick mesh) is selected by a tap near its li
     await expect.poll(() => page.evaluate(() => [window.__studio._activeTab, window.__studio._expandedObject])).toEqual(['objects', 1]);
     expect(await page.evaluate(() => window.__studio._previewCard._scene.debug().boxed)).toBe('ring1');
 });
+
+test('studio: capture a view where the camera is (no jump), target named by its point, rename, start view', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await openStudio(page);
+    const scene = () => page.evaluate(() => window.__studio._previewCard._scene.debug().keys);
+    await page.evaluate(async () => {
+        window.__studio._activeTab = 'camera';
+        const s = await window.__studio._previewCard.studioScene();
+        await s.flyTo({ target: 'svc', yaw: 30, tilt: 40, distance: 90 }, { duration: 0 });
+    });
+    const before = await scene();
+    await page.evaluate(() => window.__studio._captureView(null));
+    const views = await page.evaluate(() => window.__studio._workingConfig.camera.views);
+    expect(Object.keys(views)).toEqual(['top', 'view1']);
+    expect(views.view1).toMatchObject({ target: 'svc', yaw: 30, tilt: 40, distance: 90 });
+    // the new view is not the start view: the preview stays put after the rebuild
+    await page.waitForTimeout(400);
+    expect(await scene()).toEqual(before);
+    await expect(page.locator('lcards-astrometrics-studio-dialog lcards-form-section[data-view="view1"]')).toHaveCount(1);
+
+    // rename follows camera.view; Start here moves the camera to it
+    await page.evaluate(() => window.__studio._renameView('top', 'view1'));
+    expect(await page.evaluate(() => window.__studio._viewError)).toMatch(/already a view named view1/);
+    await page.evaluate(() => window.__studio._renameView('top', 'overhead'));
+    expect(await page.evaluate(() => window.__studio._workingConfig.camera)).toMatchObject({ view: 'overhead' });
+    expect(await page.evaluate(() => Object.keys(window.__studio._workingConfig.camera.views))).toEqual(['overhead', 'view1']);
+    await page.evaluate(() => window.__studio._setCamera({ ...window.__studio._workingConfig.camera, view: 'view1' }, { now: true }));
+    await page.evaluate(() => window.__studio._flyToView(window.__studio._workingConfig.camera.views.overhead));
+    await expect.poll(async () => (await scene()).tilt).toBe(90);
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
+});

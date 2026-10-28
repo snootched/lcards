@@ -136,6 +136,7 @@ const KEY_COMMANDS = {
  *   (an object gets a box round it); null clears
  * @property {() => { target: number[], yaw: number, tilt: number, distance: number, fov: number, projection: 'perspective' | 'orthographic' }} cameraKeys -
  *   the camera now, as a view's keys
+ * @property {() => Record<string, number[]>} pointPositions - every point's world position now, by id (unplaceable ones left out)
  * @property {(handler: ((x: number, y: number) => void) | null) => void} setPickHandler - while set, a tap goes to it (no actions, no double-tap)
  * @property {(x: number, y: number, form: string, object?: string) => (number[] | string | null)} placeAt - a placement form's value for the spot at CSS px (x, y), or null
  * @property {(x: number, y: number) => ({ form: string, value: number[] | string, object?: string } | null)} placementAt - a new
@@ -318,12 +319,16 @@ export function createAstroScene(host, config, options = {}) {
   }
   const skyTimer = setInterval(() => { if (refreshSky()) requestFrame(); }, SKY_INTERVAL_MS);
 
-  /** Initial camera from the config (view by name, else the first, else framing the bounds) */
-  function initialView() {
+  /** The start view: by name, else the first; null with no views */
+  function startView() {
     const cam = cfg.camera ?? {};
-    views = cam.views && typeof cam.views === 'object' ? cam.views : {};
     const name = cam.view !== undefined && views[cam.view] ? cam.view : Object.keys(views)[0];
-    const view = name ? views[name] : null;
+    return name ? views[name] : null;
+  }
+
+  /** Initial camera from the config (the start view, else framing the bounds) */
+  function initialView() {
+    const view = startView();
     const b = world?.bounds;
     // A named view that leaves out yaw faces north; with no view, frame the bounds at an angle
     const base = { ...DEFAULT_KEYS, tx: b?.center.x ?? 0, ty: b?.center.y ?? 0, tz: b?.center.z ?? 0, distance: (b?.radius ?? 100) * 2.8, ...(view ? { yaw: 0 } : {}) };
@@ -417,7 +422,10 @@ export function createAstroScene(host, config, options = {}) {
       f.userData.baseWidths ??= [u.uWidthMinor.value, u.uWidthMajor.value];
     }
     applyCameraOptions();
-    const key = JSON.stringify(cfg.camera ?? null);
+    views = cfg.camera?.views && typeof cfg.camera.views === 'object' ? cfg.camera.views : {};
+    // Only a new start view moves the camera: adding or editing other views
+    // (the Studio capturing one) leaves it where it is
+    const key = JSON.stringify(startView());
     if (key !== cameraKey) {
       cameraKey = key;
       initialView();
@@ -1212,6 +1220,17 @@ export function createAstroScene(host, config, options = {}) {
       const k = rig.keys;
       const r1 = (/** @type {number} */ v) => Math.round(v * 10) / 10;
       return { target: [r1(k.tx), r1(k.ty), r1(k.tz)], yaw: r1(k.yaw), tilt: r1(k.tilt), distance: r1(k.distance), fov: r1(k.fov), projection: rig.projection };
+    },
+    pointPositions() {
+      /** @type {Record<string, number[]>} */
+      const out = {};
+      if (!world) return out;
+      world.places.invalidate();
+      for (const id of world.places.defs.keys()) {
+        const p = world.places.get(id);
+        if (p) out[id] = [p.x, p.y, p.z];
+      }
+      return out;
     },
     setPickHandler(handler) {
       pickHandler = handler;

@@ -193,6 +193,7 @@ camera:
 - A view without `yaw` faces north. With no views at all the camera frames the whole scene.
 - `projection: orthographic` removes the perspective (a flat map); `distance` then sets the zoom.
 - Fly between views with a `tap_action` on a point or object: `{ action: fly-to, view: map }` (see [Points: actions](./points#actions)), or from other cards and automations ([Live data: fly-to](./data#fly-to-from-other-cards-and-automations)).
+- In the Astrometrics Studio's Camera tab, move the preview's camera and **Capture view** to write a view where it is: the target is written as a point's id when the camera looks at a point (after flying to it), else as coordinates. Each view flies, renames (actions that fly to it follow the new name), reorders and becomes the start view with **Start here**.
 
 ### Controls
 
