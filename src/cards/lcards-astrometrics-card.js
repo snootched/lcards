@@ -1254,9 +1254,11 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
 
     getGridOptions() {
         const go = this.config.grid_options || {};
+        // a pixel height takes the rows it needs (56 px rows, 8 px gaps), so the card never runs into the next one
+        const h = this._configPx(this.config?.height);
         return {
             columns: go.columns ?? 12,
-            rows: go.rows ?? 8,
+            rows: go.rows ?? (h ? Math.max(3, Math.ceil((h + 8) / 64)) : 8),
             min_columns: 3,
             min_rows: 3
         };

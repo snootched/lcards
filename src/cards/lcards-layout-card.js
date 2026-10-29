@@ -68,6 +68,55 @@ export class LCARdSLayoutCard extends LitElement {
         this.preview   = false;
         this._cardElements = [];
         this._helpers  = null;
+        /** @type {{ mql: MediaQueryList, handler: () => void }[]} */
+        this._mediaQueryLists = [];
+    }
+
+    connectedCallback() {
+        super.connectedCallback();
+        this._setupMediaQueries();
+    }
+
+    disconnectedCallback() {
+        super.disconnectedCallback();
+        this._teardownMediaQueries();
+    }
+
+    /** Re-render when a `layout.mediaquery` query starts or stops matching. */
+    _setupMediaQueries() {
+        this._teardownMediaQueries();
+        if (!this.isConnected) return;
+        for (const query of Object.keys(this._config?.layout?.mediaquery ?? {})) {
+            try {
+                const mql = window.matchMedia(query);
+                const handler = () => this.requestUpdate();
+                mql.addEventListener('change', handler);
+                this._mediaQueryLists.push({ mql, handler });
+            } catch { /* ignore invalid queries */ }
+        }
+    }
+
+    _teardownMediaQueries() {
+        for (const { mql, handler } of this._mediaQueryLists) mql.removeEventListener('change', handler);
+        this._mediaQueryLists = [];
+    }
+
+    /**
+     * The grid tracks, areas and gap to draw: the editor state, or with
+     * `layout.mediaquery` overrides matching (as the layout view applies them)
+     * the layout with those overrides merged in. The studio always edits the base.
+     */
+    _activeGrid() {
+        const base = { columns: this._columns, rows: this._rows, areas: this._areas, gap: this._gap };
+        const { mediaquery, ...layout } = this._config?.layout ?? {};
+        if (!mediaquery || typeof mediaquery !== 'object' || this.editing) return base;
+        let merged = null;
+        for (const [query, override] of Object.entries(mediaquery)) {
+            try {
+                if (override && window.matchMedia(query).matches) merged = { ...(merged ?? layout), ...override };
+            } catch { /* ignore invalid queries */ }
+        }
+        return merged ? parseLayoutConfig(merged) : base;
     }
 
     static getStubConfig() {
@@ -113,6 +162,7 @@ export class LCARdSLayoutCard extends LitElement {
         this._rows    = rows;
         this._areas   = areas;
         this._gap     = gap;
+        this._setupMediaQueries();
 
         // Only rebuild child elements when the cards list actually changed — layout
         // edits (resize/areas) just re-place the existing children.
@@ -220,7 +270,8 @@ export class LCARdSLayoutCard extends LitElement {
 
     render() {
         const layout = this._config?.layout ?? {};
-        const gridStyle = buildGridStyle(layout, this._columns, this._rows, this._areas, this._gap, {
+        const { columns, rows, areas, gap } = this._activeGrid();
+        const gridStyle = buildGridStyle(layout, columns, rows, areas, gap, {
             // The layout studio sets `editing` while its grid editor is on the canvas.
             editMode: this.editing ? 'grid' : null,
             defaultHeight: '100%',
@@ -237,7 +288,7 @@ export class LCARdSLayoutCard extends LitElement {
         const cardMargin   = layout.card_margin ?? null;
         const cardOverflow = layout.card_overflow ?? 'visible';
 
-        renderAreaSurfaces(grid, layout, this._areas);
+        renderAreaSurfaces(grid, layout, this._activeGrid().areas);
 
         (this._cardElements ?? []).forEach((cardEl, i) => {
             const childCfg     = this._config?.cards?.[i];

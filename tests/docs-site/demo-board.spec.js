@@ -8,7 +8,7 @@
  * checks every view's config, and `npm run demo:push -- --check` shows each one in
  * Home Assistant.
  */
-import { loadDemo, boardReleases } from '../../scripts/lib/demo-dashboard.js';
+import { loadDemo, boardReleases, frameGroups } from '../../scripts/lib/demo-dashboard.js';
 import { docsRelease } from '../../doc/.vitepress/theme/demo.data.js';
 import { test, expect, watchErrors } from './support.js';
 
@@ -53,8 +53,13 @@ for (const view of SAMPLES) {
         const cards = await page.locator('.demo-board-cell > *').evaluateAll(els => els.map(e => ({
             tag: e.localName, height: Math.round(e.getBoundingClientRect().height),
         })));
-        // the generated header (one layout card, the description) and every card of the view
-        const own = (view.config.sections ?? []).reduce((n, sec) => n + (sec.cards?.length ?? 0), 0);
+        // the generated header (one layout card, the description), then the view's cards in
+        // their LCARS frames (one cell each; an overlay card stays outside them)
+        const own = (view.config.sections ?? []).reduce((n, sec) => {
+            const cards = sec.cards ?? [];
+            const overlays = cards.filter(c => c.type === 'custom:lcards-alert-overlay').length;
+            return n + overlays + frameGroups(cards.filter(c => c.type !== 'custom:lcards-alert-overlay')).length;
+        }, 0);
         expect(cards.length).toBe(own + (view.description ? 2 : 1));
         for (const c of cards) {
             expect(c.tag).toMatch(/^lcards-/);
@@ -77,8 +82,8 @@ test('the alert buttons switch the alert mode', async ({ page }) => {
     const withAlerts = VIEWS.find(v => v.text.includes('perform_action: lcards.red_alert'));
     expect(withAlerts, 'a view with alert buttons').toBeTruthy();
     await openView(page, withAlerts);
-    // the alert buttons are the first cards after the generated header
-    const alerts = page.locator('.demo-board-section').nth(1).locator('.demo-board-cell');
+    // the alert buttons are the first cards after the generated header, in its frame's content grid
+    const alerts = page.locator('.demo-board-section').nth(1).locator('lcards-layout-card lcards-layout-card lcards-button');
     await alerts.first().click();
     await expect.poll(() => page.evaluate(() => window.lcards.getAlertMode())).toBe('red_alert');
     await alerts.nth(2).click(); // CLEAR

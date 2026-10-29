@@ -158,7 +158,7 @@ The card is the scene only. For an LCARS frame round it (an "ALPHA QUADRANT" bar
 
 | Option | What it does |
 |---|---|
-| `height` | Card height, px or CSS (default 400). The scene fills the card. |
+| `height` | Card height, px or CSS (default 400). The scene fills the card. On a sections view the card takes the grid rows its height needs, so it never runs into the card below (`grid_options.rows` overrides). |
 | `camera` | `view`, `views`, `controls`, `drag`, `pan`, `zoom_to`, `zoom_step`, `double_tap`, `buttons`, `limits`, `auto_rotate`, `fly_duration`, `ease`, `warp` ([Camera and views](#camera-and-views), [Controls](#controls), [Effects: warp](./effects#warp-and-dust)) |
 | `points` | Named points with labels and markers ([Points](./points)) |
 | `objects` | What is drawn ([Objects](./objects), [Effects](./effects)) |

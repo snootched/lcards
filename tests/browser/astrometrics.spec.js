@@ -1123,6 +1123,20 @@ test('N1 labels on objects: the label stands off the ship with a leader, never h
     await expect.poll(() => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().follow?.id), { timeout: 5000 }).toBe('ship');
 });
 
+test('grid options: a pixel height takes the sections rows it needs (no running into the next card); no height, its default 400 px', async ({ page }) => {
+    await mountCase(page, 'astro-follow', { width: '800' });
+    await sceneReady(page);
+    const rows = () => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *')).getGridOptions().rows);
+    // height 400: 400 px plus the gap in 64 px rows
+    expect(await rows()).toBe(7);
+    await page.evaluate(() => window.__reconfigure({ ...(/** @type {any} */ (document.querySelector('#mount > *'))).config, height: 650 }));
+    expect(await rows()).toBe(11);
+    await page.evaluate(() => { const c = { ...(/** @type {any} */ (document.querySelector('#mount > *'))).config }; delete c.height; window.__reconfigure(c); });
+    expect(await rows()).toBe(7);
+    await page.evaluate(() => window.__reconfigure({ ...(/** @type {any} */ (document.querySelector('#mount > *'))).config, grid_options: { rows: 4 } }));
+    expect(await rows()).toBe(4);
+});
+
 test('N1 time: the slider slows, holds and speeds the scene; time_scale sets the start; buttons.time: false hides it', async ({ page }) => {
     await mountCase(page, 'astro-follow', { width: '800' });
     await sceneReady(page);

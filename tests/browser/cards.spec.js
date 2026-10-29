@@ -262,6 +262,23 @@ test('layout card with repeat() tracks: cards in every named area get a cell', a
     await expectNoErrors(page);
 });
 
+test('layout card mediaquery: a matching query swaps the grid; it follows the viewport live', async ({ page }) => {
+    await page.setViewportSize({ width: 1000, height: 700 });
+    const card = await mountCase(page, 'layout-card-mediaquery', { width: '600' });
+    const boxes = () => card.evaluate(el => [...el.shadowRoot.querySelector('#grid-root').children]
+        .filter(c => c.localName.startsWith('lcards-'))
+        .map(c => { const r = c.getBoundingClientRect(); return { x: Math.round(r.x), y: Math.round(r.y) }; }));
+    await expect.poll(async () => (await boxes()).length).toBe(2);
+    let [a, b] = await boxes();
+    expect(b.x).toBeGreaterThan(a.x);
+    expect(b.y).toBe(a.y);
+    await page.setViewportSize({ width: 600, height: 700 });
+    await expect.poll(async () => { const [p, q] = await boxes(); return q.y > p.y && q.x === p.x; }).toBe(true);
+    await page.setViewportSize({ width: 1000, height: 700 });
+    await expect.poll(async () => { const [p, q] = await boxes(); return q.y === p.y; }).toBe(true);
+    await expectNoErrors(page);
+});
+
 test('elbow bar-slant-right: the bar is the whole card, slanted at the right end, with its label on it', async ({ page }) => {
     const card = await mountCase(page, 'elbow-bar-slant', { width: '300' });
     const info = () => card.evaluate(el => ({

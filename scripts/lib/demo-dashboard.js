@@ -72,6 +72,10 @@ export function viewTexts(demo, dir = DEMO_DIR) {
 
 /** Segment colours along a header bar, in turn (theme roles, so alert modes and themes recolour them). */
 const SEGMENT_COLORS = ['theme:colors.ui.primary', 'theme:colors.ui.tertiary', 'theme:colors.ui.secondary'];
+/** The frame's left column (px): the sweeps' vertical arm and the bar down each section, the touch strip to scroll by */
+const FRAME_WIDTH = 90;
+/** A rounder sweep than the elbow's default (outer = half the arm) */
+const SWEEP_CURVES = { outer_curve: 70, inner_curve: 26 };
 
 /**
  * An LCARS header: a sweep in the top left continued as a bar of labelled
@@ -95,7 +99,7 @@ export function frameHeader(title, segments) {
             {
                 type: 'custom:lcards-elbow',
                 view_layout: { 'grid-area': 'sweep' },
-                elbow: { type: 'header-left', segment: { bar_width: 90, bar_height: 26, color: SEGMENT_COLORS[0] } },
+                elbow: { type: 'header-left', segment: { bar_width: FRAME_WIDTH, bar_height: 26, color: SEGMENT_COLORS[0], ...SWEEP_CURVES } },
             },
             ...segments.map((seg, i) => ({
                 type: 'custom:lcards-button',
@@ -104,15 +108,186 @@ export function frameHeader(title, segments) {
                 view_layout: { 'grid-area': names[i] },
                 text: { label: { content: seg.label.toUpperCase(), position: 'center-right' } },
                 style: { card: { color: { background: { default: SEGMENT_COLORS[(i + 1) % SEGMENT_COLORS.length] } } } },
-                ...(seg.action ? { tap_action: seg.action } : {}),
+                // only a segment with an action is a button
+                ...(seg.action ? { tap_action: seg.action } : { interactive: false }),
             })),
             {
                 type: 'custom:lcards-button',
                 preset: 'text-only',
+                interactive: false,
                 min_height: 0,
                 view_layout: { 'grid-area': 'title' },
                 text: { label: { content: title.toUpperCase(), show: true, position: 'center-right', font_size: 30, color: 'theme:colors.ui.tertiary' } },
             },
+        ],
+    };
+}
+
+/**
+ * The sections grid of a `column_span: 4` section by panel width, as Home Assistant
+ * sizes it (12 columns per section column; a column at least 320 px plus a 32 px gap,
+ * a 256 px sidebar from 870 px up). Later queries win.
+ */
+export const GRID_STEPS = [
+    [48, null],
+    [36, '(max-width: 1695px)'],
+    [24, '(max-width: 1343px)'],
+    [12, '(max-width: 991px)'],
+    [24, '(max-width: 869px)'],
+    [12, '(max-width: 735px)'],
+];
+/** A sections grid row and gap, px */
+const ROW = 56;
+const GAP = 8;
+/** Cards that take no room on the page (an overlay over it): left out of the frame */
+const UNFRAMED = new Set(['custom:lcards-alert-overlay']);
+/** Rows when a card gives none: its own default (getGridOptions), from its pixel height where it has one */
+const DEFAULT_ROWS = { 'custom:lcards-astrometrics-card': 8, 'custom:lcards-msd-card': 8 };
+
+/** A card's grid size in a grid of `total` columns: columns (full: all) and rows */
+export function cardSpan(card, total) {
+    const go = card.grid_options ?? {};
+    const columns = go.columns === 'full' || go.columns === undefined ? total : Math.min(total, Math.max(1, Number(go.columns) || total));
+    const h = Number.parseFloat(card.height);
+    const rows = Number(go.rows) || (h > 0 ? Math.max(3, Math.ceil((h + GAP) / (ROW + GAP))) : DEFAULT_ROWS[card.type] ?? 1);
+    return { columns, rows };
+}
+
+/**
+ * Lay cards out as a sections grid does (CSS sparse auto-placement, row by row):
+ * the grid-template-areas rows, one area `c<i>` per card, and the row count.
+ * @param {Array<{ columns: number, rows: number }>} spans
+ * @param {number} total
+ */
+export function packGrid(spans, total) {
+    /** @type {string[][]} */
+    const cells = [];
+    const free = (r, c, w, h) => {
+        for (let y = r; y < r + h; y++) for (let x = c; x < c + w; x++) if (cells[y]?.[x]) return false;
+        return true;
+    };
+    let r = 0;
+    let c = 0;
+    spans.forEach(({ columns: w, rows: h }, i) => {
+        for (;;) {
+            while (c + w <= total && !free(r, c, w, h)) c++;
+            if (c + w <= total) break;
+            r++;
+            c = 0;
+        }
+        for (let y = r; y < r + h; y++) {
+            cells[y] ??= Array(total).fill('');
+            for (let x = c; x < c + w; x++) cells[y][x] = `c${i}`;
+        }
+    });
+    const rows = cells.map(row => row.map(a => a || '.'));
+    return { areas: rows.map(row => `"${row.join(' ')}"`).join(' '), rows: rows.length };
+}
+
+/** The grid keys of a content grid of `total` columns */
+function gridLayout(cards, total) {
+    const { areas, rows } = packGrid(cards.map(card => cardSpan(card, total)), total);
+    return {
+        'grid-template-columns': `repeat(${total}, minmax(0, 1fr))`,
+        // rows grow with a card taller than its rows (a data grid's text), as in a sections grid
+        'grid-template-rows': `repeat(${Math.max(1, rows)}, minmax(${ROW}px, auto))`,
+        'grid-template-areas': areas,
+    };
+}
+
+/** A scene: a full-width card six rows or more (a black canvas that hides where it ends) */
+const isScene = (card) => {
+    const { columns, rows } = cardSpan(card, GRID_STEPS[0][0]);
+    return columns === GRID_STEPS[0][0] && rows >= 6;
+};
+
+/**
+ * A section's cards split into frames: every scene gets a frame of its own, with the
+ * smaller cards just before it (its controls); cards after the last scene share one.
+ * @param {any[]} cards
+ * @returns {any[][]}
+ */
+export function frameGroups(cards) {
+    const groups = [];
+    let cur = [];
+    let scene = false;
+    for (const card of cards) {
+        if (scene) {
+            groups.push(cur);
+            cur = [];
+            scene = false;
+        }
+        cur.push(card);
+        scene = isScene(card);
+    }
+    if (cur.length) groups.push(cur);
+    return groups;
+}
+
+/**
+ * A view section in LCARS frames (one per scene, see frameGroups), numbered from `n`.
+ * Overlay cards stay outside the frames.
+ * @param {any} section
+ * @param {number} n
+ * @returns {{ section: any, frames: number }}
+ */
+export function frameSection(section, n) {
+    const all = section.cards ?? [];
+    const groups = frameGroups(all.filter(card => !UNFRAMED.has(card.type)));
+    return {
+        section: { ...section, cards: [...all.filter(card => UNFRAMED.has(card.type)), ...groups.map((cards, i) => frameCard(cards, n + i))] },
+        frames: groups.length,
+    };
+}
+
+/**
+ * Cards in an LCARS frame: a sweep and top bar, a bar down the left (a strip to touch
+ * and scroll by, beside cards that take every drag), the cards laid out as the sections
+ * grid would (re-packed at each width Home Assistant would use), and a closing sweep
+ * along the bottom.
+ * @param {any[]} cards
+ * @param {number} n - the frame's number on the view (shown on the bar)
+ */
+export function frameCard(cards, n) {
+    const color = SEGMENT_COLORS[n % SEGMENT_COLORS.length];
+    const elbow = (type, area) => ({
+        type: 'custom:lcards-elbow',
+        view_layout: { 'grid-area': area },
+        elbow: { type, segment: { bar_width: FRAME_WIDTH, bar_height: 12, color, ...SWEEP_CURVES } },
+    });
+    const [base, ...steps] = GRID_STEPS;
+    return {
+        type: 'custom:lcards-layout-card',
+        grid_options: { columns: 'full' },
+        layout: {
+            height: 'auto',
+            'grid-gap': '6px',
+            'grid-template-columns': `${FRAME_WIDTH}px minmax(0, 1fr)`,
+            'grid-template-rows': '40px auto 40px',
+            'grid-template-areas': '"top top" "bar content" "foot foot"',
+        },
+        cards: [
+            elbow('header-left', 'top'),
+            {
+                type: 'custom:lcards-button',
+                preset: 'panel-light',
+                interactive: false,
+                view_layout: { 'grid-area': 'bar' },
+                text: { label: { content: String(n).padStart(2, '0'), position: 'bottom-right' } },
+                style: { card: { color: { background: { default: color } } } },
+            },
+            {
+                type: 'custom:lcards-layout-card',
+                view_layout: { 'grid-area': 'content' },
+                layout: {
+                    height: 'auto',
+                    'grid-gap': `${GAP}px`,
+                    ...gridLayout(cards, base[0]),
+                    mediaquery: Object.fromEntries(steps.map(([total, query]) => [query, gridLayout(cards, total)])),
+                },
+                cards: cards.map((card, i) => ({ ...card, view_layout: { 'grid-area': `c${i}` } })),
+            },
+            elbow('footer-left', 'foot'),
         ],
     };
 }
@@ -183,7 +358,7 @@ export function topicGroups(releases, topics) {
         .filter(t => t.views.length);
 }
 
-/** The index view: per topic, its header, a button per view and a table of summaries. */
+/** The index view: per topic, a frame with its title, a button per view and a table of summaries. */
 export function indexView(releases, { board = 'dev', topics = [] } = {}) {
     const { urlPath, title } = BOARDS[board];
     const navigate = (v) => ({ action: 'navigate', navigation_path: `/${urlPath}/${v.path}` });
@@ -199,11 +374,19 @@ export function indexView(releases, { board = 'dev', topics = [] } = {}) {
                 column_span: 4,
                 cards: [frameHeader(title, [{ label: 'Index', weight: 1 }, { label: releases.map(r => r.version).join(' · '), weight: 3 }, { label: views(count), weight: 1 }]), textBlock(intro)],
             },
-            ...topicGroups(releases, topics).map(topic => ({
+            // each topic in an LCARS frame like a view's sections: its title, a button per view, the table
+            ...topicGroups(releases, topics).map((topic, i) => ({
                 type: 'grid',
                 column_span: 4,
-                cards: [
-                    frameHeader(topic.title, [{ label: topic.id, weight: 3 }, { label: views(topic.views.length), weight: 1 }]),
+                cards: [frameCard([
+                    {
+                        type: 'custom:lcards-button',
+                        preset: 'text-only',
+                        interactive: false,
+                        min_height: 0,
+                        text: { label: { content: `${topic.title} · ${views(topic.views.length)}`.toUpperCase(), show: true, position: 'center-left', font_size: 30, color: 'theme:colors.ui.tertiary' } },
+                        grid_options: { columns: 'full', rows: 1 },
+                    },
                     ...topic.views.map(v => lozenge(v.title, navigate(v), 12)),
                     {
                         type: 'custom:lcards-data-grid',
@@ -215,7 +398,7 @@ export function indexView(releases, { board = 'dev', topics = [] } = {}) {
                         // about 42 px a line (measured on the board), in section rows of 56 px plus an 8 px gap
                         grid_options: { columns: 'full', rows: Math.max(1, Math.ceil((topic.views.length * 42) / 64)) },
                     },
-                ],
+                ], i + 1)],
             })),
         ],
     };
@@ -224,7 +407,13 @@ export function indexView(releases, { board = 'dev', topics = [] } = {}) {
 /** A view with its generated header on top. */
 export function viewWithHeader(view, opts = {}) {
     const { config } = view;
-    return { ...config, sections: [headerSection(view, opts), ...(config.sections ?? [])] };
+    let n = 1;
+    const sections = (config.sections ?? []).map((s) => {
+        const { section, frames } = frameSection(s, n);
+        n += frames;
+        return section;
+    });
+    return { ...config, sections: [headerSection(view, opts), ...sections] };
 }
 
 /**
