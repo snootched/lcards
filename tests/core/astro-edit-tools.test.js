@@ -54,6 +54,8 @@ test('planeDragValue: local to the object (moved and scaled) and without the off
   const def = { id: 'a', object: 'h', xyz: [0, 5, 0], offset: [0, 0, 4] };
   // world (120, 10, 4) = host (100) + 2 * local (10, 5, 0) + offset (0, 0, 4)
   assert.deepEqual(planeDragValue(down(120, 4), def, 'xyz', host), [10, 5, 0]);
+  // in a system scaled by 2: the offset is in the system's units too (world 120, 10, 8)
+  assert.deepEqual(planeDragValue(down(120, 8), def, 'xyz', host, 2), [10, 5, 0]);
   // a ray along the plane misses
   assert.equal(planeDragValue({ origin: [0, 10, 0], dir: [1, 0, 0] }, def, 'xyz', host), null);
 });

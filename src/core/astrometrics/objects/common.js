@@ -66,6 +66,7 @@ export const DEFAULT_COLORS = {
  * @property {((dt: number, t: number) => boolean) | null} tick - own motion per frame (drift, scan, flow): dt and the scene clock in ms; true while it still moves
  * @property {import('three').Object3D} [placeNode] - what points on it are local to, when not `node` (a model's file space)
  * @property {'sphere' | 'depth'} [occluder] - how it hides labels when `occludes`: a sphere of `radius` (default), or its depth (meshes)
+ * @property {boolean} [flat] - distance keys measure to its bounding box, not its sphere (a plane or disc grid)
  * @property {boolean} [moving] - moves on its own besides spin (animation): points on it change every frame
  * @property {(local: import('three').Vector3) => import('three').Vector3} [warp] - a deformed grid: moves an undeformed local position (in place) where the surface is now
  * @property {(hit: import('three').Intersection) => (import('three').Vector3 | null)} [unwarpHit] - a deformed grid: a pick on it as an undeformed local position

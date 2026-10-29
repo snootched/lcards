@@ -8,17 +8,23 @@ title: LCARdS Demo
 releases:
   - version: "2026.10.0"
     views:
+      - file: astro-true-solar
+        summary: "Astrometrics true-scale starter: the Sun and eight planets in km"
+        description: "The Solar system at true scale starter as the Studio inserts it: every planet at its real distance and size, so from the whole system they are dots on their orbits. Tap EARTH, JUPITER or SATURN to fly in to it. The galaxy dive view now hides the galactic disc once you are inside the solar system."
+        session: "E10"
+        docs: /cards/astrometrics/scale
+        public: true
       - file: astro-dive
         summary: "Astrometrics star systems: a galaxy in light years with Sol in km inside it"
         description: "One card from the galaxy down to a station: the galaxy disc in light years, the Sol system in km at its real place 26,000 ly from the core, and Deep Space 9 in orbit round Earth. Tap SOL, then EARTH, then DEEP SPACE 9, or fly from the station straight back out and in again."
         session: "E10"
-        docs: /cards/astrometrics/#star-systems
+        docs: /cards/astrometrics/scale#star-systems
         public: true
       - file: astro-true-scale
         summary: "Astrometrics at true scale: the Sun, Earth, the Moon and Deep Space 9 in km"
         description: "A scene built with real numbers: fly from the whole inner system (planets are dots at this scale) to Earth and to Deep Space 9, 1.5 km across, with Earth filling the sky behind it. Depth slices, scene-sized zoom limits and a log-distance fly-to make it hold."
         session: "E10"
-        docs: /cards/astrometrics/#at-true-scale
+        docs: /cards/astrometrics/scale#one-scene-in-real-units
         public: true
       - file: astro-distance
         summary: "Astrometrics distance: objects that appear as you zoom in"

@@ -1037,7 +1037,9 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             this._scene?.setPickHandler((x, y) => {
                 const pick = this._pick;
                 if (!pick || !this._scene) return;
-                const value = this._scene.placeAt(x, y, pick.form, pick.object);
+                // a point in a system is placed on its system's ground, in its units
+                const system = this._flatConfig().points?.find((/** @type {any} */ p) => String(p?.id) === pick.pointId)?._system;
+                const value = this._scene.placeAt(x, y, pick.form, pick.object, system);
                 if (value === null || value === undefined) {
                     this._pick = { ...pick, missed: true };
                     return;

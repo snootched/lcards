@@ -22,6 +22,9 @@ import starbaseApproach from './scene-starbase-approach.js';
 import deepSpaceNine from './scene-deep-space-nine.js';
 import utopiaPlanitia from './scene-utopia-planitia.js';
 import borgEncounter from './scene-borg-encounter.js';
+import trueScaleSolarSystem from './scene-true-scale-solar-system.js';
+import trueScaleDive from './scene-true-scale-dive.js';
+import { flattenSystems } from '../names.js';
 import planet from './part-planet.js';
 import asteroidBelt from './part-asteroid-belt.js';
 import nebulaField from './part-nebula-field.js';
@@ -44,6 +47,7 @@ import starbase from './part-starbase.js';
  * @property {Record<string, any>} [views]
  * @property {Record<string, any>} [camera] - camera keys other than views (scenes)
  * @property {Record<string, any>} [backdrop]
+ * @property {string} [units] - the scene's units (true-scale scenes)
  */
 
 /**
@@ -58,7 +62,7 @@ import starbase from './part-starbase.js';
  */
 
 /** @type {Starter[]} */
-export const STARTERS = [galaxy, sectorMap, skyDome, solarSystem, federationMap, starbaseApproach, deepSpaceNine, utopiaPlanitia, borgEncounter, planet, asteroidBelt, nebulaField, sectorVolumes, starbase];
+export const STARTERS = [galaxy, sectorMap, skyDome, solarSystem, federationMap, starbaseApproach, deepSpaceNine, utopiaPlanitia, borgEncounter, trueScaleSolarSystem, trueScaleDive, planet, asteroidBelt, nebulaField, sectorVolumes, starbase];
 
 /** Keys whose string values (or list entries) name a point, object or view */
 const REF_KEYS = new Set(['id', 'at', 'object', 'target', 'from', 'to', 'points', 'view']);
@@ -99,6 +103,8 @@ export function parsePointParam(value) {
  * @param {StarterFragment} frag
  */
 export function fragmentIds(frag) {
+  // ids inside a system are card-wide too
+  frag = /** @type {StarterFragment} */ (flattenSystems(frag));
   return {
     points: (frag.points ?? []).map((p) => p?.id).filter((id) => id !== undefined).map(String),
     objects: (frag.objects ?? []).map((o) => o?.id).filter((id) => id !== undefined).map(String),
@@ -137,6 +143,7 @@ export function prefixFragment(frag, prefix) {
  * @param {Record<string, any>} config
  */
 function configIds(config) {
+  config = flattenSystems(config);
   const points = Array.isArray(config.points) ? config.points : [];
   const objects = Array.isArray(config.objects) ? config.objects : [];
   return {
@@ -153,7 +160,7 @@ export function hasScene(/** @type {Record<string, any>} */ config) {
 }
 
 /** Card keys a scene starter replaces (everything else, such as type, id, height and title, stays) */
-const SCENE_KEYS = ['points', 'objects', 'camera', 'backdrop', 'labels', 'background_animation'];
+const SCENE_KEYS = ['points', 'objects', 'camera', 'backdrop', 'labels', 'background_animation', 'units'];
 
 /**
  * Put a starter into a card config.
@@ -175,6 +182,11 @@ export function applyStarter(config, starter, params = {}, { mode } = {}) {
   /** @type {Record<string, any>} */
   const base = { ...config };
   if (replace) for (const k of SCENE_KEYS) delete base[k];
+
+  // a scene in other units cannot be merged: every number in it would mean something else
+  if (frag.units !== undefined && !replace && (base.units ?? null) !== frag.units && hasScene(base)) {
+    return { error: `This scene is in ${frag.units} and the card is in ${base.units ?? 'scene units'}: replace the scene instead.` };
+  }
 
   const taken = configIds(base);
   const ids = fragmentIds(frag);
@@ -199,5 +211,6 @@ export function applyStarter(config, starter, params = {}, { mode } = {}) {
     next.camera = camera;
   }
   if (frag.backdrop && (replace || next.backdrop === undefined)) next.backdrop = frag.backdrop;
+  if (frag.units !== undefined) next.units = frag.units;
   return { config: next, added: frag };
 }

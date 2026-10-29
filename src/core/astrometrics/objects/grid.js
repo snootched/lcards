@@ -275,6 +275,8 @@ export function buildGrid(cfg, ctx) {
       node.add(mesh);
     }
   }
+  // flat and not deformed: distances are to the surface (see distance-fade.js)
+  out.flat = (shape === 'plane' || shape === 'disc') && !deforming;
   out.tick = combineTicks(deformTicker(cfg, shape, out, extent, warpGeos, warpLines), scanTicker(cfg, ctx, out.gridFaces), effect?.tick);
   return out;
 }

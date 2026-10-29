@@ -129,6 +129,38 @@ test('ObjectFader: a grid (front and back faces share one uOpacity) comes back i
   w.dispose();
 });
 
+test('a flat grid is measured to its surface: above a disc the distance is the height', () => {
+  const w = buildScene({ objects: [
+    { type: 'grid', id: 'disc', shape: 'disc', radius: 50000, line_spacing: 5000, min_distance: 20 },
+    { type: 'grid', id: 'dome', shape: 'dome', radius: 50000, min_distance: 20 },
+    { type: 'grid', id: 'wavy', shape: 'disc', radius: 50000, min_distance: 20, deform: [{ type: 'wobble', amplitude: 10 }] },
+  ] }, /** @type {any} */ (ctx()));
+  const disc = /** @type {any} */ (w.objects.get('disc'));
+  assert.equal(disc.flat, true);
+  assert.notEqual(/** @type {any} */ (w.objects.get('dome')).flat, true, 'a curved grid keeps its sphere');
+  assert.notEqual(/** @type {any} */ (w.objects.get('wavy')).flat, true, 'a deformed one too');
+  const fader = new ObjectFader();
+  // 60 above the disc, 26000 out: inside its sphere, 60 from its surface
+  fader.begin(w.list, w.outer, new Vector3(26000, 60, 0));
+  assert.equal(fader.alphas.get('disc'), 1);
+  assert.equal(fader.alphas.get('dome'), 0, 'inside the sphere: distance 0');
+  fader.end();
+  fader.begin(w.list, w.outer, new Vector3(26000, 5, 0));
+  assert.equal(fader.alphas.get('disc'), 0, 'hidden once near the plane');
+  fader.end();
+  // beyond the rim: to the edge
+  fader.begin(w.list, w.outer, new Vector3(50010, 0, 0));
+  assert.equal(fader.alphas.get('disc'), 0);
+  fader.end();
+  // in a scaled group (a system's frame): local units times the scale
+  disc.node.parent.scale.setScalar(2);
+  disc.node.updateWorldMatrix(true, true);
+  fader.begin(w.list, w.outer, new Vector3(26000, 30, 0));
+  assert.equal(fader.alphas.get('disc'), 1, '30 world units is 60 in its own');
+  fader.end();
+  w.dispose();
+});
+
 test('ObjectFader: an opaque material blends only while it fades (a new program for three\'s own materials)', () => {
   const node = new Group();
   const mat = new MeshStandardMaterial();

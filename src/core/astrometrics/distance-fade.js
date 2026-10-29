@@ -3,7 +3,8 @@
  * `min_distance`, `max_distance`, in scene units from the camera. A point's
  * distance is to the point; an object's is to the nearest edge of its
  * bounding sphere (0 with the camera inside), which is the same rule for a
- * radius of 0. The range edges fade over 10 % instead of popping, so two
+ * radius of 0. A flat object (a plane or disc grid) is measured to its box
+ * instead, so a camera above a galactic disc is as far away as its height. The range edges fade over 10 % instead of popping, so two
  * things with touching ranges cross-fade.
  *
  * `ObjectFader` applies it to objects for one render: it hides the ones out
@@ -13,7 +14,7 @@
  *
  * @module core/astrometrics/distance-fade
  */
-import { Sphere, Vector3 } from 'three';
+import { Box3, Matrix4, Sphere, Vector3 } from 'three';
 import { num } from './objects/common.js';
 
 /** @typedef {{ fade: [number, number] | null, minDistance: number, maxDistance: number }} DistanceRange */
@@ -94,6 +95,27 @@ export function localBounds(node) {
 }
 
 /**
+ * An object's bounding box local to its node, for a flat one (`flat`).
+ * @param {import('three').Object3D} node
+ * @returns {Box3}
+ */
+export function localBox(node) {
+  node.updateWorldMatrix(true, true);
+  const inv = new Matrix4().copy(node.matrixWorld).invert();
+  const out = new Box3();
+  const b = new Box3();
+  const m = new Matrix4();
+  node.traverse((o) => {
+    const g = /** @type {any} */ (o).geometry;
+    if (!g?.getAttribute?.('position')) return;
+    if (!g.boundingBox) g.computeBoundingBox();
+    if (!g.boundingBox || g.boundingBox.isEmpty()) return;
+    out.union(b.copy(g.boundingBox).applyMatrix4(m.multiplyMatrices(inv, o.matrixWorld)));
+  });
+  return out.isEmpty() ? out.setFromCenterAndSize(new Vector3(), new Vector3()) : out;
+}
+
+/**
  * Each object's bounding sphere, measured once (again for a dynamic object,
  * and when a model finishes loading), placed in the world per call. Shared
  * by the fader and the depth passes.
@@ -102,7 +124,32 @@ export class ObjectBounds {
   constructor() {
     /** @type {WeakMap<import('./objects/common.js').BuiltObject, { sphere: Sphere, ready: boolean }>} */
     this._map = new WeakMap();
+    /** @type {WeakMap<import('./objects/common.js').BuiltObject, Box3>} */
+    this._boxes = new WeakMap();
     this._center = new Vector3();
+    this._local = new Vector3();
+    this._inv = new Matrix4();
+  }
+
+  /**
+   * Distance from a world position to the object: to its box when it is
+   * flat, else to its sphere; 0 inside.
+   * @param {import('./objects/common.js').BuiltObject} b
+   * @param {Vector3} from
+   */
+  distance(b, from) {
+    if (b.flat) {
+      let box = this._boxes.get(b);
+      if (!box) {
+        box = localBox(b.node);
+        this._boxes.set(b, box);
+      }
+      const m = b.node.matrixWorld;
+      const local = this._local.copy(from).applyMatrix4(this._inv.copy(m).invert());
+      return box.distanceToPoint(local) * m.getMaxScaleOnAxis();
+    }
+    const { center, radius } = this.world(b);
+    return sphereDistance(from, center, radius);
   }
 
   /**
@@ -191,8 +238,7 @@ export class ObjectFader {
    * @private
    */
   _distance(b, camera) {
-    const { center, radius } = this._bounds.world(b);
-    return sphereDistance(camera, center, radius);
+    return this._bounds.distance(b, camera);
   }
 
   /**

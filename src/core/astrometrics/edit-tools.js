@@ -57,9 +57,10 @@ function offsetOf(def) {
  * @param {any} def - the point config
  * @param {'xyz' | 'polar'} form
  * @param {import('three').Object3D | null} [space] - the object points on it are local to
+ * @param {number} [unit] - world units per unit of the point's own frame (its offset is in them)
  * @returns {number[] | null}
  */
-export function planeDragValue(ray, def, form, space = null) {
+export function planeDragValue(ray, def, form, space = null, unit = 1) {
   const height = form === 'xyz' ? (+def.xyz?.[1] || 0) : (Number(def.alt) || 0);
   const point = new Vector3(0, height, 0);
   const normal = new Vector3(0, 1, 0);
@@ -68,7 +69,7 @@ export function planeDragValue(ray, def, form, space = null) {
     point.applyMatrix4(space.matrixWorld);
     normal.transformDirection(space.matrixWorld);
   }
-  const offset = offsetOf(def);
+  const offset = offsetOf(def).multiplyScalar(unit);
   point.add(offset);
   const hit = rayPlane(ray, point.toArray(), normal.toArray(), 0.02);
   if (!hit) return null;

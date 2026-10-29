@@ -526,6 +526,259 @@ camera:
 backdrop: { stars: { count: 2500 } }
 ```
 
+### Solar system at true scale
+
+The Sun and eight planets in km at their real distances and sizes, with the Moon and Saturn's rings. From the whole system the planets are dots on their orbits; tap Earth, Jupiter or Saturn to fly in to it.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points:
+  - { id: sun, xyz: [0, 0, 0], label: SOL, style: major }
+  - { id: mercury, polar: [57909050, 200], marker: dot, label: MERCURY, style: tiny }
+  - { id: venus, polar: [108208000, 120], marker: dot, label: VENUS, style: tiny }
+  - { id: earth, polar: [149597870.7, 30], marker: dot, label: EARTH, style: minor, tap_action: { action: fly-to, view: earth } }
+  - { id: mars, polar: [227939200, 320], marker: dot, label: MARS, style: tiny }
+  - id: jupiter
+    polar: [778570000, 75]
+    marker: dot
+    label: JUPITER
+    style: minor
+    tap_action: { action: fly-to, view: jupiter }
+  - id: saturn
+    polar: [1433530000, 250]
+    marker: dot
+    label: SATURN
+    style: minor
+    tap_action: { action: fly-to, view: saturn }
+  - { id: uranus, polar: [2872460000, 160], marker: dot, label: URANUS, style: tiny }
+  - { id: neptune, polar: [4495060000, 290], marker: dot, label: NEPTUNE, style: tiny }
+  - { id: moon, at: earth, offset: [-360000, 20000, -140000], label: LUNA, style: tiny, max_distance: 20000000 }
+objects:
+  - { type: glow, at: sun, size: 9000000, color: var(--lcars-yellow) }
+  - { type: sphere, id: sun_body, at: sun, radius: 695700, fill_color: var(--lcars-yellow), color: var(--lcars-orange) }
+  - { type: ring, id: mercury_orbit, radius: 57909050, width: 1, opacity: 0.5 }
+  - { type: ring, id: venus_orbit, radius: 108208000, width: 1, opacity: 0.5 }
+  - { type: ring, id: earth_orbit, radius: 149597870.7, width: 1, opacity: 0.7, color: var(--lcars-blue) }
+  - { type: ring, id: mars_orbit, radius: 227939200, width: 1, opacity: 0.5 }
+  - { type: ring, id: jupiter_orbit, radius: 778570000, width: 1, opacity: 0.5 }
+  - { type: ring, id: saturn_orbit, radius: 1433530000, width: 1, opacity: 0.5 }
+  - { type: ring, id: uranus_orbit, radius: 2872460000, width: 1, opacity: 0.5 }
+  - { type: ring, id: neptune_orbit, radius: 4495060000, width: 1, opacity: 0.5 }
+  - type: sphere
+    id: mercury_body
+    at: mercury
+    radius: 2439.7
+    image: builtin:mercury_messenger
+    line_spacing_deg: 30
+    line_width: 0.5
+  - type: sphere
+    id: venus_body
+    at: venus
+    radius: 6051.8
+    fill_effect: { preset: clouds }
+    line_spacing_deg: 30
+    line_width: 0.5
+  - type: sphere
+    id: earth_body
+    at: earth
+    radius: 6371
+    image: builtin:earth_blue_marble
+    spin: 2
+    line_spacing_deg: 30
+    line_width: 0.5
+  - { type: sphere, id: mars_body, at: mars, radius: 3389.5, image: builtin:mars_viking, line_spacing_deg: 30, line_width: 0.5 }
+  - type: sphere
+    id: jupiter_body
+    at: jupiter
+    radius: 69911
+    image: builtin:jupiter_cassini
+    line_spacing_deg: 30
+    line_width: 0.5
+  - type: sphere
+    id: saturn_body
+    at: saturn
+    radius: 58232
+    fill_effect: { preset: ringed_giant }
+    line_spacing_deg: 30
+    line_width: 0.5
+  - type: sphere
+    id: uranus_body
+    at: uranus
+    radius: 25362
+    fill_effect: { preset: ice_giant }
+    line_spacing_deg: 30
+    line_width: 0.5
+  - type: sphere
+    id: neptune_body
+    at: neptune
+    radius: 24622
+    fill_effect: { preset: storm_giant }
+    line_spacing_deg: 30
+    line_width: 0.5
+  - type: ring
+    id: saturn_rings
+    at: saturn
+    radius: 140180
+    inner_radius: 66900
+    inclination: 27
+    image: builtin:saturn_rings
+  - { type: sphere, id: moon_body, at: moon, radius: 1737.4, image: builtin:moon_lroc, line_spacing_deg: 45, line_width: 0.5 }
+camera:
+  view: system
+  fly_duration: 4000
+  views:
+    system: { target: sun, yaw: 40, tilt: 35, distance: 12000000000 }
+    inner: { target: sun, yaw: 40, tilt: 35, distance: 700000000 }
+    earth: { target: earth, yaw: 225, tilt: 12, distance: 70000 }
+    jupiter: { target: jupiter, yaw: 200, tilt: 10, distance: 700000 }
+    saturn: { target: saturn, yaw: 160, tilt: 20, distance: 600000 }
+backdrop: { stars: { count: 2000 } }
+units: km
+```
+
+### Galaxy to station at true scale
+
+A galaxy in light years with the Sol system in km inside it, 26,000 light years from the core: tap SOL and dive from the galaxy to the planets, Earth and Deep Space 9, all at their real sizes and distances.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points:
+  - { id: core, xyz: [0, 0, 0], label: GALACTIC CORE, style: title }
+  - { id: sol, polar: [26000, 200], alt: 60, marker: dot, label: SOL, style: major, tap_action: { action: fly-to, view: inner } }
+objects:
+  - { type: grid, shape: disc, radius: 50000, pattern: polar, line_spacing: 5000, spoke_count: 36, min_distance: 20 }
+  - { type: glow, at: core, size: 30000 }
+  - type: system
+    id: sol_system
+    at: sol
+    units: km
+    points:
+      - { id: sun, xyz: [0, 0, 0], label: SOL, style: major }
+      - { id: mercury, polar: [57909050, 200], marker: dot, label: MERCURY, style: tiny }
+      - { id: venus, polar: [108208000, 120], marker: dot, label: VENUS, style: tiny }
+      - id: earth
+        polar: [149597870.7, 30]
+        marker: dot
+        label: EARTH
+        style: minor
+        tap_action: { action: fly-to, view: earth }
+      - { id: mars, polar: [227939200, 320], marker: dot, label: MARS, style: tiny }
+      - id: jupiter
+        polar: [778570000, 75]
+        marker: dot
+        label: JUPITER
+        style: minor
+        tap_action: { action: fly-to, view: jupiter }
+      - id: saturn
+        polar: [1433530000, 250]
+        marker: dot
+        label: SATURN
+        style: minor
+        tap_action: { action: fly-to, view: saturn }
+      - { id: uranus, polar: [2872460000, 160], marker: dot, label: URANUS, style: tiny }
+      - { id: neptune, polar: [4495060000, 290], marker: dot, label: NEPTUNE, style: tiny }
+      - { id: moon, at: earth, offset: [-360000, 20000, -140000], label: LUNA, style: tiny, max_distance: 20000000 }
+      - id: ds9
+        at: earth
+        offset: [-21082, 0, 36515]
+        label: DEEP SPACE 9
+        style: tiny
+        max_distance: 3000000
+        tap_action: { action: fly-to, view: station }
+    objects:
+      - { type: glow, at: sun, size: 9000000, color: var(--lcars-yellow) }
+      - { type: sphere, id: sun_body, at: sun, radius: 695700, fill_color: var(--lcars-yellow), color: var(--lcars-orange) }
+      - { type: ring, id: mercury_orbit, radius: 57909050, width: 1, opacity: 0.5 }
+      - { type: ring, id: venus_orbit, radius: 108208000, width: 1, opacity: 0.5 }
+      - { type: ring, id: earth_orbit, radius: 149597870.7, width: 1, opacity: 0.7, color: var(--lcars-blue) }
+      - { type: ring, id: mars_orbit, radius: 227939200, width: 1, opacity: 0.5 }
+      - { type: ring, id: jupiter_orbit, radius: 778570000, width: 1, opacity: 0.5 }
+      - { type: ring, id: saturn_orbit, radius: 1433530000, width: 1, opacity: 0.5 }
+      - { type: ring, id: uranus_orbit, radius: 2872460000, width: 1, opacity: 0.5 }
+      - { type: ring, id: neptune_orbit, radius: 4495060000, width: 1, opacity: 0.5 }
+      - type: sphere
+        id: mercury_body
+        at: mercury
+        radius: 2439.7
+        image: builtin:mercury_messenger
+        line_spacing_deg: 30
+        line_width: 0.5
+      - type: sphere
+        id: venus_body
+        at: venus
+        radius: 6051.8
+        fill_effect: { preset: clouds }
+        line_spacing_deg: 30
+        line_width: 0.5
+      - type: sphere
+        id: earth_body
+        at: earth
+        radius: 6371
+        image: builtin:earth_blue_marble
+        spin: 2
+        line_spacing_deg: 30
+        line_width: 0.5
+      - type: sphere
+        id: mars_body
+        at: mars
+        radius: 3389.5
+        image: builtin:mars_viking
+        line_spacing_deg: 30
+        line_width: 0.5
+      - type: sphere
+        id: jupiter_body
+        at: jupiter
+        radius: 69911
+        image: builtin:jupiter_cassini
+        line_spacing_deg: 30
+        line_width: 0.5
+      - type: sphere
+        id: saturn_body
+        at: saturn
+        radius: 58232
+        fill_effect: { preset: ringed_giant }
+        line_spacing_deg: 30
+        line_width: 0.5
+      - type: sphere
+        id: uranus_body
+        at: uranus
+        radius: 25362
+        fill_effect: { preset: ice_giant }
+        line_spacing_deg: 30
+        line_width: 0.5
+      - type: sphere
+        id: neptune_body
+        at: neptune
+        radius: 24622
+        fill_effect: { preset: storm_giant }
+        line_spacing_deg: 30
+        line_width: 0.5
+      - type: ring
+        id: saturn_rings
+        at: saturn
+        radius: 140180
+        inner_radius: 66900
+        inclination: 27
+        image: builtin:saturn_rings
+      - { type: sphere, id: moon_body, at: moon, radius: 1737.4, image: builtin:moon_lroc, line_spacing_deg: 45, line_width: 0.5 }
+      - { type: model, id: station, at: ds9, src: builtin:deep_space_nine, size: 1.452, material: original }
+camera:
+  view: galaxy
+  fly_duration: 5000
+  views:
+    galaxy: { target: core, yaw: 20, tilt: 35, distance: 140000 }
+    system: { target: sun, yaw: 40, tilt: 35, distance: 12000000000 }
+    inner: { target: sun, yaw: 40, tilt: 35, distance: 700000000 }
+    earth: { target: earth, yaw: 225, tilt: 12, distance: 70000 }
+    jupiter: { target: jupiter, yaw: 200, tilt: 10, distance: 700000 }
+    saturn: { target: saturn, yaw: 160, tilt: 20, distance: 600000 }
+    station: { target: ds9, yaw: 330, tilt: 6, distance: 4 }
+backdrop: { stars: { count: 2000 } }
+units: ly
+```
+
 ## Parts
 
 Each part on its own card, at its default centre. In the Studio, give it a point of your scene as its centre.

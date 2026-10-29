@@ -139,10 +139,13 @@ const KEY_COMMANDS = {
  *   (an object gets a box round it); null clears
  * @property {() => { target: number[], yaw: number, tilt: number, distance: number, fov: number, projection: 'perspective' | 'orthographic' }} cameraKeys -
  *   the camera now, as a view's keys
+ * @property {() => { target: string | number[], yaw: number, tilt: number, distance: number, fov: number, projection: 'perspective' | 'orthographic' }} viewNow -
+ *   the camera now as a view: the target is the point it looks at when there is one, the distance in that point's units
  * @property {() => Record<string, number[]>} pointPositions - every point's world position now, by id (unplaceable ones left out)
  * @property {(handler: ((x: number, y: number) => void) | null) => void} setPickHandler - while set, a tap goes to it (no actions, no double-tap)
- * @property {(x: number, y: number, form: string, object?: string) => (number[] | string | null)} placeAt - a placement form's value for the spot at CSS px (x, y), or null
- * @property {(x: number, y: number) => ({ form: string, value: number[] | string, object?: string } | null)} placementAt - a new
+ * @property {(x: number, y: number, form: string, object?: string, system?: string) => (number[] | string | null)} placeAt - a placement
+ *   form's value for the spot at CSS px (x, y), or null; on the ground of `system` (its units) when it names one
+ * @property {(x: number, y: number, system?: string) => ({ form: string, value: number[] | string, object?: string } | null)} placementAt - a new
  *   point's placement for the spot at CSS px (x, y): on the object under it in its natural form (`latlon` on a sphere,
  *   `altaz` on a dome, `cell` on a lettered grid, else `xyz` local to it), else `xyz` on the ground; null when neither is hit
  * @property {(id: string) => (string[] | null)} partNames - a model object's named parts, null until it has loaded (or not a model)
@@ -930,9 +933,11 @@ export function createAstroScene(host, config, options = {}) {
   function dragPoint(drag, x, y) {
     if (!world || !tools) return;
     const host = drag.def.object ? world.objects.get(String(drag.def.object)) : undefined;
+    // a point in a system slides on its system's plane, its offset in the system's units
+    const frame = world.frames.get(drag.def._system).node;
     const value = drag.form === 'xyz' || drag.form === 'polar'
-      ? tools.planeDragValue(screenRay(rig.keys, rig.projection, x, y, cssW, cssH), drag.def, drag.form, host ? (host.placeNode ?? host.node) : null)
-      : placeAt(x, y, drag.form, host ? String(drag.def.object) : undefined);
+      ? tools.planeDragValue(screenRay(rig.keys, rig.projection, x, y, cssW, cssH), drag.def, drag.form, host ? (host.placeNode ?? host.node) : frame, frame.matrixWorld.getMaxScaleOnAxis())
+      : placeAt(x, y, drag.form, host ? String(drag.def.object) : undefined, drag.def._system);
     if (value === null || value === undefined) return;
     drag.value = value;
     world.places.replaceDef(drag.id, { ...drag.def, [drag.form]: value });
@@ -1035,14 +1040,16 @@ export function createAstroScene(host, config, options = {}) {
   /**
    * A placement form's value for what is under (x, y) CSS px: on the
    * object's surface (local to it) when `object` names one, else on the
-   * ground plane (y = 0). Rounded to what a person would type.
+   * ground plane (y = 0, in `system`'s units when it names one). Rounded to
+   * what a person would type.
    * @param {number} x
    * @param {number} y
    * @param {string} form - xyz, polar, latlon, altaz or cell
    * @param {string} [object]
+   * @param {string} [system]
    * @returns {number[] | string | null}
    */
-  function placeAt(x, y, form, object) {
+  function placeAt(x, y, form, object, system) {
     if (!world) return null;
     const host = object ? world.objects.get(object) : undefined;
     if (object && !host) return null;
@@ -1055,9 +1062,11 @@ export function createAstroScene(host, config, options = {}) {
       // a model's points are in its file's coordinates; a deformed grid's on its undeformed surface
       if (hit) local = host.unwarpHit?.(hit) ?? (host.placeNode ?? host.node).worldToLocal(hit.point.clone());
     } else {
+      // the ground of the scene or of a system: its group's plane (the current frame's is the world)
+      const node = world.frames.get(system).node;
       const r = screenRay(rig.keys, rig.projection, x, y, cssW, cssH);
-      const g = rayPlane(r, [0, 0, 0], [0, 1, 0], 0.02);
-      if (g) local = new Vector3(g[0], g[1], g[2]);
+      const g = rayPlane(r, node.position.toArray(), [0, 1, 0], 0.02);
+      if (g) local = node.worldToLocal(new Vector3(g[0], g[1], g[2]));
     }
     if (!local) return null;
     const r1 = (/** @type {number} */ v) => Math.round(v * 10) / 10;
@@ -1076,12 +1085,13 @@ export function createAstroScene(host, config, options = {}) {
   /**
    * A new point's placement for (x, y) CSS px: on the object (with a pick
    * mesh and an id) under it in the form that suits its surface, else on
-   * the ground.
+   * the ground (of `system` when it names one).
    * @param {number} x
    * @param {number} y
+   * @param {string} [system]
    * @returns {{ form: string, value: number[] | string, object?: string } | null}
    */
-  function placementAt(x, y) {
+  function placementAt(x, y, system) {
     if (!world) return null;
     ndc.set((x / cssW) * 2 - 1, -(y / cssH) * 2 + 1);
     ray.setFromCamera(ndc, rig.camera);
@@ -1097,7 +1107,7 @@ export function createAstroScene(host, config, options = {}) {
         if (value !== null) return { form, value, object: b.id };
       }
     }
-    const value = placeAt(x, y, 'xyz');
+    const value = placeAt(x, y, 'xyz', undefined, system);
     return value === null ? null : { form: 'xyz', value };
   }
 
@@ -1435,7 +1445,8 @@ export function createAstroScene(host, config, options = {}) {
   setControls(cfg.camera?.controls !== false);
   build();
 
-  return {
+  /** @type {AstroSceneApi} */
+  const api = {
     setConfig(next) {
       cfg = flattenSystems(next ?? {});
       setControls(cfg.camera?.controls !== false);
@@ -1480,6 +1491,27 @@ export function createAstroScene(host, config, options = {}) {
       const d = k.distance * (f ? f.ratio(f.current, ROOT) : 1);
       const round = f && f.current !== ROOT ? (/** @type {number} */ v) => Number(v.toPrecision(9)) : r1;
       return { target: t.map(round), yaw: r1(k.yaw), tilt: r1(k.tilt), distance: round(d), fov: r1(k.fov), projection: rig.projection };
+    },
+    viewNow() {
+      const keys = api.cameraKeys();
+      if (!world) return keys;
+      const k = rig.keys;
+      world.places.invalidate();
+      // after a fly-to the target is the point exactly; in any frame, so 1e-6 of the distance
+      let best = null;
+      let bestDist = Math.max(1e-6 * k.distance, 1e-9);
+      for (const id of world.places.defs.keys()) {
+        const p = world.places.get(id);
+        const d = p ? Math.hypot(p.x - k.tx, p.y - k.ty, p.z - k.tz) : Infinity;
+        if (d <= bestDist) {
+          best = id;
+          bestDist = d;
+        }
+      }
+      if (best === null) return keys;
+      const f = world.frames;
+      const d = k.distance * f.ratio(f.current, refFrame(best));
+      return { ...keys, target: best, distance: d >= 10 ? Math.round(d * 10) / 10 : Number(d.toPrecision(4)) };
     },
     pointPositions() {
       /** @type {Record<string, number[]>} */
@@ -1572,4 +1604,5 @@ export function createAstroScene(host, config, options = {}) {
       };
     }
   };
+  return api;
 }

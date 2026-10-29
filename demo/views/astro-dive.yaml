@@ -29,7 +29,7 @@ sections:
           - { id: vega, at: sol, offset: [ 9, 14, -21 ], marker: dot, label: VEGA, style: tiny, max_distance: 2000 }
           - { id: altair, at: sol, offset: [ -12, 3, 10 ], marker: dot, label: ALTAIR, style: tiny, max_distance: 2000 }
         objects:
-          - { type: grid, shape: disc, radius: 50000, pattern: polar, line_spacing: 5000, spoke_count: 36 }
+          - { type: grid, shape: disc, radius: 50000, pattern: polar, line_spacing: 5000, spoke_count: 36, min_distance: 20 }
           - { type: glow, at: core, size: 30000 }
           - type: system
             id: sol_system

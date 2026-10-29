@@ -39,6 +39,7 @@ import { STARTERS, applyStarter, starterParams, hasScene } from '../../core/astr
 import { starterYaml } from '../../core/astrometrics/starters/yaml.js';
 import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
+import { SCENE_SCOPE, scopeSystem, validScope, scopedList, setScopedList, scopedObjectIds, pointScope, objectScope, allPointIds, allObjectIds, pointsEditorConfig } from './astro-studio/systems.js';
 import './astro-studio/lcards-astro-schema-form.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
@@ -53,6 +54,18 @@ const PREVIEW_DELAY = 150;
 /** Keys of the Scene tab, in order */
 const SCENE_KEYS = ['backdrop', 'labels', 'background_animation'];
 
+/**
+ * What a system holds, for its row ("3 points, 2 objects").
+ * @param {any} sys
+ */
+function systemCounts(sys) {
+  const n = (/** @type {any} */ l, /** @type {string} */ what) => {
+    const c = Array.isArray(l) ? l.length : 0;
+    return `${c} ${what}${c === 1 ? '' : 's'}`;
+  };
+  return `${n(sys?.points, 'point')}, ${n(sys?.objects, 'object')}`;
+}
+
 export class LCARdSAstrometricsStudioDialog extends LitElement {
   static get properties() {
     return {
@@ -60,6 +73,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       _workingConfig: { state: true },
       _activeTab: { state: true },
       _expandedObject: { state: true },
+      _scope: { state: true },
       _selectedPoint: { state: true },
       _addingObject: { state: true },
       _showAll: { state: true },
@@ -83,6 +97,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     this._workingConfig = {};
     this._activeTab = 'objects';
     this._expandedObject = -1;
+    /** @type {number} what the Points and Objects tabs edit: a system's index in the objects, or the scene's (-1) */
+    this._scope = SCENE_SCOPE;
     /** @type {string | null} */
     this._selectedPoint = null;
     this._addingObject = false;
@@ -142,18 +158,24 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
 
   // ── Working config ─────────────────────────────────────────────────────────
 
-  /** @returns {any[]} */
+  /** @returns {any[]} the points of the open scope (the scene or a system) */
   get _points() {
-    return Array.isArray(this._workingConfig.points) ? this._workingConfig.points : [];
+    return scopedList(this._workingConfig, this._scope, 'points');
   }
 
-  /** @returns {any[]} */
+  /** @returns {any[]} the objects of the open scope */
   get _objects() {
-    return Array.isArray(this._workingConfig.objects) ? this._workingConfig.objects : [];
+    return scopedList(this._workingConfig, this._scope, 'objects');
   }
 
+  /** Every point id on the card (ids are card-wide) */
   get _pointIds() {
-    return this._points.map((p) => p?.id).filter((id) => id !== undefined).map(String);
+    return allPointIds(this._workingConfig);
+  }
+
+  /** The open system, or null for the scene */
+  get _system() {
+    return scopeSystem(this._workingConfig, this._scope);
   }
 
   /**
@@ -163,6 +185,9 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
    */
   _commit(next, { now = false } = {}) {
     this._workingConfig = next;
+    // the YAML tab or a starter can take the open system away
+    const scope = validScope(next, this._scope);
+    if (scope !== this._scope) this._openScope(scope);
     clearTimeout(this._previewTimer);
     if (now) this._updatePreview();
     else this._previewTimer = setTimeout(() => this._updatePreview(), PREVIEW_DELAY);
@@ -176,9 +201,31 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     this._commit(next);
   }
 
+  /**
+   * Replace the open scope's points or objects.
+   * @param {'points' | 'objects'} key
+   * @param {any[] | undefined} list
+   */
+  _setList(key, list) {
+    this._commit(setScopedList(this._workingConfig, this._scope, key, list));
+  }
+
   /** @param {any[]} objects */
   _setObjects(objects) {
-    this._setTop('objects', objects.length ? objects : undefined);
+    this._setList('objects', objects.length ? objects : undefined);
+  }
+
+  /**
+   * Open a scope in the Points and Objects tabs (rows closed).
+   * @param {number} scope
+   * @private
+   */
+  _openScope(scope) {
+    if (scope === this._scope) return;
+    this._scope = scope;
+    this._expandedObject = -1;
+    this._addingObject = false;
+    this._selectedPoint = null;
   }
 
   // ── Preview ────────────────────────────────────────────────────────────────
@@ -230,12 +277,16 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       return;
     }
     if (hit.kind === 'point') {
+      const scope = pointScope(this._workingConfig, hit.id);
+      if (scope !== null) this._openScope(scope);
       this._activeTab = 'points';
       this._selectPoint(hit.id);
       return;
     }
-    const index = this._objects.findIndex((o, i) => this._objectId(o, i) === hit.id);
-    if (index < 0) return;
+    const where = objectScope(this._workingConfig, hit.id);
+    if (!where) return;
+    this._openScope(where.scope);
+    const index = where.index;
     this._activeTab = 'objects';
     this._selectObject(index);
     this.updateComplete.then(() => this.renderRoot.querySelector(`[data-object="${index}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
@@ -277,8 +328,10 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       return;
     }
     this._status = '';
+    const scope = pointScope(this._workingConfig, id);
+    if (scope !== null) this._openScope(scope);
     const points = this._points.map((p) => (p && String(p.id) === id ? { ...p, [form]: value } : p));
-    this._setTop('points', points);
+    this._setList('points', points);
     this._activeTab = 'points';
     this._selectPoint(id);
   }
@@ -298,10 +351,11 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     if (on) {
       card.cancelPick?.();
       this._placing = true;
-      this._status = 'Tap the scene to place a new point. Escape cancels.';
+      const system = this._system ? this._objectIdIn(SCENE_SCOPE, this._scope) : undefined;
+      this._status = system ? `Tap the scene to place a new point in ${system}. Escape cancels.` : 'Tap the scene to place a new point. Escape cancels.';
       window.addEventListener('keydown', this._onPlaceKey, true);
       scene.setPickHandler((/** @type {number} */ x, /** @type {number} */ y) => {
-        const place = scene.placementAt(x, y);
+        const place = scene.placementAt(x, y, system);
         if (!place) {
           this._status = 'Nothing to stand on there: tap an object or the ground plane.';
           return;
@@ -333,20 +387,27 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   _addPlacedPoint({ form, value, object }) {
     const id = freshId('point', this._pointIds);
     const point = { id, ...(object ? { object } : {}), [form]: value, marker: 'dot', label: 'NEW POINT' };
-    this._setTop('points', [...this._points, point]);
+    this._setList('points', [...this._points, point]);
     this._activeTab = 'points';
     this._selectPoint(id);
   }
 
   /**
-   * An object's id as the scene names it (type#n when it has none).
+   * An object's id in the open scope as the scene names it (type#n when it has none).
    * @param {any} obj
    * @param {number} index
    */
   _objectId(obj, index) {
-    if (obj?.id !== undefined) return String(obj.id);
-    const n = this._objects.slice(0, index + 1).filter((o) => o?.type === obj?.type).length;
-    return `${obj?.type}#${n}`;
+    return this._objectIdIn(this._scope, index) ?? (obj?.id !== undefined ? String(obj.id) : `${obj?.type}#${index + 1}`);
+  }
+
+  /**
+   * @param {number} scope
+   * @param {number} index
+   * @returns {string | undefined}
+   */
+  _objectIdIn(scope, index) {
+    return scopedObjectIds(this._workingConfig, scope)[index];
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -370,6 +431,9 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         .object { margin-bottom: var(--ha-space-2); display: block; }
         .empty { padding: var(--ha-space-4); text-align: center; color: var(--secondary-text-color); }
         .type-picker { margin-bottom: var(--ha-space-3); }
+        .scope-bar { display: flex; align-items: center; gap: var(--ha-space-2); margin-bottom: var(--ha-space-3); padding: var(--ha-space-2) var(--ha-space-3); border: var(--ha-border-width-sm) solid var(--divider-color); border-radius: var(--ha-border-radius-md); }
+        .scope-bar span { flex: 1; }
+        .system-open { display: flex; align-items: center; justify-content: space-between; gap: var(--ha-space-2); margin: var(--ha-space-2) 0; }
         .type-picker-actions { display: flex; justify-content: flex-end; gap: var(--ha-space-2); margin-top: var(--ha-space-2); }
         lcards-form-section { display: block; }
         .canvas-toolbar { align-items: center; }
@@ -477,13 +541,15 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   /** @private */
   _renderPointsTab() {
     return html`
+      ${this._renderScopeBar('points')}
       <lcards-astro-points-editor
         .hass=${this.hass}
-        .config=${this._workingConfig}
+        .config=${pointsEditorConfig(this._workingConfig, this._scope)}
         .preview=${this._previewCard}
+        .takenIds=${this._pointIds}
         .selected=${this._selectedPoint}
         @point-selected=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); this._selectPoint(e.detail.id); }}
-        @points-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); this._setTop('points', e.detail.value); }}>
+        @points-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); this._setList('points', e.detail.value); }}>
       </lcards-astro-points-editor>
     `;
   }
@@ -606,7 +672,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     const camera = this._workingConfig.camera;
     const views = viewsOf(camera);
     const target = name ?? freshViewName(views);
-    this._setCamera(setView(camera, target, captureView(scene.cameraKeys(), scene.pointPositions(), views[target])), { now: true });
+    // viewNow names the point the camera looks at (its distance in that point's units, in a system)
+    this._setCamera(setView(camera, target, captureView(scene.viewNow?.() ?? scene.cameraKeys(), scene.pointPositions(), views[target])), { now: true });
     this._expandedView = target;
     this._viewError = '';
   }
@@ -745,6 +812,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   _renderObjectsTab() {
     const objects = this._objects;
     return html`
+      ${this._renderScopeBar('objects')}
       <div class="tab-header">
         <h3>Objects</h3>
         <div>
@@ -761,13 +829,36 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       ${this._addingObject ? this._renderTypePicker() : nothing}
       ${objects.length
         ? objects.map((o, i) => this._renderObject(o, i, objects.length))
-        : html`<div class="empty">No objects yet. Add a grid, a sphere or another type to draw something.</div>`}
+        : html`<div class="empty">${this._system ? 'No objects in this system yet. Add a sphere for its star or a planet, or another type.' : 'No objects yet. Add a grid, a sphere or another type to draw something.'}</div>`}
     `;
+  }
+
+  /**
+   * Over the Points and Objects tabs while a system is open: whose lists
+   * these are, its units, and the way back to the scene's.
+   * @param {'points' | 'objects'} tab
+   * @private
+   */
+  _renderScopeBar(tab) {
+    const sys = this._system;
+    if (!sys) return nothing;
+    const id = this._objectIdIn(SCENE_SCOPE, this._scope);
+    const units = sys.units ? `in ${sys.units}` : sys.scale !== undefined ? `scale ${sys.scale}` : `in ${this._workingConfig.units ?? 'scene units'}`;
+    return html`
+      <div class="scope-bar">
+        <ha-icon icon="mdi:white-balance-sunny"></ha-icon>
+        <span>${tab === 'points' ? 'Points' : 'Objects'} of system <b>${id}</b> (${units})</span>
+        <ha-button appearance="plain" @click=${() => this._openScope(SCENE_SCOPE)}>
+          <ha-icon icon="mdi:arrow-left" slot="start"></ha-icon>
+          Back to the scene
+        </ha-button>
+      </div>`;
   }
 
   /** @private */
   _renderTypePicker() {
-    const options = TYPE_GUIDE.map((t) => ({ value: t.type, label: t.type, description: t.use }));
+    // one level: no system in a system
+    const options = TYPE_GUIDE.filter((t) => !(this._system && t.type === 'system')).map((t) => ({ value: t.type, label: t.type, description: t.use }));
     // box mode shows each type's description under its name
     return html`
       <lcards-form-section class="type-picker" header="Which type for what" icon="mdi:shape-plus-outline" outlined ?expanded=${true}>
@@ -785,7 +876,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   /** @param {string} type @private */
   _addObject(type) {
     const objects = this._objects;
-    const ids = objects.map((o, i) => this._objectId(o, i));
+    const ids = allObjectIds(this._workingConfig);
     this._addingObject = false;
     this._expandedObject = objects.length;
     this._setObjects([...objects, newObject(type, ids, this._pointIds)]);
@@ -809,6 +900,11 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         secondary=${[obj?.type, objectSummary(obj)].filter(Boolean).join(' · ')}
         icon=${guide?.icon ?? 'mdi:shape-outline'} outlined ?expanded=${expanded}
         @expanded-changed=${(/** @type {CustomEvent} */ e) => { if (e.detail.expanded) this._selectObject(index); else if (this._expandedObject === index) this._selectObject(-1); }}>
+        ${obj?.type === 'system' && !this._system ? html`
+          <ha-icon-button slot="header-icons" .label=${'Edit its points and objects'}
+            @click=${(/** @type {Event} */ e) => { e.stopPropagation(); this._openScope(index); }}>
+            <ha-icon icon="mdi:folder-open-outline"></ha-icon>
+          </ha-icon-button>` : nothing}
         <ha-icon-button slot="header-icons" .label=${'Move up'} ?disabled=${index === 0}
           @click=${(/** @type {Event} */ e) => { e.stopPropagation(); this._moveObject(index, -1); }}>
           <ha-icon icon="mdi:arrow-up"></ha-icon>
@@ -840,7 +936,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
    */
   _renderObjectForm(obj, parts, set) {
     const props = { ...parts.common, ...parts.own };
-    const own = ['id', ...Object.keys(parts.own)].filter((k) => k !== 'id' || props.id);
+    // a system's points and objects are edited in its own lists (the row's open button)
+    const own = ['id', ...Object.keys(parts.own)].filter((k) => (k !== 'id' || props.id) && !(obj?.type === 'system' && (k === 'points' || k === 'objects')));
     const placement = COMMON_GROUPS.placement.filter((k) => parts.common[k]);
     const distance = COMMON_GROUPS.distance.filter((k) => parts.common[k]);
     const actions = COMMON_GROUPS.actions.filter((k) => parts.common[k]);
@@ -852,6 +949,14 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     return html`
       ${parts.branch.description ? html`<div class="hint">${parts.branch.description}</div>` : nothing}
       ${form(own)}
+      ${obj?.type === 'system' ? html`
+        <div class="system-open">
+          <span class="hint">${systemCounts(obj)}</span>
+          <ha-button @click=${() => this._openScope(this._expandedObject)}>
+            <ha-icon icon="mdi:folder-open-outline" slot="start"></ha-icon>
+            Edit its points and objects
+          </ha-button>
+        </div>` : nothing}
       <lcards-form-section header="Placement" icon="mdi:axis-arrow" nested outlined ?expanded=${false}>${form(placement)}</lcards-form-section>
       <lcards-form-section header="Distance" icon="mdi:map-marker-distance" nested outlined ?expanded=${false}>${form(distance)}</lcards-form-section>
       <lcards-form-section header="Actions and tags" icon="mdi:gesture-tap" nested outlined ?expanded=${false}>${form(actions)}</lcards-form-section>
@@ -872,7 +977,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   _duplicateObject(index) {
     const objects = this._objects;
     const src = objects[index];
-    const ids = objects.map((o, i) => this._objectId(o, i));
+    const ids = allObjectIds(this._workingConfig);
     const copy = { ...clone(src), id: freshId(`${src?.id ?? src?.type}_`, ids) };
     this._expandedObject = index + 1;
     this._setObjects([...objects.slice(0, index + 1), copy, ...objects.slice(index + 1)]);
@@ -883,7 +988,9 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     const obj = this._objects[index];
     const ok = await showConfirmDeleteDialog({
       title: 'Delete object',
-      message: `Delete ${this._objectId(obj, index)}? Points standing on it lose their surface.`
+      message: obj?.type === 'system'
+        ? `Delete ${this._objectId(obj, index)} with its ${systemCounts(obj)}?`
+        : `Delete ${this._objectId(obj, index)}? Points standing on it lose their surface.`
     });
     if (!ok) return;
     if (this._expandedObject === index) this._expandedObject = -1;

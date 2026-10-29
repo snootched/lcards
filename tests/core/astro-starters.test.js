@@ -90,6 +90,21 @@ test('scenes replace (card keys kept) or merge; parts add; clashes are refused b
   assert.match(String(again.error), /^Already in this card: point mars_body, .*Choose another prefix\.$/);
 });
 
+test('true-scale scenes: units come with them, merging across units is refused, ids inside a system clash too', () => {
+  const card = { type: TYPE, units: 'au', points: [{ id: 'home', xyz: [0, 0, 0] }] };
+  const replaced = /** @type {any} */ (applyStarter(card, byId('true_scale_dive'))).config;
+  assert.equal(replaced.units, 'ly');
+  assert.equal(replaced.objects.find((o) => o.type === 'system').units, 'km');
+  assert.match(String(applyStarter(card, byId('true_scale_solar_system'), {}, { mode: 'merge' }).error), /in km and the card is in au/);
+  // an empty card takes the units on a merge
+  assert.equal(/** @type {any} */ (applyStarter({ type: TYPE }, byId('true_scale_solar_system'), {}, { mode: 'merge' })).config.units, 'km');
+  // a card point named like one inside the dive's system
+  const clash = applyStarter({ type: TYPE, units: 'ly', points: [{ id: 'earth', xyz: [0, 0, 0] }] }, byId('true_scale_dive'), {}, { mode: 'merge' });
+  assert.match(String(clash.error), /point earth/);
+  // the faked scenes leave the card's units alone
+  assert.equal(/** @type {any} */ (applyStarter(card, byId('sector_map'))).config.units, undefined);
+});
+
 test('params: defaults fill blanks; a point param is an id or three numbers', () => {
   assert.equal(starterParams(byId('planet'), { prefix: '', moons: 3 }).prefix, 'planet');
   assert.equal(starterParams(byId('planet'), { moons: 3 }).moons, 3);

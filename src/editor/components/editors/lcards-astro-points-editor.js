@@ -115,6 +115,7 @@ export class LCARdSAstroPointsEditor extends LitElement {
       hass: { type: Object },
       config: { type: Object },
       preview: { attribute: false },
+      takenIds: { attribute: false },
       selected: { type: String },
       _expanded: { type: Number, state: true },
       _picking: { type: String, state: true },
@@ -148,6 +149,8 @@ export class LCARdSAstroPointsEditor extends LitElement {
     this._expanded = -1;
     /** @type {any} the preview card (pickPosition, cancelPick, partNames) */
     this.preview = null;
+    /** @type {string[] | undefined} every point id on the card (a system's list holds only some) */
+    this.takenIds = undefined;
     /** @type {string | null} */
     this.selected = null;
     /** @type {string} the point id being picked, '' when none */
@@ -216,7 +219,8 @@ export class LCARdSAstroPointsEditor extends LitElement {
 
   /** A fresh id: point1, point2, ... not taken */
   _freshId(base = 'point') {
-    const ids = new Set(this._points.map((p) => String(p?.id)));
+    // ids are card-wide: a system's points must not take the scene's (takenIds)
+    const ids = new Set([...this._points.map((p) => String(p?.id)), ...(this.takenIds ?? [])]);
     let n = 1;
     while (ids.has(`${base}${n}`)) n++;
     return `${base}${n}`;

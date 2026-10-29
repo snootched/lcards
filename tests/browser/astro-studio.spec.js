@@ -263,3 +263,68 @@ test('studio: starters: a part round a card point (it orbits), clashes refused, 
     expect(await page.evaluate(() => window.__studio._workingConfig.objects.map((o) => o.id).slice(-1))).toEqual(['sectors']);
     expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
 });
+
+test('studio: a star system opens in the Points and Objects tabs; a tap inside it opens its list; ids stay card-wide', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-dive', { width: '800' });
+    await openStudio(page);
+    const studio = () => page.evaluate(() => {
+        const s = window.__studio;
+        return { tab: s._activeTab, scope: s._scope, points: s._points.map((p) => p.id), objects: s._objects.length, bar: !!s.renderRoot.querySelector('.scope-bar') };
+    });
+    // the scene's lists first
+    expect(await studio()).toMatchObject({ scope: -1, points: ['core', 'sol', 'vega'], bar: false });
+    // the system's row: its points and objects are not form fields; its open button opens its lists
+    const sys = await page.evaluate(() => window.__studio._workingConfig.objects.findIndex((o) => o.type === 'system'));
+    await page.evaluate(async (i) => {
+        const s = window.__studio;
+        s._activeTab = 'objects';
+        s._selectObject(i);
+        await s.updateComplete;
+    }, sys);
+    const formKeys = await page.evaluate(async (i) => {
+        const form = window.__studio.renderRoot.querySelector(`[data-object="${i}"] lcards-astro-schema-form`);
+        await form.updateComplete;
+        return [...form.renderRoot.querySelectorAll('[data-key]')].map((el) => el.dataset.key);
+    }, sys);
+    expect(formKeys).toContain('units');
+    expect(formKeys).not.toContain('points');
+    await page.evaluate(async (i) => {
+        const s = window.__studio;
+        s.renderRoot.querySelector(`[data-object="${i}"] .system-open ha-button`).click();
+        await s.updateComplete;
+    }, sys);
+    let st = await studio();
+    expect(st).toMatchObject({ scope: sys, bar: true });
+    expect(st.points).toContain('ds9');
+    expect(st.objects).toBeGreaterThan(5);
+    // a new point in the system: written into the system, with an id the scene's points do not use
+    await page.evaluate(async () => {
+        const s = window.__studio;
+        s._activeTab = 'points';
+        await s.updateComplete;
+        const pe = s.renderRoot.querySelector('lcards-astro-points-editor');
+        pe.takenIds = [...pe.takenIds, 'point1'];
+        pe._add();
+    });
+    const added = await page.evaluate(() => {
+        const sysCfg = window.__studio._workingConfig.objects.find((o) => o.type === 'system');
+        return { inSystem: sysCfg.points.at(-1).id, scene: window.__studio._workingConfig.points.length };
+    });
+    expect(added.scene).toBe(3);
+    expect(added.inSystem).toBe('point2');
+    // back to the scene, then a tap on SOL (a scene point) and a select of DS9 (a system point) open the right lists
+    await page.evaluate(() => window.__studio._openScope(-1));
+    await page.evaluate(() => window.__studio._onSceneSelect({ kind: 'point', id: 'ds9' }));
+    st = await studio();
+    expect(st).toMatchObject({ tab: 'points', scope: sys });
+    await page.evaluate(() => window.__studio._onSceneSelect({ kind: 'point', id: 'sol' }));
+    expect((await studio()).scope).toBe(-1);
+    // a system object without an id, by the id the scene gives it (the scene's own glow is glow#1)
+    const ringId = await page.evaluate((i) => window.__studio._objectIdIn(i, 0), sys);
+    expect(ringId).toBe('glow#2');
+    expect(await page.evaluate(() => [...window.__studio._previewCard._scene.debug().world.objects.keys()])).toContain(ringId);
+    await page.evaluate((id) => window.__studio._onSceneSelect({ kind: 'object', id }), ringId);
+    expect(await page.evaluate(() => [window.__studio._activeTab, window.__studio._scope, window.__studio._expandedObject])).toEqual(['objects', sys, 0]);
+    expect(await cardErrors(page)).toEqual([]);
+});

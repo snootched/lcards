@@ -46,7 +46,7 @@ Moving effects (nebula clouds, scan bands on grids, spheres and volumes, moving 
 
 ## Distance
 
-Any object can show only within a range of camera distances, with the same keys as [points](./points#visibility). The distance is from the camera to the nearest edge of the object (0 when the camera is inside it), so a large grid does not vanish while you fly through it.
+Any object can show only within a range of camera distances, with the same keys as [points](./points#visibility). The distance is from the camera to the nearest edge of the object (0 when the camera is inside it), so a large grid does not vanish while you fly through it. A flat grid (`shape: plane` or `disc`, not deformed) is measured to its surface: above a galactic disc the distance is your height over it, so `min_distance` can hide the disc once you dive into a star system.
 
 | Key | What it does |
 |---|---|
@@ -521,7 +521,7 @@ objects:
 
 ## system
 
-A star system at true scale inside a larger scene: Sol in km at a point of a galaxy in light years. It draws nothing itself; it holds `points` and `objects` written in its own units, which keep their precision however small they are next to the scene. See [At true scale: star systems](./#star-systems) for a whole dive from a galaxy to a station.
+A star system at true scale inside a larger scene: Sol in km at a point of a galaxy in light years. It draws nothing itself; it holds `points` and `objects` written in its own units, which keep their precision however small they are next to the scene. See [Scale: star systems](./scale#star-systems) for a whole dive from a galaxy to a station.
 
 | Key | What it does |
 |---|---|

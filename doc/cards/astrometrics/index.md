@@ -151,7 +151,7 @@ The card is the scene only. For an LCARS frame round it (an "ALPHA QUADRANT" bar
 | `camera` | `view`, `views`, `controls`, `drag`, `pan`, `zoom_to`, `zoom_step`, `double_tap`, `buttons`, `limits`, `auto_rotate`, `fly_duration`, `ease`, `warp` ([Camera and views](#camera-and-views), [Controls](#controls), [Effects: warp](./effects#warp-and-dust)) |
 | `points` | Named points with labels and markers ([Points](./points)) |
 | `objects` | What is drawn ([Objects](./objects), [Effects](./effects)) |
-| `units` | What one scene unit is: `m`, `km`, `au`, `ly` or `pc` (optional; a [star system](#star-systems) needs it to give its own) |
+| `units` | What one scene unit is: `m`, `km`, `au`, `ly` or `pc` (optional; a [star system](./scale#star-systems) needs it to give its own) |
 | `backdrop` | `stars`, `dust` ([Backdrop](#backdrop)) |
 | `background_animation` | Flat background effects behind the scene ([Backdrop](#backdrop)) |
 | `labels` | `default`, `styles`, `overlap`, `snap` ([Labels](#labels)) |
@@ -167,75 +167,9 @@ The [config checker](/getting-started/config-checker) also checks what the schem
 - **Bearings** are degrees clockwise from north (north is away from the default camera), as on a compass seen from above.
 - **Motion is off until you set it,** and every moving key follows one rule: turning in degrees per second (`spin`, `camera.auto_rotate`); travel in its own units per second (`flow_speed` in px, a fill's `speed` and a nebula's or noise's `drift` in scene units); repeating cycles as a `period` in seconds (`scan_period`, a deformation's `period`). Fly-to times are in ms, as everywhere in LCARdS.
 
-## At true scale
+## True scale
 
-Scene units can be real ones: a solar system in km, a station in metres. Build it with the real numbers and the card holds the whole range:
-
-```yaml
-type: custom:lcards-astrometrics-card
-camera:
-  view: station
-  views:
-    system: { target: sun, yaw: 40, tilt: 35, distance: 2100000000 }
-    earth: { target: earth, yaw: 225, tilt: 12, distance: 70000 }
-    station: { target: ds9, yaw: 330, tilt: 6, distance: 4 }
-points:
-  - { id: sun, xyz: [0, 0, 0], label: SOL, style: major }
-  - { id: earth, polar: [149597870.7, 30], marker: dot, label: EARTH }
-  - { id: ds9, at: earth, offset: [-21082, 0, 36515], label: DEEP SPACE 9, style: tiny }
-objects:
-  - { type: glow, at: sun, size: 9000000, color: var(--lcars-yellow) }
-  - { type: sphere, at: sun, radius: 696340, fill_color: var(--lcars-yellow) }
-  - { type: ring, radius: 149597870.7, width: 1, color: var(--lcars-blue) }
-  - { type: sphere, at: earth, radius: 6371, image: builtin:earth_blue_marble }
-  - { type: model, at: ds9, src: builtin:deep_space_nine, size: 1.452, material: original }
-```
-
-- **Depth:** a station 4 km away with Earth 42,000 km behind it and the Sun 150 million km further draws in the right order. When one depth range cannot hold the view, the card draws it in slices, far to near; a scene built to fit draws in one pass as before.
-- **Distance limits** follow the scene: you can zoom in to half its smallest object and out to 20 times its size (a scene built to fit keeps 1 to 100,000). `limits.distance` sets your own.
-- **Fly-to** over a long zoom moves evenly in log distance, so each factor of ten takes the same time, and zooming in the camera lines up on its target early instead of sweeping past it close up.
-- **Orbit rings** add segments near the camera, so an orbit 150 million km across still passes through its planet seen from 70,000 km.
-- **What to expect:** at true scale, planets are dots from across their system (Earth is 1/23,000 of its orbit), so give them markers and labels; the close views are where it shines. The [distance](./objects#distance) keys still pick what shows when.
-
-### Star systems
-
-One set of units cannot hold a galaxy and a station: at 26,000 light years from the galactic core, numbers in light years are only good to about 30 km. A [`system`](./objects#system) object holds points and objects in units of their own, at a point of the scene: the galaxy in light years, Sol in km. Write each part with the numbers as published (star positions in ly or pc, orbits in AU or km, sizes in km); name the scene's units with `units`.
-
-```yaml
-type: custom:lcards-astrometrics-card
-units: ly
-camera:
-  view: galaxy
-  views:
-    galaxy: { target: core, yaw: 20, tilt: 35, distance: 140000 }
-    earth: { target: earth, yaw: 225, tilt: 12, distance: 70000 }
-    station: { target: ds9, yaw: 330, tilt: 6, distance: 4 }
-points:
-  - { id: core, xyz: [0, 0, 0], label: GALACTIC CORE, style: title }
-  - { id: sol, polar: [26000, 200], alt: 60, marker: dot, label: SOL, style: major, tap_action: { action: fly-to, view: earth } }
-objects:
-  - { type: grid, shape: disc, radius: 50000, pattern: polar, line_spacing: 5000, spoke_count: 36 }
-  - { type: glow, at: core, size: 30000 }
-  - type: system
-    id: sol_system
-    at: sol
-    units: km
-    points:
-      - { id: sun, xyz: [0, 0, 0] }
-      - { id: earth, polar: [149597870.7, 30], marker: dot, label: EARTH, max_distance: 3000000000 }
-      - { id: ds9, at: earth, offset: [-21082, 0, 36515], label: DEEP SPACE 9, style: tiny, max_distance: 3000000 }
-    objects:
-      - { type: glow, at: sun, size: 9000000, color: var(--lcars-yellow) }
-      - { type: sphere, at: sun, radius: 696340, fill_color: var(--lcars-yellow) }
-      - { type: ring, radius: 149597870.7, width: 1, color: var(--lcars-blue) }
-      - { type: sphere, at: earth, radius: 6371, image: builtin:earth_blue_marble }
-      - { type: model, at: ds9, src: builtin:deep_space_nine, size: 1.452, material: original }
-```
-
-- **Ids are card-wide:** views, `fly-to`, rules, templates and paths name a system's points and objects like any others.
-- **Distances are in the owner's units:** a view's `distance` is in its target's units (the `station` view above is 4 km, the `galaxy` view 140,000 ly), and so are a point's or object's `fade`, `min_distance` and `max_distance`. A view with an `[x, y, z]` target, and `camera.limits`, are in scene units.
-- **The camera follows:** within a few times its size of a system, the camera works in the system's units, so a station a few km across holds steady; further out it works in the scene's. Nothing on screen moves at the change, and a fly-to from the galaxy lands exactly on its target inside.
-- **One level:** a system cannot hold another system (it reaches from a galaxy down to a station already). A system is not rotated: its axes are the scene's.
+Scene units can be real ones: a solar system in km, a galaxy in light years with Sol in km inside it as a [`system`](./objects#system). The card holds the whole range, from a galaxy down to a station 1.5 km across. See [Scale](./scale).
 
 ## Performance and motion
 

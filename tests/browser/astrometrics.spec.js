@@ -783,6 +783,25 @@ test('E10 true scale: the Sun, Earth and Deep Space 9 in km draw at every view',
     await expectNoErrors(page);
 });
 
+test('E10 true-scale starters: the solar system in km draws whole, at Jupiter and at Saturn', async ({ page }) => {
+    await mountCase(page, 'astro-true-solar', { width: '800' });
+    await sceneReady(page);
+    const shot = async (name) => { if (process.env.LCARDS_SHOTS) await page.screenshot({ path: `${process.env.LCARDS_SHOTS}/true-solar-${name}.png` }); };
+    const fly = (view) => page.evaluate((v) => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo(v, { duration: 0 }), view);
+    const labels = () => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().labelItems.filter((l) => l.visible).map((l) => l.id));
+    // the whole system, Neptune 4.5 billion km out: the outer planets' labels (the inner ones crowd round the Sun)
+    await expect.poll(async () => (await labels()).sort(), { timeout: 5_000 }).toEqual(expect.arrayContaining(['jupiter', 'neptune', 'saturn', 'uranus']));
+    expect(await litPixels(page)).toBeGreaterThan(2000);
+    await shot('system');
+    for (const view of ['jupiter', 'saturn', 'earth']) {
+        await fly(view);
+        await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+        expect(await litPixels(page), view).toBeGreaterThan(4000);
+        await shot(view);
+    }
+    await expectNoErrors(page);
+});
+
 test('E10 star system: a dive from a galaxy in ly to a station in km, the frame changing on the way', async ({ page }) => {
     await mountCase(page, 'astro-dive', { width: '800' });
     await sceneReady(page);
@@ -833,6 +852,22 @@ test('E10 star system: a dive from a galaxy in ly to a station in km, the frame 
     expect([st.keys.tx, st.keys.ty, st.keys.tz]).toEqual(st.ds9);
     expect(await litPixels(page)).toBeGreaterThan(2000);
     await shot('station');
+    // the Studio's capture and picks here: the view names DS9 with its distance in km, the ground is the system's
+    const studio = await page.evaluate(() => {
+        const card = /** @type {any} */ (document.querySelector('#mount > *'));
+        const c = card.shadowRoot.querySelector('canvas');
+        const x = c.clientWidth / 2;
+        const y = c.clientHeight / 2;
+        return { view: card._scene.viewNow(), system: card._scene.placeAt(x, y, 'xyz', undefined, 'sol_system'), scene: card._scene.placeAt(x, y, 'xyz') };
+    });
+    expect(studio.view.target).toBe('ds9');
+    expect(studio.view.distance).toBe(4);
+    expect(Math.hypot(studio.system[0] - st.ds9[0], studio.system[2] - st.ds9[2])).toBeLessThan(1);
+    expect(studio.system[1]).toBe(0);
+    // without a system: the galaxy's ground, in light years
+    expect(studio.scene).not.toBeNull();
+    expect(Math.hypot(studio.scene[0], studio.scene[2])).toBeGreaterThan(20000);
+    expect(Math.hypot(studio.scene[0], studio.scene[2])).toBeLessThan(40000);
     // out to the galaxy and all the way back in one fly-to: lands on DS9 exactly, in the system's km
     await fly('galaxy', 1500);
     await expect.poll(async () => (await state()).frame, { timeout: 8_000 }).toBe('root');

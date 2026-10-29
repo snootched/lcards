@@ -47,6 +47,7 @@ Many LCARdS users also run **HA-LCARS**, the LCARS theme for all of Home Assista
 - Templates: Jinja2 `{{ states('sensor.x') }}`, JavaScript `[[[ return entity.state ]]]`, LCARdS tokens `{entity.state}`, data sources `{ds:name}` / `{ds:name.processor:.1f}`.
 - Rules live in a card's `rules:` list; a rule targets cards and MSD overlays by `id` or `tag:<tag>` under `apply.overlays`.
 - Layout views: columns and rows that hold charts, MSDs or grids use `minmax(0, 1fr)`; a lozenge button shows its label only with `text.<field>.show: true`.
+- Astrometrics at true scale: real numbers with `units` on the card (`m`, `km`, `au`, `ly`, `pc`); a part in other units (Sol in km inside a galaxy in ly) is a `type: system` object with its own `units`, `points` and `objects`, one level deep. Ids are card-wide; a view's `distance` is in its target point's units, `fade`/`min_distance`/`max_distance` in their owner's (`references/docs/cards/astrometrics/scale.md`).
 - Quote `y`, `n`, `yes`, `no`, `on`, `off` (any case) wherever they are keys or bare values: `"y": 20`, `label: "N"`, `state: "on"`. Home Assistant's code editor (2026.8+) reads them unquoted as `true`/`false`; the checker warns about each.
 - Actions from automations or buttons: `lcards.red_alert`, `lcards.clear_alert`, `lcards.trigger_effect`, `lcards.play_sound`, ... (`references/docs/configuration/ha-actions.md`).
 

@@ -36,6 +36,8 @@ Each object's form is made from the card's options for its type: placement first
 
 Each object can move up or down the list, be duplicated (with a new id) or deleted.
 
+A [`system`](./objects#system) row has **Edit its points and objects**: the Points and Objects tabs then edit that system's lists, in its units, until **Back to the scene**. See [Scale: in the Studio](./scale#in-the-studio).
+
 ### Camera views
 
 Move the preview's camera where you want it and select **Capture view**: the camera's target, yaw, tilt and distance become a new named view (`fov` and `projection` too, when they are not the defaults). The target is written as a point's id when the camera looks at a point (fly to the point first), else as coordinates rounded to 0.1. Capturing never moves the camera.
