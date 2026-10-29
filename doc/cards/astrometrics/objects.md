@@ -53,7 +53,7 @@ Any object can show only within a range of camera distances, with the same keys 
 | `min_distance` | Hidden when the camera is closer than this: a sector outline that gives way to the system inside. It fades in over the 10% before it. |
 | `fade: [start, end]` | Fades out between these distances. |
 
-Two things with touching ranges cross-fade, so one can stand in for the other at a distance: a ship's model close up and a marker far away (`max_distance: 60` on the model, `min_distance: 60` on a point at it with a `marker`). An object out of range is not drawn and cannot be tapped; its points keep their own ranges. Zoom into the star below: its planets and their orbits appear as you close in.
+Two things with touching ranges cross-fade, so one can stand in for the other at a distance: a ship's model close up and a marker far away (`max_distance: 60` on the model, `min_distance: 60` on a point at it with `marker: ship` or `marker: starbase`). An object out of range is not drawn and cannot be tapped; its points keep their own ranges. Zoom into the star below: its planets and their orbits appear as you close in.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -393,7 +393,7 @@ An asteroid belt: a band of low-poly rocks round its centre (`at`, a point id or
 | `tumble` | How fast each rock turns on its own axis, degrees per second (each a little faster or slower). Default 30; 0 holds them still. |
 | `color` | The rocks' colour, varied a little per rock. Default `var(--lcards-gray-light)`. |
 
-`rotation` tilts the belt, and `spin` turns it as one piece. `period` and `tumble` hold still under reduced motion.
+`rotation` tilts the belt, and `spin` turns it as one piece. `period` and `tumble` hold still under reduced motion. From far away, when even the largest rocks would be under about 1.5 px, the rocks are drawn as dots of the same size and shade (cheaper, and it looks the same); zoom in and they are rocks again.
 
 ```yaml live
 type: custom:lcards-astrometrics-card

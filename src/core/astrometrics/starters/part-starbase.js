@@ -13,7 +13,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'starbase',
   kind: 'part',
   title: 'Starbase',
-  description: 'A built-in starbase model (Deep Space 9, Earth Spacedock or a Utopia Planitia drydock) at a point, with its name and main parts labelled. Tap the name to fly to it.',
+  description: 'A built-in starbase model (Deep Space 9, Earth Spacedock or a Utopia Planitia drydock) at a point, with its name and main parts labelled; far away a starbase marker stands in for it. Tap the name to fly to it.',
   icon: 'mdi:space-station',
   params: [
     { key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: 'starbase' },
@@ -30,9 +30,11 @@ export default /** @type {import('./index.js').Starter} */ ({
       points: [
         ...c.points,
         { id: 'name', at: c.ref, offset: [0, s * 0.7, 0], label: String(label), style: 'minor', tap_action: { action: 'fly-to', view: 'view' } },
-        ...MARKS[key].map(([part, text]) => ({ id: part, object: 'station', part, marker: 'dot', label: text, style: 'tiny', max_distance: s * 6 }))
+        ...MARKS[key].map(([part, text]) => ({ id: part, object: 'station', part, marker: 'dot', label: text, style: 'tiny', max_distance: s * 6 })),
+        // far away the marker stands in for the model (the ranges meet, so they cross-fade)
+        { id: 'far', at: c.ref, marker: 'starbase', min_distance: s * 12, tap_action: { action: 'fly-to', view: 'view' } }
       ],
-      objects: [{ type: 'model', id: 'station', src: `builtin:${key}`, at: c.ref, size: s, material: 'original' }],
+      objects: [{ type: 'model', id: 'station', src: `builtin:${key}`, at: c.ref, size: s, material: 'original', max_distance: s * 12 }],
       views: { view: { target: c.ref, yaw: 30, tilt: 15, distance: s * 2 } }
     };
   }

@@ -727,3 +727,20 @@ test('E9 distance: objects out of range are not drawn, and appear as the camera 
     expect(st.alphas.planet).toBe(1);
     await expectNoErrors(page);
 });
+
+test('E9 belt dots: far away the rocks are drawn as dots, close up as rocks again', async ({ page }) => {
+    await mountCase(page, 'astro-belt', { width: '800' });
+    await sceneReady(page);
+    const form = () => page.evaluate(() => {
+        const b = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world.objects.get('belt');
+        return { rocks: b.node.getObjectByName('rocks').visible, dots: b.node.getObjectByName('dots').visible };
+    });
+    expect(await form()).toEqual({ rocks: true, dots: false });
+    const fly = (distance) => page.evaluate((d) => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo({ target: [0, 0, 0], yaw: 20, tilt: 30, distance: d }, { duration: 0 }), distance);
+    await fly(2500);
+    await expect.poll(form, { timeout: 5_000 }).toEqual({ rocks: false, dots: true });
+    expect(await litPixels(page)).toBeGreaterThan(30);
+    await fly(150);
+    await expect.poll(form, { timeout: 5_000 }).toEqual({ rocks: true, dots: false });
+    await expectNoErrors(page);
+});

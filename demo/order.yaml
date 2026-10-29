@@ -10,7 +10,7 @@ releases:
     views:
       - file: astro-distance
         summary: "Astrometrics distance: objects that appear as you zoom in"
-        description: "min_distance and max_distance on objects: zoom in and a galaxy sector gives way to a star system, then the Earth's Moon; a starbase is a marker far away and its model close up."
+        description: "min_distance and max_distance on objects: zoom in and a galaxy sector gives way to a star system, then the Earth's Moon; Deep Space 9 is a starbase marker far away and its model close up; a ship marker hands over to the ship's model, and the asteroid belt's rocks are dots from far away."
         session: "E9"
         docs: /cards/astrometrics/objects#distance
         public: true

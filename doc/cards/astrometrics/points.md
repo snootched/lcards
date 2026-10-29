@@ -159,7 +159,7 @@ points:
 
 ## Markers
 
-`marker` draws `dot`, `triangle`, `diamond`, `square`, `reticle`, `moon_phase` (the moon's lit part) or `none` at the point. A point with a marker can be tapped. `color` on the point colours the marker, and is the default for its text fields (a state map follows the point's entity). Without it the marker takes its style's colour; a field's own `color` colours only that text.
+`marker` draws `dot`, `triangle`, `diamond`, `square`, `reticle`, `ship` (a starship from above), `starbase`, `moon_phase` (the moon's lit part) or `none` at the point. `ship` and `starbase` stand in for a model far away: see [Distance](./objects#distance). A point with a marker can be tapped. `color` on the point colours the marker, and is the default for its text fields (a state map follows the point's entity). Without it the marker takes its style's colour; a field's own `color` colours only that text.
 
 <CardGallery set="astro-markers" />
 

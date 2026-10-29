@@ -697,7 +697,7 @@ objects:
 
 ### Starbase
 
-A built-in starbase model (Deep Space 9, Earth Spacedock or a Utopia Planitia drydock) at a point, with its name and main parts labelled. Tap the name to fly to it.
+A built-in starbase model (Deep Space 9, Earth Spacedock or a Utopia Planitia drydock) at a point, with its name and main parts labelled; far away a starbase marker stands in for it. Tap the name to fly to it.
 
 Its ids start with its name (default `starbase_`).
 
@@ -734,7 +734,19 @@ points:
     label: DOCKING RING
     style: tiny
     max_distance: 360
-objects: [{ type: model, id: starbase_station, src: builtin:deep_space_nine, at: starbase_centre, size: 60, material: original }]
+  - id: starbase_far
+    at: starbase_centre
+    marker: starbase
+    min_distance: 720
+    tap_action: { action: fly-to, view: starbase_view }
+objects:
+  - type: model
+    id: starbase_station
+    src: builtin:deep_space_nine
+    at: starbase_centre
+    size: 60
+    material: original
+    max_distance: 720
 camera: { views: { starbase_view: { target: starbase_centre, yaw: 30, tilt: 15, distance: 120 } } }
 ```
 

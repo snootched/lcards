@@ -12,11 +12,17 @@
  * radius^1.5); `tumble` turns each rock on its own axis. Both are per-frame
  * instance updates and hold still under reduced motion.
  *
+ * Far away the rocks become dots (no key): when the largest rock would be
+ * under about 1.5 px on screen (`DOT_PX`, measured from the camera to the
+ * band itself), one point per rock in the same place and shade takes over,
+ * and only the points move. The switch has a little slack so it does not
+ * flicker at the edge.
+ *
  * @module core/astrometrics/objects/belt
  */
 import {
   Group, InstancedMesh, IcosahedronGeometry, ShaderMaterial, Matrix4, Quaternion, Vector3, Color, InstancedBufferAttribute,
-  SRGBColorSpace
+  SRGBColorSpace, BufferGeometry, BufferAttribute, Points
 } from 'three';
 import { seededRandom } from '../../packs/backgrounds/webgl/scenes/scene-helpers.js';
 import { built, num, pair } from './common.js';
@@ -53,6 +59,80 @@ void main() {
   gl_FragColor = vec4( c, uOpacity );
 }`;
 
+const DOT_VERT = /* glsl */ `
+attribute float aShade;
+attribute float aSize;
+uniform float uPxPerUnit;
+uniform float uOrtho;
+uniform float uDpr;
+varying float vShade;
+varying float vCover;
+varying float vPhase;
+void main() {
+  vShade = aShade;
+  // how much of the rock's lit side faces the camera, as a moon's phase
+  vec3 world = ( modelMatrix * vec4( position, 1.0 ) ).xyz;
+  vec3 toCentre = normalize( ( modelMatrix * vec4( 0.0, 0.0, 0.0, 1.0 ) ).xyz - world );
+  vPhase = 0.5 + 0.5 * dot( toCentre, normalize( cameraPosition - world ) );
+  vec4 mv = modelViewMatrix * vec4( position, 1.0 );
+  // the rock's size on screen, device px: under one px it covers part of one
+  float px = aSize * ( uOrtho > 0.0 ? uOrtho : uPxPerUnit / max( -mv.z, 1e-6 ) ) * uDpr;
+  gl_PointSize = max( px, 1.0 );
+  vCover = clamp( px * px, 0.0, 1.0 );
+  gl_Position = projectionMatrix * mv;
+}`;
+
+const DOT_FRAG = /* glsl */ `
+uniform vec3 uColor;
+uniform float uOpacity;
+varying float vShade;
+varying float vCover;
+varying float vPhase;
+void main() {
+  // a rock's average light as seen from here (the rocks' 0.3 base, 0.7 lit)
+  gl_FragColor = vec4( uColor * vShade * ( 0.3 + 0.45 * vPhase ), uOpacity * vCover );
+}`;
+
+/** Rocks become dots when the largest would be smaller than this on screen, CSS px */
+export const DOT_PX = 1.5;
+
+/**
+ * How many CSS px a size in scene units covers at a distance.
+ * @param {import('three').Camera} camera
+ * @param {number} size
+ * @param {number} dist
+ * @param {number} height - the view's height, CSS px
+ */
+export function pixelSize(camera, size, dist, height) {
+  const cam = /** @type {any} */ (camera);
+  if (cam.isOrthographicCamera) return (size * height * cam.zoom) / Math.max(1e-9, cam.top - cam.bottom);
+  return (size * height) / Math.max(1e-9, 2 * Math.max(dist, 1e-6) * Math.tan((cam.fov * Math.PI) / 360));
+}
+
+/**
+ * Distance from a position local to the belt to its band (a ring of
+ * rectangular section, inner to outer and thickness high); 0 inside it.
+ * @param {Vector3} local
+ * @param {number} inner
+ * @param {number} outer
+ * @param {number} thickness
+ */
+export function bandDistance(local, inner, outer, thickness) {
+  const rho = Math.hypot(local.x, local.z);
+  const dr = Math.max(0, inner - rho, rho - outer);
+  const dy = Math.max(0, Math.abs(local.y) - thickness / 2);
+  return Math.hypot(dr, dy);
+}
+
+/**
+ * Dots now? With slack round DOT_PX: stays as it is between 0.9 and 1.1 of it.
+ * @param {boolean} dots - dots last frame
+ * @param {number} px - the largest rock's size on screen
+ */
+export function useDots(dots, px) {
+  return dots ? px < DOT_PX * 1.1 : px < DOT_PX * 0.9;
+}
+
 /**
  * A rough rock: an icosahedron with its corners pushed in and out, split
  * into flat faces (each face its own normal, so it looks faceted).
@@ -79,7 +159,7 @@ export function rockGeometry(rnd) {
  * The rocks' places, sizes and spins (pure, seeded: the same config gives
  * the same belt).
  * @param {any} cfg
- * @returns {{ inner: number, outer: number, rocks: { r: number, angle: number, y: number, scale: number[], axis: number[], phase: number, tumble: number, shade: number }[] }}
+ * @returns {{ inner: number, outer: number, thickness: number, largest: number, rocks: { r: number, angle: number, y: number, scale: number[], axis: number[], phase: number, tumble: number, shade: number }[] }}
  */
 export function beltLayout(cfg) {
   const rnd = seededRandom(num(cfg.seed, 1));
@@ -112,7 +192,8 @@ export function beltLayout(cfg) {
       shade: 0.65 + rnd() * 0.45
     });
   }
-  return { inner, outer, rocks };
+  // a rock is about twice its scale across; the largest are stretched up to 1.3
+  return { inner, outer, thickness, largest: hi * 2.6, rocks };
 }
 
 /**
@@ -123,7 +204,7 @@ export function beltLayout(cfg) {
 export function buildBelt(cfg, ctx) {
   const node = new Group();
   node.name = `belt:${cfg.id ?? ''}`;
-  const { inner, outer, rocks } = beltLayout(cfg);
+  const { inner, outer, thickness, largest, rocks } = beltLayout(cfg);
   const out = built(cfg, node, { radius: outer });
   if (!rocks.length) return out;
 
@@ -145,6 +226,32 @@ export function buildBelt(cfg, ctx) {
   const mesh = new InstancedMesh(geo, mat, rocks.length);
   mesh.name = 'rocks';
 
+  // Far away: one dot per rock
+  const dotPos = new Float32Array(rocks.length * 3);
+  const dotGeo = new BufferGeometry();
+  dotGeo.setAttribute('position', new BufferAttribute(dotPos, 3));
+  dotGeo.setAttribute('aShade', new BufferAttribute(shade.slice(), 1));
+  dotGeo.setAttribute('aSize', new BufferAttribute(Float32Array.from(rocks, (k) => (2 * (k.scale[0] + k.scale[1] + k.scale[2])) / 3), 1));
+  const dotMat = new ShaderMaterial({
+    uniforms: {
+      uColor: { value: new Vector3(color.r, color.g, color.b) },
+      uOpacity: { value: opacity },
+      uPxPerUnit: { value: 1 },
+      uOrtho: { value: 0 },
+      uDpr: { value: 1 }
+    },
+    vertexShader: DOT_VERT,
+    fragmentShader: DOT_FRAG,
+    // part-covered pixels blend
+    transparent: true,
+    depthWrite: false
+  });
+  const dotCloud = new Points(dotGeo, dotMat);
+  dotCloud.name = 'dots';
+  dotCloud.visible = false;
+  let dots = false;
+  let clock = 0;
+
   const m = new Matrix4();
   const q = new Quaternion();
   const turn = new Quaternion();
@@ -154,6 +261,7 @@ export function buildBelt(cfg, ctx) {
   const Y = new Vector3(0, 1, 0);
   /** @param {number} t - the scene clock, ms */
   const place = (t) => {
+    clock = t;
     const period = num(cfg.period, 0);
     for (let i = 0; i < rocks.length; i++) {
       const k = rocks[i];
@@ -162,6 +270,12 @@ export function buildBelt(cfg, ctx) {
       // clockwise seen from above (as a positive spin), from north
       const a = (k.angle + orbit) * DEG;
       p.set(k.r * Math.sin(a), k.y, -k.r * Math.cos(a));
+      if (dots) {
+        dotPos[i * 3] = p.x;
+        dotPos[i * 3 + 1] = p.y;
+        dotPos[i * 3 + 2] = p.z;
+        continue;
+      }
       axis.set(k.axis[0], k.axis[1], k.axis[2]);
       q.setFromAxisAngle(axis, (k.phase + (k.tumble * t) / 1000) * DEG);
       turn.setFromAxisAngle(Y, -a);
@@ -170,12 +284,30 @@ export function buildBelt(cfg, ctx) {
       m.compose(p, q, s);
       mesh.setMatrixAt(i, m);
     }
-    mesh.instanceMatrix.needsUpdate = true;
+    if (dots) dotGeo.attributes.position.needsUpdate = true;
+    else mesh.instanceMatrix.needsUpdate = true;
   };
   place(0);
   // the rocks stay in their band as they move: one bound for every frame
   mesh.computeBoundingSphere();
-  node.add(mesh);
+  dotGeo.boundingSphere = /** @type {import('three').Sphere} */ (mesh.boundingSphere).clone();
+  node.add(mesh, dotCloud);
+  const local = new Vector3();
+  out.lod = ({ camera, height, dpr }) => {
+    local.copy(camera.position);
+    node.worldToLocal(local);
+    const next = useDots(dots, pixelSize(camera, largest, bandDistance(local, inner, outer, thickness), height));
+    const cam = /** @type {any} */ (camera);
+    dotMat.uniforms.uDpr.value = dpr;
+    dotMat.uniforms.uOrtho.value = cam.isOrthographicCamera ? pixelSize(camera, 1, 1, height) : 0;
+    dotMat.uniforms.uPxPerUnit.value = cam.isOrthographicCamera ? 0 : pixelSize(camera, 1, 1, height);
+    if (next === dots) return;
+    dots = next;
+    mesh.visible = !dots;
+    dotCloud.visible = dots;
+    // the one now shown catches up with the motion
+    place(clock);
+  };
   out.pickMeshes.push(mesh);
   const moving = num(cfg.period, 0) > 0 || rocks.some((k) => k.tumble !== 0);
   out.tick = moving ? (/** @type {number} */ _dt, /** @type {number} */ t) => { place(t); return true; } : null;

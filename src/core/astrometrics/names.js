@@ -75,7 +75,7 @@ export const VOLUME_SHAPES = /** @type {const} */ (['sector', 'box']);
 export const IMAGE_SHAPES = /** @type {const} */ (['plane', 'disc']);
 
 /** Point markers (`none` draws nothing) */
-export const MARKERS = /** @type {const} */ (['dot', 'triangle', 'diamond', 'square', 'reticle', 'moon_phase', 'none']);
+export const MARKERS = /** @type {const} */ (['dot', 'triangle', 'diamond', 'square', 'reticle', 'ship', 'starbase', 'moon_phase', 'none']);
 
 /** Label styles, largest first */
 export const LABEL_STYLE_NAMES = /** @type {const} */ (['title', 'major', 'minor', 'tiny']);

@@ -53,8 +53,31 @@ sections:
           stars: { count: 1500 }
         points:
           # a marker far away, the model close up: touching ranges cross-fade
-          - { id: ds9, xyz: [ 0, 0, 0 ], marker: diamond, min_distance: 300, label: DEEP SPACE 9, style: minor, tap_action: { action: fly-to, view: near } }
+          - { id: ds9, xyz: [ 0, 0, 0 ], marker: starbase, min_distance: 300, label: DEEP SPACE 9, style: minor, tap_action: { action: fly-to, view: near } }
           - { id: ds9_name, xyz: [ 0, 40, 0 ], label: DEEP SPACE 9, style: minor, max_distance: 300 }
         objects:
           - { type: model, src: builtin:deep_space_nine, size: 60, spin: 4, max_distance: 300 }
+        grid_options: { columns: 24 }
+      # E9 part 2: far away the belt's rocks become dots (no key), and the
+      # ship marker stands in for the ship's model
+      - type: custom:lcards-astrometrics-card
+        height: 380
+        camera:
+          view: far
+          buttons: true
+          views:
+            far: { target: [ 0, 0, 0 ], yaw: 20, tilt: 35, distance: 1400 }
+            near: { target: [ 0, 0, 0 ], yaw: 20, tilt: 25, distance: 200 }
+        backdrop:
+          stars: { count: 1500 }
+        points:
+          - { id: star, xyz: [ 0, 0, 0 ], label: STAR, style: minor }
+          - { id: ship, polar: [ 60, 0 ], object: patrol }
+          - { id: ship_far, at: ship, marker: ship, label: USS ENTERPRISE, style: tiny, min_distance: 400 }
+          - { id: ship_name, at: ship, offset: [ 0, 12, 0 ], label: USS ENTERPRISE, style: tiny, max_distance: 400 }
+        objects:
+          - { type: glow, at: star, size: 30, color: var(--lcars-yellow) }
+          - { type: belt, radius: [ 90, 120 ], count: 3000, size: [ 0.3, 1.2 ], period: 120 }
+          - { type: ring, id: patrol, radius: 60, spin: 10, width: 0.5, opacity: 0.2 }
+          - { type: model, src: builtin:constitution, at: ship, size: 16, max_distance: 400 }
         grid_options: { columns: 24 }

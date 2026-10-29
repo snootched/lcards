@@ -382,7 +382,7 @@ const pointSchema = {
         label: { type: ['string', 'number'], description: 'Text shown at the point: short for text.label.content. Leave out for a marker only, or for a point that only anchors other things.' },
         text: pointTextSchema,
         style: styleNameSchema('Label style: a built-in (title 34 px, major 20 px, minor 13 px, tiny 10 px; larger ones win when labels overlap) or one of yours in labels.styles. Default minor.'),
-        marker: { type: 'string', enum: [...MARKERS], default: 'none', description: 'Marker drawn at the point: dot, triangle, diamond, square, reticle (a target ring), moon_phase (the moon\'s lit part, from the sky) or none. A point with a marker can be tapped.' },
+        marker: { type: 'string', enum: [...MARKERS], default: 'none', description: 'Marker drawn at the point: dot, triangle, diamond, square, reticle (a target ring), ship (a starship from above), starbase (a station: stands in for a model far away), moon_phase (the moon\'s lit part, from the sky) or none. A point with a marker can be tapped.' },
         color: { ...stateColorSchema, description: 'The point\'s colour: the marker, and the default for its text fields. A colour or a state map by the point\'s entity (a selected key while it is selected). CSS variables stay live, so alert modes recolour. Default by style: moonlight for title and major, the theme text colour for minor and tiny.' },
         visible: { type: 'boolean', default: true, description: 'false hides the label, marker and card (the point still places other things). Rules use it to hide and show points.' },
         opacity: number('Opacity of the label and marker, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),

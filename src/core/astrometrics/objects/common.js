@@ -74,6 +74,7 @@ export const DEFAULT_COLORS = {
  * @property {() => string[]} [partNames]
  * @property {() => string} [loadState]
  * @property {() => void} [dispose] - its own cleanup besides geometry and materials
+ * @property {(view: { camera: import('three').Camera, height: number, dpr: number }) => void} [lod] - before each render: change its level of detail for this view (height in CSS px)
  */
 
 /**

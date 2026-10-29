@@ -178,3 +178,62 @@ test('a path ending on a model part draws once the model is in', async () => {
   assert.ok(route.lines[0]._segs.count > 0, 'drawn to the part');
   w.dispose();
 });
+
+// ── Part 2: level of detail ───────────────────────────────────────────────
+
+const { PerspectiveCamera, OrthographicCamera } = await import('three');
+const { pixelSize, bandDistance, useDots, DOT_PX } = await import('../../src/core/astrometrics/objects/belt.js');
+const { markerSvg, MARKER_SIZE } = await import('../../src/core/astrometrics/markers.js');
+
+test('belt dots: size on screen, distance to the band, and slack round the switch', () => {
+  const cam = new PerspectiveCamera(90, 1, 0.1, 1000);
+  // fov 90: the view is 2 * d tall, so 1 unit at distance 50 on a 400 px view is 4 px
+  assert.ok(Math.abs(pixelSize(cam, 1, 50, 400) - 4) < 1e-9);
+  const ortho = new OrthographicCamera(-50, 50, 50, -50, 0.1, 1000);
+  assert.ok(Math.abs(pixelSize(ortho, 1, 999, 400) - 4) < 1e-9, 'orthographic: no distance');
+  assert.equal(bandDistance(new Vector3(100, 0, 0), 80, 120, 10), 0, 'inside the band');
+  assert.equal(bandDistance(new Vector3(0, 0, 0), 80, 120, 10), 80, 'at the centre: to the inner edge');
+  assert.equal(bandDistance(new Vector3(100, 35, 0), 80, 120, 10), 30, 'above it');
+  assert.equal(useDots(false, DOT_PX * 0.95), false, 'not yet');
+  assert.equal(useDots(false, DOT_PX * 0.85), true);
+  assert.equal(useDots(true, DOT_PX * 1.05), true, 'stays dots');
+  assert.equal(useDots(true, DOT_PX * 1.15), false);
+});
+
+test('belt: far away the rocks become dots (only the dots move), close up rocks again', () => {
+  const w = buildScene({ objects: [{ type: 'belt', id: 'b', radius: [90, 120], count: 500, size: [0.3, 1.2], period: 60 }] }, /** @type {any} */ (ctx()));
+  const b = /** @type {any} */ (w.objects.get('b'));
+  const rocks = b.node.getObjectByName('rocks');
+  const dots = b.node.getObjectByName('dots');
+  const cam = new PerspectiveCamera(40, 2, 0.1, 100000);
+  /** @param {number} z */
+  const view = (z) => {
+    cam.position.set(0, 0, z);
+    cam.updateMatrixWorld();
+    b.lod({ camera: cam, height: 400, dpr: 1 });
+  };
+  view(300);
+  assert.equal(rocks.visible, true);
+  assert.equal(dots.visible, false);
+  view(5000);
+  assert.equal(rocks.visible, false);
+  assert.equal(dots.visible, true);
+  const pos = dots.geometry.attributes.position;
+  const before = [pos.getX(0), pos.getZ(0)];
+  assert.ok(Math.hypot(before[0], before[1]) >= 90, 'dots where the rocks are');
+  const m0 = rocks.instanceMatrix.array.slice();
+  b.tick(1000, 5000);
+  assert.notDeepEqual([pos.getX(0), pos.getZ(0)], before, 'dots move');
+  assert.deepEqual(rocks.instanceMatrix.array, m0, 'rock matrices left alone');
+  view(300);
+  assert.equal(rocks.visible, true);
+  assert.notDeepEqual(rocks.instanceMatrix.array, m0, 'rocks caught up');
+  w.dispose();
+});
+
+test('ship and starbase markers draw', () => {
+  for (const name of ['ship', 'starbase']) {
+    assert.match(markerSvg(name), /^<svg width="(\d+)"/);
+    assert.equal(Number(/width="(\d+)"/.exec(markerSvg(name))?.[1]), /** @type {any} */ (MARKER_SIZE)[name]);
+  }
+});

@@ -507,6 +507,8 @@ export function createAstroScene(host, config, options = {}) {
     const W = canvas.width;
     const H = canvas.height;
     let out = null;
+    // Level of detail for this view (belt rocks far away become dots)
+    for (const b of world.list) b.lod?.({ camera, height: cssH, dpr });
     // Objects out of their distance range hide, partly faded ones blend, for this render
     fader.begin(world.list, world.outer, camera.position);
     try {
