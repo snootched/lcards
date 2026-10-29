@@ -258,6 +258,19 @@ test('fly-to: another card needs card and a view or point; inside astrometrics a
     assert.ok(messages(check({ ...astro, camera: { zoom_step: 1 } })).some(m => m.startsWith('error camera.zoom_step')));
 });
 
+test('astrometrics face: motion needs an object at a point (M3)', () => {
+    const astro = (extra) => ({ type: 'custom:lcards-astrometrics-card', ...extra });
+    const out = messages(check(astro({
+        points: [{ id: 'ship', xyz: [10, 0, 0] }],
+        objects: [{ type: 'sphere', at: 'ship', radius: 1, face: 'motion' }, { type: 'sphere', at: [0, 0, 0], radius: 1, face: 'motion' }, { type: 'sphere', radius: 1, face: 'motion' }]
+    })));
+    assert.deepEqual(out, [
+        'warning objects[1].face: face: motion turns the object along its point\'s travel: give it at: a point id',
+        'warning objects[2].face: face: motion turns the object along its point\'s travel: give it at: a point id'
+    ]);
+    assert.ok(messages(check(astro({ objects: [{ type: 'sphere', face: 'sideways' }] }))).some((m) => m.startsWith('error objects[0].face')));
+});
+
 test('astrometrics distance: a range that never shows warns, on points and objects (E9)', () => {
     const astro = (extra) => ({ type: 'custom:lcards-astrometrics-card', ...extra });
     const out = messages(check(astro({

@@ -408,6 +408,12 @@ const objectCommon = {
     at: pointRef('Where the object sits: a point id (it follows the point) or [x, y, z]. Default the origin.'),
     rotation: tuple(3, 'Turn the object [x, y, z] in degrees: y is a bearing (clockwise from above), x tips it toward the camera, z rolls it.'),
     spin: number('Turn round the object\'s own vertical axis, degrees per second (positive is prograde). Off under reduced motion.', { default: 0 }),
+    face: {
+        type: 'string',
+        enum: ['motion'],
+        description: 'motion: an object at a moving point turns its +z (a built-in model\'s bow) toward where the point is going, upright; rotation applies on top. Before the point first moves (and under reduced motion) a point on a spinning object faces along the spin. Default: the object keeps its rotation.',
+        enumDescriptions: { motion: 'Face the direction of travel' }
+    },
     visible: { type: 'boolean', default: true, description: 'false hides the object (its points still work).' },
     opacity: number('Opacity of the whole object, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
     fade: tuple(2, 'Distance fade [start, end], scene units from the camera to the nearest edge of the object (0 inside it; a flat plane or disc grid is measured to its surface): fully shown nearer than start, gone past end.'),

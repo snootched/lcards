@@ -35,6 +35,7 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 | `at` | Where it sits: a point id (it follows the point) or `[x, y, z]`. Default the origin. |
 | `rotation: [x, y, z]` | Turns it, degrees: y is a bearing, x tips it toward the camera, z rolls it. |
 | `spin` | Turns it round its own vertical axis, degrees per second. Points on it turn with it. |
+| `face: motion` | At a moving point, it turns to face where the point is going: [below](#facing-the-way-it-goes). |
 | `opacity`, `visible` | Opacity 0 to 1; `visible: false` hides it (its points still work). |
 | `max_distance`, `min_distance`, `fade` | Shown only within a camera distance, as on points: [below](#distance). |
 | `tags` | Tags for [rules](./data#rules): a rule on `tag:<name>` changes every object with the tag. |
@@ -43,6 +44,25 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 Colours are theme tokens (`theme:colors.ui.primary`), CSS variables (`var(--lcars-blue)`) or plain colours. Widths and dashes are px.
 
 Moving effects (nebula clouds, scan bands on grids, spheres and volumes, moving dashes and pulses on lines, animated fills on spheres and grids, warp streaks) are on the [Effects](./effects) page.
+
+### Facing the way it goes
+
+An object `at` a moving point slides along with it, keeping its own turn. With `face: motion` it turns to face where the point is going instead: its +z (the bow of every built-in model) along the travel, its top up, so a ship rides its orbit nose first and banks nowhere. `rotation` applies on top, in the object's own frame: for a model file whose bow is along +x, `rotation: [0, 90, 0]` turns the bow onto the travel.
+
+The heading comes from the point's movement, however it moves (a spinning ring, an entity, a rule), measured on the object the point stands on: a ship on a ring round a planet that is itself on an orbit faces round the planet, not along the planet's way. Before the point first moves, and under reduced motion (which holds spin), a point on a spinning object faces along the spin; anything else keeps its `rotation` until the point moves.
+
+```yaml
+type: custom:lcards-astrometrics-card
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 20, tilt: 35, distance: 120 }
+points:
+  - { id: ship, polar: [40, 90], object: orbit, label: ENTERPRISE, style: tiny }
+objects:
+  - { type: ring, id: orbit, radius: 40, spin: 12, width: 0.5, opacity: 0.4 }
+  - { type: model, at: ship, src: builtin:constitution, size: 8, face: motion }
+  - { type: trail, point: ship, length: 4, width: 2 }
+```
 
 ## Distance
 
@@ -322,7 +342,7 @@ A line behind a moving point, showing where it has been: a ship's wake, the last
 | `fade_tail` | `true` (default): bright at the point, fading to black at the tail, which is the background in space (over a planet the tail shows dark). `false`: one colour all along. |
 | `width`, `dash`, `color`, `blend` | As on a path. Default colour `var(--lcars-orange)`. |
 
-The trail is built while the card is open: it starts empty and grows as the point moves. A point placed from an entity leaves a line through the positions it reported since the card opened. Under reduced motion a point on a ring holds still, so its trail stops growing; a point that jumps with an entity still leaves its line.
+The trail is drawn on the object the point stands on: a moon on a ring round a planet that is itself on an orbit leaves its trail round the planet, riding along with it, not the looping track it makes through the scene. The trail is built while the card is open: it starts empty and grows as the point moves. A point placed from an entity leaves a line through the positions it reported since the card opened. Under reduced motion a point on a ring holds still, so its trail stops growing; a point that jumps with an entity still leaves its line.
 
 ```yaml live
 type: custom:lcards-astrometrics-card

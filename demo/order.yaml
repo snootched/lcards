@@ -8,6 +8,12 @@ title: LCARdS Demo
 releases:
   - version: "2026.10.0"
     views:
+      - file: astro-face
+        summary: "Astrometrics face: motion: ships nose first along their orbits"
+        description: "Two starships share a tilted patrol orbit: the one with face: motion flies nose first and tips with the tilt, the other slides along sideways. The small ship circles a planet that is itself on an orbit, so its heading follows both motions. Under reduced motion they hold still, facing along their orbits."
+        session: "M3"
+        docs: /cards/astrometrics/objects#facing-the-way-it-goes
+        public: true
       - file: astro-true-solar
         summary: "Astrometrics true-scale starter: the Sun and eight planets in km"
         description: "The Solar system at true scale starter as the Studio inserts it: every planet at its real distance and size, so from the whole system they are dots on their orbits. Tap EARTH, JUPITER or SATURN to fly in to it. The galaxy dive view now hides the galactic disc once you are inside the solar system."

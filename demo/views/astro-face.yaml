@@ -1,0 +1,39 @@
+# Astrometrics face: motion (M3): two Constitution-class ships on the same
+# tilted patrol orbit, one with face: motion (nose first, tipping with the
+# tilt) and one without (it slides sideways); a shuttle circles a moving
+# planet, so its heading mixes both motions.
+title: Astrometrics facing the way it goes
+path: astro-face
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 420
+        camera:
+          view: chase
+          buttons: true
+          views:
+            chase: { target: [ 0, 0, 0 ], yaw: 30, tilt: 30, distance: 200 }
+            top: { target: [ 0, 0, 0 ], tilt: 90, distance: 220 }
+        backdrop:
+          stars: { count: 1500 }
+        points:
+          - { id: base, xyz: [ 0, 0, 0 ], label: STARBASE 11, style: minor }
+          - { id: facing, polar: [ 60, 0 ], object: patrol, label: "FACE: MOTION", style: tiny, offset: [ 0, 10, 0 ] }
+          - { id: sliding, polar: [ 60, 180 ], object: patrol, label: NO FACE, style: tiny, offset: [ 0, 10, 0 ] }
+          - { id: planet, polar: [ 85, 90 ], object: outer, marker: dot, label: PLANET, style: tiny }
+          - { id: shuttle, polar: [ 12, 0 ], object: moon_orbit }
+        objects:
+          - { type: sphere, at: base, radius: 12, fill_effect: { preset: rocky }, line_width: 0.5, opacity: 0.3, spin: 5 }
+          - { type: ring, id: patrol, radius: 60, spin: 15, width: 0.5, opacity: 0.2, rotation: [ 20, 0, 0 ] }
+          - { type: model, src: builtin:constitution, at: facing, size: 18, face: motion }
+          - { type: model, src: builtin:constitution, at: sliding, size: 18 }
+          - { type: trail, point: facing, length: 5, width: 2, dash: [ 6, 4 ] }
+          - { type: ring, id: outer, radius: 85, spin: 6, width: 0.5, opacity: 0.15 }
+          - { type: sphere, at: planet, radius: 4, fill_effect: { preset: ice }, line_width: 0.5 }
+          - { type: ring, id: moon_orbit, at: planet, radius: 12, spin: 40, width: 0.5, opacity: 0.2 }
+          - { type: model, src: builtin:constitution, at: shuttle, size: 5, face: motion }
+          - { type: trail, point: shuttle, length: 3, width: 1.5, color: var(--lcars-blue) }

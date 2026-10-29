@@ -783,6 +783,62 @@ test('E10 true scale: the Sun, Earth and Deep Space 9 in km draw at every view',
     await expectNoErrors(page);
 });
 
+test('M3 face: motion: a ship on a tilted spinning orbit flies nose first; without it the ship keeps its turn', async ({ page }) => {
+    await mountCase(page, 'astro-face', { width: '800' });
+    await sceneReady(page);
+    const state = () => page.evaluate(() => {
+        const w = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world;
+        const bow = (id) => {
+            const g = w.outer.get(w.objects.get(id));
+            const q = g.quaternion;
+            // +z turned by q
+            const x = 2 * (q.x * q.z + q.w * q.y), y = 2 * (q.y * q.z - q.w * q.x), z = 1 - 2 * (q.x * q.x + q.y * q.y);
+            return [x, y, z];
+        };
+        const at = (id) => { const p = w.places.get(id); return [p.x, p.y, p.z]; };
+        const rel = at('shuttle').map((c, i) => c - at('planet')[i]);
+        return { facing: bow('model#1'), sliding: bow('model#2'), shuttle: bow('model#3'), pos: at('facing'), shuttleRel: rel };
+    });
+    // two states a couple of frames apart (a long wait under load would measure a chord, not the heading)
+    await page.waitForTimeout(300);
+    const a = await state();
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r)))));
+    const b = await state();
+    const unit = (v) => { const l = Math.hypot(...v); return v.map((c) => c / l); };
+    const dot = (u, v) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+    const travel = unit(b.pos.map((c, i) => c - a.pos[i]));
+    // nose along the travel (it tips with the 20-degree tilt), upright
+    expect(dot(b.facing, travel)).toBeGreaterThan(0.97);
+    expect(Math.abs(b.facing[1])).toBeGreaterThan(0.05);
+    // without face: the turn it was given (none)
+    expect(b.sliding).toEqual([0, 0, 1]);
+    // the shuttle round a moving planet: along its orbit round the planet (not the planet's way)
+    const shuttleTravel = unit(b.shuttleRel.map((c, i) => c - a.shuttleRel[i]));
+    expect(dot(b.shuttle, shuttleTravel)).toBeGreaterThan(0.9);
+    if (process.env.LCARDS_SHOTS) await page.screenshot({ path: `${process.env.LCARDS_SHOTS}/face-motion.png` });
+    await expectNoErrors(page);
+});
+
+test('M3 face: motion under reduced motion: the ships hold still, facing along their orbits', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await mountCase(page, 'astro-face', { width: '800' });
+    await sceneReady(page);
+    const state = () => page.evaluate(() => {
+        const w = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world;
+        const q = w.outer.get(w.objects.get('model#1')).quaternion;
+        const p = w.places.get('facing');
+        return { bow: [2 * (q.x * q.z + q.w * q.y), 2 * (q.y * q.z - q.w * q.x), 1 - 2 * (q.x * q.x + q.y * q.y)], pos: [p.x, p.y, p.z] };
+    });
+    const a = await state();
+    await page.waitForTimeout(300);
+    const b = await state();
+    expect(b.pos).toEqual(a.pos);
+    // polar [60, 0] is north of the base; a prograde spin carries it west (the ring tipped 20 degrees about x)
+    expect(b.bow[0]).toBeLessThan(-0.95);
+    expect(Math.abs(b.bow[0] * b.pos[0] + b.bow[1] * b.pos[1] + b.bow[2] * b.pos[2])).toBeLessThan(1e-3);
+    await expectNoErrors(page);
+});
+
 test('E10 true-scale starters: the solar system in km draws whole, at Jupiter and at Saturn', async ({ page }) => {
     await mountCase(page, 'astro-true-solar', { width: '800' });
     await sceneReady(page);

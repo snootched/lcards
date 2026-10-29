@@ -38,6 +38,8 @@ export const DEFAULT_COLORS = {
  * @property {import('../placements.js').Placements | null} places - set before `update` runs
  * @property {() => (import('../sky.js').SkyState | null)} sky
  * @property {() => void} requestFrame
+ * @property {(pointId: any) => (import('three').Object3D | null)} [pointSpace] - what a point's motion is measured on: the
+ *   outer group of the object it stands on (placed and turned, not spun), or null (set once the placements exist)
  * @property {(url: string) => any} loadTexture - three.js texture, redraws when loaded
  * @property {typeof import('../effects/index.js') | null} [effects] - the effects chunk, when the config uses it (`usesEffects`)
  * @property {typeof import('../model/index.js') | null} [models] - the model chunk, when the config has a model (`usesModels`)

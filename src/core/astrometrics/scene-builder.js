@@ -7,7 +7,8 @@
  * `sphere`, `image`, `glow`), then the placements (generated points first, the
  * user's after, so a user point of the same id wins), then the line objects
  * that read points (`ring`, `path`, `beam`). Each object sits in an outer
- * group (its `at` position and `rotation`); the inner node spins.
+ * group (its `at` position and `rotation`, turned along its point's travel
+ * with `face: motion`, facing.js); the inner node spins.
  *
  * Systems (`type: system`, frames.js): the config is flattened first
  * (`flattenSystems`); each frame has a group in the scene, an object's outer
@@ -16,7 +17,7 @@
  *
  * @module core/astrometrics/scene-builder
  */
-import { Scene, Group, Vector3, Box3, Sphere } from 'three';
+import { Scene, Group, Vector3, Box3, Sphere, Matrix4 } from 'three';
 import { Placements } from './placements.js';
 import { labelItem } from './label-layer.js';
 import { resolveLabel, plainColor, selectedColor, fieldCss } from './label-text.js';
@@ -34,6 +35,7 @@ import { buildGlow } from './objects/glow.js';
 import { buildBelt } from './objects/belt.js';
 import { applyRotation, disposeNode, num } from './objects/common.js';
 import { localBounds } from './distance-fade.js';
+import { Facing, spinTangent } from './facing.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export { OBJECT_TYPES };
@@ -206,6 +208,19 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   const pointDefs = [...list.flatMap((b) => b.points), ...userPoints.map((p) => ({ ...p, id: String(p.id) }))];
   const places = new Placements({ points: pointDefs, hosts, sky: ctx.sky, frame: frames.nested ? (id) => frames.get(id).node : undefined });
   ctx.places = places;
+  /**
+   * What a point's motion is measured on (trails, `face: motion`): the outer
+   * group of the object it stands on, which moves and turns with that object
+   * but does not spin, so an orbit round a moving planet reads as an orbit.
+   * Null for a point on nothing.
+   * @param {any} id
+   */
+  const pointSpace = (id) => {
+    const def = typeof id === 'string' ? places.defs.get(id) : undefined;
+    const host = def?.object !== undefined ? objects.get(String(def.object)) : undefined;
+    return (host && outer.get(host)) ?? null;
+  };
+  ctx.pointSpace = pointSpace;
 
   /**
    * Each system's origin from its `at` (a point, or [x, y, z]), in its
@@ -276,6 +291,38 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   /** @type {import('./objects/common.js').BuiltObject[]} */
   let loading = list.filter((b) => b.isReady && !b.isReady());
 
+  /** @type {Map<import('./objects/common.js').BuiltObject, Facing>} objects with `face: motion` */
+  const facing = new Map();
+  const toLocal = new Matrix4();
+  /**
+   * Turn the `face: motion` objects along their points' travel. The travel
+   * is measured on what the point stands on (its object's outer group:
+   * placed and turned, not spun), so a ship circling a planet that is itself
+   * on an orbit faces round the planet, not along the planet's way; a point
+   * on nothing is measured in the object's parent group.
+   * @returns {boolean} whether one turned
+   */
+  const face = () => {
+    let turned = false;
+    for (const [b, g] of outer) {
+      if (b.config.face !== 'motion' || b.config.at === undefined) continue;
+      const world = places.resolve(b.config.at);
+      if (!world) continue;
+      let f = facing.get(b);
+      if (!f) facing.set(b, (f = new Facing()));
+      const def = typeof b.config.at === 'string' ? places.defs.get(b.config.at) : undefined;
+      const host = def?.object !== undefined ? objects.get(String(def.object)) : undefined;
+      const ref = pointSpace(b.config.at) ?? g.parent;
+      f.move(ref ? ref.worldToLocal(world.clone()) : world.clone());
+      // the heading in world space: the measured one, else along a spinning host
+      const dir = f.dir ? (ref ? f.dir.clone().transformDirection(ref.matrixWorld) : f.dir.clone()) : host?.spin ? spinTangent(world, host.node, host.spin) : null;
+      // into the object's parent (frames are only scaled and moved, so a direction keeps its way)
+      if (dir && g.parent) dir.transformDirection(toLocal.copy(g.parent.matrixWorld).invert());
+      if (f.orient(g, b.config, dir)) turned = true;
+    }
+    return turned;
+  };
+
   const layout = () => {
     scene.updateMatrixWorld();
     places.invalidate();
@@ -291,6 +338,11 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
       }
     }
     if (placed) {
+      scene.updateMatrixWorld();
+      places.invalidate();
+    }
+    // after placing, so the point and what it stands on are read in the same frame
+    if (face()) {
       scene.updateMatrixWorld();
       places.invalidate();
     }

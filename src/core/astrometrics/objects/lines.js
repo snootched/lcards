@@ -10,7 +10,7 @@
  *
  * @module core/astrometrics/objects/lines
  */
-import { Group, Vector3, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, DoubleSide, SRGBColorSpace } from 'three';
+import { Group, Vector3, Matrix4, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, DoubleSide, SRGBColorSpace } from 'three';
 import { FatLine } from '../lines.js';
 import { altazToLocal } from '../placements.js';
 import { dayPath } from '../sky.js';
@@ -577,18 +577,30 @@ export function buildTrail(cfg, ctx) {
     const f = flow ? flow(dt, t) : false;
     return history.moving || f;
   };
+  const toNode = new Matrix4();
+  const at = new Matrix4();
   out.update = () => {
     const p = ctx.places?.resolve(cfg.point);
     const now = performance.now();
-    // kept local to the trail's group (its frame's units), so a frame change leaves the history as it is
+    // Kept in the space the point moves in: the object it stands on (a moon's
+    // ring round a moving planet, so the trail follows the orbit, not the
+    // planet's track), else the trail's own group (its frame's units, so a
+    // frame change leaves the history as it is)
+    const space = ctx.pointSpace?.(cfg.point) ?? node.parent;
     if (p) {
-      const q = node.parent ? node.parent.worldToLocal(p.clone()) : p;
+      const q = space ? space.worldToLocal(p.clone()) : p;
       history.push(now, [q.x, q.y, q.z]);
     } else history.age(now);
     const run = history.run();
-    // drawn relative to the head, where the eye is (precise near the moving point)
+    // drawn relative to the head, where the eye is (precise near the moving point): the node is that space moved to the head
     const h = history.head;
-    if (h) node.position.set(h[0], h[1], h[2]);
+    if (h) {
+      at.makeTranslation(h[0], h[1], h[2]);
+      if (space && node.parent && space !== node.parent) {
+        toNode.copy(node.parent.matrixWorld).invert().multiply(space.matrixWorld).multiply(at);
+        toNode.decompose(node.position, node.quaternion, node.scale);
+      } else node.position.set(h[0], h[1], h[2]);
+    }
     const local = h ? run.map((v, i) => v - h[i % 3]) : run;
     lines.forEach((l) => l.setRuns(local.length ? [local] : []));
   };
