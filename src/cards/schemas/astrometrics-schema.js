@@ -791,6 +791,25 @@ const glowObject = {
     }
 };
 
+const beltObject = {
+    type: 'object',
+    title: 'belt',
+    required: ['type'],
+    allOf: [objectCommonSchema],
+    description: 'An asteroid belt: a band of low-poly rocks round the object\'s centre (at), lit from the centre as by its star. Seeded, so the same config always gives the same belt.',
+    properties: {
+        type: { type: 'string', const: 'belt', description: 'belt: an asteroid belt.' },
+        radius: numberOrPair('[inner, outer] radius of the band, scene units; one number is the outer radius (the inner is 0.8 of it). Default [80, 100].'),
+        thickness: number('How far the rocks spread above and below the plane, scene units. Default 0.15 of the band\'s width.', { minimum: 0 }),
+        count: { type: 'integer', minimum: 0, maximum: 5000, default: 600, description: 'How many rocks (at most 5000).' },
+        size: numberOrPair('Rock size [smallest, largest], scene units (many small ones, a few large); one number is the largest (the smallest is a quarter of it). Default [0.4, 1.6].'),
+        seed: { type: 'integer', default: 1, description: 'A different number gives a different belt.' },
+        period: number('Seconds for the inner edge to go round once (the outer rocks take longer, as real orbits do). 0: still. Off under reduced motion.', { minimum: 0, default: 0 }),
+        tumble: number('How fast the rocks turn on their own axes, degrees per second (each a little faster or slower). 0: still. Off under reduced motion.', { minimum: 0, default: 30 }),
+        color: color('Rock colour (varied a little per rock). Default var(--lcards-gray-light).')
+    }
+};
+
 const nebulaObject = {
     type: 'object',
     title: 'nebula',
@@ -867,7 +886,7 @@ const modelObject = {
     }
 };
 
-const OBJECT_SCHEMAS = { model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject };
+const OBJECT_SCHEMAS = { model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject, belt: beltObject };
 
 /** One scene object (published as its own shared file, scripts/lib/schema-publish.js) */
 export const objectSchema = {

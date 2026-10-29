@@ -332,3 +332,47 @@ test('E8 fill presets: names match, a preset gives its type and colours, the con
   assert.equal(calm.uTurb.value, 0);
   assert.equal(calm.uStopCount.value, 2);
 });
+
+test('E8 belt: seeded layout inside the band, Kepler orbits (outer slower), tumble, one instanced draw, still when both are 0', async () => {
+  const { beltLayout, rockGeometry, MAX_ROCKS } = await import('../../src/core/astrometrics/objects/belt.js');
+  const { seededRandom } = await import('../../src/core/packs/backgrounds/webgl/scenes/scene-helpers.js');
+  const a = beltLayout({ radius: [40, 60], count: 300, thickness: 6, size: [0.5, 2], seed: 3 });
+  assert.equal(a.rocks.length, 300);
+  assert.deepEqual(beltLayout({ radius: [40, 60], count: 300, thickness: 6, size: [0.5, 2], seed: 3 }), a, 'seeded: the same config, the same belt');
+  assert.notDeepEqual(beltLayout({ radius: [40, 60], count: 300, seed: 4 }).rocks[0], a.rocks[0]);
+  for (const k of a.rocks) {
+    assert.ok(k.r >= 40 && k.r <= 60, `r ${k.r}`);
+    assert.ok(Math.abs(k.y) <= 3 + 1e-9, `y ${k.y}`);
+    assert.ok(Math.max(...k.scale) <= 2 * 1.3 + 1e-9);
+  }
+  assert.deepEqual([beltLayout({ radius: 100 }).inner, beltLayout({ radius: 100 }).outer], [80, 100], 'one number is the outer radius');
+  assert.equal(beltLayout({ count: 99999 }).rocks.length, MAX_ROCKS);
+  // a rock: flat faces (not indexed), every corner pushed the same way on each face
+  const rock = rockGeometry(seededRandom(1));
+  assert.equal(rock.index, null);
+  assert.equal(rock.getAttribute('position').count, 80 * 3);
+
+  const w = buildScene({ objects: [
+    { type: 'belt', id: 'b', radius: [40, 60], count: 50, period: 10, tumble: 0 },
+    { type: 'belt', id: 'still', count: 10, tumble: 0 }
+  ] }, /** @type {any} */ (ctx()));
+  const b = /** @type {any} */ (w.objects.get('b'));
+  const mesh = b.pickMeshes[0];
+  assert.equal(mesh.isInstancedMesh, true);
+  assert.equal(mesh.count, 50);
+  assert.equal(b.radius, 60);
+  assert.equal(/** @type {any} */ (w.objects.get('still')).tick, null, 'no period, no tumble: nothing moves');
+  // after one inner period an inner rock is back, an outer one is not yet round
+  const { Matrix4, Vector3 } = await import('three');
+  const at = (i) => { const m = new Matrix4(); mesh.getMatrixAt(i, m); return new Vector3().setFromMatrixPosition(m); };
+  const layout = beltLayout({ radius: [40, 60], count: 50 });
+  const angleOf = (v) => Math.atan2(v.x, -v.z);
+  const start = Array.from({ length: 50 }, (_, i) => angleOf(at(i)));
+  b.tick(16, 10_000);
+  const turned = Array.from({ length: 50 }, (_, i) => {
+    const d = ((angleOf(at(i)) - start[i]) / (2 * Math.PI)) % 1;
+    return { r: layout.rocks[i].r, frac: (d + 1) % 1 };
+  });
+  // expected fraction of a turn: (inner / r)^1.5
+  for (const { r, frac } of turned) assert.ok(Math.abs(frac - (Math.pow(40 / r, 1.5) % 1)) < 1e-6, `r ${r}: ${frac}`);
+});

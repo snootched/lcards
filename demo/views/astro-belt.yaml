@@ -1,0 +1,35 @@
+# Astrometrics asteroid belt (E8 part 2): type belt, far and close.
+title: Astrometrics belt
+path: astro-belt
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 380
+        camera:
+          view: system
+          buttons: true
+          views:
+            system: { target: [ 0, 0, 0 ], yaw: 20, tilt: 25, distance: 170 }
+            close: { target: [ 50, 0, 0 ], yaw: 250, tilt: 10, distance: 16 }
+        points:
+          - { id: sun, xyz: [ 0, 0, 0 ], label: SOL, style: minor }
+          - { id: belt_label, xyz: [ 0, 0, -64 ], label: MAIN BELT, style: minor, tap_action: { action: fly-to, view: close } }
+          - { id: mars, polar: [ 32, 120 ], object: mars_orbit, marker: dot, label: MARS, style: minor }
+        objects:
+          - { type: glow, at: sun, size: 40, color: var(--lcars-yellow) }
+          - { type: sphere, at: sun, radius: 5, fill_color: var(--lcars-yellow), color: var(--lcars-orange), line_spacing_deg: 30 }
+          - { type: ring, id: mars_orbit, radius: 32, spin: 6, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+          - { type: sphere, at: mars, radius: 2, image: builtin:mars_viking, line_width: 0.5 }
+          - { type: belt, at: sun, radius: [ 44, 56 ], thickness: 4, count: 1500, size: [ 0.2, 1.6 ], period: 40 }
+        grid_options: { columns: 16 }
+      - type: custom:lcards-astrometrics-card
+        height: 380
+        camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 30, tilt: 35, distance: 60 } }, buttons: true }
+        objects:
+          - { type: sphere, id: saturn, radius: 8, fill_effect: { preset: ringed_giant }, line_width: 0.5, spin: 12 }
+          - { type: belt, radius: [ 12, 22 ], thickness: 0.6, count: 3000, size: [ 0.05, 0.35 ], period: 20, tumble: 60, color: var(--lcars-khaki), rotation: [ 27, 0, 0 ] }
+        grid_options: { columns: 8 }

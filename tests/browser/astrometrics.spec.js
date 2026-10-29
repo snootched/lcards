@@ -635,3 +635,22 @@ test('E8 planets: built-in maps load, fill_effect planet types and the Saturn ri
     expect(await litPixels(page)).toBeGreaterThan(20_000);
     await expectNoErrors(page);
 });
+
+test('E8 belt: one instanced draw of rocks, moving (period, tumble), held by reduced motion', async ({ page }) => {
+    await mountCase(page, 'astro-belt', { width: '800' });
+    await sceneReady(page);
+    const belt = await page.evaluate(() => {
+        const b = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world.objects.get('belt');
+        return { instanced: b.pickMeshes[0].isInstancedMesh, count: b.pickMeshes[0].count, ticks: typeof b.tick };
+    });
+    expect(belt).toEqual({ instanced: true, count: 1500, ticks: 'function' });
+    expect(await litPixels(page)).toBeGreaterThan(5_000);
+    const f0 = (await sceneState(page)).frames;
+    await expect.poll(async () => (await sceneState(page)).frames, { timeout: 5_000 }).toBeGreaterThan(f0 + 10);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.waitForTimeout(300);
+    const held = await sceneState(page);
+    await page.waitForTimeout(400);
+    expect((await sceneState(page)).frames - held.frames).toBeLessThanOrEqual(1);
+    await expectNoErrors(page);
+});

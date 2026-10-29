@@ -446,7 +446,7 @@ objects:
 
 ### Asteroid belt
 
-A band of dotted rings turning at slightly different speeds round a centre, with a label on its edge.
+A band of rocks going round a centre, the inner ones faster, lit from the centre as by its star, with a label on its edge.
 
 Its ids start with its name (default `belt_`).
 
@@ -463,52 +463,7 @@ height: 400
 points:
   - { id: belt_centre, xyz: [0, 0, 0] }
   - { id: belt_label, at: belt_centre, offset: [0, 0, -73], label: ASTEROID BELT, style: tiny }
-objects:
-  - type: ring
-    id: belt_ring1
-    at: belt_centre
-    radius: 61
-    spin: 3
-    width: 2
-    dash: [1, 5]
-    color: var(--lcars-tangerine)
-    opacity: 0.7
-  - type: ring
-    id: belt_ring2
-    at: belt_centre
-    radius: 63.4
-    spin: 3.7
-    width: 3
-    dash: [1, 7]
-    color: var(--lcars-tangerine)
-    opacity: 0.7
-  - type: ring
-    id: belt_ring3
-    at: belt_centre
-    radius: 65.8
-    spin: 4.4
-    width: 2
-    dash: [1, 9]
-    color: var(--lcars-tangerine)
-    opacity: 0.7
-  - type: ring
-    id: belt_ring4
-    at: belt_centre
-    radius: 67.8
-    spin: 5.1
-    width: 3
-    dash: [1, 11]
-    color: var(--lcars-tangerine)
-    opacity: 0.7
-  - type: ring
-    id: belt_ring5
-    at: belt_centre
-    radius: 69
-    spin: 5.8
-    width: 2
-    dash: [1, 13]
-    color: var(--lcars-tangerine)
-    opacity: 0.7
+objects: [{ type: belt, id: belt_rocks, at: belt_centre, radius: [61, 69], count: 900, size: [0.2, 1.3], period: 60 }]
 ```
 
 ### Nebula field

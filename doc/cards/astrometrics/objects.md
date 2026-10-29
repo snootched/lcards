@@ -20,6 +20,7 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 | A weapon, transporter or sensor beam (a glowing straight line) | [`beam`](#beam) |
 | A star, a galactic core, a beacon (a soft light) | [`glow`](#glow) |
 | Clouds of gas | [`nebula`](#nebula) |
+| An asteroid belt (a band of rocks round a centre) | [`belt`](#belt) |
 | Your own picture on the plane | [`image`](#image) |
 | A ship, a station, any 3D model | [`model`](#model) |
 
@@ -280,6 +281,50 @@ A glowing straight line from `from` to `to` (point ids or `[x, y, z]`): a wide s
 ## nebula
 
 Clouds of gas in the scene, in the look of the nebula background preset: `radius` or `size` (the region), `cloud_count`, `seed`, `colors`, `turbulence`, `drift`. See [Effects: nebula](./effects#nebula).
+
+## belt
+
+An asteroid belt: a band of low-poly rocks round its centre (`at`, a point id or `[x, y, z]`; a point id makes it follow a star or planet). The rocks are lit from that centre, as by its star: the side facing it is bright, the far side dark.
+
+| Key | What it does |
+|---|---|
+| `radius` | `[inner, outer]` radius of the band, scene units. One number is the outer radius (the inner is 0.8 of it). Default `[80, 100]`. |
+| `thickness` | How far the rocks spread above and below the plane. Default 0.15 of the band's width. |
+| `count` | How many rocks, at most 5000 (default 600). They are one draw, so thousands are fine. |
+| `size` | `[smallest, largest]` rock, scene units: many small ones and a few large. Default `[0.4, 1.6]`. |
+| `seed` | A different number gives a different belt; the same config always gives the same one. |
+| `period` | Seconds for the inner edge to go round once. The outer rocks take longer, as real orbits do. Default 0 (still). |
+| `tumble` | How fast each rock turns on its own axis, degrees per second (each a little faster or slower). Default 30; 0 holds them still. |
+| `color` | The rocks' colour, varied a little per rock. Default `var(--lcards-gray-light)`. |
+
+`rotation` tilts the belt, and `spin` turns it as one piece. `period` and `tumble` hold still under reduced motion.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 320
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 20, tilt: 22, distance: 150 }
+points:
+  - { id: sun, xyz: [0, 0, 0], label: SOL, style: minor }
+objects:
+  - { type: glow, at: sun, size: 40, color: var(--lcars-yellow) }
+  - { type: sphere, at: sun, radius: 6, fill_color: var(--lcars-yellow), color: var(--lcars-orange), line_spacing_deg: 30 }
+  - { type: belt, at: sun, radius: [45, 62], count: 1500, size: [0.3, 1.8], period: 40 }
+```
+
+Close up, the rocks are rough and faceted:
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 300
+camera:
+  views:
+    v: { target: [50, 0, 0], yaw: 250, tilt: 10, distance: 16 }
+objects:
+  - { type: glow, size: 30, color: var(--lcars-yellow) }
+  - { type: belt, radius: [44, 56], thickness: 4, count: 1500, size: [0.2, 1.6], tumble: 20, color: var(--lcars-khaki) }
+```
 
 ## glow
 

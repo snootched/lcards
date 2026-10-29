@@ -9,7 +9,7 @@
  */
 
 /** Object types; line objects (`ring`, `path`, `beam`) read points, so they build second */
-export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam']);
+export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt']);
 
 /**
  * Which type for what: the objects docs page's table (doc/cards/astrometrics/objects.md,
@@ -25,6 +25,7 @@ export const TYPE_GUIDE = [
   { type: 'beam', use: 'A weapon, transporter or sensor beam (a glowing straight line)', icon: 'mdi:flash' },
   { type: 'glow', use: 'A star, a galactic core, a beacon (a soft light)', icon: 'mdi:white-balance-sunny' },
   { type: 'nebula', use: 'Clouds of gas', icon: 'mdi:weather-cloudy' },
+  { type: 'belt', use: 'An asteroid belt (a band of rocks round a centre)', icon: 'mdi:dots-circle' },
   { type: 'image', use: 'Your own picture on the plane', icon: 'mdi:image' },
   { type: 'model', use: 'A ship, a station, any 3D model', icon: 'mdi:rocket' }
 ];

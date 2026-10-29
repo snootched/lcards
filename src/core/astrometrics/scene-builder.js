@@ -25,12 +25,13 @@ import { buildRing, buildPath, buildBeam } from './objects/lines.js';
 import { buildImage } from './objects/image.js';
 import { buildStars, buildDust } from './objects/stars.js';
 import { buildGlow } from './objects/glow.js';
+import { buildBelt } from './objects/belt.js';
 import { applyRotation, disposeNode, num } from './objects/common.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export { OBJECT_TYPES };
 /** Builders of the objects points can stand on; line objects read points, so they come second */
-const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image: buildImage, glow: buildGlow };
+const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image: buildImage, glow: buildGlow, belt: buildBelt };
 
 /**
  * @typedef {Object} AstroScene
