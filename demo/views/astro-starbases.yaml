@@ -1,0 +1,486 @@
+# Astrometrics starbases (E8 part 3): the built-in Deep Space 9, Earth Spacedock and
+# Utopia Planitia drydock models in their starters, and all three as holograms.
+title: Astrometrics starbases
+path: astro-starbases
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 420
+        camera:
+          view: station
+          buttons: true
+          views:
+            station:
+              target: ds9_centre
+              yaw: 30
+              tilt: 10
+              distance: 190
+            ops:
+              target: ops
+              yaw: 50
+              tilt: 25
+              distance: 70
+            wormhole:
+              target: wormhole
+              yaw: 150
+              tilt: 8
+              distance: 120
+            sector:
+              target:
+                - 0
+                - -40
+                - 120
+              yaw: 60
+              tilt: 20
+              distance: 520
+        backdrop:
+          stars:
+            count: 2500
+        points:
+          - id: ds9_centre
+            xyz:
+              - 0
+              - 0
+              - 0
+          - id: ds9_name
+            at: ds9_centre
+            offset:
+              - 0
+              - 70
+              - 0
+            label: DEEP SPACE 9
+            style: major
+            tap_action:
+              action: fly-to
+              view: station
+          - id: ops
+            object: ds9
+            part: ops
+            marker: dot
+            label: OPS
+            style: minor
+            tap_action:
+              action: fly-to
+              view: ops
+          - id: promenade
+            object: ds9
+            part: promenade
+            marker: dot
+            label: PROMENADE
+            style: tiny
+          - id: habitat
+            object: ds9
+            part: habitat_ring
+            marker: dot
+            label: HABITAT RING
+            style: tiny
+          - id: pylon1
+            object: ds9
+            part: upper_pylon_1
+            marker: dot
+            label: UPPER PYLON 1
+            style: tiny
+          - id: pylon2
+            object: ds9
+            part: upper_pylon_2
+            marker: dot
+            label: UPPER PYLON 2
+            style: tiny
+          - id: pylon3
+            object: ds9
+            part: upper_pylon_3
+            marker: dot
+            label: UPPER PYLON 3
+            style: tiny
+          - id: wormhole
+            xyz:
+              - 0
+              - 10
+              - 300
+            label: BAJORAN WORMHOLE
+            style: minor
+            tap_action:
+              action: fly-to
+              view: wormhole
+          - id: bajor
+            xyz:
+              - -160
+              - -260
+              - -40
+          - id: bajor_name
+            at: bajor
+            offset:
+              - 0
+              - 30
+              - 125
+            label: BAJOR
+            style: minor
+        objects:
+          - type: model
+            id: ds9
+            src: builtin:deep_space_nine
+            at: ds9_centre
+            size: 100
+            material: original
+          - type: glow
+            at: wormhole
+            size: 90
+            color: var(--lcars-blue)
+          - type: glow
+            at: wormhole
+            size: 40
+            color: var(--lcards-moonlight)
+          - type: ring
+            at: wormhole
+            radius: 26
+            rotation:
+              - 90
+              - 0
+              - 0
+            spin: 40
+            dash:
+              - 2
+              - 4
+            width: 1.5
+            color: var(--lcars-blue)
+          - type: sphere
+            at: bajor
+            radius: 120
+            fill_effect:
+              preset: terran
+            line_spacing_deg: 30
+            line_width: 0.5
+            opacity: 0.3
+            spin: 3
+        grid_options:
+          columns: 24
+      - type: custom:lcards-astrometrics-card
+        height: 380
+        camera:
+          view: yards
+          buttons: true
+          views:
+            yards:
+              target:
+                - 0
+                - 20
+                - 0
+              yaw: 20
+              tilt: 22
+              distance: 260
+            dock1:
+              target: dock1
+              yaw: 35
+              tilt: 20
+              distance: 80
+            dock2:
+              target: dock2
+              yaw: 35
+              tilt: 20
+              distance: 80
+            dock3:
+              target: dock3
+              yaw: 35
+              tilt: 20
+              distance: 80
+        backdrop:
+          stars:
+            count: 2000
+        points:
+          - id: mars
+            xyz:
+              - 0
+              - -200
+              - 0
+          - id: mars_name
+            at: mars
+            offset:
+              - 0
+              - 40
+              - 200
+            label: MARS
+            style: major
+          - id: dock1
+            xyz:
+              - -70
+              - 30
+              - 20
+          - id: dock1_name
+            at: dock1
+            offset:
+              - 0
+              - 14
+              - 0
+            marker: reticle
+            label: DRYDOCK 1
+            style: minor
+            tap_action:
+              action: fly-to
+              view: dock1
+          - id: dock2
+            xyz:
+              - 0
+              - 38
+              - 0
+          - id: dock2_name
+            at: dock2
+            offset:
+              - 0
+              - 14
+              - 0
+            marker: reticle
+            label: DRYDOCK 2
+            style: minor
+            tap_action:
+              action: fly-to
+              view: dock2
+          - id: dock3
+            xyz:
+              - 70
+              - 30
+              - -20
+          - id: dock3_name
+            at: dock3
+            offset:
+              - 0
+              - 14
+              - 0
+            marker: reticle
+            label: DRYDOCK 3
+            style: minor
+            tap_action:
+              action: fly-to
+              view: dock3
+        objects:
+          - type: sphere
+            id: mars_body
+            at: mars
+            radius: 190
+            image: builtin:mars_viking
+            line_spacing_deg: 30
+            line_width: 0.5
+            opacity: 0.3
+            spin: 2
+          - type: model
+            id: dock1_frame
+            src: builtin:utopia_planitia_drydock
+            at: dock1
+            size: 40
+            material: original
+          - type: model
+            id: dock1_ship
+            src: builtin:constitution
+            at: dock1
+            size: 15
+            scan_period: 6
+          - type: model
+            id: dock2_frame
+            src: builtin:utopia_planitia_drydock
+            at: dock2
+            size: 40
+            material: original
+          - type: model
+            id: dock3_frame
+            src: builtin:utopia_planitia_drydock
+            at: dock3
+            size: 40
+            material: original
+        grid_options:
+          columns: 24
+      - type: custom:lcards-astrometrics-card
+        height: 380
+        camera:
+          view: approach
+          buttons: true
+          views:
+            approach:
+              target:
+                - 0
+                - 60
+                - -60
+              yaw: 125
+              tilt: 20
+              distance: 800
+            starbase:
+              target: dock
+              yaw: 200
+              tilt: 30
+              distance: 420
+            ship:
+              target: ship_centre
+              yaw: 140
+              tilt: 25
+              distance: 90
+        backdrop:
+          stars:
+            count: 2000
+        points:
+          - id: ship_centre
+            xyz:
+              - 0
+              - 170
+              - 90
+          - id: ship_name
+            at: ship_centre
+            offset:
+              - 0
+              - 22
+              - 0
+            label: USS ENTERPRISE
+            style: major
+            tap_action:
+              action: fly-to
+              view: ship
+          - id: bridge
+            object: ship
+            part: bridge
+            marker: dot
+            label: BRIDGE
+            style: tiny
+          - id: port
+            object: ship
+            part: nacelle_port
+            marker: dot
+            label: PORT NACELLE
+            style: tiny
+          - id: starboard
+            object: ship
+            part: nacelle_starboard
+            marker: dot
+            label: STARBOARD NACELLE
+            style: tiny
+          - id: doors
+            xyz:
+              - 0
+              - 134
+              - -110
+            marker: dot
+            label: SPACE DOORS
+            style: minor
+          - id: dock
+            at: doors
+            offset:
+              - 0
+              - 50
+              - 0
+            label: SPACEDOCK
+            style: major
+            tap_action:
+              action: fly-to
+              view: starbase
+        objects:
+          - type: model
+            id: ship
+            src: builtin:constitution
+            at: ship_centre
+            size: 50
+            rotation:
+              - 0
+              - 180
+              - 0
+            scan_period: 6
+            animation: all
+          - type: model
+            id: spacedock
+            src: builtin:earth_spacedock
+            at:
+              - 0
+              - -110
+              - -110
+            size: 480
+            material: original
+          - type: path
+            points:
+              - ship_centre
+              - doors
+            dash:
+              - 4
+              - 6
+            flow_speed: -30
+            color: var(--lcars-orange)
+        grid_options:
+          columns: 24
+      - type: custom:lcards-astrometrics-card
+        height: 340
+        camera:
+          view: all
+          buttons: true
+          views:
+            all:
+              target:
+                - 0
+                - 0
+                - 0
+              yaw: 15
+              tilt: 12
+              distance: 330
+        backdrop:
+          stars:
+            count: 1200
+        points:
+          - id: a
+            xyz:
+              - -110
+              - 0
+              - 0
+          - id: b
+            xyz:
+              - 0
+              - 0
+              - 0
+          - id: c
+            xyz:
+              - 110
+              - 0
+              - 0
+          - id: a_name
+            at: a
+            offset:
+              - 0
+              - 62
+              - 0
+            label: DEEP SPACE 9
+            style: minor
+          - id: b_name
+            at: b
+            offset:
+              - 0
+              - 62
+              - 0
+            label: EARTH SPACEDOCK
+            style: minor
+          - id: c_name
+            at: c
+            offset:
+              - 0
+              - 40
+              - 0
+            label: UTOPIA PLANITIA DRYDOCK
+            style: minor
+        objects:
+          - type: model
+            id: ds9
+            src: builtin:deep_space_nine
+            at: a
+            size: 90
+            scan_period: 6
+          - type: model
+            id: dock
+            src: builtin:earth_spacedock
+            at: b
+            size: 100
+            scan_period: 6
+            color: var(--lcars-orange)
+          - type: model
+            id: dry
+            src: builtin:utopia_planitia_drydock
+            at: c
+            size: 80
+            scan_period: 6
+            color: var(--lcars-violet)
+        grid_options:
+          columns: 24

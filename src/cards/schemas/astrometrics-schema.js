@@ -863,7 +863,7 @@ const modelObject = {
     description: 'A glTF / GLB model. Points stand on it with object: (and xyz or part).',
     properties: {
         type: { type: 'string', const: 'model', description: 'model: a glTF / GLB model.' },
-        src: { type: 'string', description: 'The file: builtin:constitution (a starship shipped with LCARdS) or your own .glb / .gltf. Meshopt compression works, Draco does not.' },
+        src: { type: 'string', description: 'The file: a model shipped with LCARdS (builtin:constitution, a starship; builtin:deep_space_nine, builtin:earth_spacedock, builtin:utopia_planitia_drydock, starbases) or your own .glb / .gltf. Meshopt compression works, Draco does not.' },
         size: number('Largest extent, scene units (the file is scaled and centred).', { exclusiveMinimum: 0, default: 50 }),
         material: { type: 'string', enum: [...MODEL_MATERIALS], default: 'hologram', description: 'hologram (default): a glow with a bright rim and scanlines. original: the file\'s materials, lit.' },
         color: color('Hologram body colour. Default var(--lcars-blue).'),

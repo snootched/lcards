@@ -20,26 +20,13 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  BufferGeometry, Float32BufferAttribute, LatheGeometry, ExtrudeGeometry, Shape, Vector2, Vector3,
-  Mesh, Group, Scene, MeshStandardMaterial, Quaternion, QuaternionKeyframeTrack, AnimationClip, Euler
+  ExtrudeGeometry, Shape, Vector3, Group, Scene, MeshStandardMaterial, Quaternion, QuaternionKeyframeTrack, AnimationClip, Euler
 } from 'three';
-import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+import { lean, latheY, latheZ, loft, aerofoil, part, exportGlb, triangles } from './lib/model-kit.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(root, 'src/assets/models/constitution.glb');
 const OUT_MESHOPT = resolve(root, 'tests/fixtures/constitution-meshopt.glb');
-
-// GLTFExporter reads its Blob back with FileReader (a browser API)
-globalThis.FileReader ??= class {
-  /** @param {Blob} blob */
-  readAsArrayBuffer(blob) {
-    blob.arrayBuffer().then((b) => { this.result = b; this.onloadend?.(); });
-  }
-  /** @param {Blob} blob */
-  readAsDataURL(blob) {
-    blob.arrayBuffer().then((b) => { this.result = `data:${blob.type};base64,${Buffer.from(b).toString('base64')}`; this.onloadend?.(); });
-  }
-};
 
 // Proportions (metres) -------------------------------------------------------
 const SAUCER_R = 63.5;          // 127 m across
@@ -59,114 +46,6 @@ const bussardMat = new MeshStandardMaterial({ name: 'bussard', color: 0xff5a2a, 
 const deflectorMat = new MeshStandardMaterial({ name: 'deflector', color: 0xe0a060, emissive: 0xa06020, emissiveIntensity: 0.8, roughness: 0.35, metalness: 0.6 });
 const impulseMat = new MeshStandardMaterial({ name: 'impulse', color: 0xb0b4b8, emissive: 0x801808, emissiveIntensity: 0.25, roughness: 0.5 });
 const grilleMat = new MeshStandardMaterial({ name: 'grille', color: 0x6a88b0, emissive: 0x203860, emissiveIntensity: 0.8, roughness: 0.5 });
-
-// Helpers ---------------------------------------------------------------------
-
-/** Drop what the model does not use (no textures: uv) to keep the file small */
-function lean(geo) {
-  geo.deleteAttribute('uv');
-  return geo;
-}
-
-/**
- * A lathe round the y axis from a profile of [radius, y] pairs (top to bottom).
- * @param {number[][]} profile
- * @param {number} segments
- */
-function latheY(profile, segments) {
-  // three's lathe faces outward for a profile that runs bottom to top
-  return lean(new LatheGeometry(profile.map(([r, y]) => new Vector2(Math.max(r, 0), y)).reverse(), segments));
-}
-
-/**
- * A lathe round the z axis (profile of [radius, z] pairs): nacelles and the
- * secondary hull. `squash` scales y (1 = round).
- * @param {number[][]} profile
- * @param {number} segments
- */
-function latheZ(profile, segments, squash = 1) {
-  // three's lathe turns round y: build it there, turn y into z
-  const g = new LatheGeometry(profile.map(([r, z]) => new Vector2(Math.max(r, 0), -z)), segments);
-  g.rotateX(-Math.PI / 2);
-  if (squash !== 1) g.scale(1, squash, 1);
-  return lean(g);
-}
-
-/**
- * A closed tube through rings of points (each ring the same count), with flat
- * caps at both ends: the neck and the pylons.
- * @param {Vector3[][]} rings
- */
-function loft(rings) {
-  const n = rings[0].length;
-  const pos = [];
-  const index = [];
-  for (const ring of rings) for (const p of ring) pos.push(p.x, p.y, p.z);
-  for (let r = 0; r < rings.length - 1; r++) {
-    for (let i = 0; i < n; i++) {
-      const a = r * n + i, b = r * n + ((i + 1) % n), c = (r + 1) * n + i, d = (r + 1) * n + ((i + 1) % n);
-      index.push(a, c, b, b, c, d);
-    }
-  }
-  // caps: a fan round each end ring's middle
-  for (const [ri, flip] of [[0, true], [rings.length - 1, false]]) {
-    const ring = rings[ri];
-    const mid = ring.reduce((m, p) => m.add(p), new Vector3()).divideScalar(n);
-    const ci = pos.length / 3;
-    pos.push(mid.x, mid.y, mid.z);
-    for (let i = 0; i < n; i++) {
-      const a = ri * n + i, b = ri * n + ((i + 1) % n);
-      if (flip) index.push(ci, b, a);
-      else index.push(ci, a, b);
-    }
-  }
-  // faces outward whichever way the rings run: a positive signed volume
-  let vol = 0;
-  for (let i = 0; i < index.length; i += 3) {
-    const [a, b, c] = [index[i], index[i + 1], index[i + 2]].map((k) => new Vector3(pos[k * 3], pos[k * 3 + 1], pos[k * 3 + 2]));
-    vol += a.dot(b.cross(c));
-  }
-  if (vol < 0) for (let i = 0; i < index.length; i += 3) [index[i + 1], index[i + 2]] = [index[i + 2], index[i + 1]];
-  const g = new BufferGeometry();
-  g.setAttribute('position', new Float32BufferAttribute(pos, 3));
-  g.setIndex(index);
-  g.computeVertexNormals();
-  return g;
-}
-
-/**
- * An aerofoil section: chord along z (front at +z), thickness along `across`,
- * centred on `c`. Rounded nose, sharp tail.
- * @param {Vector3} c
- * @param {number} chord
- * @param {number} half - half thickness
- * @param {Vector3} across - unit
- * @param {number} [n]
- */
-function aerofoil(c, chord, half, across, n = 20) {
-  const pts = [];
-  for (let i = 0; i < n; i++) {
-    const t = (i / n) * Math.PI * 2;
-    const u = Math.cos(t); // 1 nose, -1 tail
-    // thickest a third back from the nose, a thin tail
-    const thick = half * Math.sin(t) * (0.55 + 0.45 * u) * 1.25;
-    pts.push(new Vector3().copy(c).addScaledVector(across, thick).add(new Vector3(0, 0, (chord / 2) * u)));
-  }
-  return pts;
-}
-
-/**
- * @param {string} name
- * @param {BufferGeometry} geo
- * @param {import('three').Material} mat
- * @param {number[]} [at]
- */
-function part(name, geo, mat, at = [0, 0, 0]) {
-  const m = new Mesh(geo, mat);
-  m.name = name;
-  m.position.set(at[0], at[1], at[2]);
-  return m;
-}
 
 // Parts -----------------------------------------------------------------------
 
@@ -364,18 +243,11 @@ function build() {
   return { scene, clip };
 }
 
-/** @returns {Promise<ArrayBuffer>} */
-async function exportGlb(scene, clip) {
-  return new GLTFExporter().parseAsync(scene, { binary: true, animations: [clip], onlyVisible: true });
-}
-
 const { scene, clip } = build();
-const glb = Buffer.from(await exportGlb(scene, clip));
+const glb = Buffer.from(await exportGlb(scene, [clip]));
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, glb);
-let tris = 0;
-scene.traverse((o) => { if (o.isMesh) tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
-console.log(`constitution.glb: ${(glb.length / 1024).toFixed(1)} KB, ${tris} triangles`);
+console.log(`constitution.glb: ${(glb.length / 1024).toFixed(1)} KB, ${triangles(scene)} triangles`);
 
 if (process.argv.includes('--meshopt')) {
   const { meshoptCompress } = await import('./lib/glb-meshopt.mjs');

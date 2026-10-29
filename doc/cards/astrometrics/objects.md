@@ -353,7 +353,7 @@ A 3D model from a glTF file (`.glb` or `.gltf`): a starship, your house, a satel
 
 | Key | What it does |
 |---|---|
-| `src` | The file. `builtin:constitution` is a Constitution-class starship shipped with LCARdS. Your own goes in `/config/www/` and is `/local/...` here. |
+| `src` | The file. `builtin:<name>` is a model shipped with LCARdS (see [built-in models](#built-in-models)). Your own goes in `/config/www/` and is `/local/...` here. |
 | `size` | Its largest extent in scene units (default 50): the file is scaled and centred to fit. |
 | `material` | `hologram` (default) or `original`. |
 | `color`, `rim_color`, `opacity`, `scanlines` | The hologram's body colour, rim colour, brightness and scanline strength. |
@@ -368,8 +368,6 @@ A 3D model from a glTF file (`.glb` or `.gltf`): a starship, your house, a satel
 A stand-in box shows while the file loads. Files compressed with meshopt load; Draco-compressed files do not (the browser console says why).
 
 **Points on a model** use `object:` with the model's id. `xyz` is then in the file's own coordinates, so `size` never moves them, and `part:` puts a point on a named part (a node in the file) so it follows that part when an animation moves it. In the Astrometrics Studio, **Pick on preview** places a point on the model's surface, and the part list fills in from the file. See [placement forms](./points#placement-forms).
-
-The built-in ship's parts: `saucer`, `bridge`, `sensor_dome`, `impulse`, `neck`, `secondary_hull`, `deflector`, `shuttle_bay`, `pylon_port`, `pylon_starboard`, `nacelle_port`, `nacelle_starboard`, `bussard_port`, `bussard_starboard`, `grille_port`, `grille_starboard`. It is 289 m long with the bow toward +z and Y up: fan art made in code for LCARdS, no third-party model.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -392,4 +390,34 @@ objects:
 
 Labels on the far side of the ship hide behind it: drag to turn the ship until the port nacelle is behind the hull, and its label goes. Models hide labels by their real shape (a small depth image of the scene, taken only when the camera or the model moves), not by a bounding sphere.
 
-**Your own models.** The built-in ship (6,500 triangles, 147 KB) costs about 1.5 ms a frame on a laptop GPU, depth image included. Every extra triangle costs a little more, so simplify a model before you use it (Blender's Decimate modifier, or `gltf-transform simplify`) and compress it with `gltf-transform meshopt`. Name the parts you want points on in the file. The model loader is a separate download the first time a card uses a model.
+### Built-in models
+
+Fan art made in code for LCARdS (no third-party model), recreating the designs seen on screen. All are in metres with Y up; `material: original` shows their own colours and lit windows.
+
+| `src` | What it is | Parts (`part:`) |
+|---|---|---|
+| `builtin:constitution` | A Constitution-class starship (the original series), 289 m long, the bow toward +z. One animation clip, `bussards`. | `saucer`, `bridge`, `sensor_dome`, `impulse`, `neck`, `secondary_hull`, `deflector`, `shuttle_bay`, `pylon_port`, `pylon_starboard`, `nacelle_port`, `nacelle_starboard`, `bussard_port`, `bussard_starboard`, `grille_port`, `grille_starboard` |
+| `builtin:deep_space_nine` | Deep Space 9 (Terok Nor), the Cardassian station of Deep Space Nine: about 1450 m across and 1070 m tall. | `ops`, `upper_core`, `promenade`, `lower_core` (its bottom tip), `habitat_ring`, `docking_ring`, `crossover_bridges`, `docking_ports`, `windows`, `upper_pylon_1` to `upper_pylon_3` and `lower_pylon_1` to `lower_pylon_3` (their tips) |
+| `builtin:earth_spacedock` | Earth Spacedock, from Star Trek III: The Search for Spock onward: about 3810 m across and 5795 m tall. | `space_doors` (the top), `cap`, `stem`, `docking_ring`, `docking_ports`, `panels`, `windows`, `base` (the bottom tip) |
+| `builtin:utopia_planitia_drydock` | A drydock of the Utopia Planitia Fleet Yards over Mars, sized for a Galaxy-class ship: about 760 m long, the bow end toward +z. Place several for the yards. | `frame`, `lights`, `berth` (where a ship sits), `bow`, `stern` |
+
+Rings and rims (`habitat_ring`, `docking_ring`, `cap`, `promenade`) put their part point on the front face (+z), so a label sits on the structure rather than in the middle of the station.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 420
+camera:
+  view: station
+  views:
+    station: { target: [0, 0, 0], yaw: 30, tilt: 10, distance: 170 }
+backdrop:
+  stars: { count: 1500 }
+points:
+  - { id: ops, object: ds9, part: ops, label: OPS, marker: dot, style: major }
+  - { id: promenade, object: ds9, part: promenade, label: PROMENADE, marker: dot }
+  - { id: pylon, object: ds9, part: upper_pylon_1, label: UPPER PYLON 1, marker: dot }
+objects:
+  - { type: model, id: ds9, src: builtin:deep_space_nine, size: 90, material: original }
+```
+
+**Your own models.** The built-in ship (6,500 triangles, 147 KB) costs about 1.5 ms a frame on a laptop GPU, depth image included; the starbases have 2,000 to 14,000 triangles. Every extra triangle costs a little more, so simplify a model before you use it (Blender's Decimate modifier, or `gltf-transform simplify`) and compress it with `gltf-transform meshopt`. Name the parts you want points on in the file. The model loader is a separate download the first time a card uses a model.

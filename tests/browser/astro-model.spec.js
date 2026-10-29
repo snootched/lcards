@@ -114,3 +114,29 @@ test('editor: a point on a model part (parts from the built-in list and from the
     expect(pinned.leaked).toBe(false);
     expect(await cardErrors(page)).toEqual([]);
 });
+
+test('E8 starbases: the built-in starbases load and points sit on their parts', async ({ page }) => {
+    const missing = [];
+    page.on('response', (r) => { if (r.status() >= 400) missing.push(r.url()); });
+    await mountCase(page, 'astro-starbases', { width: '900' });
+    const states = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        return ['ds9', 'dock', 'dry'].map((id) => s.world.objects.get(id)?.loadState());
+    });
+    await expect.poll(states, { timeout: 20_000 }).toEqual(['ready', 'ready', 'ready']);
+    const where = await page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        return Object.fromEntries(['ops', 'doors', 'berth'].map((id) => {
+            const p = s.world.places.get(id);
+            return [id, p ? [p.x, p.y, p.z] : null];
+        }));
+    });
+    // Ops above DS9's middle, the doors on top of Spacedock (100 tall), the berth in the drydock's middle
+    expect(where.ops[0]).toBeCloseTo(-110, 0);
+    expect(where.ops[1]).toBeGreaterThan(5);
+    expect(where.doors[1]).toBeGreaterThan(40);
+    expect(Math.abs(where.berth[0] - 110)).toBeLessThan(2);
+    expect(Math.abs(where.berth[1])).toBeLessThan(2);
+    expect(await cardErrors(page)).toEqual([]);
+    expect(missing.filter((u) => !/favicon/.test(u))).toEqual([]);
+});

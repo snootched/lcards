@@ -343,13 +343,13 @@ backdrop: { stars: { count: 1500 } }
 
 ### Starbase approach
 
-The built-in Constitution-class starship on its way into a wireframe starbase, with its bridge and nacelles marked and the approach lane drawn.
+The built-in Constitution-class starship on its way into Earth Spacedock through the space doors, with its bridge and nacelles marked and the approach lane drawn. Not to scale: the real Spacedock is nineteen times the ship's length.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
 height: 400
 points:
-  - { id: ship_centre, xyz: [0, 20, 90] }
+  - { id: ship_centre, xyz: [0, 170, 90] }
   - id: ship_name
     at: ship_centre
     offset: [0, 22, 0]
@@ -359,12 +359,8 @@ points:
   - { id: bridge, object: ship, part: bridge, marker: dot, label: BRIDGE, style: tiny }
   - { id: port, object: ship, part: nacelle_port, marker: dot, label: PORT NACELLE, style: tiny }
   - { id: starboard, object: ship, part: nacelle_starboard, marker: dot, label: STARBOARD NACELLE, style: tiny }
-  - id: dock
-    xyz: [0, 20, -40]
-    marker: reticle
-    label: SPACEDOCK
-    style: major
-    tap_action: { action: fly-to, view: starbase }
+  - { id: doors, xyz: [0, 134, -110], marker: dot, label: SPACE DOORS, style: minor }
+  - { id: dock, at: doors, offset: [0, 50, 0], label: SPACEDOCK, style: major, tap_action: { action: fly-to, view: starbase } }
 objects:
   - type: model
     id: ship
@@ -374,24 +370,119 @@ objects:
     rotation: [0, 180, 0]
     scan_period: 6
     animation: all
-  - type: grid
-    id: starbase_dome
-    shape: sphere
-    at: [0, 20, -40]
-    radius: 45
-    pattern: both
-    line_spacing_deg: 15
-    color: theme:colors.ui.secondary
-    opacity: 0.7
-  - { type: grid, id: starbase_stem, shape: cylinder, at: [0, -50, -40], radius: 8, height: 50, pattern: both, line_spacing: 6 }
-  - { type: path, points: [ship_centre, dock], dash: [4, 6], flow_speed: -30, color: var(--lcars-orange) }
-  - { type: grid, shape: plane, size: [300, 300], line_spacing: 20, at: [0, -60, 0], opacity: 0.25 }
+  - { type: model, id: spacedock, src: builtin:earth_spacedock, at: [0, -110, -110], size: 480, material: original }
+  - { type: path, points: [ship_centre, doors], dash: [4, 6], flow_speed: -30, color: var(--lcars-orange) }
 camera:
   view: approach
   views:
-    approach: { target: [0, 15, 25], yaw: 125, tilt: 18, distance: 230 }
-    starbase: { target: dock, yaw: 200, tilt: 25, distance: 160 }
+    approach: { target: [0, 60, -60], yaw: 125, tilt: 20, distance: 800 }
+    starbase: { target: dock, yaw: 200, tilt: 30, distance: 420 }
     ship: { target: ship_centre, yaw: 140, tilt: 25, distance: 90 }
+backdrop: { stars: { count: 2000 } }
+```
+
+### Deep Space 9
+
+The built-in Deep Space 9 station with Ops, the Promenade and its docking pylons marked, the Bajoran wormhole off its bow and Bajor below. Tap a name to fly to it.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points:
+  - { id: ds9_centre, xyz: [0, 0, 0] }
+  - id: ds9_name
+    at: ds9_centre
+    offset: [0, 70, 0]
+    label: DEEP SPACE 9
+    style: major
+    tap_action: { action: fly-to, view: station }
+  - { id: ops, object: ds9, part: ops, marker: dot, label: OPS, style: minor, tap_action: { action: fly-to, view: ops } }
+  - { id: promenade, object: ds9, part: promenade, marker: dot, label: PROMENADE, style: tiny }
+  - { id: habitat, object: ds9, part: habitat_ring, marker: dot, label: HABITAT RING, style: tiny }
+  - { id: pylon1, object: ds9, part: upper_pylon_1, marker: dot, label: UPPER PYLON 1, style: tiny }
+  - { id: pylon2, object: ds9, part: upper_pylon_2, marker: dot, label: UPPER PYLON 2, style: tiny }
+  - { id: pylon3, object: ds9, part: upper_pylon_3, marker: dot, label: UPPER PYLON 3, style: tiny }
+  - { id: wormhole, xyz: [0, 10, 300], label: BAJORAN WORMHOLE, style: minor, tap_action: { action: fly-to, view: wormhole } }
+  - { id: bajor, xyz: [-160, -260, -40] }
+  - { id: bajor_name, at: bajor, offset: [0, 30, 125], label: BAJOR, style: minor }
+objects:
+  - { type: model, id: ds9, src: builtin:deep_space_nine, at: ds9_centre, size: 100, material: original }
+  - { type: glow, at: wormhole, size: 90, color: var(--lcars-blue) }
+  - { type: glow, at: wormhole, size: 40, color: var(--lcards-moonlight) }
+  - { type: ring, at: wormhole, radius: 26, rotation: [90, 0, 0], spin: 40, dash: [2, 4], width: 1.5, color: var(--lcars-blue) }
+  - type: sphere
+    at: bajor
+    radius: 120
+    fill_effect: { preset: terran }
+    line_spacing_deg: 30
+    line_width: 0.5
+    opacity: 0.3
+    spin: 3
+camera:
+  view: station
+  views:
+    station: { target: ds9_centre, yaw: 30, tilt: 10, distance: 190 }
+    ops: { target: ops, yaw: 50, tilt: 25, distance: 70 }
+    wormhole: { target: wormhole, yaw: 150, tilt: 8, distance: 120 }
+    sector: { target: [0, -40, 120], yaw: 60, tilt: 20, distance: 520 }
+backdrop: { stars: { count: 2500 } }
+```
+
+### Utopia Planitia yards
+
+Three drydocks of the Utopia Planitia Fleet Yards in orbit over Mars (its USGS Viking map), a Constitution-class starship in the first. Tap a drydock to fly to it.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points:
+  - { id: mars, xyz: [0, -200, 0] }
+  - { id: mars_name, at: mars, offset: [0, 40, 200], label: MARS, style: major }
+  - { id: dock1, xyz: [-70, 30, 20] }
+  - id: dock1_name
+    at: dock1
+    offset: [0, 14, 0]
+    marker: reticle
+    label: DRYDOCK 1
+    style: minor
+    tap_action: { action: fly-to, view: dock1 }
+  - { id: dock2, xyz: [0, 38, 0] }
+  - id: dock2_name
+    at: dock2
+    offset: [0, 14, 0]
+    marker: reticle
+    label: DRYDOCK 2
+    style: minor
+    tap_action: { action: fly-to, view: dock2 }
+  - { id: dock3, xyz: [70, 30, -20] }
+  - id: dock3_name
+    at: dock3
+    offset: [0, 14, 0]
+    marker: reticle
+    label: DRYDOCK 3
+    style: minor
+    tap_action: { action: fly-to, view: dock3 }
+objects:
+  - type: sphere
+    id: mars_body
+    at: mars
+    radius: 190
+    image: builtin:mars_viking
+    line_spacing_deg: 30
+    line_width: 0.5
+    opacity: 0.3
+    spin: 2
+  - { type: model, id: dock1_frame, src: builtin:utopia_planitia_drydock, at: dock1, size: 40, material: original }
+  - { type: model, id: dock1_ship, src: builtin:constitution, at: dock1, size: 15, scan_period: 6 }
+  - { type: model, id: dock2_frame, src: builtin:utopia_planitia_drydock, at: dock2, size: 40, material: original }
+  - { type: model, id: dock3_frame, src: builtin:utopia_planitia_drydock, at: dock3, size: 40, material: original }
+camera:
+  view: yards
+  views:
+    yards: { target: [0, 20, 0], yaw: 20, tilt: 22, distance: 260 }
+    dock1: { target: dock1, yaw: 35, tilt: 20, distance: 80 }
+    dock2: { target: dock2, yaw: 35, tilt: 20, distance: 80 }
+    dock3: { target: dock3, yaw: 35, tilt: 20, distance: 80 }
 backdrop: { stars: { count: 2000 } }
 ```
 
@@ -546,6 +637,49 @@ objects:
     cells: { ring: 10, angle: 10, layer: 7 }
     color: var(--lcars-green)
     tap_action: { action: fly-to }
+```
+
+### Starbase
+
+A built-in starbase model (Deep Space 9, Earth Spacedock or a Utopia Planitia drydock) at a point, with its name and main parts labelled. Tap the name to fly to it.
+
+Its ids start with its name (default `starbase_`).
+
+| Setting | Default | Notes |
+|---|---|---|
+| Label | `DEEP SPACE 9` |  |
+| Model | `deep_space_nine` | deep_space_nine, earth_spacedock or utopia_planitia_drydock. |
+| At | `0, 0, 0` | A point id or x, y, z. |
+| Size (its largest extent) | `60` |  |
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points:
+  - { id: starbase_centre, xyz: [0, 0, 0] }
+  - id: starbase_name
+    at: starbase_centre
+    offset: [0, 42, 0]
+    label: DEEP SPACE 9
+    style: minor
+    tap_action: { action: fly-to, view: starbase_view }
+  - { id: starbase_ops, object: starbase_station, part: ops, marker: dot, label: OPS, style: tiny, max_distance: 360 }
+  - id: starbase_promenade
+    object: starbase_station
+    part: promenade
+    marker: dot
+    label: PROMENADE
+    style: tiny
+    max_distance: 360
+  - id: starbase_docking_ring
+    object: starbase_station
+    part: docking_ring
+    marker: dot
+    label: DOCKING RING
+    style: tiny
+    max_distance: 360
+objects: [{ type: model, id: starbase_station, src: builtin:deep_space_nine, at: starbase_centre, size: 60, material: original }]
+camera: { views: { starbase_view: { target: starbase_centre, yaw: 30, tilt: 15, distance: 120 } } }
 ```
 
 <!-- starters:end -->

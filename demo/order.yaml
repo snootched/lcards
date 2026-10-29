@@ -8,6 +8,12 @@ title: LCARdS Demo
 releases:
   - version: "2026.10.0"
     views:
+      - file: astro-starbases
+        summary: "Astrometrics starbases: Deep Space 9, Earth Spacedock, Utopia Planitia"
+        description: "Three built-in starbase models made in code after the on-screen designs: Deep Space 9 by the wormhole with Ops and its pylons marked, the Utopia Planitia drydocks over Mars with a starship in one, a starship approaching Earth Spacedock's space doors, and all three as holograms."
+        session: "E8"
+        docs: /cards/astrometrics/objects#built-in-models
+        public: true
       - file: astro-belt
         summary: "Astrometrics asteroid belt: rocks round a star"
         description: "type: belt: a band of low-poly rocks round the Sun, the inner ones going round faster (period) and each tumbling, lit from the Sun. Fly to MAIN BELT for a close look. Second card: a ring of small rocks round a planet."

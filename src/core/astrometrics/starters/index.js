@@ -19,10 +19,13 @@ import skyDome from './scene-sky-dome.js';
 import solarSystem from './scene-solar-system.js';
 import federationMap from './scene-federation-map.js';
 import starbaseApproach from './scene-starbase-approach.js';
+import deepSpaceNine from './scene-deep-space-nine.js';
+import utopiaPlanitia from './scene-utopia-planitia.js';
 import planet from './part-planet.js';
 import asteroidBelt from './part-asteroid-belt.js';
 import nebulaField from './part-nebula-field.js';
 import sectorVolumes from './part-sector-volumes.js';
+import starbase from './part-starbase.js';
 
 /**
  * @typedef {Object} StarterParam
@@ -54,7 +57,7 @@ import sectorVolumes from './part-sector-volumes.js';
  */
 
 /** @type {Starter[]} */
-export const STARTERS = [galaxy, sectorMap, skyDome, solarSystem, federationMap, starbaseApproach, planet, asteroidBelt, nebulaField, sectorVolumes];
+export const STARTERS = [galaxy, sectorMap, skyDome, solarSystem, federationMap, starbaseApproach, deepSpaceNine, utopiaPlanitia, planet, asteroidBelt, nebulaField, sectorVolumes, starbase];
 
 /** Keys whose string values (or list entries) name a point, object or view */
 const REF_KEYS = new Set(['id', 'at', 'object', 'target', 'from', 'to', 'points', 'view']);

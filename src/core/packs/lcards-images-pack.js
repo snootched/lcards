@@ -62,6 +62,24 @@ export const LCARDS_IMAGES_PACK = {
             label: 'Constitution-class starship',
             description: 'A Constitution-class starship in TOS proportions (289 m long, the bow toward +z, Y up, metres): fan art made in code by scripts/make-demo-ship.mjs, no third-party mesh. One animation clip, bussards.',
             parts: ['saucer', 'bridge', 'sensor_dome', 'impulse', 'neck', 'secondary_hull', 'deflector', 'shuttle_bay', 'pylon_port', 'pylon_starboard', 'nacelle_port', 'nacelle_starboard', 'bussard_port', 'bussard_starboard', 'grille_port', 'grille_starboard']
+        },
+        deep_space_nine: {
+            url: '/lcards/models/deep-space-nine.glb',
+            label: 'Deep Space 9 (Terok Nor)',
+            description: 'The Cardassian station of Deep Space Nine (about 1450 m across and 1070 m tall, Y up, metres, the origin at the Promenade): fan art made in code by scripts/make-starbases.mjs, no third-party mesh. Parts: the central core (ops, promenade, lower_core), the rings, the crossover bridges, and six docking pylons (part origins at their tips).',
+            parts: ['ops', 'upper_core', 'promenade', 'lower_core', 'habitat_ring', 'docking_ring', 'windows', 'crossover_bridges', 'docking_ports', 'upper_pylon_1', 'upper_pylon_2', 'upper_pylon_3', 'lower_pylon_1', 'lower_pylon_2', 'lower_pylon_3']
+        },
+        earth_spacedock: {
+            url: '/lcards/models/earth-spacedock.glb',
+            label: 'Earth Spacedock',
+            description: 'The Federation orbital station over Earth from Star Trek III (about 3810 m across and 5795 m tall, Y up, metres): fan art made in code by scripts/make-starbases.mjs, no third-party mesh. Parts: the space_doors at the top, the cap, the stem, the docking_ring and the base (its bottom tip).',
+            parts: ['cap', 'stem', 'docking_ring', 'base', 'space_doors', 'windows', 'panels', 'docking_ports']
+        },
+        utopia_planitia_drydock: {
+            url: '/lcards/models/utopia-planitia-drydock.glb',
+            label: 'Utopia Planitia drydock',
+            description: 'A drydock of the Utopia Planitia Fleet Yards over Mars (about 760 m long, the bow end toward +z, Y up, metres), an open frame of ribs and spars with work lights, sized for a Galaxy-class ship: fan art made in code by scripts/make-starbases.mjs, no third-party mesh. Parts: frame, lights, berth (where a ship sits), bow and stern.',
+            parts: ['frame', 'lights', 'berth', 'bow', 'stern']
         }
     },
 

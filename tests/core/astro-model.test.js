@@ -204,3 +204,29 @@ test('clip names: all, one, a list, unknown names dropped', () => {
   assert.deepEqual(models.clipNames(['b', 'c'], ['a', 'b']), ['b']);
   assert.deepEqual(models.clipNames(undefined, ['a']), []);
 });
+
+test('E8 starbases: every built-in model parses with the parts its pack entry lists, at canon size', async () => {
+  const { LCARDS_IMAGES_PACK } = await import('../../src/core/packs/lcards-images-pack.js');
+  // [across (round the y axis), tall, long (z)] in metres: the on-screen designs
+  // (DS9 about 1450 x 1070, Spacedock 3810 x 5795), the drydock about 760 long
+  const SIZES = { deep_space_nine: [1450, 1070], earth_spacedock: [3810, 5795], utopia_planitia_drydock: [null, 260, 760] };
+  for (const [key, m] of Object.entries(LCARDS_IMAGES_PACK.model_assets)) {
+    const g = await models.parseModel(bytes(m.url.replace('/lcards/models/', '../../src/assets/models/')));
+    for (const name of m.parts) assert.ok(g.scene.getObjectByName(name), `${key}: part ${name}`);
+    if (!SIZES[key]) continue;
+    g.scene.updateMatrixWorld(true);
+    let r = 0;
+    const v = new Vector3();
+    g.scene.traverse((/** @type {any} */ o) => {
+      if (!o.isMesh) return;
+      const p = o.geometry.attributes.position;
+      for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); r = Math.max(r, Math.hypot(v.x, v.z)); }
+    });
+    const size = new Box3().setFromObject(g.scene).getSize(new Vector3());
+    const [across, tall, long] = SIZES[key];
+    const near = (/** @type {number} */ got, /** @type {number} */ want, /** @type {string} */ what) => assert.ok(Math.abs(got - want) / want < 0.05, `${key} ${what} ${got}`);
+    if (across) near(2 * r, across, 'across');
+    near(size.y, tall, 'tall');
+    if (long) near(size.z, long, 'long');
+  }
+});
