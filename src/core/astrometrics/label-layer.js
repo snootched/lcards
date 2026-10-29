@@ -75,11 +75,11 @@ export const LABEL_STYLES = /** @type {Record<'title' | 'major' | 'minor' | 'tin
 /**
  * What hides labels behind it: a sphere (globes), an oriented box (`inverse`:
  * world to box space, the box centred there with half sizes `half`), or a
- * depth image of meshes (models; `bias(host)`: how far, scene units, a point
+ * depth image of meshes (models; `bias(host, dist)`: how far, scene units, a point
  * may sit behind the image and still show, for points on that object).
  * @typedef {{ kind?: 'sphere', center: Vector3, radius: number, id: string }
  *   | { kind: 'box', inverse: import('three').Matrix4, half: number[], id: string }
- *   | { kind: 'depth', snapshot: import('./depth-occlusion.js').DepthSnapshot, bias: (host: string | null) => number, id: string }} Occluder
+ *   | { kind: 'depth', snapshot: import('./depth-occlusion.js').DepthSnapshot, bias: (host: string | null, dist: number) => number, id: string }} Occluder
  */
 
 /**
@@ -235,7 +235,7 @@ export function layoutLabels(items, camera, width, height, occluders = []) {
       if (s.id === it.occluderSkip) continue;
       if (s.kind === 'depth') {
         const behind = viewDepth(p, camera, oc) - depthNear(s.snapshot, it.sx / width, it.sy / height, it.host === null ? 1 : 0);
-        if (behind > s.bias(it.host)) { hidden = true; break; }
+        if (behind > s.bias(it.host, dist)) { hidden = true; break; }
         continue;
       }
       if (s.kind === 'box') {

@@ -93,17 +93,45 @@ export function localBounds(node) {
 }
 
 /**
+ * Each object's bounding sphere, measured once (again for a dynamic object,
+ * and when a model finishes loading), placed in the world per call. Shared
+ * by the fader and the depth passes.
+ */
+export class ObjectBounds {
+  constructor() {
+    /** @type {WeakMap<import('./objects/common.js').BuiltObject, { sphere: Sphere, ready: boolean }>} */
+    this._map = new WeakMap();
+    this._center = new Vector3();
+  }
+
+  /**
+   * The sphere in world space now (the centre is reused: read it before the next call).
+   * @param {import('./objects/common.js').BuiltObject} b
+   * @returns {{ center: Vector3, radius: number }}
+   */
+  world(b) {
+    const ready = b.isReady?.() ?? true;
+    let cached = this._map.get(b);
+    // A line object between moving points changes shape; a model grows when it loads
+    if (!cached || b.dynamic || cached.ready !== ready) {
+      cached = { sphere: localBounds(b.node), ready };
+      this._map.set(b, cached);
+    }
+    return { center: this._center.copy(cached.sphere.center).applyMatrix4(b.node.matrixWorld), radius: cached.sphere.radius };
+  }
+}
+
+/**
  * Per frame: `begin` before the render, `end` after it.
  */
 export class ObjectFader {
-  constructor() {
+  /** @param {ObjectBounds} [bounds] */
+  constructor(bounds = new ObjectBounds()) {
     /** @type {WeakMap<object, { range: DistanceRange | null }>} parsed ranges, by config */
     this._ranges = new WeakMap();
-    /** @type {WeakMap<import('./objects/common.js').BuiltObject, { sphere: Sphere, ready: boolean }>} */
-    this._bounds = new WeakMap();
+    this._bounds = bounds;
     /** @type {{ mat: any, opacity: number, transparent: boolean, depthWrite: boolean, uniform: number | undefined }[]} */
     this._saved = [];
-    this._center = new Vector3();
     /** @type {Map<string, number>} last factor by object id (tests, debug) */
     this.alphas = new Map();
   }
@@ -159,15 +187,8 @@ export class ObjectFader {
    * @private
    */
   _distance(b, camera) {
-    const ready = b.isReady?.() ?? true;
-    let cached = this._bounds.get(b);
-    // A line object between moving points changes shape; a model grows when it loads
-    if (!cached || b.dynamic || cached.ready !== ready) {
-      cached = { sphere: localBounds(b.node), ready };
-      this._bounds.set(b, cached);
-    }
-    const c = this._center.copy(cached.sphere.center).applyMatrix4(b.node.matrixWorld);
-    return sphereDistance(camera, c, cached.sphere.radius);
+    const { center, radius } = this._bounds.world(b);
+    return sphereDistance(camera, center, radius);
   }
 
   /**

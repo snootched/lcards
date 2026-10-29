@@ -173,7 +173,7 @@ const cameraSchema = {
             description: 'Where drag and zoom stop: [min, max] pairs. A tilt range of one value (e.g. [90, 90]) locks the tilt, and a one-finger drag then pans (a map).',
             properties: {
                 tilt: tuple(2, 'Lowest and highest tilt, degrees. Default [-90, 90].'),
-                distance: tuple(2, 'Nearest and farthest distance, scene units.'),
+                distance: tuple(2, 'Nearest and farthest distance, scene units. Default: 1 to 100,000, widened for a scene at true scale (down to half its smallest object, out to 20 times its size).'),
                 yaw: tuple(2, 'Yaw range, degrees. Default: no limit.'),
                 target: {
                     description: 'Where the point the camera looks at may go, so panning cannot lose the scene. A sphere ({ radius, center }) or a box ({ x, y, z } ranges, an axis left out is free); false for no limit. Default: a sphere 1.5 times the size of the scene round its centre.',

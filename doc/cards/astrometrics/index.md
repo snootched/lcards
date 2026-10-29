@@ -166,6 +166,36 @@ The [config checker](/getting-started/config-checker) also checks what the schem
 - **Bearings** are degrees clockwise from north (north is away from the default camera), as on a compass seen from above.
 - **Motion is off until you set it,** and every moving key follows one rule: turning in degrees per second (`spin`, `camera.auto_rotate`); travel in its own units per second (`flow_speed` in px, a fill's `speed` and a nebula's or noise's `drift` in scene units); repeating cycles as a `period` in seconds (`scan_period`, a deformation's `period`). Fly-to times are in ms, as everywhere in LCARdS.
 
+## At true scale
+
+Scene units can be real ones: a solar system in km, a station in metres. Build it with the real numbers and the card holds the whole range:
+
+```yaml
+type: custom:lcards-astrometrics-card
+camera:
+  view: station
+  views:
+    system: { target: sun, yaw: 40, tilt: 35, distance: 2100000000 }
+    earth: { target: earth, yaw: 225, tilt: 12, distance: 70000 }
+    station: { target: ds9, yaw: 330, tilt: 6, distance: 4 }
+points:
+  - { id: sun, xyz: [0, 0, 0], label: SOL, style: major }
+  - { id: earth, polar: [149597870.7, 30], marker: dot, label: EARTH }
+  - { id: ds9, at: earth, offset: [-21082, 0, 36515], label: DEEP SPACE 9, style: tiny }
+objects:
+  - { type: glow, at: sun, size: 9000000, color: var(--lcars-yellow) }
+  - { type: sphere, at: sun, radius: 696340, fill_color: var(--lcars-yellow) }
+  - { type: ring, radius: 149597870.7, width: 1, color: var(--lcars-blue) }
+  - { type: sphere, at: earth, radius: 6371, image: builtin:earth_blue_marble }
+  - { type: model, at: ds9, src: builtin:deep_space_nine, size: 1.452, material: original }
+```
+
+- **Depth:** a station 4 km away with Earth 42,000 km behind it and the Sun 150 million km further draws in the right order. When one depth range cannot hold the view, the card draws it in slices, far to near; a scene built to fit draws in one pass as before.
+- **Distance limits** follow the scene: you can zoom in to half its smallest object and out to 20 times its size (a scene built to fit keeps 1 to 100,000). `limits.distance` sets your own.
+- **Fly-to** over a long zoom moves evenly in log distance, so each factor of ten takes the same time, and zooming in the camera lines up on its target early instead of sweeping past it close up.
+- **Orbit rings** add segments near the camera, so an orbit 150 million km across still passes through its planet seen from 70,000 km.
+- **What to expect:** at true scale, planets are dots from across their system (Earth is 1/23,000 of its orbit), so give them markers and labels; the close views are where it shines. The [distance](./objects#distance) keys still pick what shows when.
+
 ## Performance and motion
 
 - **Render on demand:** the scene draws when the camera moves, a fly-to runs, an object spins or an [effect](./effects) moves, the sky timer ticks or the theme changes. A still scene draws nothing. Off screen and in a hidden tab nothing draws.

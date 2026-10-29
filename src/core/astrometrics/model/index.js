@@ -183,9 +183,15 @@ export function buildModel(cfg, ctx) {
       /** @type {Mesh[]} */
       const meshes = [];
       scene.traverse((o) => { if (/** @type {any} */ (o).isMesh) meshes.push(/** @type {Mesh} */ (o)); });
+      const u = uniforms;
+      // view space to the file's own space, per render in doubles (in float32 on
+      // the GPU, a model far from the origin would lose its scanlines)
+      /** @param {any} _r @param {any} _s @param {import('three').Camera} camera */
+      const viewToModel = (_r, _s, camera) => { u.uViewToModel.value.multiplyMatrices(camera.matrixWorldInverse, file.matrixWorld).invert(); };
       for (const m of meshes) {
         m.material = mat;
         m.renderOrder = 1;
+        m.onBeforeRender = viewToModel;
         // the depth twin: same geometry, depth only (not for skinned meshes: they would need the skeleton)
         if (depthMat && !(/** @type {any} */ (m).isSkinnedMesh)) {
           const twin = new Mesh(m.geometry, depthMat);
@@ -273,15 +279,12 @@ export function buildModel(cfg, ctx) {
       uniforms.uScanStrength.value = strength;
       moving = true;
     }
-    if (uniforms) uniforms.uToModel.value.copy(file.matrixWorld).invert();
     return moving;
   };
   out.dispose = () => {
     disposed = true;
     mixer?.stopAllAction();
   };
-  // the model's world matrix can change without a tick (a rule moved it): keep uToModel current on layout
-  out.update = () => { if (uniforms) uniforms.uToModel.value.copy(file.matrixWorld).invert(); };
   out.dynamic = true;
   return out;
 }

@@ -184,6 +184,42 @@ function clampTarget(k, limit) {
   k.tz = box(k.tz, limit.z);
 }
 
+/** Above this ratio of distances (e: about 2.7x) a fly-to zooms in log distance */
+const LOG_FLY_RATIO = Math.E;
+
+/**
+ * Keys part way through a fly-to that zooms a long way (a galaxy to a
+ * station): the distance moves evenly in log, so every factor of ten takes
+ * the same time, and the target is tied to the zoom: zooming in it arrives
+ * early (the camera does not sweep past at close range), zooming out it
+ * leaves late. Written `b + (a - b)(1 - u)` so the end is exact however far
+ * the start was. Yaw, tilt and fov follow the eased progress.
+ * @param {CameraKeys} from
+ * @param {CameraKeys} to
+ * @param {number} e - eased progress 0..1
+ * @returns {CameraKeys}
+ */
+export function logFlyKeys(from, to, e) {
+  const da = from.distance;
+  const db = to.distance;
+  const distance = e >= 1 ? db : Math.exp(Math.log(da) + (Math.log(db) - Math.log(da)) * e);
+  const u = e >= 1 ? 1 : db < da ? (da - distance) / (da - db) : (distance - da) / (db - da);
+  /** @param {'tx' | 'ty' | 'tz'} k */
+  const target = (k) => to[k] + (from[k] - to[k]) * (1 - u);
+  /** @param {'yaw' | 'tilt' | 'fov'} k */
+  const lin = (k) => from[k] + (to[k] - from[k]) * e;
+  return { tx: target('tx'), ty: target('ty'), tz: target('tz'), yaw: lin('yaw'), tilt: lin('tilt'), distance, fov: lin('fov') };
+}
+
+/**
+ * Whether a fly-to between two distances zooms in log distance.
+ * @param {number} a
+ * @param {number} b
+ */
+export function isLogFly(a, b) {
+  return a > 0 && b > 0 && Math.max(a / b, b / a) > LOG_FLY_RATIO;
+}
+
 /**
  * Clamp keys to limits (in place).
  * @param {CameraKeys} k
@@ -199,13 +235,26 @@ export function clampKeys(k, limits) {
 }
 
 /**
+ * Default distance limits: today's [1, 100000], widened for a scene at true
+ * scale (down to half its smallest object, out to 20 times its size), so a
+ * station a kilometre across in a solar system measured in km can be reached.
+ * @param {{ radius: number, smallest?: number } | undefined} scene
+ * @returns {[number, number]}
+ */
+export function defaultDistance(scene) {
+  const [lo, hi] = DEFAULT_LIMITS.distance;
+  const small = scene?.smallest;
+  return [small !== undefined && small > 0 ? Math.min(lo, small * 0.5) : lo, scene && scene.radius > 0 ? Math.max(hi, scene.radius * 20) : hi];
+}
+
+/**
  * Config limits (`{ tilt: [a, b], distance: [a, b], yaw: [a, b], target }`,
  * any part) over the defaults. `target`: `{ radius, center? }` (a sphere),
  * `{ x?, y?, z? }` (a box of [a, b] ranges), or `false` (none). Left out, the
  * target stays within a sphere of TARGET_LIMIT_SCALE x the scene's radius
- * (`scene`), so nobody pans the scene out of sight.
+ * (`scene`), so nobody pans the scene out of sight. Distance: `defaultDistance`.
  * @param {any} cfg
- * @param {{ center: [number, number, number], radius: number }} [scene]
+ * @param {{ center: [number, number, number], radius: number, smallest?: number }} [scene]
  * @returns {CameraLimits}
  */
 export function parseLimits(cfg, scene) {
@@ -230,7 +279,7 @@ export function parseLimits(cfg, scene) {
   }
   return {
     tilt: /** @type {[number, number]} */ (pair(cfg?.tilt, DEFAULT_LIMITS.tilt)),
-    distance: /** @type {[number, number]} */ (pair(cfg?.distance, DEFAULT_LIMITS.distance)),
+    distance: /** @type {[number, number]} */ (pair(cfg?.distance, defaultDistance(scene))),
     yaw: pair(cfg?.yaw, null),
     target
   };
@@ -376,7 +425,15 @@ export class CameraRig {
       this.onChange();
       return Promise.resolve();
     }
-    this._tween = animate(this.keys, { ...target, duration, ease: /** @type {any} */ (resolveEasing(ease) ?? 'inOutCubic'), autoplay: false });
+    const easing = /** @type {any} */ (resolveEasing(ease) ?? 'inOutCubic');
+    if (isLogFly(this.keys.distance, target.distance)) {
+      // one eased progress; the keys follow it (logFlyKeys)
+      const from = { ...this.keys };
+      const progress = { e: 0 };
+      this._tween = animate(progress, { e: 1, duration, ease: easing, autoplay: false, onUpdate: () => { Object.assign(this.keys, logFlyKeys(from, target, progress.e)); } });
+    } else {
+      this._tween = animate(this.keys, { ...target, duration, ease: easing, autoplay: false });
+    }
     this._tweenStart = -1;
     this._tweenDuration = duration;
     this.warp = warp;

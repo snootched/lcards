@@ -97,11 +97,13 @@ function disposeRenderer() {
  * @param {import('three').Camera} camera
  * @param {number} w
  * @param {number} h
+ * @param {(renderer: WebGLRenderer) => void} [draw] - draws instead of one plain
+ *   render (several passes into the same frame)
  * @returns {{ source: CanvasImageSource, sy: number, done?: () => void } | null} what to
  *   draw from, the y of the rendered region in it (top-left origin), and what
  *   to call once drawn (closes the bitmap)
  */
-export function render(scene, camera, w, h) {
+export function render(scene, camera, w, h, draw) {
   // Lost but the webglcontextlost event not yet delivered: draw nothing
   // (transferToImageBitmap would throw); the event swaps in the fallbacks
   if (!renderer || renderer.getContext().isContextLost()) return null;
@@ -112,7 +114,8 @@ export function render(scene, camera, w, h) {
   }
   renderer.setViewport(0, 0, w, h);
   renderer.setScissor(0, 0, w, h);
-  renderer.render(scene, camera);
+  if (draw) draw(renderer);
+  else renderer.render(scene, camera);
   if (mode === 'bitmap') {
     const bitmap = /** @type {OffscreenCanvas} */ (/** @type {unknown} */ (renderer.domElement)).transferToImageBitmap();
     return { source: bitmap, sy: height - h, done: () => bitmap.close() };

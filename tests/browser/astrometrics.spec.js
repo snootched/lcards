@@ -744,3 +744,40 @@ test('E9 belt dots: far away the rocks are drawn as dots, close up as rocks agai
     await expect.poll(form, { timeout: 5_000 }).toEqual({ rocks: true, dots: false });
     await expectNoErrors(page);
 });
+
+test('E10 true scale: the Sun, Earth and Deep Space 9 in km draw at every view', async ({ page }) => {
+    await mountCase(page, 'astro-true-scale', { width: '800' });
+    await sceneReady(page);
+    const state = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const ring = s.world.objects.get('earth_orbit').lines.at(-1);
+        return { slices: s.depthSlices, model: s.world.objects.get('station').isReady(), ringSegs: ring._segs.count, keys: s.keys, limits: s.limits.distance };
+    });
+    const shot = async (name) => { if (process.env.LCARDS_SHOTS) await page.screenshot({ path: `${process.env.LCARDS_SHOTS}/true-scale-${name}.png` }); };
+    const fly = (view, duration = 0) => page.evaluate(([v, d]) => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo(v, { duration: d }), [view, duration]);
+    await expect.poll(async () => (await state()).model, { timeout: 15_000 }).toBe(true);
+    // the station 4 km out, Earth and the Sun far behind: more than one depth slice
+    await expect.poll(async () => (await state()).slices.length, { timeout: 5_000 }).toBeGreaterThan(1);
+    let st = await state();
+    // the default limits reach the station and the whole system
+    expect(st.limits[0]).toBeLessThan(1);
+    expect(st.limits[1]).toBeGreaterThan(2.1e9);
+    expect(await litPixels(page)).toBeGreaterThan(2000);
+    await shot('station');
+    // Earth from 70,000 km: the orbit ring refined round Earth
+    await fly('earth');
+    await expect.poll(async () => (await state()).ringSegs, { timeout: 5_000 }).toBeGreaterThan(300);
+    expect(await litPixels(page)).toBeGreaterThan(2000);
+    await shot('earth');
+    // the whole system: one pass is enough again, the ring back to its plain segments
+    await fly('system');
+    await expect.poll(async () => (await state()).ringSegs, { timeout: 5_000 }).toBeLessThan(300);
+    await shot('system');
+    // a log fly-to back to the station lands exactly on it
+    await fly('station', 1200);
+    await expect.poll(async () => (await state()).keys.distance, { timeout: 5_000 }).toBe(4);
+    st = await state();
+    await shot('station-after-fly');
+    expect(st.slices.length).toBeGreaterThan(1);
+    await expectNoErrors(page);
+});

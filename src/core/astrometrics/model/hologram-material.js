@@ -14,7 +14,7 @@
 import { ShaderMaterial, MeshBasicMaterial, AdditiveBlending, NormalBlending, DoubleSide, FrontSide, Matrix4, Vector3 } from 'three';
 
 const VERT = /* glsl */ `
-uniform mat4 uToModel;
+uniform mat4 uViewToModel;
 varying vec3 vNormal;
 varying vec3 vView;
 varying float vAxis;
@@ -33,8 +33,9 @@ void main() {
   vec4 mv = modelViewMatrix * vec4(transformed, 1.0);
   vNormal = normalize(normalMatrix * objectNormal);
   vView = -mv.xyz;
-  // where along the scan axis, in the model's own (file) space
-  vAxis = dot((uToModel * modelMatrix * vec4(transformed, 1.0)).xyz, uAxis);
+  // where along the scan axis, in the model's own (file) space (from view space:
+  // the CPU sets uViewToModel per render, so no world positions in float32)
+  vAxis = dot((uViewToModel * mv).xyz, uAxis);
   gl_Position = projectionMatrix * mv;
 }
 `;
@@ -95,7 +96,7 @@ export function hologramUniforms(look) {
     uLinePx: { value: 2 },
     uRange: { value: [0, 1] },
     uAxis: { value: new Vector3(0, 0, 1) },
-    uToModel: { value: new Matrix4() },
+    uViewToModel: { value: new Matrix4() },
     uScanPos: { value: 0 },
     uScanStrength: { value: 0 }
   };

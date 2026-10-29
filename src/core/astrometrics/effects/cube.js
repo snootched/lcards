@@ -51,18 +51,20 @@ export function cubeSpots(seed) {
   return spots;
 }
 
+// World-space maths happens on the CPU in doubles (onBeforeRender): in float32
+// a cube far from the origin (true scale) would shake and march from the wrong eye
 const VERT = /* glsl */ `
+uniform vec3 uCamObj;
+uniform vec3 uDirObj;
 varying vec3 vObj;
 varying vec3 vCamObj;
 varying vec3 vDirObj;
 void main() {
   vObj = position;
-  mat4 toObj = inverse(modelMatrix);
-  vCamObj = (toObj * vec4(cameraPosition, 1.0)).xyz;
+  vCamObj = uCamObj;
   // the view direction, for an orthographic camera (parallel rays)
-  vec3 fwd = -vec3(viewMatrix[0][2], viewMatrix[1][2], viewMatrix[2][2]);
-  vDirObj = (toObj * vec4(fwd, 0.0)).xyz;
-  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+  vDirObj = uDirObj;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }`;
 
 const FRAG = /* glsl */ `
@@ -72,8 +74,8 @@ uniform float uTime;
 uniform float uDetail;
 uniform float uOpacity;
 uniform vec4 uSpots[${CUBE_SPOTS}];
-// three gives a fragment shader the view matrix only
-uniform mat4 uModel;
+// three gives a fragment shader the view matrix only; model-view comes from the CPU
+uniform mat4 uModelView;
 uniform mat4 uProj;
 varying vec3 vObj;
 varying vec3 vCamObj;
@@ -142,9 +144,9 @@ void main() {
     float face = axisFace(p, k);
     float rise = uDetail > 0.5 ? 1.0 - clamp((1.0 - ap[k]) / DEPTH, 0.0, 1.0) : 1.0;
     bool wall = abs(n[k]) < 0.5;
-    vec3 nv = normalize((viewMatrix * uModel * vec4(n, 0.0)).xyz);
+    vec3 nv = normalize((uModelView * vec4(n, 0.0)).xyz);
     vec3 faceN = vec3(k == 0, k == 1, k == 2) * sign(p[k]);
-    vec3 faceNv = normalize((viewMatrix * uModel * vec4(faceN, 0.0)).xyz);
+    vec3 faceNv = normalize((uModelView * vec4(faceN, 0.0)).xyz);
     float diff = max(dot(nv, L), 0.0);
     float top = smoothstep(0.35, 0.85, faceNv.y);
     vec3 side = mix(vec3(0.2, 0.25, 0.21), uColor * 0.5, 0.6);
@@ -177,7 +179,7 @@ void main() {
     float axisL;
     vec2 uvL = faceUV(pl, nL, axisL) / latB;
     float faceL = axisL * 2.0 + (dot(nL, vec3(1.0)) > 0.0 ? 1.0 : 0.0);
-    vec3 nLv = normalize((viewMatrix * uModel * vec4(nL, 0.0)).xyz);
+    vec3 nLv = normalize((uModelView * vec4(nL, 0.0)).xyz);
     float lat = lattice(uvL, faceL, pxUV * 2.0) * 0.9;
     vec3 latCol = mix(vec3(0.55, 0.6, 0.57), uColor * 0.8, 0.25) * (0.5 + 0.5 * max(dot(nLv, L), 0.0));
     col = latCol * lat + col * (1.0 - lat);
@@ -186,7 +188,7 @@ void main() {
   }
   if (a < 0.5) discard;
   gl_FragColor = vec4(col / a, uOpacity);
-  vec4 clip = uProj * viewMatrix * uModel * vec4(pDepth, 1.0);
+  vec4 clip = uProj * uModelView * vec4(pDepth, 1.0);
   gl_FragDepth = clamp(clip.z / clip.w * 0.5 + 0.5, 0.0, 1.0);
 }`;
 
@@ -257,8 +259,10 @@ export function buildCube(cfg, ctx) {
       // 1: the distance fade scales it while the cube fades out
       uOpacity: { value: 1 },
       uSpots: { value: spots.map((s) => new Vector4(s[0], s[1], s[2], s[3])) },
-      uModel: { value: new Matrix4() },
-      uProj: { value: new Matrix4() }
+      uModelView: { value: new Matrix4() },
+      uProj: { value: new Matrix4() },
+      uCamObj: { value: new Vector3() },
+      uDirObj: { value: new Vector3() }
     };
     const mat = new ShaderMaterial({
       name: 'lcards-borg-cube',
@@ -269,10 +273,14 @@ export function buildCube(cfg, ctx) {
     });
     // the camera inside the box would see no front faces: draw the back ones then too
     mesh = new Mesh(geo, mat);
+    const toObj = new Matrix4();
     mesh.onBeforeRender = (_r, _s, camera) => {
-      uniforms.uModel.value.copy(mesh.matrixWorld);
+      uniforms.uModelView.value.multiplyMatrices(camera.matrixWorldInverse, mesh.matrixWorld);
       uniforms.uProj.value.copy(camera.projectionMatrix);
       const local = mesh.worldToLocal(camera.getWorldPosition(new Vector3()));
+      uniforms.uCamObj.value.copy(local);
+      const fwd = camera.getWorldDirection(new Vector3());
+      uniforms.uDirObj.value.copy(fwd.transformDirection(toObj.copy(mesh.matrixWorld).invert()));
       const inside = Math.max(Math.abs(local.x), Math.abs(local.y), Math.abs(local.z)) < 1;
       mat.side = inside ? BackSide : FrontSide;
     };

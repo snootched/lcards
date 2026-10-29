@@ -31,7 +31,8 @@ import { CardLayer, pointCard } from './card-layer.js';
 import { markerSvg } from './markers.js';
 import { DepthOcclusion } from './depth-occlusion.js';
 import { buildScene, makeLabelItem } from './scene-builder.js';
-import { ObjectFader } from './distance-fade.js';
+import { ObjectFader, ObjectBounds } from './distance-fade.js';
+import { depthSlices, drawPasses, starsBehind } from './depth-passes.js';
 import { BINDABLE_FORMS } from './placements.js';
 import { FatLine } from './lines.js';
 import { skyState } from './sky.js';
@@ -236,11 +237,15 @@ export function createAstroScene(host, config, options = {}) {
   const modelFiles = new Map();
 
   const rig = new CameraRig({ onChange: () => requestFrame() });
+  /** Objects' bounding spheres, for distance fades and depth slices */
+  const bounds = new ObjectBounds();
+  const fader = new ObjectFader(bounds);
   /** Labels hidden behind meshes (models): a small depth pass, read back a frame late */
-  const fader = new ObjectFader();
   const depth = new DepthOcclusion({ onSnapshot: () => { depthFresh = true; requestFrame(); } });
   /** A new depth image is in: lay the labels out again once, without a new capture */
   let depthFresh = false;
+  /** @type {[number, number][]} the last render's depth slices (debug) */
+  let lastSlices = [];
   /** @type {import('./scene-builder.js').AstroScene | null} */
   let world = null;
   /** @type {Record<string, any>} */
@@ -340,8 +345,9 @@ export function createAstroScene(host, config, options = {}) {
 
   /**
    * The scene's extent for the default target limit: the objects' bounds,
-   * grown to take in every labelled point and every view target.
-   * @returns {{ center: [number, number, number], radius: number } | undefined}
+   * grown to take in every labelled point and every view target; and its
+   * smallest object (the default nearest distance).
+   * @returns {{ center: [number, number, number], radius: number, smallest?: number } | undefined}
    */
   function sceneSphere() {
     if (!world) return undefined;
@@ -352,7 +358,12 @@ export function createAstroScene(host, config, options = {}) {
     for (const it of world.labels) take(world.places.get(it.id));
     const vs = cfg.camera?.views && typeof cfg.camera.views === 'object' ? Object.values(cfg.camera.views) : [];
     for (const v of vs) if (v && typeof v === 'object' && v.target !== undefined) take(world.places.resolve(v.target));
-    return { center: [c.x, c.y, c.z], radius: r };
+    let smallest = Infinity;
+    for (const b of world.list) {
+      const rb = bounds.world(b).radius;
+      if (rb > 0) smallest = Math.min(smallest, rb);
+    }
+    return { center: [c.x, c.y, c.z], radius: r, ...(Number.isFinite(smallest) ? { smallest } : {}) };
   }
 
   /** Camera options that need no new view: pan and drag modes, zoom, limits */
@@ -512,7 +523,9 @@ export function createAstroScene(host, config, options = {}) {
     // Objects out of their distance range hide, partly faded ones blend, for this render
     fader.begin(world.list, world.outer, camera.position);
     try {
-      out = sharedRender(world.scene, camera, W, H);
+      const plan = depthPlan(camera);
+      const scene = world.scene;
+      out = sharedRender(scene, camera, W, H, (r) => drawPasses(r, scene, camera, plan));
     } catch (error) {
       lcardsLog.warn('[Astrometrics] render failed:', error);
       fail('render failed');
@@ -552,6 +565,29 @@ export function createAstroScene(host, config, options = {}) {
     world.dust?.field?.setTail(tails?.dust ?? null);
   }
 
+  /**
+   * This frame's depth passes: each shown object's distance range from the
+   * camera; a scene inside the camera's own planes keeps one pass.
+   * @param {import('three').PerspectiveCamera | import('three').OrthographicCamera} camera
+   */
+  function depthPlan(camera) {
+    /** @type {import('./depth-passes.js').PassItem[]} */
+    const items = [];
+    if (world) {
+      for (const b of world.list) {
+        const g = world.outer.get(b);
+        if (!g || !g.visible) continue;
+        const { center, radius } = bounds.world(b);
+        const dist = camera.position.distanceTo(center);
+        items.push({ node: g, near: Math.max(0, dist - radius), far: dist + radius });
+      }
+    }
+    const slices = depthSlices(items, { near: camera.near, far: camera.far }, rig.keys.distance / 1000);
+    lastSlices = slices;
+    const stars = world?.stars?.node ?? null;
+    return { slices, stars, layered: !!stars && starsBehind(items), items };
+  }
+
   /** Objects whose meshes hide labels by depth (loaded models), this frame */
   function depthOccluders() {
     return world ? world.list.filter((b) => b.occludes && b.occluder === 'depth' && (b.isReady?.() ?? true) && (world?.outer.get(b)?.visible ?? true)) : [];
@@ -570,7 +606,27 @@ export function createAstroScene(host, config, options = {}) {
     }
     const moving = list.some((b) => b.spin || b.moving || b.config.at !== undefined);
     const key = moving ? String(frames) : `${camera.matrixWorld.elements.join(',')}|${camera.projectionMatrix.elements.join(',')}|${cssW}x${cssH}|${builds}|${objectBuilds}|${list.map((b) => b.id).join(',')}`;
-    depth.capture(renderer, world.scene, camera, cssW, cssH, key);
+    // Planes round the occluders alone: the depth image encodes against its far
+    // plane, and at true scale the camera's reaches a planet behind the station
+    let near = Infinity;
+    let far = 0;
+    for (const b of list) {
+      const { center, radius } = bounds.world(b);
+      const dist = camera.position.distanceTo(center);
+      near = Math.min(near, dist - radius);
+      far = Math.max(far, dist + radius);
+    }
+    const planes = [camera.near, camera.far];
+    camera.near = Math.max(planes[0], near * 0.99);
+    camera.far = Math.max(camera.near * 2, Math.min(planes[1], far * 1.01));
+    camera.updateProjectionMatrix();
+    try {
+      depth.capture(renderer, world.scene, camera, cssW, cssH, key);
+    } finally {
+      camera.near = planes[0];
+      camera.far = planes[1];
+      camera.updateProjectionMatrix();
+    }
   }
 
   /** @param {import('three').Camera} camera */
@@ -605,7 +661,8 @@ export function createAstroScene(host, config, options = {}) {
         biases.set(b.id, (b.radius ?? 1) * 2 * scale * 0.05);
       }
       const near = (world.bounds.radius || 100) * 0.002;
-      occluders.push({ kind: 'depth', snapshot, id: '', bias: (host) => (host !== null && biases.get(host)) || near });
+      // (at most 1 % of the label's own distance: at true scale the scene's size is no measure)
+      occluders.push({ kind: 'depth', snapshot, id: '', bias: (host, dist) => (host !== null && biases.get(host)) || Math.min(near, dist * 0.01) });
     }
     labels.update(camera, cssW, cssH, occluders);
     cards.update((id) => labels.item(id), cssW, cssH);
@@ -1300,6 +1357,7 @@ export function createAstroScene(host, config, options = {}) {
         projection: rig.projection,
         labels: { ...labels.stats },
         objectAlphas: Object.fromEntries(fader.alphas),
+        depthSlices: lastSlices,
         sky,
         world,
         rig,

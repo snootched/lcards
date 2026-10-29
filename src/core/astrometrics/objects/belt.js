@@ -37,14 +37,15 @@ attribute float aShade;
 varying vec3 vNormal;
 varying vec3 vToCentre;
 varying float vShade;
+// In view space, not world space: modelViewMatrix is built in doubles on the CPU,
+// so a belt far from the origin (true scale) stays steady in float32
 void main() {
-  vec4 local = instanceMatrix * vec4( position, 1.0 );
-  vec4 world = modelMatrix * local;
-  vNormal = normalize( mat3( modelMatrix ) * mat3( instanceMatrix ) * normal );
+  vec4 view = modelViewMatrix * instanceMatrix * vec4( position, 1.0 );
+  vNormal = normalize( mat3( modelViewMatrix ) * mat3( instanceMatrix ) * normal );
   // the light: the belt's centre (its star)
-  vToCentre = ( modelMatrix * vec4( 0.0, 0.0, 0.0, 1.0 ) ).xyz - world.xyz;
+  vToCentre = ( modelViewMatrix * vec4( 0.0, 0.0, 0.0, 1.0 ) ).xyz - view.xyz;
   vShade = aShade;
-  gl_Position = projectionMatrix * viewMatrix * world;
+  gl_Position = projectionMatrix * view;
 }`;
 
 const FRAG = /* glsl */ `
@@ -70,11 +71,10 @@ varying float vCover;
 varying float vPhase;
 void main() {
   vShade = aShade;
-  // how much of the rock's lit side faces the camera, as a moon's phase
-  vec3 world = ( modelMatrix * vec4( position, 1.0 ) ).xyz;
-  vec3 toCentre = normalize( ( modelMatrix * vec4( 0.0, 0.0, 0.0, 1.0 ) ).xyz - world );
-  vPhase = 0.5 + 0.5 * dot( toCentre, normalize( cameraPosition - world ) );
+  // how much of the rock's lit side faces the camera, as a moon's phase (view space: the camera at 0)
   vec4 mv = modelViewMatrix * vec4( position, 1.0 );
+  vec3 toCentre = normalize( ( modelViewMatrix * vec4( 0.0, 0.0, 0.0, 1.0 ) ).xyz - mv.xyz );
+  vPhase = 0.5 + 0.5 * dot( toCentre, normalize( -mv.xyz ) );
   // the rock's size on screen, device px: under one px it covers part of one
   float px = aSize * ( uOrtho > 0.0 ? uOrtho : uPxPerUnit / max( -mv.z, 1e-6 ) ) * uDpr;
   gl_PointSize = max( px, 1.0 );

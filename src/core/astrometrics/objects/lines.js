@@ -43,6 +43,80 @@ export function ellipseRun({ a, b = a, inclination = 0, node = 0, n = 256, from 
   return out;
 }
 
+/** Segments of a ring drawn whole (`ellipseRun`'s default) */
+const RING_SEGMENTS = 256;
+/** Most segments in a ring's refined window */
+const RING_FINE_MAX = 2048;
+
+/**
+ * Where a ring needs finer segments for this view: a ring at true scale (an
+ * orbit of 150 million km) drawn in 256 segments misses its planet by
+ * thousands of km between vertices, which shows from close by. Returns the
+ * window round the bearing nearest the camera, degrees, and its step; null
+ * when the whole ring at 256 segments is within half a pixel everywhere.
+ * @param {{ a: number, b?: number, inclination?: number, node?: number, from?: number, to?: number }} o
+ * @param {[number, number, number]} cam - the camera in the ring's own space
+ * @param {number} pxPerDist - size of a pixel per unit of distance from the camera (perspective)
+ *   or `pxFlat` for an orthographic camera (a pixel's size anywhere)
+ * @param {number} [pxFlat]
+ * @returns {{ center: number, half: number, step: number } | null}
+ */
+export function ringWindow(o, cam, pxPerDist, pxFlat) {
+  const { a, b = a, inclination = 0, node = 0, from = 0, to = 360 } = o;
+  const r = Math.max(a, b);
+  const coarse = (Math.abs(to - from) * DEG) / Math.ceil((RING_SEGMENTS * Math.abs(to - from)) / 360);
+  // gap between the chord and the curve at the coarse step
+  const sag = (r * coarse * coarse) / 8;
+  // the camera's bearing on the ring (exact for a circle; near enough for an ellipse)
+  const ci = Math.cos(inclination * DEG), si = Math.sin(inclination * DEG);
+  const cn = Math.cos(node * DEG), sn = Math.sin(node * DEG);
+  const x = cam[0] * cn + cam[2] * sn;
+  const z = -cam[0] * sn + cam[2] * cn;
+  const z0 = z * ci - cam[1] * si;
+  const t = Math.atan2(x / a, -z0 / b);
+  const p = [a * Math.sin(t), b * Math.cos(t) * si, -b * Math.cos(t) * ci];
+  /** @param {number} ln */
+  const px = (ln) => (pxFlat !== undefined ? pxFlat : ln * pxPerDist);
+  // distance from the camera to the ring there (the nearest stretch)
+  const near = Math.max(Math.hypot(x - p[0], cam[1] - p[1], z - p[2]), r * 1e-9);
+  if (sag < 0.5 * px(near)) return null;
+  // fine step: under a quarter pixel at the nearest point
+  let step = Math.sqrt((8 * 0.25 * px(near)) / r);
+  // the window: as far round as the coarse ring would still show its corners
+  const reach = pxFlat !== undefined ? Math.PI * r : sag / (0.5 * pxPerDist);
+  const half = Math.min(Math.PI, reach / r);
+  if ((2 * half) / step > RING_FINE_MAX) step = (2 * half) / RING_FINE_MAX;
+  return { center: t / DEG, half: half / DEG, step: step / DEG };
+}
+
+/**
+ * A ring's runs for a refined window: fine inside it, the usual steps outside.
+ * @param {{ a: number, b?: number, inclination?: number, node?: number, from?: number, to?: number }} o
+ * @param {{ center: number, half: number, step: number }} w
+ * @returns {number[][]}
+ */
+export function refinedRuns(o, w) {
+  const from = o.from ?? 0, to = o.to ?? 360;
+  const full = Math.abs(to - from) >= 360;
+  // the window's centre moved into [from, to)
+  let c = w.center;
+  while (c < from) c += 360;
+  while (c >= from + 360) c -= 360;
+  const lo = full ? c - w.half : Math.max(from, c - w.half);
+  const hi = full ? c + w.half : Math.min(to, c + w.half);
+  if (!(hi > lo)) return [ellipseRun(o)];
+  // ellipseRun's n is per full turn
+  const runs = [ellipseRun({ ...o, from: lo, to: hi, n: 360 / w.step })];
+  /** @param {number} f @param {number} t */
+  const coarse = (f, t) => { if (t - f > 1e-9) runs.push(ellipseRun({ ...o, from: f, to: t })); };
+  if (full) coarse(hi, lo + 360);
+  else {
+    coarse(from, lo);
+    coarse(hi, to);
+  }
+  return runs;
+}
+
 /**
  * The px-width line style of a line object.
  * @param {any} cfg
@@ -152,6 +226,31 @@ export function buildRing(cfg, ctx) {
   for (const l of lines) l.setRuns([run]);
   out.tick = flowTicker(cfg, lines);
   out.radius = Math.max(a, b);
+  // Close to a ring at true scale: finer segments round the nearest bearing
+  if (lines.length) {
+    const shape = { a, b, inclination: num(cfg.inclination, 0), node: num(cfg.node, 0), from, to };
+    /** @type {{ center: number, half: number, step: number } | null} */
+    let shown = null;
+    const cam = new Vector3();
+    out.lod = ({ camera, height }) => {
+      cam.setFromMatrixPosition(camera.matrixWorld);
+      node.worldToLocal(cam);
+      // the ring's own units per world unit (an `at` group never scales; the node might)
+      const k = 1 / new Vector3().setFromMatrixScale(node.matrixWorld).x;
+      const c = /** @type {any} */ (camera);
+      const pxPerDist = c.isPerspectiveCamera ? (2 * Math.tan((c.fov * DEG) / 2)) / Math.max(1, height) : 0;
+      const pxFlat = c.isOrthographicCamera ? ((c.top - c.bottom) / c.zoom / Math.max(1, height)) * k : undefined;
+      const w = ringWindow(shape, [cam.x, cam.y, cam.z], pxPerDist, pxFlat);
+      // rebuild only when the window moves or its step changes a fair bit
+      const same = w && shown
+        ? Math.abs(w.center - shown.center) < shown.step * 8 && Math.abs(Math.log(w.step / shown.step)) < 0.3 && Math.abs(Math.log(w.half / shown.half)) < 0.3
+        : w === shown;
+      if (same) return;
+      shown = w;
+      const runs = w ? refinedRuns(shape, w) : [run];
+      for (const l of lines) l.setRuns(runs);
+    };
+  }
   // (centred on its `at`, as every object)
   return out;
 }
