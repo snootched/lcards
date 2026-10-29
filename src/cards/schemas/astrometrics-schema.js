@@ -759,6 +759,30 @@ const beamObject = {
     }
 };
 
+const cubeObject = {
+    type: 'object',
+    title: 'cube',
+    required: ['type'],
+    allOf: [objectCommonSchema],
+    description: 'A Borg cube (style borg, the default: carved machinery, a rail lattice, green light from inside and pulsing glow spots, as in the Borg screen effect) or a plain shaded box. Hides labels behind it.',
+    properties: {
+        type: { type: 'string', const: 'cube', description: 'cube: a Borg cube or a plain box.' },
+        style: { type: 'string', enum: ['borg', 'plain'], default: 'borg', description: 'borg (default): the Borg cube. plain: a shaded box with its edges.', enumDescriptions: ['The Borg cube, ray-marched machinery under a rail lattice', 'A shaded box with its edges drawn'] },
+        size: {
+            description: 'Its size, scene units: one number for a cube, or [x, y, z] for a box. Default 20.',
+            oneOf: [{ type: 'number', exclusiveMinimum: 0 }, { type: 'array', items: { type: 'number', exclusiveMinimum: 0 }, minItems: 3, maxItems: 3 }]
+        },
+        color: color('borg: the light from inside and the tint of the hull (default var(--lcards-green-medium)). plain: the box colour (default var(--lcards-gray-medium)).'),
+        glow_color: color('borg: the glow spots\' colour. Default var(--lcards-green-lightest).'),
+        detail: { type: 'boolean', default: true, description: 'borg: true (default) carves the machinery into the faces (ray-marched, about as costly as the screen effect\'s cube); false draws flat faces with the lattice, for slow graphics hardware.' },
+        seed: { type: 'integer', default: 1, description: 'borg: where the glow spots sit. A different number moves them.' },
+        edges: { type: 'boolean', default: true, description: 'plain: draw the edges.' },
+        edge_color: color('plain: edge colour. Default theme:colors.ui.secondary.'),
+        opacity: number('plain: opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
+        occlude: { type: 'boolean', default: true, description: 'Hide labels and cards behind it.' }
+    }
+};
+
 const trailObject = {
     type: 'object',
     title: 'trail',
@@ -905,7 +929,7 @@ const modelObject = {
     }
 };
 
-const OBJECT_SCHEMAS = { model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject, belt: beltObject, trail: trailObject };
+const OBJECT_SCHEMAS = { model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject, belt: beltObject, trail: trailObject, cube: cubeObject };
 
 /** One scene object (published as its own shared file, scripts/lib/schema-publish.js) */
 export const objectSchema = {

@@ -1,0 +1,15 @@
+# The Borg cube (astrometrics.spec.js): style borg at the middle, ray-marched
+# in the effects chunk; a point behind it hides, one in front shows; a plain
+# box beside it.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: v
+  views:
+    v: { target: [0, 0, 0], yaw: 0, tilt: 0, distance: 60 }
+points:
+  - { id: north, xyz: [0, 0, -18], label: NORTH, marker: dot }
+  - { id: south, xyz: [0, 0, 18], label: SOUTH, marker: dot }
+objects:
+  - { type: cube, id: borg, size: 20 }
+  - { type: cube, id: box, style: plain, size: 6, at: [24, 0, 0] }

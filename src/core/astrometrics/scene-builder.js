@@ -156,6 +156,10 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
       const effects = ctx.effects;
       if (effects) add(cfg, (c) => effects.buildNebula(c, ctx));
       else lcardsLog.warn('[Astrometrics] nebula skipped: the effects chunk is not loaded');
+    } else if (cfg.type === 'cube') {
+      const effects = ctx.effects;
+      if (effects) add(cfg, (c) => effects.buildCube(c, ctx));
+      else lcardsLog.warn('[Astrometrics] cube skipped: the effects chunk is not loaded');
     } else if (cfg.type === 'model') {
       const models = ctx.models;
       if (models) add(cfg, (c) => models.buildModel(c, ctx));
@@ -187,7 +191,7 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   // Bounds before the first placement pass (a default view frames them)
   scene.updateMatrixWorld(true);
   const box = new Box3();
-  for (const b of list) if (b.type in FIRST || b.type === 'nebula' || b.type === 'model') box.expandByObject(b.node);
+  for (const b of list) if (b.type in FIRST || b.type === 'nebula' || b.type === 'model' || b.type === 'cube') box.expandByObject(b.node);
   const bounds = box.isEmpty() ? new Sphere(new Vector3(), 100) : box.getBoundingSphere(new Sphere());
 
   // Dust round the scene (after the bounds: it fills them)

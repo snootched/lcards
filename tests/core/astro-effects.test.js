@@ -423,3 +423,35 @@ test('E8 trail: a growing line draws all its segments (three\'s cached instance 
   assert.equal(/** @type {any} */ (l.geometry)._maxInstanceCount, undefined);
   assert.equal(l.geometry.instanceCount, 3);
 });
+
+test('E8 cube: in the effects chunk, sized, seeded spots, borg shader shares the face GLSL, plain box with edges', async () => {
+  const { BORG_FACE_GLSL } = await import('../../src/core/screen-effects/effects/borg-face-glsl.js');
+  assert.ok(OBJECT_TYPES.includes('cube'));
+  assert.equal(usesEffects({ objects: [{ type: 'cube' }] }), true);
+  assert.deepEqual(effects.cubeSize(10), [10, 10, 10]);
+  assert.deepEqual(effects.cubeSize([4, 6, 8]), [4, 6, 8]);
+  assert.deepEqual(effects.cubeSize(undefined), [20, 20, 20]);
+  const a = effects.cubeSpots(3);
+  assert.equal(a.length, 18);
+  assert.deepEqual(a.slice(0, 6).map((s) => s[0]), [0, 1, 2, 3, 4, 5], 'one spot on every face first');
+  assert.deepEqual(effects.cubeSpots(3), a, 'seeded');
+  assert.notDeepEqual(effects.cubeSpots(4), a);
+
+  const w = buildScene({ objects: [{ type: 'cube', id: 'borg', size: [10, 20, 30] }, { type: 'cube', id: 'box', style: 'plain', size: 8 }] }, /** @type {any} */ (ctx()));
+  const borg = w.objects.get('borg');
+  const mesh = borg.node.getObjectByName('cube');
+  assert.deepEqual(mesh.scale.toArray(), [5, 10, 15]);
+  assert.ok(mesh.material.fragmentShader.includes(BORG_FACE_GLSL), 'the shared face GLSL');
+  assert.ok(mesh.material.fragmentShader.includes('gl_FragDepth'));
+  assert.equal(borg.occluder, 'depth');
+  assert.ok(borg.occludes && borg.tick);
+  // the spots pulse on the scene clock
+  borg.tick(16, 1234);
+  assert.equal(mesh.material.uniforms.uTime.value, 1234);
+  const box = w.objects.get('box');
+  assert.ok(box.node.getObjectByName('edges'));
+  assert.equal(box.tick, null);
+  // detail: false skips the march
+  const flat = buildScene({ objects: [{ type: 'cube', id: 'c', detail: false }] }, /** @type {any} */ (ctx()));
+  assert.equal(flat.objects.get('c').node.getObjectByName('cube').material.uniforms.uDetail.value, 0);
+});

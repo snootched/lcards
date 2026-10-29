@@ -39,7 +39,7 @@ test('objects are checked against their own type: a sphere key on a grid is unkn
 test('an unknown object type names the choices and the closest one', () => {
     const out = issues({ objects: [{ type: 'sphear', radius: 4 }] });
     assert.equal(out.length, 1);
-    assert.match(out[0], /^error schema objects\[0\]\.type: unknown type "sphear" \(one of grid, volume, sphere, image, glow, nebula, model, ring, path, beam, belt, trail\) \(did you mean "sphere"\?\)$/);
+    assert.match(out[0], /^error schema objects\[0\]\.type: unknown type "sphear" \(one of grid, volume, sphere, image, glow, nebula, model, ring, path, beam, belt, trail, cube\) \(did you mean "sphere"\?\)$/);
 });
 
 test('reference checks: placement forms, ids that must exist, object: of the right kind, views', () => {

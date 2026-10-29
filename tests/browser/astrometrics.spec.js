@@ -679,3 +679,29 @@ test('E8 trail: grows behind a moving point, as long as length, head on the poin
     expect(await litPixels(page)).toBeGreaterThan(500);
     await expectNoErrors(page);
 });
+
+test('E8 cube: the Borg cube draws green machinery and hides the label behind it', async ({ page }) => {
+    await mountCase(page, 'astro-cube', { width: '800' });
+    await sceneReady(page);
+    const cube = await page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const b = s.world.objects.get('borg');
+        return { type: b.type, occluder: b.occluder, material: b.node.getObjectByName('cube').material.name };
+    });
+    expect(cube).toEqual({ type: 'cube', occluder: 'depth', material: 'lcards-borg-cube' });
+    const green = () => page.evaluate(() => {
+        const canvas = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('.astro-scene canvas');
+        const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+        let n = 0;
+        for (let i = 0; i < data.length; i += 4) if (data[i + 1] > 40 && data[i + 1] > data[i] + 8) n++;
+        return n;
+    });
+    await expect.poll(green, { timeout: 5_000 }).toBeGreaterThan(5_000);
+    const reasons = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        return Object.fromEntries(s.labelItems.map((l) => [l.id, l.reason]));
+    });
+    // one of the two is behind the cube from here, the other in front
+    await expect.poll(async () => Object.values(await reasons()).sort(), { timeout: 5_000 }).toEqual(['occluded', 'ok']);
+    await expectNoErrors(page);
+});

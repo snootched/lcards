@@ -1,0 +1,185 @@
+# Astrometrics Borg cube (E8 part 5): the Borg encounter starter, and the cube's
+# styles side by side (borg, detail off, plain).
+title: Astrometrics Borg cube
+path: astro-cube
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 420
+        camera:
+          view: encounter
+          buttons: true
+          views:
+            encounter:
+              target:
+                - 0
+                - 0
+                - 20
+              yaw: 120
+              tilt: 15
+              distance: 170
+            cube:
+              target: cube
+              yaw: 30
+              tilt: 20
+              distance: 90
+            ship:
+              target: ship
+              yaw: 150
+              tilt: 20
+              distance: 45
+        backdrop:
+          stars:
+            count: 2500
+        points:
+          - id: cube
+            xyz:
+              - 0
+              - 0
+              - -20
+          - id: cube_name
+            at: cube
+            offset:
+              - 0
+              - 32
+              - 0
+            label: BORG CUBE
+            style: major
+            tap_action:
+              action: fly-to
+              view: cube
+          - id: ship
+            xyz:
+              - 0
+              - 4
+              - 70
+          - id: ship_name
+            at: ship
+            offset:
+              - 0
+              - 10
+              - 0
+            label: USS ENTERPRISE
+            style: minor
+            tap_action:
+              action: fly-to
+              view: ship
+          - id: emitter
+            xyz:
+              - 0
+              - 2
+              - 0
+        objects:
+          - type: glow
+            at: cube
+            size: 110
+            color: var(--lcards-green-medium)
+            opacity: 0.45
+          - type: cube
+            id: borg
+            at: cube
+            size: 40
+            spin: 3
+            rotation:
+              - 8
+              - 25
+              - 0
+          - type: model
+            id: hull
+            src: builtin:constitution
+            at: ship
+            size: 20
+            rotation:
+              - 0
+              - 160
+              - 0
+            scan_period: 5
+          - type: beam
+            from: emitter
+            to: ship
+            width: 10
+            color: var(--lcards-green-medium)
+            pulse: true
+        grid_options:
+          columns: 24
+      - type: custom:lcards-astrometrics-card
+        height: 340
+        camera:
+          view: all
+          buttons: true
+          views:
+            all:
+              target:
+                - 0
+                - 0
+                - 0
+              yaw: 25
+              tilt: 18
+              distance: 110
+        backdrop:
+          stars:
+            count: 1200
+        points:
+          - id: a
+            xyz:
+              - -38
+              - 0
+              - 0
+          - id: b
+            xyz:
+              - 0
+              - 0
+              - 0
+          - id: c
+            xyz:
+              - 38
+              - 0
+              - 0
+          - id: a_name
+            at: a
+            offset:
+              - 0
+              - 18
+              - 0
+            label: BORG
+            style: minor
+          - id: b_name
+            at: b
+            offset:
+              - 0
+              - 18
+              - 0
+            label: DETAIL OFF
+            style: minor
+          - id: c_name
+            at: c
+            offset:
+              - 0
+              - 18
+              - 0
+            label: PLAIN
+            style: minor
+        objects:
+          - type: cube
+            at: a
+            size: 20
+            spin: 6
+          - type: cube
+            at: b
+            size: 20
+            spin: 6
+            detail: false
+          - type: cube
+            at: c
+            size:
+              - 14
+              - 10
+              - 20
+            spin: 6
+            style: plain
+        grid_options:
+          columns: 24

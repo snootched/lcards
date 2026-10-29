@@ -24,6 +24,7 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 | An asteroid belt (a band of rocks round a centre) | [`belt`](#belt) |
 | Your own picture on the plane | [`image`](#image) |
 | A ship, a station, any 3D model | [`model`](#model) |
+| A Borg cube (or a plain shaded box) | [`cube`](#cube) |
 
 ## Keys every object takes
 
@@ -308,6 +309,39 @@ objects:
   - { type: ring, id: inner, radius: 22, spin: -45, width: 0.5, opacity: 0.2 }
   - { type: trail, point: ship, length: 6, width: 3 }
   - { type: trail, point: probe, length: 3, width: 2, color: var(--lcars-blue) }
+```
+
+## cube
+
+A Borg cube, the same one as the [Borg screen effect](/core/borg) draws: machinery carved into every face, a rail lattice over it, green light from the recesses and glow spots pulsing deep inside. It sits in the scene like any object: it turns with `rotation` and `spin`, other objects pass into its recesses, and labels behind it hide. `style: plain` is a plain shaded box with its edges instead.
+
+| Key | What it does |
+|---|---|
+| `style` | `borg` (default) or `plain`. |
+| `size` | Scene units: one number for a cube, or `[x, y, z]` for a box. Default 20. |
+| `color` | `borg`: the light from inside and the hull's tint (default `var(--lcards-green-medium)`). `plain`: the box (default `var(--lcards-gray-medium)`). |
+| `glow_color` | `borg`: the glow spots (default `var(--lcards-green-lightest)`). |
+| `detail` | `borg`: `true` (default) carves the machinery into the faces; `false` draws flat faces with the lattice, for slow graphics hardware. |
+| `seed` | `borg`: where the glow spots sit. |
+| `edges`, `edge_color`, `opacity` | `plain`: its edges (on by default, `theme:colors.ui.secondary`) and how see-through it is. |
+| `occlude` | Hide labels and cards behind it (default `true`). |
+
+The spots pulse on the scene clock, so they hold still under reduced motion. For the cube's green halo, put a `glow` at the same point. The carved cube costs about as much as the screen effect's cube for the pixels it covers: one cube filling the card is fine on a laptop; for many cubes or a slow tablet use `detail: false`.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 380
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 35, tilt: 20, distance: 60 }
+backdrop:
+  stars: { count: 1500 }
+points:
+  - { id: cube, xyz: [0, 0, 0] }
+  - { id: name, at: cube, offset: [0, 18, 0], label: BORG CUBE, style: major }
+objects:
+  - { type: glow, at: cube, size: 60, color: var(--lcards-green-medium), opacity: 0.5 }
+  - { type: cube, at: cube, size: 20, spin: 5 }
 ```
 
 ## nebula

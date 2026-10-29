@@ -9,7 +9,7 @@
  */
 
 /** Object types; line objects (`ring`, `path`, `beam`, `trail`) read points, so they build second */
-export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt', 'trail']);
+export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt', 'trail', 'cube']);
 
 /**
  * Which type for what: the objects docs page's table (doc/cards/astrometrics/objects.md,
@@ -28,11 +28,12 @@ export const TYPE_GUIDE = [
   { type: 'nebula', use: 'Clouds of gas', icon: 'mdi:weather-cloudy' },
   { type: 'belt', use: 'An asteroid belt (a band of rocks round a centre)', icon: 'mdi:dots-circle' },
   { type: 'image', use: 'Your own picture on the plane', icon: 'mdi:image' },
-  { type: 'model', use: 'A ship, a station, any 3D model', icon: 'mdi:rocket' }
+  { type: 'model', use: 'A ship, a station, any 3D model', icon: 'mdi:rocket' },
+  { type: 'cube', use: 'A Borg cube (or a plain shaded box)', icon: 'mdi:cube' }
 ];
 
 /** Object types built from the effects chunk (`core/astrometrics/effects`) */
-export const EFFECT_TYPES = /** @type {const} */ (['nebula']);
+export const EFFECT_TYPES = /** @type {const} */ (['nebula', 'cube']);
 
 /** Object types built from the model chunk (`core/astrometrics/model`) */
 export const MODEL_TYPES = /** @type {const} */ (['model']);

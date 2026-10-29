@@ -8,6 +8,12 @@ title: LCARdS Demo
 releases:
   - version: "2026.10.0"
     views:
+      - file: astro-cube
+        summary: "Astrometrics Borg cube: the screen effect's cube in the scene"
+        description: "type: cube: the Borg cube with carved machinery, its rail lattice and pulsing glow spots, closing on a starship with a tractor beam (the Borg encounter starter); below, the styles side by side: borg, detail off and plain."
+        session: "E8"
+        docs: /cards/astrometrics/objects#cube
+        public: true
       - file: astro-trail
         summary: "Astrometrics trails: where moving points have been"
         description: "type: trail: fading lines behind planets and a comet on their orbits, built while the card is open, and a starship model riding an orbit with a dashed wake."
