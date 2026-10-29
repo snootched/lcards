@@ -935,3 +935,220 @@ test('E10 star system: a dive from a galaxy in ly to a station in km, the frame 
     await shot('station-after-dive');
     await expectNoErrors(page);
 });
+
+/** The followed point's distance from the camera target, current frame units */
+const followGap = (page, id) => page.evaluate((pid) => {
+    const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+    const p = s.world.places.get(pid);
+    return Math.hypot(p.x - s.keys.tx, p.y - s.keys.ty, p.z - s.keys.tz);
+}, id);
+
+test('N1 follow: a tap on a moving point lands on it and keeps it centred; zoom keeps it, a pan lets go', async ({ page }) => {
+    await mountCase(page, 'astro-follow', { width: '800' });
+    await sceneReady(page);
+    const ship = await pointOnPage(page, 'ship');
+    await page.mouse.click(ship.x, ship.y);
+    // lands on where the ship is now, not where it was at the tap
+    await expect.poll(async () => (await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().follow)), { timeout: 5000 })
+        .toEqual({ id: 'ship', moving: true });
+    await page.waitForTimeout(900);
+    expect(await followGap(page, 'ship')).toBeLessThan(0.5);
+    const before = (await sceneState(page)).keys;
+    await page.waitForTimeout(400);
+    const after = (await sceneState(page)).keys;
+    expect(Math.hypot(after.tx - before.tx, after.tz - before.tz)).toBeGreaterThan(2);
+    expect(await followGap(page, 'ship')).toBeLessThan(0.5);
+
+    // the wheel zooms about the ship (the cursor is elsewhere) and keeps following
+    const b = await sceneBox(page);
+    await page.mouse.move(b.x + 40, b.y + 40);
+    await page.mouse.wheel(0, -200);
+    await page.waitForTimeout(200);
+    expect(await followGap(page, 'ship')).toBeLessThan(0.5);
+    expect((await sceneState(page)).keys.distance).toBeLessThan(before.distance);
+
+    // a pan (shift-drag) lets go: the target stays where the pan left it
+    await page.keyboard.down('Shift');
+    await page.mouse.move(b.x + b.w / 2, b.y + b.h / 2);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.w / 2 + 40, b.y + b.h / 2, { steps: 3 });
+    await page.mouse.up();
+    await page.keyboard.up('Shift');
+    expect(await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().follow)).toBeNull();
+    const parked = (await sceneState(page)).keys;
+    await page.waitForTimeout(300);
+    const still = (await sceneState(page)).keys;
+    expect([still.tx, still.tz]).toEqual([parked.tx, parked.tz]);
+    await expectNoErrors(page);
+});
+
+test('N1 follow: a still point never counts as moving; flying to a view or tapping blank space lets go; follow: false never follows', async ({ page }) => {
+    await mountCase(page, 'astro-follow', { width: '800' });
+    await sceneReady(page);
+    const scene = () => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().follow);
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo('base', { duration: 0 }));
+    await page.waitForTimeout(200);
+    expect(await scene()).toEqual({ id: 'base', moving: false });
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo('ship'));
+    await expect.poll(scene).toEqual({ id: 'ship', moving: true });
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo('top', { duration: 0 }));
+    expect(await scene()).toBeNull();
+
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo('ship', { duration: 0 }));
+    await expect.poll(scene).toEqual({ id: 'ship', moving: true });
+    const b = await sceneBox(page);
+    await page.mouse.click(b.x + 20, b.y + b.h - 20);
+    expect(await scene()).toBeNull();
+
+    await reconfigureCamera(page, { follow: false });
+    await page.waitForTimeout(100);
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo('ship', { duration: 0 }));
+    expect(await scene()).toBeNull();
+    await expectNoErrors(page);
+});
+
+/** Send a wheel event at the scene's centre (deltas in px unless deltaMode) */
+const wheelAt = (page, init) => page.evaluate((i) => {
+    const el = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('.astro-scene canvas');
+    const r = el.getBoundingClientRect();
+    el.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, ...i }));
+}, init);
+
+test('N1 wheel: a touchpad swipe pans, a pinch (ctrl+wheel) zooms, a mouse notch zooms; wheel: zoom zooms a swipe', async ({ page }) => {
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await sceneReady(page);
+    for (let i = 0; i < 5; i++) await wheelAt(page, { deltaX: 8.5, deltaY: 0 });
+    let k = await settled(page);
+    expect(k.tx).toBeGreaterThan(5);
+    expect(k.distance).toBeCloseTo(200, 3);
+    await page.waitForTimeout(400);
+    await wheelAt(page, { deltaY: -6, ctrlKey: true });
+    k = await settled(page);
+    expect(k.distance).toBeLessThan(195);
+    await page.waitForTimeout(400);
+    const d0 = k.distance;
+    await wheelAt(page, { deltaY: 100 });
+    expect((await settled(page)).distance).toBeGreaterThan(d0 * 1.05);
+
+    await reconfigureCamera(page, { wheel: 'zoom' });
+    await page.waitForTimeout(400);
+    const k0 = await settled(page);
+    await wheelAt(page, { deltaX: 0, deltaY: 20.5 });
+    const k1 = await settled(page);
+    expect(k1.distance).toBeGreaterThan(k0.distance);
+    expect(k1.tx).toBeCloseTo(k0.tx, 6);
+});
+
+test('N1 middle-drag pans', async ({ page }) => {
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await sceneReady(page);
+    const b = await sceneBox(page);
+    await page.mouse.move(b.x + b.w / 2, b.y + b.h / 2);
+    await page.mouse.down({ button: 'middle' });
+    await page.mouse.move(b.x + b.w / 2 - 80, b.y + b.h / 2, { steps: 4 });
+    await page.mouse.up({ button: 'middle' });
+    const k = await settled(page);
+    expect(k.tx).toBeGreaterThan(5);
+    expect(k.yaw).toBeCloseTo(0, 3);
+});
+
+test('N1 buttons: hide idle fades them after a few seconds and a pointer move brings them back; toggle folds them', async ({ page }) => {
+    await mountCase(page, 'astro-follow', { width: '800' });
+    await sceneReady(page);
+    const group = page.locator('lcards-astrometrics-card .astro-buttons');
+    await expect(group).not.toHaveAttribute('data-idle', '');
+    await expect(group).toHaveAttribute('data-idle', '', { timeout: 6000 });
+    expect(await group.evaluate((el) => el.inert)).toBe(true);
+    const b = await sceneBox(page);
+    await page.mouse.move(b.x + 100, b.y + 100);
+    await page.mouse.move(b.x + 120, b.y + 110);
+    await expect(group).not.toHaveAttribute('data-idle', '');
+
+    await reconfigureCamera(page, { buttons: { hide: 'toggle' } });
+    const buttons = page.locator('lcards-astrometrics-card .astro-buttons button');
+    await expect(buttons).toHaveCount(8);
+    await page.locator('lcards-astrometrics-card button[data-cmd="fold"]').click();
+    await expect(buttons).toHaveCount(1);
+    await page.locator('lcards-astrometrics-card button[data-cmd="unfold"]').click();
+    await expect(buttons).toHaveCount(8);
+    await page.waitForTimeout(3500);
+    await expect(group).not.toHaveAttribute('data-idle', '');
+    await expectNoErrors(page);
+});
+
+test('N1 labels: a tap on the label text (not the point) flies to the point and follows it', async ({ page }) => {
+    await mountCase(page, 'astro-follow', { width: '800' });
+    await sceneReady(page);
+    // hold the motion so the label stays put while it is measured and tapped
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.setTimeScale(0));
+    const box = await page.locator('lcards-astrometrics-card .astro-label', { hasText: 'SHIP' }).boundingBox();
+    const point = await pointOnPage(page, 'ship');
+    // the far end of the label's box, well past the 18 px round the point
+    const x = Math.abs(box.x - point.x) > Math.abs(box.x + box.width - point.x) ? box.x + 3 : box.x + box.width - 3;
+    expect(Math.abs(x - point.x)).toBeGreaterThan(20);
+    await page.mouse.click(x, box.y + box.height / 2);
+    await expect.poll(() => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().follow?.id), { timeout: 5000 }).toBe('ship');
+});
+
+test('N1 labels on objects: the label stands off the ship with a leader, never hidden by the ship while it moves; a tap on the hull follows it', async ({ page }) => {
+    await mountCase(page, 'astro-leader', { width: '800' });
+    await sceneReady(page);
+    const label = page.locator('lcards-astrometrics-card .astro-label', { hasText: 'SHIP' });
+    const leader = page.locator('lcards-astrometrics-card .astro-leader[data-leader="ship"]');
+    // the model loaded and the depth image is in: sampled while the ship circles, the label always shows
+    await page.waitForTimeout(500);
+    const samples = [];
+    for (let i = 0; i < 20; i++) {
+        samples.push(await page.evaluate(() => {
+            const card = /** @type {any} */ (document.querySelector('#mount > *'));
+            const it = card._scene.debug().labelItems.find((/** @type {any} */ l) => l.id === 'ship');
+            return { reason: it.reason, gap: it.gap, reach: it.reach };
+        }));
+        await page.waitForTimeout(50);
+    }
+    expect(samples.filter((s) => s.reason !== 'ok'), JSON.stringify(samples)).toEqual([]);
+    expect(samples.every((s) => s.reach > 5 && s.gap > s.reach)).toBe(true);
+    expect(Number(await leader.evaluate((el) => getComputedStyle(el).opacity))).toBeGreaterThan(0);
+
+    // held still: the label's box clears the hull on screen
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.setTimeScale(0));
+    await page.waitForTimeout(200);
+    const point = await pointOnPage(page, 'ship');
+    const reach = await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().labelItems.find((/** @type {any} */ l) => l.id === 'ship').reach);
+    const box = await label.boundingBox();
+    const near = Math.min(Math.abs(box.x - point.x), Math.abs(box.x + box.width - point.x));
+    expect(near).toBeGreaterThan(reach);
+    // a tap on the hull (no marker, past the 18 px round the point) selects and follows
+    await page.mouse.click(point.x, point.y + Math.min(reach * 0.7, reach - 2));
+    await expect.poll(() => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().follow?.id), { timeout: 5000 }).toBe('ship');
+});
+
+test('N1 time: the slider slows, holds and speeds the scene; time_scale sets the start; buttons.time: false hides it', async ({ page }) => {
+    await mountCase(page, 'astro-follow', { width: '800' });
+    await sceneReady(page);
+    const clock = () => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().clock);
+    const slider = page.locator('lcards-astrometrics-card .astro-time input');
+    await expect(slider).toHaveCount(1);
+    await expect(page.locator('lcards-astrometrics-card .astro-time-value')).toHaveText('1×');
+    // stop 0: hold
+    await slider.fill('0');
+    await expect(page.locator('lcards-astrometrics-card .astro-time-value')).toHaveText('HOLD');
+    expect(await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.timeScale())).toBe(0);
+    const c0 = await clock();
+    await page.waitForTimeout(300);
+    expect(await clock()).toBe(c0);
+    // stop 6: four times as fast
+    await slider.fill('6');
+    const c1 = await clock();
+    await page.waitForTimeout(500);
+    expect((await clock()) - c1).toBeGreaterThan(1000);
+
+    await reconfigureCamera(page, { buttons: { time: false } });
+    await expect(slider).toHaveCount(0);
+    await page.evaluate(() => {
+        const raw = JSON.parse(JSON.stringify(/** @type {any} */ (document.querySelector('#mount > *'))._rawConfig));
+        window.__reconfigure({ ...raw, time_scale: 0.5 });
+    });
+    await expect.poll(() => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.timeScale())).toBe(0.5);
+    await expectNoErrors(page);
+});

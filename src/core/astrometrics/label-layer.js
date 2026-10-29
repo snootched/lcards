@@ -54,6 +54,9 @@ export const LABEL_STYLES = /** @type {Record<'title' | 'major' | 'minor' | 'tin
  * @property {string | null} occluderSkip - the sphere this point belongs to (never hides it)
  * @property {string | null} host - the object the point stands on (`object:`): a depth occluder lets it sit a little inside, a box occluder never hides it
  * @property {boolean} pickable
+ * @property {boolean} pickableWithObject - pickable while an object sits at the point (no tap_action of its own)
+ * @property {number} clear - radius (world units) of the object sitting at the point (a model, a globe): the label stands off it; 0 for none
+ * @property {boolean} leader - a line from the object's edge to a label that stands off it
  * @property {number} w - measured box, CSS px
  * @property {number} h
  * @property {number} ax - the point inside the box (the marker's centre, or the centre cell's), CSS px
@@ -68,6 +71,8 @@ export const LABEL_STYLES = /** @type {Record<'title' | 'major' | 'minor' | 'tin
  * @property {number} sx - projected position, CSS px
  * @property {number} sy
  * @property {number} depth
+ * @property {number} reach - the object's radius on screen this frame, CSS px (0 for none)
+ * @property {number} gap - how far the label stands off the point this frame, CSS px
  * @property {number} alpha
  * @property {boolean} visible
  * @property {'ok' | 'off' | 'occluded' | 'range' | 'culled'} reason
@@ -76,11 +81,12 @@ export const LABEL_STYLES = /** @type {Record<'title' | 'major' | 'minor' | 'tin
 /**
  * What hides labels behind it: a sphere (globes), an oriented box (`inverse`:
  * world to box space, the box centred there with half sizes `half`), or a
- * depth image of meshes (models; `bias(host, dist)`: how far, scene units, a point
- * may sit behind the image and still show, for points on that object).
+ * depth image of meshes (models; `bias(host, dist, id)`: how far, scene units, a
+ * point may sit behind the image and still show, for points on that object or
+ * that a model sits at).
  * @typedef {{ kind?: 'sphere', center: Vector3, radius: number, id: string }
  *   | { kind: 'box', inverse: import('three').Matrix4, half: number[], id: string }
- *   | { kind: 'depth', snapshot: import('./depth-occlusion.js').DepthSnapshot, bias: (host: string | null, dist: number) => number, id: string }} Occluder
+ *   | { kind: 'depth', snapshot: import('./depth-occlusion.js').DepthSnapshot, bias: (host: string | null, dist: number, id: string) => number, id: string }} Occluder
  */
 
 /**
@@ -100,6 +106,9 @@ export function labelItem(o) {
     occluderSkip: null,
     host: null,
     pickable: false,
+    pickableWithObject: false,
+    clear: 0,
+    leader: true,
     w: 0,
     h: 0,
     ax: NaN,
@@ -116,6 +125,8 @@ export function labelItem(o) {
     sx: 0,
     sy: 0,
     depth: 0,
+    reach: 0,
+    gap: 0,
     alpha: 0,
     visible: false,
     reason: 'off'
@@ -138,6 +149,8 @@ const BACK_MARGIN = 8;
  * @param {number} flip
  */
 function canFlip(it, flip) {
+  // a label standing off an object goes to either side of it
+  if (it.gap > 0 && flip === 1) return true;
   const off = (/** @type {number} */ i) => it.fields.some((f) => (LABEL_POSITIONS[f.position] ?? [2, 2])[i] !== 2);
   if (flip & 1 && !off(1)) return false;
   if (flip & 2 && !off(0)) return false;
@@ -154,9 +167,45 @@ function canFlip(it, flip) {
 export function labelBox(it, flip = 0) {
   const ax = flip & 1 ? it.w - anchorX(it) : anchorX(it);
   const ay = flip & 2 ? it.h - anchorY(it) : anchorY(it);
-  const x0 = it.sx - ax;
-  const y0 = it.sy - ay;
+  let x0 = it.sx - ax;
+  let y0 = it.sy - ay;
+  if (it.gap > 0) {
+    // Standing off an object: the side the box lies on (a centred one to the
+    // right, mirrored to the left), its near edge `gap` from the point
+    let dx = Math.sign(it.w / 2 - ax);
+    const dy = Math.sign(it.h / 2 - ay);
+    if (dx === 0 && dy === 0) dx = flip & 1 ? -1 : 1;
+    const g = dx !== 0 && dy !== 0 ? it.gap * Math.SQRT1_2 : it.gap;
+    if (dx > 0) x0 = it.sx + g;
+    else if (dx < 0) x0 = it.sx - g - it.w;
+    if (dy > 0) y0 = it.sy + g;
+    else if (dy < 0) y0 = it.sy - g - it.h;
+  }
   return [x0, y0, x0 + it.w, y0 + it.h];
+}
+
+/** Room (CSS px) between an object's edge and a label standing off it, the leader's length */
+export const LEADER_PX = 14;
+/** The most (CSS px) a label stands off its object: a close-up globe does not push it off the card */
+const GAP_MAX = 160;
+
+/**
+ * The leader of a label standing off an object, in CSS px: from the object's
+ * edge toward the nearest point of the box. Null when there is none.
+ * @param {LabelItem} it
+ * @param {number[]} box
+ * @returns {[number, number, number, number] | null} x, y, length, angle (radians)
+ */
+export function leaderLine(it, box) {
+  if (!it.leader || it.gap <= 0) return null;
+  const ex = Math.min(Math.max(it.sx, box[0]), box[2]);
+  const ey = Math.min(Math.max(it.sy, box[1]), box[3]);
+  const dx = ex - it.sx;
+  const dy = ey - it.sy;
+  const d = Math.hypot(dx, dy);
+  const len = d - it.reach;
+  if (len < 2) return null;
+  return [it.sx + (dx / d) * it.reach, it.sy + (dy / d) * it.reach, len, Math.atan2(dy, dx)];
 }
 
 const _o = new Vector3();
@@ -213,6 +262,9 @@ export function layoutLabels(items, camera, width, height, occluders = []) {
   const cam = new Vector3().setFromMatrixPosition(camera.matrixWorld);
   const ortho = /** @type {any} */ (camera).isOrthographicCamera === true;
   const back = ortho ? new Vector3(0, 0, 1).transformDirection(camera.matrixWorld) : null;
+  // CSS px per world unit at a distance (projectionMatrix[5]: cot(fov/2), or 2/(top-bottom) times zoom)
+  const p5 = camera.projectionMatrix.elements[5];
+  const pxPerUnit = (/** @type {number} */ dist) => (p5 * height) / 2 / (ortho ? 1 : Math.max(dist, 1e-9));
   /** @type {LabelItem[]} */
   const live = [];
   let occluded = 0;
@@ -227,6 +279,9 @@ export function layoutLabels(items, camera, width, height, occluders = []) {
     it.sy = (-v.y * 0.5 + 0.5) * height;
     const dist = cam.distanceTo(p);
     it.depth = dist;
+    // The object at the point, on screen: the label stands off its edge
+    it.reach = it.clear > 0 ? Math.min(GAP_MAX, it.clear * pxPerUnit(dist)) : 0;
+    it.gap = it.reach > 0 ? it.reach + LEADER_PX : 0;
     // Behind a sphere: the ray from the point toward the camera passes inside it
     if (back) dir.copy(back);
     else dir.copy(cam).sub(p).divideScalar(Math.max(dist, 1e-9));
@@ -236,7 +291,7 @@ export function layoutLabels(items, camera, width, height, occluders = []) {
       if (s.id === it.occluderSkip) continue;
       if (s.kind === 'depth') {
         const behind = viewDepth(p, camera, oc) - depthNear(s.snapshot, it.sx / width, it.sy / height, it.host === null ? 1 : 0);
-        if (behind > s.bias(it.host, dist)) { hidden = true; break; }
+        if (behind > s.bias(it.host, dist, it.id)) { hidden = true; break; }
         continue;
       }
       if (s.kind === 'box') {
@@ -298,8 +353,14 @@ export function layoutLabels(items, camera, width, height, occluders = []) {
   return { visible: placed.length, culled, occluded };
 }
 
+/** A tap this close (CSS px) to a label's box is on the label */
+const PICK_PAD = 4;
+
 /**
- * Nearest visible pickable label within r px of (x, y).
+ * The visible pickable label at (x, y): inside its box (text and marker,
+ * as placed this frame, padded a little), else its point within r px (or
+ * the object at it, on screen). Of
+ * several, the one whose point is nearest.
  * @param {LabelItem[]} items
  * @param {number} x
  * @param {number} y
@@ -308,11 +369,18 @@ export function layoutLabels(items, camera, width, height, occluders = []) {
  */
 export function pickLabel(items, x, y, r = 18) {
   let best = null;
-  let bd = r * r;
+  let bd = Infinity;
   for (const it of items) {
-    if (!it.visible || !it.pickable) continue;
+    if (!it.visible || !(it.pickable || (it.pickableWithObject && it.clear > 0))) continue;
     const d = (it.sx - x) ** 2 + (it.sy - y) ** 2;
-    if (d < bd) { bd = d; best = it; }
+    // on the object at the point counts too
+    const rr = Math.max(r, it.reach);
+    let on = d < rr * rr;
+    if (!on && it.w > 0 && it.h > 0) {
+      const [x0, y0, x1, y1] = labelBox(it, it.flip);
+      on = x >= x0 - PICK_PAD && x <= x1 + PICK_PAD && y >= y0 - PICK_PAD && y <= y1 + PICK_PAD;
+    }
+    if (on && d < bd) { bd = d; best = it; }
   }
   return best;
 }
@@ -333,6 +401,8 @@ const CSS = `
 .astro-label.fy .cell.r1 { grid-row: 3 !important; justify-content: flex-start; }
 .astro-label.fy .cell.r3 { grid-row: 1 !important; justify-content: flex-end; }
 .astro-label .mk { display: inline-flex; }
+.astro-leader { position: absolute; left: 0; top: 0; height: 1px; transform-origin: 0 50%; background: currentColor;
+  opacity: 0; transition: opacity var(--ha-animation-duration-fast, 150ms); will-change: transform; }
 .astro-label .f { display: inline-block; }
 `;
 
@@ -348,6 +418,8 @@ const CSS = `
  * @property {number} flip - the placement classes on the element
  * @property {string} color
  * @property {string} svg
+ * @property {HTMLElement} ld - the leader line (a sibling: the label's own box is the text)
+ * @property {string} ldKey - the leader as written (x, y, length, angle; '' hidden)
  */
 
 /**
@@ -384,7 +456,7 @@ export class LabelLayer {
    * @param {(LabelItem & { color?: string, selectedColor?: string })[]} items
    */
   setItems(items) {
-    for (const { el } of this._els.values()) el.remove();
+    for (const { el, ld } of this._els.values()) { el.remove(); ld.remove(); }
     this._els.clear();
     this._byId.clear();
     this.items = items;
@@ -401,7 +473,9 @@ export class LabelLayer {
     if (i < 0) return;
     const old = this.items[i];
     Object.assign(item, { world: old.world, selected: old.selected, alphaScale: old.alphaScale });
-    this._els.get(item.id)?.el.remove();
+    const e = this._els.get(item.id);
+    e?.el.remove();
+    e?.ld.remove();
     this.items[i] = item;
     this._create(item);
     this._dirty.add(item.id);
@@ -423,6 +497,7 @@ export class LabelLayer {
   /** @param {string} id */
   removeItem(id) {
     this._els.get(id)?.el.remove();
+    this._els.get(id)?.ld.remove();
     this._els.delete(id);
     this._byId.delete(id);
     this.items = this.items.filter((it) => it.id !== id);
@@ -466,9 +541,12 @@ export class LabelLayer {
       cell(f.position).append(span);
       fields.set(f.name, { el: span, text: f.text, color: '', background: f.background ?? '' });
     }
-    this.root.append(el);
+    const ld = document.createElement('div');
+    ld.className = 'astro-leader';
+    ld.dataset.leader = it.id;
+    this.root.append(ld, el);
     this._byId.set(it.id, it);
-    this._els.set(it.id, { el, mk, center, fields, x: NaN, y: NaN, op: -1, flip: 0, color: '', svg: '' });
+    this._els.set(it.id, { el, mk, center, fields, x: NaN, y: NaN, op: -1, flip: 0, color: '', svg: '', ld, ldKey: '' });
     it.empty = !mk && it.fields.every((f) => !f.text);
     this._applyColors(it);
   }
@@ -482,7 +560,7 @@ export class LabelLayer {
     if (!e) return;
     const sel = it.selected;
     const main = (sel ? it.selectedColor : it.color) ?? '';
-    if (main !== e.color) { e.el.style.color = main; e.color = main; }
+    if (main !== e.color) { e.el.style.color = main; e.ld.style.color = main; e.color = main; }
     for (const f of it.fields) {
       const fe = e.fields.get(f.name);
       if (!fe) continue;
@@ -579,7 +657,10 @@ export class LabelLayer {
       if (!e) continue;
       const op = it.visible ? Math.round(it.alpha * 100) / 100 : 0;
       if (op !== e.op) { e.el.style.opacity = String(op); e.op = op; }
-      if (!it.visible) continue;
+      if (!it.visible) {
+        if (e.ldKey) { e.ld.style.opacity = '0'; e.ldKey = ''; }
+        continue;
+      }
       if (it.flip !== e.flip) {
         e.el.classList.toggle('fx', (it.flip & 1) !== 0);
         e.el.classList.toggle('fy', (it.flip & 2) !== 0);
@@ -589,6 +670,17 @@ export class LabelLayer {
       const x = this.snap ? Math.round(rx) : Math.round(rx * 100) / 100;
       const y = this.snap ? Math.round(ry) : Math.round(ry * 100) / 100;
       if (x !== e.x || y !== e.y) { e.el.style.transform = `translate3d(${x}px, ${y}px, 0)`; e.x = x; e.y = y; }
+      const line = leaderLine(it, labelBox(it, it.flip));
+      const key = line ? `${line[0].toFixed(1)} ${line[1].toFixed(1)} ${line[2].toFixed(1)} ${line[3].toFixed(3)} ${op}` : '';
+      if (key !== e.ldKey) {
+        if (line) {
+          e.ld.style.width = `${line[2].toFixed(1)}px`;
+          e.ld.style.transform = `translate3d(${line[0].toFixed(1)}px, ${line[1].toFixed(1)}px, 0) rotate(${line[3].toFixed(3)}rad)`;
+        }
+        // a little fainter than its label
+        e.ld.style.opacity = line ? String(Math.round(op * 60) / 100) : '0';
+        e.ldKey = key;
+      }
     }
   }
 

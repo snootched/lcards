@@ -62,7 +62,8 @@ camera:
     galaxy: { target: core, yaw: 20, tilt: 35, distance: 280 }
     map: { target: core, tilt: 90, distance: 300, projection: orthographic }
   controls: true              # drag, zoom, double-tap, keys (default true)
-  buttons: true               # on-card pan, zoom and reset buttons (default off)
+  buttons: true               # on-card pan, zoom and reset buttons, fade when idle (default off)
+  follow: true                # stay on a moving point after flying to it (default true)
   limits: { tilt: [5, 90], distance: [20, 800] }
   auto_rotate: 2              # degrees per second (0 = off)
   fly_duration: 1600          # ms
@@ -70,7 +71,7 @@ camera:
   warp: false                 # stars streak on every fly-to (or warp: true in one view)
 ```
 
-- `target` is a point id (the camera follows the point if it moves) or `[x, y, z]`.
+- `target` is a point id (the camera [follows the point](#following-a-point) if it moves) or `[x, y, z]`.
 - A view without `yaw` faces north. With no views at all the camera frames the whole scene.
 - `projection: orthographic` removes the perspective (a flat map); `distance` then sets the zoom.
 - Fly between views with a `tap_action` on a point or object: `{ action: fly-to, view: map }` (see [Points: actions](./points#actions)), or from other cards and automations ([Live data: fly-to](./data#fly-to-from-other-cards-and-automations)).
@@ -78,16 +79,17 @@ camera:
 
 ### Controls
 
-| Input | Does |
-|---|---|
-| Drag | Orbit round the target (`drag: pan` swaps this with panning) |
-| Shift-drag, right-drag, two fingers | Pan |
-| Wheel, pinch | Zoom toward the pointer (`zoom_to: target` zooms straight in) |
-| Double-tap or double-click blank space | Fly one zoom step in toward that spot, which becomes the centre; with shift, out |
-| Arrow keys (card focused) | Pan; with shift, orbit |
-| `+` / `-` | Zoom one step |
-| `Home` | Back to the start view |
-| `buttons` | The same on the card: pan arrows, zoom, reset. Press and hold keeps moving |
+| To | Mouse | Touchpad | Touch screen | Keys (card focused) |
+|---|---|---|---|---|
+| Orbit round the target | Drag | Click and drag, or shift + two-finger swipe | Drag one finger | Shift + arrows |
+| Pan | Shift-drag, right-drag or middle-drag | Two-finger swipe | Two fingers | Arrows |
+| Zoom | Wheel, toward the pointer | Pinch, toward the pointer | Pinch | `+` / `-` |
+| Fly in toward a spot | Double-click blank space (shift: out) | Double-tap blank space | Double-tap blank space | |
+| Fly to a point and follow it | Click the point or its label | Tap the point or its label | Tap the point or its label | |
+| Let go of a followed point | Pan, or click blank space | Pan, or tap blank space | Pan, or tap blank space | Arrows |
+| Back to the start view | | | | `Home` |
+
+`drag: pan` swaps orbit and pan for a one-finger or left-button drag, and with `limits.tilt` locked to one value a drag always pans (a map). The on-card `buttons` do the same as the keys (pan arrows, zoom, reset); press and hold keeps moving.
 
 Taps on points and on objects with a `tap_action` are never a double-tap: they run their action each time.
 
@@ -95,17 +97,26 @@ Taps on points and on objects with a `tap_action` are never a double-tap: they r
 camera:
   drag: orbit            # or pan: a one-finger drag moves the view
   pan: screen            # or ground: panning stays on the ground plane
+  wheel: auto            # or zoom (every wheel event zooms), pan (every wheel event pans)
   zoom_to: cursor        # or target
   zoom_step: 2           # each step halves (or doubles) the distance
   double_tap: zoom       # or none
-  buttons: { position: bottom-right, pan: true, zoom: true, reset: true }
+  follow: true           # or false: the camera stays where a fly-to lands
+  buttons: { position: bottom-right, pan: true, zoom: true, reset: true, time: true, hide: idle }
   limits:
     target: { radius: 300 }   # or a box { x: [a, b], z: [a, b] }, or false
 ```
 
 - **Pan** moves along the screen by default, so a side view pans up and down and a top view pans across the map. `pan: ground` keeps the target on its height.
+- **Touchpad or mouse wheel:** both send the same wheel events, so the card tells them apart by the events (a wheel moves in whole steps, a two-finger swipe in small ones and sideways too). A swipe pans, a mouse wheel zooms, and a pinch always zooms. If your mouse has a smooth wheel that pans instead, set `wheel: zoom`; `wheel: pan` makes every wheel event pan.
 - **Target limit:** the point the camera looks at stays inside a sphere 1.5 times the size of the scene, so panning cannot lose it. Set your own sphere (`radius`, optional `center`) or box, or `false` for none.
-- With `limits.tilt` locked to one value, a one-finger drag always pans (a map). `controls: false` turns off dragging, zooming, double-tap and keys, and leaves the camera to fly-to actions, `auto_rotate` and the buttons.
+- **Time slider:** under the buttons, it slows the scene's motion (orbits, spins, drift) down to a tenth, holds it, or speeds it up to four times, so a fast ship is easy to tap. It changes the view only; `time_scale` on the card sets the speed it starts at (`0.5` half speed, `0` still). `time: false` hides it.
+- **Buttons** fade out after three seconds without input on the card and come back when the pointer moves over it, on a touch or a key (`hide: idle`). `hide: toggle` adds a small button that folds them away and back; `hide: never` keeps them shown.
+- `controls: false` turns off dragging, zooming, double-tap and keys, and leaves the camera to fly-to actions, `auto_rotate` and the buttons.
+
+### Following a point
+
+After a fly-to lands on a point (a tap on it, a `fly-to` action, a view whose `target` is the point, a fly-to from another card or an automation), the camera stays on the point while it moves: a ship on its orbit, a planet round its star, a phone placed from its entity. Orbit and zoom work round it as usual, and the wheel and pinch zoom straight in on the point rather than toward the pointer. A pan, a double-tap, a tap on blank space or a fly-to somewhere else lets go; the point stays selected. A point that does not move is not affected. `follow: false` turns it off.
 
 ## Labels
 
@@ -151,6 +162,7 @@ The card is the scene only. For an LCARS frame round it (an "ALPHA QUADRANT" bar
 | `camera` | `view`, `views`, `controls`, `drag`, `pan`, `zoom_to`, `zoom_step`, `double_tap`, `buttons`, `limits`, `auto_rotate`, `fly_duration`, `ease`, `warp` ([Camera and views](#camera-and-views), [Controls](#controls), [Effects: warp](./effects#warp-and-dust)) |
 | `points` | Named points with labels and markers ([Points](./points)) |
 | `objects` | What is drawn ([Objects](./objects), [Effects](./effects)) |
+| `time_scale` | How fast the scene's motion runs (default 1; 0.5 half speed, 0 still). The sky and the camera are not affected ([Controls](#controls)) |
 | `units` | What one scene unit is: `m`, `km`, `au`, `ly` or `pc` (optional; a [star system](./scale#star-systems) needs it to give its own) |
 | `backdrop` | `stars`, `dust` ([Backdrop](#backdrop)) |
 | `background_animation` | Flat background effects behind the scene ([Backdrop](#backdrop)) |

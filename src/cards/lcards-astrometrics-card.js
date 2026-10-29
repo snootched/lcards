@@ -41,6 +41,7 @@ import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { deepMergeImmutable } from '../utils/deepMerge.js';
 import { flattenSystems } from '../core/astrometrics/names.js';
 import { registerAstrometricsCard, unregisterAstrometricsCard } from './astrometrics-registry.js';
+import { cameraButtonLayout, BUTTONS_IDLE_MS, TIME_STOPS, timeStop } from './astrometrics-buttons.js';
 import { createHuiCardWrapper, createCardElement, applyHassToCard, applyCardConfig } from '../utils/ha-card-factory.js';
 
 /** Keys a rules engine patch carries besides the patch itself */
@@ -77,44 +78,8 @@ function normalizeScenePatch(patch) {
     return out;
 }
 
-/** On-card camera buttons: command, grid area, label, SVG path (24 x 24) */
-const CAMERA_BUTTONS = {
-    pan: [
-        ['pan-up', 'up', 'Pan up', 'M6 15l6-6 6 6'],
-        ['pan-left', 'left', 'Pan left', 'M15 6l-6 6 6 6'],
-        ['pan-right', 'right', 'Pan right', 'M9 6l6 6-6 6'],
-        ['pan-down', 'down', 'Pan down', 'M6 9l6 6 6-6']
-    ],
-    zoom: [
-        ['zoom-out', 'zout', 'Zoom out', 'M6 12h12'],
-        ['zoom-in', 'zin', 'Zoom in', 'M6 12h12M12 6v12']
-    ],
-    reset: [['reset', 'reset', 'Reset view', 'M12 5a7 7 0 1 0 0 14a7 7 0 1 0 0-14M12 10a2 2 0 1 0 0 4a2 2 0 1 0 0-4']]
-};
-
-/**
- * The button grid for `camera.buttons`: which buttons, and the grid areas.
- * @param {any} cfg - `camera.buttons`
- * @returns {{ position: string, areas: string, buttons: string[][] } | null}
- */
-export function cameraButtonLayout(cfg) {
-    if (!cfg) return null;
-    const o = cfg === true ? {} : cfg;
-    const pan = o.pan !== false;
-    const zoom = o.zoom !== false;
-    const reset = o.reset !== false;
-    /** @type {string[]} */
-    const rows = [];
-    if (pan) rows.push('". up ."', `"left ${reset ? 'reset' : '.'} right"`, '". down ."');
-    if (zoom) rows.push(`"zout ${reset && !pan ? 'reset' : '.'} zin"`);
-    if (!pan && !zoom && reset) rows.push('". reset ."');
-    if (!rows.length) return null;
-    const buttons = [...(pan ? CAMERA_BUTTONS.pan : []), ...(zoom ? CAMERA_BUTTONS.zoom : []), ...(reset ? CAMERA_BUTTONS.reset : [])];
-    return { position: typeof o.position === 'string' ? o.position : 'bottom-right', areas: rows.join(' '), buttons };
-}
-
 /** Config keys the scene reads; a change to anything else does not rebuild it */
-const SCENE_KEYS = ['camera', 'backdrop', 'labels', 'points', 'objects', 'units'];
+const SCENE_KEYS = ['camera', 'backdrop', 'labels', 'points', 'objects', 'units', 'time_scale'];
 
 /** Shown when the scene cannot draw, by the runtime's failure reason */
 const FAILURES = {
@@ -173,7 +138,10 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         return {
             ...super.properties,
             _failure: { type: String, state: true },
-            _pick: { type: Object, state: true }
+            _pick: { type: Object, state: true },
+            _buttonsIdle: { type: Boolean, state: true },
+            _buttonsFolded: { type: Boolean, state: true },
+            _timeScale: { type: Number, state: true }
         };
     }
 
@@ -229,6 +197,16 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                     opacity: 0.85;
                     transition: opacity var(--ha-animation-duration-fast, 0.15s);
                 }
+                .astro-buttons {
+                    transition: opacity var(--ha-animation-duration-normal, 0.2s);
+                }
+                .astro-buttons[data-idle] {
+                    opacity: 0;
+                    pointer-events: none;
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .astro-buttons { transition: none; }
+                }
                 .astro-buttons button:hover,
                 .astro-buttons button:focus-visible { opacity: 1; }
                 .astro-buttons button:focus-visible { outline: var(--ha-border-width-md) solid var(--primary-color); outline-offset: 1px; }
@@ -236,9 +214,36 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                     border-radius: var(--ha-border-radius-pill, 9999px);
                     background: var(--lcars-orange, var(--lcards-orange-medium));
                 }
+                .astro-buttons button[data-cmd='fold'],
+                .astro-buttons button[data-cmd='unfold'],
                 .astro-buttons button[data-cmd='reset'] {
                     border-radius: var(--ha-border-radius-circle, 50%);
                     background: var(--lcars-ui-tertiary, var(--lcards-gray-medium-light));
+                }
+                .astro-time {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--ha-space-1, 4px);
+                    padding: 0 var(--ha-space-2, 8px);
+                    border-radius: var(--ha-border-radius-pill, 9999px);
+                    background: var(--lcars-ui-tertiary, var(--lcards-gray-medium-light));
+                    color: var(--primary-background-color);
+                    opacity: 0.85;
+                }
+                .astro-time:hover,
+                .astro-time:focus-within { opacity: 1; }
+                .astro-time input {
+                    flex: 1;
+                    min-width: 0;
+                    margin: 0;
+                    accent-color: var(--lcars-orange, var(--lcards-orange-medium));
+                    touch-action: none;
+                }
+                .astro-time-value {
+                    min-width: 3ch;
+                    font-family: var(--lcars-font, 'Antonio'), sans-serif;
+                    font-size: 13px;
+                    text-align: right;
                 }
                 .astro-buttons svg {
                     width: 20px;
@@ -336,6 +341,16 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._backgroundRenderer = null;
         /** @type {string | null} why the scene cannot draw (a FAILURES key) */
         this._failure = null;
+        /** `buttons.hide: idle`: the camera buttons have faded out */
+        this._buttonsIdle = false;
+        /** `buttons.hide: toggle`: folded away */
+        this._buttonsFolded = false;
+        /** @type {number | null} the time slider's speed (null: the config's time_scale) */
+        this._timeScale = null;
+        /** @type {ReturnType<typeof setTimeout> | undefined} */
+        this._buttonsTimer = undefined;
+        /** A camera button is held (the buttons never fade meanwhile) */
+        this._cameraHeld = false;
         this._sceneKey = '';
         this._backgroundKey = '';
         /** Bumped on every start and teardown, so a stale lazy load is dropped */
@@ -486,6 +501,8 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             setCardHass: (el, hass) => this._setPointCardHass(el, hass)
         });
         if (this._studioHooks) this._scene.setEditMode(this._studioHooks);
+        // back after a view switch: the slider's speed stays
+        if (this._timeScale !== null) this._scene.setTimeScale(this._timeScale);
         this._rebuildPointData();
         this._syncBackground();
         const waiters = this._sceneWaiters;
@@ -519,6 +536,8 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             const config = this._sceneConfig();
             const key = JSON.stringify(config);
             if (key !== this._sceneKey) {
+                // a new time_scale in the config wins over the slider (the runtime does the same)
+                if (this._sceneKey && JSON.parse(this._sceneKey).time_scale !== config.time_scale) this._timeScale = null;
                 this._sceneKey = key;
                 this._registerSceneTargets();
                 this._scene.setConfig(this._withScenePatches(config));
@@ -958,7 +977,9 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         if (this._inPicker) return this._renderPreview();
         const failure = this._failure ? FAILURES[/** @type {keyof typeof FAILURES} */ (this._failure)] : null;
         return html`
-            <div class="astro-card">
+            <div class="astro-card"
+                @pointermove=${this._wakeButtons} @pointerdown=${this._wakeButtons}
+                @wheel=${this._wakeButtons} @keydown=${this._wakeButtons} @focusin=${this._wakeButtons}>
                 <div class="astro-bg"></div>
                 <div class="astro-host"></div>
                 ${failure ? '' : this._renderCameraButtons()}
@@ -1083,11 +1104,18 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
      * @private
      */
     _renderCameraButtons() {
-        const layout = cameraButtonLayout(this.config?.camera?.buttons);
+        const layout = cameraButtonLayout(this.config?.camera?.buttons, { folded: this._buttonsFolded });
         if (!layout) return '';
+        const idle = layout.hide === 'idle' && this._buttonsIdle;
         return html`
-            <div class="astro-buttons" data-pos=${layout.position} style=${`grid-template-areas: ${layout.areas}`}>
-                ${layout.buttons.map(([cmd, area, label, path]) => html`
+            <div class="astro-buttons" data-pos=${layout.position} style=${`grid-template-areas: ${layout.areas}`}
+                ?data-idle=${idle} ?inert=${idle}>
+                ${layout.buttons.map(([cmd, area, label, path]) => cmd === 'time' ? this._renderTimeSlider(area, label) : (cmd === 'fold' || cmd === 'unfold') ? html`
+                    <button type="button" data-cmd=${cmd} style=${`grid-area: ${area}`} aria-label=${label} title=${label}
+                        aria-expanded=${cmd === 'fold' ? 'true' : 'false'}
+                        @click=${() => { this._playSound('card_tap'); this._buttonsFolded = cmd === 'fold'; }}>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d=${path}/></svg>
+                    </button>` : html`
                     <button type="button" data-cmd=${cmd} style=${`grid-area: ${area}`} aria-label=${label} title=${label}
                         @pointerdown=${(/** @type {PointerEvent} */ e) => this._pressCamera(cmd, e)}
                         @pointerup=${() => this._releaseCamera()}
@@ -1103,6 +1131,36 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
     }
 
     /**
+     * `buttons.time`: how fast the scene's motion runs, by stops (0 holds it).
+     * @private
+     * @param {string} area
+     * @param {string} label
+     */
+    _renderTimeSlider(area, label) {
+        const cfgScale = Number(this.config?.time_scale ?? 1);
+        const scale = this._timeScale ?? (Number.isFinite(cfgScale) ? Math.max(0, cfgScale) : 1);
+        const stop = timeStop(scale);
+        const text = scale === 0 ? 'HOLD' : `${scale}×`;
+        return html`
+            <label class="astro-time" style=${`grid-area: ${area}`} title=${label}>
+                <input type="range" min="0" max=${TIME_STOPS.length - 1} step="1" .value=${String(stop)}
+                    aria-label=${label} aria-valuetext=${text}
+                    @input=${(/** @type {Event} */ e) => this._setTimeScale(TIME_STOPS[Number(/** @type {HTMLInputElement} */ (e.target).value)] ?? 1)}>
+                <span class="astro-time-value">${text}</span>
+            </label>
+        `;
+    }
+
+    /**
+     * @private
+     * @param {number} scale
+     */
+    _setTimeScale(scale) {
+        this._timeScale = scale;
+        this._scene?.setTimeScale(scale);
+    }
+
+    /**
      * A camera button went down: one step now, held motion after a moment.
      * @private
      * @param {string} cmd
@@ -1115,13 +1173,38 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             /** @type {HTMLElement} */ (e.currentTarget).setPointerCapture?.(e.pointerId);
         }
         this._playSound('card_tap');
+        this._cameraHeld = true;
         this._scene?.press(cmd);
     }
 
     /** @private */
     _releaseCamera() {
+        this._cameraHeld = false;
         this._scene?.release();
+        this._wakeButtons();
     }
+
+    /**
+     * Input on the card: show the camera buttons (`hide: idle`) and fade them
+     * out again after BUTTONS_IDLE_MS without input; never while one is held
+     * or has the keyboard focus.
+     * @private
+     */
+    _wakeButtons = () => {
+        const b = this.config?.camera?.buttons;
+        clearTimeout(this._buttonsTimer);
+        this._buttonsTimer = undefined;
+        if (!b || (b !== true && b.hide !== undefined && b.hide !== 'idle')) {
+            this._buttonsIdle = false;
+            return;
+        }
+        this._buttonsIdle = false;
+        this._buttonsTimer = setTimeout(() => {
+            this._buttonsTimer = undefined;
+            if (this._cameraHeld || this.renderRoot?.querySelector('.astro-buttons:focus-within')) this._wakeButtons();
+            else this._buttonsIdle = true;
+        }, BUTTONS_IDLE_MS);
+    };
 
     /**
      * Card picker: a static drawing (no WebGL for a thumbnail).
@@ -1146,10 +1229,22 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
      * @protected
      */
     _onDisconnected() {
+        clearTimeout(this._buttonsTimer);
+        this._buttonsTimer = undefined;
         unregisterAstrometricsCard(this);
         this._endPick(null);
         this._stopScene();
         super._onDisconnected();
+    }
+
+    /**
+     * The idle fade starts with the first render of the buttons (and again
+     * after a config change brings them back).
+     * @param {Map<string, any>} changedProperties
+     */
+    updated(changedProperties) {
+        super.updated(changedProperties);
+        if (this._buttonsTimer === undefined && !this._buttonsIdle && this.renderRoot?.querySelector('.astro-buttons')) this._wakeButtons();
     }
 
     /** @protected */

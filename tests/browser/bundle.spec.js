@@ -128,9 +128,11 @@ test('size budget: the astrometrics runtime and schema are lazy chunks of their 
     // loaded with the first edit mode. Ceilings ~10% over that.
     // E10 Part 1 (2026-10-29): 143 KB raw / 46.2 KB br after E8 and E9 (objects, distance fades,
     // markers) and E10's true scale (depth slices, log fly-to, ring refinement). Ceilings ~10% over.
+    // N1 (2026-10-29): 158 KB raw / 51 KB br after E10 Parts 2 and 3 (star systems, scoped
+    // editing), M3 (facing) and N1 (follow, wheel input). Ceilings ~10% over.
     const size = (f) => statSync(new URL(`chunks/${f}`, DIST)).size;
-    expect(size(/** @type {string} */ (runtime))).toBeLessThanOrEqual(157_000);
-    expect(size(`${runtime}.br`)).toBeLessThanOrEqual(51_000);
+    expect(size(/** @type {string} */ (runtime))).toBeLessThanOrEqual(174_000);
+    expect(size(`${runtime}.br`)).toBeLessThanOrEqual(56_000);
     // the edit maths stays out of the runtime chunk
     expect(js.some(f => /^edit-tools-[\w-]{8}\.js$/.test(f)), 'the edit-tools chunk').toBe(true);
     // E6: the scene effects (nebula and their noise shaders) are a chunk of their own, loaded only

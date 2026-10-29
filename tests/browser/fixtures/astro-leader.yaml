@@ -1,0 +1,16 @@
+# Astrometrics labels on objects (astrometrics.spec.js): a ship model sitting
+# at a moving point with no marker. Its label stands off the hull with a
+# leader line, the model never hides it, and a tap on the hull follows it.
+type: custom:lcards-astrometrics-card
+id: astro_leader
+height: 400
+camera:
+  view: side
+  fly_duration: 400
+  views:
+    side: { target: [0, 0, 0], tilt: 30, distance: 220 }
+points:
+  - { id: ship, polar: [60, 0], object: patrol, label: SHIP, style: minor }
+objects:
+  - { type: ring, id: patrol, radius: 60, spin: 30, width: 0.5 }
+  - { type: model, src: builtin:constitution, at: ship, size: 24, face: motion }

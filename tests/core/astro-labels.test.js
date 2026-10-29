@@ -3,12 +3,13 @@
  * collision by priority then distance, the selected label first, level of
  * detail by min/max distance, distance fade, occlusion by spheres (and a
  * point never hidden by its own sphere), orthographic occlusion, oriented
- * boxes, the depth image of meshes (models), picking.
+ * boxes, the depth image of meshes (models), picking, labels standing off
+ * the object at their point (with a leader line).
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PerspectiveCamera, OrthographicCamera, Vector3, Matrix4, Euler } from 'three';
-import { layoutLabels, labelItem, pickLabel, labelBox, rayHitsBox } from '../../src/core/astrometrics/label-layer.js';
+import { layoutLabels, labelItem, pickLabel, labelBox, rayHitsBox, leaderLine, LEADER_PX } from '../../src/core/astrometrics/label-layer.js';
 import { decodeViewDepth, depthNear } from '../../src/core/astrometrics/depth-occlusion.js';
 
 /** Camera at (0, 0, 100) looking at the origin, 800 x 600 */
@@ -127,6 +128,22 @@ test('pickLabel: nearest visible pickable within 18 px', () => {
   assert.equal(pickLabel([a, b, c], 405, 302)?.id, 'a');
   assert.equal(pickLabel([a, b, c], c.sx, c.sy), null, 'not pickable');
   assert.equal(pickLabel([a, b, c], 10, 10), null);
+});
+
+test('pickLabel: a tap anywhere on the label\'s box (text and marker) picks it; nearest point wins', () => {
+  const a = item('a', [0, 0, 0], { pickable: true });
+  const b = item('b', [60, 0, 0], { pickable: true });
+  layoutLabels([a, b], camera(), 800, 600);
+  // a measured box: 100 x 20 with the point at its left middle (a label to the right of its marker)
+  for (const it of [a, b]) Object.assign(it, { w: 100, h: 20, ax: 0, ay: 10, flip: 0 });
+  assert.equal(pickLabel([a, b], a.sx + 80, a.sy + 5)?.id, 'a', 'on the text, far from the point');
+  assert.equal(pickLabel([a], a.sx + 103, a.sy)?.id, 'a', 'a few px past the box still counts');
+  assert.equal(pickLabel([a], a.sx + 110, a.sy), null, 'further is not');
+  assert.equal(pickLabel([a, b], a.sx + 80, a.sy + 40), null, 'below the box');
+  // mirrored: the box is on the other side of the point
+  a.flip = 1;
+  assert.equal(pickLabel([a], a.sx - 80, a.sy)?.id, 'a');
+  assert.equal(pickLabel([a], a.sx + 80, a.sy), null);
 });
 
 test('labelItem defaults: style priority, unknown style falls back to minor priority', () => {
@@ -268,4 +285,70 @@ test('depth occluder: decode round trip; behind the mesh hides, in front or wher
   assert.notEqual(right.reason, 'occluded');
   assert.notEqual(onShip.reason, 'occluded', '3 behind the surface, within its bias of 4');
   assert.equal(farSide.reason, 'occluded', '10 behind the surface');
+});
+
+test('an object at the point: the label stands off its edge on screen, with a leader from the edge; mirrored to the other side', () => {
+  const cam = camera();
+  // CSS px per world unit at distance 100 (fov 40, 600 px high)
+  const ppu = 300 / (100 * Math.tan((20 * Math.PI) / 180));
+  const ship = Object.assign(item('ship', [0, 0, 0], { clear: 5 }), { w: 80, h: 14, fields: [{ name: 'label', position: 'center' }] });
+  layoutLabels([ship], cam, 800, 600);
+  assert.ok(Math.abs(ship.reach - 5 * ppu) < 1e-6, `${ship.reach}`);
+  assert.equal(ship.gap, ship.reach + LEADER_PX);
+  // a centred label goes to the right of the object
+  const [x0, y0, x1] = labelBox(ship, ship.flip);
+  assert.ok(Math.abs(x0 - (400 + ship.gap)) < 1e-6);
+  assert.ok(Math.abs(y0 - 293) < 1e-6, 'still centred on the point vertically');
+  const line = leaderLine(ship, [x0, y0, x1, y0 + 14]);
+  assert.ok(line);
+  assert.ok(Math.abs(line[0] - (400 + ship.reach)) < 1e-6, 'starts at the edge');
+  assert.ok(Math.abs(line[2] - LEADER_PX) < 1e-6);
+  assert.ok(Math.abs(line[3]) < 1e-9, 'horizontal');
+  // mirrored: the box to the left
+  const [m0, , m1] = labelBox(ship, 1);
+  assert.ok(Math.abs(m1 - (400 - ship.gap)) < 1e-6 && m0 < m1);
+  // leader: false, or no object: no line, and no gap
+  assert.equal(leaderLine({ ...ship, leader: false }, [x0, y0, x1, y0 + 14]), null);
+  const bare = Object.assign(item('bare', [0, 0, 0]), { w: 80, h: 14 });
+  layoutLabels([bare], cam, 800, 600);
+  assert.equal(bare.gap, 0);
+  assert.equal(labelBox(bare)[0], 360);
+});
+
+test('an object at the point: closer means a bigger gap, capped; a label beside the card edge mirrors to the other side of the object', () => {
+  const near = Object.assign(item('near', [0, 0, 60], { clear: 5 }), { w: 80, h: 14, fields: [{ name: 'label', position: 'center' }] });
+  const far = Object.assign(item('far', [0, 0, -100], { clear: 5 }), { w: 80, h: 14, fields: [{ name: 'label', position: 'center' }] });
+  layoutLabels([near, far], camera(), 800, 600);
+  assert.ok(near.reach > far.reach * 4);
+  const huge = Object.assign(item('huge', [0, 0, 0], { clear: 500 }), { w: 80, h: 14, fields: [{ name: 'label', position: 'center' }] });
+  layoutLabels([huge], camera(), 800, 600);
+  assert.equal(huge.reach, 160);
+  // near the right edge, a label to the right runs off: it goes left of the object
+  const edge = Object.assign(item('edge', [40, 0, 0], { clear: 2 }), { w: 80, h: 14, fields: [{ name: 'label', position: 'center' }] });
+  layoutLabels([edge], camera(), 800, 600);
+  assert.equal(edge.flip, 1);
+  assert.ok(labelBox(edge, edge.flip)[2] < edge.sx);
+});
+
+test('picking an object at the point: on the object or the label, pickable without a marker unless it has a tap_action of its own', () => {
+  const ship = Object.assign(item('ship', [0, 0, 0], { clear: 5, pickableWithObject: true }), { w: 80, h: 14, fields: [{ name: 'label', position: 'center' }] });
+  layoutLabels([ship], camera(), 800, 600);
+  assert.ok(ship.reach > 30);
+  assert.equal(pickLabel([ship], 400 + ship.reach - 2, 300)?.id, 'ship', 'on the hull, past the 18 px circle');
+  assert.equal(pickLabel([ship], 400 + ship.gap + 40, 300)?.id, 'ship', 'on the label');
+  assert.equal(pickLabel([ship], 400, 300 + ship.reach + 10), null);
+  const own = { ...ship, pickableWithObject: false };
+  assert.equal(pickLabel([own], 400, 300), null);
+  const gone = { ...ship, clear: 0 };
+  assert.equal(pickLabel([gone], 400, 300), null, 'no object at it: as before (no marker, not pickable)');
+});
+
+test('depth occluder: a point a model sits at is never hidden by that model (the bias by id)', () => {
+  const snap = depthImage(90, 5000);
+  const occ = { kind: /** @type {const} */ ('depth'), snapshot: snap, id: '', bias: (/** @type {string | null} */ host, /** @type {number} */ d, /** @type {string} */ id) => (id === 'seat' ? 12 : 0.1) };
+  const seat = item('seat', [-10, 0, 0]);
+  const other = item('other', [-10, 0, 0]);
+  layoutLabels([seat, other], camera(), 800, 600, [occ]);
+  assert.notEqual(seat.reason, 'occluded');
+  assert.equal(other.reason, 'occluded');
 });

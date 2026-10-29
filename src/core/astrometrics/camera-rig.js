@@ -21,6 +21,7 @@ import { PerspectiveCamera, OrthographicCamera } from 'three';
 import { animate, utils } from 'animejs';
 import { resolveEasing } from '../../utils/lcards-anim-helpers.js';
 import { prefersReducedMotion } from '../../utils/reduced-motion.js';
+import { classifyWheel, wheelAction, wheelZoomFactor } from './wheel-input.js';
 
 const DEG = Math.PI / 180;
 
@@ -351,6 +352,8 @@ export class CameraRig {
     this._tweenDuration = 0;
     /** @type {(() => void) | null} */
     this._tweenDone = null;
+    /** @type {{ e: number } | null} the running fly-to's eased progress */
+    this._progress = null;
     /** @type {(() => void) | null} */
     this._detach = null;
     /** @type {'screen' | 'ground'} what a pan moves along */
@@ -361,6 +364,10 @@ export class CameraRig {
     this.zoomTo = 'cursor';
     /** Distance factor of one zoom step (buttons, keys, double-tap) */
     this.zoomStep = 2;
+    /** @type {'auto' | 'zoom' | 'pan'} what a wheel event does (`auto`: a touchpad swipe pans, a mouse wheel zooms) */
+    this.wheelMode = 'auto';
+    /** Wheel and pinch zoom about the target, not the cursor (the runtime sets it while following a moving point) */
+    this.zoomAbout = false;
     /** @type {CameraMotion | null} held motion, run by step() */
     this.motion = null;
     this._motionLast = -1;
@@ -449,6 +456,7 @@ export class CameraRig {
     const fly = { from: { ...this.keys }, to: target, log: isLogFly(this.keys.distance, target.distance) };
     this._fly = fly;
     const progress = { e: 0 };
+    this._progress = progress;
     this._tween = animate(progress, {
       e: 1, duration, ease: easing, autoplay: false,
       onUpdate: () => { Object.assign(this.keys, (fly.log ? logFlyKeys : lerpKeys)(fly.from, fly.to, progress.e)); }
@@ -463,6 +471,27 @@ export class CameraRig {
   /** The running fly-to (its ends), null when none: the same object for the whole flight */
   get fly() {
     return this._fly;
+  }
+
+  /**
+   * Move the target by `d` (a followed point moved): the keys, or a running
+   * fly-to's landing target (and its start too with `from`, for a flight
+   * that began on the point, such as a zoom step), the keys following at the
+   * flight's progress.
+   * @param {number[]} d - [dx, dy, dz]
+   * @param {{ from?: boolean }} [opts]
+   */
+  moveTarget(d, { from = true } = {}) {
+    /** @param {CameraKeys} k */
+    const add = (k) => { k.tx += d[0]; k.ty += d[1]; k.tz += d[2]; };
+    const fly = this._fly;
+    if (fly && this._progress) {
+      add(fly.to);
+      if (from) add(fly.from);
+      Object.assign(this.keys, (fly.log ? logFlyKeys : lerpKeys)(fly.from, fly.to, this._progress.e));
+    } else {
+      add(this.keys);
+    }
   }
 
   /**
@@ -655,15 +684,23 @@ export class CameraRig {
   }
 
   /**
-   * Drag to orbit (or pan: shift, right button, two fingers, or a fixed
-   * tilt; `dragMode` pan swaps the two), wheel and pinch to zoom (toward
-   * the pointer with `zoomTo` cursor).
+   * Drag to orbit (or pan: shift, right or middle button, two fingers, or a
+   * fixed tilt; `dragMode` pan swaps orbit and pan), wheel and pinch to zoom
+   * (toward the pointer with `zoomTo` cursor), a touchpad's two-finger swipe
+   * to pan (shift: orbit; see wheel-input.js and `wheelMode`).
    * @param {HTMLElement} el
-   * @param {{ onStart?: () => void, shouldStart?: (e: PointerEvent) => boolean }} [hooks] - `shouldStart` false leaves
-   *   that press alone (a point drag in the Studio)
+   * @param {{ onStart?: () => void, shouldStart?: (e: PointerEvent) => boolean, onPan?: () => void }} [hooks] -
+   *   `shouldStart` false leaves that press alone (a point drag in the Studio); `onPan` runs when an input moves
+   *   the target (the runtime lets go of a followed point)
    */
-  attach(el, { onStart, shouldStart } = {}) {
+  attach(el, { onStart, shouldStart, onPan } = {}) {
     this.detach();
+    /** Two fingers move less than this (CSS px) while zooming about the target: a pinch, not a pan */
+    const PINCH_PAN_SLOP = 12;
+    let pinchPan = 0;
+    /** @type {{ kind: import('./wheel-input.js').WheelKind, t: number } | null} */
+    let gesture = null;
+    let gestureDist = 0;
     /** @type {Map<number, { x: number, y: number }>} */
     const pts = new Map();
     let pinch0 = 0;
@@ -680,12 +717,13 @@ export class CameraRig {
       pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
       this.cancel();
       onStart?.();
-      panMode = (this.dragMode === 'pan') !== (e.shiftKey || e.button === 2);
+      panMode = e.button === 1 || ((this.dragMode === 'pan') !== (e.shiftKey || e.button === 2));
       if (pts.size === 2) {
         const m = mid();
         pinch0 = m.d;
         this._pinchDist = this.keys.distance;
         last = m;
+        pinchPan = 0;
       }
     };
     /** @param {PointerEvent} e */
@@ -698,15 +736,22 @@ export class CameraRig {
       p.y = e.clientY;
       const h = el.clientHeight || 1;
       if (pts.size === 1) {
-        if (panMode || this.panOnly) this.pan(dx, dy, h);
-        else {
+        if (panMode || this.panOnly) {
+          this.pan(dx, dy, h);
+          onPan?.();
+        } else {
           this.keys.yaw -= dx * 0.3;
           this.keys.tilt += dy * 0.3;
         }
       } else if (pts.size === 2) {
         const m = mid();
         const factor = (this._pinchDist * pinch0) / Math.max(1, m.d) / this.keys.distance;
-        this.pan(m.x - last.x, m.y - last.y, h);
+        // zooming about a followed point: the fingers' small drift is not a pan
+        pinchPan += Math.hypot(m.x - last.x, m.y - last.y);
+        if (!this.zoomAbout || pinchPan > PINCH_PAN_SLOP) {
+          this.pan(m.x - last.x, m.y - last.y, h);
+          onPan?.();
+        }
         this.zoomAt(factor, this._zoomSpot(el, m.x, m.y));
         last = m;
       }
@@ -725,9 +770,41 @@ export class CameraRig {
     const wheel = (e) => {
       e.preventDefault();
       this.cancel();
-      this.zoomAt(Math.exp(e.deltaY * 0.001), this._zoomSpot(el, e.clientX, e.clientY));
+      gesture = classifyWheel(/** @type {any} */ (e), gesture, performance.now());
+      if (wheelAction(gesture.kind, this.wheelMode) === 'pan') {
+        // like scrolling a page: the content moves with the fingers
+        const lines = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1;
+        const dx = e.deltaX * lines;
+        const dy = e.deltaY * lines;
+        if (e.shiftKey && !this.panOnly) {
+          this.keys.yaw += dx * 0.3;
+          this.keys.tilt -= dy * 0.3;
+        } else {
+          this.pan(-dx, -dy, el.clientHeight || 1);
+          onPan?.();
+        }
+        clampKeys(this.keys, this.limits);
+      } else {
+        this.zoomAt(wheelZoomFactor(e, gesture.kind), this._zoomSpot(el, e.clientX, e.clientY));
+      }
       this.onChange();
     };
+    // Safari sends a touchpad pinch as gesture events (scale since the start), not ctrl+wheel
+    /** @param {any} e */
+    const gestureStart = (e) => {
+      e.preventDefault();
+      this.cancel();
+      gestureDist = this.keys.distance;
+    };
+    /** @param {any} e */
+    const gestureChange = (e) => {
+      e.preventDefault();
+      if (!(e.scale > 0) || !(gestureDist > 0)) return;
+      this.zoomAt(gestureDist / e.scale / this.keys.distance, this._zoomSpot(el, e.clientX, e.clientY));
+      this.onChange();
+    };
+    /** @param {MouseEvent} e - no autoscroll on a middle press (it pans) */
+    const mouseDown = (e) => { if (e.button === 1) e.preventDefault(); };
     /** @param {Event} e */
     const menu = (e) => e.preventDefault();
     el.addEventListener('pointerdown', down);
@@ -735,6 +812,9 @@ export class CameraRig {
     el.addEventListener('pointerup', up);
     el.addEventListener('pointercancel', up);
     el.addEventListener('wheel', wheel, { passive: false });
+    el.addEventListener('gesturestart', gestureStart);
+    el.addEventListener('gesturechange', gestureChange);
+    el.addEventListener('mousedown', mouseDown);
     el.addEventListener('contextmenu', menu);
     this._detach = () => {
       el.removeEventListener('pointerdown', down);
@@ -742,6 +822,9 @@ export class CameraRig {
       el.removeEventListener('pointerup', up);
       el.removeEventListener('pointercancel', up);
       el.removeEventListener('wheel', wheel);
+      el.removeEventListener('gesturestart', gestureStart);
+      el.removeEventListener('gesturechange', gestureChange);
+      el.removeEventListener('mousedown', mouseDown);
       el.removeEventListener('contextmenu', menu);
     };
   }
@@ -754,7 +837,7 @@ export class CameraRig {
    * @param {number} clientY
    */
   _zoomSpot(el, clientX, clientY) {
-    if (this.zoomTo !== 'cursor') return null;
+    if (this.zoomTo !== 'cursor' || this.zoomAbout) return null;
     const r = el.getBoundingClientRect();
     const w = r.width || el.clientWidth || 1;
     const h = r.height || el.clientHeight || 1;

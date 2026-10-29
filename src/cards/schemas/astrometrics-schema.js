@@ -121,7 +121,7 @@ const cameraSchema = {
             description: 'Named views (keys are your names). Fly between them with a tap_action (action: fly-to, view: <name>).',
             additionalProperties: viewSchema
         },
-        controls: { type: 'boolean', default: true, description: 'Drag to orbit, wheel or pinch to zoom, shift-drag, right-drag or two fingers to pan, double-tap blank space to zoom in, arrow keys when focused. false: the camera only moves by fly-to and auto_rotate.' },
+        controls: { type: 'boolean', default: true, description: 'Drag to orbit, mouse wheel or pinch to zoom, shift-drag, right-drag, middle-drag, a touchpad two-finger swipe or two fingers on a touch screen to pan, double-tap blank space to zoom in, arrow keys when focused. false: the camera only moves by fly-to and auto_rotate.' },
         drag: {
             type: 'string',
             enum: ['orbit', 'pan'],
@@ -139,6 +139,17 @@ const cameraSchema = {
             enum: ['cursor', 'target'],
             default: 'cursor',
             description: 'Where the wheel and pinch zoom toward. cursor: the spot under the pointer stays put. target: straight in and out from the centre.'
+        },
+        wheel: {
+            type: 'string',
+            enum: ['auto', 'zoom', 'pan'],
+            default: 'auto',
+            description: 'What wheel events do. auto: a mouse wheel zooms and a touchpad two-finger swipe pans (shift: orbits), told apart by the events. zoom: every wheel event zooms. pan: every wheel event pans. A pinch always zooms.'
+        },
+        follow: {
+            type: 'boolean',
+            default: true,
+            description: 'After a fly-to lands on a point (a tap, a fly-to action, a view that targets it), the camera keeps the point at its centre while it moves; orbit and zoom still work round it. A pan, a double-tap zoom, a tap on blank space or another fly-to lets go. false: the camera stays where it landed.'
         },
         zoom_step: number('Distance factor of one zoom step (double-tap, zoom buttons, plus and minus keys). Default 2: each step halves the distance.', { exclusiveMinimum: 1, default: 2 }),
         double_tap: {
@@ -163,7 +174,14 @@ const cameraSchema = {
                         },
                         pan: { type: 'boolean', default: true, description: 'Show the pan arrows.' },
                         zoom: { type: 'boolean', default: true, description: 'Show zoom in and zoom out.' },
-                        reset: { type: 'boolean', default: true, description: 'Show reset (fly back to the start view).' }
+                        reset: { type: 'boolean', default: true, description: 'Show reset (fly back to the start view).' },
+                        time: { type: 'boolean', default: true, description: 'Show the time slider: how fast the scene\'s motion runs (orbits, spins, drift), from held to four times as fast. It changes the view only, not the config.' },
+                        hide: {
+                            type: 'string',
+                            enum: ['idle', 'never', 'toggle'],
+                            default: 'idle',
+                            description: 'When the buttons hide. idle: they fade out after a few seconds without input on the card and come back on any pointer movement, touch or key. never: always shown. toggle: a small button folds them away and back.'
+                        }
                     }
                 }
             ]
@@ -387,6 +405,7 @@ const pointSchema = {
         visible: { type: 'boolean', default: true, description: 'false hides the label, marker and card (the point still places other things). Rules use it to hide and show points.' },
         opacity: number('Opacity of the label and marker, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
         priority: number('Which label wins when two overlap (higher wins; then the nearer one). Default by style: title 100, major 80, minor 40, tiny 10 (labels.styles can set its own).'),
+        leader: { type: 'boolean', default: true, description: 'With a model, globe or cube sitting at the point (its at: names the point), the label stands off the object\'s edge on screen; true draws a thin line from the edge to the label, false leaves it out.' },
         overlap: { type: 'boolean', description: 'When labels overlap, this one is never hidden: it still moves to the other side of its point when that is free, else it shows where it is (over the other one). Default: the style\'s, else labels.overlap (false).' },
         fade: tuple(2, 'Distance fade [start, end], scene units from the camera: fully shown nearer than start, gone past end.'),
         min_distance: number('Hidden when the camera is closer than this, scene units.', { minimum: 0 }),
@@ -1029,6 +1048,7 @@ export const astrometricsSchema = {
             }
         },
         units: unitsSchema('What one scene unit is (m, km, au, ly or pc): positions, sizes and distances are in it. Optional: a scene can use any units; naming them lets a system (type: system) give its own.'),
+        time_scale: number('How fast the scene\'s motion runs: orbits, spins, drift, scans, trails. 1 as configured, 0.5 half speed, 0 holds it still. The sky (sun and moon) and the camera are not affected. The time slider (camera.buttons.time) changes it on screen.', { minimum: 0, default: 1 }),
         points: { type: 'array', description: 'Named points with optional labels and markers (the placement system).', items: pointSchema },
         objects: { type: 'array', description: 'What is drawn: grids, volumes, spheres, models, images, glows, nebulae, rings, paths and beams.', items: objectSchema },
 

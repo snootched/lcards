@@ -128,6 +128,8 @@ const KEY_COMMANDS = {
  * @property {(config: any) => void} setConfig
  * @property {(hass: any) => void} setHass
  * @property {(view: string | Record<string, any>, opts?: { duration?: number, warp?: boolean }) => Promise<void>} flyTo
+ * @property {(scale: number) => void} setTimeScale - how fast the scene's motion runs (1 as configured, 0 holds it)
+ * @property {() => number} timeScale
  * @property {() => void} requestFrame
  * @property {() => void} recolor - re-resolve theme colours (theme or alert change)
  * @property {(command: string) => void} press - start a camera command (CAMERA_COMMANDS name, or `reset`): one step, then held motion
@@ -208,6 +210,10 @@ export function createAstroScene(host, config, options = {}) {
   let frames = 0;
   /** The scene clock (ms): object motion (drift, scan, flow) reads it; it holds under reduced motion */
   let clock = 0;
+  /** How fast the scene clock runs (`time_scale`, the time slider): 0 holds every motion, 2 is double speed */
+  let timeScale = 1;
+  /** The config's `time_scale` last built: a rebuild for another reason keeps the slider's speed */
+  let timeScaleCfg = 1;
   /** @type {Vector3 | null} the camera position last frame (warp streaks) */
   let lastCamera = null;
   let cssW = 1;
@@ -270,6 +276,14 @@ export function createAstroScene(host, config, options = {}) {
    * @type {{ fly: any, ref?: any, pos?: number[], frame: string } | null}
    */
   let flyRef = null;
+  /**
+   * The followed point (camera.follow): after a fly-to lands on a point the
+   * target moves with it each frame; `last` is where it was last frame
+   * (current frame units), `moving` once it has moved, `landing` the flight
+   * that flies to it (its start is elsewhere, so only its landing target moves)
+   * @type {{ id: string, last: number[] | null, moving: boolean, landing: any } | null}
+   */
+  let follow = null;
   let frameChanges = 0;
   /** Tests: keep the current frame (no frame change follows the camera) */
   let frameHold = false;
@@ -471,6 +485,12 @@ export function createAstroScene(host, config, options = {}) {
       if (q) target = { tx: q[0], ty: q[1], tz: q[2] };
     }
     rig.rebase(point, f.ratio(from, next), target);
+    // the followed point as the new frame sees it: exactly on it after landing
+    if (follow) {
+      const p = resolveRef(follow.id);
+      follow.last = p ? p.toArray() : null;
+      if (p && !rig.fly) Object.assign(rig.keys, { tx: p.x, ty: p.y, tz: p.z });
+    }
     rig.limits = limitsNow(baseLimits);
     if (lastCamera) lastCamera.fromArray(point(lastCamera.toArray()));
   }
@@ -500,7 +520,47 @@ export function createAstroScene(host, config, options = {}) {
     }
     const done = rig.flyTo(keys(), opts);
     flyRef = rig.fly ? { fly: rig.fly, frame: at, ...(target.ref !== undefined ? { ref: target.ref } : {}), ...(target.pos ? { pos: target.pos } : {}) } : null;
+    // A flight to a point follows it (read now, as keys() just did); any other lets go
+    if (typeof target.ref === 'string') startFollow(target.ref);
+    else letGo();
     return done;
+  }
+
+  /** @param {string} id */
+  function startFollow(id) {
+    const p = cfg.camera?.follow === false || editHooks ? null : resolveRef(id);
+    if (!p) { letGo(); return; }
+    follow = { id, last: p.toArray(), moving: false, landing: rig.fly };
+    rig.zoomAbout = false;
+  }
+
+  function letGo() {
+    follow = null;
+    rig.zoomAbout = false;
+  }
+
+  /**
+   * Keep the target on the followed point (after the layout placed it this
+   * frame): move the target, or a running fly-to's landing target, by how
+   * far the point moved since last frame. True when the target moved.
+   */
+  function stepFollow() {
+    if (!follow || !world) return false;
+    const p = world.places.get(follow.id);
+    if (!p) { letGo(); return false; }
+    const q = [p.x, p.y, p.z];
+    const prev = follow.last;
+    follow.last = q;
+    if (!prev) return false;
+    const d = [q[0] - prev[0], q[1] - prev[1], q[2] - prev[2]];
+    if (d[0] === 0 && d[1] === 0 && d[2] === 0) return false;
+    if (!follow.moving) {
+      follow.moving = true;
+      // wheel and pinch zoom about the point from now on (toward the cursor would leave it)
+      rig.zoomAbout = true;
+    }
+    rig.moveTarget(d, { from: !rig.fly || rig.fly !== follow.landing });
+    return true;
   }
 
   /**
@@ -533,6 +593,10 @@ export function createAstroScene(host, config, options = {}) {
     rig.dragMode = cam.drag === 'pan' ? 'pan' : 'orbit';
     rig.zoomTo = cam.zoom_to === 'target' ? 'target' : 'cursor';
     rig.zoomStep = num(cam.zoom_step, 2) > 1 ? num(cam.zoom_step, 2) : 2;
+    rig.wheelMode = cam.wheel === 'zoom' || cam.wheel === 'pan' ? cam.wheel : 'auto';
+    const ts = Math.max(0, num(cfg.time_scale, 1));
+    if (ts !== timeScaleCfg) timeScale = timeScaleCfg = ts;
+    if (cam.follow === false) letGo();
     // measured in the scene's own frame (a new world is built in it), used in the current one
     baseLimits = parseLimits(cam.limits, sceneSphere());
     rig.limits = limitsNow(baseLimits);
@@ -586,6 +650,8 @@ export function createAstroScene(host, config, options = {}) {
     if (usesSky) refreshSky();
     world = buildScene(cfg, ctx, { cssColor });
     builds++;
+    // a followed point is read afresh in the new world (no jump from the old one)
+    if (follow) follow.last = null;
     labels.snap = cfg.labels?.snap === true;
     labels.setItems(world.labels);
     syncCards();
@@ -665,8 +731,10 @@ export function createAstroScene(host, config, options = {}) {
     last = now;
     let moving = false;
     if (!reduced) {
-      clock += dt;
-      moving = stepObjects(world.list, dt, clock);
+      const sdt = dt * timeScale;
+      clock += sdt;
+      // held (time_scale 0): nothing steps; the first frame after a restart has dt 0 and still counts
+      moving = timeScale > 0 && stepObjects(world.list, sdt, clock);
       const auto = num(cfg.camera?.auto_rotate, 0);
       if (auto && !dragging && !rig.flying) {
         rig.keys.yaw += auto * (dt / 1000);
@@ -677,12 +745,14 @@ export function createAstroScene(host, config, options = {}) {
     depthFresh = false;
     const flying = rig.step(now);
     followFrame();
+    // placed before the camera, so a followed point is read where it is this frame
+    world.layout();
+    stepFollow();
     rig.apply();
     const camera = rig.camera;
     streaks(camera.position, dt, flying);
     // Stars sit at infinity: they move with the camera
     world.stars?.node.position.copy(camera.position);
-    world.layout();
     for (const b of world.list) for (const l of b.lines) l.updateDashes(camera, cssW, cssH);
 
     const W = canvas.width;
@@ -815,6 +885,15 @@ export function createAstroScene(host, config, options = {}) {
     }
     /** @type {import('./label-layer.js').Occluder[]} */
     const occluders = [];
+    // The solid object sitting at a point (`at:`): its label stands off it, and it never hides that label
+    /** @type {Map<string, number>} */
+    const sitting = new Map();
+    for (const b of world.list) {
+      if (!b.occludes || !b.radius || typeof b.config.at !== 'string' || w0(b)) continue;
+      const r = b.radius * new Vector3().setFromMatrixScale(b.node.matrixWorld).x;
+      sitting.set(b.config.at, Math.max(r, sitting.get(b.config.at) ?? 0));
+    }
+    for (const it of labels.items) it.clear = sitting.get(it.id) ?? 0;
     for (const b of world.list) {
       if (!b.occludes || !b.radius) continue;
       const center = new Vector3().setFromMatrixPosition(b.node.matrixWorld);
@@ -833,7 +912,8 @@ export function createAstroScene(host, config, options = {}) {
       }
       const near = (world.bounds.radius || 100) * 0.002 * unitOf(ROOT);
       // (at most 1 % of the label's own distance: at true scale the scene's size is no measure)
-      occluders.push({ kind: 'depth', snapshot, id: '', bias: (host, dist) => (host !== null && biases.get(host)) || Math.min(near, dist * 0.01) });
+      // A point a model sits at is inside it (and the image is a frame old while it moves): the model's whole size
+      occluders.push({ kind: 'depth', snapshot, id: '', bias: (host, dist, id) => sitting.get(id) ?? ((host !== null && biases.get(host)) || Math.min(near, dist * 0.01)) });
     }
     labels.update(camera, cssW, cssH, occluders);
     cards.update((id) => labels.item(id), cssW, cssH);
@@ -1136,6 +1216,7 @@ export function createAstroScene(host, config, options = {}) {
       requestFrame();
     }
     if (!hit) {
+      letGo();
       const now = performance.now();
       const b = blankTap;
       if (b && now - b.t < DOUBLE_TAP_MS && Math.hypot(x - b.x, y - b.y) <= DOUBLE_TAP_SLOP && cfg.camera?.double_tap !== 'none' && cfg.camera?.controls !== false) {
@@ -1385,6 +1466,7 @@ export function createAstroScene(host, config, options = {}) {
     if (command === 'reset') { goHome(); return; }
     const c = CAMERA_COMMANDS[command];
     if (!c) return;
+    if (c.step.pan) letGo();
     rig.nudge(c.step);
     pressTimer = setTimeout(() => rig.setMotion(c.rate), PRESS_REPEAT_MS);
   }
@@ -1435,7 +1517,7 @@ export function createAstroScene(host, config, options = {}) {
   document.fonts?.addEventListener?.('loadingdone', onFonts);
   /** @param {boolean} on */
   const setControls = (on) => {
-    if (on) rig.attach(canvas, { onStart: () => { dragging = true; endPress(); }, shouldStart: () => !pointDrag });
+    if (on) rig.attach(canvas, { onStart: () => { dragging = true; endPress(); }, shouldStart: () => !pointDrag, onPan: letGo });
     else { rig.detach(); endPress(); }
     wrap.style.touchAction = on ? 'none' : 'auto';
     if (on) wrap.tabIndex = 0;
@@ -1458,6 +1540,12 @@ export function createAstroScene(host, config, options = {}) {
       if (refreshSky()) requestFrame();
     },
     flyTo,
+    setTimeScale(scale) {
+      timeScale = Math.max(0, Number.isFinite(scale) ? scale : 1);
+      last = 0;
+      requestFrame();
+    },
+    timeScale: () => timeScale,
     press,
     release: endPress,
     home: goHome,
@@ -1465,6 +1553,7 @@ export function createAstroScene(host, config, options = {}) {
     setEditMode(hooks) {
       editHooks = hooks;
       blankTap = null;
+      if (hooks) letGo();
       if (hooks && !tools) {
         import('./edit-tools.js').then((m) => {
           tools = m;
@@ -1600,7 +1689,9 @@ export function createAstroScene(host, config, options = {}) {
         boxed,
         selectionBox: boxLine,
         limits: rig.limits,
-        home
+        home,
+        follow: follow ? { id: follow.id, moving: follow.moving } : null,
+        timeScale
       };
     }
   };

@@ -106,7 +106,10 @@ export function makeLabelItem(def, labelsCfg, cssColor) {
     anchor: card !== null,
     host: def.object !== undefined && def.object !== null ? String(def.object) : null,
     // A tap card opens on a tap, whatever the tap_action
-    pickable: card?.show === 'tap' || (def.tap_action !== undefined ? def.tap_action?.action !== 'none' : marker !== 'none')
+    pickable: card?.show === 'tap' || (def.tap_action !== undefined ? def.tap_action?.action !== 'none' : marker !== 'none'),
+    // a ship or a globe at the point makes it something to tap
+    pickableWithObject: def.tap_action === undefined,
+    leader: def.leader !== false
   });
   return {
     ...item,

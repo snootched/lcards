@@ -12,7 +12,7 @@ The preview is the real card, with your entities, templates, label styles, pinne
 
 ## On the scene
 
-- **Turn the view** as on the dashboard: drag to orbit, shift-drag or two fingers to pan, scroll or pinch to zoom. The home button in the toolbar goes back to the start view.
+- **Turn the view** as on the dashboard: drag to orbit, shift-drag, middle-drag or two fingers to pan, scroll or pinch to zoom (a touchpad swipe pans). The preview does not follow moving points. The home button in the toolbar goes back to the start view.
 - **Select:** tap a point or an object to open it in its list. An object gets a box round it; a ring, path or beam is selected by tapping near its line. Opening a row in a list selects it on the scene too.
 - **Drag a point** to move it. `xyz` and `polar` points slide at their own height, so a drag never changes `y` or `alt`; `latlon`, `altaz` and `cell` points follow the surface of their object. The toolbar shows the new numbers while you drag, and the point keeps its placement form. Points placed by `sky`, `at`, `part` or an entity do not drag.
 - **Place a point** (the marker button in the toolbar): the next tap adds a point there. On a sphere it gets `latlon`, on a dome `altaz`, on a plane grid its `cell`, on another object `xyz` on that object, and on blank space `xyz` on the ground. Escape cancels. An object needs an `id` for a point to stand on it.
