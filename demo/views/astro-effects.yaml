@@ -8,7 +8,7 @@ sections:
     column_span: 4
     cards:
       - type: custom:lcards-astrometrics-card
-        height: 340
+        height: 650
         camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 20, tilt: 25, distance: 300 } } }
         backdrop: { stars: { count: 2000 } }
         objects:
@@ -24,9 +24,9 @@ sections:
             seed: 5
             drift: 3
             colors: [ var(--lcars-violet), var(--lcars-blue), var(--lcars-red) ]
-        grid_options: &a1 { columns: 24 }
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 320
+        height: 650
         camera: { views: { v: { target: [ 0, 10, 0 ], yaw: 20, tilt: 25, distance: 260 } } }
         objects:
           - type: grid
@@ -45,9 +45,9 @@ sections:
             height: [ 0, 30 ]
             scan_period: 4
             color: var(--lcars-green)
-        grid_options: *a1
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 340
+        height: 650
         camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 20, tilt: 40, distance: 320 } } }
         points:
           - { id: hub, xyz: [ 0, 0, 0 ], marker: diamond, label: HUB, style: major }
@@ -83,9 +83,9 @@ sections:
             color: var(--lcars-blue)
             pulse: { length: 24, gap: 120, color: var(--lcars-yellow) }
           - { type: ring, radius: 100, width: 2, dash: [ 12, 8 ], flow_speed: 20 }
-        grid_options: *a1
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 320
+        height: 650
         camera: { views: { v: { target: [ 0, 10, 0 ], yaw: 15, tilt: 30, distance: 230 } } }
         objects:
           - type: grid
@@ -123,9 +123,9 @@ sections:
             radius: 18
             color: var(--lcars-blue)
             fill_effect: { type: fluid, color: var(--lcars-blue) }
-        grid_options: *a1
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 340
+        height: 650
         camera:
           view: far
           fly_duration: 2400

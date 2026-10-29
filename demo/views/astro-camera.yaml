@@ -28,7 +28,7 @@ sections:
         tap_action: { action: fly-to, card: demo_galaxy, point: vega, duration: 2500 }
         grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
-        height: 460
+        height: 650
         camera:
           view: galaxy
           views:
@@ -109,12 +109,12 @@ sections:
             dash: [ 6, 4 ]
             color: var(--lcars-orange)
         id: demo_galaxy
-        grid_options: &a1 { columns: full }
+        grid_options: { columns: full }
   - type: grid
     column_span: 4
     cards:
       - type: custom:lcards-astrometrics-card
-        height: 420
+        height: 650
         camera:
           views: { map: { target: core, tilt: 90, distance: 300, projection: orthographic } }
           drag: pan
@@ -129,4 +129,4 @@ sections:
         objects:
           - { type: grid, shape: plane, size: 300, line_spacing: 20, major_row_interval: 5 }
           - { type: path, points: [ a, core, b ], dash: [ 6, 4 ], color: var(--lcars-orange) }
-        grid_options: *a1
+        grid_options: { columns: full }

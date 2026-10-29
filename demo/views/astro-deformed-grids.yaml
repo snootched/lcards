@@ -10,8 +10,9 @@ sections:
     column_span: 4
     cards:
       - type: custom:lcards-astrometrics-card
+        grid_options: { columns: full }
         id: demo_deform
-        height: 520
+        height: 650
         camera:
           view: wide
           views:
@@ -76,8 +77,9 @@ sections:
     column_span: 4
     cards:
       - type: custom:lcards-astrometrics-card
+        grid_options: { columns: full }
         id: demo_terrain
-        height: 420
+        height: 650
         camera:
           view: v
           views:

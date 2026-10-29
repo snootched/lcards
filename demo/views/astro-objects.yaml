@@ -8,7 +8,7 @@ sections:
     column_span: 4
     cards:
       - type: custom:lcards-astrometrics-card
-        height: 320
+        height: 650
         camera: { views: { v: { target: [ 0, 20, 0 ], yaw: 30, tilt: 25, distance: 230 } } }
         objects:
           - type: grid
@@ -32,9 +32,9 @@ sections:
             at: [ 0, 30, -70 ]
             line_spacing_deg: 30
             color: var(--lcars-orange)
-        grid_options: &a1 { columns: 24 }
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 300
+        height: 650
         camera: { views: { v: { target: [ 0, 5, 0 ], yaw: 200, tilt: 30, distance: 190 } } }
         objects:
           - type: grid
@@ -55,9 +55,9 @@ sections:
             at: [ -40, 10, -30 ]
             size: [ 30, 20, 20 ]
             color: var(--lcars-orange)
-        grid_options: *a1
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 300
+        height: 650
         camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 0, tilt: 15, distance: 60 } } }
         points:
           - id: base
@@ -75,9 +75,9 @@ sections:
             lat_step: 15
             lon_step: 20
             color: var(--lcars-blue)
-        grid_options: *a1
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 320
+        height: 650
         camera: { views: { v: { target: [ 0, 0, 0 ], yaw: -40, tilt: 30, distance: 55 } } }
         points:
           - id: home
@@ -101,9 +101,9 @@ sections:
             image: builtin:earth_blue_marble
             line_spacing_deg: 30
             color: var(--lcars-blue)
-        grid_options: *a1
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 300
+        height: 650
         camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 20, tilt: 40, distance: 170 } } }
         points:
           - { id: star, xyz: [ 0, 0, 0 ], marker: reticle, label: STAR }
@@ -124,4 +124,4 @@ sections:
             color: var(--lcars-orange)
             color_to: var(--lcars-yellow)
             glow: true
-        grid_options: *a1
+        grid_options: { columns: full }

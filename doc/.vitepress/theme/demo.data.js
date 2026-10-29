@@ -18,7 +18,7 @@ export default {
     const demo = loadDemo()
     // The Docs buttons open this channel's own pages (relative to the site base).
     const base = (process.env.DOCS_BASE ?? '/').replace(/\/$/, '')
-    const board = buildDashboard(demo, { board: 'public', release, docsBase: base })
+    const board = buildDashboard(demo, { board: 'public', release, docsBase: base, index: false })
     const views = boardReleases(demo, { board: 'public', release }).flatMap(r => r.views)
     return {
       release,

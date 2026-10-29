@@ -22,14 +22,15 @@ export const BOARDS = {
 };
 /** The docs channel the Home Assistant boards link to (their features are documented there first). */
 export const DOCS_SITE = 'https://lcards.unimatrix01.ca/dev';
-const ENTRY_KEYS = new Set(['file', 'summary', 'description', 'session', 'docs', 'public']);
+const ENTRY_KEYS = new Set(['file', 'topic', 'summary', 'description', 'session', 'docs', 'public']);
 /** Card labels default to black, unreadable over the dark backgrounds. */
 const LABEL = 'var(--lcards-blue)';
 
 /**
  * Read demo/order.yaml and every view it lists.
- * @returns {{ title: string, releases: Array<{ version: string, views: DemoView[] }>, unlisted: string[], missing: string[] }}
- * @typedef {{ file: string, summary: string, description: string, session: string, docs: string|null, public: boolean, path: string, title: string, text: string, config: any }} DemoView
+ * @returns {{ title: string, topics: DemoTopic[], releases: Array<{ version: string, views: DemoView[] }>, unlisted: string[], missing: string[] }}
+ * @typedef {{ id: string, title: string }} DemoTopic
+ * @typedef {{ file: string, topic: string, summary: string, description: string, session: string, docs: string|null, public: boolean, path: string, title: string, text: string, config: any }} DemoView
  */
 export function loadDemo(dir = DEMO_DIR) {
     const order = yaml.load(readFileSync(join(dir, 'order.yaml'), 'utf8'));
@@ -50,14 +51,15 @@ export function loadDemo(dir = DEMO_DIR) {
             const text = readFileSync(join(dir, 'views', `${file}.yaml`), 'utf8');
             const config = yaml.load(text);
             return [{
-                file, summary: entry.summary ?? '', description: entry.description ?? '', session: entry.session ?? '',
+                file, topic: entry.topic ?? '', summary: entry.summary ?? '', description: entry.description ?? '', session: entry.session ?? '',
                 docs: entry.docs ?? null, public: entry.public === true,
                 path: config.path ?? file, title: config.title ?? file, text, config: { path: file, ...config },
             }];
         }),
     }));
     const unlisted = [...files].filter(f => !listed.has(f)).sort();
-    return { title: order.title ?? 'LCARdS Demo', releases, unlisted, missing };
+    const topics = (order.topics ?? []).map(t => ({ id: String(t.id), title: String(t.title ?? t.id) }));
+    return { title: order.title ?? 'LCARdS Demo', topics, releases, unlisted, missing };
 }
 
 /** Every view, in dashboard order. */
@@ -68,18 +70,55 @@ export function viewTexts(demo, dir = DEMO_DIR) {
     return demoViews(demo).map(v => ({ name: join(dir, 'views', `${v.file}.yaml`), text: v.text }));
 }
 
-/** An elbow title bar: the title on the left, a note on the right. */
-function titleBar(title, note) {
+/** Segment colours along a header bar, in turn (theme roles, so alert modes and themes recolour them). */
+const SEGMENT_COLORS = ['theme:colors.ui.primary', 'theme:colors.ui.tertiary', 'theme:colors.ui.secondary'];
+
+/**
+ * An LCARS header: a sweep in the top left continued as a bar of labelled
+ * segments (the DS9 bracket's top bar in doc/gallery/dashboards/), the title
+ * under the bar. A segment with an action is a button (Index, Docs).
+ * @param {string} title
+ * @param {Array<{ label: string, weight?: number, action?: any }>} segments
+ */
+export function frameHeader(title, segments) {
+    const names = segments.map((_, i) => `s${i}`);
     return {
-        type: 'custom:lcards-elbow',
-        elbow: { type: 'header-left', segment: { bar_width: 90, bar_height: 20 } },
-        text: {
-            title: { content: title.toUpperCase(), show: true, position: 'center-left', font_size: 26, color: LABEL },
-            ...(note ? { note: { content: note.toUpperCase(), show: true, position: 'center-right', font_size: 16, color: LABEL } } : {}),
-        },
+        type: 'custom:lcards-layout-card',
         grid_options: { columns: 'full', rows: 2 },
+        layout: {
+            'grid-gap': '6px',
+            'grid-template-columns': `150px ${segments.map(s => `minmax(0, ${s.weight ?? 1}fr)`).join(' ')}`,
+            'grid-template-rows': '26px minmax(0, 1fr)',
+            'grid-template-areas': `"sweep ${names.join(' ')}" "sweep ${names.map(() => 'title').join(' ')}"`,
+        },
+        cards: [
+            {
+                type: 'custom:lcards-elbow',
+                view_layout: { 'grid-area': 'sweep' },
+                elbow: { type: 'header-left', segment: { bar_width: 90, bar_height: 26, color: SEGMENT_COLORS[0] } },
+            },
+            ...segments.map((seg, i) => ({
+                type: 'custom:lcards-button',
+                preset: 'panel-light',
+                min_height: 26,
+                view_layout: { 'grid-area': names[i] },
+                text: { label: { content: seg.label.toUpperCase(), position: 'center-right' } },
+                style: { card: { color: { background: { default: SEGMENT_COLORS[(i + 1) % SEGMENT_COLORS.length] } } } },
+                ...(seg.action ? { tap_action: seg.action } : {}),
+            })),
+            {
+                type: 'custom:lcards-button',
+                preset: 'text-only',
+                min_height: 0,
+                view_layout: { 'grid-area': 'title' },
+                text: { label: { content: title.toUpperCase(), show: true, position: 'center-right', font_size: 30, color: 'theme:colors.ui.tertiary' } },
+            },
+        ],
     };
 }
+
+/** "1 view", "6 views" */
+const views = (n) => `${n} view${n === 1 ? '' : 's'}`;
 
 /** One wrapping text cell (a data grid in data mode). */
 function textBlock(text) {
@@ -105,45 +144,76 @@ function lozenge(content, tapAction, columns = 8) {
     };
 }
 
-/** The header section of a view: title bar, description, docs button. */
-export function headerSection(view, { board = 'dev', release = '', docsBase = DOCS_SITE } = {}) {
-    const note = [release, board === 'dev' ? view.session : ''].filter(Boolean).join(' · ');
+/** The note in a view's header bar: the release, and on the dev board the session. */
+export function headerNote(view, { board = 'dev', release = '' } = {}) {
+    return [release, board === 'dev' ? view.session : ''].filter(Boolean).join(' · ');
+}
+
+/**
+ * The header section of a view: the LCARS header (Index, the release and session, Docs
+ * in its bar) and the description. `index: false` (the docs site, which has its own
+ * picker) leaves the Index link out.
+ */
+export function headerSection(view, { board = 'dev', release = '', docsBase = DOCS_SITE, index = true } = {}) {
+    const note = headerNote(view, { board, release });
+    const segments = [
+        ...(index ? [{ label: 'Index', weight: 1, action: { action: 'navigate', navigation_path: `/${BOARDS[board].urlPath}/index` } }] : [{ label: 'LCARdS', weight: 1 }]),
+        { label: note || '-', weight: 2 },
+        ...(view.docs ? [{ label: 'Docs', weight: 1, action: { action: 'url', url_path: `${docsBase}${view.docs}` } }] : []),
+        { label: view.path, weight: 3 },
+    ];
     return {
         type: 'grid',
         column_span: 4,
         cards: [
-            titleBar(view.title, note),
+            frameHeader(view.title, segments),
             ...(view.description ? [textBlock(view.description)] : []),
-            ...(view.docs ? [lozenge('Docs', { action: 'url', url_path: `${docsBase}${view.docs}` })] : []),
         ],
     };
 }
 
-/** The index view: per release, a title bar, a button per view and a table of summaries. */
-export function indexView(releases, { board = 'dev' } = {}) {
+/**
+ * The board's views by topic (demo/order.yaml `topics`, in that order), newest
+ * release first within a topic; each view with its release.
+ */
+export function topicGroups(releases, topics) {
+    const all = releases.flatMap(r => r.views.map(v => ({ ...v, release: r.version })));
+    return topics
+        .map(t => ({ ...t, views: all.filter(v => v.topic === t.id) }))
+        .filter(t => t.views.length);
+}
+
+/** The index view: per topic, its header, a button per view and a table of summaries. */
+export function indexView(releases, { board = 'dev', topics = [] } = {}) {
     const { urlPath, title } = BOARDS[board];
     const navigate = (v) => ({ action: 'navigate', navigation_path: `/${urlPath}/${v.path}` });
     const intro = board === 'dev'
         ? 'Every feature since the last release, one view each, plus checks and benchmarks. The views live in demo/views/ in the LCARdS repo; npm run demo:push rebuilds this board and the public one.'
         : 'What is new in LCARdS, one view per feature, with the cards running live. Open a view, change things, and follow the Docs button for the config.';
+    const count = releases.reduce((n, r) => n + r.views.length, 0);
     return {
         title: 'Index', path: 'index', type: 'sections', max_columns: 4,
         sections: [
-            { type: 'grid', column_span: 4, cards: [titleBar(title, ''), textBlock(intro)] },
-            ...releases.map(release => ({
+            {
+                type: 'grid',
+                column_span: 4,
+                cards: [frameHeader(title, [{ label: 'Index', weight: 1 }, { label: releases.map(r => r.version).join(' · '), weight: 3 }, { label: views(count), weight: 1 }]), textBlock(intro)],
+            },
+            ...topicGroups(releases, topics).map(topic => ({
                 type: 'grid',
                 column_span: 4,
                 cards: [
-                    titleBar(release.version, `${release.views.length} views`),
-                    ...release.views.map(v => lozenge(v.title, navigate(v), 12)),
+                    frameHeader(topic.title, [{ label: topic.id, weight: 3 }, { label: views(topic.views.length), weight: 1 }]),
+                    ...topic.views.map(v => lozenge(v.title, navigate(v), 12)),
                     {
                         type: 'custom:lcards-data-grid',
                         data_mode: 'data',
-                        rows: release.views.map(v => [{ value: v.title, tap_action: navigate(v) }, v.summary]),
-                        grid: { 'grid-template-columns': 'minmax(0, 1fr) minmax(0, 2fr)' },
+                        rows: topic.views.map(v => [{ value: v.title, tap_action: navigate(v) }, v.summary, v.release]),
+                        grid: { 'grid-template-columns': 'minmax(0, 1fr) minmax(0, 2fr) 120px', 'grid-template-rows': `repeat(${topic.views.length}, min-content)` },
                         style: { font_size: 16, align: 'left', white_space: 'normal', color: 'var(--lcards-moonlight)' },
-                        columns: [{ style: { color: LABEL, text_transform: 'uppercase' } }],
-                        grid_options: { columns: 'full' },
+                        columns: [{ style: { color: LABEL, text_transform: 'uppercase' } }, {}, { style: { color: LABEL } }],
+                        // about 42 px a line (measured on the board), in section rows of 56 px plus an 8 px gap
+                        grid_options: { columns: 'full', rows: Math.max(1, Math.ceil((topic.views.length * 42) / 64)) },
                     },
                 ],
             })),
@@ -168,14 +238,17 @@ export function boardReleases(demo, { board = 'dev', release = null } = {}) {
         .filter(r => r.views.length);
 }
 
-/** A whole board's dashboard config: the index, then every view with its header. */
-export function buildDashboard(demo, { board = 'dev', release = null, docsBase = DOCS_SITE } = {}) {
+/**
+ * A whole board's dashboard config: the index, then every view with its header.
+ * `index: false` leaves the headers' Index link out (the docs site).
+ */
+export function buildDashboard(demo, { board = 'dev', release = null, docsBase = DOCS_SITE, index = true } = {}) {
     const releases = boardReleases(demo, { board, release });
     return {
         title: BOARDS[board].title,
         views: [
-            indexView(releases, { board }),
-            ...releases.flatMap(r => r.views.map(v => viewWithHeader(v, { board, release: r.version, docsBase }))),
+            indexView(releases, { board, topics: demo.topics }),
+            ...releases.flatMap(r => r.views.map(v => viewWithHeader(v, { board, release: r.version, docsBase, index }))),
         ],
     };
 }

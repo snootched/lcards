@@ -8,7 +8,7 @@ sections:
     column_span: 4
     cards:
       - type: custom:lcards-astrometrics-card
-        height: 340
+        height: 650
         camera: { views: { side: { target: [ 0, 0, 0 ], yaw: 30, tilt: 25, distance: 120 } } }
         points:
           - { id: origin, xyz: [ 0, 0, 0 ], marker: dot, label: XYZ }
@@ -28,9 +28,9 @@ sections:
             line_spacing: 10
             spoke_count: 12
           - { type: sphere, id: globe, at: [ -30, 12, 0 ], radius: 10, spin: 10 }
-        grid_options: &a1 { columns: 24 }
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 300
+        height: 650
         camera: { views: { top: { target: [ 0, 0, 0 ], tilt: 70, distance: 140 } } }
         labels:
           default: { text_transform: uppercase, letter_spacing: 1 }
@@ -61,9 +61,9 @@ sections:
                 background_radius: 8
         objects:
           - { type: grid, shape: plane, size: 120, line_spacing: 10 }
-        grid_options: *a1
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 340
+        height: 650
         camera: { view: wide, views: { wide: { target: [ 0, 0, 0 ], yaw: 20, tilt: 40, distance: 160 } } }
         points:
           - id: lamp
@@ -79,9 +79,9 @@ sections:
             view: { distance: 30, tilt: 15 }
         objects:
           - { type: grid, shape: plane, size: 120, line_spacing: 10 }
-        grid_options: *a1
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 280
+        height: 650
         camera: { views: { top: { target: [ 0, 0, 0 ], tilt: 70, distance: 120 } } }
         points:
           - id: lamp
@@ -96,9 +96,9 @@ sections:
             tap_action: { action: toggle }
         objects:
           - { type: grid, shape: plane, size: 100, line_spacing: 10 }
-        grid_options: *a1
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 300
+        height: 650
         camera: { views: { sky: { target: [ 0, 20, 0 ], yaw: 180, tilt: 20, distance: 190 } } }
         points:
           - id: sun
@@ -114,9 +114,9 @@ sections:
             label: LUNA {sky.moon.illumination}%
         objects:
           - { type: grid, id: dome, shape: dome, radius: 80, line_spacing_deg: 15 }
-        grid_options: *a1
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 420
+        height: 650
         camera:
           view: home
           views:
@@ -184,9 +184,9 @@ sections:
             marker: dot
             label: Rio
             style: tiny
-        grid_options: *a1
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 420
+        height: 650
         camera:
           view: horizon
           views:

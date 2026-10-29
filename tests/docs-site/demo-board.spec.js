@@ -53,7 +53,9 @@ for (const view of SAMPLES) {
         const cards = await page.locator('.demo-board-cell > *').evaluateAll(els => els.map(e => ({
             tag: e.localName, height: Math.round(e.getBoundingClientRect().height),
         })));
-        expect(cards.length).toBeGreaterThan(3);
+        // the generated header (one layout card, the description) and every card of the view
+        const own = (view.config.sections ?? []).reduce((n, sec) => n + (sec.cards?.length ?? 0), 0);
+        expect(cards.length).toBe(own + (view.description ? 2 : 1));
         for (const c of cards) {
             expect(c.tag).toMatch(/^lcards-/);
             // the alert overlay has no size until an alert mode is on

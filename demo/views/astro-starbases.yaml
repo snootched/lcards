@@ -9,7 +9,7 @@ sections:
     column_span: 4
     cards:
       - type: custom:lcards-astrometrics-card
-        height: 420
+        height: 650
         camera:
           view: station
           buttons: true
@@ -156,10 +156,9 @@ sections:
             line_width: 0.5
             opacity: 0.3
             spin: 3
-        grid_options:
-          columns: 24
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 380
+        height: 650
         camera:
           view: yards
           buttons: true
@@ -289,10 +288,9 @@ sections:
             at: dock3
             size: 40
             material: original
-        grid_options:
-          columns: 24
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 380
+        height: 650
         camera:
           view: approach
           buttons: true
@@ -402,10 +400,9 @@ sections:
               - 6
             flow_speed: -30
             color: var(--lcars-orange)
-        grid_options:
-          columns: 24
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 340
+        height: 650
         camera:
           view: all
           buttons: true
@@ -482,5 +479,4 @@ sections:
             size: 80
             scan_period: 6
             color: var(--lcars-violet)
-        grid_options:
-          columns: 24
+        grid_options: { columns: full }

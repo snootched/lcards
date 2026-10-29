@@ -9,7 +9,7 @@ sections:
     column_span: 4
     cards:
       - type: custom:lcards-astrometrics-card
-        height: 320
+        height: 650
         camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 0, tilt: 12, distance: 150 } }, buttons: true }
         points:
           - { id: l1, xyz: [ -60, -16, 0 ], label: MERCURY, style: minor }
@@ -27,9 +27,9 @@ sections:
           - { type: sphere, at: [ 20, 0, 0 ], radius: 8, image: builtin:mars_viking, line_width: 0.5, spin: 10 }
           - { type: sphere, at: [ 40, 0, 0 ], radius: 8, image: builtin:jupiter_cassini, line_width: 0.5, spin: 10 }
           - { type: sphere, at: [ 60, 0, 0 ], radius: 8, image: builtin:pluto_new_horizons, line_width: 0.5, spin: 10 }
-        grid_options: { columns: 24 }
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 340
+        height: 650
         camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 0, tilt: 10, distance: 210 } }, buttons: true }
         points:
           - { id: a, xyz: [ -48, 2, 0 ], label: gas_giant, style: minor }
@@ -49,16 +49,16 @@ sections:
           - { type: sphere, at: [ -16, -14, 0 ], radius: 10, fill_effect: { preset: lava }, line_width: 0.5, spin: 8 }
           - { type: sphere, at: [ 16, -14, 0 ], radius: 10, fill_effect: { preset: ice }, line_width: 0.5, spin: 8 }
           - { type: sphere, at: [ 48, -14, 0 ], radius: 10, fill_effect: { preset: terran }, line_width: 0.5, spin: 8 }
-        grid_options: { columns: 24 }
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 340
+        height: 650
         camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 25, tilt: 18, distance: 50 } }, buttons: true }
         objects:
           - { type: sphere, id: saturn, radius: 8, fill_effect: { preset: ringed_giant }, line_width: 0.5, spin: 12 }
           - { type: ring, radius: 18.6, inner_radius: 8.9, inclination: 27, image: builtin:saturn_rings }
-        grid_options: { columns: 12 }
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 340
+        height: 650
         camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 20, tilt: 30, distance: 60 } }, buttons: true }
         objects:
           - type: sphere
@@ -66,4 +66,4 @@ sections:
             spin: 6
             line_width: 0.5
             fill_effect: { preset: gas_giant, num_bands: 9, turbulence: 0.6, speed: 0.5 }
-        grid_options: { columns: 12 }
+        grid_options: { columns: full }

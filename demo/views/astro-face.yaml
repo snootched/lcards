@@ -11,7 +11,8 @@ sections:
     column_span: 4
     cards:
       - type: custom:lcards-astrometrics-card
-        height: 420
+        grid_options: { columns: full }
+        height: 650
         camera:
           view: chase
           buttons: true

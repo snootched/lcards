@@ -10,7 +10,7 @@ sections:
     column_span: 4
     cards:
       - type: custom:lcards-astrometrics-card
-        height: 400
+        height: 650
         camera:
           view: sector
           buttons: true
@@ -40,9 +40,9 @@ sections:
           # the Moon: only close to the Earth
           - { type: ring, id: moon_orbit, at: earth, radius: 4, spin: 30, width: 1, dash: [ 3, 3 ], opacity: 0.6, max_distance: 40 }
           - { type: sphere, at: moon, radius: 0.5, image: builtin:moon_lroc, line_width: 0, max_distance: 40 }
-        grid_options: { columns: 24 }
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 380
+        height: 650
         camera:
           view: far
           buttons: true
@@ -57,11 +57,11 @@ sections:
           - { id: ds9_name, xyz: [ 0, 40, 0 ], label: DEEP SPACE 9, style: minor, max_distance: 300 }
         objects:
           - { type: model, src: builtin:deep_space_nine, size: 60, spin: 4, max_distance: 300 }
-        grid_options: { columns: 24 }
+        grid_options: { columns: full }
       # E9 part 2: far away the belt's rocks become dots (no key), and the
       # ship marker stands in for the ship's model
       - type: custom:lcards-astrometrics-card
-        height: 380
+        height: 650
         camera:
           view: far
           buttons: true
@@ -80,4 +80,4 @@ sections:
           - { type: belt, radius: [ 90, 120 ], count: 3000, size: [ 0.3, 1.2 ], period: 120 }
           - { type: ring, id: patrol, radius: 60, spin: 10, width: 0.5, opacity: 0.2 }
           - { type: model, src: builtin:constitution, at: ship, size: 16, max_distance: 400 }
-        grid_options: { columns: 24 }
+        grid_options: { columns: full }

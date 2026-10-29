@@ -10,7 +10,7 @@ sections:
     column_span: 4
     cards:
       - type: custom:lcards-astrometrics-card
-        height: 400
+        height: 650
         points:
           - { id: core, xyz: [0, 0, 0], label: GALACTIC CORE, style: title }
           - { id: sagittarius, polar: [45, 300], label: Sagittarius Arm, style: major }
@@ -60,9 +60,9 @@ sections:
             map: { target: core, tilt: 90, distance: 300 }
             planet: { target: nimbus, yaw: 60, tilt: 20, distance: 40 }
         backdrop: { stars: { count: 2500 } }
-        grid_options: { columns: 24 }
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 400
+        height: 650
         points:
           - { id: ufp, cell: AG4, object: sectors, label: UNITED FEDERATION OF PLANETS, style: major }
           - { id: sb10, cell: AJ2, object: sectors, offset: [8, 0, 12], marker: triangle, label: Starbase 10 }
@@ -83,9 +83,9 @@ sections:
           view: map
           limits: { tilt: [90, 90] }
           views: { map: { target: [0, 0, 0], tilt: 90, distance: 1250, projection: orthographic } }
-        grid_options: { columns: 24 }
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 400
+        height: 650
         points:
           - { id: sun, sky: sun, object: sky, marker: reticle, label: SOL }
           - { id: moon, sky: moon, object: sky, marker: moon_phase, label: LUNA }
@@ -103,9 +103,9 @@ sections:
           views:
             horizon: { target: [0, 15, 0], yaw: 180, tilt: 28, distance: 260 }
             zenith: { target: [0, 0, 0], tilt: 90, distance: 260 }
-        grid_options: { columns: 24 }
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 400
+        height: 650
         points:
           - { id: sun, xyz: [0, 0, 0], label: SOL, style: major }
           - id: mercury
@@ -154,9 +154,9 @@ sections:
             top: { target: sun, tilt: 90, distance: 250 }
             earth: { target: earth, yaw: 30, tilt: 20, distance: 22 }
         backdrop: { stars: { count: 2000 } }
-        grid_options: { columns: 24 }
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 400
+        height: 650
         points:
           - { id: federation, polar: [60, 165], alt: 14, label: UNITED FEDERATION OF PLANETS, style: major, color: var(--lcars-blue) }
           - { id: klingon, polar: [80, 45], alt: 14, label: KLINGON EMPIRE, style: major, color: var(--lcars-red) }
@@ -220,9 +220,9 @@ sections:
             top: { target: [0, 0, 0], tilt: 90, distance: 300, projection: orthographic }
             sol: { target: earth, yaw: 220, tilt: 35, distance: 80 }
         backdrop: { stars: { count: 1500 } }
-        grid_options: { columns: 24 }
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 400
+        height: 650
         points:
           - { id: ship_centre, xyz: [0, 20, 90] }
           - id: ship_name
@@ -268,9 +268,9 @@ sections:
             starbase: { target: dock, yaw: 200, tilt: 25, distance: 160 }
             ship: { target: ship_centre, yaw: 140, tilt: 25, distance: 90 }
         backdrop: { stars: { count: 2000 } }
-        grid_options: { columns: 24 }
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 460
+        height: 650
         points:
           - { id: star, xyz: [0, 0, 0], label: STAR, style: major }
           - id: kronos_body

@@ -11,7 +11,7 @@ sections:
     cards:
       - type: custom:lcards-astrometrics-card
         id: demo_ship
-        height: 520
+        height: 650
         camera:
           view: three
           views:
@@ -69,9 +69,9 @@ sections:
         objects:
           - { type: grid, shape: disc, radius: 70, pattern: polar, line_spacing: 10, spoke_count: 24, at: [0, -25, 0] }
           - { type: model, id: ship, src: builtin:constitution, size: 70, scan_period: 5, animation: all }
-        grid_options: { columns: 24 }
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 380
+        height: 650
         camera:
           views:
             v: { target: [0, 0, 0], yaw: 210, tilt: 18, distance: 95 }
@@ -80,9 +80,9 @@ sections:
           - { id: shuttle_bay, object: ship, part: shuttle_bay, label: SHUTTLE BAY, marker: dot }
         objects:
           - { type: model, id: ship, src: builtin:constitution, size: 60, material: original, spin: 6 }
-        grid_options: { columns: 12 }
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 380
+        height: 650
         camera:
           views:
             v: { target: [0, 0, 0], yaw: 30, tilt: 30, distance: 100 }
@@ -100,4 +100,4 @@ sections:
             solid: false
             spin: 10
             edge_angle: 50
-        grid_options: { columns: 12 }
+        grid_options: { columns: full }

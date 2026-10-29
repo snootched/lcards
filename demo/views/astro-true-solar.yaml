@@ -10,7 +10,8 @@ sections:
     column_span: 4
     cards:
       - type: custom:lcards-astrometrics-card
-        height: 520
+        grid_options: { columns: full }
+        height: 650
         points:
           - { id: sun, xyz: [0, 0, 0], label: SOL, style: major }
           - { id: mercury, polar: [57909050, 200], marker: dot, label: MERCURY, style: tiny }

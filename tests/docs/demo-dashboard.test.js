@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateTexts } from '../../scripts/lcards-validate.mjs';
-import { loadDemo, demoViews, viewTexts, buildDashboard, BOARDS } from '../../scripts/lib/demo-dashboard.js';
+import { loadDemo, demoViews, viewTexts, buildDashboard, headerNote, topicGroups, BOARDS } from '../../scripts/lib/demo-dashboard.js';
 import { disallowedEntities } from '../helpers/allowed-entities.js';
 import yaml from 'js-yaml';
 
@@ -71,7 +71,7 @@ for (const board of Object.keys(BOARDS)) {
         assert.equal(config.views[0].path, 'index');
         assert.deepEqual(config.views.slice(1).map(v => v.path), expected);
         const targets = [...new Set((JSON.stringify(config.views[0]).match(/"navigation_path":"[^"]+"/g) ?? []).map(t => t.split('/').pop().slice(0, -1)))];
-        assert.deepEqual(targets, expected, 'the index links every view');
+        assert.deepEqual([...targets].sort(), [...expected].sort(), 'the index links every view');
         assert.ok(JSON.stringify(config.views[0]).includes(`"/${BOARDS[board].urlPath}/`), 'links stay on this board');
         const issues = await validateTexts([{ name: board, text: yaml.dump(config) }]);
         assert.deepEqual(issues.map(i => `${i.severity} ${i.path}: ${i.message}`), []);
@@ -83,8 +83,46 @@ test('public board: no benchmarks or checks; the dev board has them', () => {
     assert.ok(!pub.some(p => p.startsWith('bench') || p === 'alert-recolour'), pub.join(', '));
     assert.ok(pub.length > 10, pub.join(', '));
     // Session codes (C4, E3a) are for the dev board: public headers show the release only
-    const notes = buildDashboard(demo, { board: 'public' }).views.slice(1).map(v => v.sections[0].cards[0].text.note.content);
-    assert.ok(notes.every(n => /^\d{4}\.\d+\.\d+$/.test(n)), notes.join(', '));
+    for (const r of demo.releases) {
+        for (const v of r.views) {
+            const note = headerNote(v, { board: 'public', release: r.version });
+            assert.equal(note, r.version, v.file);
+            assert.equal(headerNote(v, { board: 'dev', release: r.version }), `${r.version} · ${v.session}`, v.file);
+        }
+    }
+    const header = JSON.stringify(buildDashboard(demo, { board: 'public' }).views[1].sections[0]);
+    assert.ok(header.includes(`"${demo.releases[0].version}"`), 'the release is in the header bar');
+});
+
+test('topics: every view has one from the list; the index has a block per topic in its order', () => {
+    const ids = demo.topics.map(t => t.id);
+    assert.equal(new Set(ids).size, ids.length, 'a topic listed twice');
+    for (const v of views) assert.ok(ids.includes(v.topic), `${v.file}: topic '${v.topic}' is not in order.yaml topics`);
+    const groups = topicGroups(demo.releases, demo.topics);
+    assert.deepEqual(groups.map(g => g.id), ids.filter(id => views.some(v => v.topic === id)));
+    assert.equal(groups.reduce((n, g) => n + g.views.length, 0), views.length);
+    const index = buildDashboard(demo, { board: 'dev' }).views[0];
+    assert.equal(index.sections.length, 1 + groups.length);
+});
+
+test('the docs site\'s headers have no Index link (it has its own picker)', () => {
+    const docs = JSON.stringify(buildDashboard(demo, { board: 'public', release: demo.releases[0].version, index: false }).views.slice(1));
+    assert.ok(!docs.includes('/lcards-demo-public/index'), 'no navigate to the Home Assistant index');
+    const ha = JSON.stringify(buildDashboard(demo, { board: 'public' }).views.slice(1));
+    assert.ok(ha.includes('/lcards-demo-public/index'));
+});
+
+test('astrometrics demos are big: the card full width and at least 600 px tall', () => {
+    for (const v of views.filter(x => x.topic === 'astrometrics')) {
+        const cards = (v.config.sections ?? []).flatMap(sec => sec.cards ?? []);
+        const astro = cards.filter(c => c.type === 'custom:lcards-astrometrics-card');
+        assert.ok(astro.length, `${v.file}: no astrometrics card`);
+        const first = astro[0];
+        const section = v.config.sections.find(sec => (sec.cards ?? []).includes(first));
+        assert.equal(section.column_span, 4, `${v.file}: the first astrometrics card's section spans the view`);
+        assert.equal(first.grid_options?.columns, 'full', `${v.file}: grid_options.columns full`);
+        assert.ok(Number(first.height) >= 600, `${v.file}: height ${first.height}`);
+    }
 });
 
 test('one release (the docs site): only that release\'s public views', () => {

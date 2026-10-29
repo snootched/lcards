@@ -9,7 +9,7 @@ sections:
     column_span: 4
     cards:
       - type: custom:lcards-astrometrics-card
-        height: 380
+        height: 650
         camera:
           view: system
           buttons: true
@@ -31,9 +31,9 @@ sections:
           - { type: trail, point: inner, length: 3, width: 2, color: var(--lcars-blue) }
           - { type: trail, point: earth, length: 6, width: 3 }
           - { type: trail, point: comet, length: 12, width: 3, color: var(--lcards-moonlight) }
-        grid_options: { columns: 24 }
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 380
+        height: 650
         camera:
           view: chase
           buttons: true
@@ -51,4 +51,4 @@ sections:
           - { type: ring, id: patrol, radius: 60, spin: 15, width: 0.5, opacity: 0.15, rotation: [ 10, 0, 0 ] }
           - { type: model, id: hull, src: builtin:constitution, at: ship, size: 22, scan_period: 4 }
           - { type: trail, point: ship, length: 8, width: 3, dash: [ 6, 4 ] }
-        grid_options: { columns: 24 }
+        grid_options: { columns: full }

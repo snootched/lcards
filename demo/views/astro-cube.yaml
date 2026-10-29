@@ -9,7 +9,7 @@ sections:
     column_span: 4
     cards:
       - type: custom:lcards-astrometrics-card
-        height: 420
+        height: 650
         camera:
           view: encounter
           buttons: true
@@ -104,10 +104,9 @@ sections:
             width: 10
             color: var(--lcards-green-medium)
             pulse: true
-        grid_options:
-          columns: 24
+        grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
-        height: 340
+        height: 650
         camera:
           view: all
           buttons: true
@@ -181,5 +180,4 @@ sections:
               - 20
             spin: 6
             style: plain
-        grid_options:
-          columns: 24
+        grid_options: { columns: full }
