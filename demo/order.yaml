@@ -8,6 +8,12 @@ title: LCARdS Demo
 releases:
   - version: "2026.10.0"
     views:
+      - file: astro-dive
+        summary: "Astrometrics star systems: a galaxy in light years with Sol in km inside it"
+        description: "One card from the galaxy down to a station: the galaxy disc in light years, the Sol system in km at its real place 26,000 ly from the core, and Deep Space 9 in orbit round Earth. Tap SOL, then EARTH, then DEEP SPACE 9, or fly from the station straight back out and in again."
+        session: "E10"
+        docs: /cards/astrometrics/#star-systems
+        public: true
       - file: astro-true-scale
         summary: "Astrometrics at true scale: the Sun, Earth, the Moon and Deep Space 9 in km"
         description: "A scene built with real numbers: fly from the whole inner system (planets are dots at this scale) to Earth and to Deep Space 9, 1.5 km across, with Earth filling the sky behind it. Depth slices, scene-sized zoom limits and a log-distance fly-to make it hold."

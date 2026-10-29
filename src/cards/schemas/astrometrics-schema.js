@@ -25,7 +25,7 @@ import {
 } from './common-schemas.js';
 import {
     OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, FILL_EFFECTS, FILL_PRESETS, MODEL_MATERIALS,
-    WELL_SHAPE_NAMES, DEFORM_TYPES, BEND_MOTIONS, DEFORM_ANCHORS
+    WELL_SHAPE_NAMES, DEFORM_TYPES, BEND_MOTIONS, DEFORM_ANCHORS, UNIT_NAMES
 } from '../../core/astrometrics/names.js';
 import { LABEL_POSITION_NAMES, LABEL_OMITTED_KEYS } from '../../core/astrometrics/label-text.js';
 
@@ -934,6 +934,43 @@ const modelObject = {
 
 const OBJECT_SCHEMAS = { model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject, belt: beltObject, trail: trailObject, cube: cubeObject };
 
+/** Object types a system can hold: every type but another system (one level) */
+const DRAWN_TYPES = OBJECT_TYPES.filter((t) => t !== 'system');
+
+/** An object inside a system: the same branches, without system */
+const systemMemberSchema = {
+    description: `An object inside the system, in the system's units. type picks one of: ${DRAWN_TYPES.join(', ')} (a system holds no other system).`,
+    type: 'object',
+    required: ['type'],
+    discriminator: { propertyName: 'type' },
+    oneOf: DRAWN_TYPES.map((t) => OBJECT_SCHEMAS[/** @type {keyof typeof OBJECT_SCHEMAS} */ (t)])
+};
+
+const unitsSchema = (/** @type {string} */ description) => ({
+    type: 'string',
+    enum: [...UNIT_NAMES],
+    description,
+    enumDescriptions: { m: 'Metres', km: 'Kilometres', au: 'Astronomical units (149,597,870.7 km)', ly: 'Light years', pc: 'Parsecs (3.26 light years)' }
+});
+
+const systemObject = {
+    type: 'object',
+    title: 'system',
+    required: ['type'],
+    description: 'A star system at true scale inside a larger scene: a solar system in km at a point of a galaxy in light years. Its points and objects are in its own units (positions, sizes, offsets, fade, min_distance and max_distance) and keep their precision however small they are next to the scene; the camera works in the system\'s units while it is near. Ids are card-wide: views, fly-to, rules and paths name its points and objects as any others. Not rotated: its axes are the scene\'s.',
+    properties: {
+        type: { type: 'string', const: 'system', description: 'system: points and objects in units of their own.' },
+        id: { type: 'string', description: 'Name of the system. Default system#n.' },
+        at: pointRef('Where the system\'s origin sits: a point of the scene (it stays there) or [x, y, z] in scene units. Default the origin.'),
+        units: unitsSchema('What one unit inside the system is (m, km, au, ly or pc). Needs the scene\'s units. Default: the scene\'s units (or scale).'),
+        scale: number('How many scene units one unit inside the system is, when the units have no name. Wins over units.', { exclusiveMinimum: 0 }),
+        visible: { type: 'boolean', default: true, description: 'false hides everything in the system (its points still work).' },
+        points: { type: 'array', description: 'The system\'s points, in its units (polar: [149597870.7, 30] puts Earth 1 AU out in km).', items: pointSchema },
+        objects: { type: 'array', description: 'The system\'s objects, in its units.', items: systemMemberSchema }
+    }
+};
+Object.assign(OBJECT_SCHEMAS, { system: systemObject });
+
 /** One scene object (published as its own shared file, scripts/lib/schema-publish.js) */
 export const objectSchema = {
     description: `What the scene draws. type picks one of: ${OBJECT_TYPES.join(', ')}.`,
@@ -941,7 +978,7 @@ export const objectSchema = {
     required: ['type'],
     // ajv (validator, tests) picks the branch by type and reports only its errors
     discriminator: { propertyName: 'type' },
-    oneOf: OBJECT_TYPES.map((t) => OBJECT_SCHEMAS[t])
+    oneOf: OBJECT_TYPES.map((t) => /** @type {Record<string, any>} */ (OBJECT_SCHEMAS)[t])
 };
 
 // ── The card ─────────────────────────────────────────────────────────────────
@@ -985,6 +1022,7 @@ export const astrometricsSchema = {
                 snap: { type: 'boolean', default: false, description: 'Round label positions to whole px (crisper text on weak devices; fast motion looks steppier). Default: sub-pixel.' }
             }
         },
+        units: unitsSchema('What one scene unit is (m, km, au, ly or pc): positions, sizes and distances are in it. Optional: a scene can use any units; naming them lets a system (type: system) give its own.'),
         points: { type: 'array', description: 'Named points with optional labels and markers (the placement system).', items: pointSchema },
         objects: { type: 'array', description: 'What is drawn: grids, volumes, spheres, models, images, glows, nebulae, rings, paths and beams.', items: objectSchema },
 

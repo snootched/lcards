@@ -23,7 +23,7 @@ import { isTemplateString } from '../../src/utils/template-string.js';
 import { migrateChartConfig } from '../../src/charts/chart-config-migration.js';
 import { migrateDataGridConfig } from '../../src/data-grid/data-grid-config-migration.js';
 import { classifyThemePath } from './theme-token-rules.js';
-import { PLACEMENT_FORMS, LABEL_STYLE_NAMES } from '../../src/core/astrometrics/names.js';
+import { PLACEMENT_FORMS, LABEL_STYLE_NAMES, UNIT_NAMES } from '../../src/core/astrometrics/names.js';
 
 /**
  * Keys every card accepts that card schemas don't list (HA / layout plumbing, and the
@@ -210,19 +210,19 @@ export function registryIssues(node, tag, reg) {
   if (tag === 'lcards-msd-card') check('msd.base_svg.source', builtinOnly(node.msd?.base_svg?.source), reg.msd_backgrounds, 'built-in MSD background');
   if (tag === 'lcards-astrometrics-card' && reg.astrometrics?.builtin_models) {
     const models = reg.astrometrics.builtin_models;
-    const objects = Array.isArray(node.objects) ? node.objects : [];
-    objects.forEach((o, i) => { if (o?.type === 'model') check(`objects[${i}].src`, builtinOnly(o.src), Object.keys(models), 'built-in model'); });
+    const items = astrometricsItems(node);
+    items.objects.forEach(({ o, at }) => { if (o?.type === 'model') check(`${at}.src`, builtinOnly(o.src), Object.keys(models), 'built-in model'); });
     const images = reg.astrometrics.builtin_images ?? [];
-    objects.forEach((o, i) => {
-      if (o?.type === 'image') check(`objects[${i}].src`, builtinOnly(o.src), images, 'built-in image');
-      if (o?.type === 'sphere' || o?.type === 'ring') check(`objects[${i}].image`, builtinOnly(o.image), images, 'built-in image');
+    items.objects.forEach(({ o, at }) => {
+      if (o?.type === 'image') check(`${at}.src`, builtinOnly(o.src), images, 'built-in image');
+      if (o?.type === 'sphere' || o?.type === 'ring') check(`${at}.image`, builtinOnly(o.image), images, 'built-in image');
     });
     // A part on a built-in model must be one of its parts
-    (Array.isArray(node.points) ? node.points : []).forEach((p, i) => {
+    items.points.forEach(({ p, at }) => {
       if (!isLiteral(p?.part) || !isLiteral(p?.object)) return;
-      const host = objects.find((o) => o?.type === 'model' && String(o.id) === p.object);
+      const host = items.objects.map(({ o }) => o).find((o) => o?.type === 'model' && String(o.id) === p.object);
       const parts = host && typeof host.src === 'string' ? models[host.src] : undefined;
-      if (parts) check(`points[${i}].part`, p.part, parts, `part of ${host.src}`);
+      if (parts) check(`${at}.part`, p.part, parts, `part of ${host.src}`);
     });
   }
 
@@ -305,32 +305,32 @@ function valueAt(node, path) {
  * `target`, path `points` / `from` / `to`, beam ends, trail `point`, object `at`),
  * objects (`on`, of a kind that carries the form) and views (`camera.view`, an
  * action's `view`). Generated label points (`<object>.ring.<deg>`, `.col.`, `.row.`)
- * count as points.
+ * count as points. A system's points and objects (`type: system`) are checked
+ * with the card's own: ids are card-wide.
  * @returns {{path: string, severity: 'error'|'warning', message: string}[]}
  */
 export function astrometricsIssues(node) {
   const out = [];
   const err = (path, message) => out.push({ path, severity: 'error', message });
   const warn = (path, message) => out.push({ path, severity: 'warning', message });
-  const points = Array.isArray(node.points) ? node.points : [];
-  const objects = Array.isArray(node.objects) ? node.objects : [];
+  const { points, objects } = astrometricsItems(node);
   const views = node.camera?.views && typeof node.camera.views === 'object' ? node.camera.views : {};
 
   /** @type {Map<string, any>} object id -> config (generated ids type#n as the runtime makes them) */
   const objectIds = new Map();
   const counts = {};
-  objects.forEach((o, i) => {
+  objects.forEach(({ o, at }) => {
     if (!o || typeof o !== 'object') return;
     counts[o.type] = (counts[o.type] ?? 0) + 1;
     const id = o.id === undefined || o.id === null || o.id === '' ? `${o.type}#${counts[o.type]}` : String(o.id);
-    if (objectIds.has(id)) warn(`objects[${i}].id`, `two objects with id "${id}": references use the later one`);
+    if (objectIds.has(id)) warn(`${at}.id`, `two objects with id "${id}": references use the later one`);
     objectIds.set(id, o);
   });
   const pointIds = new Set();
-  points.forEach((p, i) => {
+  points.forEach(({ p, at }) => {
     if (!p || typeof p !== 'object' || p.id === undefined) return;
     const id = String(p.id);
-    if (pointIds.has(id)) err(`points[${i}].id`, `two points with id "${id}"`);
+    if (pointIds.has(id)) err(`${at}.id`, `two points with id "${id}"`);
     pointIds.add(id);
   });
   const generated = /^(.+)\.(ring|col|row)\.[\d.]+$/;
@@ -363,9 +363,8 @@ export function astrometricsIssues(node) {
     if (Array.isArray(c.fade) && c.fade.length === 2 && Number(c.fade[0]) > Number(c.fade[1])) warn(`${at}.fade`, 'fade is [start, end]: start nearer than end');
   };
 
-  points.forEach((p, i) => {
+  points.forEach(({ p, at }) => {
     if (!p || typeof p !== 'object') return;
-    const at = `points[${i}]`;
     const forms = PLACEMENT_FORMS.filter(f => p[f] !== undefined);
     if (forms.length === 0 && p.part === undefined) err(at, `point "${p.id}" has no position (one of ${PLACEMENT_FORMS.join(', ')}, or part)`);
     if (p.part !== undefined && forms.some((f) => f !== 'xyz')) err(`${at}.part`, `part places the point on a model part (xyz is an offset from it); drop ${forms.filter((f) => f !== 'xyz').join(', ')}`);
@@ -395,10 +394,15 @@ export function astrometricsIssues(node) {
     actionViews(at, p);
   });
 
-  objects.forEach((o, i) => {
+  objects.forEach(({ o, at, system }) => {
     if (!o || typeof o !== 'object') return;
-    const at = `objects[${i}]`;
     if (o.at !== undefined) pointRef(`${at}.at`, o.at);
+    if (o.type === 'system') {
+      if (system !== undefined) err(at, `a system cannot hold another system (one level: "${system.id ?? 'system'}" holds "${o.id ?? 'system'}")`);
+      else if (o.scale === undefined && typeof o.units === 'string' && UNIT_NAMES.includes(o.units) && node.units === undefined) {
+        err(`${at}.units`, `units: ${o.units} needs the card's own units (units: ly at the top of the card), or give the system a scale`);
+      }
+    }
     // E6 effects: settings that silently do nothing
     if (o.type === 'sphere' && o.fill_effect && o.image !== undefined) warn(`${at}.image`, 'fill_effect paints the body: image is not shown');
     if (['ring', 'path', 'beam', 'trail'].includes(o.type) && o.flow_speed && !o.pulse && !(o.type !== 'beam' && Array.isArray(o.dash))) {
@@ -423,9 +427,31 @@ export function astrometricsIssues(node) {
   }
   if (node.camera?.view !== undefined) viewRef('camera.view', node.camera.view);
   const warps = node.camera?.warp === true || Object.values(views).some((v) => v?.warp === true)
-    || points.some((p) => p?.view?.warp === true) || objects.some((o) => o?.view?.warp === true);
+    || points.some(({ p }) => p?.view?.warp === true) || objects.some(({ o }) => o?.view?.warp === true);
   if (warps && !node.backdrop?.stars && !node.backdrop?.dust) warn('backdrop', 'warp streaks the stars and dust: add backdrop.stars or backdrop.dust');
   return out;
+}
+
+/**
+ * Every point and object of an astrometrics card with its path: the card's
+ * own and each system's (`objects[2].points[0]`), and the system holding it.
+ * @returns {{ points: { p: any, at: string, system?: any }[], objects: { o: any, at: string, system?: any }[] }}
+ */
+export function astrometricsItems(node) {
+  const points = [];
+  const objects = [];
+  (Array.isArray(node.points) ? node.points : []).forEach((p, i) => points.push({ p, at: `points[${i}]` }));
+  const walkObjects = (list, base, system) => {
+    list.forEach((o, i) => {
+      const at = `${base}objects[${i}]`;
+      objects.push({ o, at, ...(system ? { system } : {}) });
+      if (o?.type !== 'system') return;
+      (Array.isArray(o.points) ? o.points : []).forEach((p, k) => points.push({ p, at: `${at}.points[${k}]`, system: o }));
+      walkObjects(Array.isArray(o.objects) ? o.objects : [], `${at}.`, o);
+    });
+  };
+  walkObjects(Array.isArray(node.objects) ? node.objects : [], '', undefined);
+  return { points, objects };
 }
 
 /** Only `builtin:` sources are checked against the registry (paths and media IDs are the user's). */

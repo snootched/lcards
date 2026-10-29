@@ -2,8 +2,8 @@
  * Astrometrics camera rig: the camera is a pure function of seven keys
  * (target x/y/z, yaw, tilt, distance, fov) plus a projection. A view is a set
  * of keys, a drag edits yaw and tilt (or pans the target), wheel and pinch
- * edit the distance, limits clamp, and a fly-to is one anime.js tween over
- * the plain key numbers.
+ * edit the distance, limits clamp, and a fly-to is one anime.js tween of a
+ * progress value the keys follow from the flight's two ends.
  *
  * The tween is built with `autoplay: false` and **seeked from the scene's
  * frame loop** (`step(now)`), as the background effects do: requesting a
@@ -212,6 +212,20 @@ export function logFlyKeys(from, to, e) {
 }
 
 /**
+ * Keys part way through a short fly-to: every key linear in the eased progress, exact at the end.
+ * @param {CameraKeys} from
+ * @param {CameraKeys} to
+ * @param {number} e
+ * @returns {CameraKeys}
+ */
+export function lerpKeys(from, to, e) {
+  if (e >= 1) return { ...to };
+  /** @param {keyof CameraKeys} k */
+  const l = (k) => from[k] + (to[k] - from[k]) * e;
+  return { tx: l('tx'), ty: l('ty'), tz: l('tz'), yaw: l('yaw'), tilt: l('tilt'), distance: l('distance'), fov: l('fov') };
+}
+
+/**
  * Whether a fly-to between two distances zooms in log distance.
  * @param {number} a
  * @param {number} b
@@ -327,6 +341,10 @@ export class CameraRig {
     this.onChange = onChange;
     /** @type {any} running fly-to tween */
     this._tween = null;
+    /** @type {{ from: CameraKeys, to: CameraKeys, log: boolean } | null} the running fly-to's ends (converted on a frame change) */
+    this._fly = null;
+    /** The distance when a pinch began */
+    this._pinchDist = 0;
     this._tweenStart = 0;
     /** True while a warp fly-to runs (the runtime streaks the stars) */
     this.warp = false;
@@ -426,14 +444,15 @@ export class CameraRig {
       return Promise.resolve();
     }
     const easing = /** @type {any} */ (resolveEasing(ease) ?? 'inOutCubic');
-    if (isLogFly(this.keys.distance, target.distance)) {
-      // one eased progress; the keys follow it (logFlyKeys)
-      const from = { ...this.keys };
-      const progress = { e: 0 };
-      this._tween = animate(progress, { e: 1, duration, ease: easing, autoplay: false, onUpdate: () => { Object.assign(this.keys, logFlyKeys(from, target, progress.e)); } });
-    } else {
-      this._tween = animate(this.keys, { ...target, duration, ease: easing, autoplay: false });
-    }
+    // one eased progress; the keys follow it from the two ends (logFlyKeys over a long zoom, else lerpKeys),
+    // which a frame change converts mid-flight (rebase)
+    const fly = { from: { ...this.keys }, to: target, log: isLogFly(this.keys.distance, target.distance) };
+    this._fly = fly;
+    const progress = { e: 0 };
+    this._tween = animate(progress, {
+      e: 1, duration, ease: easing, autoplay: false,
+      onUpdate: () => { Object.assign(this.keys, (fly.log ? logFlyKeys : lerpKeys)(fly.from, fly.to, progress.e)); }
+    });
     this._tweenStart = -1;
     this._tweenDuration = duration;
     this.warp = warp;
@@ -441,11 +460,39 @@ export class CameraRig {
     return new Promise((resolve) => { this._tweenDone = resolve; });
   }
 
+  /** The running fly-to (its ends), null when none: the same object for the whole flight */
+  get fly() {
+    return this._fly;
+  }
+
+  /**
+   * The scene changed frame (frames.js): the keys, and a running fly-to's
+   * ends, in the new frame's units. `target` replaces the fly-to's landing
+   * target (re-read from its point in the new frame, exact there).
+   * @param {(p: number[]) => number[]} point - a position, old frame to new
+   * @param {number} ratio - new units per old unit
+   * @param {{ tx: number, ty: number, tz: number } | null} [target]
+   */
+  rebase(point, ratio, target = null) {
+    /** @param {CameraKeys} k @returns {CameraKeys} */
+    const map = (k) => {
+      const [tx, ty, tz] = point([k.tx, k.ty, k.tz]);
+      return { ...k, tx, ty, tz, distance: k.distance * ratio };
+    };
+    Object.assign(this.keys, map(this.keys));
+    if (this._fly) {
+      this._fly.from = map(this._fly.from);
+      this._fly.to = { ...map(this._fly.to), ...(target ?? {}) };
+    }
+    this._pinchDist *= ratio;
+  }
+
   /** Stop a fly-to where it is */
   cancel() {
     if (!this._tween) return;
     this._tween.cancel?.();
     this._tween = null;
+    this._fly = null;
     this.warp = false;
     const done = this._tweenDone;
     this._tweenDone = null;
@@ -470,6 +517,7 @@ export class CameraRig {
     this._tween.seek(t);
     if (t < this._tweenDuration) return true;
     this._tween = null;
+    this._fly = null;
     this.warp = false;
     const done = this._tweenDone;
     this._tweenDone = null;
@@ -619,7 +667,6 @@ export class CameraRig {
     /** @type {Map<number, { x: number, y: number }>} */
     const pts = new Map();
     let pinch0 = 0;
-    let dist0 = 0;
     let panMode = false;
     const mid = () => {
       const [a, b] = [...pts.values()];
@@ -637,7 +684,7 @@ export class CameraRig {
       if (pts.size === 2) {
         const m = mid();
         pinch0 = m.d;
-        dist0 = this.keys.distance;
+        this._pinchDist = this.keys.distance;
         last = m;
       }
     };
@@ -658,7 +705,7 @@ export class CameraRig {
         }
       } else if (pts.size === 2) {
         const m = mid();
-        const factor = (dist0 * pinch0) / Math.max(1, m.d) / this.keys.distance;
+        const factor = (this._pinchDist * pinch0) / Math.max(1, m.d) / this.keys.distance;
         this.pan(m.x - last.x, m.y - last.y, h);
         this.zoomAt(factor, this._zoomSpot(el, m.x, m.y));
         last = m;

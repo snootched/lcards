@@ -28,6 +28,10 @@
  * `offset: [x, y, z]` (scene units) is added to any form. A reference that
  * loops back on itself is refused (null, logged once).
  *
+ * A point inside a system (`_system`, frames.js) is in the system's own
+ * units: its forms and offset are local to the system's group, so they stay
+ * exact whichever frame the camera works in.
+ *
  * @module core/astrometrics/placements
  */
 import { Vector3 } from 'three';
@@ -134,6 +138,7 @@ export function parseCell(code) {
  * @property {number} [alt]
  * @property {number[]} [offset]
  * @property {boolean} [_bound] - its position comes from an entity (setPosition)
+ * @property {string} [_system] - the system it is in (flattenSystems)
  */
 
 /** Placement forms that can take their numbers from an entity (`{ entity, ... }` instead of a tuple) */
@@ -159,13 +164,16 @@ export class Placements {
    * @param {PointDef[]} [opts.points]
    * @param {Map<string, PlacementHost>} [opts.hosts] - objects by id
    * @param {() => (import('./sky.js').SkyState | null)} [opts.sky]
+   * @param {(system: string | undefined) => (import('three').Object3D | null)} [opts.frame] - a frame's group (frames.js);
+   *   without it every point is in scene units
    */
-  constructor({ points = [], hosts = new Map(), sky = () => null } = {}) {
+  constructor({ points = [], hosts = new Map(), sky = () => null, frame = () => null } = {}) {
     /** @type {Map<string, PointDef>} */
     this.defs = new Map();
     for (const p of points) if (p?.id) this.defs.set(String(p.id), p);
     this.hosts = hosts;
     this.sky = sky;
+    this.frame = frame;
     /** @type {Map<string, Vector3 | null>} */
     this._cache = new Map();
     /** @type {Set<string>} ids already warned about */
@@ -267,7 +275,12 @@ export class Placements {
     }
     seen.add(id);
     const v = this._place(d, seen);
-    if (v && Array.isArray(d.offset) && d.offset.length >= 3) v.add(new Vector3(+d.offset[0] || 0, +d.offset[1] || 0, +d.offset[2] || 0));
+    if (v && Array.isArray(d.offset) && d.offset.length >= 3) {
+      // in the point's own units (a frame is never rotated, only scaled)
+      const f = this.frame(d._system);
+      const k = f ? f.matrixWorld.getMaxScaleOnAxis() : 1;
+      v.add(new Vector3(+d.offset[0] || 0, +d.offset[1] || 0, +d.offset[2] || 0).multiplyScalar(k));
+    }
     seen.delete(id);
     this._cache.set(id, v);
     return v;
@@ -296,8 +309,9 @@ export class Placements {
       const o = Array.isArray(d.xyz) ? d.xyz : [0, 0, 0];
       return new Vector3(+o[0] || 0, +o[1] || 0, +o[2] || 0).applyMatrix4(node.matrixWorld);
     }
-    /** Local to the host when there is one */
-    const world = (/** @type {Vector3} */ v) => (host ? (host.warp ? host.warp(v) : v).applyMatrix4(host.node.matrixWorld) : v);
+    /** Local to the host when there is one, else to the point's frame */
+    const frame = host ? null : this.frame(d._system);
+    const world = (/** @type {Vector3} */ v) => (host ? (host.warp ? host.warp(v) : v).applyMatrix4(host.node.matrixWorld) : frame ? v.applyMatrix4(frame.matrixWorld) : v);
     const R = (host?.radius ?? 1) + (Number(d.alt) || 0);
     if (Array.isArray(d.xyz)) return world(new Vector3(+d.xyz[0] || 0, +d.xyz[1] || 0, +d.xyz[2] || 0));
     if (Array.isArray(d.polar)) {

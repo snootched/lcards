@@ -362,6 +362,39 @@ export function skyRuns(track, R) {
 }
 
 /** @param {number} a @param {number} b */
+/**
+ * Runs through world positions as the node draws them: local to its parent
+ * (its object's group, inside its frame's) and relative to an anchor the
+ * node moves to, so a line far from the origin (a route from Earth to a
+ * station, in km) keeps its precision on the GPU.
+ * @param {import('three').Object3D} node
+ * @param {number[][]} runs - world [x, y, z, ...]
+ * @param {number[] | null} [anchor] - world [x, y, z]; default the first point
+ * @returns {number[][]}
+ */
+export function anchoredRuns(node, runs, anchor = null) {
+  const parent = node.parent;
+  const first = anchor ?? runs.find((r) => r.length >= 3) ?? null;
+  if (!parent || !first) {
+    node.position.set(0, 0, 0);
+    return runs;
+  }
+  const inv = parent.matrixWorld.clone().invert();
+  const v = new Vector3();
+  const o = new Vector3(first[0], first[1], first[2]).applyMatrix4(inv);
+  node.position.copy(o);
+  return runs.map((run) => {
+    const out = new Array(run.length);
+    for (let i = 0; i + 2 < run.length; i += 3) {
+      v.set(run[i], run[i + 1], run[i + 2]).applyMatrix4(inv).sub(o);
+      out[i] = v.x;
+      out[i + 1] = v.y;
+      out[i + 2] = v.z;
+    }
+    return out;
+  });
+}
+
 const shortDelta = (a, b) => ((((b - a) % 360) + 540) % 360) - 180;
 
 /**
@@ -415,7 +448,7 @@ export function buildPath(cfg, ctx, objects) {
       const leg = arcRun(/** @type {Vector3} */ (pts[i]), /** @type {Vector3} */ (pts[i + 1]), arc);
       run.push(...(i === 0 ? leg : leg.slice(3)));
     }
-    set([run]);
+    set(anchoredRuns(node, [run]));
   };
   out.dynamic = refs.some((r) => !!ctx.places?.isDynamic(r));
   return out;
@@ -447,7 +480,7 @@ export function buildBeam(cfg, ctx) {
   out.update = () => {
     const a = ctx.places?.resolve(cfg.from);
     const b = ctx.places?.resolve(cfg.to);
-    const run = a && b ? [[a.x, a.y, a.z, b.x, b.y, b.z]] : [];
+    const run = a && b ? anchoredRuns(node, [[a.x, a.y, a.z, b.x, b.y, b.z]]) : [];
     lines.forEach((l) => l.setRuns(run));
   };
   out.dynamic = !!(ctx.places?.isDynamic(cfg.from) || ctx.places?.isDynamic(cfg.to));
@@ -547,10 +580,17 @@ export function buildTrail(cfg, ctx) {
   out.update = () => {
     const p = ctx.places?.resolve(cfg.point);
     const now = performance.now();
-    if (p) history.push(now, [p.x, p.y, p.z]);
-    else history.age(now);
+    // kept local to the trail's group (its frame's units), so a frame change leaves the history as it is
+    if (p) {
+      const q = node.parent ? node.parent.worldToLocal(p.clone()) : p;
+      history.push(now, [q.x, q.y, q.z]);
+    } else history.age(now);
     const run = history.run();
-    lines.forEach((l) => l.setRuns(run.length ? [run] : []));
+    // drawn relative to the head, where the eye is (precise near the moving point)
+    const h = history.head;
+    if (h) node.position.set(h[0], h[1], h[2]);
+    const local = h ? run.map((v, i) => v - h[i % 3]) : run;
+    lines.forEach((l) => l.setRuns(local.length ? [local] : []));
   };
   out.dynamic = true;
   return out;

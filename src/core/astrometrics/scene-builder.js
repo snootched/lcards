@@ -9,6 +9,11 @@
  * that read points (`ring`, `path`, `beam`). Each object sits in an outer
  * group (its `at` position and `rotation`); the inner node spins.
  *
+ * Systems (`type: system`, frames.js): the config is flattened first
+ * (`flattenSystems`); each frame has a group in the scene, an object's outer
+ * group goes into its frame's, and a system's group sits at its `at` point,
+ * scaled to its units. Built with the scene's own frame current.
+ *
  * @module core/astrometrics/scene-builder
  */
 import { Scene, Group, Vector3, Box3, Sphere } from 'three';
@@ -16,7 +21,8 @@ import { Placements } from './placements.js';
 import { labelItem } from './label-layer.js';
 import { resolveLabel, plainColor, selectedColor, fieldCss } from './label-text.js';
 import { TemplateDetector } from '../templates/TemplateDetector.js';
-import { MARKERS, OBJECT_TYPES } from './names.js';
+import { MARKERS, OBJECT_TYPES, flattenSystems, systemScale } from './names.js';
+import { Frames, ROOT } from './frames.js';
 import { pointCard } from './card-layer.js';
 import { buildGrid } from './objects/grid.js';
 import { buildVolume } from './objects/volume.js';
@@ -27,6 +33,7 @@ import { buildStars, buildDust } from './objects/stars.js';
 import { buildGlow } from './objects/glow.js';
 import { buildBelt } from './objects/belt.js';
 import { applyRotation, disposeNode, num } from './objects/common.js';
+import { localBounds } from './distance-fade.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export { OBJECT_TYPES };
@@ -44,8 +51,11 @@ const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image
  * @property {(import('./label-layer.js').LabelItem & { color: string, selectedColor: string, def: any, spec: import('./label-text.js').LabelSpec })[]} labels
  * @property {import('./objects/common.js').BuiltObject | null} stars
  * @property {import('./objects/common.js').BuiltObject | null} dust
- * @property {Sphere} bounds - of the objects (for a default view)
+ * @property {Sphere} bounds - of the objects (for a default view), scene units
+ * @property {Frames} frames - the scene's frame and its systems'
  * @property {() => void} layout - one frame's placement pass: matrices, objects on points (`at`), then what reads moving points
+ * @property {() => void} rebased - the current frame changed: placed again, and every line object drawn again from its points
+ *   (a static one was drawn in the old frame's units, as precise as they were)
  * @property {(id: string, cfg: any) => boolean} rebuildObject - build one object again from a new config (a rule patch), in place; false for an unknown id
  * @property {() => void} dispose
  */
@@ -112,7 +122,29 @@ export function makeLabelItem(def, labelsCfg, cssColor) {
  * @returns {AstroScene}
  */
 export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } = {}) {
+  config = flattenSystems(config);
   const scene = new Scene();
+  const frames = new Frames();
+  /** @type {any[]} systems, parents first (config order) */
+  const systems = [];
+  for (const o of Array.isArray(config?.objects) ? config.objects : []) {
+    if (o?.type !== 'system') continue;
+    const parent = o._system ?? ROOT;
+    const parentUnits = parent === ROOT ? config.units : systems.find((x) => x.id === parent)?.units;
+    let k = systemScale(o, parentUnits);
+    if (k === null) {
+      lcardsLog.warn(`[Astrometrics] system '${o.id}': units ${o.units} need the scene's units (units: ly at the top), or give scale`);
+      k = 1;
+    }
+    frames.add(String(o.id), parent, k);
+    systems.push(o);
+  }
+  for (const f of frames.frames.values()) {
+    scene.add(f.node);
+    // a hidden system hides everything in it
+    if (f.parent !== null) f.node.visible = systems.find((x) => String(x.id) === f.id)?.visible !== false;
+  }
+  frames.place();
   /** @type {Map<string, import('./objects/common.js').BuiltObject>} */
   const objects = new Map();
   /** @type {import('./objects/common.js').BuiltObject[]} */
@@ -142,7 +174,7 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
     applyRotation(g, cfg);
     g.add(b.node);
     if (cfg.visible === false) g.visible = false;
-    scene.add(g);
+    frames.get(cfg._system).node.add(g);
     outer.set(b, g);
     objects.set(b.id, b);
     builders.set(b.id, build);
@@ -164,7 +196,7 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
       const models = ctx.models;
       if (models) add(cfg, (c) => models.buildModel(c, ctx));
       else lcardsLog.warn('[Astrometrics] model skipped: the model chunk is not loaded');
-    } else if (!OBJECT_TYPES.includes(cfg.type)) lcardsLog.warn(`[Astrometrics] unknown object type '${cfg.type}'`);
+    } else if (cfg.type !== 'system' && !OBJECT_TYPES.includes(cfg.type)) lcardsLog.warn(`[Astrometrics] unknown object type '${cfg.type}'`);
   }
 
   /** @type {Map<string, import('./placements.js').PlacementHost>} */
@@ -172,8 +204,37 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   for (const [id, b] of objects) hosts.set(id, hostOf(b));
   const userPoints = Array.isArray(config?.points) ? config.points.filter((p) => p && typeof p === 'object' && p.id !== undefined) : [];
   const pointDefs = [...list.flatMap((b) => b.points), ...userPoints.map((p) => ({ ...p, id: String(p.id) }))];
-  const places = new Placements({ points: pointDefs, hosts, sky: ctx.sky });
+  const places = new Placements({ points: pointDefs, hosts, sky: ctx.sky, frame: frames.nested ? (id) => frames.get(id).node : undefined });
   ctx.places = places;
+
+  /**
+   * Each system's origin from its `at` (a point, or [x, y, z]), in its
+   * parent's units: read only while the parent is the current frame, where
+   * scene units are the parent's own (exact). True when one moved.
+   */
+  const placeSystems = () => {
+    let moved = false;
+    for (const o of systems) {
+      const f = frames.get(String(o.id));
+      if (f.parent !== frames.current || o.at === undefined) continue;
+      scene.updateMatrixWorld();
+      places.invalidate();
+      const p = places.resolve(o.at);
+      if (!p) continue;
+      const parent = frames.get(f.parent).node;
+      const local = parent.worldToLocal(p.clone());
+      if (local.x === f.origin[0] && local.y === f.origin[1] && local.z === f.origin[2]) continue;
+      f.origin = [local.x, local.y, local.z];
+      moved = true;
+    }
+    if (moved) {
+      frames.place();
+      scene.updateMatrixWorld();
+      places.invalidate();
+    }
+    return moved;
+  };
+  placeSystems();
 
   for (const cfg of cfgs) {
     if (cfg.type === 'ring') add(cfg, (c) => buildRing(c, ctx));
@@ -198,7 +259,7 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   const dust = config?.backdrop?.dust
     ? buildDust(config.backdrop.dust === true ? {} : config.backdrop.dust, ctx, { center: bounds.center.toArray(), radius: bounds.radius })
     : null;
-  if (dust) scene.add(dust.node);
+  if (dust) frames.get(ROOT).node.add(dust.node);
 
   // Labels: the last definition of an id wins (the user's over generated ones)
   /** @type {Map<string, any>} */
@@ -218,10 +279,12 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   const layout = () => {
     scene.updateMatrixWorld();
     places.invalidate();
-    let placed = false;
+    let placed = systems.length ? placeSystems() : false;
     for (const [b, g] of outer) {
       if (b.config.at === undefined) continue;
-      const p = places.resolve(b.config.at);
+      let p = places.resolve(b.config.at);
+      // in its frame's units (the frame's group is identity for the current frame)
+      if (p && b.config._system !== undefined && g.parent) p = g.parent.worldToLocal(p.clone());
       if (p && !g.position.equals(p)) {
         g.position.copy(p);
         placed = true;
@@ -243,6 +306,20 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   for (const b of list) if (!b.dynamic) b.update?.();
   scene.updateMatrixWorld();
 
+  // How far each system's contents reach from its origin (its own units): the camera works in it inside a few times that
+  for (const o of systems) {
+    const f = frames.get(String(o.id));
+    // the union of its meshes' and lines' own spheres, local to its group (own units)
+    const s = localBounds(f.node);
+    let r = s.radius > 0 ? s.center.length() + s.radius : 0;
+    for (const p of pointDefs) {
+      if (p._system !== f.id) continue;
+      const v = places.get(String(p.id));
+      if (v) r = Math.max(r, f.node.worldToLocal(v.clone()).length());
+    }
+    f.radius = r;
+  }
+
   return {
     scene,
     objects,
@@ -254,7 +331,13 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
     stars,
     dust,
     bounds,
+    frames,
     layout,
+    rebased() {
+      layout();
+      for (const b of list) if (!b.dynamic) b.update?.();
+      scene.updateMatrixWorld();
+    },
     rebuildObject(id, cfg) {
       const old = objects.get(id);
       const build = builders.get(id);

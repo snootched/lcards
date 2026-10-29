@@ -25,6 +25,7 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 | Your own picture on the plane | [`image`](#image) |
 | A ship, a station, any 3D model | [`model`](#model) |
 | A Borg cube (or a plain shaded box) | [`cube`](#cube) |
+| A star system at true scale inside a larger scene (its own points and objects, in units of its own) | [`system`](#system) |
 
 ## Keys every object takes
 
@@ -517,3 +518,38 @@ objects:
 ```
 
 **Your own models.** The built-in ship (6,500 triangles, 147 KB) costs about 1.5 ms a frame on a laptop GPU, depth image included; the starbases have 2,000 to 14,000 triangles. Every extra triangle costs a little more, so simplify a model before you use it (Blender's Decimate modifier, or `gltf-transform simplify`) and compress it with `gltf-transform meshopt`. Name the parts you want points on in the file. The model loader is a separate download the first time a card uses a model.
+
+## system
+
+A star system at true scale inside a larger scene: Sol in km at a point of a galaxy in light years. It draws nothing itself; it holds `points` and `objects` written in its own units, which keep their precision however small they are next to the scene. See [At true scale: star systems](./#star-systems) for a whole dive from a galaxy to a station.
+
+| Key | What it does |
+|---|---|
+| `id` | Its name (default `system#n`). |
+| `at` | Where its origin sits: a point of the scene, or `[x, y, z]` in scene units. |
+| `units` | What one unit inside is: `m`, `km`, `au`, `ly` or `pc`. Needs the card's own `units`. |
+| `scale` | Scene units per unit inside, for units without a name (wins over `units`). |
+| `points` | Its points, in its units ([Points](./points)). |
+| `objects` | Its objects, in its units: any type but another `system`. |
+| `visible` | `false` hides everything in it. |
+
+```yaml
+type: custom:lcards-astrometrics-card
+units: ly
+camera:
+  views:
+    sol: { target: sun, yaw: 40, tilt: 35, distance: 700000000 }
+points:
+  - { id: sol, xyz: [-8890, 60, 24430], marker: dot, label: SOL, style: major }
+objects:
+  - type: system
+    at: sol
+    units: km
+    points:
+      - { id: sun, xyz: [0, 0, 0] }
+      - { id: earth, polar: [149597870.7, 30], marker: dot, label: EARTH }
+    objects:
+      - { type: sphere, at: sun, radius: 696340, fill_color: var(--lcars-yellow) }
+      - { type: ring, radius: 149597870.7, width: 1, color: var(--lcars-blue) }
+      - { type: sphere, at: earth, radius: 6371, image: builtin:earth_blue_marble }
+```

@@ -8,8 +8,12 @@
  * @module core/astrometrics/names
  */
 
-/** Object types; line objects (`ring`, `path`, `beam`, `trail`) read points, so they build second */
-export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt', 'trail', 'cube']);
+/**
+ * Object types; line objects (`ring`, `path`, `beam`, `trail`) read points, so
+ * they build second. `system` draws nothing itself: it holds points and
+ * objects in units of their own (a star system in km inside a galaxy in ly).
+ */
+export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt', 'trail', 'cube', 'system']);
 
 /**
  * Which type for what: the objects docs page's table (doc/cards/astrometrics/objects.md,
@@ -29,8 +33,72 @@ export const TYPE_GUIDE = [
   { type: 'belt', use: 'An asteroid belt (a band of rocks round a centre)', icon: 'mdi:dots-circle' },
   { type: 'image', use: 'Your own picture on the plane', icon: 'mdi:image' },
   { type: 'model', use: 'A ship, a station, any 3D model', icon: 'mdi:rocket' },
-  { type: 'cube', use: 'A Borg cube (or a plain shaded box)', icon: 'mdi:cube' }
+  { type: 'cube', use: 'A Borg cube (or a plain shaded box)', icon: 'mdi:cube' },
+  { type: 'system', use: 'A star system at true scale inside a larger scene (its own points and objects, in units of its own)', icon: 'mdi:white-balance-sunny' }
 ];
+
+/**
+ * Named units, in metres: the scene's `units` and a system's. Real data drops
+ * in as published (positions in pc or ly, orbits in AU, sizes in km).
+ */
+export const UNITS = /** @type {const} */ ({ m: 1, km: 1e3, au: 1.495978707e11, ly: 9.4607304725808e15, pc: 3.0856775814913673e16 });
+
+/** @typedef {keyof typeof UNITS} UnitName */
+export const UNIT_NAMES = /** @type {UnitName[]} */ (Object.keys(UNITS));
+
+/**
+ * A system's scale: how many of its parent's units one of its own is (its
+ * `scale`, else its named `units` over the parent's). null when it can not
+ * be worked out (named units with a parent that names none).
+ * @param {any} system - the system object's config
+ * @param {string | undefined} parentUnits
+ * @returns {number | null}
+ */
+export function systemScale(system, parentUnits) {
+  const s = Number(system?.scale);
+  if (system?.scale !== undefined && Number.isFinite(s) && s > 0) return s;
+  const own = UNITS[/** @type {UnitName} */ (system?.units)];
+  const parent = UNITS[/** @type {UnitName} */ (parentUnits)];
+  if (own === undefined) return system?.units === undefined && system?.scale === undefined ? 1 : null;
+  return parent === undefined ? null : own / parent;
+}
+
+/**
+ * The config with every system's points and objects lifted into the card's
+ * own lists, each marked with its system (`_system`), the system's own entry
+ * kept without them. Ids are card-wide, so everything that reads points and
+ * objects (labels, templates, entity positions, rules, the runtime) reads one
+ * flat list. A config without systems comes back as it is.
+ * @template T
+ * @param {T} config
+ * @returns {T}
+ */
+export function flattenSystems(config) {
+  const c = /** @type {any} */ (config);
+  const objs = Array.isArray(c?.objects) ? c.objects : [];
+  if (!objs.some((/** @type {any} */ o) => o?.type === 'system')) return config;
+  const points = Array.isArray(c.points) ? [...c.points] : [];
+  /** @type {any[]} */
+  const objects = [];
+  let n = 0;
+  /** @param {any[]} list @param {string | undefined} parent */
+  const lift = (list, parent) => {
+    for (const o of list) {
+      if (!o || typeof o !== 'object' || o.type !== 'system') {
+        objects.push(o && typeof o === 'object' && parent !== undefined ? { ...o, _system: parent } : o);
+        continue;
+      }
+      n++;
+      const { points: ps, objects: os, ...own } = o;
+      const id = own.id === undefined || own.id === null || own.id === '' ? `system#${n}` : String(own.id);
+      objects.push({ ...own, id, ...(parent !== undefined ? { _system: parent } : {}) });
+      for (const p of Array.isArray(ps) ? ps : []) if (p && typeof p === 'object') points.push({ ...p, _system: id });
+      lift(Array.isArray(os) ? os : [], id);
+    }
+  };
+  lift(objs, undefined);
+  return { ...c, points, objects };
+}
 
 /** Object types built from the effects chunk (`core/astrometrics/effects`) */
 export const EFFECT_TYPES = /** @type {const} */ (['nebula', 'cube']);
@@ -92,7 +160,7 @@ export const PLACEMENT_FORMS = /** @type {const} */ (['xyz', 'polar', 'latlon', 
  * @param {any} config
  */
 export function usesEffects(config) {
-  const objects = Array.isArray(config?.objects) ? config.objects : [];
+  const objects = Array.isArray(config?.objects) ? flattenSystems(config).objects : [];
   return objects.some((o) => o && (/** @type {readonly string[]} */ (EFFECT_TYPES).includes(o.type) || o.fill_effect));
 }
 
@@ -101,6 +169,6 @@ export function usesEffects(config) {
  * @param {any} config
  */
 export function usesModels(config) {
-  const objects = Array.isArray(config?.objects) ? config.objects : [];
+  const objects = Array.isArray(config?.objects) ? flattenSystems(config).objects : [];
   return objects.some((o) => o && /** @type {readonly string[]} */ (MODEL_TYPES).includes(o.type));
 }

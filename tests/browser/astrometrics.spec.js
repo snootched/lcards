@@ -665,8 +665,9 @@ test('E8 trail: grows behind a moving point, as long as length, head on the poin
         const p = s.world.places.get('ship');
         const pos = line.geometry.attributes.instanceStart.data.array;
         const n = line._segs.count;
-        // the head: the last segment's end
-        const head = [pos[(n - 1) * 6 + 3], pos[(n - 1) * 6 + 4], pos[(n - 1) * 6 + 5]];
+        // the head: the last segment's end (vertices are relative to the trail's node, which sits on the head)
+        const o = t.node.position;
+        const head = [pos[(n - 1) * 6 + 3] + o.x, pos[(n - 1) * 6 + 4] + o.y, pos[(n - 1) * 6 + 5] + o.z];
         return { segments: n, visible: line.object.visible, head, ship: [p.x, p.y, p.z] };
     });
     await expect.poll(async () => (await wake()).segments, { timeout: 5_000 }).toBeGreaterThan(20);
@@ -779,5 +780,67 @@ test('E10 true scale: the Sun, Earth and Deep Space 9 in km draw at every view',
     st = await state();
     await shot('station-after-fly');
     expect(st.slices.length).toBeGreaterThan(1);
+    await expectNoErrors(page);
+});
+
+test('E10 star system: a dive from a galaxy in ly to a station in km, the frame changing on the way', async ({ page }) => {
+    await mountCase(page, 'astro-dive', { width: '800' });
+    await sceneReady(page);
+    const state = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const ds9 = s.world.places.get('ds9');
+        const label = (id) => { const it = s.labelItems.find((l) => l.id === id); return it?.visible ? [it.sx, it.sy] : null; };
+        return {
+            frame: s.frame, keys: s.keys, slices: s.depthSlices, model: s.world.objects.get('station').isReady(),
+            ds9: ds9 ? [ds9.x, ds9.y, ds9.z] : null, earth: label('earth'), ds9Label: label('ds9'), sol: label('sol'), changes: s.frameChanges
+        };
+    });
+    const shot = async (name) => { if (process.env.LCARDS_SHOTS) await page.screenshot({ path: `${process.env.LCARDS_SHOTS}/dive-${name}.png` }); };
+    const fly = (view, duration = 0) => page.evaluate(([v, d]) => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo(v, { duration: d }), [view, duration]);
+    // the galaxy: the scene's own frame
+    let st = await state();
+    expect(st.frame).toBe('root');
+    await expect.poll(async () => (await state()).sol, { timeout: 5_000 }).not.toBeNull();
+    expect(await litPixels(page)).toBeGreaterThan(2000);
+    await shot('galaxy');
+    await fly('near_sol');
+    expect((await state()).frame).toBe('root');
+    await shot('near-sol');
+    // Earth from 70,000 km: inside the system, in km
+    await fly('earth');
+    await expect.poll(async () => (await state()).frame, { timeout: 5_000 }).toBe('sol_system');
+    await expect.poll(async () => (await state()).earth, { timeout: 5_000 }).not.toBeNull();
+    expect(await litPixels(page)).toBeGreaterThan(2000);
+    await shot('earth');
+    // no jump at a frame change: the same view drawn in the galaxy's frame puts Earth and DS9 where they were
+    const before = await state();
+    await page.evaluate(() => { const d = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug(); d.holdFrame(true); d.setFrame('root'); });
+    await page.evaluate(() => { /** @type {any} */ (document.querySelector('#mount > *'))._scene.requestFrame(); return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); });
+    const flipped = await state();
+    expect(flipped.frame).toBe('root');
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().holdFrame(false));
+    for (const id of ['earth', 'ds9Label']) {
+        expect(flipped[id], id).not.toBeNull();
+        expect(Math.hypot(flipped[id][0] - before[id][0], flipped[id][1] - before[id][1]), id).toBeLessThan(1);
+    }
+    // the station, 4 km out: depth slices, and the camera on DS9 exactly
+    await fly('station');
+    await expect.poll(async () => (await state()).frame, { timeout: 5_000 }).toBe('sol_system');
+    await expect.poll(async () => (await state()).model, { timeout: 15_000 }).toBe(true);
+    await expect.poll(async () => (await state()).slices.length, { timeout: 5_000 }).toBeGreaterThan(1);
+    st = await state();
+    expect(st.frame).toBe('sol_system');
+    expect([st.keys.tx, st.keys.ty, st.keys.tz]).toEqual(st.ds9);
+    expect(await litPixels(page)).toBeGreaterThan(2000);
+    await shot('station');
+    // out to the galaxy and all the way back in one fly-to: lands on DS9 exactly, in the system's km
+    await fly('galaxy', 1500);
+    await expect.poll(async () => (await state()).frame, { timeout: 8_000 }).toBe('root');
+    await fly('station', 2500);
+    await expect.poll(async () => (await state()).keys.distance, { timeout: 8_000 }).toBe(4);
+    st = await state();
+    expect(st.frame).toBe('sol_system');
+    expect([st.keys.tx, st.keys.ty, st.keys.tz]).toEqual(st.ds9);
+    await shot('station-after-dive');
     await expectNoErrors(page);
 });

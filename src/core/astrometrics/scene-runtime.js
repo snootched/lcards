@@ -25,7 +25,8 @@ import { parseColorToRgba } from '../packs/textures/effects/noise-helpers.js';
 import { resolveColor as defaultResolveColor } from '../themes/resolve-color.js';
 import { prefersReducedMotion, onReducedMotionChange } from '../../utils/reduced-motion.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { CameraRig, viewToKeys, parseLimits, clampKeys, screenRay, rayPlane, DEFAULT_KEYS } from './camera-rig.js';
+import { CameraRig, viewToKeys, parseLimits, clampKeys, screenRay, rayPlane, cameraPose, DEFAULT_KEYS } from './camera-rig.js';
+import { ROOT } from './frames.js';
 import { LabelLayer } from './label-layer.js';
 import { CardLayer, pointCard } from './card-layer.js';
 import { markerSvg } from './markers.js';
@@ -39,7 +40,7 @@ import { skyState } from './sky.js';
 import { warpTails } from './star-field.js';
 import { STAR_SHELL } from './objects/stars.js';
 import { num, stepObjects } from './objects/common.js';
-import { usesEffects, usesModels } from './names.js';
+import { usesEffects, usesModels, flattenSystems } from './names.js';
 
 const DEG = Math.PI / 180;
 /** Point keys that place it: a rule patch on one moves the point */
@@ -170,7 +171,8 @@ const CSS = `
 export function createAstroScene(host, config, options = {}) {
   const resolve = options.resolveColor ?? defaultResolveColor;
   let hass = options.hass ?? null;
-  let cfg = config ?? {};
+  // systems' points and objects in the card's own lists (ids are card-wide)
+  let cfg = flattenSystems(config ?? {});
 
   const wrap = document.createElement('div');
   wrap.className = 'astro-scene';
@@ -251,8 +253,23 @@ export function createAstroScene(host, config, options = {}) {
   /** @type {Record<string, any>} */
   let views = {};
   let cameraKey = '';
-  /** @type {{ keys: import('./camera-rig.js').CameraKeys, projection: 'perspective' | 'orthographic' } | null} the start view, for reset */
+  /**
+   * The start view, for reset: its keys in `frame`'s units, and the point it targets (re-read on the way home)
+   * @type {{ keys: import('./camera-rig.js').CameraKeys, projection: 'perspective' | 'orthographic', frame: string, ref: any } | null}
+   */
   let home = null;
+  /** @type {import('./camera-rig.js').CameraLimits} the limits in scene (root frame) units */
+  let baseLimits = parseLimits(null);
+  /**
+   * What the running fly-to lands on: a point (`ref`, re-read exactly after a
+   * frame change) or a position in `frame`'s units; `fly` is the rig's flight it
+   * belongs to (another fly-to, a nudge, replaces it)
+   * @type {{ fly: any, ref?: any, pos?: number[], frame: string } | null}
+   */
+  let flyRef = null;
+  let frameChanges = 0;
+  /** Tests: keep the current frame (no frame change follows the camera) */
+  let frameHold = false;
 
   /** @type {import('./objects/common.js').BuildContext} */
   const ctx = {
@@ -336,11 +353,151 @@ export function createAstroScene(host, config, options = {}) {
   /** Initial camera from the config (the start view, else framing the bounds) */
   function initialView() {
     const view = startView();
+    // set in the start view's own frame, where its target is exact
+    if (world && view) setFrame(refFrame(view.target), false);
     const b = world?.bounds;
+    const c = b ? toCurrent([b.center.x, b.center.y, b.center.z], ROOT) : [0, 0, 0];
     // A named view that leaves out yaw faces north; with no view, frame the bounds at an angle
-    const base = { ...DEFAULT_KEYS, tx: b?.center.x ?? 0, ty: b?.center.y ?? 0, tz: b?.center.z ?? 0, distance: (b?.radius ?? 100) * 2.8, ...(view ? { yaw: 0 } : {}) };
-    rig.set({ ...base, ...viewToKeys(view, (r) => world?.places.resolve(r) ?? null) }, view?.projection === 'orthographic' ? 'orthographic' : 'perspective');
-    home = { keys: { ...rig.keys }, projection: rig.projection };
+    const base = { ...DEFAULT_KEYS, tx: c[0], ty: c[1], tz: c[2], distance: (b?.radius ?? 100) * 2.8 * unitOf(ROOT), ...(view ? { yaw: 0 } : {}) };
+    rig.set({ ...base, ...viewKeys(view) }, view?.projection === 'orthographic' ? 'orthographic' : 'perspective');
+    home = { keys: { ...rig.keys }, projection: rig.projection, frame: world?.frames.current ?? ROOT, ref: typeof view?.target === 'string' ? view.target : null };
+  }
+
+  // Frames (systems at true scale, frames.js) ------------------------------
+
+  /** @param {string | undefined | null} frame - world units per unit of it, now */
+  function unitOf(frame) {
+    return world ? world.frames.unit(frame ?? ROOT) : 1;
+  }
+
+  /**
+   * A position in `frame`'s units, in the current frame's.
+   * @param {number[]} p
+   * @param {string} frame
+   */
+  function toCurrent(p, frame) {
+    return world ? world.frames.convert(p, frame, world.frames.current) : [p[0], p[1], p[2]];
+  }
+
+  /**
+   * The frame a target is in: a point's system, else the scene's (a literal is in scene units).
+   * @param {any} ref
+   */
+  function refFrame(ref) {
+    return typeof ref === 'string' ? (world?.places.defs.get(ref)?._system ?? ROOT) : ROOT;
+  }
+
+  /**
+   * A target (a point id, or [x, y, z] in scene units) where it is now.
+   * @param {any} ref
+   * @returns {Vector3 | null}
+   */
+  function resolveRef(ref) {
+    if (!world) return null;
+    if (Array.isArray(ref)) {
+      if (!(ref.length >= 3 && ref.every(Number.isFinite))) return null;
+      const [x, y, z] = toCurrent(ref, ROOT);
+      return new Vector3(x, y, z);
+    }
+    return world.places.resolve(ref);
+  }
+
+  /**
+   * A view's keys now: its target, and its distance in the target's units.
+   * @param {any} view
+   */
+  function viewKeys(view) {
+    const k = viewToKeys(view, resolveRef);
+    if (k.distance !== undefined) k.distance *= unitOf(refFrame(view?.target));
+    return k;
+  }
+
+  /**
+   * The limits (scene units in the config) in the current frame's units.
+   * @param {import('./camera-rig.js').CameraLimits} l
+   * @returns {import('./camera-rig.js').CameraLimits}
+   */
+  function limitsNow(l) {
+    if (!world || world.frames.current === ROOT) return l;
+    const k = unitOf(ROOT);
+    const t = l.target;
+    /** @type {import('./camera-rig.js').TargetLimit | null} */
+    let target = t;
+    if (t && 'radius' in t) target = { center: /** @type {[number, number, number]} */ (toCurrent(t.center, ROOT)), radius: t.radius * k };
+    else if (t) {
+      /** @type {{ x?: [number, number], y?: [number, number], z?: [number, number] }} */
+      const box = {};
+      /** @type {const} */ (['x', 'y', 'z']).forEach((a, i) => {
+        const r = t[a];
+        if (!r) return;
+        const ends = r.map((v) => toCurrent(i === 0 ? [v, 0, 0] : i === 1 ? [0, v, 0] : [0, 0, v], ROOT)[i]);
+        box[a] = [Math.min(ends[0], ends[1]), Math.max(ends[0], ends[1])];
+      });
+      target = box;
+    }
+    return { ...l, distance: [l.distance[0] * k, l.distance[1] * k], target };
+  }
+
+  /**
+   * Make `next` the current frame: the scene re-based once (frames.js), the
+   * camera's keys and a running fly-to converted with it (`convert`), so the
+   * picture does not move.
+   * @param {string} next
+   * @param {boolean} [convert]
+   */
+  function setFrame(next, convert = true) {
+    if (!world || !world.frames.nested || !world.frames.frames.has(next) || next === world.frames.current) return;
+    const f = world.frames;
+    const from = f.current;
+    f.current = next;
+    f.place();
+    world.scene.updateMatrixWorld(true);
+    world.rebased();
+    frameChanges++;
+    if (!convert) {
+      rig.limits = limitsNow(baseLimits);
+      return;
+    }
+    /** @param {number[]} p */
+    const point = (p) => f.convert(p, from, next);
+    // a fly-to landing on a point lands on it exactly as the new frame sees it
+    let target = null;
+    if (flyRef && flyRef.fly === rig.fly) {
+      const p = flyRef.ref !== undefined ? resolveRef(flyRef.ref) : null;
+      const q = p ? [p.x, p.y, p.z] : flyRef.pos ? f.convert(flyRef.pos, flyRef.frame, next) : null;
+      if (q) target = { tx: q[0], ty: q[1], tz: q[2] };
+    }
+    rig.rebase(point, f.ratio(from, next), target);
+    rig.limits = limitsNow(baseLimits);
+    if (lastCamera) lastCamera.fromArray(point(lastCamera.toArray()));
+  }
+
+  /** The camera's frame for where it is now (each frame, before it is placed) */
+  function followFrame() {
+    if (!world || !world.frames.nested || frameHold) return;
+    const next = world.frames.pick(cameraPose(rig.keys).position);
+    if (next !== world.frames.current) setFrame(next);
+  }
+
+  /**
+   * Fly the rig, remembering what the flight lands on (see flyRef). A target
+   * in a system the camera is not in yet: the camera moves into that frame
+   * first and reads the target there, exactly (seen from a galaxy in light
+   * years, a station a few km away would be some km off).
+   * @param {() => Partial<import('./camera-rig.js').CameraKeys>} keys - the landing keys, current frame (read after that move)
+   * @param {{ ref?: any, pos?: number[], frame?: string }} target - a point id, or a position in `frame`'s units (default the current frame's)
+   * @param {Parameters<CameraRig['flyTo']>[1]} opts
+   */
+  function fly(keys, target, opts) {
+    const f = world?.frames;
+    const at = target.frame ?? f?.current ?? ROOT;
+    if (f) {
+      const into = target.ref !== undefined ? refFrame(target.ref) : at;
+      if (into !== f.current && f.chain(into).some((x) => x.id === f.current)) setFrame(into);
+    }
+    const done = rig.flyTo(keys(), opts);
+    flyRef = rig.fly ? { fly: rig.fly, frame: at, ...(target.ref !== undefined ? { ref: target.ref } : {}), ...(target.pos ? { pos: target.pos } : {}) } : null;
+    return done;
   }
 
   /**
@@ -373,7 +530,9 @@ export function createAstroScene(host, config, options = {}) {
     rig.dragMode = cam.drag === 'pan' ? 'pan' : 'orbit';
     rig.zoomTo = cam.zoom_to === 'target' ? 'target' : 'cursor';
     rig.zoomStep = num(cam.zoom_step, 2) > 1 ? num(cam.zoom_step, 2) : 2;
-    rig.limits = parseLimits(cam.limits, sceneSphere());
+    // measured in the scene's own frame (a new world is built in it), used in the current one
+    baseLimits = parseLimits(cam.limits, sceneSphere());
+    rig.limits = limitsNow(baseLimits);
   }
 
   /** @type {{ effects?: Promise<void>, models?: Promise<void> }} the lazy chunks loading */
@@ -404,6 +563,9 @@ export function createAstroScene(host, config, options = {}) {
   }
 
   function build() {
+    // the camera's keys are in this frame's units: a rebuild keeps it (or converts them to the scene's)
+    const before = world?.frames;
+    const keepFrame = before?.current ?? ROOT;
     world?.dispose();
     world = null;
     ready = false;
@@ -435,6 +597,10 @@ export function createAstroScene(host, config, options = {}) {
       f.userData.baseWidths ??= [u.uWidthMinor.value, u.uWidthMajor.value];
     }
     applyCameraOptions();
+    if (keepFrame !== ROOT) {
+      if (world.frames.frames.has(keepFrame)) setFrame(keepFrame, false);
+      else if (before) rig.rebase((p) => before.convert(p, keepFrame, ROOT), before.ratio(keepFrame, ROOT));
+    }
     views = cfg.camera?.views && typeof cfg.camera.views === 'object' ? cfg.camera.views : {};
     // Only a new start view moves the camera: adding or editing other views
     // (the Studio capturing one) leaves it where it is
@@ -507,6 +673,7 @@ export function createAstroScene(host, config, options = {}) {
     const settle = depthFresh;
     depthFresh = false;
     const flying = rig.step(now);
+    followFrame();
     rig.apply();
     const camera = rig.camera;
     streaks(camera.position, dt, flying);
@@ -521,7 +688,7 @@ export function createAstroScene(host, config, options = {}) {
     // Level of detail for this view (belt rocks far away become dots)
     for (const b of world.list) b.lod?.({ camera, height: cssH, dpr });
     // Objects out of their distance range hide, partly faded ones blend, for this render
-    fader.begin(world.list, world.outer, camera.position);
+    fader.begin(world.list, world.outer, camera.position, (b) => unitOf(b.config._system));
     try {
       const plan = depthPlan(camera);
       const scene = world.scene;
@@ -557,7 +724,7 @@ export function createAstroScene(host, config, options = {}) {
     const fields = [world.stars?.field, world.dust?.field].filter((f) => !!f);
     const warping = flying && rig.warp && !reduced;
     const tails = warping && lastCamera
-      ? warpTails(position.clone().sub(lastCamera), dt, { sceneRadius: world.bounds.radius, shell: STAR_SHELL, streak: num(cfg.backdrop?.stars?.streak, 1) })
+      ? warpTails(position.clone().sub(lastCamera), dt, { sceneRadius: world.bounds.radius * unitOf(ROOT), shell: STAR_SHELL, streak: num(cfg.backdrop?.stars?.streak, 1) })
       : null;
     lastCamera = position.clone();
     if (!fields.length) return;
@@ -635,6 +802,7 @@ export function createAstroScene(host, config, options = {}) {
     for (const it of labels.items) {
       const def = /** @type {any} */ (it).def;
       it.world = world.places.get(it.id);
+      it.unit = unitOf(def._system);
       it.alphaScale = pointAlpha.get(it.id) ?? 1;
       const alt = def.sky ? sky?.[/** @type {'sun' | 'moon'} */ (def.sky)]?.altitude : Array.isArray(def.altaz) ? Number(def.altaz[1]) : undefined;
       if (alt !== undefined && alt < 0) {
@@ -660,7 +828,7 @@ export function createAstroScene(host, config, options = {}) {
         const scale = new Vector3().setFromMatrixScale(b.node.matrixWorld).x;
         biases.set(b.id, (b.radius ?? 1) * 2 * scale * 0.05);
       }
-      const near = (world.bounds.radius || 100) * 0.002;
+      const near = (world.bounds.radius || 100) * 0.002 * unitOf(ROOT);
       // (at most 1 % of the label's own distance: at true scale the scene's size is no measure)
       occluders.push({ kind: 'depth', snapshot, id: '', bias: (host, dist) => (host !== null && biases.get(host)) || Math.min(near, dist * 0.01) });
     }
@@ -975,16 +1143,16 @@ export function createAstroScene(host, config, options = {}) {
     if (hit.kind === 'point' && cards.showsOnTap(hit.id)) {
       const opened = cards.toggle(hit.id);
       select(opened ? hit.id : null);
-      if (action?.action === 'fly-to' && options.onTap?.(hit) !== true) flyToPosition(hit.position, hit.config.view);
+      if (action?.action === 'fly-to' && options.onTap?.(hit) !== true) flyToHit(hit);
       return;
     }
     if (options.onTap?.(hit) === true) return;
     if (hit.kind === 'point') {
       if (action && action.action !== 'fly-to') return;
       select(hit.id);
-      flyToPosition(hit.position, hit.config.view);
+      flyToHit(hit);
     } else if (action?.action === 'fly-to') {
-      flyToPosition(hit.position, hit.config.view);
+      flyToHit(hit);
     }
   }
 
@@ -1091,15 +1259,30 @@ export function createAstroScene(host, config, options = {}) {
     requestFrame();
   }
 
+  /** @param {AstroTapHit} hit */
+  function flyToHit(hit) {
+    return hit.kind === 'point'
+      ? flyToPosition(hit.position, hit.config.view, { ref: hit.id }, refFrame(hit.id))
+      : flyToPosition(hit.position, hit.config.view, { pos: hit.position.toArray() }, hit.config?._system ?? ROOT);
+  }
+
   /**
-   * @param {Vector3} p
-   * @param {any} [view] - keys to land on (`distance`, `tilt`, `yaw`)
+   * @param {Vector3} p - current frame
+   * @param {any} [view] - keys to land on (`distance`, `tilt`, `yaw`; the distance in `frame`'s units)
+   * @param {{ ref?: any, pos?: number[] }} [target] - what it lands on (a point id)
+   * @param {string} [frame] - the frame the point is in
    */
-  function flyToPosition(p, view) {
-    const base = views[cfg.camera?.view] ?? views[Object.keys(views)[0]];
-    const startDist = num(base?.distance, (world?.bounds.radius ?? 100) * 2.8);
-    const keys = { tx: p.x, ty: p.y, tz: p.z, distance: Math.min(rig.keys.distance, startDist * 0.35), ...viewToKeys(view, () => null) };
-    return rig.flyTo(keys, { duration: num(cfg.camera?.fly_duration, 1600), ease: cfg.camera?.ease, warp: warpFor(view) });
+  function flyToPosition(p, view, target = { pos: p.toArray() }, frame = ROOT) {
+    const keys = () => {
+      // a point is read again (fly() may have moved into its frame)
+      const q = (target.ref !== undefined ? resolveRef(target.ref) : null) ?? p;
+      const base = views[cfg.camera?.view] ?? views[Object.keys(views)[0]];
+      const startDist = base?.distance !== undefined ? num(base.distance, 1) * unitOf(refFrame(base.target)) : (world?.bounds.radius ?? 100) * 2.8 * unitOf(ROOT);
+      const own = viewToKeys(view, () => null);
+      if (own.distance !== undefined) own.distance *= unitOf(frame);
+      return { tx: q.x, ty: q.y, tz: q.z, distance: Math.min(rig.keys.distance, startDist * 0.35), ...own };
+    };
+    return fly(keys, target, { duration: num(cfg.camera?.fly_duration, 1600), ease: cfg.camera?.ease, warp: warpFor(view) });
   }
 
   /**
@@ -1112,18 +1295,18 @@ export function createAstroScene(host, config, options = {}) {
     if (typeof view === 'string') {
       if (views[view]) {
         const v = views[view];
-        return rig.flyTo(viewToKeys(v, (r) => world?.places.resolve(r) ?? null), { duration, ease: cfg.camera?.ease, projection: v.projection === 'orthographic' ? 'orthographic' : 'perspective', warp: opts.warp ?? warpFor(v) });
+        return fly(() => viewKeys(v), { ref: v.target }, { duration, ease: cfg.camera?.ease, projection: v.projection === 'orthographic' ? 'orthographic' : 'perspective', warp: opts.warp ?? warpFor(v) });
       }
       const p = world.places.get(view);
-      if (p) return flyToPosition(p);
+      if (p) return flyToPosition(p, undefined, { ref: view }, refFrame(view));
       lcardsLog.warn(`[Astrometrics] no view or point '${view}'`);
       return Promise.resolve();
     }
     if (view && typeof view === 'object' && typeof view.point === 'string') {
       const p = world.places.get(view.point);
-      return p ? flyToPosition(p, opts.warp !== undefined ? { ...view, warp: opts.warp } : view) : Promise.resolve();
+      return p ? flyToPosition(p, opts.warp !== undefined ? { ...view, warp: opts.warp } : view, { ref: view.point }, refFrame(view.point)) : Promise.resolve();
     }
-    return rig.flyTo(viewToKeys(view, (r) => world?.places.resolve(r) ?? null), { duration, ease: cfg.camera?.ease, warp: opts.warp ?? warpFor(view) });
+    return fly(() => viewKeys(view), { ref: view?.target }, { duration, ease: cfg.camera?.ease, warp: opts.warp ?? warpFor(view) });
   }
 
   /**
@@ -1169,13 +1352,19 @@ export function createAstroScene(host, config, options = {}) {
     if (!world) return Promise.resolve();
     const p = zoomSpot(x, y);
     const distance = rig.keys.distance * (out ? rig.zoomStep : 1 / rig.zoomStep);
-    return rig.flyTo({ tx: p[0], ty: p[1], tz: p[2], distance }, { duration: DOUBLE_TAP_FLY_MS, ease: 'outCubic' });
+    return fly(() => ({ tx: p[0], ty: p[1], tz: p[2], distance }), { pos: p }, { duration: DOUBLE_TAP_FLY_MS, ease: 'outCubic' });
   }
 
   /** @param {{ duration?: number }} [opts] */
   function goHome({ duration } = {}) {
     if (!home) return Promise.resolve();
-    return rig.flyTo(home.keys, { duration: duration ?? num(cfg.camera?.fly_duration, 1600), ease: cfg.camera?.ease, projection: home.projection });
+    const h = home;
+    const keys = () => {
+      const p = h.ref !== null ? resolveRef(h.ref) : null;
+      const [tx, ty, tz] = p ? p.toArray() : toCurrent([h.keys.tx, h.keys.ty, h.keys.tz], h.frame);
+      return { ...h.keys, tx, ty, tz, distance: h.keys.distance * (world ? world.frames.ratio(h.frame, world.frames.current) : 1) };
+    };
+    return fly(keys, h.ref !== null ? { ref: h.ref } : { pos: [h.keys.tx, h.keys.ty, h.keys.tz], frame: h.frame }, { duration: duration ?? num(cfg.camera?.fly_duration, 1600), ease: cfg.camera?.ease, projection: h.projection });
   }
 
   /** @type {ReturnType<typeof setTimeout> | undefined} */
@@ -1248,7 +1437,7 @@ export function createAstroScene(host, config, options = {}) {
 
   return {
     setConfig(next) {
-      cfg = next ?? {};
+      cfg = flattenSystems(next ?? {});
       setControls(cfg.camera?.controls !== false);
       build();
     },
@@ -1285,7 +1474,12 @@ export function createAstroScene(host, config, options = {}) {
     cameraKeys() {
       const k = rig.keys;
       const r1 = (/** @type {number} */ v) => Math.round(v * 10) / 10;
-      return { target: [r1(k.tx), r1(k.ty), r1(k.tz)], yaw: r1(k.yaw), tilt: r1(k.tilt), distance: r1(k.distance), fov: r1(k.fov), projection: rig.projection };
+      // in scene units (a view's literal target is), whichever frame the camera is in
+      const f = world?.frames;
+      const t = f ? f.convert([k.tx, k.ty, k.tz], f.current, ROOT) : [k.tx, k.ty, k.tz];
+      const d = k.distance * (f ? f.ratio(f.current, ROOT) : 1);
+      const round = f && f.current !== ROOT ? (/** @type {number} */ v) => Number(v.toPrecision(9)) : r1;
+      return { target: t.map(round), yaw: r1(k.yaw), tilt: r1(k.tilt), distance: round(d), fov: r1(k.fov), projection: rig.projection };
     },
     pointPositions() {
       /** @type {Record<string, number[]>} */
@@ -1358,6 +1552,10 @@ export function createAstroScene(host, config, options = {}) {
         labels: { ...labels.stats },
         objectAlphas: Object.fromEntries(fader.alphas),
         depthSlices: lastSlices,
+        frame: world?.frames.current ?? ROOT,
+        frameChanges,
+        setFrame,
+        holdFrame: (/** @type {boolean} */ on) => { frameHold = on; },
         sky,
         world,
         rig,

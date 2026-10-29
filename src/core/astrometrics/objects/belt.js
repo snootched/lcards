@@ -298,9 +298,11 @@ export function buildBelt(cfg, ctx) {
     node.worldToLocal(local);
     const next = useDots(dots, pixelSize(camera, largest, bandDistance(local, inner, outer, thickness), height));
     const cam = /** @type {any} */ (camera);
+    // rock sizes are the belt's own units; px per world unit times world units per own unit (a system's frame)
+    const k = node.matrixWorld.getMaxScaleOnAxis();
     dotMat.uniforms.uDpr.value = dpr;
-    dotMat.uniforms.uOrtho.value = cam.isOrthographicCamera ? pixelSize(camera, 1, 1, height) : 0;
-    dotMat.uniforms.uPxPerUnit.value = cam.isOrthographicCamera ? 0 : pixelSize(camera, 1, 1, height);
+    dotMat.uniforms.uOrtho.value = cam.isOrthographicCamera ? pixelSize(camera, k, 1, height) : 0;
+    dotMat.uniforms.uPxPerUnit.value = cam.isOrthographicCamera ? 0 : pixelSize(camera, k, 1, height);
     if (next === dots) return;
     dots = next;
     mesh.visible = !dots;

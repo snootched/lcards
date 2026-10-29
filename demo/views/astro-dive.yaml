@@ -1,0 +1,58 @@
+# Astrometrics star systems (E10 part 2): a galaxy in light years with the
+# Sol system in km inside it. Dive from the galaxy to Sol, Earth and Deep
+# Space 9, or straight back out and in again.
+title: Astrometrics star systems
+path: astro-dive
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 520
+        units: ly
+        camera:
+          view: galaxy
+          buttons: true
+          fly_duration: 5000
+          views:
+            galaxy: { target: core, yaw: 20, tilt: 35, distance: 140000 }
+            sol: { target: sun, yaw: 40, tilt: 35, distance: 700000000 }
+            earth: { target: earth, yaw: 225, tilt: 12, distance: 70000 }
+            station: { target: ds9, yaw: 330, tilt: 6, distance: 4 }
+        backdrop:
+          stars: { count: 2000 }
+        points:
+          - { id: core, xyz: [ 0, 0, 0 ], label: GALACTIC CORE, style: title }
+          - { id: sol, polar: [ 26000, 200 ], alt: 60, marker: dot, label: SOL, style: major, tap_action: { action: fly-to, view: sol } }
+          - { id: vega, at: sol, offset: [ 9, 14, -21 ], marker: dot, label: VEGA, style: tiny, max_distance: 2000 }
+          - { id: altair, at: sol, offset: [ -12, 3, 10 ], marker: dot, label: ALTAIR, style: tiny, max_distance: 2000 }
+        objects:
+          - { type: grid, shape: disc, radius: 50000, pattern: polar, line_spacing: 5000, spoke_count: 36 }
+          - { type: glow, at: core, size: 30000 }
+          - type: system
+            id: sol_system
+            at: sol
+            units: km
+            points:
+              - { id: sun, xyz: [ 0, 0, 0 ] }
+              - { id: mercury, polar: [ 57909050, 200 ], marker: dot, label: MERCURY, style: tiny, max_distance: 3000000000 }
+              - { id: venus, polar: [ 108208000, 120 ], marker: dot, label: VENUS, style: tiny, max_distance: 3000000000 }
+              - { id: earth, polar: [ 149597870.7, 30 ], marker: dot, label: EARTH, style: minor, max_distance: 3000000000, tap_action: { action: fly-to, view: earth } }
+              - { id: mars, polar: [ 227939200, 320 ], marker: dot, label: MARS, style: tiny, max_distance: 3000000000 }
+              - { id: moon, at: earth, offset: [ -360000, 20000, -140000 ], label: LUNA, style: tiny, max_distance: 20000000 }
+              - { id: ds9, at: earth, offset: [ -21082, 0, 36515 ], label: DEEP SPACE 9, style: tiny, max_distance: 3000000, tap_action: { action: fly-to, view: station } }
+            objects:
+              - { type: glow, at: sun, size: 9000000, color: var(--lcars-yellow) }
+              - { type: sphere, at: sun, radius: 696340, fill_color: var(--lcars-yellow), color: var(--lcars-orange) }
+              - { type: ring, radius: 57909050, width: 1, opacity: 0.5 }
+              - { type: ring, radius: 108208000, width: 1, opacity: 0.5 }
+              - { type: ring, radius: 149597870.7, width: 1, color: var(--lcars-blue), opacity: 0.7 }
+              - { type: ring, radius: 227939200, width: 1, opacity: 0.5 }
+              - { type: sphere, at: mercury, radius: 2440, image: builtin:mercury_messenger }
+              - { type: sphere, at: venus, radius: 6052, fill_effect: { preset: clouds } }
+              - { type: sphere, at: earth, radius: 6371, image: builtin:earth_blue_marble, spin: 2 }
+              - { type: sphere, at: mars, radius: 3390, image: builtin:mars_viking }
+              - { type: sphere, at: moon, radius: 1737, image: builtin:moon_lroc }
+              - { type: model, at: ds9, src: builtin:deep_space_nine, size: 1.452, material: original }

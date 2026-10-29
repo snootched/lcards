@@ -16,7 +16,7 @@ import {
 
 /** Keys shown as their own YAML editor (with completion), by where they are */
 const YAML_FALLBACK = {
-  objects: ['tap_action', 'hold_action', 'colors', 'animation'],
+  objects: ['tap_action', 'hold_action', 'colors', 'animation', 'points', 'objects'],
   camera: ['views'],
   scene: ['background_animation'],
   labels: ['styles']

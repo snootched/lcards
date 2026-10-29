@@ -39,6 +39,7 @@ import { resolveColor } from '../core/themes/resolve-color.js';
 import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/BackgroundAnimationRenderer.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { deepMergeImmutable } from '../utils/deepMerge.js';
+import { flattenSystems } from '../core/astrometrics/names.js';
 import { registerAstrometricsCard, unregisterAstrometricsCard } from './astrometrics-registry.js';
 import { createHuiCardWrapper, createCardElement, applyHassToCard, applyCardConfig } from '../utils/ha-card-factory.js';
 
@@ -113,7 +114,7 @@ export function cameraButtonLayout(cfg) {
 }
 
 /** Config keys the scene reads; a change to anything else does not rebuild it */
-const SCENE_KEYS = ['camera', 'backdrop', 'labels', 'points', 'objects'];
+const SCENE_KEYS = ['camera', 'backdrop', 'labels', 'points', 'objects', 'units'];
 
 /** Shown when the scene cannot draw, by the runtime's failure reason */
 const FAILURES = {
@@ -355,6 +356,10 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._bindingWarned = new Set();
         /** @type {{ points: Set<string>, objects: Set<string> }} ids registered as rule targets */
         this._sceneTargets = { points: new Set(), objects: new Set() };
+        /** @type {any} the config _flat was made from */
+        this._flatFor = undefined;
+        /** @type {any} the config with systems flattened (_flatConfig) */
+        this._flat = undefined;
         /** @type {Record<string, any>} the merged rule patch per point or object id */
         this._scenePatches = {};
         /** @type {{ pointId: string, form: string, object?: string, label: string, missed?: boolean, resolve: (value: number[] | string | null) => void } | null} picking a position for the Studio */
@@ -413,8 +418,23 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
     _sceneConfig() {
         /** @type {Record<string, any>} */
         const out = {};
-        for (const key of SCENE_KEYS) if (this.config?.[key] !== undefined) out[key] = this.config[key];
+        const flat = this._flatConfig();
+        for (const key of SCENE_KEYS) if (flat?.[key] !== undefined) out[key] = flat[key];
         return out;
+    }
+
+    /**
+     * The config with every system's points and objects in the card's own
+     * lists (flattenSystems: ids are card-wide), worked out once per config.
+     * @private
+     * @returns {any}
+     */
+    _flatConfig() {
+        if (this._flatFor !== this.config) {
+            this._flatFor = this.config;
+            this._flat = flattenSystems(this.config ?? {});
+        }
+        return this._flat;
     }
 
     /**
@@ -544,7 +564,8 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
     _rebuildPointData() {
         const runtime = this._runtime;
         if (!runtime) return;
-        const points = this._withScenePatches({ points: Array.isArray(this.config?.points) ? this.config.points : [] }).points;
+        const flat = this._flatConfig();
+        const points = this._withScenePatches({ points: Array.isArray(flat?.points) ? flat.points : [] }).points;
         this._labelSources = runtime.labelSources(points, this.config?.labels);
         this._labelValues.clear();
         this._labelSeq.clear();
@@ -688,7 +709,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
     _updateTrackedEntities() {
         super._updateTrackedEntities();
         const tracked = new Set(this._trackedEntities ?? []);
-        for (const p of Array.isArray(this.config?.points) ? this.config.points : []) {
+        for (const p of Array.isArray(this._flatConfig()?.points) ? this._flatConfig().points : []) {
             if (typeof p?.entity === 'string' && p.entity) tracked.add(p.entity);
         }
         for (const b of this._bindings) tracked.add(b.entityId);
@@ -743,8 +764,9 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             systems.registerOverlay(id, { id, type, tags: Array.isArray(item.tags) ? item.tags : [], sourceCardId: this._cardGuid });
             set.add(id);
         };
-        for (const p of Array.isArray(this.config?.points) ? this.config.points : []) add(p, 'astrometrics-point', this._sceneTargets.points);
-        for (const o of Array.isArray(this.config?.objects) ? this.config.objects : []) add(o, 'astrometrics-object', this._sceneTargets.objects);
+        const flat = this._flatConfig();
+        for (const p of Array.isArray(flat?.points) ? flat.points : []) add(p, 'astrometrics-point', this._sceneTargets.points);
+        for (const o of Array.isArray(flat?.objects) ? flat.objects : []) add(o, 'astrometrics-object', this._sceneTargets.objects);
         // A config change while registered: evaluate the rules again for the new ids
         if (had && this._rulesCallback && this.hass) {
             this._singletons?.rulesEngine?.markAllDirty();

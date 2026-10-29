@@ -88,7 +88,8 @@ export function localBounds(node) {
   });
   if (out.radius < 0) return new Sphere(new Vector3(), 0);
   node.worldToLocal(out.center);
-  // radius in the node's units (an `at` group never scales)
+  // radius in the node's own units (a system's frame scales it)
+  out.radius /= node.matrixWorld.getMaxScaleOnAxis() || 1;
   return out;
 }
 
@@ -117,7 +118,8 @@ export class ObjectBounds {
       cached = { sphere: localBounds(b.node), ready };
       this._map.set(b, cached);
     }
-    return { center: this._center.copy(cached.sphere.center).applyMatrix4(b.node.matrixWorld), radius: cached.sphere.radius };
+    const m = b.node.matrixWorld;
+    return { center: this._center.copy(cached.sphere.center).applyMatrix4(m), radius: cached.sphere.radius * m.getMaxScaleOnAxis() };
   }
 }
 
@@ -140,15 +142,17 @@ export class ObjectFader {
    * @param {import('./objects/common.js').BuiltObject[]} list
    * @param {Map<import('./objects/common.js').BuiltObject, import('three').Group>} outer
    * @param {Vector3} camera - its world position
+   * @param {(b: import('./objects/common.js').BuiltObject) => number} [unit] - world units per unit of the
+   *   object's own frame (its distances are in its system's units)
    */
-  begin(list, outer, camera) {
+  begin(list, outer, camera, unit = () => 1) {
     this.alphas.clear();
     for (const b of list) {
       const range = this._range(b.config);
       if (!range) continue;
       const g = outer.get(b);
       if (!g) continue;
-      const a = distanceAlpha(range, this._distance(b, camera));
+      const a = distanceAlpha(range, this._distance(b, camera) / unit(b));
       this.alphas.set(b.id, a);
       g.visible = b.config.visible !== false && a > HIDDEN_ALPHA;
       if (g.visible && a < 1) this._scale(b.node, a);

@@ -50,6 +50,7 @@ export const LABEL_STYLES = /** @type {Record<'title' | 'major' | 'minor' | 'tin
  * @property {[number, number] | null} fade - distance where it starts fading, and where it is gone
  * @property {number} minDistance
  * @property {number} maxDistance
+ * @property {number} [unit] - world units per unit of the point's frame (its ranges are in those units); default 1
  * @property {string | null} occluderSkip - the sphere this point belongs to (never hides it)
  * @property {string | null} host - the object the point stands on (`object:`): a depth occluder lets it sit a little inside, a box occluder never hides it
  * @property {boolean} pickable
@@ -250,7 +251,8 @@ export function layoutLabels(items, camera, width, height, occluders = []) {
       if (oc.lengthSq() - tc * tc < r * r) { hidden = true; break; }
     }
     if (hidden) { occluded++; it.reason = 'occluded'; continue; }
-    const a = it.alphaScale * distanceAlpha(it, dist);
+    // its range is in its own frame's units (a point inside a system: the system's)
+    const a = it.alphaScale * distanceAlpha(it, dist / (it.unit ?? 1));
     it.alpha = a;
     if (a <= HIDDEN_ALPHA) { it.reason = 'range'; continue; }
     // Nothing drawn (only a card on the point): placed, but no box to collide
