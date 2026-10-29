@@ -759,6 +759,25 @@ const beamObject = {
     }
 };
 
+const trailObject = {
+    type: 'object',
+    title: 'trail',
+    required: ['type', 'point'],
+    allOf: [objectCommonSchema],
+    description: 'A line behind a moving point showing where it has been (a ship\'s wake, a planet\'s recent orbit), built while the card is open.',
+    properties: {
+        type: { type: 'string', const: 'trail', description: 'trail: where a moving point has been.' },
+        point: { type: 'string', description: 'The id of the point to follow: one that moves (on a spinning ring, on a model part, or placed from an entity).' },
+        length: number('How far back the trail reaches, seconds of the point\'s motion.', { exclusiveMinimum: 0, default: 10 }),
+        fade: { type: 'boolean', default: true, description: 'Fade from the colour at the point to black at the tail (the background, in space). false: one colour all along.' },
+        width: lineCommon.width,
+        dash: lineCommon.dash,
+        color: color('Trail colour (at the point). Default var(--lcars-orange).'),
+        blend: blendAdd,
+        ...flowKeys
+    }
+};
+
 const imageObject = {
     type: 'object',
     title: 'image',
@@ -886,7 +905,7 @@ const modelObject = {
     }
 };
 
-const OBJECT_SCHEMAS = { model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject, belt: beltObject };
+const OBJECT_SCHEMAS = { model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject, belt: beltObject, trail: trailObject };
 
 /** One scene object (published as its own shared file, scripts/lib/schema-publish.js) */
 export const objectSchema = {

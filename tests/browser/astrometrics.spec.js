@@ -654,3 +654,28 @@ test('E8 belt: one instanced draw of rocks, moving (period, tumble), held by red
     expect((await sceneState(page)).frames - held.frames).toBeLessThanOrEqual(1);
     await expectNoErrors(page);
 });
+
+test('E8 trail: grows behind a moving point, as long as length, head on the point', async ({ page }) => {
+    await mountCase(page, 'astro-trail', { width: '800' });
+    await sceneReady(page);
+    const wake = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const t = s.world.objects.get('wake');
+        const line = t.lines[t.lines.length - 1];
+        const p = s.world.places.get('ship');
+        const pos = line.geometry.attributes.instanceStart.data.array;
+        const n = line._segs.count;
+        // the head: the last segment's end
+        const head = [pos[(n - 1) * 6 + 3], pos[(n - 1) * 6 + 4], pos[(n - 1) * 6 + 5]];
+        return { segments: n, visible: line.object.visible, head, ship: [p.x, p.y, p.z] };
+    });
+    await expect.poll(async () => (await wake()).segments, { timeout: 5_000 }).toBeGreaterThan(20);
+    await page.waitForTimeout(2_500);
+    const w = await wake();
+    expect(w.visible).toBe(true);
+    for (let i = 0; i < 3; i++) expect(Math.abs(w.head[i] - w.ship[i])).toBeLessThan(0.5);
+    // 2 s at 90 degrees a second: about 180 degrees of the orbit, not the whole circle
+    expect(w.segments).toBeLessThan(300);
+    expect(await litPixels(page)).toBeGreaterThan(500);
+    await expectNoErrors(page);
+});

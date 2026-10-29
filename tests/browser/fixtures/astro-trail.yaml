@@ -1,0 +1,12 @@
+# A trail (astrometrics.spec.js): a point on a spinning ring leaves a fading
+# line 2 seconds long behind it.
+type: custom:lcards-astrometrics-card
+height: 360
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 0, tilt: 90, distance: 120 }
+points:
+  - { id: ship, polar: [40, 0], object: orbit, marker: dot, label: SHIP }
+objects:
+  - { type: ring, id: orbit, radius: 40, spin: 90, width: 0.5, opacity: 0.2 }
+  - { type: trail, id: wake, point: ship, length: 2, width: 3 }

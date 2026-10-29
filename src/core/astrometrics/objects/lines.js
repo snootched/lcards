@@ -3,7 +3,8 @@
  * with `image`, a flat textured band, Saturn's rings),
  * `path` (a line through points, or an arched route between two; a
  * `sky: sun | moon` path is the body's track across today, split where it
- * goes below the horizon), and `beam` (a glowing straight line). Widths and
+ * goes below the horizon), `beam` (a glowing straight line) and `trail`
+ * (where a moving point has been, fading to its tail). Widths and
  * dashes are CSS px. Ends on moving points (a spinning planet, the sky) are
  * re-read every frame.
  *
@@ -351,5 +352,107 @@ export function buildBeam(cfg, ctx) {
     lines.forEach((l) => l.setRuns(run));
   };
   out.dynamic = !!(ctx.places?.isDynamic(cfg.from) || ctx.places?.isDynamic(cfg.to));
+  return out;
+}
+
+/** Most samples a trail keeps (older ones are thinned out) */
+export const TRAIL_SAMPLES = 256;
+
+/**
+ * Where a point has been: samples at least `length / TRAIL_SAMPLES` apart,
+ * the newest last, plus the head (where the point is now). Samples older than
+ * `length` drop off, the oldest sliding toward the next so the tail shrinks
+ * smoothly. Pure (the caller passes the time), so it is tested without a clock.
+ */
+export class TrailHistory {
+  /** @param {number} lengthMs - how long the trail is, ms */
+  constructor(lengthMs) {
+    this.length = Math.max(1, lengthMs);
+    this.step = this.length / TRAIL_SAMPLES;
+    /** @type {{ t: number, p: number[] }[]} */
+    this.samples = [];
+    /** @type {number[] | null} */
+    this.head = null;
+  }
+
+  /**
+   * The point's position now.
+   * @param {number} t - ms
+   * @param {number[]} p - [x, y, z]
+   */
+  push(t, p) {
+    this.head = [...p];
+    const last = this.samples[this.samples.length - 1];
+    if (!last || t - last.t >= this.step) this.samples.push({ t, p: [...p] });
+    this.age(t);
+  }
+
+  /** Drop samples older than the trail's length (the newest stays) @param {number} t */
+  age(t) {
+    const s = this.samples;
+    const from = t - this.length;
+    while (s.length > 1 && s[1].t <= from) s.shift();
+    if (s.length > 1 && s[0].t < from) {
+      const [a, b] = s;
+      const k = (from - a.t) / (b.t - a.t);
+      a.p = a.p.map((v, i) => v + (b.p[i] - v) * k);
+      a.t = from;
+    }
+  }
+
+  /** Whether there is a line to draw (the point has moved within the length) */
+  get moving() {
+    return this.run().length >= 6;
+  }
+
+  /** The run, oldest to newest, the head last (empty when there is no line) */
+  run() {
+    const pts = this.samples.map((x) => x.p);
+    const last = pts[pts.length - 1];
+    const h = this.head;
+    if (h && last && (h[0] !== last[0] || h[1] !== last[1] || h[2] !== last[2])) pts.push(h);
+    // a still point leaves equal samples behind: no line
+    const moved = pts.some((q) => q[0] !== pts[0][0] || q[1] !== pts[0][1] || q[2] !== pts[0][2]);
+    return pts.length > 1 && moved ? pts.flat() : [];
+  }
+}
+
+/**
+ * `trail`: a line behind a moving point (`point`), `length` seconds long,
+ * built while the card is open. `fade` (default) runs it from the colour at
+ * the point to black at the tail (the background, in space). Normal blending:
+ * added light doubles where the short segments' ends overlap, beading the line.
+ * @param {any} cfg
+ * @param {import('./common.js').BuildContext} ctx
+ * @returns {import('./common.js').BuiltObject}
+ */
+export function buildTrail(cfg, ctx) {
+  const node = new Group();
+  node.name = `trail:${cfg.id ?? ''}`;
+  const out = built(cfg, node);
+  const style = lineStyle(cfg, ctx, DEFAULT_COLORS.path);
+  if (cfg.fade !== false) {
+    // runs go oldest to newest: from black to the colour
+    style.colorTo = style.color;
+    style.color = [0, 0, 0, style.color[3] ?? 1];
+  }
+  // no glow: a wide additive line beads where its many short segments overlap
+  const lines = addLine(out, { ...cfg, glow: false }, style);
+  const history = new TrailHistory(num(cfg.length, 10) * 1000);
+  const flow = flowTicker(cfg, lines);
+  // frames keep coming while the tail has somewhere to shrink to
+  out.tick = (dt, t) => {
+    const f = flow ? flow(dt, t) : false;
+    return history.moving || f;
+  };
+  out.update = () => {
+    const p = ctx.places?.resolve(cfg.point);
+    const now = performance.now();
+    if (p) history.push(now, [p.x, p.y, p.z]);
+    else history.age(now);
+    const run = history.run();
+    lines.forEach((l) => l.setRuns(run.length ? [run] : []));
+  };
+  out.dynamic = true;
   return out;
 }

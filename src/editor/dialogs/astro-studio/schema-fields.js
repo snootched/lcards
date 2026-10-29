@@ -296,6 +296,9 @@ export function newObject(type, objectIds, pointIds) {
       obj.from = a ?? [-50, 0, 0];
       obj.to = b ?? [50, 0, 0];
       break;
+    case 'trail':
+      if (a) obj.point = a;
+      break;
     default: break;
   }
   return obj;

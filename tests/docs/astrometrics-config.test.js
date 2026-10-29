@@ -39,7 +39,7 @@ test('objects are checked against their own type: a sphere key on a grid is unkn
 test('an unknown object type names the choices and the closest one', () => {
     const out = issues({ objects: [{ type: 'sphear', radius: 4 }] });
     assert.equal(out.length, 1);
-    assert.match(out[0], /^error schema objects\[0\]\.type: unknown type "sphear" \(one of grid, volume, sphere, image, glow, nebula, model, ring, path, beam, belt\) \(did you mean "sphere"\?\)$/);
+    assert.match(out[0], /^error schema objects\[0\]\.type: unknown type "sphear" \(one of grid, volume, sphere, image, glow, nebula, model, ring, path, beam, belt, trail\) \(did you mean "sphere"\?\)$/);
 });
 
 test('reference checks: placement forms, ids that must exist, object: of the right kind, views', () => {
@@ -257,4 +257,10 @@ test('E8 content: every built-in image and model file in the pack exists in src/
         const file = String(/** @type {any} */ (a).url).replace(/^\/lcards\//, 'src/assets/');
         assert.ok(existsSync(new URL(`../../${file}`, import.meta.url)), `${k}: ${file}`);
     }
+});
+
+test('E8 trail: point must name a point', () => {
+    const out = issues({ points: [{ id: 'ship', xyz: [0, 0, 0] }], objects: [{ type: 'trail', point: 'shp' }, { type: 'trail', point: 'ship' }] });
+    assert.equal(out.length, 1);
+    assert.match(out[0], /objects\[0\]\.point: .*"shp".*did you mean "ship"/);
 });

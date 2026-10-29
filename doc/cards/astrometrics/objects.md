@@ -18,6 +18,7 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 | An orbit, a range ring, a rim | [`ring`](#ring) |
 | A route through points, an arched route, the sun's track | [`path`](#path) |
 | A weapon, transporter or sensor beam (a glowing straight line) | [`beam`](#beam) |
+| Where a moving point has been (a fading line behind a ship or planet) | [`trail`](#trail) |
 | A star, a galactic core, a beacon (a soft light) | [`glow`](#glow) |
 | Clouds of gas | [`nebula`](#nebula) |
 | An asteroid belt (a band of rocks round a centre) | [`belt`](#belt) |
@@ -277,6 +278,37 @@ objects:
 ## beam
 
 A glowing straight line from `from` to `to` (point ids or `[x, y, z]`): a wide soft glow (`width`, px) round a thin bright core.
+
+## trail
+
+A line behind a moving point, showing where it has been: a ship's wake, the last stretch of a planet's orbit. `point` names the point to follow; it must move (on a spinning ring, on a model part during an animation, or placed from an entity's state).
+
+| Key | What it does |
+|---|---|
+| `point` | The id of the point to follow. |
+| `length` | How far back it reaches, in seconds of the point's motion (default 10). |
+| `fade` | `true` (default): bright at the point, fading to black at the tail, which is the background in space (over a planet the tail shows dark). `false`: one colour all along. |
+| `width`, `dash`, `color`, `blend` | As on a path. Default colour `var(--lcars-orange)`. |
+
+The trail is built while the card is open: it starts empty and grows as the point moves. A point placed from an entity leaves a line through the positions it reported since the card opened. Under reduced motion a point on a ring holds still, so its trail stops growing; a point that jumps with an entity still leaves its line.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 320
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 20, tilt: 35, distance: 120 }
+points:
+  - { id: sun, xyz: [0, 0, 0] }
+  - { id: ship, polar: [40, 0], object: orbit, marker: dot, label: SHIP, style: minor }
+  - { id: probe, polar: [22, 180], object: inner, marker: dot, label: PROBE, style: tiny }
+objects:
+  - { type: glow, at: sun, size: 30, color: var(--lcars-yellow) }
+  - { type: ring, id: orbit, radius: 40, spin: 20, width: 0.5, opacity: 0.2, rotation: [12, 0, 0] }
+  - { type: ring, id: inner, radius: 22, spin: -45, width: 0.5, opacity: 0.2 }
+  - { type: trail, point: ship, length: 6, width: 3 }
+  - { type: trail, point: probe, length: 3, width: 2, color: var(--lcars-blue) }
+```
 
 ## nebula
 

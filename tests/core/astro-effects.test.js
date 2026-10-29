@@ -376,3 +376,50 @@ test('E8 belt: seeded layout inside the band, Kepler orbits (outer slower), tumb
   // expected fraction of a turn: (inner / r)^1.5
   for (const { r, frac } of turned) assert.ok(Math.abs(frac - (Math.pow(40 / r, 1.5) % 1)) < 1e-6, `r ${r}: ${frac}`);
 });
+
+test('E8 trail: history keeps length seconds, samples spaced, tail shrinks, still point has no line', async () => {
+  const { TrailHistory, TRAIL_SAMPLES } = await import('../../src/core/astrometrics/objects/lines.js');
+  const h = new TrailHistory(1000);
+  // moving along x at 1 unit per ms for 2 s, a push every 1 ms
+  for (let t = 0; t <= 2000; t++) h.push(t, [t, 0, 0]);
+  const run = h.run();
+  const xs = run.filter((_, i) => i % 3 === 0);
+  // tail exactly length behind the head, head on the point
+  assert.equal(xs[xs.length - 1], 2000);
+  assert.ok(Math.abs(xs[0] - 1000) < 1e-6, `tail ${xs[0]}`);
+  assert.ok(h.samples.length <= TRAIL_SAMPLES + 2, `samples ${h.samples.length}`);
+  assert.ok(h.moving);
+  // the point stops: the tail catches up over length, then there is no line
+  h.push(2500, [2000, 0, 0]);
+  assert.ok(h.run().length > 0);
+  h.push(3100, [2000, 0, 0]);
+  assert.deepEqual(h.run(), []);
+  assert.equal(h.moving, false);
+  // a jump (an entity point) leaves a straight line between reported places
+  const j = new TrailHistory(10000);
+  j.push(0, [0, 0, 0]);
+  j.push(500, [10, 0, 0]);
+  assert.deepEqual(j.run(), [0, 0, 0, 10, 0, 0]);
+});
+
+test('E8 trail: built from a moving point, fades from black to its colour, normal blending', async () => {
+  const w = buildScene({
+    points: [{ id: 'p', polar: [10, 0], object: 'r' }],
+    objects: [{ type: 'ring', id: 'r', radius: 10, spin: 90 }, { type: 'trail', id: 't', point: 'p', length: 2 }]
+  }, /** @type {any} */ (ctx()));
+  const t = w.objects.get('t');
+  assert.ok(t.dynamic && t.tick);
+  const line = t.lines[t.lines.length - 1];
+  assert.deepEqual(line.style.color.slice(0, 3), [0, 0, 0]);
+  assert.ok(!line.style.additive);
+});
+
+test('E8 trail: a growing line draws all its segments (three\'s cached instance count is cleared)', async () => {
+  const { FatLine } = await import('../../src/core/astrometrics/lines.js');
+  const l = new FatLine([[0, 0, 0, 1, 0, 0]], { color: [1, 1, 1, 1], width: 1 });
+  // what the renderer stores the first time it draws the geometry
+  /** @type {any} */ (l.geometry)._maxInstanceCount = 1;
+  l.setRuns([[0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0]]);
+  assert.equal(/** @type {any} */ (l.geometry)._maxInstanceCount, undefined);
+  assert.equal(l.geometry.instanceCount, 3);
+});

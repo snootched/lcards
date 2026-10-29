@@ -1,0 +1,54 @@
+# Astrometrics trails (E8 part 4): type trail behind moving points, and a
+# ship model riding an orbit with its wake.
+title: Astrometrics trails
+path: astro-trail
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 380
+        camera:
+          view: system
+          buttons: true
+          views:
+            system: { target: [ 0, 0, 0 ], yaw: 20, tilt: 30, distance: 150 }
+            top: { target: [ 0, 0, 0 ], tilt: 90, distance: 160 }
+        backdrop:
+          stars: { count: 1500 }
+        points:
+          - { id: sun, xyz: [ 0, 0, 0 ], label: SOL, style: minor }
+          - { id: inner, polar: [ 22, 0 ], object: inner_orbit, marker: dot, label: MERCURY, style: tiny }
+          - { id: earth, polar: [ 40, 120 ], object: earth_orbit, marker: dot, label: EARTH, style: minor }
+          - { id: comet, polar: [ 60, 240 ], object: comet_orbit, marker: diamond, label: COMET, style: minor }
+        objects:
+          - { type: glow, at: sun, size: 34, color: var(--lcars-yellow) }
+          - { type: ring, id: inner_orbit, radius: 22, spin: 40, width: 0.5, opacity: 0.15 }
+          - { type: ring, id: earth_orbit, radius: 40, spin: 18, width: 0.5, opacity: 0.15 }
+          - { type: ring, id: comet_orbit, radius: 60, spin: 10, width: 0.5, opacity: 0.15, rotation: [ 25, 0, 0 ] }
+          - { type: trail, point: inner, length: 3, width: 2, color: var(--lcars-blue) }
+          - { type: trail, point: earth, length: 6, width: 3 }
+          - { type: trail, point: comet, length: 12, width: 3, color: var(--lcards-moonlight) }
+        grid_options: { columns: 24 }
+      - type: custom:lcards-astrometrics-card
+        height: 380
+        camera:
+          view: chase
+          buttons: true
+          views:
+            chase: { target: [ 0, 0, 0 ], yaw: 30, tilt: 35, distance: 190 }
+        backdrop:
+          stars: { count: 1500 }
+        points:
+          - { id: planet, xyz: [ 0, 0, 0 ], label: STARBASE 11, style: minor }
+          - { id: ship, polar: [ 60, 0 ], object: patrol }
+          # the name above the ship (a label inside the model hides behind it)
+          - { id: ship_name, at: ship, offset: [ 0, 12, 0 ], label: USS ENTERPRISE, style: minor }
+        objects:
+          - { type: sphere, at: planet, radius: 14, fill_effect: { preset: rocky }, line_width: 0.5, opacity: 0.3, spin: 5 }
+          - { type: ring, id: patrol, radius: 60, spin: 15, width: 0.5, opacity: 0.15, rotation: [ 10, 0, 0 ] }
+          - { type: model, id: hull, src: builtin:constitution, at: ship, size: 22, scan_period: 4 }
+          - { type: trail, point: ship, length: 8, width: 3, dash: [ 6, 4 ] }
+        grid_options: { columns: 24 }

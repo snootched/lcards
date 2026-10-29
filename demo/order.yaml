@@ -8,6 +8,12 @@ title: LCARdS Demo
 releases:
   - version: "2026.10.0"
     views:
+      - file: astro-trail
+        summary: "Astrometrics trails: where moving points have been"
+        description: "type: trail: fading lines behind planets and a comet on their orbits, built while the card is open, and a starship model riding an orbit with a dashed wake."
+        session: "E8"
+        docs: /cards/astrometrics/objects#trail
+        public: true
       - file: astro-starbases
         summary: "Astrometrics starbases: Deep Space 9, Earth Spacedock, Utopia Planitia"
         description: "Three built-in starbase models made in code after the on-screen designs: Deep Space 9 by the wormhole with Ops and its pylons marked, the Utopia Planitia drydocks over Mars with a starship in one, a starship approaching Earth Spacedock's space doors, and all three as holograms."

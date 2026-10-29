@@ -21,7 +21,7 @@ import { pointCard } from './card-layer.js';
 import { buildGrid } from './objects/grid.js';
 import { buildVolume } from './objects/volume.js';
 import { buildSphere } from './objects/sphere.js';
-import { buildRing, buildPath, buildBeam } from './objects/lines.js';
+import { buildRing, buildPath, buildBeam, buildTrail } from './objects/lines.js';
 import { buildImage } from './objects/image.js';
 import { buildStars, buildDust } from './objects/stars.js';
 import { buildGlow } from './objects/glow.js';
@@ -175,6 +175,7 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
     if (cfg.type === 'ring') add(cfg, (c) => buildRing(c, ctx));
     else if (cfg.type === 'path') add(cfg, (c) => buildPath(c, ctx, objects));
     else if (cfg.type === 'beam') add(cfg, (c) => buildBeam(c, ctx));
+    else if (cfg.type === 'trail') add(cfg, (c) => buildTrail(c, ctx));
   }
   // Line objects need the placements to draw, so they come second; points can
   // still stand on them (a planet on its spinning orbit ring)

@@ -8,8 +8,8 @@
  * @module core/astrometrics/names
  */
 
-/** Object types; line objects (`ring`, `path`, `beam`) read points, so they build second */
-export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt']);
+/** Object types; line objects (`ring`, `path`, `beam`, `trail`) read points, so they build second */
+export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt', 'trail']);
 
 /**
  * Which type for what: the objects docs page's table (doc/cards/astrometrics/objects.md,
@@ -23,6 +23,7 @@ export const TYPE_GUIDE = [
   { type: 'ring', use: 'An orbit, a range ring, a rim', icon: 'mdi:orbit' },
   { type: 'path', use: 'A route through points, an arched route, the sun\'s track', icon: 'mdi:vector-polyline' },
   { type: 'beam', use: 'A weapon, transporter or sensor beam (a glowing straight line)', icon: 'mdi:flash' },
+  { type: 'trail', use: 'Where a moving point has been (a fading line behind a ship or planet)', icon: 'mdi:chart-timeline-variant' },
   { type: 'glow', use: 'A star, a galactic core, a beacon (a soft light)', icon: 'mdi:white-balance-sunny' },
   { type: 'nebula', use: 'Clouds of gas', icon: 'mdi:weather-cloudy' },
   { type: 'belt', use: 'An asteroid belt (a band of rocks round a centre)', icon: 'mdi:dots-circle' },

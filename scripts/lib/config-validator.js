@@ -302,7 +302,7 @@ function valueAt(node, path) {
 /**
  * Astrometrics references (all card-local): each point has exactly one placement
  * form, ids are unique, and every id a reference names exists: points (`at`,
- * `target`, path `points` / `from` / `to`, beam ends, object `at`),
+ * `target`, path `points` / `from` / `to`, beam ends, trail `point`, object `at`),
  * objects (`on`, of a kind that carries the form) and views (`camera.view`, an
  * action's `view`). Generated label points (`<object>.ring.<deg>`, `.col.`, `.row.`)
  * count as points.
@@ -391,7 +391,7 @@ export function astrometricsIssues(node) {
     if (o.at !== undefined) pointRef(`${at}.at`, o.at);
     // E6 effects: settings that silently do nothing
     if (o.type === 'sphere' && o.fill_effect && o.image !== undefined) warn(`${at}.image`, 'fill_effect paints the body: image is not shown');
-    if (['ring', 'path', 'beam'].includes(o.type) && o.flow_speed && !o.pulse && !(o.type !== 'beam' && Array.isArray(o.dash))) {
+    if (['ring', 'path', 'beam', 'trail'].includes(o.type) && o.flow_speed && !o.pulse && !(o.type !== 'beam' && Array.isArray(o.dash))) {
       warn(`${at}.flow_speed`, 'flow_speed moves dashes or pulses: this line has neither (add dash or pulse)');
     }
     for (const key of ['ring_labels', 'axis_labels']) {
@@ -401,6 +401,7 @@ export function astrometricsIssues(node) {
     if (o.type === 'path' || o.type === 'beam') {
       for (const key of ['from', 'to']) if (o[key] !== undefined) pointRef(`${at}.${key}`, o[key]);
     }
+    if (o.type === 'trail' && o.point !== undefined) pointRef(`${at}.point`, o.point);
     if (o.type === 'path' && Array.isArray(o.points)) o.points.forEach((r, k) => pointRef(`${at}.points[${k}]`, r));
     if (o.type === 'path' && o.object !== undefined && isLiteral(o.object) && !objectIds.has(o.object)) err(`${at}.object`, `no object "${o.object}"${suggest(o.object, [...objectIds.keys()])}`);
     actionViews(at, o);

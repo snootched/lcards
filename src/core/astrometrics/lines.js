@@ -165,6 +165,9 @@ export class FatLine {
     this.object.visible = true;
     // (setPositions makes fresh instance buffers; the old ones go with the old attributes)
     this.geometry.setPositions(segs.positions);
+    // three caches the instance count the first time it draws the geometry and
+    // never again: a line that grows (a trail) would stay at its first length
+    /** @type {any} */ (this.geometry)._maxInstanceCount = undefined;
     if (this.style.colorTo) this.geometry.setColors(this._colors(runs));
     if (this.dashed) {
       this._dist = new Float32Array(segs.count * 2);
