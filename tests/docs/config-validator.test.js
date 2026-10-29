@@ -257,3 +257,15 @@ test('fly-to: another card needs card and a view or point; inside astrometrics a
     assert.deepEqual(messages(check({ ...astro, camera: { limits: { target: false } } })), []);
     assert.ok(messages(check({ ...astro, camera: { zoom_step: 1 } })).some(m => m.startsWith('error camera.zoom_step')));
 });
+
+test('astrometrics distance: a range that never shows warns, on points and objects (E9)', () => {
+    const astro = (extra) => ({ type: 'custom:lcards-astrometrics-card', ...extra });
+    const out = messages(check(astro({
+        points: [{ id: 'a', xyz: [0, 0, 0], label: 'A', min_distance: 50, max_distance: 20 }],
+        objects: [{ type: 'sphere', radius: 5, fade: [100, 10] }, { type: 'ring', radius: 9, min_distance: 10, max_distance: 90 }]
+    })));
+    assert.deepEqual(out, [
+        'warning points[0].min_distance: min_distance (50) is not below max_distance (20): it never shows',
+        'warning objects[0].fade: fade is [start, end]: start nearer than end'
+    ]);
+});

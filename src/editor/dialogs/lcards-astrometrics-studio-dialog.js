@@ -842,6 +842,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     const props = { ...parts.common, ...parts.own };
     const own = ['id', ...Object.keys(parts.own)].filter((k) => k !== 'id' || props.id);
     const placement = COMMON_GROUPS.placement.filter((k) => parts.common[k]);
+    const distance = COMMON_GROUPS.distance.filter((k) => parts.common[k]);
     const actions = COMMON_GROUPS.actions.filter((k) => parts.common[k]);
     /** @param {string[]} keys */
     const form = (keys) => html`
@@ -852,6 +853,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       ${parts.branch.description ? html`<div class="hint">${parts.branch.description}</div>` : nothing}
       ${form(own)}
       <lcards-form-section header="Placement" icon="mdi:axis-arrow" nested outlined ?expanded=${false}>${form(placement)}</lcards-form-section>
+      <lcards-form-section header="Distance" icon="mdi:map-marker-distance" nested outlined ?expanded=${false}>${form(distance)}</lcards-form-section>
       <lcards-form-section header="Actions and tags" icon="mdi:gesture-tap" nested outlined ?expanded=${false}>${form(actions)}</lcards-form-section>
     `;
   }

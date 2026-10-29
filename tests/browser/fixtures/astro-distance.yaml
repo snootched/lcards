@@ -1,0 +1,16 @@
+# Distance visibility on objects (astrometrics.spec.js): from the far view the
+# planet and its ring are out of range (max_distance) and the sector disc
+# shows; from the near view the planet shows and the disc (min_distance) is gone.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: far
+  views:
+    far: { target: [0, 0, 0], yaw: 0, tilt: 30, distance: 400 }
+    near: { target: [0, 0, 0], yaw: 0, tilt: 30, distance: 40 }
+points:
+  - { id: star, xyz: [0, 0, 0], marker: dot, label: STAR, min_distance: 140 }
+objects:
+  - { type: sphere, id: planet, radius: 8, fill_color: var(--lcars-blue), max_distance: 120 }
+  - { type: ring, id: orbit, radius: 20, width: 2, max_distance: 120 }
+  - { type: grid, id: disc, shape: disc, radius: 90, line_spacing: 30, min_distance: 120 }

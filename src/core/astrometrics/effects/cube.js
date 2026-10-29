@@ -70,6 +70,7 @@ uniform vec3 uColor;
 uniform vec3 uGlow;
 uniform float uTime;
 uniform float uDetail;
+uniform float uOpacity;
 uniform vec4 uSpots[${CUBE_SPOTS}];
 // three gives a fragment shader the view matrix only
 uniform mat4 uModel;
@@ -184,7 +185,7 @@ void main() {
     if (a == lat) pDepth = pl;
   }
   if (a < 0.5) discard;
-  gl_FragColor = vec4(col / a, 1.0);
+  gl_FragColor = vec4(col / a, uOpacity);
   vec4 clip = uProj * viewMatrix * uModel * vec4(pDepth, 1.0);
   gl_FragDepth = clamp(clip.z / clip.w * 0.5 + 0.5, 0.0, 1.0);
 }`;
@@ -253,6 +254,8 @@ export function buildCube(cfg, ctx) {
       uGlow: { value: linear(ctx.color(cfg.glow_color, DEFAULT_GLOW)) },
       uTime: { value: 0 },
       uDetail: { value: cfg.detail === false ? 0 : 1 },
+      // 1: the distance fade scales it while the cube fades out
+      uOpacity: { value: 1 },
       uSpots: { value: spots.map((s) => new Vector4(s[0], s[1], s[2], s[3])) },
       uModel: { value: new Matrix4() },
       uProj: { value: new Matrix4() }

@@ -410,6 +410,9 @@ const objectCommon = {
     spin: number('Turn round the object\'s own vertical axis, degrees per second (positive is prograde). Off under reduced motion.', { default: 0 }),
     visible: { type: 'boolean', default: true, description: 'false hides the object (its points still work).' },
     opacity: number('Opacity of the whole object, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
+    fade: tuple(2, 'Distance fade [start, end], scene units from the camera to the nearest edge of the object (0 inside it): fully shown nearer than start, gone past end.'),
+    min_distance: number('Hidden when the camera is closer than this to the object\'s nearest edge, scene units (fades in over the last 10%).', { minimum: 0 }),
+    max_distance: number('Hidden when the camera is farther than this from the object\'s nearest edge, scene units: a planet that appears as you close in on its system (fades out over 10% past it).', { minimum: 0 }),
     tap_action: sceneActionSchema,
     hold_action: sceneActionSchema,
     view: landingViewSchema
@@ -793,7 +796,7 @@ const trailObject = {
         type: { type: 'string', const: 'trail', description: 'trail: where a moving point has been.' },
         point: { type: 'string', description: 'The id of the point to follow: one that moves (on a spinning ring, on a model part, or placed from an entity).' },
         length: number('How far back the trail reaches, seconds of the point\'s motion.', { exclusiveMinimum: 0, default: 10 }),
-        fade: { type: 'boolean', default: true, description: 'Fade from the colour at the point to black at the tail (the background, in space). false: one colour all along.' },
+        fade_tail: { type: 'boolean', default: true, description: 'Fade from the colour at the point to black at the tail (the background, in space). false: one colour all along.' },
         width: lineCommon.width,
         dash: lineCommon.dash,
         color: color('Trail colour (at the point). Default var(--lcars-orange).'),

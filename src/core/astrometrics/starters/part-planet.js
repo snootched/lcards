@@ -46,8 +46,9 @@ export default /** @type {import('./index.js').Starter} */ ({
         { type: 'ring', id: 'orbit', at: c.ref, radius: Number(orbit) || 40, spin: 5, width: 1, color: 'theme:colors.ui.secondary', opacity: 0.6 },
         { type: 'sphere', id: 'globe', at: 'body', radius: r, ...surface(look), line_spacing_deg: 30, spin: 15 },
         ...moonList.flatMap((m) => [
-          { type: 'ring', id: `${m.id}_orbit`, at: 'body', radius: m.orbit, spin: m.spin, width: 1, dash: [3, 3], opacity: 0.5 },
-          { type: 'sphere', id: `${m.id}_globe`, at: m.id, radius: Math.max(0.3, r * 0.25), line_spacing_deg: 45 }
+          // moons appear as you close in on the planet, with their labels
+          { type: 'ring', id: `${m.id}_orbit`, at: 'body', radius: m.orbit, spin: m.spin, width: 1, dash: [3, 3], opacity: 0.5, max_distance: r * 40 },
+          { type: 'sphere', id: `${m.id}_globe`, at: m.id, radius: Math.max(0.3, r * 0.25), line_spacing_deg: 45, max_distance: r * 40 }
         ])
       ]
     };

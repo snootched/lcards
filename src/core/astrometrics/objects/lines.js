@@ -419,7 +419,7 @@ export class TrailHistory {
 
 /**
  * `trail`: a line behind a moving point (`point`), `length` seconds long,
- * built while the card is open. `fade` (default) runs it from the colour at
+ * built while the card is open. `fade_tail` (default) runs it from the colour at
  * the point to black at the tail (the background, in space). Normal blending:
  * added light doubles where the short segments' ends overlap, beading the line.
  * @param {any} cfg
@@ -431,7 +431,7 @@ export function buildTrail(cfg, ctx) {
   node.name = `trail:${cfg.id ?? ''}`;
   const out = built(cfg, node);
   const style = lineStyle(cfg, ctx, DEFAULT_COLORS.path);
-  if (cfg.fade !== false) {
+  if (cfg.fade_tail !== false) {
     // runs go oldest to newest: from black to the colour
     style.colorTo = style.color;
     style.color = [0, 0, 0, style.color[3] ?? 1];

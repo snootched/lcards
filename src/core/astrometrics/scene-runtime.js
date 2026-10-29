@@ -31,6 +31,7 @@ import { CardLayer, pointCard } from './card-layer.js';
 import { markerSvg } from './markers.js';
 import { DepthOcclusion } from './depth-occlusion.js';
 import { buildScene, makeLabelItem } from './scene-builder.js';
+import { ObjectFader } from './distance-fade.js';
 import { BINDABLE_FORMS } from './placements.js';
 import { FatLine } from './lines.js';
 import { skyState } from './sky.js';
@@ -236,6 +237,7 @@ export function createAstroScene(host, config, options = {}) {
 
   const rig = new CameraRig({ onChange: () => requestFrame() });
   /** Labels hidden behind meshes (models): a small depth pass, read back a frame late */
+  const fader = new ObjectFader();
   const depth = new DepthOcclusion({ onSnapshot: () => { depthFresh = true; requestFrame(); } });
   /** A new depth image is in: lay the labels out again once, without a new capture */
   let depthFresh = false;
@@ -505,12 +507,16 @@ export function createAstroScene(host, config, options = {}) {
     const W = canvas.width;
     const H = canvas.height;
     let out = null;
+    // Objects out of their distance range hide, partly faded ones blend, for this render
+    fader.begin(world.list, world.outer, camera.position);
     try {
       out = sharedRender(world.scene, camera, W, H);
     } catch (error) {
       lcardsLog.warn('[Astrometrics] render failed:', error);
       fail('render failed');
       return;
+    } finally {
+      fader.end();
     }
     if (out && ctx2d) {
       ctx2d.clearRect(0, 0, W, H);
@@ -975,8 +981,9 @@ export function createAstroScene(host, config, options = {}) {
     for (const [id, next] of Object.entries(objects)) {
       const b = w.objects.get(id);
       if (!b || !next) continue;
-      const { visible: _a, ...restOld } = b.config;
-      const { visible: _b, ...restNew } = next;
+      // visible and the distance range act per frame: no rebuild
+      const { visible: _a, fade: _f0, min_distance: _n0, max_distance: _x0, ...restOld } = b.config;
+      const { visible: _b, fade: _f1, min_distance: _n1, max_distance: _x1, ...restNew } = next;
       if (JSON.stringify(restOld) === JSON.stringify(restNew)) {
         const g = w.outer.get(b);
         if (g) g.visible = next.visible !== false;
@@ -1290,6 +1297,7 @@ export function createAstroScene(host, config, options = {}) {
         keys: { ...rig.keys },
         projection: rig.projection,
         labels: { ...labels.stats },
+        objectAlphas: Object.fromEntries(fader.alphas),
         sky,
         world,
         rig,

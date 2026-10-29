@@ -17,7 +17,7 @@ A part's ids start with its name and an underscore (`planet_body`, `planet_orbit
 
 ### Galaxy with territories
 
-A galaxy disc with its core, Federation and Borg space as see-through volumes, crossing beams, a planet with an away team and a route between two stars.
+A galaxy disc with its core, Federation and Borg space as see-through volumes, crossing beams, a planet with an away team (it appears as you fly in) and a route between two stars.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -38,6 +38,7 @@ points:
     label: AWAY TEAM
     style: tiny
     color: var(--lcars-orange)
+    max_distance: 100
 objects:
   - type: grid
     shape: disc
@@ -61,8 +62,8 @@ objects:
   - { type: glow, at: core, size: 70 }
   - { type: beam, from: [-180, 0, 0], to: [180, 0, 0] }
   - { type: beam, from: [0, 0, -180], to: [0, 0, 180] }
-  - { type: sphere, id: planet, at: nimbus, radius: 6, spin: 8 }
-  - { type: ring, at: nimbus, radius: 10, inclination: 20, width: 1.5 }
+  - { type: sphere, id: planet, at: nimbus, radius: 6, spin: 8, max_distance: 100 }
+  - { type: ring, at: nimbus, radius: 10, inclination: 20, width: 1.5, max_distance: 100 }
   - { type: path, points: [talos, vega], arc: 12, dash: [6, 4], color: var(--lcars-orange) }
 camera:
   view: galaxy
@@ -258,8 +259,15 @@ objects:
     line_width: 0.5
     spin: 15
   - { type: ring, id: saturn_rings, at: saturn, radius: 9.8, inner_radius: 4.66, inclination: 27, image: builtin:saturn_rings }
-  - { type: ring, id: moon_orbit, at: earth, radius: 5, spin: 40, width: 1, dash: [3, 3], opacity: 0.6 }
-  - { type: sphere, id: moon_body, at: moon, radius: 0.6, image: builtin:moon_lroc, line_spacing_deg: 45, line_width: 0.5 }
+  - { type: ring, id: moon_orbit, at: earth, radius: 5, spin: 40, width: 1, dash: [3, 3], opacity: 0.6, max_distance: 80 }
+  - type: sphere
+    id: moon_body
+    at: moon
+    radius: 0.6
+    image: builtin:moon_lroc
+    line_spacing_deg: 45
+    line_width: 0.5
+    max_distance: 80
 camera:
   view: system
   views:
@@ -561,10 +569,26 @@ objects:
     color: theme:colors.ui.secondary
     opacity: 0.6
   - { type: sphere, id: planet_globe, at: planet_body, radius: 3, fill_effect: { preset: rocky }, line_spacing_deg: 30, spin: 15 }
-  - { type: ring, id: planet_moon1_orbit, at: planet_body, radius: 6, spin: 36, width: 1, dash: [3, 3], opacity: 0.5 }
-  - { type: sphere, id: planet_moon1_globe, at: planet_moon1, radius: 0.75, line_spacing_deg: 45 }
-  - { type: ring, id: planet_moon2_orbit, at: planet_body, radius: 9.6, spin: 22, width: 1, dash: [3, 3], opacity: 0.5 }
-  - { type: sphere, id: planet_moon2_globe, at: planet_moon2, radius: 0.75, line_spacing_deg: 45 }
+  - type: ring
+    id: planet_moon1_orbit
+    at: planet_body
+    radius: 6
+    spin: 36
+    width: 1
+    dash: [3, 3]
+    opacity: 0.5
+    max_distance: 120
+  - { type: sphere, id: planet_moon1_globe, at: planet_moon1, radius: 0.75, line_spacing_deg: 45, max_distance: 120 }
+  - type: ring
+    id: planet_moon2_orbit
+    at: planet_body
+    radius: 9.6
+    spin: 22
+    width: 1
+    dash: [3, 3]
+    opacity: 0.5
+    max_distance: 120
+  - { type: sphere, id: planet_moon2_globe, at: planet_moon2, radius: 0.75, line_spacing_deg: 45, max_distance: 120 }
 ```
 
 ### Asteroid belt

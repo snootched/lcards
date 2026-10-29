@@ -8,6 +8,12 @@ title: LCARdS Demo
 releases:
   - version: "2026.10.0"
     views:
+      - file: astro-distance
+        summary: "Astrometrics distance: objects that appear as you zoom in"
+        description: "min_distance and max_distance on objects: zoom in and a galaxy sector gives way to a star system, then the Earth's Moon; a starbase is a marker far away and its model close up."
+        session: "E9"
+        docs: /cards/astrometrics/objects#distance
+        public: true
       - file: astro-cube
         summary: "Astrometrics Borg cube: the screen effect's cube in the scene"
         description: "type: cube: the Borg cube with carved machinery, its rail lattice and pulsing glow spots, closing on a starship with a tractor beam (the Borg encounter starter); below, the styles side by side: borg, detail off and plain."

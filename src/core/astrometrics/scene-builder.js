@@ -210,6 +210,11 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
     if (item) labels.push(item);
   }
 
+  // Objects still loading (models): when one is in, the static line objects
+  // draw again, so a path ending on one of its parts appears
+  /** @type {import('./objects/common.js').BuiltObject[]} */
+  let loading = list.filter((b) => b.isReady && !b.isReady());
+
   const layout = () => {
     scene.updateMatrixWorld();
     places.invalidate();
@@ -227,6 +232,10 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
       places.invalidate();
     }
     for (const b of list) if (b.dynamic) b.update?.();
+    if (loading.some((b) => b.isReady?.())) {
+      loading = loading.filter((b) => !b.isReady?.());
+      for (const b of list) if (!b.dynamic) b.update?.();
+    }
     scene.updateMatrixWorld();
   };
   // First pass: everything placed, every line object filled once
@@ -268,6 +277,8 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
       g.add(b.node);
       outer.delete(old);
       outer.set(b, g);
+      loading = loading.filter((x) => x !== old);
+      if (b.isReady && !b.isReady()) loading.push(b);
       objects.set(id, b);
       list[list.indexOf(old)] = b;
       hosts.set(id, hostOf(b));

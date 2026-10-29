@@ -194,6 +194,12 @@ export function buildModel(cfg, ctx) {
         }
       }
     } else {
+      // Own copies of the file's materials: the parsed file is shared between
+      // objects, and one object's distance fade must not fade the others
+      scene.traverse((o) => {
+        const m = /** @type {any} */ (o);
+        if (m.isMesh) m.material = Array.isArray(m.material) ? m.material.map((x) => x.clone()) : m.material.clone();
+      });
       // The file's own materials, lit (the other objects are unlit: only these see the lights)
       const hemi = new HemisphereLight(0xffffff, 0x404858, 1.4);
       const sun = new DirectionalLight(0xffffff, 2);

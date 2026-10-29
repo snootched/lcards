@@ -1,0 +1,60 @@
+# Astrometrics distance (E9 part 1): min_distance / max_distance / fade on
+# objects. Zoom in: a galaxy sector gives way to a star system, then the
+# planet's moons; a starbase is a marker far away and its model close up.
+title: Astrometrics distance
+path: astro-distance
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 400
+        camera:
+          view: sector
+          buttons: true
+          views:
+            sector: { target: [ 0, 0, 0 ], yaw: 20, tilt: 35, distance: 700 }
+            system: { target: [ 0, 0, 0 ], yaw: 20, tilt: 35, distance: 110 }
+            earth: { target: earth, yaw: 30, tilt: 20, distance: 14 }
+        backdrop:
+          stars: { count: 1500 }
+        points:
+          - { id: sol, xyz: [ 0, 0, 0 ], marker: dot, label: SOL, style: major, min_distance: 160, tap_action: { action: fly-to, view: system } }
+          - { id: vulcan, xyz: [ 160, 0, -90 ], marker: dot, label: VULCAN, style: minor, min_distance: 160 }
+          - { id: andoria, xyz: [ -180, 0, 60 ], marker: dot, label: ANDORIA, style: minor, min_distance: 160 }
+          - { id: mars, polar: [ 45, 300 ], object: mars_orbit, label: MARS, style: minor, max_distance: 220 }
+          - { id: earth, polar: [ 30, 60 ], object: earth_orbit, label: EARTH, style: minor, max_distance: 220, tap_action: { action: fly-to, view: earth } }
+          - { id: moon, polar: [ 4, 0 ], object: moon_orbit, label: LUNA, style: tiny, max_distance: 40 }
+        objects:
+          # the sector: shown from far away, gone once you are inside the system
+          - { type: grid, shape: disc, radius: 260, pattern: polar, line_spacing: 40, spoke_count: 24, opacity: 0.6, min_distance: 160 }
+          - { type: ring, radius: 260, width: 2, color: theme:colors.ui.secondary, min_distance: 160 }
+          # the system: appears as you close in
+          - { type: glow, at: sol, size: 26, color: var(--lcars-yellow) }
+          - { type: ring, id: earth_orbit, radius: 30, spin: 8, width: 1, opacity: 0.6, max_distance: 200 }
+          - { type: ring, id: mars_orbit, radius: 45, spin: 5, width: 1, opacity: 0.6, max_distance: 200 }
+          - { type: sphere, at: earth, radius: 2, image: builtin:earth_blue_marble, line_width: 0, spin: 20, max_distance: 200 }
+          - { type: sphere, at: mars, radius: 1.4, image: builtin:mars_viking, line_width: 0, spin: 15, max_distance: 200 }
+          # the Moon: only close to the Earth
+          - { type: ring, id: moon_orbit, at: earth, radius: 4, spin: 30, width: 1, dash: [ 3, 3 ], opacity: 0.6, max_distance: 40 }
+          - { type: sphere, at: moon, radius: 0.5, image: builtin:moon_lroc, line_width: 0, max_distance: 40 }
+        grid_options: { columns: 24 }
+      - type: custom:lcards-astrometrics-card
+        height: 380
+        camera:
+          view: far
+          buttons: true
+          views:
+            far: { target: [ 0, 0, 0 ], yaw: 30, tilt: 25, distance: 900 }
+            near: { target: [ 0, 0, 0 ], yaw: 30, tilt: 25, distance: 160 }
+        backdrop:
+          stars: { count: 1500 }
+        points:
+          # a marker far away, the model close up: touching ranges cross-fade
+          - { id: ds9, xyz: [ 0, 0, 0 ], marker: diamond, min_distance: 300, label: DEEP SPACE 9, style: minor, tap_action: { action: fly-to, view: near } }
+          - { id: ds9_name, xyz: [ 0, 40, 0 ], label: DEEP SPACE 9, style: minor, max_distance: 300 }
+        objects:
+          - { type: model, src: builtin:deep_space_nine, size: 60, spin: 4, max_distance: 300 }
+        grid_options: { columns: 24 }

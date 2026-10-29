@@ -20,6 +20,7 @@
 import { Vector3 } from 'three';
 import { markerSvg } from './markers.js';
 import { viewDepth, depthNear } from './depth-occlusion.js';
+import { distanceAlpha, HIDDEN_ALPHA } from './distance-fade.js';
 import { BUILTIN_LABEL_STYLES, LABEL_POSITIONS, fieldCss } from './label-text.js';
 
 /** Built-in label styles: font size (px) and default priority */
@@ -249,16 +250,9 @@ export function layoutLabels(items, camera, width, height, occluders = []) {
       if (oc.lengthSq() - tc * tc < r * r) { hidden = true; break; }
     }
     if (hidden) { occluded++; it.reason = 'occluded'; continue; }
-    let a = it.alphaScale;
-    if (it.fade) {
-      const [f0, f1] = it.fade;
-      a *= 1 - Math.min(1, Math.max(0, (dist - f0) / Math.max(1e-6, f1 - f0)));
-    }
-    // The range edges fade over 10 % instead of popping
-    if (Number.isFinite(it.maxDistance)) a *= Math.min(1, Math.max(0, (it.maxDistance * 1.1 - dist) / (it.maxDistance * 0.1)));
-    if (it.minDistance > 0) a *= Math.min(1, Math.max(0, (dist - it.minDistance * 0.9) / (it.minDistance * 0.1)));
+    const a = it.alphaScale * distanceAlpha(it, dist);
     it.alpha = a;
-    if (a <= 0.02) { it.reason = 'range'; continue; }
+    if (a <= HIDDEN_ALPHA) { it.reason = 'range'; continue; }
     // Nothing drawn (only a card on the point): placed, but no box to collide
     if (it.empty) { it.visible = true; it.reason = 'ok'; continue; }
     live.push(it);

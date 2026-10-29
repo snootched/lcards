@@ -3,7 +3,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'galaxy',
   kind: 'scene',
   title: 'Galaxy with territories',
-  description: 'A galaxy disc with its core, Federation and Borg space as see-through volumes, crossing beams, a planet with an away team and a route between two stars.',
+  description: 'A galaxy disc with its core, Federation and Borg space as see-through volumes, crossing beams, a planet with an away team (it appears as you fly in) and a route between two stars.',
   icon: 'mdi:star-four-points-outline',
   params: [],
   build: () => ({
@@ -22,7 +22,7 @@ export default /** @type {import('./index.js').Starter} */ ({
       { id: 'talos', polar: [52, 310], marker: 'dot', label: 'Talos IV', style: 'tiny', max_distance: 200 },
       { id: 'vega', polar: [64, 160], marker: 'triangle', label: 'Vega', style: 'minor' },
       { id: 'nimbus', polar: [72, 236], alt: 12, marker: 'reticle', label: 'NIMBUS III', tap_action: { action: 'fly-to', view: 'planet' } },
-      { id: 'away', latlon: [10, 40], object: 'planet', alt: 0.3, marker: 'dot', label: 'AWAY TEAM', style: 'tiny', color: 'var(--lcars-orange)' }
+      { id: 'away', latlon: [10, 40], object: 'planet', alt: 0.3, marker: 'dot', label: 'AWAY TEAM', style: 'tiny', color: 'var(--lcars-orange)', max_distance: 100 }
     ],
     objects: [
       { type: 'grid', shape: 'disc', radius: 100, pattern: 'polar', line_spacing: 10, spoke_count: 36, major_row_interval: 3, ring_labels: { step: 10, radius: 106 } },
@@ -35,8 +35,9 @@ export default /** @type {import('./index.js').Starter} */ ({
       { type: 'glow', at: 'core', size: 70 },
       { type: 'beam', from: [-180, 0, 0], to: [180, 0, 0] },
       { type: 'beam', from: [0, 0, -180], to: [0, 0, 180] },
-      { type: 'sphere', id: 'planet', at: 'nimbus', radius: 6, spin: 8 },
-      { type: 'ring', at: 'nimbus', radius: 10, inclination: 20, width: 1.5 },
+      // the planet shows only close up: from the galaxy view, Nimbus III is its marker
+      { type: 'sphere', id: 'planet', at: 'nimbus', radius: 6, spin: 8, max_distance: 100 },
+      { type: 'ring', at: 'nimbus', radius: 10, inclination: 20, width: 1.5, max_distance: 100 },
       { type: 'path', points: ['talos', 'vega'], arc: 12, dash: [6, 4], color: 'var(--lcars-orange)' }
     ]
   })

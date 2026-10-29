@@ -35,12 +35,42 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 | `rotation: [x, y, z]` | Turns it, degrees: y is a bearing, x tips it toward the camera, z rolls it. |
 | `spin` | Turns it round its own vertical axis, degrees per second. Points on it turn with it. |
 | `opacity`, `visible` | Opacity 0 to 1; `visible: false` hides it (its points still work). |
+| `max_distance`, `min_distance`, `fade` | Shown only within a camera distance, as on points: [below](#distance). |
 | `tags` | Tags for [rules](./data#rules): a rule on `tag:<name>` changes every object with the tag. |
 | `tap_action`, `hold_action`, `view` | As on [points](./points#actions). An object without a `tap_action` is not tappable. |
 
 Colours are theme tokens (`theme:colors.ui.primary`), CSS variables (`var(--lcars-blue)`) or plain colours. Widths and dashes are px.
 
 Moving effects (nebula clouds, scan bands on grids, spheres and volumes, moving dashes and pulses on lines, animated fills on spheres and grids, warp streaks) are on the [Effects](./effects) page.
+
+## Distance
+
+Any object can show only within a range of camera distances, with the same keys as [points](./points#visibility). The distance is from the camera to the nearest edge of the object (0 when the camera is inside it), so a large grid does not vanish while you fly through it.
+
+| Key | What it does |
+|---|---|
+| `max_distance` | Hidden when the camera is farther than this: a planet that appears as you close in on its system. It fades out over the 10% past it. |
+| `min_distance` | Hidden when the camera is closer than this: a sector outline that gives way to the system inside. It fades in over the 10% before it. |
+| `fade: [start, end]` | Fades out between these distances. |
+
+Two things with touching ranges cross-fade, so one can stand in for the other at a distance: a ship's model close up and a marker far away (`max_distance: 60` on the model, `min_distance: 60` on a point at it with a `marker`). An object out of range is not drawn and cannot be tapped; its points keep their own ranges. Zoom into the star below: its planets and their orbits appear as you close in.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 320
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 20, tilt: 35, distance: 420 }
+points:
+  - { id: star, xyz: [0, 0, 0], marker: dot, label: SOL, style: major, min_distance: 140 }
+  - { id: earth, polar: [30, 60], object: orbit, label: EARTH, style: minor, max_distance: 150 }
+objects:
+  - { type: glow, id: sun, size: 24, color: var(--lcars-yellow) }
+  - { type: ring, id: orbit, radius: 30, color: var(--lcars-blue), spin: 6, max_distance: 120 }
+  - { type: sphere, at: earth, radius: 2.5, image: builtin:earth_blue_marble, line_width: 0, max_distance: 120 }
+  - { type: ring, radius: 55, color: var(--lcars-blue), max_distance: 120 }
+  - { type: grid, shape: disc, radius: 90, line_spacing: 30, opacity: 0.6, min_distance: 120 }
+```
 
 ## grid
 
@@ -288,7 +318,7 @@ A line behind a moving point, showing where it has been: a ship's wake, the last
 |---|---|
 | `point` | The id of the point to follow. |
 | `length` | How far back it reaches, in seconds of the point's motion (default 10). |
-| `fade` | `true` (default): bright at the point, fading to black at the tail, which is the background in space (over a planet the tail shows dark). `false`: one colour all along. |
+| `fade_tail` | `true` (default): bright at the point, fading to black at the tail, which is the background in space (over a planet the tail shows dark). `false`: one colour all along. |
 | `width`, `dash`, `color`, `blend` | As on a path. Default colour `var(--lcars-orange)`. |
 
 The trail is built while the card is open: it starts empty and grows as the point moves. A point placed from an entity leaves a line through the positions it reported since the card opened. Under reduced motion a point on a ring holds still, so its trail stops growing; a point that jumps with an entity still leaves its line.

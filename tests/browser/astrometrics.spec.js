@@ -705,3 +705,25 @@ test('E8 cube: the Borg cube draws green machinery and hides the label behind it
     await expect.poll(async () => Object.values(await reasons()).sort(), { timeout: 5_000 }).toEqual(['occluded', 'ok']);
     await expectNoErrors(page);
 });
+
+test('E9 distance: objects out of range are not drawn, and appear as the camera closes in', async ({ page }) => {
+    await mountCase(page, 'astro-distance', { width: '800' });
+    await sceneReady(page);
+    const state = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const shown = (/** @type {string} */ id) => s.world.outer.get(s.world.objects.get(id)).visible;
+        return { planet: shown('planet'), orbit: shown('orbit'), disc: shown('disc'), alphas: s.objectAlphas };
+    });
+    await expect.poll(async () => (await state()).disc, { timeout: 5_000 }).toBe(true);
+    let st = await state();
+    expect(st.planet).toBe(false);
+    expect(st.orbit).toBe(false);
+    expect(await litPixels(page)).toBeGreaterThan(500);
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo('near', { duration: 0 }));
+    await expect.poll(async () => (await state()).planet, { timeout: 5_000 }).toBe(true);
+    st = await state();
+    expect(st.orbit).toBe(true);
+    expect(st.disc).toBe(false);
+    expect(st.alphas.planet).toBe(1);
+    await expectNoErrors(page);
+});

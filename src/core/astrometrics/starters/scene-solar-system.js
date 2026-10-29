@@ -60,8 +60,9 @@ export default /** @type {import('./index.js').Starter} */ ({
       ]),
       // Saturn's rings, D ring to F ring, tilted as the planet is
       { type: 'ring', id: 'saturn_rings', at: 'saturn', radius: 9.8, inner_radius: 4.66, inclination: 27, image: 'builtin:saturn_rings' },
-      { type: 'ring', id: 'moon_orbit', at: 'earth', radius: 5, spin: 40, width: 1, dash: [3, 3], opacity: 0.6 },
-      { type: 'sphere', id: 'moon_body', at: 'moon', radius: 0.6, image: 'builtin:moon_lroc', line_spacing_deg: 45, line_width: 0.5 }
+      // the Moon appears as you close in on the Earth, with its label
+      { type: 'ring', id: 'moon_orbit', at: 'earth', radius: 5, spin: 40, width: 1, dash: [3, 3], opacity: 0.6, max_distance: 80 },
+      { type: 'sphere', id: 'moon_body', at: 'moon', radius: 0.6, image: 'builtin:moon_lroc', line_spacing_deg: 45, line_width: 0.5, max_distance: 80 }
     ]
   })
 });

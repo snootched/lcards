@@ -176,6 +176,8 @@ points:
 | `fade: [start, end]` | Fades out between these camera distances. |
 | `below_horizon` | Sky points under the horizon: `dim` (the default for `sky`), `hide`, or `show` (the default for `altaz`). |
 
+Objects take the same three distance keys, measured to their nearest edge: see [Distance](./objects#distance).
+
 Labels behind a planet are hidden; the see-through volumes and grids hide nothing.
 
 ## Actions

@@ -353,6 +353,15 @@ export function astrometricsIssues(node) {
   const isStyle = (name) => styleNames.includes(name);
   const isDome = (o) => o?.type === 'grid' && (o.shape === 'dome' || o.shape === 'sphere');
   const isGlobe = (o) => o?.type === 'sphere' || (o?.type === 'grid' && o.shape === 'sphere');
+  /** A distance range that can never show (points and objects) */
+  const rangeIssues = (at, c) => {
+    const lo = Number(c.min_distance);
+    const hi = Number(c.max_distance);
+    if (c.min_distance !== undefined && c.max_distance !== undefined && Number.isFinite(lo) && Number.isFinite(hi) && lo >= hi) {
+      warn(`${at}.min_distance`, `min_distance (${lo}) is not below max_distance (${hi}): it never shows`);
+    }
+    if (Array.isArray(c.fade) && c.fade.length === 2 && Number(c.fade[0]) > Number(c.fade[1])) warn(`${at}.fade`, 'fade is [start, end]: start nearer than end');
+  };
 
   points.forEach((p, i) => {
     if (!p || typeof p !== 'object') return;
@@ -382,6 +391,7 @@ export function astrometricsIssues(node) {
       const form = ['cell', 'latlon', 'altaz', 'sky', 'part'].find(f => p[f] !== undefined);
       err(at, `${form} needs object: (the object it stands on)`);
     }
+    rangeIssues(at, p);
     actionViews(at, p);
   });
 
@@ -404,6 +414,7 @@ export function astrometricsIssues(node) {
     if (o.type === 'trail' && o.point !== undefined) pointRef(`${at}.point`, o.point);
     if (o.type === 'path' && Array.isArray(o.points)) o.points.forEach((r, k) => pointRef(`${at}.points[${k}]`, r));
     if (o.type === 'path' && o.object !== undefined && isLiteral(o.object) && !objectIds.has(o.object)) err(`${at}.object`, `no object "${o.object}"${suggest(o.object, [...objectIds.keys()])}`);
+    rangeIssues(at, o);
     actionViews(at, o);
   });
 
