@@ -105,6 +105,14 @@ const numberOrPair = (description) => ({
 const color = (description) => ({ type: 'string', description, allOf: [simpleColorSchema] });
 
 /** A point id or [x, y, z] in scene units @param {string} description */
+/** @param {string} what - what shows or hides */
+const objectLook = (what) => ({
+    type: 'string',
+    enum: ['diagram', 'realistic'],
+    description: `Which look of the card shows ${what}: diagram in the diagram and mixed looks, realistic in the realistic and mixed looks. Left out, it shows in every look.`,
+    enumDescriptions: { diagram: 'The diagram look (wireframes, schematics)', realistic: 'The realistic look' }
+});
+
 const pointRef = (description) => ({
     description,
     oneOf: [
@@ -490,6 +498,7 @@ const pointSchema = {
         entity: { ...entitySchema, description: 'The point\'s entity: its templates read it as entity, state colour maps follow its state, more-info and toggle actions use it, and latlon / altaz / xyz / polar can take their values from it.' },
         tags: { ...tagsSchema, description: 'Tags for rules: a rule on tag:<name> patches every point with the tag.' },
         hide_in_systems: { type: 'boolean', default: false, description: 'Hide the label and marker while the camera is inside a star system (a system object), so galaxy-scale names step aside in the close-ups.' },
+        look: objectLook('the label and marker'),
         label: { type: ['string', 'number'], description: 'Text shown at the point: short for text.label.content. Leave out for a marker only, or for a point that only anchors other things.' },
         text: pointTextSchema,
         style: styleNameSchema('Label style: a built-in (title 34 px, major 20 px, minor 13 px, tiny 10 px; larger ones win when labels overlap) or one of yours in labels.styles. Default minor.'),
@@ -528,6 +537,7 @@ const objectCommon = {
     },
     visible: { type: 'boolean', default: true, description: 'false hides the object (its points still work).' },
     hide_in_systems: { type: 'boolean', default: false, description: 'Hide it while the camera is inside a star system (a system object: within a few times its size, the camera works in its units): galaxy-scale lines and volumes then step aside instead of crossing the close-ups. Outside every system it shows as usual.' },
+    look: objectLook('the object'),
     opacity: setting('Opacity of the whole object, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
     fade: tuple(2, 'Distance fade [start, end], scene units from the camera to the nearest edge of the object (0 inside it; a flat plane or disc grid is measured to its surface): fully shown nearer than start, gone past end.'),
     min_distance: setting('Hidden when the camera is closer than this to the object\'s nearest edge, scene units (fades in over the last 10%).', { minimum: 0 }),
@@ -1176,6 +1186,22 @@ export const astrometricsSchema = {
             }
         },
         units: unitsSchema('What one scene unit is (m, km, au, ly or pc): positions, sizes and distances are in it. Optional: a scene can use any units; naming them lets a system (type: system) give its own.'),
+        look: {
+            description: 'Draw the scene as an LCARS diagram, realistically, or both: diagram shows the objects and points with look: diagram, realistic those with look: realistic, mixed (the default) both; ones without a look always show. A change crossfades. Or { entity } (and attribute) whose state names the look, such as an input_select with the options diagram, realistic and mixed (any case).',
+            oneOf: [
+                { type: 'string', enum: ['diagram', 'realistic', 'mixed'], enumDescriptions: { diagram: 'Wireframes and schematics', realistic: 'Realistic objects', mixed: 'Both' } },
+                {
+                    type: 'object',
+                    description: 'The look from an entity',
+                    properties: {
+                        entity: { type: 'string', description: 'The entity whose state (or attribute) names the look.' },
+                        attribute: { type: 'string', description: 'Read this attribute instead of the state.' }
+                    },
+                    required: ['entity'],
+                    additionalProperties: false
+                }
+            ]
+        },
         time_scale: setting('How fast the scene\'s motion runs: orbits, spins, drift, scans, trails. 1 as configured, 0.5 half speed, 0 holds it still. The sky (sun and moon), the scene clock (clock) and the camera are not affected. The time slider (camera.buttons.time) changes it on screen. Can follow an entity ({ entity, to }) or a template.', { minimum: 0, default: 1 }),
         clock: {
             type: 'object',

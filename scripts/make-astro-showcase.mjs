@@ -14,6 +14,8 @@
  *    toggle);
  *  - the wormhole's Gamma end as a small system in km with the same mouth:
  *    both mouths face along the link (`face`), which runs throat to throat;
+ *    each mouth has a diagram look and a realistic one (`look`, picked by
+ *    the LOOK selector);
  *
  * in an LCARS frame (lcards-layout-view): the 14 stops down the left, the
  * controls along the bottom. The helpers it uses are in tests/ha/ha-client.mjs,
@@ -54,33 +56,13 @@ export const STOPS = /** @type {const} */ ([
 const MOUTH_DEPTH = 60;
 
 /**
- * A wormhole mouth (km), a funnel narrowing to its throat: power opens its throat and brightens it, it wobbles and its ring
- * spins; the funnel and ring turn to face `aim` (where the link leaves), so the link reads
- * as the throat collapsed to a thread across the galaxy.
- * @param {string} prefix - ids: <prefix>_mouth, _glow, _ring
- * @param {string} at
- * @param {string} aim
- */
-function wormholeMouth(prefix, at, aim) {
-  const power = 'input_number.lcards_test_power';
-  return [
-    {
-      type: 'grid', id: `${prefix}_mouth`, shape: 'well', well_shape: 'trumpet', well_throat: 0.1, at, face: aim, line_spacing_deg: 20,
-      color: 'var(--lcars-blue)', scan_period: 4, radius: { entity: power, to: [6, 40], smooth: 1500 }, depth: MOUTH_DEPTH,
-      deform: [{ type: 'twist', angle: 60, anchor: 'top' }, { type: 'wobble', lobes: 0, waves: 2, period: 3, amplitude: `[[[ return Number(states['${power}']?.state ?? 0) / 1000 ]]]` }]
-    },
-    { type: 'glow', id: `${prefix}_glow`, at, color: 'var(--lcars-blue)', size: { entity: power, to: [20, 200] } },
-    { type: 'ring', id: `${prefix}_ring`, at, face: aim, radius: 70, dash: [6, 10], width: 2, flow_speed: 40, spin: { entity: power, to: [0, 90] } }
-  ];
-}
-
-/**
  * The card config.
  * @returns {Promise<Record<string, any>>}
  */
 export async function showcaseCard() {
   const { applyStarter, STARTERS } = await import('../src/core/astrometrics/starters/index.js');
   const { solSystem, SOL_VIEWS } = await import('../src/core/astrometrics/starters/true-scale.js');
+  const { WORMHOLE_AIM, wormholeMouth } = await import('../src/core/astrometrics/starters/scene-star-trek-galaxy.js');
   const byId = (/** @type {string} */ id) => /** @type {any} */ (STARTERS.find((s) => s.id === id));
   /** @type {any} */
   let card = applyStarter({ type: 'custom:lcards-astrometrics-card', id: CARD_ID }, byId('star_trek_galaxy')).config;
@@ -88,13 +70,13 @@ export async function showcaseCard() {
 
   // The wormhole's mouths are in two systems below (km, the same size at both ends): the galaxy-scale
   // mouths go, the link runs throat to throat, each mouth faces where the link leaves it
-  const { WORMHOLE_AIM } = await import('../src/core/astrometrics/starters/scene-star-trek-galaxy.js');
-  const starterWormhole = ['wormhole_alpha', 'wormhole_alpha_throat', 'wormhole_gamma_throat', 'wormhole_aim_alpha'];
-  card.points = card.points.filter((/** @type {any} */ p) => !starterWormhole.includes(p.id));
+  // (the starter's mouths, ids wormhole_alpha_* and wormhole_gamma_*, and its alpha end point go)
+  const starterMouth = (/** @type {string} */ id) => id === 'wormhole_alpha' || id === 'wormhole_aim_alpha' || /^wormhole_(alpha|gamma)_/.test(id);
+  card.points = card.points.filter((/** @type {any} */ p) => !starterMouth(p.id));
   card.points.push({ id: 'wormhole_aim_alpha', at: 'bajor', offset: [0, WORMHOLE_AIM, 0] });
   card.objects = card.objects
-    .filter((/** @type {any} */ o) => o.id !== 'wormhole_mouth_alpha' && o.id !== 'wormhole_mouth_gamma')
-    .map((/** @type {any} */ o) => (o.id === 'wormhole_link' ? { ...o, points: ['bajor_throat', 'gamma_throat'] } : o));
+    .filter((/** @type {any} */ o) => !starterMouth(o.id))
+    .map((/** @type {any} */ o) => (o.id === 'wormhole_link' ? { ...o, points: ['wormhole_throat', 'gamma_wormhole_throat'] } : o));
   // Federation names go to alert colours during a Borg incursion (a rule on the tag)
   card.points = card.points.map((/** @type {any} */ p) => (['federation_name', 'sol', 'vulcan', 'andoria', 'tellar'].includes(p.id) ? { ...p, tags: ['federation'] } : p));
 
@@ -126,14 +108,17 @@ export async function showcaseCard() {
   );
 
   // ── Bajor (km) ──
+  // the mouths in km, 40 km across at full power: the WORMHOLE slider opens them
+  const power = 'input_number.lcards_test_power';
+  const bajorMouth = wormholeMouth({ prefix: 'wormhole', at: 'bajor_wormhole', aim: 'wormhole_aim_gamma', radius: 40, depth: MOUTH_DEPTH, power, stars: 9000 });
   const bajor = {
     points: [
       { id: 'bhavael', xyz: [0, 0, 0], label: "B'HAVA'EL", style: 'minor' },
       { id: 'bajor_world', polar: [150000000, 300], marker: 'dot', label: 'BAJOR', style: 'minor', max_distance: 900000000 },
       { id: 'bajor_wormhole', polar: [232000000, 46], alt: 20, label: 'THE WORMHOLE', style: 'minor', max_distance: 30000 },
-      // Deep Space 9 by the mouth, its shields and a status card
+      // Deep Space 9 350 km out in front of the mouth (it opens toward yaw 33, tilt -10), its shields and a status card
       {
-        id: 'ds9', at: 'bajor_wormhole', offset: [-300, -20, 200], marker: 'starbase', label: 'DEEP SPACE 9', style: 'minor', max_distance: 60000,
+        id: 'ds9', at: 'bajor_wormhole', offset: [190, -60, 290], marker: 'starbase', label: 'DEEP SPACE 9', style: 'minor', max_distance: 60000,
         card: {
           show: 'always', position: 'top-right', width: 180,
           card: { type: 'custom:lcards-button', preset: 'lozenge', entity: 'input_number.lcards_test_shields', text: { name: { content: 'SHIELDS {entity.state}%', show: true } } }
@@ -145,7 +130,7 @@ export async function showcaseCard() {
       { id: 'nebula', polar: [236000000, 52], label: 'CHIN\'TOKA NEBULA', style: 'minor', max_distance: 3000000 },
       { id: 'route_a', at: 'nebula', offset: [-90000, 2000, -30000] },
       { id: 'route_b', at: 'nebula', offset: [90000, -2000, 30000] },
-      { id: 'bajor_throat', object: 'wormhole_mouth', xyz: [0, -MOUTH_DEPTH, 0] }
+      ...bajorMouth.points
     ],
     objects: [
       { type: 'glow', at: 'bhavael', size: 9000000, color: 'var(--lcars-yellow)' },
@@ -155,7 +140,7 @@ export async function showcaseCard() {
       { type: 'belt', id: 'denorios_belt', at: 'bhavael', radius: [222000000, 242000000], thickness: 2000000, count: 1500, size: [0.5, 30], tumble: 0, seed: 21 },
       { type: 'model', id: 'ds9_model', at: 'ds9', src: 'builtin:deep_space_nine', size: 1.452, material: 'original' },
       { type: 'sphere', id: 'ds9_shields', at: 'ds9', radius: 1.2, fill_color: 'var(--lcars-blue)', color: 'var(--lcars-blue)', line_spacing_deg: 20, opacity: { entity: 'input_number.lcards_test_shields', to: [0, 0.45] } },
-      ...wormholeMouth('wormhole', 'bajor_wormhole', 'wormhole_aim_gamma'),
+      ...bajorMouth.objects,
       // hidden from afar (its clouds would wash over Sol in the galaxy view)
       { type: 'nebula', id: 'chintoka', at: 'nebula', radius: 70000, colors: ['var(--lcars-orange)', 'var(--lcars-violet)'], drift: 300, max_distance: 3000000 },
       { type: 'path', id: 'patrol_route', points: ['route_a', 'route_b'], arc: 8000, dash: [10, 8], flow_speed: 40, pulse: true, color: 'var(--lcars-orange)', width: 2 },
@@ -164,12 +149,10 @@ export async function showcaseCard() {
   };
 
   // ── The Gamma end (km): the same mouth, facing back along the link ──
+  const gammaMouth = wormholeMouth({ prefix: 'gamma_wormhole', at: 'gamma_mouth', aim: 'wormhole_aim_alpha', radius: 40, depth: MOUTH_DEPTH, power, stars: 9000 });
   const gamma = {
-    points: [
-      { id: 'gamma_mouth', xyz: [0, 0, 0], label: 'THE WORMHOLE (GAMMA)', style: 'minor', max_distance: 30000 },
-      { id: 'gamma_throat', object: 'gamma_wormhole_mouth', xyz: [0, -MOUTH_DEPTH, 0] }
-    ],
-    objects: wormholeMouth('gamma_wormhole', 'gamma_mouth', 'wormhole_aim_alpha')
+    points: [{ id: 'gamma_mouth', xyz: [0, 0, 0], label: 'THE WORMHOLE (GAMMA)', style: 'minor', max_distance: 30000 }, ...gammaMouth.points],
+    objects: gammaMouth.objects
   };
 
   card.objects.push(
@@ -178,6 +161,8 @@ export async function showcaseCard() {
     { type: 'system', id: 'gamma_system', at: 'wormhole_gamma', units: 'km', ...gamma }
   );
 
+  // diagram, realistic or both: the look selector
+  card.look = { entity: 'input_select.lcards_test_look' };
   // the scene date's rate follows the value slider; the date comes from the date helper (an automation)
   card.clock = { date: 'now', rate: { entity: 'input_number.lcards_test_value', to: [0, 30] } };
   const views = {
@@ -191,10 +176,12 @@ export async function showcaseCard() {
     neptune: SOL_VIEWS.neptune,
     pluto: { target: 'pluto', yaw: 120, tilt: 25, distance: 9000000000 },
     bajor_system: { target: 'bhavael', yaw: 30, tilt: 35, distance: 700000000 },
-    ds9: { target: 'ds9', yaw: 330, tilt: 8, distance: 4 },
-    wormhole: { target: 'bajor_wormhole', yaw: 300, tilt: 10, distance: 260 },
-    // the Gamma mouth, the same size as Bajor's, the link leaving its throat for home
-    gamma: { target: 'gamma_mouth', yaw: 120, tilt: 15, distance: 260 },
+    // past the station into the wormhole's mouth behind it (12 degrees off the mouth's axis)
+    ds9: { target: 'ds9', yaw: 45, tilt: 0, distance: 5 },
+    // into the mouth, 30 degrees off its axis (it opens toward yaw 33, tilt -10: away from the Gamma end)
+    wormhole: { target: 'bajor_wormhole', yaw: 63, tilt: 5, distance: 320 },
+    // the Gamma mouth, the same size as Bajor's, opening the other way (yaw 213)
+    gamma: { target: 'gamma_mouth', yaw: 243, tilt: 5, distance: 320 },
     // at the nebula's edge (its clouds fade as you fly in), the patrol route crossing in front
     nebula: { target: 'nebula', yaw: 40, tilt: 8, distance: 110000 },
     cube: { target: 'cube', yaw: 20, tilt: 10, distance: 12 }
@@ -251,7 +238,7 @@ export async function showcaseView() {
       padding: '12px',
       'grid-gap': '8px',
       'grid-template-columns': '200px minmax(0, 1fr)',
-      'grid-template-rows': '80px minmax(0, 1fr) 132px',
+      'grid-template-rows': '80px minmax(0, 1fr) 176px',
       'grid-template-areas': '"head head" "stops scene" "stops controls"'
     },
     cards: [
@@ -274,7 +261,7 @@ export async function showcaseView() {
         layout: {
           'grid-gap': '6px',
           'grid-template-columns': 'repeat(6, minmax(0, 1fr))',
-          'grid-template-rows': 'repeat(3, minmax(0, 1fr))'
+          'grid-template-rows': 'repeat(4, minmax(0, 1fr))'
         },
         cards: [
           toggle('input_boolean.lcards_test_visible', 'ORBITS'),
@@ -291,9 +278,11 @@ export async function showcaseView() {
           { ...slider('input_number.lcards_test_shields', 'SHIELDS'), view_layout: { 'grid-column': 'span 2' } },
           { ...slider('input_number.lcards_test_power', 'WORMHOLE'), view_layout: { 'grid-column': 'span 2' } },
           { ...slider('input_number.lcards_test_value', 'DATE RATE'), view_layout: { 'grid-column': 'span 2' } },
-          { type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_mode', preset: 'toggle-tab', view_layout: { 'grid-column': 'span 3' } },
+          { type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_mode', preset: 'toggle-tab', grid: { columns: 3 }, view_layout: { 'grid-column': 'span 3' } },
+          // the look: the wormholes as LCARS diagrams, realistic, or both
+          { type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_look', preset: 'toggle-tab', grid: { columns: 3 }, view_layout: { 'grid-column': 'span 3' } },
           {
-            type: 'custom:lcards-button', preset: 'lozenge', entity: 'input_datetime.lcards_test_date', view_layout: { 'grid-column': 'span 2' },
+            type: 'custom:lcards-button', preset: 'lozenge', entity: 'input_datetime.lcards_test_date', view_layout: { 'grid-column': 'span 5' },
             text: { name: { content: 'DATE {entity.state}', show: true } }, tap_action: { action: 'more-info' }
           },
           action('NOW', { action: 'set-clock', card: CARD_ID, date: 'now', rate: 'live' })

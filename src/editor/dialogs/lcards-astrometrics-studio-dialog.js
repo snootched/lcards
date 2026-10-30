@@ -52,7 +52,7 @@ const isObj = (/** @type {any} */ v) => !!v && typeof v === 'object' && !Array.i
 const PREVIEW_DELAY = 150;
 
 /** Keys of the Scene tab, in order */
-const SCENE_KEYS = ['clock', 'time_scale', 'backdrop', 'labels', 'background_animation'];
+const SCENE_KEYS = ['look', 'clock', 'time_scale', 'backdrop', 'labels', 'background_animation'];
 
 /**
  * What a system holds, for its row ("3 points, 2 objects").

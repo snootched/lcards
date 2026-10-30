@@ -1390,3 +1390,36 @@ test('R4d hide_in_systems: a galaxy-scale line and label show outside every syst
     expect(st.vega).toBe(0);
     await expectNoErrors(page);
 });
+
+test('looks: the card look follows an input_select; each look shows its own objects and labels, crossfading', async ({ page }) => {
+    await mountCase(page, 'astro-looks', { width: '600' });
+    await sceneReady(page);
+    /** which objects and labels show, and the look */
+    const shown = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const vis = (/** @type {string} */ id) => s.world.outer.get(s.world.objects.get(id)).visible;
+        const label = (/** @type {string} */ id) => !!s.labelItems.find((l) => l.id === id)?.visible;
+        return { look: s.look, wire: vis('wire'), real: vis('real'), always: vis('always'), wireName: label('wire_name'), realName: label('real_name') };
+    });
+    // the sample state (Auto) names no look: mixed, everything shows
+    await expect.poll(shown).toEqual({ look: 'mixed', wire: true, real: true, always: true, wireName: true, realName: true });
+    await page.evaluate(() => window.__setState('input_select.lcards_test_look', 'Diagram'));
+    await expect.poll(shown, { timeout: 3000 }).toEqual({ look: 'diagram', wire: true, real: false, always: true, wireName: true, realName: false });
+    // halfway through the crossfade both globes draw
+    await page.evaluate(() => window.__setState('input_select.lcards_test_look', 'REALISTIC'));
+    await page.waitForTimeout(250);
+    const mid = await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().lookWeights);
+    expect(mid.diagram).toBeGreaterThan(0);
+    expect(mid.diagram).toBeLessThan(1);
+    await expect.poll(shown, { timeout: 3000 }).toEqual({ look: 'realistic', wire: false, real: true, always: true, wireName: false, realName: true });
+    await page.evaluate(() => window.__setState('input_select.lcards_test_look', 'mixed'));
+    await expect.poll(shown, { timeout: 3000 }).toEqual({ look: 'mixed', wire: true, real: true, always: true, wireName: true, realName: true });
+    // the bound galaxy was rebuilt at its value: its stars are sized to the canvas, not to 1 px (each would cover the view)
+    const res = await page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        return s.world.objects.get('swirl').field.mesh.material.uniforms.uRes.value.toArray();
+    });
+    expect(res[0]).toBeGreaterThan(100);
+    expect(res[1]).toBeGreaterThan(100);
+    await expectNoErrors(page);
+});

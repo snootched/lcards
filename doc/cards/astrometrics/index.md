@@ -152,6 +152,39 @@ background_animation:
     config: { volumetric: true, cloud_count: 4 }
 ```
 
+## Looks: diagram and realistic
+
+One scene can be an LCARS diagram, a realistic view, or both. Give an object or point `look: diagram` or `look: realistic`, and the card's `look` picks what shows:
+
+| Card `look` | Shows |
+|---|---|
+| `diagram` | Objects and points with `look: diagram` |
+| `realistic` | Objects and points with `look: realistic` |
+| `mixed` (default) | Both |
+
+Anything without a `look` shows in every look. A see-through wire globe (a [grid](./objects#grid) with `shape: sphere`) for the diagram and a mapped planet for the realistic view, or a wormhole's wire funnel and its glowing vortex: each carries its look, and switching crossfades them in place (no rebuild).
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 300
+look: mixed
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 20, tilt: 20, distance: 150 }
+points:
+  - { id: name, xyz: [0, 38, 0], label: MARS, style: minor }
+objects:
+  - { type: grid, shape: sphere, radius: 30, line_spacing_deg: 15, color: var(--lcars-blue), look: diagram }
+  - { type: sphere, radius: 29, image: builtin:mars_viking, spin: 4, look: realistic }
+  - { type: ring, radius: 45, dash: [6, 8], look: diagram }
+```
+
+`look` can follow an entity: its state (or `attribute`) names the look, in any case. An `input_select` with the options `DIAGRAM`, `REALISTIC` and `MIXED`, shown as a [select menu](../select-menu/) next to the card, makes a quick switch:
+
+```yaml
+look: { entity: input_select.astro_look }
+```
+
 ## A header bar
 
 The card is the scene only. For an LCARS frame round it (an "ALPHA QUADRANT" bar), put it in a [Layout Card](../layout-card/) with an elbow or a bar-label button above it.
@@ -165,6 +198,7 @@ The card is the scene only. For an LCARS frame round it (an "ALPHA QUADRANT" bar
 | `points` | Named points with labels and markers ([Points](./points)) |
 | `objects` | What is drawn ([Objects](./objects), [Effects](./effects)) |
 | `time_scale` | How fast the scene's motion runs (default 1; 0.5 half speed, 0 still). The sky, the scene clock and the camera are not affected ([Controls](#controls)) |
+| `look` | `diagram`, `realistic` or `mixed` (default), or `{ entity }` naming one: which objects and points show ([Looks](#looks-diagram-and-realistic)) |
 | `clock` | The scene date (`date: now` or an ISO date) and how fast it runs (`rate: live` or days per second) for real Solar System bodies and the sky ([The scene clock](./scale#the-scene-clock)) |
 | Any number on a point or object | Can follow an entity: `opacity: { entity, to }` ([Settings from entities](./data#settings-from-entities)); `camera.view` can follow one as a [guided tour](./data#a-guided-tour) |
 | `units` | What one scene unit is: `m`, `km`, `au`, `ly` or `pc` (optional; a [star system](./scale#star-systems) needs it to give its own) |

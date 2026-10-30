@@ -160,6 +160,8 @@ export const GALLERY_HELPERS = {
     'input_number.lcards_test_stage': { type: 'input_number/create', name: 'LCARdS Test Stage', min: 0, max: 20, step: 1, mode: 'box' },
     // A date and time: the astrometrics showcase's scene date (R4d)
     'input_datetime.lcards_test_date': { type: 'input_datetime/create', name: 'LCARdS Test Date', has_date: true, has_time: true },
+    // The astrometrics showcase's look: a diagram, realistic, or both
+    'input_select.lcards_test_look': { type: 'input_select/create', name: 'LCARdS Test Look', options: ['DIAGRAM', 'REALISTIC', 'MIXED'] },
 };
 
 /** Sample states the gallery shots are taken with: [domain, service, data]. */

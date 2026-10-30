@@ -199,8 +199,12 @@ export class ObjectFader {
     for (const b of list) {
       const range = this._range(b.config);
       const more = Math.min(1, Math.max(0, extra(b)));
-      if (!range && more === 1) continue;
       const g = outer.get(b);
+      if (!range && more === 1) {
+        // shown again after a factor hid it (a look, a system, an entity's opacity at 0)
+        if (g && !g.visible && b.config.visible !== false) g.visible = true;
+        continue;
+      }
       if (!g) continue;
       const a = (range ? distanceAlpha(range, this._distance(b, camera) / unit(b)) : 1) * more;
       this.alphas.set(b.id, a);

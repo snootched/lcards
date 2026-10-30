@@ -185,6 +185,7 @@ objects:
 | Key | What it does |
 |---|---|
 | `visible` | `false` hides the label, marker and card; the point still places the things that use it. [Rules](./data#rules) use it to hide and show points. |
+| `look` | `diagram` or `realistic`: the label and marker show only in that [look](./#looks-diagram-and-realistic) of the card (and in `mixed`). |
 | `opacity` | Opacity of the label and marker, 0 to 1. |
 | `max_distance` | Hidden when the camera is farther than this: detail that appears as you zoom in. |
 | `min_distance` | Hidden when the camera is closer than this. |

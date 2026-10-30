@@ -13,7 +13,7 @@ layout:
   padding: 12px
   grid-gap: 8px
   grid-template-columns: 200px minmax(0, 1fr)
-  grid-template-rows: 80px minmax(0, 1fr) 132px
+  grid-template-rows: 80px minmax(0, 1fr) 176px
   grid-template-areas: '"head head" "stops scene" "stops controls"'
 cards:
   - type: custom:lcards-elbow
@@ -879,15 +879,14 @@ cards:
       - type: path
         id: wormhole_link
         points:
-          - bajor_throat
-          - gamma_throat
+          - wormhole_throat
+          - gamma_wormhole_throat
         arc: 4000
-        dash:
-          - 8
-          - 6
+        color: var(--lcars-blue)
+        width: 5
+        glow: 3
+        pulse: true
         flow_speed: 30
-        color: var(--lcars-yellow)
-        width: 1.5
       - type: path
         id: voyager_route
         points:
@@ -1214,12 +1213,13 @@ cards:
           - {id: bhavael, xyz: [0, 0, 0], label: B'HAVA'EL, style: minor}
           - {id: bajor_world, polar: [150000000, 300], marker: dot, label: BAJOR, style: minor, max_distance: 900000000}
           - {id: bajor_wormhole, polar: [232000000, 46], alt: 20, label: THE WORMHOLE, style: minor, max_distance: 30000}
-          - {id: ds9, at: bajor_wormhole, offset: [-300, -20, 200], marker: starbase, label: DEEP SPACE 9, style: minor, max_distance: 60000, card: {show: always, position: top-right, width: 180, card: {type: custom:lcards-button, preset: lozenge, entity: input_number.lcards_test_shields, text: {name: {content: 'SHIELDS {entity.state}%', show: true}}}}}
+          - {id: ds9, at: bajor_wormhole, offset: [190, -60, 290], marker: starbase, label: DEEP SPACE 9, style: minor, max_distance: 60000, card: {show: always, position: top-right, width: 180, card: {type: custom:lcards-button, preset: lozenge, entity: input_number.lcards_test_shields, text: {name: {content: 'SHIELDS {entity.state}%', show: true}}}}}
           - {id: cube, at: bajor_wormhole, offset: [2600, 400, -1800], label: BORG CUBE, style: minor, color: var(--lcars-green), max_distance: 20000}
           - {id: nebula, polar: [236000000, 52], label: CHIN'TOKA NEBULA, style: minor, max_distance: 3000000}
           - {id: route_a, at: nebula, offset: [-90000, 2000, -30000]}
           - {id: route_b, at: nebula, offset: [90000, -2000, 30000]}
-          - {id: bajor_throat, object: wormhole_mouth, xyz: [0, -60, 0]}
+          - {id: wormhole_throat, object: wormhole_mouth, xyz: [0, -60, 0]}
+          - {id: wormhole_out, object: wormhole_mouth, xyz: [0, 240, 0]}
         objects:
           - {type: glow, at: bhavael, size: 9000000, color: var(--lcars-yellow)}
           - {type: sphere, id: bhavael_body, at: bhavael, radius: 650000, fill_color: var(--lcars-yellow), color: var(--lcars-orange), tags: [planets]}
@@ -1228,9 +1228,13 @@ cards:
           - {type: belt, id: denorios_belt, at: bhavael, radius: [222000000, 242000000], thickness: 2000000, count: 1500, size: [0.5, 30], tumble: 0, seed: 21}
           - {type: model, id: ds9_model, at: ds9, src: builtin:deep_space_nine, size: 1.452, material: original}
           - {type: sphere, id: ds9_shields, at: ds9, radius: 1.2, fill_color: var(--lcars-blue), color: var(--lcars-blue), line_spacing_deg: 20, opacity: {entity: input_number.lcards_test_shields, to: [0, 0.45]}}
-          - {type: grid, id: wormhole_mouth, shape: well, well_shape: trumpet, well_throat: 0.1, at: bajor_wormhole, face: wormhole_aim_gamma, line_spacing_deg: 20, color: var(--lcars-blue), scan_period: 4, radius: {entity: input_number.lcards_test_power, to: [6, 40], smooth: 1500}, depth: 60, deform: [{type: twist, angle: 60, anchor: top}, {type: wobble, lobes: 0, waves: 2, period: 3, amplitude: '[[[ return Number(states[''input_number.lcards_test_power'']?.state ?? 0) / 1000 ]]]'}]}
+          - {type: grid, id: wormhole_mouth, shape: well, well_shape: trumpet, well_throat: 0.1, at: bajor_wormhole, face: wormhole_aim_gamma, radius: {entity: input_number.lcards_test_power, to: [6, 40], smooth: 1500}, depth: 60, line_spacing_deg: 20, color: var(--lcars-blue), scan_period: 4, look: diagram, deform: [{type: twist, angle: 60, anchor: top}, {type: wobble, lobes: 0, waves: 2, period: 3, amplitude: '[[[ return Number(states[''input_number.lcards_test_power'']?.state ?? 0) / 1000 ]]]'}]}
+          - {type: ring, id: wormhole_ring, at: bajor_wormhole, face: wormhole_aim_gamma, radius: 70, dash: [6, 10], width: 2, flow_speed: 40, spin: {entity: input_number.lcards_test_power, to: [0, 90]}, look: diagram}
           - {type: glow, id: wormhole_glow, at: bajor_wormhole, color: var(--lcars-blue), size: {entity: input_number.lcards_test_power, to: [20, 200]}}
-          - {type: ring, id: wormhole_ring, at: bajor_wormhole, face: wormhole_aim_gamma, radius: 70, dash: [6, 10], width: 2, flow_speed: 40, spin: {entity: input_number.lcards_test_power, to: [0, 90]}}
+          - {type: galaxy, id: wormhole_vortex, at: bajor_wormhole, face: wormhole_aim_gamma, look: realistic, radius: {entity: input_number.lcards_test_power, to: [8.8, 60], smooth: 1500}, arms: 3, pitch: 28, bar: 0, thickness: 0.06, stars: 9000, seed: 4, glow: 0.35, dust: 0.3, arm_color: var(--lcars-blue), core_color: var(--lcards-moonlight), spin: {entity: input_number.lcards_test_power, to: [5, 60]}}
+          - {type: grid, id: wormhole_funnel, shape: well, well_shape: trumpet, well_throat: 0.1, at: bajor_wormhole, face: wormhole_aim_gamma, radius: {entity: input_number.lcards_test_power, to: [6, 40], smooth: 1500}, depth: 60, line_spacing_deg: 30, color: var(--lcars-blue), opacity: 0.5, look: realistic, fill_effect: {type: plasma, color_a: var(--lcars-blue), color_b: var(--lcars-violet), speed: 20, opacity: 0.6}, deform: [{type: twist, angle: 80, anchor: top, period: 6}]}
+          - {type: beam, id: wormhole_light, from: bajor_wormhole, to: wormhole_out, width: 8, color: var(--lcards-moonlight), look: realistic}
+          - {type: path, id: wormhole_throat_tube, points: [bajor_wormhole, wormhole_throat], color: var(--lcars-blue), width: 5, glow: 3, pulse: true, flow_speed: 30}
           - {type: nebula, id: chintoka, at: nebula, radius: 70000, colors: [var(--lcars-orange), var(--lcars-violet)], drift: 300, max_distance: 3000000}
           - {type: path, id: patrol_route, points: [route_a, route_b], arc: 8000, dash: [10, 8], flow_speed: 40, pulse: true, color: var(--lcars-orange), width: 2}
           - {type: cube, id: borg_cube, at: cube, size: 3}
@@ -1240,11 +1244,16 @@ cards:
         units: km
         points:
           - {id: gamma_mouth, xyz: [0, 0, 0], label: THE WORMHOLE (GAMMA), style: minor, max_distance: 30000}
-          - {id: gamma_throat, object: gamma_wormhole_mouth, xyz: [0, -60, 0]}
+          - {id: gamma_wormhole_throat, object: gamma_wormhole_mouth, xyz: [0, -60, 0]}
+          - {id: gamma_wormhole_out, object: gamma_wormhole_mouth, xyz: [0, 240, 0]}
         objects:
-          - {type: grid, id: gamma_wormhole_mouth, shape: well, well_shape: trumpet, well_throat: 0.1, at: gamma_mouth, face: wormhole_aim_alpha, line_spacing_deg: 20, color: var(--lcars-blue), scan_period: 4, radius: {entity: input_number.lcards_test_power, to: [6, 40], smooth: 1500}, depth: 60, deform: [{type: twist, angle: 60, anchor: top}, {type: wobble, lobes: 0, waves: 2, period: 3, amplitude: '[[[ return Number(states[''input_number.lcards_test_power'']?.state ?? 0) / 1000 ]]]'}]}
+          - {type: grid, id: gamma_wormhole_mouth, shape: well, well_shape: trumpet, well_throat: 0.1, at: gamma_mouth, face: wormhole_aim_alpha, radius: {entity: input_number.lcards_test_power, to: [6, 40], smooth: 1500}, depth: 60, line_spacing_deg: 20, color: var(--lcars-blue), scan_period: 4, look: diagram, deform: [{type: twist, angle: 60, anchor: top}, {type: wobble, lobes: 0, waves: 2, period: 3, amplitude: '[[[ return Number(states[''input_number.lcards_test_power'']?.state ?? 0) / 1000 ]]]'}]}
+          - {type: ring, id: gamma_wormhole_ring, at: gamma_mouth, face: wormhole_aim_alpha, radius: 70, dash: [6, 10], width: 2, flow_speed: 40, spin: {entity: input_number.lcards_test_power, to: [0, 90]}, look: diagram}
           - {type: glow, id: gamma_wormhole_glow, at: gamma_mouth, color: var(--lcars-blue), size: {entity: input_number.lcards_test_power, to: [20, 200]}}
-          - {type: ring, id: gamma_wormhole_ring, at: gamma_mouth, face: wormhole_aim_alpha, radius: 70, dash: [6, 10], width: 2, flow_speed: 40, spin: {entity: input_number.lcards_test_power, to: [0, 90]}}
+          - {type: galaxy, id: gamma_wormhole_vortex, at: gamma_mouth, face: wormhole_aim_alpha, look: realistic, radius: {entity: input_number.lcards_test_power, to: [8.8, 60], smooth: 1500}, arms: 3, pitch: 28, bar: 0, thickness: 0.06, stars: 9000, seed: 4, glow: 0.35, dust: 0.3, arm_color: var(--lcars-blue), core_color: var(--lcards-moonlight), spin: {entity: input_number.lcards_test_power, to: [5, 60]}}
+          - {type: grid, id: gamma_wormhole_funnel, shape: well, well_shape: trumpet, well_throat: 0.1, at: gamma_mouth, face: wormhole_aim_alpha, radius: {entity: input_number.lcards_test_power, to: [6, 40], smooth: 1500}, depth: 60, line_spacing_deg: 30, color: var(--lcars-blue), opacity: 0.5, look: realistic, fill_effect: {type: plasma, color_a: var(--lcars-blue), color_b: var(--lcars-violet), speed: 20, opacity: 0.6}, deform: [{type: twist, angle: 80, anchor: top, period: 6}]}
+          - {type: beam, id: gamma_wormhole_light, from: gamma_mouth, to: gamma_wormhole_out, width: 8, color: var(--lcards-moonlight), look: realistic}
+          - {type: path, id: gamma_wormhole_throat_tube, points: [gamma_mouth, gamma_wormhole_throat], color: var(--lcars-blue), width: 5, glow: 3, pulse: true, flow_speed: 30}
     camera:
       view:
         entity: input_number.lcards_test_stage
@@ -1292,9 +1301,9 @@ cards:
           distance: 12
         gamma:
           target: gamma_mouth
-          yaw: 120
-          tilt: 15
-          distance: 260
+          yaw: 243
+          tilt: 5
+          distance: 320
         delta:
           target: ocampa
           yaw: 330
@@ -1347,14 +1356,14 @@ cards:
           distance: 700000000
         ds9:
           target: ds9
-          yaw: 330
-          tilt: 8
-          distance: 4
+          yaw: 45
+          tilt: 0
+          distance: 5
         wormhole:
           target: bajor_wormhole
-          yaw: 300
-          tilt: 10
-          distance: 260
+          yaw: 63
+          tilt: 5
+          distance: 320
         nebula:
           target: nebula
           yaw: 40
@@ -1369,6 +1378,8 @@ cards:
       stars:
         count: 1500
     units: ly
+    look:
+      entity: input_select.lcards_test_look
     clock:
       date: now
       rate:
@@ -1404,7 +1415,7 @@ cards:
     layout:
       grid-gap: 6px
       grid-template-columns: repeat(6, minmax(0, 1fr))
-      grid-template-rows: repeat(3, minmax(0, 1fr))
+      grid-template-rows: repeat(4, minmax(0, 1fr))
     cards:
       - type: custom:lcards-button
         preset: lozenge
@@ -1483,13 +1494,22 @@ cards:
       - type: custom:lcards-select-menu
         entity: input_select.lcards_test_mode
         preset: toggle-tab
+        grid:
+          columns: 3
+        view_layout:
+          grid-column: span 3
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_look
+        preset: toggle-tab
+        grid:
+          columns: 3
         view_layout:
           grid-column: span 3
       - type: custom:lcards-button
         preset: lozenge
         entity: input_datetime.lcards_test_date
         view_layout:
-          grid-column: span 2
+          grid-column: span 5
         text:
           name: {content: 'DATE {entity.state}', show: true}
         tap_action:

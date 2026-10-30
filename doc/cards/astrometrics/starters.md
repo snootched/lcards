@@ -1304,8 +1304,10 @@ points:
     hide_in_systems: true
   - { id: wormhole_aim_gamma, at: wormhole_gamma, offset: [0, 12566, 0], hide_in_systems: true }
   - { id: wormhole_aim_alpha, at: wormhole_alpha, offset: [0, 12566, 0], hide_in_systems: true }
-  - { id: wormhole_alpha_throat, object: wormhole_mouth_alpha, xyz: [0, -1.6, 0], hide_in_systems: true }
-  - { id: wormhole_gamma_throat, object: wormhole_mouth_gamma, xyz: [0, -1.6, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_throat, object: wormhole_alpha_mouth, xyz: [0, -1.6, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_out, object: wormhole_alpha_mouth, xyz: [0, 3.5999999999999996, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_throat, object: wormhole_gamma_mouth, xyz: [0, -1.6, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_out, object: wormhole_gamma_mouth, xyz: [0, 3.5999999999999996, 0], hide_in_systems: true }
   - id: founders
     xyz: [-39500, 0, -31200]
     marker: dot
@@ -1469,34 +1471,189 @@ objects:
     id: wormhole_link
     points: [wormhole_alpha_throat, wormhole_gamma_throat]
     arc: 4000
-    dash: [8, 6]
+    color: var(--lcars-blue)
+    width: 5
+    glow: 3
+    pulse: true
     flow_speed: 30
-    color: var(--lcars-yellow)
-    width: 1.5
   - type: grid
-    id: wormhole_mouth_alpha
+    id: wormhole_alpha_mouth
     shape: well
     well_shape: trumpet
     well_throat: 0.1
-    radius: 0.6
-    depth: 1.6
     at: wormhole_alpha
     face: wormhole_aim_gamma
-    line_spacing_deg: 30
-    color: var(--lcars-yellow)
+    radius: 0.6
+    depth: 1.6
+    line_spacing_deg: 20
+    color: var(--lcars-blue)
+    scan_period: 4
+    look: diagram
+    deform: [{ type: twist, angle: 60, anchor: top }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
+    max_distance: 200
+    hide_in_systems: true
+  - type: ring
+    id: wormhole_alpha_ring
+    at: wormhole_alpha
+    face: wormhole_aim_gamma
+    radius: 1.05
+    dash: [6, 10]
+    width: 2
+    flow_speed: 40
+    spin: 90
+    look: diagram
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_alpha_glow
+    at: wormhole_alpha
+    color: var(--lcars-blue)
+    size: 3
+    max_distance: 200
+    hide_in_systems: true
+  - type: galaxy
+    id: wormhole_alpha_vortex
+    at: wormhole_alpha
+    face: wormhole_aim_gamma
+    look: realistic
+    radius: 0.8999999999999999
+    arms: 3
+    pitch: 28
+    bar: 0
+    thickness: 0.06
+    stars: 4000
+    seed: 4
+    glow: 0.35
+    dust: 0.3
+    arm_color: var(--lcars-blue)
+    core_color: var(--lcards-moonlight)
+    spin: 60
     max_distance: 200
     hide_in_systems: true
   - type: grid
-    id: wormhole_mouth_gamma
+    id: wormhole_alpha_funnel
     shape: well
     well_shape: trumpet
     well_throat: 0.1
+    at: wormhole_alpha
+    face: wormhole_aim_gamma
     radius: 0.6
     depth: 1.6
+    line_spacing_deg: 30
+    color: var(--lcars-blue)
+    opacity: 0.5
+    look: realistic
+    fill_effect: { type: plasma, color_a: var(--lcars-blue), color_b: var(--lcars-violet), speed: 0.3, opacity: 0.6 }
+    deform: [{ type: twist, angle: 80, anchor: top, period: 6 }]
+    max_distance: 200
+    hide_in_systems: true
+  - type: beam
+    id: wormhole_alpha_light
+    from: wormhole_alpha
+    to: wormhole_alpha_out
+    width: 8
+    color: var(--lcards-moonlight)
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: path
+    id: wormhole_alpha_throat_tube
+    points: [wormhole_alpha, wormhole_alpha_throat]
+    color: var(--lcars-blue)
+    width: 5
+    glow: 3
+    pulse: true
+    flow_speed: 30
+    max_distance: 200
+    hide_in_systems: true
+  - type: grid
+    id: wormhole_gamma_mouth
+    shape: well
+    well_shape: trumpet
+    well_throat: 0.1
     at: wormhole_gamma
     face: wormhole_aim_alpha
+    radius: 0.6
+    depth: 1.6
+    line_spacing_deg: 20
+    color: var(--lcars-blue)
+    scan_period: 4
+    look: diagram
+    deform: [{ type: twist, angle: 60, anchor: top }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
+    max_distance: 200
+    hide_in_systems: true
+  - type: ring
+    id: wormhole_gamma_ring
+    at: wormhole_gamma
+    face: wormhole_aim_alpha
+    radius: 1.05
+    dash: [6, 10]
+    width: 2
+    flow_speed: 40
+    spin: 90
+    look: diagram
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_gamma_glow
+    at: wormhole_gamma
+    color: var(--lcars-blue)
+    size: 3
+    max_distance: 200
+    hide_in_systems: true
+  - type: galaxy
+    id: wormhole_gamma_vortex
+    at: wormhole_gamma
+    face: wormhole_aim_alpha
+    look: realistic
+    radius: 0.8999999999999999
+    arms: 3
+    pitch: 28
+    bar: 0
+    thickness: 0.06
+    stars: 4000
+    seed: 4
+    glow: 0.35
+    dust: 0.3
+    arm_color: var(--lcars-blue)
+    core_color: var(--lcards-moonlight)
+    spin: 60
+    max_distance: 200
+    hide_in_systems: true
+  - type: grid
+    id: wormhole_gamma_funnel
+    shape: well
+    well_shape: trumpet
+    well_throat: 0.1
+    at: wormhole_gamma
+    face: wormhole_aim_alpha
+    radius: 0.6
+    depth: 1.6
     line_spacing_deg: 30
-    color: var(--lcars-yellow)
+    color: var(--lcars-blue)
+    opacity: 0.5
+    look: realistic
+    fill_effect: { type: plasma, color_a: var(--lcars-blue), color_b: var(--lcars-violet), speed: 0.3, opacity: 0.6 }
+    deform: [{ type: twist, angle: 80, anchor: top, period: 6 }]
+    max_distance: 200
+    hide_in_systems: true
+  - type: beam
+    id: wormhole_gamma_light
+    from: wormhole_gamma
+    to: wormhole_gamma_out
+    width: 8
+    color: var(--lcards-moonlight)
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: path
+    id: wormhole_gamma_throat_tube
+    points: [wormhole_gamma, wormhole_gamma_throat]
+    color: var(--lcars-blue)
+    width: 5
+    glow: 3
+    pulse: true
+    flow_speed: 30
     max_distance: 200
     hide_in_systems: true
   - type: path

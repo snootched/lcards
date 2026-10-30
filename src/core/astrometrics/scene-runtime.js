@@ -43,6 +43,7 @@ import { warpTails } from './star-field.js';
 import { STAR_SHELL } from './objects/stars.js';
 import { num, stepObjects } from './objects/common.js';
 import { usesEffects, usesModels, flattenSystems } from './names.js';
+import { parseLook, lookTargets, stepLook, lookAlpha } from './looks.js';
 
 const DEG = Math.PI / 180;
 /** Point keys that place it: a rule patch on one moves the point */
@@ -146,6 +147,7 @@ const KEY_COMMANDS = {
  * @property {() => number} timeScale
  * @property {(opts: { date?: any, rate?: any }) => boolean} setClock - set the scene date (now, ISO, ms) and or rate (live, days per second); false when a value was not understood
  * @property {() => AstroClockState} clock - the scene date and rate now
+ * @property {(look: any) => boolean} setLook - diagram, realistic or mixed (looks.js): crossfade to it; false when it names none
  * @property {(list: { id: string, key: string, value: number | null, smooth?: number }[]) => void} setLive - settings that follow
  *   entities and change in place (opacity, radius, size, spin of an object; '' time_scale): ease to the value over smooth ms; null lets go
  * @property {() => void} requestFrame
@@ -346,6 +348,12 @@ export function createAstroScene(host, config, options = {}) {
    * @type {{ id: string, last: number[] | null, moving: boolean, landing: any } | null}
    */
   let follow = null;
+  /** The card's look (looks.js): what it is now, and how much of each object look shows (eased toward lookTo) */
+  let look = /** @type {'diagram' | 'realistic' | 'mixed'} */ ('mixed');
+  let lookTo = lookTargets(look);
+  const lookW = { ...lookTo };
+  /** Whether a look has been set (the first one shows at once, without a fade) */
+  let lookShown = false;
   let frameChanges = 0;
   /** Tests: keep the current frame (no frame change follows the camera) */
   let frameHold = false;
@@ -748,6 +756,9 @@ export function createAstroScene(host, config, options = {}) {
       || (usesSky && !!cfg.clock);
     applyClock();
     if (usesSky) refreshSky();
+    // a look in the config (the card sends one that follows an entity)
+    const named = parseLook(cfg.look);
+    if (named) showLook(named);
     world = buildScene(cfg, ctx, { cssColor });
     builds++;
     // a followed point is read afresh in the new world (no jump from the old one)
@@ -798,6 +809,25 @@ export function createAstroScene(host, config, options = {}) {
     });
   }
 
+  /**
+   * An object's px-sized parts at the canvas size: line widths, its own star
+   * field (a galaxy's stars), grid line widths. On a resize and on a rebuilt
+   * object (left at their 1 px defaults, a galaxy's stars would each cover
+   * the view).
+   * @param {import('./objects/common.js').BuiltObject} b
+   */
+  function sizeObject(b) {
+    for (const l of b.lines) l.setResolution(cssW, cssH);
+    b.field?.setResolution(cssW, cssH, dpr);
+    for (const f of b.gridFaces) {
+      const u = f.userData.uniforms;
+      f.userData.baseWidths ??= [u.uWidthMinor.value, u.uWidthMajor.value];
+      const [minor, major] = f.userData.baseWidths;
+      u.uWidthMinor.value = minor * dpr;
+      u.uWidthMajor.value = major * dpr;
+    }
+  }
+
   function resize() {
     const rect = wrap.getBoundingClientRect();
     cssW = Math.max(1, rect.width || wrap.clientWidth || 1);
@@ -807,16 +837,7 @@ export function createAstroScene(host, config, options = {}) {
     canvas.height = Math.round(cssH * dpr);
     rig.aspect = cssW / cssH;
     if (world) {
-      for (const b of world.list) {
-        for (const l of b.lines) l.setResolution(cssW, cssH);
-        // an object's own star field (a galaxy's stars, px-sized)
-        b.field?.setResolution(cssW, cssH, dpr);
-        for (const f of b.gridFaces) {
-          const [minor, major] = f.userData.baseWidths ?? [1, 2];
-          f.userData.uniforms.uWidthMinor.value = minor * dpr;
-          f.userData.uniforms.uWidthMajor.value = major * dpr;
-        }
-      }
+      for (const b of world.list) sizeObject(b);
       for (const f of [world.stars?.field, world.dust?.field]) f?.setResolution(cssW, cssH, dpr);
       boxLine?.setResolution(cssW, cssH);
     }
@@ -849,6 +870,7 @@ export function createAstroScene(host, config, options = {}) {
       if (sceneClock.running) options.onClock?.(clockState());
     }
     if (live.size && stepLive(performance.now())) moving = true;
+    if (stepLook(lookW, lookTo, dt, reduced ? 0 : undefined)) moving = true;
     if (!reduced) {
       const sdt = dt * timeScale;
       clock += sdt;
@@ -882,8 +904,8 @@ export function createAstroScene(host, config, options = {}) {
     // Objects out of their distance range hide, partly faded ones blend, for this render
     const inSystem = world.frames.current !== ROOT;
     fader.begin(world.list, world.outer, camera.position, (b) => unitOf(b.config._system),
-      // an opacity from an entity; galaxy-scale objects step aside inside a star system
-      (b) => (inSystem && b.config.hide_in_systems === true ? 0 : (liveAlpha.get(b.id) ?? 1)));
+      // an opacity from an entity; galaxy-scale objects step aside inside a star system; the look's share
+      (b) => (inSystem && b.config.hide_in_systems === true ? 0 : (liveAlpha.get(b.id) ?? 1) * lookAlpha(b.config, lookW)));
     try {
       const plan = depthPlan(camera);
       const scene = world.scene;
@@ -1001,6 +1023,7 @@ export function createAstroScene(host, config, options = {}) {
       it.alphaScale = pointAlpha.get(it.id) ?? 1;
       // galaxy-scale labels step aside while the camera works inside a star system
       if (def.hide_in_systems === true && world.frames.current !== ROOT) it.alphaScale = 0;
+      it.alphaScale *= lookAlpha(def, lookW);
       const alt = def.sky ? sky?.[/** @type {'sun' | 'moon'} */ (def.sky)]?.altitude : Array.isArray(def.altaz) ? Number(def.altaz[1]) : undefined;
       if (alt !== undefined && alt < 0) {
         const mode = def.below_horizon ?? (def.sky ? 'dim' : 'show');
@@ -1432,6 +1455,8 @@ export function createAstroScene(host, config, options = {}) {
         b.config = { ...next, id };
       } else if (w.rebuildObject(id, next)) {
         objectBuilds++;
+        const nb = w.objects.get(id);
+        if (nb) sizeObject(nb);
         // a rebuilt object starts at its config's size: put its live values back
         for (const e of live.values()) if (e.id === id) applyLive(e);
         if (id === boxed) showBox();
@@ -1480,6 +1505,18 @@ export function createAstroScene(host, config, options = {}) {
       if (!s.done) easing = true;
     }
     return easing;
+  }
+
+  /**
+   * Crossfade to a look (the first one shows at once).
+   * @param {'diagram' | 'realistic' | 'mixed'} next
+   */
+  function showLook(next) {
+    look = next;
+    lookTo = lookTargets(next);
+    if (!lookShown) Object.assign(lookW, lookTo);
+    lookShown = true;
+    requestFrame();
   }
 
   /**
@@ -1763,6 +1800,11 @@ export function createAstroScene(host, config, options = {}) {
       return ok;
     },
     clock: clockState,
+    setLook(value) {
+      const named = parseLook(value);
+      if (named) showLook(named);
+      return !!named;
+    },
     setLive,
     press,
     release: endPress,
@@ -1911,6 +1953,8 @@ export function createAstroScene(host, config, options = {}) {
         limits: rig.limits,
         home,
         follow: follow ? { id: follow.id, moving: follow.moving } : null,
+        look,
+        lookWeights: { ...lookW },
         timeScale
       };
     }

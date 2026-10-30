@@ -80,7 +80,7 @@ function normalizeScenePatch(patch) {
 }
 
 /** Config keys the scene reads; a change to anything else does not rebuild it */
-const SCENE_KEYS = ['camera', 'backdrop', 'labels', 'points', 'objects', 'units', 'time_scale', 'clock'];
+const SCENE_KEYS = ['camera', 'backdrop', 'labels', 'points', 'objects', 'units', 'time_scale', 'clock', 'look'];
 
 /** Shown when the scene cannot draw, by the runtime's failure reason */
 const FAILURES = {
@@ -446,6 +446,8 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._settingTimer = undefined;
         /** @type {Record<string, any> | null} camera.view as a guided tour ({ entity, views }) */
         this._tour = null;
+        /** @type {{ entity: string, attribute?: string } | null} the look's entity (looks.js) */
+        this._lookEntity = null;
         /** @type {string | null} the tour stop flown to last (JSON) */
         this._tourAt = null;
         /** @type {{ pointId: string, form: string, object?: string, label: string, missed?: boolean, resolve: (value: number[] | string | null) => void } | null} picking a position for the Studio */
@@ -708,6 +710,9 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         const tour = runtime.isTourView(view) ? view : null;
         if (JSON.stringify(tour) !== JSON.stringify(this._tour)) this._tourAt = null;
         this._tour = tour;
+        // a look that follows an entity (its state, or an attribute, names it)
+        const look = flat?.look;
+        this._lookEntity = look && typeof look === 'object' && typeof look.entity === 'string' && look.entity ? look : null;
     }
 
     /**
@@ -735,6 +740,12 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                 if (this._settingSeq.get(key) !== seq) return;
                 this._applySetting(b, b.kind === 'date' ? runtime.dateValue(null, out) : runtime.mapNumber(null, out), !changed);
             }).catch((/** @type {any} */ error) => lcardsLog.warn(`[LCARdSAstrometricsCard] ${key}: template failed`, error));
+        }
+        const look = this._lookEntity;
+        if (look && (!changed || changed.has(look.entity))) {
+            const st = this.hass?.states?.[look.entity];
+            const value = look.attribute ? st?.attributes?.[look.attribute] : st?.state;
+            if (value !== undefined) this._scene.setLook(value);
         }
         const tour = this._tour;
         if (tour && (!changed || changed.has(tour.entity))) {
@@ -936,6 +947,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         for (const b of this._bindings) tracked.add(b.entityId);
         for (const b of this._settings) b.entities.forEach((e) => tracked.add(e));
         if (this._tour?.entity) tracked.add(this._tour.entity);
+        if (this._lookEntity) tracked.add(this._lookEntity.entity);
         for (const src of this._labelSources) for (const f of src.fields) f.deps.entities.forEach((e) => tracked.add(e));
         this._trackedEntities = [...tracked];
     }

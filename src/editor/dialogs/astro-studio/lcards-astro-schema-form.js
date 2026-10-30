@@ -222,6 +222,8 @@ export class LCARdSAstroSchemaForm extends LitElement {
       case 'pointList':
         return this._pointList(key, label, helper, value);
       case 'choice': {
+        // an entity it follows (a look from an input_select): YAML
+        if (isObj(value)) return this._yaml(key, s);
         const opts = /** @type {NonNullable<ReturnType<typeof choiceOptions>>} */ (choiceOptions(s));
         const options = [
           { value: '', label: '(Not set)' },

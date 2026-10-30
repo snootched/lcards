@@ -125,6 +125,67 @@ export const WORMHOLE_ARC = 4000;
  */
 export const WORMHOLE_AIM = Math.round(Math.PI * WORMHOLE_ARC);
 
+/**
+ * The wormhole's throat: the link across the galaxy and the tube down each mouth to it, a
+ * thick glowing blue line (px wide at any distance: a tube that reads the same up close and
+ * from across the galaxy) with pulses running through it
+ */
+export const THROAT_LINE = Object.freeze({ color: 'var(--lcars-blue)', width: 5, glow: 3, pulse: true, flow_speed: 30 });
+
+/**
+ * One mouth of a wormhole: a funnel narrowing to its throat, facing `aim` (where the link
+ * leaves it), so the link reads as the throat stretched thin across the galaxy. Two looks
+ * (the card's `look`): the diagram is a wireframe funnel, twisting and wobbling, with a
+ * spinning dashed ring; the realistic mouth is a vortex (a small spinning galaxy of light
+ * just round the rim), a swirling plasma funnel and a shaft of light out of the opening. The
+ * glow at its heart and the throat tube (from the heart to where the link leaves, so the
+ * link always comes out of the mouth, however thin the funnel's end) show in both.
+ *
+ * Everything is sized from the rim's radius. With `power` (an entity, 0 to 100) the mouth
+ * opens with it: the rim from 15 % to its full radius, and the vortex, glow and spins with it.
+ *
+ * Points: `<prefix>_throat` (the link's end) and `<prefix>_out` (where the light shines to).
+ * Objects: `<prefix>_mouth` (the diagram funnel), `_ring`, `_glow`, `_vortex`, `_funnel`,
+ * `_light`, `_throat_tube`.
+ * @param {{ prefix: string, at: string, aim: string, radius: number, depth: number, power?: string, extra?: Record<string, any>, stars?: number }} o -
+ *   `extra` goes on every object (a distance range)
+ * @returns {{ points: any[], objects: any[] }}
+ */
+export function wormholeMouth({ prefix, at, aim, radius: R, depth: D, power, extra = {}, stars = 4000 }) {
+  /** @param {number} lo @param {number} hi @param {number} [smooth] */
+  const opens = (lo, hi, smooth) => (power ? { entity: power, to: [lo, hi], ...(smooth ? { smooth } : {}) } : hi);
+  const mouth = `${prefix}_mouth`;
+  const shape = { shape: 'well', well_shape: 'trumpet', well_throat: 0.1, at, face: aim, radius: opens(0.15 * R, R, 1500), depth: D };
+  const wobble = power ? `[[[ return Number(states['${power}']?.state ?? 0) / 1000 ]]]` : 0.06;
+  return {
+    points: [
+      // on the funnel, so they turn with it
+      { id: `${prefix}_throat`, object: mouth, xyz: [0, -D, 0] },
+      { id: `${prefix}_out`, object: mouth, xyz: [0, 6 * R, 0] }
+    ],
+    objects: [
+      {
+        type: 'grid', id: mouth, ...shape, line_spacing_deg: 20, color: 'var(--lcars-blue)', scan_period: 4, look: 'diagram',
+        deform: [{ type: 'twist', angle: 60, anchor: 'top' }, { type: 'wobble', lobes: 0, waves: 2, period: 3, amplitude: wobble }], ...extra
+      },
+      { type: 'ring', id: `${prefix}_ring`, at, face: aim, radius: 1.75 * R, dash: [6, 10], width: 2, flow_speed: 40, spin: opens(0, 90), look: 'diagram', ...extra },
+      { type: 'glow', id: `${prefix}_glow`, at, color: 'var(--lcars-blue)', size: opens(0.5 * R, 5 * R), ...extra },
+      {
+        type: 'galaxy', id: `${prefix}_vortex`, at, face: aim, look: 'realistic', radius: opens(0.22 * R, 1.5 * R, 1500),
+        arms: 3, pitch: 28, bar: 0, thickness: 0.06, stars, seed: 4, glow: 0.35, dust: 0.3,
+        arm_color: 'var(--lcars-blue)', core_color: 'var(--lcards-moonlight)', spin: opens(5, 60), ...extra
+      },
+      {
+        type: 'grid', id: `${prefix}_funnel`, ...shape, line_spacing_deg: 30, color: 'var(--lcars-blue)', opacity: 0.5, look: 'realistic',
+        fill_effect: { type: 'plasma', color_a: 'var(--lcars-blue)', color_b: 'var(--lcars-violet)', speed: 0.5 * R, opacity: 0.6 },
+        deform: [{ type: 'twist', angle: 80, anchor: 'top', period: 6 }], ...extra
+      },
+      { type: 'beam', id: `${prefix}_light`, from: at, to: `${prefix}_out`, width: 8, color: 'var(--lcards-moonlight)', look: 'realistic', ...extra },
+      { type: 'path', id: `${prefix}_throat_tube`, points: [at, `${prefix}_throat`], ...THROAT_LINE, ...extra }
+    ]
+  };
+}
+
 const KEEP_IN_SYSTEMS = new Set(['milky_way', 'voyager_route', 'wormhole_link']);
 
 /**
@@ -148,6 +209,11 @@ export default /** @type {import('./index.js').Starter} */ ({
   icon: 'mdi:star-david',
   params: [],
   build: () => {
+    // the wormhole's mouths, 0.6 ly across so the galaxy-scale map shows them
+    const mouth = (/** @type {string} */ end, /** @type {string} */ other) => wormholeMouth({
+      prefix: `wormhole_${end}`, at: `wormhole_${end}`, aim: `wormhole_aim_${other}`, radius: 0.6, depth: 1.6, extra: { max_distance: 200 }
+    });
+    const MOUTHS = [mouth('alpha', 'gamma'), mouth('gamma', 'alpha')];
     const quadrant = (/** @type {string} */ id, /** @type {string} */ label, /** @type {number} */ bearing) => ({
       // the galaxy and quadrant views only: from anywhere near Sol they are 15,000 to 65,000 ly away
       id, polar: [40000, bearing], alt: 6000, label, style: 'title', min_distance: 70000
@@ -202,8 +268,7 @@ export default /** @type {import('./index.js').Starter} */ ({
         // each mouth faces where the link leaves it (WORMHOLE_AIM), the link runs throat to throat
         { id: 'wormhole_aim_gamma', at: 'wormhole_gamma', offset: [0, WORMHOLE_AIM, 0] },
         { id: 'wormhole_aim_alpha', at: 'wormhole_alpha', offset: [0, WORMHOLE_AIM, 0] },
-        { id: 'wormhole_alpha_throat', object: 'wormhole_mouth_alpha', xyz: [0, -1.6, 0] },
-        { id: 'wormhole_gamma_throat', object: 'wormhole_mouth_gamma', xyz: [0, -1.6, 0] },
+        ...MOUTHS.flatMap((m) => m.points),
         { id: 'founders', xyz: [-39500, 0, -31200], marker: 'dot', label: "Founders' homeworld", style: 'tiny', max_distance: 20000 },
         { id: 'unicomplex', xyz: [26000, 0, -26000], marker: 'diamond', label: 'Unicomplex', style: 'minor', max_distance: 60000 },
         ...VOYAGER.map(([id, label, x, z]) => ({
@@ -229,10 +294,9 @@ export default /** @type {import('./index.js').Starter} */ ({
         { type: 'grid', id: 'sectors', shape: 'plane', at: 'sol', size: [400, 400], line_spacing: 20, major_row_interval: 5, opacity: 0.5, max_distance: 3000 },
         { type: 'volume', id: 'romulan_neutral_zone', shape: 'prism', at: 'sol', outline: [[70, -40], [78, -40], [80, 60], [72, 60]], height: [-4, 4], color: 'var(--lcars-green)', face_opacity: 0.35, max_distance: 3000 },
         { type: 'volume', id: 'cardassian_dmz', shape: 'prism', at: 'sol', outline: [[-38, 12], [-42, 8], [-48, 34], [-44, 38]], height: [-4, 4], color: 'var(--lcars-orange)', face_opacity: 0.35, max_distance: 3000 },
-        // the Bajoran wormhole: one wormhole, a mouth at each end, the dashed link its throat across the galaxy
-        { type: 'path', id: 'wormhole_link', points: ['wormhole_alpha_throat', 'wormhole_gamma_throat'], arc: WORMHOLE_ARC, dash: [8, 6], flow_speed: 30, color: 'var(--lcars-yellow)', width: 1.5 },
-        { type: 'grid', id: 'wormhole_mouth_alpha', shape: 'well', well_shape: 'trumpet', well_throat: 0.1, radius: 0.6, depth: 1.6, at: 'wormhole_alpha', face: 'wormhole_aim_gamma', line_spacing_deg: 30, color: 'var(--lcars-yellow)', max_distance: 200 },
-        { type: 'grid', id: 'wormhole_mouth_gamma', shape: 'well', well_shape: 'trumpet', well_throat: 0.1, radius: 0.6, depth: 1.6, at: 'wormhole_gamma', face: 'wormhole_aim_alpha', line_spacing_deg: 30, color: 'var(--lcars-yellow)', max_distance: 200 },
+        // the Bajoran wormhole: one wormhole, a mouth at each end, the link its throat across the galaxy
+        { type: 'path', id: 'wormhole_link', points: ['wormhole_alpha_throat', 'wormhole_gamma_throat'], arc: WORMHOLE_ARC, ...THROAT_LINE },
+        ...MOUTHS.flatMap((m) => m.objects),
         // Voyager's way home
         { type: 'path', id: 'voyager_route', points: [...VOYAGER.map(([id]) => id), 'sol'], dash: [10, 6], flow_speed: 40, color: 'var(--lcars-orange)', width: 2 }
       ]

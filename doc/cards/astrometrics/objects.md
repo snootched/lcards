@@ -36,6 +36,7 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 | `at` | Where it sits: a point id (it follows the point) or `[x, y, z]`. Default the origin. |
 | `rotation: [x, y, z]` | Turns it, degrees: y is a bearing, x tips it toward the camera, z rolls it. |
 | `spin` | Turns it round its own vertical axis, degrees per second. Points on it turn with it. |
+| `look` | `diagram` or `realistic`: shows only in that [look](./#looks-diagram-and-realistic) of the card (and in `mixed`). Left out, it shows in every look. |
 | `face` | `motion`: at a moving point, it turns to face where the point is going ([below](#facing-the-way-it-goes)). A point id: it turns toward that point ([facing a point](#facing-a-point)). |
 | `opacity`, `visible` | Opacity 0 to 1; `visible: false` hides it (its points still work). |
 | `max_distance`, `min_distance`, `fade` | Shown only within a camera distance, as on points: [below](#distance). |

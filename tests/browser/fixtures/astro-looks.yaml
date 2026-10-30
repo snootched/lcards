@@ -1,0 +1,18 @@
+# Looks: the card's look follows input_select.lcards_test_look; a wire
+# globe in the diagram look, a filled one in the realistic look, a ring in
+# every look, and a label for each look. astrometrics.spec.js switches it.
+type: custom:lcards-astrometrics-card
+height: 300
+look: { entity: input_select.lcards_test_look }
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 20, tilt: 25, distance: 160 }
+points:
+  - { id: wire_name, xyz: [0, 40, 0], label: WIRE, look: diagram }
+  - { id: real_name, xyz: [0, -40, 0], label: REAL, look: realistic }
+objects:
+  - { type: sphere, id: wire, radius: 25, line_spacing_deg: 20, look: diagram }
+  - { type: sphere, id: real, radius: 25, fill_color: var(--lcars-blue), look: realistic }
+  - { type: ring, id: always, radius: 45 }
+  # a vortex whose size follows an entity: rebuilt at its first value, its stars sized to the canvas
+  - { type: galaxy, id: swirl, radius: { entity: input_number.lcards_test_power, to: [10, 30] }, arms: 3, bar: 0, stars: 2000, look: realistic }
