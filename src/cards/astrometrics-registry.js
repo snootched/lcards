@@ -1,7 +1,8 @@
 /**
  * `window.lcards.cards.astrometrics`: the astrometrics cards on the page, by
- * their `id`, so other cards (`action: fly-to` with `card`) and automations
- * (`lcards.fly_to`) can fly their cameras. Cards add themselves on connect
+ * their `id`, so other cards (`action: fly-to` / `set-clock` with `card`) and
+ * automations (`lcards.fly_to`, `lcards.set_clock`) can fly their cameras and
+ * set their scene dates. Cards add themselves on connect
  * and leave on disconnect; a card shown twice (two views, a wall panel)
  * flies everywhere it is open.
  *
@@ -10,7 +11,7 @@
 import { lcardsLog } from '../utils/lcards-logging.js';
 
 /**
- * @typedef {HTMLElement & { config?: any, flyTo: (view: string | Record<string, any>, opts?: { duration?: number }) => Promise<void> }} AstrometricsCardElement
+ * @typedef {HTMLElement & { config?: any, flyTo: (view: string | Record<string, any>, opts?: { duration?: number }) => Promise<void>, setClock: (opts: { date?: any, rate?: any }) => boolean }} AstrometricsCardElement
  */
 
 /** @type {Set<AstrometricsCardElement>} */
@@ -75,6 +76,30 @@ export const astrometricsRegistry = {
         }
         const duration = Number(opts.duration);
         for (const card of matches) card.flyTo(to, Number.isFinite(duration) && duration >= 0 ? { duration } : {});
+        return matches.length;
+    },
+
+    /**
+     * Set the scene date and or rate of every connected card with this `id`.
+     * @param {string} id
+     * @param {{ date?: any, rate?: any }} opts - date: now or ISO; rate: live or days per second
+     * @returns {number} how many cards took it
+     */
+    setClock(id, opts = {}) {
+        const clock = {
+            ...(opts.date !== undefined && opts.date !== null && opts.date !== '' ? { date: opts.date } : {}),
+            ...(opts.rate !== undefined && opts.rate !== null && opts.rate !== '' ? { rate: opts.rate } : {})
+        };
+        if (!Object.keys(clock).length) {
+            lcardsLog.warn(`[Astrometrics] set-clock for '${id}' needs a date or a rate`);
+            return 0;
+        }
+        const matches = [...cards].filter((c) => c.config?.id === id);
+        if (!matches.length) {
+            lcardsLog.debug(`[Astrometrics] set-clock: no astrometrics card with id '${id}' is open here`);
+            return 0;
+        }
+        for (const card of matches) card.setClock(clock);
         return matches.length;
     }
 };

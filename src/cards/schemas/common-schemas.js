@@ -254,9 +254,9 @@ export const actionSchema = {
     properties: {
         action: {
             type: 'string',
-            enum: ['toggle', 'call-service', 'perform-action', 'navigate', 'url', 'more-info', 'assist', 'fly-to', 'none'],
+            enum: ['toggle', 'call-service', 'perform-action', 'navigate', 'url', 'more-info', 'assist', 'fly-to', 'set-clock', 'none'],
             default: 'toggle',
-            description: 'Type of action to perform. fly-to: fly the camera of the astrometrics card named in card to its view or point.',
+            description: 'Type of action to perform. fly-to: fly the camera of the astrometrics card named in card to its view or point. set-clock: set the scene date and or rate of the astrometrics card named in card.',
             enumDescriptions: [
                 'Toggle entity on/off',
                 'Call a Home Assistant service',
@@ -312,7 +312,7 @@ export const actionSchema = {
         },
         card: {
             type: 'string',
-            description: 'fly-to only: the id of the astrometrics card whose camera flies (any card on the same dashboard or open in the same browser).'
+            description: 'fly-to and set-clock: the id of the astrometrics card to act on (any card on the same dashboard or open in the same browser).'
         },
         view: {
             type: 'string',
@@ -326,6 +326,16 @@ export const actionSchema = {
             type: 'number',
             minimum: 0,
             description: 'fly-to only: how long the flight takes, ms. Default the card\'s camera.fly_duration.'
+        },
+        date: {
+            type: 'string',
+            description: 'set-clock only: the scene date, now or an ISO date and time (2026-10-30, 2026-10-30T12:00:00Z). Leave out to keep the date running on.',
+            examples: ['now', '2026-10-30T12:00:00Z']
+        },
+        rate: {
+            type: ['number', 'string'],
+            description: 'set-clock only: how fast the scene date runs, days per second (1 is a day a second, 0 holds it, negative runs back), or live for real time. Leave out to keep the rate.',
+            examples: ['live', 1, 30]
         }
     }
 };

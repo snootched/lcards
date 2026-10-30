@@ -37,6 +37,7 @@ import { depthSlices, drawPasses, starsBehind } from './depth-passes.js';
 import { BINDABLE_FORMS } from './placements.js';
 import { FatLine } from './lines.js';
 import { skyState } from './sky.js';
+import { SceneClock } from './clock.js';
 import { warpTails } from './star-field.js';
 import { STAR_SHELL } from './objects/stars.js';
 import { num, stepObjects } from './objects/common.js';
@@ -44,11 +45,15 @@ import { usesEffects, usesModels, flattenSystems } from './names.js';
 
 const DEG = Math.PI / 180;
 /** Point keys that place it: a rule patch on one moves the point */
-const PLACE_KEYS = ['xyz', 'polar', 'latlon', 'altaz', 'sky', 'at', 'cell', 'object', 'part', 'alt', 'offset'];
+const PLACE_KEYS = ['xyz', 'polar', 'latlon', 'altaz', 'sky', 'body', 'center', 'at', 'cell', 'object', 'part', 'alt', 'offset'];
 /** Point keys that shape its label: a rule patch on one rebuilds that label */
 const LABEL_KEYS = ['label', 'text', 'style', 'color', 'marker', 'priority', 'overlap', 'fade', 'min_distance', 'max_distance', 'tap_action', 'card'];
 /** The sun crosses its own width in about 2 minutes: recompute the sky this often */
 const SKY_INTERVAL_MS = 60_000;
+/** A slow scene clock (live, a minute a second) redraws this often, and a fast one under reduced motion */
+const CLOCK_INTERVAL_MS = 1000;
+/** Sky changes reach label templates (onSky) at most this often while the clock runs fast */
+const SKY_NOTIFY_MS = 250;
 /** A press this long is a hold (Home Assistant's hold time); a tap must be shorter */
 const HOLD_MS = 500;
 /** Movement (CSS px) that turns a press into a drag */
@@ -88,6 +93,13 @@ const KEY_COMMANDS = {
 };
 
 /**
+ * @typedef {Object} AstroClockState
+ * @property {number} date - the scene date, ms
+ * @property {number} rate - days per second (1/86400 is real time, 0 holds)
+ * @property {boolean} running
+ */
+
+/**
  * @typedef {Object} AstroTapHit
  * @property {'point' | 'object'} kind
  * @property {string} id
@@ -103,6 +115,7 @@ const KEY_COMMANDS = {
  * @property {(hit: AstroTapHit) => void} [onHold] - a press held HOLD_MS within the tap distance, on a point or an object with a `hold_action`
  * @property {(reason: string) => void} [onFail] - no WebGL, or the context was lost
  * @property {(sky: import('./sky.js').SkyState) => void} [onSky] - the sky changed (a recompute that moved the sun or moon, at most once a minute); for label templates that read it
+ * @property {(clock: AstroClockState) => void} [onClock] - the scene date moved or its rate changed (every frame while it runs): the time slider's readout
  * @property {(card: Record<string, any>) => HTMLElement | null} [mountCard] - build the element for a point's Lovelace card (`card.card`); without it points show no cards
  * @property {(el: HTMLElement, hass: any) => void} [setCardHass] - give a mounted card hass
  */
@@ -130,6 +143,8 @@ const KEY_COMMANDS = {
  * @property {(view: string | Record<string, any>, opts?: { duration?: number, warp?: boolean }) => Promise<void>} flyTo
  * @property {(scale: number) => void} setTimeScale - how fast the scene's motion runs (1 as configured, 0 holds it)
  * @property {() => number} timeScale
+ * @property {(opts: { date?: any, rate?: any }) => boolean} setClock - set the scene date (now, ISO, ms) and or rate (live, days per second); false when a value was not understood
+ * @property {() => AstroClockState} clock - the scene date and rate now
  * @property {() => void} requestFrame
  * @property {() => void} recolor - re-resolve theme colours (theme or alert change)
  * @property {(command: string) => void} press - start a camera command (CAMERA_COMMANDS name, or `reset`): one step, then held motion
@@ -214,6 +229,15 @@ export function createAstroScene(host, config, options = {}) {
   let timeScale = 1;
   /** The config's `time_scale` last built: a rebuild for another reason keeps the slider's speed */
   let timeScaleCfg = 1;
+  /** The scene date (`clock`): body points, spheres and orbits, and the sky once a clock is set */
+  const sceneClock = new SceneClock();
+  /** The scene date this frame (ms): every reader in a frame sees the same one */
+  let dateNow = sceneClock.date(performance.now());
+  /** The config's `clock` last built (JSON): a rebuild for another reason keeps the slider's or action's date and rate */
+  let clockCfg = '';
+  /** Something follows the scene date (body points, body or orbit objects, a clock with a sky) */
+  let usesClock = false;
+  let skyNotified = 0;
   /** @type {Vector3 | null} the camera position last frame (warp streaks) */
   let lastCamera = null;
   let cssW = 1;
@@ -324,6 +348,7 @@ export function createAstroScene(host, config, options = {}) {
     },
     places: null,
     sky: () => sky,
+    date: () => dateNow,
     requestFrame: () => requestFrame(),
     loadTexture: (src) => {
       // returned at once (callers set its options); the picture arrives once
@@ -376,17 +401,47 @@ export function createAstroScene(host, config, options = {}) {
 
   function refreshSky() {
     if (!usesSky) return false;
-    const next = skyState(hass);
+    // With a clock the sky shows the scene date (computed: sun.sun is for now)
+    const next = cfg.clock ? skyState(hass, dateNow, { entity: false }) : skyState(hass);
     const changed = !sky || Math.abs(next.sun.azimuth - sky.sun.azimuth) > 1e-3 || Math.abs(next.sun.altitude - sky.sun.altitude) > 1e-3
       || Math.abs(next.moon.azimuth - sky.moon.azimuth) > 1e-3 || new Date(next.time).toDateString() !== new Date(sky.time).toDateString();
     sky = next;
     if (changed) {
       for (const it of labels.items) if (it.marker === 'moon_phase') labels.style(it.id, { svg: markerSvg('moon_phase', sky.moon) });
-      options.onSky?.(sky);
+      const t = performance.now();
+      if (!sceneClock.fast || t - skyNotified >= SKY_NOTIFY_MS) {
+        skyNotified = t;
+        options.onSky?.(sky);
+      }
     }
     return changed;
   }
   const skyTimer = setInterval(() => { if (refreshSky()) requestFrame(); }, SKY_INTERVAL_MS);
+  // a slow clock moves things too little for every frame; a fast one under reduced motion steps once a second
+  const clockTimer = setInterval(() => {
+    if (usesClock && sceneClock.running && (!sceneClock.fast || reduced)) requestFrame();
+  }, CLOCK_INTERVAL_MS);
+
+  /**
+   * The config's `clock` when it changed since the last build (a rebuild for
+   * another reason keeps what the slider or an action set).
+   */
+  function applyClock() {
+    const key = JSON.stringify(cfg.clock ?? null);
+    if (key === clockCfg) return;
+    clockCfg = key;
+    const c = cfg.clock && typeof cfg.clock === 'object' ? cfg.clock : {};
+    if (!sceneClock.set({ date: c.date ?? 'now', rate: c.rate ?? 'live' }, performance.now())) {
+      lcardsLog.warn(`[Astrometrics] clock: could not read ${JSON.stringify(c)} (date: now or an ISO date; rate: live or days per second)`);
+    }
+    dateNow = sceneClock.date(performance.now());
+    options.onClock?.(clockState());
+  }
+
+  /** The clock now, for the time slider and the card */
+  function clockState() {
+    return { date: dateNow, rate: sceneClock.rate, running: sceneClock.running };
+  }
 
   /** The start view: by name, else the first; null with no views */
   function startView() {
@@ -675,6 +730,10 @@ export function createAstroScene(host, config, options = {}) {
     // The sky clock runs for sky points and paths, and for label templates that read sky.*
     usesSky = (Array.isArray(cfg.points) && cfg.points.some((p) => p?.sky || /\bsky\./.test(JSON.stringify(p?.text ?? p?.label ?? ''))))
       || (Array.isArray(cfg.objects) && cfg.objects.some((o) => o?.sky));
+    usesClock = (Array.isArray(cfg.points) && cfg.points.some((p) => p?.body !== undefined))
+      || (Array.isArray(cfg.objects) && cfg.objects.some((o) => o?.body !== undefined || o?.orbit !== undefined))
+      || (usesSky && !!cfg.clock);
+    applyClock();
     if (usesSky) refreshSky();
     world = buildScene(cfg, ctx, { cssColor });
     builds++;
@@ -758,11 +817,20 @@ export function createAstroScene(host, config, options = {}) {
     const dt = last ? Math.min(100, now - last) : 0;
     last = now;
     let moving = false;
+    // the scene date: real bodies turn and move whatever time_scale is (performance.now(), the clock's
+    // own timeline: a frame's timestamp can be older than a rate change just made)
+    dateNow = sceneClock.date(performance.now());
+    if (usesClock) {
+      for (const b of world.list) b.onDate?.(dateNow);
+      if (sceneClock.fast && !reduced) moving = true;
+      if (sceneClock.running && cfg.clock) refreshSky();
+      if (sceneClock.running) options.onClock?.(clockState());
+    }
     if (!reduced) {
       const sdt = dt * timeScale;
       clock += sdt;
       // held (time_scale 0): nothing steps; the first frame after a restart has dt 0 and still counts
-      moving = timeScale > 0 && stepObjects(world.list, sdt, clock);
+      if (timeScale > 0 && stepObjects(world.list, sdt, clock)) moving = true;
       const auto = num(cfg.camera?.auto_rotate, 0);
       if (auto && !dragging && !rig.flying) {
         rig.keys.yaw += auto * (dt / 1000);
@@ -1574,6 +1642,15 @@ export function createAstroScene(host, config, options = {}) {
       requestFrame();
     },
     timeScale: () => timeScale,
+    setClock(opts) {
+      const ok = sceneClock.set(opts ?? {}, performance.now());
+      dateNow = sceneClock.date(performance.now());
+      if (cfg.clock) refreshSky();
+      options.onClock?.(clockState());
+      requestFrame();
+      return ok;
+    },
+    clock: clockState,
     press,
     release: endPress,
     home: goHome,
@@ -1665,6 +1742,7 @@ export function createAstroScene(host, config, options = {}) {
       disposed = true;
       if (raf) cancelAnimationFrame(raf);
       clearInterval(skyTimer);
+      clearInterval(clockTimer);
       clearTimeout(holdTimer);
       clearTimeout(pressTimer);
       wrap.removeEventListener('keydown', onKeyDown);

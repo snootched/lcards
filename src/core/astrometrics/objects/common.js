@@ -11,7 +11,8 @@
  *
  * @module core/astrometrics/objects/common
  */
-import { MathUtils } from 'three';
+import { MathUtils, Matrix4, Vector3 } from 'three';
+import { sphereAxes } from '../ephemeris.js';
 import { scanAt } from '../../packs/backgrounds/webgl/scenes/scan-band.js';
 import { scanRange, setScan } from '../grid-mesh-material.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
@@ -37,6 +38,8 @@ export const DEFAULT_COLORS = {
  * @property {(value: any, fallback: string) => number[]} color - concrete straight sRGB rgba 0..1
  * @property {import('../placements.js').Placements | null} places - set before `update` runs
  * @property {() => (import('../sky.js').SkyState | null)} sky
+ * @property {() => number} [date] - the scene clock's date, ms (`clock`; body points, spheres and orbits)
+ * @property {(system: string | undefined) => number | null} [kmPerUnit] - km per unit of a frame (its `units`), null without; set by buildScene
  * @property {() => void} requestFrame
  * @property {(pointId: any) => (import('three').Object3D | null)} [pointSpace] - what a point's motion is measured on: the
  *   outer group of the object it stands on (placed and turned, not spun), or null (set once the placements exist)
@@ -66,6 +69,7 @@ export const DEFAULT_COLORS = {
  * @property {boolean} dynamic
  * @property {import('../star-field.js').StarField} [field] - backdrop stars and dust
  * @property {((dt: number, t: number) => boolean) | null} tick - own motion per frame (drift, scan, flow): dt and the scene clock in ms; true while it still moves
+ * @property {(ms: number) => void} [onDate] - follow the scene date (a body's turn, an orbit line): every frame, whatever time_scale is
  * @property {import('three').Object3D} [placeNode] - what points on it are local to, when not `node` (a model's file space)
  * @property {'sphere' | 'depth'} [occluder] - how it hides labels when `occludes`: a sphere of `radius` (default), or its depth (meshes)
  * @property {boolean} [flat] - distance keys measure to its bounding box, not its sphere (a plane or disc grid)
@@ -159,6 +163,29 @@ export function applyRotation(node, config) {
   const r = Array.isArray(config.rotation) ? config.rotation : null;
   node.rotation.order = 'YXZ';
   if (r) node.rotation.set(MathUtils.degToRad(num(r[0], 0)), -MathUtils.degToRad(num(r[1], 0)), MathUtils.degToRad(num(r[2], 0)));
+}
+
+/**
+ * `body: <name>` on a sphere or ring: the object takes the real body's pole
+ * and turn at the scene clock's date (ephemeris.js), so its north pole points
+ * where the planet's does and longitude 0 faces where its prime meridian
+ * does. `spin` and `rotation` do not apply. Points on it move (it turns).
+ * Nothing for an unknown name (the checker warns).
+ * @param {BuiltObject} out
+ */
+export function bodyTurn(out) {
+  const name = out.config?.body;
+  if (name === undefined || name === null || name === '' || !sphereAxes(String(name), 0)) return;
+  out.spin = 0;
+  out.moving = true;
+  const m = new Matrix4();
+  const x = new Vector3(), y = new Vector3(), z = new Vector3();
+  out.onDate = (ms) => {
+    const a = sphereAxes(String(name), ms);
+    if (!a) return;
+    m.makeBasis(x.fromArray(a.x), y.fromArray(a.y), z.fromArray(a.z));
+    out.node.quaternion.setFromRotationMatrix(m);
+  };
 }
 
 /**

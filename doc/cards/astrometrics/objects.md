@@ -224,6 +224,8 @@ objects:
 
 A planet or globe: latitude and longitude lines (`line_spacing_deg`, or `lat_step` and `lon_step` for different spacings) over a solid body (`fill_color`, `fill_opacity`) that hides what is behind it, labels included (`occlude: false` turns that off). `image` wraps a map around it: one of the [built-in planet maps](#built-in-planet-maps), or your own equirectangular picture (`/local/mars.jpg`; longitude 0 in the middle). For a planet with no map (or a made-up one), a [`fill_effect` preset](./effects#planet-types) paints a planet type. The grid line keys (`color`, `line_width`, ...) work as on a grid, and `deform` as on a grid sphere. `latlon` points stand on it and turn with its `spin`. For a see-through wireframe ball with no body, use a [grid](#grid) with `shape: sphere`.
 
+`body: earth` (any [real body](./scale#the-real-solar-system)) turns the sphere as that body really is at the scene date: its axis tilted where the real pole points, a real sidereal day, and longitude 0 of its map where its prime meridian is, so `latlon` points stand over the real places. `spin` and `rotation` do not apply then.
+
 ```yaml live
 type: custom:lcards-astrometrics-card
 height: 300
@@ -271,8 +273,18 @@ LCARdS ships these maps (2048 x 1024, longitude 0 in the middle). All are public
 | `builtin:mars_viking` | Mars | USGS Astrogeology, Viking global colour mosaic |
 | `builtin:jupiter_cassini` | Jupiter | NASA/JPL/Space Science Institute, Cassini map PIA07782 (December 2000) |
 | `builtin:pluto_new_horizons` | Pluto | USGS Astrogeology, New Horizons global mosaic (July 2017); the far south was never seen and is grey |
+| `builtin:sun_sdo` | Sun (extreme ultraviolet, the chromosphere; Carrington longitude 0 in the middle) | NASA Scientific Visualization Studio 30362, STEREO EUVI and SDO AIA 304 Å map (2012) |
+| `builtin:phobos_viking` | Phobos | USGS Astrogeology, Viking orbiter global mosaic |
+| `builtin:ceres_dawn` | Ceres | USGS Astrogeology, Dawn Framing Camera global mosaic (October 2015) |
+| `builtin:io_galileo` | Io | USGS Astrogeology, Galileo SSI and Voyager colour merge mosaic |
+| `builtin:europa_galileo` | Europa | USGS Astrogeology, Voyager and Galileo SSI global mosaic |
+| `builtin:ganymede_galileo` | Ganymede | USGS Astrogeology, Voyager and Galileo SSI colour mosaic |
+| `builtin:callisto_galileo` | Callisto | USGS Astrogeology, Voyager and Galileo SSI global mosaic |
+| `builtin:titan_cassini` | Titan (the surface under its haze, near infrared) | USGS Astrogeology, Cassini ISS global mosaic |
+| `builtin:triton_voyager` | Triton | USGS Astrogeology, Voyager 2 colour mosaic; most of the north was never seen and is grey |
+| `builtin:charon_new_horizons` | Charon | USGS Astrogeology, New Horizons global mosaic (July 2017); the far south was never seen and is grey |
 
-Saturn, Uranus and Neptune have no public-domain global maps: use the `ringed_giant`, `ice_giant` and `storm_giant` [planet types](./effects#planet-types), and Venus as seen from space (a cloud deck) is the `clouds` type. Saturn's rings are a [ring band](#ring).
+Saturn, Uranus and Neptune have no public-domain global maps: use the `ringed_giant`, `ice_giant` and `storm_giant` [planet types](./effects#planet-types), and Venus as seen from space (a cloud deck) is the `clouds` type. (A 2025 Cassini global map of Saturn exists, but it has gaps at the poles and the rings' shadow across the south, and no clear licence.) Deimos has no global map: give it a grey `fill_color`. Saturn's rings are a [ring band](#ring).
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -291,6 +303,8 @@ objects:
 ## ring
 
 A circle or ellipse: an orbit, a rim, a range ring. `at` is its centre (a point id: the ring follows it), `radius` (or `[a, b]` for an ellipse), `inclination` and `node` (the bearing of the line where an inclined ring crosses the plane), `arc: [from, to]` for part of it, and the line keys below.
+
+`orbit: mars` draws a [real body's](./scale#the-real-solar-system) orbit at the scene date instead: an ellipse with its parent at a focus, tilted and turned as it really is, in the frame's units. Leave `at` out for a planet (the Sun sits at the origin) and put a moon's at its planet (`orbit: io`, `at: jupiter`). `body: saturn` lays a ring in that body's equator (Saturn's rings, below).
 
 With `image`, the ring is a flat band from `inner_radius` (default half the radius) out to `radius`, the picture laid across its width: its left edge on the inner rim, its right edge on the outer. `builtin:saturn_rings` is Saturn's rings from the D ring to the F ring, drawn from their published radii: use `radius` 2.33 and `inner_radius` 1.11 times the planet's radius. `image_opacity` fades it and `image_color` tints it. A planet in its middle hides the far side of the band, and the near side passes in front. The ring's line is drawn too only when you set `width`.
 

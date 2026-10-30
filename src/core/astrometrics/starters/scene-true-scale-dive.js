@@ -3,17 +3,18 @@
  * inside it (`type: system`), down to Deep Space 9 in Earth orbit. The
  * galactic disc hides once you are inside the system.
  */
-import { solSystem, SOL_VIEWS, STATION_VIEW } from './true-scale.js';
+import { solSystem, SOL_VIEWS, STATION_VIEW, SOL_CLOCK } from './true-scale.js';
 
 export default /** @type {import('./index.js').Starter} */ ({
   id: 'true_scale_dive',
   kind: 'scene',
   title: 'Galaxy to station at true scale',
-  description: 'A galaxy in light years with the Sol system in km inside it, 26,000 light years from the core: tap SOL and dive from the galaxy to the planets, Earth and Deep Space 9, all at their real sizes and distances.',
+  description: 'A galaxy in light years with the Sol system in km inside it, 26,000 light years from the core: tap SOL and dive from the galaxy to the planets, Earth and Deep Space 9, all at their real sizes and distances, with the planets where they are today.',
   icon: 'mdi:magnify-plus-outline',
   params: [],
   build: () => ({
     units: 'ly',
+    clock: { ...SOL_CLOCK },
     views: {
       galaxy: { target: 'core', yaw: 20, tilt: 35, distance: 140000 },
       ...SOL_VIEWS,

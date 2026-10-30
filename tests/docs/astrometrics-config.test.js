@@ -68,7 +68,7 @@ test('reference checks: placement forms, ids that must exist, object: of the rig
         'error reference objects[2].points[1]: no point "grid#1.ring.90"',
         'error reference objects[2].tap_action.view: no view "zz" in camera.views',
         'error reference points[0]: point "a" has more than one position (xyz, polar); use one',
-        'error reference points[1]: point "b" has no position (one of xyz, polar, latlon, altaz, sky, at, cell, or part)',
+        'error reference points[1]: point "b" has no position (one of xyz, polar, latlon, altaz, sky, body, at, cell, or part)',
         'error reference points[2]: cell needs object: (the object it stands on)',
         'error reference points[4].object: cell needs a plane grid; "disc" is a grid (disc)',
         'error reference points[5].at: no point "zz" (did you mean "a"?)',

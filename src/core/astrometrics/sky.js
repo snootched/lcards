@@ -67,10 +67,11 @@ export function sunPosition(date, lat, lon) {
 }
 
 /**
- * Geocentric moon: ecliptic longitude and latitude (main terms), distance km.
- * @param {number} d
+ * Geocentric moon: ecliptic longitude and latitude (main terms, radians,
+ * J2000 equinox), distance km. Also the Moon of the ephemeris (ephemeris.js).
+ * @param {number} d - days from J2000
  */
-function moonEcliptic(d) {
+export function moonEcliptic(d) {
   const T = d / 36525;
   const Lp = RAD * (218.3164477 + 481267.88123421 * T);
   const D = RAD * (297.8501921 + 445267.1114034 * T);
@@ -140,12 +141,13 @@ export function sunFromHass(hass) {
  * Sun and moon now, for the Home Assistant location (0, 0 without one).
  * @param {any} hass
  * @param {Date | number} [date]
+ * @param {{ entity?: boolean }} [opts] - entity: false computes the sun even when sun.sun has it (a date other than now)
  * @returns {SkyState}
  */
-export function skyState(hass, date = Date.now()) {
+export function skyState(hass, date = Date.now(), { entity = true } = {}) {
   const latitude = Number(hass?.config?.latitude) || 0;
   const longitude = Number(hass?.config?.longitude) || 0;
-  const fromEntity = sunFromHass(hass);
+  const fromEntity = entity ? sunFromHass(hass) : null;
   const sun = fromEntity
     ? { ...fromEntity, source: /** @type {const} */ ('entity') }
     : { ...sunPosition(date, latitude, longitude), source: /** @type {const} */ ('computed') };

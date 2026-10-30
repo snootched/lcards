@@ -38,7 +38,8 @@ Each point takes exactly one of these. `offset: [x, y, z]` moves any of them by 
 | `polar: [distance, bearing]` | On the scene plane: distance from the centre and a bearing (0 north, clockwise). `alt` lifts it. |
 | `latlon: [lat, lon]` + `object` | On a sphere. Longitude 0 faces the default camera, east to the right. Turns with the sphere's `spin`. |
 | `altaz: [azimuth, altitude]` + `object` | On a sky dome: azimuth clockwise from north, altitude up from the horizon. |
-| `sky: sun` or `sky: moon` + `object` | The sun or moon on a dome, now (from the time and your Home Assistant location). |
+| `sky: sun` or `sky: moon` + `object` | The sun or moon on a dome, now (from the time and your Home Assistant location), or at the scene date when the card has a [clock](./scale#the-scene-clock). |
+| `body: mars` | Where a real Sun, planet, dwarf planet or moon is at the scene date, in the scene's or system's units; `center: jupiter` measures from another body. See [The real Solar System](./scale#the-real-solar-system). |
 | `cell: AF3` + `object` | The centre of a cell of a sector map (a plane grid with `axis_labels`). |
 | `at: <point>` | At another point; add `offset` to move away from it. |
 | `part: <name>` + `object` | On a named part of a [model](./objects#model); it follows the part as it moves. `xyz` is then an offset in the part's coordinates. |
@@ -202,6 +203,7 @@ Labels behind a planet are hidden; the see-through volumes and grids hide nothin
 - `more-info` and `toggle` without an `entity` act on the point's `entity` (else the card's).
 - `{ action: fly-to }`: the same, stated explicitly (on an object: fly to its middle).
 - `{ action: fly-to, view: map }`: fly to the named view instead.
+- `{ action: set-clock, date: now, rate: 30 }`: set the [scene date](./scale#the-scene-clock) and or its rate (`card: <id>` for another card; from any LCARdS card, `card` is needed).
 - A point's own `view: { distance, tilt, yaw }` sets where the camera lands when it flies to that point.
 
 A drag never fires a tap (a press that moves more than 6 px is a drag), and a hold (half a second) fires `hold_action`, not `tap_action`.

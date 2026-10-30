@@ -24,7 +24,7 @@ import {
     stateClassificationSchema, triggersUpdateSchema, dataSourcesSchema
 } from './common-schemas.js';
 import {
-    OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, FILL_EFFECTS, FILL_PRESETS, MODEL_MATERIALS,
+    OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, BODY_NAMES, FILL_EFFECTS, FILL_PRESETS, MODEL_MATERIALS,
     WELL_SHAPE_NAMES, DEFORM_TYPES, BEND_MOTIONS, DEFORM_ANCHORS, UNIT_NAMES
 } from '../../core/astrometrics/names.js';
 import { LABEL_POSITION_NAMES, LABEL_OMITTED_KEYS } from '../../core/astrometrics/label-text.js';
@@ -175,7 +175,11 @@ const cameraSchema = {
                         pan: { type: 'boolean', default: true, description: 'Show the pan arrows.' },
                         zoom: { type: 'boolean', default: true, description: 'Show zoom in and zoom out.' },
                         reset: { type: 'boolean', default: true, description: 'Show reset (fly back to the start view).' },
-                        time: { type: 'boolean', default: true, description: 'Show the time slider: how fast the scene\'s motion runs (orbits, spins, drift), from held to four times as fast. It changes the view only, not the config.' },
+                        time: {
+                            description: 'The time slider. speed: how fast the scene\'s motion runs (time_scale: spins, scans, drift), from held to four times as fast. date: the scene clock (clock), with the date, its rate from a year a second backward to a year a second forward, and NOW. both: either, with a switch. true (the default): both when the card has a clock, else speed. false hides it. It changes the view only, not the config.',
+                            oneOf: [{ type: 'boolean' }, { type: 'string', enum: ['speed', 'date', 'both'] }],
+                            default: true
+                        },
                         hide: {
                             type: 'string',
                             enum: ['idle', 'never', 'toggle'],
@@ -387,7 +391,9 @@ const pointSchema = {
             azimuth: attributeName('The attribute holding the azimuth. Default azimuth.'),
             altitude: attributeName('The attribute holding the altitude. Default elevation.')
         }),
-        sky: { type: 'string', enum: [...SKY_BODIES], description: 'Follow the sun or moon on the dome named in object, from the time and the Home Assistant location (sun.sun when it exists). Updated every minute.' },
+        sky: { type: 'string', enum: [...SKY_BODIES], description: 'Follow the sun or moon on the dome named in object, from the time and the Home Assistant location (sun.sun when it exists). Updated every minute. With a clock, the scene date instead of now.' },
+        body: { type: 'string', enum: [...BODY_NAMES], description: 'Where a real Sun, planet, dwarf planet or moon is at the scene clock\'s date (clock; JPL elements), on its tilted, elliptical orbit. The Sun sits at the origin of the point\'s frame (the scene, or its system), in that frame\'s units: name them (units: km or au) or au is assumed. A moon is placed from the Sun too (its planet plus its own orbit).' },
+        center: { type: 'string', enum: [...BODY_NAMES], description: 'body only: measure from this body instead of the Sun, so it sits at the origin (a Jupiter-centred scene of its moons).' },
         at: { type: 'string', description: 'Place it at another point (by id); add offset to move it from there.' },
         cell: { type: 'string', description: 'The centre of a sector map cell, such as AF3, on the grid named in object (a plane grid; its axis_labels say how cells are named).' },
         object: { type: 'string', description: 'The object the point stands on (an object id). Needed by latlon (a sphere), altaz and sky (a dome grid), cell (a plane grid) and part (a model); with xyz or polar the point moves and spins with the object (on a model: in the file\'s coordinates).' },
@@ -686,11 +692,12 @@ const sphereObject = {
         ...gridLook,
         fill_color: color('Body colour. Default black.'),
         fill_opacity: number('Body opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 0.85 }),
-        image: { type: 'string', assetSource: 'image', description: 'A texture for the body instead of fill: an equirectangular map, longitude 0 in the middle. Built in (NASA and USGS maps, public domain): builtin:earth_blue_marble, builtin:moon_lroc, builtin:mars_viking, builtin:mercury_messenger, builtin:venus_magellan (the surface under the clouds), builtin:jupiter_cassini, builtin:pluto_new_horizons. Or your own: /local/mars.jpg, or a Home Assistant media item (media-source://...). Planets without a map: fill_effect presets.', examples: ['builtin:earth_blue_marble', 'builtin:mars_viking', '/local/mars.jpg'] },
+        image: { type: 'string', assetSource: 'image', description: 'A texture for the body instead of fill: an equirectangular map, longitude 0 in the middle. Built in (NASA and USGS maps, public domain): builtin:earth_blue_marble, builtin:moon_lroc, builtin:mars_viking, builtin:mercury_messenger, builtin:venus_magellan (the surface under the clouds), builtin:jupiter_cassini, builtin:pluto_new_horizons, builtin:sun_sdo, builtin:phobos_viking, builtin:ceres_dawn, builtin:io_galileo, builtin:europa_galileo, builtin:ganymede_galileo, builtin:callisto_galileo, builtin:titan_cassini (the surface under the haze), builtin:triton_voyager, builtin:charon_new_horizons. Or your own: /local/mars.jpg, or a Home Assistant media item (media-source://...). Planets without a map: fill_effect presets.', examples: ['builtin:earth_blue_marble', 'builtin:mars_viking', '/local/mars.jpg'] },
         image_opacity: number('Texture opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
         occlude: { type: 'boolean', default: true, description: 'Hide labels behind the sphere.' },
         fill_effect: fillEffectSchema,
-        deform: { type: 'array', items: deformSchema, description: 'Deformations of the planet, applied in order (as on a grid sphere): wobble, bend, twist, noise. The body, lines and points on it move with them.' }
+        deform: { type: 'array', items: deformSchema, description: 'Deformations of the planet, applied in order (as on a grid sphere): wobble, bend, twist, noise. The body, lines and points on it move with them.' },
+        body: { type: 'string', enum: [...BODY_NAMES], description: 'Turn the sphere as this real body is turned at the scene clock\'s date (IAU rotation models): its north pole where the body\'s points, its day the real sidereal day, and longitude 0 of its map where the body\'s prime meridian is, so latlon points sit over the real places. spin and rotation do not apply. Pair it with a point that has the same body.' }
     }
 };
 
@@ -745,6 +752,8 @@ const ringObject = {
         inner_radius: numberOrPair('image: the band\'s inner radius, scene units, or [a, b] for an ellipse. Default half the radius.'),
         image_opacity: number('image: the band\'s opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
         image_color: color('image: a colour the texture is multiplied by (a tint). Default none (the image\'s own colours).'),
+        body: { type: 'string', enum: [...BODY_NAMES], description: 'Lay the ring in this real body\'s equator at the scene clock\'s date (Saturn\'s rings: body: saturn on a ring at Saturn). inclination and node tilt it from there; rotation does not apply.' },
+        orbit: { type: 'string', enum: BODY_NAMES.filter((b) => b !== 'sun'), description: 'Draw this real body\'s orbit at the scene clock\'s date (JPL elements): an ellipse with its parent at a focus, tilted and turned as it really is, in the frame\'s units. Put the ring at the parent\'s point (at: jupiter for Io; nothing for a planet, the Sun sits at the origin). radius, inclination, node, arc and image do not apply.' },
         ...lineCommon,
         color: color('Line colour. Default theme:colors.ui.secondary.')
     }
@@ -1048,7 +1057,20 @@ export const astrometricsSchema = {
             }
         },
         units: unitsSchema('What one scene unit is (m, km, au, ly or pc): positions, sizes and distances are in it. Optional: a scene can use any units; naming them lets a system (type: system) give its own.'),
-        time_scale: number('How fast the scene\'s motion runs: orbits, spins, drift, scans, trails. 1 as configured, 0.5 half speed, 0 holds it still. The sky (sun and moon) and the camera are not affected. The time slider (camera.buttons.time) changes it on screen.', { minimum: 0, default: 1 }),
+        time_scale: number('How fast the scene\'s motion runs: orbits, spins, drift, scans, trails. 1 as configured, 0.5 half speed, 0 holds it still. The sky (sun and moon), the scene clock (clock) and the camera are not affected. The time slider (camera.buttons.time) changes it on screen.', { minimum: 0, default: 1 }),
+        clock: {
+            type: 'object',
+            additionalProperties: false,
+            description: 'The scene date that body points, body spheres and rings and orbit rings follow, and the sky once it is set. It runs on from date at rate. The time slider (camera.buttons.time: date), set-clock actions and lcards.set_clock change it on screen.',
+            properties: {
+                date: { type: 'string', default: 'now', description: 'The date the scene starts at: now, or an ISO date and time (2026-10-30, 2026-10-30T12:00:00Z; a date alone is midnight UTC).', examples: ['now', '2026-10-30', '1969-07-20T20:17:00Z'] },
+                rate: {
+                    description: 'How fast the date runs: live (real time), or days per second (1 is a day a second, 30 a month, 365.25 a year; 0 holds it; negative runs back).',
+                    oneOf: [{ type: 'number' }, { type: 'string', enum: ['live'] }],
+                    default: 'live'
+                }
+            }
+        },
         points: { type: 'array', description: 'Named points with optional labels and markers (the placement system).', items: pointSchema },
         objects: { type: 'array', description: 'What is drawn: grids, volumes, spheres, models, images, glows, nebulae, rings, paths and beams.', items: objectSchema },
 

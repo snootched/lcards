@@ -15,7 +15,7 @@ import { simpleColorSchema } from '../../../cards/schemas/common-schemas.js';
 
 /**
  * @typedef {'boolean' | 'enum' | 'number' | 'color' | 'text' | 'asset' | 'strings' | 'tuple' | 'numbers'
- *   | 'pointRef' | 'numberOrTuple' | 'boolOrObject' | 'boolOrNumber' | 'object' | 'objectList' | 'pointList' | 'yaml'} FieldKind
+ *   | 'pointRef' | 'numberOrTuple' | 'boolOrObject' | 'boolOrNumber' | 'choice' | 'object' | 'objectList' | 'pointList' | 'yaml'} FieldKind
  */
 
 const isObj = (/** @type {any} */ v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -65,6 +65,8 @@ export function fieldKind(s, key) {
       // true, or a factor (a line's glow)
       if (alts.some((b) => hasType(b, 'boolean')) && alts.some(isNumberSchema)) return 'boolOrNumber';
     }
+    // words, plus true / false or any number (a clock rate: live or days per second; the time slider: true or a mode)
+    if (choiceOptions(s)) return 'choice';
     return 'yaml';
   }
   if (s.const !== undefined) return 'yaml';
@@ -85,6 +87,38 @@ export function fieldKind(s, key) {
   }
   if (isWalkable(s)) return 'object';
   return 'yaml';
+}
+
+/**
+ * A `choice` property's menu: the words of its string enum, true and false
+ * when a branch is boolean, and whether a typed number is allowed. Null
+ * when the alternatives are anything else.
+ * @param {any} s
+ * @returns {{ words: string[], bool: boolean, number: boolean } | null}
+ */
+export function choiceOptions(s) {
+  const alts = s?.oneOf ?? s?.anyOf;
+  if (!Array.isArray(alts)) return null;
+  const words = alts.filter((b) => hasType(b, 'string') && Array.isArray(b.enum));
+  const bool = alts.some((b) => hasType(b, 'boolean'));
+  const number = alts.some(isNumberSchema);
+  if (!words.length || words.length + (bool ? 1 : 0) + (number ? 1 : 0) !== alts.length) return null;
+  return { words: words.flatMap((b) => b.enum), bool, number };
+}
+
+/**
+ * A choice field's text back to its value: true / false, a number when
+ * numbers are allowed, else the word.
+ * @param {any} v
+ * @param {{ bool: boolean, number: boolean }} opts
+ */
+export function choiceValue(v, { bool, number }) {
+  if (v === '' || v === undefined || v === null) return undefined;
+  if (bool && (v === 'true' || v === true)) return true;
+  if (bool && (v === 'false' || v === false)) return false;
+  const n = Number(v);
+  if (number && String(v).trim() !== '' && Number.isFinite(n)) return n;
+  return String(v);
 }
 
 /**

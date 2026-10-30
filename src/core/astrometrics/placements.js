@@ -14,6 +14,9 @@
  *                                               (the default camera), east to the right
  *   altaz: [azimuth, altitude], object: <dome>, alt   on a sky dome
  *   sky: sun | moon, object: <dome>, alt        the body's altaz now (see sky.js)
+ *   body: mars, center?: <body>                 where a real Sun, planet or moon is at the
+ *                                               scene clock's date (ephemeris.js), the Sun
+ *                                               (or center) at the frame's origin, in its units
  *   at: <point>                                 another point
  *   cell: AF3, object: <grid>                   the centre of a lettered grid cell
  *
@@ -36,6 +39,8 @@
  */
 import { Vector3 } from 'three';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { position, toScene, BODIES, AU_KM } from './ephemeris.js';
+import { kmPerUnit } from './names.js';
 
 const DEG = Math.PI / 180;
 
@@ -131,6 +136,8 @@ export function parseCell(code) {
  * @property {number[]} [latlon]
  * @property {number[]} [altaz]
  * @property {'sun' | 'moon'} [sky]
+ * @property {string} [body] - a real body (ephemeris.js BODY_NAMES)
+ * @property {string} [center] - with body: measured from this body, not the Sun
  * @property {string} [at]
  * @property {string} [cell]
  * @property {string} [object]
@@ -166,14 +173,18 @@ export class Placements {
    * @param {() => (import('./sky.js').SkyState | null)} [opts.sky]
    * @param {(system: string | undefined) => (import('three').Object3D | null)} [opts.frame] - a frame's group (frames.js);
    *   without it every point is in scene units
+   * @param {() => number} [opts.date] - the scene clock's date (ms), for body points
+   * @param {(system: string | undefined) => (string | undefined)} [opts.units] - a frame's `units` name (body points)
    */
-  constructor({ points = [], hosts = new Map(), sky = () => null, frame = () => null } = {}) {
+  constructor({ points = [], hosts = new Map(), sky = () => null, frame = () => null, date = () => Date.now(), units = () => undefined } = {}) {
     /** @type {Map<string, PointDef>} */
     this.defs = new Map();
     for (const p of points) if (p?.id) this.defs.set(String(p.id), p);
     this.hosts = hosts;
     this.sky = sky;
     this.frame = frame;
+    this.date = date;
+    this.units = units;
     /** @type {Map<string, Vector3 | null>} */
     this._cache = new Map();
     /** @type {Set<string>} ids already warned about */
@@ -254,7 +265,7 @@ export class Placements {
     const d = this.defs.get(ref);
     if (!d || seen.has(ref)) return false;
     seen.add(ref);
-    if (d.sky || pointBinding(this.configs.get(ref) ?? d) || d._bound) return true;
+    if (d.sky || d.body || pointBinding(this.configs.get(ref) ?? d) || d._bound) return true;
     if (d.object && this.hosts.get(d.object)?.moving) return true;
     return d.at ? this.isDynamic(d.at, seen) : false;
   }
@@ -324,6 +335,10 @@ export class Placements {
       const body = this.sky()?.[d.sky];
       return body ? world(altazToLocal(body.azimuth, body.altitude, R)) : null;
     }
+    if (d.body !== undefined) {
+      const local = this._body(d);
+      return local ? world(local) : null;
+    }
     if (d.cell) {
       const local = host?.cellPoint?.(d.cell) ?? null;
       if (!local) this._warn(d.id, `point '${d.id}': no cell '${d.cell}'${d.object ? ` on '${d.object}'` : ''}`);
@@ -335,8 +350,40 @@ export class Placements {
     }
     // An entity-bound form waits for its first numbers (no warning)
     if (d._bound || pointBinding(d)) return null;
-    this._warn(d.id, `point '${d.id}' has no position (xyz, polar, latlon, altaz, sky, at or cell)`);
+    this._warn(d.id, `point '${d.id}' has no position (xyz, polar, latlon, altaz, sky, body, at or cell)`);
     return null;
+  }
+
+  /**
+   * A body point in its frame's units (the Sun, or `center`, at the origin).
+   * @param {PointDef} d
+   * @returns {Vector3 | null}
+   * @private
+   */
+  _body(d) {
+    const name = String(d.body);
+    const center = d.center !== undefined && d.center !== null && d.center !== '' ? String(d.center) : 'sun';
+    if (!BODIES[name] || !BODIES[center]) {
+      this._warn(d.id, `point '${d.id}': no body '${BODIES[name] ? center : name}'`);
+      return null;
+    }
+    const p = position(name, this.date(), center);
+    if (!p) return null;
+    return new Vector3(...toScene(p)).multiplyScalar(1 / this.kmPerUnit(d._system, d.id));
+  }
+
+  /**
+   * km per unit of a frame, from its `units` (au without one, with a warning).
+   * @param {string | undefined} system
+   * @param {string} [id] - the point asking (for the warning)
+   */
+  kmPerUnit(system, id = '') {
+    const k = kmPerUnit(this.units(system));
+    if (k === null) {
+      this._warn(`units:${system ?? ''}`, `${system ? `system '${system}'` : 'the scene'} has no units (km, au, ...): body point '${id}' reads it as au`);
+      return AU_KM;
+    }
+    return k;
   }
 
   /**

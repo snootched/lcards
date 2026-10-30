@@ -1,6 +1,8 @@
 /**
  * Line objects: `ring` (a circle or ellipse round a point: orbits, rims;
- * with `image`, a flat textured band, Saturn's rings),
+ * with `image`, a flat textured band, Saturn's rings; `orbit: <body>` a
+ * real body's orbit at the scene clock's date; `body: <body>` in that
+ * body's equator plane),
  * `path` (a line through points, or an arched route between two; a
  * `sky: sun | moon` path is the body's track across today, split where it
  * goes below the horizon), `beam` (a glowing straight line) and `trail`
@@ -14,7 +16,9 @@ import { Group, Vector3, Matrix4, BufferGeometry, Float32BufferAttribute, Mesh, 
 import { FatLine } from '../lines.js';
 import { altazToLocal } from '../placements.js';
 import { dayPath } from '../sky.js';
-import { built, num, pair, DEFAULT_COLORS } from './common.js';
+import { orbitPath, periods, toScene, BODIES, AU_KM } from '../ephemeris.js';
+import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { built, num, pair, bodyTurn, DEFAULT_COLORS } from './common.js';
 
 const DEG = Math.PI / 180;
 
@@ -211,9 +215,11 @@ export function flowTicker(cfg, lines) {
  * @returns {import('./common.js').BuiltObject}
  */
 export function buildRing(cfg, ctx) {
+  if (cfg.orbit !== undefined && cfg.orbit !== null && cfg.orbit !== '') return buildOrbit(cfg, ctx);
   const node = new Group();
   node.name = `ring:${cfg.id ?? ''}`;
   const out = built(cfg, node);
+  bodyTurn(out);
   const [a, b] = pair(cfg.radius, [100, 100]);
   const [from, to] = Array.isArray(cfg.arc) ? pair(cfg.arc, [0, 360]) : [0, 360];
   const run = ellipseRun({ a, b, inclination: num(cfg.inclination, 0), node: num(cfg.node, 0), from, to });
@@ -252,6 +258,67 @@ export function buildRing(cfg, ctx) {
     };
   }
   // (centred on its `at`, as every object)
+  return out;
+}
+
+/** Warned once each: orbit rings in a frame without units */
+const unitWarned = new Set();
+
+/**
+ * `type: ring, orbit: <body>`: the body's real orbit round its parent at the
+ * scene clock's date (ephemeris.js), in the frame's units, centred on the
+ * ring's `at` (the parent's point; the Sun sits at the origin). `radius`,
+ * the ellipse keys and `image` do not apply. Redrawn as the date moves on
+ * (every half degree of the orbit, so the fine steps near the body, within a
+ * degree of it, stay round it).
+ * @param {any} cfg
+ * @param {import('./common.js').BuildContext} ctx
+ * @returns {import('./common.js').BuiltObject}
+ */
+function buildOrbit(cfg, ctx) {
+  const node = new Group();
+  node.name = `ring:${cfg.id ?? ''}`;
+  const out = built(cfg, node);
+  const name = String(cfg.orbit);
+  if (!BODIES[name]?.parent) {
+    lcardsLog.warn(`[Astrometrics] ring '${cfg.id}': no orbit for '${name}'`);
+    return out;
+  }
+  let km = ctx.kmPerUnit?.(cfg._system) ?? null;
+  if (km === null) {
+    const key = String(cfg._system ?? '');
+    if (!unitWarned.has(key)) {
+      unitWarned.add(key);
+      lcardsLog.warn(`[Astrometrics] ${cfg._system ? `system '${cfg._system}'` : 'the scene'} has no units (km, au, ...): orbit rings read it as au`);
+    }
+    km = AU_KM;
+  }
+  const k = 1 / km;
+  const style = lineStyle(cfg, ctx, DEFAULT_COLORS.line);
+  const lines = addLine(out, cfg, style);
+  const pulse = addPulse(out, cfg, ctx, style.width ?? 1.5);
+  if (pulse) lines.push(pulse);
+  out.tick = flowTicker(cfg, lines);
+  /** @param {number} ms */
+  const draw = (ms) => {
+    const path = orbitPath(name, ms) ?? [];
+    const run = [];
+    for (const p of [...path, path[0]]) {
+      const q = toScene(p);
+      run.push(q[0] * k, q[1] * k, q[2] * k);
+    }
+    for (const l of lines) l.setRuns([run]);
+    return path.reduce((r, p) => Math.max(r, Math.hypot(p[0], p[1], p[2]) * k), 0);
+  };
+  out.radius = draw(ctx.date?.() ?? Date.now());
+  // half a degree of the orbit between redraws
+  const every = ((periods(name)?.orbit ?? 1) * 86400000) / 720;
+  let last = NaN;
+  out.onDate = (ms) => {
+    if (Math.abs(ms - last) < every) return;
+    last = ms;
+    draw(ms);
+  };
   return out;
 }
 

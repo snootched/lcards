@@ -1,0 +1,24 @@
+# R4a scene clock: the inner planets in au from the ephemeris at a fixed
+# date, held (rate 0), with their real orbits and Earth's globe turned as it
+# really is (astrometrics.spec.js: positions match the ephemeris, the date
+# slider runs the date, NOW, set-clock from the registry and lcards.set_clock).
+type: custom:lcards-astrometrics-card
+id: astro_clock
+height: 400
+units: au
+clock: { date: '2026-10-30T12:00:00Z', rate: 0 }
+camera:
+  buttons: true
+  view: inner
+  views:
+    inner: { target: sun, yaw: 30, tilt: 40, distance: 4.5 }
+points:
+  - { id: sun, xyz: [0, 0, 0], label: SOL, style: major }
+  - { id: earth, body: earth, marker: dot, label: EARTH }
+  - { id: mars, body: mars, marker: dot, label: MARS }
+  - { id: moon, body: moon, label: LUNA, style: tiny }
+objects:
+  - { type: glow, at: sun, size: 0.25, color: var(--lcars-yellow) }
+  - { type: ring, id: earth_orbit, orbit: earth, width: 1, color: var(--lcars-blue) }
+  - { type: ring, id: mars_orbit, orbit: mars, width: 1, opacity: 0.5 }
+  - { type: sphere, id: earth_body, at: earth, radius: 0.0000426, body: earth, image: builtin:earth_blue_marble }

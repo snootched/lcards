@@ -11,7 +11,8 @@ import { readFileSync } from 'node:fs';
 import { objectSchema, astrometricsSchema } from '../../src/cards/schemas/astrometrics-schema.js';
 import { OBJECT_TYPES, TYPE_GUIDE } from '../../src/core/astrometrics/names.js';
 import {
-  fieldKind, objectBranch, scopeOf, appliesTo, tupleLabels, helperText, labelFor, withKey, parseNumbers, freshId, objectSummary, newObject
+  fieldKind, objectBranch, scopeOf, appliesTo, tupleLabels, helperText, labelFor, withKey, parseNumbers, freshId, objectSummary, newObject,
+  choiceOptions, choiceValue
 } from '../../src/editor/dialogs/astro-studio/schema-fields.js';
 
 /** Keys shown as their own YAML editor (with completion), by where they are */
@@ -38,7 +39,7 @@ test('camera and scene keys have fields (views and styles are YAML)', () => {
   for (const [key, s] of Object.entries(cam)) {
     if (fieldKind(s, key) === 'yaml') assert.ok(YAML_FALLBACK.camera.includes(key), `camera.${key} falls back to YAML`);
   }
-  for (const key of ['backdrop', 'labels', 'background_animation']) {
+  for (const key of ['clock', 'time_scale', 'backdrop', 'labels', 'background_animation']) {
     const kind = fieldKind(astrometricsSchema.properties[key], key);
     if (kind === 'yaml') assert.ok(YAML_FALLBACK.scene.includes(key), `${key} falls back to YAML`);
   }
@@ -47,6 +48,26 @@ test('camera and scene keys have fields (views and styles are YAML)', () => {
   }
   assert.equal(fieldKind(astrometricsSchema.properties.backdrop.properties.stars, 'stars'), 'boolOrObject');
   assert.equal(fieldKind(cam.buttons, 'buttons'), 'boolOrObject');
+  // the clock (R4a): an object of a date and a rate (live or days per second)
+  const clock = astrometricsSchema.properties.clock;
+  assert.equal(fieldKind(clock, 'clock'), 'object');
+  assert.equal(fieldKind(clock.properties.rate, 'rate'), 'choice');
+  assert.equal(fieldKind(clock.properties.date, 'date'), 'text');
+});
+
+test('choice fields (R4a): words plus true/false or numbers, committed with their type', () => {
+  const rate = astrometricsSchema.properties.clock.properties.rate;
+  assert.deepEqual(choiceOptions(rate), { words: ['live'], bool: false, number: true });
+  assert.equal(choiceValue('live', choiceOptions(rate)), 'live');
+  assert.equal(choiceValue('30', choiceOptions(rate)), 30);
+  assert.equal(choiceValue('-1', choiceOptions(rate)), -1);
+  assert.equal(choiceValue('', choiceOptions(rate)), undefined);
+  const time = astrometricsSchema.properties.camera.properties.buttons.anyOf.find((b) => b.properties).properties.time;
+  assert.equal(fieldKind(time, 'time'), 'choice');
+  assert.deepEqual(choiceOptions(time), { words: ['speed', 'date', 'both'], bool: true, number: false });
+  assert.equal(choiceValue('false', choiceOptions(time)), false);
+  assert.equal(choiceValue('both', choiceOptions(time)), 'both');
+  assert.equal(choiceOptions({ oneOf: [{ type: 'string' }, { type: 'number' }] }), null, 'no words: not a choice');
 });
 
 test('field kinds for the shapes the schema uses', () => {

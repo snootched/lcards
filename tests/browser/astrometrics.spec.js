@@ -839,7 +839,9 @@ test('M3 face: motion under reduced motion: the ships hold still, facing along t
     await expectNoErrors(page);
 });
 
-test('E10 true-scale starters: the solar system in km draws whole, at Jupiter and at Saturn', async ({ page }) => {
+test('E10/R4a true-scale starters: the solar system in km draws whole, at Jupiter, Saturn and Earth', async ({ page }) => {
+    // 21 textured bodies and two belts: slow on SwiftShader when the suite runs in parallel
+    test.setTimeout(90_000);
     await mountCase(page, 'astro-true-solar', { width: '800' });
     await sceneReady(page);
     const shot = async (name) => { if (process.env.LCARDS_SHOTS) await page.screenshot({ path: `${process.env.LCARDS_SHOTS}/true-solar-${name}.png` }); };
@@ -1164,5 +1166,106 @@ test('N1 time: the slider slows, holds and speeds the scene; time_scale sets the
         window.__reconfigure({ ...raw, time_scale: 0.5 });
     });
     await expect.poll(() => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.timeScale())).toBe(0.5);
+    await expectNoErrors(page);
+});
+
+test('R4a clock: body points sit where the ephemeris puts them; the date slider runs the date; NOW; set-clock from the registry and lcards.set_clock', async ({ page }) => {
+    const { position, toScene, AU_KM } = await import('../../src/core/astrometrics/ephemeris.js');
+    const T0 = Date.UTC(2026, 9, 30, 12);
+    const J2000 = Date.UTC(2000, 0, 1, 12);
+    /** where a body point should be, au (scene axes) */
+    const want = (body, ms) => toScene(position(body, ms)).map((v) => v / AU_KM);
+    await mountCase(page, 'astro-clock', { width: '800' });
+    await sceneReady(page);
+    const state = () => page.evaluate(() => {
+        const card = /** @type {any} */ (document.querySelector('#mount > *'));
+        const s = card._scene;
+        const places = s.debug().world.places;
+        const at = (id) => { const v = places.get(id); return v ? [v.x, v.y, v.z] : null; };
+        return { clock: s.clock(), mars: at('mars'), earth: at('earth'), moon: at('moon') };
+    });
+    const close = (a, b, eps) => a.every((v, i) => Math.abs(v - b[i]) < eps);
+    let st = await state();
+    expect(st.clock.date).toBe(T0);
+    expect(st.clock.rate).toBe(0);
+    expect(close(st.mars, want('mars', T0), 1e-6)).toBe(true);
+    expect(close(st.earth, want('earth', T0), 1e-6)).toBe(true);
+    // Luna by Earth: 384,000 km is 0.0026 au
+    const d = Math.hypot(st.moon[0] - st.earth[0], st.moon[1] - st.earth[1], st.moon[2] - st.earth[2]);
+    expect(d).toBeGreaterThan(0.0023);
+    expect(d).toBeLessThan(0.0028);
+
+    // the time slider: a card with a clock shows the date slider (and the switch)
+    const date = page.locator('lcards-astrometrics-card .astro-date');
+    await expect(date).toHaveCount(1);
+    await expect(page.locator('lcards-astrometrics-card .astro-date-text')).toHaveText(/^2026-10-3\d \d\d:\d\d$/);
+    await expect(page.locator('lcards-astrometrics-card .astro-date .astro-time-value').last()).toHaveText('PAUSED');
+    // a day a second: the date runs on, and Mars with it
+    await page.locator('lcards-astrometrics-card .astro-date input').fill('6');
+    await expect(page.locator('lcards-astrometrics-card .astro-date .astro-time-value').last()).toHaveText('1 D/S');
+    await page.waitForTimeout(600);
+    st = await state();
+    expect(st.clock.rate).toBe(1);
+    expect(st.clock.date - T0).toBeGreaterThan(0.3 * 86400000);
+    await expect.poll(async () => close((await state()).mars, want('mars', T0), 1e-6), { timeout: 3000 }).toBe(false);
+    // NOW: today, live
+    await page.locator('lcards-astrometrics-card [data-cmd="clock-now"]').click();
+    st = await state();
+    expect(Math.abs(st.clock.date - Date.now())).toBeLessThan(5000);
+    expect(st.clock.rate).toBeCloseTo(1 / 86400, 12);
+    // the switch shows the speed slider instead
+    await page.locator('lcards-astrometrics-card [data-cmd="time-mode"]').click();
+    await expect(page.locator('lcards-astrometrics-card .astro-date')).toHaveCount(0);
+    await expect(page.locator('lcards-astrometrics-card .astro-time-value')).toHaveText('1×');
+
+    // the registry (set-clock actions from other cards) and lcards.set_clock
+    expect(await page.evaluate(() => window.lcards.cards.astrometrics.setClock('astro_clock', { date: '2000-01-01T12:00:00Z', rate: 0 }))).toBe(1);
+    await expect.poll(async () => close((await state()).mars, want('mars', J2000), 1e-6), { timeout: 3000 }).toBe(true);
+    await page.evaluate(() => window.lcards.core.integrationService._handleLcardsEvent({ action: 'set_clock', card_id: 'astro_clock', date: '2026-10-30T12:00:00Z' }));
+    await expect.poll(async () => (await state()).clock.date, { timeout: 3000 }).toBe(T0);
+    expect((await state()).clock.rate).toBe(0);
+    // a rebuild for another reason keeps the set date; a new clock in the config wins
+    await reconfigureCamera(page, { auto_rotate: 0 });
+    await page.evaluate(() => window.lcards.cards.astrometrics.setClock('astro_clock', { date: '2000-01-01T12:00:00Z' }));
+    await reconfigureCamera(page, { fly_duration: 100 });
+    await expect.poll(async () => (await state()).clock.date, { timeout: 3000 }).toBe(J2000);
+    await page.evaluate(() => {
+        const raw = JSON.parse(JSON.stringify(/** @type {any} */ (document.querySelector('#mount > *'))._rawConfig));
+        window.__reconfigure({ ...raw, clock: { date: '2026-01-01', rate: 0 } });
+    });
+    await expect.poll(async () => (await state()).clock.date, { timeout: 3000 }).toBe(Date.UTC(2026, 0, 1));
+    await expectNoErrors(page);
+});
+
+test('R4a date panel: wide enough for the date, NOW, the slider and the rate, and clear of the camera buttons in every corner', async ({ page }) => {
+    await mountCase(page, 'astro-clock', { width: '800' });
+    await sceneReady(page);
+    /** boxes of the parts that must not overlap */
+    const boxes = () => page.evaluate(() => {
+        const root = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot;
+        const r = (sel) => { const e = root.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; };
+        return {
+            card: r('.astro-card'), panel: r('.astro-time'), text: r('.astro-date-text'), now: r('[data-cmd="clock-now"]'),
+            slider: r('.astro-time input'), zoomIn: r('[data-cmd="zoom-in"]'), zoomOut: r('[data-cmd="zoom-out"]')
+        };
+    });
+    const overlap = (a, b) => a && b && a.x < b.x + b.w - 0.5 && b.x < a.x + a.w - 0.5 && a.y < b.y + b.h - 0.5 && b.y < a.y + a.h - 0.5;
+    const inside = (a, c) => a.x >= c.x - 0.5 && a.y >= c.y - 0.5 && a.x + a.w <= c.x + c.w + 0.5 && a.y + a.h <= c.y + c.h + 0.5;
+    for (const position of ['bottom-right', 'bottom-left', 'top-center']) {
+        await reconfigureCamera(page, { buttons: { position, hide: 'never' } });
+        await expect(page.locator('lcards-astrometrics-card .astro-date')).toHaveCount(1);
+        const b = await boxes();
+        expect(b.panel.w, position).toBeGreaterThan(200);
+        for (const k of ['zoomIn', 'zoomOut']) expect(overlap(b.panel, b[k]), `${position}: the panel over ${k}`).toBeFalsy();
+        expect(overlap(b.text, b.now), `${position}: the date under NOW`).toBeFalsy();
+        expect(b.slider.w, `${position}: a usable slider`).toBeGreaterThan(100);
+        for (const k of ['text', 'now', 'slider']) expect(inside(b[k], b.panel), `${position}: ${k} inside the panel`).toBe(true);
+        expect(inside(b.panel, b.card), `${position}: the panel on the card`).toBe(true);
+    }
+    // the speed slider with the switch: wide too, clear of the buttons
+    await page.locator('lcards-astrometrics-card [data-cmd="time-mode"]').click();
+    const s = await boxes();
+    expect(s.panel.w).toBeGreaterThan(200);
+    expect(overlap(s.panel, s.zoomIn) || overlap(s.panel, s.zoomOut)).toBeFalsy();
     await expectNoErrors(page);
 });

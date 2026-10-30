@@ -24,7 +24,7 @@
 
 import { LitElement, html, css, nothing } from 'lit';
 import { fireEvent } from 'custom-card-helpers';
-import { MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, PLACEMENT_FORMS } from '../../../core/astrometrics/names.js';
+import { MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, BODY_NAMES, PLACEMENT_FORMS } from '../../../core/astrometrics/names.js';
 import { LABEL_POSITIONS } from '../../../core/astrometrics/label-text.js';
 import { mountDialogNearHomeAssistant } from '../../../utils/lcards-shared-helpers.js';
 import { showInfoDialog } from '../../../views/layout-edit-dialogs.js';
@@ -39,6 +39,7 @@ const FORMS = {
   latlon: { label: 'Latitude and longitude (a sphere)', inputs: ['Latitude (°)', 'Longitude (°)'], host: 'sphere', pick: true, value: [0, 0] },
   altaz: { label: 'Azimuth and altitude (a dome)', inputs: ['Azimuth (°)', 'Altitude (°)'], host: 'dome', pick: true, value: [0, 30] },
   sky: { label: 'Sun or moon (a dome)', host: 'dome', value: 'sun' },
+  body: { label: 'A real Solar System body (scene date)', value: 'earth' },
   at: { label: 'At another point', value: '' },
   cell: { label: 'Sector map cell (a plane grid)', host: 'plane', pick: true, value: '' },
   part: { label: 'A part of a model', host: 'model', value: '' }
@@ -49,6 +50,9 @@ const CARD_SHOW = [
   { value: 'tap', label: 'On tap (opens with a tap on the point)' },
   { value: 'always', label: 'Always' }
 ];
+
+/** A body name for a menu: the Moon is Luna to the scenes, but the key is moon */
+const bodyLabel = (/** @type {string} */ b) => (b === 'moon' ? 'Moon (Luna)' : b.charAt(0).toUpperCase() + b.slice(1));
 
 /** Forms that take `alt` */
 const ALT_FORMS = ['polar', 'latlon', 'altaz', 'sky'];
@@ -86,6 +90,8 @@ export const withForm = (point, form) => {
   const next = { ...point };
   for (const f of PLACEMENT_FORMS) delete next[f];
   delete next.part;
+  // center goes with body
+  delete next.center;
   next[form] = structuredClone(FORMS[form]?.value ?? null);
   return next;
 };
@@ -421,10 +427,15 @@ export class LCARdSAstroPointsEditor extends LitElement {
             }))}
           </div>` : nothing}
         ${form === 'sky' ? this._select('Body', value, SKY_BODIES.map((b) => ({ value: b, label: b })), (v) => this._patch(index, { sky: v })) : nothing}
+        ${form === 'body' ? html`
+          ${this._select('Body', value, BODY_NAMES.map((b) => ({ value: b, label: bodyLabel(b) })), (v) => this._patch(index, { body: v }))}
+          ${this._select('Measured from', point.center ?? '', [{ value: '', label: '(The Sun)' }, ...BODY_NAMES.filter((b) => b !== 'sun').map((b) => ({ value: b, label: bodyLabel(b) }))],
+            (v) => this._patch(index, { center: v || undefined }))}
+          <div class="full hint">Where it is at the scene date (the card's clock), in the scene's or system's units (set units: km or au).</div>` : nothing}
         ${form === 'at' ? this._select('Point', value, this._points.filter((p) => p !== point && p?.id !== undefined).map((p) => ({ value: String(p.id), label: String(p.id) })), (v) => this._patch(index, { at: v })) : nothing}
         ${form === 'cell' ? this._text('Cell', value, (v) => this._patch(index, { cell: v }), 'Such as AF3') : nothing}
         ${form === 'part' ? this._renderPart(point, index) : nothing}
-        ${form !== 'at' ? this._select(spec?.host ? 'On object' : 'On object (optional)', point.object ?? '',
+        ${form !== 'at' && form !== 'body' ? this._select(spec?.host ? 'On object' : 'On object (optional)', point.object ?? '',
           [{ value: '', label: '(None)' }, ...hostOptions], (v) => this._patch(index, { object: v || undefined }), { custom_value: true }) : nothing}
         ${form && ALT_FORMS.includes(form) ? this._number('Height above (alt)', point.alt, (v) => this._patch(index, { alt: v })) : nothing}
         ${spec?.pick && !bound ? html`

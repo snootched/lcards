@@ -14,6 +14,7 @@ Provides the lcards.* action namespace:
   lcards.trigger_effect   — fire a named screen effect on target devices/users
   lcards.play_sound       — play a sound effect on target devices/users
   lcards.fly_to           — fly an astrometrics card's camera to a view or point
+  lcards.set_clock        — set an astrometrics card's scene date and rate
 
 All services accept four optional targeting fields (all may be combined):
 
@@ -189,6 +190,7 @@ SERVICE_CLEAR_PORTAL_CARD = "clear_portal_card"
 SERVICE_BORG_ASSIMILATE   = "borg_assimilate"    # Easter egg
 SERVICE_BORG_DEASSIMILATE = "borg_deassimilate"  # Easter egg — restores normal state
 SERVICE_FLY_TO            = "fly_to"
+SERVICE_SET_CLOCK         = "set_clock"
 
 _ALL_SERVICES = [
     SERVICE_SET_ALERT_MODE,
@@ -208,6 +210,7 @@ _ALL_SERVICES = [
     SERVICE_BORG_ASSIMILATE,
     SERVICE_BORG_DEASSIMILATE,
     SERVICE_FLY_TO,
+    SERVICE_SET_CLOCK,
 ]
 
 
@@ -359,6 +362,20 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         _LOGGER.info("LCARdS service: fly_to %r", payload)
         device_ids, user_ids = await _async_resolve_targets(hass, call)
         _fire_targeted_event(hass, "fly_to", payload, device_ids, user_ids)
+
+    async def handle_set_clock(call: ServiceCall) -> None:
+        """Set an astrometrics card's scene date and rate on target frontends.
+
+        ``card_id`` is the card's ``id``; ``date`` is ``now`` or an ISO date,
+        ``rate`` is ``live`` or days per second. At least one of them.
+        """
+        payload: dict = {"card_id": call.data["card_id"]}
+        for key in ("date", "rate"):
+            if call.data.get(key) is not None:
+                payload[key] = call.data[key]
+        _LOGGER.info("LCARdS service: set_clock %r", payload)
+        device_ids, user_ids = await _async_resolve_targets(hass, call)
+        _fire_targeted_event(hass, "set_clock", payload, device_ids, user_ids)
 
     async def handle_clear_effect(call: ServiceCall) -> None:
         """Clear screen effects on target LCARdS frontends.
@@ -569,6 +586,22 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 vol.Schema({vol.Required("view"): str}, extra=vol.ALLOW_EXTRA),
                 vol.Schema({vol.Required("point"): str}, extra=vol.ALLOW_EXTRA),
                 msg="fly_to needs a view or a point",
+            ),
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_SET_CLOCK, handle_set_clock,
+        schema=vol.All(
+            vol.Schema({
+                vol.Required("card_id"): vol.All(str, vol.Length(min=1)),
+                vol.Optional("date"):    vol.All(str, vol.Length(min=1)),
+                vol.Optional("rate"):    vol.Any(vol.Coerce(float), vol.All(str, vol.In(["live"]))),
+                **_TARGET_FIELDS,
+            }),
+            vol.Any(
+                vol.Schema({vol.Required("date"): object}, extra=vol.ALLOW_EXTRA),
+                vol.Schema({vol.Required("rate"): object}, extra=vol.ALLOW_EXTRA),
+                msg="set_clock needs a date or a rate",
             ),
         ),
     )

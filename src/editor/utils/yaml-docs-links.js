@@ -153,6 +153,8 @@ const DETAILED = {
     backdrop: '/cards/astrometrics/#backdrop',
     background_animation: '/cards/astrometrics/#backdrop',
     labels: '/cards/astrometrics/#labels',
+    clock: '/cards/astrometrics/scale#the-scene-clock',
+    units: '/cards/astrometrics/scale#units',
     'labels.default': '/cards/astrometrics/points#styles-and-defaults',
     'labels.styles': '/cards/astrometrics/points#styles-and-defaults',
     rules: '/cards/astrometrics/data#rules',
@@ -167,6 +169,8 @@ const DETAILED = {
     'points.tags': '/cards/astrometrics/data#rules',
     'points.latlon': '/cards/astrometrics/data#positions-from-entities',
     'points.altaz': '/cards/astrometrics/data#positions-from-entities',
+    'points.body': '/cards/astrometrics/scale#the-real-solar-system',
+    'points.center': '/cards/astrometrics/scale#the-real-solar-system',
     'points.max_distance': '/cards/astrometrics/points#visibility',
     'points.min_distance': '/cards/astrometrics/points#visibility',
     'points.fade': '/cards/astrometrics/points#visibility',
@@ -176,6 +180,8 @@ const DETAILED = {
     objects: '/cards/astrometrics/objects',
     'objects.axis_labels': '/cards/astrometrics/objects#sector-maps',
     'objects.cells': '/cards/astrometrics/objects#sector-maps',
+    'objects.body': '/cards/astrometrics/scale#the-real-solar-system',
+    'objects.orbit': '/cards/astrometrics/scale#the-real-solar-system',
     'objects.tap_action': '/cards/astrometrics/points#actions',
     'objects.hold_action': '/cards/astrometrics/points#actions'
   }

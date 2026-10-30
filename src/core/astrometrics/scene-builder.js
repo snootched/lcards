@@ -22,7 +22,7 @@ import { Placements } from './placements.js';
 import { labelItem } from './label-layer.js';
 import { resolveLabel, plainColor, selectedColor, fieldCss } from './label-text.js';
 import { TemplateDetector } from '../templates/TemplateDetector.js';
-import { MARKERS, OBJECT_TYPES, flattenSystems, systemScale } from './names.js';
+import { MARKERS, OBJECT_TYPES, flattenSystems, systemScale, kmPerUnit } from './names.js';
 import { Frames, ROOT } from './frames.js';
 import { pointCard } from './card-layer.js';
 import { buildGrid } from './objects/grid.js';
@@ -150,6 +150,9 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
     if (f.parent !== null) f.node.visible = systems.find((x) => String(x.id) === f.id)?.visible !== false;
   }
   frames.place();
+  /** @param {string | undefined} sys */
+  const unitsOf = (sys) => (sys ? systems.find((x) => String(x.id) === sys)?.units : config?.units);
+  ctx.kmPerUnit = (sys) => kmPerUnit(unitsOf(sys));
   /** @type {Map<string, import('./objects/common.js').BuiltObject>} */
   const objects = new Map();
   /** @type {import('./objects/common.js').BuiltObject[]} */
@@ -176,7 +179,8 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
     }
     const g = new Group();
     g.name = `at:${b.id}`;
-    applyRotation(g, cfg);
+    // a real body turns itself (bodyTurn): no rotation on top
+    if (!b.onDate || cfg.body === undefined) applyRotation(g, cfg);
     g.add(b.node);
     if (cfg.visible === false) g.visible = false;
     frames.get(cfg._system).node.add(g);
@@ -209,7 +213,7 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   for (const [id, b] of objects) hosts.set(id, hostOf(b));
   const userPoints = Array.isArray(config?.points) ? config.points.filter((p) => p && typeof p === 'object' && p.id !== undefined) : [];
   const pointDefs = [...list.flatMap((b) => b.points), ...userPoints.map((p) => ({ ...p, id: String(p.id) }))];
-  const places = new Placements({ points: pointDefs, hosts, sky: ctx.sky, frame: frames.nested ? (id) => frames.get(id).node : undefined });
+  const places = new Placements({ points: pointDefs, hosts, sky: ctx.sky, frame: frames.nested ? (id) => frames.get(id).node : undefined, date: ctx.date, units: unitsOf });
   ctx.places = places;
   /**
    * What a point's motion is measured on (trails, `face: motion`): the outer

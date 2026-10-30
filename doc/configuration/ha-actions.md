@@ -265,6 +265,31 @@ data:
 
 From another LCARdS card on the same dashboard, the `fly-to` action does the same without a round trip; see [Fly-to from other cards](/cards/astrometrics/data#fly-to-from-other-cards-and-automations).
 
+### `lcards.set_clock`
+
+Sets the [scene date](/cards/astrometrics/scale#the-scene-clock) of an astrometrics card and how fast it runs: where its real planets and moons are, and how they are turned. Give a `date`, a `rate` or both; the other keeps running on.
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `card_id` | string | ✓ | The astrometrics card's `id`. |
+| `date` | string | | `now`, or an ISO date and time (`2026-10-30`, `2026-10-30T12:00:00Z`). A date and time helper's state works too (local time). |
+| `rate` | number or `live` | | Days per second: `1` a day a second, `0` holds it, negative runs back; `live` is real time. |
+| `target_device_ids` | list | | → [Targeting](#targeting) |
+| `target_device_names` | list | | → [Targeting](#targeting) |
+| `target_user_ids` | list | | → [Targeting](#targeting) |
+| `target_user_names` | list | | → [Targeting](#targeting) |
+
+```yaml
+# Show the planets on the date in a helper, held still
+action: lcards.set_clock
+data:
+  card_id: sol
+  date: "{{ states('input_datetime.lcards_test_date') }}"
+  rate: 0
+```
+
+From another LCARdS card, the `set-clock` action does the same: `tap_action: { action: set-clock, card: sol, rate: 30 }`.
+
 ---
 
 ## Portal Overlay Actions

@@ -229,3 +229,37 @@ test('backdrop stars take the starfield preset key names: sizes, opacity range, 
   assert.equal(typeof w.stars?.field?.setTail, 'function');
   w.dispose();
 });
+
+test('R4a: a body sphere turns to its real pole and meridian, an orbit ring draws the real orbit in the scene units', async () => {
+  const { sphereAxes, toScene, orbitPath } = await import('../../src/core/astrometrics/ephemeris.js');
+  const { Vector3 } = await import('three');
+  const date = Date.UTC(2026, 9, 30, 12);
+  const c = /** @type {any} */ ({ ...ctx(), date: () => date });
+  const w = buildScene({
+    units: 'km',
+    points: [{ id: 'earth', body: 'earth' }, { id: 'saturn', body: 'saturn' }],
+    objects: [
+      { type: 'sphere', id: 'globe', at: 'earth', radius: 6371, body: 'earth', spin: 30, rotation: [40, 0, 0] },
+      { type: 'ring', id: 'rings', at: 'saturn', radius: 140180, body: 'saturn' },
+      { type: 'ring', id: 'mars_orbit', orbit: 'mars' }
+    ]
+  }, c);
+  const globe = w.list.find((b) => b.id === 'globe');
+  assert.equal(globe.spin, 0, 'body: spin does not apply');
+  assert.equal(globe.moving, true, 'points on it move');
+  for (const b of w.list) b.onDate?.(date);
+  w.layout();
+  const axes = sphereAxes('earth', date);
+  // the outer group has no rotation (rotation does not apply), so world = the node's own turn
+  assert.equal(globe.node.parent.rotation.x, 0, 'rotation does not apply');
+  const pole = new Vector3(0, 1, 0).applyQuaternion(globe.node.quaternion);
+  assert.ok(pole.distanceTo(new Vector3(...axes.y)) < 1e-9, 'local y is the real pole');
+  const meridian = new Vector3(0, 0, 1).applyQuaternion(globe.node.quaternion);
+  assert.ok(meridian.distanceTo(new Vector3(...axes.z)) < 1e-9, 'local z is the prime meridian');
+  const rings = w.list.find((b) => b.id === 'rings');
+  assert.ok(new Vector3(0, 1, 0).applyQuaternion(rings.node.quaternion).distanceTo(new Vector3(...sphereAxes('saturn', date).y)) < 1e-9, 'rings in Saturn\'s equator');
+  const orbit = w.list.find((b) => b.id === 'mars_orbit');
+  const r = Math.max(...orbitPath('mars', date).map((p) => Math.hypot(...toScene(p))));
+  assert.ok(Math.abs(orbit.radius - r) < 1, `orbit radius ${orbit.radius} km`);
+  assert.ok(orbit.lines.length > 0 && orbit.lines[0].object.visible !== false, 'the line is drawn');
+});

@@ -68,6 +68,13 @@ releases:
         session: "M3"
         docs: /cards/astrometrics/objects#facing-the-way-it-goes
         public: true
+      - file: astro-real-sol
+        topic: astrometrics
+        summary: "Astrometrics real Sol: the planets and moons where they are today"
+        description: "The Solar system (real positions) starter: the Sun, the planets, Pluto, Ceres and the major moons in km where they really are at the scene date, on their real orbits, with real tilts and spins, Saturn's rings in its equator, and the main and Kuiper belts. The first row flies the camera; the second sets the scene date and its speed (NOW, a day, a month or a year a second, rewind, the Apollo 11 landing). The date slider on the card does the same, and its clock button switches to the speed slider."
+        session: "R4a"
+        docs: /cards/astrometrics/scale#the-real-solar-system
+        public: true
       - file: astro-true-solar
         topic: astrometrics
         summary: "Astrometrics true-scale starter: the Sun and eight planets in km"

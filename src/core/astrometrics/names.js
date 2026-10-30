@@ -44,6 +44,16 @@ export const TYPE_GUIDE = [
 export const UNITS = /** @type {const} */ ({ m: 1, km: 1e3, au: 1.495978707e11, ly: 9.4607304725808e15, pc: 3.0856775814913673e16 });
 
 /** @typedef {keyof typeof UNITS} UnitName */
+
+/**
+ * km per unit for a units name; null for none or an unknown one.
+ * @param {any} name
+ * @returns {number | null}
+ */
+export const kmPerUnit = (name) => {
+  const m = UNITS[/** @type {UnitName} */ (name)];
+  return m === undefined ? null : m / 1000;
+};
 export const UNIT_NAMES = /** @type {UnitName[]} */ (Object.keys(UNITS));
 
 /**
@@ -151,8 +161,18 @@ export const LABEL_STYLE_NAMES = /** @type {const} */ (['title', 'major', 'minor
 /** Sky bodies a point or path can follow */
 export const SKY_BODIES = /** @type {const} */ (['sun', 'moon']);
 
+/**
+ * Real bodies for `body` (points, spheres, rings) and `orbit` (rings), out
+ * from the Sun with each planet's moons after it. ephemeris.js has their
+ * data (a test keeps the lists equal).
+ */
+export const BODY_NAMES = /** @type {const} */ ([
+  'sun', 'mercury', 'venus', 'earth', 'moon', 'mars', 'phobos', 'deimos', 'ceres', 'jupiter', 'io', 'europa', 'ganymede', 'callisto',
+  'saturn', 'titan', 'uranus', 'neptune', 'triton', 'pluto', 'charon'
+]);
+
 /** The keys that place a point; a point takes exactly one */
-export const PLACEMENT_FORMS = /** @type {const} */ (['xyz', 'polar', 'latlon', 'altaz', 'sky', 'at', 'cell']);
+export const PLACEMENT_FORMS = /** @type {const} */ (['xyz', 'polar', 'latlon', 'altaz', 'sky', 'body', 'at', 'cell']);
 
 /**
  * Whether a config needs the effects chunk (its noise shaders): a nebula,

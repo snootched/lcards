@@ -5,7 +5,7 @@
  *
  * A starter is a builder:
  *   { id, kind: 'scene' | 'part', title, description, icon, params, build(params) }
- * `build` returns a fragment `{ points?, objects?, views?, camera?, backdrop? }`.
+ * `build` returns a fragment `{ points?, objects?, views?, camera?, backdrop?, units?, clock? }`.
  * A part's ids are prefixed by `applyStarter` (`prefix` param): every id the
  * fragment defines, and every reference to one inside it, gets `<prefix>_`.
  * References to anything else (a `centre` naming a point of the card) stay.
@@ -48,6 +48,7 @@ import starbase from './part-starbase.js';
  * @property {Record<string, any>} [camera] - camera keys other than views (scenes)
  * @property {Record<string, any>} [backdrop]
  * @property {string} [units] - the scene's units (true-scale scenes)
+ * @property {Record<string, any>} [clock] - the scene clock (real Solar System bodies)
  */
 
 /**
@@ -160,7 +161,7 @@ export function hasScene(/** @type {Record<string, any>} */ config) {
 }
 
 /** Card keys a scene starter replaces (everything else, such as type, id, height and title, stays) */
-const SCENE_KEYS = ['points', 'objects', 'camera', 'backdrop', 'labels', 'background_animation', 'units'];
+const SCENE_KEYS = ['points', 'objects', 'camera', 'backdrop', 'labels', 'background_animation', 'units', 'clock'];
 
 /**
  * Put a starter into a card config.
@@ -212,5 +213,7 @@ export function applyStarter(config, starter, params = {}, { mode } = {}) {
   }
   if (frag.backdrop && (replace || next.backdrop === undefined)) next.backdrop = frag.backdrop;
   if (frag.units !== undefined) next.units = frag.units;
+  // a merged scene keeps the card's own clock
+  if (frag.clock && (replace || next.clock === undefined)) next.clock = frag.clock;
   return { config: next, added: frag };
 }

@@ -4,14 +4,16 @@
  * that writes depth, so lines and labels behind it are hidden. `image` puts
  * the user's own texture on the body instead of `fill_color`. `spin` turns it
  * (degrees per second, positive is prograde: the front moves east); `latlon`
- * points on it follow. `deform` warps body and lines as on a grid sphere.
+ * points on it follow. `body: <name>` turns it as the real body is at the
+ * scene clock's date instead (pole and prime meridian). `deform` warps body
+ * and lines as on a grid sphere.
  *
  * @module core/astrometrics/objects/sphere
  */
 import { Group, Mesh, MeshBasicMaterial, SphereGeometry, SRGBColorSpace } from 'three';
 import { gridFace } from '../grid-mesh-material.js';
 import { sphereGeometry } from '../surface.js';
-import { built, num, gridLook, scanTicker, combineTicks, fillFor, DEFAULT_COLORS } from './common.js';
+import { built, num, gridLook, scanTicker, combineTicks, fillFor, bodyTurn, DEFAULT_COLORS } from './common.js';
 import { deformTicker } from './grid.js';
 
 const DEG = Math.PI / 180;
@@ -67,5 +69,6 @@ export function buildSphere(cfg, ctx) {
   body.rotation.y = 0;
   const geos = [/** @type {any} */ (face.children[0]).geometry, body.geometry];
   out.tick = combineTicks(deformTicker(cfg, 'sphere', out, [-R, R], geos, []), scanTicker(cfg, ctx, out.gridFaces), effect?.tick);
+  bodyTurn(out);
   return out;
 }

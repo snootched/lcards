@@ -100,6 +100,7 @@ export async function buildRegistries() {
       markers: [...astro.MARKERS],
       label_styles: [...astro.LABEL_STYLE_NAMES],
       sky_bodies: [...astro.SKY_BODIES],
+      bodies: [...astro.BODY_NAMES],
       placement_forms: [...astro.PLACEMENT_FORMS],
       model_materials: [...astro.MODEL_MATERIALS],
       // `builtin:<key>` images (sphere maps, ring bands, image objects)

@@ -41,7 +41,8 @@ import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { deepMergeImmutable } from '../utils/deepMerge.js';
 import { flattenSystems } from '../core/astrometrics/names.js';
 import { registerAstrometricsCard, unregisterAstrometricsCard } from './astrometrics-registry.js';
-import { cameraButtonLayout, BUTTONS_IDLE_MS, TIME_STOPS, timeStop } from './astrometrics-buttons.js';
+import { cameraButtonLayout, timeMode, BUTTONS_IDLE_MS, TIME_STOPS, timeStop } from './astrometrics-buttons.js';
+import { DATE_STOPS, dateStop, formatSceneDate, LIVE_RATE } from '../core/astrometrics/clock.js';
 import { createHuiCardWrapper, createCardElement, applyHassToCard, applyCardConfig } from '../utils/ha-card-factory.js';
 
 /** Keys a rules engine patch carries besides the patch itself */
@@ -79,7 +80,7 @@ function normalizeScenePatch(patch) {
 }
 
 /** Config keys the scene reads; a change to anything else does not rebuild it */
-const SCENE_KEYS = ['camera', 'backdrop', 'labels', 'points', 'objects', 'units', 'time_scale'];
+const SCENE_KEYS = ['camera', 'backdrop', 'labels', 'points', 'objects', 'units', 'time_scale', 'clock'];
 
 /** Shown when the scene cannot draw, by the runtime's failure reason */
 const FAILURES = {
@@ -141,7 +142,10 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             _pick: { type: Object, state: true },
             _buttonsIdle: { type: Boolean, state: true },
             _buttonsFolded: { type: Boolean, state: true },
-            _timeScale: { type: Number, state: true }
+            _timeScale: { type: Number, state: true },
+            _clockText: { type: String, state: true },
+            _clockRate: { type: Number, state: true },
+            _timeShows: { type: String, state: true }
         };
     }
 
@@ -171,7 +175,8 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                     position: absolute;
                     display: grid;
                     grid-template-columns: repeat(3, 32px);
-                    grid-auto-rows: 32px;
+                    /* button rows are 32px; the time row grows to its content (the date panel is two lines) */
+                    grid-auto-rows: minmax(32px, auto);
                     gap: var(--ha-space-1, 4px);
                     margin: var(--ha-space-3, 12px);
                     z-index: 1;
@@ -244,6 +249,51 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                     font-family: var(--lcars-font, 'Antonio'), sans-serif;
                     font-size: 13px;
                     text-align: right;
+                }
+                /* the date panel and the switch need more room than the three button columns:
+                   wider, reaching away from the card edge the buttons sit on */
+                .astro-time.astro-time-wide {
+                    width: 232px;
+                    justify-self: end;
+                }
+                .astro-buttons[data-pos$='left'] .astro-time.astro-time-wide { justify-self: start; }
+                .astro-buttons[data-pos$='center'] .astro-time.astro-time-wide,
+                .astro-buttons[data-pos='center'] .astro-time.astro-time-wide { justify-self: center; }
+                .astro-date {
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 0;
+                    padding: var(--ha-space-1, 4px) var(--ha-space-2, 8px);
+                    border-radius: var(--ha-border-radius-lg, 12px);
+                }
+                .astro-date-row {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--ha-space-1, 4px);
+                    min-height: 24px;
+                }
+                /* the rate label keeps one width, so the slider does not jump as it changes */
+                .astro-time-wide .astro-time-value:last-child {
+                    min-width: 7ch;
+                }
+                .astro-date-text {
+                    flex: 1;
+                    text-align: left;
+                    white-space: nowrap;
+                }
+                .astro-buttons .astro-time button {
+                    width: auto;
+                    height: 20px;
+                    min-width: 20px;
+                    padding: 0 var(--ha-space-1, 4px);
+                    border-radius: var(--ha-border-radius-pill, 9999px);
+                    background: var(--lcars-orange, var(--lcards-orange-medium));
+                    font-family: var(--lcars-font, 'Antonio'), sans-serif;
+                    font-size: 12px;
+                }
+                .astro-buttons .astro-time button svg {
+                    width: 14px;
+                    height: 14px;
                 }
                 .astro-buttons svg {
                     width: 20px;
@@ -347,6 +397,13 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._buttonsFolded = false;
         /** @type {number | null} the time slider's speed (null: the config's time_scale) */
         this._timeScale = null;
+        /** The scene date as the time slider shows it (minutes), and its rate (days per second) */
+        this._clockText = '';
+        this._clockRate = LIVE_RATE;
+        /** @type {'speed' | 'date'} what the time slider sets with `buttons.time: both` */
+        this._timeShows = 'date';
+        /** @type {{ date: number, rate: number, wall: number } | null} a date or rate the slider or an action set (kept when the scene is made again) */
+        this._clockSet = null;
         /** @type {ReturnType<typeof setTimeout> | undefined} */
         this._buttonsTimer = undefined;
         /** A camera button is held (the buttons never fade meanwhile) */
@@ -497,12 +554,17 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             onHold: (hit) => { this._onSceneAction(hit, 'hold_action'); },
             onFail: (reason) => { this._failure = reason in FAILURES ? reason : 'render failed'; },
             onSky: () => { this._refreshLabels({ sky: true }); },
+            onClock: (c) => this._onClock(c),
             mountCard: (card) => this._mountPointCard(card),
             setCardHass: (el, hass) => this._setPointCardHass(el, hass)
         });
         if (this._studioHooks) this._scene.setEditMode(this._studioHooks);
-        // back after a view switch: the slider's speed stays
+        // back after a view switch: the slider's speed and the date stay
         if (this._timeScale !== null) this._scene.setTimeScale(this._timeScale);
+        if (this._clockSet) {
+            const c = this._clockSet;
+            this._scene.setClock({ date: c.date + (performance.now() - c.wall) * c.rate * 86400, rate: c.rate });
+        }
         this._rebuildPointData();
         this._syncBackground();
         const waiters = this._sceneWaiters;
@@ -536,8 +598,10 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             const config = this._sceneConfig();
             const key = JSON.stringify(config);
             if (key !== this._sceneKey) {
-                // a new time_scale in the config wins over the slider (the runtime does the same)
-                if (this._sceneKey && JSON.parse(this._sceneKey).time_scale !== config.time_scale) this._timeScale = null;
+                // a new time_scale or clock in the config wins over the slider (the runtime does the same)
+                const before = this._sceneKey ? JSON.parse(this._sceneKey) : null;
+                if (before && before.time_scale !== config.time_scale) this._timeScale = null;
+                if (before && JSON.stringify(before.clock ?? null) !== JSON.stringify(config.clock ?? null)) this._clockSet = null;
                 this._sceneKey = key;
                 this._registerSceneTargets();
                 this._scene.setConfig(this._withScenePatches(config));
@@ -870,6 +934,12 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             this._actionHandler.runAction(action, this.hass, this);
             return true;
         }
+        // set-clock on this card (no card, or its own id) sets the date here
+        if (action.action === 'set-clock' && (action.card === undefined || action.card === this.config?.id)) {
+            this._playSound(key === 'tap_action' ? 'card_tap' : 'card_hold');
+            this.setClock({ date: action.date, rate: action.rate });
+            return true;
+        }
         if (action.action === 'fly-to') {
             if (action.point) {
                 this._scene?.flyTo({ point: action.point }, action.duration !== undefined ? { duration: action.duration } : {});
@@ -1012,6 +1082,41 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         return this._scene.flyTo(view, opts);
     }
 
+    /**
+     * Set the scene date and or rate (the registry, `lcards.set_clock`, the
+     * time slider and set-clock actions call this). It stays until the
+     * config's `clock` changes.
+     * @param {{ date?: any, rate?: any }} opts - date: now, ISO or ms; rate: live or days per second
+     * @returns {boolean} false before the scene is ready, or when a value was not understood
+     */
+    setClock(opts = {}) {
+        const clock = {
+            ...(opts.date !== undefined && opts.date !== null && opts.date !== '' ? { date: opts.date } : {}),
+            ...(opts.rate !== undefined && opts.rate !== null && opts.rate !== '' ? { rate: opts.rate } : {})
+        };
+        if (!this._scene) {
+            lcardsLog.debug('[LCARdSAstrometricsCard] set-clock before the scene is ready: ignored');
+            return false;
+        }
+        const ok = this._scene.setClock(clock);
+        const c = this._scene.clock();
+        this._clockSet = { date: c.date, rate: c.rate, wall: performance.now() };
+        if (!ok) lcardsLog.warn(`[LCARdSAstrometricsCard] set-clock: could not read ${JSON.stringify(clock)} (date: now or an ISO date; rate: live or days per second)`);
+        return ok;
+    }
+
+    /**
+     * The scene date moved (every frame while it runs): the slider's readout
+     * changes once a minute of scene time at most.
+     * @private
+     * @param {import('../core/astrometrics/scene-runtime.js').AstroClockState} c
+     */
+    _onClock(c) {
+        const text = formatSceneDate(c.date);
+        if (text !== this._clockText) this._clockText = text;
+        if (c.rate !== this._clockRate) this._clockRate = c.rate;
+    }
+
     // ── The Astrometrics Studio (its live preview is this card) ──
 
     /**
@@ -1131,18 +1236,67 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
     }
 
     /**
-     * `buttons.time`: how fast the scene's motion runs, by stops (0 holds it).
+     * `buttons.time`: the speed slider (how fast the scene's motion runs), the
+     * date slider (the scene clock's rate, with the date and a NOW button),
+     * or both with a switch between them.
      * @private
      * @param {string} area
      * @param {string} label
      */
     _renderTimeSlider(area, label) {
+        const mode = timeMode(this.config?.camera?.buttons, !!this.config?.clock);
+        const shows = mode === 'both' ? this._timeShows : mode;
+        const swap = mode === 'both' ? html`
+            <button type="button" class="astro-time-swap" data-cmd="time-mode"
+                aria-label=${shows === 'date' ? 'Show the speed slider' : 'Show the date slider'} title=${shows === 'date' ? 'Speed' : 'Date'}
+                @click=${(/** @type {Event} */ e) => { e.preventDefault(); this._playSound('card_tap'); this._timeShows = shows === 'date' ? 'speed' : 'date'; }}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d=${shows === 'date' ? 'M5 15a7 7 0 0 1 14 0M12 15l4-5' : 'M12 5a7 7 0 1 0 0 14a7 7 0 1 0 0-14M12 8v4l3 2'}/></svg>
+            </button>` : '';
+        return shows === 'date' ? this._renderDateSlider(area, swap) : this._renderSpeedSlider(area, label, swap);
+    }
+
+    /**
+     * The date slider: the scene date, the rate by stops, NOW.
+     * @private
+     * @param {string} area
+     * @param {any} swap - the mode switch (both), or ''
+     */
+    _renderDateSlider(area, swap) {
+        const stop = dateStop(this._clockRate);
+        const rateText = DATE_STOPS[stop].label.toUpperCase();
+        return html`
+            <div class="astro-time astro-time-wide astro-date" style=${`grid-area: ${area}`}>
+                <div class="astro-date-row">
+                    <span class="astro-time-value astro-date-text">${this._clockText || '-'}</span>
+                    <button type="button" class="astro-time-now" data-cmd="clock-now" aria-label="Back to now" title="Now"
+                        @click=${() => { this._playSound('card_tap'); this.setClock({ date: 'now', rate: 'live' }); }}>NOW</button>
+                </div>
+                <div class="astro-date-row">
+                    ${swap}
+                    <input type="range" min="0" max=${DATE_STOPS.length - 1} step="1" .value=${String(stop)}
+                        aria-label="Scene date rate" aria-valuetext=${rateText}
+                        @input=${(/** @type {Event} */ e) => this.setClock({ rate: DATE_STOPS[Number(/** @type {HTMLInputElement} */ (e.target).value)]?.rate ?? LIVE_RATE })}>
+                    <span class="astro-time-value">${rateText}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * The speed slider: how fast decorative motion runs, by stops (0 holds it).
+     * @private
+     * @param {string} area
+     * @param {string} label
+     * @param {any} swap - the mode switch (both), or ''
+     */
+    _renderSpeedSlider(area, label, swap) {
         const cfgScale = Number(this.config?.time_scale ?? 1);
         const scale = this._timeScale ?? (Number.isFinite(cfgScale) ? Math.max(0, cfgScale) : 1);
         const stop = timeStop(scale);
         const text = scale === 0 ? 'HOLD' : `${scale}×`;
         return html`
-            <label class="astro-time" style=${`grid-area: ${area}`} title=${label}>
+            <label class=${swap ? 'astro-time astro-time-wide' : 'astro-time'} style=${`grid-area: ${area}`} title=${label}>
+                ${swap}
                 <input type="range" min="0" max=${TIME_STOPS.length - 1} step="1" .value=${String(stop)}
                     aria-label=${label} aria-valuetext=${text}
                     @input=${(/** @type {Event} */ e) => this._setTimeScale(TIME_STOPS[Number(/** @type {HTMLInputElement} */ (e.target).value)] ?? 1)}>

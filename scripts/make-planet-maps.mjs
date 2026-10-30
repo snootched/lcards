@@ -61,6 +61,68 @@ export const MAPS = {
     source: 'USGS Astrogeology / NASA New Horizons LORRI and MVIC global mosaic 300 m (July 2017); the far south was never seen',
     // the unseen south (no data, 0) as a flat grey instead of a black hole
     nodata: 70
+  },
+  // R4a (2026-10-30): the Sun and the moons of the accurate Sol starter
+  sun_sdo: {
+    out: 'nasa-sdo-stereo-sun-2048.webp',
+    url: 'https://svs.gsfc.nasa.gov/vis/a030000/a030300/a030362/euvi_aia304_2012_carrington.tif',
+    source: 'NASA Scientific Visualization Studio 30362, Full Map of the Sun\'s Surface: STEREO EUVI and SDO AIA 304 Å, Carrington coordinates (2012)',
+    // Carrington longitude 0 is the left edge: half a turn puts it in the middle
+    roll: 0.5
+  },
+  io_galileo: {
+    out: 'usgs-galileo-io-2048.webp',
+    url: `${USGS}/Io_GalileoSSI-Voyager_Global_Mosaic_ClrMerge_1km.tif`,
+    source: 'USGS Astrogeology, Io Galileo SSI and Voyager global colour merge mosaic 1 km'
+  },
+  europa_galileo: {
+    out: 'usgs-galileo-europa-2048.webp',
+    url: `${USGS}/Europa_Voyager_GalileoSSI_global_mosaic_500m.tif`,
+    source: 'USGS Astrogeology, Europa Voyager and Galileo SSI global mosaic 500 m',
+    // the unseen polar patches (no data) in a grey near the surface's own
+    nodata: 165
+  },
+  ganymede_galileo: {
+    out: 'usgs-galileo-ganymede-2048.webp',
+    url: `${USGS}/Ganymede_Voyager_GalileoSSI_Global_ClrMosaic_1435m.tif`,
+    source: 'USGS Astrogeology, Ganymede Voyager and Galileo SSI global colour mosaic 1.4 km',
+    // the unseen polar patches (no data) in a grey near the surface's own
+    nodata: 105
+  },
+  callisto_galileo: {
+    out: 'usgs-galileo-callisto-2048.webp',
+    url: `${USGS}/Callisto_Voyager_GalileoSSI_global_mosaic_1km.tif`,
+    source: 'USGS Astrogeology, Callisto Voyager and Galileo SSI global mosaic 1 km',
+    // the unseen polar patches (no data) in a grey near the surface's own
+    nodata: 55
+  },
+  titan_cassini: {
+    out: 'usgs-cassini-titan-2048.webp',
+    url: `${USGS}/Titan_ISS_P19658_Mosaic_Global_4km.tif`,
+    source: 'USGS Astrogeology, Titan Cassini ISS global mosaic 4 km (the surface at 938 nm, under the haze)'
+  },
+  triton_voyager: {
+    out: 'usgs-voyager-triton-2048.webp',
+    url: `${USGS}/Triton_Voyager2_ClrMosaic_GlobalFill_600m.tif`,
+    source: 'USGS Astrogeology, Triton Voyager 2 global colour mosaic 600 m; most of the north was never seen',
+    nodata: 150
+  },
+  ceres_dawn: {
+    out: 'usgs-dawn-ceres-2048.webp',
+    url: `${USGS}/Ceres_Dawn_FC_DLR_global_20ppd_Oct2015.tif`,
+    source: 'USGS Astrogeology / NASA Dawn Framing Camera global mosaic 20 pixels per degree (October 2015)',
+    nodata: 100
+  },
+  charon_new_horizons: {
+    out: 'usgs-new-horizons-charon-2048.webp',
+    url: `${USGS}/Charon_NewHorizons_Global_Mosaic_300m_Jul2017_8bit.tif`,
+    source: 'USGS Astrogeology / NASA New Horizons LORRI and MVIC global mosaic 300 m (July 2017); the far south was never seen',
+    nodata: 70
+  },
+  phobos_viking: {
+    out: 'usgs-viking-phobos-2048.webp',
+    url: `${USGS}/Phobos_Viking_Mosaic_40ppd_DLRcontrol.tif`,
+    source: 'USGS Astrogeology, Phobos Viking orbiter global mosaic 40 pixels per degree'
   }
 };
 
@@ -110,7 +172,14 @@ async function makeMap(key, cache) {
   await download(m.url, src);
   const out = join(OUT, m.out);
   // force the exact 2:1 size (some sources are 3601 x 1801), sRGB
-  if (m.nodata === undefined) {
+  if (m.roll !== undefined) {
+    const small = join(cache, `${key}-small.v`);
+    vips('thumbnail', src, small, String(W), '--height', String(H), '--size', 'force', '--export-profile', 'srgb');
+    // 16-bit sources come down to 8
+    const eight = join(cache, `${key}-8.v`);
+    vips('cast', small, eight, 'uchar', '--shift');
+    vips('wrap', eight, `${out}[Q=82,strip]`, '--x', String(Math.round(W * m.roll)), '--y', '0');
+  } else if (m.nodata === undefined) {
     vips('thumbnail', src, `${out}[Q=82,strip]`, String(W), '--height', String(H), '--size', 'force', '--export-profile', 'srgb');
   } else {
     const small = join(cache, `${key}-small.v`);

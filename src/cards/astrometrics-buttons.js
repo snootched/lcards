@@ -40,6 +40,21 @@ export function timeStop(scale) {
     return best;
 }
 
+/**
+ * What the time slider sets (`buttons.time`): `speed` (time_scale), `date`
+ * (the scene clock's rate, with the date and NOW) or `both` (a switch
+ * between them). `true` or left out: both when the card has a `clock`,
+ * else speed.
+ * @param {any} cfg - `camera.buttons`
+ * @param {boolean} [hasClock] - the card config has `clock`
+ * @returns {'speed' | 'date' | 'both'}
+ */
+export function timeMode(cfg, hasClock = false) {
+    const t = cfg && typeof cfg === 'object' ? cfg.time : undefined;
+    if (t === 'speed' || t === 'date' || t === 'both') return t;
+    return hasClock ? 'both' : 'speed';
+}
+
 /** `buttons.hide: idle`: the buttons fade out after this long (ms) without input on the card */
 export const BUTTONS_IDLE_MS = 3000;
 

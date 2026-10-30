@@ -788,6 +788,73 @@ fly_to:
         text:
           multiple: true
 
+set_clock:
+  name: Set clock
+  description: >
+    Set the scene date and how fast it runs on an LCARdS astrometrics card
+    (where its real planets and moons are, and how they are turned), on every
+    open dashboard showing that card (or only the targeted devices and users).
+  fields:
+    card_id:
+      name: Card ID
+      description: The `id` of the astrometrics card.
+      required: true
+      example: sol
+      selector:
+        text:
+    date:
+      name: Date
+      description: >
+        The scene date: `now`, or an ISO date and time (2026-10-30, 2026-10-30T12:00:00Z,
+        or the state of a date and time helper). Give a date, a rate or both.
+      required: false
+      example: "2026-10-30T12:00:00Z"
+      selector:
+        text:
+    rate:
+      name: Rate
+      description: >
+        How fast the date runs: `live` (real time), or days per second (1 is a day a
+        second, 0 holds it, negative runs back).
+      required: false
+      example: 1
+      selector:
+        text:
+    target_device_ids:
+      name: Target Device IDs
+      description: >
+        Limit to specific browser/device UUIDs. Leave empty to broadcast to
+        all connected browsers.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_ids:
+      name: Target User IDs
+      description: >
+        Limit to sessions belonging to specific Home Assistant users. Leave empty for all.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_device_names:
+      name: Target Device Names
+      description: >
+        Limit to devices by their friendly display name. Resolved server-side.
+      required: false
+      selector:
+        text:
+          multiple: true
+    target_user_names:
+      name: Target User Names
+      description: >
+        Limit to Home Assistant users by their display name. Resolved server-side.
+        Case-insensitive.
+      required: false
+      selector:
+        text:
+          multiple: true
+
 show_portal_card:
   name: Show Portal Card
   description: >

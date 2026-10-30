@@ -42,7 +42,7 @@ objects:
 - **Depth:** a station 4 km away with Earth 42,000 km behind it and the Sun 150 million km further draws in the right order. When one depth range cannot hold the view, the card draws it in slices, far to near; a scene built to fit draws in one pass as before.
 - **Distance limits** follow the scene: you can zoom in to half its smallest object and out to 20 times its size (a scene built to fit keeps 1 to 100,000). `limits.distance` sets your own.
 - **Fly-to** over a long zoom moves evenly in log distance, so each factor of ten takes the same time, and zooming in the camera lines up on its target early instead of sweeping past it close up.
-- **Orbit rings** add segments near the camera, so an orbit 150 million km across still passes through its planet seen from 70,000 km.
+- **Orbit rings** add segments near the camera, so an orbit 150 million km across still passes through its planet seen from 70,000 km (an `orbit` ring adds them round its body).
 - **What to expect:** at true scale, planets are dots from across their system (Earth is 1/23,000 of its orbit), so give them markers and labels; the close views are where it shines. The [distance](./objects#distance) keys still pick what shows when.
 
 ## Star systems
@@ -84,6 +84,57 @@ objects:
 - **Distances are in the owner's units:** a view's `distance` is in its target's units (the `station` view above is 4 km, the `galaxy` view 140,000 ly), and so are a point's or object's `fade`, `min_distance` and `max_distance`. A view with an `[x, y, z]` target, and `camera.limits`, are in scene units.
 - **The camera follows:** within a few times its size of a system, the camera works in the system's units, so a station a few km across holds steady; further out it works in the scene's. Nothing on screen moves at the change, and a fly-to from the galaxy lands exactly on its target inside.
 - **One level:** a system cannot hold another system (it reaches from a galaxy down to a station already). A system is not rotated: its axes are the scene's.
+
+## The real Solar System
+
+A point with `body: mars` sits where Mars really is at the scene date, on its real tilted, elliptical orbit. A sphere with `body: mars` turns as Mars really does: its axis tilted where the real pole points, its real sidereal day, its map's longitude 0 where the prime meridian is. A ring with `orbit: mars` draws the real orbit. All three follow the [scene clock](#the-scene-clock).
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+units: au
+clock: { date: now, rate: 10 }
+camera:
+  buttons: true
+  view: inner
+  views:
+    inner: { target: sun, yaw: 30, tilt: 40, distance: 4.5 }
+points:
+  - { id: sun, xyz: [0, 0, 0], label: SOL, style: major }
+  - { id: mercury, body: mercury, marker: dot, label: MERCURY, style: tiny }
+  - { id: venus, body: venus, marker: dot, label: VENUS, style: tiny }
+  - { id: earth, body: earth, marker: dot, label: EARTH }
+  - { id: mars, body: mars, marker: dot, label: MARS }
+objects:
+  - { type: glow, at: sun, size: 0.25, color: var(--lcars-yellow) }
+  - { type: ring, orbit: mercury, width: 1, opacity: 0.5 }
+  - { type: ring, orbit: venus, width: 1, opacity: 0.5 }
+  - { type: ring, orbit: earth, width: 1, color: var(--lcars-blue) }
+  - { type: ring, orbit: mars, width: 1, opacity: 0.5 }
+```
+
+- **Bodies:** `sun`, the planets, `pluto` and `ceres`, and the moons `moon` (Luna), `phobos`, `deimos`, `io`, `europa`, `ganymede`, `callisto`, `titan`, `triton` and `charon`. The [Solar system (real positions)](./starters#solar-system-real-positions) starter has them all, with their maps and the asteroid and Kuiper belts.
+- **Where:** the Sun sits at the origin of the point's frame (the scene, or its [system](#star-systems)), in that frame's units: set `units` (km or au; without it au is assumed, with a warning). A moon is placed from the Sun too (its planet plus its own orbit), so it sits by its planet's point. `center: jupiter` measures from another body instead, for a scene centred on a planet.
+- **Axes:** y is up toward ecliptic north, and bearing 0 (away from the default camera) is ecliptic longitude 90°, so the planets go round anticlockwise seen from above, as from the north.
+- **Spheres and rings:** `body` replaces `spin` and `rotation`. Put the sphere at the body's point (`at: mars`) with its real radius. A ring with `body: saturn` lies in Saturn's equator (its rings). An `orbit` ring for a moon goes at its planet's point (`orbit: io`, `at: jupiter`); a planet's needs no `at`.
+- **Accuracy:** planets from JPL's approximate elements (Standish), within a few hundredths of a degree for the inner planets and a few tenths for the giants, 3000 BC to 3000 AD; outside that they keep going, less exactly. Pluto and Ceres from JPL's small-body elements: a fraction of a degree for Pluto, a degree or two for Ceres outside 2000 to 2050. The Moon from the same series as the sky. The other moons from JPL's mean elements, within a degree from 2000 to 2026 and a few degrees out to 1950 and 2100 (Titan and Phobos up to 15). Rotation from the IAU models. Good for a picture of the sky, not for navigation.
+- **True sizes:** at true scale the planets are dots from across the system, so give their points markers and labels, and fly in to see the bodies.
+
+### The scene clock
+
+`clock` on the card sets the scene date: where the real bodies are, how they are turned, and the [sky dome](./objects#grid) (`sky: sun | moon` points and paths) once it is set. It starts at `date` and runs on at `rate`:
+
+```yaml
+clock:
+  date: now          # or an ISO date: 2026-10-30, 1969-07-20T20:17:00Z
+  rate: 1            # days per second; live is real time, 0 holds it, negative runs back
+```
+
+- **On screen:** the [time slider](./index#controls) gets a date mode on a card with a clock: the date, its rate from a year a second backward to a year a second forward, and NOW. What it sets stays until the card's `clock` changes.
+- **From other cards:** `tap_action: { action: set-clock, card: sol, date: now, rate: 30 }` on any LCARdS card; leave out `card` on the astrometrics card itself.
+- **From automations:** the [`lcards.set_clock`](/configuration/ha-actions#lcards-set-clock) action, with `card_id`, `date` and or `rate`; `date` can be a date and time helper's state.
+- **Separate from `time_scale`:** the clock moves the real bodies; `time_scale` and the speed slider run decorative motion (degree spins, scans, drift, moving dashes). Holding one does not hold the other.
+- **Spins follow the clock exactly,** however fast it runs: at a year a second a planet turns hundreds of times a second and looks still or slow (the wagon-wheel effect). Slow the date down to watch it turn.
 
 ## Distances
 

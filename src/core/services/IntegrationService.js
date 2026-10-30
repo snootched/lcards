@@ -524,6 +524,11 @@ export class IntegrationService extends BaseService {
                 lcardsLog.info(`[IntegrationService] fly_to '${payload.card_id}': ${flown} card(s) here`);
                 break;
             }
+            case 'set_clock': {
+                const set = window.lcards?.cards?.astrometrics?.setClock(payload.card_id, { date: payload.date, rate: payload.rate }) ?? 0;
+                lcardsLog.info(`[IntegrationService] set_clock '${payload.card_id}': ${set} card(s) here`);
+                break;
+            }
 
             case 'clear_portal_card': {
                 const pom = window.lcards?.core?.portalOverlayManager;

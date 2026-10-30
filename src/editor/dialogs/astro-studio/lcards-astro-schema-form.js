@@ -16,7 +16,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { configToYaml, yamlToConfig } from '../../utils/yaml-utils.js';
 import {
-  fieldKind, tupleLabels, tupleSize, labelFor, helperText, appliesTo, withKey, parseNumbers, isUnset, objectAlternative
+  fieldKind, tupleLabels, tupleSize, labelFor, helperText, appliesTo, withKey, parseNumbers, isUnset, objectAlternative, choiceOptions, choiceValue
 } from './schema-fields.js';
 import '../../components/shared/lcards-form-section.js';
 import '../../components/shared/lcards-color-picker.js';
@@ -25,7 +25,7 @@ import '../../components/yaml/lcards-yaml-editor.js';
 
 const isObj = (/** @type {any} */ v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** Kinds laid out two to a row */
-const SHORT = new Set(['boolean', 'enum', 'number', 'text', 'strings', 'numbers']);
+const SHORT = new Set(['boolean', 'enum', 'choice', 'number', 'text', 'strings', 'numbers']);
 const COORDS = 'coords';
 
 /**
@@ -185,6 +185,16 @@ export class LCARdSAstroSchemaForm extends LitElement {
         return this._pointRef(label, helper, value, (v) => this._set(key, v));
       case 'pointList':
         return this._pointList(key, label, helper, value);
+      case 'choice': {
+        const opts = /** @type {NonNullable<ReturnType<typeof choiceOptions>>} */ (choiceOptions(s));
+        const options = [
+          { value: '', label: '(Not set)' },
+          ...(opts.bool ? [{ value: 'true', label: 'true' }, { value: 'false', label: 'false' }] : []),
+          ...opts.words.map((w) => ({ value: w, label: w }))
+        ];
+        return this._selector(key, { select: { mode: 'dropdown', options, custom_value: opts.number } }, value === undefined ? '' : String(value),
+          label, opts.number ? `${helper ? `${helper} ` : ''}(or type a number)` : helper, cls, (v) => choiceValue(v, opts));
+      }
       case 'boolOrNumber':
         return html`
           <div class="full row">
