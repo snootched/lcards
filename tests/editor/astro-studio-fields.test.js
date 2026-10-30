@@ -17,7 +17,8 @@ import {
 
 /** Keys shown as their own YAML editor (with completion), by where they are */
 const YAML_FALLBACK = {
-  objects: ['tap_action', 'hold_action', 'colors', 'animation', 'points', 'objects'],
+  // outline: a prism's [x, z] points (an outline editor is for the Studio UX session)
+  objects: ['tap_action', 'hold_action', 'colors', 'animation', 'points', 'objects', 'outline'],
   camera: ['views'],
   scene: ['background_animation'],
   labels: ['styles']

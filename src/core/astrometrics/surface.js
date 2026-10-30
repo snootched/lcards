@@ -11,7 +11,7 @@
  *
  * @module core/astrometrics/surface
  */
-import { BufferGeometry, BufferAttribute } from 'three';
+import { BufferGeometry, BufferAttribute, ShapeUtils, Vector2 } from 'three';
 
 const DEG = Math.PI / 180;
 
@@ -212,4 +212,40 @@ export function aroundScale(radius, cell) {
   const circ = 2 * Math.PI * radius;
   const n = Math.max(1, Math.round(circ / cell));
   return (n * cell) / circ;
+}
+
+/**
+ * A flat polygon at height y (a prism's cap): the outline triangulated, its
+ * grid coordinates (s, t) the plane's x and z, so cells line up across caps.
+ * @param {[number, number][]} outline - [x, z] points, either winding
+ * @param {number} y
+ */
+export function polygonGeometry(outline, y) {
+  const contour = outline.map(([x, z]) => new Vector2(x, z));
+  const tris = ShapeUtils.triangulateShape(contour, []);
+  const pos = new Float32Array(outline.length * 3);
+  const surf = new Float32Array(outline.length * 2);
+  outline.forEach(([x, z], i) => {
+    pos.set([x, y, z], i * 3);
+    surf.set([x, z], i * 2);
+  });
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(pos, 3));
+  g.setAttribute('surf', new BufferAttribute(surf, 2));
+  g.setIndex(tris.flat());
+  g.computeBoundingSphere();
+  return g;
+}
+
+/**
+ * A vertical wall from (x0, z0) to (x1, z1) between y0 and y1 (a prism's
+ * side): s runs along the wall from `s0` (the outline's length so far, so
+ * cells continue round the corners), t is the height.
+ * @param {{ a: [number, number], b: [number, number], y0: number, y1: number, s0?: number }} o
+ */
+export function wallGeometry({ a, b, y0, y1, s0 = 0 }) {
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  return surfaceGeometry(Math.max(1, Math.min(64, Math.ceil(len / Math.max(1e-6, (y1 - y0) || len) * 4))), 4, (u, v) => [
+    a[0] + (b[0] - a[0]) * u, y0 + (y1 - y0) * v, a[1] + (b[1] - a[1]) * u, s0 + len * u, y0 + (y1 - y0) * v
+  ]);
 }

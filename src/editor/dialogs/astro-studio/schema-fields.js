@@ -405,6 +405,8 @@ export function newObject(type, objectIds, pointIds) {
     case 'trail':
       if (a) obj.point = a;
       break;
+    // a galaxy at the scale of a scene built to fit (the schema default is 50,000 ly)
+    case 'galaxy': obj.radius = 100; break;
     default: break;
   }
   return obj;

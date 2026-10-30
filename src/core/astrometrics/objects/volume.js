@@ -2,7 +2,8 @@
  * `type: volume`: a see-through cell box (a territory). `shape: sector`
  * spans `radius: [r0, r1]`, bearings `angle: [a0, a1]` and `height: [y0, y1]`
  * round the scene centre; `shape: box` is `size: [w, h, d]` centred on its
- * position. Every face is a grid (`cells`: spacing per direction), the edges
+ * position; `shape: prism` is an `outline` of `[x, z]` points (any polygon:
+ * a territory's border) between `height: [y0, y1]`. Every face is a grid (`cells`: spacing per direction), the edges
  * are fat lines. Far faces draw at `back_opacity` (1 by default: a volume is
  * a wireframe, its far side is not hidden).
  *
@@ -10,12 +11,24 @@
  */
 import { Group } from 'three';
 import { gridFace } from '../grid-mesh-material.js';
-import { discGeometry, cylinderGeometry, radialWallGeometry, rectGeometry } from '../surface.js';
+import { discGeometry, cylinderGeometry, radialWallGeometry, rectGeometry, polygonGeometry, wallGeometry } from '../surface.js';
 import { FatLine } from '../lines.js';
 import { bearingXZ } from '../placements.js';
 import { built, num, pair, withOpacity, scanTicker, DEFAULT_COLORS } from './common.js';
 
 const DEG = Math.PI / 180;
+
+/**
+ * A prism's outline as [x, z] pairs (at least 3, numbers only); null when it has none.
+ * @param {any} v
+ * @returns {[number, number][] | null}
+ */
+export function prismOutline(v) {
+  if (!Array.isArray(v)) return null;
+  const pts = v.filter((p) => Array.isArray(p) && p.length >= 2 && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1])))
+    .map((p) => /** @type {[number, number]} */ ([Number(p[0]), Number(p[1])]));
+  return pts.length >= 3 ? pts : null;
+}
 
 /**
  * @param {any} cfg
@@ -54,7 +67,27 @@ export function buildVolume(cfg, ctx) {
   /** @type {number[][]} */
   const edges = [];
 
-  if (cfg.shape === 'box') {
+  const outline = cfg.shape === 'prism' ? prismOutline(cfg.outline) : null;
+  if (cfg.shape === 'prism' && outline) {
+    const [y0, y1] = pair(cfg.height, [0, 10]);
+    const xs = outline.map((p) => p[0]);
+    const zs = outline.map((p) => p[1]);
+    const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs));
+    const cx = num(cells.width, span / 8);
+    const cz = num(cells.depth, span / 8);
+    const layer = num(cells.height, (y1 - y0) / 2);
+    for (const y of [y0, y1]) face(polygonGeometry(outline, y), look([cx, cz]));
+    let s0 = 0;
+    outline.forEach((a, i) => {
+      const b = outline[(i + 1) % outline.length];
+      face(wallGeometry({ a, b, y0, y1, s0 }), look([cx, layer]), true);
+      s0 += Math.hypot(b[0] - a[0], b[1] - a[1]);
+      for (const y of [y0, y1]) edges.push([a[0], y, a[1], b[0], y, b[1]]);
+      edges.push([a[0], y0, a[1], a[0], y1, a[1]]);
+    });
+    // the label and fly-to aim at the outline's middle
+    out.centre = [xs.reduce((p, v) => p + v, 0) / xs.length, (y0 + y1) / 2, zs.reduce((p, v) => p + v, 0) / zs.length];
+  } else if (cfg.shape === 'box') {
     const s = Array.isArray(cfg.size) ? cfg.size : [num(cfg.size, 20), num(cfg.size, 20), num(cfg.size, 20)];
     const [w, h, d] = [num(s[0], 20), num(s[1], 20), num(s[2], 20)];
     const cx = num(cells.width, w / 4);

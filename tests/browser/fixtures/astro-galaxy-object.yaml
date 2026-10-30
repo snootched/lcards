@@ -1,0 +1,26 @@
+# R4c1: the procedural Milky Way (type: galaxy) in light years with Sol at its
+# place (0.52 of the radius toward bearing 180), and a prism territory round
+# Sol (astrometrics.spec.js: it draws, the stars thin out from afar, the
+# prism's caps and walls build).
+type: custom:lcards-astrometrics-card
+id: astro_galaxy_object
+height: 450
+units: ly
+camera:
+  view: tilted
+  views:
+    top: { target: [0, 0, 0], tilt: 90, distance: 150000 }
+    tilted: { target: [0, 0, 0], yaw: 20, tilt: 35, distance: 120000 }
+    sol: { target: sol, yaw: 200, tilt: 25, distance: 9000 }
+points:
+  - { id: core, xyz: [0, 0, 0], label: GALACTIC CORE, style: major }
+  - { id: sol, polar: [26000, 180], marker: dot, label: SOL, style: minor }
+objects:
+  - { type: galaxy, id: milky_way }
+  - type: volume
+    id: federation
+    shape: prism
+    at: sol
+    height: [-400, 400]
+    outline: [[-3000, -2500], [1500, -3500], [4000, -500], [2500, 2500], [-2000, 3000], [-4000, 500]]
+    color: var(--lcars-blue)

@@ -1,0 +1,69 @@
+# Astrometrics galaxy (R4c1): the procedural Milky Way in light years (its
+# bar, the four arms in their real order round the Sun, the Orion spur) with
+# Sol at its place and a prism territory round it; beside it a generic
+# two-arm galaxy with no bar, turning. The buttons fly the first card.
+title: Astrometrics galaxy
+path: astro-galaxy
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: GALAXY, show: true } }
+        tap_action: { action: fly-to, card: astro_galaxy_1, view: galaxy }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: FROM ABOVE, show: true } }
+        tap_action: { action: fly-to, card: astro_galaxy_1, view: top }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SOL, show: true } }
+        tap_action: { action: fly-to, card: astro_galaxy_1, view: sol }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_galaxy_1
+        grid_options: { columns: full }
+        height: 650
+        units: ly
+        camera:
+          view: galaxy
+          buttons: true
+          fly_duration: 3000
+          views:
+            galaxy: { target: core, yaw: 20, tilt: 35, distance: 120000 }
+            top: { target: core, tilt: 90, distance: 140000 }
+            sol: { target: sol, yaw: 200, tilt: 20, distance: 12000 }
+        backdrop:
+          stars: { count: 1500 }
+        points:
+          - { id: core, xyz: [0, 0, 0], label: GALACTIC CORE, style: major }
+          - { id: sol, polar: [26000, 180], marker: dot, label: SOL, style: minor, tap_action: { action: fly-to, view: sol } }
+          - { id: scutum, polar: [39000, 33], label: Scutum-Centaurus Arm, style: tiny }
+          - { id: perseus, polar: [39000, 213], label: Perseus Arm, style: tiny }
+          - { id: sagittarius, polar: [39000, 303], label: Sagittarius Arm, style: tiny }
+          - { id: norma, polar: [39000, 123], label: Norma Arm, style: tiny }
+        objects:
+          - { type: galaxy, id: milky_way }
+          - type: volume
+            id: local_space
+            shape: prism
+            at: sol
+            height: [-400, 400]
+            outline: [[-3000, -2500], [1500, -3500], [4000, -500], [2500, 2500], [-2000, 3000], [-4000, 500]]
+            color: var(--lcars-blue)
+            face_opacity: 0.3
+      - type: custom:lcards-astrometrics-card
+        id: astro_galaxy_2
+        grid_options: { columns: full }
+        height: 450
+        camera:
+          auto_rotate: 4
+          views:
+            v: { target: [0, 0, 0], yaw: 0, tilt: 55, distance: 260 }
+        objects:
+          - { type: galaxy, radius: 100, arms: 2, bar: 0, pitch: 18, stars: 25000, arm_color: var(--lcars-orange), seed: 11 }

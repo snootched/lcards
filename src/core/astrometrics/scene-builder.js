@@ -33,6 +33,7 @@ import { buildImage } from './objects/image.js';
 import { buildStars, buildDust } from './objects/stars.js';
 import { buildGlow } from './objects/glow.js';
 import { buildBelt } from './objects/belt.js';
+import { buildGalaxy } from './objects/galaxy.js';
 import { applyRotation, disposeNode, num } from './objects/common.js';
 import { localBounds } from './distance-fade.js';
 import { Facing, spinTangent } from './facing.js';
@@ -40,7 +41,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export { OBJECT_TYPES };
 /** Builders of the objects points can stand on; line objects read points, so they come second */
-const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image: buildImage, glow: buildGlow, belt: buildBelt };
+const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image: buildImage, glow: buildGlow, belt: buildBelt, galaxy: buildGalaxy };
 
 /**
  * @typedef {Object} AstroScene

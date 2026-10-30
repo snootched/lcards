@@ -14,7 +14,7 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 |---|---|
 | A planet, moon or globe (solid, hides what is behind it, can wear a map) | [`sphere`](#sphere) |
 | A wireframe: a sector map, a galaxy disc, a sky dome, a see-through ball, a tube, a gravity well | [`grid`](#grid) |
-| A territory or region of space (a see-through box of cells) | [`volume`](#volume) |
+| A territory or region of space (see-through cells: a box, a pie slice or any outline) | [`volume`](#volume) |
 | An orbit, a range ring, a rim | [`ring`](#ring) |
 | A route through points, an arched route, the sun's track | [`path`](#path) |
 | A weapon, transporter or sensor beam (a glowing straight line) | [`beam`](#beam) |
@@ -22,6 +22,7 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 | A star, a galactic core, a beacon (a soft light) | [`glow`](#glow) |
 | Clouds of gas | [`nebula`](#nebula) |
 | An asteroid belt (a band of rocks round a centre) | [`belt`](#belt) |
+| A spiral galaxy (stars, arms, a bar and dust; the Milky Way by default) | [`galaxy`](#galaxy) |
 | Your own picture on the plane | [`image`](#image) |
 | A ship, a station, any 3D model | [`model`](#model) |
 | A Borg cube (or a plain shaded box) | [`cube`](#cube) |
@@ -199,11 +200,11 @@ Each `cells` entry is a range `from` one corner cell `to` the other (or one `cel
 
 ## volume
 
-A see-through box of grid cells: a territory. `shape: sector` spans `radius: [inner, outer]`, bearings `angle: [from, to]` (to may pass 360 to cross north) and `height: [bottom, top]` round the centre; `shape: box` is `size: [w, h, d]` round `at`.
+A see-through box of grid cells: a territory. `shape: sector` spans `radius: [inner, outer]`, bearings `angle: [from, to]` (to may pass 360 to cross north) and `height: [bottom, top]` round the centre; `shape: box` is `size: [w, h, d]` round `at`; `shape: prism` is any border you draw, `outline: [[x, z], ...]` (at least three points, from `at`; -z is north) between `height: [bottom, top]`, for territories that are not pie slices.
 
 | Key | What it does |
 |---|---|
-| `cells` | Cell size on the faces: `ring`, `angle` (degrees), `layer` for a sector; `x`, `y`, `z` for a box |
+| `cells` | Cell size on the faces: `ring`, `angle` (degrees), `layer` for a sector; `width`, `height`, `depth` for a box or a prism |
 | `color`, `face_opacity` | Colour, and the face lines' opacity (the edges stay brighter) |
 | `line_width`, `edges`, `edge_width`, `edge_color` | Face line width; outline on or off; outline width and colour (default `color`) |
 | `back_opacity` | The far faces (1: a wireframe, nothing hidden) |
@@ -218,6 +219,12 @@ objects:
   - { type: grid, shape: disc, radius: 80, pattern: polar, line_spacing: 20, spoke_count: 12 }
   - { type: volume, shape: sector, radius: [30, 75], angle: [100, 170], height: [0, 20], cells: { ring: 9, angle: 10, layer: 10 }, color: var(--lcars-blue) }
   - { type: volume, shape: box, at: [-40, 10, -30], size: [30, 20, 20], color: var(--lcars-orange) }
+  - type: volume
+    shape: prism
+    at: [-35, 0, 35]
+    height: [0, 12]
+    outline: [[-20, -10], [5, -18], [22, -2], [12, 16], [-14, 14]]
+    color: var(--lcars-green)
 ```
 
 ## sphere
@@ -455,6 +462,36 @@ camera:
 objects:
   - { type: glow, size: 30, color: var(--lcars-yellow) }
   - { type: belt, radius: [44, 56], thickness: 4, count: 1500, size: [0.2, 1.6], tumble: 20, color: var(--lcars-khaki) }
+```
+
+## galaxy
+
+A spiral galaxy in 3D: seeded stars (points of light at any distance, as the backdrop's) along a central bar, a bulge, spiral arms and a thin disc, with a soft glow along the arms and at the core and darker dust lanes on the arms' inner edges. Every star is at its own place, so flying through the galaxy shows parallax, and far away fewer of them draw.
+
+By default it is the Milky Way: the bar, the two major arms (Scutum-Centaurus and Perseus) from its ends, the two minor arms (Sagittarius and Norma) between them, and the Orion spur where the Sun is. Everything scales with `radius` (default 50,000, light years with `units: ly`); **the Sun's place** is 0.52 of the radius toward bearing 180 (`polar: [26000, 180]` at the default size), where a scene puts its Sol point. `arms: 2` (to 8) makes a generic spiral of equal arms instead.
+
+| Key | What it does |
+|---|---|
+| `radius` | The disc's radius (default 50,000) |
+| `arms` | A spiral of this many equal arms (leave out for the Milky Way) |
+| `pitch` | How tightly the arms wind, degrees (default 12) |
+| `bar`, `bar_angle` | The bar's half-length as a fraction of the radius (default 0.32; 0 none), and the bearing of its near end (default 153, 27 degrees off the line to the Sun; the arms turn with it) |
+| `thickness` | The disc's thickness as a fraction of the radius (default 0.02) |
+| `stars`, `seed` | How many stars (default 40,000, at most 100,000) and their scatter |
+| `core_color`, `arm_color`, `star_color` | The bulge and core glow, the arms, the stars' base (theme colours by default) |
+| `glow`, `dust`, `dust_color` | The glow's and dust lanes' opacity (0 to 1; 0 none), and the dust colour (the background by default) |
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 360
+units: ly
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 20, tilt: 40, distance: 120000 }
+points:
+  - { id: sol, polar: [26000, 180], marker: dot, label: SOL }
+objects:
+  - { type: galaxy, stars: 30000 }
 ```
 
 ## glow

@@ -727,13 +727,19 @@ const volumeObject = {
     title: 'volume',
     required: ['type'],
     allOf: [objectCommonSchema],
-    description: 'A see-through box of grid cells (a territory): a sector of a disc, or a box.',
+    description: 'A see-through box of grid cells (a territory): a sector of a disc, a box, or a prism of any outline.',
     properties: {
         type: { type: 'string', const: 'volume', description: 'volume: a see-through cell box.' },
-        shape: { type: 'string', enum: [...VOLUME_SHAPES], default: 'sector', description: 'sector: between two radii, two bearings and two heights round the centre. box: size centred on at.' },
+        shape: { type: 'string', enum: [...VOLUME_SHAPES], default: 'sector', description: 'sector: between two radii, two bearings and two heights round the centre. box: size centred on at. prism: the outline (any polygon, a territory\'s border) between two heights.' },
+        outline: {
+            type: 'array',
+            minItems: 3,
+            items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 },
+            description: 'prism: the border as [x, z] points in order, scene units from the object\'s position (z is south: -z north, as bearings 0). At least 3.'
+        },
         radius: tuple(2, 'sector: inner and outer radius [r0, r1], scene units. Default [50, 100].'),
         angle: tuple(2, 'sector: from and to bearing [a0, a1], degrees clockwise from north. Default [0, 90].'),
-        height: tuple(2, 'sector: bottom and top [y0, y1], scene units. Default [0, 10].'),
+        height: tuple(2, 'sector and prism: bottom and top [y0, y1], scene units. Default [0, 10].'),
         size: {
             description: 'box: [width, height, depth], scene units, or one number for a cube. Default 20.',
             anyOf: [{ type: 'number' }, { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 }, settingBinding, settingTemplate]
@@ -745,9 +751,9 @@ const volumeObject = {
                 ring: setting('sector: radial cell size, scene units. Default a quarter of the depth.', { exclusiveMinimum: 0 }),
                 angle: setting('sector: cell width round, degrees.', { exclusiveMinimum: 0, default: 10 }),
                 layer: setting('sector: cell height, scene units. Default half the height.', { exclusiveMinimum: 0 }),
-                width: setting('box: cell size across (x), scene units. Default a quarter of the width.', { exclusiveMinimum: 0 }),
-                height: setting('box: cell size up (y), scene units. Default a quarter of the height.', { exclusiveMinimum: 0 }),
-                depth: setting('box: cell size along z, scene units. Default a quarter of the depth.', { exclusiveMinimum: 0 })
+                width: setting('box and prism: cell size across (x, and along a prism\'s walls), scene units. Default a quarter of the width (an eighth of a prism\'s).', { exclusiveMinimum: 0 }),
+                height: setting('box and prism: cell size up (y), scene units. Default a quarter of the height (half a prism\'s).', { exclusiveMinimum: 0 }),
+                depth: setting('box and prism: cell size along z, scene units. Default a quarter of the depth (an eighth of a prism\'s).', { exclusiveMinimum: 0 })
             }
         },
         color: color('Colour of the faces (and the edges, unless edge_color). Default var(--lcars-blue).'),
@@ -976,6 +982,31 @@ const beltObject = {
     }
 };
 
+const galaxyObject = {
+    type: 'object',
+    title: 'galaxy',
+    required: ['type'],
+    allOf: [objectCommonSchema],
+    description: 'A spiral galaxy in 3D: seeded stars along a bar, a bulge, spiral arms and a thin disc, with soft glow on the arms and the core and dust lanes, at their real places (parallax as the camera moves). The Milky Way by default: the bar, Scutum-Centaurus and Perseus, Sagittarius and Norma, and the Orion spur; the Sun\'s place is 0.52 of the radius toward bearing 180.',
+    properties: {
+        type: { type: 'string', const: 'galaxy', description: 'galaxy: a spiral galaxy.' },
+        radius: setting('Radius of the disc, scene units. Default 50000 (light years, the Milky Way\'s).', { exclusiveMinimum: 0 }),
+        arms: { type: 'integer', minimum: 1, maximum: 8, description: 'A spiral of this many equal arms instead of the Milky Way\'s (leave out for the Milky Way).' },
+        pitch: setting('How tightly the arms wind, degrees (the Milky Way\'s are about 12; larger opens them).', { minimum: 4, maximum: 45, default: 12 }),
+        bar: setting('The central bar\'s half-length as a fraction of the radius (0: no bar).', { minimum: 0, maximum: 0.8, default: 0.32 }),
+        bar_angle: setting('Bearing of the bar\'s near end, degrees; the arms start at its ends and turn with it. Default 153: 27 degrees off the line from the centre to the Sun\'s place, as in the Milky Way.', { default: 153 }),
+        thickness: setting('The disc\'s thickness as a fraction of the radius.', { minimum: 0, maximum: 0.5, default: 0.02 }),
+        stars: { type: 'integer', minimum: 0, maximum: 100000, default: 40000, description: 'How many stars (at most 100,000). Far away fewer of them draw.' },
+        seed: { type: 'integer', default: 3, description: 'A different number gives a different scatter of stars.' },
+        core_color: color('Colour of the bulge and bar stars and the core\'s glow. Default var(--lcars-yellow).'),
+        arm_color: color('Colour the arm stars lean toward, and the arms\' glow. Default var(--lcars-blue).'),
+        star_color: color('The stars\' base colour. Default var(--lcards-moonlight).'),
+        glow: setting('Opacity of the soft glow along the arms and at the core, 0 to 1 (0: none).', { minimum: 0, maximum: 1, default: 0.6 }),
+        dust: setting('Opacity of the dark dust lanes on the arms\' inner edges, 0 to 1 (0: none).', { minimum: 0, maximum: 1, default: 0.5 }),
+        dust_color: color('Colour of the dust lanes. Default the background colour.')
+    }
+};
+
 const nebulaObject = {
     type: 'object',
     title: 'nebula',
@@ -1052,7 +1083,7 @@ const modelObject = {
     }
 };
 
-const OBJECT_SCHEMAS = { model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject, belt: beltObject, trail: trailObject, cube: cubeObject };
+const OBJECT_SCHEMAS = { model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject, belt: beltObject, galaxy: galaxyObject, trail: trailObject, cube: cubeObject };
 
 /** Object types a system can hold: every type but another system (one level) */
 const DRAWN_TYPES = OBJECT_TYPES.filter((t) => t !== 'system');

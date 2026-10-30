@@ -809,6 +809,8 @@ export function createAstroScene(host, config, options = {}) {
     if (world) {
       for (const b of world.list) {
         for (const l of b.lines) l.setResolution(cssW, cssH);
+        // an object's own star field (a galaxy's stars, px-sized)
+        b.field?.setResolution(cssW, cssH, dpr);
         for (const f of b.gridFaces) {
           const [minor, major] = f.userData.baseWidths ?? [1, 2];
           f.userData.uniforms.uWidthMinor.value = minor * dpr;

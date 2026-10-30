@@ -68,6 +68,13 @@ releases:
         session: "M3"
         docs: /cards/astrometrics/objects#facing-the-way-it-goes
         public: true
+      - file: astro-galaxy
+        topic: astrometrics
+        summary: "Astrometrics galaxy: a procedural Milky Way, and a prism territory"
+        description: "The galaxy object: the Milky Way built from its real structure (the central bar, the Scutum-Centaurus and Perseus arms from its ends, Sagittarius and Norma between them, the Orion spur), each star at its own place, so flying in shows parallax. SOL sits 26,000 light years out with a prism territory round it, a border drawn as any outline. Below, a generic two-arm galaxy with no bar, turning."
+        session: "R4c1"
+        docs: /cards/astrometrics/objects#galaxy
+        public: true
       - file: astro-bindings
         topic: astrometrics
         summary: "Astrometrics settings from entities: shields, power and a guided tour"

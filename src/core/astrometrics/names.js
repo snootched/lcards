@@ -13,7 +13,7 @@
  * they build second. `system` draws nothing itself: it holds points and
  * objects in units of their own (a star system in km inside a galaxy in ly).
  */
-export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt', 'trail', 'cube', 'system']);
+export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt', 'galaxy', 'trail', 'cube', 'system']);
 
 /**
  * Which type for what: the objects docs page's table (doc/cards/astrometrics/objects.md,
@@ -23,7 +23,7 @@ export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', '
 export const TYPE_GUIDE = [
   { type: 'sphere', use: 'A planet, moon or globe (solid, hides what is behind it, can wear a map)', icon: 'mdi:earth' },
   { type: 'grid', use: 'A wireframe: a sector map, a galaxy disc, a sky dome, a see-through ball, a tube, a gravity well', icon: 'mdi:grid' },
-  { type: 'volume', use: 'A territory or region of space (a see-through box of cells)', icon: 'mdi:cube-outline' },
+  { type: 'volume', use: 'A territory or region of space (see-through cells: a box, a pie slice or any outline)', icon: 'mdi:cube-outline' },
   { type: 'ring', use: 'An orbit, a range ring, a rim', icon: 'mdi:orbit' },
   { type: 'path', use: 'A route through points, an arched route, the sun\'s track', icon: 'mdi:vector-polyline' },
   { type: 'beam', use: 'A weapon, transporter or sensor beam (a glowing straight line)', icon: 'mdi:flash' },
@@ -31,6 +31,7 @@ export const TYPE_GUIDE = [
   { type: 'glow', use: 'A star, a galactic core, a beacon (a soft light)', icon: 'mdi:white-balance-sunny' },
   { type: 'nebula', use: 'Clouds of gas', icon: 'mdi:weather-cloudy' },
   { type: 'belt', use: 'An asteroid belt (a band of rocks round a centre)', icon: 'mdi:dots-circle' },
+  { type: 'galaxy', use: 'A spiral galaxy (stars, arms, a bar and dust; the Milky Way by default)', icon: 'mdi:weather-hurricane' },
   { type: 'image', use: 'Your own picture on the plane', icon: 'mdi:image' },
   { type: 'model', use: 'A ship, a station, any 3D model', icon: 'mdi:rocket' },
   { type: 'cube', use: 'A Borg cube (or a plain shaded box)', icon: 'mdi:cube' },
@@ -147,7 +148,7 @@ export const DEFORM_ANCHORS = /** @type {const} */ (['bottom', 'top', 'middle'])
 export const GRID_PATTERNS = /** @type {const} */ (['both', 'horizontal', 'vertical', 'diagonal', 'hexagonal', 'dots', 'polar']);
 
 /** `volume` shapes */
-export const VOLUME_SHAPES = /** @type {const} */ (['sector', 'box']);
+export const VOLUME_SHAPES = /** @type {const} */ (['sector', 'box', 'prism']);
 
 /** `image` shapes */
 export const IMAGE_SHAPES = /** @type {const} */ (['plane', 'disc']);

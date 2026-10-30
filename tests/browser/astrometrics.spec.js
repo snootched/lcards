@@ -1058,6 +1058,10 @@ test('N1 buttons: hide idle fades them after a few seconds and a pointer move br
     await mountCase(page, 'astro-follow', { width: '800' });
     await sceneReady(page);
     const group = page.locator('lcards-astrometrics-card .astro-buttons');
+    // under load the scene can take longer than the idle time to be ready: wake them first
+    const box = await sceneBox(page);
+    await page.mouse.move(box.x + 60, box.y + 60);
+    await page.mouse.move(box.x + 70, box.y + 66);
     await expect(group).not.toHaveAttribute('data-idle', '');
     await expect(group).toHaveAttribute('data-idle', '', { timeout: 6000 });
     expect(await group.evaluate((el) => el.inert)).toBe(true);
@@ -1312,5 +1316,25 @@ test('R4b settings from entities: opacity and size ease to their entity, a templ
     expect(await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.clock().rate)).toBe(0);
     await page.evaluate(() => window.__setState('input_number.lcards_test_stage', '0'));
     await expect.poll(async () => Math.round((await debug()).keys.distance), { timeout: 6000 }).toBe(120);
+    await expectNoErrors(page);
+});
+
+test('R4c1 galaxy: the Milky Way draws in light years, fewer stars far away, a prism territory at Sol', async ({ page }) => {
+    await mountCase(page, 'astro-galaxy-object', { width: '800' });
+    await sceneReady(page);
+    expect(await litPixels(page)).toBeGreaterThan(8000);
+    const stars = () => page.evaluate(() => {
+        const w = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world;
+        return w.objects.get('milky_way').field.mesh.geometry.instanceCount;
+    });
+    const near = await stars();
+    // about 400 px across on this 400 px card: most of the 40,000
+    expect(near).toBeGreaterThan(20000);
+    // ten times further: the galaxy is small on screen, most of its stars do not draw
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo({ target: [0, 0, 0], yaw: 20, tilt: 35, distance: 1500000 }, { duration: 0 }));
+    await expect.poll(stars, { timeout: 3000 }).toBeLessThan(near / 2);
+    // the territory: two caps and six walls
+    const faces = await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world.objects.get('federation').gridFaces.length);
+    expect(faces).toBe(8);
     await expectNoErrors(page);
 });
