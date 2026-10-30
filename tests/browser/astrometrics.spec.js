@@ -1269,3 +1269,48 @@ test('R4a date panel: wide enough for the date, NOW, the slider and the rate, an
     expect(overlap(s.panel, s.zoomIn) || overlap(s.panel, s.zoomOut)).toBeFalsy();
     await expectNoErrors(page);
 });
+
+test('R4b settings from entities: opacity and size ease to their entity, a template rebuilds its object, the camera tours on the stage', async ({ page }) => {
+    await mountCase(page, 'astro-bindings', { width: '800' });
+    await sceneReady(page);
+    const live = () => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().live);
+    const debug = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const glow = s.world.objects.get('core');
+        const well = s.world.objects.get('well');
+        // the glow's drawn size: the size it was built at times its live scale
+        return { builds: s.objectBuilds, glowSize: Number(glow.config.size) * glow.node.scale.x, amplitude: well.config.deform?.[0]?.amplitude, keys: s.keys, alpha: s.objectAlphas.bubble };
+    });
+    // shields 50: the bubble at 0.3 (the first value lands at once)
+    await page.evaluate(() => window.__setState('input_number.lcards_test_shields', '50'));
+    await expect.poll(async () => (await live())['bubble.opacity']?.value, { timeout: 5000 }).toBeCloseTo(0.3, 6);
+    await expect.poll(async () => (await debug()).alpha, { timeout: 5000 }).toBeCloseTo(0.3, 3);
+    // shields 100: eases (on its way, then there)
+    await page.evaluate(() => window.__setState('input_number.lcards_test_shields', '100'));
+    await page.waitForTimeout(150);
+    const mid = (await live())['bubble.opacity'];
+    expect(mid.to).toBeCloseTo(0.6, 6);
+    expect(mid.value).toBeGreaterThan(0.3);
+    expect(mid.value).toBeLessThan(0.6);
+    await expect.poll(async () => (await live())['bubble.opacity'].value, { timeout: 3000 }).toBeCloseTo(0.6, 6);
+
+    // power 0 then 100: the glow's size 10 then 60 (node scale against the size it was built at; a first
+    // value also rebuilds it at that size, so built size times scale is what shows)
+    await page.evaluate(() => window.__setState('input_number.lcards_test_power', '0'));
+    await expect.poll(async () => (await live())['core.size']?.value, { timeout: 5000 }).toBeCloseTo(10, 6);
+    const builds = (await debug()).builds;
+    await page.evaluate(() => window.__setState('input_number.lcards_test_power', '100'));
+    await expect.poll(async () => (await live())['core.size'].value, { timeout: 3000 }).toBeCloseTo(60, 6);
+    await expect.poll(async () => (await debug()).glowSize, { timeout: 3000 }).toBeCloseTo(60, 3);
+    // the wobble's template: power / 1000, a rebuild of the grid (not every frame)
+    await expect.poll(async () => (await debug()).amplitude, { timeout: 3000 }).toBeCloseTo(0.1, 6);
+    expect((await debug()).builds).toBeGreaterThan(builds);
+
+    // the tour: stage 1 flies to far (and holds the clock there), stage 0 back to near
+    await page.evaluate(() => window.__setState('input_number.lcards_test_stage', '1'));
+    await expect.poll(async () => Math.round((await debug()).keys.distance), { timeout: 6000 }).toBe(400);
+    expect(await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.clock().rate)).toBe(0);
+    await page.evaluate(() => window.__setState('input_number.lcards_test_stage', '0'));
+    await expect.poll(async () => Math.round((await debug()).keys.distance), { timeout: 6000 }).toBe(120);
+    await expectNoErrors(page);
+});

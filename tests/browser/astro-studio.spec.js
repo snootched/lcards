@@ -328,3 +328,40 @@ test('studio: a star system opens in the Points and Objects tabs; a tap inside i
     expect(await page.evaluate(() => [window.__studio._activeTab, window.__studio._scope, window.__studio._expandedObject])).toEqual(['objects', sys, 0]);
     expect(await cardErrors(page)).toEqual([]);
 });
+
+test('studio R4b: settings that follow entities load from the YAML: their fields, the sections that hold them open, the row says so', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-bindings', { width: '800' });
+    await openStudio(page);
+    /** an object's row: its summary, open sections (with their note) and binding fields (key=first value) */
+    const row = (idx) => page.evaluate(async (i) => {
+        const s = window.__studio;
+        s._activeTab = 'objects';
+        s._expandedObject = i;
+        await s.updateComplete;
+        await new Promise((r) => setTimeout(r, 200));
+        const el = s.renderRoot.querySelector(`[data-object="${i}"]`);
+        const deep = (root) => [...root.querySelectorAll('*')].flatMap((e) => [e, ...(e.shadowRoot ? deep(e.shadowRoot) : [])]);
+        const all = deep(el);
+        for (const f of el.querySelectorAll('lcards-astro-schema-form')) await f.updateComplete;
+        return {
+            summary: el.secondary,
+            open: all.filter((x) => x.tagName === 'LCARDS-FORM-SECTION' && x.expanded && x.secondary === 'follows an entity').map((x) => x.header),
+            bindings: deep(el).filter((x) => x.classList?.contains('binding')).map((b) => `${b.dataset.key}=${b.querySelector('ha-selector')?.value}`)
+        };
+    }, idx);
+    // the bubble: opacity is a placement key, so Placement opens on it
+    const bubble = await row(0);
+    expect(bubble.summary).toContain('follows input_number.lcards_test_shields');
+    expect(bubble.open).toEqual(['Placement']);
+    expect(bubble.bindings).toEqual(['opacity=input_number.lcards_test_shields']);
+    // the glow: size is its own key
+    const glow = await row(1);
+    expect(glow.bindings).toEqual(['size=input_number.lcards_test_power']);
+    // the grid: the wobble step that holds a template opens, and shows it
+    const well = await row(2);
+    expect(well.summary).toContain('a template');
+    expect(well.open).toEqual(['1 · wobble']);
+    expect(well.bindings[0]).toMatch(/^amplitude=\[\[\[ return Number/);
+    expect((await cardErrors(page)).filter((e) => !/Frame took/.test(e))).toEqual([]);
+});

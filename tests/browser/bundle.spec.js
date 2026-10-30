@@ -78,7 +78,9 @@ test('size budget: tiny loader, main chunk under its ceiling', () => {
     expect(size(`chunks/${main}`)).toBeLessThanOrEqual(2_200_000);
     // 460,000 until 2026-10-23: the main chunk had crept to ~460 KB br; C2's
     // background tier (scene effect classes, two presets, schemas) took it over.
-    expect(size(`chunks/${main}.br`)).toBeLessThanOrEqual(480_000);
+    // 480,000 until 2026-10-30: R4a/R4b's card side (the date slider, set-clock, settings that
+    // follow entities and the camera tour; their maths is in the lazy runtime chunk) took it to 481 KB br.
+    expect(size(`chunks/${main}.br`)).toBeLessThanOrEqual(490_000);
 });
 
 test('size budget: three.js and the anime.js three adapter stay out of the main chunk', () => {

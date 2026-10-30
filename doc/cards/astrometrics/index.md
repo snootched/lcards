@@ -166,6 +166,7 @@ The card is the scene only. For an LCARS frame round it (an "ALPHA QUADRANT" bar
 | `objects` | What is drawn ([Objects](./objects), [Effects](./effects)) |
 | `time_scale` | How fast the scene's motion runs (default 1; 0.5 half speed, 0 still). The sky, the scene clock and the camera are not affected ([Controls](#controls)) |
 | `clock` | The scene date (`date: now` or an ISO date) and how fast it runs (`rate: live` or days per second) for real Solar System bodies and the sky ([The scene clock](./scale#the-scene-clock)) |
+| Any number on a point or object | Can follow an entity: `opacity: { entity, to }` ([Settings from entities](./data#settings-from-entities)); `camera.view` can follow one as a [guided tour](./data#a-guided-tour) |
 | `units` | What one scene unit is: `m`, `km`, `au`, `ly` or `pc` (optional; a [star system](./scale#star-systems) needs it to give its own) |
 | `backdrop` | `stars`, `dust` ([Backdrop](#backdrop)) |
 | `background_animation` | Flat background effects behind the scene ([Backdrop](#backdrop)) |

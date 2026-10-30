@@ -34,6 +34,8 @@ The preview is the real card, with your entities, templates, label styles, pinne
 
 Each object's form is made from the card's options for its type: placement first (`at`, rotation, spin, visibility, opacity), then the type's own keys, then actions and tags. Nested options (a fill effect, ring labels, cells) open as sections of their own. **Show every key** also lists keys that apply only to other shapes of the same type (a grid's `spoke_count` on a plane, say); they are hidden until set. Actions and anything the form cannot show as fields are YAML editors with completion.
 
+A number field with a link button can follow an entity: the button turns it into the entity, range and to boxes of [Settings from entities](./data#settings-from-entities), and the button with a line through it turns it back into a number. A template on a key shows as text. Settings that follow entities in your YAML load the same way: the object's row says what it follows, and a section that holds one (Placement for `opacity` or `spin`, a deformation step) opens on its own.
+
 File fields (a model's `src`, a planet's or ring's `image`, an image object's `src`) pick from the asset library, a custom path, or the Home Assistant media browser, where your own models are under **LCARdS**, **My models**. See [Your own models](./models#pick-it).
 
 Each object can move up or down the list, be duplicated (with a new id) or deleted.

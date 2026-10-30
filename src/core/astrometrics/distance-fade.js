@@ -191,15 +191,18 @@ export class ObjectFader {
    * @param {Vector3} camera - its world position
    * @param {(b: import('./objects/common.js').BuiltObject) => number} [unit] - world units per unit of the
    *   object's own frame (its distances are in its system's units)
+   * @param {(b: import('./objects/common.js').BuiltObject) => number} [extra] - another opacity factor 0..1
+   *   (an opacity that follows an entity, bindings.js), multiplied in
    */
-  begin(list, outer, camera, unit = () => 1) {
+  begin(list, outer, camera, unit = () => 1, extra = () => 1) {
     this.alphas.clear();
     for (const b of list) {
       const range = this._range(b.config);
-      if (!range) continue;
+      const more = Math.min(1, Math.max(0, extra(b)));
+      if (!range && more === 1) continue;
       const g = outer.get(b);
       if (!g) continue;
-      const a = distanceAlpha(range, this._distance(b, camera) / unit(b));
+      const a = (range ? distanceAlpha(range, this._distance(b, camera) / unit(b)) : 1) * more;
       this.alphas.set(b.id, a);
       g.visible = b.config.visible !== false && a > HIDDEN_ALPHA;
       if (g.visible && a < 1) this._scale(b.node, a);

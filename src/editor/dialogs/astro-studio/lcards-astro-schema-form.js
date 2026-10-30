@@ -16,7 +16,8 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { configToYaml, yamlToConfig } from '../../utils/yaml-utils.js';
 import {
-  fieldKind, tupleLabels, tupleSize, labelFor, helperText, appliesTo, withKey, parseNumbers, isUnset, objectAlternative, choiceOptions, choiceValue
+  fieldKind, tupleLabels, tupleSize, labelFor, helperText, appliesTo, withKey, parseNumbers, isUnset, objectAlternative, choiceOptions, choiceValue,
+  settingNumber, isBoundValue, isBindable, boundIn
 } from './schema-fields.js';
 import '../../components/shared/lcards-form-section.js';
 import '../../components/shared/lcards-color-picker.js';
@@ -86,6 +87,10 @@ export class LCARdSAstroSchemaForm extends LitElement {
       .list-item > :first-child { flex: 1; min-width: 0; }
       .list-actions { display: flex; justify-content: flex-end; }
       lcards-form-section { display: block; }
+      .bindable { display: flex; align-items: flex-start; gap: var(--ha-space-1); }
+      .bindable > ha-selector, .bindable > div { flex: 1; min-width: 0; }
+      .binding { display: grid; gap: var(--ha-space-2); padding: var(--ha-space-2); border: var(--ha-border-width-sm) solid var(--divider-color); border-radius: var(--ha-border-radius-md); }
+      .binding-head { display: flex; align-items: center; justify-content: space-between; }
       /* one column in a narrow panel (the Studio's third), two when there is room; last, so it wins */
       @container (max-width: 600px) { .fields { grid-template-columns: 1fr; } }
     `;
@@ -142,10 +147,27 @@ export class LCARdSAstroSchemaForm extends LitElement {
         return this._selector(key, { select: { mode: 'dropdown', options } }, value ?? s.default ?? '', label, helper, cls,
           (v) => (!v || v === s.default ? undefined : v));
       }
-      case 'number':
-        return this._selector(key, { number: { mode: 'box', min: s.minimum, max: s.maximum, step: s.type === 'integer' ? 1 : 'any' } },
-          value, label, s.default !== undefined && !/Default/.test(helper) ? `${helper} Default ${s.default}.`.trim() : helper, cls, num);
+      case 'number': {
+        const n = settingNumber(s) ?? s;
+        const help = s.default !== undefined && !/Default/.test(helper) ? `${helper} Default ${s.default}.`.trim() : helper;
+        // a setting that can follow an entity: the binding's own fields, or a template (YAML)
+        if (isBoundValue(value)) return this._binding(key, value, label, help);
+        if (typeof value === 'string') return this._templateField(key, value, label);
+        const box = this._selector(key, { number: { mode: 'box', min: n.minimum, max: n.maximum, step: n.type === 'integer' ? 1 : 'any' } },
+          value, label, help, '', num);
+        if (!settingNumber(s)) return html`<div class=${cls}>${box}</div>`;
+        return html`
+          <div class="bindable ${cls}">
+            ${box}
+            <ha-icon-button class="bind" data-key=${`${key}-bind`} .label=${'Follow an entity'} title="Follow an entity"
+              @click=${() => this._set(key, { entity: '' })}>
+              <ha-icon icon="mdi:link-variant"></ha-icon>
+            </ha-icon-button>
+          </div>`;
+      }
       case 'text':
+        // a guided tour ({ entity, views }) or a date binding: YAML
+        if (isObj(value)) return this._yaml(key, s);
         if (this.choices?.[key]) {
           const options = [{ value: '', label: '(Not set)' }, ...this.choices[key].map((v) => ({ value: v, label: v }))];
           return this._selector(key, { select: { mode: 'dropdown', options, custom_value: true } }, value ?? '', label, helper, cls, (v) => v || undefined);
@@ -179,8 +201,20 @@ export class LCARdSAstroSchemaForm extends LitElement {
           </div>`;
       case 'tuple':
         return this._tuple(key, s, value, label, helper, 'tuple');
-      case 'numberOrTuple':
-        return this._tuple(key, s, value, label, helper, 'numberOrTuple');
+      case 'numberOrTuple': {
+        if (isBoundValue(value)) return this._binding(key, value, label, helper);
+        if (typeof value === 'string') return this._templateField(key, value, label);
+        const tuple = this._tuple(key, s, value, label, helper, 'numberOrTuple');
+        if (!isBindable(s)) return tuple;
+        return html`
+          <div class="bindable full">
+            ${tuple}
+            <ha-icon-button class="bind" data-key=${`${key}-bind`} .label=${'Follow an entity'} title="Follow an entity"
+              @click=${() => this._set(key, { entity: '' })}>
+              <ha-icon icon="mdi:link-variant"></ha-icon>
+            </ha-icon-button>
+          </div>`;
+      }
       case 'pointRef':
         return this._pointRef(label, helper, value, (v) => this._set(key, v));
       case 'pointList':
@@ -209,6 +243,59 @@ export class LCARdSAstroSchemaForm extends LitElement {
   }
 
   /**
+   * A setting that follows an entity: entity, attribute, range, to and
+   * smooth, and a button back to a plain number.
+   * @param {string} key @param {Record<string, any>} value @param {string} label @param {string} helper
+   */
+  _binding(key, value, label, helper) {
+    const set = (/** @type {Record<string, any>} */ patch) => {
+      const next = { ...value, ...patch };
+      for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
+      this._set(key, next);
+    };
+    const pair = (/** @type {'range' | 'to'} */ k, /** @type {string} */ name) => html`
+      <div class="row">
+        ${[0, 1].map((i) => this._selector(`${key}~${k}${i}`, { number: { mode: 'box', step: 'any' } },
+          Array.isArray(value[k]) ? value[k][i] : undefined, `${name} ${i ? 'high' : 'low'}`, '', '', (v) => {
+            const cur = Array.isArray(value[k]) ? [...value[k]] : [undefined, undefined];
+            cur[i] = num(v);
+            set({ [k]: cur.every((x) => x === undefined) ? undefined : cur.map((x) => x ?? 0) });
+          }))}
+      </div>`;
+    return html`
+      <div class="full binding" data-key=${key}>
+        <div class="binding-head">
+          <span class="field-label">${label}: follows an entity</span>
+          <ha-icon-button data-key=${`${key}-unbind`} .label=${'Back to a number'} title="Back to a number" @click=${() => this._set(key, undefined)}>
+            <ha-icon icon="mdi:link-variant-off"></ha-icon>
+          </ha-icon-button>
+        </div>
+        ${this._selector(`${key}~entity`, { entity: {} }, value.entity || undefined, 'Entity', helper, '', (v) => set({ entity: v || '' }))}
+        ${this._selector(`${key}~attribute`, { text: {} }, value.attribute ?? '', 'Attribute (optional)', 'Leave empty to read the state.', '', (v) => set({ attribute: v || undefined }))}
+        ${pair('range', 'Range')}
+        ${pair('to', 'To')}
+        ${this._selector(`${key}~smooth`, { number: { mode: 'box', min: 0, step: 50 } }, value.smooth, 'Smooth (ms)', 'opacity, radius, size and spin ease over this; default 600, 0 steps.', '', (v) => set({ smooth: num(v) }))}
+      </div>`;
+  }
+
+  /**
+   * A setting given as a template: shown as text (edit it here or in the YAML tab).
+   * @param {string} key @param {string} value @param {string} label
+   */
+  _templateField(key, value, label) {
+    return html`
+      <div class="full binding" data-key=${key}>
+        <div class="binding-head">
+          <span class="field-label">${label}: a template</span>
+          <ha-icon-button data-key=${`${key}-unbind`} .label=${'Back to a number'} title="Back to a number" @click=${() => this._set(key, undefined)}>
+            <ha-icon icon="mdi:link-variant-off"></ha-icon>
+          </ha-icon-button>
+        </div>
+        ${this._selector(`${key}~template`, { text: { multiline: true } }, value, '', 'JavaScript [[[ ]]], Jinja2 {{ }} or a {entity.state} token.', '', (v) => this._set(key, v || undefined))}
+      </div>`;
+  }
+
+  /**
    * An ha-selector bound to a key.
    * @param {string} key - for the test id
    * @param {any} selector
@@ -217,6 +304,7 @@ export class LCARdSAstroSchemaForm extends LitElement {
    * @param {string} helper
    * @param {string} cls
    * @param {(v: any) => any} toValue - selector value to config value; the result is set on the key unless it is the boolOrNumber setter
+   *   or a sub-field (`key~part`), whose toValue sets it
    */
   _selector(key, selector, value, label, helper, cls, toValue) {
     return html`
@@ -225,7 +313,8 @@ export class LCARdSAstroSchemaForm extends LitElement {
         @value-changed=${(/** @type {CustomEvent} */ e) => {
           e.stopPropagation();
           const out = toValue(e.detail.value);
-          if (!key.endsWith('-on') && !key.endsWith('-n')) this._set(key, out);
+          // sub-fields (key~part: a binding's entity, range, ...) set the key themselves
+          if (!key.includes('~') && !key.endsWith('-on') && !key.endsWith('-n')) this._set(key, out);
         }}>
       </ha-selector>`;
   }
@@ -326,7 +415,8 @@ export class LCARdSAstroSchemaForm extends LitElement {
     const helper = helperText(s.description);
     if (kind === 'object') {
       return html`
-        <lcards-form-section data-key=${key} header=${label} description=${helper} nested outlined ?expanded=${false}>
+        <lcards-form-section data-key=${key} header=${label} description=${helper} secondary=${boundIn(value).length ? 'follows an entity' : ''}
+          nested outlined ?expanded=${boundIn(value).length > 0}>
           ${this._sub(s.properties, isObj(value) ? value : {}, (v) => this._set(key, v))}
         </lcards-form-section>`;
     }
@@ -348,7 +438,8 @@ export class LCARdSAstroSchemaForm extends LitElement {
     return html`
       <lcards-form-section data-key=${key} header=${label} description=${helper} secondary=${list.length ? `${list.length}` : ''} nested outlined ?expanded=${list.length > 0}>
         ${list.map((entry, i) => html`
-          <lcards-form-section header=${`${i + 1}${typeKey && entry?.[typeKey] ? ` · ${entry[typeKey]}` : ''}`} nested outlined ?expanded=${false}>
+          <lcards-form-section header=${`${i + 1}${typeKey && entry?.[typeKey] ? ` · ${entry[typeKey]}` : ''}`}
+            secondary=${boundIn(entry).length ? 'follows an entity' : ''} nested outlined ?expanded=${boundIn(entry).length > 0}>
             <ha-icon-button slot="header-icons" .label=${'Move up'} ?disabled=${i === 0}
               @click=${(/** @type {Event} */ e) => { e.stopPropagation(); const n = [...list]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; set(n); }}>
               <ha-icon icon="mdi:arrow-up"></ha-icon>

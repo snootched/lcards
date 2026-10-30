@@ -104,6 +104,59 @@ objects:
 
 For whole degrees, round in JavaScript: `[[[ return 'SOL ' + Math.round(sky.sun.altitude) + '°' ]]]`.
 
+## Settings from entities
+
+Any number on a point or object can follow an entity instead of holding still: a shield bubble's opacity follows the shields, a wormhole's glow follows the power. Write the key as `{ entity, to }`:
+
+```yaml
+type: custom:lcards-astrometrics-card
+objects:
+  - type: sphere
+    id: shields
+    radius: 30
+    fill_color: var(--lcars-blue)
+    # shields 0 to 100 % gives an opacity of 0 to 0.6
+    opacity: { entity: input_number.lcards_test_shields, to: [0, 0.6] }
+  - type: glow
+    id: core
+    # power 0 to 100 % gives a glow 10 to 60 across, easing over 1 s
+    size: { entity: input_number.lcards_test_power, range: [0, 100], to: [10, 60], smooth: 1000 }
+```
+
+| Key | What it does |
+|---|---|
+| `entity` | The entity to follow. |
+| `attribute` | Read this attribute instead of the state. |
+| `range` | `[low, high]` of the entity's value. Default the entity's `min` and `max` (an `input_number`), else 0 to 100. |
+| `to` | `[low, high]` of the setting the range maps to. Leave it out to use the entity's number as it is. |
+| `smooth` | How long a change eases, ms (default 600; `0` steps). |
+
+- **Clamped:** a value outside `range` stays at the end of `to`.
+- **No value** (unavailable, not a number): the key's default.
+- **Templates** work too: `spin: "[[[ return states['input_number.lcards_test_power'].state / 10 ]]]"`, or `{{ }}` and `{entity.state}`.
+- **What changes in place:** an object's `opacity`, `radius`, `size` and `spin` ease to their new value without rebuilding anything. Any other key (a deformation's `amplitude`, a belt's `count`, a point's `alt`) rebuilds that one object or point, at most four times a second, and steps.
+- **On the card:** `time_scale`, `clock.rate` and `clock.date` follow entities the same way (`clock: { date: { entity: input_datetime.lcards_test_date } }` shows the planets on the date in a helper). Positions follow entities their own way: see [Positions from entities](#positions-from-entities).
+- Pairs and lists (`[x, y, z]`, `rotation`) and whole numbers (`count`, `spoke_count`) do not follow entities yet.
+
+### A guided tour
+
+`camera.view` can follow an entity: the camera flies to `views[n]` when the entity's value is `n` (counting from 0), or to the view an `input_select`'s option names. A stop can set the [scene clock](./scale#the-scene-clock) too:
+
+```yaml
+type: custom:lcards-astrometrics-card
+camera:
+  view:
+    entity: input_number.lcards_test_stage
+    views: [galaxy, sol, { view: earth, date: now, rate: 0 }, { view: jupiter, rate: 1 }]
+  views:
+    galaxy: { target: [0, 0, 0], yaw: 20, tilt: 35, distance: 400 }
+    sol: { target: [0, 0, 0], yaw: 40, tilt: 35, distance: 120 }
+    earth: { target: [0, 0, 0], yaw: 225, tilt: 12, distance: 30 }
+    jupiter: { target: [0, 0, 0], yaw: 200, tilt: 10, distance: 60 }
+```
+
+Step the number from an automation, a script or buttons (`input_number.increment`), and the card flies from stop to stop.
+
 ## Rules
 
 Points and objects with an `id` are [rule](/core/rules/) targets, as MSD overlays are. A rule's `apply.overlays` patches them with their own keys:

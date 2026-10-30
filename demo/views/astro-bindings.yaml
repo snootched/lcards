@@ -1,0 +1,85 @@
+# Astrometrics settings from entities (R4b): the sliders drive the scene.
+# SHIELDS sets the shield bubble's opacity (it eases); POWER opens the
+# wormhole (its throat, its wobble from a template, its glow's size and the
+# ring's spin); STAGE (or PREVIOUS / NEXT) tours the camera through four
+# views, the last one holding the scene clock. Only lcards_test_* helpers.
+title: Astrometrics settings from entities
+path: astro-bindings
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: SHIELDS } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: POWER } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: PREVIOUS STOP, show: true } }
+        tap_action: { action: perform-action, perform_action: input_number.decrement, target: { entity_id: input_number.lcards_test_stage } }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_number.lcards_test_stage
+        text: { name: { content: "STAGE {entity.state}", show: true } }
+        tap_action: { action: perform-action, perform_action: input_number.set_value, target: { entity_id: input_number.lcards_test_stage }, data: { value: 0 } }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: NEXT STOP, show: true } }
+        tap_action: { action: perform-action, perform_action: input_number.increment, target: { entity_id: input_number.lcards_test_stage } }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_bindings_1
+        grid_options: { columns: full }
+        height: 650
+        camera:
+          buttons: true
+          view:
+            entity: input_number.lcards_test_stage
+            views: [overview, station, wormhole, { view: close, rate: 0 }]
+          views:
+            overview: { target: [0, 0, 0], yaw: 20, tilt: 30, distance: 420 }
+            station: { target: station, yaw: 330, tilt: 15, distance: 110 }
+            wormhole: { target: mouth, yaw: 60, tilt: 25, distance: 220 }
+            close: { target: mouth, yaw: 120, tilt: 5, distance: 120 }
+        backdrop:
+          stars: { count: 1500 }
+        points:
+          - { id: station, xyz: [-110, 0, 0], label: "SHIELDS {states.input_number.lcards_test_shields.state}", style: minor, offset: [0, 40, 0] }
+          - { id: mouth, xyz: [110, 40, 0], label: WORMHOLE, style: minor, offset: [0, 60, 0] }
+        objects:
+          - { type: model, id: ds9, src: builtin:deep_space_nine, at: station, size: 50, material: original, spin: 3 }
+          - type: sphere
+            id: shield_bubble
+            at: station
+            radius: 34
+            fill_color: var(--lcars-blue)
+            color: var(--lcars-blue)
+            line_spacing_deg: 20
+            opacity: { entity: input_number.lcards_test_shields, to: [0, 0.45] }
+          - type: grid
+            id: wormhole
+            shape: well
+            well_shape: wormhole
+            well_throat: 0.25
+            at: mouth
+            line_spacing_deg: 20
+            scan_period: 4
+            radius: { entity: input_number.lcards_test_power, to: [10, 50], smooth: 1200 }
+            deform:
+              - { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: "[[[ return Number(states['input_number.lcards_test_power']?.state ?? 0) / 1000 ]]]" }
+          - { type: glow, id: mouth_glow, at: mouth, color: var(--lcars-blue), size: { entity: input_number.lcards_test_power, to: [20, 160] } }
+          - { type: ring, id: mouth_ring, at: mouth, radius: 70, dash: [6, 10], width: 2, flow_speed: 40, spin: { entity: input_number.lcards_test_power, to: [0, 90] } }

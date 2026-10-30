@@ -169,3 +169,19 @@ test('files are pickers: model src (models) and textures (images), from the sche
     }
   }
 });
+
+test('R4b: what an object follows, for its row and its sections (text and actions are not settings)', async () => {
+  const { boundIn, keysBound } = await import('../../src/editor/dialogs/astro-studio/schema-fields.js');
+  const wormhole = {
+    type: 'grid', id: 'wormhole', shape: 'well', at: 'mouth', label: '{entity.state}',
+    radius: { entity: 'input_number.lcards_test_power', to: [10, 50] },
+    deform: [{ type: 'wobble', amplitude: "[[[ return 1 ]]]" }],
+    tap_action: { action: 'more-info', entity: 'light.x' }
+  };
+  assert.deepEqual(boundIn(wormhole), ['input_number.lcards_test_power', 'a template']);
+  assert.equal(keysBound({ opacity: { entity: 'input_number.x' } }, ['at', 'opacity']), true);
+  assert.equal(keysBound({ spin: '[[[ return 2 ]]]' }, ['spin']), true);
+  assert.equal(keysBound({ at: 'mouth', spin: 3 }, ['at', 'spin']), false);
+  assert.match(objectSummary(wormhole), /follows input_number\.lcards_test_power, a template/);
+  assert.doesNotMatch(objectSummary(wormhole), /object Object/);
+});

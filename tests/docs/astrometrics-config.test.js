@@ -32,7 +32,7 @@ test('objects are checked against their own type: a sphere key on a grid is unkn
     const out = issues({ objects: [{ type: 'grid', shape: 'disc', lat_step: 4 }, { type: 'ring', inclination: 'steep' }, { type: 'sphere', lat_step: 10 }] });
     assert.deepEqual(out, [
         'error unknown-key objects[0].lat_step: unknown key (not in the schema)',
-        'error schema objects[1].inclination: must be number',
+        'error schema objects[1].inclination: must be a number, { entity, ... } to follow an entity, or a template',
     ]);
 });
 

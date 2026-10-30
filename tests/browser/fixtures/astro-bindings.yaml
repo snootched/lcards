@@ -1,0 +1,29 @@
+# R4b settings from entities: a shield bubble's opacity follows shields (eases),
+# a glow's size follows power (eases), a wobble's amplitude follows a template
+# (rebuilds the grid), and the camera tours its views with the stage number
+# (astrometrics.spec.js drives the entities with __setState).
+type: custom:lcards-astrometrics-card
+id: astro_bindings
+height: 400
+camera:
+  view: { entity: input_number.lcards_test_stage, views: [near, { view: far, rate: 0 }] }
+  views:
+    near: { target: [0, 0, 0], yaw: 0, tilt: 20, distance: 120 }
+    far: { target: [0, 0, 0], yaw: 90, tilt: 50, distance: 400 }
+points:
+  - { id: centre, xyz: [0, 0, 0], label: STATION }
+objects:
+  - type: sphere
+    id: bubble
+    radius: 30
+    fill_color: var(--lcars-blue)
+    opacity: { entity: input_number.lcards_test_shields, range: [0, 100], to: [0, 0.6] }
+  - type: glow
+    id: core
+    size: { entity: input_number.lcards_test_power, range: [0, 100], to: [10, 60], smooth: 400 }
+  - type: grid
+    id: well
+    shape: plane
+    size: 200
+    at: [0, -40, 0]
+    deform: [{ type: wobble, amplitude: "[[[ return Number(states['input_number.lcards_test_power']?.state ?? 0) / 1000 ]]]" }]

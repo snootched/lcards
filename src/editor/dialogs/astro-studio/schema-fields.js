@@ -39,6 +39,34 @@ const isTuple = (s) => isNumberArray(s) && s.minItems !== undefined && s.minItem
 const isPointRef = (s) => Array.isArray(s?.oneOf) && s.oneOf.length === 2
   && s.oneOf.some((/** @type {any} */ b) => hasType(b, 'string') && !b.enum) && s.oneOf.some((/** @type {any} */ b) => isTuple(b) && b.minItems === 3);
 
+/** The `{ entity, ... }` branch of a bindable setting (R4b) @param {any} b */
+const isBindingSchema = (b) => hasType(b, 'object') && !!b?.properties?.entity && Array.isArray(b?.required) && b.required.includes('entity');
+
+/** A template-only string branch (a pattern, no enum) @param {any} b */
+const isTemplateSchema = (b) => hasType(b, 'string') && !b.enum && typeof b.pattern === 'string';
+
+/**
+ * A schema with an `{ entity, ... }` branch: a bindable setting (astrometrics
+ * `setting()` / `settingOrPair()`).
+ * @param {any} s
+ */
+export const isBindable = (s) => Array.isArray(s?.anyOf) && s.anyOf.some(isBindingSchema);
+
+/**
+ * The number branch of a bindable setting, or null.
+ * @param {any} s
+ * @returns {any}
+ */
+export function settingNumber(s) {
+  const alts = s?.anyOf;
+  if (!Array.isArray(alts) || !alts.some(isBindingSchema)) return null;
+  const rest = alts.filter((b) => !isBindingSchema(b) && !isTemplateSchema(b));
+  return rest.length === 1 && isNumberSchema(rest[0]) ? rest[0] : null;
+}
+
+/** A setting value that follows an entity (`{ entity }`) @param {any} v */
+export const isBoundValue = (v) => isObj(v) && typeof v.entity === 'string';
+
 /** An object schema the form can walk (its own keys, no free map) @param {any} s */
 const isWalkable = (s) => hasType(s, 'object') && isObj(s.properties) && !s.additionalProperties;
 
@@ -55,8 +83,14 @@ export function fieldKind(s, key) {
   if (!isObj(s) || (key && YAML_KEYS.has(key))) return 'yaml';
   if (isColor(s)) return 'color';
   if (isPointRef(s)) return 'pointRef';
-  const alts = s.oneOf ?? s.anyOf;
-  if (Array.isArray(alts)) {
+  // a number that can follow an entity or a template (R4b): a number field with a bind button
+  if (settingNumber(s)) return 'number';
+  const all = s.oneOf ?? s.anyOf;
+  if (Array.isArray(all)) {
+    // a view name, or a guided tour ({ entity, views }): text; a tour is edited as YAML
+    if (all.length === 2 && all.some((b) => hasType(b, 'string') && !b.enum) && all.some(isBindingSchema)) return 'text';
+    // a binding or template branch does not change the field (a bind button is added)
+    const alts = all.filter((b) => !isBindingSchema(b) && !isTemplateSchema(b));
     if (alts.length === 2) {
       // one number, or a pair / triple of numbers ([w, d], [a, b], [w, h, d])
       if (alts.some(isNumberSchema) && alts.some(isTuple)) return 'numberOrTuple';
@@ -97,8 +131,10 @@ export function fieldKind(s, key) {
  * @returns {{ words: string[], bool: boolean, number: boolean } | null}
  */
 export function choiceOptions(s) {
-  const alts = s?.oneOf ?? s?.anyOf;
-  if (!Array.isArray(alts)) return null;
+  const all = s?.oneOf ?? s?.anyOf;
+  if (!Array.isArray(all)) return null;
+  // a binding or template branch (R4b) does not change the menu
+  const alts = all.filter((b) => !isBindingSchema(b) && !isTemplateSchema(b));
   const words = alts.filter((b) => hasType(b, 'string') && Array.isArray(b.enum));
   const bool = alts.some((b) => hasType(b, 'boolean'));
   const number = alts.some(isNumberSchema);
@@ -143,7 +179,7 @@ export function tupleLabels(description, n) {
 }
 
 /** Tuple length of a numberOrTuple / tuple property @param {any} s */
-export const tupleSize = (s) => (isTuple(s) ? s.minItems : (s?.oneOf?.find(isTuple)?.minItems ?? 0));
+export const tupleSize = (s) => (isTuple(s) ? s.minItems : ((s?.oneOf ?? s?.anyOf)?.find(isTuple)?.minItems ?? 0));
 
 /**
  * A field label from its key: line_width_major is "Line width major".
@@ -292,13 +328,46 @@ export function objectSummary(obj) {
   if (!isObj(obj)) return '';
   const bits = [obj.shape ?? obj.material ?? obj.sky].filter(Boolean).map(String);
   const sz = obj.radius ?? obj.size;
-  if (sz !== undefined) bits.push(Array.isArray(sz) ? sz.join(' x ') : String(sz));
+  if (typeof sz === 'number' || Array.isArray(sz)) bits.push(Array.isArray(sz) ? sz.join(' x ') : String(sz));
   if (typeof obj.at === 'string') bits.push(`at ${obj.at}`);
   if (obj.from !== undefined && obj.to !== undefined && typeof obj.from === 'string' && typeof obj.to === 'string') bits.push(`${obj.from} to ${obj.to}`);
   if (Array.isArray(obj.points)) bits.push(`${obj.points.length} points`);
   if (obj.visible === false) bits.push('hidden');
+  const follows = boundIn(obj);
+  if (follows.length) bits.push(`follows ${follows.join(', ')}`);
   return bits.join(' · ');
 }
+
+/** Keys whose values are text or actions, never settings: their templates are not bindings */
+const NOT_SETTINGS = new Set(['label', 'text', 'tap_action', 'hold_action', 'card']);
+
+/**
+ * What a value follows (R4b): the entities of its `{ entity }` settings and
+ * `template` for a templated one, at any depth (deform steps, fill effects).
+ * @param {any} value
+ * @returns {string[]}
+ */
+export function boundIn(value) {
+  /** @type {Set<string>} */
+  const out = new Set();
+  /** @param {any} v */
+  const walk = (v) => {
+    if (isBoundValue(v)) { out.add(v.entity ? String(v.entity) : 'an entity'); return; }
+    if (typeof v === 'string') { if (/\[\[\[|\{\{|\{[A-Za-z_]/.test(v)) out.add('a template'); return; }
+    if (Array.isArray(v)) { v.forEach(walk); return; }
+    if (isObj(v)) for (const [k, x] of Object.entries(v)) if (!NOT_SETTINGS.has(k)) walk(x);
+  };
+  walk(value);
+  return [...out];
+}
+
+/**
+ * Whether any of these keys of an object follows an entity or a template
+ * (its section opens and says so).
+ * @param {any} obj
+ * @param {string[]} keys
+ */
+export const keysBound = (obj, keys) => keys.some((k) => boundIn(obj?.[k]).length > 0);
 
 /**
  * A fresh id not in `taken`: base1, base2, ...

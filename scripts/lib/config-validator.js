@@ -66,6 +66,16 @@ export function stripSchemaRestrictions(node) {
   return node;
 }
 
+/**
+ * A bindable setting: anyOf a number, an `{ entity }` binding and a template
+ * (astrometrics-schema.js `setting()`).
+ * @param {any} schema
+ */
+function isSettingSchema(schema) {
+  const alts = schema?.anyOf;
+  return Array.isArray(alts) && alts.some(b => b?.type === 'number') && alts.some(b => b?.properties?.entity && b?.required?.includes('entity'));
+}
+
 /** `oneOf` read as `anyOf` (CoreValidationService tolerates a value matching several branches). */
 function oneOfAsAnyOf(node) {
   if (Array.isArray(node)) return node.map(oneOfAsAnyOf);
@@ -574,8 +584,15 @@ export function createConfigValidator({ entries, registries = null }) {
       add('error', 'unknown-key', key, `unknown key (not in the schema)${hints.has(key) ? ` (did you mean "${hints.get(key)}"?)` : ''}${yaml11}`);
     }
     if (!validate(node)) {
+      // A bindable number (a number, { entity, ... } or a template: astrometrics settings) that is
+      // none of them: one message instead of one per branch
+      const settingPaths = new Set((validate.errors ?? []).filter(e => e.keyword === 'anyOf' && isSettingSchema(e.parentSchema)).map(e => e.instancePath));
       for (const err of validate.errors ?? []) {
         const p = err.instancePath.replace(/^\//, '').replace(/\/(\d+)(?=\/|$)/g, '[$1]').replace(/\//g, '.');
+        if (settingPaths.has(err.instancePath)) {
+          if (err.keyword === 'anyOf') add('error', 'schema', p, 'must be a number, { entity, ... } to follow an entity, or a template');
+          continue;
+        }
         if (err.keyword === 'discriminator' && err.params?.error === 'mapping') {
           // A oneOf keyed by type with no branch for this value: name the choices
           const types = (err.parentSchema?.oneOf ?? []).map(b => b?.properties?.type?.const).filter(Boolean);

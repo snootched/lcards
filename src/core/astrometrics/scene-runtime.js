@@ -38,6 +38,7 @@ import { BINDABLE_FORMS } from './placements.js';
 import { FatLine } from './lines.js';
 import { skyState } from './sky.js';
 import { SceneClock } from './clock.js';
+import { easeStep } from './bindings.js';
 import { warpTails } from './star-field.js';
 import { STAR_SHELL } from './objects/stars.js';
 import { num, stepObjects } from './objects/common.js';
@@ -145,6 +146,8 @@ const KEY_COMMANDS = {
  * @property {() => number} timeScale
  * @property {(opts: { date?: any, rate?: any }) => boolean} setClock - set the scene date (now, ISO, ms) and or rate (live, days per second); false when a value was not understood
  * @property {() => AstroClockState} clock - the scene date and rate now
+ * @property {(list: { id: string, key: string, value: number | null, smooth?: number }[]) => void} setLive - settings that follow
+ *   entities and change in place (opacity, radius, size, spin of an object; '' time_scale): ease to the value over smooth ms; null lets go
  * @property {() => void} requestFrame
  * @property {() => void} recolor - re-resolve theme colours (theme or alert change)
  * @property {(command: string) => void} press - start a camera command (CAMERA_COMMANDS name, or `reset`): one step, then held motion
@@ -238,6 +241,16 @@ export function createAstroScene(host, config, options = {}) {
   /** Something follows the scene date (body points, body or orbit objects, a clock with a sky) */
   let usesClock = false;
   let skyNotified = 0;
+  /**
+   * Settings that follow entities and change in place (bindings.js LIVE_OBJECT_KEYS, the card's
+   * time_scale), by `id\0key` ('' for the card): easing from `from` to `to`
+   * @type {Map<string, { id: string, key: string, from: number, to: number, value: number, start: number, ms: number }>}
+   */
+  const live = new Map();
+  /** @type {Map<string, number>} an object's opacity from an entity (the fader multiplies it in) */
+  const liveAlpha = new Map();
+  /** @type {[any, any] | null} a fly-to asked for before the world was ready (flyTo) */
+  let pendingFly = null;
   /** @type {Vector3 | null} the camera position last frame (warp streaks) */
   let lastCamera = null;
   let cssW = 1;
@@ -766,6 +779,8 @@ export function createAstroScene(host, config, options = {}) {
       initialView();
     }
     resize();
+    // a new world starts at its config's sizes: put the live values back
+    for (const e of live.values()) applyLive(e);
     // Compile and upload off the frame (the first draw would stall otherwise)
     const r = renderer;
     const w = world;
@@ -774,6 +789,11 @@ export function createAstroScene(host, config, options = {}) {
     r.compileAsync(w.scene, rig.camera).catch(() => {}).then(() => {
       if (disposed || world !== w) return;
       ready = true;
+      if (pendingFly) {
+        const [view, opts] = pendingFly;
+        pendingFly = null;
+        flyTo(view, opts);
+      }
       requestFrame();
     });
   }
@@ -826,6 +846,7 @@ export function createAstroScene(host, config, options = {}) {
       if (sceneClock.running && cfg.clock) refreshSky();
       if (sceneClock.running) options.onClock?.(clockState());
     }
+    if (live.size && stepLive(performance.now())) moving = true;
     if (!reduced) {
       const sdt = dt * timeScale;
       clock += sdt;
@@ -857,7 +878,7 @@ export function createAstroScene(host, config, options = {}) {
     // Level of detail for this view (belt rocks far away become dots)
     for (const b of world.list) b.lod?.({ camera, height: cssH, dpr });
     // Objects out of their distance range hide, partly faded ones blend, for this render
-    fader.begin(world.list, world.outer, camera.position, (b) => unitOf(b.config._system));
+    fader.begin(world.list, world.outer, camera.position, (b) => unitOf(b.config._system), (b) => liveAlpha.get(b.id) ?? 1);
     try {
       const plan = depthPlan(camera);
       const scene = world.scene;
@@ -1404,11 +1425,90 @@ export function createAstroScene(host, config, options = {}) {
         b.config = { ...next, id };
       } else if (w.rebuildObject(id, next)) {
         objectBuilds++;
+        // a rebuilt object starts at its config's size: put its live values back
+        for (const e of live.values()) if (e.id === id) applyLive(e);
         if (id === boxed) showBox();
         renderer?.compileAsync(w.scene, rig.camera).catch(() => {}).then(() => requestFrame());
       }
     }
     requestFrame();
+  }
+
+  /**
+   * Settings that follow entities and change in place: each eases from where
+   * it is to its new value over `smooth` ms (the first value lands at once).
+   * `id` '' with `time_scale` is the card's. A null value lets go (the
+   * config's value again).
+   * @param {{ id: string, key: string, value: number | null, smooth?: number }[]} list
+   */
+  function setLive(list) {
+    const t = performance.now();
+    for (const { id, key, value, smooth = 0 } of list ?? []) {
+      const k = `${id}\u0000${key}`;
+      const cur = live.get(k);
+      if (value === null || !Number.isFinite(value)) {
+        live.delete(k);
+        resetLive(id, key);
+        continue;
+      }
+      const from = cur ? cur.value : value;
+      const e = { id, key, from, to: value, value: from, start: t, ms: cur && !reduced ? smooth : 0 };
+      live.set(k, e);
+      applyLive(e);
+    }
+    requestFrame();
+  }
+
+  /**
+   * One frame of the live values; true while any still eases.
+   * @param {number} now
+   */
+  function stepLive(now) {
+    let easing = false;
+    for (const e of live.values()) {
+      if (e.value === e.to) continue;
+      const s = easeStep(e.from, e.to, e.start, e.ms, now);
+      e.value = s.value;
+      applyLive(e);
+      if (!s.done) easing = true;
+    }
+    return easing;
+  }
+
+  /**
+   * Put one live value on the scene.
+   * @param {{ id: string, key: string, value: number }} e
+   */
+  function applyLive({ id, key, value }) {
+    if (id === '' && key === 'time_scale') {
+      timeScale = Math.max(0, value);
+      return;
+    }
+    const b = world?.objects.get(id);
+    if (!b) return;
+    if (key === 'opacity') liveAlpha.set(id, Math.min(1, Math.max(0, value)));
+    else if (key === 'spin') b.spin = value;
+    else if (key === 'radius' || key === 'size') {
+      // against the size it was built at (the card builds it at the value it had then)
+      const built = Number(b.config[key]);
+      if (Number.isFinite(built) && built > 0 && value >= 0) b.node.scale.setScalar(value / built);
+    }
+  }
+
+  /**
+   * A live value let go: the config's own value again.
+   * @param {string} id @param {string} key
+   */
+  function resetLive(id, key) {
+    if (id === '' && key === 'time_scale') {
+      timeScale = timeScaleCfg;
+      return;
+    }
+    const b = world?.objects.get(id);
+    if (key === 'opacity') liveAlpha.delete(id);
+    if (!b) return;
+    if (key === 'spin') b.spin = num(b.config.spin, 0);
+    else if (key === 'radius' || key === 'size') b.node.scale.setScalar(1);
   }
 
   /**
@@ -1477,7 +1577,11 @@ export function createAstroScene(host, config, options = {}) {
    * @param {{ duration?: number, warp?: boolean }} [opts] - warp: stars streak on the way (default the view's `warp`, else `camera.warp`)
    */
   function flyTo(view, opts = {}) {
-    if (!world) return Promise.resolve();
+    // before the world is built (a tour's first stop): fly once it is ready
+    if (!world || !ready) {
+      pendingFly = [view, opts];
+      return Promise.resolve();
+    }
     const duration = opts.duration ?? num(cfg.camera?.fly_duration, 1600);
     if (typeof view === 'string') {
       if (views[view]) {
@@ -1651,6 +1755,7 @@ export function createAstroScene(host, config, options = {}) {
       return ok;
     },
     clock: clockState,
+    setLive,
     press,
     release: endPress,
     home: goHome,
@@ -1778,6 +1883,7 @@ export function createAstroScene(host, config, options = {}) {
         projection: rig.projection,
         labels: { ...labels.stats },
         objectAlphas: Object.fromEntries(fader.alphas),
+        live: Object.fromEntries([...live.values()].map((e) => [`${e.id}.${e.key}`, { value: e.value, to: e.to }])),
         depthSlices: lastSlices,
         frame: world?.frames.current ?? ROOT,
         frameChanges,

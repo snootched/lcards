@@ -434,6 +434,20 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._flat = undefined;
         /** @type {Record<string, any>} the merged rule patch per point or object id */
         this._scenePatches = {};
+        /** @type {import('../core/astrometrics/bindings.js').SettingBinding[]} settings that follow entities or templates (R4b) */
+        this._settings = [];
+        /** @type {Map<string, number | string | null>} each setting's value now, by bindingKey */
+        this._settingValues = new Map();
+        /** @type {Map<string, number>} latest evaluation per templated setting (a slow Jinja2 result never wins over a newer one) */
+        this._settingSeq = new Map();
+        /** @type {Set<string>} points and objects (scope:id) waiting to be patched with new setting values */
+        this._settingDirty = new Set();
+        /** @type {ReturnType<typeof setTimeout> | undefined} */
+        this._settingTimer = undefined;
+        /** @type {Record<string, any> | null} camera.view as a guided tour ({ entity, views }) */
+        this._tour = null;
+        /** @type {string | null} the tour stop flown to last (JSON) */
+        this._tourAt = null;
         /** @type {{ pointId: string, form: string, object?: string, label: string, missed?: boolean, resolve: (value: number[] | string | null) => void } | null} picking a position for the Studio */
         this._pick = null;
         this._inEditDialog = false;
@@ -516,14 +530,23 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
      */
     _withScenePatches(config) {
         const patches = this._scenePatches;
-        if (!Object.keys(patches).length) return config;
         const pick = (/** @type {any} */ item, /** @type {Set<string>} */ ids) =>
             item && item.id !== undefined && ids.has(String(item.id)) && patches[String(item.id)] ? deepMergeImmutable(item, patches[String(item.id)]) : item;
-        return {
+        const patched = !Object.keys(patches).length ? config : {
             ...config,
             ...(Array.isArray(config.points) ? { points: config.points.map((p) => pick(p, this._sceneTargets.points)) } : {}),
             ...(Array.isArray(config.objects) ? { objects: config.objects.map((o) => pick(o, this._sceneTargets.objects)) } : {})
         };
+        return this._withSettingValues(patched);
+    }
+
+    /**
+     * Settings that follow entities, as their values now (bindings.js settingConfig).
+     * @private
+     * @param {Record<string, any>} config
+     */
+    _withSettingValues(config) {
+        return this._settings.length && this._runtime ? this._runtime.settingConfig(config, this._settings, this._settingValues) : config;
     }
 
     /**
@@ -579,6 +602,10 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
      */
     _stopScene() {
         this._sceneGeneration++;
+        clearTimeout(this._settingTimer);
+        this._settingTimer = undefined;
+        this._settingDirty.clear();
+        this._tourAt = null;
         this._scene?.dispose();
         this._scene = null;
         this._sceneKey = '';
@@ -658,9 +685,120 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             if (entityId) this._bindings.push({ id: String(point.id), point, entityId });
         }
         this._bindingWarned.clear();
+        this._collectSettings();
         this._updateTrackedEntities();
         this._refreshBindings(null);
+        this._refreshSettings(null);
         this._refreshLabels({ all: true });
+    }
+
+    /**
+     * Settings that follow entities or templates, and a camera tour, from
+     * the config (R4b). Values of settings still there are kept.
+     * @private
+     */
+    _collectSettings() {
+        const runtime = this._runtime;
+        if (!runtime) return;
+        const flat = this._flatConfig();
+        this._settings = runtime.collectBindings(flat);
+        const keys = new Set(this._settings.map((b) => runtime.bindingKey(b)));
+        for (const k of [...this._settingValues.keys()]) if (!keys.has(k)) this._settingValues.delete(k);
+        const view = flat?.camera?.view;
+        const tour = runtime.isTourView(view) ? view : null;
+        if (JSON.stringify(tour) !== JSON.stringify(this._tour)) this._tourAt = null;
+        this._tour = tour;
+    }
+
+    /**
+     * Resolve the settings (and the tour) whose entities changed (all with
+     * null) and hand them to the scene: live keys ease in place, the card's
+     * clock and time_scale go straight to it, the rest patch their point or
+     * object (at most four times a second).
+     * @private
+     * @param {Set<string> | null} changed
+     */
+    _refreshSettings(changed) {
+        const runtime = this._runtime;
+        if (!runtime || !this._scene) return;
+        for (const b of this._settings) {
+            if (changed && !b.entities.some((e) => changed.has(e))) continue;
+            if (b.spec) {
+                const entity = this.hass?.states?.[b.spec.entity];
+                this._applySetting(b, b.kind === 'date' ? runtime.dateValue(b.spec, entity) : runtime.mapEntity(b.spec, entity), !changed);
+                continue;
+            }
+            const key = runtime.bindingKey(b);
+            const seq = (this._settingSeq.get(key) ?? 0) + 1;
+            this._settingSeq.set(key, seq);
+            this.processTemplate(/** @type {string} */ (b.template), { entity: null, field: key }).then((out) => {
+                if (this._settingSeq.get(key) !== seq) return;
+                this._applySetting(b, b.kind === 'date' ? runtime.dateValue(null, out) : runtime.mapNumber(null, out), !changed);
+            }).catch((/** @type {any} */ error) => lcardsLog.warn(`[LCARdSAstrometricsCard] ${key}: template failed`, error));
+        }
+        const tour = this._tour;
+        if (tour && (!changed || changed.has(tour.entity))) {
+            const stop = runtime.tourStop(tour, this.hass?.states?.[tour.entity]);
+            const at = stop ? JSON.stringify(stop) : null;
+            if (stop && at !== this._tourAt) {
+                const first = this._tourAt === null;
+                this._tourAt = at;
+                this._scene.flyTo(stop.view, first ? { duration: 0 } : {});
+                if (stop.date !== undefined || stop.rate !== undefined) this._scene.setClock({ date: stop.date, rate: stop.rate });
+            }
+        }
+    }
+
+    /**
+     * One setting's new value to the scene.
+     * @private
+     * @param {import('../core/astrometrics/bindings.js').SettingBinding} b
+     * @param {number | string | null} value
+     * @param {boolean} [force] - send it even when unchanged (a full refresh: a new scene has none of them)
+     */
+    _applySetting(b, value, force = false) {
+        const runtime = this._runtime;
+        if (!runtime || !this._scene) return;
+        const key = runtime.bindingKey(b);
+        if (!force && this._settingValues.has(key) && this._settingValues.get(key) === value) return;
+        const prev = this._settingValues.get(key);
+        this._settingValues.set(key, value);
+        const path = b.path.join('.');
+        if (b.scope === 'card') {
+            if (path === 'time_scale') this._scene.setLive([{ id: '', key: 'time_scale', value: typeof value === 'number' ? value : null, smooth: b.smooth }]);
+            else if (path === 'clock.rate' && value !== null) this._scene.setClock({ rate: value });
+            else if (path === 'clock.date' && value !== null) this._scene.setClock({ date: value });
+            return;
+        }
+        if (b.live) {
+            this._scene.setLive([{ id: b.id, key: String(b.path[0]), value: typeof value === 'number' ? value : null, smooth: b.smooth }]);
+            // a size scales against the size the object was built at: built before the first value, it has
+            // none, so the first value also rebuilds it at that size
+            const sized = path === 'radius' || path === 'size';
+            if (!(sized && typeof value === 'number' && typeof prev !== 'number')) return;
+        }
+        this._settingDirty.add(`${b.scope}:${b.id}`);
+        if (this._settingTimer === undefined) this._settingTimer = setTimeout(() => this._flushSettings(), 250);
+    }
+
+    /**
+     * Patch the points and objects whose (rebuild) settings changed.
+     * @private
+     */
+    _flushSettings() {
+        this._settingTimer = undefined;
+        if (!this._scene || !this._settingDirty.size) return;
+        const patched = this._withScenePatches(this._sceneConfig());
+        /** @type {{ points: Record<string, any>, objects: Record<string, any> }} */
+        const send = { points: {}, objects: {} };
+        for (const item of this._settingDirty) {
+            const [scope, id] = [item.slice(0, item.indexOf(':')), item.slice(item.indexOf(':') + 1)];
+            const list = scope === 'point' ? patched.points : patched.objects;
+            const found = (Array.isArray(list) ? list : []).find((/** @type {any} */ x) => String(x?.id) === id);
+            if (found) (scope === 'point' ? send.points : send.objects)[id] = found;
+        }
+        this._settingDirty.clear();
+        this._scene.patch(send);
     }
 
     /**
@@ -796,6 +934,8 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             if (typeof p?.entity === 'string' && p.entity) tracked.add(p.entity);
         }
         for (const b of this._bindings) tracked.add(b.entityId);
+        for (const b of this._settings) b.entities.forEach((e) => tracked.add(e));
+        if (this._tour?.entity) tracked.add(this._tour.entity);
         for (const src of this._labelSources) for (const f of src.fields) f.deps.entities.forEach((e) => tracked.add(e));
         this._trackedEntities = [...tracked];
     }
@@ -1015,6 +1155,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         if (this._runtime) {
             if (!oldHass) {
                 this._refreshBindings(null);
+                this._refreshSettings(null);
                 this._refreshLabels({ all: true });
             } else {
                 /** @type {Set<string>} */
@@ -1024,6 +1165,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                 }
                 if (changed.size) {
                     this._refreshBindings(changed);
+                    this._refreshSettings(changed);
                     this._refreshLabels({ entities: changed });
                 }
             }

@@ -31,7 +31,7 @@ import { messageStyles } from '../base/surface-styles.js';
 import { studioDialogStyles } from './studio-dialog-styles.js';
 import { astrometricsSchema, objectSchema } from '../../cards/schemas/astrometrics-schema.js';
 import { TYPE_GUIDE } from '../../core/astrometrics/names.js';
-import { objectBranch, objectSummary, freshId, newObject, COMMON_GROUPS } from './astro-studio/schema-fields.js';
+import { objectBranch, objectSummary, freshId, newObject, COMMON_GROUPS, keysBound } from './astro-studio/schema-fields.js';
 import {
   viewsOf, startViewName, captureView, freshViewName, setView, deleteView, moveView, renameView, viewNameProblem, viewSummary
 } from './astro-studio/camera-views.js';
@@ -957,9 +957,11 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
             Edit its points and objects
           </ha-button>
         </div>` : nothing}
-      <lcards-form-section header="Placement" icon="mdi:axis-arrow" nested outlined ?expanded=${false}>${form(placement)}</lcards-form-section>
-      <lcards-form-section header="Distance" icon="mdi:map-marker-distance" nested outlined ?expanded=${false}>${form(distance)}</lcards-form-section>
-      <lcards-form-section header="Actions and tags" icon="mdi:gesture-tap" nested outlined ?expanded=${false}>${form(actions)}</lcards-form-section>
+      ${[['Placement', 'mdi:axis-arrow', placement], ['Distance', 'mdi:map-marker-distance', distance], ['Actions and tags', 'mdi:gesture-tap', actions]].map(([header, icon, keys]) => {
+        // a section with a setting that follows an entity opens, and says so
+        const bound = keysBound(obj, /** @type {string[]} */ (keys));
+        return html`<lcards-form-section header=${header} icon=${icon} secondary=${bound ? 'follows an entity' : ''} nested outlined ?expanded=${bound}>${form(/** @type {string[]} */ (keys))}</lcards-form-section>`;
+      })}
     `;
   }
 
