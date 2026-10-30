@@ -84,3 +84,9 @@ test('the optional parts merge into a card made from the starter (same units, no
   assert.ok(Math.abs(dist(point('ferenginar'), point('bajor')) - 60) < 0.1);
   assert.ok(dist(point('tw_earth'), [...SOL]) < 1, 'the transwarp aperture under a light year from Earth');
 });
+
+test('galaxy-scale content steps aside inside star systems; the stars and the routes into a system stay', () => {
+  for (const id of ['federation_space', 'great_barrier', 'alpha_beta_line']) assert.equal(frag.objects.find((o) => o.id === id).hide_in_systems, true, id);
+  for (const id of ['sol', 'alpha', 'federation_name', 'vulcan']) assert.equal(frag.points.find((p) => p.id === id).hide_in_systems, true, id);
+  for (const id of ['milky_way', 'voyager_route', 'wormhole_link']) assert.equal(frag.objects.find((o) => o.id === id).hide_in_systems, undefined, id);
+});

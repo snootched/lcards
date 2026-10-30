@@ -132,3 +132,69 @@ test('E8 ring image: a flat band from inner_radius to radius, u across it; the l
     env.restore();
   }
 });
+
+test('screenDistances: a segment through the camera plane is trimmed as the line shader trims it, so the dashes it interpolates match the screen at the cut', () => {
+  const cam = new PerspectiveCamera(50, 1, 0.1, 1e6);
+  cam.position.set(0, 0, 0);
+  cam.lookAt(0, 0, -1);
+  cam.updateMatrixWorld();
+  cam.updateProjectionMatrix();
+  const mvp = new Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+  const W = 800, H = 800;
+  const screen = (v) => { const p = v.clone().applyMatrix4(mvp); return [p.x * 0.5 * W, p.y * 0.5 * H]; };
+  // the shader's trim (LineMaterial): the near estimate in view z, alpha along the segment
+  const a = cam.projectionMatrix.elements[10], b = cam.projectionMatrix.elements[14];
+  const zn = -0.5 * b / a;
+  for (const [p0, p1] of [[new Vector3(5, 2, -50), new Vector3(-3, 1, 40)], [new Vector3(-3, 1, 40), new Vector3(5, 2, -50)]]) {
+    const s = runsToSegments([[...p0.toArray(), ...p1.toArray()]]);
+    const out = screenDistances(s.positions, s.starts, mvp, W, H, new Float32Array(2), cam.projectionMatrix);
+    const v0 = p0.clone().applyMatrix4(cam.matrixWorldInverse), v1 = p1.clone().applyMatrix4(cam.matrixWorldInverse);
+    const inFront = v0.z < 0 ? [p0, v0, 0] : [p1, v1, 1];
+    const behind = v0.z < 0 ? [p1, v1] : [p0, v0];
+    const alpha = (zn - inFront[1].z) / (behind[1].z - inFront[1].z);
+    const cut = inFront[0].clone().lerp(behind[0], alpha);
+    const [sx, sy] = screen(cut);
+    const [fx, fy] = screen(inFront[0]);
+    const trueLen = Math.hypot(sx - fx, sy - fy);
+    const dFront = out[inFront[2]];
+    const dBehind = out[1 - inFront[2]];
+    const shaderAtCut = dFront + alpha * (dBehind - dFront);
+    assert.ok(Math.abs(Math.abs(shaderAtCut - dFront) - trueLen) < 1e-3, `${shaderAtCut - dFront} vs ${trueLen}`);
+    assert.ok(trueLen > 0 && Number.isFinite(dBehind));
+  }
+});
+
+test('anchored vertices: a line far from its frame\'s origin draws exactly near the camera (no 32-bit jitter)', async () => {
+  const { Group, PerspectiveCamera } = await import('three');
+  const parent = new Group();
+  // a route from the galactic core to Sol, in light years: Sol's end is not representable in 32 bits
+  const sol = [26000.00123, 0.0000071, -0.0000042];
+  const line = new FatLine([[0, 0, 0, ...sol]], { color: [1, 1, 1, 1], dash: [6, 4] });
+  parent.add(line.object);
+  parent.updateMatrixWorld(true);
+  const drawn = () => {
+    // what the GPU gets: the 32-bit relative position, placed by the (64-bit) matrix
+    const f32 = line.geometry.getAttribute('instanceEnd');
+    return new Vector3(f32.getX(0), f32.getY(0), f32.getZ(0)).applyMatrix4(line.object.matrixWorld);
+  };
+  const err = () => drawn().distanceTo(new Vector3(...sol));
+  assert.ok(err() > 1e-4, `unanchored, 32-bit is off by ${err()}`);
+  // the camera a millionth of a light year from Sol: the vertex nearest it becomes the anchor
+  const cam = new PerspectiveCamera();
+  cam.position.set(sol[0] + 1e-6, sol[1], sol[2]);
+  cam.updateMatrixWorld();
+  assert.equal(line.anchorTo(cam), true);
+  assert.ok(err() < 1e-9, `anchored, off by ${err()}`);
+  // the far end is still where it was (to 32-bit precision of its distance from the anchor)
+  const start = line.geometry.getAttribute('instanceStart');
+  const far = new Vector3(start.getX(0), start.getY(0), start.getZ(0)).applyMatrix4(line.object.matrixWorld);
+  assert.ok(far.length() < 0.01);
+  // a camera far from both ends leaves the anchor alone
+  cam.position.set(13000, 5000, 0);
+  cam.updateMatrixWorld();
+  assert.equal(line.anchorTo(cam), false);
+  // new runs keep the anchor: still exact
+  line.setRuns([[0, 0, 0, ...sol]]);
+  parent.updateMatrixWorld(true);
+  assert.ok(err() < 1e-9);
+});

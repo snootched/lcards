@@ -36,9 +36,10 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 | `at` | Where it sits: a point id (it follows the point) or `[x, y, z]`. Default the origin. |
 | `rotation: [x, y, z]` | Turns it, degrees: y is a bearing, x tips it toward the camera, z rolls it. |
 | `spin` | Turns it round its own vertical axis, degrees per second. Points on it turn with it. |
-| `face: motion` | At a moving point, it turns to face where the point is going: [below](#facing-the-way-it-goes). |
+| `face` | `motion`: at a moving point, it turns to face where the point is going ([below](#facing-the-way-it-goes)). A point id: it turns toward that point ([facing a point](#facing-a-point)). |
 | `opacity`, `visible` | Opacity 0 to 1; `visible: false` hides it (its points still work). |
 | `max_distance`, `min_distance`, `fade` | Shown only within a camera distance, as on points: [below](#distance). |
+| `hide_in_systems` | `true` hides it while the camera is inside a [star system](./scale#star-systems), so galaxy-scale volumes and lines step aside in the close-ups. Points take it too. |
 | `tags` | Tags for [rules](./data#rules): a rule on `tag:<name>` changes every object with the tag. |
 | `tap_action`, `hold_action`, `view` | As on [points](./points#actions). An object without a `tap_action` is not tappable. |
 
@@ -64,6 +65,31 @@ objects:
   - { type: model, at: ship, src: builtin:constitution, size: 8, face: motion }
   - { type: trail, point: ship, length: 4, width: 2 }
 ```
+
+### Facing a point
+
+`face: <point id>` turns the object toward a point, wherever the point is, even in another star system or across the galaxy, and keeps it turned as either moves. Most objects turn their +z to it, top up. An object round an axis (a grid other than a plane, a ring, a belt, a galaxy) turns down its axis instead, so a [well](#wells-and-wormholes)'s narrow end leads to the point and a ring lies across the way to it. `rotation` applies on top.
+
+Two wells facing each other make one wormhole: a mouth at each end, and a line from throat to throat (a point on each well at `[0, -depth, 0]`, the bottom of its axis) as the throat stretched thin between them:
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 320
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 0, tilt: 25, distance: 340 }
+points:
+  - { id: alpha, xyz: [-110, 0, 0] }
+  - { id: gamma, xyz: [110, 0, 0] }
+  - { id: alpha_throat, object: mouth_alpha, xyz: [0, -50, 0] }
+  - { id: gamma_throat, object: mouth_gamma, xyz: [0, -50, 0] }
+objects:
+  - { type: grid, id: mouth_alpha, shape: well, well_throat: 0.1, radius: 40, depth: 50, at: alpha, face: gamma, line_spacing_deg: 20, color: var(--lcars-blue) }
+  - { type: grid, id: mouth_gamma, shape: well, well_throat: 0.1, radius: 40, depth: 50, at: gamma, face: alpha, line_spacing_deg: 20, color: var(--lcars-blue) }
+  - { type: path, points: [alpha_throat, gamma_throat], dash: [6, 4], flow_speed: 30, color: var(--lcars-yellow), width: 2 }
+```
+
+An arched path (`arc`) leaves each end rising: it climbs about 3.14 times its `arc` over the distance between the ends. To line a mouth up with it, face a point that much above the far end (`{ id: aim, at: gamma, offset: [0, 12566, 0] }` for an `arc` of 4000). The [Star Trek galaxy starter](./starters#star-trek-galaxy)'s Bajoran wormhole is built this way.
 
 ## Distance
 

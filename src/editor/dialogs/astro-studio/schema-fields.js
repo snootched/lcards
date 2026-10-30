@@ -286,7 +286,7 @@ export function objectBranch(objectSchema, type) {
 /** Common object keys by group, in form order */
 export const COMMON_GROUPS = {
   placement: ['at', 'rotation', 'face', 'spin', 'visible', 'opacity'],
-  distance: ['min_distance', 'max_distance', 'fade'],
+  distance: ['min_distance', 'max_distance', 'fade', 'hide_in_systems'],
   actions: ['tags', 'tap_action', 'hold_action', 'view']
 };
 

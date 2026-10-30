@@ -10,7 +10,7 @@
  * gives the docs one release of the public board, tests/docs/demo-dashboard.test.js
  * checks it all offline.
  */
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
@@ -329,14 +329,23 @@ export function headerNote(view, { board = 'dev', release = '' } = {}) {
  * in its bar) and the description. `index: false` (the docs site, which has its own
  * picker) leaves the Index link out.
  */
-export function headerSection(view, { board = 'dev', release = '', docsBase = DOCS_SITE, index = true } = {}) {
+/**
+ * A view's header bar segments: Index (or LCARdS), the release note, Docs, the path.
+ * @param {any} view
+ * @param {{ board?: string, release?: string, docsBase?: string, index?: boolean }} [opts]
+ */
+function headerSegments(view, { board = 'dev', release = '', docsBase = DOCS_SITE, index = true } = {}) {
     const note = headerNote(view, { board, release });
-    const segments = [
+    return [
         ...(index ? [{ label: 'Index', weight: 1, action: { action: 'navigate', navigation_path: `/${BOARDS[board].urlPath}/index` } }] : [{ label: 'LCARdS', weight: 1 }]),
         { label: note || '-', weight: 2 },
         ...(view.docs ? [{ label: 'Docs', weight: 1, action: { action: 'url', url_path: `${docsBase}${view.docs}` } }] : []),
         { label: view.path, weight: 3 },
     ];
+}
+
+export function headerSection(view, opts = {}) {
+    const segments = headerSegments(view, opts);
     return {
         type: 'grid',
         column_span: 4,
@@ -407,6 +416,15 @@ export function indexView(releases, { board = 'dev', topics = [] } = {}) {
 /** A view with its generated header on top. */
 export function viewWithHeader(view, opts = {}) {
     const { config } = view;
+    // a layout view is its own LCARS frame: the demo header goes in its `head` area
+    if (config.type === 'custom:lcards-layout-view') {
+        return {
+            ...config,
+            cards: (config.cards ?? []).map((c) => (c?.view_layout?.['grid-area'] === 'head'
+                ? { ...frameHeader(view.title, headerSegments(view, opts)), view_layout: c.view_layout }
+                : c)),
+        };
+    }
     let n = 1;
     const sections = (config.sections ?? []).map((s) => {
         const { section, frames } = frameSection(s, n);
@@ -446,23 +464,50 @@ export function buildDashboard(demo, { board = 'dev', release = null, docsBase =
 const HELPER_COMMAND_KEYS = new Set(['type']);
 
 /**
+ * The scripts and automations demo views use (demo/package.yaml): `script`
+ * by object id, `automation` a list with ids.
+ * @param {string} [dir]
+ * @returns {{ script: Record<string, any>, automation: any[] }}
+ */
+export function loadPackage(dir = DEMO_DIR) {
+    const file = join(dir, 'package.yaml');
+    const pkg = existsSync(file) ? /** @type {any} */ (yaml.load(readFileSync(file, 'utf8'))) ?? {} : {};
+    return { script: pkg.script ?? {}, automation: Array.isArray(pkg.automation) ? pkg.automation : [] };
+}
+
+/**
  * The lcards_test_* helpers some views use, as a Home Assistant YAML package
  * (configuration.yaml or a packages/ file), so a view copied from the live demo
- * works in a user's own Home Assistant unchanged.
+ * works in a user's own Home Assistant unchanged; with the scripts and
+ * automations (demo/package.yaml) a view names (`script.<id>`, `automation.<id>`,
+ * in its YAML or a "# uses:" comment).
  * @param {Array<{ text: string }>} views
  * @param {Record<string, { type: string } & Record<string, any>>} definitions - entity id -> its create command (tests/ha/ha-client.mjs)
+ * @param {{ script: Record<string, any>, automation: any[] }} [extras] - loadPackage()
  * @returns {{ yaml: string, ids: string[], missing: string[] }} missing: ids a view uses with no definition
  */
-export function helpersPackage(views, definitions) {
+export function helpersPackage(views, definitions, extras = { script: {}, automation: [] }) {
     const used = new Set(views.flatMap(v => v.text.match(/\binput_[a-z]+\.lcards_test_[a-z0-9_]+/g) ?? []));
+    const named = new Set(views.flatMap(v => v.text.match(/\b(?:script|automation)\.lcards_test_[a-z0-9_]+/g) ?? []));
     const ids = [...used].sort();
     const missing = ids.filter(id => !definitions[id]);
-    /** @type {Record<string, Record<string, any>>} */
+    /** @type {Record<string, any>} */
     const pkg = {};
     for (const id of ids.filter(i => definitions[i])) {
         const [domain, object] = id.split('.');
         const keys = Object.fromEntries(Object.entries(definitions[id]).filter(([k]) => !HELPER_COMMAND_KEYS.has(k)));
         (pkg[domain] ??= {})[object] = keys;
+    }
+    for (const [id, cfg] of Object.entries(extras.script)) {
+        if (named.has(`script.${id}`)) (pkg.script ??= {})[id] = cfg;
+    }
+    for (const cfg of extras.automation) {
+        if (named.has(`automation.${cfg.id}`)) (pkg.automation ??= []).push(cfg);
+    }
+    for (const n of named) {
+        const [kind, id] = n.split('.');
+        const known = kind === 'script' ? id in extras.script : extras.automation.some(a => a.id === id);
+        if (!known) missing.push(n);
     }
     return { yaml: yaml.dump(pkg, { lineWidth: -1, flowLevel: 3 }), ids, missing };
 }

@@ -1117,37 +1117,68 @@ The Milky Way in light years cut into the four quadrants (the Alpha/Beta line ru
 type: custom:lcards-astrometrics-card
 height: 400
 points:
-  - { id: core, xyz: [0, 0, 0], label: GALACTIC CORE, style: major, tap_action: { action: fly-to, view: barrier } }
-  - { id: alpha, polar: [40000, 225], alt: 6000, label: ALPHA QUADRANT, style: title, min_distance: 30000 }
-  - { id: beta, polar: [40000, 135], alt: 6000, label: BETA QUADRANT, style: title, min_distance: 30000 }
-  - { id: gamma_q, polar: [40000, 315], alt: 6000, label: GAMMA QUADRANT, style: title, min_distance: 30000 }
-  - { id: delta_q, polar: [40000, 45], alt: 6000, label: DELTA QUADRANT, style: title, min_distance: 30000 }
-  - id: federation_name
-    xyz: [-1200, 1500, 26000]
-    label: UNITED FEDERATION OF PLANETS
+  - id: core
+    xyz: [0, 0, 0]
+    label: GALACTIC CORE
     style: major
+    tap_action: { action: fly-to, view: barrier }
+    hide_in_systems: true
+  - { id: alpha, polar: [40000, 225], alt: 6000, label: ALPHA QUADRANT, style: title, min_distance: 70000, hide_in_systems: true }
+  - { id: beta, polar: [40000, 135], alt: 6000, label: BETA QUADRANT, style: title, min_distance: 70000, hide_in_systems: true }
+  - id: gamma_q
+    polar: [40000, 315]
+    alt: 6000
+    label: GAMMA QUADRANT
+    style: title
+    min_distance: 70000
+    hide_in_systems: true
+  - id: delta_q
+    polar: [40000, 45]
+    alt: 6000
+    label: DELTA QUADRANT
+    style: title
+    min_distance: 70000
+    hide_in_systems: true
+  - id: federation_name
+    xyz: [-9000, 1500, 26000]
+    label: UNITED FEDERATION OF PLANETS
+    style: minor
     color: var(--lcars-blue)
     min_distance: 2500
+    hide_in_systems: true
   - id: klingon_name
-    xyz: [5600, 1500, 24400]
+    xyz: [-9000, 5000, 26000]
     label: KLINGON EMPIRE
-    style: major
+    style: minor
     color: var(--lcars-red)
     min_distance: 2500
+    hide_in_systems: true
   - id: romulan_name
-    xyz: [4800, 1500, 30200]
+    xyz: [-9000, 8500, 26000]
     label: ROMULAN STAR EMPIRE
-    style: major
+    style: minor
     color: var(--lcars-green)
     min_distance: 2500
+    hide_in_systems: true
   - id: cardassian_name
-    xyz: [-7600, 1500, 29400]
+    xyz: [-9000, 12000, 26000]
     label: CARDASSIAN UNION
-    style: major
+    style: minor
     color: var(--lcars-orange)
     min_distance: 2500
-  - { id: dominion_name, xyz: [-38000, 1500, -32000], label: THE DOMINION, style: major, color: var(--lcars-violet) }
-  - { id: borg_name, xyz: [24000, 1500, -24000], label: BORG COLLECTIVE, style: major, color: var(--lcars-green) }
+    hide_in_systems: true
+  - id: dominion_name
+    xyz: [-41000, 1500, -25500]
+    label: THE DOMINION
+    style: major
+    color: var(--lcars-violet)
+    hide_in_systems: true
+  - id: borg_name
+    xyz: [24000, 1500, -24000]
+    label: BORG COLLECTIVE
+    style: major
+    color: var(--lcars-green)
+    hide_in_systems: true
   - id: sol
     xyz: [0, 0, 26000]
     marker: reticle
@@ -1155,6 +1186,7 @@ points:
     style: major
     overlap: true
     tap_action: { action: fly-to, view: neighbours }
+    hide_in_systems: true
   - id: vulcan
     xyz: [4.54, -10.02, 26011.97]
     marker: dot
@@ -1163,6 +1195,7 @@ points:
     priority: 90
     color: var(--lcars-blue)
     max_distance: 150
+    hide_in_systems: true
   - id: andoria
     xyz: [6.2, 2.58, 26009.29]
     marker: dot
@@ -1171,6 +1204,7 @@ points:
     priority: 90
     color: var(--lcars-blue)
     max_distance: 150
+    hide_in_systems: true
   - id: tellar
     xyz: [-11.24, -1.16, 25998.48]
     marker: dot
@@ -1179,6 +1213,7 @@ points:
     priority: 90
     color: var(--lcars-blue)
     max_distance: 150
+    hide_in_systems: true
   - id: alpha_centauri
     xyz: [3.05, -0.05, 25996.87]
     marker: dot
@@ -1186,6 +1221,7 @@ points:
     style: tiny
     color: var(--lcards-moonlight)
     max_distance: 150
+    hide_in_systems: true
   - id: wolf_359
     xyz: [3.94, 6.53, 26001.92]
     marker: dot
@@ -1193,6 +1229,7 @@ points:
     style: tiny
     color: var(--lcards-moonlight)
     max_distance: 150
+    hide_in_systems: true
   - id: vega
     xyz: [-21.83, 8.25, 25990.93]
     marker: dot
@@ -1200,6 +1237,7 @@ points:
     style: tiny
     color: var(--lcards-moonlight)
     max_distance: 150
+    hide_in_systems: true
   - id: altair
     xyz: [-12.23, -2.59, 25988.89]
     marker: dot
@@ -1207,7 +1245,15 @@ points:
     style: tiny
     color: var(--lcards-moonlight)
     max_distance: 150
-  - { id: qonos, xyz: [64, 0, 25910], marker: diamond, label: Qo'noS, style: minor, color: var(--lcars-red), max_distance: 3000 }
+    hide_in_systems: true
+  - id: qonos
+    xyz: [64, 0, 25910]
+    marker: diamond
+    label: Qo'noS
+    style: minor
+    color: var(--lcars-red)
+    max_distance: 3000
+    hide_in_systems: true
   - id: romulus
     xyz: [112, 0, 26026]
     marker: diamond
@@ -1215,7 +1261,15 @@ points:
     style: minor
     color: var(--lcars-green)
     max_distance: 3000
-  - { id: remus, xyz: [113, 0, 26027.5], marker: dot, label: Remus, style: minor, color: var(--lcars-green), max_distance: 3000 }
+    hide_in_systems: true
+  - id: remus
+    xyz: [113, 0, 26027.5]
+    marker: dot
+    label: Remus
+    style: minor
+    color: var(--lcars-green)
+    max_distance: 3000
+    hide_in_systems: true
   - id: bajor
     xyz: [-46, 0, 26024]
     marker: diamond
@@ -1225,6 +1279,7 @@ points:
     max_distance: 3000
     priority: 85
     tap_action: { action: fly-to, view: bajor }
+    hide_in_systems: true
   - id: cardassia
     xyz: [-50.9, 0, 26026]
     marker: diamond
@@ -1232,16 +1287,39 @@ points:
     style: minor
     color: var(--lcars-orange)
     max_distance: 3000
-  - { id: wormhole_alpha, xyz: [-45, 1, 26021.5], label: BAJORAN WORMHOLE, style: tiny, max_distance: 60 }
+    hide_in_systems: true
+  - { id: wormhole_alpha, xyz: [-45, 1, 26021.5], label: BAJORAN WORMHOLE, style: tiny, max_distance: 60, hide_in_systems: true }
   - id: idran
     xyz: [-38000, 0, -32000]
     marker: diamond
     label: IDRAN
     style: minor
     tap_action: { action: fly-to, view: gamma }
-  - { id: wormhole_gamma, xyz: [-37997, 1, -31996.5], label: WORMHOLE (GAMMA END), style: tiny, max_distance: 60 }
-  - { id: founders, xyz: [-39500, 0, -31200], marker: dot, label: Founders' homeworld, style: tiny, max_distance: 20000 }
-  - { id: unicomplex, xyz: [26000, 0, -26000], marker: diamond, label: Unicomplex, style: minor, max_distance: 60000 }
+    hide_in_systems: true
+  - id: wormhole_gamma
+    xyz: [-37997, 1, -31996.5]
+    label: WORMHOLE (GAMMA END)
+    style: tiny
+    max_distance: 60
+    hide_in_systems: true
+  - { id: wormhole_aim_gamma, at: wormhole_gamma, offset: [0, 12566, 0], hide_in_systems: true }
+  - { id: wormhole_aim_alpha, at: wormhole_alpha, offset: [0, 12566, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_throat, object: wormhole_mouth_alpha, xyz: [0, -1.6, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_throat, object: wormhole_mouth_gamma, xyz: [0, -1.6, 0], hide_in_systems: true }
+  - id: founders
+    xyz: [-39500, 0, -31200]
+    marker: dot
+    label: Founders' homeworld
+    style: tiny
+    max_distance: 20000
+    hide_in_systems: true
+  - id: unicomplex
+    xyz: [26000, 0, -26000]
+    marker: diamond
+    label: Unicomplex
+    style: minor
+    max_distance: 60000
+    hide_in_systems: true
   - id: ocampa
     xyz: [37000, 0, -33000]
     marker: dot
@@ -1249,14 +1327,28 @@ points:
     style: minor
     color: var(--lcars-orange)
     tap_action: { action: fly-to, view: delta }
-  - { id: nekrit, xyz: [31000, 0, -22000], marker: dot, label: Nekrit Expanse, style: tiny, color: var(--lcars-orange) }
+    hide_in_systems: true
+  - id: nekrit
+    xyz: [31000, 0, -22000]
+    marker: dot
+    label: Nekrit Expanse
+    style: tiny
+    color: var(--lcars-orange)
+    hide_in_systems: true
   - id: northwest_passage
     xyz: [22000, 0, -9000]
     marker: dot
     label: Northwest Passage
     style: tiny
     color: var(--lcars-orange)
-  - { id: endgame, xyz: [9000, 0, 8000], marker: dot, label: Transwarp conduit, style: tiny, color: var(--lcars-orange) }
+    hide_in_systems: true
+  - id: endgame
+    xyz: [9000, 0, 8000]
+    marker: dot
+    label: Transwarp conduit
+    style: tiny
+    color: var(--lcars-orange)
+    hide_in_systems: true
 objects:
   - { type: galaxy, id: milky_way, glow: 0.5 }
   - type: beam
@@ -1266,6 +1358,7 @@ objects:
     width: 1.5
     color: theme:colors.ui.secondary
     min_distance: 2000
+    hide_in_systems: true
   - type: beam
     id: gamma_delta_line
     from: [-52000, 0, 0]
@@ -1273,6 +1366,7 @@ objects:
     width: 1.5
     color: theme:colors.ui.secondary
     min_distance: 2000
+    hide_in_systems: true
   - type: grid
     id: great_barrier
     shape: sphere
@@ -1281,7 +1375,8 @@ objects:
     color: var(--lcars-yellow)
     opacity: 0.4
     scan_period: 6
-  - { type: glow, at: core, size: 7000, color: var(--lcars-yellow), opacity: 0.5 }
+    hide_in_systems: true
+  - { type: glow, at: core, size: 7000, color: var(--lcars-yellow), opacity: 0.5, hide_in_systems: true }
   - type: volume
     id: federation_space
     shape: prism
@@ -1290,7 +1385,8 @@ objects:
     color: var(--lcars-blue)
     face_opacity: 0.25
     cells: { width: 2000, depth: 2000, height: 1200 }
-    min_distance: 600
+    min_distance: 6000
+    hide_in_systems: true
   - type: volume
     id: klingon_space
     shape: prism
@@ -1299,7 +1395,8 @@ objects:
     color: var(--lcars-red)
     face_opacity: 0.25
     cells: { width: 2000, depth: 2000, height: 1200 }
-    min_distance: 600
+    min_distance: 6000
+    hide_in_systems: true
   - type: volume
     id: romulan_space
     shape: prism
@@ -1308,7 +1405,8 @@ objects:
     color: var(--lcars-green)
     face_opacity: 0.25
     cells: { width: 2000, depth: 2000, height: 1200 }
-    min_distance: 600
+    min_distance: 6000
+    hide_in_systems: true
   - type: volume
     id: cardassian_space
     shape: prism
@@ -1317,7 +1415,8 @@ objects:
     color: var(--lcars-orange)
     face_opacity: 0.25
     cells: { width: 2000, depth: 2000, height: 1200 }
-    min_distance: 600
+    min_distance: 6000
+    hide_in_systems: true
   - type: volume
     id: dominion_space
     shape: prism
@@ -1326,6 +1425,7 @@ objects:
     color: var(--lcars-violet)
     face_opacity: 0.25
     cells: { width: 2000, depth: 2000, height: 1200 }
+    hide_in_systems: true
   - type: volume
     id: borg_space
     shape: prism
@@ -1334,6 +1434,7 @@ objects:
     color: var(--lcars-green)
     face_opacity: 0.25
     cells: { width: 2000, depth: 2000, height: 1200 }
+    hide_in_systems: true
   - type: grid
     id: sectors
     shape: plane
@@ -1343,6 +1444,7 @@ objects:
     major_row_interval: 5
     opacity: 0.5
     max_distance: 3000
+    hide_in_systems: true
   - type: volume
     id: romulan_neutral_zone
     shape: prism
@@ -1352,6 +1454,7 @@ objects:
     color: var(--lcars-green)
     face_opacity: 0.35
     max_distance: 3000
+    hide_in_systems: true
   - type: volume
     id: cardassian_dmz
     shape: prism
@@ -1361,9 +1464,10 @@ objects:
     color: var(--lcars-orange)
     face_opacity: 0.35
     max_distance: 3000
+    hide_in_systems: true
   - type: path
     id: wormhole_link
-    points: [wormhole_alpha, wormhole_gamma]
+    points: [wormhole_alpha_throat, wormhole_gamma_throat]
     arc: 4000
     dash: [8, 6]
     flow_speed: 30
@@ -1372,25 +1476,29 @@ objects:
   - type: grid
     id: wormhole_mouth_alpha
     shape: well
-    well_shape: wormhole
-    well_throat: 0.25
+    well_shape: trumpet
+    well_throat: 0.1
     radius: 0.6
     depth: 1.6
     at: wormhole_alpha
+    face: wormhole_aim_gamma
     line_spacing_deg: 30
     color: var(--lcars-yellow)
     max_distance: 200
+    hide_in_systems: true
   - type: grid
     id: wormhole_mouth_gamma
     shape: well
-    well_shape: wormhole
-    well_throat: 0.25
+    well_shape: trumpet
+    well_throat: 0.1
     radius: 0.6
     depth: 1.6
     at: wormhole_gamma
+    face: wormhole_aim_alpha
     line_spacing_deg: 30
     color: var(--lcars-yellow)
     max_distance: 200
+    hide_in_systems: true
   - type: path
     id: voyager_route
     points: [ocampa, nekrit, northwest_passage, endgame, sol]
@@ -1656,6 +1764,7 @@ points:
     style: minor
     color: var(--lcars-yellow)
     max_distance: 3000
+    hide_in_systems: true
   - id: breen
     xyz: [-150, 0, 26095]
     marker: diamond
@@ -1663,6 +1772,7 @@ points:
     style: minor
     color: var(--lcars-lilac)
     max_distance: 3000
+    hide_in_systems: true
   - id: tzenkethi
     xyz: [-175, 0, 26020]
     marker: diamond
@@ -1670,6 +1780,7 @@ points:
     style: minor
     color: var(--lcars-magenta)
     max_distance: 3000
+    hide_in_systems: true
   - id: tholia
     xyz: [40, 0, 26140]
     marker: diamond
@@ -1677,6 +1788,7 @@ points:
     style: minor
     color: var(--lcars-orange)
     max_distance: 3000
+    hide_in_systems: true
   - id: gorn
     xyz: [150, 0, 25960]
     marker: diamond
@@ -1684,6 +1796,7 @@ points:
     style: minor
     color: var(--lcars-green)
     max_distance: 3000
+    hide_in_systems: true
 objects:
   - type: volume
     id: ferenginar_space
@@ -1694,6 +1807,7 @@ objects:
     face_opacity: 0.25
     max_distance: 3000
     outline: [[-18, -10], [-4, -20], [16, -12], [20, 8], [4, 20], [-16, 14]]
+    hide_in_systems: true
   - type: volume
     id: breen_space
     shape: prism
@@ -1703,6 +1817,7 @@ objects:
     face_opacity: 0.25
     max_distance: 3000
     outline: [[-18, -10], [-4, -20], [16, -12], [20, 8], [4, 20], [-16, 14]]
+    hide_in_systems: true
   - type: volume
     id: tzenkethi_space
     shape: prism
@@ -1712,6 +1827,7 @@ objects:
     face_opacity: 0.25
     max_distance: 3000
     outline: [[-18, -10], [-4, -20], [16, -12], [20, 8], [4, 20], [-16, 14]]
+    hide_in_systems: true
   - type: volume
     id: tholia_space
     shape: prism
@@ -1721,6 +1837,7 @@ objects:
     face_opacity: 0.25
     max_distance: 3000
     outline: [[-18, -10], [-4, -20], [16, -12], [20, 8], [4, 20], [-16, 14]]
+    hide_in_systems: true
   - type: volume
     id: gorn_space
     shape: prism
@@ -1730,6 +1847,7 @@ objects:
     face_opacity: 0.25
     max_distance: 3000
     outline: [[-18, -10], [-4, -20], [16, -12], [20, 8], [4, 20], [-16, 14]]
+    hide_in_systems: true
 units: ly
 ```
 
@@ -1743,9 +1861,24 @@ Its ids start with its name (default `_`).
 type: custom:lcards-astrometrics-card
 height: 400
 points:
-  - { id: kazon_name, xyz: [37000, 1500, -33000], label: KAZON SECTS, style: minor, color: var(--lcars-orange) }
-  - { id: vidiian_name, xyz: [31000, 1500, -24000], label: VIDIIAN SODALITY, style: minor, color: var(--lcars-red) }
-  - { id: hirogen_name, xyz: [20000, 1500, -3000], label: HIROGEN HUNTING GROUNDS, style: minor, color: var(--lcars-violet) }
+  - id: kazon_name
+    xyz: [37000, 1500, -33000]
+    label: KAZON SECTS
+    style: minor
+    color: var(--lcars-orange)
+    hide_in_systems: true
+  - id: vidiian_name
+    xyz: [31000, 1500, -24000]
+    label: VIDIIAN SODALITY
+    style: minor
+    color: var(--lcars-red)
+    hide_in_systems: true
+  - id: hirogen_name
+    xyz: [20000, 1500, -3000]
+    label: HIROGEN HUNTING GROUNDS
+    style: minor
+    color: var(--lcars-violet)
+    hide_in_systems: true
 objects:
   - type: volume
     id: kazon_space
@@ -1755,6 +1888,7 @@ objects:
     color: var(--lcars-orange)
     face_opacity: 0.25
     cells: { width: 2000, depth: 2000, height: 1000 }
+    hide_in_systems: true
   - type: volume
     id: vidiian_space
     shape: prism
@@ -1763,6 +1897,7 @@ objects:
     color: var(--lcars-red)
     face_opacity: 0.25
     cells: { width: 2000, depth: 2000, height: 1000 }
+    hide_in_systems: true
   - type: volume
     id: hirogen_space
     shape: prism
@@ -1771,6 +1906,7 @@ objects:
     color: var(--lcars-violet)
     face_opacity: 0.25
     cells: { width: 2000, depth: 2000, height: 1000 }
+    hide_in_systems: true
 units: ly
 ```
 
@@ -1784,7 +1920,13 @@ Its ids start with its name (default `_`).
 type: custom:lcards-astrometrics-card
 height: 400
 points:
-  - { id: tw_hub, xyz: [22000, 0, -18000], marker: diamond, label: TRANSWARP HUB, style: minor, color: var(--lcars-green) }
+  - id: tw_hub
+    xyz: [22000, 0, -18000]
+    marker: diamond
+    label: TRANSWARP HUB
+    style: minor
+    color: var(--lcars-green)
+    hide_in_systems: true
   - id: tw_unicomplex
     xyz: [26000, 0, -26000]
     marker: dot
@@ -1792,6 +1934,7 @@ points:
     style: tiny
     color: var(--lcars-green)
     max_distance: 60000
+    hide_in_systems: true
   - id: tw_exit_1
     xyz: [36000, 0, -14000]
     marker: dot
@@ -1799,6 +1942,7 @@ points:
     style: tiny
     color: var(--lcars-green)
     max_distance: 60000
+    hide_in_systems: true
   - id: tw_exit_2
     xyz: [18000, 0, -38000]
     marker: dot
@@ -1806,6 +1950,7 @@ points:
     style: tiny
     color: var(--lcars-green)
     max_distance: 60000
+    hide_in_systems: true
   - id: tw_exit_3
     xyz: [8000, 0, -12000]
     marker: dot
@@ -1813,12 +1958,14 @@ points:
     style: tiny
     color: var(--lcars-green)
     max_distance: 60000
+    hide_in_systems: true
   - id: tw_earth
     xyz: [0.6, 0.2, 25999.5]
     label: Transwarp aperture
     style: tiny
     color: var(--lcars-green)
     max_distance: 30
+    hide_in_systems: true
 objects:
   - type: path
     id: conduit_tw_unicomplex
@@ -1829,6 +1976,7 @@ objects:
     color: var(--lcars-green)
     width: 1.5
     glow: true
+    hide_in_systems: true
   - type: path
     id: conduit_tw_exit_1
     points: [tw_hub, tw_exit_1]
@@ -1838,6 +1986,7 @@ objects:
     color: var(--lcars-green)
     width: 1.5
     glow: true
+    hide_in_systems: true
   - type: path
     id: conduit_tw_exit_2
     points: [tw_hub, tw_exit_2]
@@ -1847,6 +1996,7 @@ objects:
     color: var(--lcars-green)
     width: 1.5
     glow: true
+    hide_in_systems: true
   - type: path
     id: conduit_tw_exit_3
     points: [tw_hub, tw_exit_3]
@@ -1856,6 +2006,7 @@ objects:
     color: var(--lcars-green)
     width: 1.5
     glow: true
+    hide_in_systems: true
   - type: path
     id: conduit_tw_earth
     points: [tw_hub, tw_earth]
@@ -1865,6 +2016,7 @@ objects:
     color: var(--lcars-green)
     width: 1.5
     glow: true
+    hide_in_systems: true
 units: ly
 ```
 

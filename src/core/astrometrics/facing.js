@@ -12,6 +12,9 @@
  * holds spin), a point standing on a spinning object faces along the spin;
  * else the object keeps its `rotation` until the point first moves.
  *
+ * `face: <point id>` turns an object toward a point instead: its +z, or
+ * down its axis (-y: a well's throat) for a round object (`axisFacing`).
+ *
  * @module core/astrometrics/facing
  */
 import { Euler, MathUtils, Matrix4, Quaternion, Vector3 } from 'three';
@@ -52,6 +55,21 @@ export function spinTangent(point, host, spin) {
   return t.normalize().multiplyScalar(Math.sign(spin));
 }
 
+const DOWN = new Vector3(0, -1, 0);
+
+/**
+ * The object's own direction that `face: <point id>` turns toward the
+ * point: down the axis (-y) for an object round an axis (a grid other than
+ * a plane, a ring, a belt, a galaxy), so a well's throat leads to it and a
+ * disc lies across the way to it; null (+z, upright) for the rest.
+ * @param {any} config
+ * @returns {Vector3 | null}
+ */
+export function axisFacing(config) {
+  const round = ['ring', 'belt', 'galaxy'].includes(config?.type) || (config?.type === 'grid' && (config.shape ?? 'plane') !== 'plane');
+  return round ? DOWN : null;
+}
+
 /**
  * Per object: where its point was, and the heading.
  */
@@ -90,12 +108,17 @@ export class Facing {
    * @param {import('three').Object3D} group
    * @param {any} config
    * @param {Vector3 | null} dir
+   * @param {Vector3 | null} [axis] - the object's own direction to turn along dir (default: +z, upright)
    */
-  orient(group, config, dir) {
+  orient(group, config, dir, axis = null) {
     if (!dir) return false;
-    // lookAt(eye, target, up) points +z from target to eye: here along dir
-    this._m.lookAt(dir, ZERO, UP);
-    this._q.setFromRotationMatrix(this._m).multiply(rotationQuaternion(config));
+    if (axis) this._q.setFromUnitVectors(axis, dir.clone().normalize());
+    else {
+      // lookAt(eye, target, up) points +z from target to eye: here along dir
+      this._m.lookAt(dir, ZERO, UP);
+      this._q.setFromRotationMatrix(this._m);
+    }
+    this._q.multiply(rotationQuaternion(config));
     if (group.quaternion.equals(this._q)) return false;
     group.quaternion.copy(this._q);
     return true;

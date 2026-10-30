@@ -5,7 +5,7 @@
  * (Memory Alpha, "Sol system"), for the Star Trek galaxy starter (galaxy
  * ly, the core at 0). The hub's and exits' places are our own.
  */
-import { nearSol } from './scene-star-trek-galaxy.js';
+import { nearSol, galaxyScale } from './scene-star-trek-galaxy.js';
 
 /** [id, label, x, z] galaxy ly */
 const EXITS = /** @type {const} */ ([
@@ -22,7 +22,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   description: 'For the Star Trek galaxy: a Borg transwarp hub in the Delta Quadrant with flowing conduits across Borg space and one to the aperture near Earth.',
   icon: 'mdi:hub-outline',
   params: [{ key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: '' }],
-  build: () => ({
+  build: () => galaxyScale({
     units: 'ly',
     points: [
       { id: 'tw_hub', xyz: [22000, 0, -18000], marker: 'diamond', label: 'TRANSWARP HUB', style: 'minor', color: 'var(--lcars-green)' },

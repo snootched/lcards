@@ -66,6 +66,7 @@ export const DEFAULT_COLORS = {
  * @property {import('../lines.js').FatLine[]} lines
  * @property {import('three').Group[]} gridFaces
  * @property {(() => void) | null} update
+ * @property {() => void} [repin] - a line pinned in world space (lines.js anchoredRuns): drawn again if what it stands in moved
  * @property {boolean} dynamic
  * @property {import('../star-field.js').StarField} [field] - backdrop stars and dust
  * @property {((dt: number, t: number) => boolean) | null} tick - own motion per frame (drift, scan, flow): dt and the scene clock in ms; true while it still moves

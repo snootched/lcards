@@ -945,7 +945,7 @@ const followGap = (page, id) => page.evaluate((pid) => {
     return Math.hypot(p.x - s.keys.tx, p.y - s.keys.ty, p.z - s.keys.tz);
 }, id);
 
-test('N1 follow: a tap on a moving point lands on it and keeps it centred; zoom keeps it, a pan lets go', async ({ page }) => {
+test('N1 follow: a tap on a moving point lands on it and keeps it centred; zoom keeps it, a pan keeps following offset from it', async ({ page }) => {
     await mountCase(page, 'astro-follow', { width: '800' });
     await sceneReady(page);
     const ship = await pointOnPage(page, 'ship');
@@ -969,18 +969,21 @@ test('N1 follow: a tap on a moving point lands on it and keeps it centred; zoom 
     expect(await followGap(page, 'ship')).toBeLessThan(0.5);
     expect((await sceneState(page)).keys.distance).toBeLessThan(before.distance);
 
-    // a pan (shift-drag) lets go: the target stays where the pan left it
+    // a pan (shift-drag) keeps following, offset from the ship: the gap holds while the ship moves on
     await page.keyboard.down('Shift');
     await page.mouse.move(b.x + b.w / 2, b.y + b.h / 2);
     await page.mouse.down();
     await page.mouse.move(b.x + b.w / 2 + 40, b.y + b.h / 2, { steps: 3 });
     await page.mouse.up();
     await page.keyboard.up('Shift');
-    expect(await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().follow)).toBeNull();
+    expect(await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().follow)).toEqual({ id: 'ship', moving: true });
+    const gap = await followGap(page, 'ship');
+    expect(gap).toBeGreaterThan(0.5);
     const parked = (await sceneState(page)).keys;
     await page.waitForTimeout(300);
     const still = (await sceneState(page)).keys;
-    expect([still.tx, still.tz]).toEqual([parked.tx, parked.tz]);
+    expect(Math.hypot(still.tx - parked.tx, still.tz - parked.tz)).toBeGreaterThan(1);
+    expect(Math.abs((await followGap(page, 'ship')) - gap)).toBeLessThan(0.5);
     await expectNoErrors(page);
 });
 
@@ -1340,7 +1343,8 @@ test('R4c1 galaxy: the Milky Way draws in light years, fewer stars far away, a p
 });
 
 test('R4c2 Star Trek galaxy: every view draws; Federation space hides the near powers\' regions and shows the capitals', async ({ page }) => {
-    test.setTimeout(90_000);
+    // eight views of the whole galaxy on SwiftShader: about 30 s alone, slower beside the rest of the suite
+    test.setTimeout(180_000);
     await mountCase(page, 'astro-star-trek', { width: '800' });
     await sceneReady(page);
     const fly = (v) => page.evaluate((x) => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo(x, { duration: 0 }), v);
@@ -1362,5 +1366,27 @@ test('R4c2 Star Trek galaxy: every view draws; Federation space hides the near p
     // inside the Federation region: its walls (and the other near powers' names) are hidden
     await expect.poll(async () => (await alphas()).federation_space, { timeout: 3000 }).toBe(0);
     expect(await shown()).not.toContain('klingon_name');
+    await expectNoErrors(page);
+});
+
+test('R4d hide_in_systems: a galaxy-scale line and label show outside every system and step aside inside one', async ({ page }) => {
+    await mountCase(page, 'astro-hide-in-systems', { width: '800' });
+    await sceneReady(page);
+    const state = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const vega = s.labelItems.find((l) => l.id === 'vega');
+        return { frame: s.frame, line: s.objectAlphas.core_line, vega: vega?.alphaScale };
+    });
+    const fly = (v) => page.evaluate((x) => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo(x, { duration: 0 }), v);
+    await fly('near_sol');
+    await expect.poll(async () => (await state()).frame, { timeout: 5000 }).toBe('root');
+    let st = await state();
+    expect(st.line ?? 1).toBeGreaterThan(0);
+    expect(st.vega).toBe(1);
+    await fly('station');
+    await expect.poll(async () => (await state()).frame, { timeout: 5000 }).toBe('sol_system');
+    st = await state();
+    expect(st.line).toBe(0);
+    expect(st.vega).toBe(0);
     await expectNoErrors(page);
 });

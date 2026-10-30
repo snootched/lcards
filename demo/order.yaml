@@ -19,6 +19,13 @@ topics:
 releases:
   - version: "2026.10.0"
     views:
+      - file: astro-showcase
+        topic: astrometrics
+        summary: "Astrometrics showcase: the Star Trek galaxy down to Deep Space 9"
+        description: "Every astrometrics feature in one card, in an LCARS frame. The stops on the left fly from the galaxy (the quadrants and the powers) to Federation space, the real Sol system on today's date (Spacedock at Earth, the Utopia Planitia yards over Mars, Jupiter, Saturn, Pluto), and on to the Bajor system: Deep Space 9 and its shields, the wormhole, a nebula to fly through and a Borg cube. Along the bottom: orbits and planet grids on or off, a Borg incursion, the shields, the wormhole's power, the date's rate, the alert status, the date itself, and the guided tour (PLAY TOUR steps through every stop)."
+        session: "R4d"
+        docs: /cards/astrometrics/
+        public: true
       - file: chart-sources
         topic: charts
         summary: "Charts, rebuilt: entity history, long-term statistics and data sources"

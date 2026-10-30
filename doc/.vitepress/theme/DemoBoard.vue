@@ -71,6 +71,35 @@ async function show(path) {
     const narrow = stage.value.clientWidth < 700
     // Every card mounts at once: one slow card (a WebGL scene, a texture) never holds back the rest
     const mounting = []
+    // a layout view (the astrometrics showcase): one CSS grid of named areas, as lcards-layout-view lays it out
+    if (view.config.type === 'custom:lcards-layout-view') {
+      const l = view.config.layout ?? {}
+      const grid = document.createElement('div')
+      grid.className = 'demo-board-layout'
+      Object.assign(grid.style, {
+        display: 'grid',
+        gap: l['grid-gap'] ?? '8px',
+        gridTemplateColumns: l['grid-template-columns'] ?? '1fr',
+        gridTemplateRows: l['grid-template-rows'] ?? 'auto',
+        gridTemplateAreas: l['grid-template-areas'] ?? 'none',
+        height: l['min-height'] ?? '900px'
+      })
+      stage.value.appendChild(grid)
+      for (const config of view.config.cards ?? []) {
+        const cell = document.createElement('div')
+        cell.className = 'demo-board-cell'
+        const vl = config.view_layout ?? {}
+        if (vl['grid-area']) cell.style.gridArea = vl['grid-area']
+        if (vl['grid-column']) cell.style.gridColumn = vl['grid-column']
+        cell.style.minHeight = '0'
+        grid.appendChild(cell)
+        env.ensureEntities(config)
+        mounting.push(env.mount(cell, config).then((card) => {
+          if (run !== generation) return env.unmount(card)
+          mounted.push(card)
+        }))
+      }
+    }
     for (const section of view.config.sections ?? []) {
       const total = 12 * (section.column_span ?? 1)
       const grid = document.createElement('div')

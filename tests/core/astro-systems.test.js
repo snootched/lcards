@@ -202,3 +202,42 @@ test('the config checker: system units need the card\'s, no system in a system, 
   // views and paths at the card level name points inside a system
   assert.deepEqual(issues({ ...DIVE, camera: { views: { s: { target: 'ds9', distance: 4 } } } }), []);
 });
+
+test('a path from one far system to another: exact at the end the camera is at, its arch in its own units', () => {
+  const w = buildScene({
+    units: 'ly',
+    points: [{ id: 'a_sys', xyz: [-46, 0, 26024] }, { id: 'b_sys', xyz: [-37997, 1, -31996.5] }],
+    objects: [
+      { type: 'system', id: 'a', at: 'a_sys', units: 'km', points: [{ id: 'a_end', xyz: [32.3, 10.7, 49.4] }] },
+      { type: 'system', id: 'b', at: 'b_sys', units: 'km', points: [{ id: 'b_end', xyz: [-17.1, -4.2, 33.9] }] },
+      { type: 'path', id: 'link', points: ['a_end', 'b_end'], arc: 4000 }
+    ]
+  }, /** @type {any} */ (ctx()));
+  const f = w.frames;
+  const line = /** @type {any} */ (w.objects.get('link')).lines[0];
+  /** the line's vertices in world space (current frame) */
+  const verts = () => {
+    w.scene.updateMatrixWorld(true);
+    const abs = line._abs;
+    const out = [];
+    for (let i = 0; i + 2 < abs.length; i += 3) out.push(new Vector3(abs[i], abs[i + 1], abs[i + 2]).applyMatrix4(line.object.matrixWorld));
+    return out;
+  };
+  for (const [frame, end, other] of [['b', 'b_end', 'a_end'], ['a', 'a_end', 'b_end']]) {
+    f.current = frame;
+    f.place();
+    w.scene.updateMatrixWorld(true);
+    w.rebased();
+    const v = verts();
+    const p = /** @type {Vector3} */ (w.places.get(end));
+    const near = v.reduce((m, q) => (q.distanceTo(p) < m.distanceTo(p) ? q : m));
+    // within a metre at a km scale, 38,000 ly from the galaxy's origin (a single number in ly holds only ~70 km there)
+    assert.ok(near.distanceTo(p) < 1e-3, `${frame}: ${near.distanceTo(p)} km off`);
+    // the arch is 4000 ly high in km, not 4000 km
+    const q = /** @type {Vector3} */ (w.places.get(other));
+    const mid = v[Math.floor(v.length / 2)];
+    const chordMid = p.clone().add(q).multiplyScalar(0.5);
+    assert.ok(Math.abs((mid.y - chordMid.y) / KM_PER_LY - 4000) < 50, `${frame}: arch ${(mid.y - chordMid.y) / KM_PER_LY} ly`);
+  }
+  w.dispose();
+});

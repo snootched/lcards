@@ -61,7 +61,9 @@ for (const view of SAMPLES) {
             const overlays = cards.filter(c => c.type === 'custom:lcards-alert-overlay').length;
             return n + overlays + frameGroups(cards.filter(c => c.type !== 'custom:lcards-alert-overlay')).length;
         }, 0);
-        expect(cards.length).toBe(own + (view.description ? 2 : 1));
+        // a layout view (the showcase) mounts its own cards, its header already in its head area
+        if (view.config.type === 'custom:lcards-layout-view') expect(cards.length).toBe(view.config.cards.length);
+        else expect(cards.length).toBe(own + (view.description ? 2 : 1));
         for (const c of cards) {
             expect(c.tag).toMatch(/^lcards-/);
             // the alert overlay has no size until an alert mode is on

@@ -1,0 +1,49 @@
+# Scripts and automations some demo views use (the helpers they use are in
+# tests/ha/ha-client.mjs). npm run demo:push creates them in the dev Home
+# Assistant; the docs live-demo page adds the ones a public view mentions to its
+# package. A view lists what it needs in a comment: "# uses: script.<id>" or
+# "# uses: automation.<id>".
+script:
+  # The astrometrics showcase's guided tour: step the stage every 12 seconds
+  # through the 14 stops, then back to the start.
+  lcards_test_tour:
+    alias: LCARdS Test Tour
+    mode: restart
+    sequence:
+      - action: input_number.set_value
+        target: { entity_id: input_number.lcards_test_stage }
+        data: { value: 0 }
+      - repeat:
+          count: 13
+          sequence:
+            - delay: { seconds: 12 }
+            - action: input_number.increment
+              target: { entity_id: input_number.lcards_test_stage }
+automation:
+  # The astrometrics showcase's alert status from the mode select:
+  # alpha normal, beta yellow alert, gamma red alert.
+  - id: lcards_test_alert
+    alias: LCARdS Test Alert
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: input_select.lcards_test_mode
+    actions:
+      - action: lcards.set_alert_mode
+        data:
+          mode: >-
+            {{ {'alpha': 'green_alert', 'beta': 'yellow_alert', 'gamma': 'red_alert'}[trigger.to_state.state] | default('green_alert') }}
+  # The astrometrics showcase's scene date from the date helper (set it with
+  # its more-info dialog); the date only moves when the helper changes, so a
+  # helper never set does not move the planets.
+  - id: lcards_test_date
+    alias: LCARdS Test Date
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: input_datetime.lcards_test_date
+    actions:
+      - action: lcards.set_clock
+        data:
+          card_id: astro_showcase
+          date: "{{ states('input_datetime.lcards_test_date') }}"

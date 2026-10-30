@@ -880,7 +880,10 @@ export function createAstroScene(host, config, options = {}) {
     // Level of detail for this view (belt rocks far away become dots)
     for (const b of world.list) b.lod?.({ camera, height: cssH, dpr });
     // Objects out of their distance range hide, partly faded ones blend, for this render
-    fader.begin(world.list, world.outer, camera.position, (b) => unitOf(b.config._system), (b) => liveAlpha.get(b.id) ?? 1);
+    const inSystem = world.frames.current !== ROOT;
+    fader.begin(world.list, world.outer, camera.position, (b) => unitOf(b.config._system),
+      // an opacity from an entity; galaxy-scale objects step aside inside a star system
+      (b) => (inSystem && b.config.hide_in_systems === true ? 0 : (liveAlpha.get(b.id) ?? 1)));
     try {
       const plan = depthPlan(camera);
       const scene = world.scene;
@@ -996,6 +999,8 @@ export function createAstroScene(host, config, options = {}) {
       it.world = world.places.get(it.id);
       it.unit = unitOf(def._system);
       it.alphaScale = pointAlpha.get(it.id) ?? 1;
+      // galaxy-scale labels step aside while the camera works inside a star system
+      if (def.hide_in_systems === true && world.frames.current !== ROOT) it.alphaScale = 0;
       const alt = def.sky ? sky?.[/** @type {'sun' | 'moon'} */ (def.sky)]?.altitude : Array.isArray(def.altaz) ? Number(def.altaz[1]) : undefined;
       if (alt !== undefined && alt < 0) {
         const mode = def.below_horizon ?? (def.sky ? 'dim' : 'show');
@@ -1668,7 +1673,6 @@ export function createAstroScene(host, config, options = {}) {
     if (command === 'reset') { goHome(); return; }
     const c = CAMERA_COMMANDS[command];
     if (!c) return;
-    if (c.step.pan) letGo();
     rig.nudge(c.step);
     pressTimer = setTimeout(() => rig.setMotion(c.rate), PRESS_REPEAT_MS);
   }
@@ -1719,7 +1723,9 @@ export function createAstroScene(host, config, options = {}) {
   document.fonts?.addEventListener?.('loadingdone', onFonts);
   /** @param {boolean} on */
   const setControls = (on) => {
-    if (on) rig.attach(canvas, { onStart: () => { dragging = true; endPress(); }, shouldStart: () => !pointDrag, onPan: letGo });
+    // a pan keeps following: the view rides along with the point, offset from it (a planet on a fast clock
+    // would leave the view at once if it let go)
+    if (on) rig.attach(canvas, { onStart: () => { dragging = true; endPress(); }, shouldStart: () => !pointDrag });
     else { rig.detach(); endPress(); }
     wrap.style.touchAction = on ? 'none' : 'auto';
     if (on) wrap.tabIndex = 0;

@@ -14,9 +14,17 @@
  * one line with two runs. The dash pattern continues along a run and
  * restarts at the next.
  *
+ * **Anchored vertices.** The GPU stores positions as 32-bit floats: a route
+ * in a galaxy in light years has its Sol end at 26,000, good only to about
+ * 0.002 ly (18 billion km), so seen from inside the Sol system its end would
+ * jump by a solar system's width. A line keeps its positions in 64-bit and
+ * draws them relative to an anchor (`object.position`, full precision in the
+ * matrices): the vertex nearest the camera, moved when the camera is so close
+ * to the line that the float error would show.
+ *
  * @module core/astrometrics/lines
  */
-import { InstancedInterleavedBuffer, InterleavedBufferAttribute, AdditiveBlending, Color, SRGBColorSpace, Matrix4 } from 'three';
+import { InstancedInterleavedBuffer, InterleavedBufferAttribute, AdditiveBlending, Color, SRGBColorSpace, Matrix4, Vector3 } from 'three';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
@@ -40,12 +48,13 @@ export class PxDashLineMaterial extends LineMaterial {
 /**
  * Flatten runs to segment pairs.
  * @param {number[][]} runs - each a flat [x, y, z, ...] polyline
- * @returns {{ positions: Float32Array, starts: Uint8Array, count: number }} starts[i] = 1 where segment i begins a run
+ * @returns {{ positions: Float64Array, starts: Uint8Array, count: number }} starts[i] = 1 where segment i begins a run
  */
 export function runsToSegments(runs) {
   let count = 0;
   for (const r of runs) count += Math.max(0, r.length / 3 - 1);
-  const positions = new Float32Array(count * 6);
+  // 64-bit: a line far from its frame's origin keeps its precision until it is anchored (FatLine)
+  const positions = new Float64Array(count * 6);
   const starts = new Uint8Array(count);
   let i = 0;
   for (const r of runs) {
@@ -59,42 +68,79 @@ export function runsToSegments(runs) {
 }
 
 /**
- * Cumulative screen-space length (CSS px) at both ends of every segment.
- * Segments with an end behind the camera add nothing.
- * @param {Float32Array} positions - segment pairs (object space)
+ * Cumulative screen-space length (CSS px) at both ends of every segment, as
+ * the dash distances the line shader interpolates.
+ *
+ * A segment with one end behind the camera is trimmed by three.js's line
+ * shader at its near-plane estimate, and that end's distance interpolated by
+ * the same fraction (`mix(start, end, alpha)`). With `proj` the same trim is
+ * done here and the end's value chosen so the shader's interpolation lands on
+ * the true screen length at the cut; without it (or for an orthographic
+ * camera) such a segment adds nothing. Without this, a line running from
+ * beside the camera to far away draws huge dashes that jump as the camera
+ * moves.
+ * @param {Float32Array | Float64Array} positions - segment pairs (object space)
  * @param {Uint8Array} starts
  * @param {Matrix4} mvp - projection * view * model
  * @param {number} width - CSS px
  * @param {number} height
  * @param {Float32Array} out - 2 per segment
+ * @param {Matrix4} [proj] - the camera's projection matrix (its near-plane estimate)
  * @returns {Float32Array}
  */
-export function screenDistances(positions, starts, mvp, width, height, out) {
+export function screenDistances(positions, starts, mvp, width, height, out, proj) {
   const e = mvp.elements;
+  const p = proj?.elements;
+  // perspective (as LineMaterial tests it): projectionMatrix[2][3] == -1
+  const perspective = !!p && p[11] === -1;
+  // the shader's near-plane estimate (view z), as clip w
+  const wNear = perspective ? -(p[10] > 0 ? -p[14] / (p[10] + 1) : (-0.5 * p[14]) / p[10]) : 0;
+  const w = (/** @type {number} */ o) => e[3] * positions[o] + e[7] * positions[o + 1] + e[11] * positions[o + 2] + e[15];
+  /** screen position of a point between two ends (t from the first), CSS px */
+  const at = (/** @type {number} */ a, /** @type {number} */ b, /** @type {number} */ t) => {
+    const x = positions[a] + (positions[b] - positions[a]) * t;
+    const y = positions[a + 1] + (positions[b + 1] - positions[a + 1]) * t;
+    const z = positions[a + 2] + (positions[b + 2] - positions[a + 2]) * t;
+    const cw = e[3] * x + e[7] * y + e[11] * z + e[15];
+    return [((e[0] * x + e[4] * y + e[8] * z + e[12]) / cw) * 0.5 * width, ((e[1] * x + e[5] * y + e[9] * z + e[13]) / cw) * 0.5 * height];
+  };
   let acc = 0;
-  let px = 0;
-  let py = 0;
-  let pok = false;
   const n = starts.length;
   for (let i = 0; i < n; i++) {
     if (starts[i]) acc = 0;
-    out[i * 2] = acc;
-    // end point only: the start is the previous end within a run
-    for (let k = starts[i] ? 0 : 1; k < 2; k++) {
-      const o = i * 6 + k * 3;
-      const x = positions[o];
-      const y = positions[o + 1];
-      const z = positions[o + 2];
-      const w = e[3] * x + e[7] * y + e[11] * z + e[15];
-      const ok = w > 1e-6;
-      const sx = ok ? ((e[0] * x + e[4] * y + e[8] * z + e[12]) / w) * 0.5 * width : 0;
-      const sy = ok ? ((e[1] * x + e[5] * y + e[9] * z + e[13]) / w) * 0.5 * height : 0;
-      if (k === 1 && ok && pok) acc += Math.hypot(sx - px, sy - py);
-      px = sx;
-      py = sy;
-      pok = ok;
+    const a = i * 6;
+    const b = a + 3;
+    const w0 = w(a);
+    const w1 = w(b);
+    if (w0 > 1e-6 && w1 > 1e-6) {
+      const [x0, y0] = at(a, b, 0);
+      const [x1, y1] = at(a, b, 1);
+      const len = Math.hypot(x1 - x0, y1 - y0);
+      out[i * 2] = acc;
+      out[i * 2 + 1] = acc + len;
+      acc += len;
+    } else if (perspective && w0 > 0 && w1 <= 0) {
+      // the end is behind: the shader cuts at alpha and interpolates the end's distance by it
+      const alpha = (w0 - wNear) / (w0 - w1);
+      const [x0, y0] = at(a, b, 0);
+      const [xc, yc] = at(a, b, alpha);
+      const len = Math.hypot(xc - x0, yc - y0);
+      out[i * 2] = acc;
+      out[i * 2 + 1] = alpha > 1e-9 ? acc + len / alpha : acc;
+      acc += len;
+    } else if (perspective && w1 > 0 && w0 <= 0) {
+      // the start is behind: cut from the end's side
+      const alpha = (w1 - wNear) / (w1 - w0);
+      const [x1, y1] = at(a, b, 1);
+      const [xc, yc] = at(b, a, alpha);
+      const len = Math.hypot(x1 - xc, y1 - yc);
+      out[i * 2] = alpha > 1e-9 ? acc + len - len / alpha : acc;
+      out[i * 2 + 1] = acc + len;
+      acc += len;
+    } else {
+      out[i * 2] = acc;
+      out[i * 2 + 1] = acc;
     }
-    out[i * 2 + 1] = acc;
   }
   return out;
 }
@@ -103,6 +149,8 @@ export function screenDistances(positions, starts, mvp, width, height, out) {
 const toLinear = (rgb) => rgb.map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
 
 const _mvp = new Matrix4();
+const _inv = new Matrix4();
+const _cam = new Vector3();
 
 /**
  * @typedef {Object} LineStyle
@@ -142,8 +190,14 @@ export class FatLine {
     this.object = new LineSegments2(this.geometry, this.material);
     this.object.renderOrder = style.renderOrder ?? 3;
     this.object.frustumCulled = false;
-    /** @type {{ positions: Float32Array, starts: Uint8Array, count: number }} */
-    this._segs = { positions: new Float32Array(0), starts: new Uint8Array(0), count: 0 };
+    /** @type {{ positions: Float64Array, starts: Uint8Array, count: number }} relative to the anchor */
+    this._segs = { positions: new Float64Array(0), starts: new Uint8Array(0), count: 0 };
+    /** @type {Float64Array} the segment ends in the line's own space (the anchor added back) */
+    this._abs = new Float64Array(0);
+    /** The anchor: where the vertices are measured from (`object.position`) */
+    this._anchor = [0, 0, 0];
+    /** Moved in place by moveSegments (a deforming rim): never re-anchored, its base positions stay as given */
+    this._moved = false;
     /** @type {Float32Array | null} */
     this._dist = null;
     /** @type {InstancedInterleavedBuffer | null} */
@@ -157,14 +211,15 @@ export class FatLine {
    */
   setRuns(runs) {
     const segs = runsToSegments(runs);
-    this._segs = segs;
+    this._abs = segs.positions;
+    this._segs = { ...segs, positions: this._relative(segs.positions) };
     if (!segs.count) {
       this.object.visible = false;
       return;
     }
     this.object.visible = true;
     // (setPositions makes fresh instance buffers; the old ones go with the old attributes)
-    this.geometry.setPositions(segs.positions);
+    this.geometry.setPositions(Float32Array.from(this._segs.positions));
     // three caches the instance count the first time it draws the geometry and
     // never again: a line that grows (a trail) would stay at its first length
     /** @type {any} */ (this.geometry)._maxInstanceCount = undefined;
@@ -183,7 +238,7 @@ export class FatLine {
    * @returns {Float32Array}
    */
   segmentPositions() {
-    return this._segs.positions.slice();
+    return Float32Array.from(this._segs.positions);
   }
 
   /**
@@ -194,8 +249,63 @@ export class FatLine {
   moveSegments(positions) {
     const attr = /** @type {any} */ (this.geometry.getAttribute('instanceStart'));
     if (!attr || attr.data.array.length !== positions.length) return;
+    this._moved = true;
     attr.data.array.set(positions);
     attr.data.needsUpdate = true;
+  }
+
+  /**
+   * Positions relative to the anchor.
+   * @param {Float64Array} abs
+   * @private
+   */
+  _relative(abs) {
+    const [ax, ay, az] = this._anchor;
+    const out = new Float64Array(abs.length);
+    for (let i = 0; i < abs.length; i += 3) {
+      out[i] = abs[i] - ax;
+      out[i + 1] = abs[i + 1] - ay;
+      out[i + 2] = abs[i + 2] - az;
+    }
+    return out;
+  }
+
+  /**
+   * Keep the vertices near the camera exact: when the camera is so close to
+   * the line that 32-bit positions measured from the anchor would be off by
+   * more than about a millionth of its distance, the vertex nearest it
+   * becomes the anchor. Most lines never move theirs.
+   * @param {import('three').Camera} camera - matrices up to date
+   * @returns {boolean} whether it moved
+   */
+  anchorTo(camera) {
+    const abs = this._abs;
+    if (this._moved || !this._segs.count || !this.object.visible || !this.object.parent) return false;
+    // the camera in the line's own space (the parent's: the anchor is object.position)
+    _cam.setFromMatrixPosition(camera.matrixWorld).applyMatrix4(_inv.copy(this.object.parent.matrixWorld).invert());
+    let best = 0;
+    let bestD = Infinity;
+    for (let i = 0; i < abs.length; i += 3) {
+      const d = (abs[i] - _cam.x) ** 2 + (abs[i + 1] - _cam.y) ** 2 + (abs[i + 2] - _cam.z) ** 2;
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    const [ax, ay, az] = this._anchor;
+    const off = Math.hypot(abs[best] - ax, abs[best + 1] - ay, abs[best + 2] - az);
+    // 32-bit floats hold about 7 digits: the nearest vertex is off by ~6e-8 of its offset from the anchor
+    if (off * 1e-6 <= Math.sqrt(bestD)) return false;
+    this._anchor = [abs[best], abs[best + 1], abs[best + 2]];
+    this._segs = { ...this._segs, positions: this._relative(abs) };
+    const attr = /** @type {any} */ (this.geometry.getAttribute('instanceStart'));
+    if (attr && attr.data.array.length === this._segs.positions.length) {
+      attr.data.array.set(this._segs.positions);
+      attr.data.needsUpdate = true;
+    } else {
+      this.geometry.setPositions(Float32Array.from(this._segs.positions));
+    }
+    this.geometry.computeBoundingSphere();
+    this.object.position.set(this._anchor[0], this._anchor[1], this._anchor[2]);
+    this.object.updateMatrixWorld();
+    return true;
   }
 
   /**
@@ -236,9 +346,10 @@ export class FatLine {
    * @param {number} height
    */
   updateDashes(camera, width, height) {
+    this.anchorTo(camera);
     if (!this.dashed || !this._dist || !this._distBuffer || !this._segs.count || !this.object.visible) return;
     _mvp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).multiply(this.object.matrixWorld);
-    screenDistances(this._segs.positions, this._segs.starts, _mvp, width, height, this._dist);
+    screenDistances(this._segs.positions, this._segs.starts, _mvp, width, height, this._dist, camera.projectionMatrix);
     this._distBuffer.needsUpdate = true;
   }
 

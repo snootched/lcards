@@ -31,7 +31,7 @@ import { mkdirSync } from 'node:fs';
 import yaml from 'js-yaml';
 import { relative } from 'node:path';
 import { HAClient, HA_URL, readToken, ensureHelpers, TEST_HELPERS, GALLERY_HELPERS } from '../tests/ha/ha-client.mjs';
-import { loadDemo, viewTexts, buildDashboard, BOARDS } from './lib/demo-dashboard.js';
+import { loadDemo, loadPackage, viewTexts, buildDashboard, BOARDS } from './lib/demo-dashboard.js';
 import { validateTexts } from './lcards-validate.mjs';
 import { launchChromium, newHAContext, openDashboardView, collectLcardsErrors } from './lib/ha-browser.mjs';
 
@@ -69,6 +69,10 @@ if (!token) {
 }
 const client = await HAClient.connect(token);
 await ensureHelpers(client, { ...TEST_HELPERS, ...GALLERY_HELPERS });
+// the scripts and automations the views use (demo/package.yaml), created or replaced
+const extras = loadPackage();
+for (const [id, cfg] of Object.entries(extras.script)) await client.saveConfig('script', id, cfg);
+for (const cfg of extras.automation) await client.saveConfig('automation', cfg.id, cfg);
 const dashboards = await client.call({ type: 'lovelace/dashboards/list' });
 const viewPath = typeof opt('view') === 'string' ? opt('view') : 'index';
 for (const b of boardNames) {

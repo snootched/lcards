@@ -168,8 +168,10 @@ export class LCARdSAstroSchemaForm extends LitElement {
       case 'text':
         // a guided tour ({ entity, views }) or a date binding: YAML
         if (isObj(value)) return this._yaml(key, s);
-        if (this.choices?.[key]) {
-          const options = [{ value: '', label: '(Not set)' }, ...this.choices[key].map((v) => ({ value: v, label: v }))];
+        // a word or a point id (face: motion, or a point to turn toward)
+        if (this.choices?.[key] || Array.isArray(s.pointWords)) {
+          const words = this.choices?.[key] ?? [...s.pointWords, ...this.pointIds];
+          const options = [{ value: '', label: '(Not set)' }, ...words.map((/** @type {string} */ v) => ({ value: v, label: v }))];
           return this._selector(key, { select: { mode: 'dropdown', options, custom_value: true } }, value ?? '', label, helper, cls, (v) => v || undefined);
         }
         return this._selector(key, { text: {} }, value === undefined ? '' : String(value), label, helper, cls, (v) => v || undefined);

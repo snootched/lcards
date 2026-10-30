@@ -5,6 +5,8 @@
  * galaxy starter (galaxy ly, the core at 0). The outlines are our own.
  */
 
+import { galaxyScale } from './scene-star-trek-galaxy.js';
+
 /** [id, label, colour, outline [x, z] ly, label place] */
 const POWERS = /** @type {[string, string, string, [number, number][], [number, number]][]} */ ([
   ['kazon', 'KAZON SECTS', 'var(--lcars-orange)', [[33000, -38000], [41000, -36000], [42000, -29000], [35000, -27000], [31000, -31000]], [37000, -33000]],
@@ -19,7 +21,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   description: 'For the Star Trek galaxy: Kazon, Vidiian and Hirogen space along Voyager\'s route home, in the order Voyager met them.',
   icon: 'mdi:map-marker-path',
   params: [{ key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: '' }],
-  build: () => ({
+  build: () => galaxyScale({
     units: 'ly',
     points: POWERS.map(([id, label, color, , [x, z]]) => ({ id: `${id}_name`, xyz: [x, 1500, z], label, style: 'minor', color })),
     objects: POWERS.map(([id, , color, outline]) => ({

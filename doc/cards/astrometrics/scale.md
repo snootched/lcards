@@ -83,6 +83,7 @@ objects:
 - **Ids are card-wide:** views, `fly-to`, rules, templates and paths name a system's points and objects like any others.
 - **Distances are in the owner's units:** a view's `distance` is in its target's units (the `station` view above is 4 km, the `galaxy` view 140,000 ly), and so are a point's or object's `fade`, `min_distance` and `max_distance`. A view with an `[x, y, z]` target, and `camera.limits`, are in scene units.
 - **The camera follows:** within a few times its size of a system, the camera works in the system's units, so a station a few km across holds steady; further out it works in the scene's. Nothing on screen moves at the change, and a fly-to from the galaxy lands exactly on its target inside.
+- **Galaxy-scale things in the close-ups:** a region's walls or a quadrant line thousands of light years long would cross a close-up of a planet. `hide_in_systems: true` on a point or object hides it while the camera is inside any system (within a few times its size, where it works in the system's units); outside every system it shows as usual. The [Star Trek galaxy](./starters#star-trek-galaxy) starter sets it on its regions, lines and names.
 - **One level:** a system cannot hold another system (it reaches from a galaxy down to a station already). A system is not rotated: its axes are the scene's.
 
 ## The real Solar System

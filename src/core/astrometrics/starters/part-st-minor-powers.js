@@ -7,7 +7,7 @@
  * and Tholian space in Beta per Star Charts, Breen and Tzenkethi in Alpha),
  * at places of our own.
  */
-import { nearSol } from './scene-star-trek-galaxy.js';
+import { nearSol, galaxyScale } from './scene-star-trek-galaxy.js';
 
 /** [id, label, dx, dz, colour] ly from Sol */
 const POWERS = /** @type {const} */ ([
@@ -25,7 +25,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   description: 'For the Star Trek galaxy: the Ferengi, Breen, Tzenkethi, Tholian and Gorn homeworlds round Federation space, each with a small territory, at the close-up\'s scale (Ferenginar at its recorded 55 ly from Cardassia and 60 from Bajor).',
   icon: 'mdi:account-group-outline',
   params: [{ key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: '' }],
-  build: () => ({
+  build: () => galaxyScale({
     units: 'ly',
     points: POWERS.map(([id, label, dx, dz, color]) => ({ id, xyz: nearSol(dx, dz), marker: 'diamond', label, style: 'minor', color, max_distance: 3000 })),
     // a small territory round each homeworld (ly; the outline is our own)

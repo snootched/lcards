@@ -78,6 +78,9 @@ for (const board of Object.keys(BOARDS)) {
     });
 }
 
+/** A view laid out as an lcards-layout-view (its own frame, no sections) */
+const isLayoutView = (config) => config?.type === 'custom:lcards-layout-view';
+
 test('public board: no benchmarks or checks; the dev board has them', () => {
     const pub = buildDashboard(demo, { board: 'public' }).views.map(v => v.path);
     assert.ok(!pub.some(p => p.startsWith('bench') || p === 'alert-recolour'), pub.join(', '));
@@ -90,7 +93,7 @@ test('public board: no benchmarks or checks; the dev board has them', () => {
             assert.equal(headerNote(v, { board: 'dev', release: r.version }), `${r.version} · ${v.session}`, v.file);
         }
     }
-    const header = JSON.stringify(buildDashboard(demo, { board: 'public' }).views[1].sections[0]);
+    const header = JSON.stringify(buildDashboard(demo, { board: 'public' }).views.find((v, i) => i > 0 && v.sections).sections[0]);
     assert.ok(header.includes(`"${demo.releases[0].version}"`), 'the release is in the header bar');
 });
 
@@ -125,6 +128,14 @@ test('the docs site\'s headers have no Index link (it has its own picker)', () =
 
 test('astrometrics demos are big: the card full width and at least 600 px tall', () => {
     for (const v of views.filter(x => x.topic === 'astrometrics')) {
+        if (isLayoutView(v.config)) {
+            // a layout view: the card fills its grid area, the view is at least 600 px tall
+            const astro = (v.config.cards ?? []).find(c => c.type === 'custom:lcards-astrometrics-card');
+            assert.ok(astro, `${v.file}: no astrometrics card`);
+            assert.equal(astro.height, '100%', `${v.file}: the card fills its area`);
+            assert.ok(parseInt(v.config.layout['min-height'], 10) >= 600, `${v.file}: min-height`);
+            continue;
+        }
         const cards = (v.config.sections ?? []).flatMap(sec => sec.cards ?? []);
         const astro = cards.filter(c => c.type === 'custom:lcards-astrometrics-card');
         assert.ok(astro.length, `${v.file}: no astrometrics card`);
@@ -176,7 +187,8 @@ const framesOf = (view) => view.sections.slice(1).flatMap(sec => sec.cards).filt
 
 test('every view: its cards sit in numbered LCARS frames (sweep, bar, content, footer), placed at every width', () => {
     const board = buildDashboard(demo, { board: 'dev' });
-    for (const view of board.views.slice(1)) {
+    // a layout view is its own frame
+    for (const view of board.views.slice(1).filter(v => !isLayoutView(v))) {
         const source = views.find(v => v.path === view.path);
         const own = (source.config.sections ?? []).flatMap(sec => sec.cards ?? []).filter(c => c.type !== 'custom:lcards-alert-overlay');
         const frames = framesOf(view);
@@ -201,7 +213,7 @@ test('every view: its cards sit in numbered LCARS frames (sweep, bar, content, f
 });
 
 test('every scene has a frame of its own (cards never run together)', () => {
-    for (const view of buildDashboard(demo, { board: 'dev' }).views.slice(1)) {
+    for (const view of buildDashboard(demo, { board: 'dev' }).views.slice(1).filter(v => !isLayoutView(v))) {
         for (const f of framesOf(view)) {
             const scenes = f.cards[2].cards.filter(c => cardSpan(c, 48).columns === 48 && cardSpan(c, 48).rows >= 6);
             assert.ok(scenes.length <= 1, `${view.path}: ${scenes.length} scenes in one frame`);
@@ -212,7 +224,8 @@ test('every scene has a frame of its own (cards never run together)', () => {
 test('headers: the title and plain segments are not buttons; Index and Docs are; the sweeps are rounded', () => {
     const board = buildDashboard(demo, { board: 'dev' });
     for (const view of board.views) {
-        const headers = view.sections.flatMap(sec => sec.cards).filter(c => c.type === 'custom:lcards-layout-card' && c.cards.some(x => x.preset === 'text-only'));
+        const all = isLayoutView(view) ? view.cards : view.sections.flatMap(sec => sec.cards);
+        const headers = all.filter(c => c.type === 'custom:lcards-layout-card' && c.cards.some(x => x.preset === 'text-only'));
         assert.ok(headers.length, view.path);
         for (const h of headers) {
             for (const c of h.cards.filter(x => x.type === 'custom:lcards-button')) {
@@ -262,14 +275,41 @@ test('fly-to buttons name a card on their view, and a view or point it has', () 
 
 test('the helper package on the live demo page defines every lcards_test_* helper a public view uses', async () => {
     const { TEST_HELPERS, GALLERY_HELPERS } = await import('../ha/ha-client.mjs');
-    const { helpersPackage } = await import('../../scripts/lib/demo-dashboard.js');
+    const { helpersPackage, loadPackage } = await import('../../scripts/lib/demo-dashboard.js');
     const pub = views.filter(v => v.public);
-    const pkg = helpersPackage(pub, { ...TEST_HELPERS, ...GALLERY_HELPERS });
-    assert.deepEqual(pkg.missing, [], 'a public view uses a helper with no definition');
+    const pkg = helpersPackage(pub, { ...TEST_HELPERS, ...GALLERY_HELPERS }, loadPackage());
+    assert.deepEqual(pkg.missing, [], 'a public view uses a helper, script or automation with no definition');
     const parsed = yaml.load(pkg.yaml);
     for (const id of pkg.ids) {
         const [domain, object] = id.split('.');
         assert.ok(parsed[domain]?.[object]?.name, `${id} in the package`);
         assert.equal(parsed[domain][object].type, undefined, `${id}: no create-command keys`);
     }
+});
+
+test('demo/package.yaml: the scripts and automations a view names go into the package; an unknown one is missing', async () => {
+    const { helpersPackage, loadPackage } = await import('../../scripts/lib/demo-dashboard.js');
+    const extras = loadPackage();
+    assert.ok(extras.script.lcards_test_tour, 'the tour script');
+    assert.ok(extras.automation.some((a) => a.id === 'lcards_test_alert'), 'the alert automation');
+    const pkg = helpersPackage([{ text: '# uses: automation.lcards_test_alert\naction: script.lcards_test_tour\nscript.lcards_test_nope' }], {}, extras);
+    const parsed = /** @type {any} */ (yaml.load(pkg.yaml));
+    assert.ok(parsed.script.lcards_test_tour.sequence);
+    assert.equal(parsed.automation[0].id, 'lcards_test_alert');
+    assert.deepEqual(pkg.missing, ['script.lcards_test_nope']);
+    assert.deepEqual(yaml.load(helpersPackage([{ text: 'nothing' }], {}, extras).yaml), {}, 'nothing named: nothing added');
+});
+
+test('the astrometrics showcase view is what scripts/make-astro-showcase.mjs writes (not edited by hand, not stale)', async () => {
+    const { spawnSync } = await import('node:child_process');
+    const r = spawnSync(process.execPath, ['scripts/make-astro-showcase.mjs', '--check'], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr || r.stdout);
+});
+
+test('the astrometrics showcase: every tour stop is a named view of its card (a bare point would fly in at the default distance)', async () => {
+    const { showcaseCard, STOPS } = await import('../../scripts/make-astro-showcase.mjs');
+    const card = await showcaseCard();
+    const views = Object.keys(card.camera.views);
+    for (const [view] of STOPS) assert.ok(views.includes(view), `stop ${view} has no view`);
+    assert.deepEqual(card.camera.view.views.map((s) => (typeof s === 'string' ? s : s.view)), STOPS.map(([v]) => v), 'the tour visits the stops in order');
 });

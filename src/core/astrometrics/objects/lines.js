@@ -371,7 +371,10 @@ function addBand(out, cfg, ctx, { a, b, from, to }) {
 
 /**
  * Points of a two-ended arched route: a sine bump of height `arc` (scene
- * units, upward) between a and b.
+ * units, upward) between a and b. Each half is measured from its own end,
+ * so both ends are exact: a route from a station near the camera to one a
+ * galaxy away ends on the near station to the metre, not within the
+ * rounding of the far one's huge coordinates.
  * @param {Vector3} a
  * @param {Vector3} b
  * @param {number} arc
@@ -381,8 +384,11 @@ export function arcRun(a, b, arc, n = 32) {
   const out = [];
   const steps = arc ? n : 1;
   for (let k = 0; k <= steps; k++) {
-    const t = k / steps;
-    out.push(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t + Math.sin(t * Math.PI) * arc, a.z + (b.z - a.z) * t);
+    const near = k * 2 <= steps;
+    const [p, q] = near ? [a, b] : [b, a];
+    // from the nearer end: t is 0 at it, so the end itself (and the bump's sin 0) are exact
+    const t = (near ? k : steps - k) / steps;
+    out.push(p.x + (q.x - p.x) * t, p.y + (q.y - p.y) * t + Math.sin(t * Math.PI) * arc, p.z + (q.z - p.z) * t);
   }
   return out;
 }
@@ -430,36 +436,76 @@ export function skyRuns(track, R) {
 
 /** @param {number} a @param {number} b */
 /**
- * Runs through world positions as the node draws them: local to its parent
- * (its object's group, inside its frame's) and relative to an anchor the
- * node moves to, so a line far from the origin (a route from Earth to a
- * station, in km) keeps its precision on the GPU.
+ * Runs through world positions as the node draws them: in its parent's
+ * units and turn (its object's group, inside its frame's), relative to an
+ * anchor, so a line far from the origin (a route from Earth to a station, in
+ * km) keeps its precision on the GPU. The node is pinned to the anchor in
+ * world space (its own world matrix: the parent's scale and turn, the
+ * anchor's position), never through its frame's offset: from inside a star
+ * system the galaxy frame sits some 10^17 km away, and a position sent
+ * through that offset loses tens of km, while the world position of a point
+ * near the camera is exact. The default anchor is the point nearest the
+ * world origin (the current frame's), where the camera works.
  * @param {import('three').Object3D} node
  * @param {number[][]} runs - world [x, y, z, ...]
- * @param {number[] | null} [anchor] - world [x, y, z]; default the first point
+ * @param {number[] | null} [anchor] - world [x, y, z]
  * @returns {number[][]}
  */
 export function anchoredRuns(node, runs, anchor = null) {
   const parent = node.parent;
-  const first = anchor ?? runs.find((r) => r.length >= 3) ?? null;
-  if (!parent || !first) {
+  let a = anchor;
+  if (!a) {
+    let best = Infinity;
+    for (const run of runs) {
+      for (let i = 0; i + 2 < run.length; i += 3) {
+        const d = run[i] * run[i] + run[i + 1] * run[i + 1] + run[i + 2] * run[i + 2];
+        if (d < best) { best = d; a = [run[i], run[i + 1], run[i + 2]]; }
+      }
+    }
+  }
+  if (!parent || !a) {
+    node.matrixWorldAutoUpdate = true;
     node.position.set(0, 0, 0);
     return runs;
   }
-  const inv = parent.matrixWorld.clone().invert();
+  parent.updateWorldMatrix(true, false);
+  const turn = parent.matrixWorld.clone().setPosition(0, 0, 0);
+  const inv = turn.clone().invert();
+  const at = new Vector3(a[0], a[1], a[2]);
+  node.position.copy(at).applyMatrix4(parent.matrixWorld.clone().invert());
+  node.matrixWorldAutoUpdate = false;
+  node.matrixWorld.copy(turn).setPosition(at);
+  node.matrixWorldNeedsUpdate = true;
   const v = new Vector3();
-  const o = new Vector3(first[0], first[1], first[2]).applyMatrix4(inv);
-  node.position.copy(o);
   return runs.map((run) => {
     const out = new Array(run.length);
     for (let i = 0; i + 2 < run.length; i += 3) {
-      v.set(run[i], run[i + 1], run[i + 2]).applyMatrix4(inv).sub(o);
+      v.set(run[i] - at.x, run[i + 1] - at.y, run[i + 2] - at.z).applyMatrix4(inv);
       out[i] = v.x;
       out[i + 1] = v.y;
       out[i + 2] = v.z;
     }
     return out;
   });
+}
+
+/**
+ * A still line pinned in world space (anchoredRuns) does not ride along when
+ * what it stands in moves (a system on a moving point): this draws it again
+ * when its parent's world matrix changed since it was last drawn.
+ * @param {import('three').Object3D} node
+ * @param {() => void} update
+ * @returns {() => void}
+ */
+function repinner(node, update) {
+  /** @type {Matrix4 | null} */
+  let last = null;
+  return () => {
+    const m = node.parent?.matrixWorld;
+    if (!m) return;
+    if (last && !last.equals(m)) update();
+    last = (last ?? new Matrix4()).copy(m);
+  };
 }
 
 const shortDelta = (a, b) => ((((b - a) % 360) + 540) % 360) - 180;
@@ -509,14 +555,18 @@ export function buildPath(cfg, ctx, objects) {
   out.update = () => {
     const pts = refs.map((r) => ctx.places?.resolve(r) ?? null).filter((p) => !!p);
     if (pts.length < 2) { set([]); return; }
+    // the arch in the path's own units, whichever frame the camera works in
+    node.parent?.updateWorldMatrix(true, false);
+    const lift = arc * (node.parent ? node.parent.matrixWorld.getMaxScaleOnAxis() : 1);
     /** @type {number[]} */
     const run = [];
     for (let i = 0; i < pts.length - 1; i++) {
-      const leg = arcRun(/** @type {Vector3} */ (pts[i]), /** @type {Vector3} */ (pts[i + 1]), arc);
+      const leg = arcRun(/** @type {Vector3} */ (pts[i]), /** @type {Vector3} */ (pts[i + 1]), lift);
       run.push(...(i === 0 ? leg : leg.slice(3)));
     }
     set(anchoredRuns(node, [run]));
   };
+  out.repin = repinner(node, out.update);
   out.dynamic = refs.some((r) => !!ctx.places?.isDynamic(r));
   return out;
 }
@@ -550,6 +600,7 @@ export function buildBeam(cfg, ctx) {
     const run = a && b ? anchoredRuns(node, [[a.x, a.y, a.z, b.x, b.y, b.z]]) : [];
     lines.forEach((l) => l.setRuns(run));
   };
+  out.repin = repinner(node, out.update);
   out.dynamic = !!(ctx.places?.isDynamic(cfg.from) || ctx.places?.isDynamic(cfg.to));
   return out;
 }

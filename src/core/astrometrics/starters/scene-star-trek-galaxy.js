@@ -103,7 +103,7 @@ const POWERS = [
   ['klingon', 'KLINGON EMPIRE', 'var(--lcars-red)', [[2400, 22600], [6200, 21400], [8400, 24200], [7400, 27600], [3000, 27000]], [5600, 24400], true],
   ['romulan', 'ROMULAN STAR EMPIRE', 'var(--lcars-green)', [[2800, 27400], [7200, 28000], [7800, 31800], [3600, 32600], [1200, 30400]], [4800, 30200], true],
   ['cardassian', 'CARDASSIAN UNION', 'var(--lcars-orange)', [[-5400, 27800], [-8800, 26600], [-10400, 29600], [-8200, 32200], [-4600, 31000]], [-7600, 29400], true],
-  ['dominion', 'THE DOMINION', 'var(--lcars-violet)', [[-30000, -27000], [-41000, -22000], [-46000, -32000], [-40000, -41000], [-29000, -37000]], [-38000, -32000], false],
+  ['dominion', 'THE DOMINION', 'var(--lcars-violet)', [[-30000, -27000], [-41000, -22000], [-46000, -32000], [-40000, -41000], [-29000, -37000]], [-41000, -25500], false],
   ['borg', 'BORG COLLECTIVE', 'var(--lcars-green)', [[14000, -14000], [30000, -10000], [40000, -24000], [32000, -40000], [16000, -34000], [10000, -22000]], [24000, -24000], false]
 ];
 
@@ -115,6 +115,31 @@ const VOYAGER = /** @type {const} */ ([
   ['endgame', 'Transwarp conduit', 9000, 8000]
 ]);
 
+/** Galaxy-scale content that stays in a star system's close-ups: the stars round you and the routes into it */
+/** The wormhole link's arch over the galaxy (ly) */
+export const WORMHOLE_ARC = 4000;
+/**
+ * How high over the far end a wormhole mouth aims: the link (a sine arch,
+ * objects/lines.js arcRun) leaves each end rising pi x its arc over the
+ * chord, so a mouth facing this point lines up with the line leaving it.
+ */
+export const WORMHOLE_AIM = Math.round(Math.PI * WORMHOLE_ARC);
+
+const KEEP_IN_SYSTEMS = new Set(['milky_way', 'voyager_route', 'wormhole_link']);
+
+/**
+ * Everything else at galaxy scale steps aside while the camera is inside a
+ * star system (`hide_in_systems`): region walls, quadrant lines and the
+ * far names would cross the close-ups.
+ * @template {{ points?: any[], objects?: any[] }} T
+ * @param {T} frag
+ * @returns {T}
+ */
+export function galaxyScale(frag) {
+  const mark = (/** @type {any} */ x) => (KEEP_IN_SYSTEMS.has(x.id) ? x : { ...x, hide_in_systems: true });
+  return { ...frag, points: (frag.points ?? []).map(mark), objects: (frag.objects ?? []).map(mark) };
+}
+
 export default /** @type {import('./index.js').Starter} */ ({
   id: 'star_trek_galaxy',
   kind: 'scene',
@@ -124,9 +149,10 @@ export default /** @type {import('./index.js').Starter} */ ({
   params: [],
   build: () => {
     const quadrant = (/** @type {string} */ id, /** @type {string} */ label, /** @type {number} */ bearing) => ({
-      id, polar: [40000, bearing], alt: 6000, label, style: 'title', min_distance: 30000
+      // the galaxy and quadrant views only: from anywhere near Sol they are 15,000 to 65,000 ly away
+      id, polar: [40000, bearing], alt: 6000, label, style: 'title', min_distance: 70000
     });
-    return {
+    return galaxyScale({
       units: 'ly',
       views: {
         galaxy: { target: 'core', yaw: 20, tilt: 40, distance: 130000 },
@@ -147,9 +173,12 @@ export default /** @type {import('./index.js').Starter} */ ({
         quadrant('beta', 'BETA QUADRANT', 135),
         quadrant('gamma_q', 'GAMMA QUADRANT', 315),
         quadrant('delta_q', 'DELTA QUADRANT', 45),
-        // the powers' names: the near ones from afar only (the close-up shows their capitals)
-        ...POWERS.map(([id, label, color, , [x, z], near]) => ({
-          id: `${id}_name`, xyz: [x, 1500, z], label, style: 'major', color, ...(near ? { min_distance: 2500 } : {})
+        // the powers' names: the far ones on their regions; the near ones would all fall on a few px
+        // round Sol at the galaxy view (one px is ~120 ly there), so they stack as a legend beside it,
+        // each in its region's colour, 3,500 ly apart in height (~22 px at the galaxy view)
+        ...POWERS.map(([id, label, color, , [x, z], near], i) => ({
+          id: `${id}_name`, xyz: near ? [-9000, 1500 + 3500 * i, SOL[2]] : [x, 1500, z], label, style: near ? 'minor' : 'major', color,
+          ...(near ? { min_distance: 2500 } : {})
         })),
         // never hidden by its neighbours' labels (they take a free side)
         { id: 'sol', xyz: [...SOL], marker: 'reticle', label: 'SOL', style: 'major', overlap: true, tap_action: { action: 'fly-to', view: 'neighbours' } },
@@ -170,6 +199,11 @@ export default /** @type {import('./index.js').Starter} */ ({
         { id: 'idran', xyz: [-38000, 0, -32000], marker: 'diamond', label: 'IDRAN', style: 'minor', tap_action: { action: 'fly-to', view: 'gamma' } },
         // 4.72 ly from Idran (DS9)
         { id: 'wormhole_gamma', xyz: [-37997, 1, -31996.5], label: 'WORMHOLE (GAMMA END)', style: 'tiny', max_distance: 60 },
+        // each mouth faces where the link leaves it (WORMHOLE_AIM), the link runs throat to throat
+        { id: 'wormhole_aim_gamma', at: 'wormhole_gamma', offset: [0, WORMHOLE_AIM, 0] },
+        { id: 'wormhole_aim_alpha', at: 'wormhole_alpha', offset: [0, WORMHOLE_AIM, 0] },
+        { id: 'wormhole_alpha_throat', object: 'wormhole_mouth_alpha', xyz: [0, -1.6, 0] },
+        { id: 'wormhole_gamma_throat', object: 'wormhole_mouth_gamma', xyz: [0, -1.6, 0] },
         { id: 'founders', xyz: [-39500, 0, -31200], marker: 'dot', label: "Founders' homeworld", style: 'tiny', max_distance: 20000 },
         { id: 'unicomplex', xyz: [26000, 0, -26000], marker: 'diamond', label: 'Unicomplex', style: 'minor', max_distance: 60000 },
         ...VOYAGER.map(([id, label, x, z]) => ({
@@ -188,19 +222,20 @@ export default /** @type {import('./index.js').Starter} */ ({
         // the powers' regions; the near ones hide once the camera is inside them (the close-up)
         ...POWERS.map(([id, , color, outline, , near]) => ({
           type: 'volume', id: `${id}_space`, shape: 'prism', outline, height: [-1200, 1200], color, face_opacity: 0.25,
-          cells: { width: 2000, depth: 2000, height: 1200 }, ...(near ? { min_distance: 600 } : {})
+          // the near powers' nearest edges are 1,200 to 5,400 ly from Sol: hidden anywhere near it
+          cells: { width: 2000, depth: 2000, height: 1200 }, ...(near ? { min_distance: 6000 } : {})
         })),
         // Federation space: the sector grid round Sol (20 ly sectors) and the neutral zones
         { type: 'grid', id: 'sectors', shape: 'plane', at: 'sol', size: [400, 400], line_spacing: 20, major_row_interval: 5, opacity: 0.5, max_distance: 3000 },
         { type: 'volume', id: 'romulan_neutral_zone', shape: 'prism', at: 'sol', outline: [[70, -40], [78, -40], [80, 60], [72, 60]], height: [-4, 4], color: 'var(--lcars-green)', face_opacity: 0.35, max_distance: 3000 },
         { type: 'volume', id: 'cardassian_dmz', shape: 'prism', at: 'sol', outline: [[-38, 12], [-42, 8], [-48, 34], [-44, 38]], height: [-4, 4], color: 'var(--lcars-orange)', face_opacity: 0.35, max_distance: 3000 },
-        // the Bajoran wormhole: a dashed link across the galaxy, a wormhole at each end
-        { type: 'path', id: 'wormhole_link', points: ['wormhole_alpha', 'wormhole_gamma'], arc: 4000, dash: [8, 6], flow_speed: 30, color: 'var(--lcars-yellow)', width: 1.5 },
-        { type: 'grid', id: 'wormhole_mouth_alpha', shape: 'well', well_shape: 'wormhole', well_throat: 0.25, radius: 0.6, depth: 1.6, at: 'wormhole_alpha', line_spacing_deg: 30, color: 'var(--lcars-yellow)', max_distance: 200 },
-        { type: 'grid', id: 'wormhole_mouth_gamma', shape: 'well', well_shape: 'wormhole', well_throat: 0.25, radius: 0.6, depth: 1.6, at: 'wormhole_gamma', line_spacing_deg: 30, color: 'var(--lcars-yellow)', max_distance: 200 },
+        // the Bajoran wormhole: one wormhole, a mouth at each end, the dashed link its throat across the galaxy
+        { type: 'path', id: 'wormhole_link', points: ['wormhole_alpha_throat', 'wormhole_gamma_throat'], arc: WORMHOLE_ARC, dash: [8, 6], flow_speed: 30, color: 'var(--lcars-yellow)', width: 1.5 },
+        { type: 'grid', id: 'wormhole_mouth_alpha', shape: 'well', well_shape: 'trumpet', well_throat: 0.1, radius: 0.6, depth: 1.6, at: 'wormhole_alpha', face: 'wormhole_aim_gamma', line_spacing_deg: 30, color: 'var(--lcars-yellow)', max_distance: 200 },
+        { type: 'grid', id: 'wormhole_mouth_gamma', shape: 'well', well_shape: 'trumpet', well_throat: 0.1, radius: 0.6, depth: 1.6, at: 'wormhole_gamma', face: 'wormhole_aim_alpha', line_spacing_deg: 30, color: 'var(--lcars-yellow)', max_distance: 200 },
         // Voyager's way home
         { type: 'path', id: 'voyager_route', points: [...VOYAGER.map(([id]) => id), 'sol'], dash: [10, 6], flow_speed: 40, color: 'var(--lcars-orange)', width: 2 }
       ]
-    };
+    });
   }
 });

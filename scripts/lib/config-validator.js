@@ -407,6 +407,7 @@ export function astrometricsIssues(node) {
   objects.forEach(({ o, at, system }) => {
     if (!o || typeof o !== 'object') return;
     if (o.at !== undefined) pointRef(`${at}.at`, o.at);
+    if (typeof o.face === 'string' && o.face !== 'motion') pointRef(`${at}.face`, o.face);
     if (o.face === 'motion' && !(typeof o.at === 'string' && o.at !== '')) warn(`${at}.face`, 'face: motion turns the object along its point\'s travel: give it at: a point id');
     if (o.type === 'system') {
       if (system !== undefined) err(at, `a system cannot hold another system (one level: "${system.id ?? 'system'}" holds "${o.id ?? 'system'}")`);

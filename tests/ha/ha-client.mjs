@@ -109,6 +109,23 @@ export class HAClient {
         return res.json();
     }
 
+    /**
+     * Create or replace a script or an automation in the UI-managed config
+     * (REST POST /api/config/<kind>/config/<id>), then reload that kind.
+     * @param {'script' | 'automation'} kind
+     * @param {string} id - the script's object id, or the automation's id
+     * @param {Record<string, any>} config
+     */
+    async saveConfig(kind, id, config) {
+        const res = await fetch(`${HA_URL}/api/config/${kind}/config/${id}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${this._token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(config),
+        });
+        if (!res.ok) throw new Error(`save ${kind} ${id}: HTTP ${res.status} ${await res.text()}`);
+        return res.json();
+    }
+
     close() {
         this._ws?.close();
     }
@@ -141,6 +158,8 @@ export const GALLERY_HELPERS = {
     'input_boolean.lcards_test_doors': { type: 'input_boolean/create', name: 'LCARdS Test Doors' },
     // Staged reveals: cards with a visibility condition on it appear as it counts up.
     'input_number.lcards_test_stage': { type: 'input_number/create', name: 'LCARdS Test Stage', min: 0, max: 20, step: 1, mode: 'box' },
+    // A date and time: the astrometrics showcase's scene date (R4d)
+    'input_datetime.lcards_test_date': { type: 'input_datetime/create', name: 'LCARdS Test Date', has_date: true, has_time: true },
 };
 
 /** Sample states the gallery shots are taken with: [domain, service, data]. */

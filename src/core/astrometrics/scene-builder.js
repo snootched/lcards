@@ -36,7 +36,7 @@ import { buildBelt } from './objects/belt.js';
 import { buildGalaxy } from './objects/galaxy.js';
 import { applyRotation, disposeNode, num } from './objects/common.js';
 import { localBounds } from './distance-fade.js';
-import { Facing, spinTangent } from './facing.js';
+import { Facing, spinTangent, axisFacing } from './facing.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export { OBJECT_TYPES };
@@ -299,7 +299,7 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   /** @type {import('./objects/common.js').BuiltObject[]} */
   let loading = list.filter((b) => b.isReady && !b.isReady());
 
-  /** @type {Map<import('./objects/common.js').BuiltObject, Facing>} objects with `face: motion` */
+  /** @type {Map<import('./objects/common.js').BuiltObject, Facing>} objects with `face` */
   const facing = new Map();
   const toLocal = new Matrix4();
   /**
@@ -307,13 +307,27 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
    * is measured on what the point stands on (its object's outer group:
    * placed and turned, not spun), so a ship circling a planet that is itself
    * on an orbit faces round the planet, not along the planet's way; a point
-   * on nothing is measured in the object's parent group.
+   * on nothing is measured in the object's parent group. `face: <point id>`
+   * turns the object toward that point (axisFacing: a well's throat).
    * @returns {boolean} whether one turned
    */
   const face = () => {
     let turned = false;
     for (const [b, g] of outer) {
-      if (b.config.face !== 'motion' || b.config.at === undefined) continue;
+      const to = b.config.face;
+      if (typeof to === 'string' && to !== '' && to !== 'motion') {
+        const p = places.resolve(to);
+        if (!p) continue;
+        let f = facing.get(b);
+        if (!f) facing.set(b, (f = new Facing()));
+        // world positions are 64-bit here: a point a galaxy away still gives a true direction
+        const dir = p.clone().sub(g.getWorldPosition(new Vector3()));
+        if (dir.lengthSq() === 0) continue;
+        if (g.parent) dir.transformDirection(toLocal.copy(g.parent.matrixWorld).invert());
+        if (f.orient(g, b.config, dir, axisFacing(b.config))) turned = true;
+        continue;
+      }
+      if (to !== 'motion' || b.config.at === undefined) continue;
       const world = places.resolve(b.config.at);
       if (!world) continue;
       let f = facing.get(b);
@@ -335,17 +349,27 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
     scene.updateMatrixWorld();
     places.invalidate();
     let placed = systems.length ? placeSystems() : false;
-    for (const [b, g] of outer) {
-      if (b.config.at === undefined) continue;
-      let p = places.resolve(b.config.at);
-      // in its frame's units (the frame's group is identity for the current frame)
-      if (p && b.config._system !== undefined && g.parent) p = g.parent.worldToLocal(p.clone());
-      if (p && !g.position.equals(p)) {
-        g.position.copy(p);
-        placed = true;
-      }
-    }
     if (placed) {
+      scene.updateMatrixWorld();
+      places.invalidate();
+    }
+    // Objects on points, again until nothing moves: an object on a point on another
+    // object (a ship on a drydock's berth, the drydock over a moving planet) is read
+    // where its host is this frame, not where it was (a frame behind is hundreds of
+    // km at a fast clock). A few passes at most; one when nothing chains.
+    for (let pass = 0; pass < 4; pass++) {
+      let moved = false;
+      for (const [b, g] of outer) {
+        if (b.config.at === undefined) continue;
+        let p = places.resolve(b.config.at);
+        // in its frame's units (the frame's group is identity for the current frame)
+        if (p && b.config._system !== undefined && g.parent) p = g.parent.worldToLocal(p.clone());
+        if (p && !g.position.equals(p)) {
+          g.position.copy(p);
+          moved = true;
+        }
+      }
+      if (!moved) break;
       scene.updateMatrixWorld();
       places.invalidate();
     }
@@ -354,7 +378,10 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
       scene.updateMatrixWorld();
       places.invalidate();
     }
-    for (const b of list) if (b.dynamic) b.update?.();
+    for (const b of list) {
+      if (b.dynamic) b.update?.();
+      else b.repin?.();
+    }
     if (loading.some((b) => b.isReady?.())) {
       loading = loading.filter((b) => !b.isReady?.());
       for (const b of list) if (!b.dynamic) b.update?.();

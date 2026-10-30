@@ -489,6 +489,7 @@ const pointSchema = {
         // label and marker
         entity: { ...entitySchema, description: 'The point\'s entity: its templates read it as entity, state colour maps follow its state, more-info and toggle actions use it, and latlon / altaz / xyz / polar can take their values from it.' },
         tags: { ...tagsSchema, description: 'Tags for rules: a rule on tag:<name> patches every point with the tag.' },
+        hide_in_systems: { type: 'boolean', default: false, description: 'Hide the label and marker while the camera is inside a star system (a system object), so galaxy-scale names step aside in the close-ups.' },
         label: { type: ['string', 'number'], description: 'Text shown at the point: short for text.label.content. Leave out for a marker only, or for a point that only anchors other things.' },
         text: pointTextSchema,
         style: styleNameSchema('Label style: a built-in (title 34 px, major 20 px, minor 13 px, tiny 10 px; larger ones win when labels overlap) or one of yours in labels.styles. Default minor.'),
@@ -521,11 +522,12 @@ const objectCommon = {
     spin: setting('Turn round the object\'s own vertical axis, degrees per second (positive is prograde). Off under reduced motion.', { default: 0 }),
     face: {
         type: 'string',
-        enum: ['motion'],
-        description: 'motion: an object at a moving point turns its +z (a built-in model\'s bow) toward where the point is going, upright; rotation applies on top. Before the point first moves (and under reduced motion) a point on a spinning object faces along the spin. Default: the object keeps its rotation.',
-        enumDescriptions: { motion: 'Face the direction of travel' }
+        pointWords: ['motion'],
+        examples: ['motion'],
+        description: 'motion: an object at a moving point turns its +z (a built-in model\'s bow) toward where the point is going, upright. Before the point first moves (and under reduced motion) a point on a spinning object faces along the spin. A point id: the object turns toward that point, wherever it is in the scene: its +z, or for an object round an axis (a grid other than a plane, a ring, a belt, a galaxy) down its axis, so a well\'s throat leads to it. rotation applies on top. Default: the object keeps its rotation.'
     },
     visible: { type: 'boolean', default: true, description: 'false hides the object (its points still work).' },
+    hide_in_systems: { type: 'boolean', default: false, description: 'Hide it while the camera is inside a star system (a system object: within a few times its size, the camera works in its units): galaxy-scale lines and volumes then step aside instead of crossing the close-ups. Outside every system it shows as usual.' },
     opacity: setting('Opacity of the whole object, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
     fade: tuple(2, 'Distance fade [start, end], scene units from the camera to the nearest edge of the object (0 inside it; a flat plane or disc grid is measured to its surface): fully shown nearer than start, gone past end.'),
     min_distance: setting('Hidden when the camera is closer than this to the object\'s nearest edge, scene units (fades in over the last 10%).', { minimum: 0 }),
