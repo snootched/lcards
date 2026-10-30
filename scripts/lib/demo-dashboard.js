@@ -441,3 +441,28 @@ export function buildDashboard(demo, { board = 'dev', release = null, docsBase =
         ],
     };
 }
+
+/** Keys of a helper's create command that are not configuration.yaml keys */
+const HELPER_COMMAND_KEYS = new Set(['type']);
+
+/**
+ * The lcards_test_* helpers some views use, as a Home Assistant YAML package
+ * (configuration.yaml or a packages/ file), so a view copied from the live demo
+ * works in a user's own Home Assistant unchanged.
+ * @param {Array<{ text: string }>} views
+ * @param {Record<string, { type: string } & Record<string, any>>} definitions - entity id -> its create command (tests/ha/ha-client.mjs)
+ * @returns {{ yaml: string, ids: string[], missing: string[] }} missing: ids a view uses with no definition
+ */
+export function helpersPackage(views, definitions) {
+    const used = new Set(views.flatMap(v => v.text.match(/\binput_[a-z]+\.lcards_test_[a-z0-9_]+/g) ?? []));
+    const ids = [...used].sort();
+    const missing = ids.filter(id => !definitions[id]);
+    /** @type {Record<string, Record<string, any>>} */
+    const pkg = {};
+    for (const id of ids.filter(i => definitions[i])) {
+        const [domain, object] = id.split('.');
+        const keys = Object.fromEntries(Object.entries(definitions[id]).filter(([k]) => !HELPER_COMMAND_KEYS.has(k)));
+        (pkg[domain] ??= {})[object] = keys;
+    }
+    return { yaml: yaml.dump(pkg, { lineWidth: -1, flowLevel: 3 }), ids, missing };
+}

@@ -7,24 +7,20 @@ sections:
   - type: grid
     column_span: 4
     cards:
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: RED ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.red_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: YELLOW ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: CLEAR, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
-        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_value
-        grid_options: { columns: 8, rows: 1 }
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: RIPPLE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: RIPPLE SPEED } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
   - type: grid
     column_span: 4
     cards:
@@ -105,6 +101,7 @@ sections:
           label: { content: 3 WELL LEANING (surface_rotate_z), show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -115,9 +112,9 @@ sections:
             - preset: grid
               config:
                 surface: well
-                well_ripple: 0.12
+                well_ripple: { map_range: { entity_id: input_number.lcards_test_value, input: [ 0, 100 ], output: [ 0, 0.3 ] } }
                 well_ripple_waves: 3
-                well_ripple_speed: 0.6
+                well_ripple_speed: { map_range: { input: [ 0, 100 ], output: [ -2, 2 ] } }
                 pattern: polar
                 spoke_count: 24
                 line_spacing: 20
@@ -125,7 +122,7 @@ sections:
                 color: var(--lcards-orange)
                 color_major: var(--lcards-moonlight)
         text:
-          label: { content: 4 GRAVITY WAVES (well_ripple), show: true, color: var(--lcards-blue) }
+          label: { content: 4 GRAVITY WAVES · RIPPLE + SPEED, show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 5 }
       - animations:
           - trigger: on_load
@@ -153,6 +150,7 @@ sections:
           label: { content: 5 MORPH TRUMPET TO HOURGLASS, show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -164,13 +162,13 @@ sections:
               config:
                 surface: well
                 well_profile: [ 1, 1 ]
-                well_ripple: 0.2
+                well_ripple: { map_range: { entity_id: input_number.lcards_test_value, input: [ 0, 100 ], output: [ 0, 0.3 ] } }
                 well_ripple_waves: 2
-                well_ripple_speed: -0.4
+                well_ripple_speed: { map_range: { input: [ 0, 100 ], output: [ -2, 2 ] } }
                 camera_tilt: 20
                 color: var(--lcards-orange)
                 color_major: var(--lcards-moonlight)
-        text: { label: { content: "6 RIPPLING TUBE [1, 1]", show: true, color: var(--lcards-blue) } }
+        text: { label: { content: "6 RIPPLING TUBE [1, 1] · RIPPLE + SPEED", show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }
       - animations:
           - trigger: on_load

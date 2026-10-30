@@ -24,15 +24,15 @@ sections:
           ranges:
             - { min: 80, max: 100, color: theme:colors.status.error }
       - type: custom:lcards-slider
-        entity: input_number.lcards_test_value
+        entity: input_number.lcards_test_temperature
         preset: ring
-        control: { min: 10, max: 30, step: 0.5 }
         grid_options: { columns: 12, rows: 4 }
-        text: { state: { content: "{entity.attributes.temperature}°" } }
+        text: { name: { content: SET POINT } }
         style:
           ring: { scale: { tick_marks: { major: { interval: 5 } }, labels: {} } }
           ranges:
-            - value: "{entity.attributes.current_temperature}"
+            # NOW follows the test value, mapped from 0-100 onto the 10-35 °C scale.
+            - value: "[[[ return 10 + Number(states['input_number.lcards_test_value'].state) / 4 ]]]"
               indicator: { type: triangle, color: theme:colors.status.success }
               label: { text: NOW }
       - type: custom:lcards-slider
@@ -43,4 +43,8 @@ sections:
         text: { name: { zone: sublabel, position: top } }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: TEST VALUE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
         grid_options: { columns: full, rows: 1 }

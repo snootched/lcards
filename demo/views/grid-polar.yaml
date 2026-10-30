@@ -7,28 +7,25 @@ sections:
   - type: grid
     column_span: 4
     cards:
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: RED ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.red_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: YELLOW ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: CLEAR, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
-        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_value
-        grid_options: { columns: 8, rows: 1 }
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: SPOKES } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: CAMERA TILT } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
   - type: grid
     column_span: 4
     cards:
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -38,15 +35,17 @@ sections:
           effects:
             - preset: grid
               config:
+                spoke_count: { map_range: { input: [ 0, 100 ], output: [ 4, 36 ] } }
                 pattern: polar
                 color: var(--lcards-orange)
                 color_major: var(--lcards-moonlight)
                 major_row_interval: 3
                 major_col_interval: 3
                 line_width_major: 2
-        text: { label: { content: 1 POLAR FLAT, show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 1 POLAR FLAT · SPOKES, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -58,14 +57,14 @@ sections:
               config:
                 pattern: polar
                 view: floor
-                camera_tilt: 30
+                camera_tilt: { map_range: { input: [ 0, 100 ], output: [ 5, 85 ] } }
                 spoke_count: 24
                 major_row_interval: 4
                 major_col_interval: 6
                 color: var(--lcards-blue-light)
                 color_major: var(--lcards-moonlight)
         text:
-          label: { content: 2 POLAR FLOOR (GALAXY MAP), show: true, color: var(--lcards-blue) }
+          label: { content: 2 POLAR FLOOR (GALAXY MAP) · CAMERA TILT, show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
         elbow:
@@ -116,6 +115,7 @@ sections:
           label: { content: "4 POLAR FLOOR, TURNING CAMERA", show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -128,13 +128,14 @@ sections:
                 pattern: polar
                 surface: dome
                 surface_axis: horizontal
-                spoke_count: 12
+                spoke_count: { map_range: { input: [ 0, 100 ], output: [ 4, 36 ] } }
                 major_row_interval: 3
                 color: var(--lcards-blue-light)
                 color_major: var(--lcards-moonlight)
-        text: { label: { content: 5 POLAR DOME FACING YOU, show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 5 POLAR DOME FACING YOU · SPOKES, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -146,13 +147,13 @@ sections:
               config:
                 pattern: polar
                 surface: sphere
-                spoke_count: 24
+                spoke_count: { map_range: { input: [ 0, 100 ], output: [ 4, 36 ] } }
                 major_col_interval: 6
                 scroll_speed_x: 15
                 color: var(--lcards-orange)
                 color_major: var(--lcards-moonlight)
         text:
-          label: { content: 6 POLAR SPHERE (24 MERIDIANS), show: true, color: var(--lcards-blue) }
+          label: { content: 6 POLAR SPHERE · SPOKES, show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
         elbow:
@@ -175,6 +176,7 @@ sections:
           label: { content: "7 POLAR CANVAS2D (renderer: canvas)", show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -184,6 +186,7 @@ sections:
           effects:
             - preset: grid
               config:
+                camera_tilt: { map_range: { input: [ 0, 100 ], output: [ 5, 85 ] } }
                 pattern: polar
                 spoke_count: 0
                 view: floor
@@ -191,5 +194,5 @@ sections:
                 color: var(--lcards-blue-light)
                 color_major: var(--lcards-moonlight)
         text:
-          label: { content: "8 RINGS ONLY (spoke_count: 0)", show: true, color: var(--lcards-blue) }
+          label: { content: "8 RINGS ONLY (spoke_count: 0) · CAMERA TILT", show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 5 }

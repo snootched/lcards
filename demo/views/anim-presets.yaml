@@ -46,15 +46,22 @@ sections:
         preset: lozenge
         text: { name: { content: DECODE, show: true }, state: { show: true } }
         grid_options: { columns: 16, rows: 1 }
-        entity: sensor.desk_sensor_temperature
+        entity: input_number.lcards_test_value
         tap_action: { action: none }
         animations:
           - { trigger: on_show, preset: text-decode }
           - { trigger: on_tap, preset: text-decode }
           - trigger: on_entity_change
-            entity: sensor.desk_sensor_temperature
+            entity: input_number.lcards_test_value
             preset: text-decode
             params: { chars: numbers, duration: 600 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: VALUE · DECODES } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
       - type: custom:lcards-data-grid
         data_mode: decorative
         grid: { grid-template-columns: "repeat(8, 1fr)", grid-template-rows: "repeat(4, auto)" }

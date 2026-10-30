@@ -14,21 +14,28 @@ sections:
         grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
-        text: { name: { content: YELLOW ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
         text: { name: { content: CLEAR, show: true } }
         tap_action: { action: perform-action, perform_action: lcards.clear_alert }
         grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_value
-        grid_options: { columns: 8, rows: 1 }
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: FLOOR TILT } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: WARP SPEED } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
   - type: grid
     column_span: 4
     cards:
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -36,11 +43,12 @@ sections:
         background_animation:
           inset: auto
           effects:
-            - { preset: warp-starfield, config: { count: 600, color: theme:colors.ui.primary } }
+            - { preset: warp-starfield, config: { speed: { map_range: { input: [ 0, 100 ], output: [ 1, 8 ] } }, count: 600, color: theme:colors.ui.primary } }
         text:
-          label: { content: 1 WARP STARFIELD (INSTANCES), show: true, color: var(--lcards-blue) }
+          label: { content: 1 WARP STARFIELD (INSTANCES) · WARP SPEED, show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -48,8 +56,8 @@ sections:
         background_animation:
           inset: auto
           effects:
-            - { preset: warp-starfield, config: { count: 600, color: theme:colors.ui.primary } }
-        text: { label: { content: 2 WARP STARFIELD (SHADER), show: true, color: var(--lcards-blue) } }
+            - { preset: warp-starfield, config: { speed: { map_range: { input: [ 0, 100 ], output: [ 1, 8 ] } }, count: 600, color: theme:colors.ui.primary } }
+        text: { label: { content: 2 WARP STARFIELD (SHADER) · WARP SPEED, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
         elbow:
@@ -112,7 +120,7 @@ sections:
                   map_range: { entity_id: input_number.lcards_test_value, input: [ 0, 100 ], output: [ -5, 40 ] }
         text:
           label:
-            content: "5 GRID FLOOR: TILT FOLLOWS THE SLIDER"
+            content: "5 GRID FLOOR: TILT FOLLOWS FLOOR TILT"
             show: true
             color: var(--lcards-blue)
         grid_options: { columns: 6, rows: 4 }

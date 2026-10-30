@@ -231,6 +231,10 @@ export class LCARdSChart extends LCARdSCard {
    */
   async _startLoading() {
     this._stopLoading();
+    // Only the latest call starts a fetcher: two calls in a row (connect, then
+    // config) both waited below and each made one, the first never stopped,
+    // so every series was subscribed twice and every update drawn twice.
+    const run = (this._loadRun = (this._loadRun ?? 0) + 1);
     this._series = normalizeChartSources(this.config);
     this._seriesPoints = [];
     this._seriesLoaded = new Set();
@@ -247,7 +251,7 @@ export class LCARdSChart extends LCARdSCard {
     if (this._configProcessingPromise) {
       await this._configProcessingPromise;
     }
-    if (!this.isConnected) return;
+    if (!this.isConnected || run !== this._loadRun) return;
 
     this._fetcher = new ChartSeriesFetcher({
       getHass: () => this.hass,

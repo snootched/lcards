@@ -7,28 +7,25 @@ sections:
   - type: grid
     column_span: 4
     cards:
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: RED ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.red_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: YELLOW ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: CLEAR, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
-        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_value
-        grid_options: { columns: 8, rows: 1 }
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: TURN + SIZE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: TILT } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
   - type: grid
     column_span: 4
     cards:
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -36,10 +33,11 @@ sections:
         background_animation:
           inset: auto
           effects:
-            - { preset: holo-sphere, config: {} }
-        text: { label: { content: 1A SPHERE (WEBGL), show: true, color: var(--lcards-blue) } }
+            - { preset: holo-sphere, config: {tilt: { map_range: { input: [ 0, 100 ], output: [ -60, 60 ] } }} }
+        text: { label: { content: 1A SPHERE (WEBGL) · TILT, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -47,8 +45,8 @@ sections:
         background_animation:
           inset: auto
           effects:
-            - { preset: holo-sphere, config: {}, renderer: canvas }
-        text: { label: { content: 1B SPHERE (CANVAS), show: true, color: var(--lcards-blue) } }
+            - { preset: holo-sphere, config: {tilt: { map_range: { input: [ 0, 100 ], output: [ -60, 60 ] } }}, renderer: canvas }
+        text: { label: { content: 1B SPHERE (CANVAS) · TILT, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
         elbow:
@@ -78,7 +76,7 @@ sections:
               transition: 1200
         text:
           label:
-            content: "3 SLIDER: ROTATE SPEED + SIZE (GLIDES)"
+            content: "3 TURN + SIZE: ROTATE SPEED + SIZE (GLIDES)"
             show: true
             color: var(--lcards-blue)
         grid_options: { columns: 6, rows: 4 }

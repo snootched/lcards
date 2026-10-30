@@ -9,6 +9,8 @@ title: LCARdS Demo
 # The index's blocks, in this order
 topics:
   - { id: astrometrics, title: Astrometrics }
+  - { id: charts, title: Charts }
+  - { id: data-grid, title: Data grid }
   - { id: webgl, title: WebGL backgrounds }
   - { id: grids, title: Grids }
   - { id: alerts, title: Alerts and animation }
@@ -17,73 +19,108 @@ topics:
 releases:
   - version: "2026.10.0"
     views:
+      - file: chart-sources
+        topic: charts
+        summary: "Charts, rebuilt: entity history, long-term statistics and data sources"
+        description: "The chart card was rebuilt for this release: every series is one entry of sources. Top left, entity history: move POWER and SHIELDS and the lines follow. Top right, an LCARdS data source smoothing the same power value beside its raw history. Below, a week of hourly means from Home Assistant's long-term statistics, and TOGGLE plotted as on/off steps."
+        session: "R3"
+        docs: /cards/chart/#where-the-data-comes-from
+        public: true
+      - file: chart-types
+        topic: charts
+        summary: "Chart types on the same four values"
+        description: "Area, grouped columns, radial bars, donut, radar, polar area, treemap and heatmap, all drawn from the same four helpers. The round charts, the radar and the treemap show each series' latest value: drag a slider and they change at once; the time charts add the new value to their history."
+        session: "R3"
+        docs: /cards/chart/#chart-types
+        public: true
+      - file: chart-styling
+        topic: charts
+        summary: "Chart styling: gradients, reference lines, labels and formatters"
+        description: "Drag SHIELDS across the Nominal and Critical reference lines. Below, a real temperature sensor: two days as a gradient area with its 30-minute peak and tooltip and axis formatters, a week of daily highs as labelled rounded columns from statistics, and three days as a low-to-high range band."
+        session: "R3"
+        docs: /cards/chart/styling
+        public: true
+      - file: datagrid-data
+        topic: data-grid
+        summary: "Data grid, rebuilt: live entity cells, colours and tap actions"
+        description: "The data grid was rebuilt for this release: write rows of cells and each cell works out what it is (text, an entity, an attribute, a Home Assistant template, a JavaScript template or a data source value). Drag POWER, SHIELDS and TEMPERATURE: the readings change colour past their limits and pulse when they change; SHIELDS under 25 turns its cell red and the note to CRITICAL. Tap a LIGHTS or DOORS cell, or the buttons, to toggle it."
+        session: "R3"
+        docs: /cards/data-grid/data
+        public: true
+      - file: datagrid-decorative
+        topic: data-grid
+        summary: "Data grid decorative mode: the LCARS number wall"
+        description: "Decorative mode makes up its values: hex with digit columns trickling in and pulsing, floats refreshing faster, and a mixed wall under the cascade animation. Nothing to control: no entities."
+        session: "R3"
+        docs: /cards/data-grid/#decorative-mode
+        public: true
       - file: astro-navigation
         topic: astrometrics
         summary: "Astrometrics navigation: follow a moving ship, touchpad pan, a time slider, buttons that fade"
-        description: "Tap ENTERPRISE, SHUTTLE or PROBE (the name or its marker): the camera flies to it and stays on it round its orbit, and the wheel or a pinch zooms straight in on it; a pan or a tap on blank space lets go. On a touchpad a two-finger swipe pans and a pinch zooms; with a mouse the wheel zooms and a middle-drag pans. The slider under the camera buttons slows the motion down, holds it or speeds it up. The buttons fade after a few seconds and come back when the pointer moves."
+        description: "Tap ENTERPRISE, SHUTTLE or PROBE (the name or its marker): the camera flies to it and stays on it round its orbit, and the wheel or a pinch zooms straight in on it; a pan or a tap on blank space lets go. On a touchpad a two-finger swipe pans and a pinch zooms; with a mouse the wheel zooms and a middle-drag pans. The slider under the camera buttons slows the motion down, holds it or speeds it up. The buttons fade after a few seconds and come back when the pointer moves. The buttons fly to the system views, or to a ship and follow it."
         session: "N1"
         docs: /cards/astrometrics/#following-a-point
         public: true
       - file: astro-face
         topic: astrometrics
         summary: "Astrometrics face: motion: ships nose first along their orbits"
-        description: "Two starships share a tilted patrol orbit: the one with face: motion flies nose first and tips with the tilt, the other slides along sideways. The small ship circles a planet that is itself on an orbit, so its heading follows both motions. Under reduced motion they hold still, facing along their orbits."
+        description: "Two starships share a tilted patrol orbit: the one with face: motion flies nose first and tips with the tilt, the other slides along sideways. The small ship circles a planet that is itself on an orbit, so its heading follows both motions. Under reduced motion they hold still, facing along their orbits. The buttons fly to the views, or to a ship and follow it nose first."
         session: "M3"
         docs: /cards/astrometrics/objects#facing-the-way-it-goes
         public: true
       - file: astro-true-solar
         topic: astrometrics
         summary: "Astrometrics true-scale starter: the Sun and eight planets in km"
-        description: "The Solar system at true scale starter as the Studio inserts it: every planet at its real distance and size, so from the whole system they are dots on their orbits. Tap EARTH, JUPITER or SATURN to fly in to it. The galaxy dive view now hides the galactic disc once you are inside the solar system."
+        description: "The Solar system at true scale starter as the Studio inserts it: every planet at its real distance and size, so from the whole system they are dots on their orbits. Tap EARTH, JUPITER or SATURN to fly in to it. The galaxy dive view now hides the galactic disc once you are inside the solar system. The buttons above a scene fly its camera to each of its named views."
         session: "E10"
         docs: /cards/astrometrics/scale
         public: true
       - file: astro-dive
         topic: astrometrics
         summary: "Astrometrics star systems: a galaxy in light years with Sol in km inside it"
-        description: "One card from the galaxy down to a station: the galaxy disc in light years, the Sol system in km at its real place 26,000 ly from the core, and Deep Space 9 in orbit round Earth. Tap SOL, then EARTH, then DEEP SPACE 9, or fly from the station straight back out and in again."
+        description: "One card from the galaxy down to a station: the galaxy disc in light years, the Sol system in km at its real place 26,000 ly from the core, and Deep Space 9 in orbit round Earth. Tap SOL, then EARTH, then DEEP SPACE 9, or fly from the station straight back out and in again. The buttons above a scene fly its camera to each of its named views."
         session: "E10"
         docs: /cards/astrometrics/scale#star-systems
         public: true
       - file: astro-true-scale
         topic: astrometrics
         summary: "Astrometrics at true scale: the Sun, Earth, the Moon and Deep Space 9 in km"
-        description: "A scene built with real numbers: fly from the whole inner system (planets are dots at this scale) to Earth and to Deep Space 9, 1.5 km across, with Earth filling the sky behind it. Depth slices, scene-sized zoom limits and a log-distance fly-to make it hold."
+        description: "A scene built with real numbers: fly from the whole inner system (planets are dots at this scale) to Earth and to Deep Space 9, 1.5 km across, with Earth filling the sky behind it. Depth slices, scene-sized zoom limits and a log-distance fly-to make it hold. The buttons above a scene fly its camera to each of its named views."
         session: "E10"
         docs: /cards/astrometrics/scale#one-scene-in-real-units
         public: true
       - file: astro-distance
         topic: astrometrics
         summary: "Astrometrics distance: objects that appear as you zoom in"
-        description: "min_distance and max_distance on objects: zoom in and a galaxy sector gives way to a star system, then the Earth's Moon; Deep Space 9 is a starbase marker far away and its model close up; a ship marker hands over to the ship's model, and the asteroid belt's rocks are dots from far away."
+        description: "min_distance and max_distance on objects: zoom in and a galaxy sector gives way to a star system, then the Earth's Moon; Deep Space 9 is a starbase marker far away and its model close up; a ship marker hands over to the ship's model, and the asteroid belt's rocks are dots from far away. The buttons above a scene fly its camera to each of its named views."
         session: "E9"
         docs: /cards/astrometrics/objects#distance
         public: true
       - file: astro-cube
         topic: astrometrics
         summary: "Astrometrics Borg cube: the screen effect's cube in the scene"
-        description: "type: cube: the Borg cube with carved machinery, its rail lattice and pulsing glow spots, closing on a starship with a tractor beam (the Borg encounter starter); below, the styles side by side: borg, detail off and plain."
+        description: "type: cube: the Borg cube with carved machinery, its rail lattice and pulsing glow spots, closing on a starship with a tractor beam (the Borg encounter starter); below, the styles side by side: borg, detail off and plain. The buttons above a scene fly its camera to each of its named views."
         session: "E8"
         docs: /cards/astrometrics/objects#cube
         public: true
       - file: astro-trail
         topic: astrometrics
         summary: "Astrometrics trails: where moving points have been"
-        description: "type: trail: fading lines behind planets and a comet on their orbits, built while the card is open, and a starship model riding an orbit with a dashed wake."
+        description: "type: trail: fading lines behind planets and a comet on their orbits, built while the card is open, and a starship model riding an orbit with a dashed wake. The buttons above a scene fly its camera to each of its named views."
         session: "E8"
         docs: /cards/astrometrics/objects#trail
         public: true
       - file: astro-starbases
         topic: astrometrics
         summary: "Astrometrics starbases: Deep Space 9, Earth Spacedock, Utopia Planitia"
-        description: "Three built-in starbase models made in code after the on-screen designs: Deep Space 9 by the wormhole with Ops and its pylons marked, the Utopia Planitia drydocks over Mars with a starship in one, a starship approaching Earth Spacedock's space doors, and all three as holograms."
+        description: "Three built-in starbase models made in code after the on-screen designs: Deep Space 9 by the wormhole with Ops and its pylons marked, the Utopia Planitia drydocks over Mars with a starship in one, a starship approaching Earth Spacedock's space doors, and all three as holograms. The buttons above a scene fly its camera to each of its named views."
         session: "E8"
         docs: /cards/astrometrics/objects#built-in-models
         public: true
       - file: astro-belt
         topic: astrometrics
         summary: "Astrometrics asteroid belt: rocks round a star"
-        description: "type: belt: a band of low-poly rocks round the Sun, the inner ones going round faster (period) and each tumbling, lit from the Sun. Fly to MAIN BELT for a close look. Second card: a ring of small rocks round a planet."
+        description: "type: belt: a band of low-poly rocks round the Sun, the inner ones going round faster (period) and each tumbling, lit from the Sun. Fly to MAIN BELT for a close look. Second card: a ring of small rocks round a planet. The buttons above a scene fly its camera to each of its named views."
         session: "E8"
         docs: /cards/astrometrics/objects#belt
         public: true
@@ -97,7 +134,7 @@ releases:
       - file: astro-starters
         topic: astrometrics
         summary: "Astrometrics starters: scenes and parts"
-        description: "Every scene of the Astrometrics Studio's Starters tab with its defaults (galaxy, sector map, sky dome, solar system, Federation map, starbase approach), and the four parts added round one star: a planet with a moon, an asteroid belt, territories and a nebula."
+        description: "Every scene of the Astrometrics Studio's Starters tab with its defaults (galaxy, sector map, sky dome, solar system, Federation map, starbase approach), and the four parts added round one star: a planet with a moon, an asteroid belt, territories and a nebula. The buttons above a scene fly its camera to each of its named views."
         session: "E7"
         docs: /cards/astrometrics/starters
         public: true
@@ -111,7 +148,7 @@ releases:
       - file: astro-points-data
         topic: astrometrics
         summary: "Points, labels, live data, globe and sky"
-        description: "Placement forms, label styles, point actions, a point following an entity, templates, a globe with your home on it (zone.home) and the sky from your location (sun.sun)."
+        description: "Placement forms, label styles, point actions, a point following an entity, templates, a globe with your home on it (zone.home) and the sky from your location (sun.sun). The buttons above a scene fly its camera to each of its named views. LIGHTS and TOGGLE switch the helpers the points beside them follow."
         session: "E3a"
         docs: /cards/astrometrics/points
         public: true
@@ -125,98 +162,98 @@ releases:
       - file: astro-effects
         topic: astrometrics
         summary: "Nebula, scans, flows, fills, warp and dust in 3D"
-        description: "Background effects in 3D space: nebula, scan bands, moving dashes and pulses, animated surface fills, warp and dust."
+        description: "Background effects in 3D space: nebula, scan bands, moving dashes and pulses, animated surface fills, warp and dust. The buttons above a scene fly its camera to each of its named views."
         session: "E6"
         docs: /cards/astrometrics/effects
         public: true
       - file: astro-cards-models
         topic: astrometrics
         summary: "Cards and 3D models in the scene"
-        description: "The built-in starship as a hologram with points on its parts, LCARdS cards pinned to points (always shown, or opened with a tap on BRIDGE), labels hiding behind the hull, the ship with its own materials, and a see-through orange hologram."
+        description: "The built-in starship as a hologram with points on its parts, LCARdS cards pinned to points (always shown, or opened with a tap on BRIDGE), labels hiding behind the hull, the ship with its own materials, and a see-through orange hologram. The buttons above a scene fly its camera to each of its named views. TOGGLE, LIGHTS and POWER drive the cards pinned on the ship."
         session: "E4"
         docs: /cards/astrometrics/objects#model
         public: true
       - file: astro-deformed-grids
         topic: astrometrics
         summary: "Deformed grids, wells and a wormhole"
-        description: "A jelly cylinder, a tornado (a twisted well whose bend circles), a wormhole with a ripple, a whirlpool disc, and a sector map on rolling noise with its cells and points riding the surface."
+        description: "A jelly cylinder, a tornado (a twisted well whose bend circles), a wormhole with a ripple, a whirlpool disc, and a sector map on rolling noise with its cells and points riding the surface. The buttons above a scene fly its camera to each of its named views."
         session: "E5"
         docs: /cards/astrometrics/objects#deformed-grids
         public: true
       - file: webgl-scenes
         topic: webgl
         summary: "WebGL background scenes, alone and stacked"
-        description: "three.js background scenes: the WebGL noise presets, grid floor and warp starfield, alone and stacked."
+        description: "three.js background scenes: the WebGL noise presets, grid floor and warp starfield, alone and stacked. The sliders are bound with the card's entity and map_range: FLOOR TILT tilts card 5, WARP SPEED drives cards 1 and 2; RED ALERT warps card 3."
         session: "C2"
         docs: /core/effects/background-animations#webgl-presets
         public: true
       - file: webgl-fields
         topic: webgl
         summary: "Noise presets on the GPU"
-        description: "contour-field, plasma, fluid and the other noise presets on the GPU, with the renderer key."
+        description: "contour-field, plasma, fluid and the other noise presets on the GPU, with the renderer key. FILL LEVEL raises the waterline and noise scale of cards 6A and 6B; DRIFT moves the plasma and fluid (3 and 4), WebGL and Canvas together."
         session: "C3"
         docs: /core/effects/background-animations/preset-reference#contour-field
         public: true
       - file: holo-sphere
         topic: webgl
         summary: "The holographic planet"
-        description: "The holographic planet: lines, scan band, rotation and tilt."
+        description: "The holographic planet: lines, scan band, rotation and tilt. TURN + SIZE drives card 3, TILT leans the spheres in 1A and 1B; tap card 4 to tilt it."
         session: "C3"
         docs: /core/effects/background-animations/preset-reference#holo-sphere
         public: true
       - file: nebula-volumetric
         topic: webgl
         summary: "The nebula, flat and volumetric"
-        description: "The nebula preset on WebGL, flat and volumetric."
+        description: "The nebula preset on WebGL, flat and volumetric. TURBULENCE stirs 1A and 1B (volumetric and plain side by side), DRIFT moves card 2."
         session: "C3"
         docs: /core/effects/background-animations/preset-reference#nebula
         public: true
       - file: warp-spectrum
         topic: webgl
         summary: "Doppler-shifted warp streaks"
-        description: "spectrum: true splits each streak into colour, a Doppler shift of the star's own colour (violet toward the tail). White stars show the whole rainbow, coloured stars a part of it; reverse puts violet at the head. The last card warps on red alert and drops to dots when it clears: the colour fades in as the dots stretch."
+        description: "spectrum: true splits each streak into colour, a Doppler shift of the star's own colour (violet toward the tail). White stars show the whole rainbow, coloured stars a part of it; reverse puts violet at the head. The last card warps on red alert and drops to dots when it clears: the colour fades in as the dots stretch. STREAK stretches cards 1 to 4 together, BANK turns the camera of card 6."
         session: "warp-starfield spectrum"
         docs: /core/effects/background-animations/preset-reference#warp-starfield
         public: true
       - file: grid-views
         topic: grids
         summary: "Grid floors, camera and line widths"
-        description: "grid, grid-diagonal and grid-hexagonal on WebGL: flat and floor views, camera, line widths, scan line."
+        description: "grid, grid-diagonal and grid-hexagonal on WebGL: flat and floor views, camera, line widths, scan line. LINE WIDTH drives the floors 3, 4 and 7; CAMERA tilts floor 8 and banks the warp in card 10."
         session: "C3"
         docs: /core/effects/background-animations/preset-reference#grid-views-and-camera
         public: true
       - file: grid-surfaces
         topic: grids
         summary: "Grids on cylinders, domes and spheres"
-        description: "Grids wrapped round a cylinder, dome or sphere, with rims."
+        description: "Grids wrapped round a cylinder, dome or sphere, with rims. TURN spins the cylinders and the sphere (1, 3, 4, 5) about their axis, CAMERA TILT the dome and the unbounded cylinder."
         session: "C4"
         docs: /core/effects/background-animations/preset-reference#grid-surfaces
         public: true
       - file: grid-surfaces-inside
         topic: grids
         summary: "Grid surfaces seen from inside"
-        description: "The camera inside a cylinder, dome or sphere."
+        description: "The camera inside a cylinder, dome or sphere. SPEED flies through the tunnel, LOOK UP tilts the camera inside the dome and the sphere."
         session: "C4"
         docs: /core/effects/background-animations/preset-reference#grid-surfaces
         public: true
       - file: grid-polar
         topic: grids
         summary: "Polar grids"
-        description: "pattern: polar, flat, as a floor and on surfaces."
+        description: "pattern: polar, flat, as a floor and on surfaces. SPOKES sets the spoke count of 1, 5 and 6; CAMERA TILT the floors 2 and 8."
         session: "C5"
         docs: /core/effects/background-animations/preset-reference#polar-pattern
         public: true
       - file: grid-wells
         topic: grids
         summary: "Grid wells, morph and ripple"
-        description: "surface: well: funnels of any profile, morph and ripple."
+        description: "surface: well: funnels of any profile, morph and ripple. THROAT opens and closes the wells 1, 4 and 9; CAMERA TILT turns 6 and 10."
         session: "C5"
         docs: /core/effects/background-animations/preset-reference#grid-wells
         public: true
       - file: grid-motion
         topic: grids
         summary: "Camera roll and surface rotation"
-        description: "camera_roll and the surface_rotate_* keys: surfaces facing any way, animated."
+        description: "camera_roll and the surface_rotate_* keys: surfaces facing any way, animated. RIPPLE and RIPPLE SPEED drive the waves of cards 4 and 6; the rest animate on their own."
         session: "C5"
         docs: /core/effects/background-animations/preset-reference#grid-surfaces
         public: true
@@ -237,14 +274,14 @@ releases:
       - file: anim-presets
         topic: alerts
         summary: "New animation presets"
-        description: "boot-sequence (tap a card to boot it again), text-decode (tap to decode), tap-ripple (tap a cell), sensor-sweep and morph on MSD overlays."
+        description: "boot-sequence (tap a card to boot it again), text-decode (tap to decode, or drag the slider beside it), tap-ripple (tap a cell), sensor-sweep and morph on MSD overlays."
         session: "A4, B1"
         docs: /core/animations/preset-reference
         public: true
       - file: ring-gauge
         topic: cards
         summary: "The slider's ring gauge"
-        description: "The slider's ring component: full and partial rings, value markers and centre text. The rings follow the test value; drag one to change it."
+        description: "The slider's ring component: full and partial rings, value markers and centre text. The rings follow the test value; drag one, or the slider below, to change it. The set point ring is a thermostat on the test temperature, its NOW marker follows the test value."
         session: "slider component: ring"
         docs: /cards/slider-card/#ring-gauge
         public: true

@@ -7,28 +7,25 @@ sections:
   - type: grid
     column_span: 4
     cards:
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: RED ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.red_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: YELLOW ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: CLEAR, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
-        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_value
-        grid_options: { columns: 8, rows: 1 }
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: THROAT } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: CAMERA TILT } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
   - type: grid
     column_span: 4
     cards:
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -38,11 +35,12 @@ sections:
           effects:
             - preset: grid
               config:
+                well_throat: { map_range: { input: [ 0, 100 ], output: [ 0.05, 0.8 ] } }
                 surface: well
                 color: var(--lcards-blue-light)
                 color_major: var(--lcards-moonlight)
                 major_row_interval: 4
-        text: { label: { content: 1 TRUMPET (DEFAULT SHAPE), show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 1 TRUMPET (DEFAULT SHAPE) · THROAT, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
         elbow:
@@ -85,6 +83,7 @@ sections:
           label: { content: "3 CONE, STEEP (camera_tilt 60)", show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -96,10 +95,10 @@ sections:
               config:
                 surface: well
                 well_shape: bowl
-                well_throat: 0.05
+                well_throat: { map_range: { input: [ 0, 100 ], output: [ 0.05, 0.8 ] } }
                 color: var(--lcards-orange)
                 color_major: var(--lcards-moonlight)
-        text: { label: { content: 4 BOWL, show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 4 BOWL · THROAT, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
         elbow:
@@ -119,6 +118,7 @@ sections:
         text: { label: { content: "5 HOURGLASS [1, 0.25, 1]", show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -130,10 +130,10 @@ sections:
               config:
                 surface: well
                 surface_axis: horizontal
-                camera_tilt: 0
+                camera_tilt: { map_range: { input: [ 0, 100 ], output: [ 0, 60 ] } }
                 color: var(--lcards-blue-light)
                 color_major: var(--lcards-moonlight)
-        text: { label: { content: 6 WORMHOLE HEAD ON, show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 6 WORMHOLE · CAMERA TILT, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }
       - animations:
           - trigger: on_load
@@ -176,6 +176,7 @@ sections:
           label: { content: "8 BULB [0.6, 1, 0.3, 0.3, 0.8]", show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -183,10 +184,11 @@ sections:
         background_animation:
           inset: auto
           effects:
-            - { preset: grid-hexagonal, config: { surface: well } }
-        text: { label: { content: 9 TRUMPET HEXAGONAL, show: true, color: var(--lcards-blue) } }
+            - { preset: grid-hexagonal, config: { well_throat: { map_range: { input: [ 0, 100 ], output: [ 0.05, 0.8 ] } }, surface: well } }
+        text: { label: { content: 9 TRUMPET HEXAGONAL · THROAT, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -196,10 +198,11 @@ sections:
           effects:
             - preset: grid
               config:
+                camera_tilt: { map_range: { input: [ 0, 100 ], output: [ 5, 85 ] } }
                 surface: well
                 scan_period: 5
                 scroll_speed_x: 30
                 color: var(--lcards-orange)
                 color_major: var(--lcards-moonlight)
-        text: { label: { content: "10 TRUMPET + SCAN, SPIN", show: true, color: var(--lcards-blue) } }
+        text: { label: { content: "10 TRUMPET + SCAN, SPIN · CAMERA TILT", show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }

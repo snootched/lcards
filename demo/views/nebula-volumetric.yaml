@@ -7,28 +7,25 @@ sections:
   - type: grid
     column_span: 4
     cards:
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: RED ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.red_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: YELLOW ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: CLEAR, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
-        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_value
-        grid_options: { columns: 8, rows: 1 }
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: TURBULENCE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: DRIFT } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
   - type: grid
     column_span: 4
     cards:
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -41,11 +38,12 @@ sections:
                 seed: 4
                 cloud_count: 5
                 colors: &a1 [ var(--lcards-purple), var(--lcards-blue-medium), var(--lcards-orange) ]
-                turbulence: 0.6
+                turbulence: { map_range: { input: [ 0, 100 ], output: [ 0, 1.5 ] } }
                 volumetric: true
-        text: { label: { content: 1A NEBULA VOLUMETRIC, show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 1A NEBULA VOLUMETRIC · TURBULENCE, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -54,10 +52,11 @@ sections:
           inset: auto
           effects:
             - preset: nebula
-              config: { seed: 4, cloud_count: 5, colors: *a1, turbulence: 0.6 }
-        text: { label: { content: "1B SAME CLOUDS, PLAIN", show: true, color: var(--lcards-blue) } }
+              config: { seed: 4, cloud_count: 5, colors: *a1, turbulence: { map_range: { input: [ 0, 100 ], output: [ 0, 1.5 ] } }}
+        text: { label: { content: "1B SAME CLOUDS, PLAIN · TURBULENCE", show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -67,6 +66,7 @@ sections:
           effects:
             - preset: nebula
               config:
+                scroll_speed_x: { map_range: { input: [ 0, 100 ], output: [ 0, 40 ] } }
                 seed: 8
                 cloud_count: 5
                 colors: *a1
@@ -75,7 +75,7 @@ sections:
                 volumetric: true
         text:
           label:
-            content: 2 VOLUMETRIC, HIGH TURBULENCE, FINER WISPS
+            content: 2 VOLUMETRIC, HIGH TURBULENCE, FINER WISPS · DRIFT
             show: true
             color: var(--lcards-blue)
         grid_options: { columns: 6, rows: 4 }

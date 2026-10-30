@@ -223,3 +223,53 @@ test('headers: the title and plain segments are not buttons; Index and Docs are;
         }
     }
 });
+
+/** Views whose sliders are the feature itself (they drive nothing else) */
+const SLIDER_FEATURE_VIEWS = new Set(['ring-gauge']);
+
+test('controls drive their own view: alert buttons only where something reacts to the alert mode; every slider bound to another card', () => {
+    for (const v of views) {
+        const cards = (v.config.sections ?? []).flatMap(sec => sec.cards ?? []);
+        const alertButtons = cards.filter(c => /lcards\.(red|yellow|clear)_alert/.test(c.tap_action?.perform_action ?? ''));
+        if (alertButtons.length) {
+            assert.ok(v.topic === 'alerts' || v.text.includes('lcards_alert_mode'), `${v.file}: alert buttons, but nothing on the view follows the alert mode`);
+        }
+        if (SLIDER_FEATURE_VIEWS.has(v.path)) continue;
+        for (const s of cards.filter(c => c.type === 'custom:lcards-slider')) {
+            const others = JSON.stringify(cards.filter(c => c !== s));
+            assert.ok(others.includes(s.entity), `${v.file}: the ${s.text?.name?.content ?? s.entity} slider drives nothing on the view`);
+            assert.ok(s.text?.name?.content, `${v.file}: a slider without a name (say what it drives)`);
+        }
+    }
+});
+
+test('fly-to buttons name a card on their view, and a view or point it has', () => {
+    for (const v of views) {
+        const cards = (v.config.sections ?? []).flatMap(sec => sec.cards ?? []);
+        const byId = new Map(cards.filter(c => c.id).map(c => [c.id, c]));
+        for (const b of cards.filter(c => c.tap_action?.action === 'fly-to')) {
+            const { card, view, point } = b.tap_action;
+            const target = byId.get(card);
+            assert.ok(target, `${v.file}: fly-to names card ${card}, not on the view`);
+            if (view) assert.ok(Object.hasOwn(target.camera?.views ?? {}, view), `${v.file}: ${card} has no view ${view}`);
+            if (point) {
+                const ids = [...(target.points ?? []), ...(target.objects ?? []).filter(o => o.type === 'system').flatMap(o => o.points ?? [])].map(p => p.id);
+                assert.ok(ids.includes(point), `${v.file}: ${card} has no point ${point}`);
+            }
+        }
+    }
+});
+
+test('the helper package on the live demo page defines every lcards_test_* helper a public view uses', async () => {
+    const { TEST_HELPERS, GALLERY_HELPERS } = await import('../ha/ha-client.mjs');
+    const { helpersPackage } = await import('../../scripts/lib/demo-dashboard.js');
+    const pub = views.filter(v => v.public);
+    const pkg = helpersPackage(pub, { ...TEST_HELPERS, ...GALLERY_HELPERS });
+    assert.deepEqual(pkg.missing, [], 'a public view uses a helper with no definition');
+    const parsed = yaml.load(pkg.yaml);
+    for (const id of pkg.ids) {
+        const [domain, object] = id.split('.');
+        assert.ok(parsed[domain]?.[object]?.name, `${id} in the package`);
+        assert.equal(parsed[domain][object].type, undefined, `${id}: no create-command keys`);
+    }
+});

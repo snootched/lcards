@@ -65,9 +65,17 @@ const ENTITY_ID = /^(light|switch|sensor|binary_sensor|input_boolean|input_numbe
  * @param {Record<string, object>} [opts.extraStates]
  * @param {Record<string, number>} [opts.historyDelay] - entity id -> ms before its history/stream answer
  */
+/** Domains whose history is their current value (nothing changes them but the reader) */
+const HELPER_DOMAINS = new Set(['input_number', 'input_boolean', 'input_select', 'number']);
+
 export function createDemoEnv({ sample, now = Date.now(), simulateServices = false, extraStates = {}, historyDelay = {} }) {
     const { SAMPLE_ENTITIES, samplePoints, sampleStatistics } = sample;
-    const historyRows = (id, start, end) => samplePoints(id, start, end).map(p => ({ s: String(p.v), lu: p.t / 1000 }));
+    // A helper (a slider, a toggle) holds the value it has until someone changes it:
+    // its history is that value (sample sensor curves by name would put a 0 to 100
+    // slider at 290 W). Other entities get the sample curves.
+    const historyRows = (id, start, end) => (HELPER_DOMAINS.has(id.split('.')[0]) && current?.states[id]
+        ? [{ s: String(current.states[id].state), lu: start / 1000 }]
+        : samplePoints(id, start, end).map(p => ({ s: String(p.v), lu: p.t / 1000 })));
 
     const friendly = (entityId) => entityId.split('.')[1].replace(/^demo_/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
@@ -157,6 +165,10 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
                 const m = sub.message;
                 if (sub.active && m?.type === 'subscribe_events' && (!m.event_type || m.event_type === 'state_changed')) {
                     sub.cb({ event_type: 'state_changed', data: { entity_id: entityId, old_state: oldState, new_state: newState }, time_fired: new Date().toISOString() });
+                }
+                // A live history stream (no end_time) gets the change too, as from Home Assistant: charts follow a slider
+                if (sub.active && m?.type === 'history/stream' && !m.end_time && m.entity_ids?.includes(entityId)) {
+                    sub.cb({ states: { [entityId]: [{ s: String(newState.state), lu: Date.now() / 1000 }] } });
                 }
             }
             for (const card of cards) card.hass = current;

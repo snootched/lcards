@@ -62,7 +62,14 @@ sections:
         objects:
           - { type: grid, shape: plane, size: 120, line_spacing: 10 }
         grid_options: { columns: full }
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_lights
+        text: { name: { content: LIGHTS, show: true }, state: { show: true } }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_points_data_3
         height: 650
         camera: { view: wide, views: { wide: { target: [ 0, 0, 0 ], yaw: 20, tilt: 40, distance: 160 } } }
         points:
@@ -80,7 +87,14 @@ sections:
         objects:
           - { type: grid, shape: plane, size: 120, line_spacing: 10 }
         grid_options: { columns: full }
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_toggle
+        text: { name: { content: TOGGLE, show: true }, state: { show: true } }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_points_data_4
         height: 650
         camera: { views: { top: { target: [ 0, 0, 0 ], tilt: 70, distance: 120 } } }
         points:
@@ -115,7 +129,23 @@ sections:
         objects:
           - { type: grid, id: dome, shape: dome, radius: 80, line_spacing_deg: 15 }
         grid_options: { columns: full }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: HOME, show: true } }
+        tap_action: { action: fly-to, card: astro_points_data_6, view: home }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: NORTH, show: true } }
+        tap_action: { action: fly-to, card: astro_points_data_6, view: north }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SIDE, show: true } }
+        tap_action: { action: fly-to, card: astro_points_data_6, view: side }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_points_data_6
         height: 650
         camera:
           view: home
@@ -185,7 +215,24 @@ sections:
             label: Rio
             style: tiny
         grid_options: { columns: full }
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_toggle
+        text: { name: { content: TOGGLE, show: true }, state: { show: true } }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: HORIZON, show: true } }
+        tap_action: { action: fly-to, card: astro_points_data_7, view: horizon }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: ZENITH, show: true } }
+        tap_action: { action: fly-to, card: astro_points_data_7, view: zenith }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_points_data_7
         height: 650
         camera:
           view: horizon

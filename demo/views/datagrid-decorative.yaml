@@ -1,0 +1,46 @@
+# Data grid (rebuilt, R3): decorative mode, the LCARS number wall. No
+# entities: the values are generated, so there is nothing to control.
+title: Data grid decorative
+path: datagrid-decorative
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-data-grid
+        data_mode: decorative
+        format: hex
+        refresh_interval: 1500
+        refresh_cells: 0.15
+        grid:
+          grid-template-rows: repeat(6, auto)
+          grid-template-columns: repeat(10, 1fr)
+          gap: 0px
+        columns:
+          - format: digit
+          - format: digit
+        style: { font_size: 20px, color: var(--lcars-orange) }
+        highlight_changes: { preset: pulse, duration: 400 }
+        grid_options: { columns: 24, rows: 4 }
+      - type: custom:lcards-data-grid
+        data_mode: decorative
+        format: float
+        refresh_interval: 800
+        refresh_cells: 0.3
+        grid:
+          grid-template-rows: repeat(6, auto)
+          grid-template-columns: repeat(6, 1fr)
+        style: { font_size: 18px, color: var(--lcars-blue) }
+        grid_options: { columns: 24, rows: 4 }
+      - type: custom:lcards-data-grid
+        data_mode: decorative
+        format: mixed
+        grid:
+          grid-template-rows: repeat(8, auto)
+          grid-template-columns: repeat(12, 1fr)
+        style: { font_size: 16px }
+        animations:
+          - trigger: on_load
+            preset: cascade-color
+        grid_options: { columns: full, rows: 5 }

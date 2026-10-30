@@ -7,7 +7,18 @@ sections:
   - type: grid
     column_span: 4
     cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SYSTEM, show: true } }
+        tap_action: { action: fly-to, card: astro_belt_1, view: system }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLOSE, show: true } }
+        tap_action: { action: fly-to, card: astro_belt_1, view: close }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_belt_1
         height: 650
         camera:
           view: system

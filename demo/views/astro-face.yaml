@@ -10,7 +10,28 @@ sections:
   - type: grid
     column_span: 4
     cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CHASE, show: true } }
+        tap_action: { action: fly-to, card: astro_face_1, view: chase }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: TOP, show: true } }
+        tap_action: { action: fly-to, card: astro_face_1, view: top }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: FACING SHIP, show: true } }
+        tap_action: { action: fly-to, card: astro_face_1, point: facing }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SLIDING SHIP, show: true } }
+        tap_action: { action: fly-to, card: astro_face_1, point: sliding }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_face_1
         grid_options: { columns: full }
         height: 650
         camera:

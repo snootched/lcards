@@ -9,7 +9,23 @@ sections:
   - type: grid
     column_span: 4
     cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: GALAXY, show: true } }
+        tap_action: { action: fly-to, card: astro_starters_1, view: galaxy }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: MAP, show: true } }
+        tap_action: { action: fly-to, card: astro_starters_1, view: map }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: PLANET, show: true } }
+        tap_action: { action: fly-to, card: astro_starters_1, view: planet }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_starters_1
         height: 650
         points:
           - { id: core, xyz: [0, 0, 0], label: GALACTIC CORE, style: title }
@@ -84,7 +100,18 @@ sections:
           limits: { tilt: [90, 90] }
           views: { map: { target: [0, 0, 0], tilt: 90, distance: 1250, projection: orthographic } }
         grid_options: { columns: full }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: HORIZON, show: true } }
+        tap_action: { action: fly-to, card: astro_starters_3, view: horizon }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: ZENITH, show: true } }
+        tap_action: { action: fly-to, card: astro_starters_3, view: zenith }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_starters_3
         height: 650
         points:
           - { id: sun, sky: sun, object: sky, marker: reticle, label: SOL }
@@ -104,7 +131,23 @@ sections:
             horizon: { target: [0, 15, 0], yaw: 180, tilt: 28, distance: 260 }
             zenith: { target: [0, 0, 0], tilt: 90, distance: 260 }
         grid_options: { columns: full }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SYSTEM, show: true } }
+        tap_action: { action: fly-to, card: astro_starters_4, view: system }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: TOP, show: true } }
+        tap_action: { action: fly-to, card: astro_starters_4, view: top }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: EARTH, show: true } }
+        tap_action: { action: fly-to, card: astro_starters_4, view: earth }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_starters_4
         height: 650
         points:
           - { id: sun, xyz: [0, 0, 0], label: SOL, style: major }
@@ -155,7 +198,23 @@ sections:
             earth: { target: earth, yaw: 30, tilt: 20, distance: 22 }
         backdrop: { stars: { count: 2000 } }
         grid_options: { columns: full }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: OVERVIEW, show: true } }
+        tap_action: { action: fly-to, card: astro_starters_5, view: overview }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: TOP, show: true } }
+        tap_action: { action: fly-to, card: astro_starters_5, view: top }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SOL, show: true } }
+        tap_action: { action: fly-to, card: astro_starters_5, view: sol }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_starters_5
         height: 650
         points:
           - { id: federation, polar: [60, 165], alt: 14, label: UNITED FEDERATION OF PLANETS, style: major, color: var(--lcars-blue) }
@@ -221,7 +280,23 @@ sections:
             sol: { target: earth, yaw: 220, tilt: 35, distance: 80 }
         backdrop: { stars: { count: 1500 } }
         grid_options: { columns: full }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: APPROACH, show: true } }
+        tap_action: { action: fly-to, card: astro_starters_6, view: approach }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: STARBASE, show: true } }
+        tap_action: { action: fly-to, card: astro_starters_6, view: starbase }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SHIP, show: true } }
+        tap_action: { action: fly-to, card: astro_starters_6, view: ship }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_starters_6
         height: 650
         points:
           - { id: ship_centre, xyz: [0, 20, 90] }

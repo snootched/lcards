@@ -9,6 +9,40 @@ sections:
   - type: grid
     column_span: 4
     cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_toggle
+        text: { name: { content: TOGGLE, show: true }, state: { show: true } }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_lights
+        text: { name: { content: LIGHTS, show: true }, state: { show: true } }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: POWER } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: THREE, show: true } }
+        tap_action: { action: fly-to, card: demo_ship, view: three }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SIDE, show: true } }
+        tap_action: { action: fly-to, card: demo_ship, view: side }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: TOP, show: true } }
+        tap_action: { action: fly-to, card: demo_ship, view: top }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
         id: demo_ship
         height: 650

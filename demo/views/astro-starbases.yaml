@@ -8,7 +8,28 @@ sections:
   - type: grid
     column_span: 4
     cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: STATION, show: true } }
+        tap_action: { action: fly-to, card: astro_starbases_1, view: station }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: OPS, show: true } }
+        tap_action: { action: fly-to, card: astro_starbases_1, view: ops }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: WORMHOLE, show: true } }
+        tap_action: { action: fly-to, card: astro_starbases_1, view: wormhole }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SECTOR, show: true } }
+        tap_action: { action: fly-to, card: astro_starbases_1, view: sector }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_starbases_1
         height: 650
         camera:
           view: station
@@ -157,7 +178,28 @@ sections:
             opacity: 0.3
             spin: 3
         grid_options: { columns: full }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: YARDS, show: true } }
+        tap_action: { action: fly-to, card: astro_starbases_2, view: yards }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: DOCK1, show: true } }
+        tap_action: { action: fly-to, card: astro_starbases_2, view: dock1 }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: DOCK2, show: true } }
+        tap_action: { action: fly-to, card: astro_starbases_2, view: dock2 }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: DOCK3, show: true } }
+        tap_action: { action: fly-to, card: astro_starbases_2, view: dock3 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_starbases_2
         height: 650
         camera:
           view: yards
@@ -289,7 +331,23 @@ sections:
             size: 40
             material: original
         grid_options: { columns: full }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: APPROACH, show: true } }
+        tap_action: { action: fly-to, card: astro_starbases_3, view: approach }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: STARBASE, show: true } }
+        tap_action: { action: fly-to, card: astro_starbases_3, view: starbase }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SHIP, show: true } }
+        tap_action: { action: fly-to, card: astro_starbases_3, view: ship }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_starbases_3
         height: 650
         camera:
           view: approach

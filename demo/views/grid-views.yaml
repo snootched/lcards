@@ -7,24 +7,20 @@ sections:
   - type: grid
     column_span: 4
     cards:
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: RED ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.red_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: YELLOW ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: CLEAR, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
-        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_value
-        grid_options: { columns: 8, rows: 1 }
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: LINE WIDTH } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: CAMERA } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
   - type: grid
     column_span: 4
     cards:
@@ -88,6 +84,7 @@ sections:
         text: { label: { content: 2B HEX (CANVAS), show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -95,10 +92,11 @@ sections:
         background_animation:
           inset: auto
           effects:
-            - { preset: grid, config: { view: floor, color: var(--lcards-orange) } }
-        text: { label: { content: "3 FLOOR, DEFAULTS", show: true, color: var(--lcards-blue) } }
+            - { preset: grid, config: { line_width: { map_range: { input: [ 0, 100 ], output: [ 0.5, 4 ] } }, view: floor, color: var(--lcards-orange) } }
+        text: { label: { content: "3 FLOOR · LINE WIDTH", show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 12, rows: 4 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -110,13 +108,13 @@ sections:
               config:
                 view: floor
                 color: var(--lcards-orange)
-                line_width: 2
+                line_width: { map_range: { input: [ 0, 100 ], output: [ 0.5, 4 ] } }
                 major_row_interval: 4
                 major_col_interval: 4
                 color_major: var(--lcards-moonlight)
                 line_width_major: 3
         text:
-          label: { content: "4 FLOOR, WIDTH 2, MAJORS 3 PX", show: true, color: var(--lcards-blue) }
+          label: { content: "4 FLOOR, MAJORS 3 PX · LINE WIDTH", show: true, color: var(--lcards-blue) }
         grid_options: { columns: 12, rows: 4 }
       - type: custom:lcards-elbow
         elbow:
@@ -156,6 +154,7 @@ sections:
             preset: custom
             params: { camera_yaw: [ -30, 30 ], duration: 8000, ease: inOutSine, alternate: true, loop: true }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -163,10 +162,11 @@ sections:
         background_animation:
           inset: auto
           effects:
-            - { preset: grid-hexagonal, config: { view: floor, line_width_minor: 2, hex_radius: 30 } }
-        text: { label: { content: 7 HEX FLOOR, show: true, color: var(--lcards-blue) } }
+            - { preset: grid-hexagonal, config: { view: floor, line_width_minor: { map_range: { input: [ 0, 100 ], output: [ 0.5, 4 ] } }, hex_radius: 30 } }
+        text: { label: { content: 7 HEX FLOOR · LINE WIDTH, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -175,8 +175,8 @@ sections:
           inset: auto
           effects:
             - preset: grid-diagonal
-              config: { view: floor, scan_period: 0, line_width: 2, color: var(--lcards-orange) }
-        text: { label: { content: "8 DIAGONAL FLOOR, NO SCAN", show: true, color: var(--lcards-blue) } }
+              config: { camera_tilt: { map_range: { input: [ 0, 100 ], output: [ 5, 85 ] } }, view: floor, scan_period: 0, line_width: 2, color: var(--lcards-orange) }
+        text: { label: { content: "8 DIAGONAL FLOOR, NO SCAN · CAMERA TILT", show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
         elbow:
@@ -202,7 +202,7 @@ sections:
         text: { label: { content: 9B SAME (CANVAS), show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
-        entity: input_number.lcards_test_value
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -218,5 +218,5 @@ sections:
                 camera_yaw: { map_range: { input: [ 0, 100 ], output: [ -35, 35 ] } }
                 camera_tilt: { map_range: { input: [ 0, 100 ], output: [ 10, -10 ] } }
         text:
-          label: { content: "10 WARP: SLIDER BANKS THE CAMERA", show: true, color: var(--lcards-blue) }
+          label: { content: "10 WARP · CAMERA BANKS IT", show: true, color: var(--lcards-blue) }
         grid_options: { columns: 12, rows: 4 }

@@ -2,7 +2,8 @@
  * The live demo page (getting-started/live-demo.md, <DemoBoard />): this release's
  * public demo views (demo/order.yaml) are listed, an astrometrics view and a WebGL
  * background view mount their real cards with no errors, switching views replaces
- * the cards, and the alert buttons change the page's alert mode.
+ * the cards, the alert buttons change the page's alert mode, and the charts
+ * follow their sliders.
  *
  * A smoke test of the page, not of every view: tests/docs/demo-dashboard.test.js
  * checks every view's config, and `npm run demo:push -- --check` shows each one in
@@ -86,6 +87,27 @@ test('the alert buttons switch the alert mode', async ({ page }) => {
     const alerts = page.locator('.demo-board-section').nth(1).locator('lcards-layout-card lcards-layout-card lcards-button');
     await alerts.first().click();
     await expect.poll(() => page.evaluate(() => window.lcards.getAlertMode())).toBe('red_alert');
-    await alerts.nth(2).click(); // CLEAR
+    await alerts.nth(1).click(); // CLEAR (red, clear: the views keep only what their cards follow)
     await expect.poll(() => page.evaluate(() => window.lcards.getAlertMode())).toBe('green_alert');
+});
+
+test('the charts follow their sliders on the sample entities (a live history stream)', async ({ page }) => {
+    const charts = VIEWS.find(v => v.path === 'chart-sources');
+    expect(charts, 'the chart sources view').toBeTruthy();
+    await openView(page, charts);
+    const chart = page.locator('.demo-board-stage lcards-chart').first();
+    const last = () => chart.evaluate(el => /** @type {any} */ (el)._seriesPoints?.[0]?.at(-1)?.v);
+    await expect.poll(last, { timeout: 15_000 }).not.toBeUndefined();
+    const before = await last();
+    // drag the POWER slider down to near its left end
+    const slider = page.locator('.demo-board-stage lcards-slider').first();
+    await slider.scrollIntoViewIfNeeded();
+    const box = await slider.boundingBox();
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width * 0.6, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.35, y, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(last, { timeout: 5_000 }).not.toBe(before);
+    expect(await last()).toBeLessThan(before);
 });

@@ -3,7 +3,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ChartSeriesFetcher, trimToWindow } from '../../src/charts/chart-series-fetcher.js';
+import { ChartSeriesFetcher, trimToWindow, windowPoints } from '../../src/charts/chart-series-fetcher.js';
 import { normalizeChartSources, arrayChartProblem } from '../../src/charts/chart-sources.js';
 
 const tick = () => new Promise(r => setTimeout(r, 5));
@@ -86,7 +86,8 @@ test('history: initial stream message replaces, later messages append', async ()
 
     const last = updates.at(-1);
     assert.equal(last.index, 0);
-    assert.deepEqual(last.points.map(p => p.v), [1, 0]);
+    // the last state carried to now
+    assert.deepEqual(last.points.map(p => p.v), [1, 0, 0]);
     fetcher.stop();
 });
 
@@ -148,12 +149,13 @@ test('datasource: reads the processor buffer and follows updates', async () => {
     const { fetcher, updates } = makeFetcher(mockConnection(), { getSource: () => source });
     fetcher.start([{ kind: 'datasource', datasource: 'temp', buffer: 'smoothed' }], { graph_span: '1h' });
     await tick();
-    assert.deepEqual(updates.at(-1).points.map(p => p.v), [1, 2]);
+    // the last value carried to now
+    assert.deepEqual(updates.at(-1).points.map(p => p.v), [1, 2, 2]);
 
     smoothed = buffer([1, 2, 3]);
     subscribers.forEach(fn => fn());
     await tick();
-    assert.deepEqual(updates.at(-1).points.map(p => p.v), [1, 2, 3]);
+    assert.deepEqual(updates.at(-1).points.map(p => p.v), [1, 2, 3, 3]);
 
     fetcher.stop();
     assert.equal(subscribers.size, 0);
@@ -165,4 +167,39 @@ test('windowPoints: statistics get no carry-in point (it would add a bar)', asyn
     const raw = [{ t: 50, v: 1 }, { t: 150, v: 2 }, { t: 250, v: 3 }];
     assert.deepEqual(windowPoints({ kind: 'statistics' }, raw, span, 1000), [{ t: 150, v: 2 }, { t: 250, v: 3 }]);
     assert.deepEqual(windowPoints({ kind: 'history' }, raw, span, 1000)[0], { t: 100, v: 1 });
+});
+
+test('windowPoints: a state holds until it changes: the last value runs to now, or to the end of a window in the past', () => {
+    const now = 10_000;
+    const span = { start: 4_000, end: 12_000 };
+    // unchanged since before the window: one value from the left edge to now (it drew nothing before)
+    assert.deepEqual(windowPoints({ kind: 'history' }, [{ t: 1_000, v: 64 }], span, now), [{ t: 4_000, v: 64 }, { t: 10_000, v: 64 }]);
+    // the last change, then carried to now
+    assert.deepEqual(windowPoints({ kind: 'history' }, [{ t: 5_000, v: 1 }, { t: 8_000, v: 3 }], span, now).at(-1), { t: 10_000, v: 3 });
+    // a window that ended in the past stops at its end
+    assert.deepEqual(windowPoints({ kind: 'history' }, [{ t: 5_000, v: 1 }], { start: 4_000, end: 6_000 }, now).at(-1), { t: 6_000, v: 1 });
+    // a point at now is not doubled; statistics carry nothing
+    assert.equal(windowPoints({ kind: 'history' }, [{ t: 10_000, v: 2 }], span, now).filter(p => p.t === 10_000).length, 1);
+    assert.deepEqual(windowPoints({ kind: 'statistics' }, [{ t: 5_000, v: 1 }], span, now), [{ t: 5_000, v: 1 }]);
+});
+
+test('history: a live change draws at once (a rolling window ends now at every flush, not at the last minute tick)', async () => {
+    const conn = mockConnection();
+    const { fetcher, updates } = makeFetcher(conn);
+    try {
+        fetcher.start([{ kind: 'history', entity: 'input_number.power' }], { graph_span: '1h' });
+        await tick();
+        const sub = conn.subs[0];
+        sub.cb({ states: { 'input_number.power': [{ s: '20', lu: Date.now() / 1000 - 600 }] } });
+        await tick();
+        // later than the window computed at start: before, it waited for the next minute tick
+        await new Promise(r => setTimeout(r, 30));
+        sub.cb({ states: { 'input_number.power': [{ s: '80', lu: Date.now() / 1000 }] } });
+        await tick();
+        const values = updates.at(-1).points.map(p => p.v);
+        assert.equal(values.at(-1), 80, `latest drawn: ${values}`);
+        assert.ok(fetcher.span.end >= Date.now() - 50, 'the window ends now');
+    } finally {
+        fetcher.stop();
+    }
 });

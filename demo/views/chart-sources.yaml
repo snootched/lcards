@@ -1,0 +1,103 @@
+# Charts (rebuilt, R3): where the data comes from. Every series is one entry of
+# sources: entity history, long-term statistics or an LCARdS data source. The
+# sliders and the toggle are the helpers the charts read: move them and watch.
+title: Chart sources
+path: chart-sources
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: POWER } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: SHIELDS } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_toggle
+        text: { name: { content: TOGGLE, show: true }, state: { show: true } }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      # Entity history: every state change, live
+      - type: custom:lcards-chart
+        chart_type: line
+        graph_span: 1h
+        sources:
+          - entity: input_number.lcards_test_power
+            name: Power
+            curve: stepline
+          - entity: input_number.lcards_test_shields
+            name: Shields
+            curve: stepline
+        style:
+          colors: { series: [ "var(--lcars-orange)", "var(--lcars-blue)" ] }
+          legend: { show: true, position: top }
+          yaxis: { decimals: 0 }
+        grid_options: { columns: 24, rows: 5 }
+      # An LCARdS data source: the raw history beside its smoothed buffer
+      - type: custom:lcards-chart
+        chart_type: line
+        graph_span: 1h
+        sources:
+          - entity: input_number.lcards_test_power
+            name: Power (raw)
+            curve: stepline
+            stroke_width: 1
+          - datasource: demo_power
+            buffer: smoothed
+            name: Power (smoothed)
+        data_sources:
+          demo_power:
+            entity: input_number.lcards_test_power
+            history: { hours: 1 }
+            processing:
+              smoothed: { type: smooth, method: exponential, alpha: 0.2 }
+        style:
+          colors: { series: [ "var(--lcars-gray)", "var(--lcars-yellow)" ] }
+          legend: { show: true, position: top }
+          yaxis: { decimals: 0 }
+        grid_options: { columns: 24, rows: 5 }
+      # Long-term statistics: hourly means of a real sensor over a week
+      - type: custom:lcards-chart
+        chart_type: column
+        graph_span: 7d
+        sources:
+          - entity: sensor.desk_sensor_temperature
+            name: Desk, hourly mean
+            unit: °C
+            float_precision: 1
+            statistics: { type: mean, period: hour }
+        style:
+          colors: { series: [ "var(--lcars-african-violet)" ] }
+          legend: { show: true, position: top }
+        grid_options: { columns: 24, rows: 5 }
+      # On/off plotted as 1 and 0, as steps
+      - type: custom:lcards-chart
+        chart_type: area
+        graph_span: 1h
+        sources:
+          - entity: input_boolean.lcards_test_toggle
+            name: Toggle
+            curve: stepline
+            yaxis_id: state
+            opacity: 0.4
+        style:
+          colors: { series: [ "var(--lcars-green)" ] }
+          legend: { show: true, position: top }
+        yaxis:
+          - { id: state, min: 0, max: 1 }
+        grid_options: { columns: 24, rows: 5 }

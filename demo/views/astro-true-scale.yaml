@@ -8,7 +8,23 @@ sections:
   - type: grid
     column_span: 4
     cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SYSTEM, show: true } }
+        tap_action: { action: fly-to, card: astro_true_scale_1, view: system }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: EARTH, show: true } }
+        tap_action: { action: fly-to, card: astro_true_scale_1, view: earth }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: STATION, show: true } }
+        tap_action: { action: fly-to, card: astro_true_scale_1, view: station }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_true_scale_1
         grid_options: { columns: full }
         height: 650
         camera:

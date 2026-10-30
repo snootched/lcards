@@ -7,28 +7,25 @@ sections:
   - type: grid
     column_span: 4
     cards:
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: RED ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.red_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: YELLOW ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: CLEAR, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
-        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_value
-        grid_options: { columns: 8, rows: 1 }
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: SPEED } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: LOOK UP } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
   - type: grid
     column_span: 4
     cards:
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -43,14 +40,15 @@ sections:
                 surface_side: inside
                 surface_length: 0
                 color: var(--lcards-orange)
-                scroll_speed_x: 60
+                scroll_speed_x: { map_range: { input: [ 0, 100 ], output: [ 0, 200 ] } }
                 scroll_speed_y: 0
                 major_col_interval: 4
                 color_major: var(--lcards-moonlight)
         text:
-          label: { content: "9 TUNNEL (INSIDE, HORIZONTAL)", show: true, color: var(--lcards-blue) }
+          label: { content: "9 TUNNEL (INSIDE, HORIZONTAL) · SPEED", show: true, color: var(--lcards-blue) }
         grid_options: { columns: 12, rows: 6 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -62,14 +60,15 @@ sections:
               config:
                 surface: dome
                 surface_side: inside
-                camera_tilt: 35
+                camera_tilt: { map_range: { input: [ 0, 100 ], output: [ -10, 80 ] } }
                 color: "var(--lcards-blue-light, #99ccff)"
                 line_spacing: 20
                 scroll_speed_x: 8
         text:
-          label: { content: 10 PLANETARIUM (INSIDE A DOME), show: true, color: var(--lcards-blue) }
+          label: { content: 10 PLANETARIUM (INSIDE A DOME) · LOOK UP, show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -81,10 +80,10 @@ sections:
               config:
                 surface: sphere
                 surface_side: inside
-                camera_tilt: 10
+                camera_tilt: { map_range: { input: [ 0, 100 ], output: [ -10, 80 ] } }
                 color: var(--lcards-orange)
                 line_spacing: 20
                 major_row_interval: 3
                 color_major: var(--lcards-moonlight)
-        text: { label: { content: 11 INSIDE A SPHERE, show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 11 INSIDE A SPHERE · LOOK UP, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }

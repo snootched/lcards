@@ -14,18 +14,28 @@ sections:
         grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
-        text: { name: { content: YELLOW ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
         text: { name: { content: CLEAR, show: true } }
         tap_action: { action: perform-action, perform_action: lcards.clear_alert }
         grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: BANK } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: STREAK } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
   - type: grid
     column_span: 4
     cards:
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -35,10 +45,11 @@ sections:
           effects:
             - preset: warp-starfield
               transition: 1500
-              config: { speed: 6, streak: 1.5, seed: 7, spectrum: true, colors: [ "#ffffff" ] }
-        text: { label: { content: "1 SPECTRUM, WHITE STARS", show: true, color: var(--lcards-blue) } }
+              config: { speed: 6, streak: { map_range: { input: [ 0, 100 ], output: [ 0, 4 ] } }, seed: 7, spectrum: true, colors: [ "#ffffff" ] }
+        text: { label: { content: "1 SPECTRUM, WHITE STARS · STREAK", show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 16, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -48,10 +59,11 @@ sections:
           effects:
             - preset: warp-starfield
               transition: 1500
-              config: { speed: 6, streak: 1.5, seed: 7, spectrum: true }
-        text: { label: { content: "2 SPECTRUM, PALETTE STARS", show: true, color: var(--lcards-blue) } }
+              config: { speed: 6, streak: { map_range: { input: [ 0, 100 ], output: [ 0, 4 ] } }, seed: 7, spectrum: true }
+        text: { label: { content: "2 SPECTRUM, PALETTE STARS · STREAK", show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 16, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -63,14 +75,15 @@ sections:
               transition: 1500
               config:
                 speed: 6
-                streak: 1.5
+                streak: { map_range: { input: [ 0, 100 ], output: [ 0, 4 ] } }
                 seed: 7
                 spectrum: true
                 spectrum_direction: reverse
                 colors: [ "#ffffff" ]
-        text: { label: { content: 3 SPECTRUM REVERSE, show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 3 SPECTRUM REVERSE · STREAK, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 16, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -80,8 +93,8 @@ sections:
           effects:
             - preset: warp-starfield
               transition: 1500
-              config: { speed: 6, streak: 1.5, seed: 7, colors: [ "#ffffff" ] }
-        text: { label: { content: 4 NO SPECTRUM (BEFORE), show: true, color: var(--lcards-blue) } }
+              config: { speed: 6, streak: { map_range: { input: [ 0, 100 ], output: [ 0, 4 ] } }, seed: 7, colors: [ "#ffffff" ] }
+        text: { label: { content: 4 NO SPECTRUM (BEFORE) · STREAK, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 16, rows: 5 }
       - type: custom:lcards-elbow
         elbow:
@@ -119,8 +132,5 @@ sections:
                 spectrum: true
                 camera_yaw:
                   map_range: { entity_id: input_number.lcards_test_value, input: [ 0, 100 ], output: [ -30, 30 ] }
-        text: { label: { content: 6 BANKING WITH THE SLIDER, show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 6 BANKING · BANK, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 16, rows: 5 }
-      - type: custom:lcards-slider
-        entity: input_number.lcards_test_value
-        grid_options: { columns: full, rows: 1 }

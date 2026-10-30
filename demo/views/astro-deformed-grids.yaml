@@ -9,6 +9,21 @@ sections:
   - type: grid
     column_span: 4
     cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: WIDE, show: true } }
+        tap_action: { action: fly-to, card: demo_deform, view: wide }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: TORNADO, show: true } }
+        tap_action: { action: fly-to, card: demo_deform, view: tornado }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: WORMHOLE, show: true } }
+        tap_action: { action: fly-to, card: demo_deform, view: wormhole }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
         grid_options: { columns: full }
         id: demo_deform

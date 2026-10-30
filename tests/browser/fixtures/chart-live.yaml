@@ -1,0 +1,9 @@
+# A chart on an input_number's history: a state change (a slider) draws at once
+# (chart-sizing.spec.js: the live stream, the rolling window ending now)
+type: custom:lcards-chart
+chart_type: line
+graph_span: 1h
+sources:
+  - entity: input_number.demo_level
+    name: Level
+    curve: stepline

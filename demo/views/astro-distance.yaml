@@ -9,7 +9,23 @@ sections:
   - type: grid
     column_span: 4
     cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SECTOR, show: true } }
+        tap_action: { action: fly-to, card: astro_distance_1, view: sector }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SYSTEM, show: true } }
+        tap_action: { action: fly-to, card: astro_distance_1, view: system }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: EARTH, show: true } }
+        tap_action: { action: fly-to, card: astro_distance_1, view: earth }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_distance_1
         height: 650
         camera:
           view: sector
@@ -41,7 +57,18 @@ sections:
           - { type: ring, id: moon_orbit, at: earth, radius: 4, spin: 30, width: 1, dash: [ 3, 3 ], opacity: 0.6, max_distance: 40 }
           - { type: sphere, at: moon, radius: 0.5, image: builtin:moon_lroc, line_width: 0, max_distance: 40 }
         grid_options: { columns: full }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: FAR, show: true } }
+        tap_action: { action: fly-to, card: astro_distance_2, view: far }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: NEAR, show: true } }
+        tap_action: { action: fly-to, card: astro_distance_2, view: near }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_distance_2
         height: 650
         camera:
           view: far
@@ -60,7 +87,18 @@ sections:
         grid_options: { columns: full }
       # E9 part 2: far away the belt's rocks become dots (no key), and the
       # ship marker stands in for the ship's model
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: FAR, show: true } }
+        tap_action: { action: fly-to, card: astro_distance_3, view: far }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: NEAR, show: true } }
+        tap_action: { action: fly-to, card: astro_distance_3, view: near }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_distance_3
         height: 650
         camera:
           view: far

@@ -124,7 +124,18 @@ sections:
             color: var(--lcars-blue)
             fill_effect: { type: fluid, color: var(--lcars-blue) }
         grid_options: { columns: full }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: FAR, show: true } }
+        tap_action: { action: fly-to, card: astro_effects_5, view: far }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: NEAR, show: true } }
+        tap_action: { action: fly-to, card: astro_effects_5, view: near }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_effects_5
         height: 650
         camera:
           view: far

@@ -1,0 +1,95 @@
+# Charts (rebuilt, R3): the chart types on the same four helpers. The time
+# charts draw their history; the round ones and the radar draw the latest value
+# of each series, so they move as soon as a slider does.
+title: Chart types
+path: chart-types
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: POWER } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: SHIELDS } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_humidity
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: HUMIDITY } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: VALUE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 12, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-chart
+        chart_type: area
+        graph_span: 1h
+        sources: &four
+          - { entity: input_number.lcards_test_power, name: Power, curve: stepline }
+          - { entity: input_number.lcards_test_shields, name: Shields, curve: stepline }
+          - { entity: input_number.lcards_test_humidity, name: Humidity, curve: stepline }
+          - { entity: input_number.lcards_test_value, name: Value, curve: stepline }
+        style:
+          legend: { show: true, position: top }
+          fill: { type: gradient, gradient: { opacityFrom: 0.4, opacityTo: 0.05 } }
+        grid_options: { columns: 24, rows: 5 }
+      - type: custom:lcards-chart
+        chart_type: column
+        graph_span: 1h
+        sources:
+          - { entity: input_number.lcards_test_power, name: Power, group_by: { func: avg, duration: 10min } }
+          - { entity: input_number.lcards_test_shields, name: Shields, group_by: { func: avg, duration: 10min } }
+        style:
+          legend: { show: true, position: top }
+          yaxis: { decimals: 0 }
+        grid_options: { columns: 24, rows: 5 }
+      - type: custom:lcards-chart
+        chart_type: radialBar
+        sources: *four
+        style: { legend: { show: true } }
+        grid_options: { columns: 12, rows: 5 }
+      - type: custom:lcards-chart
+        chart_type: donut
+        sources: *four
+        style: { legend: { show: true } }
+        grid_options: { columns: 12, rows: 5 }
+      - type: custom:lcards-chart
+        chart_type: radar
+        sources: *four
+        grid_options: { columns: 12, rows: 5 }
+      - type: custom:lcards-chart
+        chart_type: polarArea
+        sources: *four
+        style: { legend: { show: true } }
+        grid_options: { columns: 12, rows: 5 }
+      - type: custom:lcards-chart
+        chart_type: treemap
+        sources: *four
+        grid_options: { columns: 24, rows: 5 }
+      - type: custom:lcards-chart
+        chart_type: heatmap
+        graph_span: 1h
+        sources:
+          - { entity: input_number.lcards_test_power, name: Power, group_by: { func: avg, duration: 5min } }
+          - { entity: input_number.lcards_test_shields, name: Shields, group_by: { func: avg, duration: 5min } }
+          - { entity: input_number.lcards_test_humidity, name: Humidity, group_by: { func: avg, duration: 5min } }
+        grid_options: { columns: 24, rows: 5 }

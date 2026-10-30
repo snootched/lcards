@@ -7,24 +7,20 @@ sections:
   - type: grid
     column_span: 4
     cards:
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: RED ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.red_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: YELLOW ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: CLEAR, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
-        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_value
-        grid_options: { columns: 8, rows: 1 }
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: FILL LEVEL } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: DRIFT } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
   - type: grid
     column_span: 4
     cards:
@@ -76,6 +72,7 @@ sections:
           label: { content: 2B CONTOUR BLOCKY (CANVAS), show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -83,10 +80,11 @@ sections:
         background_animation:
           inset: auto
           effects:
-            - { preset: plasma, config: &a3 {} }
-        text: { label: { content: 3A PLASMA (WEBGL), show: true, color: var(--lcards-blue) } }
+            - { preset: plasma, config: &a3 { scroll_speed_x: { map_range: { input: [ 0, 100 ], output: [ 0, 120 ] } } } }
+        text: { label: { content: 3A PLASMA (WEBGL) · DRIFT, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -95,9 +93,10 @@ sections:
           inset: auto
           effects:
             - { preset: plasma, renderer: canvas, config: *a3 }
-        text: { label: { content: 3B PLASMA (CANVAS), show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 3B PLASMA (CANVAS) · DRIFT, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -105,10 +104,11 @@ sections:
         background_animation:
           inset: auto
           effects:
-            - { preset: fluid, config: &a4 { color: theme:colors.ui.primary } }
-        text: { label: { content: 4A FLUID (WEBGL), show: true, color: var(--lcards-blue) } }
+            - { preset: fluid, config: &a4 { color: theme:colors.ui.primary, scroll_speed_x: { map_range: { input: [ 0, 100 ], output: [ 0, 120 ] } } } }
+        text: { label: { content: 4A FLUID (WEBGL) · DRIFT, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -117,7 +117,7 @@ sections:
           inset: auto
           effects:
             - { preset: fluid, renderer: canvas, config: *a4 }
-        text: { label: { content: 4B FLUID (CANVAS), show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 4B FLUID (CANVAS) · DRIFT, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
         elbow:
@@ -168,7 +168,7 @@ sections:
                 noise_scale: { map_range: { input: [ 0, 100 ], output: [ 0.002, 0.02 ] } }
         text:
           label:
-            content: "6A SLIDER: FILL LEVEL + NOISE SCALE (WEBGL, GLIDES)"
+            content: "6A FILL LEVEL + NOISE SCALE (WEBGL, GLIDES)"
             show: true
             color: var(--lcards-blue)
         grid_options: { columns: 6, rows: 4 }

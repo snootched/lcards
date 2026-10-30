@@ -48,11 +48,27 @@ export function trimToWindow(points, start) {
 }
 
 /**
+ * A state holds until it changes: the last point carried to `end` (now, or the
+ * window's end if that is earlier), so a line reaches the right edge and a value
+ * that has not changed in the window still draws (as Home Assistant's history
+ * graph does).
+ * @param {Array<{t: number, v: any}>} points - Sorted
+ * @param {number} end
+ * @returns {Array<{t: number, v: any}>}
+ */
+export function carryToEnd(points, end) {
+  const last = points[points.length - 1];
+  if (!last || last.t >= end) return points;
+  return [...points, { t: end, v: last.v }];
+}
+
+/**
  * The points a series shows for a window: grouped into buckets when it has
  * group_by; otherwise trimmed to the window. State-like series (history, data
  * sources) keep a carry-in point at the window start so lines reach the left
- * edge; statistics are per-period values, so a carried-in period would show
- * as an extra bar (and squeeze every column to a hairline).
+ * edge, and their last value carried to now; statistics are per-period values,
+ * so a carried period would show as an extra bar (and squeeze every column to a
+ * hairline).
  * @param {Object} series - Normalised series
  * @param {Array<{t: number, v: any}>} raw - Sorted points
  * @param {{start: number, end: number}} span
@@ -63,7 +79,7 @@ export function windowPoints(series, raw, span, now = Date.now()) {
   const inWindow = raw.filter(p => p.t <= span.end);
   if (series.group_by?.duration) return groupBy(inWindow, series.group_by, span, now);
   if (series.kind === 'statistics') return inWindow.filter(p => p.t >= span.start);
-  return trimToWindow(inWindow, span.start);
+  return carryToEnd(trimToWindow(inWindow, span.start), Math.min(now, span.end));
 }
 
 export class ChartSeriesFetcher {
@@ -346,6 +362,13 @@ export class ChartSeriesFetcher {
   _flush() {
     if (!this._running) return;
     this._lastFlush = Date.now();
+    // A rolling window ends now: recomputed here, a point that just arrived is
+    // inside it (with the window from the last minute's tick it was past the
+    // end and waited for the next tick). Aligned windows end in the future and
+    // keep the tick, which notices their rollover.
+    if (this._span?.live && !this._spanConfig?.span?.start && !this._spanConfig?.span?.end) {
+      this._span = computeSpan(this._spanConfig);
+    }
     const span = this._span;
     if (!span) return;
     for (const index of this._dirty) {

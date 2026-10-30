@@ -47,3 +47,16 @@ test('a three-axis radar fills most of a wide card', async ({ page }) => {
         .filter(l => l.getBoundingClientRect().width > 0 && getComputedStyle(l).display !== 'none' && l.closest('.apexcharts-grid')?.getAttribute('visibility') !== 'hidden').length);
     expect(grid).toBe(0);
 });
+
+test('a state change draws at once (the live history stream, a rolling window that ends now); one subscription per series', async ({ page }) => {
+    const card = await mountCase(page, 'chart-live', { width: '600', height: '300' });
+    const last = () => card.evaluate(el => /** @type {any} */ (el)._seriesPoints?.[0]?.at(-1)?.v);
+    await expect.poll(last).not.toBeUndefined();
+    await page.evaluate(() => window.__setState('input_number.demo_level', '87'));
+    await expect.poll(last, { timeout: 2500 }).toBe(87);
+    await page.evaluate(() => window.__setState('input_number.demo_level', '12'));
+    await expect.poll(last, { timeout: 2500 }).toBe(12);
+    // one series, one subscription (a start racing another start left a second one, drawing every update twice)
+    const streams = await card.evaluate(el => /** @type {any} */ (el).hass.connection.subs.filter(s => s.active && s.message?.type === 'history/stream').length);
+    expect(streams).toBe(1);
+});

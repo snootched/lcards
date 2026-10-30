@@ -10,7 +10,33 @@ sections:
   - type: grid
     column_span: 4
     cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SYSTEM, show: true } }
+        tap_action: { action: fly-to, card: astro_navigation_1, view: system }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: TOP, show: true } }
+        tap_action: { action: fly-to, card: astro_navigation_1, view: top }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: ENTERPRISE, show: true } }
+        tap_action: { action: fly-to, card: astro_navigation_1, point: enterprise }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SHUTTLE, show: true } }
+        tap_action: { action: fly-to, card: astro_navigation_1, point: shuttle }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: PROBE, show: true } }
+        tap_action: { action: fly-to, card: astro_navigation_1, point: probe }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
+        id: astro_navigation_1
         height: 650
         grid_options: { columns: full }
         camera:

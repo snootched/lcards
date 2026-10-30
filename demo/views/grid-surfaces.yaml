@@ -7,28 +7,25 @@ sections:
   - type: grid
     column_span: 4
     cards:
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: RED ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.red_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: YELLOW ALERT, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: CLEAR, show: true } }
-        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
-        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_value
-        grid_options: { columns: 8, rows: 1 }
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: TURN } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: CAMERA TILT } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
   - type: grid
     column_span: 4
     cards:
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -38,12 +35,13 @@ sections:
           effects:
             - preset: grid
               config:
+                surface_rotate_y: { map_range: { input: [ 0, 100 ], output: [ -180, 180 ] } }
                 surface: cylinder
                 color: var(--lcards-orange)
                 major_row_interval: 3
                 color_major: var(--lcards-moonlight)
                 line_width_major: 2
-        text: { label: { content: 1 CYLINDER, show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 1 CYLINDER · TURN, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
         elbow:
@@ -63,6 +61,7 @@ sections:
           label: { content: 2 CYLINDER HORIZONTAL (ROLLS), show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -71,10 +70,11 @@ sections:
           inset: auto
           effects:
             - preset: grid-hexagonal
-              config: { surface: cylinder, surface_size: 1, surface_length: 0.8 }
-        text: { label: { content: 3 CYLINDER HEXAGONAL, show: true, color: var(--lcards-blue) } }
+              config: { surface_rotate_y: { map_range: { input: [ 0, 100 ], output: [ -180, 180 ] } }, surface: cylinder, surface_size: 1, surface_length: 0.8 }
+        text: { label: { content: 3 CYLINDER HEXAGONAL · TURN, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -84,15 +84,17 @@ sections:
           effects:
             - preset: grid
               config:
+                surface_rotate_y: { map_range: { input: [ 0, 100 ], output: [ -180, 180 ] } }
                 surface: cylinder
                 pattern: dots
                 dot_radius: 2
                 color: var(--lcards-orange)
                 scan_period: 4
                 line_spacing: 25
-        text: { label: { content: 4 CYLINDER DOTS + SCAN, show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 4 CYLINDER DOTS + SCAN · TURN, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -102,6 +104,7 @@ sections:
           effects:
             - preset: grid
               config:
+                surface_rotate_y: { map_range: { input: [ 0, 100 ], output: [ -180, 180 ] } }
                 surface: sphere
                 surface_size: 0.9
                 color: "var(--lcards-blue-light, #99ccff)"
@@ -110,9 +113,10 @@ sections:
                 color_major: var(--lcards-moonlight)
                 line_width_major: 2
                 camera_tilt: 25
-        text: { label: { content: 5 SPHERE, show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 5 SPHERE · TURN, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -126,8 +130,8 @@ sections:
                 surface_size: 1
                 color: "var(--lcards-blue-light, #99ccff)"
                 line_spacing: 30
-                camera_tilt: 25
-        text: { label: { content: 6 DOME, show: true, color: var(--lcards-blue) } }
+                camera_tilt: { map_range: { input: [ 0, 100 ], output: [ 0, 80 ] } }
+        text: { label: { content: 6 DOME · CAMERA TILT, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
         elbow:
@@ -150,6 +154,7 @@ sections:
           label: { content: 7 DOME FACING (POLAR CHART), show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
         elbow:
           type: frame
           segment: { color: theme:colors.card.topColor }
@@ -162,9 +167,9 @@ sections:
                 surface: cylinder
                 surface_length: 0
                 color: var(--lcards-orange)
-                camera_tilt: 40
+                camera_tilt: { map_range: { input: [ 0, 100 ], output: [ 0, 80 ] } }
                 camera_yaw: 20
                 back_opacity: 0.4
         text:
-          label: { content: "8 CYLINDER UNBOUNDED, TILTED", show: true, color: var(--lcards-blue) }
+          label: { content: "8 CYLINDER UNBOUNDED · CAMERA TILT", show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 5 }
