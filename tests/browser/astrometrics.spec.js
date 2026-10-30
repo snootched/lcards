@@ -1338,3 +1338,29 @@ test('R4c1 galaxy: the Milky Way draws in light years, fewer stars far away, a p
     expect(faces).toBe(8);
     await expectNoErrors(page);
 });
+
+test('R4c2 Star Trek galaxy: every view draws; Federation space hides the near powers\' regions and shows the capitals', async ({ page }) => {
+    test.setTimeout(90_000);
+    await mountCase(page, 'astro-star-trek', { width: '800' });
+    await sceneReady(page);
+    const fly = (v) => page.evaluate((x) => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo(x, { duration: 0 }), v);
+    const shown = () => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().labelItems.filter((l) => l.visible).map((l) => l.id));
+    const alphas = () => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().objectAlphas);
+    await expect.poll(shown, { timeout: 5000 }).toEqual(expect.arrayContaining(['alpha', 'beta', 'gamma_q', 'delta_q']));
+    for (const view of ['galaxy', 'quadrants', 'federation', 'neighbours', 'bajor', 'gamma', 'delta', 'barrier']) {
+        await fly(view);
+        await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+        expect(await litPixels(page), view).toBeGreaterThan(2000);
+    }
+    await fly('neighbours');
+    await expect.poll(shown, { timeout: 5000 }).toEqual(expect.arrayContaining(['sol', 'vulcan', 'tellar', 'andoria']));
+    await fly('federation');
+    await expect.poll(shown, { timeout: 5000 }).toEqual(expect.arrayContaining(['sol', 'qonos', 'romulus', 'bajor']));
+    await fly('bajor');
+    await expect.poll(shown, { timeout: 5000 }).toEqual(expect.arrayContaining(['bajor', 'cardassia']));
+    await fly('federation');
+    // inside the Federation region: its walls (and the other near powers' names) are hidden
+    await expect.poll(async () => (await alphas()).federation_space, { timeout: 3000 }).toBe(0);
+    expect(await shown()).not.toContain('klingon_name');
+    await expectNoErrors(page);
+});

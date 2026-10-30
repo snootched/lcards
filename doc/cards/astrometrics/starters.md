@@ -1109,6 +1109,312 @@ units: ly
 clock: { date: now, rate: 1 }
 ```
 
+### Star Trek galaxy
+
+The Milky Way in light years cut into the four quadrants (the Alpha/Beta line runs from Sol to the core), with the Federation, the Klingon, Romulan and Cardassian empires, the Dominion and the Borg, the Bajoran wormhole to the Gamma Quadrant, Voyager's route home from Ocampa and the Great Barrier. Fly in to Sol for Federation space: Vulcan, Andoria and Tellar at their real stars (40 Eridani, Procyon, 61 Cygni), the Klingon, Romulan and Cardassian capitals at the distances the reference charts give. The galaxy view sizes the empires to be seen, so the two scales do not overlay exactly.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points:
+  - { id: core, xyz: [0, 0, 0], label: GALACTIC CORE, style: major, tap_action: { action: fly-to, view: barrier } }
+  - { id: alpha, polar: [40000, 225], alt: 6000, label: ALPHA QUADRANT, style: title, min_distance: 30000 }
+  - { id: beta, polar: [40000, 135], alt: 6000, label: BETA QUADRANT, style: title, min_distance: 30000 }
+  - { id: gamma_q, polar: [40000, 315], alt: 6000, label: GAMMA QUADRANT, style: title, min_distance: 30000 }
+  - { id: delta_q, polar: [40000, 45], alt: 6000, label: DELTA QUADRANT, style: title, min_distance: 30000 }
+  - id: federation_name
+    xyz: [-1200, 1500, 26000]
+    label: UNITED FEDERATION OF PLANETS
+    style: major
+    color: var(--lcars-blue)
+    min_distance: 2500
+  - id: klingon_name
+    xyz: [5600, 1500, 24400]
+    label: KLINGON EMPIRE
+    style: major
+    color: var(--lcars-red)
+    min_distance: 2500
+  - id: romulan_name
+    xyz: [4800, 1500, 30200]
+    label: ROMULAN STAR EMPIRE
+    style: major
+    color: var(--lcars-green)
+    min_distance: 2500
+  - id: cardassian_name
+    xyz: [-7600, 1500, 29400]
+    label: CARDASSIAN UNION
+    style: major
+    color: var(--lcars-orange)
+    min_distance: 2500
+  - { id: dominion_name, xyz: [-38000, 1500, -32000], label: THE DOMINION, style: major, color: var(--lcars-violet) }
+  - { id: borg_name, xyz: [24000, 1500, -24000], label: BORG COLLECTIVE, style: major, color: var(--lcars-green) }
+  - id: sol
+    xyz: [0, 0, 26000]
+    marker: reticle
+    label: SOL
+    style: major
+    overlap: true
+    tap_action: { action: fly-to, view: neighbours }
+  - id: vulcan
+    xyz: [4.54, -10.02, 26011.97]
+    marker: dot
+    label: Vulcan (40 Eridani)
+    style: minor
+    priority: 90
+    color: var(--lcars-blue)
+    max_distance: 150
+  - id: andoria
+    xyz: [6.2, 2.58, 26009.29]
+    marker: dot
+    label: Andoria (Procyon)
+    style: minor
+    priority: 90
+    color: var(--lcars-blue)
+    max_distance: 150
+  - id: tellar
+    xyz: [-11.24, -1.16, 25998.48]
+    marker: dot
+    label: Tellar (61 Cygni)
+    style: minor
+    priority: 90
+    color: var(--lcars-blue)
+    max_distance: 150
+  - id: alpha_centauri
+    xyz: [3.05, -0.05, 25996.87]
+    marker: dot
+    label: Alpha Centauri
+    style: tiny
+    color: var(--lcards-moonlight)
+    max_distance: 150
+  - id: wolf_359
+    xyz: [3.94, 6.53, 26001.92]
+    marker: dot
+    label: Wolf 359
+    style: tiny
+    color: var(--lcards-moonlight)
+    max_distance: 150
+  - id: vega
+    xyz: [-21.83, 8.25, 25990.93]
+    marker: dot
+    label: Vega
+    style: tiny
+    color: var(--lcards-moonlight)
+    max_distance: 150
+  - id: altair
+    xyz: [-12.23, -2.59, 25988.89]
+    marker: dot
+    label: Altair
+    style: tiny
+    color: var(--lcards-moonlight)
+    max_distance: 150
+  - { id: qonos, xyz: [64, 0, 25910], marker: diamond, label: Qo'noS, style: minor, color: var(--lcars-red), max_distance: 3000 }
+  - id: romulus
+    xyz: [112, 0, 26026]
+    marker: diamond
+    label: Romulus
+    style: minor
+    color: var(--lcars-green)
+    max_distance: 3000
+  - { id: remus, xyz: [113, 0, 26027.5], marker: dot, label: Remus, style: minor, color: var(--lcars-green), max_distance: 3000 }
+  - id: bajor
+    xyz: [-46, 0, 26024]
+    marker: diamond
+    label: Bajor
+    style: minor
+    color: var(--lcars-yellow)
+    max_distance: 3000
+    priority: 85
+    tap_action: { action: fly-to, view: bajor }
+  - id: cardassia
+    xyz: [-50.9, 0, 26026]
+    marker: diamond
+    label: Cardassia Prime
+    style: minor
+    color: var(--lcars-orange)
+    max_distance: 3000
+  - { id: wormhole_alpha, xyz: [-45, 1, 26021.5], label: BAJORAN WORMHOLE, style: tiny, max_distance: 60 }
+  - id: idran
+    xyz: [-38000, 0, -32000]
+    marker: diamond
+    label: IDRAN
+    style: minor
+    tap_action: { action: fly-to, view: gamma }
+  - { id: wormhole_gamma, xyz: [-37997, 1, -31996.5], label: WORMHOLE (GAMMA END), style: tiny, max_distance: 60 }
+  - { id: founders, xyz: [-39500, 0, -31200], marker: dot, label: Founders' homeworld, style: tiny, max_distance: 20000 }
+  - { id: unicomplex, xyz: [26000, 0, -26000], marker: diamond, label: Unicomplex, style: minor, max_distance: 60000 }
+  - id: ocampa
+    xyz: [37000, 0, -33000]
+    marker: dot
+    label: OCAMPA
+    style: minor
+    color: var(--lcars-orange)
+    tap_action: { action: fly-to, view: delta }
+  - { id: nekrit, xyz: [31000, 0, -22000], marker: dot, label: Nekrit Expanse, style: tiny, color: var(--lcars-orange) }
+  - id: northwest_passage
+    xyz: [22000, 0, -9000]
+    marker: dot
+    label: Northwest Passage
+    style: tiny
+    color: var(--lcars-orange)
+  - { id: endgame, xyz: [9000, 0, 8000], marker: dot, label: Transwarp conduit, style: tiny, color: var(--lcars-orange) }
+objects:
+  - { type: galaxy, id: milky_way, glow: 0.5 }
+  - type: beam
+    id: alpha_beta_line
+    from: [0, 0, -52000]
+    to: [0, 0, 52000]
+    width: 1.5
+    color: theme:colors.ui.secondary
+    min_distance: 2000
+  - type: beam
+    id: gamma_delta_line
+    from: [-52000, 0, 0]
+    to: [52000, 0, 0]
+    width: 1.5
+    color: theme:colors.ui.secondary
+    min_distance: 2000
+  - type: grid
+    id: great_barrier
+    shape: sphere
+    radius: 7500
+    line_spacing_deg: 20
+    color: var(--lcars-yellow)
+    opacity: 0.4
+    scan_period: 6
+  - { type: glow, at: core, size: 7000, color: var(--lcars-yellow), opacity: 0.5 }
+  - type: volume
+    id: federation_space
+    shape: prism
+    outline: [[-4800, 23200], [-1200, 21800], [2200, 23000], [2600, 27200], [800, 30000], [-3200, 30400], [-5200, 27600]]
+    height: [-1200, 1200]
+    color: var(--lcars-blue)
+    face_opacity: 0.25
+    cells: { width: 2000, depth: 2000, height: 1200 }
+    min_distance: 600
+  - type: volume
+    id: klingon_space
+    shape: prism
+    outline: [[2400, 22600], [6200, 21400], [8400, 24200], [7400, 27600], [3000, 27000]]
+    height: [-1200, 1200]
+    color: var(--lcars-red)
+    face_opacity: 0.25
+    cells: { width: 2000, depth: 2000, height: 1200 }
+    min_distance: 600
+  - type: volume
+    id: romulan_space
+    shape: prism
+    outline: [[2800, 27400], [7200, 28000], [7800, 31800], [3600, 32600], [1200, 30400]]
+    height: [-1200, 1200]
+    color: var(--lcars-green)
+    face_opacity: 0.25
+    cells: { width: 2000, depth: 2000, height: 1200 }
+    min_distance: 600
+  - type: volume
+    id: cardassian_space
+    shape: prism
+    outline: [[-5400, 27800], [-8800, 26600], [-10400, 29600], [-8200, 32200], [-4600, 31000]]
+    height: [-1200, 1200]
+    color: var(--lcars-orange)
+    face_opacity: 0.25
+    cells: { width: 2000, depth: 2000, height: 1200 }
+    min_distance: 600
+  - type: volume
+    id: dominion_space
+    shape: prism
+    outline: [[-30000, -27000], [-41000, -22000], [-46000, -32000], [-40000, -41000], [-29000, -37000]]
+    height: [-1200, 1200]
+    color: var(--lcars-violet)
+    face_opacity: 0.25
+    cells: { width: 2000, depth: 2000, height: 1200 }
+  - type: volume
+    id: borg_space
+    shape: prism
+    outline: [[14000, -14000], [30000, -10000], [40000, -24000], [32000, -40000], [16000, -34000], [10000, -22000]]
+    height: [-1200, 1200]
+    color: var(--lcars-green)
+    face_opacity: 0.25
+    cells: { width: 2000, depth: 2000, height: 1200 }
+  - type: grid
+    id: sectors
+    shape: plane
+    at: sol
+    size: [400, 400]
+    line_spacing: 20
+    major_row_interval: 5
+    opacity: 0.5
+    max_distance: 3000
+  - type: volume
+    id: romulan_neutral_zone
+    shape: prism
+    at: sol
+    outline: [[70, -40], [78, -40], [80, 60], [72, 60]]
+    height: [-4, 4]
+    color: var(--lcars-green)
+    face_opacity: 0.35
+    max_distance: 3000
+  - type: volume
+    id: cardassian_dmz
+    shape: prism
+    at: sol
+    outline: [[-38, 12], [-42, 8], [-48, 34], [-44, 38]]
+    height: [-4, 4]
+    color: var(--lcars-orange)
+    face_opacity: 0.35
+    max_distance: 3000
+  - type: path
+    id: wormhole_link
+    points: [wormhole_alpha, wormhole_gamma]
+    arc: 4000
+    dash: [8, 6]
+    flow_speed: 30
+    color: var(--lcars-yellow)
+    width: 1.5
+  - type: grid
+    id: wormhole_mouth_alpha
+    shape: well
+    well_shape: wormhole
+    well_throat: 0.25
+    radius: 0.6
+    depth: 1.6
+    at: wormhole_alpha
+    line_spacing_deg: 30
+    color: var(--lcars-yellow)
+    max_distance: 200
+  - type: grid
+    id: wormhole_mouth_gamma
+    shape: well
+    well_shape: wormhole
+    well_throat: 0.25
+    radius: 0.6
+    depth: 1.6
+    at: wormhole_gamma
+    line_spacing_deg: 30
+    color: var(--lcars-yellow)
+    max_distance: 200
+  - type: path
+    id: voyager_route
+    points: [ocampa, nekrit, northwest_passage, endgame, sol]
+    dash: [10, 6]
+    flow_speed: 40
+    color: var(--lcars-orange)
+    width: 2
+camera:
+  view: galaxy
+  fly_duration: 4500
+  buttons: true
+  views:
+    galaxy: { target: core, yaw: 20, tilt: 40, distance: 130000 }
+    quadrants: { target: core, tilt: 90, distance: 150000 }
+    federation: { target: sol, yaw: 200, tilt: 45, distance: 380 }
+    neighbours: { target: sol, yaw: 200, tilt: 35, distance: 50 }
+    bajor: { target: bajor, yaw: 160, tilt: 20, distance: 12 }
+    gamma: { target: idran, yaw: 30, tilt: 30, distance: 9000 }
+    delta: { target: ocampa, yaw: 330, tilt: 40, distance: 45000 }
+    barrier: { target: core, yaw: 40, tilt: 25, distance: 30000 }
+backdrop: { stars: { count: 1500 } }
+units: ly
+```
+
 ## Parts
 
 Each part on its own card, at its default centre. In the Studio, give it a point of your scene as its centre.
@@ -1333,4 +1639,242 @@ objects:
 camera: { views: { starbase_view: { target: starbase_centre, yaw: 30, tilt: 15, distance: 120 } } }
 ```
 
+### Star Trek: minor powers
+
+For the Star Trek galaxy: the Ferengi, Breen, Tzenkethi, Tholian and Gorn homeworlds round Federation space, each with a small territory, at the close-up's scale (Ferenginar at its recorded 55 ly from Cardassia and 60 from Bajor).
+
+Its ids start with its name (default `_`).
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points:
+  - id: ferenginar
+    xyz: [-105.9, 0, 26028.1]
+    marker: diamond
+    label: Ferenginar
+    style: minor
+    color: var(--lcars-yellow)
+    max_distance: 3000
+  - id: breen
+    xyz: [-150, 0, 26095]
+    marker: diamond
+    label: Breen
+    style: minor
+    color: var(--lcars-lilac)
+    max_distance: 3000
+  - id: tzenkethi
+    xyz: [-175, 0, 26020]
+    marker: diamond
+    label: Tzenkethi
+    style: minor
+    color: var(--lcars-magenta)
+    max_distance: 3000
+  - id: tholia
+    xyz: [40, 0, 26140]
+    marker: diamond
+    label: Tholia
+    style: minor
+    color: var(--lcars-orange)
+    max_distance: 3000
+  - id: gorn
+    xyz: [150, 0, 25960]
+    marker: diamond
+    label: Gorn Hegemony
+    style: minor
+    color: var(--lcars-green)
+    max_distance: 3000
+objects:
+  - type: volume
+    id: ferenginar_space
+    shape: prism
+    at: ferenginar
+    height: [-6, 6]
+    color: var(--lcars-yellow)
+    face_opacity: 0.25
+    max_distance: 3000
+    outline: [[-18, -10], [-4, -20], [16, -12], [20, 8], [4, 20], [-16, 14]]
+  - type: volume
+    id: breen_space
+    shape: prism
+    at: breen
+    height: [-6, 6]
+    color: var(--lcars-lilac)
+    face_opacity: 0.25
+    max_distance: 3000
+    outline: [[-18, -10], [-4, -20], [16, -12], [20, 8], [4, 20], [-16, 14]]
+  - type: volume
+    id: tzenkethi_space
+    shape: prism
+    at: tzenkethi
+    height: [-6, 6]
+    color: var(--lcars-magenta)
+    face_opacity: 0.25
+    max_distance: 3000
+    outline: [[-18, -10], [-4, -20], [16, -12], [20, 8], [4, 20], [-16, 14]]
+  - type: volume
+    id: tholia_space
+    shape: prism
+    at: tholia
+    height: [-6, 6]
+    color: var(--lcars-orange)
+    face_opacity: 0.25
+    max_distance: 3000
+    outline: [[-18, -10], [-4, -20], [16, -12], [20, 8], [4, 20], [-16, 14]]
+  - type: volume
+    id: gorn_space
+    shape: prism
+    at: gorn
+    height: [-6, 6]
+    color: var(--lcars-green)
+    face_opacity: 0.25
+    max_distance: 3000
+    outline: [[-18, -10], [-4, -20], [16, -12], [20, 8], [4, 20], [-16, 14]]
+units: ly
+```
+
+### Star Trek: Delta Quadrant powers
+
+For the Star Trek galaxy: Kazon, Vidiian and Hirogen space along Voyager's route home, in the order Voyager met them.
+
+Its ids start with its name (default `_`).
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points:
+  - { id: kazon_name, xyz: [37000, 1500, -33000], label: KAZON SECTS, style: minor, color: var(--lcars-orange) }
+  - { id: vidiian_name, xyz: [31000, 1500, -24000], label: VIDIIAN SODALITY, style: minor, color: var(--lcars-red) }
+  - { id: hirogen_name, xyz: [20000, 1500, -3000], label: HIROGEN HUNTING GROUNDS, style: minor, color: var(--lcars-violet) }
+objects:
+  - type: volume
+    id: kazon_space
+    shape: prism
+    outline: [[33000, -38000], [41000, -36000], [42000, -29000], [35000, -27000], [31000, -31000]]
+    height: [-1000, 1000]
+    color: var(--lcars-orange)
+    face_opacity: 0.25
+    cells: { width: 2000, depth: 2000, height: 1000 }
+  - type: volume
+    id: vidiian_space
+    shape: prism
+    outline: [[30000, -29000], [35000, -26000], [33000, -20000], [27000, -21000]]
+    height: [-1000, 1000]
+    color: var(--lcars-red)
+    face_opacity: 0.25
+    cells: { width: 2000, depth: 2000, height: 1000 }
+  - type: volume
+    id: hirogen_space
+    shape: prism
+    outline: [[16000, -8000], [26000, -6000], [27000, 2000], [17000, 3000], [12000, -2000]]
+    height: [-1000, 1000]
+    color: var(--lcars-violet)
+    face_opacity: 0.25
+    cells: { width: 2000, depth: 2000, height: 1000 }
+units: ly
+```
+
+### Star Trek: Borg transwarp network
+
+For the Star Trek galaxy: a Borg transwarp hub in the Delta Quadrant with flowing conduits across Borg space and one to the aperture near Earth.
+
+Its ids start with its name (default `_`).
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points:
+  - { id: tw_hub, xyz: [22000, 0, -18000], marker: diamond, label: TRANSWARP HUB, style: minor, color: var(--lcars-green) }
+  - id: tw_unicomplex
+    xyz: [26000, 0, -26000]
+    marker: dot
+    label: Unicomplex
+    style: tiny
+    color: var(--lcars-green)
+    max_distance: 60000
+  - id: tw_exit_1
+    xyz: [36000, 0, -14000]
+    marker: dot
+    label: Conduit exit
+    style: tiny
+    color: var(--lcars-green)
+    max_distance: 60000
+  - id: tw_exit_2
+    xyz: [18000, 0, -38000]
+    marker: dot
+    label: Conduit exit
+    style: tiny
+    color: var(--lcars-green)
+    max_distance: 60000
+  - id: tw_exit_3
+    xyz: [8000, 0, -12000]
+    marker: dot
+    label: Conduit exit
+    style: tiny
+    color: var(--lcars-green)
+    max_distance: 60000
+  - id: tw_earth
+    xyz: [0.6, 0.2, 25999.5]
+    label: Transwarp aperture
+    style: tiny
+    color: var(--lcars-green)
+    max_distance: 30
+objects:
+  - type: path
+    id: conduit_tw_unicomplex
+    points: [tw_hub, tw_unicomplex]
+    arc: 1500
+    dash: [4, 6]
+    flow_speed: 60
+    color: var(--lcars-green)
+    width: 1.5
+    glow: true
+  - type: path
+    id: conduit_tw_exit_1
+    points: [tw_hub, tw_exit_1]
+    arc: 1500
+    dash: [4, 6]
+    flow_speed: 60
+    color: var(--lcars-green)
+    width: 1.5
+    glow: true
+  - type: path
+    id: conduit_tw_exit_2
+    points: [tw_hub, tw_exit_2]
+    arc: 1500
+    dash: [4, 6]
+    flow_speed: 60
+    color: var(--lcars-green)
+    width: 1.5
+    glow: true
+  - type: path
+    id: conduit_tw_exit_3
+    points: [tw_hub, tw_exit_3]
+    arc: 1500
+    dash: [4, 6]
+    flow_speed: 60
+    color: var(--lcars-green)
+    width: 1.5
+    glow: true
+  - type: path
+    id: conduit_tw_earth
+    points: [tw_hub, tw_earth]
+    arc: 6000
+    dash: [4, 6]
+    flow_speed: 60
+    color: var(--lcars-green)
+    width: 1.5
+    glow: true
+units: ly
+```
+
 <!-- starters:end -->
+
+## Where the Star Trek galaxy's places come from
+
+The [Star Trek galaxy](#star-trek-galaxy) and its parts follow what is recorded: what was said on screen, the published reference charts (*Star Trek: Star Charts* and *Stellar Cartography: The Starfleet Reference Library*, as summarised on Memory Alpha), and the star charts seen on screen that were drawn from them.
+
+- **Quadrants:** two lines through the galactic core, one of them through Sol. Alpha is the half of Sol's side at galactic longitude 0 to 180 degrees (left of the line from Sol to the core, seen from above), Beta the other half; Gamma and Delta lie across the core.
+- **Homeworlds at real stars** sit at those stars' real positions: Vulcan at 40 Eridani (16 ly, in Beta), Andoria at Procyon (11 ly, Beta), Tellar at 61 Cygni (11 ly, Alpha). Alpha Centauri, Wolf 359, Vega and Altair are there as well.
+- **Other worlds** sit within the distances on record: Qo'noS over 100 ly from Sol in Beta, Romulus in Beta past the Neutral Zone, Bajor 5.25 ly from Cardassia in Alpha, Ferenginar 55 ly from Cardassia and 60 from Bajor, the far end of the Bajoran wormhole 4.72 ly from Idran, Idran about 70,000 ly from Bajor and Ocampa about 70,000 ly from Earth, the Dominion 40,000 to 50,000 ly from the core, the Great Barrier about 15,000 ly across. Sol is 26,000 ly from the core.
+- **Two scales:** the galaxy view draws the empires as regions sized after the Federation's 8,000 light years, so they can be seen; the capitals are all within about 120 ly of Sol, so they appear only in the close-ups (FEDERATION, SOL NEIGHBOURS). The two do not overlay exactly. Region outlines and the places without a recorded position are our own.

@@ -24,6 +24,10 @@ import utopiaPlanitia from './scene-utopia-planitia.js';
 import borgEncounter from './scene-borg-encounter.js';
 import trueScaleSolarSystem from './scene-true-scale-solar-system.js';
 import trueScaleDive from './scene-true-scale-dive.js';
+import starTrekGalaxy from './scene-star-trek-galaxy.js';
+import stMinorPowers from './part-st-minor-powers.js';
+import stDeltaPowers from './part-st-delta-powers.js';
+import stTranswarp from './part-st-transwarp.js';
 import { flattenSystems } from '../names.js';
 import planet from './part-planet.js';
 import asteroidBelt from './part-asteroid-belt.js';
@@ -63,7 +67,7 @@ import starbase from './part-starbase.js';
  */
 
 /** @type {Starter[]} */
-export const STARTERS = [galaxy, sectorMap, skyDome, solarSystem, federationMap, starbaseApproach, deepSpaceNine, utopiaPlanitia, borgEncounter, trueScaleSolarSystem, trueScaleDive, planet, asteroidBelt, nebulaField, sectorVolumes, starbase];
+export const STARTERS = [galaxy, sectorMap, skyDome, solarSystem, federationMap, starbaseApproach, deepSpaceNine, utopiaPlanitia, borgEncounter, trueScaleSolarSystem, trueScaleDive, starTrekGalaxy, planet, asteroidBelt, nebulaField, sectorVolumes, starbase, stMinorPowers, stDeltaPowers, stTranswarp];
 
 /** Keys whose string values (or list entries) name a point, object or view */
 const REF_KEYS = new Set(['id', 'at', 'object', 'target', 'from', 'to', 'points', 'view']);

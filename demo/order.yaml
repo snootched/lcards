@@ -68,6 +68,13 @@ releases:
         session: "M3"
         docs: /cards/astrometrics/objects#facing-the-way-it-goes
         public: true
+      - file: astro-star-trek
+        topic: astrometrics
+        summary: "Astrometrics Star Trek galaxy: the quadrants, the powers, Federation space"
+        description: "The Star Trek galaxy starter with its optional parts. The Milky Way cut into the four quadrants along the line from Sol to the core; the Federation, Klingon, Romulan and Cardassian regions, the Dominion and the Borg; the Bajoran wormhole to Idran, Voyager's route home and the Great Barrier. FEDERATION and SOL NEIGHBOURS fly in to the capitals and nearby stars: Vulcan, Andoria and Tellar at their real stars (40 Eridani, Procyon, 61 Cygni), the others at the distances the reference charts give. The galaxy view sizes the empires to be seen, so the two scales do not overlay exactly."
+        session: "R4c2"
+        docs: /cards/astrometrics/starters#star-trek-galaxy
+        public: true
       - file: astro-galaxy
         topic: astrometrics
         summary: "Astrometrics galaxy: a procedural Milky Way, and a prism territory"
