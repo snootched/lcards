@@ -71,6 +71,32 @@ test('cards view loads without LCARdS errors; integration version matches packag
     expect(info.version).toBe(PKG_VERSION);
 });
 
+test('LCARdS media source: built-in Models and My models browse; a model resolves to a URL that serves', async ({ request }) => {
+    const root = await client.call({ type: 'media_source/browse_media', media_content_id: 'media-source://lcards' });
+    const ids = root.children.map((c) => c.media_content_id);
+    expect(ids).toEqual(expect.arrayContaining(['media-source://lcards/models', 'media-source://lcards/my_models']));
+    expect(root.children.find((c) => c.media_content_id === 'media-source://lcards/my_models').title).toBe('My models');
+
+    const models = await client.call({ type: 'media_source/browse_media', media_content_id: 'media-source://lcards/models' });
+    const ds9 = models.children.find((c) => /deep-space-nine\.glb$/.test(c.media_content_id));
+    expect(ds9?.media_content_type).toBe('model/gltf-binary');
+    // only glTF files are listed there
+    expect(models.children.every((c) => /\.(glb|gltf)$/.test(c.media_content_id) || c.can_expand)).toBe(true);
+
+    const resolved = await client.call({ type: 'media_source/resolve_media', media_content_id: ds9.media_content_id });
+    expect(resolved.mime_type).toBe('model/gltf-binary');
+    expect(resolved.url).toMatch(/^\/lcards\/models\/deep-space-nine\.glb/);
+    const res = await request.get(`${HA_URL}${resolved.url}`);
+    expect(res.status()).toBe(200);
+
+    // the user's folder (created by the integration, /config/www/lcards/models) browses, empty or not
+    const mine = await client.call({ type: 'media_source/browse_media', media_content_id: 'media-source://lcards/my_models' });
+    expect(mine.can_expand).toBe(true);
+    expect(mine.children.every((c) => /\.(glb|gltf)$/.test(c.media_content_id) || c.can_expand)).toBe(true);
+    // a path out of the folder is refused
+    await expect(client.call({ type: 'media_source/resolve_media', media_content_id: 'media-source://lcards/my_models/../../configuration.yaml' })).rejects.toBeTruthy();
+});
+
 test('toggle button flips the input_boolean', async ({ page }) => {
     await openDashboard(page, 'cards');
     const button = page.locator('lcards-button', { hasText: 'TOGGLE' });

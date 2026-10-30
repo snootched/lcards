@@ -18,7 +18,7 @@
  *
  * @module core/astrometrics/scene-runtime
  */
-import { TextureLoader, Raycaster, Vector2, Vector3 } from 'three';
+import { Texture, TextureLoader, Raycaster, Vector2, Vector3 } from 'three';
 import { acquire, release, render as sharedRender } from '../packs/backgrounds/webgl/three-runtime.js';
 import { webglAvailable } from '../packs/backgrounds/webgl/webgl-support.js';
 import { parseColorToRgba } from '../packs/textures/effects/noise-helpers.js';
@@ -244,8 +244,33 @@ export function createAstroScene(host, config, options = {}) {
   const textures = new Set();
   const loader = new TextureLoader();
   loader.setCrossOrigin('anonymous');
-  /** @type {Map<string, Promise<import('three/examples/jsm/loaders/GLTFLoader.js').GLTF>>} model files by URL, parsed once for every build */
+  /** @type {Map<string, Promise<import('three/examples/jsm/loaders/GLTFLoader.js').GLTF>>} model files by src, parsed once for every build */
   const modelFiles = new Map();
+
+  /**
+   * A file's URL from a config value: `builtin:<key>` from the LCARdS
+   * library (models or images), `media-source://...` through the Home
+   * Assistant media browser (LCARdS's My models folder, any image), anything
+   * else as given.
+   * @param {string} src
+   * @param {'model' | 'image'} kind
+   * @returns {Promise<string>}
+   */
+  async function fileUrl(src, kind) {
+    const am = window.lcards?.core?.assetManager;
+    if (src.startsWith('builtin:')) {
+      const key = src.slice('builtin:'.length);
+      const url = kind === 'model' ? am?.resolveModelUrl?.(key) : am?.resolveImageUrl?.(key);
+      if (!url) throw new Error(`no built-in ${kind} '${key}'`);
+      return url;
+    }
+    if (src.startsWith('media-source://')) {
+      const url = await am?.resolveMediaSourceUrl?.(src);
+      if (!url) throw new Error(`could not resolve ${src} through the media browser`);
+      return url;
+    }
+    return src;
+  }
 
   const rig = new CameraRig({ onChange: () => requestFrame() });
   /** Objects' bounding spheres, for distance fades and depth slices */
@@ -301,25 +326,28 @@ export function createAstroScene(host, config, options = {}) {
     sky: () => sky,
     requestFrame: () => requestFrame(),
     loadTexture: (src) => {
-      // builtin:<key>: an image from the LCARdS image library (builtin:earth_blue_marble)
-      const key = src.startsWith('builtin:') ? src.slice('builtin:'.length) : null;
-      const url = key ? (window.lcards?.core?.assetManager?.resolveImageUrl?.(key) ?? '') : src;
-      if (key && !url) lcardsLog.warn(`[Astrometrics] no built-in image '${key}'`);
-      const t = loader.load(url, () => requestFrame(), undefined, () => lcardsLog.warn(`[Astrometrics] could not load image ${url}`));
+      // returned at once (callers set its options); the picture arrives once
+      // the URL is known (builtin:earth_blue_marble, media-source://..., a path)
+      const t = new Texture();
+      fileUrl(src, 'image').then((url) => {
+        loader.load(url, (img) => {
+          t.image = img.image;
+          t.needsUpdate = true;
+          img.dispose();
+          requestFrame();
+        }, undefined, () => lcardsLog.warn(`[Astrometrics] could not load image ${url}`));
+      }, (err) => lcardsLog.warn(`[Astrometrics] ${err.message}`));
       textures.add(t);
       return t;
     },
     loadModel: (src, maxMB) => {
       const models = ctx.models;
       if (!models) return null;
-      // builtin:<key>: a model from the LCARdS model library (builtin:constitution)
-      const key = src.startsWith('builtin:') ? src.slice('builtin:'.length) : null;
-      const url = key ? (window.lcards?.core?.assetManager?.resolveModelUrl?.(key) ?? '') : src;
-      if (!url) return Promise.reject(new Error(`no built-in model '${key}'`));
-      const cacheKey = `${url}|${maxMB}`;
+      // builtin:constitution (the LCARdS model library), media-source://... (My models), a path
+      const cacheKey = `${src}|${maxMB}`;
       let p = modelFiles.get(cacheKey);
       if (!p) {
-        p = models.loadModelFile(url, { maxBytes: maxMB * 1024 * 1024 });
+        p = fileUrl(src, 'model').then((url) => models.loadModelFile(url, { maxBytes: maxMB * 1024 * 1024 }));
         modelFiles.set(cacheKey, p);
         // a failed load is tried again on the next build
         p.catch(() => modelFiles.delete(cacheKey));

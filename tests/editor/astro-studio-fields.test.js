@@ -129,3 +129,22 @@ test('TYPE_GUIDE matches the objects page table and covers every type', () => {
   const rows = [...md.matchAll(/^\| (.+?) \| \[`(\w+)`\]\(#\w+\) \|$/gm)].map((m) => ({ use: m[1], type: m[2] }));
   assert.deepEqual(rows, TYPE_GUIDE.map((t) => ({ use: t.use, type: t.type })));
 });
+
+test('files are pickers: model src (models) and textures (images), from the schema annotation', () => {
+  const props = (/** @type {string} */ type) => {
+    const parts = objectBranch(objectSchema, type);
+    return { ...parts?.common, ...parts?.own };
+  };
+  assert.equal(fieldKind(props('model').src, 'src'), 'asset');
+  assert.equal(props('model').src.assetSource, 'model');
+  for (const [type, key] of [['image', 'src'], ['sphere', 'image'], ['ring', 'image']]) {
+    assert.equal(fieldKind(props(type)[key], key), 'asset', `${type}.${key}`);
+    assert.equal(props(type)[key].assetSource, 'image', `${type}.${key}`);
+  }
+  // no other string key is a file
+  for (const type of OBJECT_TYPES) {
+    for (const [key, s] of Object.entries(props(type))) {
+      if (fieldKind(s, key) === 'asset') assert.ok(['model.src', 'image.src', 'sphere.image', 'ring.image'].includes(`${type}.${key}`), `${type}.${key}`);
+    }
+  }
+});

@@ -20,6 +20,7 @@ import {
 } from './schema-fields.js';
 import '../../components/shared/lcards-form-section.js';
 import '../../components/shared/lcards-color-picker.js';
+import '../../components/shared/lcards-asset-source-picker.js';
 import '../../components/yaml/lcards-yaml-editor.js';
 
 const isObj = (/** @type {any} */ v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -150,6 +151,18 @@ export class LCARdSAstroSchemaForm extends LitElement {
           return this._selector(key, { select: { mode: 'dropdown', options, custom_value: true } }, value ?? '', label, helper, cls, (v) => v || undefined);
         }
         return this._selector(key, { text: {} }, value === undefined ? '' : String(value), label, helper, cls, (v) => v || undefined);
+      case 'asset': {
+        const model = s.assetSource === 'model';
+        return html`
+          <lcards-asset-source-picker class="full" data-key=${key} .hass=${this.hass} .value=${value === undefined ? '' : String(value)}
+            .label=${label} .assetTypes=${model ? ['model'] : ['image']} .accept=${model ? ['model/*'] : ['image/*']}
+            .assetLabel=${model ? 'Built-in model' : 'Built-in image'}
+            .customHelper=${model ? 'A .glb or .gltf file: /local/... (in /config/www) or an https:// URL.' : 'An image: /local/... (in /config/www) or an https:// URL.'}
+            .mediaHelper=${model ? 'Your own models: put .glb files in /config/www/lcards/models, then find them under LCARdS, My models.' : 'Browse or upload an image in the Home Assistant media library.'}
+            @value-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); this._set(key, e.detail.value || undefined); }}>
+          </lcards-asset-source-picker>
+          ${helper ? html`<div class="hint full">${helper}</div>` : nothing}`;
+      }
       case 'strings':
         return this._selector(key, { text: {} }, Array.isArray(value) ? value.join(', ') : '', label, `${helper} Separate with commas.`, cls,
           (v) => String(v ?? '').split(',').map((t) => t.trim()).filter(Boolean));

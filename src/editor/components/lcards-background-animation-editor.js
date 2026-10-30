@@ -27,6 +27,7 @@ import './shared/lcards-color-picker.js';
 import './shared/lcards-color-list.js';
 import './shared/lcards-form-section.js';
 import './shared/lcards-message.js';
+import './shared/lcards-asset-source-picker.js';
 import { BACKGROUND_PRESET_DOCS_URL } from './shared/docs-links.js';
 import { SCHEMA_SECTIONS, GRID_PRESETS, GRID_VIEW_KEYS, schemaFields, withViewDefault } from './background-animation-fields.js';
 import { infoGuideStyles } from './shared/info-guide-styles.js';
@@ -41,7 +42,6 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
       _expandedIndex: { type: Number },
       _draggedIndex: { type: Number },
       _expandedEffects: { type: Object },
-      _imageSrcModes:  { type: Object, state: true },
       _insetEnabled: { type: Boolean, state: true },
     };
   }
@@ -265,7 +265,6 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     this._expandedIndex = null;
     this._draggedIndex = null;
     this._expandedEffects = {};
-    this._imageSrcModes   = {};
     this._insetEnabled = false;
   }
 
@@ -1241,119 +1240,21 @@ export class LCARdSBackgroundAnimationEditor extends LitElement {
     `;
   }
 
-  /**
-   * Return a combined list of builtin image options from both the `image` and `svg`
-   * asset registries.  Each entry is `{ value: 'builtin:key', label: key }`.
-   * @returns {Array<{value:string, label:string}>}
-   */
-  _getAvailableImages() {
-    const am = window.lcards?.core?.assetManager;
-    if (!am) return [];
-    // Only genuinely curated, pack-provided assets belong here —
-    // listAssets()/listImages() return every registered key, including ones
-    // dynamically registered from a user's Custom URL or HA Media pick
-    // (they persist in the registry for the rest of the page session once
-    // picked), which never carry a `pack` metadata field the way
-    // pack-provided entries always do. Without this filter, a previously-
-    // picked media-source:// id or custom URL leaks into this list
-    // permanently as a mangled, unresolvable "builtin:<raw value>" entry —
-    // see the matching fix in lcards-msd-studio-dialog.js's _getAvailableSvgs().
-    const isPackAsset = (type, key) => !!am.getMetadata?.(type, key)?.pack;
-    const svgKeys   = (am.listAssets?.('svg') ?? []).filter(key => isPackAsset('svg', key));
-    const imgKeys   = (am.listImages?.()      ?? []).filter(key => isPackAsset('image', key));
-    const all       = [...new Set([...svgKeys, ...imgKeys])].sort();
-    return all.map(key => ({ value: `builtin:${key}`, label: key }));
-  }
-
-  /**
-   * Handle image source mode change for a specific effect index.
-   * When switching to 'asset' mode and the current value is not a builtin reference,
-   * automatically select the first available image.
-   * @param {number} index
-   * @param {string} mode  'asset' | 'custom' | 'media'
-   * @param {string} currentSource
-   */
-  _handleImageSrcModeChange(index, mode, currentSource) {
-    this._imageSrcModes = { ...this._imageSrcModes, [index]: mode };
-    if (mode === 'asset' && !currentSource?.startsWith('builtin:')) {
-      const available = this._getAvailableImages();
-      if (available.length > 0) {
-        this._updateEffectConfig(index, 'source', available[0].value);
-      }
-    }
-  }
-
   _renderImageBackgroundSection(config, index) {
     const source = config.source ?? config.url ?? '';
-    const mode   = this._imageSrcModes[index] ?? (
-      source.startsWith('builtin:') ? 'asset' :
-      source.startsWith('media-source://') ? 'media' :
-      'custom'
-    );
-    const availableImages = this._getAvailableImages();
-    const showHttpWarning = mode === 'custom' && source.startsWith('http:') &&
-      typeof location !== 'undefined' && location.protocol === 'https:';
-    const mediaValue = source.startsWith('media-source://')
-      ? { media_content_id: source, media_content_type: '' }
-      : undefined;
 
     return html`
       <lcards-form-section header="Image" icon="mdi:image" ?expanded=${true}>
         <div class="param-grid">
-          <!-- Source mode selector (full width) -->
-          <ha-selector
-            .hass=${this.hass}
-            .selector=${{ select: { mode: 'dropdown', options: [
-              { value: 'asset',  label: 'Asset Library (builtin images & SVGs)' },
-              { value: 'custom', label: 'Custom URL / Template' },
-              { value: 'media',  label: 'Browse Home Assistant Media' }
-            ]}}}
-            .value=${mode}
-            .label=${'Image Source'}
-            @value-changed=${(e) => this._handleImageSrcModeChange(index, e.detail.value, source)}
+          <lcards-asset-source-picker .hass=${this.hass} .value=${source}
+            .label=${'Image Source'} .assetLabel=${'Built-in Image'}
+            .assetHelper=${'Images and SVGs registered in the Asset Library'}
+            .customLabel=${'Image URL'}
+            .customHelper=${'Path to image: /local/images/room.jpg · https://… · or a template: {entity.attributes.entity_picture}'}
+            .mediaHelper=${'Browse or upload an image via the Home Assistant media library'}
+            @value-changed=${(e) => { e.stopPropagation(); this._updateEffectConfig(index, 'source', e.detail.value); }}
             style="grid-column: 1 / -1"
-          ></ha-selector>
-
-          ${mode === 'asset' ? html`
-            <!-- Asset picker -->
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ select: { mode: 'dropdown', custom_value: availableImages.length >= 10, options: availableImages }}}
-              .value=${availableImages.some(o => o.value === source) ? source : (availableImages[0]?.value ?? '')}
-              .label=${'Built-in Image'}
-              .helper=${'Images and SVGs registered in the Asset Library'}
-              @value-changed=${(e) => this._updateEffectConfig(index, 'source', e.detail.value)}
-              style="grid-column: 1 / -1"
-            ></ha-selector>
-          ` : mode === 'media' ? html`
-            <!-- HA media library picker -->
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ media: { accept: ['image/*'] } }}
-              .value=${mediaValue}
-              .label=${'Home Assistant Media'}
-              .helper=${'Browse or upload an image via the Home Assistant media library'}
-              @value-changed=${(e) => this._updateEffectConfig(index, 'source', e.detail.value?.media_content_id ?? '')}
-              style="grid-column: 1 / -1"
-            ></ha-selector>
-          ` : html`
-            <!-- Custom URL / template input -->
-            <ha-selector
-              .hass=${this.hass}
-              .selector=${{ text: {} }}
-              .value=${source}
-              .label=${'Image URL'}
-              .helper=${'Path to image: /local/images/room.jpg · https://… · or a template: {entity.attributes.entity_picture}'}
-              @value-changed=${(e) => this._updateEffectConfig(index, 'source', e.detail.value)}
-              style="grid-column: 1 / -1"
-            ></ha-selector>
-          `}
-
-          ${showHttpWarning ? html`
-            <div style="grid-column:1/-1">
-              <lcards-message type="warning" .message=${'http:// URLs will be blocked as mixed content when Home Assistant is served over HTTPS. Use an https:// URL or a /local/ path instead.'}></lcards-message>
-            </div>
-          ` : ''}
+          ></lcards-asset-source-picker>
 
           <!-- Size -->
           <ha-selector
@@ -1889,17 +1790,6 @@ fill_pct: "[[[return entity.attributes.brightness / 2.55]]]"</pre>
     });
     this._expandedEffects = newExpanded;
 
-    // Update image source mode state
-    const newSrcModes = {};
-    Object.keys(this._imageSrcModes).forEach(key => {
-      const idx = parseInt(key);
-      if (idx < index) {
-        newSrcModes[idx] = this._imageSrcModes[idx];
-      } else if (idx > index) {
-        newSrcModes[idx - 1] = this._imageSrcModes[idx];
-      }
-    });
-    this._imageSrcModes = newSrcModes;
 
     this._emitChange(updatedEffects, inset);
   }
@@ -2083,21 +1973,6 @@ fill_pct: "[[[return entity.attributes.brightness / 2.55]]]"</pre>
 
     this._expandedEffects = newExpandedState;
 
-    // Update image source mode state to follow moved items
-    const newSrcModeState = {};
-    Object.keys(this._imageSrcModes).forEach(oldIndex => {
-      const idx = parseInt(oldIndex);
-      let newIndex = idx;
-      if (idx === dragIndex) {
-        newIndex = dropIndex;
-      } else if (dragIndex < dropIndex && idx > dragIndex && idx <= dropIndex) {
-        newIndex = idx - 1;
-      } else if (dragIndex > dropIndex && idx >= dropIndex && idx < dragIndex) {
-        newIndex = idx + 1;
-      }
-      newSrcModeState[newIndex] = this._imageSrcModes[oldIndex];
-    });
-    this._imageSrcModes = newSrcModeState;
 
     this._draggedIndex = null;
 

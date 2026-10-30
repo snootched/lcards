@@ -457,7 +457,7 @@ Your own picture lying on the scene plane: `src` (`/local/galaxy.jpg`), `size` (
 
 ## model
 
-A 3D model from a glTF file (`.glb` or `.gltf`): a starship, your house, a satellite. By default it is drawn as a hologram (a glow with a bright rim, scanlines and its feature edges); `material: original` shows the file's own materials, lit.
+A 3D model from a glTF file (`.glb` or `.gltf`): a starship, your house, a satellite. For a file of your own (where to put it, picking it, making it fit and light), see [Your own models](./models). By default it is drawn as a hologram (a glow with a bright rim, scanlines and its feature edges); `material: original` shows the file's own materials, lit.
 
 ```yaml
 - type: model
@@ -537,7 +537,7 @@ objects:
   - { type: model, id: ds9, src: builtin:deep_space_nine, size: 90, material: original }
 ```
 
-**Your own models.** The built-in ship (6,500 triangles, 147 KB) costs about 1.5 ms a frame on a laptop GPU, depth image included; the starbases have 2,000 to 14,000 triangles. Every extra triangle costs a little more, so simplify a model before you use it (Blender's Decimate modifier, or `gltf-transform simplify`) and compress it with `gltf-transform meshopt`. Name the parts you want points on in the file. The model loader is a separate download the first time a card uses a model.
+**Your own models.** The built-in ship (6,500 triangles, 147 KB) costs about 1.5 ms a frame on a laptop GPU, depth image included; the starbases have 15,000 to 20,000 triangles. Every extra triangle costs a little more. The model loader is a separate download the first time a card uses a model. For the My models folder, picking a file, sizing and turning it, and making a big model light, see [Your own models](./models).
 
 ## system
 

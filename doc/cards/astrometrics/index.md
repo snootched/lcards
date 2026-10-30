@@ -11,6 +11,7 @@ description: "The LCARdS Astrometrics card (custom:lcards-astrometrics-card): 3D
 A 3D scene in the style of the astrometrics lab and stellar cartography: a lettered sector map, a galaxy disc with territories, a planet with an away team on it, or the sky over your home with the sun and moon where they are now. Drag to orbit, zoom, tap a point to fly to it.
 
 - **Objects** draw the scene: grids (plane, disc, dome, sphere, cylinder), see-through territory volumes, planets, orbits and rings, routes, beams, images and glows. See [Objects](./objects).
+- **Models:** ships and stations from glTF files, built in or [your own](./models) (copy a `.glb` into the My models folder and pick it in the Studio).
 - **Points** are named places with an optional label and marker: on the plane, on a planet, in the sky, in a sector map cell. Paths, rings, beams and the camera refer to them by id. See [Points](./points).
 - **Camera** orbits a target. Named views let a tap fly the camera from the galaxy to a planet and back.
 - **Studio:** the card editor opens the [Astrometrics Studio](./studio), a full-screen editor with the live scene: tap, drag and place points on it, edit every object in a form, capture camera views, and start from a [starter](./starters).

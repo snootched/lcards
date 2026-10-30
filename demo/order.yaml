@@ -110,6 +110,13 @@ releases:
         session: "E8"
         docs: /cards/astrometrics/objects#trail
         public: true
+      - file: astro-own-models
+        topic: astrometrics
+        summary: "Astrometrics own models: one model file from the library, a path and the media browser"
+        description: "The same Deep Space 9 file reached the three ways the Studio's Src picker offers: the asset library (builtin:), a custom path, and the Home Assistant media browser under LCARdS (the route your own models take from the My models folder, /config/www/lcards/models). The middle one shows as a hologram, the default for any model."
+        session: "M2b"
+        docs: /cards/astrometrics/models
+        public: true
       - file: astro-starbases
         topic: astrometrics
         summary: "Astrometrics starbases: Deep Space 9, Earth Spacedock, Utopia Planitia"

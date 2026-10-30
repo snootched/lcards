@@ -18,6 +18,7 @@ import { LitElement, html, css } from 'lit';
 import { CANVAS_TEXTURE_PRESETS } from '../../core/packs/textures/presets/index.js';
 import './shared/lcards-color-picker.js';
 import './shared/lcards-form-section.js';
+import './shared/lcards-asset-source-picker.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -45,7 +46,6 @@ export class LCARdSShapeTextureEditor extends LitElement {
         return {
             hass:          { type: Object },
             config:        { type: Object },
-            _imageSrcMode: { type: String,  state: true }
         };
     }
 
@@ -82,36 +82,9 @@ export class LCARdSShapeTextureEditor extends LitElement {
         this.hass = undefined;
         /** @type {any} */
         this.config = undefined;
-        /** @type {string|null} 'asset' | 'custom' | null (auto-detect from value) */
-        this._imageSrcMode = null;
     }
 
     // ─── Event helpers ────────────────────────────────────────────────────────
-
-    /**
-     * Return a combined list of builtin image options from both the `image` and `svg`
-     * asset registries.  Each entry is `{ value: 'builtin:key', label: key }`.
-     * @returns {Array<{value:string, label:string}>}
-     */
-    _getAvailableImages() {
-        const am = window.lcards?.core?.assetManager;
-        if (!am) return [];
-        // Only genuinely curated, pack-provided assets belong here —
-        // listAssets()/listImages() return every registered key, including
-        // ones dynamically registered from a user's Custom URL or HA Media
-        // pick (they persist in the registry for the rest of the page
-        // session once picked), which never carry a `pack` metadata field
-        // the way pack-provided entries always do. Without this filter, a
-        // previously-picked media-source:// id or custom URL leaks into this
-        // list permanently as a mangled, unresolvable "builtin:<raw value>"
-        // entry — see the matching fix in lcards-msd-studio-dialog.js's
-        // _getAvailableSvgs().
-        const isPackAsset = (type, key) => !!am.getMetadata?.(type, key)?.pack;
-        const svgKeys = (am.listAssets?.('svg') ?? []).filter(key => isPackAsset('svg', key));
-        const imgKeys = (am.listImages?.()      ?? []).filter(key => isPackAsset('image', key));
-        const all     = [...new Set([...svgKeys, ...imgKeys])].sort();
-        return all.map(key => ({ value: `builtin:${key}`, label: key }));
-    }
 
     _emit(value) {
         this.dispatchEvent(new CustomEvent('texture-changed', {
@@ -767,80 +740,17 @@ export class LCARdSShapeTextureEditor extends LitElement {
 
             case 'image': {
                 const source = cfg.source ?? cfg.url ?? defaults.source ?? defaults.url ?? '';
-                // Derive mode from explicit state or from the current value
-                const mode   = this._imageSrcMode ?? (
-                    source.startsWith('builtin:') ? 'asset' :
-                    source.startsWith('media-source://') ? 'media' :
-                    'custom'
-                );
-                const availableImages = this._getAvailableImages();
-                const showHttpWarning = mode === 'custom' && source.startsWith('http:') &&
-                    typeof location !== 'undefined' && location.protocol === 'https:';
-                const mediaValue = source.startsWith('media-source://')
-                    ? { media_content_id: source, media_content_type: '' }
-                    : undefined;
-
                 return html`
                     <div class="row">
-                        <ha-selector .hass=${this.hass}
-                            .selector=${{ select: { mode: 'dropdown', options: [
-                                { value: 'asset',  label: 'Asset Library (builtin images & SVGs)' },
-                                { value: 'custom', label: 'Custom URL / Template' },
-                                { value: 'media',  label: 'Browse Home Assistant Media' }
-                            ]}}}
-                            .value=${mode}
-                            .label=${'Image Source'}
-                            @value-changed=${(e) => {
-                                const newMode = e.detail.value;
-                                this._imageSrcMode = newMode;
-                                if (newMode === 'asset' && !source.startsWith('builtin:')) {
-                                    const available = this._getAvailableImages();
-                                    if (available.length > 0) {
-                                        this._updatePresetConfig('source', available[0].value);
-                                    }
-                                }
-                            }}
-                        ></ha-selector>
+                        <lcards-asset-source-picker .hass=${this.hass} .value=${source}
+                            .label=${'Image Source'} .assetLabel=${'Built-in Image'}
+                            .assetHelper=${'Images and SVGs registered in the Asset Library'}
+                            .customLabel=${'Image URL'}
+                            .customHelper=${'Path to image: /local/images/room.jpg · https://… · or a template: {entity.attributes.entity_picture}'}
+                            .mediaHelper=${'Browse or upload an image via the Home Assistant media library'}
+                            @value-changed=${(e) => { e.stopPropagation(); this._updatePresetConfig('source', e.detail.value); }}
+                        ></lcards-asset-source-picker>
                     </div>
-
-                    ${mode === 'asset' ? html`
-                        <div class="row">
-                            <ha-selector .hass=${this.hass}
-                                .selector=${{ select: { mode: 'dropdown', options: availableImages }}}
-                                .value=${availableImages.some(o => o.value === source) ? source : (availableImages[0]?.value ?? '')}
-                                .label=${'Built-in Image'}
-                                .helper=${'Images and SVGs registered in the Asset Library'}
-                                @value-changed=${(e) => this._updatePresetConfig('source', e.detail.value)}
-                            ></ha-selector>
-                        </div>
-                    ` : mode === 'media' ? html`
-                        <div class="row">
-                            <ha-selector .hass=${this.hass}
-                                .selector=${{ media: { accept: ['image/*'] } }}
-                                .value=${mediaValue}
-                                .label=${'Home Assistant Media'}
-                                .helper=${'Browse or upload an image via the Home Assistant media library'}
-                                @value-changed=${(e) => this._updatePresetConfig('source', e.detail.value?.media_content_id ?? '')}
-                            ></ha-selector>
-                        </div>
-                    ` : html`
-                        <div class="row">
-                            <ha-selector .hass=${this.hass}
-                                .selector=${{ text: {} }}
-                                .value=${source}
-                                .label=${'Image URL'}
-                                .helper=${'Path to image: /local/images/room.jpg · https://… · or a template: {entity.attributes.entity_picture}'}
-                                @value-changed=${(e) => this._updatePresetConfig('source', e.detail.value)}
-                            ></ha-selector>
-                        </div>
-                    `}
-
-                    ${showHttpWarning ? html`
-                        <div class="row" style="padding:6px 8px;border-radius:4px;background:rgba(255,193,7,0.15);color:#ffa000;font-size:12px;line-height:1.4;">
-                            http:// URLs will be blocked as mixed content when Home Assistant is served over HTTPS.
-                            Use an https:// URL or a /local/ path instead.
-                        </div>
-                    ` : ''}
 
                     <div class="row">
                         <ha-selector .hass=${this.hass}

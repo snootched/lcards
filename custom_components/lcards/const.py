@@ -9,6 +9,18 @@ DOMAIN = "lcards"
 MIN_HA_VERSION = (2026, 10)
 
 FRONTEND_SCRIPT_URL = "lcards.js"
+
+# The LCARdS user folder: files users add (their own 3D models in models/,
+# other kinds in sibling folders later). In the Home Assistant config, so
+# upgrades never touch it (HACS replaces custom_components/lcards/, not www/;
+# no hacs.json persistent_directory needed, that one is for a folder inside
+# the integration directory), served on LCARdS's own path so it works whether
+# or not /config/www existed when Home Assistant started (/local/ is only
+# registered if it did).
+USER_DIR = "www/lcards"
+USER_URL = "/lcards-user"
+MY_MODELS_DIR = f"{USER_DIR}/models"
+MY_MODELS_URL = f"{USER_URL}/models"
 DOMAIN_VERSION = "2026.10.0-dev.3"
 
 # Options

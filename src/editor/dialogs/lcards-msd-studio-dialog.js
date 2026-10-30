@@ -39,6 +39,7 @@ import { LineOverlay } from '../../msd/overlays/LineOverlay.js';
 import { SvgStructureAnalyzer } from '../../msd/pipeline/SvgStructureAnalyzer.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
+import '../components/shared/lcards-asset-source-picker.js';
 import '../components/shared/lcards-shield-bubble-diagram.js';
 import { infoGuideStyles } from '../components/shared/info-guide-styles.js';
 import { renderInfoGuide } from '../components/shared/info-guide.js';
@@ -2101,16 +2102,16 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
-     * Handle SVG source mode change
+     * The base SVG picker changed mode (it has already set the source: the
+     * first library SVG for 'asset', 'none' for 'none'); the viewBox follows.
      * @param {string} mode - 'asset', 'custom', 'media', or 'none'
+     * @param {string} [previousMode]
      * @private
      */
-    _handleSvgSourceModeChange(mode) {
-        const previousMode = this._svgSourceMode;
+    _handleSvgSourceModeChange(mode, previousMode = this._svgSourceMode) {
         this._svgSourceMode = mode;
 
         if (mode === 'none') {
-            this._setNestedValue('msd.base_svg.source', 'none');
             // Switch viewBox to custom mode when using none
             if (this._viewBoxMode === 'auto') {
                 this._handleViewBoxModeChange('custom');
@@ -2120,24 +2121,6 @@ export class LCARdSMSDStudioDialog extends LitElement {
             // no SVG to auto-extract from) back to a real SVG source — revert
             // to auto now that a viewBox can actually be extracted.
             this._handleViewBoxModeChange('auto');
-        }
-
-        if (mode === 'asset') {
-            // Reset to the first available SVG whenever the current source
-            // isn't already a builtin: value — covers switching from 'none',
-            // 'custom' (a /local/ or https:// path), or 'media' (a
-            // media-source:// id). Without this, a leftover non-builtin value
-            // stays in config and — since this selector allows custom_value
-            // once there are 10+ builtin options — shows up in the Asset
-            // Library dropdown as a stray unmatched entry instead of a normal
-            // builtin selection.
-            const currentSource = this._workingConfig.msd?.base_svg?.source;
-            if (!currentSource || !currentSource.startsWith('builtin:')) {
-                const svgs = this._getAvailableSvgs();
-                if (svgs.length > 0 && svgs[0].value) {
-                    this._setNestedValue('msd.base_svg.source', svgs[0].value);
-                }
-            }
         }
 
         this._schedulePreviewUpdate();
@@ -2276,65 +2259,21 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     icon="mdi:image"
                     ?expanded=${true}>
                     <div style="display: flex; flex-direction: column; gap: 12px;">
-                        <!-- Source Mode Selector -->
-                        <ha-selector
-                            .hass=${this.hass}
-                            .selector=${{
-                                select: {
-                                    options: [
-                                        { value: 'asset', label: 'Asset Library' },
-                                        { value: 'custom', label: 'Custom Path' },
-                                        { value: 'media', label: 'Browse Home Assistant Media' },
-                                        { value: 'none', label: 'None (ViewBox Only)' }
-                                    ]
-                                }
-                            }}
-                            .value=${this._svgSourceMode}
-                            .label=${'SVG Source Mode'}
-                            @value-changed=${(e) => this._handleSvgSourceModeChange(e.detail.value)}>
-                        </ha-selector>
-
-                        <!-- Conditional Content Based on Mode -->
-                        ${this._svgSourceMode === 'asset' ? html`
-                            <ha-selector
-                                .hass=${this.hass}
-                                .selector=${{
-                                    select: {
-                                        mode: 'dropdown',
-                                        custom_value: availableSvgs.length >= 10,
-                                        options: availableSvgs
-                                    }
-                                }}
-                                .value=${baseSvg.source || ''}
-                                .label=${'SVG Asset'}
-                                @value-changed=${(e) => this._handleSvgSourceChange(e.detail.value)}>
-                            </ha-selector>
-                        ` : this._svgSourceMode === 'custom' ? html`
-                            <ha-input
-                                label="Custom SVG Path"
-                                .value=${baseSvg.source || ''}
-                                @input=${(e) => this._handleSvgSourceChange(e.target.value)}
-                                hint="Enter custom path (e.g., /local/my-ship.svg)">
-                            </ha-input>
-                        ` : this._svgSourceMode === 'media' ? html`
-                            <!-- HA media library picker — filtered to SVG's real MIME type
-                                 (image/svg+xml), not the broader image/* used for raster
-                                 backgrounds elsewhere, since base_svg needs actual SVG markup. -->
-                            <ha-selector
-                                .hass=${this.hass}
-                                .selector=${{ media: { accept: ['image/svg+xml'] } }}
-                                .value=${baseSvg.source?.startsWith('media-source://')
-                                    ? { media_content_id: baseSvg.source, media_content_type: '' }
-                                    : undefined}
-                                .label=${'Home Assistant Media'}
-                                .helper=${'Browse or upload an SVG via the Home Assistant media library'}
-                                @value-changed=${(e) => this._handleSvgSourceChange(e.detail.value?.media_content_id ?? '')}>
-                            </ha-selector>
-                        ` : html`
+                        <lcards-asset-source-picker .hass=${this.hass} .value=${baseSvg.source || ''}
+                            .assetTypes=${['svg']} .assetOptions=${availableSvgs} bareKeys
+                            .accept=${['image/svg+xml']}
+                            .label=${'SVG Source Mode'} .assetLabel=${'SVG Asset'}
+                            .customLabel=${'Custom SVG Path'} .customHelper=${'Enter custom path (e.g., /local/my-ship.svg)'}
+                            .mediaHelper=${'Browse or upload an SVG via the Home Assistant media library'}
+                            .noneLabel=${'None (ViewBox Only)'}
+                            @value-changed=${(e) => { e.stopPropagation(); this._handleSvgSourceChange(e.detail.value); }}
+                            @mode-changed=${(e) => { e.stopPropagation(); this._handleSvgSourceModeChange(e.detail.mode, e.detail.previous); }}>
+                        </lcards-asset-source-picker>
+                        ${this._svgSourceMode === 'none' ? html`
                             <lcards-message type="info">
                                 No base SVG: overlays draw on a transparent canvas, so set the viewBox below by hand.
                             </lcards-message>
-                        `}
+                        ` : ''}
                         ${this._renderSvgSourceHelper(baseSvg.source)}
                     </div>
                 </lcards-form-section>

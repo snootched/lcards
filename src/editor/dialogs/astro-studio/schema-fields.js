@@ -14,7 +14,7 @@
 import { simpleColorSchema } from '../../../cards/schemas/common-schemas.js';
 
 /**
- * @typedef {'boolean' | 'enum' | 'number' | 'color' | 'text' | 'strings' | 'tuple' | 'numbers'
+ * @typedef {'boolean' | 'enum' | 'number' | 'color' | 'text' | 'asset' | 'strings' | 'tuple' | 'numbers'
  *   | 'pointRef' | 'numberOrTuple' | 'boolOrObject' | 'boolOrNumber' | 'object' | 'objectList' | 'pointList' | 'yaml'} FieldKind
  */
 
@@ -71,6 +71,8 @@ export function fieldKind(s, key) {
   if (Array.isArray(s.enum) && s.enum.every((/** @type {any} */ v) => typeof v === 'string')) return 'enum';
   if (hasType(s, 'boolean') && !Array.isArray(s.type)) return 'boolean';
   if (isNumberSchema(s) && !Array.isArray(s.type)) return 'number';
+  // a file (assetSource: 'model' | 'image'): library, path or media picker
+  if (hasType(s, 'string') && (s.assetSource === 'model' || s.assetSource === 'image')) return 'asset';
   if (hasType(s, 'string') && !Array.isArray(s.type)) return 'text';
   if (Array.isArray(s.type) && s.type.every((/** @type {string} */ t) => ['string', 'number', 'integer'].includes(t))) return 'text';
   if (hasType(s, 'array')) {

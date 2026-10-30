@@ -1,10 +1,14 @@
 """Media Source platform for LCARdS.
 
-Exposes the bundled ``images/``, ``sounds/``, and ``msd/`` (builtin ship
-blueprint SVGs) directories — already served read-only via the ``/{DOMAIN}``
-static path registered in frontend.py — as a browsable "LCARdS" folder in
-Home Assistant's native media browser (sidebar panel, any media-picker
-dialog, every ``ha-selector`` of type ``media``).
+Exposes the bundled ``images/``, ``sounds/``, ``msd/`` (builtin ship
+blueprint SVGs) and ``models/`` (built-in 3D models) directories — already
+served read-only via the ``/{DOMAIN}`` static path registered in frontend.py —
+as a browsable "LCARdS" folder in Home Assistant's native media browser
+(sidebar panel, any media-picker dialog, every ``ha-selector`` of type
+``media``). Beside them, "My models": the user's own glTF files in
+``MY_MODELS_DIR`` (served on ``MY_MODELS_URL``). Home Assistant's own media
+library only holds audio, video and images, so this is where a media picker
+finds 3D models (``accept: ['model/*']``).
 
 This is auto-discovered by HA's own ``media_source`` integration via its
 generic "integration platform" scan (see
@@ -12,8 +16,9 @@ generic "integration platform" scan (see
 ``async_process_integration_platforms``) the moment this module exists —
 no manifest.json changes or explicit registration call are required.
 
-Read-only by design: these are files shipped with the integration, not user
-uploads, so there is no upload/delete machinery here (contrast with HA core's
+Read-only by design: the bundled files ship with the integration, and the
+user copies their own models into the folder themselves (File editor, Samba),
+so there is no upload/delete machinery here (contrast with HA core's
 ``local_source.py``, which manages a writable directory).
 """
 from __future__ import annotations
@@ -32,15 +37,28 @@ from homeassistant.components.media_source import (
 )
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
+from .const import DOMAIN, MY_MODELS_DIR, MY_MODELS_URL
 
 _LOGGER = logging.getLogger(__name__)
 
-# Top-level browsable directories — all already served by the existing
-# /{DOMAIN} static path registered in frontend.py.
-_ROOT_DIRS = ("images", "sounds", "msd")
-_ROOT_TITLES = {"images": "Images", "sounds": "Sounds", "msd": "Ship Blueprints"}
-_ROOT_MEDIA_CLASS = {"images": MediaClass.IMAGE, "sounds": MediaClass.MUSIC, "msd": MediaClass.IMAGE}
+# Top-level browsable directories. All but my_models are bundled, served by
+# the /{DOMAIN} static path registered in frontend.py; my_models is the user's
+# folder (MY_MODELS_DIR, on MY_MODELS_URL).
+_ROOT_DIRS = ("images", "sounds", "msd", "models", "my_models")
+_ROOT_TITLES = {"images": "Images", "sounds": "Sounds", "msd": "Ship Blueprints", "models": "Models", "my_models": "My models"}
+_ROOT_MEDIA_CLASS = {
+    "images": MediaClass.IMAGE, "sounds": MediaClass.MUSIC, "msd": MediaClass.IMAGE,
+    "models": MediaClass.APP, "my_models": MediaClass.APP,
+}
+# Which files each root lists, by the first part of their MIME type
+_ROOT_KINDS = {"images": ("image",), "sounds": ("audio",), "msd": ("image",), "models": ("model",), "my_models": ("model",)}
+# glTF types, not in every Python's mimetypes table
+_MODEL_TYPES = {".glb": "model/gltf-binary", ".gltf": "model/gltf+json"}
+
+
+def _mime_type(path: Path) -> str | None:
+    """The MIME type of a file: glTF by extension, the rest from mimetypes."""
+    return _MODEL_TYPES.get(path.suffix.lower()) or mimetypes.guess_type(path.name)[0]
 
 
 async def async_get_media_source(hass: HomeAssistant) -> LCARdSMediaSource:
@@ -59,14 +77,25 @@ class LCARdSMediaSource(MediaSource):
         super().__init__(DOMAIN)
         self.hass = hass
         self._base_dir = Path(hass.config.path(f"custom_components/{DOMAIN}")).resolve()
+        self._my_models_dir = Path(hass.config.path(MY_MODELS_DIR)).resolve()
+
+    def _root_dir(self, root: str) -> Path:
+        """The directory a root browses: the user's models folder, or a bundled one."""
+        return self._my_models_dir if root == "my_models" else self._base_dir / root
+
+    @staticmethod
+    def _url(identifier: str) -> str:
+        """The URL a file is served on."""
+        root, _, rest = identifier.partition("/")
+        return f"{MY_MODELS_URL}/{rest}" if root == "my_models" else f"/{DOMAIN}/{identifier}"
 
     async def async_resolve_media(self, item: MediaSourceItem) -> PlayMedia:
         """Resolve an identifier to a playable/displayable URL."""
         path = await self.hass.async_add_executor_job(self._validate_file, item.identifier)
-        mime_type, _ = mimetypes.guess_type(str(path))
+        mime_type = _mime_type(path)
         if not mime_type:
             raise Unresolvable(f"Could not determine MIME type for {item.identifier}")
-        return PlayMedia(url=f"/{DOMAIN}/{item.identifier}", mime_type=mime_type)
+        return PlayMedia(url=self._url(item.identifier), mime_type=mime_type)
 
     async def async_browse_media(self, item: MediaSourceItem) -> BrowseMediaSource:
         """Browse the LCARdS bundled asset tree."""
@@ -83,14 +112,19 @@ class LCARdSMediaSource(MediaSource):
         if root not in _ROOT_DIRS:
             raise BrowseError(f"Unknown LCARdS media root: {root}")
 
-        full_dir = self._base_dir / identifier
+        root_dir = self._root_dir(root).resolve()
+        full_dir = (root_dir / identifier.partition("/")[2]).resolve()
+        try:
+            full_dir.relative_to(root_dir)
+        except ValueError as err:
+            raise BrowseError("Invalid path") from err
         if not full_dir.is_dir():
             raise BrowseError(f"LCARdS media path not found: {identifier}")
 
         return self._build_directory_node(identifier, full_dir, root)
 
     def _browse_root(self) -> BrowseMediaSource:
-        """Build the "LCARdS" root node — Images / Sounds categories."""
+        """Build the "LCARdS" root node — Images / Sounds / ... / My models categories."""
         base = BrowseMediaSource(
             domain=self.domain,
             identifier=None,
@@ -102,9 +136,9 @@ class LCARdSMediaSource(MediaSource):
             children_media_class=MediaClass.DIRECTORY,
         )
         base.children = [
-            self._build_directory_node(root, self._base_dir / root, root)
+            self._build_directory_node(root, self._root_dir(root), root)
             for root in _ROOT_DIRS
-            if (self._base_dir / root).is_dir()
+            if self._root_dir(root).is_dir()
         ]
         return base
 
@@ -138,8 +172,8 @@ class LCARdSMediaSource(MediaSource):
                 children.append(self._build_directory_node(child_identifier, child, root))
                 continue
 
-            mime_type, _ = mimetypes.guess_type(child.name)
-            if not mime_type or mime_type.split("/", 1)[0] not in ("image", "audio"):
+            mime_type = _mime_type(child)
+            if not mime_type or mime_type.split("/", 1)[0] not in _ROOT_KINDS[root]:
                 continue
 
             children.append(
@@ -151,7 +185,7 @@ class LCARdSMediaSource(MediaSource):
                     title=child.stem.replace("_", " ").title(),
                     can_play=mime_type.startswith("audio/"),
                     can_expand=False,
-                    thumbnail=f"/{DOMAIN}/{child_identifier}" if mime_type.startswith("image/") else None,
+                    thumbnail=self._url(child_identifier) if mime_type.startswith("image/") else None,
                 )
             )
 
@@ -162,12 +196,14 @@ class LCARdSMediaSource(MediaSource):
         """Resolve *identifier* to a real file path, guarding against traversal."""
         if not identifier:
             raise Unresolvable("Empty identifier")
-        if identifier.split("/", 1)[0] not in _ROOT_DIRS:
+        root, _, rest = identifier.partition("/")
+        if root not in _ROOT_DIRS:
             raise Unresolvable(f"Unknown LCARdS media root: {identifier}")
 
-        full_path = (self._base_dir / identifier).resolve()
+        root_dir = self._root_dir(root).resolve()
+        full_path = (root_dir / rest).resolve()
         try:
-            full_path.relative_to(self._base_dir)
+            full_path.relative_to(root_dir)
         except ValueError as err:
             raise Unresolvable("Invalid path") from err
 

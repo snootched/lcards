@@ -8,6 +8,7 @@ Modelled closely on UIX (Lint-Free-Technology/uix) — same pattern, same
 safety guards.
 """
 import logging
+from pathlib import Path
 
 from homeassistant.core import HomeAssistant
 
@@ -16,7 +17,7 @@ from homeassistant.components.frontend import add_extra_js_url, remove_extra_js_
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.components.lovelace.resources import ResourceStorageCollection
 
-from .const import DOMAIN, FRONTEND_SCRIPT_URL, DOMAIN_VERSION, DEFAULT_LOG_LEVEL
+from .const import DOMAIN, FRONTEND_SCRIPT_URL, DOMAIN_VERSION, DEFAULT_LOG_LEVEL, MY_MODELS_DIR, USER_DIR, USER_URL
 
 # Legacy resource URL prefixes that were manually added by users following the
 # old installation docs (HACS frontend plugin path). The integration removes
@@ -46,23 +47,29 @@ async def async_register_static_path(hass: HomeAssistant) -> None:
     directory, covering the main JS bundle, source map, and all asset
     subdirectories (fonts/, sounds/, msd/, images/, brand/).
 
+    Also the LCARdS user folder (USER_DIR, with MY_MODELS_DIR created here if
+    missing) under USER_URL, without cache headers so a replaced file shows on
+    the next load.
+
     Called from async_setup() so all paths are available from HA start,
     even before a config entry exists.
     """
     integration_dir = hass.config.path(f"custom_components/{DOMAIN}")
+    paths = [
+        # Serve the entire integration directory under /{DOMAIN}/.
+        # Covers lcards.js, lcards.js.map, fonts/, sounds/, msd/,
+        # images/, and brand/ in one registration.
+        StaticPathConfig(f"/{DOMAIN}", integration_dir, True),
+    ]
+    my_models_dir = hass.config.path(MY_MODELS_DIR)
     try:
-        await hass.http.async_register_static_paths(
-            [
-                # Serve the entire integration directory under /{DOMAIN}/.
-                # Covers lcards.js, lcards.js.map, fonts/, sounds/, msd/,
-                # images/, and brand/ in one registration.
-                StaticPathConfig(
-                    f"/{DOMAIN}",
-                    integration_dir,
-                    True,
-                ),
-            ]
-        )
+        await hass.async_add_executor_job(lambda: Path(my_models_dir).mkdir(parents=True, exist_ok=True))
+    except OSError as err:
+        _LOGGER.warning("LCARdS: could not create %s (%s); My models is unavailable", my_models_dir, err)
+    else:
+        paths.append(StaticPathConfig(USER_URL, hass.config.path(USER_DIR), False))
+    try:
+        await hass.http.async_register_static_paths(paths)
     except RuntimeError:
         # Already registered — happens when the integration is removed
         # and HA has not been fully restarted yet.
