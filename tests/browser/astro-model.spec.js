@@ -131,10 +131,13 @@ test('E8 starbases: the built-in starbases load and points sit on their parts', 
             return [id, p ? [p.x, p.y, p.z] : null];
         }));
     });
-    // Ops above DS9's middle, the doors on top of Spacedock (100 tall), the berth in the drydock's middle
+    // Ops above DS9's middle, the front space door in the top cone of Spacedock's cap (100
+    // tall, the door about 35 above its middle, 21 out), the berth in the drydock's middle
     expect(where.ops[0]).toBeCloseTo(-110, 0);
     expect(where.ops[1]).toBeGreaterThan(5);
-    expect(where.doors[1]).toBeGreaterThan(40);
+    expect(where.doors[1]).toBeGreaterThan(30);
+    expect(where.doors[1]).toBeLessThan(40);
+    expect(where.doors[2]).toBeGreaterThan(15);
     expect(Math.abs(where.berth[0] - 110)).toBeLessThan(2);
     expect(Math.abs(where.berth[1])).toBeLessThan(2);
     expect(await cardErrors(page)).toEqual([]);

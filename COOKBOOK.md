@@ -255,6 +255,7 @@ Run one node test file: `node --import ./tests/setup/browser-shims.js --import .
 - **HA compatibility:** after HA releases, run `npm run check:ha-impact:quick -- --pull` (or the full version), work through `reports/ha-impact/`, and delete each report once resolved.
 - **anime.js skill:** `.claude/skills/animejs/` is a vendored community skill (upstream, commit and local patches in its `references/UPSTREAM.md`) with an LCARdS rules section on top. After bumping `animejs`, run `tests/core/animejs-skill.test.js` (in `npm test`): it fails if the skill teaches a name the installed version no longer exports, or a removed string ease.
 - **HA frontend skills:** the `ha-frontend-*` skills come from `../frontend/.agents/skills/` and load in LCARdS sessions; `.claude/skills/lcards-ha-frontend/` maps each one to follow / translate / ignore. When `check:ha-impact` lists changes under `.agents/skills/`, re-check the matching rows. `tests/core/ha-frontend-skill.test.js` fails when an upstream skill has no row (skipped without the checkout).
+- **Built-in models:** ships and starbases are made in code (`scripts/make-starbases.mjs`, `scripts/make-demo-ship.mjs`) and written to `src/assets/models/`; `node scripts/render-model.mjs <glb> <outdir>` renders one from fixed angles for comparison with reference stills. Method and lessons: `.claude/skills/lcards-models/`.
 - **Session handoffs:** `reports/handoffs/index.md` lists planned sessions and the backlog.
 
 ---

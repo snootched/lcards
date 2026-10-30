@@ -66,20 +66,20 @@ export const LCARDS_IMAGES_PACK = {
         deep_space_nine: {
             url: '/lcards/models/deep-space-nine.glb',
             label: 'Deep Space 9 (Terok Nor)',
-            description: 'The Cardassian station of Deep Space Nine (about 1450 m across and 1070 m tall, Y up, metres, the origin at the Promenade): fan art made in code by scripts/make-starbases.mjs, no third-party mesh. Parts: the central core (ops, promenade, lower_core), the rings, the crossover bridges, and six docking pylons (part origins at their tips).',
-            parts: ['ops', 'upper_core', 'promenade', 'lower_core', 'habitat_ring', 'docking_ring', 'windows', 'crossover_bridges', 'docking_ports', 'upper_pylon_1', 'upper_pylon_2', 'upper_pylon_3', 'lower_pylon_1', 'lower_pylon_2', 'lower_pylon_3']
+            description: 'The Cardassian station of Deep Space Nine (1452 m across, the docking pylons 969 m tip to tip, the core 369 m tall; Y up, metres, the origin at the Promenade): fan art made in code by scripts/make-starbases.mjs, no third-party mesh. Parts: the central core (ops, promenade, lower_core), the weapon sail towers through the habitat ring, the rings, the three crossover bridges (core to docking ring) and three spokes between them, and six docking pylons (part origins at their tips).',
+            parts: ['ops', 'upper_core', 'promenade', 'lower_core', 'habitat_ring', 'docking_ring', 'windows', 'spokes', 'crossover_bridges', 'docking_ports', 'sail_towers', 'upper_pylon_1', 'upper_pylon_2', 'upper_pylon_3', 'lower_pylon_1', 'lower_pylon_2', 'lower_pylon_3']
         },
         earth_spacedock: {
             url: '/lcards/models/earth-spacedock.glb',
             label: 'Earth Spacedock',
-            description: 'The Federation orbital station over Earth from Star Trek III (about 3810 m across and 5795 m tall, Y up, metres): fan art made in code by scripts/make-starbases.mjs, no third-party mesh. Parts: the space_doors at the top, the cap, the stem, the docking_ring and the base (its bottom tip).',
-            parts: ['cap', 'stem', 'docking_ring', 'base', 'space_doors', 'windows', 'panels', 'docking_ports']
+            description: 'The Federation orbital station over Earth from Star Trek III (3800 m across and about 5480 m tall, Y up, metres): fan art made in code by scripts/make-starbases.mjs, no third-party mesh. Parts: the antennas at the top, the cap with the space_doors in its top, the underdish, the neck, the hull, the stem, the base (the sphere) and the towers under it (their tips).',
+            parts: ['antennas', 'cap', 'space_doors', 'underdish', 'neck', 'hull', 'stem', 'base', 'towers', 'windows', 'panels']
         },
         utopia_planitia_drydock: {
             url: '/lcards/models/utopia-planitia-drydock.glb',
             label: 'Utopia Planitia drydock',
-            description: 'A drydock of the Utopia Planitia Fleet Yards over Mars (about 760 m long, the bow end toward +z, Y up, metres), an open frame of ribs and spars with work lights, sized for a Galaxy-class ship: fan art made in code by scripts/make-starbases.mjs, no third-party mesh. Parts: frame, lights, berth (where a ship sits), bow and stern.',
-            parts: ['frame', 'lights', 'berth', 'bow', 'stern']
+            description: 'A drydock of the Utopia Planitia Fleet Yards over Mars (about 760 m long, the bow end toward +z, Y up, metres), a deck slab over an open frame of hooped ribs with work-light panels, sized for a Galaxy-class ship: fan art made in code by scripts/make-starbases.mjs, no third-party mesh. Parts: frame, deck, keel, lights, berth (where a ship sits), bow and stern.',
+            parts: ['frame', 'deck', 'keel', 'lights', 'berth', 'bow', 'stern']
         }
     },
 

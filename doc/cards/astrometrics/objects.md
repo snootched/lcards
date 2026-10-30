@@ -514,11 +514,11 @@ Fan art made in code for LCARdS (no third-party model), recreating the designs s
 | `src` | What it is | Parts (`part:`) |
 |---|---|---|
 | `builtin:constitution` | A Constitution-class starship (the original series), 289 m long, the bow toward +z. One animation clip, `bussards`. | `saucer`, `bridge`, `sensor_dome`, `impulse`, `neck`, `secondary_hull`, `deflector`, `shuttle_bay`, `pylon_port`, `pylon_starboard`, `nacelle_port`, `nacelle_starboard`, `bussard_port`, `bussard_starboard`, `grille_port`, `grille_starboard` |
-| `builtin:deep_space_nine` | Deep Space 9 (Terok Nor), the Cardassian station of Deep Space Nine: about 1450 m across and 1070 m tall. | `ops`, `upper_core`, `promenade`, `lower_core` (its bottom tip), `habitat_ring`, `docking_ring`, `crossover_bridges`, `docking_ports`, `windows`, `upper_pylon_1` to `upper_pylon_3` and `lower_pylon_1` to `lower_pylon_3` (their tips) |
-| `builtin:earth_spacedock` | Earth Spacedock, from Star Trek III: The Search for Spock onward: about 3810 m across and 5795 m tall. | `space_doors` (the top), `cap`, `stem`, `docking_ring`, `docking_ports`, `panels`, `windows`, `base` (the bottom tip) |
-| `builtin:utopia_planitia_drydock` | A drydock of the Utopia Planitia Fleet Yards over Mars, sized for a Galaxy-class ship: about 760 m long, the bow end toward +z. Place several for the yards. | `frame`, `lights`, `berth` (where a ship sits), `bow`, `stern` |
+| `builtin:deep_space_nine` | Deep Space 9 (Terok Nor), the Cardassian station of Deep Space Nine: 1452 m across, the docking pylons 969 m tip to tip. | `ops`, `upper_core`, `promenade`, `lower_core` (its bottom tip), `sail_towers`, `spokes` (three thin ones, between the bridges), `habitat_ring`, `docking_ring`, `crossover_bridges` (three), `docking_ports`, `windows`, `upper_pylon_1` to `upper_pylon_3` and `lower_pylon_1` to `lower_pylon_3` (their tips) |
+| `builtin:earth_spacedock` | Earth Spacedock, from Star Trek III: The Search for Spock onward: 3800 m across and about 5480 m tall. | `antennas` (the top), `cap`, `space_doors` (the front door), `underdish`, `neck`, `hull`, `stem`, `base` (the sphere), `towers` (their tips, the bottom), `panels`, `windows` |
+| `builtin:utopia_planitia_drydock` | A drydock of the Utopia Planitia Fleet Yards over Mars, sized for a Galaxy-class ship: about 760 m long, the bow end toward +z. Place several for the yards. | `frame` (ribs and rails), `deck`, `keel`, `lights`, `berth` (where a ship sits), `bow`, `stern` |
 
-Rings and rims (`habitat_ring`, `docking_ring`, `cap`, `promenade`) put their part point on the front face (+z), so a label sits on the structure rather than in the middle of the station.
+Rings, rims and round hulls (`habitat_ring`, `docking_ring`, `cap`, `promenade`, `underdish`, `neck`, `hull`) put their part point on the front face (+z), so a label sits on the structure rather than in the middle of the station.
 
 ```yaml live
 type: custom:lcards-astrometrics-card

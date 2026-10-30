@@ -208,8 +208,8 @@ test('clip names: all, one, a list, unknown names dropped', () => {
 test('E8 starbases: every built-in model parses with the parts its pack entry lists, at canon size', async () => {
   const { LCARDS_IMAGES_PACK } = await import('../../src/core/packs/lcards-images-pack.js');
   // [across (round the y axis), tall, long (z)] in metres: the on-screen designs
-  // (DS9 about 1450 x 1070, Spacedock 3810 x 5795), the drydock about 760 long
-  const SIZES = { deep_space_nine: [1450, 1070], earth_spacedock: [3810, 5795], utopia_planitia_drydock: [null, 260, 760] };
+  // (DS9 1452 across, pylons 969 tip to tip; Spacedock 3800 x about 5480), the drydock about 760 long and 330 tall
+  const SIZES = { deep_space_nine: [1452, 969], earth_spacedock: [3800, 5480], utopia_planitia_drydock: [null, 330, 760] };
   for (const [key, m] of Object.entries(LCARDS_IMAGES_PACK.model_assets)) {
     const g = await models.parseModel(bytes(m.url.replace('/lcards/models/', '../../src/assets/models/')));
     for (const name of m.parts) assert.ok(g.scene.getObjectByName(name), `${key}: part ${name}`);

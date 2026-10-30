@@ -356,11 +356,11 @@ sections:
             approach:
               target:
                 - 0
-                - 60
-                - -60
+                - 90
+                - 15
               yaw: 125
               tilt: 20
-              distance: 800
+              distance: 300
             starbase:
               target: dock
               yaw: 200
@@ -370,7 +370,7 @@ sections:
               target: ship_centre
               yaw: 140
               tilt: 25
-              distance: 90
+              distance: 50
         backdrop:
           stars:
             count: 2000
@@ -378,13 +378,13 @@ sections:
           - id: ship_centre
             xyz:
               - 0
-              - 170
-              - 90
+              - 129
+              - 41
           - id: ship_name
             at: ship_centre
             offset:
               - 0
-              - 22
+              - 12
               - 0
             label: USS ENTERPRISE
             style: major
@@ -412,8 +412,8 @@ sections:
           - id: doors
             xyz:
               - 0
-              - 134
-              - -110
+              - 62
+              - -9
             marker: dot
             label: SPACE DOORS
             style: minor
@@ -433,7 +433,7 @@ sections:
             id: ship
             src: builtin:constitution
             at: ship_centre
-            size: 50
+            size: 25
             rotation:
               - 0
               - 180

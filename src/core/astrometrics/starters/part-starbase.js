@@ -5,7 +5,7 @@ import { centreRef } from './shared.js';
 /** Each built-in starbase's labelled parts: [part, label] */
 const MARKS = /** @type {Record<string, [string, string][]>} */ ({
   deep_space_nine: [['ops', 'OPS'], ['promenade', 'PROMENADE'], ['docking_ring', 'DOCKING RING']],
-  earth_spacedock: [['space_doors', 'SPACE DOORS'], ['docking_ring', 'DOCKING RING']],
+  earth_spacedock: [['space_doors', 'SPACE DOORS'], ['hull', 'HULL']],
   utopia_planitia_drydock: [['bow', 'BOW'], ['berth', 'BERTH']]
 });
 
