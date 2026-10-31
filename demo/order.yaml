@@ -33,6 +33,13 @@ releases:
         session: "UX1"
         docs: /cards/astrometrics/studio
         public: false
+      - file: astro-studio-starters
+        topic: astrometrics
+        summary: "Astrometrics Studio starters: try a scene, keep it or undo it"
+        description: "A new card with no scene. Open its editor, then its Studio: it opens on the Starters gallery. Open a starter to see what it adds and change its settings, try it in the preview, keep or discard it, and undo with Ctrl+Z or the toolbar."
+        session: "UX1"
+        docs: /cards/astrometrics/studio
+        public: false
       - file: chart-sources
         topic: charts
         summary: "Charts, rebuilt: entity history, long-term statistics and data sources"

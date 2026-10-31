@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { getSchemaEntries } from '../../scripts/lib/card-schemas.js';
 import { buildRegistries } from '../../scripts/lib/registries.js';
 import { createConfigValidator } from '../../scripts/lib/config-validator.js';
-import { STARTERS, applyStarter, prefixFragment, parsePointParam, starterParams, hasScene } from '../../src/core/astrometrics/starters/index.js';
+import { STARTERS, applyStarter, prefixFragment, parsePointParam, starterParams, hasScene, unitsClash } from '../../src/core/astrometrics/starters/index.js';
 
 const registries = await buildRegistries();
 const checker = createConfigValidator({ entries: getSchemaEntries(), registries });
@@ -113,4 +113,24 @@ test('params: defaults fill blanks; a point param is an id or three numbers', ()
   assert.equal(parsePointParam(' sun '), 'sun');
   const moons = /** @type {any} */ (applyStarter({ type: TYPE }, byId('planet'), { moons: 4 })).config;
   assert.deepEqual(moons.points.map((p) => p.id), ['planet_centre', 'planet_body', 'planet_moon1', 'planet_moon2', 'planet_moon3', 'planet_moon4']);
+});
+
+test('unitsClash names a starter\'s units when a scene in other units is there; a part can replace the scene', () => {
+  const minor = byId('st_minor_powers');
+  const card = { type: TYPE, points: [{ id: 'a', xyz: [0, 0, 0] }] };
+  assert.equal(minor.scene, 'star_trek_galaxy');
+  assert.equal(unitsClash(card, minor), 'ly');
+  assert.equal(unitsClash({ ...card, units: 'ly' }, minor), null);
+  assert.equal(unitsClash({ type: TYPE }, minor), null, 'an empty card takes any units');
+  assert.equal(unitsClash(card, byId('planet')), null, 'a part without units fits any scene');
+  assert.match(String(applyStarter(card, minor).error), /^This part is in ly and the card is in scene units/);
+  // replace: the part on its own, in its units
+  const alone = /** @type {any} */ (applyStarter(card, minor, {}, { mode: 'replace' })).config;
+  assert.equal(alone.units, 'ly');
+  assert.ok(!alone.points.some((p) => p.id === 'a'));
+  // the scene it is made for, then the part: validates
+  const host = /** @type {any} */ (applyStarter(card, byId(minor.scene))).config;
+  const both = /** @type {any} */ (applyStarter(host, minor)).config;
+  assert.deepEqual(issues(both), []);
+  for (const s of STARTERS.filter((x) => x.scene)) assert.ok(byId(s.scene)?.kind === 'scene', `${s.id}: scene ${s.scene}`);
 });

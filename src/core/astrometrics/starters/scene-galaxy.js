@@ -3,6 +3,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'galaxy',
   kind: 'scene',
   title: 'Galaxy with territories',
+  summary: 'A galaxy disc with Federation and Borg space and a route',
   description: 'A galaxy disc with its core, Federation and Borg space as see-through volumes, crossing beams, a planet with an away team (it appears as you fly in) and a route between two stars.',
   icon: 'mdi:star-four-points-outline',
   params: [],

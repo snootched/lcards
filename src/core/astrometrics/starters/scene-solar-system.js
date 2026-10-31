@@ -33,6 +33,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'solar_system',
   kind: 'scene',
   title: 'Solar system',
+  summary: 'The Sun and eight planets on their orbits, with maps',
   description: 'The Sun and eight planets on their orbits, each with its map or planet type, Saturn with its rings and the Moon going round the Earth. Tap a planet to fly to it.',
   icon: 'mdi:orbit',
   params: [],

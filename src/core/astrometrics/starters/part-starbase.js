@@ -13,12 +13,14 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'starbase',
   kind: 'part',
   title: 'Starbase',
+  summary: 'A built-in starbase model with its parts labelled',
   description: 'A built-in starbase model (Deep Space 9, Earth Spacedock or a Utopia Planitia drydock) at a point, with its name and main parts labelled; far away a starbase marker stands in for it. Tap the name to fly to it.',
   icon: 'mdi:space-station',
   params: [
     { key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: 'starbase' },
     { key: 'label', label: 'Label', type: 'text', default: 'DEEP SPACE 9' },
-    { key: 'model', label: 'Model', type: 'text', default: 'deep_space_nine', helper: 'deep_space_nine, earth_spacedock or utopia_planitia_drydock.' },
+    { key: 'model', label: 'Model', type: 'text', default: 'deep_space_nine', helper: 'deep_space_nine, earth_spacedock or utopia_planitia_drydock.',
+      options: [{ value: 'deep_space_nine', label: 'Deep Space 9' }, { value: 'earth_spacedock', label: 'Earth Spacedock' }, { value: 'utopia_planitia_drydock', label: 'Utopia Planitia drydock' }] },
     { key: 'centre', label: 'At', type: 'point', default: [0, 0, 0], helper: 'A point id or x, y, z.' },
     { key: 'size', label: 'Size (its largest extent)', type: 'number', default: 60 }
   ],

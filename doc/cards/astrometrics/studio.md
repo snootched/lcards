@@ -12,10 +12,16 @@ The preview is the real card, with your entities, templates, label styles, pinne
 
 ## On the scene
 
+The toolbar over the preview has three groups: **Tools** (place a point), **View** (back to the start view) and **Edit** (undo and redo). The arrow at its end folds it away to one button.
+
 - **Turn the view** as on the dashboard: drag to orbit, shift-drag, middle-drag or two fingers to pan, scroll or pinch to zoom (a touchpad swipe pans). The preview does not follow moving points. The home button in the toolbar goes back to the start view.
 - **Select:** tap a point or an object to open it in its list. An object gets a box round it; a ring, path or beam is selected by tapping near its line. Opening a row in a list selects it on the scene too.
 - **Drag a point** to move it. `xyz` and `polar` points slide at their own height, so a drag never changes `y` or `alt`; `latlon`, `altaz` and `cell` points follow the surface of their object. The toolbar shows the new numbers while you drag, and the point keeps its placement form. Points placed by `sky`, `at`, `part` or an entity do not drag.
 - **Place a point** (the marker button in the toolbar): the next tap adds a point there. On a sphere it gets `latlon`, on a dome `altaz`, on a plane grid its `cell`, on another object `xyz` on that object, and on blank space `xyz` on the ground. Escape cancels. An object needs an `id` for a point to stand on it.
+
+## Undo and redo
+
+Every change in the Studio can be undone: **Ctrl+Z** (Cmd+Z on a Mac) or the undo button in the toolbar, and **Ctrl+Shift+Z** or **Ctrl+Y** to redo. Typing in one field, or dragging one slider, is one step. In a text box and in the YAML tab's editor the keys undo your typing there instead. Cancel still leaves the card as it was when you opened the Studio.
 
 ## Tabs
 
@@ -23,7 +29,7 @@ The tabs are in the order a card is built. The Studio opens on **Starters** for 
 
 | Tab | Edits |
 |---|---|
-| **Starters** | Whole scenes and parts to copy into the card. |
+| **Starters** | A gallery of whole scenes and parts to try and copy into the card. |
 | **Scene** | How the scene works, then sections: Look, Time (the scene date, its rate, the time scale), Warp, Space (stars and depth dust), Background (a background animation behind the scene) and Labels. |
 | **Objects** | Every object, with a form for its type. |
 | **Points** | Every point: placement, the object it stands on, entity, label, style, marker, colour, a pinned card. See [Points: in the Astrometrics Studio](./points#in-the-astrometrics-studio). |
@@ -70,12 +76,15 @@ The view's own keys are below as a form. See [Camera and views](./#camera-and-vi
 
 ### Starters
 
-[Starters](./starters) are ready-made scenes and parts, copied into your config: change anything afterwards, nothing refers back to them.
+[Starters](./starters) are ready-made scenes and parts, copied into your config: change anything afterwards, nothing refers back to them. The tab shows them as a gallery of pictures, scenes first, then parts. Select one to open it: a larger picture, what it is, what it adds ("Adds 4 points, 6 objects"), its settings, and the YAML it adds (under **YAML**, following the settings as you change them).
 
-- **Scenes** (a galaxy, a sector map, the sky dome, a solar system, a Federation map, a starbase approach): **Use this scene** replaces the card's scene (it asks first when you have built one; a new card's default scene is replaced without asking). **Merge into the scene** adds its points, objects and views to yours and keeps your camera settings, start view and backdrop.
-- **Parts** (a planet with moons, an asteroid belt, a nebula field, a set of territories): **Add to the scene** adds one next to what is there. Its ids start with the name you give it (`mars_body`, `mars_orbit`), so the same part can be added twice under two names. Its centre is a point of your scene (such as `sun`) or coordinates.
+- **Try in the preview** shows the starter on the card without changing anything. A bar over the preview names it: **Keep** puts it in, **Discard** goes back. While you try one, its settings can still change (the preview follows) and the other tabs wait.
+- **Scenes** (a galaxy, a sector map, the sky dome, a solar system, a Federation map, a starbase approach, ...): **Use this scene** replaces the card's scene. **Merge into the scene** adds its points, objects and views to yours and keeps your camera settings, start view and backdrop.
+- **Parts** (a planet with moons, an asteroid belt, a nebula field, a set of territories, ...): **Add to the scene** adds one next to what is there. Its ids start with the name you give it (`mars_body`, `mars_orbit`), so the same part can be added twice under two names. Its centre is a point of your scene (such as `sun`) or coordinates.
 
-Open a starter to see its settings and the YAML it adds, which follows the settings as you type. If any point, object or view id it adds is already in the card, nothing is added and the message names them.
+A part in other units than your scene (the Star Trek parts are in light years) cannot go next to it: its tile is dimmed and says so. Open it to start over with the scene it is made for and add it (**Start with Star Trek galaxy and add it**), or to let it replace the scene; a scene in other units can replace yours but not merge. The chip at the top left of the preview shows the units of the scene, or of the open system.
+
+A starter you put in is one undo step: undo takes it out again. If any point, object or view id it adds is already in the card, nothing is added and the message names them.
 
 ## YAML stays yours
 

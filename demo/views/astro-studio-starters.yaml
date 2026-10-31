@@ -1,0 +1,16 @@
+# Astrometrics Studio starters (UX1 P4): a new card with no scene of its
+# own. Edit the dashboard, open this card's editor and its Studio: it opens
+# on the Starters gallery (a picture per scene and part). Open one to see
+# what it adds and its settings, Try it in the preview (Keep or Discard),
+# then undo it with Ctrl+Z or the toolbar. Cancel leaves the card empty.
+title: Astrometrics Studio starters
+path: astro-studio-starters
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 640
+        grid_options: { columns: full, rows: 12 }

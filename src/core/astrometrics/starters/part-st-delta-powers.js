@@ -18,8 +18,11 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'st_delta_powers',
   kind: 'part',
   title: 'Star Trek: Delta Quadrant powers',
+  summary: 'Kazon, Vidiian and Hirogen space along Voyager\'s route',
   description: 'For the Star Trek galaxy: Kazon, Vidiian and Hirogen space along Voyager\'s route home, in the order Voyager met them.',
   icon: 'mdi:map-marker-path',
+  scene: 'star_trek_galaxy',
+  picture: { camera: { target: [30000, 0, -22000], yaw: 20, tilt: 50, distance: 42000 } },
   params: [{ key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: '' }],
   build: () => galaxyScale({
     units: 'ly',

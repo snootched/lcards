@@ -205,6 +205,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'star_trek_galaxy',
   kind: 'scene',
   title: 'Star Trek galaxy',
+  summary: 'The Milky Way in four quadrants with the great powers',
   description: 'The Milky Way in light years cut into the four quadrants (the Alpha/Beta line runs from Sol to the core), with the Federation, the Klingon, Romulan and Cardassian empires, the Dominion and the Borg, the Bajoran wormhole to the Gamma Quadrant, Voyager\'s route home from Ocampa and the Great Barrier. Fly in to Sol for Federation space: Vulcan, Andoria and Tellar at their real stars (40 Eridani, Procyon, 61 Cygni), the Klingon, Romulan and Cardassian capitals at the distances the reference charts give. The galaxy view sizes the empires to be seen, so the two scales do not overlay exactly.',
   icon: 'mdi:star-david',
   params: [],

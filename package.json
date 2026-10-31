@@ -29,6 +29,7 @@
     "check:ha-impact:quick": "node scripts/check-ha-impact.js --quick",
     "generate:llm-schema": "node scripts/generate-llm-schema.js",
     "validate:config": "node scripts/lcards-validate.mjs",
+    "astro:pictures": "node scripts/astro-pictures.mjs",
     "gallery:shots": "node scripts/dashboard-shots.mjs doc/gallery/dashboards/*.yaml --video",
     "demo:push": "node scripts/demo-push.mjs",
     "video:showcase": "node scripts/marketing-video.mjs --record",

@@ -1,6 +1,7 @@
 /** A planet with an orbit ring round its centre and moons orbiting it */
 
 import { centreRef } from './shared.js';
+import { FILL_PRESETS } from '../names.js';
 
 /**
  * The globe's surface from the Surface field: a picture (builtin: or a path)
@@ -20,8 +21,10 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'planet',
   kind: 'part',
   title: 'Planet with moons',
+  summary: 'A planet on its orbit ring with up to four moons',
   description: 'A planet orbiting a centre point on its own ring, with up to four moons going round it. Tap the planet to fly to it.',
   icon: 'mdi:earth',
+  picture: { camera: { target: 'planet_body', yaw: 30, tilt: 25, distance: 34 } },
   params: [
     { key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: 'planet' },
     { key: 'label', label: 'Label', type: 'text', default: 'PLANET' },
@@ -29,7 +32,8 @@ export default /** @type {import('./index.js').Starter} */ ({
     { key: 'orbit', label: 'Orbit radius', type: 'number', default: 40 },
     { key: 'radius', label: 'Planet radius', type: 'number', default: 3 },
     { key: 'moons', label: 'Moons (0 to 4)', type: 'number', default: 2 },
-    { key: 'look', label: 'Surface', type: 'text', default: 'rocky', helper: 'A planet type (gas_giant, ringed_giant, ice_giant, storm_giant, clouds, lava, ice, rocky, terran), a map (builtin:mars_viking) or your own picture (/local/planet.jpg).' }
+    { key: 'look', label: 'Surface', type: 'text', default: 'rocky', helper: 'A planet type (gas_giant, ringed_giant, ice_giant, storm_giant, clouds, lava, ice, rocky, terran), a map (builtin:mars_viking) or your own picture (/local/planet.jpg).',
+      options: FILL_PRESETS.map((value) => ({ value, label: value.replace(/_/g, ' ') })), custom: true }
   ],
   build: ({ label, centre, orbit, radius, moons, look }) => {
     const c = centreRef(centre);

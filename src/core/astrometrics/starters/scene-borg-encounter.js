@@ -3,6 +3,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'borg_encounter',
   kind: 'scene',
   title: 'Borg encounter',
+  summary: 'A Borg cube bearing down on a starship, tractor beam locked on',
   description: 'A Borg cube with its green halo bearing down on the built-in Constitution-class starship, its tractor beam locked on. Tap a name to fly to it.',
   icon: 'mdi:cube',
   params: [],

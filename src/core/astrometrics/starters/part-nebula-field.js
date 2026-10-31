@@ -5,6 +5,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'nebula_field',
   kind: 'part',
   title: 'Nebula field',
+  summary: 'Two drifting clouds of gas with a glow at their heart',
   description: 'Two overlapping, slowly drifting clouds of gas with a soft glow at their heart and a label.',
   icon: 'mdi:weather-cloudy',
   params: [

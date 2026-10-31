@@ -292,19 +292,16 @@ test('studio: starters: a part round a card point (it orbits), clashes refused, 
     await mountCase(page, 'astro-camera', { width: '800' });
     await openStudio(page);
     const dialog = page.locator('lcards-astrometrics-studio-dialog');
-    const button = (starter, text) => dialog.locator(`[data-starter="${starter}"] ha-button`).filter({ hasText: text });
+    const button = (starter, text) => dialog.locator(`[data-starter-detail="${starter}"] ha-button`).filter({ hasText: text });
     await page.evaluate(() => { window.__studio._activeTab = 'starters'; window.__studio._openStarter = 'planet'; });
     await expect(dialog.locator('pre.starter-yaml')).toContainText('planet_body');
-    await page.evaluate(() => {
-        window.__studio._setStarterParam('planet', 'prefix', 'mars');
-        window.__studio._setStarterParam('planet', 'centre', 'svc');
-    });
+    await page.evaluate(() => { window.__studio._starterParams = { planet: { prefix: 'mars', centre: 'svc' } }; });
     await expect(dialog.locator('pre.starter-yaml')).toContainText('mars_body');
 
     await button('planet', 'Add to the scene').click();
     await expect.poll(() => page.evaluate(() => window.__studio._workingConfig.points.map((p) => p.id))).toEqual(['svc', 'mars_body', 'mars_moon1', 'mars_moon2']);
     expect(await page.evaluate(() => window.__studio._workingConfig.objects.find((o) => o.id === 'mars_orbit').at)).toBe('svc');
-    expect(await page.evaluate(() => window.__studio._starterMessage)).toEqual({ starter: 'planet', type: 'success', text: 'Planet with moons: added 3 points, 6 objects.' });
+    expect(await page.evaluate(() => window.__studio._starterMessage)).toEqual({ starter: 'planet', type: 'success', text: 'Planet with moons: added 3 points, 6 objects. Undo takes it out again.' });
     // the planet goes round: the orbit ring spins and the point stands on it
     await expect.poll(() => page.evaluate(() => window.__studio._previewCard._scene.debug().world?.list.length)).toBe(7);
     const at = () => page.evaluate(() => window.__studio._previewCard._scene.pointPositions().mars_body);
@@ -549,4 +546,123 @@ test('studio UX1 P2: grouped object sections, sliders, bind panels, the look swi
     await settle();
     expect(await page.evaluate(() => window.__studio._workingConfig.camera.view)).toBe('top');
     expect((await cardErrors(page)).filter((e) => !/Frame took/.test(e))).toEqual([]);
+});
+
+test('studio UX1 P4: starter gallery with pictures, try in the preview (keep, discard), undo and redo, the toolbar', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await openStudio(page);
+    const dialog = page.locator('lcards-astrometrics-studio-dialog');
+    await page.evaluate(() => { window.__studio._activeTab = 'starters'; });
+
+    // a tile per starter, each with its picture loaded
+    const tiles = dialog.locator('.starter-tile');
+    await expect(tiles.first()).toBeVisible();
+    const pictures = await page.evaluate(async () => {
+        const imgs = [...window.__studio.renderRoot.querySelectorAll('.starter-tile img')];
+        await Promise.all(imgs.map((i) => { i.loading = 'eager'; return i.decode().catch(() => null); }));
+        return { tiles: window.__studio.renderRoot.querySelectorAll('.starter-tile').length, loaded: imgs.filter((i) => i.naturalWidth > 0).length };
+    });
+    expect(pictures.loaded).toBe(pictures.tiles);
+    expect(pictures.tiles).toBeGreaterThanOrEqual(20);
+
+    // a tile opens its detail: what it adds, its settings form, the YAML
+    await dialog.locator('.starter-tile[data-starter="planet"]').click();
+    const detail = dialog.locator('[data-starter-detail="planet"]');
+    await expect(detail.locator('.starter-adds')).toHaveText('Adds 4 points, 6 objects.');
+    await expect(detail.locator('lcards-astro-schema-form')).toHaveCount(1);
+
+    const counts = () => page.evaluate(() => {
+        const s = window.__studio;
+        return { working: s._workingConfig.objects.length, preview: s._previewCard._rawConfig.objects.length };
+    });
+    const before = await counts();
+    const tabDisabled = () => page.evaluate(() => [...window.__studio.renderRoot.querySelectorAll('ha-tab-group-tab')].filter((t) => t.hasAttribute('disabled')).map((t) => t.getAttribute('value')));
+
+    // try: the preview has the planet, the working copy does not, other tabs and undo wait
+    await detail.locator('ha-button[data-action="try"]').click();
+    await expect.poll(counts).toEqual({ working: before.working, preview: before.working + 6 });
+    expect(await tabDisabled()).toEqual(['scene', 'objects', 'points', 'camera', 'yaml']);
+    await expect(dialog.locator('.try-bar')).toContainText('Trying: Planet with moons');
+    expect(await page.evaluate(() => window.__studio.renderRoot.querySelector('[data-tool="place"]').disabled)).toBe(true);
+
+    // a setting changed while trying follows into the preview
+    await page.evaluate(() => {
+        const form = window.__studio.renderRoot.querySelector('[data-starter-detail="planet"] lcards-astro-schema-form');
+        form.dispatchEvent(new CustomEvent('form-changed', { detail: { value: { ...form.value, moons: 4 } } }));
+    });
+    await expect.poll(counts).toEqual({ working: before.working, preview: before.working + 10 });
+
+    // discard: back to the working copy
+    await dialog.locator('.try-bar ha-button[data-try="discard"]').click();
+    await expect.poll(counts).toEqual(before);
+    expect(await tabDisabled()).toEqual([]);
+
+    // try again and keep: one undo step
+    await detail.locator('ha-button[data-action="try"]').click();
+    await dialog.locator('.try-bar ha-button[data-try="keep"]').click();
+    await expect.poll(counts).toEqual({ working: before.working + 10, preview: before.working + 10 });
+    expect(await page.evaluate(() => window.__studio._history.canUndo)).toBe(true);
+
+    // Ctrl+Z undoes it, Ctrl+Shift+Z brings it back (keys on the dialog, not in a text box)
+    await dialog.locator('.starter-detail h3').click();
+    await page.keyboard.press('Control+z');
+    await expect.poll(counts).toEqual(before);
+    await page.keyboard.press('Control+Shift+z');
+    await expect.poll(counts).toEqual({ working: before.working + 10, preview: before.working + 10 });
+    // the toolbar's undo button too
+    await dialog.locator('[data-tool="undo"]').click();
+    await expect.poll(counts).toEqual(before);
+
+    // typing in one field is one undo step
+    await page.evaluate(() => {
+        const s = window.__studio;
+        for (const n of [1, 12, 123]) s._setTop('time_scale', n);
+    });
+    await page.evaluate(() => window.__studio._undo());
+    expect(await page.evaluate(() => window.__studio._workingConfig.time_scale)).toBeUndefined();
+
+    // the toolbar collapses to its toggle and opens again
+    await dialog.locator('.canvas-toolbar [data-tool="toggle"]').click();
+    await expect(dialog.locator('.canvas-toolbar.collapsed')).toHaveCount(1);
+    await expect(dialog.locator('[data-tool="undo"]')).toHaveCount(0);
+    await dialog.locator('.canvas-toolbar [data-tool="toggle"]').click();
+    await expect(dialog.locator('[data-tool="undo"]')).toHaveCount(1);
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
+});
+
+test('studio UX1 P4 round 2: scenes and parts in their own sections, a part in other units dimmed and started with its scene, the units chip', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await openStudio(page);
+    const dialog = page.locator('lcards-astrometrics-studio-dialog');
+    await page.evaluate(() => { window.__studio._activeTab = 'starters'; });
+    await expect(dialog.locator('lcards-form-section.starter-group')).toHaveCount(2);
+    await expect(dialog.locator('[data-group="part"] .starter-tile[data-starter="planet"]')).toHaveCount(1);
+    // the card has no units; the Star Trek parts are in ly
+    await expect(dialog.locator('.units-chip ha-assist-chip')).toHaveAttribute('label', 'Scene: scene units');
+    await expect(dialog.locator('.starter-tile[data-starter="st_minor_powers"]')).toHaveClass(/clash/);
+    await expect(dialog.locator('.starter-tile[data-starter="planet"]')).not.toHaveClass(/clash/);
+    await expect(dialog.locator('.starter-tile[data-starter="st_minor_powers"] .starter-note')).toContainText('In ly; this scene is in scene units');
+
+    await dialog.locator('.starter-tile[data-starter="st_minor_powers"]').click();
+    const detail = dialog.locator('[data-starter-detail="st_minor_powers"]');
+    await expect(detail.locator('.starter-clash')).toContainText('It is made for Star Trek galaxy');
+    await expect(detail.locator('ha-button[data-action="insert"]')).toContainText('Start with Star Trek galaxy and add it');
+
+    // try: the galaxy and the part in the preview, the chip follows; the working copy waits
+    await detail.locator('ha-button[data-action="try"]').click();
+    await expect(dialog.locator('.units-chip ha-assist-chip')).toHaveAttribute('label', 'Scene: ly');
+    expect(await page.evaluate(() => window.__studio._workingConfig.units)).toBeUndefined();
+    await dialog.locator('.try-bar ha-button[data-try="keep"]').click();
+    const kept = await page.evaluate(() => {
+        const c = window.__studio._workingConfig;
+        return { units: c.units, ferenginar: c.points.some((p) => p.id === 'ferenginar'), svc: c.points.some((p) => p.id === 'svc') };
+    });
+    expect(kept).toEqual({ units: 'ly', ferenginar: true, svc: false });
+    expect(await page.evaluate(() => window.__studio._starterMessage.text)).toMatch(/^Star Trek galaxy, then Star Trek: minor powers: added /);
+    // undo: the card's own scene again
+    await page.evaluate(() => window.__studio._undo());
+    await expect(dialog.locator('.units-chip ha-assist-chip')).toHaveAttribute('label', 'Scene: scene units');
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
 });

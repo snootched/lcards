@@ -10,6 +10,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'true_scale_solar_system',
   kind: 'scene',
   title: 'Solar system (real positions)',
+  summary: 'The Solar System at real scale, where the planets are today',
   description: 'The Sun, the planets, Pluto, Ceres and the major moons in km, where they really are today and moving a day a second: real orbits, sizes, tilts and spins, Saturn\'s rings, the asteroid and Kuiper belts. Tap a planet to fly to it; the time slider runs the date faster, slower or back.',
   icon: 'mdi:orbit',
   params: [],

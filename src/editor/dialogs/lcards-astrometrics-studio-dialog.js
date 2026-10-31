@@ -17,7 +17,11 @@
  * flown to, set first; then the camera keys), YAML. Each tab opens with an
  * info guide (astro-studio/studio-guides.js).
  *
- * The working copy is plain config: Save sends it whole.
+ * The working copy is plain config: Save sends it whole. Every commit goes
+ * through `_commit`, which records the copy it replaces for undo and redo
+ * (astro-studio/history.js). A starter can be tried first: the preview shows
+ * the working copy with the starter in it (`_trying`) until Keep commits it
+ * or Discard drops it.
  *
  * @element lcards-astrometrics-studio-dialog
  * @fires config-changed - On save (detail: { config }); not bubbling
@@ -36,11 +40,13 @@ import { objectBranch, objectSummary, freshId, newObject, OBJECT_GROUPS, groupOf
 import {
   viewsOf, startViewName, captureView, freshViewName, setView, deleteView, moveView, renameView, viewNameProblem, viewSummary
 } from './astro-studio/camera-views.js';
-import { STARTERS, applyStarter, starterParams, hasScene } from '../../core/astrometrics/starters/index.js';
+import { STARTERS, applyStarter, hasScene, unitsClash } from '../../core/astrometrics/starters/index.js';
 import { starterYaml } from '../../core/astrometrics/starters/yaml.js';
 import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
 import { SCENE_SCOPE, scopeSystem, validScope, scopedList, setScopedList, scopedObjectIds, pointScope, objectScope, allPointIds, allObjectIds, pointsEditorConfig } from './astro-studio/systems.js';
+import { createHistory } from './astro-studio/history.js';
+import { starterPicture, starterParamSchema, starterParamChoices, starterParamValues, starterAdds, fragmentCounts } from './astro-studio/starter-gallery.js';
 import { overviewGuide, startersGuide, objectsGuide, pointsGuide, cameraGuide } from './astro-studio/studio-guides.js';
 import './astro-studio/lcards-astro-schema-form.js';
 import '../components/shared/lcards-form-section.js';
@@ -49,6 +55,12 @@ import '../components/editors/lcards-astro-points-editor.js';
 import '../components/yaml/lcards-studio-yaml-tab.js';
 import '../components/lcards-background-animation-editor.js';
 import './astro-studio/lcards-astro-labels-editor.js';
+
+/**
+ * How a starter goes in: replace the scene, merge or add, or (`scene`) start
+ * with the scene a part is made for and add the part to it.
+ * @typedef {'replace' | 'merge' | 'scene'} StarterMode
+ */
 
 const clone = (/** @type {any} */ v) => JSON.parse(JSON.stringify(v ?? {}));
 const isObj = (/** @type {any} */ v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -123,6 +135,9 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       _openStarter: { state: true },
       _starterParams: { state: true },
       _starterMessage: { state: true },
+      _trying: { state: true },
+      _toolbarExpanded: { state: true },
+      _historyVersion: { state: true },
       _viewError: { state: true }
     };
   }
@@ -155,6 +170,15 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     this._starterParams = {};
     /** @type {{ starter: string, type: 'error' | 'success', text: string } | null} the last insert's outcome, shown in that starter */
     this._starterMessage = null;
+    /** @type {{ id: string, mode: StarterMode, title: string, config: Record<string, any> } | null} the starter in the preview, not yet kept */
+    this._trying = null;
+    this._toolbarExpanded = true;
+    this._history = createHistory();
+    /** bumped on every history change, so undo and redo buttons re-render */
+    this._historyVersion = 0;
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
+    this._tryTimer = undefined;
+    this._onKey = this._onKey.bind(this);
     this._previewRef = createRef();
     this._onPlaceKey = this._onPlaceKey.bind(this);
     /** @type {any} the preview card */
@@ -178,11 +202,14 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     this._workingConfig.type ||= 'custom:lcards-astrometrics-card';
     // a new card (empty, or the default scene) starts from the starters, else on its objects
     this._activeTab = isStarterCard(this._workingConfig) ? 'starters' : 'objects';
+    window.addEventListener('keydown', this._onKey);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     clearTimeout(this._previewTimer);
+    clearTimeout(this._tryTimer);
+    window.removeEventListener('keydown', this._onKey);
     window.removeEventListener('keydown', this._onPlaceKey, true);
     this._previewCard?.attachStudio?.(null);
   }
@@ -232,11 +259,25 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   }
 
   /**
-   * Replace the working config and refresh the preview.
+   * Replace the working config and refresh the preview. The copy it replaces
+   * goes on the undo history (commits to the same keys in a row merge, unless
+   * `step`).
+   * @param {Record<string, any>} next
+   * @param {{ now?: boolean, step?: boolean }} [opts] - step: its own undo step (a starter kept)
+   */
+  _commit(next, { now = false, step = false } = {}) {
+    this._history.push(this._workingConfig, next, { step });
+    this._historyVersion++;
+    this._show(next, { now });
+  }
+
+  /**
+   * Show a config as the working copy without recording it (commits, undo and redo).
    * @param {Record<string, any>} next
    * @param {{ now?: boolean }} [opts]
+   * @private
    */
-  _commit(next, { now = false } = {}) {
+  _show(next, { now = false } = {}) {
     this._workingConfig = next;
     // the YAML tab or a starter can take the open system away
     const scope = validScope(next, this._scope);
@@ -244,6 +285,46 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     clearTimeout(this._previewTimer);
     if (now) this._updatePreview();
     else this._previewTimer = setTimeout(() => this._updatePreview(), PREVIEW_DELAY);
+  }
+
+  /** Step back one commit @private */
+  _undo() {
+    const prev = this._trying ? null : this._history.undo(this._workingConfig);
+    if (!prev) return;
+    this._historyVersion++;
+    this._show(prev, { now: true });
+  }
+
+  /** Step forward one undone commit @private */
+  _redo() {
+    const next = this._trying ? null : this._history.redo(this._workingConfig);
+    if (!next) return;
+    this._historyVersion++;
+    this._show(next, { now: true });
+  }
+
+  /**
+   * Ctrl+Z undoes and Ctrl+Shift+Z (or Ctrl+Y) redoes, except in a text box
+   * or the code editor, which keep their own undo. Keys inside the Studio
+   * count, and keys with nothing focused (a tap on plain text or the preview
+   * leaves focus on the page); keys in another dialog do not.
+   * @param {KeyboardEvent} e
+   * @private
+   */
+  _onKey(e) {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    const key = e.key.toLowerCase();
+    if (key !== 'z' && key !== 'y') return;
+    const path = e.composedPath();
+    const active = document.activeElement;
+    if (!path.includes(this) && active && active !== document.body) return;
+    const typing = path.some((el) => el instanceof HTMLElement
+      && (el.matches('input, textarea, [contenteditable=""], [contenteditable="true"], ha-code-editor, .cm-editor')));
+    if (typing) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (key === 'y' || e.shiftKey) this._redo();
+    else this._undo();
   }
 
   /** @param {string} key @param {any} value */
@@ -283,9 +364,9 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
 
   // ── Preview ────────────────────────────────────────────────────────────────
 
-  /** The config the preview card shows: the working copy, filling the panel. */
+  /** The config the preview card shows: the working copy (with the starter being tried), filling the panel. */
   _previewConfig() {
-    return { ...clone(this._workingConfig), height: '100%' };
+    return { ...clone(this._trying?.config ?? this._workingConfig), height: '100%' };
   }
 
   /** @private */
@@ -478,7 +559,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         .tab-content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: var(--ha-space-4); min-height: 0; }
         ha-tab-group { flex-shrink: 0; }
         .preview-stage { position: relative; flex: 1; min-height: 0; }
-        .preview-stage > div { position: absolute; inset: 0; }
+        .preview-host { position: absolute; inset: 0; }
         .tab-header { display: flex; align-items: center; justify-content: space-between; gap: var(--ha-space-2); margin-bottom: var(--ha-space-2); }
         .tab-header h3 { margin: 0; }
         .info-guide { display: block; margin-bottom: var(--ha-space-3); }
@@ -491,6 +572,12 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         .type-picker-actions { display: flex; justify-content: flex-end; gap: var(--ha-space-2); margin-top: var(--ha-space-2); }
         lcards-form-section { display: block; }
         .canvas-toolbar { align-items: center; }
+        .canvas-toolbar-button:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+        .preview-notes { position: absolute; left: var(--ha-space-3); bottom: var(--ha-space-3); max-width: calc(100% - 24px); pointer-events: none; }
+        .preview-notes > * { pointer-events: auto; }
+        .try-bar { display: flex; align-items: center; gap: var(--ha-space-2); padding: var(--ha-space-1) var(--ha-space-1) var(--ha-space-1) var(--ha-space-4);
+          border-radius: var(--ha-border-radius-pill); background: rgba(0, 0, 0, 0.75); color: white; box-shadow: var(--ha-box-shadow-m); }
+        .try-bar span { font-weight: var(--ha-font-weight-medium); }
         .view-actions { display: flex; flex-wrap: wrap; gap: var(--ha-space-2); margin-bottom: var(--ha-space-3); }
         .view-name { display: block; margin-bottom: var(--ha-space-3); }
         .views-section { display: block; margin-bottom: var(--ha-space-4); }
@@ -498,13 +585,38 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         .start-view { margin-top: var(--ha-space-3); }
         .start-view .field-label { display: block; font-weight: var(--ha-font-weight-medium); }
         .views-section > .hint { margin-bottom: var(--ha-space-2); }
-        .starter-group { margin: var(--ha-space-4) 0 var(--ha-space-2); }
-        .starter-params { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ha-space-3); margin-bottom: var(--ha-space-3); }
-        .starter-yaml { max-height: 220px; overflow: auto; margin: 0 0 var(--ha-space-3); padding: var(--ha-space-2) var(--ha-space-3);
+        .starter-group { margin-bottom: var(--ha-space-3); }
+        .starter-tile.clash .starter-picture { opacity: 0.4; }
+        .starter-note { display: flex; align-items: flex-start; gap: var(--ha-space-1); margin-top: var(--ha-space-1); padding: 0 var(--ha-space-2);
+          font-size: var(--ha-font-size-m, 14px); font-weight: var(--ha-font-weight-medium); color: var(--primary-text-color); }
+        .starter-note ha-icon { --mdc-icon-size: 18px; flex-shrink: 0; }
+        .starter-clash { display: block; margin-bottom: var(--ha-space-3); }
+        .units-chip { position: absolute; top: var(--ha-space-3); left: var(--ha-space-3); }
+        .units-chip ha-assist-chip { --ha-assist-chip-filled-container-color: var(--primary-color); --ha-assist-chip-label-text-color: white;
+          --ha-chip-label-size: var(--ha-font-size-l, 16px); }
+        .units-chip ha-icon { --mdc-icon-size: 18px; color: white; }
+        .starter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--ha-space-3); }
+        .starter-tile { display: flex; flex-direction: column; gap: var(--ha-space-1); padding: 0 0 var(--ha-space-2); text-align: start; cursor: pointer;
+          font: inherit; color: inherit; background: none; overflow: hidden;
+          border: var(--ha-border-width-sm) solid var(--divider-color); border-radius: var(--ha-border-radius-lg); }
+        .starter-tile:hover, .starter-tile:focus-visible { border-color: var(--primary-color); outline: none; }
+        .starter-tile .starter-title, .starter-tile .starter-summary { padding: 0 var(--ha-space-2); }
+        .starter-title { font-weight: var(--ha-font-weight-medium); }
+        .starter-summary { font-size: var(--ha-font-size-s, 12px); color: var(--secondary-text-color); }
+        .starter-picture { position: relative; aspect-ratio: 16 / 9; display: flex; align-items: center; justify-content: center; background: black; }
+        .starter-picture ha-icon { --mdc-icon-size: 32px; color: var(--secondary-text-color); }
+        .starter-picture img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        .starter-detail > .starter-picture { border-radius: var(--ha-border-radius-lg); overflow: hidden; margin-bottom: var(--ha-space-3); }
+        .starter-detail-title { display: flex; align-items: center; gap: var(--ha-space-2); margin: 0 0 var(--ha-space-2); }
+        .starter-description { margin: 0 0 var(--ha-space-2); }
+        .starter-adds { margin: 0 0 var(--ha-space-3); }
+        .starter-detail lcards-form-section { margin-bottom: var(--ha-space-3); }
+        .starter-yaml { max-height: 320px; overflow: auto; margin: 0; padding: var(--ha-space-2) var(--ha-space-3);
           font-family: var(--ha-font-family-code, monospace); font-size: var(--ha-font-size-s, 12px); white-space: pre;
           border-radius: var(--ha-border-radius-md); background-color: color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent)); }
         .starter-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--ha-space-2); }
-        .toolbar-status { color: white; font-size: var(--ha-font-size-s, 12px); padding-right: var(--ha-space-2); max-width: 32ch; }
+        .toolbar-status { display: inline-block; color: white; font-size: var(--ha-font-size-m, 14px); padding: var(--ha-space-1) var(--ha-space-3);
+          border-radius: var(--ha-border-radius-pill); background: rgba(0, 0, 0, 0.6); max-width: 48ch; }
       `
     ];
   }
@@ -525,7 +637,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
             <div class="config-panel">
               <ha-tab-group @wa-tab-show=${this._onTab}>
                 ${tabs.map((t) => html`
-                  <ha-tab-group-tab value=${t.id} ?active=${this._activeTab === t.id}>
+                  <ha-tab-group-tab value=${t.id} ?active=${this._activeTab === t.id} ?disabled=${!!this._trying && t.id !== 'starters'}>
                     <ha-icon icon=${t.icon}></ha-icon>
                     ${t.label}
                   </ha-tab-group-tab>`)}
@@ -533,19 +645,23 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
               <div class="tab-content">${this._renderActiveTab()}</div>
             </div>
             <div class="preview-panel">
-              <div class="canvas-toolbar">
-                <div class="canvas-toolbar-buttons">
-                  <button class="canvas-toolbar-button" title="Back to the start view" aria-label="Back to the start view" @click=${this._home}>
-                    <ha-icon icon="mdi:home-outline"></ha-icon>
-                  </button>
-                  <button class="canvas-toolbar-button ${this._placing ? 'active' : ''}" title="Place a point" aria-label="Place a point"
-                    aria-pressed=${this._placing ? 'true' : 'false'} @click=${() => this._setPlacing(!this._placing)}>
-                    <ha-icon icon="mdi:map-marker-plus-outline"></ha-icon>
-                  </button>
+              <div class="preview-stage">
+                <div class="preview-host" ${ref(this._previewRef)}></div>
+                ${this._renderToolbar()}
+                ${this._renderUnitsChip()}
+                <div class="preview-notes">
+                  ${this._trying ? html`
+                    <div class="try-bar" role="status">
+                      <span>Trying: ${this._trying.title}</span>
+                      <ha-button size="s" appearance="plain" data-try="discard" @click=${this._discardTry}>Discard</ha-button>
+                      <ha-button size="s" variant="brand" data-try="keep" @click=${this._keepTry}>
+                        <ha-icon icon="mdi:check" slot="start"></ha-icon>
+                        Keep
+                      </ha-button>
+                    </div>` : html`
+                    <span class="toolbar-status">${this._status || 'Tap a point or object to edit it, drag a point to move it.'}</span>`}
                 </div>
-                <span class="hint toolbar-status">${this._status || 'Tap a point or object to edit it, drag a point to move it.'}</span>
               </div>
-              <div class="preview-stage"><div ${ref(this._previewRef)}></div></div>
             </div>
           </div>
         </div>
@@ -564,6 +680,69 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         </ha-dialog-footer>
       </ha-dialog>
     `;
+  }
+
+  /**
+   * The preview's toolbar in the MSD Studio's shape: labelled groups and a
+   * collapse toggle.
+   * @private
+   */
+  _renderToolbar() {
+    void this._historyVersion;
+    const trying = !!this._trying;
+    /** @param {{ icon: string, title: string, action: () => void, active?: boolean, disabled?: boolean, id: string }} b */
+    const button = (b) => html`
+      <button class="canvas-toolbar-button ${b.active ? 'active' : ''}" data-tool=${b.id} title=${b.title} aria-label=${b.title}
+        aria-pressed=${b.active === undefined ? nothing : (b.active ? 'true' : 'false')} ?disabled=${!!b.disabled} @click=${b.action}>
+        <ha-icon icon=${b.icon}></ha-icon>
+      </button>`;
+    const toggle = () => { this._toolbarExpanded = !this._toolbarExpanded; };
+    if (!this._toolbarExpanded) {
+      return html`
+        <div class="canvas-toolbar collapsed">
+          <button class="canvas-toolbar-toggle" data-tool="toggle" title="Show the toolbar" aria-label="Show the toolbar" @click=${toggle}>
+            <ha-icon icon="mdi:tools"></ha-icon>
+          </button>
+        </div>`;
+    }
+    return html`
+      <div class="canvas-toolbar">
+        <div class="canvas-toolbar-buttons">
+          <div class="canvas-toolbar-group">
+            <span class="canvas-toolbar-group-label">Tools</span>
+            ${button({ id: 'place', icon: 'mdi:map-marker-plus-outline', title: 'Place a point', active: this._placing, disabled: trying, action: () => this._setPlacing(!this._placing) })}
+          </div>
+          <div class="canvas-toolbar-group">
+            <span class="canvas-toolbar-group-label">View</span>
+            ${button({ id: 'home', icon: 'mdi:home-outline', title: 'Back to the start view', action: () => this._home() })}
+          </div>
+          <div class="canvas-toolbar-group">
+            <span class="canvas-toolbar-group-label">Edit</span>
+            ${button({ id: 'undo', icon: 'mdi:undo', title: 'Undo (Ctrl+Z)', disabled: trying || !this._history.canUndo, action: () => this._undo() })}
+            ${button({ id: 'redo', icon: 'mdi:redo', title: 'Redo (Ctrl+Shift+Z)', disabled: trying || !this._history.canRedo, action: () => this._redo() })}
+          </div>
+        </div>
+        <button class="canvas-toolbar-toggle" data-tool="toggle" title="Hide the toolbar" aria-label="Hide the toolbar" @click=${toggle}>
+          <ha-icon icon="mdi:chevron-right"></ha-icon>
+        </button>
+      </div>`;
+  }
+
+  /**
+   * What the numbers mean on the preview: the open system's units, else the
+   * scene's (the starter being tried included).
+   * @private
+   */
+  _renderUnitsChip() {
+    const cfg = this._trying?.config ?? this._workingConfig;
+    const sys = this._trying ? null : this._system;
+    const id = sys ? this._objectIdIn(SCENE_SCOPE, this._scope) : '';
+    const units = sys ? this._units : cfg.units;
+    const text = `${sys ? `System ${id}` : 'Scene'}: ${units || 'scene units'}`;
+    return html`
+      <div class="units-chip" data-units=${units || ''} title="Positions, sizes and distances are in these units">
+        <ha-assist-chip filled label=${text}><ha-icon slot="icon" icon="mdi:arrow-expand-horizontal"></ha-icon></ha-assist-chip>
+      </div>`;
   }
 
   /** @private */
@@ -807,44 +986,123 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
 
   /** @private */
   _renderStartersTab() {
-    const group = (/** @type {'scene' | 'part'} */ kind) => STARTERS.filter((st) => st.kind === kind).map((st) => this._renderStarter(st));
+    const open = STARTERS.find((st) => st.id === this._openStarter);
+    if (open) return this._renderStarterDetail(open);
+    const group = (/** @type {'scene' | 'part'} */ kind, /** @type {string} */ header, /** @type {string} */ icon, /** @type {string} */ hint) => html`
+      <lcards-form-section class="starter-group" data-group=${kind} header=${header} icon=${icon} description=${hint} outlined expanded>
+        <div class="starter-grid">${STARTERS.filter((st) => st.kind === kind).map((st) => this._renderStarterTile(st))}</div>
+      </lcards-form-section>`;
     return html`
       ${startersGuide()}
-      <h3 class="starter-group">Scenes</h3>
-      ${group('scene')}
-      <h3 class="starter-group">Parts</h3>
-      ${group('part')}
+      ${group('scene', 'Scenes', 'mdi:image-filter-hdr-outline', 'A whole scene: use it in place of yours, or merge it into yours.')}
+      ${group('part', 'Parts', 'mdi:puzzle-outline', 'One thing to add next to your scene, such as a planet with moons.')}
     `;
   }
 
   /**
+   * A starter's picture; its icon when the picture is missing.
    * @param {import('../../core/astrometrics/starters/index.js').Starter} starter
    * @private
    */
-  _renderStarter(starter) {
-    const expanded = this._openStarter === starter.id;
-    const typed = this._starterParams[starter.id] ?? {};
+  _starterPicture(starter) {
     return html`
-      <lcards-form-section class="object" data-starter=${starter.id} header=${starter.title} secondary=${starter.description}
-        icon=${starter.icon} outlined ?expanded=${expanded}
-        @expanded-changed=${(/** @type {CustomEvent} */ e) => {
-          if (e.detail.expanded) this._openStarter = starter.id;
-          else if (this._openStarter === starter.id) this._openStarter = null;
-        }}>
-        ${expanded ? html`
-          ${starter.params.length ? html`
-            <div class="starter-params">
-              ${starter.params.map((p) => html`
-                <ha-input .label=${p.label} .value=${String(typed[p.key] ?? (Array.isArray(p.default) ? p.default.join(', ') : p.default))}
-                  type=${p.type === 'number' ? 'number' : 'text'} .hint=${p.helper ?? ''}
-                  @change=${(/** @type {Event} */ e) => this._setStarterParam(starter.id, p.key, /** @type {any} */ (e.target).value)}></ha-input>`)}
-            </div>` : nothing}
+      <div class="starter-picture">
+        <ha-icon icon=${starter.icon}></ha-icon>
+        <img src=${starterPicture(starter.id)} alt="" loading="lazy"
+          @error=${(/** @type {Event} */ e) => { /** @type {HTMLElement} */ (e.target).hidden = true; }}>
+      </div>`;
+  }
+
+  /**
+   * A gallery tile: picture, title, one line; opens the starter.
+   * @param {import('../../core/astrometrics/starters/index.js').Starter} starter
+   * @private
+   */
+  _renderStarterTile(starter) {
+    // a part in other units cannot be added to this scene (a scene can still replace it)
+    const clash = starter.kind === 'part' ? unitsClash(this._workingConfig, starter) : null;
+    return html`
+      <button class="starter-tile ${clash ? 'clash' : ''}" data-starter=${starter.id} @click=${() => { this._openStarter = starter.id; }}>
+        ${this._starterPicture(starter)}
+        <span class="starter-title">${starter.title}</span>
+        <span class="starter-summary">${starter.summary}</span>
+        ${clash ? html`<span class="starter-note"><ha-icon icon="mdi:arrow-expand-horizontal"></ha-icon>In ${clash}; this scene is in ${this._workingConfig.units ?? 'scene units'}</span>` : nothing}
+      </button>`;
+  }
+
+  /**
+   * How Try and the main button put a starter in: a scene replaces; a part
+   * adds, or when its units differ from the scene's, starts over with the
+   * scene it is made for, or on its own.
+   * @param {import('../../core/astrometrics/starters/index.js').Starter} starter
+   * @returns {StarterMode}
+   * @private
+   */
+  _starterMode(starter) {
+    if (starter.kind === 'scene') return 'replace';
+    if (!unitsClash(this._workingConfig, starter, this._starterParams[starter.id])) return 'merge';
+    return starter.scene ? 'scene' : 'replace';
+  }
+
+  /**
+   * An open starter: picture, description, what it adds, its params, the
+   * YAML on request, and Try / use / add.
+   * @param {import('../../core/astrometrics/starters/index.js').Starter} starter
+   * @private
+   */
+  _renderStarterDetail(starter) {
+    const typed = this._starterParams[starter.id] ?? {};
+    const trying = this._trying?.id === starter.id;
+    const scene = starter.kind === 'scene';
+    const clash = unitsClash(this._workingConfig, starter, typed);
+    const mode = this._starterMode(starter);
+    const host = starter.scene ? STARTERS.find((st) => st.id === starter.scene) : undefined;
+    const here = this._workingConfig.units ?? 'scene units';
+    return html`
+      <div class="starter-detail" data-starter-detail=${starter.id}>
+        <div class="tab-header">
+          <ha-button appearance="plain" size="s" ?disabled=${!!this._trying} @click=${() => { this._openStarter = null; this._starterMessage = null; }}>
+            <ha-icon icon="mdi:arrow-left" slot="start"></ha-icon>
+            All starters
+          </ha-button>
+        </div>
+        ${this._starterPicture(starter)}
+        <h3 class="starter-detail-title"><ha-icon icon=${starter.icon}></ha-icon>${starter.title}</h3>
+        <p class="starter-description">${starter.description}</p>
+        <p class="hint starter-adds">${mode === 'scene' ? `Replaces the scene with ${host?.title}, then adds` : scene || mode === 'replace' ? 'Replaces the scene with' : 'Adds'} ${starterAdds(starter, typed)}.</p>
+        ${clash && !scene ? html`
+          <lcards-message type="info" class="starter-clash">
+            This part is in ${clash} and your scene is in ${here}, so it cannot go next to it.
+            ${host ? html`It is made for ${host.title}: start with that scene and add this part to it.` : 'It can replace the scene instead.'}
+            Undo brings your scene back.
+          </lcards-message>` : nothing}
+        ${starter.params.length ? html`
+          <lcards-form-section header="Settings" icon="mdi:tune-variant" outlined expanded>
+            <lcards-astro-schema-form .hass=${this.hass} .schema=${starterParamSchema(starter)} .value=${starterParamValues(starter, typed)}
+              .pointIds=${this._pointIds} .choices=${starterParamChoices(starter)} .units=${this._workingConfig.units ?? ''}
+              @form-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); this._setStarterParams(starter, e.detail.value); }}>
+            </lcards-astro-schema-form>
+          </lcards-form-section>` : nothing}
+        <lcards-form-section header="YAML" icon="mdi:code-braces" description="What it puts into the card" outlined>
           <pre class="starter-yaml">${this._starterYaml(starter, typed)}</pre>
-          ${this._starterMessage?.starter === starter.id
-            ? html`<lcards-message type=${this._starterMessage.type}>${this._starterMessage.text}</lcards-message>` : nothing}
-          <div class="starter-actions">
-            ${starter.kind === 'scene' ? html`
-              <ha-button appearance="plain" ?disabled=${!hasScene(this._workingConfig)} @click=${() => this._insertStarter(starter, 'merge')}>
+        </lcards-form-section>
+        ${this._starterMessage?.starter === starter.id
+          ? html`<lcards-message type=${this._starterMessage.type}>${this._starterMessage.text}</lcards-message>` : nothing}
+        <div class="starter-actions">
+          ${trying ? html`
+            <ha-button appearance="plain" @click=${this._discardTry}>Discard</ha-button>
+            <ha-button variant="brand" @click=${this._keepTry}>
+              <ha-icon icon="mdi:check" slot="start"></ha-icon>
+              Keep
+            </ha-button>` : html`
+            <ha-button appearance="plain" data-action="try" @click=${() => this._tryStarter(starter, mode)}>
+              <ha-icon icon="mdi:eye-outline" slot="start"></ha-icon>
+              Try in the preview
+            </ha-button>
+            ${scene ? html`
+              <ha-button appearance="plain" ?disabled=${!hasScene(this._workingConfig) || !!clash}
+                title=${clash ? `This scene is in ${clash} and yours is in ${here}: only replacing works` : ''}
+                @click=${() => this._insertStarter(starter, 'merge')}>
                 <ha-icon icon="mdi:plus" slot="start"></ha-icon>
                 Merge into the scene
               </ha-button>
@@ -852,18 +1110,27 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
                 <ha-icon icon="mdi:swap-horizontal" slot="start"></ha-icon>
                 Use this scene
               </ha-button>` : html`
-              <ha-button @click=${() => this._insertStarter(starter, 'merge')}>
-                <ha-icon icon="mdi:plus" slot="start"></ha-icon>
-                Add to the scene
-              </ha-button>`}
-          </div>` : nothing}
-      </lcards-form-section>
+              <ha-button data-action="insert" @click=${() => this._insertStarter(starter, mode)}>
+                <ha-icon icon=${mode === 'merge' ? 'mdi:plus' : 'mdi:swap-horizontal'} slot="start"></ha-icon>
+                ${mode === 'merge' ? 'Add to the scene' : mode === 'scene' ? `Start with ${host?.title} and add it` : 'Replace the scene with it'}
+              </ha-button>`}`}
+        </div>
+      </div>
     `;
   }
 
-  /** @param {string} id @param {string} key @param {any} value @private */
-  _setStarterParam(id, key, value) {
-    this._starterParams = { ...this._starterParams, [id]: { ...this._starterParams[id], [key]: value } };
+  /**
+   * New param values from the form; a starter being tried follows them.
+   * @param {import('../../core/astrometrics/starters/index.js').Starter} starter
+   * @param {Record<string, any>} value
+   * @private
+   */
+  _setStarterParams(starter, value) {
+    this._starterParams = { ...this._starterParams, [starter.id]: value };
+    if (this._trying?.id !== starter.id) return;
+    const mode = this._trying.mode;
+    clearTimeout(this._tryTimer);
+    this._tryTimer = setTimeout(() => this._tryStarter(starter, mode), PREVIEW_DELAY);
   }
 
   /**
@@ -880,32 +1147,77 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   }
 
   /**
-   * Put a starter into the working copy: a scene replaces (confirmed when
-   * there is a scene) or merges; a part adds. Clashing ids are refused.
+   * The working copy with a starter put in, or its error (shown in the starter).
+   * `scene`: the scene the part is made for replaces the card's first.
    * @param {import('../../core/astrometrics/starters/index.js').Starter} starter
-   * @param {'replace' | 'merge'} mode
+   * @param {StarterMode} mode
+   * @returns {{ config: Record<string, any>, added: import('../../core/astrometrics/starters/index.js').StarterFragment } | null}
    * @private
    */
-  async _insertStarter(starter, mode) {
-    if (starter.kind === 'scene' && mode === 'replace' && !isStarterCard(this._workingConfig)) {
-      const ok = await showConfirmDeleteDialog({
-        title: 'Replace the scene',
-        message: `Replace the points, objects, camera, backdrop and labels with ${starter.title}? Cancel in the Studio still brings them back.`,
-        confirmText: 'Replace'
-      });
-      if (!ok) return;
-    }
-    const out = applyStarter(this._workingConfig, starter, this._starterParams[starter.id] ?? {}, { mode });
+  _withStarter(starter, mode) {
+    let base = this._workingConfig;
+    const host = mode === 'scene' ? STARTERS.find((st) => st.id === starter.scene) : undefined;
+    if (host) base = applyStarter(base, host, this._starterParams[host.id] ?? {}, { mode: 'replace' }).config ?? base;
+    const out = applyStarter(base, starter, this._starterParams[starter.id] ?? {}, { mode: mode === 'scene' ? 'merge' : mode });
     if (!out.config || !out.added) {
       this._starterMessage = { starter: starter.id, type: 'error', text: String(out.error) };
+      return null;
+    }
+    return { config: out.config, added: out.added };
+  }
+
+  /**
+   * Show a starter in the preview without changing the working copy; the
+   * other tabs wait until Keep or Discard.
+   * @param {import('../../core/astrometrics/starters/index.js').Starter} starter
+   * @param {StarterMode} mode
+   * @private
+   */
+  async _tryStarter(starter, mode) {
+    const out = this._withStarter(starter, mode);
+    if (!out) {
+      if (this._trying) this._discardTry();
       return;
     }
-    const n = (/** @type {any[] | undefined} */ list, /** @type {string} */ word) => (list?.length ? `${list.length} ${word}${list.length === 1 ? '' : 's'}` : null);
-    const what = [n(out.added.points, 'point'), n(out.added.objects, 'object'), n(Object.keys(out.added.views ?? {}), 'view')].filter(Boolean).join(', ');
-    this._starterMessage = { starter: starter.id, type: 'success', text: `${starter.title}: added ${what}.` };
+    await this._setPlacing(false);
+    this._starterMessage = null;
+    this._trying = { id: starter.id, mode, title: starter.title, config: out.config };
+    this._updatePreview();
+  }
+
+  /** Commit the starter being tried (one undo step) @private */
+  _keepTry() {
+    const trying = this._trying;
+    if (!trying) return;
+    clearTimeout(this._tryTimer);
+    const starter = STARTERS.find((st) => st.id === trying.id);
+    this._trying = null;
+    if (starter) this._insertStarter(starter, trying.mode);
+  }
+
+  /** Drop the starter being tried: the preview shows the working copy again @private */
+  _discardTry() {
+    clearTimeout(this._tryTimer);
+    this._trying = null;
+    this._updatePreview();
+  }
+
+  /**
+   * Put a starter into the working copy: a scene replaces or merges; a part
+   * adds. Clashing ids are refused. Undo takes it out again.
+   * @param {import('../../core/astrometrics/starters/index.js').Starter} starter
+   * @param {StarterMode} mode
+   * @private
+   */
+  _insertStarter(starter, mode) {
+    const out = this._withStarter(starter, mode);
+    if (!out) return;
+    const host = mode === 'scene' ? STARTERS.find((st) => st.id === starter.scene) : undefined;
+    const what = `${host ? `${host.title}, then ` : ''}${starter.title}: added ${fragmentCounts(out.added)}.`;
+    this._starterMessage = { starter: starter.id, type: 'success', text: `${what} Undo takes it out again.` };
     this._expandedObject = -1;
     this._selectedPoint = null;
-    this._commit(out.config, { now: true });
+    this._commit(out.config, { now: true, step: true });
   }
 
   /** @private */

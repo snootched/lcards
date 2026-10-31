@@ -11,6 +11,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'utopia_planitia',
   kind: 'scene',
   title: 'Utopia Planitia yards',
+  summary: 'Three drydocks in orbit over Mars, a starship in the first',
   description: 'Three drydocks of the Utopia Planitia Fleet Yards in orbit over Mars (its USGS Viking map), a Constitution-class starship in the first. Tap a drydock to fly to it.',
   icon: 'mdi:factory',
   params: [],

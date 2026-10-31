@@ -3,6 +3,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'deep_space_nine',
   kind: 'scene',
   title: 'Deep Space 9',
+  summary: 'Deep Space 9 with its parts marked, the wormhole and Bajor',
   description: 'The built-in Deep Space 9 station with Ops, the Promenade and its docking pylons marked, the Bajoran wormhole off its bow and Bajor below. Tap a name to fly to it.',
   icon: 'mdi:space-station',
   params: [],

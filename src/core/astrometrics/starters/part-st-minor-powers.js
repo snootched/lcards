@@ -22,8 +22,11 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'st_minor_powers',
   kind: 'part',
   title: 'Star Trek: minor powers',
+  summary: 'The Ferengi, Breen, Tzenkethi, Tholian and Gorn homeworlds',
   description: 'For the Star Trek galaxy: the Ferengi, Breen, Tzenkethi, Tholian and Gorn homeworlds round Federation space, each with a small territory, at the close-up\'s scale (Ferenginar at its recorded 55 ly from Cardassia and 60 from Bajor).',
   icon: 'mdi:account-group-outline',
+  scene: 'star_trek_galaxy',
+  picture: { camera: { target: [-60, 0, 26060], yaw: 20, tilt: 45, distance: 420 } },
   params: [{ key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: '' }],
   build: () => galaxyScale({
     units: 'ly',

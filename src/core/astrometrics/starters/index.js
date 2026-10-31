@@ -4,7 +4,7 @@
  * nothing refers back to the starter.
  *
  * A starter is a builder:
- *   { id, kind: 'scene' | 'part', title, description, icon, params, build(params) }
+ *   { id, kind: 'scene' | 'part', title, summary, description, icon, params, build(params), picture? }
  * `build` returns a fragment `{ points?, objects?, views?, camera?, backdrop?, units?, clock? }`.
  * A part's ids are prefixed by `applyStarter` (`prefix` param): every id the
  * fragment defines, and every reference to one inside it, gets `<prefix>_`.
@@ -42,6 +42,16 @@ import starbase from './part-starbase.js';
  * @property {'text' | 'number' | 'point'} type - point: a point id or [x, y, z]
  * @property {any} default
  * @property {string} [helper]
+ * @property {{ value: string, label: string }[]} [options] - text: a dropdown of these
+ * @property {boolean} [custom] - with options: other values may be typed too
+ */
+
+/**
+ * How `scripts/astro-pictures.mjs` frames a starter's picture (parts have no
+ * camera or backdrop of their own). Not used by the card or the Studio.
+ * @typedef {Object} StarterPicture
+ * @property {Record<string, any>} [camera] - camera keys (target, yaw, tilt, distance)
+ * @property {Record<string, any>} [backdrop]
  */
 
 /**
@@ -60,9 +70,12 @@ import starbase from './part-starbase.js';
  * @property {string} id
  * @property {'scene' | 'part'} kind
  * @property {string} title
+ * @property {string} summary - one line under its picture in the Studio's gallery
  * @property {string} description
  * @property {string} icon
  * @property {StarterParam[]} params
+ * @property {string} [scene] - a part made for one scene starter (its id): its numbers only make sense there
+ * @property {StarterPicture} [picture]
  * @property {(params: Record<string, any>) => StarterFragment} build
  */
 
@@ -168,9 +181,24 @@ export function hasScene(/** @type {Record<string, any>} */ config) {
 const SCENE_KEYS = ['points', 'objects', 'camera', 'backdrop', 'labels', 'background_animation', 'units', 'clock'];
 
 /**
+ * The units a starter is in when they differ from a card's scene, so it
+ * cannot merge (every number in it would mean something else), else null.
+ * A card with no scene takes any units.
+ * @param {Record<string, any>} config
+ * @param {Starter} starter
+ * @param {Record<string, any>} [params]
+ * @returns {string | null}
+ */
+export function unitsClash(config, starter, params = {}) {
+  const frag = starter.build(starterParams(starter, params));
+  return frag.units !== undefined && (config.units ?? null) !== frag.units && hasScene(config) ? frag.units : null;
+}
+
+/**
  * Put a starter into a card config.
  * Scenes replace the scene (`mode: 'replace'`, the default for scenes) or
- * merge into it; parts always add. Any id the starter would add that the
+ * merge into it; parts add (the default) or, with `mode: 'replace'`, start
+ * the scene over on their own. Any id the starter would add that the
  * config already uses is refused, naming the clash.
  * @param {Record<string, any>} config
  * @param {Starter} starter
@@ -182,7 +210,8 @@ export function applyStarter(config, starter, params = {}, { mode } = {}) {
   const filled = starterParams(starter, params);
   let frag = starter.build(filled);
   if (starter.kind === 'part') frag = prefixFragment(frag, String(filled.prefix ?? '').trim());
-  const replace = starter.kind === 'scene' && (mode ?? 'replace') === 'replace';
+  // a scene replaces unless told to merge; a part adds unless told to replace (it then starts the scene over on its own)
+  const replace = (mode ?? (starter.kind === 'scene' ? 'replace' : 'merge')) === 'replace';
 
   /** @type {Record<string, any>} */
   const base = { ...config };
@@ -190,7 +219,7 @@ export function applyStarter(config, starter, params = {}, { mode } = {}) {
 
   // a scene in other units cannot be merged: every number in it would mean something else
   if (frag.units !== undefined && !replace && (base.units ?? null) !== frag.units && hasScene(base)) {
-    return { error: `This scene is in ${frag.units} and the card is in ${base.units ?? 'scene units'}: replace the scene instead.` };
+    return { error: `This ${starter.kind} is in ${frag.units} and the card is in ${base.units ?? 'scene units'}: replace the scene instead.` };
   }
 
   const taken = configIds(base);

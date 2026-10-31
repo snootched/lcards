@@ -5,6 +5,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'asteroid_belt',
   kind: 'part',
   title: 'Asteroid belt',
+  summary: 'A band of rocks going round a centre, lit by its star',
   description: 'A band of rocks going round a centre, the inner ones faster, lit from the centre as by its star, with a label on its edge.',
   icon: 'mdi:dots-circle',
   params: [

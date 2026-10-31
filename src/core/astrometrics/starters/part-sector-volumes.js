@@ -12,6 +12,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'sector_volumes',
   kind: 'part',
   title: 'Sector volume set',
+  summary: 'Three territories as see-through volumes of cells',
   description: 'Three territories side by side round a centre, each a see-through volume of cells in its own colour with its name above it. Tap one to fly to it.',
   icon: 'mdi:cube-outline',
   params: [

@@ -3,6 +3,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'starbase_approach',
   kind: 'scene',
   title: 'Starbase approach',
+  summary: 'A starship flying into Earth Spacedock, to scale',
   description: 'The built-in Constitution-class starship on its way into Earth Spacedock through the space doors, with its bridge and nacelles marked and the approach lane drawn. To scale: the ship is 289 m long, Spacedock about 5.5 km tall and its doors 700 m wide.',
   icon: 'mdi:space-station',
   params: [],

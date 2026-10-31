@@ -3,6 +3,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'sector_map',
   kind: 'scene',
   title: 'Sector map',
+  summary: 'A flat lettered grid, seen from above, filled cell by cell',
   description: 'A flat lettered grid seen from straight above, territories filled cell by cell; the tilt is locked, so a drag pans the map.',
   icon: 'mdi:grid',
   params: [],

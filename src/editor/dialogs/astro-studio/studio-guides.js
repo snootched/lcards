@@ -56,7 +56,8 @@ export function startersGuide() {
       <ul>
         <li><b>Scenes</b> are whole cards: points, objects, views, backdrop and labels. Use one to start over, or merge it into what is here.</li>
         <li><b>Parts</b> add one thing next to your scene, such as a planet with moons or an asteroid belt. Their ids start with the name you give, so the same part can go in twice.</li>
-        <li>A starter is copied into your config: change anything afterwards, nothing refers back to it. Cancel leaves the card as it was.</li>
+        <li><b>Try in the preview</b> shows a starter on the card without changing anything; <b>Keep</b> puts it in, <b>Discard</b> goes back. Its settings can still change while you try it.</li>
+        <li>A starter is copied into your config: change anything afterwards, nothing refers back to it. <b>Undo</b> (Ctrl+Z, or the preview's toolbar) takes it out again, and Cancel leaves the card as it was.</li>
       </ul>
       ${links([['Every starter', D.starters]])}
     `
@@ -75,7 +76,7 @@ export function objectsGuide() {
         <li><b>Add object</b> lists every type by what it is for. A new object gets an id and the keys its type needs.</li>
         <li>Every object takes a place (<code>at</code>: coordinates or a point), rotation, spin, opacity and visibility; the rest is its type's own.</li>
         <li><b>Distance</b> keys pick what shows from how far away (above), so a busy scene stays readable as you zoom.</li>
-        <li>Some types come in shapes or patterns (a grid is a plane, disc, dome, sphere, cylinder or well). A form shows only the keys for the object's own shape; the shape field says how many more keys another shape has.</li>
+        <li>Some types come in shapes or patterns (a grid is a plane, disc, dome, sphere, cylinder or well). A form shows only the keys for the object's own shape.</li>
         <li>An object's form starts with its shape and size, then <b>Appearance</b> (colours, opacity, lines), <b>Position and motion</b>, <b>Visibility and distance</b> and <b>Actions and tags</b>.</li>
         <li>Points stand on objects by the object's <b>id</b>: give a planet or a grid an id to place points on it.</li>
         <li>A <b>system</b> holds its own points and objects in its own units. Open it from its row; the Points and Objects tabs then edit its lists.</li>

@@ -3,6 +3,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'sky_dome',
   kind: 'scene',
   title: 'Sky dome: the sun and moon',
+  summary: 'The sun and moon over your home, where they are now',
   description: 'A dome over your home with the sun and moon where they are now and today\'s tracks across the sky, from your Home Assistant location.',
   icon: 'mdi:weather-sunset',
   params: [],

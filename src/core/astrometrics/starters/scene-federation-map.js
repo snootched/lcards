@@ -3,6 +3,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'federation_map',
   kind: 'scene',
   title: 'Federation map',
+  summary: 'The Alpha and Beta Quadrant powers as territories on a disc',
   description: 'The Alpha and Beta Quadrant powers as territories on a disc, their capitals, the Romulan Neutral Zone and a route from Earth to Qo\'noS.',
   icon: 'mdi:map-legend',
   params: [],

@@ -19,8 +19,11 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'st_transwarp',
   kind: 'part',
   title: 'Star Trek: Borg transwarp network',
+  summary: 'A Borg transwarp hub with conduits across the galaxy',
   description: 'For the Star Trek galaxy: a Borg transwarp hub in the Delta Quadrant with flowing conduits across Borg space and one to the aperture near Earth.',
   icon: 'mdi:hub-outline',
+  scene: 'star_trek_galaxy',
+  picture: { camera: { target: [14000, 0, -2000], yaw: 20, tilt: 55, distance: 75000 } },
   params: [{ key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: '' }],
   build: () => galaxyScale({
     units: 'ly',
