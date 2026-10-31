@@ -4,9 +4,9 @@ import logging
 DOMAIN = "lcards"
 
 # Minimum supported Home Assistant (major, minor). Keep in sync with hacs.json
-# "homeassistant". 2026.10: core-evaluated dashboard visibility, probatio
-# validation (voluptuous only exists via HA's compat shim).
-MIN_HA_VERSION = (2026, 10)
+# "homeassistant". 2026.11: chips read only --ha-* vars, Lovelace string card
+# paths (2026.10 brought core-evaluated dashboard visibility and probatio).
+MIN_HA_VERSION = (2026, 11)
 
 FRONTEND_SCRIPT_URL = "lcards.js"
 
@@ -21,7 +21,7 @@ USER_DIR = "www/lcards"
 USER_URL = "/lcards-user"
 MY_MODELS_DIR = f"{USER_DIR}/models"
 MY_MODELS_URL = f"{USER_URL}/models"
-DOMAIN_VERSION = "2026.10.0-dev.3"
+DOMAIN_VERSION = "2026.11.0-dev.1"
 
 # Options
 CONF_SHOW_PANEL = "show_panel"

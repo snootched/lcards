@@ -107,7 +107,7 @@ export class LCARdSLayoutView extends LitElement {
     static properties = {
         hass:     { attribute: false },
         lovelace: { attribute: false },
-        index:    { type: Number },
+        path:     { attribute: false }, // ['views', viewIndex], set by hui-view
         cards:    { attribute: false },
         badges:   { attribute: false },
 
@@ -125,7 +125,7 @@ export class LCARdSLayoutView extends LitElement {
 
     constructor() {
         super();
-        this.index        = undefined;
+        this.path         = undefined;
         this._config      = {};
         this._editMode    = false;
         /** @type {'grid'|'cards'} */
@@ -218,8 +218,27 @@ export class LCARdSLayoutView extends LitElement {
     }
     get hass() { return this._hass; }
 
+    /**
+     * This view's index in the dashboard config, from the path hui-view sets.
+     * @returns {number} -1 until `path` is set (so `views[-1]` finds nothing)
+     */
+    get _viewIndex() {
+        const i = this.path?.[1];
+        return typeof i === 'number' ? i : -1;
+    }
+
+    /**
+     * HA config path of this view's cards list, or of one card in it.
+     * @param {number} [cardIndex]
+     * @returns {(string|number)[] | null} null until hui-view has set `path`
+     */
+    _cardsPath(cardIndex) {
+        if (!this.path) return null;
+        return cardIndex == null ? [...this.path, 'cards'] : [...this.path, 'cards', cardIndex];
+    }
+
     set lovelace(lovelace) {
-        const prevCards = this._lovelace?.config?.views?.[this.index]?.cards;
+        const prevCards = this._lovelace?.config?.views?.[this._viewIndex]?.cards;
         // A config change (ours or HA's, e.g. its card editor saving) is followed
         // by a lovelace_updated event; _waitForSaveEvent() holds our next save
         // until it arrives (see _saveViewConfig).
@@ -235,7 +254,7 @@ export class LCARdSLayoutView extends LitElement {
 
         // HA saves card changes directly via lovelace.saveConfig — detect changes here.
         if (prevCards != null && lovelace?.config) {
-            const newCards = lovelace.config.views?.[this.index]?.cards ?? [];
+            const newCards = lovelace.config.views?.[this._viewIndex]?.cards ?? [];
 
             // New card added via ll-create-card: inject grid-area into it
             if (this._pendingAddArea && newCards.length > prevCards.length) {
@@ -250,7 +269,7 @@ export class LCARdSLayoutView extends LitElement {
                 // Save via the serialized saver, which always rebases on the freshest
                 // lovelace.config — this avoids the "Dashboard updated in another
                 // session" error that a stale snapshot would trigger.
-                const freshView = lovelace.config.views?.[this.index] ?? this._config;
+                const freshView = lovelace.config.views?.[this._viewIndex] ?? this._config;
                 this._config = { ...freshView, cards: updated };
                 this._saveConfig();
             }
@@ -263,7 +282,7 @@ export class LCARdSLayoutView extends LitElement {
                     this._pendingEditCard = null;
                     const updated = [...newCards];
                     updated[ci] = { ...editedCard, view_layout: { ...(editedCard.view_layout ?? {}), ...viewLayout } };
-                    const freshView = lovelace.config.views?.[this.index] ?? this._config;
+                    const freshView = lovelace.config.views?.[this._viewIndex] ?? this._config;
                     this._config = { ...freshView, cards: updated };
                     this._saveConfig();
                 } else {
@@ -1095,16 +1114,16 @@ export class LCARdSLayoutView extends LitElement {
     }
 
     _editCard(cardIndex) {
-        // Fire HA's edit-card event. HA's hui-root handler expects a full
-        // LovelaceCardPath of [viewIndex, cardIndex] for a standard view.
+        // Fire HA's edit-card event with the card's path, ['views', v, 'cards', c].
         const card = this._config?.cards?.[cardIndex];
-        if (!card) return;
+        const path = this._cardsPath(cardIndex);
+        if (!card || !path) return;
         // Store view_layout so we can restore it if HA's editor strips it on save.
         this._pendingEditCard = { index: cardIndex, viewLayout: card.view_layout };
         this.dispatchEvent(new CustomEvent('ll-edit-card', {
             bubbles: true,
             composed: true,
-            detail: { path: [this.index, cardIndex] },
+            detail: { path },
         }));
     }
 
@@ -1122,12 +1141,13 @@ export class LCARdSLayoutView extends LitElement {
             message: `Remove the "${type}" card${area ? ` from area "${area}"` : ''}? You can undo this from the dashboard toolbar.`,
             confirmText: 'Remove',
         });
-        if (!confirmed) return;
+        const path = this._cardsPath(cardIndex);
+        if (!confirmed || !path) return;
         if (this._placementEditCard?.index === cardIndex) this._placementEditCard = null;
         this.dispatchEvent(new CustomEvent('ll-delete-card', {
             bubbles: true,
             composed: true,
-            detail: { path: [this.index, cardIndex], silent: false },
+            detail: { path, silent: false },
         }));
     }
 
@@ -1139,11 +1159,13 @@ export class LCARdSLayoutView extends LitElement {
      * @param {string} areaName
      */
     _addCardToArea(areaName) {
+        const path = this._cardsPath();
+        if (!path) return;
         this._pendingAddArea = areaName;
         this.dispatchEvent(new CustomEvent('ll-create-card', {
             bubbles: true,
             composed: true,
-            detail: { suggested: [] },
+            detail: { path, suggested: [] },
         }));
     }
 
@@ -1152,10 +1174,9 @@ export class LCARdSLayoutView extends LitElement {
      * picker works for cards placed inside this view.
      *
      * HA only registers `hui-card-picker` after its create-card dialog has opened
-     * once. The dialog is opened by `showCreateCardDialog`, which HA wires to the
-     * `ll-create-card` event — but the listener lives on the view's *layout
-     * element*, which (for a custom view) IS this element. So firing the event on
-     * ourselves reaches HA's handler and loads the picker; we then close the dialog
+     * once. hui-view opens that dialog on an `ll-create-card` event from its
+     * layout element (this view), so firing the event on ourselves loads the
+     * picker; we then close the dialog
      * HA opened. Runs once per session (skips if already registered). A nested
      * layout-card placed in a non-lcards view won't be primed and falls back to the
      * studio's "card picker not ready" message.
@@ -1163,14 +1184,15 @@ export class LCARdSLayoutView extends LitElement {
     _primeCardPicker() {
         if (customElements.get('hui-card-picker')) return; // already available
 
-        // Defer one frame so HA's hui-view has attached its ll-create-card listener
-        // to this layout element before we fire. Not flagged as "done" — if this
-        // attempt is too early it simply retries the next time edit mode is entered.
+        // Defer one frame: edit mode can start in the first lovelace assignment,
+        // before hui-view has set `path` and connected us. Not flagged as "done":
+        // if this attempt is too early it retries the next time edit mode is entered.
         requestAnimationFrame(() => {
-            if (customElements.get('hui-card-picker') || !this._editMode) return;
+            const path = this._cardsPath();
+            if (customElements.get('hui-card-picker') || !this._editMode || !path) return;
 
             this.dispatchEvent(new CustomEvent('ll-create-card', {
-                bubbles: true, composed: true, detail: { suggested: [] },
+                bubbles: true, composed: true, detail: { path, suggested: [] },
             }));
 
             // Close the create-card dialog HA opens while priming, as soon as it appears.
@@ -1362,7 +1384,7 @@ export class LCARdSLayoutView extends LitElement {
      * always rebases on the LATEST this._lovelace.config at the moment the save
      * actually runs, so each write carries the current version.
      *
-     * @param {object} viewConfig  the full view config to write at this.index
+     * @param {object} viewConfig  the full view config to write at this view's index
      * @returns {Promise<void>}
      */
     _saveViewConfig(viewConfig) {
@@ -1389,8 +1411,9 @@ export class LCARdSLayoutView extends LitElement {
                     const base = this._lovelace?.config;
                     if (!base || !this._lovelace?.saveConfig) break;
                     const views = [...(base.views ?? [])];
-                    if (this.index != null && this.index < views.length) {
-                        views[this.index] = cfg;
+                    const vi = this._viewIndex;
+                    if (vi >= 0 && vi < views.length) {
+                        views[vi] = cfg;
                     }
                     await this._lovelace.saveConfig({ ...base, views });
                 }

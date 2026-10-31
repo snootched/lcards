@@ -42,7 +42,7 @@ See [Editor Style Guide](../../doc/architecture/editor-style-guide.md) for compl
 **NEVER use these in LCARdS editors:**
 
 ❌ **Custom tab implementations** - Use `ha-tab-group` and `ha-tab-group-tab`
-❌ **Plain HTML controls** - Use HA components (`ha-button`, `ha-textfield`, `ha-select`, etc.)
+❌ **Plain HTML controls** - Use HA components (`ha-button`, `ha-input`, `ha-select`, etc.)
 ❌ **Custom dialog implementations** - Use `ha-dialog` (see `.github/instructions/editor.instructions.md`, "Dialogs, surfaces and messages")
 ❌ **Inconsistent spacing** - Use 12px for sections/rows, 8px for gaps
 ❌ **Direct `this.hass.states` access on render** - Cache entity references
@@ -451,8 +451,8 @@ import '../components/form/lcards-grid-layout.js';
 
 html`
     <lcards-grid-layout>
-        <ha-textfield label="Left"></ha-textfield>
-        <ha-textfield label="Right"></ha-textfield>
+        <ha-input label="Left"></ha-input>
+        <ha-input label="Right"></ha-input>
     </lcards-grid-layout>
 `
 ```
@@ -461,7 +461,7 @@ html`
 ```javascript
 html`
     <div class="form-row">
-        <ha-textfield label="Name"></ha-textfield>
+        <ha-input label="Name"></ha-input>
         <div class="actions" style="display: flex; gap: 8px; justify-content: flex-end;">
             <ha-button variant="danger">
                 <ha-icon icon="mdi:delete" slot="start"></ha-icon>
@@ -492,11 +492,11 @@ _isValidCustomName() {
 }
 
 html`
-    <ha-textfield
+    <ha-input
         .value=${this._name}
         ?invalid=${!this._isValidCustomName()}
-        validationMessage="Must start with letter/underscore">
-    </ha-textfield>
+        validation-message="Must start with letter/underscore">
+    </ha-input>
 `
 ```
 
@@ -628,7 +628,7 @@ Before submitting editor code:
 - [ ] All tabs use `ha-tab-group` with proper event handling
 - [ ] All dialogs use `ha-dialog` with `header-title`
 - [ ] All buttons use `ha-button` with correct variants
-- [ ] All form controls use HA components (`ha-textfield`, `ha-select`, etc.)
+- [ ] All form controls use HA components (`ha-input`, `ha-select`, etc.)
 - [ ] Spacing follows standards (12px sections, 8px gaps)
 - [ ] Destructive actions right-aligned with `variant="danger"`
 - [ ] Icons in buttons use `slot="start"`
@@ -2527,7 +2527,7 @@ ha-button[size="small"] {
 - [ ] All future card editor headers
 
 **Action Buttons**:
-- Use `<mwc-button>` for primary/launch actions (not plain buttons)
+- Use `<ha-button>` for primary/launch actions (not plain buttons)
 - Consistent icon usage with `<ha-icon>`
 
 ---
@@ -2596,7 +2596,7 @@ ha-button[size="small"] {
 **Control Priority**:
 1. `lcards-*` custom components (if available)
 2. `ha-selector` (entity, boolean, text, number, etc.)
-3. `ha-textfield`, `ha-switch`, `ha-select`
+3. `ha-input`, `ha-switch`, `ha-select`
 4. Standard HTML only if nothing else fits
 
 **Audit Results**:

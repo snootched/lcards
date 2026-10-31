@@ -622,8 +622,7 @@ export class LCARdSStorageExplorerTab extends LitElement {
     .type-chip {
       --ha-assist-chip-filled-container-color:
         color-mix(in srgb, var(--primary-color) 18%, transparent);
-      --md-assist-chip-label-text-color: var(--primary-color);
-      --md-sys-color-on-surface: var(--primary-color);
+      --ha-assist-chip-label-text-color: var(--primary-color);
       flex-shrink: 0;
     }
 

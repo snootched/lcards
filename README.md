@@ -43,19 +43,13 @@
 
 ## Install
 
-**Home Assistant 2026.10**
-
-[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=snootched&repository=LCARdS&category=integration)
-
-**Home Assistant 2026.11+**
-
 [![Open your Home Assistant instance and open a repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=snootched&repository=lcards&category=integrations)
 
-1. In **HACS**, search for **LCARdS** under **Integrations** and download it.
+1. In the **Marketplace**, search for **LCARdS** under **Integrations** and download it.
 2. Restart Home Assistant.
 3. Go to **Settings > Devices & services > Add integration > LCARdS**.
 
-Requires **Home Assistant 2026.10 or newer**, and nothing else. Pair it with an [HA-LCARS theme](https://github.com/th3jesta/ha-lcars) for the full experience. See the [installation guide](https://lcards.unimatrix01.ca/getting-started/installation) for details.
+Requires **Home Assistant 2026.11 or newer**, and nothing else. Pair it with an [HA-LCARS theme](https://github.com/th3jesta/ha-lcars) for the full experience. See the [installation guide](https://lcards.unimatrix01.ca/getting-started/installation) for details.
 
 ## The cards
 

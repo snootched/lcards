@@ -1144,8 +1144,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                                 .label=${CATEGORY_LABELS[evt.category] || evt.category}
                                 style="
                                   --ha-assist-chip-filled-container-color: ${CATEGORY_CHIP_BG[evt.category] || 'var(--secondary-background-color)'};
-                                  --md-assist-chip-label-text-color: ${CATEGORY_CHIP_FG[evt.category] || 'var(--primary-text-color)'};
-                                  --md-sys-color-on-surface: ${CATEGORY_CHIP_FG[evt.category] || 'var(--primary-text-color)'};
+                                  --ha-assist-chip-label-text-color: ${CATEGORY_CHIP_FG[evt.category] || 'var(--primary-text-color)'};
                                 "
                               ></ha-assist-chip>
                             </td>
@@ -1218,8 +1217,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                       .label=${h.exists ? 'Exists' : 'Missing'}
                       style="
                         --ha-assist-chip-filled-container-color: ${h.exists ? 'var(--success-color)' : 'var(--error-color)'};
-                        --md-assist-chip-label-text-color: white;
-                        --md-sys-color-on-surface: white;
+                        --ha-assist-chip-label-text-color: white;
                       "
                     >
                       <ha-icon icon="${h.exists ? 'mdi:check-circle' : 'mdi:alert-circle'}" slot="icon"></ha-icon>
@@ -1472,8 +1470,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                             .label=${CATEGORY_LABELS[evt.category] || evt.category}
                             style="
                               --ha-assist-chip-filled-container-color: ${CATEGORY_CHIP_BG[evt.category] ?? 'transparent'};
-                              --md-assist-chip-label-text-color: ${CATEGORY_CHIP_FG[evt.category] ?? 'inherit'};
-                              --md-sys-color-on-surface: ${CATEGORY_CHIP_FG[evt.category] ?? 'inherit'};
+                              --ha-assist-chip-label-text-color: ${CATEGORY_CHIP_FG[evt.category] ?? 'inherit'};
                             "
                           ></ha-assist-chip>
                         </td>

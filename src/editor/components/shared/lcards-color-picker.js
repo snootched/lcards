@@ -350,7 +350,7 @@ export class LCARdSColorPicker extends LitElement {
 
             .sections ha-filter-chip {
                 flex-shrink: 0;
-                --md-filter-chip-selected-container-color: var(
+                --ha-filter-chip-selected-container-color: var(
                     --ha-color-fill-primary-normal-hover,
                     rgba(var(--rgb-primary-color, 3, 169, 244), 0.2)
                 );
@@ -404,6 +404,19 @@ export class LCARdSColorPicker extends LitElement {
                 min-height: 0;
                 /* leave room for the section-title overlay */
                 padding-top: var(--ha-space-6);
+            }
+
+            /* ha-combo-box-item is a plain row: the picker supplies its interaction */
+            .color-list ha-combo-box-item {
+                cursor: pointer;
+            }
+            .color-list ha-combo-box-item:hover,
+            .color-list ha-combo-box-item:focus-visible {
+                background-color: var(--ha-color-fill-neutral-quiet-hover);
+            }
+            .color-list ha-combo-box-item:focus-visible {
+                outline: var(--ha-border-width-md) solid var(--ha-color-focus);
+                outline-offset: -2px;
             }
 
             /* selected item highlight */
@@ -1077,18 +1090,21 @@ export class LCARdSColorPicker extends LitElement {
 
         return html`
             <div class="color-list" role="listbox">
-                <ha-combo-box-item type="button"
-                    @click=${() => this._selectAndClose('')}>
+                <ha-combo-box-item role="option" tabindex="0"
+                    @click=${() => this._selectAndClose('')}
+                    @keydown=${(e) => this._onRowKeydown(e, '')}>
                     <span slot="headline">(None)</span>
                 </ha-combo-box-item>
-                <ha-combo-box-item type="button"
-                    @click=${() => this._selectAndClose('transparent')}>
+                <ha-combo-box-item role="option" tabindex="0"
+                    @click=${() => this._selectAndClose('transparent')}
+                    @keydown=${(e) => this._onRowKeydown(e, 'transparent')}>
                     <span slot="start" class="swatch-transparent"></span>
                     <span slot="headline">Transparent</span>
                 </ha-combo-box-item>
                 ${this.allowMatchLight ? html`
-                    <ha-combo-box-item type="button"
-                        @click=${() => this._selectAndClose('match-light')}>
+                    <ha-combo-box-item role="option" tabindex="0"
+                        @click=${() => this._selectAndClose('match-light')}
+                        @keydown=${(e) => this._onRowKeydown(e, 'match-light')}>
                         <ha-svg-icon slot="start" .path=${MDI_LIGHTBULB}
                             style="color: ${this._resolveMatchLightForPreview('match-light') || 'var(--primary-text-color)'}; width: 20px; height: 20px; flex-shrink: 0;">
                         </ha-svg-icon>
@@ -1096,9 +1112,11 @@ export class LCARdSColorPicker extends LitElement {
                     </ha-combo-box-item>
                 ` : nothing}
                 ${filteredVars.map(v => html`
-                    <ha-combo-box-item type="button"
+                    <ha-combo-box-item role="option" tabindex="0"
                         class="${currentColor === v.value ? 'current-value' : ''}"
-                        @click=${() => this._selectAndClose(v.value)}>
+                        aria-selected=${currentColor === v.value ? 'true' : 'false'}
+                        @click=${() => this._selectAndClose(v.value)}
+                        @keydown=${(e) => this._onRowKeydown(e, v.value)}>
                         <span slot="start" class="color-swatch-sm ${v.resolvable === false ? 'unresolvable' : ''}"
                             style="background-color: ${this._computeColor(v.value)};"></span>
                         <span slot="headline">${v.label}</span>
@@ -1133,6 +1151,18 @@ export class LCARdSColorPicker extends LitElement {
         `;
     }
 
+    /**
+     * Enter/Space on a focused list row picks it, as a click does.
+     * @param {KeyboardEvent} ev
+     * @param {string} value
+     * @private
+     */
+    _onRowKeydown(ev, value) {
+        if (ev.key !== 'Enter' && ev.key !== ' ') return;
+        ev.preventDefault();
+        this._selectAndClose(value);
+    }
+
     /** Filter CSS named colors by current search text. */
     _getFilteredNamedColors() {
         if (!this._searchText) return CSS_NAMED_COLORS;
@@ -1148,9 +1178,11 @@ export class LCARdSColorPicker extends LitElement {
         return html`
             <div class="color-list" role="listbox">
                 ${filtered.map(name => html`
-                    <ha-combo-box-item type="button"
+                    <ha-combo-box-item role="option" tabindex="0"
                         class="${activeValue === name ? 'current-value' : ''}"
-                        @click=${() => this._selectAndClose(name)}>
+                        aria-selected=${activeValue === name ? 'true' : 'false'}
+                        @click=${() => this._selectAndClose(name)}
+                        @keydown=${(e) => this._onRowKeydown(e, name)}>
                         <span slot="start" class="color-swatch-sm"
                             style="background-color: ${name};"></span>
                         <span slot="headline">${name}</span>

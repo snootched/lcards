@@ -1,4 +1,4 @@
-# Pictures for doc/releases/2026.10.0.md: node scripts/release-shots.mjs 2026.10.0
+# Pictures for doc/releases/2026.11.0.md: node scripts/release-shots.mjs 2026.11.0
 # The dev HA's own sensors carry personal names (city, utility): use the desk sensor in
 # anything that shows entity ids, and charts show the others only by `name:`.
 

@@ -2642,7 +2642,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                             .filled=${true}
                             style="
                                 --ha-assist-chip-filled-container-color: var(--primary-color);
-                                --md-sys-color-on-surface: white;
+                                --ha-assist-chip-label-text-color: white;
                             ">
                             <ha-icon icon="mdi:phone-rotate-landscape" slot="icon"></ha-icon>
                         </ha-assist-chip>
@@ -2662,7 +2662,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                                     .filled=${true}
                                     style="
                                         --ha-assist-chip-filled-container-color: var(--success-color, #4caf50);
-                                        --md-sys-color-on-surface: white;
+                                        --ha-assist-chip-label-text-color: white;
                                     ">
                                     <ha-icon icon="mdi:check" slot="icon"></ha-icon>
                                 </ha-assist-chip>

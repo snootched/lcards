@@ -65,7 +65,7 @@ async function mountView(page, viewConfig = VIEW) {
         window.__saves = [];
         const view = document.createElement('lcards-layout-view');
         view.style.cssText = 'position:absolute;left:0;top:0;width:1100px;';
-        view.index = 0;
+        view.path = ['views', 0];
         view.setConfig(viewConfig);
         view.cards = viewConfig.cards.map((config) => {
             const el = document.createElement('test-card');
@@ -403,3 +403,21 @@ test('grid mode: chrome lines up with the cards inside a scaled container', asyn
     for (let i = 0; i < 4; i++) expect(Math.abs(sizes.area[i] - sizes.card[i])).toBeLessThan(2);
 });
 
+
+test('card events carry HA string paths built from the view path', async ({ page }) => {
+    await mountView(page);
+    const details = await page.evaluate(async () => {
+        const seen = [];
+        for (const type of ['ll-edit-card', 'll-create-card']) {
+            document.addEventListener(type, (e) => seen.push([type, e.detail.path]));
+        }
+        window.__view._editCard(1);
+        window.__view._addCardToArea('temp');
+        return seen;
+    });
+    expect(details).toEqual([
+        ['ll-edit-card', ['views', 0, 'cards', 1]],
+        ['ll-create-card', ['views', 0, 'cards']],
+    ]);
+    expect(await page.evaluate(() => window.__view._viewIndex)).toBe(0);
+});

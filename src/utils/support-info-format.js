@@ -13,7 +13,7 @@
  */
 
 /** Minimum supported Home Assistant (keep in sync with const.py MIN_HA_VERSION / hacs.json). */
-export const MIN_HA_VERSION = [2026, 10];
+export const MIN_HA_VERSION = [2026, 11];
 
 export const DEFAULT_ISSUE_REPO = 'snootched/LCARdS';
 export const ISSUE_TEMPLATE = 'bug_report.yml';

@@ -16,7 +16,7 @@ The checklist covers the most common causes of problems:
 
 | Check | What it means |
 |---|---|
-| **Home Assistant version** | LCARdS requires Home Assistant **2026.10** or newer. |
+| **Home Assistant version** | LCARdS requires Home Assistant **2026.11** or newer. |
 | **Frontend = integration version** | If these differ, your browser is running a cached copy of an older LCARdS. Hard-refresh (Ctrl+Shift+R / Cmd+Shift+R), or clear the companion app's frontend cache. If you just updated, restart Home Assistant. |
 | **UI eXtension (UIX) / card-mod** | HA-LCARS styles Home Assistant through [UIX](https://github.com/Lint-Free-Technology/uix). **card-mod** no longer works with current Home Assistant and conflicts with UIX. Uninstall it in HACS and remove its `extra_module_url` line from `configuration.yaml`. |
 | **card-mod in `extra_module_url`** | A leftover `frontend: extra_module_url` entry still loads card-mod. Remove it and restart. |

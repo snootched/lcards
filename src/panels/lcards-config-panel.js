@@ -939,8 +939,7 @@ export class LCARdSConfigPanel extends LitElement {
             .filled=${true}
             style="
               --ha-assist-chip-filled-container-color: ${helper.exists ? 'var(--success-color)' : 'var(--error-color)'};
-              --md-assist-chip-label-text-color: white;
-              --md-sys-color-on-surface: white;
+              --ha-assist-chip-label-text-color: white;
             "
           >
             <ha-icon icon="${helper.exists ? 'mdi:check-circle' : 'mdi:alert-circle'}" slot="icon"></ha-icon>

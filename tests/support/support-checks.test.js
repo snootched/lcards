@@ -6,11 +6,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateSupportChecks, parseHaVersion } from '../../src/utils/support-info-format.js';
 
-/** A healthy baseline: HA 2026.10, matching versions, UIX + HA-LCARS, admin backend OK. */
+/** A healthy baseline: HA 2026.11, matching versions, UIX + HA-LCARS, admin backend OK. */
 function healthy(overrides = {}) {
     const base = {
         lcards: { version: '2026.10.0', backendVersion: '2026.10.0', integrationAvailable: true },
-        ha: { version: '2026.10.1', safeMode: false, recoveryMode: false },
+        ha: { version: '2026.11.0', safeMode: false, recoveryMode: false },
         theme: { haTheme: 'LCARS 25th Century', haLcarsActive: true },
         styling: { uix: { installed: true, version: '8.3.1' }, cardMod: { present: false } },
         backend: { status: 'ok', data: {
@@ -38,9 +38,9 @@ test('healthy setup has no warnings or errors', () => {
     assert.equal(byId(checks, 'ha_lcars').status, 'ok');
 });
 
-test('HA below the 2026.10 minimum is an error; a 2026.10 beta and a later year are fine', () => {
-    assert.equal(byId(evaluateSupportChecks(healthy({ ha: { version: '2026.9.4' } })), 'ha_version').status, 'error');
-    assert.equal(byId(evaluateSupportChecks(healthy({ ha: { version: '2026.10.0b0' } })), 'ha_version').status, 'ok');
+test('HA below the 2026.11 minimum is an error; a 2026.11 beta and a later year are fine', () => {
+    assert.equal(byId(evaluateSupportChecks(healthy({ ha: { version: '2026.10.3' } })), 'ha_version').status, 'error');
+    assert.equal(byId(evaluateSupportChecks(healthy({ ha: { version: '2026.11.0b0' } })), 'ha_version').status, 'ok');
     assert.equal(byId(evaluateSupportChecks(healthy({ ha: { version: '2027.1.0' } })), 'ha_version').status, 'ok');
 });
 

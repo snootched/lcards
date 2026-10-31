@@ -17,7 +17,7 @@ topics:
   - { id: cards, title: Cards }
   - { id: benchmarks, title: Benchmarks }
 releases:
-  - version: "2026.10.0"
+  - version: "2026.11.0"
     views:
       - file: astro-showcase
         topic: astrometrics

@@ -155,7 +155,7 @@ html`<ha-switch .checked=${on} @change=${(e) => this._toggle(e.target.checked)}>
 
 **`ha-icon-button`** (WebAwesome): pass an `.path` (mdi/js SVG path) **or** an `<ha-icon icon="mdi:…">` child — it has **no `icon` property** (`icon="mdi:x"` renders an empty button). Always set `.label`. Size via `--ha-icon-button-size`; icon colour via `color:` (the icon uses `currentColor`) — `--md-icon-button-*` / `--mdc-icon-button-size` are dead. Never use `<mwc-icon-button>` (unregistered since HA 2026.3).
 
-**Chips** (`ha-assist-chip` / `ha-filter-chip` / `ha-chip-set`, WebAwesome since HA 2026.10): still honoured — `--ha-assist-chip-filled-container-color`, `--md-assist-chip-label-text-color`, `--md-sys-color-on-surface`, `--md-filter-chip-selected-container-color`. Sizing hooks are `--ha-button-height` (chip height) and `--ha-chip-label-size`; `--md-filter-chip-*-space`, `--md-sys-color-primary` and `--ha-assist-chip-container-height` do nothing. `ha-filter-chip` toggles its own `selected` on click — for radio-style groups call `e.preventDefault()` on the click when the chip is already active, or it shows deselected.
+**Chips** (`ha-assist-chip` / `ha-filter-chip` / `ha-input-chip` / `ha-chip-set`, WebAwesome): HA 2026.11 reads only `--ha-*` names, e.g. `--ha-assist-chip-filled-container-color`, `--ha-assist-chip-label-text-color`, `--ha-assist-chip-outline-color`, `--ha-filter-chip-selected-container-color`, `--ha-input-chip-selected-container-color`. Sizing hooks are `--ha-button-height` (chip height) and `--ha-chip-label-size`. Every `--md-*-chip-*` and `--md-sys-*` var is dead (`@material/web` was removed in 2026.11), and `--ha-assist-chip-container-height` does nothing. `ha-md-list`, `ha-md-list-item`, `md-*` tags and `ha-formfield` no longer exist. `ha-filter-chip` toggles its own `selected` on click — for radio-style groups call `e.preventDefault()` on the click when the chip is already active, or it shows deselected.
 
 `npm run build` runs `scripts/validate-ha-compat.js`, which fails on these known-dead elements, attributes and CSS hooks.
 
@@ -163,7 +163,7 @@ html`<ha-switch .checked=${on} @change=${(e) => this._toggle(e.target.checked)}>
 
 ## CSS & Theming Conventions
 
-LCARdS requires HA 2026.10+. Use HA CSS variables — no fallbacks needed unless noted.
+LCARdS requires HA 2026.11+. Use HA CSS variables — no fallbacks needed unless noted.
 
 ### Box shadows — always use HA vars
 

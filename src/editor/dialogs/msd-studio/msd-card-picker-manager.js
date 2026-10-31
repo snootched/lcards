@@ -106,69 +106,25 @@ export class MSDCardPickerManager {
                 return;
             }
 
-            // hui-root might have its own shadowRoot
-            const huiRootShadow = root.shadowRoot;
-            const searchRoot = huiRootShadow || root;
-
-            // Now find the actual view elements within hui-root (or its shadowRoot)
-            const viewElements = [
-                searchRoot.querySelector('hui-view'),
-                searchRoot.querySelector('hui-sections-view'),
-                searchRoot.querySelector('hui-grid-section'),
-                searchRoot.querySelector('hui-section')
-            ].filter(Boolean);
-
-            lcardsLog.trace('[MSDCardPickerManager] hui-root shadowRoot:', !!huiRootShadow);
-            lcardsLog.trace('[MSDCardPickerManager] Found view elements:', viewElements.map(e => e.tagName).join(', '));
-
-            if (viewElements.length === 0) {
-                lcardsLog.trace('[MSDCardPickerManager] No view elements found - trying to fire on hui-root directly');
-
-                // Fire on hui-root itself if we can't find view elements
-                const event = new CustomEvent('ll-create-card', {
-                    bubbles: true,
-                    composed: true,
-                    cancelable: true,
-                    detail: {
-                        suggested: ["lcards-button","lcards-slider","lcards-elbow","lcards-chart","lcards-data-grid"]
-                    }
-                });
-
-                root.dispatchEvent(event);
-                event.stopPropagation();
-                event.preventDefault();
-
-                // Wait for picker to load
-                await new Promise(resolve => setTimeout(resolve, 150));
-
-                if (customElements.get("hui-card-picker")) {
-                    lcardsLog.debug('[MSDCardPickerManager] ✅ hui-card-picker loaded via ll-create-card on hui-root');
-                }
+            // hui-view opens HA's create-card dialog (which loads hui-card-picker) on an
+            // ll-create-card event with the cards path ['views', index, 'cards'].
+            const huiView = /** @type {any} */ ((root.shadowRoot || root).querySelector('hui-view'));
+            if (!huiView) {
+                lcardsLog.trace('[MSDCardPickerManager] hui-view not found');
                 return;
             }
 
-            // Fire ll-create-card event on each view element. Note: calling
-            // stopPropagation()/preventDefault() on `event` here has no effect on
-            // whether HA's own listener opens hui-dialog-create-card — dispatchEvent()
-            // is synchronous, so by the time it returns, any listener along the path
-            // (e.g. hui-view's own ll-create-card handler, which calls showDialog())
-            // has already fully run. There is no way to suppress the dialog from
-            // opening; the cleanup below (finding and closing it) is the only
-            // mechanism that actually keeps it from staying visible.
-            for (const element of viewElements) {
-                lcardsLog.trace(`[MSDCardPickerManager] Firing ll-create-card on ${element.tagName}...`);
-
-                const event = new CustomEvent('ll-create-card', {
-                    bubbles: true,
-                    composed: true,
-                    cancelable: true,
-                    detail: {
-                        suggested: ["lcards-button","lcards-slider","lcards-elbow","lcards-chart","lcards-data-grid"]
-                    }
-                });
-
-                element.dispatchEvent(event);
-            }
+            // dispatchEvent() is synchronous, so hui-view's handler has already called
+            // showDialog() when it returns; there is no way to suppress the dialog.
+            // The cleanup below (finding and closing it) is what keeps it from staying visible.
+            huiView.dispatchEvent(new CustomEvent('ll-create-card', {
+                bubbles: true,
+                composed: true,
+                detail: {
+                    path: ['views', huiView.index, 'cards'],
+                    suggested: ["lcards-button","lcards-slider","lcards-elbow","lcards-chart","lcards-data-grid"]
+                }
+            }));
 
             // Poll for hui-dialog-create-card and close it as soon as it appears,
             // instead of a single fixed-delay check. HA's showDialog() (make-dialog-

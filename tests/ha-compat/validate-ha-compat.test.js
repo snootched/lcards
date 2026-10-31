@@ -71,10 +71,14 @@ test('catches dead CSS hooks', () => {
     assert.deepEqual(ids('style="--mdc-theme-primary: red"'), ['mdc-theme-primary']);
     assert.deepEqual(ids('.b { --mdc-icon-button-size: 20px; }'), ['mdc-icon-button-size']);
     assert.deepEqual(ids('--md-icon-button-icon-color: red;'), ['md-icon-button-vars']);
-    assert.deepEqual(ids('--md-filter-chip-leading-space: 4px;'), ['md-chip-spacing']);
-    assert.deepEqual(ids('--md-filter-chip-with-leading-icon-leading-space: 4px;'), ['md-chip-spacing']);
+    assert.deepEqual(ids('--md-filter-chip-leading-space: 4px;'), ['md-chip-vars']);
+    assert.deepEqual(ids('--md-filter-chip-with-leading-icon-leading-space: 4px;'), ['md-chip-vars']);
     assert.deepEqual(ids('--ha-assist-chip-container-height: 22px;'), ['chip-sizing']);
-    assert.deepEqual(ids('--md-sys-color-primary: white;'), ['chip-sizing']);
+    assert.deepEqual(ids('--md-sys-color-primary: white;'), ['md-sys-vars']);
+    assert.deepEqual(ids('--md-assist-chip-label-text-color: white;'), ['md-chip-vars']);
+    assert.deepEqual(ids('--ha-assist-chip-label-text-color: white;'), []);
+    assert.deepEqual(ids('<ha-md-list-item>'), ['md-element']);
+    assert.deepEqual(ids('<md-list>'), ['md-element']);
     assert.deepEqual(ids('--mdc-dialog-max-width: 95vw;'), ['mdc-dialog-vars']);
     assert.deepEqual(ids('ha-dialog { --dialog-max-width: 600px; }'), ['mdc-dialog-vars']);
 });
@@ -82,8 +86,8 @@ test('catches dead CSS hooks', () => {
 test('allows live hooks with similar names', () => {
     assert.deepEqual(ids('--ha-dialog-max-width: 600px;'), []);
     assert.deepEqual(ids('--ha-icon-button-size: 20px; --mdc-icon-size: 16px;'), []);
-    assert.deepEqual(ids('--md-filter-chip-selected-container-color: red;'), []);
-    assert.deepEqual(ids('--md-assist-chip-label-text-color: white; --md-sys-color-on-surface: white;'), []);
+    assert.deepEqual(ids('--ha-filter-chip-selected-container-color: red;'), []);
+    assert.deepEqual(ids('--ha-assist-chip-label-text-color: white;'), []);
     assert.deepEqual(ids('--ha-assist-chip-filled-container-color: red;'), []);
 });
 

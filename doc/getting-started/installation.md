@@ -1,12 +1,12 @@
 ---
-description: "Install LCARdS from HACS, add the integration (Home Assistant 2026.10 or newer) and set it up from the LCARdS Config Panel."
+description: "Install LCARdS from HACS, add the integration (Home Assistant 2026.11 or newer) and set it up from the LCARdS Config Panel."
 ---
 
 # Installation
 
 ## Requirements
 
-- **Home Assistant 2026.10 or newer.** LCARdS relies on 2026.10's dashboard visibility handling and validation library; on older versions the integration logs an error and does not load.
+- **Home Assistant 2026.11 or newer.** LCARdS relies on 2026.11's chip styling and dashboard card paths, and 2026.10's dashboard visibility handling and validation library; on older versions the integration logs an error and does not load.
 
 Something not working after installing and configuration? See [Getting Help](getting-help.md); the LCARdS panel's Welcome tab also has a built-in health check to help identify common installation issues.
 
@@ -24,15 +24,9 @@ HA-LCARS includes LCARdS theme profiles (**LCARS Picard [LCARdS Red Accent]** an
 
 ## 1. Install from the Home Assistant Marketplace (HACS)
 
-**HomeAssistant 2026.10 (HACS)**
-
-[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=snootched&repository=LCARdS&category=integration)
-
-**Home Assistant 2026.11+ (Marketplace)**
-
 [![Open your Home Assistant instance and open a repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=snootched&repository=lcards&category=integrations)
 
-1. Open **Marketplace/HACS** in Home Assistant
+1. Open **Marketplace** in Home Assistant
 2. Go to **Integrations** and search for **LCARdS**
 3. Click **Download** and confirm
 4. **Restart Home Assistant**, then [add the integration](#_2-add-the-integration).
