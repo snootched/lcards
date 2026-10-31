@@ -20,6 +20,12 @@ async function openStudio(page) {
         studio.config = JSON.parse(JSON.stringify(card._rawConfig));
         studio.addEventListener('config-changed', (e) => { window.__saved = e.detail.config; });
         document.body.appendChild(studio);
+        // the harness has no ha-dialog: hold the studio at a fixed height as Home Assistant does
+        // (90vh there), so the preview does not grow with the open tab's content
+        await studio.updateComplete;
+        const fixed = document.createElement('style');
+        fixed.textContent = 'ha-dialog { display: block; } .dialog-content { height: 560px; display: flex; flex-direction: column; } .studio-layout { flex: 1; min-height: 0; }';
+        studio.renderRoot.appendChild(fixed);
         window.__studio = studio;
         // the dashboard card steps aside so taps reach the preview
         card.style.display = 'none';
@@ -37,6 +43,69 @@ const previewPoint = (page, id) => page.evaluate((pid) => {
     const r = card.renderRoot.querySelector('.astro-scene').getBoundingClientRect();
     return it?.visible ? { x: r.left + it.sx, y: r.top + it.sy } : null;
 }, id);
+
+test('studio UX1: tabs in build order, the opening tab, a guide on every tab', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await openStudio(page);
+    const s = await page.evaluate(async () => {
+        const studio = window.__studio;
+        const first = studio._activeTab;
+        const tabs = [...studio.renderRoot.querySelectorAll('ha-tab-group-tab')].map((t) => t.getAttribute('value'));
+        const guides = {};
+        for (const tab of ['starters', 'scene', 'objects', 'points', 'camera']) {
+            studio._activeTab = tab;
+            await studio.updateComplete;
+            const g = studio.renderRoot.querySelector('.info-guide');
+            guides[tab] = g ? [g.dataset.guide, !!g.expanded, g.querySelectorAll('.info-guide-links a').length > 0] : null;
+        }
+        return { first, tabs, guides };
+    });
+    expect(s.tabs).toEqual(['starters', 'scene', 'objects', 'points', 'camera', 'yaml']);
+    expect(s.first).toBe('objects');
+    // a card with a scene opens on its objects; the guides are closed, each with docs links
+    expect(s.guides).toEqual({
+        starters: ['astro-starters', false, true],
+        scene: ['astro-overview', false, true],
+        objects: ['astro-objects', false, true],
+        points: ['astro-points', false, true],
+        camera: ['astro-camera', false, true]
+    });
+
+    // a new card (empty, or the scene a new card is placed with) opens on the starters; the overview stays closed
+    const fresh = await page.evaluate(async () => {
+        const open = async (config) => {
+            const studio = /** @type {any} */ (document.createElement('lcards-astrometrics-studio-dialog'));
+            studio.hass = window.__studio.hass;
+            studio.config = config;
+            document.body.appendChild(studio);
+            await studio.updateComplete;
+            const first = studio._activeTab;
+            const diagrams = {};
+            for (const tab of ['starters', 'scene', 'objects', 'points', 'camera']) {
+                studio._activeTab = tab;
+                await studio.updateComplete;
+                diagrams[tab] = studio.renderRoot.querySelector('.info-guide lcards-astro-diagram')?.kind;
+            }
+            studio._activeTab = 'scene';
+            await studio.updateComplete;
+            const overviewOpen = !!studio.renderRoot.querySelector('.info-guide')?.expanded;
+            studio.remove();
+            return { first, overviewOpen, diagrams };
+        };
+        const Card = customElements.get('lcards-astrometrics-card');
+        const stub = Card.getStubConfig();
+        return {
+            empty: await open({ type: 'custom:lcards-astrometrics-card' }),
+            stub: await open(stub),
+            changed: await open({ ...stub, points: stub.points.slice(1) })
+        };
+    });
+    const diagrams = { starters: 'starters', scene: 'scale', objects: 'distance', points: 'placement', camera: 'camera' };
+    expect(fresh.empty).toEqual({ first: 'starters', overviewOpen: false, diagrams });
+    expect(fresh.stub).toEqual({ first: 'starters', overviewOpen: false, diagrams });
+    expect(fresh.changed).toMatchObject({ first: 'objects', overviewOpen: false });
+});
 
 test('studio: the preview selects instead of acting; objects from the type picker and schema forms; Save', async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 });
@@ -67,7 +136,7 @@ test('studio: the preview selects instead of acting; objects from the type picke
         field.dispatchEvent(new CustomEvent('value-changed', { detail: { value: 40 } }));
     });
     expect(await page.evaluate(() => window.__studio._workingConfig.objects[0].line_spacing)).toBe(40);
-    // keys for other shapes are hidden on a plane (radius), shown with "Show every key"
+    // keys for other shapes are hidden on a plane (radius), shown with "Show keys of other shapes"
     const keys = () => page.evaluate(async () => {
         const form = window.__studio.renderRoot.querySelector('[data-object="0"] lcards-astro-schema-form');
         await form.updateComplete;
@@ -142,7 +211,6 @@ test('studio: drag a point on its plane (no orbit), box an object, place a point
     expect(await page.evaluate(() => window.__studio._previewCard._scene.debug().keys.yaw)).toBe(yaw0);
     expect(await page.evaluate(() => [window.__studio._activeTab, window.__studio._selectedPoint])).toEqual(['points', 'svc']);
     // the marker followed the pointer
-    // (selecting opens the Points tab, the preview grows taller and its view widens back to 40 degrees)
     await expect.poll(async () => Math.round(((await previewPoint(page, 'svc'))?.x ?? 0) - p.x)).toBeGreaterThan(80);
 
     // opening the floor's row boxes it on the scene; closing it clears the box

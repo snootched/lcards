@@ -13,6 +13,21 @@ import { DOCS, PANEL_TAB_DOCS } from '../../utils/docs-url.js';
 
 export { DOCS_SITE, docsBase, docsUrl, DOCS, PANEL_TAB_DOCS } from '../../utils/docs-url.js';
 
+/** The Astrometrics Studio's info guides (editor/dialogs/astro-studio/studio-guides.js) */
+export const ASTRO_STUDIO_DOCS = Object.freeze({
+  card: '/cards/astrometrics/',
+  studio: '/cards/astrometrics/studio',
+  camera: '/cards/astrometrics/#camera-and-views',
+  scale: '/cards/astrometrics/scale',
+  systems: '/cards/astrometrics/scale#star-systems',
+  objectTypes: '/cards/astrometrics/objects#which-type-for-what',
+  distance: '/cards/astrometrics/objects#distance',
+  points: '/cards/astrometrics/points',
+  placement: '/cards/astrometrics/points#placement-forms',
+  labels: '/cards/astrometrics/points#labels',
+  starters: '/cards/astrometrics/starters'
+});
+
 const SIZING = '/cards/common#sizing-height-width-min-height-min-width-max-height-max-width';
 
 // A data source's processing pipeline: processor names are free-form map keys, so
@@ -310,6 +325,7 @@ export function listDocsLinks() {
     ...Object.values(EDITOR_TABS_COMMON),
     ...Object.values(DOCS),
     ...PANEL_TAB_DOCS,
+    ...Object.values(ASTRO_STUDIO_DOCS),
     PROCESSORS,
   ])];
 }

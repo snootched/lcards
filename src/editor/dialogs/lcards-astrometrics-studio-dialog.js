@@ -9,12 +9,13 @@
  * where the next tap lands. Selection follows both ways: opening a row
  * highlights its point or object on the scene.
  *
- * Tabs: Scene (backdrop, labels, background), Points (the points list with
- * Pick), Objects (a list; each object's form is generated from its type's
- * schema branch, so new object types need no Studio work), Camera (named
- * views captured from the preview, flown to, set first; then the camera keys),
- * Starters (whole scenes and parts copied into the config, with a few
- * params), YAML.
+ * Tabs, in the order a card is built: Starters (whole scenes and parts
+ * copied into the config, with a few params), Scene (backdrop, labels,
+ * background), Objects (a list; each object's form is generated from its
+ * type's schema branch, so new object types need no Studio work), Points (the
+ * points list with Pick), Camera (named views captured from the preview,
+ * flown to, set first; then the camera keys), YAML. Each tab opens with an
+ * info guide (astro-studio/studio-guides.js).
  *
  * The working copy is plain config: Save sends it whole.
  *
@@ -40,6 +41,7 @@ import { starterYaml } from '../../core/astrometrics/starters/yaml.js';
 import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
 import { SCENE_SCOPE, scopeSystem, validScope, scopedList, setScopedList, scopedObjectIds, pointScope, objectScope, allPointIds, allObjectIds, pointsEditorConfig } from './astro-studio/systems.js';
+import { overviewGuide, startersGuide, objectsGuide, pointsGuide, cameraGuide } from './astro-studio/studio-guides.js';
 import './astro-studio/lcards-astro-schema-form.js';
 import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
@@ -48,6 +50,21 @@ import '../components/yaml/lcards-studio-yaml-tab.js';
 
 const clone = (/** @type {any} */ v) => JSON.parse(JSON.stringify(v ?? {}));
 const isObj = (/** @type {any} */ v) => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/** Scene keys of the card's default config (getStubConfig) */
+const STUB_KEYS = ['points', 'objects', 'camera', 'backdrop'];
+
+/**
+ * A card with no scene of its own: empty, or still the scene a new card is
+ * placed with (the card's getStubConfig). It opens on Starters, and a scene
+ * starter replaces it without asking.
+ * @param {Record<string, any>} config
+ */
+export function isStarterCard(config) {
+  if (!hasScene(config)) return true;
+  const stub = /** @type {any} */ (customElements.get('lcards-astrometrics-card'))?.getStubConfig?.();
+  return !!stub && STUB_KEYS.every((k) => JSON.stringify(config[k]) === JSON.stringify(stub[k]));
+}
 /** Debounce for preview updates while typing, ms */
 const PREVIEW_DELAY = 150;
 
@@ -137,7 +154,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     super.connectedCallback();
     this._workingConfig = clone(this._initialConfig);
     this._workingConfig.type ||= 'custom:lcards-astrometrics-card';
-    if (!Array.isArray(this._workingConfig.points) || !this._workingConfig.points.length) this._activeTab = 'points';
+    // a new card (empty, or the default scene) starts from the starters, else on its objects
+    this._activeTab = isStarterCard(this._workingConfig) ? 'starters' : 'objects';
   }
 
   disconnectedCallback() {
@@ -428,6 +446,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         .preview-stage > div { position: absolute; inset: 0; }
         .tab-header { display: flex; align-items: center; justify-content: space-between; gap: var(--ha-space-2); margin-bottom: var(--ha-space-2); }
         .tab-header h3 { margin: 0; }
+        .info-guide { display: block; margin-bottom: var(--ha-space-3); }
         .object { margin-bottom: var(--ha-space-2); display: block; }
         .empty { padding: var(--ha-space-4); text-align: center; color: var(--secondary-text-color); }
         .type-picker { margin-bottom: var(--ha-space-3); }
@@ -454,11 +473,11 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
 
   render() {
     const tabs = [
-      { id: 'scene', label: 'Scene', icon: 'mdi:star-four-points-outline' },
-      { id: 'points', label: 'Points', icon: 'mdi:map-marker-multiple' },
-      { id: 'objects', label: 'Objects', icon: 'mdi:shape-outline' },
-      { id: 'camera', label: 'Camera', icon: 'mdi:video-3d' },
       { id: 'starters', label: 'Starters', icon: 'mdi:rocket-launch-outline' },
+      { id: 'scene', label: 'Scene', icon: 'mdi:star-four-points-outline' },
+      { id: 'objects', label: 'Objects', icon: 'mdi:shape-outline' },
+      { id: 'points', label: 'Points', icon: 'mdi:map-marker-multiple' },
+      { id: 'camera', label: 'Camera', icon: 'mdi:video-3d' },
       { id: 'yaml', label: 'YAML', icon: 'mdi:code-braces' }
     ];
     return html`
@@ -531,6 +550,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   /** @private */
   _renderSceneTab() {
     return html`
+      ${overviewGuide()}
       <lcards-astro-schema-form .hass=${this.hass} .schema=${astrometricsSchema.properties} .keys=${SCENE_KEYS}
         .value=${this._workingConfig} .pointIds=${this._pointIds}
         @form-changed=${(/** @type {CustomEvent} */ e) => this._commit(e.detail.value)}>
@@ -541,6 +561,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   /** @private */
   _renderPointsTab() {
     return html`
+      ${pointsGuide()}
       ${this._renderScopeBar('points')}
       <lcards-astro-points-editor
         .hass=${this.hass}
@@ -560,6 +581,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     const keys = Object.keys(props).filter((k) => k !== 'views');
     const camera = isObj(this._workingConfig.camera) ? this._workingConfig.camera : {};
     return html`
+      ${cameraGuide()}
       ${this._renderViews(camera)}
       <lcards-astro-schema-form .hass=${this.hass} .schema=${props} .keys=${keys} .value=${camera} .pointIds=${this._pointIds}
         .choices=${{ view: Object.keys(viewsOf(camera)) }}
@@ -709,7 +731,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   _renderStartersTab() {
     const group = (/** @type {'scene' | 'part'} */ kind) => STARTERS.filter((st) => st.kind === kind).map((st) => this._renderStarter(st));
     return html`
-      <div class="hint">Starters are copied into your config: change anything afterwards, nothing refers back to them. A scene replaces what is here (or merges into it); a part adds itself, its ids starting with the name you give it.</div>
+      ${startersGuide()}
       <h3 class="starter-group">Scenes</h3>
       ${group('scene')}
       <h3 class="starter-group">Parts</h3>
@@ -787,7 +809,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
    * @private
    */
   async _insertStarter(starter, mode) {
-    if (starter.kind === 'scene' && mode === 'replace' && hasScene(this._workingConfig)) {
+    if (starter.kind === 'scene' && mode === 'replace' && !isStarterCard(this._workingConfig)) {
       const ok = await showConfirmDeleteDialog({
         title: 'Replace the scene',
         message: `Replace the points, objects, camera, backdrop and labels with ${starter.title}? Cancel in the Studio still brings them back.`,
@@ -812,13 +834,15 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   _renderObjectsTab() {
     const objects = this._objects;
     return html`
+      ${objectsGuide()}
       ${this._renderScopeBar('objects')}
       <div class="tab-header">
         <h3>Objects</h3>
         <div>
-          <ha-button appearance="plain" @click=${() => { this._showAll = !this._showAll; }}>
+          <ha-button appearance="plain" @click=${() => { this._showAll = !this._showAll; }}
+            title="Some keys belong to one shape or pattern of a type (a grid's disc, dome or hexagonal pattern). Forms hide them for other shapes unless set; this lists them all.">
             <ha-icon icon=${this._showAll ? 'mdi:eye-off-outline' : 'mdi:eye-outline'} slot="start"></ha-icon>
-            ${this._showAll ? 'Hide keys for other shapes' : 'Show every key'}
+            ${this._showAll ? 'Hide keys of other shapes' : 'Show keys of other shapes'}
           </ha-button>
           <ha-button @click=${() => { this._addingObject = !this._addingObject; }}>
             <ha-icon icon="mdi:plus" slot="start"></ha-icon>

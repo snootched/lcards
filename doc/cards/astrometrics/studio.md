@@ -19,20 +19,22 @@ The preview is the real card, with your entities, templates, label styles, pinne
 
 ## Tabs
 
+The tabs are in the order a card is built. The Studio opens on **Starters** for a new card (empty, or still the scene a new card is placed with), else on **Objects**. Each tab starts with a short guide (closed; select it to open) with links to these pages.
+
 | Tab | Edits |
 |---|---|
-| **Scene** | The backdrop (stars and dust), label defaults, styles, overlap and snapping, and a background animation behind the scene. |
-| **Points** | Every point: placement, the object it stands on, entity, label, style, marker, colour, a pinned card. See [Points: in the Astrometrics Studio](./points#in-the-astrometrics-studio). |
-| **Objects** | Every object, with a form for its type. |
-| **Camera** | The named views, and the camera's controls, buttons, limits, auto-rotate and fly-to settings. |
 | **Starters** | Whole scenes and parts to copy into the card. |
+| **Scene** | How the scene works, the backdrop (stars and dust), label defaults, styles, overlap and snapping, and a background animation behind the scene. |
+| **Objects** | Every object, with a form for its type. |
+| **Points** | Every point: placement, the object it stands on, entity, label, style, marker, colour, a pinned card. See [Points: in the Astrometrics Studio](./points#in-the-astrometrics-studio). |
+| **Camera** | The named views, and the camera's controls, buttons, limits, auto-rotate and fly-to settings. |
 | **YAML** | The whole config, with completion from the card's schema. |
 
 ### Objects
 
 **Add object** shows every type with what it is for (the same list as [Objects: which type for what](./objects#which-type-for-what)). The new object gets an id and the keys its type needs: a path or beam runs between the first two points of the scene, or across the centre when there are none.
 
-Each object's form is made from the card's options for its type: placement first (`at`, rotation, spin, visibility, opacity), then the type's own keys, then actions and tags. Nested options (a fill effect, ring labels, cells) open as sections of their own. **Show every key** also lists keys that apply only to other shapes of the same type (a grid's `spoke_count` on a plane, say); they are hidden until set. Actions and anything the form cannot show as fields are YAML editors with completion.
+Each object's form is made from the card's options for its type: placement first (`at`, rotation, spin, visibility, opacity), then the type's own keys, then actions and tags. Nested options (a fill effect, ring labels, cells) open as sections of their own. **Show keys of other shapes** also lists keys that apply only to another shape or pattern of the same type (a grid's `spoke_count` on a plane, say); they are hidden until set. Actions and anything the form cannot show as fields are YAML editors with completion.
 
 A number field with a link button can follow an entity: the button turns it into the entity, range and to boxes of [Settings from entities](./data#settings-from-entities), and the button with a line through it turns it back into a number. A template on a key shows as text. Settings that follow entities in your YAML load the same way: the object's row says what it follows, and a section that holds one (Placement for `opacity` or `spin`, a deformation step) opens on its own.
 
@@ -60,7 +62,7 @@ The view's own keys are below as a form. See [Camera and views](./#camera-and-vi
 
 [Starters](./starters) are ready-made scenes and parts, copied into your config: change anything afterwards, nothing refers back to them.
 
-- **Scenes** (a galaxy, a sector map, the sky dome, a solar system, a Federation map, a starbase approach): **Use this scene** replaces the card's scene (it asks first when there is one). **Merge into the scene** adds its points, objects and views to yours and keeps your camera settings, start view and backdrop.
+- **Scenes** (a galaxy, a sector map, the sky dome, a solar system, a Federation map, a starbase approach): **Use this scene** replaces the card's scene (it asks first when you have built one; a new card's default scene is replaced without asking). **Merge into the scene** adds its points, objects and views to yours and keeps your camera settings, start view and backdrop.
 - **Parts** (a planet with moons, an asteroid belt, a nebula field, a set of territories): **Add to the scene** adds one next to what is there. Its ids start with the name you give it (`mars_body`, `mars_orbit`), so the same part can be added twice under two names. Its centre is a point of your scene (such as `sun`) or coordinates.
 
 Open a starter to see its settings and the YAML it adds, which follows the settings as you type. If any point, object or view id it adds is already in the card, nothing is added and the message names them.
