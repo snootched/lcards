@@ -347,6 +347,12 @@ export function astrometricsIssues(node) {
   const isPoint = (ref) => pointIds.has(ref) || (generated.test(ref) && objectIds.has(generated.exec(ref)[1]));
   const nearPoint = (ref) => suggest(ref, [...pointIds]);
   /** A point reference: an id that must exist, or [x, y, z] */
+  /** hide_in_systems: a list names systems that exist */
+  const hideIn = (path, v) => {
+    if (!Array.isArray(v)) return;
+    const systems = [...objectIds].filter(([, x]) => x.type === 'system').map(([id]) => id);
+    v.forEach((id, i) => { if (isLiteral(id) && !systems.includes(id)) err(`${path}[${i}]`, `no system "${id}"${suggest(id, systems)}`); });
+  };
   const pointRef = (path, ref) => {
     if (isLiteral(ref) && !isPoint(ref)) err(path, `no point "${ref}"${nearPoint(ref)}`);
   };
@@ -380,6 +386,7 @@ export function astrometricsIssues(node) {
     if (p.part !== undefined && forms.some((f) => f !== 'xyz')) err(`${at}.part`, `part places the point on a model part (xyz is an offset from it); drop ${forms.filter((f) => f !== 'xyz').join(', ')}`);
     if (forms.length > 1) err(at, `point "${p.id}" has more than one position (${forms.join(', ')}); use one`);
     if (p.at !== undefined) pointRef(`${at}.at`, p.at);
+    hideIn(`${at}.hide_in_systems`, p.hide_in_systems);
     for (const f of ['xyz', 'polar', 'latlon', 'altaz']) {
       const b = p[f];
       if (b && typeof b === 'object' && !Array.isArray(b) && !b.entity && !p.entity) {
@@ -407,6 +414,7 @@ export function astrometricsIssues(node) {
   objects.forEach(({ o, at, system }) => {
     if (!o || typeof o !== 'object') return;
     if (o.at !== undefined) pointRef(`${at}.at`, o.at);
+    hideIn(`${at}.hide_in_systems`, o.hide_in_systems);
     if (typeof o.face === 'string' && o.face !== 'motion') pointRef(`${at}.face`, o.face);
     if (o.face === 'motion' && !(typeof o.at === 'string' && o.at !== '')) warn(`${at}.face`, 'face: motion turns the object along its point\'s travel: give it at: a point id');
     if (o.type === 'system') {

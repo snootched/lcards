@@ -52,6 +52,27 @@ export function distanceAlpha(r, dist) {
 export const HIDDEN_ALPHA = 0.02;
 
 /**
+ * How long a show or hide takes, ms: a range, a system's hide, a look's switch
+ * still fade over this much time when the camera crosses them in one frame (a
+ * long fly-to zooms in logarithmic steps, ten times closer a frame).
+ */
+export const FADE_MS = 400;
+
+/**
+ * An alpha eased toward its target by `dt` ms of a FADE_MS fade; at once
+ * when there is none before it or dt is not finite (reduced motion, the
+ * first frame).
+ * @param {number | undefined} from
+ * @param {number} to
+ * @param {number} dt
+ */
+export function easeAlpha(from, to, dt) {
+  if (from === undefined || !Number.isFinite(dt)) return to;
+  const step = Math.max(0, dt) / FADE_MS;
+  return Math.abs(to - from) <= step ? to : from + Math.sign(to - from) * step;
+}
+
+/**
  * Distance from a position to the nearest edge of a sphere, 0 inside it.
  * @param {Vector3} from
  * @param {Vector3} center
@@ -183,6 +204,31 @@ export class ObjectFader {
     this._saved = [];
     /** @type {Map<string, number>} last factor by object id (tests, debug) */
     this.alphas = new Map();
+    /** @type {[import('three').Object3D, boolean][]} nodes scaleNodes showed or hid, and how they were */
+    this._shown = [];
+    /** @type {Map<string, number>} each object's alpha as last drawn (eased toward its target, easeAlpha) */
+    this._eased = new Map();
+    /** Whether an object is still fading (the runtime draws another frame) */
+    this.settling = false;
+  }
+
+  /**
+   * For this render: show nodes at `a` (an object's parts for the card's
+   * look, looks.js), hidden at about 0 and faded below 1. A node is put back
+   * as it was by end(), so nodes hidden by default (a part that shows in one
+   * look only) stay hidden outside the render.
+   * @param {import('three').Object3D[]} nodes
+   * @param {number} a
+   */
+  scaleNodes(nodes, a) {
+    const show = a > HIDDEN_ALPHA;
+    for (const n of nodes) {
+      if (n.visible !== show) {
+        this._shown.push([n, n.visible]);
+        n.visible = show;
+      }
+      if (show && a < 1) this._scale(n, a);
+    }
   }
 
   /**
@@ -193,20 +239,27 @@ export class ObjectFader {
    *   object's own frame (its distances are in its system's units)
    * @param {(b: import('./objects/common.js').BuiltObject) => number} [extra] - another opacity factor 0..1
    *   (an opacity that follows an entity, bindings.js), multiplied in
+   * @param {number} [dt] - ms since the last frame: each object eases to its alpha over FADE_MS (none: at once)
    */
-  begin(list, outer, camera, unit = () => 1, extra = () => 1) {
+  begin(list, outer, camera, unit = () => 1, extra = () => 1, dt = Infinity) {
     this.alphas.clear();
+    this.settling = false;
     for (const b of list) {
       const range = this._range(b.config);
       const more = Math.min(1, Math.max(0, extra(b)));
       const g = outer.get(b);
-      if (!range && more === 1) {
+      const was = this._eased.get(b.id);
+      if (!range && more === 1 && (was === undefined || was >= 1)) {
+        this._eased.delete(b.id);
         // shown again after a factor hid it (a look, a system, an entity's opacity at 0)
         if (g && !g.visible && b.config.visible !== false) g.visible = true;
         continue;
       }
       if (!g) continue;
-      const a = (range ? distanceAlpha(range, this._distance(b, camera) / unit(b)) : 1) * more;
+      const target = (range ? distanceAlpha(range, this._distance(b, camera) / unit(b)) : 1) * more;
+      const a = easeAlpha(was, target, dt);
+      this._eased.set(b.id, a);
+      if (a !== target) this.settling = true;
       this.alphas.set(b.id, a);
       g.visible = b.config.visible !== false && a > HIDDEN_ALPHA;
       if (g.visible && a < 1) this._scale(b.node, a);
@@ -215,6 +268,8 @@ export class ObjectFader {
 
   /** Every material back as it was */
   end() {
+    for (let i = this._shown.length - 1; i >= 0; i--) this._shown[i][0].visible = this._shown[i][1];
+    this._shown.length = 0;
     // last saved first: anything saved twice ends at its first, unscaled value
     for (let i = this._saved.length - 1; i >= 0; i--) {
       const s = this._saved[i];

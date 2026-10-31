@@ -156,7 +156,7 @@ objects:
 
 ## Warp and dust
 
-A fly-to with `warp` streaks the stars past the camera. Turn it on for every fly-to with `camera.warp: true`, or for one view with `warp: true` in that view (a point's or object's `view` takes it too). The streaks grow with the camera's speed and shrink back to stars as it lands.
+A fly-to with `warp` streaks the stars past the camera, by how fast it moves for its distance from what it looks at, so a hop between planets streaks as a jump across the galaxy does. Turn it on for every fly-to with `camera.warp: true`, or for one view with `warp: true` in that view (a point's or object's `view` takes it too). `camera.warp: { entity: input_boolean.warp_travel }` follows a toggle: fly-tos streak while it is on. The streaks grow with the camera's speed and shrink back to stars as it lands.
 
 - `backdrop.stars.streak` scales the streaks (default 1; 0 never streaks).
 - `backdrop.stars.spectrum: true` splits each streak into colour, as a Doppler shift of the star's own colour: violet toward the tail (nearer the direction of flight) and red toward the head. White stars show the whole rainbow; a blue star streaks green to violet, its tail fading as it shifts past violet, and a red star the other way. `spectrum_direction: reverse` puts violet at the head instead.
@@ -183,6 +183,17 @@ objects:
 ```
 
 Tap the label to warp in; tap the glow to fly back out.
+
+### Going to warp
+
+`warp` on the card sends the ship to warp where it is: the scene's own backdrop stars and dust streak along the view (with `backdrop.stars.spectrum`, in colour), and the [warp starfield](/core/effects/background-animations/preset-reference#warp-starfield) streams past behind the scene; `false` drops out of warp again. `warp_factor` (1 to 9.9, default 6) sets how long the streaks grow and how fast they stream. Both can follow entities, so a toggle and a slider make an ENGAGE button and a warp factor control:
+
+```yaml
+warp: { entity: input_boolean.warp }
+warp_factor: { entity: input_number.warp_factor, to: [1, 9.9] }
+```
+
+`warp` reads `on`, `true` or a number above 0 as engaged. Going to warp takes about two seconds, dropping out a little less. Nothing streams under reduced motion. `camera.warp` is different: it streaks the stars only while a fly-to moves the camera.
 
 ## Cost
 

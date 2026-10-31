@@ -795,7 +795,7 @@ camera:
     pluto: { target: pluto, yaw: 120, tilt: 20, distance: 80000 }
 backdrop: { stars: { count: 2000 } }
 units: km
-clock: { date: now, rate: 1 }
+clock: { date: now, rate: 1 h/s }
 ```
 
 ### Galaxy to station at true scale
@@ -1106,7 +1106,7 @@ camera:
     station: { target: ds9, yaw: 330, tilt: 6, distance: 4 }
 backdrop: { stars: { count: 2000 } }
 units: ly
-clock: { date: now, rate: 1 }
+clock: { date: now, rate: 1 h/s }
 ```
 
 ### Star Trek galaxy

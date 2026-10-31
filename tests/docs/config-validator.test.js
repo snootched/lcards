@@ -269,6 +269,10 @@ test('astrometrics face: motion needs an object at a point (M3)', () => {
         'warning objects[2].face: face: motion turns the object along its point\'s travel: give it at: a point id'
     ]);
     assert.ok(messages(check(astro({ objects: [{ type: 'sphere', face: 'sideways' }] }))).some((m) => m.startsWith('error objects[0].face: no point "sideways"')));
+    // hide_in_systems: a list names systems
+    const sys = { type: 'system', id: 'sol_system', units: 'km', points: [], objects: [] };
+    assert.deepEqual(messages(check(astro({ units: 'ly', objects: [sys, { type: 'ring', radius: 5, hide_in_systems: ['sol_system'] }] }))), []);
+    assert.ok(messages(check(astro({ units: 'ly', objects: [sys, { type: 'ring', radius: 5, hide_in_systems: ['sol'] }] }))).some((m) => m.startsWith('error objects[1].hide_in_systems[0]: no system "sol"')));
     // face: a point id turns the object toward it
     assert.deepEqual(messages(check(astro({ points: [{ id: 'far', xyz: [10, 0, 0] }], objects: [{ type: 'grid', shape: 'well', face: 'far' }] }))), []);
 });

@@ -135,3 +135,17 @@ test('registry setClock: the card by id, a date or a rate needed', async () => {
     unregisterAstrometricsCard(card);
   }
 });
+
+test('parseRate: a rate with its unit reads as the time slider shows it', async () => {
+  const { parseRate, LIVE_RATE } = await import('../../src/core/astrometrics/clock.js');
+  assert.equal(parseRate('1 h/s'), 1 / 24);
+  assert.equal(parseRate('30 d/s'), 30);
+  assert.equal(parseRate('1 y/s'), 365.25);
+  assert.equal(parseRate('-1 d/s'), -1);
+  assert.equal(parseRate('2h'), 2 / 24);
+  assert.equal(parseRate(' 1 MIN/S '), 1 / 1440);
+  assert.equal(parseRate('live'), LIVE_RATE);
+  assert.equal(parseRate(0.5), 0.5);
+  assert.equal(parseRate('1 h/m'), null);
+  assert.equal(parseRate('fast'), null);
+});

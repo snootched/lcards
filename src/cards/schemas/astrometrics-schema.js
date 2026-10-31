@@ -28,6 +28,7 @@ import {
     WELL_SHAPE_NAMES, DEFORM_TYPES, BEND_MOTIONS, DEFORM_ANCHORS, UNIT_NAMES
 } from '../../core/astrometrics/names.js';
 import { LABEL_POSITION_NAMES, LABEL_OMITTED_KEYS } from '../../core/astrometrics/label-text.js';
+import { RATE_PATTERN } from '../../core/astrometrics/clock.js';
 
 // ── Small building blocks ────────────────────────────────────────────────────
 
@@ -105,12 +106,25 @@ const numberOrPair = (description) => ({
 const color = (description) => ({ type: 'string', description, allOf: [simpleColorSchema] });
 
 /** A point id or [x, y, z] in scene units @param {string} description */
-/** @param {string} what - what shows or hides */
-const objectLook = (what) => ({
+/** @param {string} description - the true form's */
+const hideInSystems = (description) => ({
+    description: `${description} Or a list of system ids: hidden inside those systems only (a route that belongs in the systems at its ends, not in the one it passes).`,
+    oneOf: [
+        { type: 'boolean' },
+        { type: 'array', items: { type: 'string' }, minItems: 1, description: 'The systems (their ids) to hide it in' }
+    ]
+});
+
+/** @param {string} what - what shows or hides @param {boolean} [parts] - an object: its parts switch when left out */
+const objectLook = (what, parts = false) => ({
     type: 'string',
-    enum: ['diagram', 'realistic'],
-    description: `Which look of the card shows ${what}: diagram in the diagram and mixed looks, realistic in the realistic and mixed looks. Left out, it shows in every look.`,
-    enumDescriptions: { diagram: 'The diagram look (wireframes, schematics)', realistic: 'The realistic look' }
+    enum: parts ? ['diagram', 'realistic', 'all'] : ['diagram', 'realistic'],
+    description: parts
+        ? `Which look of the card shows ${what}: diagram in the diagram and mixed looks, realistic in the realistic and mixed looks, all in every look as configured. Left out, it shows in every look, and one with a diagram part and a realistic part switches them: a sphere with an image or fill_effect is a wire globe over its plain fill in the diagram look and the bare map in the realistic look, a grid with a fill_effect shows its lines or its fill, a model with material: original is a hologram in the diagram look.`
+        : `Which look of the card shows ${what}: diagram in the diagram and mixed looks, realistic in the realistic and mixed looks. Left out, it shows in every look.`,
+    enumDescriptions: parts
+        ? { diagram: 'The diagram look (wireframes, schematics)', realistic: 'The realistic look', all: 'Every look, as configured (no switching)' }
+        : { diagram: 'The diagram look (wireframes, schematics)', realistic: 'The realistic look' }
 });
 
 const pointRef = (description) => ({
@@ -200,7 +214,7 @@ const cameraSchema = {
                                         properties: {
                                             view: { type: 'string', description: 'The named view to fly to.' },
                                             date: { type: 'string', description: 'Set the scene date there: now or an ISO date.' },
-                                            rate: { description: 'Set the date\'s rate there: live or days per second.', anyOf: [{ type: 'number' }, { type: 'string', enum: ['live'] }] }
+                                            rate: { description: 'Set the date\'s rate there: live, days per second, or with a unit as the time slider shows it (1 h/s, 30 d/s, 1 y/s).', anyOf: [{ type: 'number' }, { type: 'string', enum: ['live'] }, { type: 'string', pattern: RATE_PATTERN }] }
                                         }
                                     }
                                 ]
@@ -250,7 +264,7 @@ const cameraSchema = {
             type: 'string',
             enum: ['zoom', 'none'],
             default: 'zoom',
-            description: 'A double-tap or double-click in blank space. zoom: fly in one zoom step toward that spot, which becomes the centre (shift: zoom out). none: nothing. Taps on points and tappable objects are never affected.'
+            description: 'A double-tap or double-click. In blank space, zoom flies in one zoom step toward that spot, which becomes the centre (shift: zoom out); on a point, it flies in close to the largest object standing there (a few times its size). none: nothing. Taps on tappable objects are never affected.'
         },
         buttons: {
             description: 'On-card camera buttons: pan arrows, zoom in and out, reset (back to the start view). Press and hold repeats. true for all of them in the bottom right; an object to choose. Default off.',
@@ -313,7 +327,22 @@ const cameraSchema = {
         auto_rotate: number('Turn the camera round its target, degrees per second (negative: the other way). 0 is off. Pauses while dragging; off under reduced motion.', { default: 0 }),
         fly_duration: number('How long a fly-to takes, ms. Under reduced motion the camera jumps.', { minimum: 0, default: 1600 }),
         ease: { type: 'string', default: 'inOutCubic', description: 'Easing of a fly-to (an anime.js easing name, such as inOutCubic, outQuad, linear).' },
-        warp: { type: 'boolean', default: false, description: 'Every fly-to streaks the stars and dust (warp); a view\'s own warp wins. Off under reduced motion.' }
+        warp: {
+            description: 'Every fly-to streaks the stars and dust (warp); a view\'s own warp wins. Or { entity } (and attribute): fly-tos streak while it is on (on, true, or a number above 0), such as an input_boolean. Off under reduced motion.',
+            oneOf: [
+                { type: 'boolean', default: false },
+                {
+                    type: 'object',
+                    description: 'Warp fly-tos from an entity',
+                    properties: {
+                        entity: { type: 'string', description: 'The entity that makes fly-tos streak while it is on.' },
+                        attribute: { type: 'string', description: 'Read this attribute instead of the state.' }
+                    },
+                    required: ['entity'],
+                    additionalProperties: false
+                }
+            ]
+        }
     }
 };
 
@@ -497,7 +526,7 @@ const pointSchema = {
         // label and marker
         entity: { ...entitySchema, description: 'The point\'s entity: its templates read it as entity, state colour maps follow its state, more-info and toggle actions use it, and latlon / altaz / xyz / polar can take their values from it.' },
         tags: { ...tagsSchema, description: 'Tags for rules: a rule on tag:<name> patches every point with the tag.' },
-        hide_in_systems: { type: 'boolean', default: false, description: 'Hide the label and marker while the camera is inside a star system (a system object), so galaxy-scale names step aside in the close-ups.' },
+        hide_in_systems: hideInSystems('Hide the label and marker while the camera is inside a star system (a system object), so galaxy-scale names step aside in the close-ups.'),
         look: objectLook('the label and marker'),
         label: { type: ['string', 'number'], description: 'Text shown at the point: short for text.label.content. Leave out for a marker only, or for a point that only anchors other things.' },
         text: pointTextSchema,
@@ -536,8 +565,8 @@ const objectCommon = {
         description: 'motion: an object at a moving point turns its +z (a built-in model\'s bow) toward where the point is going, upright. Before the point first moves (and under reduced motion) a point on a spinning object faces along the spin. A point id: the object turns toward that point, wherever it is in the scene: its +z, or for an object round an axis (a grid other than a plane, a ring, a belt, a galaxy) down its axis, so a well\'s throat leads to it. rotation applies on top. Default: the object keeps its rotation.'
     },
     visible: { type: 'boolean', default: true, description: 'false hides the object (its points still work).' },
-    hide_in_systems: { type: 'boolean', default: false, description: 'Hide it while the camera is inside a star system (a system object: within a few times its size, the camera works in its units): galaxy-scale lines and volumes then step aside instead of crossing the close-ups. Outside every system it shows as usual.' },
-    look: objectLook('the object'),
+    hide_in_systems: hideInSystems('Hide it while the camera is inside a star system (a system object: within a few times its size, the camera works in its units): galaxy-scale lines and volumes then step aside instead of crossing the close-ups. Outside every system it shows as usual.'),
+    look: objectLook('the object', true),
     opacity: setting('Opacity of the whole object, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
     fade: tuple(2, 'Distance fade [start, end], scene units from the camera to the nearest edge of the object (0 inside it; a flat plane or disc grid is measured to its surface): fully shown nearer than start, gone past end.'),
     min_distance: setting('Hidden when the camera is closer than this to the object\'s nearest edge, scene units (fades in over the last 10%).', { minimum: 0 }),
@@ -1202,6 +1231,23 @@ export const astrometricsSchema = {
                 }
             ]
         },
+        warp: {
+            description: 'Go to warp: the backdrop stars and dust streak along the view and the warp starfield (spectrum streaks) streams past behind the scene, at warp_factor; false drops out of warp. Or { entity } (and attribute): at warp while it is on (on, true, or a number above 0), such as an input_boolean. Nothing under reduced motion. (camera.warp is different: streaks during a fly-to.)',
+            oneOf: [
+                { type: 'boolean' },
+                {
+                    type: 'object',
+                    description: 'Warp from an entity',
+                    properties: {
+                        entity: { type: 'string', description: 'The entity that engages warp while it is on.' },
+                        attribute: { type: 'string', description: 'Read this attribute instead of the state.' }
+                    },
+                    required: ['entity'],
+                    additionalProperties: false
+                }
+            ]
+        },
+        warp_factor: setting('How fast the stars stream at warp, 1 to 9.9 (default 6). Can follow an entity ({ entity, to }), such as a slider, or a template.', { minimum: 1, maximum: 9.9, default: 6 }),
         time_scale: setting('How fast the scene\'s motion runs: orbits, spins, drift, scans, trails. 1 as configured, 0.5 half speed, 0 holds it still. The sky (sun and moon), the scene clock (clock) and the camera are not affected. The time slider (camera.buttons.time) changes it on screen. Can follow an entity ({ entity, to }) or a template.', { minimum: 0, default: 1 }),
         clock: {
             type: 'object',
@@ -1215,8 +1261,8 @@ export const astrometricsSchema = {
                     examples: ['now', '2026-10-30', '1969-07-20T20:17:00Z']
                 },
                 rate: {
-                    description: 'How fast the date runs: live (real time), or days per second (1 is a day a second, 30 a month, 365.25 a year; 0 holds it; negative runs back). Or { entity, to } to follow an entity, or a template.',
-                    anyOf: [{ type: 'number' }, { type: 'string', enum: ['live'] }, settingBinding, settingTemplate],
+                    description: 'How fast the date runs: live (real time), days per second (1 is a day a second, 30 a month, 365.25 a year; 0 holds it; negative runs back), or with a unit as the time slider shows it: 1 h/s (an hour a second), 30 d/s, 1 y/s, -1 d/s (units s, min, h, d, w, mo, y). Or { entity, to } to follow an entity, or a template.',
+                    anyOf: [{ type: 'number' }, { type: 'string', enum: ['live'] }, { type: 'string', pattern: RATE_PATTERN }, settingBinding, settingTemplate],
                     default: 'live'
                 }
             }

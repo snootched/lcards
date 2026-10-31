@@ -272,16 +272,16 @@ test('warp: streak tails from the camera motion, dust round the scene, the rig f
   const { warpTails } = await import('../../src/core/astrometrics/star-field.js');
   const { CameraRig } = await import('../../src/core/astrometrics/camera-rig.js');
   // still, or no streak: none
-  assert.equal(warpTails({ x: 0, y: 0, z: 0 }, 16, { sceneRadius: 100, shell: 3000, streak: 1 }), null);
-  assert.equal(warpTails({ x: 5, y: 0, z: 0 }, 16, { sceneRadius: 100, shell: 3000, streak: 0 }), null);
-  // moving +x at 100 units/s in a scene of radius 100: stars trail 0.05 rad along +x, dust 0.1 s of motion
-  const t = warpTails({ x: 1.6, y: 0, z: 0 }, 16, { sceneRadius: 100, shell: 3000, streak: 1 });
+  assert.equal(warpTails({ x: 0, y: 0, z: 0 }, 16, { scale: 100, shell: 3000, streak: 1 }), null);
+  assert.equal(warpTails({ x: 5, y: 0, z: 0 }, 16, { scale: 100, shell: 3000, streak: 0 }), null);
+  // moving +x at 100 units/s, 100 from what it looks at: stars trail 0.05 rad along +x, dust 0.1 s of motion
+  const t = warpTails({ x: 1.6, y: 0, z: 0 }, 16, { scale: 100, shell: 3000, streak: 1 });
   assert.ok(t);
   assert.ok(Math.abs(t.speed - 100) < 1e-9);
   assert.ok(Math.abs(t.stars.x - 150) < 1e-6 && t.stars.y === 0, 'tail toward the direction of flight');
   assert.ok(Math.abs(t.dust.x - 10) < 1e-6);
   // capped: a huge speed never wraps the shell
-  const fast = warpTails({ x: 1e5, y: 0, z: 0 }, 16, { sceneRadius: 1, shell: 3000, streak: 4 });
+  const fast = warpTails({ x: 1e5, y: 0, z: 0 }, 16, { scale: 1, shell: 3000, streak: 4 });
   assert.ok(fast && fast.stars.length() <= 3000 * 0.4 + 1e-6);
 
   // dust sits round the scene's bounds, not the camera

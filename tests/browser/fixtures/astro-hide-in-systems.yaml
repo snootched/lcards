@@ -1,6 +1,7 @@
 # hide_in_systems (R4d): the dive fixture with a galaxy-scale label (VEGA) and
 # line (core to Sol) marked to step aside inside a star system
-# (astrometrics.spec.js: shown at the galaxy, hidden at the station).
+# (astrometrics.spec.js: shown at the galaxy, hidden at the station); two
+# lines hidden in a list of systems.
 type: custom:lcards-astrometrics-card
 height: 400
 units: ly
@@ -22,6 +23,10 @@ objects:
   - { type: grid, id: disc, shape: disc, radius: 50000, pattern: polar, line_spacing: 5000, spoke_count: 36 }
   - { type: glow, at: core, size: 30000 }
   - { type: beam, id: core_line, from: core, to: sol, width: 2, hide_in_systems: true }
+  # hidden in the named systems only: a list without sol_system, and one with it
+  - { type: beam, id: other_line, from: core, to: sol, width: 2, hide_in_systems: [elsewhere] }
+  - { type: beam, id: sol_line, from: core, to: sol, width: 2, hide_in_systems: [sol_system] }
+  - { type: system, id: elsewhere, at: core, units: km, points: [], objects: [] }
   - type: system
     id: sol_system
     at: sol

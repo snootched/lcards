@@ -269,11 +269,16 @@ export function buildGrid(cfg, ctx) {
   const size = pair(cfg.size, [200, 200]);
   const effect = fillFor(cfg, ctx, { radius: out.radius ?? Math.max(size[0], size[1]) / 2, opacity });
   if (effect) {
+    /** @type {import('three').Object3D[]} */
+    const fills = [];
     for (const face of out.gridFaces) {
       const mesh = new Mesh(/** @type {any} */ (face.children[0]).geometry, effect.material);
       mesh.renderOrder = 1.5;
       node.add(mesh);
+      fills.push(mesh);
     }
+    // the fill is the realistic part, the lines the diagram's (looks.js)
+    out.lookParts = { diagram: [...out.gridFaces], realistic: fills };
   }
   // flat and not deformed: distances are to the surface (see distance-fade.js)
   out.flat = (shape === 'plane' || shape === 'disc') && !deforming;

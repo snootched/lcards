@@ -119,8 +119,8 @@ export function buildModel(cfg, ctx) {
 
   /** @type {Map<string, import('three').Object3D>} */
   const parts = new Map();
-  /** @type {AnimationMixer | null} */
-  let mixer = null;
+  /** @type {AnimationMixer[]} one per copy of the file (an original model's hologram twin animates too) */
+  const mixers = [];
   /** @type {ReturnType<typeof hologramUniforms> | null} */
   let uniforms = null;
   let state = /** @type {'loading' | 'ready' | 'failed'} */ ('loading');
@@ -164,7 +164,11 @@ export function buildModel(cfg, ctx) {
 
     scene.traverse((o) => { if (o.name && o !== scene && !parts.has(o.name)) parts.set(o.name, o); });
 
-    if (hologram) {
+    /**
+     * The hologram look on a copy of the file: one shader, a depth twin per mesh (solid).
+     * @param {import('three').Object3D} copy
+     */
+    const makeHologram = (copy) => {
       const look = {
         color: c0,
         rim: ctx.color(cfg.rim_color, DEFAULT_COLORS.modelRim),
@@ -182,7 +186,7 @@ export function buildModel(cfg, ctx) {
       const depthMat = solid ? depthOnlyMaterial() : null;
       /** @type {Mesh[]} */
       const meshes = [];
-      scene.traverse((o) => { if (/** @type {any} */ (o).isMesh) meshes.push(/** @type {Mesh} */ (o)); });
+      copy.traverse((o) => { if (/** @type {any} */ (o).isMesh) meshes.push(/** @type {Mesh} */ (o)); });
       const u = uniforms;
       // view space to the file's own space, per render in doubles (in float32 on
       // the GPU, a model far from the origin would lose its scanlines)
@@ -199,6 +203,32 @@ export function buildModel(cfg, ctx) {
           m.add(twin);
         }
       }
+    };
+
+    /**
+     * Feature edges as lines on a copy of the file.
+     * @param {import('three').Object3D} copy
+     * @param {boolean} holo - a hologram's (its rim colour)
+     */
+    const addEdges = (copy, holo) => {
+      const ec = ctx.color(cfg.edge_color, holo ? DEFAULT_COLORS.modelRim : DEFAULT_COLORS.model);
+      const edgeMat = new LineBasicMaterial({ transparent: true, depthWrite: false, opacity: (ec[3] ?? 1) * Math.min(1, opacity + 0.15) });
+      edgeMat.color.setRGB(ec[0], ec[1], ec[2], SRGBColorSpace);
+      const angle = num(cfg.edge_angle, 30);
+      /** @type {Mesh[]} */
+      const meshes = [];
+      copy.traverse((o) => { if (/** @type {any} */ (o).isMesh && !(/** @type {any} */ (o).isSkinnedMesh)) meshes.push(/** @type {Mesh} */ (o)); });
+      for (const m of meshes) {
+        const lines = new LineSegments(new EdgesGeometry(m.geometry, angle), edgeMat);
+        lines.renderOrder = 2;
+        m.add(lines);
+      }
+    };
+
+    /** @type {import('three').Object3D[]} copies of the file that animate */
+    const copies = [scene];
+    if (hologram) {
+      makeHologram(scene);
     } else {
       // Own copies of the file's materials: the parsed file is shared between
       // objects, and one object's distance fade must not fade the others
@@ -211,22 +241,17 @@ export function buildModel(cfg, ctx) {
       const sun = new DirectionalLight(0xffffff, 2);
       sun.position.set(1, 2, 1.5);
       node.add(hemi, sun);
+      // the diagram look draws it as a hologram: a twin, hidden but in that look (looks.js)
+      const twin = cloneSkinned(gltf.scene);
+      twin.visible = false;
+      file.add(twin);
+      makeHologram(twin);
+      if (cfg.edges ?? true) addEdges(twin, true);
+      copies.push(twin);
+      out.lookParts = { realistic: [scene], diagramOnly: [twin] };
     }
 
-    if (cfg.edges ?? hologram) {
-      const ec = ctx.color(cfg.edge_color, hologram ? DEFAULT_COLORS.modelRim : DEFAULT_COLORS.model);
-      const edgeMat = new LineBasicMaterial({ transparent: true, depthWrite: false, opacity: (ec[3] ?? 1) * Math.min(1, opacity + 0.15) });
-      edgeMat.color.setRGB(ec[0], ec[1], ec[2], SRGBColorSpace);
-      const angle = num(cfg.edge_angle, 30);
-      /** @type {Mesh[]} */
-      const meshes = [];
-      scene.traverse((o) => { if (/** @type {any} */ (o).isMesh && !(/** @type {any} */ (o).isSkinnedMesh)) meshes.push(/** @type {Mesh} */ (o)); });
-      for (const m of meshes) {
-        const lines = new LineSegments(new EdgesGeometry(m.geometry, angle), edgeMat);
-        lines.renderOrder = 2;
-        m.add(lines);
-      }
-    }
+    if (cfg.edges ?? hologram) addEdges(scene, hologram);
 
     scene.traverse((o) => { if (/** @type {any} */ (o).isMesh && /** @type {any} */ (o).material?.name !== 'lcards-hologram-depth') out.pickMeshes.push(o); });
     // The meshes hide labels behind them (the depth pass renders this layer)
@@ -234,10 +259,13 @@ export function buildModel(cfg, ctx) {
 
     const names = clipNames(cfg.animation, gltf.animations.map((a) => a.name));
     if (names.length) {
-      mixer = new AnimationMixer(scene);
-      for (const name of names) {
-        const clip = gltf.animations.find((a) => a.name === name);
-        if (clip) mixer.clipAction(clip).setLoop(LoopRepeat, Infinity).play();
+      for (const copy of copies) {
+        const m = new AnimationMixer(copy);
+        for (const name of names) {
+          const clip = gltf.animations.find((a) => a.name === name);
+          if (clip) m.clipAction(clip).setLoop(LoopRepeat, Infinity).play();
+        }
+        mixers.push(m);
       }
     } else if (cfg.animation !== undefined && cfg.animation !== 'none' && gltf.animations.length) {
       lcardsLog.warn(`[Astrometrics] model '${cfg.id}': no animation '${cfg.animation}' (clips: ${gltf.animations.map((a) => a.name).join(', ')})`);
@@ -269,8 +297,8 @@ export function buildModel(cfg, ctx) {
     }
     if (state !== 'ready') return false;
     let moving = false;
-    if (mixer) {
-      mixer.update(dt / 1000);
+    if (mixers.length) {
+      for (const m of mixers) m.update(dt / 1000);
       moving = true;
     }
     if (uniforms && scanPeriod > 0) {
@@ -283,7 +311,7 @@ export function buildModel(cfg, ctx) {
   };
   out.dispose = () => {
     disposed = true;
-    mixer?.stopAllAction();
+    for (const m of mixers) m.stopAllAction();
   };
   out.dynamic = true;
   return out;

@@ -139,24 +139,43 @@ export function createStarField({ positions, sizes, colors, opacity = 1, spectru
 /**
  * How long the streaks are this frame, from the camera's motion during a
  * warp fly-to: the stars' tail (they sit at `shell` units) and the dust's.
- * A camera crossing the scene's radius in a second streaks the stars by
- * about 0.05 x `streak` radians; dust trails the last 0.1 x `streak` seconds
- * of motion. Pure, for the runtime and the tests.
+ * Speed counts against `scale`, the camera's distance from what it looks at:
+ * a camera moving its own distance in a second streaks the stars by about
+ * 0.05 x `streak` radians, so a long flight streaks the same at any scale (a
+ * hop between planets measured in km, a jump across a galaxy in ly). Dust
+ * trails the last 0.1 x `streak` seconds of motion. Pure, for the runtime
+ * and the tests.
  * @param {{ x: number, y: number, z: number }} moved - camera position change this frame, scene units
  * @param {number} dtMs
- * @param {{ sceneRadius: number, shell: number, streak: number }} o
+ * @param {{ scale: number, shell: number, streak: number }} o
  * @returns {{ stars: Vector3, dust: Vector3, speed: number } | null} null when it does not move
  */
-export function warpTails(moved, dtMs, { sceneRadius, shell, streak }) {
+export function warpTails(moved, dtMs, { scale, shell, streak }) {
   const dist = Math.hypot(moved.x, moved.y, moved.z);
   if (!(dtMs > 0) || !(dist > 0) || !(streak > 0)) return null;
   const speed = dist / (dtMs / 1000);
   const dir = new Vector3(moved.x, moved.y, moved.z).divideScalar(dist);
   // the stars were nearer the direction of flight: their tail points along it
-  const angle = Math.min(0.4, 0.05 * streak * (speed / Math.max(1e-6, sceneRadius)));
+  const angle = Math.min(0.4, 0.05 * streak * (speed / Math.max(1e-300, scale)));
   return {
     stars: dir.clone().multiplyScalar(shell * angle),
     dust: dir.clone().multiplyScalar(speed * 0.1 * streak),
     speed
   };
+}
+
+/**
+ * The streaks at warp (the card's `warp`, warp-drive.js): the camera does not
+ * move, the stars stream as if it flew along its view, longer with the warp
+ * factor as the ship comes up to speed (`level` 0 to 1).
+ * @param {{ x: number, y: number, z: number }} forward - the view direction, unit length
+ * @param {{ level: number, factor: number, scale: number, shell: number, streak: number }} o -
+ *   `scale` the camera's distance from what it looks at (the dust's streaks)
+ * @returns {{ stars: Vector3, dust: Vector3 } | null}
+ */
+export function cruiseTails(forward, { level, factor, scale, shell, streak }) {
+  if (!(level > 0) || !(streak > 0)) return null;
+  const dir = new Vector3(forward.x, forward.y, forward.z).normalize();
+  const angle = Math.min(0.4, (0.03 + 0.025 * factor) * streak) * level;
+  return { stars: dir.clone().multiplyScalar(shell * angle), dust: dir.clone().multiplyScalar(scale * 0.06 * factor * level * streak) };
 }

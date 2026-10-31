@@ -20,7 +20,7 @@
 import { Vector3 } from 'three';
 import { markerSvg } from './markers.js';
 import { viewDepth, depthNear } from './depth-occlusion.js';
-import { distanceAlpha, HIDDEN_ALPHA } from './distance-fade.js';
+import { distanceAlpha, easeAlpha, HIDDEN_ALPHA } from './distance-fade.js';
 import { BUILTIN_LABEL_STYLES, LABEL_POSITIONS, fieldCss } from './label-text.js';
 
 /** Built-in label styles: font size (px) and default priority */
@@ -67,6 +67,7 @@ export const LABEL_STYLES = /** @type {Record<'title' | 'major' | 'minor' | 'tin
  * @property {number} flip - placement this frame: 0 as configured, 1 mirrored left-right, 2 up-down, 3 both (to dodge another label)
  * @property {Vector3 | null} world - position this frame
  * @property {number} alphaScale - 0 to 1 (a sky point below the horizon dims, a rule's opacity)
+ * @property {number} [shown] - the alpha as last laid out, eased toward its target (layoutLabels)
  * @property {boolean} selected
  * @property {number} sx - projected position, CSS px
  * @property {number} sy
@@ -253,9 +254,10 @@ export function rayHitsBox(p, dir, reach, inverse, half) {
  * @param {number} width - CSS px
  * @param {number} height
  * @param {Occluder[]} [occluders]
- * @returns {{ visible: number, culled: number, occluded: number }}
+ * @param {number} [dt] - ms since the last layout: a label eases to its range's alpha over FADE_MS (none: at once)
+ * @returns {{ visible: number, culled: number, occluded: number, fading: number }}
  */
-export function layoutLabels(items, camera, width, height, occluders = []) {
+export function layoutLabels(items, camera, width, height, occluders = [], dt = Infinity) {
   const v = new Vector3();
   const dir = new Vector3();
   const oc = new Vector3();
@@ -268,16 +270,23 @@ export function layoutLabels(items, camera, width, height, occluders = []) {
   /** @type {LabelItem[]} */
   const live = [];
   let occluded = 0;
+  let fading = 0;
   for (const it of items) {
     it.visible = false;
     it.reason = 'off';
     const p = it.world;
-    if (!p || it.alphaScale <= 0 || (it.empty && !it.anchor)) continue;
+    if (!p || (it.empty && !it.anchor)) { it.shown = undefined; continue; }
+    // its range is in its own frame's units (a point inside a system: the system's); eased over time,
+    // so a label the camera passes in one frame (a long fly-to) still fades
+    const dist = cam.distanceTo(p);
+    const target = it.alphaScale > 0 ? it.alphaScale * distanceAlpha(it, dist / (it.unit ?? 1)) : 0;
+    it.shown = easeAlpha(it.shown, target, dt);
+    if (it.shown !== target) fading++;
+    if (it.shown <= HIDDEN_ALPHA) { if (it.alphaScale > 0) it.reason = 'range'; continue; }
     v.copy(p).project(camera);
     if (v.z > 1 || v.z < -1 || v.x < -1.2 || v.x > 1.2 || v.y < -1.2 || v.y > 1.2) continue;
     it.sx = (v.x * 0.5 + 0.5) * width;
     it.sy = (-v.y * 0.5 + 0.5) * height;
-    const dist = cam.distanceTo(p);
     it.depth = dist;
     // The object at the point, on screen: the label stands off its edge
     it.reach = it.clear > 0 ? Math.min(GAP_MAX, it.clear * pxPerUnit(dist)) : 0;
@@ -306,10 +315,7 @@ export function layoutLabels(items, camera, width, height, occluders = []) {
       if (oc.lengthSq() - tc * tc < r * r) { hidden = true; break; }
     }
     if (hidden) { occluded++; it.reason = 'occluded'; continue; }
-    // its range is in its own frame's units (a point inside a system: the system's)
-    const a = it.alphaScale * distanceAlpha(it, dist / (it.unit ?? 1));
-    it.alpha = a;
-    if (a <= HIDDEN_ALPHA) { it.reason = 'range'; continue; }
+    it.alpha = it.shown;
     // Nothing drawn (only a card on the point): placed, but no box to collide
     if (it.empty) { it.visible = true; it.reason = 'ok'; continue; }
     live.push(it);
@@ -350,7 +356,7 @@ export function layoutLabels(items, camera, width, height, occluders = []) {
     it.visible = true;
     it.reason = 'ok';
   }
-  return { visible: placed.length, culled, occluded };
+  return { visible: placed.length, culled, occluded, fading };
 }
 
 /** A tap this close (CSS px) to a label's box is on the label */
@@ -448,7 +454,7 @@ export class LabelLayer {
     /** @type {Set<string>} */
     this._dirty = new Set();
     this._dirtyAll = true;
-    this.stats = { visible: 0, culled: 0, occluded: 0, measured: 0 };
+    this.stats = { visible: 0, culled: 0, occluded: 0, fading: 0, measured: 0 };
   }
 
   /**
@@ -647,11 +653,12 @@ export class LabelLayer {
    * @param {number} width - CSS px
    * @param {number} height
    * @param {Occluder[]} occluders
+   * @param {number} [dt] - ms since the last update (labels fade over time)
    */
-  update(camera, width, height, occluders) {
+  update(camera, width, height, occluders, dt = Infinity) {
     if (this._dirtyAll || this._dirty.size) this.measure();
     const measured = this.stats.measured;
-    this.stats = { ...layoutLabels(this.items, camera, width, height, occluders), measured };
+    this.stats = { ...layoutLabels(this.items, camera, width, height, occluders, dt), measured };
     for (const it of this.items) {
       const e = this._els.get(it.id);
       if (!e) continue;

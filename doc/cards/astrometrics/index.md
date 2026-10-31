@@ -87,12 +87,13 @@ camera:
 | Zoom | Wheel, toward the pointer | Pinch, toward the pointer | Pinch | `+` / `-` |
 | Fly in toward a spot | Double-click blank space (shift: out) | Double-tap blank space | Double-tap blank space | |
 | Fly to a point and follow it | Click the point or its label | Tap the point or its label | Tap the point or its label | |
-| Let go of a followed point | Pan, or click blank space | Pan, or tap blank space | Pan, or tap blank space | Arrows |
+| Fly in close to what stands at a point (a station, a ship, a planet) | Double-click the point or its label | Double-tap it | Double-tap it | |
+| Let go of a followed point | Click blank space | Tap blank space | Tap blank space | |
 | Back to the start view | | | | `Home` |
 
 `drag: pan` swaps orbit and pan for a one-finger or left-button drag, and with `limits.tilt` locked to one value a drag always pans (a map). The on-card `buttons` do the same as the keys (pan arrows, zoom, reset); press and hold keeps moving.
 
-Taps on points and on objects with a `tap_action` are never a double-tap: they run their action each time.
+A double-tap on a point (one without a `tap_action` of its own, or with a `fly-to`) flies in close: to a few times the size of the largest object standing at the point, or much closer than now when nothing stands there. A station a few km across seen from the far side of its planet is a double-tap away. Taps on points and objects whose `tap_action` is another action run it each time.
 
 ```yaml
 camera:
@@ -158,11 +159,19 @@ One scene can be an LCARS diagram, a realistic view, or both. Give an object or 
 
 | Card `look` | Shows |
 |---|---|
-| `diagram` | Objects and points with `look: diagram` |
-| `realistic` | Objects and points with `look: realistic` |
+| `diagram` | Objects and points with `look: diagram`, and the diagram parts of the rest |
+| `realistic` | Objects and points with `look: realistic`, and the realistic parts of the rest |
 | `mixed` (default) | Both |
 
-Anything without a `look` shows in every look. A see-through wire globe (a [grid](./objects#grid) with `shape: sphere`) for the diagram and a mapped planet for the realistic view, or a wormhole's wire funnel and its glowing vortex: each carries its look, and switching crossfades them in place (no rebuild).
+Anything without a `look` shows in every look, and an object that has a diagram part and a realistic part switches them by itself:
+
+| Object | Diagram look | Realistic look |
+|---|---|---|
+| `sphere` with an `image` or a `fill_effect` | Its lines over a plain body (its `fill_color`) | The bare map or painted surface |
+| `grid` with a `fill_effect` | Its lines | Its fill |
+| `model` with `material: original` | A hologram | Its own materials |
+
+`mixed` shows them as configured. So a mapped planet is a wire globe in the diagram look and a photograph in the realistic one, with nothing extra to write. `look: all` keeps an object as configured in every look. For what has no realistic form, such as a wormhole's wire funnel and its glowing vortex, give each its own `look`. Switching crossfades in place (no rebuild).
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -174,8 +183,7 @@ camera:
 points:
   - { id: name, xyz: [0, 38, 0], label: MARS, style: minor }
 objects:
-  - { type: grid, shape: sphere, radius: 30, line_spacing_deg: 15, color: var(--lcars-blue), look: diagram }
-  - { type: sphere, radius: 29, image: builtin:mars_viking, spin: 4, look: realistic }
+  - { type: sphere, radius: 30, image: builtin:mars_viking, spin: 4, line_spacing_deg: 15, color: var(--lcars-blue) }
   - { type: ring, radius: 45, dash: [6, 8], look: diagram }
 ```
 
@@ -198,6 +206,7 @@ The card is the scene only. For an LCARS frame round it (an "ALPHA QUADRANT" bar
 | `points` | Named points with labels and markers ([Points](./points)) |
 | `objects` | What is drawn ([Objects](./objects), [Effects](./effects)) |
 | `time_scale` | How fast the scene's motion runs (default 1; 0.5 half speed, 0 still). The sky, the scene clock and the camera are not affected ([Controls](#controls)) |
+| `warp`, `warp_factor` | Go to warp: the stars stream past behind the scene; `true` / `false` or an entity, and how fast (1 to 9.9) ([Going to warp](./effects#going-to-warp)) |
 | `look` | `diagram`, `realistic` or `mixed` (default), or `{ entity }` naming one: which objects and points show ([Looks](#looks-diagram-and-realistic)) |
 | `clock` | The scene date (`date: now` or an ISO date) and how fast it runs (`rate: live` or days per second) for real Solar System bodies and the sky ([The scene clock](./scale#the-scene-clock)) |
 | Any number on a point or object | Can follow an entity: `opacity: { entity, to }` ([Settings from entities](./data#settings-from-entities)); `camera.view` can follow one as a [guided tour](./data#a-guided-tour) |

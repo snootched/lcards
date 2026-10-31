@@ -460,6 +460,8 @@ test('camera buttons: a click steps, a hold keeps going, reset flies home', asyn
     const held = (await settled(page)).tx;
     expect(held).toBeGreaterThan(step * 2.5);
     await page.locator('lcards-astrometrics-card button[data-cmd="reset"]').click();
+    // reset waits a moment for more taps (four play the tribute) before it flies home
+    await page.waitForTimeout(700);
     const k = await settled(page);
     expect([Math.round(k.tx), Math.round(k.distance)]).toEqual([0, 200]);
     // buttons: { zoom: false, position: top-left }
@@ -721,7 +723,9 @@ test('E9 distance: objects out of range are not drawn, and appear as the camera 
     expect(st.orbit).toBe(false);
     expect(await litPixels(page)).toBeGreaterThan(500);
     await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo('near', { duration: 0 }));
-    await expect.poll(async () => (await state()).planet, { timeout: 5_000 }).toBe(true);
+    // shows and hides fade over time (FADE_MS): the planet is in once its fade is done
+    await expect.poll(async () => (await state()).alphas.planet ?? 1, { timeout: 5_000 }).toBe(1);
+    await expect.poll(async () => (await state()).disc, { timeout: 5_000 }).toBe(false);
     st = await state();
     expect(st.orbit).toBe(true);
     expect(st.disc).toBe(false);
@@ -1177,6 +1181,8 @@ test('N1 time: the slider slows, holds and speeds the scene; time_scale sets the
 });
 
 test('R4a clock: body points sit where the ephemeris puts them; the date slider runs the date; NOW; set-clock from the registry and lcards.set_clock', async ({ page }) => {
+    // about 5 s alone; the full parallel suite (the heavy galaxy scenes) can stretch it past the default 30 s
+    test.setTimeout(90_000);
     const { position, toScene, AU_KM } = await import('../../src/core/astrometrics/ephemeris.js');
     const T0 = Date.UTC(2026, 9, 30, 12);
     const J2000 = Date.UTC(2000, 0, 1, 12);
@@ -1375,7 +1381,7 @@ test('R4d hide_in_systems: a galaxy-scale line and label show outside every syst
     const state = () => page.evaluate(() => {
         const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
         const vega = s.labelItems.find((l) => l.id === 'vega');
-        return { frame: s.frame, line: s.objectAlphas.core_line, vega: vega?.alphaScale };
+        return { frame: s.frame, line: s.objectAlphas.core_line, other: s.objectAlphas.other_line, sol: s.objectAlphas.sol_line, vega: vega?.alphaScale };
     });
     const fly = (v) => page.evaluate((x) => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo(x, { duration: 0 }), v);
     await fly('near_sol');
@@ -1388,6 +1394,9 @@ test('R4d hide_in_systems: a galaxy-scale line and label show outside every syst
     st = await state();
     expect(st.line).toBe(0);
     expect(st.vega).toBe(0);
+    // a list: hidden in the systems it names only
+    expect(st.sol).toBe(0);
+    expect(st.other ?? 1).toBeGreaterThan(0);
     await expectNoErrors(page);
 });
 
@@ -1421,5 +1430,175 @@ test('looks: the card look follows an input_select; each look shows its own obje
     });
     expect(res[0]).toBeGreaterThan(100);
     expect(res[1]).toBeGreaterThan(100);
+    await expectNoErrors(page);
+});
+
+test('look parts: a mapped sphere is lines over a plain body in the diagram look, the bare map when realistic; an original model gets a hologram twin', async ({ page }) => {
+    await mountCase(page, 'astro-look-parts', { width: '600' });
+    await sceneReady(page);
+    /** pixels that read as the map (red-brown) and as the lines (green) */
+    const parts = () => page.evaluate(() => {
+        const canvas = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('.astro-scene canvas');
+        const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+        let map = 0, lines = 0;
+        for (let i = 0; i < data.length; i += 4) {
+            const [r, g, b] = [data[i], data[i + 1], data[i + 2]];
+            if (r > 60 && r > g + 15 && r > b + 25) map++;
+            else if (g > 120 && g > r + 60 && g > b + 60) lines++;
+        }
+        return { map, lines };
+    });
+    const look = (v) => page.evaluate((x) => window.__setState('input_select.lcards_test_look', x), v);
+    // the sample state names no look: mixed, as configured (lines over the map)
+    await expect.poll(async () => (await parts()).map, { timeout: 8000 }).toBeGreaterThan(2000);
+    expect((await parts()).lines).toBeGreaterThan(200);
+    // diagram: the plain body stands in for the map, the lines stay
+    await look('DIAGRAM');
+    await expect.poll(async () => (await parts()).map, { timeout: 3000 }).toBeLessThan(50);
+    expect((await parts()).lines).toBeGreaterThan(200);
+    // realistic: the bare map
+    await look('REALISTIC');
+    await expect.poll(async () => (await parts()).lines, { timeout: 3000 }).toBeLessThan(50);
+    expect((await parts()).map).toBeGreaterThan(2000);
+    // the model: its own materials are the realistic part, a hologram twin (hidden outside the diagram look) the diagram's
+    await expect.poll(() => page.evaluate(() => {
+        const b = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world.objects.get('ship');
+        const twin = b.lookParts?.diagramOnly?.[0];
+        let holo = 0;
+        twin?.traverse((o) => { if (o.material?.name === 'lcards-hologram') holo++; });
+        return { realistic: b.lookParts?.realistic?.length ?? 0, holo: holo > 0, hidden: twin?.visible === false };
+    }), { timeout: 10_000 }).toEqual({ realistic: 1, holo: true, hidden: true });
+    await expectNoErrors(page);
+});
+
+test('double-tap on a point flies in close to what stands there (4 times its radius), else much closer', async ({ page }) => {
+    await mountCase(page, 'astro-close', { width: '700' });
+    await sceneReady(page);
+    const base = await pointOnPage(page, 'base');
+    await page.mouse.dblclick(base.x, base.y);
+    await expect.poll(async () => (await sceneState(page)).keys.distance, { timeout: 5000 }).toBeLessThan(8.01);
+    const k = (await sceneState(page)).keys;
+    expect(k.distance).toBeGreaterThan(7.99);
+    expect(Math.hypot(k.tx - 40, k.ty, k.tz)).toBeLessThan(0.01);
+    await expectNoErrors(page);
+});
+
+test('warp: an entity engages it, the streak layer comes in and the scene\'s stars streak; off drops out and lets the layer go', async ({ page }) => {
+    await mountCase(page, 'astro-warp', { width: '600' });
+    await sceneReady(page);
+    const state = () => page.evaluate(() => {
+        const card = /** @type {any} */ (document.querySelector('#mount > *'));
+        // the scene's own backdrop stars streak along the view (their tail)
+        const tail = card._scene.debug().world.stars?.field?.mesh.material.uniforms.uTail.value.length() ?? 0;
+        return { level: card._warp?.level ?? 0, factor: card._warp?.factor ?? null, layer: !!card.renderRoot.querySelector('.astro-warp canvas'), streaks: tail > 0 };
+    });
+    expect((await state()).level).toBe(0);
+    await page.evaluate(() => window.__setState('input_boolean.lcards_test_warp', 'on'));
+    await expect.poll(async () => (await state()).level, { timeout: 6000 }).toBe(1);
+    expect(await state()).toEqual({ level: 1, factor: 8, layer: true, streaks: true });
+    await page.evaluate(() => window.__setState('input_boolean.lcards_test_warp', 'off'));
+    await expect.poll(async () => (await state()).level, { timeout: 6000 }).toBe(0);
+    expect((await state()).layer).toBe(false);
+    await expect.poll(async () => (await state()).streaks, { timeout: 3000 }).toBe(false);
+    await expectNoErrors(page);
+});
+
+test('tribute: four quick taps on reset play it (warp, the constellation, the dedication); a tap ends it and the scene comes back', async ({ page }) => {
+    test.setTimeout(90_000);
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await sceneReady(page);
+    const b = await sceneBox(page);
+    await page.mouse.move(b.x + b.w / 2, b.y + b.h / 2);
+    // the camera turned away from its start view: four taps play the tribute, they do not reset it
+    const yaw = await page.evaluate(() => {
+        const rig = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().rig;
+        rig.keys.yaw += 40;
+        return rig.keys.yaw;
+    });
+    const reset = page.locator('lcards-astrometrics-card button[data-cmd="reset"]');
+    await expect(reset).toBeVisible();
+    // four quick real clicks on the button (at its place: no per-click waits, so a loaded machine keeps them quick)
+    const r = /** @type {{ x: number, y: number, width: number, height: number }} */ (await reset.boundingBox());
+    for (let i = 0; i < 4; i++) await page.mouse.click(r.x + r.width / 2, r.y + r.height / 2);
+    const overlay = page.locator('lcards-astrometrics-card .astro-tribute');
+    await expect(overlay).toHaveCount(1, { timeout: 15_000 });
+    await expect.poll(() => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._warp?.target ?? 0)).toBe(1);
+    await expect(overlay).toContainText('SIR PATRICK STEWART');
+    await page.waitForTimeout(700);
+    expect(await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().keys.yaw)).toBe(yaw);
+    // a tap on it ends it
+    await page.mouse.click(b.x + b.w / 2, b.y + b.h / 2);
+    await expect(overlay).toHaveCount(0, { timeout: 8000 });
+    await expect.poll(() => page.evaluate(() => {
+        const card = /** @type {any} */ (document.querySelector('#mount > *'));
+        return { warp: card._warp?.target ?? 0, playing: !!card._tribute, opacity: card.renderRoot.querySelector('.astro-host').style.opacity };
+    }), { timeout: 3000 }).toEqual({ warp: 0, playing: false, opacity: '1' });
+    await expectNoErrors(page);
+});
+
+test('camera.warp from an entity: fly-tos streak while it is on, not while it is off', async ({ page }) => {
+    await mountCase(page, 'astro-warp', { width: '600' });
+    await sceneReady(page);
+    const flyWarp = async (view) => {
+        await page.evaluate((v) => { /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo(v); }, view);
+        await page.waitForTimeout(300);
+        return page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().rig.warp);
+    };
+    await page.evaluate(() => window.__setState('input_boolean.lcards_test_warp_travel', 'off'));
+    expect(await flyWarp('far')).toBe(false);
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => window.__setState('input_boolean.lcards_test_warp_travel', 'on'));
+    expect(await flyWarp('v')).toBe(true);
+    await expectNoErrors(page);
+});
+
+test('reset: one tap resets the view after a moment; two do nothing', async ({ page }) => {
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await sceneReady(page);
+    const b = await sceneBox(page);
+    await page.mouse.move(b.x + b.w / 2, b.y + b.h / 2);
+    const turn = () => page.evaluate(() => {
+        const rig = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().rig;
+        rig.keys.yaw += 40;
+        return rig.keys.yaw;
+    });
+    const yawNow = () => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().keys.yaw);
+    const reset = page.locator('lcards-astrometrics-card button[data-cmd="reset"]');
+    await expect(reset).toBeVisible();
+    const r = /** @type {{ x: number, y: number, width: number, height: number }} */ (await reset.boundingBox());
+    const click = () => page.mouse.click(r.x + r.width / 2, r.y + r.height / 2);
+    // two taps: nothing
+    const turned = await turn();
+    await click();
+    await click();
+    await page.waitForTimeout(1300);
+    expect(await yawNow()).toBe(turned);
+    // one tap: back to the start view once the wait is over
+    await click();
+    await expect.poll(yawNow, { timeout: 5000 }).not.toBe(turned);
+    await expectNoErrors(page);
+});
+
+test('reset taps at an easy pace (about half a second apart) still play the tribute and do not reset', async ({ page }) => {
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await sceneReady(page);
+    const b = await sceneBox(page);
+    await page.mouse.move(b.x + b.w / 2, b.y + b.h / 2);
+    const yaw = await page.evaluate(() => {
+        const rig = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().rig;
+        rig.keys.yaw += 40;
+        return rig.keys.yaw;
+    });
+    const reset = page.locator('lcards-astrometrics-card button[data-cmd="reset"]');
+    await expect(reset).toBeVisible();
+    const r = /** @type {{ x: number, y: number, width: number, height: number }} */ (await reset.boundingBox());
+    for (let i = 0; i < 4; i++) {
+        await page.mouse.click(r.x + r.width / 2, r.y + r.height / 2);
+        if (i === 0) await page.waitForTimeout(350);
+        else if (i < 3) await page.waitForTimeout(650);
+    }
+    await expect(page.locator('lcards-astrometrics-card .astro-tribute')).toHaveCount(1, { timeout: 10_000 });
+    expect(await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().keys.yaw)).toBe(yaw);
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._tribute?.stop());
     await expectNoErrors(page);
 });

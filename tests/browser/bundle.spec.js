@@ -134,9 +134,12 @@ test('size budget: the astrometrics runtime and schema are lazy chunks of their 
     // editing), M3 (facing) and N1 (follow, wheel input). Ceilings ~10% over.
     // R4a (2026-10-30): 172 KB raw / 56.3 KB br with the ephemeris (planets, moons, rotation) and
     // the scene clock. Ceilings ~10% over.
+    // R4d (2026-10-30): 191 KB raw / 62 KB br after R4b (settings from entities, the tour), R4c (the
+    // galaxy object, prisms), R4d (exact far lines, hide_in_systems, face: <point>) and looks
+    // (diagram / realistic / mixed, object parts, an original model's hologram twin). Ceilings ~10% over.
     const size = (f) => statSync(new URL(`chunks/${f}`, DIST)).size;
-    expect(size(/** @type {string} */ (runtime))).toBeLessThanOrEqual(190_000);
-    expect(size(`${runtime}.br`)).toBeLessThanOrEqual(62_000);
+    expect(size(/** @type {string} */ (runtime))).toBeLessThanOrEqual(210_000);
+    expect(size(`${runtime}.br`)).toBeLessThanOrEqual(68_000);
     // the edit maths stays out of the runtime chunk
     expect(js.some(f => /^edit-tools-[\w-]{8}\.js$/.test(f)), 'the edit-tools chunk').toBe(true);
     // E6: the scene effects (nebula and their noise shaders) are a chunk of their own, loaded only

@@ -34,15 +34,15 @@ const OUT = fileURLToPath(new URL('demo/views/astro-showcase.yaml', root));
 /** The card's id (the package's set_clock automation and the stop buttons name it) */
 export const CARD_ID = 'astro_showcase';
 
-/** The tour's stops in order: [view, button label, clock to set there (optional)] */
+/** The tour's stops in order: [view, button label] (the date's rate is the RATE selector's, the same at every stop) */
 export const STOPS = /** @type {const} */ ([
   ['galaxy', 'GALAXY'],
   ['federation', 'FEDERATION'],
-  ['sol', 'SOL SYSTEM', { rate: 30 }],
-  ['earth', 'EARTH', { rate: 0.0417 }],
+  ['sol', 'SOL SYSTEM'],
+  ['earth', 'EARTH'],
   ['mars', 'MARS'],
-  ['jupiter', 'JUPITER', { rate: 1 }],
-  ['saturn', 'SATURN', { rate: 1 }],
+  ['jupiter', 'JUPITER'],
+  ['saturn', 'SATURN'],
   ['pluto', 'PLUTO'],
   ['bajor_system', 'BAJOR SYSTEM'],
   ['ds9', 'DEEP SPACE 9'],
@@ -51,6 +51,12 @@ export const STOPS = /** @type {const} */ ([
   ['cube', 'BORG CUBE'],
   ['gamma', 'IDRAN']
 ]);
+
+/** The RATE selector's options and their rates (days per second): the time slider's stops */
+const RATES = { PAUSED: '0', LIVE: '1 / 86400', '1 H/S': '1 / 24', '1 D/S': '1', '30 D/S': '30', '1 Y/S': '365.25' };
+
+/** The frame's arm (px): as wide as the demo header's sweep (FRAME_WIDTH in scripts/lib/demo-dashboard.js) */
+const ARM = 90;
 
 /** How deep a wormhole mouth's funnel runs (km): the link leaves from its throat */
 const MOUTH_DEPTH = 60;
@@ -76,7 +82,8 @@ export async function showcaseCard() {
   card.points.push({ id: 'wormhole_aim_alpha', at: 'bajor', offset: [0, WORMHOLE_AIM, 0] });
   card.objects = card.objects
     .filter((/** @type {any} */ o) => !starterMouth(o.id))
-    .map((/** @type {any} */ o) => (o.id === 'wormhole_link' ? { ...o, points: ['wormhole_throat', 'gamma_wormhole_throat'] } : o));
+    // the throat shows inside the systems at its ends, not across the Sol close-ups
+    .map((/** @type {any} */ o) => (o.id === 'wormhole_link' ? { ...o, points: ['wormhole_throat', 'gamma_wormhole_throat'], hide_in_systems: ['sol_system'] } : o));
   // Federation names go to alert colours during a Borg incursion (a rule on the tag)
   card.points = card.points.map((/** @type {any} */ p) => (['federation_name', 'sol', 'vulcan', 'andoria', 'tellar'].includes(p.id) ? { ...p, tags: ['federation'] } : p));
 
@@ -163,8 +170,14 @@ export async function showcaseCard() {
 
   // diagram, realistic or both: the look selector
   card.look = { entity: 'input_select.lcards_test_look' };
-  // the scene date's rate follows the value slider; the date comes from the date helper (an automation)
-  card.clock = { date: 'now', rate: { entity: 'input_number.lcards_test_value', to: [0, 30] } };
+  // the backdrop stars streak in colour at warp and on every flight between stops
+  card.backdrop = { ...card.backdrop, stars: { ...(card.backdrop?.stars ?? {}), spectrum: true } };
+  // warp: the WARP toggle engages it, the FACTOR slider sets its speed
+  card.warp = { entity: 'input_boolean.lcards_test_warp' };
+  card.warp_factor = { entity: 'input_number.lcards_test_warp_factor', to: [1, 9.9] };
+  // the scene date's rate follows the RATE selector (the time slider's stops, an hour a second to start);
+  // the date comes from the date helper (an automation)
+  card.clock = { date: 'now', rate: `[[[ return ({ ${Object.entries(RATES).map(([k, v]) => `"${k}": ${v}`).join(', ')} })[states["input_select.lcards_test_rate"]?.state] ?? 1 / 24 ]]]` };
   const views = {
     ...card.camera.views,
     sol: { ...SOL_VIEWS.system, target: 'sun' },
@@ -190,8 +203,10 @@ export async function showcaseCard() {
     ...card.camera,
     views,
     fly_duration: 5000,
+    // the flights between stops streak the stars (warp) while WARP TRAVEL is on
+    warp: { entity: 'input_boolean.lcards_test_warp_travel' },
     // the guided tour: the stage helper picks the stop
-    view: { entity: 'input_number.lcards_test_stage', views: STOPS.map(([view, , clock]) => (clock ? { view, ...clock } : view)) }
+    view: { entity: 'input_number.lcards_test_stage', views: STOPS.map(([view]) => view) }
   };
   card.rules = [
     { id: 'showcase_orbits_off', when: { entity: 'input_boolean.lcards_test_visible', state: 'off' }, apply: { overlays: { 'tag:orbits': { visible: false } } } },
@@ -228,30 +243,54 @@ export async function showcaseView() {
     type: 'custom:lcards-button', preset: 'lozenge', text: { name: { content: label, show: true } }, tap_action: tap
   });
   const stage = { entity_id: 'input_number.lcards_test_stage' };
+  /** A flat LCARS block with a code (the arm and the footer bar) @param {string} label @param {string} color */
+  const block = (label, color) => ({
+    type: 'custom:lcards-button', preset: 'panel-light', min_height: 0, interactive: false,
+    text: { label: { content: label, position: 'bottom-right' } },
+    style: { card: { color: { background: { default: color } } } }
+  });
+  /** A group's heading: a short bar with its name @param {string} label @param {number} span */
+  const heading = (label, span) => ({
+    type: 'custom:lcards-button', preset: 'bar-label-left', interactive: false, height: 26, min_height: 0,
+    text: { label: { content: label } }, view_layout: { 'grid-column': `span ${span}` }
+  });
+  // in the controls a card fills its grid cell (no minimum height of its own)
+  const span = (/** @type {any} */ c, /** @type {number} */ n) => ({ ...c, min_height: 0, view_layout: { 'grid-column': `span ${n}` } });
   return {
     title: 'Astrometrics showcase',
     path: 'astro-showcase',
     type: 'custom:lcards-layout-view',
+    // The demo header (a sweep and its bar) goes in `head`; the arm of blocks continues its
+    // sweep down to the footer sweep, the stops beside it, the controls in labelled groups
     layout: {
       height: 'calc(100dvh - var(--header-height, 56px))',
-      'min-height': '1100px',
+      'min-height': '1150px',
       padding: '12px',
       'grid-gap': '8px',
-      'grid-template-columns': '200px minmax(0, 1fr)',
-      'grid-template-rows': '80px minmax(0, 1fr) 176px',
-      'grid-template-areas': '"head head" "stops scene" "stops controls"'
+      'grid-template-columns': `${ARM}px 170px minmax(0, 1fr)`,
+      'grid-template-rows': '80px minmax(0, 1fr) 236px 44px',
+      'grid-template-areas': '"head head head" "arm stops scene" "arm stops controls" "foot foot foot"'
     },
     cards: [
+      // replaced by the demo header (scripts/lib/demo-dashboard.js)
+      { type: 'custom:lcards-elbow', view_layout: { 'grid-area': 'head' }, elbow: { type: 'header-left' } },
       {
-        type: 'custom:lcards-elbow',
-        view_layout: { 'grid-area': 'head' },
-        elbow: { type: 'header-left', segment: { bar_width: 200, bar_height: 26, color: 'theme:colors.ui.secondary' } },
-        text: { title: { content: 'ASTROMETRICS · STELLAR CARTOGRAPHY', position: 'bottom-right', font_size: 30, color: 'theme:colors.ui.tertiary' } }
+        type: 'custom:lcards-layout-card',
+        view_layout: { 'grid-area': 'arm' },
+        layout: { 'grid-gap': '6px', 'grid-template-columns': 'minmax(0, 1fr)', 'grid-template-rows': '3fr 1fr 1fr 5fr 1fr 2fr' },
+        cards: [
+          block('47-2201', 'theme:colors.ui.primary'),
+          block('03-118', 'theme:colors.ui.secondary'),
+          block('ASTRO', 'theme:colors.ui.tertiary'),
+          block('87867', 'theme:colors.ui.primary'),
+          block('LCARS', 'theme:colors.card.topColor'),
+          block('04-1701', 'theme:colors.ui.primary')
+        ]
       },
       {
         type: 'custom:lcards-layout-card',
         view_layout: { 'grid-area': 'stops' },
-        layout: { 'grid-gap': '6px', 'grid-template-columns': 'minmax(0, 1fr)', 'grid-template-rows': `repeat(${STOPS.length}, minmax(0, 1fr))` },
+        layout: { 'grid-gap': '8px', 'grid-template-columns': 'minmax(0, 1fr)', 'grid-template-rows': `repeat(${STOPS.length}, minmax(0, 1fr))` },
         cards: STOPS.map(([view, label]) => stop(view, label))
       },
       { ...card, view_layout: { 'grid-area': 'scene' }, height: '100%' },
@@ -259,33 +298,65 @@ export async function showcaseView() {
         type: 'custom:lcards-layout-card',
         view_layout: { 'grid-area': 'controls' },
         layout: {
-          'grid-gap': '6px',
-          'grid-template-columns': 'repeat(6, minmax(0, 1fr))',
-          'grid-template-rows': 'repeat(4, minmax(0, 1fr))'
+          'grid-gap': '8px 12px',
+          'grid-template-columns': 'repeat(12, minmax(0, 1fr))',
+          'grid-template-rows': '26px minmax(0, 1fr) minmax(0, 1fr) 26px minmax(0, 1fr)'
         },
         cards: [
-          toggle('input_boolean.lcards_test_visible', 'ORBITS'),
-          toggle('input_boolean.lcards_test_lights', 'PLANET GRIDS'),
-          toggle('input_boolean.lcards_test_toggle', 'BORG INCURSION'),
-          action('PREVIOUS', { action: 'perform-action', perform_action: 'input_number.decrement', target: stage }),
+          heading('SCENE', 6),
+          heading('GUIDED TOUR', 6),
+          span(toggle('input_boolean.lcards_test_visible', 'ORBITS'), 2),
+          span(toggle('input_boolean.lcards_test_lights', 'PLANET GRIDS'), 2),
+          span(toggle('input_boolean.lcards_test_toggle', 'BORG INCURSION'), 2),
+          span(action('PREV', { action: 'perform-action', perform_action: 'input_number.decrement', target: stage }), 1),
           // starts the tour, and stops it while it runs
-          {
+          span({
             type: 'custom:lcards-button', preset: 'lozenge', entity: 'script.lcards_test_tour',
             text: { name: { content: "[[[ return entity?.state === 'on' ? 'STOP TOUR' : 'PLAY TOUR' ]]]", show: true } },
             tap_action: { action: 'toggle' }
-          },
-          action('NEXT', { action: 'perform-action', perform_action: 'input_number.increment', target: stage }),
-          { ...slider('input_number.lcards_test_shields', 'SHIELDS'), view_layout: { 'grid-column': 'span 2' } },
-          { ...slider('input_number.lcards_test_power', 'WORMHOLE'), view_layout: { 'grid-column': 'span 2' } },
-          { ...slider('input_number.lcards_test_value', 'DATE RATE'), view_layout: { 'grid-column': 'span 2' } },
-          { type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_mode', preset: 'toggle-tab', grid: { columns: 3 }, view_layout: { 'grid-column': 'span 3' } },
-          // the look: the wormholes as LCARS diagrams, realistic, or both
-          { type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_look', preset: 'toggle-tab', grid: { columns: 3 }, view_layout: { 'grid-column': 'span 3' } },
+          }, 2),
+          span(action('NEXT', { action: 'perform-action', perform_action: 'input_number.increment', target: stage }), 1),
+          span(toggle('input_boolean.lcards_test_warp_travel', 'WARP TRAVEL'), 2),
+          span(slider('input_number.lcards_test_shields', 'SHIELDS'), 4),
+          span(slider('input_number.lcards_test_power', 'WORMHOLE'), 4),
+          // the date's rate: the time slider's stops
+          span({ type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_rate', preset: 'toggle-tab', grid: { columns: 6 } }, 4),
+          heading('RED ALERT', 3),
+          heading('LOOK', 3),
+          heading('WARP', 3),
+          heading('SCENE CLOCK', 3),
+          span({ type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_mode', preset: 'toggle-tab', grid: { columns: 3 } }, 3),
+          // the look: the wormholes and planets as LCARS diagrams, realistic, or both
+          span({ type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_look', preset: 'toggle-tab', grid: { columns: 3 } }, 3),
+          // warp: engage, and the warp factor
+          span(toggle('input_boolean.lcards_test_warp', 'ENGAGE'), 1),
+          span({ ...slider('input_number.lcards_test_warp_factor', 'FACTOR'), style: { shaped: { text_bands: { left: { size: 70 } } } } }, 2),
+          span({
+            type: 'custom:lcards-button', preset: 'lozenge', entity: 'input_datetime.lcards_test_date',
+            text: { name: { content: "[[[ return String(entity?.state ?? '').slice(0, 10) ]]]", show: true } }, tap_action: { action: 'more-info' }
+          }, 2),
+          span(action('NOW', { action: 'set-clock', card: CARD_ID, date: 'now' }), 1)
+        ]
+      },
+      // the footer: a sweep up into the arm, its bar of segments
+      {
+        type: 'custom:lcards-layout-card',
+        view_layout: { 'grid-area': 'foot' },
+        layout: {
+          'grid-gap': '6px',
+          'grid-template-columns': '150px minmax(0, 4fr) minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr)',
+          'grid-template-rows': '18px 26px',
+          'grid-template-areas': '"sweep . . . ." "sweep f1 f2 f3 f4"'
+        },
+        cards: [
           {
-            type: 'custom:lcards-button', preset: 'lozenge', entity: 'input_datetime.lcards_test_date', view_layout: { 'grid-column': 'span 5' },
-            text: { name: { content: 'DATE {entity.state}', show: true } }, tap_action: { action: 'more-info' }
+            type: 'custom:lcards-elbow', view_layout: { 'grid-area': 'sweep' },
+            elbow: { type: 'footer-left', segment: { bar_width: ARM, bar_height: 26, color: 'theme:colors.ui.primary', outer_curve: 70, inner_curve: 26 } }
           },
-          action('NOW', { action: 'set-clock', card: CARD_ID, date: 'now', rate: 'live' })
+          { ...block('STELLAR CARTOGRAPHY', 'theme:colors.ui.tertiary'), view_layout: { 'grid-area': 'f1' } },
+          { ...block('541', 'theme:colors.ui.secondary'), view_layout: { 'grid-area': 'f2' } },
+          { ...block('ASTROMETRICS LAB', 'theme:colors.ui.primary'), view_layout: { 'grid-area': 'f3' } },
+          { ...block('47-2201', 'theme:colors.card.topColor'), view_layout: { 'grid-area': 'f4' } }
         ]
       }
     ]

@@ -67,6 +67,18 @@ export function buildSphere(cfg, ctx) {
   // the body's own sphere is turned: deform it in the node's frame
   body.geometry.rotateY(body.rotation.y);
   body.rotation.y = 0;
+  // A mapped or painted body is the realistic part, the lines the diagram's; in the diagram look a
+  // plain body (the fill colour, sharing the body's geometry) stands in for the map (looks.js)
+  if (effect || cfg.image) {
+    const plainMat = new MeshBasicMaterial({ transparent: true, depthWrite: true });
+    plainMat.color.setRGB(baseColor[0], baseColor[1], baseColor[2], SRGBColorSpace);
+    plainMat.opacity = num(cfg.fill_opacity, 0.85) * (baseColor[3] ?? 1);
+    const plain = new Mesh(body.geometry, plainMat);
+    plain.renderOrder = 0;
+    plain.visible = false;
+    node.add(plain);
+    out.lookParts = { diagram: [face], realistic: [body], diagramOnly: [plain] };
+  }
   const geos = [/** @type {any} */ (face.children[0]).geometry, body.geometry];
   out.tick = combineTicks(deformTicker(cfg, 'sphere', out, [-R, R], geos, []), scanTicker(cfg, ctx, out.gridFaces), effect?.tick);
   bodyTurn(out);

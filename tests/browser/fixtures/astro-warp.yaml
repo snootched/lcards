@@ -1,0 +1,17 @@
+# Warp from an entity (warp-drive.js): input_boolean.lcards_test_warp engages
+# it; astrometrics.spec.js checks the streak layer and the backdrop. Fly-tos
+# streak while input_boolean.lcards_test_warp_travel is on (camera.warp).
+type: custom:lcards-astrometrics-card
+height: 300
+warp: { entity: input_boolean.lcards_test_warp }
+warp_factor: 8
+backdrop:
+  stars: true
+camera:
+  warp: { entity: input_boolean.lcards_test_warp_travel }
+  fly_duration: 1500
+  views:
+    v: { target: [0, 0, 0], yaw: 0, tilt: 10, distance: 120 }
+    far: { target: [0, 0, 0], yaw: 40, tilt: 20, distance: 2000 }
+objects:
+  - { type: sphere, radius: 20, line_spacing_deg: 20 }

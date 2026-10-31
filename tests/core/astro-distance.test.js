@@ -15,7 +15,7 @@ import { installJsdom } from '../helpers/jsdom-env.js';
 const env = installJsdom();
 after(() => env.restore());
 const { Vector3, Group, Mesh, BoxGeometry, MeshStandardMaterial } = await import('three');
-const { distanceRange, distanceAlpha, sphereDistance, localBounds, ObjectFader } = await import('../../src/core/astrometrics/distance-fade.js');
+const { distanceRange, distanceAlpha, sphereDistance, localBounds, ObjectFader, easeAlpha, FADE_MS } = await import('../../src/core/astrometrics/distance-fade.js');
 const { buildScene } = await import('../../src/core/astrometrics/scene-builder.js');
 const models = await import('../../src/core/astrometrics/model/index.js');
 const { objectSchema } = await import('../../src/cards/schemas/astrometrics-schema.js');
@@ -269,4 +269,36 @@ test('ship and starbase markers draw', () => {
     assert.match(markerSvg(name), /^<svg width="(\d+)"/);
     assert.equal(Number(/width="(\d+)"/.exec(markerSvg(name))?.[1]), /** @type {any} */ (MARKER_SIZE)[name]);
   }
+});
+
+test('fades ease over time: crossing a range in one frame (a long fly-to) still fades the object out, and a factor back to 1 fades it in', () => {
+  assert.equal(easeAlpha(undefined, 0, 16), 0, 'nothing before: at once');
+  assert.equal(easeAlpha(1, 0, Infinity), 0, 'no frame time (reduced motion): at once');
+  assert.equal(easeAlpha(1, 0, FADE_MS / 4), 0.75);
+  const w = buildScene({ objects: [{ type: 'sphere', id: 'p', radius: 10, max_distance: 100 }, { type: 'ring', id: 'r', radius: 5 }] }, /** @type {any} */ (ctx()));
+  const fader = new ObjectFader();
+  const near = new Vector3(0, 0, 50);
+  const far = new Vector3(0, 0, 5000);
+  fader.begin(w.list, w.outer, near, undefined, undefined, 16);
+  assert.equal(fader.alphas.get('p'), 1);
+  fader.end();
+  // one frame later the camera is far past the range: still mostly shown, fading
+  fader.begin(w.list, w.outer, far, undefined, undefined, FADE_MS / 4);
+  assert.equal(fader.alphas.get('p'), 0.75);
+  assert.equal(fader.settling, true);
+  fader.end();
+  for (let i = 0; i < 3; i++) { fader.begin(w.list, w.outer, far, undefined, undefined, FADE_MS / 4); fader.end(); }
+  fader.begin(w.list, w.outer, far, undefined, undefined, FADE_MS / 4);
+  assert.equal(fader.alphas.get('p'), 0);
+  assert.equal(fader.settling, false);
+  fader.end();
+  // a ring (no range) hidden by a factor (a system's hide), then back: fades in
+  const hide = (/** @type {any} */ b) => (b.id === 'r' ? 0 : 1);
+  fader.begin(w.list, w.outer, near, undefined, hide, Infinity);
+  fader.end();
+  fader.begin(w.list, w.outer, near, undefined, () => 1, FADE_MS / 2);
+  assert.equal(fader.alphas.get('r'), 0.5);
+  assert.equal(/** @type {any} */ (w.outer.get(w.objects.get('r'))).visible, true);
+  fader.end();
+  w.dispose();
 });

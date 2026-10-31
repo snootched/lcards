@@ -352,3 +352,18 @@ test('depth occluder: a point a model sits at is never hidden by that model (the
   assert.notEqual(seat.reason, 'occluded');
   assert.equal(other.reason, 'occluded');
 });
+
+test('a label crossing its range in one frame fades over time, and reports itself fading', () => {
+  // (the scene builder turns a point's max_distance into the item's maxDistance)
+  const it = Object.assign(item('far', [0, 0, 0]), { maxDistance: 50 });
+  const cam = (/** @type {number} */ z) => { const c = new PerspectiveCamera(50, 800 / 600, 0.1, 1e6); c.position.set(0, 0, z); c.lookAt(0, 0, 0); c.updateMatrixWorld(); return c; };
+  layoutLabels([it], cam(20), 800, 600, [], 16);
+  assert.equal(it.visible, true);
+  const s = layoutLabels([it], cam(5000), 800, 600, [], 100);
+  assert.equal(it.visible, true);
+  assert.ok(it.alpha < 1 && it.alpha > 0.5, `${it.alpha}`);
+  assert.equal(s.fading, 1);
+  for (let i = 0; i < 5; i++) layoutLabels([it], cam(5000), 800, 600, [], 100);
+  assert.equal(it.visible, false);
+  assert.equal(it.reason, 'range');
+});

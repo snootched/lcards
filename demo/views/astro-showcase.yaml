@@ -9,33 +9,79 @@ path: astro-showcase
 type: custom:lcards-layout-view
 layout:
   height: calc(100dvh - var(--header-height, 56px))
-  min-height: 1100px
+  min-height: 1150px
   padding: 12px
   grid-gap: 8px
-  grid-template-columns: 200px minmax(0, 1fr)
-  grid-template-rows: 80px minmax(0, 1fr) 176px
-  grid-template-areas: '"head head" "stops scene" "stops controls"'
+  grid-template-columns: 90px 170px minmax(0, 1fr)
+  grid-template-rows: 80px minmax(0, 1fr) 236px 44px
+  grid-template-areas: '"head head head" "arm stops scene" "arm stops controls" "foot foot foot"'
 cards:
   - type: custom:lcards-elbow
     view_layout:
       grid-area: head
     elbow:
       type: header-left
-      segment:
-        bar_width: 200
-        bar_height: 26
-        color: theme:colors.ui.secondary
-    text:
-      title:
-        content: ASTROMETRICS · STELLAR CARTOGRAPHY
-        position: bottom-right
-        font_size: 30
-        color: theme:colors.ui.tertiary
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: arm
+    layout:
+      grid-gap: 6px
+      grid-template-columns: minmax(0, 1fr)
+      grid-template-rows: 3fr 1fr 1fr 5fr 1fr 2fr
+    cards:
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: 47-2201, position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.ui.primary}}}
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: 03-118, position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.ui.secondary}}}
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: ASTRO, position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.ui.tertiary}}}
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: '87867', position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.ui.primary}}}
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: LCARS, position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.card.topColor}}}
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: 04-1701, position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.ui.primary}}}
   - type: custom:lcards-layout-card
     view_layout:
       grid-area: stops
     layout:
-      grid-gap: 6px
+      grid-gap: 8px
       grid-template-columns: minmax(0, 1fr)
       grid-template-rows: repeat(14, minmax(0, 1fr))
     cards:
@@ -887,6 +933,8 @@ cards:
         glow: 3
         pulse: true
         flow_speed: 30
+        hide_in_systems:
+          - sol_system
       - type: path
         id: voyager_route
         points:
@@ -1260,11 +1308,11 @@ cards:
         views:
           - galaxy
           - federation
-          - {view: sol, rate: 30}
-          - {view: earth, rate: 0.0417}
+          - sol
+          - earth
           - mars
-          - {view: jupiter, rate: 1}
-          - {view: saturn, rate: 1}
+          - jupiter
+          - saturn
           - pluto
           - bajor_system
           - ds9
@@ -1374,19 +1422,25 @@ cards:
           yaw: 20
           tilt: 10
           distance: 12
+      warp:
+        entity: input_boolean.lcards_test_warp_travel
     backdrop:
       stars:
         count: 1500
+        spectrum: true
     units: ly
     look:
       entity: input_select.lcards_test_look
+    warp:
+      entity: input_boolean.lcards_test_warp
+    warp_factor:
+      entity: input_number.lcards_test_warp_factor
+      to:
+        - 1
+        - 9.9
     clock:
       date: now
-      rate:
-        entity: input_number.lcards_test_value
-        to:
-          - 0
-          - 30
+      rate: '[[[ return ({ "PAUSED": 0, "LIVE": 1 / 86400, "1 H/S": 1 / 24, "1 D/S": 1, "30 D/S": 30, "1 Y/S": 365.25 })[states["input_select.lcards_test_rate"]?.state] ?? 1 / 24 ]]]'
     rules:
       - id: showcase_orbits_off
         when:
@@ -1413,10 +1467,28 @@ cards:
     view_layout:
       grid-area: controls
     layout:
-      grid-gap: 6px
-      grid-template-columns: repeat(6, minmax(0, 1fr))
-      grid-template-rows: repeat(4, minmax(0, 1fr))
+      grid-gap: 8px 12px
+      grid-template-columns: repeat(12, minmax(0, 1fr))
+      grid-template-rows: 26px minmax(0, 1fr) minmax(0, 1fr) 26px minmax(0, 1fr)
     cards:
+      - type: custom:lcards-button
+        preset: bar-label-left
+        interactive: false
+        height: 26
+        min_height: 0
+        text:
+          label: {content: SCENE}
+        view_layout:
+          grid-column: span 6
+      - type: custom:lcards-button
+        preset: bar-label-left
+        interactive: false
+        height: 26
+        min_height: 0
+        text:
+          label: {content: GUIDED TOUR}
+        view_layout:
+          grid-column: span 6
       - type: custom:lcards-button
         preset: lozenge
         entity: input_boolean.lcards_test_visible
@@ -1424,6 +1496,9 @@ cards:
           name: {content: ORBITS, show: true}
         tap_action:
           action: toggle
+        min_height: 0
+        view_layout:
+          grid-column: span 2
       - type: custom:lcards-button
         preset: lozenge
         entity: input_boolean.lcards_test_lights
@@ -1431,6 +1506,9 @@ cards:
           name: {content: PLANET GRIDS, show: true}
         tap_action:
           action: toggle
+        min_height: 0
+        view_layout:
+          grid-column: span 2
       - type: custom:lcards-button
         preset: lozenge
         entity: input_boolean.lcards_test_toggle
@@ -1438,14 +1516,20 @@ cards:
           name: {content: BORG INCURSION, show: true}
         tap_action:
           action: toggle
+        min_height: 0
+        view_layout:
+          grid-column: span 2
       - type: custom:lcards-button
         preset: lozenge
         text:
-          name: {content: PREVIOUS, show: true}
+          name: {content: PREV, show: true}
         tap_action:
           action: perform-action
           perform_action: input_number.decrement
           target: {entity_id: input_number.lcards_test_stage}
+        min_height: 0
+        view_layout:
+          grid-column: span 1
       - type: custom:lcards-button
         preset: lozenge
         entity: script.lcards_test_tour
@@ -1453,6 +1537,9 @@ cards:
           name: {content: '[[[ return entity?.state === ''on'' ? ''STOP TOUR'' : ''PLAY TOUR'' ]]]', show: true}
         tap_action:
           action: toggle
+        min_height: 0
+        view_layout:
+          grid-column: span 2
       - type: custom:lcards-button
         preset: lozenge
         text:
@@ -1461,6 +1548,19 @@ cards:
           action: perform-action
           perform_action: input_number.increment
           target: {entity_id: input_number.lcards_test_stage}
+        min_height: 0
+        view_layout:
+          grid-column: span 1
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_warp_travel
+        text:
+          name: {content: WARP TRAVEL, show: true}
+        tap_action:
+          action: toggle
+        min_height: 0
+        view_layout:
+          grid-column: span 2
       - type: custom:lcards-slider
         entity: input_number.lcards_test_shields
         preset: shaped-horizontal
@@ -1469,8 +1569,9 @@ cards:
           name: {content: SHIELDS}
         style:
           shaped: {text_bands: {left: {size: 110}}}
+        min_height: 0
         view_layout:
-          grid-column: span 2
+          grid-column: span 4
       - type: custom:lcards-slider
         entity: input_number.lcards_test_power
         preset: shaped-horizontal
@@ -1479,23 +1580,59 @@ cards:
           name: {content: WORMHOLE}
         style:
           shaped: {text_bands: {left: {size: 110}}}
+        min_height: 0
         view_layout:
-          grid-column: span 2
-      - type: custom:lcards-slider
-        entity: input_number.lcards_test_value
-        preset: shaped-horizontal
-        component: shaped
+          grid-column: span 4
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_rate
+        preset: toggle-tab
+        grid:
+          columns: 6
+        min_height: 0
+        view_layout:
+          grid-column: span 4
+      - type: custom:lcards-button
+        preset: bar-label-left
+        interactive: false
+        height: 26
+        min_height: 0
         text:
-          name: {content: DATE RATE}
-        style:
-          shaped: {text_bands: {left: {size: 110}}}
+          label: {content: RED ALERT}
         view_layout:
-          grid-column: span 2
+          grid-column: span 3
+      - type: custom:lcards-button
+        preset: bar-label-left
+        interactive: false
+        height: 26
+        min_height: 0
+        text:
+          label: {content: LOOK}
+        view_layout:
+          grid-column: span 3
+      - type: custom:lcards-button
+        preset: bar-label-left
+        interactive: false
+        height: 26
+        min_height: 0
+        text:
+          label: {content: WARP}
+        view_layout:
+          grid-column: span 3
+      - type: custom:lcards-button
+        preset: bar-label-left
+        interactive: false
+        height: 26
+        min_height: 0
+        text:
+          label: {content: SCENE CLOCK}
+        view_layout:
+          grid-column: span 3
       - type: custom:lcards-select-menu
         entity: input_select.lcards_test_mode
         preset: toggle-tab
         grid:
           columns: 3
+        min_height: 0
         view_layout:
           grid-column: span 3
       - type: custom:lcards-select-menu
@@ -1503,17 +1640,40 @@ cards:
         preset: toggle-tab
         grid:
           columns: 3
+        min_height: 0
         view_layout:
           grid-column: span 3
       - type: custom:lcards-button
         preset: lozenge
-        entity: input_datetime.lcards_test_date
-        view_layout:
-          grid-column: span 5
+        entity: input_boolean.lcards_test_warp
         text:
-          name: {content: 'DATE {entity.state}', show: true}
+          name: {content: ENGAGE, show: true}
+        tap_action:
+          action: toggle
+        min_height: 0
+        view_layout:
+          grid-column: span 1
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_warp_factor
+        preset: shaped-horizontal
+        component: shaped
+        text:
+          name: {content: FACTOR}
+        style:
+          shaped: {text_bands: {left: {size: 70}}}
+        min_height: 0
+        view_layout:
+          grid-column: span 2
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_datetime.lcards_test_date
+        text:
+          name: {content: '[[[ return String(entity?.state ?? '''').slice(0, 10) ]]]', show: true}
         tap_action:
           action: more-info
+        min_height: 0
+        view_layout:
+          grid-column: span 2
       - type: custom:lcards-button
         preset: lozenge
         text:
@@ -1522,4 +1682,61 @@ cards:
           action: set-clock
           card: astro_showcase
           date: now
-          rate: live
+        min_height: 0
+        view_layout:
+          grid-column: span 1
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: foot
+    layout:
+      grid-gap: 6px
+      grid-template-columns: 150px minmax(0, 4fr) minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr)
+      grid-template-rows: 18px 26px
+      grid-template-areas: '"sweep . . . ." "sweep f1 f2 f3 f4"'
+    cards:
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-area: sweep
+        elbow:
+          type: footer-left
+          segment: {bar_width: 90, bar_height: 26, color: theme:colors.ui.primary, outer_curve: 70, inner_curve: 26}
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: STELLAR CARTOGRAPHY, position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.ui.tertiary}}}
+        view_layout:
+          grid-area: f1
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: '541', position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.ui.secondary}}}
+        view_layout:
+          grid-area: f2
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: ASTROMETRICS LAB, position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.ui.primary}}}
+        view_layout:
+          grid-area: f3
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        interactive: false
+        text:
+          label: {content: 47-2201, position: bottom-right}
+        style:
+          card: {color: {background: {default: theme:colors.card.topColor}}}
+        view_layout:
+          grid-area: f4

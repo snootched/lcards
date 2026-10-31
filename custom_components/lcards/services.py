@@ -367,7 +367,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         """Set an astrometrics card's scene date and rate on target frontends.
 
         ``card_id`` is the card's ``id``; ``date`` is ``now`` or an ISO date,
-        ``rate`` is ``live`` or days per second. At least one of them.
+        ``rate`` is ``live``, days per second, or with a unit (``1 h/s``, ``30 d/s``). At least one of them.
         """
         payload: dict = {"card_id": call.data["card_id"]}
         for key in ("date", "rate"):
@@ -595,7 +595,12 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             vol.Schema({
                 vol.Required("card_id"): vol.All(str, vol.Length(min=1)),
                 vol.Optional("date"):    vol.All(str, vol.Length(min=1)),
-                vol.Optional("rate"):    vol.Any(vol.Coerce(float), vol.All(str, vol.In(["live"]))),
+                vol.Optional("rate"):    vol.Any(
+                    vol.Coerce(float),
+                    vol.All(str, vol.In(["live"])),
+                    # with a unit, as the time slider shows it: 1 h/s, 30 d/s, 1 y/s
+                    vol.All(str, vol.Match(r"^\s*-?\d+(\.\d+)?\s*(s|min|h|d|w|mo|y)\s*(/\s*s)?\s*$")),
+                ),
                 **_TARGET_FIELDS,
             }),
             vol.Any(

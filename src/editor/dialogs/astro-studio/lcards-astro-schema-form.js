@@ -138,6 +138,8 @@ export class LCARdSAstroSchemaForm extends LitElement {
     const cls = SHORT.has(kind) ? '' : 'full';
     switch (kind) {
       case 'boolean':
+        // true or a list (hide_in_systems: [sol_system]), or an entity (warp): YAML
+        if (Array.isArray(value) || isObj(value)) return this._yaml(key, s);
         return this._selector(key, { boolean: {} }, value ?? s.default ?? false, label, helper, cls, (v) => v);
       case 'enum': {
         // unset shows the default; choosing the default leaves the key out

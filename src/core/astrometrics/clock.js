@@ -45,13 +45,25 @@ export function dateStop(rate) {
   return best;
 }
 
+/** Days in one of a rate's units (`1 h/s`, `30 d/s`, `1 y/s`) */
+export const RATE_UNITS = Object.freeze({ s: 1 / 86400, min: 1 / 1440, h: 1 / 24, d: 1, w: 7, mo: 30, y: 365.25 });
+
+/** A rate written with its unit: a number, the unit, optionally `/s` (`1 h/s`, `-30d`, `1 y/s`) */
+export const RATE_PATTERN = '^\\s*-?\\d+(\\.\\d+)?\\s*(s|min|h|d|w|mo|y)\\s*(/\\s*s)?\\s*$';
+
 /**
- * A `rate` value as days per second: `live` (or nothing) is real time.
+ * A `rate` value as days per second: `live` (or nothing) is real time; a
+ * number is days per second; a string with its unit reads as the time
+ * slider shows it (`1 h/s` an hour a second, `30 d/s`, `1 y/s`, `-1 d/s`).
  * @param {any} v
  * @returns {number | null} null when it is not a rate
  */
 export function parseRate(v) {
   if (v === undefined || v === null || v === '' || v === 'live') return LIVE_RATE;
+  if (typeof v === 'string') {
+    const m = v.trim().toLowerCase().match(new RegExp(RATE_PATTERN));
+    if (m) return Number(v.trim().match(/^-?\d+(\.\d+)?/)?.[0]) * RATE_UNITS[/** @type {keyof typeof RATE_UNITS} */ (m[2])];
+  }
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }

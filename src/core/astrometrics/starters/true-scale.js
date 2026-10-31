@@ -86,8 +86,8 @@ export const SOL_VIEWS = {
 /** The station view (with `station`) */
 export const STATION_VIEW = { target: 'ds9', yaw: 330, tilt: 6, distance: 4 };
 
-/** The scene clock: today, a day a second (the time slider changes it) */
-export const SOL_CLOCK = { date: 'now', rate: 1 };
+/** The scene clock: today, an hour a second (the time slider changes it) */
+export const SOL_CLOCK = { date: 'now', rate: '1 h/s' };
 
 /**
  * @param {{ station?: boolean }} [opts]

@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseLook, lookTargets, stepLook, lookAlpha, LOOK_FADE_MS } from '../../src/core/astrometrics/looks.js';
+import { parseLook, lookTargets, stepLook, lookAlpha, partWeights, switchesParts, LOOK_FADE_MS } from '../../src/core/astrometrics/looks.js';
 
 test('parseLook: the three looks in any case, else null', () => {
   assert.equal(parseLook('diagram'), 'diagram');
@@ -35,4 +35,19 @@ test('stepLook crossfades over LOOK_FADE_MS, and at once with no fade', () => {
   const v = lookTargets('diagram');
   assert.equal(stepLook(v, to, 16, 0), false);
   assert.deepEqual(v, to);
+});
+
+test('part weights: diagram and realistic parts show in their look and in mixed; the stand-ins only in their own look', () => {
+  assert.deepEqual(partWeights(lookTargets('diagram')), { diagram: 1, realistic: 0, diagramOnly: 1, realisticOnly: 0 });
+  assert.deepEqual(partWeights(lookTargets('realistic')), { diagram: 0, realistic: 1, diagramOnly: 0, realisticOnly: 1 });
+  assert.deepEqual(partWeights(lookTargets('mixed')), { diagram: 1, realistic: 1, diagramOnly: 0, realisticOnly: 0 });
+  // halfway from diagram to realistic: the plain body fades out as the map fades in
+  assert.deepEqual(partWeights({ diagram: 0.5, realistic: 0.5 }), { diagram: 0.5, realistic: 0.5, diagramOnly: 0.25, realisticOnly: 0.25 });
+});
+
+test('only objects without a look of their own switch their parts (all keeps the whole object)', () => {
+  assert.equal(switchesParts({}), true);
+  assert.equal(switchesParts({ look: 'all' }), false);
+  assert.equal(switchesParts({ look: 'diagram' }), false);
+  assert.equal(lookAlpha({ look: 'all' }, lookTargets('diagram')), 1);
 });

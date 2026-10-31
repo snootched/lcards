@@ -39,11 +39,11 @@ import { FatLine } from './lines.js';
 import { skyState } from './sky.js';
 import { SceneClock } from './clock.js';
 import { easeStep } from './bindings.js';
-import { warpTails } from './star-field.js';
+import { warpTails, cruiseTails } from './star-field.js';
 import { STAR_SHELL } from './objects/stars.js';
 import { num, stepObjects } from './objects/common.js';
 import { usesEffects, usesModels, flattenSystems } from './names.js';
-import { parseLook, lookTargets, stepLook, lookAlpha } from './looks.js';
+import { parseLook, lookTargets, stepLook, lookAlpha, partWeights, switchesParts, PART_KINDS } from './looks.js';
 
 const DEG = Math.PI / 180;
 /** Point keys that place it: a rule patch on one moves the point */
@@ -147,6 +147,8 @@ const KEY_COMMANDS = {
  * @property {() => number} timeScale
  * @property {(opts: { date?: any, rate?: any }) => boolean} setClock - set the scene date (now, ISO, ms) and or rate (live, days per second); false when a value was not understood
  * @property {() => AstroClockState} clock - the scene date and rate now
+ * @property {(on: boolean | null) => void} setFlightWarp - camera.warp from an entity: fly-tos streak (true) or not; null as configured
+ * @property {(level: number, factor: number) => void} setCruise - at warp (warp-drive.js): the backdrop stars and dust stream along the view, `level` 0 to 1 of the way to the warp factor
  * @property {(look: any) => boolean} setLook - diagram, realistic or mixed (looks.js): crossfade to it; false when it names none
  * @property {(list: { id: string, key: string, value: number | null, smooth?: number }[]) => void} setLive - settings that follow
  *   entities and change in place (opacity, radius, size, spin of an object; '' time_scale): ease to the value over smooth ms; null lets go
@@ -352,6 +354,10 @@ export function createAstroScene(host, config, options = {}) {
   let look = /** @type {'diagram' | 'realistic' | 'mixed'} */ ('mixed');
   let lookTo = lookTargets(look);
   const lookW = { ...lookTo };
+  /** @type {boolean | null} camera.warp from an entity (the card's), null: as configured */
+  let flightWarp = null;
+  /** At warp (the card's `warp`): how far up to speed, and the warp factor (the backdrop streams along the view) */
+  let cruise = { level: 0, factor: 6 };
   /** Whether a look has been set (the first one shows at once, without a fade) */
   let lookShown = false;
   let frameChanges = 0;
@@ -901,11 +907,19 @@ export function createAstroScene(host, config, options = {}) {
     let out = null;
     // Level of detail for this view (belt rocks far away become dots)
     for (const b of world.list) b.lod?.({ camera, height: cssH, dpr });
-    // Objects out of their distance range hide, partly faded ones blend, for this render
-    const inSystem = world.frames.current !== ROOT;
+    // Objects out of their distance range hide, partly faded ones blend, for this render; every show and
+    // hide eases over time (FADE_MS), so a fly-to that crosses a range in one frame still fades
+    const current = world.frames.current;
+    const fadeDt = reduced ? Infinity : dt;
     fader.begin(world.list, world.outer, camera.position, (b) => unitOf(b.config._system),
       // an opacity from an entity; galaxy-scale objects step aside inside a star system; the look's share
-      (b) => (inSystem && b.config.hide_in_systems === true ? 0 : (liveAlpha.get(b.id) ?? 1) * lookAlpha(b.config, lookW)));
+      (b) => (hiddenHere(b.config, current) ? 0 : (liveAlpha.get(b.id) ?? 1) * lookAlpha(b.config, lookW)), fadeDt);
+    // objects with a diagram part and a realistic part (a mapped planet) switch them with the look
+    const parts = partWeights(lookW);
+    for (const b of world.list) {
+      if (!b.lookParts || !switchesParts(b.config)) continue;
+      for (const k of PART_KINDS) if (b.lookParts[k]?.length) fader.scaleNodes(/** @type {any[]} */ (b.lookParts[k]), parts[k]);
+    }
     try {
       const plan = depthPlan(camera);
       const scene = world.scene;
@@ -923,9 +937,9 @@ export function createAstroScene(host, config, options = {}) {
       out.done?.();
     }
     if (!settle) captureDepth(camera);
-    updateLabels(camera);
+    updateLabels(camera, fadeDt);
     frames++;
-    if (moving || flying) requestFrame();
+    if (moving || flying || fader.settling || labels.stats.fading > 0) requestFrame();
   }
 
   /**
@@ -940,9 +954,15 @@ export function createAstroScene(host, config, options = {}) {
     if (!world) return;
     const fields = [world.stars?.field, world.dust?.field].filter((f) => !!f);
     const warping = flying && rig.warp && !reduced;
-    const tails = warping && lastCamera
-      ? warpTails(position.clone().sub(lastCamera), dt, { sceneRadius: world.bounds.radius * unitOf(ROOT), shell: STAR_SHELL, streak: num(cfg.backdrop?.stars?.streak, 1) })
+    const streak = num(cfg.backdrop?.stars?.streak, 1);
+    // a warp fly-to streaks with the camera's motion; at warp (the card's `warp`) they stream along the view
+    const flight = warping && lastCamera
+      ? warpTails(position.clone().sub(lastCamera), dt, { scale: rig.keys.distance, shell: STAR_SHELL, streak })
       : null;
+    const f = cameraPose(rig.keys).forward;
+    const tails = flight ?? (cruise.level > 0 && !reduced
+      ? cruiseTails({ x: f[0], y: f[1], z: f[2] }, { ...cruise, scale: rig.keys.distance, shell: STAR_SHELL, streak })
+      : null);
     lastCamera = position.clone();
     if (!fields.length) return;
     world.stars?.field?.setTail(tails?.stars ?? null);
@@ -1013,8 +1033,11 @@ export function createAstroScene(host, config, options = {}) {
     }
   }
 
-  /** @param {import('three').Camera} camera */
-  function updateLabels(camera) {
+  /**
+   * @param {import('three').Camera} camera
+   * @param {number} [dt] - ms since the last frame (labels fade over time)
+   */
+  function updateLabels(camera, dt = Infinity) {
     if (!world) return;
     for (const it of labels.items) {
       const def = /** @type {any} */ (it).def;
@@ -1022,7 +1045,7 @@ export function createAstroScene(host, config, options = {}) {
       it.unit = unitOf(def._system);
       it.alphaScale = pointAlpha.get(it.id) ?? 1;
       // galaxy-scale labels step aside while the camera works inside a star system
-      if (def.hide_in_systems === true && world.frames.current !== ROOT) it.alphaScale = 0;
+      if (hiddenHere(def, world.frames.current)) it.alphaScale = 0;
       it.alphaScale *= lookAlpha(def, lookW);
       const alt = def.sky ? sky?.[/** @type {'sun' | 'moon'} */ (def.sky)]?.altitude : Array.isArray(def.altaz) ? Number(def.altaz[1]) : undefined;
       if (alt !== undefined && alt < 0) {
@@ -1062,7 +1085,7 @@ export function createAstroScene(host, config, options = {}) {
       // A point a model sits at is inside it (and the image is a frame old while it moves): the model's whole size
       occluders.push({ kind: 'depth', snapshot, id: '', bias: (host, dist, id) => sitting.get(id) ?? ((host !== null && biases.get(host)) || Math.min(near, dist * 0.01)) });
     }
-    labels.update(camera, cssW, cssH, occluders);
+    labels.update(camera, cssW, cssH, occluders, dt);
     cards.update((id) => labels.item(id), cssW, cssH);
   }
 
@@ -1259,6 +1282,8 @@ export function createAstroScene(host, config, options = {}) {
 
   /** @type {{ x: number, y: number, t: number } | null} the last tap in blank space */
   let blankTap = null;
+  /** @type {{ id: string, t: number } | null} the last tap on a point (two in a row fly in close to it) */
+  let pointTap = null;
   /** @type {((x: number, y: number) => void) | null} picking a position (the editor) */
   let pickHandler = null;
   /** @type {AstroEditHooks | null} edit mode (the Studio) */
@@ -1375,6 +1400,18 @@ export function createAstroScene(host, config, options = {}) {
       return;
     }
     blankTap = null;
+    // a second tap on the same point (a double-click): fly in close to what stands there
+    // (not a point whose tap runs another action: that runs each time)
+    const now = performance.now();
+    const own = hit.config?.tap_action?.action;
+    const closeable = hit.kind === 'point' && (!own || own === 'fly-to') && cfg.camera?.double_tap !== 'none';
+    const again = closeable && pointTap?.id === hit.id && now - pointTap.t < DOUBLE_TAP_MS;
+    pointTap = closeable && !again ? { id: hit.id, t: now } : null;
+    if (again) {
+      select(hit.id);
+      flyClose(hit.id);
+      return;
+    }
     const action = hit.config?.tap_action;
     // A point with a tap card: the tap opens (or closes) it and selects the
     // point; an explicit fly-to tap_action flies too, other actions do not run
@@ -1392,6 +1429,25 @@ export function createAstroScene(host, config, options = {}) {
     } else if (action?.action === 'fly-to') {
       flyToHit(hit);
     }
+  }
+
+  /**
+   * Fly in close to a point: to a few times the size of the largest object
+   * standing at it (a station, a ship, a planet), else much closer than now.
+   * @param {string} id
+   */
+  function flyClose(id) {
+    const keys = () => {
+      const q = resolveRef(id);
+      let r = 0;
+      for (const b of world?.list ?? []) {
+        const own = b.radius ?? 0;
+        if (b.config.at === id && own > 0) r = Math.max(r, own * unitOf(b.config._system));
+      }
+      const distance = r > 0 ? r * 4 : rig.keys.distance / 8;
+      return q ? { tx: q.x, ty: q.y, tz: q.z, distance } : { distance };
+    };
+    return fly(keys, { ref: id }, { duration: num(cfg.camera?.fly_duration, 1600), ease: cfg.camera?.ease });
   }
 
   /** @param {string | null} id */
@@ -1505,6 +1561,18 @@ export function createAstroScene(host, config, options = {}) {
       if (!s.done) easing = true;
     }
     return easing;
+  }
+
+  /**
+   * Whether `hide_in_systems` hides a point or object in the camera's frame:
+   * `true` in every star system, a list in those systems.
+   * @param {any} def
+   * @param {string} frame - the current frame
+   */
+  function hiddenHere(def, frame) {
+    const h = def?.hide_in_systems;
+    if (frame === ROOT || !h) return false;
+    return h === true || (Array.isArray(h) && h.includes(frame));
   }
 
   /**
@@ -1649,7 +1717,9 @@ export function createAstroScene(host, config, options = {}) {
    * @param {any} [view]
    */
   function warpFor(view) {
-    return (view && typeof view === 'object' && typeof view.warp === 'boolean') ? view.warp : cfg.camera?.warp === true;
+    if (view && typeof view === 'object' && typeof view.warp === 'boolean') return view.warp;
+    // camera.warp from an entity (the card resolves it), else as configured
+    return flightWarp ?? cfg.camera?.warp === true;
   }
 
   /**
@@ -1800,6 +1870,13 @@ export function createAstroScene(host, config, options = {}) {
       return ok;
     },
     clock: clockState,
+    setFlightWarp(on) {
+      flightWarp = on;
+    },
+    setCruise(level, factor) {
+      cruise = { level: Math.min(1, Math.max(0, level)), factor };
+      requestFrame();
+    },
     setLook(value) {
       const named = parseLook(value);
       if (named) showLook(named);

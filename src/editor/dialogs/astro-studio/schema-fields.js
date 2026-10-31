@@ -91,6 +91,8 @@ export function fieldKind(s, key) {
     if (all.length === 2 && all.some((b) => hasType(b, 'string') && !b.enum) && all.some(isBindingSchema)) return 'text';
     // a binding or template branch does not change the field (a bind button is added)
     const alts = all.filter((b) => !isBindingSchema(b) && !isTemplateSchema(b));
+    // true / false, or an entity it follows (warp): a checkbox, the entity form as YAML
+    if (alts.length === 1 && hasType(alts[0], 'boolean')) return 'boolean';
     if (alts.length === 2) {
       // one number, or a pair / triple of numbers ([w, d], [a, b], [w, h, d])
       if (alts.some(isNumberSchema) && alts.some(isTuple)) return 'numberOrTuple';
@@ -98,6 +100,8 @@ export function fieldKind(s, key) {
       if (alts.some((b) => hasType(b, 'boolean')) && alts.some(isWalkable)) return 'boolOrObject';
       // true, or a factor (a line's glow)
       if (alts.some((b) => hasType(b, 'boolean')) && alts.some(isNumberSchema)) return 'boolOrNumber';
+      // true, or a list of names (hide_in_systems: a list is edited as YAML)
+      if (alts.some((b) => hasType(b, 'boolean')) && alts.some((b) => hasType(b, 'array') && hasType(b.items, 'string'))) return 'boolean';
     }
     // words, plus true / false or any number (a clock rate: live or days per second; the time slider: true or a mode)
     if (choiceOptions(s)) return 'choice';

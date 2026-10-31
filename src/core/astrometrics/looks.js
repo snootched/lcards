@@ -7,6 +7,14 @@
  * always. A wireframe wormhole and its glowing vortex, a wire globe and a
  * textured planet: each carries its look, and a switch crossfades them.
  *
+ * An object without a `look` that has a diagram part and a realistic part
+ * switches its parts instead (`lookParts` on the built object): a mapped
+ * planet is a wire globe over a plain body in the diagram look and the bare
+ * map in the realistic one; a grid with a fill_effect shows its lines or its
+ * fill; a model with `material: original` becomes a hologram in the diagram
+ * look. Mixed shows them as they are configured. `look: all` keeps the whole
+ * object as configured in every look.
+ *
  * Pure (no three.js): the runtime eases the weights and multiplies them in.
  *
  * @module core/astrometrics/looks
@@ -17,6 +25,15 @@ export const LOOKS = /** @type {const} */ (['diagram', 'realistic', 'mixed']);
 
 /** What an object or point can belong to */
 export const OBJECT_LOOKS = /** @type {const} */ (['diagram', 'realistic']);
+
+/**
+ * The parts an object can switch: `diagram` and `realistic` show in their
+ * look and in mixed; `diagramOnly` and `realisticOnly` stand in for the
+ * other look's part and hide in mixed (a mapped planet's plain body in the
+ * diagram look).
+ * @typedef {{ diagram?: import('three').Object3D[], realistic?: import('three').Object3D[], diagramOnly?: import('three').Object3D[], realisticOnly?: import('three').Object3D[] }} LookParts
+ */
+export const PART_KINDS = /** @type {const} */ (['diagram', 'realistic', 'diagramOnly', 'realisticOnly']);
 
 /** How long a look change crossfades, ms */
 export const LOOK_FADE_MS = 600;
@@ -61,6 +78,29 @@ export function stepLook(w, to, dt, ms = LOOK_FADE_MS) {
     if (w[k] !== to[k]) moving = true;
   }
   return moving;
+}
+
+/**
+ * How much of each kind of part shows under the weights.
+ * @param {LookWeights} w
+ * @returns {Record<typeof PART_KINDS[number], number>}
+ */
+export function partWeights(w) {
+  return {
+    diagram: w.diagram,
+    realistic: w.realistic,
+    diagramOnly: w.diagram * (1 - w.realistic),
+    realisticOnly: w.realistic * (1 - w.diagram)
+  };
+}
+
+/**
+ * Whether an object switches its parts with the card's look (it has parts
+ * and no `look` of its own: `diagram`, `realistic` and `all` keep it whole).
+ * @param {any} def
+ */
+export function switchesParts(def) {
+  return def?.look === undefined || def?.look === null || def?.look === '';
 }
 
 /**

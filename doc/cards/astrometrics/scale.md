@@ -83,7 +83,7 @@ objects:
 - **Ids are card-wide:** views, `fly-to`, rules, templates and paths name a system's points and objects like any others.
 - **Distances are in the owner's units:** a view's `distance` is in its target's units (the `station` view above is 4 km, the `galaxy` view 140,000 ly), and so are a point's or object's `fade`, `min_distance` and `max_distance`. A view with an `[x, y, z]` target, and `camera.limits`, are in scene units.
 - **The camera follows:** within a few times its size of a system, the camera works in the system's units, so a station a few km across holds steady; further out it works in the scene's. Nothing on screen moves at the change, and a fly-to from the galaxy lands exactly on its target inside.
-- **Galaxy-scale things in the close-ups:** a region's walls or a quadrant line thousands of light years long would cross a close-up of a planet. `hide_in_systems: true` on a point or object hides it while the camera is inside any system (within a few times its size, where it works in the system's units); outside every system it shows as usual. The [Star Trek galaxy](./starters#star-trek-galaxy) starter sets it on its regions, lines and names.
+- **Galaxy-scale things in the close-ups:** a region's walls or a quadrant line thousands of light years long would cross a close-up of a planet. `hide_in_systems: true` on a point or object hides it while the camera is inside any system (within a few times its size, where it works in the system's units); outside every system it shows as usual. A list of system ids (`hide_in_systems: [sol_system]`) hides it inside those systems only. The [Star Trek galaxy](./starters#star-trek-galaxy) starter sets it on its regions, lines and names.
 - **One level:** a system cannot hold another system (it reaches from a galaxy down to a station already). A system is not rotated: its axes are the scene's.
 
 ## The real Solar System
@@ -128,8 +128,10 @@ objects:
 ```yaml
 clock:
   date: now          # or an ISO date: 2026-10-30, 1969-07-20T20:17:00Z
-  rate: 1            # days per second; live is real time, 0 holds it, negative runs back
+  rate: 1 h/s        # an hour a second; live is real time, 0 holds it, negative runs back
 ```
+
+`rate` is days per second as a number (`1` a day a second, `30` a month, `365.25` a year), or with a unit as the time slider shows it: `1 h/s`, `30 d/s`, `1 y/s`, `-1 d/s` (units `s`, `min`, `h`, `d`, `w`, `mo`, `y`).
 
 - **On screen:** the [time slider](./index#controls) gets a date mode on a card with a clock: the date, its rate from a year a second backward to a year a second forward, and NOW. What it sets stays until the card's `clock` changes.
 - **From other cards:** `tap_action: { action: set-clock, card: sol, date: now, rate: 30 }` on any LCARdS card; leave out `card` on the astrometrics card itself.

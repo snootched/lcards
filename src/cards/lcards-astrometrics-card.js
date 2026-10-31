@@ -37,6 +37,7 @@ import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { resolveColor } from '../core/themes/resolve-color.js';
 import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/BackgroundAnimationRenderer.js';
+import { WarpDrive, warpOn } from '../core/astrometrics/warp-drive.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { deepMergeImmutable } from '../utils/deepMerge.js';
 import { flattenSystems } from '../core/astrometrics/names.js';
@@ -80,6 +81,14 @@ function normalizeScenePatch(patch) {
 }
 
 /** Config keys the scene reads; a change to anything else does not rebuild it */
+/**
+ * Taps on reset: the first waits RESET_TAP_MS for a second (one tap resets the view; Home Assistant waits
+ * 250 ms for a double tap, this is kinder), and once a second has come no reset is coming, so the third
+ * and fourth may take RESET_SEQUENCE_MS each: four in a row play the tribute at an easy pace
+ */
+const RESET_TAP_MS = 500;
+const RESET_SEQUENCE_MS = 900;
+
 const SCENE_KEYS = ['camera', 'backdrop', 'labels', 'points', 'objects', 'units', 'time_scale', 'clock', 'look'];
 
 /** Shown when the scene cannot draw, by the runtime's failure reason */
@@ -164,11 +173,13 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                     overflow: hidden;
                 }
                 .astro-bg,
+                .astro-warp,
                 .astro-host {
                     position: absolute;
                     inset: 0;
                 }
-                .astro-bg {
+                .astro-bg,
+                .astro-warp {
                     pointer-events: none;
                 }
                 .astro-buttons {
@@ -448,6 +459,22 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._tour = null;
         /** @type {{ entity: string, attribute?: string } | null} the look's entity (looks.js) */
         this._lookEntity = null;
+        /** @type {{ entity: string, attribute?: string } | null} the entity that engages warp (warp-drive.js) */
+        this._warpEntity = null;
+        /** @type {{ entity: string, attribute?: string } | null} camera.warp's entity (fly-tos streak while it is on) */
+        this._flightWarpEntity = null;
+        /** @type {WarpDrive | null} made on the first engage */
+        this._warp = null;
+        /** @type {number | null} the warp factor from an entity or template */
+        this._warpFactor = null;
+        /** Whether the config (or its entity) wants warp, kept while the tribute drives it */
+        this._warpWanted = false;
+        /** Taps on reset in a row (RESET_TAP_MS, RESET_SEQUENCE_MS: one resets, four play the tribute) */
+        this._resetTaps = 0;
+        /** @type {ReturnType<typeof setTimeout> | undefined} */
+        this._resetTimer = undefined;
+        /** @type {{ stop: () => void, done: Promise<void>, seek: (ms: number) => void } | null} the tribute while it plays */
+        this._tribute = null;
         /** @type {string | null} the tour stop flown to last (JSON) */
         this._tourAt = null;
         /** @type {{ pointId: string, form: string, object?: string, label: string, missed?: boolean, resolve: (value: number[] | string | null) => void } | null} picking a position for the Studio */
@@ -614,6 +641,32 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._backgroundRenderer?.destroy();
         this._backgroundRenderer = null;
         this._backgroundKey = '';
+        clearTimeout(this._resetTimer);
+        this._resetTaps = 0;
+        this._tribute?.stop();
+        this._warp?.destroy();
+        this._warp = null;
+    }
+
+    /**
+     * Go to warp or drop out (`warp`, warp-drive.js): the streak layer behind
+     * the scene, the scene's own stars streaming along the view.
+     * @param {boolean} on
+     * @param {boolean} [own] - the tribute's own warp (the config's state is kept for after it)
+     */
+    _setWarp(on, own = false) {
+        // the tribute drives warp itself while it plays (own); the config's wish waits
+        if (!own) this._warpWanted = on;
+        if (this._tribute && !own) return;
+        if (!on && !this._warp?.engaged) return;
+        if (!this._warp) {
+            const layer = /** @type {HTMLElement | null} */ (this.renderRoot?.querySelector('.astro-warp'));
+            if (!layer || !this._scene) return;
+            this._warp = new WarpDrive(layer, this, { onLevel: (l, f) => this._scene?.setCruise(l, f) });
+            const f = this._flatConfig()?.warp_factor;
+            this._warp.setFactor(typeof f === 'number' ? f : this._warpFactor);
+        }
+        this._warp.set(on);
     }
 
     /**
@@ -713,6 +766,15 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         // a look that follows an entity (its state, or an attribute, names it)
         const look = flat?.look;
         this._lookEntity = look && typeof look === 'object' && typeof look.entity === 'string' && look.entity ? look : null;
+        // warp: true / false, or an entity that engages it; the factor as a plain number (an entity's: a setting)
+        const warp = flat?.warp;
+        this._warpEntity = warp && typeof warp === 'object' && typeof warp.entity === 'string' && warp.entity ? warp : null;
+        if (!this._warpEntity) this._setWarp(warp === true);
+        // camera.warp from an entity: fly-tos streak while it is on
+        const flight = flat?.camera?.warp;
+        this._flightWarpEntity = flight && typeof flight === 'object' && typeof flight.entity === 'string' && flight.entity ? flight : null;
+        if (!this._flightWarpEntity) this._scene?.setFlightWarp(null);
+        if (typeof flat?.warp_factor === 'number') this._warp?.setFactor(flat.warp_factor);
     }
 
     /**
@@ -740,6 +802,16 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                 if (this._settingSeq.get(key) !== seq) return;
                 this._applySetting(b, b.kind === 'date' ? runtime.dateValue(null, out) : runtime.mapNumber(null, out), !changed);
             }).catch((/** @type {any} */ error) => lcardsLog.warn(`[LCARdSAstrometricsCard] ${key}: template failed`, error));
+        }
+        const flight = this._flightWarpEntity;
+        if (flight && (!changed || changed.has(flight.entity))) {
+            const st = this.hass?.states?.[flight.entity];
+            this._scene.setFlightWarp(warpOn(flight.attribute ? st?.attributes?.[flight.attribute] : st?.state));
+        }
+        const warp = this._warpEntity;
+        if (warp && (!changed || changed.has(warp.entity))) {
+            const st = this.hass?.states?.[warp.entity];
+            this._setWarp(warpOn(warp.attribute ? st?.attributes?.[warp.attribute] : st?.state));
         }
         const look = this._lookEntity;
         if (look && (!changed || changed.has(look.entity))) {
@@ -777,6 +849,10 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         const path = b.path.join('.');
         if (b.scope === 'card') {
             if (path === 'time_scale') this._scene.setLive([{ id: '', key: 'time_scale', value: typeof value === 'number' ? value : null, smooth: b.smooth }]);
+            else if (path === 'warp_factor') {
+                this._warpFactor = typeof value === 'number' ? value : null;
+                this._warp?.setFactor(this._warpFactor);
+            }
             else if (path === 'clock.rate' && value !== null) this._scene.setClock({ rate: value });
             else if (path === 'clock.date' && value !== null) this._scene.setClock({ date: value });
             return;
@@ -948,6 +1024,8 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         for (const b of this._settings) b.entities.forEach((e) => tracked.add(e));
         if (this._tour?.entity) tracked.add(this._tour.entity);
         if (this._lookEntity) tracked.add(this._lookEntity.entity);
+        if (this._warpEntity) tracked.add(this._warpEntity.entity);
+        if (this._flightWarpEntity) tracked.add(this._flightWarpEntity.entity);
         for (const src of this._labelSources) for (const f of src.fields) f.deps.entities.forEach((e) => tracked.add(e));
         this._trackedEntities = [...tracked];
     }
@@ -1205,6 +1283,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                 @pointermove=${this._wakeButtons} @pointerdown=${this._wakeButtons}
                 @wheel=${this._wakeButtons} @keydown=${this._wakeButtons} @focusin=${this._wakeButtons}>
                 <div class="astro-bg"></div>
+                <div class="astro-warp"></div>
                 <div class="astro-host"></div>
                 ${failure ? '' : this._renderCameraButtons()}
                 ${this._pick ? html`
@@ -1481,8 +1560,69 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             /** @type {HTMLElement} */ (e.currentTarget).setPointerCapture?.(e.pointerId);
         }
         this._playSound('card_tap');
+        // reset waits to see whether more taps follow: one tap resets, four quick taps play the tribute
+        // (there are four lights, tribute.js), two or three do nothing
+        if (cmd === 'reset') {
+            this._resetTaps++;
+            clearTimeout(this._resetTimer);
+            if (this._resetTaps >= 4) {
+                this._resetTaps = 0;
+                this._playTribute();
+                return;
+            }
+            this._resetTimer = setTimeout(() => {
+                const taps = this._resetTaps;
+                this._resetTaps = 0;
+                if (taps === 1) {
+                    this._scene?.press('reset');
+                    this._scene?.release();
+                }
+            }, this._resetTaps > 1 ? RESET_SEQUENCE_MS : RESET_TAP_MS);
+            return;
+        }
         this._cameraHeld = true;
         this._scene?.press(cmd);
+    }
+
+    /**
+     * The tribute to Sir Patrick Stewart (tribute.js, a lazy chunk): warp, his
+     * constellation, ENGAGE. Again while it plays: it ends.
+     * @returns {Promise<void>}
+     */
+    async _playTribute() {
+        if (this._tribute) {
+            this._tribute.stop();
+            return;
+        }
+        const root = /** @type {HTMLElement | null} */ (this.renderRoot?.querySelector('.astro-card'));
+        const host = /** @type {HTMLElement | null} */ (this.renderRoot?.querySelector('.astro-host'));
+        if (!root || !host || !this._scene) return;
+        const { playTribute } = await import('../core/astrometrics/tribute.js');
+        host.style.transition = 'opacity 1.2s ease';
+        const t = playTribute({
+            root,
+            element: this,
+            warp: (on, factor, strength = 1) => {
+                if (on) {
+                    this._setWarp(true, true);
+                    if (factor) this._warp?.setFactor(factor);
+                    this._warp?.setStrength(strength);
+                } else this._setWarp(this._warpWanted, true);
+            },
+            dim: (a) => {
+                host.style.opacity = String(a);
+                // the camera buttons step back with the scene
+                const buttons = /** @type {HTMLElement | null} */ (this.renderRoot?.querySelector('.astro-buttons'));
+                if (buttons) buttons.style.opacity = a < 1 ? '0.15' : '';
+            }
+        });
+        this._tribute = t;
+        await t.done;
+        if (this._tribute === t) this._tribute = null;
+        const f = this._flatConfig()?.warp_factor;
+        this._warp?.setFactor(typeof f === 'number' ? f : this._warpFactor);
+        this._warp?.setStrength(1);
+        this._setWarp(this._warpWanted, true);
     }
 
     /** @private */

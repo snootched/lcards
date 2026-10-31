@@ -814,8 +814,9 @@ set_clock:
     rate:
       name: Rate
       description: >
-        How fast the date runs: `live` (real time), or days per second (1 is a day a
-        second, 0 holds it, negative runs back).
+        How fast the date runs: `live` (real time), days per second (1 is a day a
+        second, 0 holds it, negative runs back), or with a unit as the time slider shows
+        it: `1 h/s` (an hour a second), `30 d/s`, `1 y/s`.
       required: false
       example: 1
       selector:

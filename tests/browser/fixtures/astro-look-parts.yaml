@@ -1,0 +1,14 @@
+# Look parts: objects without a look switch their parts with the card's look
+# (input_select.lcards_test_look). A mapped sphere: wire lines (green) over a
+# plain body in the diagram look, the bare map in the realistic look,
+# lines over the map in mixed. A model with its own materials gets a
+# hologram twin for the diagram look. astrometrics.spec.js counts pixels.
+type: custom:lcards-astrometrics-card
+height: 300
+look: { entity: input_select.lcards_test_look }
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 0, tilt: 0, distance: 90 }
+objects:
+  - { type: sphere, id: planet, radius: 25, image: builtin:mars_viking, color: '#00ff00', line_spacing_deg: 20, line_width: 2 }
+  - { type: model, id: ship, at: [60, 0, 0], src: builtin:constitution, size: 10, material: original }

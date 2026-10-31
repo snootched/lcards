@@ -1,6 +1,6 @@
 /**
  * Settings from entities (R4b): any numeric key on a point or object, and
- * the card's `time_scale`, `clock.rate` and `clock.date`, can follow an
+ * the card's `time_scale`, `warp_factor`, `clock.rate` and `clock.date`, can follow an
  * entity instead of holding a number:
  *
  *   opacity: { entity: input_number.shields, to: [0, 0.6] }        the mapping form
@@ -128,6 +128,7 @@ export function collectBindings(config) {
     walk(o, [], (path, v) => add(makeBinding('object', String(o.id), path, v)), false);
   }
   add(makeBinding('card', '', ['time_scale'], config?.time_scale));
+  add(makeBinding('card', '', ['warp_factor'], config?.warp_factor));
   add(makeBinding('card', '', ['clock', 'rate'], config?.clock?.rate));
   add(makeBinding('card', '', ['clock', 'date'], config?.clock?.date, 'date'));
   return out;

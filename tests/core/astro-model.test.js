@@ -112,9 +112,14 @@ test('material: original keeps the file\'s materials and adds lights; solid: fal
   ] }, /** @type {any} */ (ctx()));
   await settle();
   await settle();
+  /** in the object, leaving out an original model's hologram twin (the diagram look's, checked below) */
   const kinds = (/** @type {string} */ id) => {
     const out = { standard: 0, lights: 0, twins: 0, edges: 0 };
+    const twin = w.objects.get(id)?.lookParts?.diagramOnly?.[0];
     w.objects.get(id)?.node.traverse((/** @type {any} */ o) => {
+      let up = o;
+      while (up && up !== twin) up = up.parent;
+      if (up) return;
       if (o.isMesh && o.material?.isMeshStandardMaterial) out.standard++;
       if (o.isLight) out.lights++;
       if (o.material?.name === 'lcards-hologram-depth') out.twins++;
@@ -124,6 +129,16 @@ test('material: original keeps the file\'s materials and adds lights; solid: fal
   };
   const a = kinds('a');
   assert.ok(a.standard >= PARTS.length && a.lights === 2 && a.twins === 0 && a.edges === 0);
+  // its hologram twin for the diagram look: hidden, hologram material, depth twins and edges
+  const twin = /** @type {any} */ (w.objects.get('a')).lookParts.diagramOnly[0];
+  let holo = 0, depth = 0, edges = 0;
+  twin.traverse((/** @type {any} */ o) => {
+    if (o.material?.name === 'lcards-hologram') holo++;
+    if (o.material?.name === 'lcards-hologram-depth') depth++;
+    if (o.isLineSegments) edges++;
+  });
+  assert.ok(twin.visible === false && holo >= PARTS.length && depth > 0 && edges > 0);
+  assert.equal(/** @type {any} */ (w.objects.get('b')).lookParts, undefined);
   const b = kinds('b');
   assert.ok(b.standard === 0 && b.twins === 0 && b.edges === 0);
   w.dispose();
