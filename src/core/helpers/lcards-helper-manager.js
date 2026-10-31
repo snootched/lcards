@@ -63,8 +63,11 @@ export class LCARdSHelperManager extends BaseService {
     /** @type {Map<string, Array<Function>>} Subscriptions by helper key */
     this._subscriptions = new Map();
 
-    /** @type {Map<string, Function>} Unsubscribe functions for state changes */
-    this._stateUnsubscribers = new Map();
+    /** @type {Map<string, string>} Helper key by entity id, for the shared state listener */
+    this._helperKeyByEntity = new Map();
+
+    /** @type {Promise<Function>|null} Unsubscribe for the one shared state_changed subscription */
+    this._stateUnsubscribe = null;
 
     /** @type {Map<string, *>} Cached helper values */
     this._valueCache = new Map();
@@ -103,38 +106,33 @@ export class LCARdSHelperManager extends BaseService {
       return;
     }
 
-    // Subscribe to state changes for all helpers
+    if (this._stateUnsubscribe) {
+      return;
+    }
+
     getAllHelpers().forEach(helper => {
-      this._subscribeToHelperState(helper.key, helper.entity_id);
+      this._helperKeyByEntity.set(helper.entity_id, helper.key);
     });
-  }
 
-  /**
-   * Subscribe to state changes for a specific helper
-   * @private
-   */
-  _subscribeToHelperState(key, entityId) {
-    if (!this.hass || !this.hass.connection) {
-      return;
-    }
+    // One subscription for all helpers: every state_changed subscription gets
+    // every state change in Home Assistant, so one per helper multiplied the
+    // event traffic per tab (enough to overflow HA's 4096 pending-message
+    // queue during a startup burst).
+    const subscription = this.hass.connection.subscribeEvents((event) => {
+      const entityId = event?.data?.entity_id;
+      const key = this._helperKeyByEntity.get(entityId);
+      if (key) {
+        this._handleStateChange(key, entityId, event);
+      }
+    }, 'state_changed');
+    this._stateUnsubscribe = subscription;
 
-    // If already subscribed, skip
-    if (this._stateUnsubscribers.has(key)) {
-      return;
-    }
+    subscription.catch((error) => {
+      lcardsLog.error('[HelperManager] Failed to subscribe to helper state changes:', error);
+      this._stateUnsubscribe = null;
+    });
 
-    // Subscribe to state changes
-    try {
-      const unsubscribe = this.hass.connection.subscribeEvents(
-        (event) => this._handleStateChange(key, entityId, event),
-        'state_changed'
-      );
-
-      this._stateUnsubscribers.set(key, unsubscribe);
-      lcardsLog.debug(`[HelperManager] Subscribed to state changes: ${entityId}`);
-    } catch (error) {
-      lcardsLog.error(`[HelperManager] Failed to subscribe to ${entityId}:`, error);
-    }
+    lcardsLog.debug(`[HelperManager] Subscribed to state changes for ${this._helperKeyByEntity.size} helpers`);
   }
 
   /**
@@ -848,7 +846,8 @@ export class LCARdSHelperManager extends BaseService {
     return {
       type: 'HelperManager',
       subscriptionsCount: this._subscriptions?.size || 0,
-      stateListeners: this._stateUnsubscribers?.size || 0,
+      stateListeners: this._stateUnsubscribe ? 1 : 0,
+      watchedHelpers: this._helperKeyByEntity?.size || 0,
       cachedValues: this._valueCache?.size || 0,
       autoSwitchInitialized: this._autoSwitchInitialized || false
     };
@@ -860,16 +859,15 @@ export class LCARdSHelperManager extends BaseService {
   destroy() {
     lcardsLog.debug('[HelperManager] Destroying service, cleaning up subscriptions');
 
-    // Unsubscribe from all state listeners
-    for (const [key, unsubscribe] of this._stateUnsubscribers.entries()) {
-      try {
-        unsubscribe();
-      } catch (error) {
-        lcardsLog.error(`[HelperManager] Error unsubscribing from ${key}:`, error);
-      }
-    }
+    // subscribeEvents resolves to the unsubscribe function
+    this._stateUnsubscribe
+      ?.then((unsubscribe) => unsubscribe())
+      .catch((error) => {
+        lcardsLog.error('[HelperManager] Error unsubscribing from helper state changes:', error);
+      });
 
-    this._stateUnsubscribers.clear();
+    this._stateUnsubscribe = null;
+    this._helperKeyByEntity.clear();
     this._subscriptions.clear();
     this._valueCache.clear();
   }
