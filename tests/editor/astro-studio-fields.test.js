@@ -12,13 +12,13 @@ import { objectSchema, astrometricsSchema } from '../../src/cards/schemas/astrom
 import { OBJECT_TYPES, TYPE_GUIDE } from '../../src/core/astrometrics/names.js';
 import {
   fieldKind, objectBranch, scopeOf, appliesTo, tupleLabels, helperText, labelFor, withKey, parseNumbers, freshId, objectSummary, newObject,
-  choiceOptions, choiceValue
+  choiceOptions, choiceValue, numberSelector, unitsLabel, groupOf, sectionIcon, OBJECT_GROUPS, COMMON_GROUPS, bindingBranch, isTour, isTemplateValue
 } from '../../src/editor/dialogs/astro-studio/schema-fields.js';
 
 /** Keys shown as their own YAML editor (with completion), by where they are */
 const YAML_FALLBACK = {
   // outline: a prism's [x, z] points (an outline editor is for the Studio UX session)
-  objects: ['tap_action', 'hold_action', 'colors', 'animation', 'points', 'objects', 'outline'],
+  objects: ['tap_action', 'hold_action', 'animation', 'points', 'objects', 'outline'],
   camera: ['views'],
   scene: ['background_animation'],
   labels: ['styles']
@@ -52,8 +52,8 @@ test('camera and scene keys have fields (views and styles are YAML)', () => {
   // the clock (R4a): an object of a date and a rate (live or days per second)
   const clock = astrometricsSchema.properties.clock;
   assert.equal(fieldKind(clock, 'clock'), 'object');
-  assert.equal(fieldKind(clock.properties.rate, 'rate'), 'choice');
-  assert.equal(fieldKind(clock.properties.date, 'date'), 'text');
+  assert.equal(fieldKind(clock.properties.rate, 'rate'), 'rate');
+  assert.equal(fieldKind(clock.properties.date, 'date'), 'date');
 });
 
 test('choice fields (R4a): words plus true/false or numbers, committed with their type', () => {
@@ -185,4 +185,100 @@ test('R4b: what an object follows, for its row and its sections (text and action
   assert.equal(keysBound({ at: 'mouth', spin: 3 }, ['at', 'spin']), false);
   assert.match(objectSummary(wormhole), /follows input_number\.lcards_test_power, a template/);
   assert.doesNotMatch(objectSummary(wormhole), /object Object/);
+});
+
+test('UX1 P2: colour lists, fonts and the systems list get their own fields', () => {
+  const nebula = objectBranch(objectSchema, 'nebula');
+  assert.equal(fieldKind(nebula.own.colors, 'colors'), 'colorList');
+  const stars = astrometricsSchema.properties.backdrop.properties.stars.oneOf.find((b) => b.properties);
+  assert.equal(fieldKind(stars.properties.colors, 'colors'), 'colorList');
+  const labels = astrometricsSchema.properties.labels.properties.default.properties;
+  assert.equal(fieldKind(labels.font_family, 'font_family'), 'font');
+  assert.equal(fieldKind({ type: 'string', 'x-ui-hints': { widget: 'font' } }, 'f'), 'font');
+  const grid = objectBranch(objectSchema, 'grid');
+  assert.equal(fieldKind(grid.common.hide_in_systems, 'hide_in_systems'), 'boolOrList');
+});
+
+test('UX1 P2: bounded numbers are sliders, others boxes; a hint wins', () => {
+  const grid = objectBranch(objectSchema, 'grid');
+  assert.deepEqual(numberSelector(grid.common.opacity), { number: { mode: 'slider', min: 0, max: 1, step: 'any' } });
+  const galaxy = objectBranch(objectSchema, 'galaxy');
+  assert.deepEqual(numberSelector(galaxy.own.arms), { number: { mode: 'slider', min: 1, max: 8, step: 1 } });
+  assert.equal(numberSelector(grid.own.line_spacing).number.mode, 'box');
+  const hinted = { type: 'number', minimum: 0, maximum: 1, 'x-ui-hints': { selector: { number: { mode: 'box', step: 0.1 } } } };
+  assert.deepEqual(numberSelector(hinted), { number: { mode: 'box', step: 0.1 } });
+});
+
+test('UX1 P2: labels of keys in scene units name the units', () => {
+  assert.equal(unitsLabel('Radius', 'Ring radius, scene units.', 'ly'), 'Radius (ly)');
+  assert.equal(unitsLabel('Radius', 'Ring radius, scene units.', ''), 'Radius');
+  assert.equal(unitsLabel('Opacity', 'Opacity, 0 to 1.', 'ly'), 'Opacity');
+});
+
+test('UX1 P2: object keys group by what they do; every group is known', () => {
+  const ids = OBJECT_GROUPS.map((g) => g.id);
+  assert.equal(groupOf('opacity'), 'appearance');
+  assert.equal(groupOf('spin'), 'position');
+  assert.equal(groupOf('hide_in_systems'), 'visibility');
+  assert.equal(groupOf('tap_action'), 'actions');
+  assert.equal(groupOf('color_major'), 'appearance');
+  assert.equal(groupOf('line_width'), 'appearance');
+  assert.equal(groupOf('pulse'), 'appearance');
+  assert.equal(groupOf('max_file_size'), 'advanced');
+  assert.equal(groupOf('radius'), 'main');
+  assert.equal(groupOf('shape'), 'main');
+  // a hint wins: a galaxy's dust is the opacity of its dust lanes
+  const galaxy = objectBranch(objectSchema, 'galaxy');
+  assert.equal(groupOf('dust', galaxy.own.dust), 'appearance');
+  for (const type of OBJECT_TYPES) {
+    const parts = objectBranch(objectSchema, type);
+    for (const [k, s] of Object.entries({ ...parts.common, ...parts.own })) assert.ok(ids.includes(groupOf(k, s)), `${type}.${k}`);
+  }
+  for (const keys of Object.values(COMMON_GROUPS)) for (const k of keys) assert.ok(objectBranch(objectSchema, 'grid').common[k], k);
+});
+
+test('UX1 P2: what can follow an entity: numbers, the look, warp, the clock; a tour is its own', () => {
+  const p = astrometricsSchema.properties;
+  assert.ok(bindingBranch(p.look) && bindingBranch(p.warp) && bindingBranch(p.clock.properties.rate) && bindingBranch(p.clock.properties.date));
+  assert.equal(bindingBranch(p.camera.properties.drag), null);
+  assert.ok(isTour(p.camera.properties.view));
+  assert.ok(!isTour(p.look));
+  assert.equal(fieldKind(p.look, 'look'), 'choice');
+  assert.ok(isTemplateValue('[[[ return 1 ]]]') && isTemplateValue('{{ states("x") }}') && !isTemplateValue('now'));
+});
+
+test('UX1 P2 round 2: brightness ranges are two sliders; clock fields; time scale 0 to 4; icons on every section', () => {
+  const stars = astrometricsSchema.properties.backdrop.properties.stars.oneOf.find((b) => b.properties);
+  assert.equal(fieldKind(stars.properties.brightness, 'brightness'), 'range');
+  assert.equal(stars.properties.min_opacity, undefined);
+  const nebula = objectBranch(objectSchema, 'nebula');
+  assert.equal(fieldKind(nebula.own.brightness, 'brightness'), 'range');
+  assert.deepEqual(tupleLabels(stars.properties.brightness.description, 2), ['faintest', 'brightest']);
+  const clock = astrometricsSchema.properties.clock.properties;
+  assert.equal(fieldKind(clock.rate, 'rate'), 'rate');
+  assert.equal(fieldKind(clock.date, 'date'), 'date');
+  assert.deepEqual(numberSelector(astrometricsSchema.properties.time_scale), { number: { mode: 'slider', min: 0, max: 4, step: 0.05 } });
+  assert.equal(sectionIcon('stars', 'boolOrObject'), 'mdi:star-four-points-outline');
+  assert.equal(sectionIcon('anything', 'objectList'), 'mdi:format-list-bulleted');
+  assert.equal(sectionIcon('anything', 'object'), 'mdi:tune-variant');
+});
+
+test('UX1 P2 round 2: label styles take how labels look, not what they say', () => {
+  const labels = astrometricsSchema.properties.labels.properties;
+  const style = labels.styles.additionalProperties.properties;
+  for (const k of ['content', 'show', 'template', 'display_format']) {
+    assert.equal(labels.default.properties[k], undefined, `labels.default.${k}`);
+    assert.equal(style[k], undefined, `labels.styles.*.${k}`);
+  }
+  assert.ok(labels.default.properties.font_family && style.font_size && style.priority);
+  // generated labels (ring and axis labels) use the text controls, and take no content either
+  const grid = objectBranch(objectSchema, 'grid');
+  for (const k of ['ring_labels', 'axis_labels']) {
+    const text = grid.own[k].properties.text;
+    assert.equal(fieldKind(text, 'text'), 'textDefault', k);
+    assert.equal(text.properties.default.properties.content, undefined, k);
+  }
+  // a point's own label still says what it says
+  const point = astrometricsSchema.properties.points.items;
+  assert.ok(point.properties.text.additionalProperties.properties.content);
 });

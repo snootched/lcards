@@ -36,7 +36,7 @@ objects:
 | `cloud_count`, `seed` | How many clouds (1 to 10, default 4) the seed places; the same seed always places the same clouds. |
 | `clouds` | Place them yourself instead: a list of `{ xyz, radius, color, opacity }`. |
 | `min_radius`, `max_radius` | Cloud sizes, scene units (default 0.15 and 0.4 of the region). |
-| `min_opacity`, `max_opacity` | The faintest and brightest cloud (default 0.3 and 0.8). |
+| `brightness` | `[dimmest, brightest]`: each cloud's opacity is picked at random between them (default `[0.3, 0.8]`); a cloud's own `opacity` wins. |
 | `colors` | One colour, or a list the seed picks from per cloud. Default `var(--lcars-violet)`. |
 | `turbulence` | How ragged the edges are, 0 to 1 (default 0.5). |
 | `noise_scale` | Detail of the gas per scene unit; lower is larger, smoother wisps. |
@@ -160,7 +160,7 @@ A fly-to with `warp` streaks the stars past the camera, by how fast it moves for
 
 - `backdrop.stars.streak` scales the streaks (default 1; 0 never streaks).
 - `backdrop.stars.spectrum: true` splits each streak into colour, as a Doppler shift of the star's own colour: violet toward the tail (nearer the direction of flight) and red toward the head. White stars show the whole rainbow; a blue star streaks green to violet, its tail fading as it shifts past violet, and a red star the other way. `spectrum_direction: reverse` puts violet at the head instead.
-- `backdrop.dust` adds faint particles round the scene. Unlike the stars at infinity they stay put as the camera moves, so every pan and fly-to shows depth, and they streak in a warp too. It takes the stars' keys (`count`, default 400; `min_radius`, `max_radius`, `min_opacity`, `max_opacity`, `colors`, `opacity`, `seed`, `spectrum`) plus `spectrum_direction` and `radius`, the ball they fill round the scene's centre (default 1.5 times the scene's size).
+- `backdrop.dust` adds faint particles round the scene. Unlike the stars at infinity they stay put as the camera moves, so every pan and fly-to shows depth, and they streak in a warp too. It takes the stars' keys (`count`, default 400; `min_radius`, `max_radius`, `brightness`, `colors`, `opacity`, `seed`, `spectrum`) plus `spectrum_direction` and `radius`, the ball they fill round the scene's centre (default 1.5 times the scene's size).
 
 ```yaml live
 type: custom:lcards-astrometrics-card

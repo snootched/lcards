@@ -129,7 +129,7 @@ When two labels overlap the higher priority wins (the larger style), then the ne
 
 ## Backdrop
 
-`backdrop.stars` puts stars at infinity behind the scene: they turn with the camera and never move when it pans. `true` uses the defaults; the settings take the [starfield](/core/effects/background-animations/preset-reference#starfield) background preset's names:
+`backdrop.stars` puts stars at infinity behind the scene: they turn with the camera and never move when it pans. `true` uses the defaults; each star gets a random size between `min_radius` and `max_radius` and a random brightness within `brightness`, and `opacity` fades the whole layer:
 
 ```yaml
 backdrop:
@@ -137,8 +137,8 @@ backdrop:
     count: 2500
     min_radius: 0.4       # px
     max_radius: 1.4
-    min_opacity: 0.3
-    max_opacity: 1
+    brightness: [0.3, 1]  # each star random between these
+    opacity: 1            # fades the whole layer
     colors: [var(--lcards-moonlight), var(--lcars-blue)]
     seed: 7
 ```

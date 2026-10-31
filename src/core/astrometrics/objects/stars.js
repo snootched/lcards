@@ -4,7 +4,7 @@
  * `backdrop.dust`: particles at a finite distance round the scene centre,
  * so every camera move shows parallax. Both take the `starfield`
  * background preset's key names (`count`, `seed`, `min_radius` /
- * `max_radius` px, `min_opacity` / `max_opacity`, `colors`) and streak
+ * `max_radius` px, `brightness` [low, high], `colors`) and streak
  * during a warp fly-to (`star-field.js`).
  *
  * @module core/astrometrics/objects/stars
@@ -29,7 +29,7 @@ function field(cfg, ctx, d) {
   const list = Array.isArray(cfg.colors) && cfg.colors.length ? cfg.colors : [cfg.color];
   const colors = list.map((/** @type {any} */ c) => ctx.color(c, DEFAULT_COLORS.stars));
   const [r0, r1] = [Math.max(0, num(cfg.min_radius, d.radius[0])), Math.max(0, num(cfg.max_radius, d.radius[1]))].sort((a, b) => a - b);
-  const [o0, o1] = [num(cfg.min_opacity, 0.35), num(cfg.max_opacity, 1)].map((v) => Math.max(0, Math.min(1, v))).sort((a, b) => a - b);
+  const [o0, o1] = [num(cfg.brightness?.[0], 0.35), num(cfg.brightness?.[1], 1)].map((v) => Math.max(0, Math.min(1, v))).sort((a, b) => a - b);
   const positions = new Float32Array(n * 3);
   const sizes = new Float32Array(n);
   const cols = new Float32Array(n * 4);

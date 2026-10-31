@@ -22,6 +22,7 @@ import '../shared/lcards-form-section.js';
 import { LCARdSFormFieldHelper as FormField } from '../shared/lcards-form-field.js';
 import './lcards-color-section-v2.js';
 import './lcards-padding-editor.js';
+import './lcards-text-field-editor.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { showInfoDialog } from '../../../views/layout-edit-dialogs.js';
 
@@ -382,218 +383,22 @@ export class LCARdSMultiTextEditorV2 extends LitElement {
     }
 
     /**
-     * Render field configuration form
+     * Render field configuration form (the shared lcards-text-field-editor)
      * @param {string} fieldName - Field name
      * @param {Object} fieldConfig - Field configuration
      * @returns {TemplateResult}
      * @private
      */
     _renderFieldConfig(fieldName, fieldConfig) {
-        const hasDefaults = this.text.default !== undefined;
-
         return html`
-            <!-- Show Toggle -->
-            ${FormField.renderField(this.editor, `text.${fieldName}.show`, {
-                label: `Show ${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)}`
-            })}
-
-            <!-- Content -->
-            ${FormField.renderField(this.editor, `text.${fieldName}.content`, {
-                label: 'Content',
-                helper: 'Text content - supports templates like {entity.state}'
-            })}
-
-            <!-- Display Format -->
-            ${FormField.renderField(this.editor, `text.${fieldName}.display_format`, {
-                label: 'Display Format',
-                helper: hasDefaults && !fieldConfig.display_format
-                    ? 'Inherits from defaults: friendly = translated by Home Assistant, raw = actual state, parts = value+unit, unit = unit only'
-                    : 'How entity state tokens are rendered: friendly, raw, parts, or unit'
-            })}
-
-            <!-- Position -->
-            ${FormField.renderField(this.editor, `text.${fieldName}.position`, {
-                label: 'Position',
-                helper: 'Where to display this text on the card'
-            })}
-
-            <!-- Zone selector (only shown when >1 named zone is available) -->
-            ${this.availableZones && Object.keys(this.availableZones).length > 1 ? html`
-                <ha-selector
-                    .hass=${this.editor?.hass}
-                    .selector=${{ select: { mode: 'dropdown', options: Object.entries(this.availableZones).map(([k, label]) => ({
-                        value: k,
-                        // The editor's own label ("Body (interior)"); component zone maps carry
-                        // bounds objects instead, so fall back to the key.
-                        label: typeof label === 'string' && label ? label : k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-                    })) } }}
-                    .value=${this.editor?.config?.text?.[fieldName]?.zone || Object.keys(this.availableZones)[0]}
-                    .label=${'Zone'}
-                    .helper=${'Which named layout zone this text field is routed to'}
-                    @value-changed=${(e) => this.editor?._setConfigValue?.(`text.${fieldName}.zone`, e.detail.value)}>
-                </ha-selector>
-            ` : ''}
-
-            <!-- Font Section -->
-            <lcards-form-section
-                header="Font"
-                description="Set font family, weight, and sizing"
-                icon="mdi:format-font"
-                ?expanded=${false}
-                ?outlined=${true}
-                headerLevel="6"
-                ?compact=${true}>
-
-                ${FormField.renderField(this.editor, `text.${fieldName}.font_weight`, {
-                    label: 'Font Weight',
-                    helper: hasDefaults && !fieldConfig.font_weight ? 'Inherits from defaults' : ''
-                })}
-
-                ${FormField.renderField(this.editor, `text.${fieldName}.font_family`, {
-                    label: 'Font Family',
-                    helper: hasDefaults && !fieldConfig.font_family ? 'Inherits from defaults' : ''
-                })}
-
-                <!-- Fixed size -->
-                ${FormField.renderField(this.editor, `text.${fieldName}.font_size`, {
-                    label: 'Font Size (px)',
-                    helper: hasDefaults && !fieldConfig.font_size
-                        ? 'Inherits from defaults: use this OR Font Size %, not both'
-                        : 'Absolute font size in px: overrides Font Size % when set explicitly'
-                })}
-
-                <!-- Fill-sizing group -->
-                <lcards-form-section
-                    header="Fill Sizing"
-                    description="Scale text to fill the card height. Use Font Size % + Cap Height Ratio instead of Font Size (px)."
-                    icon="mdi:arrow-expand-vertical"
-                    ?expanded=${!!(fieldConfig.font_size_percent || fieldConfig.cap_height_ratio || fieldConfig.stretch)}
-                    ?outlined=${false}
-                    headerLevel="6"
-                    ?compact=${true}>
-
-                    ${FormField.renderField(this.editor, `text.${fieldName}.font_size_percent`, {
-                        label: 'Font Size (% of height)',
-                        helper: 'Scales font so cap glyphs fill this % of the card height (when Cap Height Ratio is also set). Use instead of Font Size (px).'
-                    })}
-
-                    ${FormField.renderField(this.editor, `text.${fieldName}.cap_height_ratio`, {
-                        label: 'Cap Height Ratio',
-                        helper: 'Ratio of visible cap glyph height to the font em-square. Antonio ≈ 0.86. Adjust per font until caps fill the box. Has no effect without Font Size %.'
-                    })}
-
-                    ${FormField.renderField(this.editor, `text.${fieldName}.stretch`, {
-                        label: 'Stretch Width',
-                        helper: 'Stretch/compress glyphs to fill a fraction of the available width. true or 1 = 100%, 0.8 = 80%'
-                    })}
-
-                </lcards-form-section>
-
-            </lcards-form-section>
-
-            <!-- Alignment Section -->
-            <lcards-form-section
-                header="Alignment"
-                description="Override anchor/baseline, text transform, and rotation"
-                icon="mdi:format-align-left"
-                ?expanded=${false}
-                ?outlined=${true}
-                headerLevel="6"
-                ?compact=${true}>
-
-                ${FormField.renderField(this.editor, `text.${fieldName}.anchor`, {
-                    label: 'Anchor',
-                    helper: hasDefaults && !fieldConfig.anchor ? 'Inherits from defaults' : 'Text anchor (start/middle/end)'
-                })}
-
-                ${FormField.renderField(this.editor, `text.${fieldName}.baseline`, {
-                    label: 'Baseline',
-                    helper: hasDefaults && !fieldConfig.baseline ? 'Inherits from defaults' : 'Baseline alignment'
-                })}
-
-                ${FormField.renderField(this.editor, `text.${fieldName}.text_transform`, {
-                    label: 'Text Transform',
-                    helper: hasDefaults && !fieldConfig.text_transform ? 'Inherits from defaults' : 'Text transformation'
-                })}
-
-                ${FormField.renderField(this.editor, `text.${fieldName}.rotation`, {
-                    label: 'Rotation',
-                    helper: hasDefaults && !fieldConfig.rotation ? 'Inherits from defaults (0°)' : 'Rotation angle in degrees'
-                })}
-            </lcards-form-section>
-
-            <!-- Padding Section -->
-            <lcards-form-section
-                header="Padding"
-                description="Override default padding settings"
-                icon="mdi:move-resize"
-                ?expanded=${false}
-                ?outlined=${true}
-                headerLevel="6"
-                ?compact=${true}>
-
-                <lcards-padding-editor
-                    .editor=${this.editor}
-                    .config=${this.editor.config}
-                    path="text.${fieldName}.padding"
-                    label="${fieldName} Padding"
-                    helper="${hasDefaults && !fieldConfig.padding ? 'Inherits from defaults' : 'Custom padding for this field'}">
-                </lcards-padding-editor>
-            </lcards-form-section>
-
-            <!-- Background Section -->
-            <lcards-form-section
-                header="Background"
-                description="Text background rectangle (bar-break effect)"
-                icon="mdi:rectangle"
-                ?expanded=${false}
-                ?outlined=${true}
-                headerLevel="6"
-                ?compact=${true}>
-
-                <lcards-color-section-v2
-                    .editor=${this.editor}
-                    .config=${this.editor.config}
-                    basePath="text.${fieldName}.background"
-                    header="Background Colour"
-                    description="${hasDefaults ? 'Override default background colour per state' : 'Background colour for different entity states'}"
-                    .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
-                    ?allowCustomStates=${true}
-                    ?expanded=${false}>
-                </lcards-color-section-v2>
-
-                ${FormField.renderField(this.editor, `text.${fieldName}.background_padding`, {
-                    label: 'Background Padding',
-                    helper: hasDefaults && fieldConfig.background_padding === undefined ? 'Inherits from defaults' : ''
-                })}
-
-                ${FormField.renderField(this.editor, `text.${fieldName}.background_radius`, {
-                    label: 'Background Corner Radius',
-                    helper: hasDefaults && fieldConfig.background_radius === undefined ? 'Inherits from defaults' : ''
-                })}
-
-                ${FormField.renderField(this.editor, `text.${fieldName}.background_width`, {
-                    label: 'Background Width (Fixed)',
-                    helper: 'Exact px width: overrides auto-sizing. Text overflows if content is wider.'
-                })}
-
-                ${FormField.renderField(this.editor, `text.${fieldName}.background_min_width`, {
-                    label: 'Background Min Width',
-                    helper: 'Auto-sizes with text but never shrinks below this value, so safe for dynamic content.'
-                })}
-            </lcards-form-section>
-
-            <!-- Field Colors -->
-            <lcards-color-section-v2
+            <lcards-text-field-editor
                 .editor=${this.editor}
-                .config=${this.editor.config}
-                basePath="text.${fieldName}.color"
-                header="Field Colours"
-                description="Override default colour settings"
-                .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
-                ?allowCustomStates=${true}
-                ?expanded=${false}>
-            </lcards-color-section-v2>
+                .config=${this.editor?.config}
+                basePath=${`text.${fieldName}`}
+                name=${fieldName}
+                ?inherits=${this.text.default !== undefined}
+                .zones=${this.availableZones}>
+            </lcards-text-field-editor>
         `;
     }
 

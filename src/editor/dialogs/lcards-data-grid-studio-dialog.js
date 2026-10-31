@@ -1146,7 +1146,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
         const path = this._cellPath();
         const setEdit = (patch) => { this._activeCellEdit = { ...this._activeCellEdit, ...patch }; };
         return html`
-            <lcards-form-section header="Edit Cell (Row ${e.row + 1}, Col ${e.col + 1})" ?expanded=${true}>
+            <lcards-form-section header="Edit Cell (Row ${e.row + 1}, Col ${e.col + 1})" icon="mdi:pencil-box-outline" ?expanded=${true}>
                 <div class="cell-type-toggle">
                     <ha-button appearance=${e.type === 'entity' ? 'accent' : 'plain'} @click=${() => setEdit({ type: 'entity' })}>
                         <ha-icon icon="mdi:home-assistant" slot="start"></ha-icon>
@@ -1230,7 +1230,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
 
     _renderTemplateExamples() {
         return html`
-            <lcards-form-section header="Template Examples" description="Insert or copy common patterns" ?expanded=${false}>
+            <lcards-form-section header="Template Examples" description="Insert or copy common patterns" icon="mdi:code-braces-box" ?expanded=${false}>
                 ${TEMPLATE_EXAMPLES.map(group => html`
                     <span class="field-label">${group.category}</span>
                     ${group.items.map(item => html`
@@ -1267,7 +1267,7 @@ export class LCARdSDataGridStudioDialogV4 extends LitElement {
             ? ['mdi:table-row-plus-before', 'mdi:table-row-plus-after', 'mdi:arrow-up-bold', 'mdi:arrow-down-bold']
             : ['mdi:table-column-plus-before', 'mdi:table-column-plus-after', 'mdi:arrow-left-bold', 'mdi:arrow-right-bold'];
         return html`
-            <lcards-form-section header="${name} ${i + 1}" description="Insert, move, delete and style" ?expanded=${true}>
+            <lcards-form-section header="${name} ${i + 1}" description="Insert, move, delete and style" icon=${isRow ? 'mdi:table-row' : 'mdi:table-column'} ?expanded=${true}>
                 <div class="op-grid">
                     <ha-button @click=${() => this._insertTrack(axis, i)}><ha-icon icon=${icons[0]} slot="start"></ha-icon>Insert before</ha-button>
                     <ha-button @click=${() => this._insertTrack(axis, i + 1)}><ha-icon icon=${icons[1]} slot="start"></ha-icon>Insert after</ha-button>

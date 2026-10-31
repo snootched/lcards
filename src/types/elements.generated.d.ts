@@ -13,6 +13,7 @@ declare global {
         'lcards-animation-editor': import('../editor/components/lcards-animation-editor.js').LCARdSAnimationEditor;
         'lcards-asset-source-picker': import('../editor/components/shared/lcards-asset-source-picker.js').LCARdSAssetSourcePicker;
         'lcards-astro-diagram': import('../editor/components/shared/lcards-astro-diagram.js').LCARdSAstroDiagram;
+        'lcards-astro-labels-editor': import('../editor/dialogs/astro-studio/lcards-astro-labels-editor.js').LCARdSAstroLabelsEditor;
         'lcards-astro-points-editor': import('../editor/components/editors/lcards-astro-points-editor.js').LCARdSAstroPointsEditor;
         'lcards-astro-schema-form': import('../editor/dialogs/astro-studio/lcards-astro-schema-form.js').LCARdSAstroSchemaForm;
         'lcards-astrometrics-card': import('../cards/lcards-astrometrics-card.js').LCARdSAstrometricsCard;
@@ -94,6 +95,7 @@ declare global {
         'lcards-template-editor': import('../editor/components/templates/lcards-template-editor.js').LCARdSTemplateEditor;
         'lcards-template-evaluation-tab': import('../editor/components/templates/lcards-template-evaluation-tab.js').LCARdSTemplateEvaluationTab;
         'lcards-template-sandbox': import('../editor/components/templates/lcards-template-sandbox.js').LCARdSTemplateSandbox;
+        'lcards-text-field-editor': import('../editor/components/editors/lcards-text-field-editor.js').LCARdSTextFieldEditor;
         'lcards-theme-generator-view': import('../editor/components/theme-browser/lcards-theme-generator-view.js').LCARdSThemeGeneratorView;
         'lcards-theme-token-browser-tab': import('../editor/components/theme-browser/lcards-theme-token-browser-tab.js').LCARdSThemeTokenBrowserTab;
         'lcards-unified-segment-editor': import('../editor/components/editors/lcards-unified-segment-editor.js').LCARdSUnifiedSegmentEditor;

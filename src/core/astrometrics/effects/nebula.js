@@ -54,7 +54,7 @@ export function nebulaLayout(cfg) {
   const R = box ? Math.max(...box) / 2 : Math.max(1e-3, num(cfg.radius, 100));
   const colorCount = Math.max(1, Array.isArray(cfg.colors) ? cfg.colors.length : 1);
   const [r0, r1] = [num(cfg.min_radius, R * 0.15), num(cfg.max_radius, R * 0.4)].map((v) => Math.max(1e-3, v)).sort((a, b) => a - b);
-  const [o0, o1] = [num(cfg.min_opacity, 0.3), num(cfg.max_opacity, 0.8)].map((v) => Math.max(0, Math.min(1, v))).sort((a, b) => a - b);
+  const [o0, o1] = [num(cfg.brightness?.[0], 0.3), num(cfg.brightness?.[1], 0.8)].map((v) => Math.max(0, Math.min(1, v))).sort((a, b) => a - b);
 
   /** @type {{ xyz: number[], radius: number, color: number, opacity: number }[]} */
   let clouds;

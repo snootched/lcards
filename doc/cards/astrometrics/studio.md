@@ -24,19 +24,29 @@ The tabs are in the order a card is built. The Studio opens on **Starters** for 
 | Tab | Edits |
 |---|---|
 | **Starters** | Whole scenes and parts to copy into the card. |
-| **Scene** | How the scene works, the backdrop (stars and dust), label defaults, styles, overlap and snapping, and a background animation behind the scene. |
+| **Scene** | How the scene works, then sections: Look, Time (the scene date, its rate, the time scale), Warp, Space (stars and depth dust), Background (a background animation behind the scene) and Labels. |
 | **Objects** | Every object, with a form for its type. |
 | **Points** | Every point: placement, the object it stands on, entity, label, style, marker, colour, a pinned card. See [Points: in the Astrometrics Studio](./points#in-the-astrometrics-studio). |
-| **Camera** | The named views, and the camera's controls, buttons, limits, auto-rotate and fly-to settings. |
+| **Camera** | The named views and the view the card starts with (or a guided tour), then sections: Controls, On-card buttons, Flying, Turning and Limits. |
 | **YAML** | The whole config, with completion from the card's schema. |
 
 ### Objects
 
 **Add object** shows every type with what it is for (the same list as [Objects: which type for what](./objects#which-type-for-what)). The new object gets an id and the keys its type needs: a path or beam runs between the first two points of the scene, or across the centre when there are none.
 
-Each object's form is made from the card's options for its type: placement first (`at`, rotation, spin, visibility, opacity), then the type's own keys, then actions and tags. Nested options (a fill effect, ring labels, cells) open as sections of their own. **Show keys of other shapes** also lists keys that apply only to another shape or pattern of the same type (a grid's `spoke_count` on a plane, say); they are hidden until set. Actions and anything the form cannot show as fields are YAML editors with completion.
+Each object's form is made from the card's options for its type and grouped by what the keys do: the type's shape and size first, then **Appearance** (colours, opacity, line widths, effects; open), **Position and motion** (`at`, rotation, face, spin), **Visibility and distance** (visible, the distance fades, `hide_in_systems`, `look`) and **Actions and tags**, with **Advanced** for the few keys most scenes never need. Numbers with a fixed range (opacity, 0 to 1) are sliders with a box beside them; fonts use the font picker, colour lists the colour list editor, and labels of keys in scene units name the units when the scene (or the open system) sets `units`. Nested options (a fill effect, ring labels, cells) open as sections of their own; an option you switch on (stars, dust, buttons, pulse) has its switch in its section's header. Keys that apply only to another shape or pattern of the same type (a grid's `spoke_count` on a plane, say) are hidden until set. A brightness range (stars, dust, a nebula's clouds) is two sliders, the faintest and the brightest. Actions and anything the form cannot show as fields are YAML editors with completion.
 
-A number field with a link button can follow an entity: the button turns it into the entity, range and to boxes of [Settings from entities](./data#settings-from-entities), and the button with a line through it turns it back into a number. A template on a key shows as text. Settings that follow entities in your YAML load the same way: the object's row says what it follows, and a section that holds one (Placement for `opacity` or `spin`, a deformation step) opens on its own.
+A field with a link button can follow an entity: the button turns it into a panel under the field's name with the entity, its attribute (a list of that entity's attributes), range and to boxes of [Settings from entities](./data#settings-from-entities), and the button with a line through it turns it back into a plain value. Numbers, the scene's `look`, `warp`, the clock's `date` and `rate` all have one. A template on a key shows as text in the same kind of panel. Settings that follow entities in your YAML load the same way: the object's row says what it follows, and a section that holds one (Appearance for `opacity`, Position and motion for `spin`, a deformation step) opens on its own.
+
+### Scene
+
+- **Time:** the scene date is **Now** or a **Date and time** (a date picker). Its rate is a list: Live (real time), Paused, and an hour, a day, 30 days or a year a second, forward or backward; **Custom** takes any amount of seconds, minutes, hours, days, weeks, months or years a second. The time scale is a slider from 0 (hold) to 4 times as fast; faster can be typed.
+- **Space** holds the stars and the depth dust, which are part of the 3D scene and turn with the camera. **Background** is the same background animation editor as on other LCARdS cards: a flat picture behind the scene that does not turn with the camera.
+- **Labels:** **Every label** sets what all labels start from, with the same text controls as the button and elbow editors (font picker with a preview, size, weight, letter spacing, transform, position, colours, background). **Label styles** lists the built-in title, major, minor and tiny styles with their size and priority; open one to change it (what you set wins over the built-in) and use the restore button to go back. Add your own styles by name. Overlap and pixel snapping are switches.
+
+### Camera
+
+The Views section ends with **Start with**: the view the card opens on, or (the route button) a guided tour: an entity and its stops, each a view and, if you want, the scene date and rate there. Below it, the camera's settings are in sections: Controls (drag, pan, wheel, zoom, double-tap), On-card buttons, Flying (duration, easing, follow, warp streaks), Turning (auto-rotate) and Limits.
 
 File fields (a model's `src`, a planet's or ring's `image`, an image object's `src`) pick from the asset library, a custom path, or the Home Assistant media browser, where your own models are under **LCARdS**, **My models**. See [Your own models](./models#pick-it).
 

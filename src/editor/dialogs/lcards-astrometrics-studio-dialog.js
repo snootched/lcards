@@ -32,7 +32,7 @@ import { messageStyles } from '../base/surface-styles.js';
 import { studioDialogStyles } from './studio-dialog-styles.js';
 import { astrometricsSchema, objectSchema } from '../../cards/schemas/astrometrics-schema.js';
 import { TYPE_GUIDE } from '../../core/astrometrics/names.js';
-import { objectBranch, objectSummary, freshId, newObject, COMMON_GROUPS, keysBound } from './astro-studio/schema-fields.js';
+import { objectBranch, objectSummary, freshId, newObject, OBJECT_GROUPS, groupOf, keysBound } from './astro-studio/schema-fields.js';
 import {
   viewsOf, startViewName, captureView, freshViewName, setView, deleteView, moveView, renameView, viewNameProblem, viewSummary
 } from './astro-studio/camera-views.js';
@@ -47,6 +47,8 @@ import '../components/shared/lcards-form-section.js';
 import '../components/shared/lcards-message.js';
 import '../components/editors/lcards-astro-points-editor.js';
 import '../components/yaml/lcards-studio-yaml-tab.js';
+import '../components/lcards-background-animation-editor.js';
+import './astro-studio/lcards-astro-labels-editor.js';
 
 const clone = (/** @type {any} */ v) => JSON.parse(JSON.stringify(v ?? {}));
 const isObj = (/** @type {any} */ v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -69,7 +71,29 @@ export function isStarterCard(config) {
 const PREVIEW_DELAY = 150;
 
 /** Keys of the Scene tab, in order */
-const SCENE_KEYS = ['look', 'warp', 'warp_factor', 'clock', 'time_scale', 'backdrop', 'labels', 'background_animation'];
+/**
+ * The Scene tab's sections: each lists schema keys at a path of the config
+ * ('' the card itself), shown as one form per part.
+ * @type {{ id: string, header: string, icon: string, hint: string, parts: { path: string, keys: string[] }[] }[]}
+ */
+const SCENE_GROUPS = [
+  { id: 'look', header: 'Look', icon: 'mdi:eye-outline', hint: 'Which objects and points show: the diagram ones, the realistic ones, or both. Each object and point can pick its look.', parts: [{ path: '', keys: ['look'] }] },
+  { id: 'time', header: 'Time', icon: 'mdi:clock-outline', hint: 'The scene date moves bodies and orbits; the time scale speeds up or slows the decorative motion.', parts: [{ path: 'clock', keys: ['date', 'rate'] }, { path: '', keys: ['time_scale'] }] },
+  { id: 'warp', header: 'Warp', icon: 'mdi:rocket-launch-outline', hint: 'Stars and dust stream past while the scene is at warp.', parts: [{ path: '', keys: ['warp', 'warp_factor'] }] },
+  { id: 'space', header: 'Space', icon: 'mdi:star-four-points-outline', hint: 'Part of the 3D scene: stars at infinity turn with the camera; depth dust shows every move.', parts: [{ path: 'backdrop', keys: ['stars', 'dust'] }] }
+];
+
+/**
+ * The Camera tab's sections under the views (camera keys).
+ * @type {{ id: string, header: string, icon: string, hint: string, keys: string[] }[]}
+ */
+const CAMERA_GROUPS = [
+  { id: 'controls', header: 'Controls', icon: 'mdi:gesture-swipe', hint: 'How dragging, the wheel, pinching and double-taps move the camera.', keys: ['controls', 'drag', 'pan', 'zoom_to', 'wheel', 'double_tap', 'zoom_step'] },
+  { id: 'buttons', header: 'On-card buttons', icon: 'mdi:gesture-tap-button', hint: 'Pan, zoom, reset and time buttons on the card.', keys: ['buttons'] },
+  { id: 'flying', header: 'Flying', icon: 'mdi:airplane', hint: 'How the camera flies to a view, point or object.', keys: ['fly_duration', 'ease', 'follow', 'warp'] },
+  { id: 'turning', header: 'Turning', icon: 'mdi:rotate-3d-variant', hint: 'Turn round the target on its own.', keys: ['auto_rotate'] },
+  { id: 'limits', header: 'Limits', icon: 'mdi:arrow-expand-all', hint: 'How far the camera may tilt, zoom and wander.', keys: ['limits'] }
+];
 
 /**
  * What a system holds, for its row ("3 points, 2 objects").
@@ -93,7 +117,6 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       _scope: { state: true },
       _selectedPoint: { state: true },
       _addingObject: { state: true },
-      _showAll: { state: true },
       _placing: { state: true },
       _status: { state: true },
       _expandedView: { state: true },
@@ -119,7 +142,6 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     /** @type {string | null} */
     this._selectedPoint = null;
     this._addingObject = false;
-    this._showAll = false;
     this._placing = false;
     /** @type {string} the toolbar's line while dragging or placing (else the hint) */
     this._status = '';
@@ -194,6 +216,19 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   /** The open system, or null for the scene */
   get _system() {
     return scopeSystem(this._workingConfig, this._scope);
+  }
+
+  /** What one unit is in the open scope (a system's own, or the scene's), or '' */
+  get _units() {
+    const sys = this._system;
+    if (sys) return sys.units ?? (sys.scale !== undefined ? '' : (this._workingConfig.units ?? ''));
+    return this._workingConfig.units ?? '';
+  }
+
+  /** The scene's system ids (an object's hide_in_systems picks from them) */
+  get _systemIds() {
+    const objects = Array.isArray(this._workingConfig.objects) ? this._workingConfig.objects : [];
+    return objects.filter((o) => isObj(o) && o.type === 'system' && o.id !== undefined).map((o) => String(o.id));
   }
 
   /**
@@ -458,7 +493,10 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         .canvas-toolbar { align-items: center; }
         .view-actions { display: flex; flex-wrap: wrap; gap: var(--ha-space-2); margin-bottom: var(--ha-space-3); }
         .view-name { display: block; margin-bottom: var(--ha-space-3); }
-        .views-section { margin-bottom: var(--ha-space-4); }
+        .views-section { display: block; margin-bottom: var(--ha-space-4); }
+        .views-actions { display: flex; justify-content: flex-end; margin-bottom: var(--ha-space-2); }
+        .start-view { margin-top: var(--ha-space-3); }
+        .start-view .field-label { display: block; font-weight: var(--ha-font-weight-medium); }
         .views-section > .hint { margin-bottom: var(--ha-space-2); }
         .starter-group { margin: var(--ha-space-4) 0 var(--ha-space-2); }
         .starter-params { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ha-space-3); margin-bottom: var(--ha-space-3); }
@@ -549,12 +587,40 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
 
   /** @private */
   _renderSceneTab() {
+    const cfg = this._workingConfig;
+    const props = astrometricsSchema.properties;
+    /** @param {string} path */
+    const schemaAt = (path) => (path ? props[path].properties : props);
+    /** @param {string} path */
+    const valueAt = (path) => (path ? (isObj(cfg[path]) ? cfg[path] : {}) : cfg);
     return html`
       ${overviewGuide()}
-      <lcards-astro-schema-form .hass=${this.hass} .schema=${astrometricsSchema.properties} .keys=${SCENE_KEYS}
-        .value=${this._workingConfig} .pointIds=${this._pointIds}
-        @form-changed=${(/** @type {CustomEvent} */ e) => this._commit(e.detail.value)}>
-      </lcards-astro-schema-form>
+      ${SCENE_GROUPS.map((g) => html`
+        <lcards-form-section data-group=${g.id} header=${g.header} icon=${g.icon} description=${g.hint} outlined ?expanded=${g.id === 'look' || g.id === 'time'}>
+          ${g.parts.map((part) => html`
+            <lcards-astro-schema-form .hass=${this.hass} .schema=${schemaAt(part.path)} .keys=${part.keys} .value=${valueAt(part.path)}
+              .pointIds=${this._pointIds} .units=${cfg.units ?? ''}
+              @form-changed=${(/** @type {CustomEvent} */ e) => (part.path
+                ? this._setTop(part.path, Object.keys(e.detail.value).length ? e.detail.value : undefined)
+                : this._commit(e.detail.value))}>
+            </lcards-astro-schema-form>`)}
+        </lcards-form-section>`)}
+      <lcards-form-section data-group="background" header="Background" icon="mdi:image-filter-hdr" outlined
+        description="A flat animation behind the scene, as on other LCARdS cards. It does not turn with the camera: for a sky that turns, use Space, Stars.">
+        <lcards-background-animation-editor .hass=${this.hass} .config=${cfg.background_animation ?? []}
+          @effects-changed=${(/** @type {CustomEvent} */ e) => {
+            e.stopPropagation();
+            const v = e.detail.value;
+            this._setTop('background_animation', (Array.isArray(v) && !v.length) ? undefined : v);
+          }}>
+        </lcards-background-animation-editor>
+      </lcards-form-section>
+      <lcards-form-section data-group="labels" header="Labels" icon="mdi:label-outline" outlined
+        description="How every label looks, and the styles points pick (title, major, minor, tiny, and your own).">
+        <lcards-astro-labels-editor .hass=${this.hass} .value=${isObj(cfg.labels) ? cfg.labels : {}}
+          @value-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); this._setTop('labels', Object.keys(e.detail.value ?? {}).length ? e.detail.value : undefined); }}>
+        </lcards-astro-labels-editor>
+      </lcards-form-section>
     `;
   }
 
@@ -578,15 +644,20 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   /** @private */
   _renderCameraTab() {
     const props = astrometricsSchema.properties.camera.properties;
-    const keys = Object.keys(props).filter((k) => k !== 'views');
     const camera = isObj(this._workingConfig.camera) ? this._workingConfig.camera : {};
+    /** @param {string[]} keys */
+    const form = (keys) => html`
+      <lcards-astro-schema-form .hass=${this.hass} .schema=${props} .keys=${keys} .value=${camera} .pointIds=${this._pointIds}
+        .units=${this._workingConfig.units ?? ''} .choices=${{ view: Object.keys(viewsOf(camera)) }}
+        @form-changed=${(/** @type {CustomEvent} */ e) => this._setTop('camera', Object.keys(e.detail.value).length ? e.detail.value : undefined)}>
+      </lcards-astro-schema-form>`;
     return html`
       ${cameraGuide()}
-      ${this._renderViews(camera)}
-      <lcards-astro-schema-form .hass=${this.hass} .schema=${props} .keys=${keys} .value=${camera} .pointIds=${this._pointIds}
-        .choices=${{ view: Object.keys(viewsOf(camera)) }}
-        @form-changed=${(/** @type {CustomEvent} */ e) => this._setTop('camera', Object.keys(e.detail.value).length ? e.detail.value : undefined)}>
-      </lcards-astro-schema-form>
+      ${this._renderViews(camera, form(['view']))}
+      ${CAMERA_GROUPS.map((g) => html`
+        <lcards-form-section data-group=${g.id} header=${g.header} icon=${g.icon} description=${g.hint} outlined>
+          ${form(g.keys.filter((k) => props[k]))}
+        </lcards-form-section>`)}
     `;
   }
 
@@ -594,16 +665,17 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
    * The named views: capture from the preview, fly to, set first, rename,
    * reorder, delete; each view's keys in a generated form.
    * @param {Record<string, any>} camera
+   * @param {any} startForm - the start view field (a view name or a guided tour)
    * @private
    */
-  _renderViews(camera) {
+  _renderViews(camera, startForm) {
     const views = viewsOf(camera);
     const names = Object.keys(views);
     const first = startViewName(camera);
     return html`
-      <div class="views-section">
-        <div class="tab-header">
-          <h3>Views</h3>
+      <lcards-form-section class="views-section" data-group="views" header="Views" icon="mdi:video-outline" outlined ?expanded=${true}
+        description="Named camera views: capture one from the preview, fly between them, and pick the one the card starts with.">
+        <div class="views-actions">
           <ha-button @click=${() => this._captureView(null)}>
             <ha-icon icon="mdi:camera-plus-outline" slot="start"></ha-icon>
             Capture view
@@ -613,7 +685,12 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         ${names.length
           ? names.map((name, i) => this._renderView(name, views[name], i, names.length, name === first))
           : html`<div class="empty">No views yet: the card frames the whole scene.</div>`}
-      </div>
+        <div class="start-view">
+          <span class="field-label">Start with</span>
+          <div class="hint">The view the card opens on (the star in the list), or a guided tour that follows an entity through views.</div>
+          ${startForm}
+        </div>
+      </lcards-form-section>
     `;
   }
 
@@ -669,6 +746,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
             @change=${(/** @type {Event} */ e) => this._renameView(name, /** @type {any} */ (e.target).value)}></ha-input>
           ${this._viewError ? html`<lcards-message type="error">${this._viewError}</lcards-message>` : nothing}
           <lcards-astro-schema-form .hass=${this.hass} .schema=${viewProps} .keys=${Object.keys(viewProps)} .value=${view} .pointIds=${this._pointIds}
+            .units=${this._workingConfig.units ?? ''}
             @form-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); this._setCamera(setView(this._workingConfig.camera, name, e.detail.value)); }}>
           </lcards-astro-schema-form>` : nothing}
       </lcards-form-section>
@@ -839,11 +917,6 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       <div class="tab-header">
         <h3>Objects</h3>
         <div>
-          <ha-button appearance="plain" @click=${() => { this._showAll = !this._showAll; }}
-            title="Some keys belong to one shape or pattern of a type (a grid's disc, dome or hexagonal pattern). Forms hide them for other shapes unless set; this lists them all.">
-            <ha-icon icon=${this._showAll ? 'mdi:eye-off-outline' : 'mdi:eye-outline'} slot="start"></ha-icon>
-            ${this._showAll ? 'Hide keys of other shapes' : 'Show keys of other shapes'}
-          </ha-button>
           <ha-button @click=${() => { this._addingObject = !this._addingObject; }}>
             <ha-icon icon="mdi:plus" slot="start"></ha-icon>
             Add object
@@ -952,7 +1025,9 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   }
 
   /**
-   * An object's form: its type's own keys, then placement, then actions and tags.
+   * An object's form: its type's own shape and size keys, then sections by
+   * what a key does (OBJECT_GROUPS): Appearance open, the rest closed unless
+   * a key in them follows an entity.
    * @param {any} obj
    * @param {{ branch: any, own: Record<string, any>, common: Record<string, any> }} parts
    * @param {(next: Record<string, any>) => void} set
@@ -961,30 +1036,33 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   _renderObjectForm(obj, parts, set) {
     const props = { ...parts.common, ...parts.own };
     // a system's points and objects are edited in its own lists (the row's open button)
-    const own = ['id', ...Object.keys(parts.own)].filter((k) => (k !== 'id' || props.id) && !(obj?.type === 'system' && (k === 'points' || k === 'objects')));
-    const placement = COMMON_GROUPS.placement.filter((k) => parts.common[k]);
-    const distance = COMMON_GROUPS.distance.filter((k) => parts.common[k]);
-    const actions = COMMON_GROUPS.actions.filter((k) => parts.common[k]);
-    /** @param {string[]} keys */
-    const form = (keys) => html`
-      <lcards-astro-schema-form .hass=${this.hass} .schema=${props} .keys=${keys} .value=${obj} .pointIds=${this._pointIds} ?showAll=${this._showAll}
+    const keys = ['id', ...Object.keys(parts.own), ...Object.keys(parts.common).filter((k) => k !== 'id' && !parts.own[k])]
+      .filter((k) => props[k] && !(obj?.type === 'system' && (k === 'points' || k === 'objects')));
+    // a system's own keys (id, at, units, visible) stay together
+    const groupFor = (/** @type {string} */ k) => (k === 'id' || obj?.type === 'system' ? 'main' : groupOf(k, props[k]));
+    /** @param {string[]} list */
+    const form = (list) => html`
+      <lcards-astro-schema-form .hass=${this.hass} .schema=${props} .keys=${list} .value=${obj} .pointIds=${this._pointIds}
+        .units=${this._units} .systemIds=${this._systemIds}
         @form-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); set({ type: obj.type, ...e.detail.value }); }}>
       </lcards-astro-schema-form>`;
     return html`
       ${parts.branch.description ? html`<div class="hint">${parts.branch.description}</div>` : nothing}
-      ${form(own)}
-      ${obj?.type === 'system' ? html`
-        <div class="system-open">
-          <span class="hint">${systemCounts(obj)}</span>
-          <ha-button @click=${() => this._openScope(this._expandedObject)}>
-            <ha-icon icon="mdi:folder-open-outline" slot="start"></ha-icon>
-            Edit its points and objects
-          </ha-button>
-        </div>` : nothing}
-      ${[['Placement', 'mdi:axis-arrow', placement], ['Distance', 'mdi:map-marker-distance', distance], ['Actions and tags', 'mdi:gesture-tap', actions]].map(([header, icon, keys]) => {
+      ${OBJECT_GROUPS.map((g) => {
+        const list = keys.filter((k) => groupFor(k) === g.id);
+        if (!list.length) return nothing;
+        if (g.id === 'main') return html`${form(list)}${obj?.type === 'system' ? html`
+          <div class="system-open">
+            <span class="hint">${systemCounts(obj)}</span>
+            <ha-button @click=${() => this._openScope(this._expandedObject)}>
+              <ha-icon icon="mdi:folder-open-outline" slot="start"></ha-icon>
+              Edit its points and objects
+            </ha-button>
+          </div>` : nothing}`;
         // a section with a setting that follows an entity opens, and says so
-        const bound = keysBound(obj, /** @type {string[]} */ (keys));
-        return html`<lcards-form-section header=${header} icon=${icon} secondary=${bound ? 'follows an entity' : ''} nested outlined ?expanded=${bound}>${form(/** @type {string[]} */ (keys))}</lcards-form-section>`;
+        const bound = keysBound(obj, list);
+        return html`<lcards-form-section data-group=${g.id} header=${g.header} icon=${g.icon} secondary=${bound ? 'follows an entity' : ''}
+          nested outlined ?expanded=${bound || g.id === 'appearance'}>${form(list)}</lcards-form-section>`;
       })}
     `;
   }

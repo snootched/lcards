@@ -211,7 +211,7 @@ test('one GLSL line chunk: the background grid and the mesh grid both include it
 test('backdrop stars take the starfield preset key names: sizes, opacity range, colour list', () => {
   const colours = /** @type {Record<string, number[]>} */ ({ red: [1, 0, 0, 1], blue: [0, 0, 1, 1] });
   const c = { ...ctx(), color: (/** @type {string} */ v) => colours[v] ?? [1, 1, 1, 1] };
-  const w = buildScene({ backdrop: { stars: { count: 400, min_radius: 0.5, max_radius: 2.5, min_opacity: 0.2, max_opacity: 0.6, colors: ['red', 'blue'] } } }, /** @type {any} */ (c));
+  const w = buildScene({ backdrop: { stars: { count: 400, min_radius: 0.5, max_radius: 2.5, brightness: [0.2, 0.6], colors: ['red', 'blue'] } } }, /** @type {any} */ (c));
   const mesh = /** @type {any} */ (w.stars?.node.children[0]);
   assert.equal(mesh.geometry.instanceCount, 400, 'one quad per star');
   const sizes = mesh.geometry.getAttribute('iSize');

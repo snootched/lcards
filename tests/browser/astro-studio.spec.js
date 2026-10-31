@@ -136,7 +136,7 @@ test('studio: the preview selects instead of acting; objects from the type picke
         field.dispatchEvent(new CustomEvent('value-changed', { detail: { value: 40 } }));
     });
     expect(await page.evaluate(() => window.__studio._workingConfig.objects[0].line_spacing)).toBe(40);
-    // keys for other shapes are hidden on a plane (radius), shown with "Show keys of other shapes"
+    // keys for other shapes are hidden on a plane (radius)
     const keys = () => page.evaluate(async () => {
         const form = window.__studio.renderRoot.querySelector('[data-object="0"] lcards-astro-schema-form');
         await form.updateComplete;
@@ -144,8 +144,6 @@ test('studio: the preview selects instead of acting; objects from the type picke
     });
     expect(await keys()).toContain('size');
     expect(await keys()).not.toContain('radius');
-    await page.evaluate(() => { window.__studio._showAll = true; });
-    await expect.poll(keys).toContain('radius');
 
     // add a ring: it gets a fresh id and the preview builds it
     await page.evaluate(() => window.__studio._addObject('ring'));
@@ -418,10 +416,10 @@ test('studio R4b: settings that follow entities load from the YAML: their fields
             bindings: deep(el).filter((x) => x.classList?.contains('binding')).map((b) => `${b.dataset.key}=${b.querySelector('ha-selector')?.value}`)
         };
     }, idx);
-    // the bubble: opacity is a placement key, so Placement opens on it
+    // the bubble: opacity is an appearance key, so Appearance says so
     const bubble = await row(0);
     expect(bubble.summary).toContain('follows input_number.lcards_test_shields');
-    expect(bubble.open).toEqual(['Placement']);
+    expect(bubble.open).toEqual(['Appearance']);
     expect(bubble.bindings).toEqual(['opacity=input_number.lcards_test_shields']);
     // the glow: size is its own key
     const glow = await row(1);
@@ -431,5 +429,124 @@ test('studio R4b: settings that follow entities load from the YAML: their fields
     expect(well.summary).toContain('a template');
     expect(well.open).toEqual(['1 · wobble']);
     expect(well.bindings[0]).toMatch(/^amplitude=\[\[\[ return Number/);
+    expect((await cardErrors(page)).filter((e) => !/Frame took/.test(e))).toEqual([]);
+});
+
+test('studio UX1 P2: grouped object sections, sliders, bind panels, the look switch, the stars switch, a guided tour', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await openStudio(page);
+    /** the studio after a change, settled */
+    const settle = () => page.evaluate(async () => {
+        const s = window.__studio;
+        await s.updateComplete;
+        const deep = (root) => [...root.querySelectorAll('*')].flatMap((e) => [e, ...(e.shadowRoot ? deep(e.shadowRoot) : [])]);
+        for (const f of deep(s.renderRoot).filter((e) => e.tagName === 'LCARDS-ASTRO-SCHEMA-FORM')) await f.updateComplete;
+    });
+    // an element anywhere under the studio (through every shadow root)
+    await page.evaluate(() => {
+        window.__find = (sel) => {
+            const deep = (root) => [...root.querySelectorAll('*')].flatMap((e) => [e, ...(e.shadowRoot ? deep(e.shadowRoot) : [])]);
+            return deep(window.__studio.renderRoot).filter((e) => e.matches(sel));
+        };
+    });
+
+    // Objects: the floor's form in sections by meaning, Appearance open; no "other shapes" toggle
+    await page.evaluate(() => { window.__studio._activeTab = 'objects'; window.__studio._expandedObject = 0; });
+    await settle();
+    const sections = await page.evaluate(() => window.__find('[data-object="0"] lcards-form-section[data-group]').map((x) => [x.header, x.expanded]));
+    expect(sections).toEqual([['Appearance', true], ['Position and motion', false], ['Visibility and distance', false], ['Actions and tags', false]]);
+    expect(await page.evaluate(() => window.__studio.renderRoot.textContent.includes('keys of other shapes'))).toBe(false);
+    // opacity (0 to 1) is a slider; line spacing (unbounded) a box
+    expect(await page.evaluate(() => window.__find('ha-selector[data-key="opacity"]')[0].selector.number.mode)).toBe('slider');
+    expect(await page.evaluate(() => window.__find('ha-selector[data-key="line_spacing"]')[0].selector.number.mode)).toBe('box');
+
+    // the bind button turns opacity into a panel under its name; the way back is in its header
+    await page.evaluate(() => window.__find('[data-key="opacity-bind"]')[0].click());
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.objects[0].opacity)).toEqual({ entity: '' });
+    expect(await page.evaluate(() => window.__find('lcards-form-section.binding[data-key="opacity"]')[0].header)).toBe('Opacity: follows an entity');
+    // the attribute is a dropdown of the entity's attributes, once an entity is picked
+    expect(await page.evaluate(() => window.__find('ha-selector[data-key="opacity~attribute"]').length)).toBe(0);
+    await page.evaluate(() => window.__find('ha-selector[data-key="opacity~entity"]')[0]
+        .dispatchEvent(new CustomEvent('value-changed', { detail: { value: 'input_number.lcards_test_shields' } })));
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.objects[0].opacity)).toEqual({ entity: 'input_number.lcards_test_shields' });
+    expect(await page.evaluate(() => window.__find('ha-selector[data-key="opacity~attribute"]')[0].selector))
+        .toEqual({ attribute: { entity_id: 'input_number.lcards_test_shields' } });
+    await page.evaluate(() => window.__find('[data-key="opacity-unbind"]')[0].click());
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.objects[0].opacity)).toBeUndefined();
+
+    // Scene: sections by what they hold, each with an icon
+    await page.evaluate(() => { window.__studio._activeTab = 'scene'; });
+    await settle();
+    expect(await page.evaluate(() => [...window.__studio.renderRoot.querySelectorAll('lcards-form-section[data-group]')].map((x) => [x.header, !!x.icon])))
+        .toEqual([['Look', true], ['Time', true], ['Warp', true], ['Space', true], ['Background', true], ['Labels', true]]);
+    expect(await page.evaluate(() => window.__find('lcards-background-animation-editor').length)).toBe(1);
+    // the clock's rate: a preset, or a custom amount and unit
+    const rate = (v) => page.evaluate((val) => window.__find('ha-selector[data-key="rate~preset"]')[0]
+        .dispatchEvent(new CustomEvent('value-changed', { detail: { value: val } })), v);
+    await rate('30 d/s');
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.clock)).toEqual({ rate: '30 d/s' });
+    await rate('custom');
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.clock)).toEqual({ rate: '30 d/s' });
+    await page.evaluate(() => window.__find('ha-selector[data-key="rate~unit"]')[0].dispatchEvent(new CustomEvent('value-changed', { detail: { value: 'h' } })));
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.clock)).toEqual({ rate: '30 h/s' });
+    await rate('live');
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.clock)).toBeUndefined();
+    // the date: now, or a date and time
+    await page.evaluate(() => window.__find('[data-key="date"] ha-button[data-value="date"]')[0].click());
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.clock.date)).toMatch(/^\d{4}-\d\d-\d\d 00:00:00$/);
+    await page.evaluate(() => window.__find('[data-key="date"] ha-button[data-value="now"]')[0].click());
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.clock)).toBeUndefined();
+    // a built-in label style is overridden through the text controls, and reset
+    await page.evaluate(() => window.__find('lcards-astro-labels-editor')[0]._style && window.__find('lcards-astro-labels-editor')[0]
+        .shadowRoot.querySelector('lcards-text-field-editor[basepath="styles.major"]').editor._setConfigValue('styles.major.font_size', 24));
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.labels)).toEqual({ styles: { major: { font_size: 24 } } });
+    await page.evaluate(() => window.__find('[data-key="reset-major"]')[0].click());
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.labels)).toBeUndefined();
+
+    // the look is a pill switch (mixed, the default, leaves the key out); stars switch in its section header
+    await page.evaluate(() => window.__find('[data-key="look"] ha-button[data-value="realistic"]')[0].click());
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.look)).toBe('realistic');
+    await page.evaluate(() => window.__find('[data-key="look"] ha-button[data-value="mixed"]')[0].click());
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.look)).toBeUndefined();
+    const sw = await page.evaluate(() => { const el = window.__find('ha-switch[data-key="stars-on"]')[0]; return el.slot; });
+    expect(sw).toBe('header-icons');
+    await page.evaluate(() => { const el = window.__find('ha-switch[data-key="stars-on"]')[0]; el.checked = true; el.dispatchEvent(new Event('change')); });
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.backdrop)).toEqual({ stars: true });
+
+    // Camera: the start view sits with the views; the camera's settings in sections
+    await page.evaluate(() => { window.__studio._activeTab = 'camera'; });
+    await settle();
+    expect(await page.evaluate(() => [...window.__studio.renderRoot.querySelectorAll('lcards-form-section[data-group]')].map((x) => x.header)))
+        .toEqual(['Views', 'Controls', 'On-card buttons', 'Flying', 'Turning', 'Limits']);
+    expect(await page.evaluate(() => !!window.__studio.renderRoot.querySelector('.views-section .start-view [data-key="view-tour"]')
+        || window.__find('.start-view lcards-astro-schema-form').length > 0)).toBe(true);
+    // the first view becomes a guided tour, gets an entity and a stop, and goes back to one view
+    await page.evaluate(() => window.__find('[data-key="view-tour"]')[0].click());
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.camera.view)).toEqual({ entity: '', views: ['top'] });
+    await page.evaluate(() => window.__find('ha-selector[data-key="view~entity"]')[0]
+        .dispatchEvent(new CustomEvent('value-changed', { detail: { value: 'input_number.lcards_test_power' } })));
+    await settle();
+    await page.evaluate(() => window.__find('[data-key="view~add"]')[0].click());
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.camera.view)).toEqual({ entity: 'input_number.lcards_test_power', views: ['top', 'top'] });
+    await page.evaluate(() => window.__find('[data-key="view-unbind"]')[0].click());
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.camera.view)).toBe('top');
     expect((await cardErrors(page)).filter((e) => !/Frame took/.test(e))).toEqual([]);
 });

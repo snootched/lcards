@@ -25,12 +25,15 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { fireEvent } from 'custom-card-helpers';
 import { MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, BODY_NAMES, PLACEMENT_FORMS } from '../../../core/astrometrics/names.js';
-import { LABEL_POSITIONS } from '../../../core/astrometrics/label-text.js';
 import { mountDialogNearHomeAssistant } from '../../../utils/lcards-shared-helpers.js';
 import { showInfoDialog } from '../../../views/layout-edit-dialogs.js';
 import '../shared/lcards-form-section.js';
 import '../shared/lcards-message.js';
 import '../shared/lcards-color-picker.js';
+import './lcards-text-field-editor.js';
+import './lcards-position-picker.js';
+import { astrometricsSchema } from '../../../cards/schemas/astrometrics-schema.js';
+import { valueEditor } from '../../dialogs/astro-studio/text-adapter.js';
 
 /** @type {Record<string, { label: string, inputs?: string[], host?: string, pick?: boolean, value: any }>} */
 const FORMS = {
@@ -567,8 +570,9 @@ export class LCARdSAstroPointsEditor extends LitElement {
     return html`
       <div class="grid">
         ${this._select('Show', pin.show ?? 'tap', CARD_SHOW, (v) => patchPin({ show: v === 'tap' ? undefined : v }))}
-        ${this._select('Position', pin.position ?? '', [{ value: '', label: '(Default: center-right)' }, ...Object.keys(LABEL_POSITIONS).map((p) => ({ value: p, label: p }))],
-          (v) => patchPin({ position: v || undefined }))}
+        <lcards-position-picker .value=${pin.position ?? 'center-right'} .label=${'Position'} .helper=${'Where the card sits round the point'}
+          @value-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); patchPin({ position: e.detail.value === 'center-right' ? undefined : e.detail.value }); }}>
+        </lcards-position-picker>
         ${this._number('Width (px)', pin.width, (v) => patchPin({ width: v }), { min: 80, max: 1200 })}
         <div class="card-actions">
           <ha-button appearance="plain" @click=${() => this._chooseCard(index)}>
@@ -596,13 +600,9 @@ export class LCARdSAstroPointsEditor extends LitElement {
   /** @param {any} point @param {number} index */
   _renderLabel(point, index) {
     const styles = Object.keys(this.config?.labels?.styles ?? {});
-    const field = point.text?.label ?? {};
-    /** @param {Record<string, any>} patch */
-    const patchField = (patch) => {
-      const text = { ...(point.text ?? {}), label: prune({ ...field, ...patch }) };
-      if (!Object.keys(text.label).length) delete text.label;
-      this._patch(index, { text: Object.keys(text).length ? text : undefined });
-    };
+    // the label's text field, in the card editors' own text controls (the label itself is the Label box)
+    const textEditor = valueEditor({ hass: this.hass, schema: astrometricsSchema.properties.points.items, value: point,
+      onChange: (v) => this._patch(index, { text: v.text }) });
     const color = point.color;
     return html`
       <div class="grid">
@@ -624,16 +624,10 @@ export class LCARdSAstroPointsEditor extends LitElement {
               </lcards-color-picker>`}
         </div>
       </div>
-      <lcards-form-section header="Label text" description="Position round the point, size and weight; more fields in YAML" icon="mdi:format-text" nested outlined>
-        <div class="grid">
-          ${this._select('Position', field.position ?? '', [{ value: '', label: '(Default)' }, ...Object.keys(LABEL_POSITIONS).map((p) => ({ value: p, label: p }))],
-            (v) => patchField({ position: v || undefined }))}
-          ${this._number('Font size (px)', typeof field.font_size === 'number' ? field.font_size : undefined, (v) => patchField({ font_size: v }), { min: 6, max: 96 })}
-          ${this._select('Weight', field.font_weight !== undefined ? String(field.font_weight) : '', [
-            { value: '', label: '(Style default)' },
-            ...['300', '400', '500', '700', '900'].map((w) => ({ value: w, label: w }))
-          ], (v) => patchField({ font_weight: v ? Number(v) : undefined }))}
-        </div>
+      <lcards-form-section header="Label text" description="Position round the point, font, size, colours and background (over its style)" icon="mdi:format-text" nested outlined>
+        <lcards-text-field-editor .editor=${textEditor} .config=${textEditor.config} basePath="text.label" .omit=${['content']}
+          .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'selected']}>
+        </lcards-text-field-editor>
       </lcards-form-section>
     `;
   }

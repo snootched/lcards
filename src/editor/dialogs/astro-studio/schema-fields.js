@@ -14,14 +14,24 @@
 import { simpleColorSchema } from '../../../cards/schemas/common-schemas.js';
 
 /**
- * @typedef {'boolean' | 'enum' | 'number' | 'color' | 'text' | 'asset' | 'strings' | 'tuple' | 'numbers'
- *   | 'pointRef' | 'numberOrTuple' | 'boolOrObject' | 'boolOrNumber' | 'choice' | 'object' | 'objectList' | 'pointList' | 'yaml'} FieldKind
+ * @typedef {'boolean' | 'enum' | 'number' | 'range' | 'textDefault' | 'rate' | 'date' | 'color' | 'colorList' | 'font' | 'text' | 'asset' | 'strings' | 'tuple' | 'numbers'
+ *   | 'pointRef' | 'numberOrTuple' | 'boolOrObject' | 'boolOrNumber' | 'boolOrList' | 'choice' | 'object' | 'objectList' | 'pointList' | 'yaml'} FieldKind
  */
 
 const isObj = (/** @type {any} */ v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** @param {any} s */
 const isColor = (s) => !!s && (s === simpleColorSchema || (Array.isArray(s.allOf) && s.allOf.includes(simpleColorSchema)));
+
+/** A list of colours @param {any} s */
+const isColorArray = (s) => hasType(s, 'array') && isColor(s.items);
+
+/**
+ * A property's `x-ui-hints` (label, selector, widget, group), or {}.
+ * @param {any} s
+ * @returns {Record<string, any>}
+ */
+export const uiHints = (s) => (isObj(s?.['x-ui-hints']) ? s['x-ui-hints'] : {});
 
 /** @param {any} s @param {string} t */
 const hasType = (s, t) => s?.type === t || (Array.isArray(s?.type) && s.type.includes(t));
@@ -34,6 +44,20 @@ const isNumberArray = (s) => hasType(s, 'array') && isNumberSchema(s.items);
 
 /** A fixed-length number array (2 to 4): [x, y, z], [from, to] @param {any} s */
 const isTuple = (s) => isNumberArray(s) && s.minItems !== undefined && s.minItems === s.maxItems && s.minItems >= 2 && s.minItems <= 4;
+
+/**
+ * [low, high] of a bounded number (a brightness range, 0 to 1): two sliders.
+ * Its items may be settings (a nebula's).
+ * @param {any} s
+ */
+const isRange = (s) => {
+  if (!hasType(s, 'array') || s.minItems !== 2 || s.maxItems !== 2) return false;
+  const item = settingNumber(s.items) ?? s.items;
+  return isNumberSchema(item) && Number.isFinite(item.minimum) && Number.isFinite(item.maximum);
+};
+
+/** The number schema of a range's items @param {any} s */
+export const rangeItem = (s) => settingNumber(s?.items) ?? s?.items ?? {};
 
 /** A point id or [x, y, z] @param {any} s */
 const isPointRef = (s) => Array.isArray(s?.oneOf) && s.oneOf.length === 2
@@ -67,6 +91,23 @@ export function settingNumber(s) {
 /** A setting value that follows an entity (`{ entity }`) @param {any} v */
 export const isBoundValue = (v) => isObj(v) && typeof v.entity === 'string';
 
+/**
+ * The `{ entity, ... }` branch of a bindable property (its keys say which
+ * binding fields apply: a look takes entity and attribute, a number range and to too).
+ * @param {any} s
+ * @returns {any}
+ */
+export const bindingBranch = (s) => (s?.oneOf ?? s?.anyOf ?? []).find(isBindingSchema) ?? null;
+
+/** Whether a property takes a template string @param {any} s */
+export const takesTemplate = (s) => (s?.oneOf ?? s?.anyOf ?? []).some(isTemplateSchema);
+
+/** A template value (JavaScript, Jinja2 or a token) @param {any} v */
+export const isTemplateValue = (v) => typeof v === 'string' && /\[\[\[|\{\{|\{[A-Za-z_]/.test(v);
+
+/** A guided tour (camera.view: { entity, views }) @param {any} s */
+export const isTour = (s) => !!bindingBranch(s)?.properties?.views;
+
 /** An object schema the form can walk (its own keys, no free map) @param {any} s */
 const isWalkable = (s) => hasType(s, 'object') && isObj(s.properties) && !s.additionalProperties;
 
@@ -82,6 +123,15 @@ const YAML_KEYS = new Set(['tap_action', 'hold_action']);
 export function fieldKind(s, key) {
   if (!isObj(s) || (key && YAML_KEYS.has(key))) return 'yaml';
   if (isColor(s)) return 'color';
+  const widget = uiHints(s).widget;
+  if (widget === 'font' || s.format === 'font-family') return 'font';
+  // the scene clock's rate and date (clock-fields.js)
+  if (widget === 'rate') return 'rate';
+  if (widget === 'date') return 'date';
+  // generated labels' text (ring_labels.text: only default): the card editors' text controls
+  if (widget === 'textDefault') return 'textDefault';
+  if (isRange(s)) return 'range';
+  if (isColorArray(s)) return 'colorList';
   if (isPointRef(s)) return 'pointRef';
   // a number that can follow an entity or a template (R4b): a number field with a bind button
   if (settingNumber(s)) return 'number';
@@ -94,14 +144,16 @@ export function fieldKind(s, key) {
     // true / false, or an entity it follows (warp): a checkbox, the entity form as YAML
     if (alts.length === 1 && hasType(alts[0], 'boolean')) return 'boolean';
     if (alts.length === 2) {
+      // one colour or a list of them (a nebula's or a fill's colours)
+      if (alts.some(isColor) && alts.some(isColorArray)) return 'colorList';
       // one number, or a pair / triple of numbers ([w, d], [a, b], [w, h, d])
       if (alts.some(isNumberSchema) && alts.some(isTuple)) return 'numberOrTuple';
       // true, or an object to choose (stars, buttons, pulse)
       if (alts.some((b) => hasType(b, 'boolean')) && alts.some(isWalkable)) return 'boolOrObject';
       // true, or a factor (a line's glow)
       if (alts.some((b) => hasType(b, 'boolean')) && alts.some(isNumberSchema)) return 'boolOrNumber';
-      // true, or a list of names (hide_in_systems: a list is edited as YAML)
-      if (alts.some((b) => hasType(b, 'boolean')) && alts.some((b) => hasType(b, 'array') && hasType(b.items, 'string'))) return 'boolean';
+      // true, or a list of names (hide_in_systems: true, or the systems to hide in)
+      if (alts.some((b) => hasType(b, 'boolean')) && alts.some((b) => hasType(b, 'array') && hasType(b.items, 'string'))) return 'boolOrList';
     }
     // words, plus true / false or any number (a clock rate: live or days per second; the time slider: true or a mode)
     if (choiceOptions(s)) return 'choice';
@@ -159,6 +211,101 @@ export function choiceValue(v, { bool, number }) {
   const n = Number(v);
   if (number && String(v).trim() !== '' && Number.isFinite(n)) return n;
   return String(v);
+}
+
+/**
+ * The ha-selector for a number field: the `x-ui-hints` selector when there
+ * is one, a slider (with its box) when the schema bounds both ends, else a box.
+ * @param {any} s
+ * @returns {{ number: Record<string, any> }}
+ */
+export function numberSelector(s) {
+  const hint = uiHints(s).selector;
+  if (hint?.number) return hint;
+  const n = settingNumber(s) ?? s;
+  const whole = hasType(n, 'integer');
+  const { minimum: min, maximum: max } = n ?? {};
+  if (Number.isFinite(min) && Number.isFinite(max)) return { number: { mode: 'slider', min, max, step: whole ? 1 : 'any' } };
+  return { number: { mode: 'box', min, max, step: whole ? 1 : 'any' } };
+}
+
+/**
+ * A label with the open scope's units when the key is in scene units
+ * ("Radius (ly)"); as it is when the scene names no units.
+ * @param {string} label
+ * @param {string | undefined} description
+ * @param {string | undefined} units
+ */
+export function unitsLabel(label, description, units) {
+  return units && /scene units/.test(String(description ?? '')) ? `${label} (${units})` : label;
+}
+
+/**
+ * The object form's groups, in order: the type's own shape and size keys
+ * (no header), then sections by what a key does.
+ */
+export const OBJECT_GROUPS = [
+  { id: 'main', header: '', icon: '' },
+  { id: 'appearance', header: 'Appearance', icon: 'mdi:palette-outline' },
+  { id: 'position', header: 'Position and motion', icon: 'mdi:axis-arrow' },
+  { id: 'visibility', header: 'Visibility and distance', icon: 'mdi:map-marker-distance' },
+  { id: 'actions', header: 'Actions and tags', icon: 'mdi:gesture-tap' },
+  { id: 'advanced', header: 'Advanced', icon: 'mdi:tune-variant' }
+];
+
+/** The keys every object shares, by group */
+export const COMMON_GROUPS = {
+  appearance: ['opacity'],
+  position: ['at', 'rotation', 'face', 'spin'],
+  visibility: ['visible', 'min_distance', 'max_distance', 'fade', 'hide_in_systems', 'look'],
+  actions: ['tags', 'tap_action', 'hold_action', 'view']
+};
+
+/** A type's own keys that are about how it looks (colours, opacity, line widths, effects) */
+const APPEARANCE_KEY = /(^|_)(colou?rs?|opacity|glow|dash|blend|material|scanlines|edges)$|^(colou?r_|line_width|width|edge_width|image|scan|fill_effect|style|falloff|flow_speed$|pulse$)/;
+
+/** A type's own keys few need: limits and drawing order */
+const ADVANCED_KEYS = new Set(['max_file_size', 'occlude']);
+
+/**
+ * Which object-form group a key sits in: its `x-ui-hints.group`, the shared
+ * keys' table, else by name (colours and opacity to Appearance), else the
+ * type's own block.
+ * @param {string} key
+ * @param {any} [s]
+ * @returns {string}
+ */
+export function groupOf(key, s) {
+  const hint = uiHints(s).group;
+  if (typeof hint === 'string') return hint;
+  for (const [group, keys] of Object.entries(COMMON_GROUPS)) if (keys.includes(key)) return group;
+  if (ADVANCED_KEYS.has(key)) return 'advanced';
+  if (APPEARANCE_KEY.test(key)) return 'appearance';
+  return 'main';
+}
+
+/** Section icons by key (a nested object or list); else by kind */
+const SECTION_ICONS = {
+  backdrop: 'mdi:weather-night', stars: 'mdi:star-four-points-outline', dust: 'mdi:blur', labels: 'mdi:label-outline',
+  clock: 'mdi:clock-outline', buttons: 'mdi:gesture-tap-button', limits: 'mdi:arrow-expand-all', target: 'mdi:crosshairs',
+  fill_effect: 'mdi:texture-box', deform: 'mdi:waves', cells: 'mdi:grid', ring_labels: 'mdi:label-multiple-outline',
+  axis_labels: 'mdi:label-multiple-outline', pulse: 'mdi:pulse', clouds: 'mdi:weather-cloudy', text: 'mdi:format-text',
+  default: 'mdi:format-text', styles: 'mdi:format-list-text', outline: 'mdi:vector-polygon', animation: 'mdi:animation-play',
+  sky: 'mdi:weather-sunset', body: 'mdi:earth', orbit: 'mdi:orbit', well_profile: 'mdi:chart-bell-curve', edges: 'mdi:vector-square'
+};
+
+/**
+ * The icon of a section for a key: its own, else one for its kind.
+ * @param {string} key
+ * @param {string} kind - a FieldKind, or 'item' for one entry of a list
+ */
+export function sectionIcon(key, kind) {
+  const own = /** @type {Record<string, string>} */ (SECTION_ICONS)[key];
+  if (own) return own;
+  if (kind === 'objectList') return 'mdi:format-list-bulleted';
+  if (kind === 'item') return 'mdi:circle-medium';
+  if (kind === 'yaml') return 'mdi:code-braces';
+  return 'mdi:tune-variant';
 }
 
 /**
@@ -286,13 +433,6 @@ export function objectBranch(objectSchema, type) {
   for (const k of Object.keys(own)) delete common[k];
   return { branch, own, common };
 }
-
-/** Common object keys by group, in form order */
-export const COMMON_GROUPS = {
-  placement: ['at', 'rotation', 'face', 'spin', 'visible', 'opacity'],
-  distance: ['min_distance', 'max_distance', 'fade', 'hide_in_systems', 'look'],
-  actions: ['tags', 'tap_action', 'hold_action', 'view']
-};
 
 /**
  * The empty values a form writes as "not set": the key is removed.

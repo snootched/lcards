@@ -79,13 +79,30 @@ const settingOrPair = (description) => ({
  * @param {Record<string, any>} [extra]
  */
 const setting = (description, extra = {}) => {
-    const { default: def, ...limits } = extra;
+    const { default: def, 'x-ui-hints': hints, ...limits } = extra;
     return {
         description,
         anyOf: [{ type: 'number', ...limits }, settingBinding, settingTemplate],
-        ...(def !== undefined ? { default: def } : {})
+        ...(def !== undefined ? { default: def } : {}),
+        ...(hints ? { 'x-ui-hints': hints } : {})
     };
 };
+
+/**
+ * A random range [low, high] of opacities, 0 to 1: each star, particle or
+ * cloud gets its own value between them (seeded). Items may be settings.
+ * @param {string} description
+ * @param {[number, number]} def
+ * @param {boolean} [bindable]
+ */
+const brightness = (description, def, bindable = false) => ({
+    type: 'array',
+    minItems: 2,
+    maxItems: 2,
+    items: bindable ? setting('A brightness, 0 to 1.', { minimum: 0, maximum: 1 }) : { type: 'number', minimum: 0, maximum: 1 },
+    default: def,
+    description
+});
 
 /** @param {number} n @param {string} description */
 const tuple = (n, description) => ({
@@ -213,8 +230,8 @@ const cameraSchema = {
                                         additionalProperties: false,
                                         properties: {
                                             view: { type: 'string', description: 'The named view to fly to.' },
-                                            date: { type: 'string', description: 'Set the scene date there: now or an ISO date.' },
-                                            rate: { description: 'Set the date\'s rate there: live, days per second, or with a unit as the time slider shows it (1 h/s, 30 d/s, 1 y/s).', anyOf: [{ type: 'number' }, { type: 'string', enum: ['live'] }, { type: 'string', pattern: RATE_PATTERN }] }
+                                            date: { type: 'string', 'x-ui-hints': { widget: 'date' }, description: 'Set the scene date there: now or an ISO date.' },
+                                            rate: { 'x-ui-hints': { widget: 'rate' }, description: 'Set the date\'s rate there: live, days per second, or with a unit as the time slider shows it (1 h/s, 30 d/s, 1 y/s).', anyOf: [{ type: 'number' }, { type: 'string', enum: ['live'] }, { type: 'string', pattern: RATE_PATTERN }] }
                                         }
                                     }
                                 ]
@@ -349,7 +366,7 @@ const cameraSchema = {
 // ── Backdrop and labels ──────────────────────────────────────────────────────
 
 const starsSchema = {
-    description: 'Stars at infinity: they turn with the camera and never move when it pans. true for the defaults, or settings (the starfield background preset\'s names).',
+    description: 'Stars at infinity: they turn with the camera and never move when it pans. true for the defaults, or settings.',
     oneOf: [
         { type: 'boolean' },
         {
@@ -358,11 +375,10 @@ const starsSchema = {
                 count: number('How many stars.', { minimum: 0, maximum: 50000, default: 2000 }),
                 min_radius: number('Smallest star radius, px.', { minimum: 0, default: 0.4 }),
                 max_radius: number('Largest star radius, px.', { minimum: 0, default: 1.2 }),
-                min_opacity: number('Faintest star opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 0.35 }),
-                max_opacity: number('Brightest star opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
+                brightness: brightness('Each star\'s brightness is picked at random between these [faintest, brightest], 0 to 1 (the seed picks the same ones every time). Default [0.35, 1].', [0.35, 1]),
                 color: color('Star colour. Default var(--lcards-moonlight).'),
                 colors: { type: 'array', items: simpleColorSchema, description: 'Several star colours, picked at random per star (wins over color).' },
-                opacity: number('Opacity of the whole star layer, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
+                opacity: number('Fades the whole star layer, 0 to 1: every star\'s brightness is multiplied by it.', { minimum: 0, maximum: 1, default: 1 }),
                 seed: number('Random seed: the same seed places the same stars.', { default: 7 }),
                 streak: number('How long stars and dust streak during a warp fly-to (camera.warp or a view\'s warp); 0: never.', { minimum: 0, default: 1 }),
                 spectrum: { type: 'boolean', default: false, description: 'Streaks split into colour: a Doppler shift of each star\'s own colour, violet toward the tail and red toward the head (white stars show the whole rainbow).' },
@@ -383,11 +399,10 @@ const dustSchema = {
                 radius: number('They fill a ball this big round the scene centre, scene units. Default 1.5 x the scene\'s radius.', { exclusiveMinimum: 0 }),
                 min_radius: number('Smallest particle radius, px.', { minimum: 0, default: 0.4 }),
                 max_radius: number('Largest particle radius, px.', { minimum: 0, default: 1 }),
-                min_opacity: number('Faintest particle, 0 to 1.', { minimum: 0, maximum: 1, default: 0.35 }),
-                max_opacity: number('Brightest particle, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
+                brightness: brightness('Each particle\'s brightness is picked at random between these [faintest, brightest], 0 to 1. Default [0.35, 1].', [0.35, 1]),
                 color: color('Particle colour. Default var(--lcards-moonlight).'),
                 colors: { type: 'array', items: simpleColorSchema, description: 'Several colours, picked at random per particle (wins over color).' },
-                opacity: number('Opacity of the whole layer, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
+                opacity: number('Fades the whole dust layer, 0 to 1: every particle\'s brightness is multiplied by it.', { minimum: 0, maximum: 1, default: 1 }),
                 seed: number('Random seed.', { default: 7 }),
                 spectrum: { type: 'boolean', default: false, description: 'Streaks split into colour (a Doppler shift, as on the stars).' },
                 spectrum_direction: { type: 'string', enum: ['doppler', 'reverse'], default: 'doppler', description: 'doppler: violet toward the tail. reverse: violet toward the head.' }
@@ -421,6 +436,13 @@ const labelFieldProperties = textFieldProperties({
     }
 });
 
+/**
+ * The keys a label style takes (labels.default, labels.styles): how labels
+ * look, not what they say (no content, show, template or display_format).
+ */
+const labelStyleProperties = Object.fromEntries(Object.entries(labelFieldProperties)
+    .filter(([k]) => !['content', 'show', 'template', 'display_format'].includes(k)));
+
 /** One label field, or text.default */
 const labelFieldSchema = {
     type: 'object',
@@ -439,8 +461,9 @@ const pointTextSchema = {
 /** Generated labels (ring_labels, axis_labels): one field, styled by default */
 const generatedTextSchema = {
     type: 'object',
+    'x-ui-hints': { widget: 'textDefault' },
     description: 'Text keys for these labels (font, size, colour, background, ...): text.default applies to every one.',
-    properties: { default: { ...labelFieldSchema, description: 'Text keys every label of this set takes.' } }
+    properties: { default: { type: 'object', properties: labelStyleProperties, description: 'Text keys every label of this set takes (their text is generated).' } }
 };
 
 // ── Points ───────────────────────────────────────────────────────────────────
@@ -678,7 +701,8 @@ const gridObject = {
     description: 'A see-through grid surface: plane (a sector map), disc (a galaxy disc), dome (a sky), sphere (a wireframe ball; for a solid planet use sphere), cylinder or well (a funnel, a wormhole), optionally deformed (deform).',
     properties: {
         type: { type: 'string', const: 'grid', description: 'grid: a grid surface.' },
-        shape: { type: 'string', enum: [...GRID_SHAPES], default: 'plane', description: 'plane (size), disc (radius, or [inner, outer] for a hole in the middle), dome (a half sphere, radius), sphere (radius), cylinder (radius, height) or well (a funnel down from its rim: radius, depth, well_shape).' },
+        shape: { type: 'string', enum: [...GRID_SHAPES], default: 'plane', description: 'plane (size), disc (radius, or [inner, outer] for a hole in the middle), dome (a half sphere, radius), sphere (radius), cylinder (radius, height) or well (a funnel down from its rim: radius, depth, well_shape).' ,
+            enumDescriptions: { plane: 'Flat rectangle', disc: 'Flat circle', dome: 'Half sphere', sphere: 'Globe', cylinder: 'Tube', well: 'Funnel down from a rim' } },
         size: settingOrPair('plane: width and depth [w, d], scene units (one number for a square). Default 200.'),
         radius: {
             description: 'disc, dome, sphere, cylinder, well (its rim): radius, scene units. A disc also takes [inner, outer] for a hole in the middle. Default 100.',
@@ -771,7 +795,8 @@ const volumeObject = {
     description: 'A see-through box of grid cells (a territory): a sector of a disc, a box, or a prism of any outline.',
     properties: {
         type: { type: 'string', const: 'volume', description: 'volume: a see-through cell box.' },
-        shape: { type: 'string', enum: [...VOLUME_SHAPES], default: 'sector', description: 'sector: between two radii, two bearings and two heights round the centre. box: size centred on at. prism: the outline (any polygon, a territory\'s border) between two heights.' },
+        shape: { type: 'string', enum: [...VOLUME_SHAPES], default: 'sector', description: 'sector: between two radii, two bearings and two heights round the centre. box: size centred on at. prism: the outline (any polygon, a territory\'s border) between two heights.' ,
+            enumDescriptions: { sector: 'Wedge between radii, bearings and heights', box: 'Box', prism: 'Any outline between two heights' } },
         outline: {
             type: 'array',
             minItems: 3,
@@ -1043,7 +1068,7 @@ const galaxyObject = {
         arm_color: color('Colour the arm stars lean toward, and the arms\' glow. Default var(--lcars-blue).'),
         star_color: color('The stars\' base colour. Default var(--lcards-moonlight).'),
         glow: setting('Opacity of the soft glow along the arms and at the core, 0 to 1 (0: none).', { minimum: 0, maximum: 1, default: 0.6 }),
-        dust: setting('Opacity of the dark dust lanes on the arms\' inner edges, 0 to 1 (0: none).', { minimum: 0, maximum: 1, default: 0.5 }),
+        dust: setting('Opacity of the dark dust lanes on the arms\' inner edges, 0 to 1 (0: none).', { minimum: 0, maximum: 1, default: 0.5, 'x-ui-hints': { group: 'appearance' } }),
         dust_color: color('Colour of the dust lanes. Default the background colour.')
     }
 };
@@ -1073,14 +1098,13 @@ const nebulaObject = {
                     xyz: tuple(3, 'Where the cloud sits [x, y, z], scene units from the object.'),
                     radius: setting('Cloud radius, scene units. Default between min_radius and max_radius.', { exclusiveMinimum: 0 }),
                     color: color('This cloud\'s colour. Default from colors.'),
-                    opacity: setting('Opacity, 0 to 1. Default between min_opacity and max_opacity.', { minimum: 0, maximum: 1 })
+                    opacity: setting('Opacity, 0 to 1. Default random within brightness.', { minimum: 0, maximum: 1 })
                 }
             }
         },
         min_radius: setting('Smallest cloud radius, scene units. Default 0.15 of the region.', { exclusiveMinimum: 0 }),
         max_radius: setting('Largest cloud radius, scene units. Default 0.4 of the region.', { exclusiveMinimum: 0 }),
-        min_opacity: setting('Dimmest cloud, 0 to 1.', { minimum: 0, maximum: 1, default: 0.3 }),
-        max_opacity: setting('Brightest cloud, 0 to 1.', { minimum: 0, maximum: 1, default: 0.8 }),
+        brightness: brightness('Each cloud\'s opacity is picked at random between these [dimmest, brightest], 0 to 1 (a cloud\'s own opacity wins). Default [0.3, 0.8].', [0.3, 0.8], true),
         colors: {
             description: 'Cloud colour, or a list the seed picks from per cloud. Default var(--lcars-violet).',
             oneOf: [color('A colour.'), { type: 'array', items: color('A colour.'), minItems: 1 }]
@@ -1196,7 +1220,7 @@ export const astrometricsSchema = {
             type: 'object',
             description: 'How labels are drawn: text defaults for every label, your own label styles, pixel snapping.',
             properties: {
-                default: { ...labelFieldSchema, description: 'Text keys every label on this card inherits (font_family, text_transform, letter_spacing, ...), over the built-in styles.' },
+                default: { type: 'object', properties: labelStyleProperties, description: 'Text keys every label on this card inherits (font_family, text_transform, letter_spacing, ...), over the built-in styles.' },
                 styles: {
                     type: 'object',
                     description: 'Label styles by name: change a built-in (title, major, minor, tiny) or add your own; a point picks one with style.',
@@ -1204,7 +1228,7 @@ export const astrometricsSchema = {
                         type: 'object',
                         description: 'A label style: text keys (font_size, color, font_weight, ...) and priority.',
                         properties: {
-                            ...labelFieldProperties,
+                            ...labelStyleProperties,
                             priority: number('Which label wins when two overlap (higher wins).'),
                             overlap: { type: 'boolean', description: 'Labels of this style are never hidden by another label (they still move to a free side when they can).' }
                         }
@@ -1216,6 +1240,8 @@ export const astrometricsSchema = {
         },
         units: unitsSchema('What one scene unit is (m, km, au, ly or pc): positions, sizes and distances are in it. Optional: a scene can use any units; naming them lets a system (type: system) give its own.'),
         look: {
+            'x-ui-hints': { widget: 'pills' },
+            default: 'mixed',
             description: 'Draw the scene as an LCARS diagram, realistically, or both: diagram shows the objects and points with look: diagram, realistic those with look: realistic, mixed (the default) both; ones without a look always show. A change crossfades. Or { entity } (and attribute) whose state names the look, such as an input_select with the options diagram, realistic and mixed (any case).',
             oneOf: [
                 { type: 'string', enum: ['diagram', 'realistic', 'mixed'], enumDescriptions: { diagram: 'Wireframes and schematics', realistic: 'Realistic objects', mixed: 'Both' } },
@@ -1248,20 +1274,24 @@ export const astrometricsSchema = {
             ]
         },
         warp_factor: setting('How fast the stars stream at warp, 1 to 9.9 (default 6). Can follow an entity ({ entity, to }), such as a slider, or a template.', { minimum: 1, maximum: 9.9, default: 6 }),
-        time_scale: setting('How fast the scene\'s motion runs: orbits, spins, drift, scans, trails. 1 as configured, 0.5 half speed, 0 holds it still. The sky (sun and moon), the scene clock (clock) and the camera are not affected. The time slider (camera.buttons.time) changes it on screen. Can follow an entity ({ entity, to }) or a template.', { minimum: 0, default: 1 }),
+        time_scale: setting('Speed of the scene\'s motion (orbits, spins, drift, scans, trails): 1 as configured, 0.5 half speed, 2 twice as fast, 0 holds it still. Faster than 4 can be typed. The sky, the scene clock (clock) and the camera are not affected. The time slider (camera.buttons.time) changes it on screen. Can follow an entity ({ entity, to }) or a template.', {
+            minimum: 0, default: 1, 'x-ui-hints': { selector: { number: { mode: 'slider', min: 0, max: 4, step: 0.05 } } }
+        }),
         clock: {
             type: 'object',
             additionalProperties: false,
-            description: 'The scene date that body points, body spheres and rings and orbit rings follow, and the sky once it is set. It runs on from date at rate. The time slider (camera.buttons.time: date), set-clock actions and lcards.set_clock change it on screen.',
+            description: 'The scene\'s date: it starts at date and runs on at rate. Body points, body spheres and rings, orbit rings and the sky follow it. The time slider (camera.buttons.time: date), set-clock actions and lcards.set_clock change it on screen.',
             properties: {
                 date: {
-                    description: 'The date the scene starts at: now, or an ISO date and time (2026-10-30, 2026-10-30T12:00:00Z; a date alone is midnight UTC). Or { entity } to follow a date and time helper (an input_datetime), or a template.',
+                    'x-ui-hints': { widget: 'date' },
+                    description: 'The date the scene starts at: now (the default) or a date and time. In YAML an ISO date or date and time (2026-10-30, 2026-10-30T12:00:00Z; a date alone is midnight UTC). Or { entity } to follow a date and time helper (an input_datetime), or a template.',
                     anyOf: [{ type: 'string' }, settingBinding],
                     default: 'now',
                     examples: ['now', '2026-10-30', '1969-07-20T20:17:00Z']
                 },
                 rate: {
-                    description: 'How fast the date runs: live (real time), days per second (1 is a day a second, 30 a month, 365.25 a year; 0 holds it; negative runs back), or with a unit as the time slider shows it: 1 h/s (an hour a second), 30 d/s, 1 y/s, -1 d/s (units s, min, h, d, w, mo, y). Or { entity, to } to follow an entity, or a template.',
+                    'x-ui-hints': { widget: 'rate' },
+                    description: 'How fast the date runs: live (real time, the default), paused (0), or an amount of time per second. In YAML days per second (1 is a day a second, 30 a month, 365.25 a year; 0 holds it; negative runs back), or with a unit as the time slider shows it: 1 h/s (an hour a second), 30 d/s, 1 y/s, -1 d/s (units s, min, h, d, w, mo, y). Or { entity, to } to follow an entity, or a template.',
                     anyOf: [{ type: 'number' }, { type: 'string', enum: ['live'] }, { type: 'string', pattern: RATE_PATTERN }, settingBinding, settingTemplate],
                     default: 'live'
                 }

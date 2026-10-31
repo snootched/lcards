@@ -26,6 +26,13 @@ releases:
         session: "R4d"
         docs: /cards/astrometrics/
         public: true
+      - file: astro-studio-forms
+        topic: astrometrics
+        summary: "Astrometrics Studio forms: a card to open in the Studio"
+        description: "Open this card's editor, then its Studio. The scene is in light years with a star system in astronomical units, and number fields say so. The look is a switch, the stars sit behind a switch, the nebula's colours are a colour list and the labels pick a font. The route hides inside the system, the shield's opacity follows SHIELDS, and the camera's first view is a guided tour on STAGE."
+        session: "UX1"
+        docs: /cards/astrometrics/studio
+        public: false
       - file: chart-sources
         topic: charts
         summary: "Charts, rebuilt: entity history, long-term statistics and data sources"

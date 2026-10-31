@@ -1,0 +1,84 @@
+# Astrometrics Studio forms (UX1 P2): a card to open in the Studio. Edit
+# the dashboard, open this card's editor and its Studio: the scene is in ly
+# with a system in au (field labels name the units), the look is a pill
+# switch, the clock runs at 30 days a second from a set date, the stars have
+# a brightness range behind a switch in their section's header, the nebula's
+# colours are a colour list, the labels pick a font and the major style is
+# changed, the route hides inside the system (the systems picker), the
+# shield's opacity follows SHIELDS (a contained panel) and the camera starts
+# with a guided tour on STAGE. Only lcards_test_* helpers.
+title: Astrometrics Studio forms
+path: astro-studio-forms
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: SHIELDS } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_stage
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: STAGE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_studio_forms
+        grid_options: { columns: full }
+        height: 650
+        units: ly
+        look: diagram
+        clock: { date: '2026-10-31 00:00:00', rate: 30 d/s }
+        backdrop:
+          stars: { count: 1500, brightness: [0.2, 0.9], colors: [var(--lcars-blue), var(--lcars-orange), var(--lcars-white)] }
+        labels:
+          default: { font_family: lcards_eurostile, text_transform: uppercase, letter_spacing: 1 }
+          styles:
+            major: { font_size: 24, color: var(--lcars-orange) }
+        camera:
+          view: { entity: input_number.lcards_test_stage, views: [sector, nebula, { view: sol, date: now, rate: 30 }] }
+          views:
+            sector: { target: [0, 0, 0], tilt: 40, distance: 260 }
+            nebula: { target: veil, tilt: 25, distance: 90 }
+            sol: { target: sol, tilt: 35, distance: 0.02 }
+        points:
+          - { id: sol, xyz: [-60, 0, 20], marker: dot, label: SOL, style: major }
+          - { id: veil, xyz: [70, 10, -40], marker: square, label: VEIL NEBULA, style: minor }
+          - { id: outpost, xyz: [20, 0, 80], marker: dot, label: OUTPOST, style: minor }
+        objects:
+          - { type: grid, id: sector_floor, shape: disc, radius: 140, line_spacing: 20, color: var(--lcars-blue), opacity: 0.6 }
+          - type: nebula
+            id: veil_gas
+            at: veil
+            radius: 30
+            colors: [var(--lcars-violet), var(--lcars-blue), var(--lcars-orange)]
+          - type: path
+            id: route
+            points: [sol, outpost, veil]
+            width: 2
+            dash: [6, 8]
+            color: var(--lcars-orange)
+            hide_in_systems: [sol_system]
+          - type: sphere
+            id: shield
+            at: outpost
+            radius: 8
+            color: var(--lcars-blue)
+            opacity: { entity: input_number.lcards_test_shields, to: [0, 0.6] }
+          - type: system
+            id: sol_system
+            at: sol
+            units: au
+            points:
+              - { id: sun, xyz: [0, 0, 0] }
+              - { id: earth, polar: [1, 40], marker: dot, label: EARTH, style: tiny }
+            objects:
+              - { type: sphere, id: sun_body, at: sun, radius: 0.05, fill_color: var(--lcars-yellow), color: var(--lcars-orange) }
+              - { type: ring, id: earth_orbit, radius: 1, width: 1, color: var(--lcars-blue), opacity: 0.6 }

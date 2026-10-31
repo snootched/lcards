@@ -182,11 +182,11 @@ test('ObjectFader: an opaque material blends only while it fades (a new program 
   assert.equal(mat.opacity, 1);
 });
 
-test('every object type takes the distance keys, and the Studio shows them in Distance', () => {
+test('every object type takes the distance keys, and the Studio shows them in Visibility and distance', () => {
   // a system draws nothing itself: its points and objects take their own
   for (const type of OBJECT_TYPES.filter((t) => t !== 'system')) {
     const parts = /** @type {any} */ (objectBranch(objectSchema, type));
-    for (const key of COMMON_GROUPS.distance) assert.ok(parts.common[key], `${type}.${key}`);
+    for (const key of COMMON_GROUPS.visibility) assert.ok(parts.common[key], `${type}.${key}`);
     assert.equal(parts.own.fade, undefined, `${type} has its own fade (trail uses fade_tail)`);
   }
   // every common key is in a Studio group

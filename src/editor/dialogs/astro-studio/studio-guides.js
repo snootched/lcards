@@ -75,7 +75,8 @@ export function objectsGuide() {
         <li><b>Add object</b> lists every type by what it is for. A new object gets an id and the keys its type needs.</li>
         <li>Every object takes a place (<code>at</code>: coordinates or a point), rotation, spin, opacity and visibility; the rest is its type's own.</li>
         <li><b>Distance</b> keys pick what shows from how far away (above), so a busy scene stays readable as you zoom.</li>
-        <li>Some types come in shapes or patterns (a grid is a plane, disc, dome, sphere, cylinder or well). A form shows only the keys for the object's own shape; <b>Show keys of other shapes</b> lists the rest too.</li>
+        <li>Some types come in shapes or patterns (a grid is a plane, disc, dome, sphere, cylinder or well). A form shows only the keys for the object's own shape; the shape field says how many more keys another shape has.</li>
+        <li>An object's form starts with its shape and size, then <b>Appearance</b> (colours, opacity, lines), <b>Position and motion</b>, <b>Visibility and distance</b> and <b>Actions and tags</b>.</li>
         <li>Points stand on objects by the object's <b>id</b>: give a planet or a grid an id to place points on it.</li>
         <li>A <b>system</b> holds its own points and objects in its own units. Open it from its row; the Points and Objects tabs then edit its lists.</li>
       </ul>
