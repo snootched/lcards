@@ -337,6 +337,32 @@ test('E8 fill presets: names match, a preset gives its type and colours, the con
   assert.equal(calm.uStopCount.value, 2);
 });
 
+test('belt colors: each rock takes one of the list by the seed, the layout as without them; color alone tints every rock', async () => {
+  const { beltLayout, rockColorIndex, buildBelt } = await import('../../src/core/astrometrics/objects/belt.js');
+  const pick = rockColorIndex(600, 3, 5);
+  assert.deepEqual(rockColorIndex(600, 3, 5), pick, 'seeded');
+  assert.deepEqual([...new Set(pick)].sort(), [0, 1, 2], 'every colour is used');
+  for (const k of [0, 1, 2]) assert.ok(pick.filter((v) => v === k).length > 120, `colour ${k} on about a third of the rocks`);
+  assert.deepEqual(rockColorIndex(10, 1, 5), new Array(10).fill(0));
+  const cfg = { radius: [40, 60], count: 200, seed: 5 };
+  assert.deepEqual(beltLayout({ ...cfg, colors: ['red', 'blue'] }), beltLayout(cfg), 'colours do not move the rocks');
+  /** @type {Record<string, number[]>} */
+  const rgb = { red: [1, 0, 0, 1], blue: [0, 0, 1, 1], gray: [0.5, 0.5, 0.5, 1] };
+  const ctx = { color: (/** @type {string} */ v) => rgb[v] ?? rgb.gray };
+  const tints = (/** @type {any} */ c) => {
+    const b = buildBelt(c, /** @type {any} */ (ctx));
+    const mesh = /** @type {any} */ (b.node.getObjectByName('rocks'));
+    const dots = /** @type {any} */ (b.node.getObjectByName('dots'));
+    const t = mesh.geometry.getAttribute('aTint').array;
+    assert.deepEqual([...dots.geometry.getAttribute('aTint').array], [...t], 'the far-away dots in the same colours');
+    return Array.from({ length: t.length / 3 }, (_, i) => (t[i * 3] > 0.5 ? 'red' : t[i * 3 + 2] > 0.5 ? 'blue' : 'gray'));
+  };
+  const two = tints({ ...cfg, colors: ['red', 'blue'] });
+  assert.deepEqual(two, rockColorIndex(200, 2, 5).map((k) => ['red', 'blue'][k]));
+  assert.deepEqual([...new Set(tints({ ...cfg, color: 'gray' }))], ['gray']);
+  assert.deepEqual([...new Set(tints({ ...cfg, color: 'gray', colors: ['red'] }))], ['red'], 'colors wins over color');
+});
+
 test('E8 belt: seeded layout inside the band, Kepler orbits (outer slower), tumble, one instanced draw, still when both are 0', async () => {
   const { beltLayout, rockGeometry, MAX_ROCKS } = await import('../../src/core/astrometrics/objects/belt.js');
   const { seededRandom } = await import('../../src/core/packs/backgrounds/webgl/scenes/scene-helpers.js');

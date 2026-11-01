@@ -1047,7 +1047,8 @@ const beltObject = {
         seed: { type: 'integer', default: 1, description: 'A different number gives a different belt.' },
         period: setting('Seconds for the inner edge to go round once (the outer rocks take longer, as real orbits do). 0: still. Off under reduced motion.', { minimum: 0, default: 0 }),
         tumble: setting('How fast the rocks turn on their own axes, degrees per second (each a little faster or slower). 0: still. Off under reduced motion.', { minimum: 0, default: 30 }),
-        color: color('Rock colour (varied a little per rock). Default var(--lcards-gray-light).')
+        color: color('Rock colour (varied a little per rock). Default var(--lcards-gray-light).'),
+        colors: { type: 'array', items: simpleColorSchema, description: 'Several rock colours: each rock takes one, picked by the seed (wins over color).' }
     }
 };
 

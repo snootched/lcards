@@ -29,7 +29,9 @@ export default /** @type {import('./index.js').Starter} */ ({
     return {
       points: [...c.points, { id: 'label', at: c.ref, offset: [0, 0, -(r + w)], label: String(label), style: 'tiny' }],
       objects: [
-        { type: 'belt', id: 'rocks', at: c.ref, radius: [round(r - w / 2), round(r + w / 2)], count: 900, size, period: 60 }
+        // grey rocks with some tan ones, as real belts are mostly grey with some brownish
+        { type: 'belt', id: 'rocks', at: c.ref, radius: [round(r - w / 2), round(r + w / 2)], count: 900, size, period: 60,
+          colors: ['var(--lcards-gray-light)', 'var(--lcards-gray-medium)', 'var(--lcards-yellow-dark)'] }
       ]
     };
   }

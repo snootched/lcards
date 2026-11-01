@@ -35,7 +35,7 @@ sections:
           - { type: sphere, at: sun, radius: 5, fill_color: var(--lcars-yellow), color: var(--lcars-orange), line_spacing_deg: 30 }
           - { type: ring, id: mars_orbit, radius: 32, spin: 6, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
           - { type: sphere, at: mars, radius: 2, image: builtin:mars_viking, line_width: 0.5 }
-          - { type: belt, at: sun, radius: [ 44, 56 ], thickness: 4, count: 1500, size: [ 0.2, 1.6 ], period: 40 }
+          - { type: belt, at: sun, radius: [ 44, 56 ], thickness: 4, count: 1500, size: [ 0.2, 1.6 ], period: 40, colors: [ var(--lcards-gray-light), var(--lcards-gray-medium), var(--lcards-yellow-dark) ] }
         grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
         height: 650

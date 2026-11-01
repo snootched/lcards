@@ -461,6 +461,7 @@ An asteroid belt: a band of low-poly rocks round its centre (`at`, a point id or
 | `period` | Seconds for the inner edge to go round once. The outer rocks take longer, as real orbits do. Default 0 (still). |
 | `tumble` | How fast each rock turns on its own axis, degrees per second (each a little faster or slower). Default 30; 0 holds them still. |
 | `color` | The rocks' colour, varied a little per rock. Default `var(--lcards-gray-light)`. |
+| `colors` | Several rock colours: each rock takes one, picked by the `seed` (wins over `color`). |
 
 `rotation` tilts the belt, and `spin` turns it as one piece. `period` and `tumble` hold still under reduced motion. From far away, when even the largest rocks would be under about 1.5 px, the rocks are drawn as dots of the same size and shade (cheaper, and it looks the same); zoom in and they are rocks again.
 
@@ -475,7 +476,7 @@ points:
 objects:
   - { type: glow, at: sun, size: 40, color: var(--lcars-yellow) }
   - { type: sphere, at: sun, radius: 6, fill_color: var(--lcars-yellow), color: var(--lcars-orange), line_spacing_deg: 30 }
-  - { type: belt, at: sun, radius: [45, 62], count: 1500, size: [0.3, 1.8], period: 40 }
+  - { type: belt, at: sun, radius: [45, 62], count: 1500, size: [0.3, 1.8], period: 40, colors: [var(--lcards-gray-light), var(--lcards-gray-medium), var(--lcards-yellow-dark)] }
 ```
 
 Close up, the rocks are rough and faceted:

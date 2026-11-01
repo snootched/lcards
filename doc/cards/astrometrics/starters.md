@@ -1764,7 +1764,15 @@ height: 400
 points:
   - { id: belt_centre, xyz: [0, 0, 0] }
   - { id: belt_label, at: belt_centre, offset: [0, 0, -73], label: ASTEROID BELT, style: tiny }
-objects: [{ type: belt, id: belt_rocks, at: belt_centre, radius: [61, 69], count: 900, size: [0.2, 1.3], period: 60 }]
+objects:
+  - type: belt
+    id: belt_rocks
+    at: belt_centre
+    radius: [61, 69]
+    count: 900
+    size: [0.2, 1.3]
+    period: 60
+    colors: [var(--lcards-gray-light), var(--lcards-gray-medium), var(--lcards-yellow-dark)]
 ```
 
 ### Nebula field

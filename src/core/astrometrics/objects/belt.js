@@ -3,7 +3,8 @@
  * object's centre (one InstancedMesh, one draw). The rocks are seeded:
  * spread across `radius: [inner, outer]` (densest in the middle of the band)
  * and `thickness` up and down, sized from `size: [min, max]` with many small
- * and few large ones, each stretched and turned its own way.
+ * and few large ones, each stretched and turned its own way. `colors` (a
+ * list) gives each rock one of them, picked by the seed (wins over `color`).
  *
  * Lit from the belt's centre (its star): the face toward the centre is
  * bright, the far face dark, so the belt reads as rocks round a sun without
@@ -34,9 +35,11 @@ const DEFAULT_COLOR = 'var(--lcards-gray-light)';
 
 const VERT = /* glsl */ `
 attribute float aShade;
+attribute vec3 aTint;
 varying vec3 vNormal;
 varying vec3 vToCentre;
 varying float vShade;
+varying vec3 vTint;
 // In view space, not world space: modelViewMatrix is built in doubles on the CPU,
 // so a belt far from the origin (true scale) stays steady in float32
 void main() {
@@ -45,32 +48,36 @@ void main() {
   // the light: the belt's centre (its star)
   vToCentre = ( modelViewMatrix * vec4( 0.0, 0.0, 0.0, 1.0 ) ).xyz - view.xyz;
   vShade = aShade;
+  vTint = aTint;
   gl_Position = projectionMatrix * view;
 }`;
 
 const FRAG = /* glsl */ `
-uniform vec3 uColor;
 uniform float uOpacity;
 varying vec3 vNormal;
 varying vec3 vToCentre;
 varying float vShade;
+varying vec3 vTint;
 void main() {
   float lit = max( dot( normalize( vNormal ), normalize( vToCentre ) ), 0.0 );
-  vec3 c = uColor * vShade * ( 0.3 + 0.7 * lit );
+  vec3 c = vTint * vShade * ( 0.3 + 0.7 * lit );
   gl_FragColor = vec4( c, uOpacity );
 }`;
 
 const DOT_VERT = /* glsl */ `
 attribute float aShade;
+attribute vec3 aTint;
 attribute float aSize;
 uniform float uPxPerUnit;
 uniform float uOrtho;
 uniform float uDpr;
 varying float vShade;
+varying vec3 vTint;
 varying float vCover;
 varying float vPhase;
 void main() {
   vShade = aShade;
+  vTint = aTint;
   // how much of the rock's lit side faces the camera, as a moon's phase (view space: the camera at 0)
   vec4 mv = modelViewMatrix * vec4( position, 1.0 );
   vec3 toCentre = normalize( ( modelViewMatrix * vec4( 0.0, 0.0, 0.0, 1.0 ) ).xyz - mv.xyz );
@@ -83,14 +90,14 @@ void main() {
 }`;
 
 const DOT_FRAG = /* glsl */ `
-uniform vec3 uColor;
 uniform float uOpacity;
 varying float vShade;
+varying vec3 vTint;
 varying float vCover;
 varying float vPhase;
 void main() {
   // a rock's average light as seen from here (the rocks' 0.3 base, 0.7 lit)
-  gl_FragColor = vec4( uColor * vShade * ( 0.3 + 0.45 * vPhase ), uOpacity * vCover );
+  gl_FragColor = vec4( vTint * vShade * ( 0.3 + 0.45 * vPhase ), uOpacity * vCover );
 }`;
 
 /** Rocks become dots when the largest would be smaller than this on screen, CSS px */
@@ -197,6 +204,20 @@ export function beltLayout(cfg) {
 }
 
 /**
+ * Which of the belt's colours each rock takes: an index into `colors`, by
+ * its own seeded stream (so the layout stays as it was without colours).
+ * @param {number} count
+ * @param {number} n - how many colours
+ * @param {any} seed
+ * @returns {number[]}
+ */
+export function rockColorIndex(count, n, seed) {
+  if (n <= 1) return new Array(count).fill(0);
+  const rnd = seededRandom(num(seed, 1) + 13);
+  return Array.from({ length: count }, () => Math.floor(rnd() * n) % n);
+}
+
+/**
  * @param {any} cfg
  * @param {import('./common.js').BuildContext} ctx
  * @returns {import('./common.js').BuiltObject}
@@ -213,11 +234,18 @@ export function buildBelt(cfg, ctx) {
   rocks.forEach((k, i) => { shade[i] = k.shade; });
   // per-instance attribute on the shared rock geometry
   geo.setAttribute('aShade', new InstancedBufferAttribute(shade, 1));
-  const c = ctx.color(cfg.color, DEFAULT_COLOR);
-  const opacity = num(cfg.opacity, 1) * (c[3] ?? 1);
-  const color = new Color().setRGB(c[0], c[1], c[2], SRGBColorSpace);
+  // one colour, or one of `colors` per rock (linear, as the shader works)
+  const list = Array.isArray(cfg.colors) && cfg.colors.length ? cfg.colors : [cfg.color];
+  const cols = list.map((/** @type {any} */ v) => ctx.color(v, DEFAULT_COLOR));
+  const linear = cols.map((c) => new Color().setRGB(c[0], c[1], c[2], SRGBColorSpace));
+  const pick = rockColorIndex(rocks.length, linear.length, cfg.seed);
+  const tint = new Float32Array(rocks.length * 3);
+  pick.forEach((k, i) => { tint[i * 3] = linear[k].r; tint[i * 3 + 1] = linear[k].g; tint[i * 3 + 2] = linear[k].b; });
+  geo.setAttribute('aTint', new InstancedBufferAttribute(tint, 3));
+  // a colour's own alpha: the first one's (they fade the belt as a whole)
+  const opacity = num(cfg.opacity, 1) * (cols[0][3] ?? 1);
   const mat = new ShaderMaterial({
-    uniforms: { uColor: { value: new Vector3(color.r, color.g, color.b) }, uOpacity: { value: opacity } },
+    uniforms: { uOpacity: { value: opacity } },
     vertexShader: VERT,
     fragmentShader: FRAG,
     transparent: opacity < 1,
@@ -231,10 +259,10 @@ export function buildBelt(cfg, ctx) {
   const dotGeo = new BufferGeometry();
   dotGeo.setAttribute('position', new BufferAttribute(dotPos, 3));
   dotGeo.setAttribute('aShade', new BufferAttribute(shade.slice(), 1));
+  dotGeo.setAttribute('aTint', new BufferAttribute(tint.slice(), 3));
   dotGeo.setAttribute('aSize', new BufferAttribute(Float32Array.from(rocks, (k) => (2 * (k.scale[0] + k.scale[1] + k.scale[2])) / 3), 1));
   const dotMat = new ShaderMaterial({
     uniforms: {
-      uColor: { value: new Vector3(color.r, color.g, color.b) },
       uOpacity: { value: opacity },
       uPxPerUnit: { value: 1 },
       uOrtho: { value: 0 },

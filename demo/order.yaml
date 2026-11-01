@@ -197,7 +197,7 @@ releases:
       - file: astro-belt
         topic: astrometrics
         summary: "Astrometrics asteroid belt: rocks round a star"
-        description: "type: belt: a band of low-poly rocks round the Sun, the inner ones going round faster (period) and each tumbling, lit from the Sun. Fly to MAIN BELT for a close look. Second card: a ring of small rocks round a planet. The buttons above a scene fly its camera to each of its named views."
+        description: "type: belt: a band of low-poly rocks round the Sun, the inner ones going round faster (period) and each tumbling, lit from the Sun, grey and tan rocks from a colors list (each rock takes one). Fly to MAIN BELT for a close look. Second card: a ring of small rocks round a planet. The buttons above a scene fly its camera to each of its named views."
         session: "E8"
         docs: /cards/astrometrics/objects#belt
         public: true
