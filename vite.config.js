@@ -115,7 +115,10 @@ export default defineConfig(({ mode }) => ({
         outDir: outDirFor(mode),
         // Never wipe outDir: Python files live alongside lcards.js in integration mode.
         emptyOutDir: false,
-        sourcemap: true,
+        // LCARDS_SOURCEMAP=hidden (the Release workflow, stable releases): the maps are
+        // written but the files do not point at them, and the release leaves them out,
+        // so a stable install has no "could not load source map" warnings
+        sourcemap: process.env.LCARDS_SOURCEMAP === 'hidden' ? 'hidden' : true,
         // Minified with esbuild (sourcemaps map back to src/). 'development' mode
         // stays readable for debugging.
         minify: mode === 'development' ? false : 'esbuild',

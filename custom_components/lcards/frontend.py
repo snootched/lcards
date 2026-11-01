@@ -57,7 +57,8 @@ async def async_register_static_path(hass: HomeAssistant) -> None:
     integration_dir = hass.config.path(f"custom_components/{DOMAIN}")
     paths = [
         # Serve the entire integration directory under /{DOMAIN}/.
-        # Covers lcards.js, lcards.js.map, fonts/, sounds/, msd/,
+        # Covers lcards.js (and its source maps in a dev build or dev
+        # pre-release; stable releases leave them out), fonts/, sounds/, msd/,
         # images/, and brand/ in one registration.
         StaticPathConfig(f"/{DOMAIN}", integration_dir, True),
     ]

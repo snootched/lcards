@@ -172,6 +172,9 @@ jobs:
       # ── Build ─────────────────────────────────────────────────────────────────
       - name: Build integration JS
         run: npm run build:integration
+        env:
+          # stable: maps written but not referenced (the zip leaves them out); dev: referenced and shipped
+          LCARDS_SOURCEMAP: ${{ steps.prerelease.outputs.is_prerelease == 'true' && 'linked' || 'hidden' }}
         # build:integration = vite build --mode integration && node scripts/copy-assets.js
         # This produces custom_components/lcards/lcards.js (+ chunks/) and copies
         # src/assets/{fonts,msd,sounds} into custom_components/lcards/
@@ -223,9 +226,16 @@ jobs:
       - name: Package integration
         run: |
           cd custom_components/lcards
-          zip -r ../../lcards.zip . \
-            --exclude "__pycache__/*" \
-            --exclude "*.pyc"
+          # Source maps (~24 MB unpacked) ship in dev pre-releases only, for testers'
+          # developer tools. A stable release leaves them out (its build does not point
+          # at them); rebuild the tag locally to read a stable stack trace.
+          if [ "${{ steps.prerelease.outputs.is_prerelease }}" = "true" ]; then
+            zip -r ../../lcards.zip . --exclude "__pycache__/*" --exclude "*.pyc"
+          else
+            zip -r ../../lcards.zip . --exclude "__pycache__/*" --exclude "*.pyc" --exclude "*.map"
+            if unzip -l ../../lcards.zip | grep -q '\.map$'; then echo "❌ source maps in a stable lcards.zip"; exit 1; fi
+            if grep -l 'sourceMappingURL' lcards.js chunks/*.js; then echo "❌ a stable file points at a source map"; exit 1; fi
+          fi
 
           echo ""
           echo "📦 Package contents:"
