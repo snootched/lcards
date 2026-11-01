@@ -280,7 +280,7 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
 
   // Dust round the scene (after the bounds: it fills them)
   const dust = config?.backdrop?.dust
-    ? buildDust(config.backdrop.dust === true ? {} : config.backdrop.dust, ctx, { center: bounds.center.toArray(), radius: bounds.radius })
+    ? buildDust(config.backdrop.dust === true ? {} : config.backdrop.dust, ctx, { radius: bounds.radius })
     : null;
   if (dust) frames.get(ROOT).node.add(dust.node);
 

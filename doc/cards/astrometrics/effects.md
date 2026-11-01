@@ -160,7 +160,7 @@ A fly-to with `warp` streaks the stars past the camera, by how fast it moves for
 
 - `backdrop.stars.streak` scales the streaks (default 1; 0 never streaks).
 - `backdrop.stars.spectrum: true` splits each streak into colour, as a Doppler shift of the star's own colour: violet toward the tail (nearer the direction of flight) and red toward the head. White stars show the whole rainbow; a blue star streaks green to violet, its tail fading as it shifts past violet, and a red star the other way. `spectrum_direction: reverse` puts violet at the head instead.
-- `backdrop.dust` adds faint particles round the scene. Unlike the stars at infinity they stay put as the camera moves, so every pan and fly-to shows depth, and they streak in a warp too. It takes the stars' keys (`count`, default 400; `min_radius`, `max_radius`, `brightness`, `colors`, `opacity`, `seed`, `spectrum`) plus `spectrum_direction` and `radius`, the ball they fill round the scene's centre (default 1.5 times the scene's size).
+- `backdrop.dust` adds depth dust: faint particles that fill the space round the camera wherever it goes. Unlike the stars at infinity they stay put as the camera moves, so every pan and fly-to shows depth, and they streak in a warp too. The dust has no edge: particles fade out at `radius` from the camera and new ones fade in ahead as it travels, and coming back to a place shows the same dust. It takes the stars' keys (`count`, default 800; `min_radius`, `max_radius`, `brightness`, `colors`, `opacity`, `seed`, `spectrum`) plus `spectrum_direction` and `radius`, how far round the camera it reaches (default 1.5 times the scene's size; smaller is denser and shows depth on smaller moves).
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -174,7 +174,7 @@ camera:
   buttons: true
 backdrop:
   stars: { count: 4000, max_radius: 1.4, spectrum: true }
-  dust: { count: 600 }
+  dust: { count: 1500 }
 points:
   - { id: core, xyz: [0, 0, 0], label: GALACTIC CORE, style: title, tap_action: { action: fly-to, view: near } }
 objects:

@@ -143,7 +143,7 @@ backdrop:
     seed: 7
 ```
 
-`backdrop.dust` adds particles round the scene that stay put as the camera moves (depth on every move), and `streak` / `spectrum` shape the stars in a warp fly-to: see [Effects: warp and dust](./effects#warp-and-dust).
+`backdrop.dust` adds depth dust, particles round the camera that stay put as it moves (depth on every move), and `streak` / `spectrum` shape the stars in a warp fly-to: see [Effects: warp and dust](./effects#warp-and-dust).
 
 `background_animation` takes any [background animation](/core/effects/background-animations) (a nebula, a warp starfield, a grid) as a flat layer behind the scene, as on the MSD card. It does not turn with the camera; for clouds in the scene itself use a [nebula object](./effects#nebula).
 

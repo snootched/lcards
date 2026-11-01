@@ -389,14 +389,14 @@ const starsSchema = {
 };
 
 const dustSchema = {
-    description: 'Dust: faint particles round the scene that stay put as the camera moves, so every move shows depth; they streak in a warp fly-to. true for the defaults, or settings.',
+    description: 'Depth dust: faint particles that fill the space round the camera wherever it goes. They stay put as it moves, so every move shows depth, and streak in a warp fly-to. true for the defaults, or settings.',
     oneOf: [
         { type: 'boolean' },
         {
             type: 'object',
             properties: {
-                count: number('How many particles.', { minimum: 0, maximum: 50000, default: 400 }),
-                radius: number('They fill a ball this big round the scene centre, scene units. Default 1.5 x the scene\'s radius.', { exclusiveMinimum: 0 }),
+                count: number('How many particles (about half of them are within reach of the camera at any time).', { minimum: 0, maximum: 50000, default: 800 }),
+                radius: number('How far round the camera the dust reaches (it fades out there), scene units. Smaller is denser and shows depth on smaller moves. Default 1.5 x the scene\'s radius.', { exclusiveMinimum: 0 }),
                 min_radius: number('Smallest particle radius, px.', { minimum: 0, default: 0.4 }),
                 max_radius: number('Largest particle radius, px.', { minimum: 0, default: 1 }),
                 brightness: brightness('Each particle\'s brightness is picked at random between these [faintest, brightest], 0 to 1. Default [0.35, 1].', [0.35, 1]),

@@ -1602,3 +1602,39 @@ test('reset taps at an easy pace (about half a second apart) still play the trib
     await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._tribute?.stop());
     await expectNoErrors(page);
 });
+
+test('depth dust fills the view round the camera wherever it is, and looks the same on a revisit', async ({ page }) => {
+    await mountCase(page, 'astro-dust', { width: '800' });
+    await sceneReady(page);
+    /** Lit pixels outside the middle third of the canvas, and a hash of where they are */
+    const outer = () => page.evaluate(() => {
+        const canvas = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('.astro-scene canvas');
+        const { width: w, height: h } = canvas;
+        const data = canvas.getContext('2d').getImageData(0, 0, w, h).data;
+        let lit = 0;
+        let hash = 0;
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                if (x > w / 3 && x < (2 * w) / 3 && y > h / 3 && y < (2 * h) / 3) continue;
+                const i = (y * w + x) * 4 + 3;
+                if (data[i] > 40) { lit++; hash = (hash * 31 + x * 7 + y) % 1000000007; }
+            }
+        }
+        return { lit, hash };
+    });
+    const fly = (view) => page.evaluate((v) => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo(v, { duration: 0 }), view);
+    const settle = () => page.waitForTimeout(250);
+    // far outside the scene (20 x the reach): dust all round the edges, not a ball in the middle
+    const far = await outer();
+    expect(far.lit).toBeGreaterThan(150);
+    for (const view of ['inside', 'away']) {
+        await fly(view);
+        await settle();
+        expect((await outer()).lit, view).toBeGreaterThan(150);
+    }
+    // back where it started: the same dust
+    await fly('far');
+    await settle();
+    expect(await outer()).toEqual(far);
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
+});

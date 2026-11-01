@@ -92,7 +92,7 @@ const SCENE_GROUPS = [
   { id: 'look', header: 'Look', icon: 'mdi:eye-outline', hint: 'Which objects and points show: the diagram ones, the realistic ones, or both. Each object and point can pick its look.', parts: [{ path: '', keys: ['look'] }] },
   { id: 'time', header: 'Time', icon: 'mdi:clock-outline', hint: 'The scene date moves bodies and orbits; the time scale speeds up or slows the decorative motion.', parts: [{ path: 'clock', keys: ['date', 'rate'] }, { path: '', keys: ['time_scale'] }] },
   { id: 'warp', header: 'Warp', icon: 'mdi:rocket-launch-outline', hint: 'Stars and dust stream past while the scene is at warp.', parts: [{ path: '', keys: ['warp', 'warp_factor'] }] },
-  { id: 'space', header: 'Space', icon: 'mdi:star-four-points-outline', hint: 'Part of the 3D scene: stars at infinity turn with the camera; depth dust shows every move.', parts: [{ path: 'backdrop', keys: ['stars', 'dust'] }] }
+  { id: 'space', header: 'Space', icon: 'mdi:star-four-points-outline', hint: 'Part of the 3D scene: stars at infinity turn with the camera; depth dust fills the space round the camera and shows depth on every move.', parts: [{ path: 'backdrop', keys: ['stars', 'dust'] }] }
 ];
 
 /**

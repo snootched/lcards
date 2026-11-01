@@ -12,6 +12,12 @@
  * tail. `spectrum` Doppler shifts each star's own colour along its streak
  * (violet toward the tail, red toward the head; the TNG warp look).
  *
+ * Dust wraps round the camera (`reach`): its particles are seeded once in a
+ * cube of side 2 x reach, and each draws at the copy of its cube cell
+ * nearest the camera (`wrapDust`), fading out toward the reach. So the dust
+ * fills the space round the camera wherever it goes, looks the same on a
+ * revisit, and never shows an edge.
+ *
  * @module core/astrometrics/star-field
  */
 import { InstancedBufferGeometry, InstancedBufferAttribute, Float32BufferAttribute, Uint16BufferAttribute, Mesh, ShaderMaterial, Vector2, Vector3 } from 'three';
@@ -23,6 +29,8 @@ attribute vec3 iPos;
 attribute float iSize;
 attribute vec4 iColor;
 uniform vec3 uTail;
+uniform vec3 uCam;
+uniform float uReach;
 uniform vec2 uRes;
 uniform float uDpr;
 varying vec4 vColor;
@@ -30,10 +38,18 @@ varying vec2 vQ;
 varying float vLen;
 varying float vR;
 void main() {
-  vec4 h = projectionMatrix * modelViewMatrix * vec4( iPos, 1.0 );
+  vec3 p0 = iPos;
   vColor = iColor;
+  if ( uReach > 0.0 ) {
+    // the copy of this particle's cube cell nearest the camera (wrapDust), faded toward the reach
+    vec3 rel = mod( iPos - uCam + uReach, 2.0 * uReach ) - uReach;
+    p0 = uCam + rel;
+    vColor.a *= 1.0 - smoothstep( 0.7 * uReach, uReach, length( rel ) );
+    if ( vColor.a <= 0.0 ) { gl_Position = vec4( 2.0, 2.0, 2.0, 1.0 ); return; }
+  }
+  vec4 h = projectionMatrix * modelViewMatrix * vec4( p0, 1.0 );
   if ( h.w <= 1e-4 ) { gl_Position = vec4( 2.0, 2.0, 2.0, 1.0 ); return; }
-  vec4 t = projectionMatrix * modelViewMatrix * vec4( iPos + uTail, 1.0 );
+  vec4 t = projectionMatrix * modelViewMatrix * vec4( p0 + uTail, 1.0 );
   // a tail behind the camera: no streak
   if ( t.w <= 1e-4 ) t = h;
   vec2 halfRes = 0.5 * uRes;
@@ -90,16 +106,38 @@ void main() {
 /**
  * @typedef {Object} StarField
  * @property {Mesh} mesh
- * @property {(tail: Vector3 | null) => void} setTail - scene units, null for none (round stars)
+ * @property {(tail: Vector3 | null) => void} setTail - the open frame's units, null for none (round stars)
  * @property {(width: number, height: number, dpr: number) => void} setResolution - CSS px and the pixel ratio
  */
 
 /**
- * @param {{ positions: Float32Array, sizes: Float32Array, colors: Float32Array, opacity?: number, spectrum?: boolean, reverse?: boolean }} o -
- *   positions xyz, sizes px across, colors straight sRGB rgba; reverse flips the spectrum (violet at the head)
+ * Where a dust particle draws: the copy of its place in the cube of side
+ * 2 x `reach` (seeded round the origin) nearest the camera, and how bright
+ * (1 within 0.7 x reach, 0 at the reach). The vertex shader does the same;
+ * this is for the tests.
+ * @param {number[]} p - the seeded place
+ * @param {number[]} cam - the camera, the dust's own units
+ * @param {number} reach
+ * @returns {{ at: number[], fade: number }}
+ */
+export function wrapDust(p, cam, reach) {
+  const L = 2 * reach;
+  const rel = p.map((v, i) => {
+    const x = v - cam[i] + reach;
+    return x - L * Math.floor(x / L) - reach;
+  });
+  const d = Math.hypot(rel[0], rel[1], rel[2]);
+  const t = Math.max(0, Math.min(1, (d - 0.7 * reach) / (0.3 * reach)));
+  return { at: rel.map((v, i) => cam[i] + v), fade: 1 - t * t * (3 - 2 * t) };
+}
+
+/**
+ * @param {{ positions: Float32Array, sizes: Float32Array, colors: Float32Array, opacity?: number, spectrum?: boolean, reverse?: boolean, reach?: number }} o -
+ *   positions xyz, sizes px across, colors straight sRGB rgba; reverse flips the spectrum (violet at the head);
+ *   reach > 0 wraps the field round the camera (dust, positions in a cube of side 2 x reach round the origin)
  * @returns {StarField}
  */
-export function createStarField({ positions, sizes, colors, opacity = 1, spectrum = false, reverse = false }) {
+export function createStarField({ positions, sizes, colors, opacity = 1, spectrum = false, reverse = false, reach = 0 }) {
   const n = sizes.length;
   const geo = new InstancedBufferGeometry();
   // x: 0 tail .. 1 head; y: across
@@ -113,6 +151,8 @@ export function createStarField({ positions, sizes, colors, opacity = 1, spectru
   geo.instanceCount = n;
   const u = {
     uTail: { value: new Vector3() },
+    uCam: { value: new Vector3() },
+    uReach: { value: reach },
     uRes: { value: new Vector2(1, 1) },
     uDpr: { value: 1 },
     uOpacity: { value: opacity },
@@ -123,11 +163,18 @@ export function createStarField({ positions, sizes, colors, opacity = 1, spectru
   const mesh = new Mesh(geo, material);
   mesh.frustumCulled = false;
   mesh.renderOrder = -1;
+  const tail = new Vector3();
+  // per draw: the camera and the tail in the field's own frame (a system may be open, in other units)
+  mesh.onBeforeRender = (_r, _s, camera) => {
+    const scale = mesh.matrixWorld.getMaxScaleOnAxis() || 1;
+    u.uTail.value.copy(tail).divideScalar(scale);
+    if (reach > 0) mesh.worldToLocal(u.uCam.value.setFromMatrixPosition(camera.matrixWorld));
+  };
   return {
     mesh,
-    setTail(tail) {
-      if (tail) u.uTail.value.copy(tail);
-      else u.uTail.value.set(0, 0, 0);
+    setTail(t) {
+      if (t) tail.copy(t);
+      else tail.set(0, 0, 0);
     },
     setResolution(width, height, dpr) {
       u.uRes.value.set(Math.max(1, width * dpr), Math.max(1, height * dpr));

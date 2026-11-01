@@ -268,7 +268,7 @@ test('fill_effect: names match, the sphere body takes the fill and still hides w
   assert.equal(/** @type {any} */ (bare.objects.get('s')).pickMeshes[0].material.isMeshBasicMaterial, true);
 });
 
-test('warp: streak tails from the camera motion, dust round the scene, the rig flags a warp fly until it lands', async () => {
+test('warp: streak tails from the camera motion, dust round the camera, the rig flags a warp fly until it lands', async () => {
   const { warpTails } = await import('../../src/core/astrometrics/star-field.js');
   const { CameraRig } = await import('../../src/core/astrometrics/camera-rig.js');
   // still, or no streak: none
@@ -284,15 +284,19 @@ test('warp: streak tails from the camera motion, dust round the scene, the rig f
   const fast = warpTails({ x: 1e5, y: 0, z: 0 }, 16, { scale: 1, shell: 3000, streak: 4 });
   assert.ok(fast && fast.stars.length() <= 3000 * 0.4 + 1e-6);
 
-  // dust sits round the scene's bounds, not the camera
+  // dust is seeded in a cube of side 2R round the origin (R 1.5 x the scene radius); the shader wraps it round the camera
   const w = buildScene({ backdrop: { dust: { count: 50, seed: 3 } }, objects: [{ type: 'grid', shape: 'disc', radius: 100 }] }, /** @type {any} */ (ctx()));
-  const pos = /** @type {any} */ (w.dust?.node.children[0]).geometry.getAttribute('iPos');
+  const mesh = /** @type {any} */ (w.dust?.node.children[0]);
+  const pos = mesh.geometry.getAttribute('iPos');
   assert.equal(pos.count, 50);
-  const c = w.bounds.center;
   const R = w.bounds.radius * 1.5;
+  assert.equal(mesh.material.uniforms.uReach.value, R);
   let far = 0;
-  for (let i = 0; i < pos.count; i++) far = Math.max(far, Math.hypot(pos.getX(i) - c.x, pos.getY(i) - c.y, pos.getZ(i) - c.z));
-  assert.ok(far <= R + 1e-3 && far > R * 0.5, `within 1.5 x the scene radius (${far} of ${R})`);
+  for (let i = 0; i < pos.count; i++) far = Math.max(far, Math.abs(pos.getX(i)), Math.abs(pos.getY(i)), Math.abs(pos.getZ(i)));
+  assert.ok(far <= R + 1e-3 && far > R * 0.5, `within the cube (${far} of ${R})`);
+  // the stars do not wrap
+  const sky = buildScene({ backdrop: { stars: { count: 5 } } }, /** @type {any} */ (ctx()));
+  assert.equal(/** @type {any} */ (sky.stars?.node.children[0]).material.uniforms.uReach.value, 0);
 
   const rig = new CameraRig();
   const done = rig.flyTo({ distance: 50 }, { duration: 100, warp: true });
@@ -454,4 +458,43 @@ test('E8 cube: in the effects chunk, sized, seeded spots, borg shader shares the
   // detail: false skips the march
   const flat = buildScene({ objects: [{ type: 'cube', id: 'c', detail: false }] }, /** @type {any} */ (ctx()));
   assert.equal(flat.objects.get('c').node.getObjectByName('cube').material.uniforms.uDetail.value, 0);
+});
+
+test('depth dust: wraps round the camera, the same on a revisit, faded at the reach, tail in the frame\'s units', async () => {
+  const { wrapDust, createStarField } = await import('../../src/core/astrometrics/star-field.js');
+  const { Vector3, PerspectiveCamera, Group } = await import('three');
+  const R = 10;
+  const p = [3, -4, 9];
+  for (const cam of [[0, 0, 0], [37, -12, 250], [-1e4, 3, 7.5]]) {
+    const { at, fade } = wrapDust(p, cam, R);
+    for (let i = 0; i < 3; i++) {
+      assert.ok(Math.abs(at[i] - cam[i]) <= R + 1e-9, 'within the reach on every axis');
+      // the same cell tile everywhere: the drawn place is the seeded one plus whole cube sides
+      const k = (at[i] - p[i]) / (2 * R);
+      assert.ok(Math.abs(k - Math.round(k)) < 1e-9);
+    }
+    assert.ok(fade >= 0 && fade <= 1);
+  }
+  // leave and come back: the same picture
+  assert.deepEqual(wrapDust(p, [1, 2, 3], R), wrapDust(p, [1, 2, 3], R));
+  assert.deepEqual(wrapDust(p, [0, 0, 0], R).at.map((v) => +v.toFixed(9)), [3, -4, 9]);
+  // full brightness near the camera, none at the reach (no edge to see)
+  assert.equal(wrapDust([1, 0, 0], [0, 0, 0], R).fade, 1);
+  assert.ok(wrapDust([9.99, 0, 0], [0, 0, 0], R).fade < 1e-3);
+
+  // per draw: the camera in the field's own frame, the tail divided by its scale (a system open, km in a ly scene)
+  const f = createStarField({ positions: new Float32Array(3), sizes: new Float32Array(1), colors: new Float32Array(4), reach: R });
+  const root = new Group();
+  root.scale.setScalar(1000);
+  root.position.set(5000, 0, 0);
+  root.add(f.mesh);
+  root.updateMatrixWorld(true);
+  const camera = new PerspectiveCamera();
+  camera.position.set(7000, 0, 0);
+  camera.updateMatrixWorld(true);
+  f.setTail(new Vector3(500, 0, 0));
+  /** @type {any} */ (f.mesh.onBeforeRender)(null, null, camera);
+  const u = /** @type {any} */ (f.mesh.material).uniforms;
+  assert.ok(Math.abs(u.uCam.value.x - 2) < 1e-9 && u.uCam.value.y === 0);
+  assert.ok(Math.abs(u.uTail.value.x - 0.5) < 1e-9);
 });

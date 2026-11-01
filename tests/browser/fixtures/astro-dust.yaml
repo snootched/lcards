@@ -1,0 +1,13 @@
+# Depth dust round the camera (astrometrics.spec.js "depth dust"): no backdrop stars, a small disc for the scene's size (radius 100, so the dust reaches 150).
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: far
+  views:
+    far: { target: [0, 0, 0], yaw: 20, tilt: 25, distance: 3000 }
+    inside: { target: [40, 0, 20], yaw: 60, tilt: 10, distance: 40 }
+    away: { target: [9000, 400, -7000], yaw: 200, tilt: 5, distance: 60 }
+backdrop:
+  dust: { count: 3000, min_radius: 1, max_radius: 1.6, brightness: [0.8, 1] }
+objects:
+  - { type: ring, radius: 100, width: 1, color: theme:colors.ui.primary }

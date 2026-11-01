@@ -144,7 +144,7 @@ sections:
             far: { target: [ 0, 0, 0 ], yaw: 20, tilt: 20, distance: 600 }
             near: { target: [ 40, 5, 30 ], yaw: 30, tilt: 10, distance: 25, warp: true }
           buttons: true
-        backdrop: { stars: { count: 4000, max_radius: 1.4, spectrum: true }, dust: { count: 600 } }
+        backdrop: { stars: { count: 4000, max_radius: 1.4, spectrum: true }, dust: { count: 1500 } }
         points:
           - id: core
             xyz: [ 0, 0, 0 ]

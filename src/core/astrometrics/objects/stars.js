@@ -1,8 +1,9 @@
 /**
  * `backdrop.stars`: `count` stars at infinity (a shell that stays round
  * the camera: they turn with it, panning never moves them), and
- * `backdrop.dust`: particles at a finite distance round the scene centre,
- * so every camera move shows parallax. Both take the `starfield`
+ * `backdrop.dust`: particles that fill the space round the camera out to
+ * `radius` wherever it goes (they wrap round it, star-field.js), so every
+ * camera move shows parallax. Both take the `starfield`
  * background preset's key names (`count`, `seed`, `min_radius` /
  * `max_radius` px, `brightness` [low, high], `colors`) and streak
  * during a warp fly-to (`star-field.js`).
@@ -21,7 +22,7 @@ export const STAR_SHELL = 3000;
  * Seeded sizes, colours and opacities for `n` stars, positions from `place`.
  * @param {any} cfg
  * @param {import('./common.js').BuildContext} ctx
- * @param {{ count: number, radius: [number, number], place: (rnd: () => number) => number[] }} d - defaults and placement
+ * @param {{ count: number, radius: [number, number], place: (rnd: () => number) => number[], reach?: number }} d - defaults and placement
  */
 function field(cfg, ctx, d) {
   const n = Math.max(0, Math.min(50000, Math.round(num(cfg.count, d.count))));
@@ -42,7 +43,7 @@ function field(cfg, ctx, d) {
     sizes[i] = Math.max(0.5, (r0 + size * (r1 - r0)) * 2);
     cols.set([c[0], c[1], c[2], (c[3] ?? 1) * alpha], i * 4);
   }
-  return createStarField({ positions, sizes, colors: cols, opacity: num(cfg.opacity, 1), spectrum: cfg.spectrum === true, reverse: cfg.spectrum_direction === 'reverse' });
+  return createStarField({ positions, sizes, colors: cols, opacity: num(cfg.opacity, 1), spectrum: cfg.spectrum === true, reverse: cfg.spectrum_direction === 'reverse', reach: d.reach });
 }
 
 /** @param {() => number} rnd @param {number} R a uniform point on a sphere of radius R */
@@ -69,19 +70,17 @@ export function buildStars(cfg, ctx) {
 /**
  * @param {any} cfg
  * @param {import('./common.js').BuildContext} ctx
- * @param {{ center: number[], radius: number }} scene - the scene's bounds (dust fills 1.5 x their radius by default)
+ * @param {{ radius: number }} scene - the scene's bounds (dust reaches 1.5 x their radius round the camera by default)
  * @returns {import('./common.js').BuiltObject}
  */
 export function buildDust(cfg, ctx, scene) {
   const R = Math.max(1e-3, num(cfg.radius, scene.radius * 1.5));
-  const c = scene.center;
+  // seeded once in a cube of side 2R; the shader wraps it round the camera
   const dust = field(cfg, ctx, {
-    count: 400,
+    count: 800,
     radius: [0.4, 1],
-    place: (rnd) => {
-      const p = onSphere(rnd, R * Math.cbrt(rnd()));
-      return [c[0] + p[0], c[1] + p[1], c[2] + p[2]];
-    }
+    reach: R,
+    place: (rnd) => [(rnd() * 2 - 1) * R, (rnd() * 2 - 1) * R, (rnd() * 2 - 1) * R]
   });
   const node = new Group();
   node.name = 'backdrop:dust';
