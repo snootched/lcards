@@ -173,6 +173,38 @@ test('without size the built-in ship is drawn at its real size in the scene\'s o
   w.dispose();
 });
 
+test('model_scale visible: a real-size model can be drawn k times larger about its centre; a sized one cannot', async () => {
+  const w = buildScene({
+    units: 'km',
+    objects: [
+      { type: 'model', id: 'real', src: 'builtin:constitution', at: [5, 0, 0] },
+      { type: 'model', id: 'sized', src: 'builtin:constitution', size: 1 }
+    ]
+  }, /** @type {any} */ (ctx()));
+  const real = w.objects.get('real');
+  assert.equal(typeof real?.magnify, 'function');
+  assert.equal(w.objects.get('sized')?.magnify, undefined, 'its own size: untouched');
+  // before the file: the stand-in grows
+  real?.magnify?.(4);
+  assert.ok(Math.abs(/** @type {number} */ (real?.radius) - 0.6) < 1e-9);
+  await settle();
+  await settle();
+  assert.ok(Math.abs(/** @type {number} */ (real?.realExtent) - 0.289) < 0.002);
+  assert.ok(Math.abs(drawnExtent(w, 'real') - 0.289 * 4) < 0.01, 'the file came in magnified');
+  real?.magnify?.(10);
+  assert.ok(Math.abs(drawnExtent(w, 'real') - 2.89) < 0.02);
+  assert.ok(Math.abs(/** @type {number} */ (real?.radius) - 1.445) < 0.01);
+  // about its centre: still at its place
+  w.scene.updateMatrixWorld(true);
+  const box = new Box3();
+  real?.node.traverse((/** @type {any} */ o) => { if (o.isMesh && o.material?.name === 'lcards-hologram') box.expandByObject(o, true); });
+  assert.ok(box.getCenter(new Vector3()).distanceTo(new Vector3(5, 0, 0)) < 0.05);
+  real?.magnify?.(1);
+  assert.ok(Math.abs(drawnExtent(w, 'real') - 0.289) < 0.002);
+  assert.ok(Math.abs(/** @type {number} */ (real?.modelInfo?.()?.size) - 0.289) < 0.002, 'modelInfo stays the real size');
+  w.dispose();
+});
+
 test('without units a model with no size is drawn at 50', async () => {
   const w = buildScene({ objects: [{ type: 'model', id: 'ship', src: 'x' }] }, /** @type {any} */ (ctx()));
   await settle();
@@ -287,6 +319,40 @@ test('the loader takes a file of any size (no cap), and a failed fetch says why'
   const fetchBig = /** @type {any} */ (async () => ({ ok: true, status: 200, headers: new Headers({ 'content-length': String(big.byteLength) }), arrayBuffer: async () => big }));
   await assert.rejects(models.loadModelFile('/m.glb', { fetchImpl: fetchBig }), (/** @type {any} */ e) => !/max_file_size|MB/.test(String(e?.message)));
   await assert.rejects(models.loadModelFile('/m.glb', { fetchImpl: /** @type {any} */ (async () => ({ ok: false, status: 404, headers: new Headers() })) }), /HTTP 404/);
+});
+
+test('feature edges: on by default up to the triangle budget, off on a denser model unless edges: true', async () => {
+  const { Group, Mesh, BufferGeometry, BufferAttribute, MeshBasicMaterial } = await import('three');
+  assert.ok(Math.abs(models.triangleCount((await models.parseModel(SHIP.slice(0))).scene) - 6500) < 500);
+  // a dense file: one triangle over the budget (degenerate, so it costs nothing to build)
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 1]), 3));
+  g.setIndex(new BufferAttribute(new Uint32Array((models.EDGE_TRIANGLE_BUDGET + 1) * 3).map((_, i) => i % 3), 1));
+  const root = new Group();
+  root.add(new Mesh(g, new MeshBasicMaterial()));
+  const dense = Promise.resolve(/** @type {any} */ ({ scene: root, animations: [] }));
+  assert.equal(models.triangleCount(root), models.EDGE_TRIANGLE_BUDGET + 1);
+  const w = buildScene({ objects: [{ type: 'model', id: 'dense', src: 'x', size: 10 }] }, /** @type {any} */ (ctx(dense)));
+  await settle();
+  await settle();
+  let lines = 0;
+  w.objects.get('dense')?.node.traverse((/** @type {any} */ o) => { if (o.isLineSegments) lines++; });
+  assert.equal(lines, 0, 'no edges on a dense model by default');
+  w.dispose();
+});
+
+test('the loader reports download progress, then parsing', async () => {
+  const body = new Uint8Array(SHIP.slice(0));
+  const half = Math.floor(body.byteLength / 2);
+  const stream = new ReadableStream({ start(c) { c.enqueue(body.slice(0, half)); c.enqueue(body.slice(half)); c.close(); } });
+  /** @type {number[][]} */
+  const seen = [];
+  const gltf = await models.loadModelFile('/m.glb', {
+    fetchImpl: /** @type {any} */ (async () => ({ ok: true, status: 200, headers: new Headers({ 'content-length': String(body.byteLength) }), body: stream })),
+    onProgress: (loaded, total) => seen.push([loaded, total])
+  });
+  assert.ok(gltf.scene);
+  assert.deepEqual(seen, [[half, body.byteLength], [body.byteLength, body.byteLength], [-1, body.byteLength]]);
 });
 
 test('clip names: all, one, a list, unknown names dropped', () => {

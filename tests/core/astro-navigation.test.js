@@ -161,7 +161,12 @@ test('cameraButtonLayout: hide defaults to idle; toggle adds a fold button, fold
   assert.equal(open?.pad, true);
   const folded = cameraButtonLayout({ hide: 'toggle' }, { folded: true });
   assert.equal(folded?.fold?.[0], 'unfold');
-  assert.deepEqual([folded?.pad, folded?.time], [false, false]);
+  assert.deepEqual([folded?.pad, folded?.time, folded?.scale], [false, false, false]);
+  // the model size button: on unless scale: false (the card shows it only while a model is at its real size)
+  assert.equal(cameraButtonLayout(true)?.scale, true);
+  assert.equal(cameraButtonLayout({ scale: false })?.scale, false);
+  assert.ok(cameraButtonLayout({ pan: false, zoom: false, travel: false, reset: false, time: false }), 'the size button alone still lays out');
+  assert.equal(cameraButtonLayout({ pan: false, zoom: false, travel: false, reset: false, time: false, scale: false }), null);
 });
 
 test('camera pad: the D-pad segments, each a command on its cell of the 3 x 3 grid; options turn parts off; size clamps', () => {
@@ -210,7 +215,7 @@ test('time slider: shown unless time: false; alone without the pad; stops snap t
   assert.equal(cameraButtonLayout({ time: false })?.time, false);
   const only = cameraButtonLayout({ pan: false, zoom: false, reset: false, travel: false });
   assert.deepEqual([only?.pad, only?.time], [false, true]);
-  assert.equal(cameraButtonLayout({ pan: false, zoom: false, reset: false, travel: false, time: false }), null);
+  assert.equal(cameraButtonLayout({ pan: false, zoom: false, reset: false, travel: false, time: false, scale: false }), null);
   assert.equal(TIME_STOPS[timeStop(1)], 1);
   assert.equal(TIME_STOPS[timeStop(0.3)], 0.25);
   assert.equal(TIME_STOPS[timeStop(0)], 0);

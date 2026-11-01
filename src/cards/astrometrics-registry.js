@@ -11,7 +11,7 @@
 import { lcardsLog } from '../utils/lcards-logging.js';
 
 /**
- * @typedef {HTMLElement & { config?: any, flyTo: (view: string | Record<string, any>, opts?: { duration?: number }) => Promise<void>, setClock: (opts: { date?: any, rate?: any }) => boolean }} AstrometricsCardElement
+ * @typedef {HTMLElement & { config?: any, flyTo: (view: string | Record<string, any>, opts?: { duration?: number }) => Promise<void>, setClock: (opts: { date?: any, rate?: any }) => boolean, setModelScale: (mode: 'real' | 'visible' | 'toggle') => boolean }} AstrometricsCardElement
  */
 
 /** @type {Set<AstrometricsCardElement>} */
@@ -101,6 +101,25 @@ export const astrometricsRegistry = {
         }
         for (const card of matches) card.setClock(clock);
         return matches.length;
+    },
+
+    /**
+     * Draw the models of every connected card with this `id` at their real
+     * size, or larger to stay visible (not saved).
+     * @param {string} id
+     * @param {'real' | 'visible' | 'toggle'} mode
+     * @returns {number} how many cards took it
+     */
+    setModelScale(id, mode = 'toggle') {
+        const matches = [...cards].filter((c) => c.config?.id === id);
+        if (!matches.length) {
+            lcardsLog.debug(`[Astrometrics] set-model-scale: no astrometrics card with id '${id}' is open here`);
+            return 0;
+        }
+        let n = 0;
+        for (const card of matches) if (card.setModelScale(mode)) n++;
+        if (!n) lcardsLog.warn(`[Astrometrics] set-model-scale for '${id}': model_scale is real, visible or toggle`);
+        return n;
     }
 };
 

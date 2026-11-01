@@ -131,10 +131,10 @@ export const BUTTONS_IDLE_MS = 3000;
 /**
  * The pad for `camera.buttons`: where it sits, its size, each segment (off
  * when its option is false), the time slider and, with `hide: toggle`, the
- * fold button (folded, only it shows).
+ * fold button (folded, only it shows); `scale`: the model size button.
  * @param {any} cfg - `camera.buttons`
  * @param {{ folded?: boolean }} [state]
- * @returns {{ position: string, size: number, hide: 'idle' | 'never' | 'toggle', segments: (typeof PAD_SEGMENTS[number] & { on: boolean })[], pad: boolean, time: boolean, fold: string[] | null } | null}
+ * @returns {{ position: string, size: number, hide: 'idle' | 'never' | 'toggle', segments: (typeof PAD_SEGMENTS[number] & { on: boolean })[], pad: boolean, time: boolean, scale: boolean, fold: string[] | null } | null}
  */
 export function cameraButtonLayout(cfg, { folded = false } = {}) {
     if (!cfg) return null;
@@ -142,12 +142,14 @@ export function cameraButtonLayout(cfg, { folded = false } = {}) {
     const segments = PAD_SEGMENTS.map((s) => ({ ...s, on: o[s.option] !== false }));
     const pad = segments.some((s) => s.on);
     const time = o.time !== false;
-    if (!pad && !time) return null;
+    // the model size button (shown by the card only while a model is at its real size)
+    const scale = o.scale !== false;
+    if (!pad && !time && !scale) return null;
     const hide = o.hide === 'never' || o.hide === 'toggle' ? o.hide : 'idle';
     const position = typeof o.position === 'string' ? o.position : 'bottom-right';
     const n = Number(o.size);
     const size = Number.isFinite(n) && n > 0 ? Math.min(PAD_SIZE.max, Math.max(PAD_SIZE.min, n)) : PAD_SIZE.default;
     const fold = hide === 'toggle' ? (folded ? FOLD_BUTTON.folded : FOLD_BUTTON.open) : null;
-    if (fold && folded) return { position, size, hide, segments, pad: false, time: false, fold };
-    return { position, size, hide, segments, pad, time, fold };
+    if (fold && folded) return { position, size, hide, segments, pad: false, time: false, scale: false, fold };
+    return { position, size, hide, segments, pad, time, scale, fold };
 }

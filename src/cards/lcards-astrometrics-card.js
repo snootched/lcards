@@ -89,7 +89,7 @@ function normalizeScenePatch(patch) {
 const RESET_TAP_MS = 500;
 const RESET_SEQUENCE_MS = 900;
 
-const SCENE_KEYS = ['camera', 'backdrop', 'labels', 'points', 'objects', 'units', 'time_scale', 'clock', 'look'];
+const SCENE_KEYS = ['camera', 'backdrop', 'labels', 'points', 'objects', 'units', 'time_scale', 'clock', 'look', 'model_scale'];
 
 /** Shown when the scene cannot draw, by the runtime's failure reason */
 const FAILURES = {
@@ -154,7 +154,9 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             _timeScale: { type: Number, state: true },
             _clockText: { type: String, state: true },
             _clockRate: { type: Number, state: true },
-            _timeShows: { type: String, state: true }
+            _timeShows: { type: String, state: true },
+            _modelScale: { type: String, state: true },
+            _hasRealModels: { type: Boolean, state: true }
         };
     }
 
@@ -335,6 +337,25 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                 }
                 .astro-fold:hover,
                 .astro-fold:focus-visible { opacity: 1; }
+                /* the model size button: an LCARS bar in the pad's centre colour, its arms' colour while models are drawn larger */
+                .astro-scale {
+                    align-self: stretch;
+                    height: 22px;
+                    padding: 0 var(--ha-space-3, 12px);
+                    border: none;
+                    border-radius: var(--ha-border-radius-pill, 9999px);
+                    background: var(--pad-center-fill-rest, var(--lcars-ui-primary, var(--lcards-gray-medium)));
+                    color: var(--pad-directional-glyph, black);
+                    font-family: var(--lcars-font, 'Antonio'), 'Antonio', sans-serif;
+                    font-size: 14px;
+                    text-transform: uppercase;
+                    text-align: right;
+                    cursor: pointer;
+                }
+                .astro-scale:hover { background: var(--pad-center-fill-hover, var(--lcars-ui-tertiary, var(--lcards-gray-light))); }
+                .astro-scale[aria-pressed='true'] { background: var(--pad-directional-fill-rest, var(--lcars-card-button, var(--lcards-gray-medium))); }
+                .astro-scale[aria-pressed='true']:hover { background: var(--pad-directional-fill-hover, var(--lcars-ui-tertiary, var(--lcards-gray-light))); }
+                .astro-scale:focus-visible { outline: var(--ha-border-width-md) solid var(--primary-color); outline-offset: 1px; }
                 .astro-fold:focus-visible { outline: var(--ha-border-width-md) solid var(--primary-color); outline-offset: 1px; }
                 /* the time slider as an LCARS bar: a rounded cap, a flat track filling in the
                    button colour with a block thumb, the value in a rounded block; segments
@@ -586,6 +607,14 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._timeShows = 'date';
         /** @type {{ date: number, rate: number, wall: number } | null} a date or rate the slider or an action set (kept when the scene is made again) */
         this._clockSet = null;
+        /** @type {'real' | 'visible'} models at their real size, or drawn larger to stay visible (the size button) */
+        this._modelScale = 'real';
+        /** Whether any model is at its real size (the size button shows) */
+        this._hasRealModels = false;
+        /** @type {'real' | 'visible' | null} a model scale the button, the V key or an action set (kept when the scene is made again) */
+        this._modelScaleSet = null;
+        /** The config's model_scale the set one was made against (a config change drops it) */
+        this._modelScaleCfg = 'real';
         /** @type {ReturnType<typeof setTimeout> | undefined} */
         this._buttonsTimer = undefined;
         /** A camera button is held (the buttons never fade meanwhile) */
@@ -778,10 +807,26 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             onFail: (reason) => { this._failure = reason in FAILURES ? reason : 'render failed'; },
             onSky: () => { this._refreshLabels({ sky: true }); },
             onClock: (c) => this._onClock(c),
+            onModelScale: (mode, has) => {
+                this._modelScale = mode;
+                this._hasRealModels = has;
+                // the button, the V key or an action (not the config) set it: keep it when the scene is made again
+                const fromConfig = this.config?.model_scale === 'visible' ? 'visible' : 'real';
+                this._modelScaleSet = mode !== fromConfig ? mode : null;
+                // the Studio's toolbar toggle follows it
+                this.dispatchEvent(new CustomEvent('astro-model-scale', { detail: { mode, hasRealModels: has } }));
+            },
             mountCard: (card) => this._mountPointCard(card),
             setCardHass: (el, hass) => this._setPointCardHass(el, hass)
         });
         if (this._studioHooks) this._scene.setEditMode(this._studioHooks);
+        // a model scale set on screen stays, until the config's own changes
+        const configScale = config?.model_scale === 'visible' ? 'visible' : 'real';
+        if (configScale !== this._modelScaleCfg) {
+            this._modelScaleCfg = configScale;
+            this._modelScaleSet = null;
+        }
+        if (this._modelScaleSet) this._scene.setModelScale(this._modelScaleSet);
         // back after a view switch: the slider's speed and the date stay
         if (this._timeScale !== null) this._scene.setTimeScale(this._timeScale);
         if (this._clockSet) {
@@ -1335,6 +1380,12 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             this._actionHandler.runAction(action, this.hass, this);
             return true;
         }
+        // set-model-scale on this card (no card, or its own id)
+        if (action.action === 'set-model-scale' && (action.card === undefined || action.card === this.config?.id)) {
+            this._playSound(key === 'tap_action' ? 'card_tap' : 'card_hold');
+            this.setModelScale(action.model_scale ?? 'toggle');
+            return true;
+        }
         // set-clock on this card (no card, or its own id) sets the date here
         if (action.action === 'set-clock' && (action.card === undefined || action.card === this.config?.id)) {
             this._playSound(key === 'tap_action' ? 'card_tap' : 'card_hold');
@@ -1484,6 +1535,20 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             return Promise.resolve();
         }
         return this._scene.flyTo(view, opts);
+    }
+
+    /**
+     * Models at their real size, or drawn at least 40 px across to stay
+     * visible (the size button, set-model-scale actions and the registry
+     * call this). Not saved; it stays until the config's model_scale changes.
+     * @param {'real' | 'visible' | 'toggle'} mode
+     * @returns {boolean} false before the scene is ready, or for an unknown mode
+     */
+    setModelScale(mode) {
+        if (!this._scene || !['real', 'visible', 'toggle'].includes(mode)) return false;
+        const next = mode === 'toggle' ? (this._scene.modelScale() === 'visible' ? 'real' : 'visible') : mode;
+        this._scene.setModelScale(next);
+        return true;
     }
 
     /**
@@ -1656,10 +1721,24 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                                     @contextmenu=${(/** @type {Event} */ e) => e.preventDefault()}></button>`)}
                         </div>
                     </div>` : ''}
+                ${layout.scale && this._hasRealModels ? this._renderScaleButton() : ''}
                 ${layout.time ? this._renderTimeSlider('time', 'Time speed') : ''}
                 ${top ? '' : fold}
             </div>
         `;
+    }
+
+    /**
+     * `buttons.scale`: models at their real size or drawn larger to stay
+     * visible (shown while a model is at its real size), as the V key.
+     * @private
+     */
+    _renderScaleButton() {
+        const visible = this._modelScale === 'visible';
+        const label = visible ? 'Show models at their real size' : 'Draw small models larger, to see them';
+        return html`
+            <button type="button" class="astro-scale" data-cmd="model-scale" aria-pressed=${visible ? 'true' : 'false'} aria-label=${label} title=${`${label} (V)`}
+                @click=${() => { this._playSound('card_tap'); this.setModelScale('toggle'); }}>${visible ? 'Visible size' : 'Real size'}</button>`;
     }
 
     /**

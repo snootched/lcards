@@ -93,7 +93,7 @@ const MODEL_WAIT_MS = 5 * 60 * 1000;
  * @type {{ id: string, header: string, icon: string, hint: string, parts: { path: string, keys: string[] }[] }[]}
  */
 const SCENE_GROUPS = [
-  { id: 'look', header: 'Look', icon: 'mdi:eye-outline', hint: 'Which objects and points show: the diagram ones, the realistic ones, or both. Each object and point can pick its look.', parts: [{ path: '', keys: ['look'] }] },
+  { id: 'look', header: 'Look', icon: 'mdi:eye-outline', hint: 'Which objects and points show: the diagram ones, the realistic ones, or both. Each object and point can pick its look. Model scale: models at their real size, or drawn larger when they would be too small to see.', parts: [{ path: '', keys: ['look', 'model_scale'] }] },
   { id: 'time', header: 'Time', icon: 'mdi:clock-outline', hint: 'The scene date moves bodies and orbits; the time scale speeds up or slows the decorative motion.', parts: [{ path: 'clock', keys: ['date', 'rate'] }, { path: '', keys: ['time_scale'] }] },
   { id: 'warp', header: 'Warp', icon: 'mdi:rocket-launch-outline', hint: 'Stars and dust stream past while the scene is at warp.', parts: [{ path: '', keys: ['warp', 'warp_factor'] }] },
   { id: 'space', header: 'Space', icon: 'mdi:star-four-points-outline', hint: 'Part of the 3D scene: stars at infinity turn with the camera; depth dust fills the space round the camera and shows depth on every move.', parts: [{ path: 'backdrop', keys: ['stars', 'dust'] }] }
@@ -142,6 +142,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       _starterMessage: { state: true },
       _trying: { state: true },
       _toolbarExpanded: { state: true },
+      _modelScale: { state: true },
+      _hasRealModels: { state: true },
       _historyVersion: { state: true },
       _viewError: { state: true },
       _modelExtents: { state: true }
@@ -195,6 +197,10 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     this._onPlaceKey = this._onPlaceKey.bind(this);
     /** @type {any} the preview card */
     this._previewCard = null;
+    /** @type {'real' | 'visible'} the preview's model scale (its toolbar toggle; not saved) */
+    this._modelScale = 'real';
+    /** Whether the preview has a model at its real size (the toggle is on offer) */
+    this._hasRealModels = false;
     /** @type {ReturnType<typeof setTimeout> | undefined} */
     this._previewTimer = undefined;
   }
@@ -436,6 +442,10 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     card.hass = this.hass;
     host.replaceChildren(card);
     this._previewCard = card;
+    card.addEventListener('astro-model-scale', (/** @type {CustomEvent} */ e) => {
+      this._modelScale = e.detail.mode;
+      this._hasRealModels = e.detail.hasRealModels;
+    });
     card.attachStudio?.({
       onView: () => this._updateScaleBar(),
       onSelect: (/** @type {any} */ hit) => this._onSceneSelect(hit),
@@ -783,6 +793,11 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
             ${button({ id: 'home', icon: 'mdi:home-outline', title: 'Back to the start view', action: () => this._home() })}
             ${hold({ id: 'fly-forward', icon: 'mdi:arrow-up-bold-outline', title: 'Fly forward (W, Page Up); hold to keep going' })}
             ${hold({ id: 'fly-back', icon: 'mdi:arrow-down-bold-outline', title: 'Fly back (S, Page Down); hold to keep going' })}
+            ${button({
+              id: 'model-scale', icon: 'mdi:magnify-plus-outline', active: this._modelScale === 'visible', disabled: !this._hasRealModels,
+              title: this._hasRealModels ? 'Draw small models larger, to see them (V); not saved' : 'Draw small models larger: no model is at its real size',
+              action: () => this._previewCard?.setModelScale?.('toggle')
+            })}
           </div>
           <div class="canvas-toolbar-group">
             <span class="canvas-toolbar-group-label">Edit</span>

@@ -71,6 +71,7 @@ A model from elsewhere comes in its maker's units, facing their way, with their 
 
 The model is drawn on every frame the scene moves, and downloaded with the dashboard. The built-in ship has 6,500 triangles in 147 KB; models made for games or renders can have 100,000 or more, and tens of MB of textures.
 
+- **Feature edges** are off by default on a model over 250,000 triangles: working them out takes seconds on a model that dense (2.5 million triangles froze the page for 11 seconds), and they would be noise anyway. `edges: true` draws them.
 - **Any size loads**, but every device that shows the dashboard downloads the whole file and holds it in memory: a 100 MB model is slow to appear on a phone and may not load on a small tablet. A smaller file is better for all of them.
 - **Compress and simplify** with [glTF Transform](https://gltf-transform.dev/) (needs Node.js):
 

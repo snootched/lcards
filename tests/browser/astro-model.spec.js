@@ -165,3 +165,59 @@ test('UX1 P6c real size: without size in a km scene the built-in models sit in p
     expect(m.long.size).toBeCloseTo(1.061, 3);
     expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
 });
+
+test('a model that takes a moment to download shows the loading ring until it is in', async ({ page }) => {
+    // hold the file back, so the ring has time to show
+    await page.route('**/*.glb', async (route) => {
+        const res = await route.fetch();
+        await new Promise((r) => setTimeout(r, 1500));
+        await route.fulfill({ response: res });
+    });
+    await mountCase(page, 'astro-real-size', { width: '800' });
+    const ring = () => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))?._scene?.debug().loading ?? null);
+    await expect.poll(async () => (await ring())?.visible, { timeout: 10_000 }).toBe(true);
+    expect((await ring()).text).toMatch(/^(Loading \d+ models?|Preparing)/);
+    await expect.poll(async () => (await ring())?.visible, { timeout: 20_000 }).toBe(false);
+    const placed = await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.modelInfo('ship'));
+    expect(placed?.real).toBe(true);
+});
+
+test('UX1 P6c visible size: the size button, the V key and model_scale draw small real-size models larger; sized ones stay', async ({ page }) => {
+    await mountCase(page, 'astro-real-size', { width: '800' });
+    const card = '#mount > *';
+    // far out (40 km): the 289 m ship is a few px across
+    const config = await page.evaluate((sel) => /** @type {any} */ (document.querySelector(sel)).config, card);
+    const far = { ...config, camera: { ...config.camera, buttons: { hide: 'never' }, views: { near: { target: [0, 0, 0], yaw: 30, tilt: 20, distance: 40 } } } };
+    await page.evaluate((c) => window.__reconfigure(c), far);
+    const state = () => page.evaluate((sel) => {
+        const el = /** @type {any} */ (document.querySelector(sel));
+        const s = el._scene;
+        const fit = (id) => s.debug().world.objects.get(id)?.node.getObjectByName('fit')?.scale.x ?? null;
+        const b = el.renderRoot.querySelector('.astro-scale');
+        return { mode: s.modelScale(), button: b?.textContent.trim() ?? null, pressed: b?.getAttribute('aria-pressed') ?? null, ship: fit('ship'), sized: fit('sized') };
+    }, card);
+    await expect.poll(async () => (await state()).button, { timeout: 20_000 }).toBe('Real size');
+    await expect.poll(async () => (await state()).ship, { timeout: 20_000 }).toBeCloseTo(0.001, 6);
+    const sizedBefore = (await state()).sized;
+    // the button: visible size, the ship drawn at least 40 px across (many times its real size from 40 km)
+    await page.evaluate((sel) => /** @type {any} */ (document.querySelector(sel)).renderRoot.querySelector('.astro-scale').click(), card);
+    await expect.poll(async () => (await state()).ship, { timeout: 5_000 }).toBeGreaterThan(0.004);
+    let s = await state();
+    expect([s.mode, s.button, s.pressed]).toEqual(['visible', 'Visible size', 'true']);
+    expect(s.sized).toBeCloseTo(sizedBefore, 9);
+    // the V key on the scene: real again
+    await page.evaluate((sel) => {
+        const wrap = /** @type {any} */ (document.querySelector(sel)).renderRoot.querySelector('.astro-scene');
+        wrap.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', bubbles: true }));
+    }, card);
+    await expect.poll(async () => (await state()).ship, { timeout: 5_000 }).toBeCloseTo(0.001, 6);
+    expect((await state()).mode).toBe('real');
+    // model_scale: visible starts there
+    await page.evaluate((c) => window.__reconfigure({ ...c, model_scale: 'visible' }), far);
+    await expect.poll(async () => (await state()).ship, { timeout: 20_000 }).toBeGreaterThan(0.004);
+    expect((await state()).mode).toBe('visible');
+    // close in (1 km), the ship is over 40 px at its real size: real again by itself
+    await page.evaluate((sel) => /** @type {any} */ (document.querySelector(sel))._scene.flyTo({ tx: 1.2, ty: 0, tz: 0, distance: 1 }, { duration: 0 }), card);
+    await expect.poll(async () => (await state()).ship, { timeout: 5_000 }).toBeCloseTo(0.001, 6);
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
+});

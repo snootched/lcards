@@ -75,7 +75,9 @@ test('size budget: tiny loader, main chunk under its ceiling', () => {
     // ~10% headroom; a change that pulls editors back into the main chunk fails here.
     // 2,150,000 until 2026-10-25: E3b's astrometrics card side (fly-to registry, camera
     // buttons, editor pick mode) took it to 2.155 MB; the editor and runtime stay lazy.
-    expect(size(`chunks/${main}`)).toBeLessThanOrEqual(2_200_000);
+    // 2,200,000 until 2026-11-01: UX1's card side (the D-pad, the LCARS time slider, the
+    // model size button and set-model-scale) took it to 2.224 MB; the runtime stays lazy.
+    expect(size(`chunks/${main}`)).toBeLessThanOrEqual(2_300_000);
     // 460,000 until 2026-10-23: the main chunk had crept to ~460 KB br; C2's
     // background tier (scene effect classes, two presets, schemas) took it over.
     // 480,000 until 2026-10-30: R4a/R4b's card side (the date slider, set-clock, settings that

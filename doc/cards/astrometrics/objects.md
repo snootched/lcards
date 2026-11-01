@@ -557,7 +557,7 @@ A 3D model from a glTF file (`.glb` or `.gltf`): a starship, your house, a satel
 | `solid` | `true` (default): the hologram hides its own far side. `false`: see-through. |
 | `blend` | `add` (default) or `normal`. |
 | `scan_period`, `scan_color` | A scan band sweeping along the model, seconds per sweep. |
-| `edges`, `edge_angle`, `edge_color` | Feature edges as lines (on for holograms): where faces meet at more than `edge_angle` degrees. |
+| `edges`, `edge_angle`, `edge_color` | Feature edges as lines (on for holograms, off on a model over 250,000 triangles: see [make it light](./models#make-it-light)): where faces meet at more than `edge_angle` degrees. |
 | `animation` | Clips to loop: `all`, a clip name or a list. The built-in ship's clip is `bussards`. |
 | `occlude` | Hide labels and cards behind it (default `true`). |
 
@@ -608,6 +608,23 @@ objects:
 ```
 
 Labels on the far side of the ship hide behind it: drag to turn the ship until the port nacelle is behind the hull, and its label goes. Models hide labels by their real shape (a small depth image of the scene, taken only when the camera or the model moves), not by a bounding sphere.
+
+### Visible size
+
+At its real size a ship is a speck in a view of a whole star system. `model_scale: visible` on the card draws each model that is at its real size at least 40 px across, scaled about its centre, and at its real size again once you are close enough for that to be larger; points on it grow with it. Models with their own `size` are left as they are. On screen, the size button under the [camera buttons](./#controls), the `V` key, a `set-model-scale` action and the Astrometrics Studio's toolbar switch it; that is not saved.
+
+```yaml
+type: custom:lcards-astrometrics-card
+units: km
+model_scale: visible
+camera:
+  buttons: true
+points:
+  - { id: ds9, xyz: [0, 0, 0] }
+objects:
+  - { type: model, id: station, src: builtin:deep_space_nine, at: ds9, material: original }
+  - { type: model, id: ship, src: builtin:constitution, at: [30, 0, 10] }
+```
 
 ### Built-in models
 

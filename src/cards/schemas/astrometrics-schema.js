@@ -302,6 +302,7 @@ const cameraSchema = {
                         zoom: { type: 'boolean', default: true, description: 'The left corners zoom in (top) and out (bottom). false: they are dimmed and do nothing.' },
                         travel: { type: 'boolean', default: true, description: 'The right corners fly forward (top) and back (bottom): camera and target move together along the view, as the W and S keys. false: they are dimmed and do nothing.' },
                         reset: { type: 'boolean', default: true, description: 'The centre resets (flies back to the start view). false: it is dimmed and does nothing.' },
+                        scale: { type: 'boolean', default: true, description: 'The model size button beside the pad: real size or visible size (model_scale), as the V key. Shown only when a model is drawn at its real size. false hides it.' },
                         time: {
                             description: 'The time slider. speed: how fast the scene\'s motion runs (time_scale: spins, scans, drift), from held to four times as fast. date: the scene clock (clock), with the date, its rate from a year a second backward to a year a second forward, and NOW. both: either, with a switch. true (the default): both when the card has a clock, else speed. false hides it. It changes the view only, not the config.',
                             oneOf: [{ type: 'boolean' }, { type: 'string', enum: ['speed', 'date', 'both'] }],
@@ -1140,7 +1141,7 @@ const modelObject = {
         scan_color: color('Scan band colour. Default var(--lcards-moonlight).'),
         solid: { type: 'boolean', default: true, description: 'false: see-through.' },
         blend: { type: 'string', enum: ['add', 'normal'], default: 'add', description: 'Hologram blending: add (default) or normal.' },
-        edges: { type: 'boolean', description: 'Draw feature edges. Default true for hologram.' },
+        edges: { type: 'boolean', description: 'Draw feature edges. Default true for hologram, except on a model over 250,000 triangles (working them out freezes the page for seconds); true draws them anyway.' },
         edge_angle: setting('Edges where faces meet at more than this angle, degrees.', { minimum: 0, maximum: 180, default: 30 }),
         edge_color: color('Edge colour. Default the rim colour.'),
         animation: {
@@ -1242,6 +1243,14 @@ export const astrometricsSchema = {
             }
         },
         units: unitsSchema('What one scene unit is (m, km, au, ly or pc): positions, sizes and distances are in it. Optional: a scene can use any units; naming them lets a system (type: system) give its own.'),
+        model_scale: {
+            type: 'string',
+            enum: ['real', 'visible'],
+            enumDescriptions: { real: 'Models at their real size', visible: 'Small models drawn larger' },
+            'x-ui-hints': { widget: 'pills' },
+            default: 'real',
+            description: 'How models drawn at their real size (no size of their own) start: real (the default) keeps them in proportion, however small that is on screen; visible draws each at least 40 px across, real again once it is larger. The size button by the camera buttons, the V key and set-model-scale actions switch it on screen; that is not saved.'
+        },
         look: {
             'x-ui-hints': { widget: 'pills' },
             default: 'mixed',

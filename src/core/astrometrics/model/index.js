@@ -35,16 +35,62 @@ import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { modelSizeSet, modelLengthSet, realScale } from '../names.js';
 
 /**
+ * Feature edges by default up to this many triangles: working them out runs
+ * on the main thread (2.5 million triangles took 11 s, and the page froze),
+ * and on a model that dense they are noise anyway. `edges: true` still draws them.
+ */
+export const EDGE_TRIANGLE_BUDGET = 250_000;
+
+/**
+ * Triangles in a parsed file.
+ * @param {import('three').Object3D} root
+ */
+export function triangleCount(root) {
+  let n = 0;
+  root.traverse((o) => {
+    const g = /** @type {any} */ (o).isMesh ? /** @type {Mesh} */ (o).geometry : null;
+    if (g) n += Math.floor((g.index?.count ?? g.attributes.position?.count ?? 0) / 3);
+  });
+  return n;
+}
+
+/**
  * Fetch and parse a model file (any size: a big file is the dashboard
  * owner's choice, see the models docs' Make it light).
  * @param {string} url
- * @param {{ fetchImpl?: typeof fetch }} [o]
+ * @param {{ fetchImpl?: typeof fetch, onProgress?: (loaded: number, total: number) => void }} [o] - onProgress: bytes so far
+ *   and the file's size (0 when the server does not say), then once more with loaded -1 while the file is parsed
  * @returns {Promise<import('three/examples/jsm/loaders/GLTFLoader.js').GLTF>}
  */
-export async function loadModelFile(url, { fetchImpl = fetch } = {}) {
+export async function loadModelFile(url, { fetchImpl = fetch, onProgress } = {}) {
   const res = await fetchImpl(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const buf = await res.arrayBuffer();
+  const total = Number(res.headers.get('content-length')) || 0;
+  /** @type {ArrayBuffer} */
+  let buf;
+  const reader = onProgress ? res.body?.getReader?.() : undefined;
+  if (reader) {
+    /** @type {Uint8Array[]} */
+    const chunks = [];
+    let loaded = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      loaded += value.byteLength;
+      onProgress?.(loaded, total);
+    }
+    const all = new Uint8Array(loaded);
+    let at = 0;
+    for (const c of chunks) {
+      all.set(c, at);
+      at += c.byteLength;
+    }
+    buf = all.buffer;
+  } else {
+    buf = await res.arrayBuffer();
+  }
+  onProgress?.(-1, total);
   return parseModel(buf, url.slice(0, url.lastIndexOf('/') + 1));
 }
 
@@ -180,8 +226,30 @@ export function buildModel(cfg, ctx) {
     partNames: () => [...parts.keys()],
     loadState: () => state,
     drawnSize: size,
+    // a real-size model can be drawn larger to stay visible (`model_scale: visible`): its largest extent and the scale
+    ...(sizing.isReal ? { realExtent: size, magnify: (/** @type {number} */ k) => magnify(k) } : {}),
     modelInfo: () => (state === 'ready' && fileExtent ? { src: String(cfg.src ?? ''), extent: fileExtent, size: out.drawnSize ?? size, real: sizing.isReal } : null)
   });
+
+  /** The fit before magnifying (the file's scale and centring), once the file is in */
+  let fitBase = /** @type {{ scale: number, offset: Vector3 } | null} */ (null);
+  let mag = 1;
+  /**
+   * Drawn k times its real size, about its centre (k 1: its real size).
+   * @param {number} k
+   */
+  const magnify = (k) => {
+    if (!(k > 0) || Math.abs(k - mag) <= mag * 1e-4) return;
+    mag = k;
+    if (fitBase) {
+      fit.scale.setScalar(fitBase.scale * k);
+      fit.position.copy(fitBase.offset).multiplyScalar(k);
+      out.radius = (/** @type {number} */ (out.realExtent) * k) / 2;
+    } else {
+      holder.scale.setScalar(k);
+      out.radius = (size * k) / 2;
+    }
+  };
 
   /** @param {import('three/examples/jsm/loaders/GLTFLoader.js').GLTF} gltf */
   const install = (gltf) => {
@@ -192,17 +260,24 @@ export function buildModel(cfg, ctx) {
     const box = new Box3().setFromObject(scene);
     const { scale, offset, extent } = sizing.real !== null ? scaleTransform(box, sizing.real) : fitTransform(box, size);
     const largest = Math.max(extent.x, extent.y, extent.z);
-    out.radius = (largest * scale) / 2;
+    out.radius = (largest * scale * mag) / 2;
     out.drawnSize = largest * scale;
+    if (sizing.isReal) out.realExtent = largest * scale;
+    fitBase = { scale, offset: offset.clone() };
     fileExtent = [extent.x, extent.y, extent.z];
-    fit.scale.setScalar(scale);
-    fit.position.copy(offset);
+    fit.scale.setScalar(scale * mag);
+    fit.position.copy(offset).multiplyScalar(mag);
     file.add(scene);
     node.remove(holder);
     holder.geometry.dispose();
     holderMat.dispose();
 
     scene.traverse((o) => { if (o.name && o !== scene && !parts.has(o.name)) parts.set(o.name, o); });
+    const triangles = triangleCount(scene);
+    const edgesByDefault = triangles <= EDGE_TRIANGLE_BUDGET;
+    if (!edgesByDefault && cfg.edges === undefined) {
+      lcardsLog.info(`[Astrometrics] model '${cfg.id}': ${triangles.toLocaleString('en-US')} triangles, so no feature edges (edges: true draws them, slowly)`);
+    }
 
     /**
      * The hologram look on a copy of the file: one shader, a depth twin per mesh (solid).
@@ -286,12 +361,12 @@ export function buildModel(cfg, ctx) {
       twin.visible = false;
       file.add(twin);
       makeHologram(twin);
-      if (cfg.edges ?? true) addEdges(twin, true);
+      if (cfg.edges ?? edgesByDefault) addEdges(twin, true);
       copies.push(twin);
       out.lookParts = { realistic: [scene], diagramOnly: [twin] };
     }
 
-    if (cfg.edges ?? hologram) addEdges(scene, hologram);
+    if (cfg.edges ?? (hologram && edgesByDefault)) addEdges(scene, hologram);
 
     scene.traverse((o) => { if (/** @type {any} */ (o).isMesh && /** @type {any} */ (o).material?.name !== 'lcards-hologram-depth') out.pickMeshes.push(o); });
     // The meshes hide labels behind them (the depth pass renders this layer)

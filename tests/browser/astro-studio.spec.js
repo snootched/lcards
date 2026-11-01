@@ -871,3 +871,23 @@ test('studio UX1 P6c: another file reads its own measurements and the preview fl
     await page.evaluate(async () => { const s = window.__studio; s._selectObject(4); await s.updateComplete; });
     await expect.poll(() => text(4), { timeout: 20_000 }).toContain('Drawn at its real length: 1,061 m = 1.06 km.');
 });
+
+test('studio UX1 P6c visible size: the toolbar toggle draws small models larger in the preview, not saved', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-real-size', { width: '800' });
+    await openStudio(page);
+    const tool = () => page.evaluate(async () => {
+        const s = window.__studio;
+        await s.updateComplete;
+        const b = s.renderRoot.querySelector('[data-tool="model-scale"]');
+        const scene = await s._previewCard?.studioScene?.().catch(() => null);
+        return b ? { disabled: b.disabled, pressed: b.getAttribute('aria-pressed'), mode: scene?.modelScale?.() ?? null } : null;
+    });
+    await expect.poll(async () => (await tool())?.disabled, { timeout: 20_000 }).toBe(false);
+    expect((await tool()).pressed).toBe('false');
+    await page.evaluate(() => window.__studio.renderRoot.querySelector('[data-tool="model-scale"]').click());
+    await expect.poll(async () => (await tool())?.mode).toBe('visible');
+    expect((await tool()).pressed).toBe('true');
+    expect(await page.evaluate(() => 'model_scale' in window.__studio._workingConfig)).toBe(false);
+});

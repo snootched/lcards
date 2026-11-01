@@ -254,9 +254,9 @@ export const actionSchema = {
     properties: {
         action: {
             type: 'string',
-            enum: ['toggle', 'call-service', 'perform-action', 'navigate', 'url', 'more-info', 'assist', 'fly-to', 'set-clock', 'none'],
+            enum: ['toggle', 'call-service', 'perform-action', 'navigate', 'url', 'more-info', 'assist', 'fly-to', 'set-clock', 'set-model-scale', 'none'],
             default: 'toggle',
-            description: 'Type of action to perform. fly-to: fly the camera of the astrometrics card named in card to its view or point. set-clock: set the scene date and or rate of the astrometrics card named in card.',
+            description: 'Type of action to perform. fly-to: fly the camera of the astrometrics card named in card to its view or point. set-clock: set the scene date and or rate of the astrometrics card named in card. set-model-scale: draw its models at their real size, or larger to stay visible (model_scale).',
             enumDescriptions: [
                 'Toggle entity on/off',
                 'Call a Home Assistant service',
@@ -312,7 +312,7 @@ export const actionSchema = {
         },
         card: {
             type: 'string',
-            description: 'fly-to and set-clock: the id of the astrometrics card to act on (any card on the same dashboard or open in the same browser).'
+            description: 'fly-to, set-clock and set-model-scale: the id of the astrometrics card to act on (any card on the same dashboard or open in the same browser). On the astrometrics card\'s own points and objects, leave it out for that card.'
         },
         view: {
             type: 'string',
@@ -336,6 +336,12 @@ export const actionSchema = {
             type: ['number', 'string'],
             description: 'set-clock only: how fast the scene date runs, days per second (1 is a day a second, 0 holds it, negative runs back), or live for real time. Leave out to keep the rate.',
             examples: ['live', 1, 30]
+        },
+        model_scale: {
+            type: 'string',
+            enum: ['real', 'visible', 'toggle'],
+            default: 'toggle',
+            description: 'set-model-scale only: real draws the card\'s models at their real size, visible draws small ones at least 40 px across, toggle (the default) switches between them. Not saved.'
         }
     }
 };

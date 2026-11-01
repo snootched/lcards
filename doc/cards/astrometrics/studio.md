@@ -12,7 +12,7 @@ The preview is the real card, with your entities, templates, label styles, pinne
 
 ## On the scene
 
-The toolbar over the preview has three groups: **Tools** (place a point), **View** (back to the start view, fly forward and fly back: camera and target move together along the view, so you travel through the scene; hold to keep going) and **Edit** (undo and redo). The arrow at its end folds it away to one button.
+The toolbar over the preview has three groups: **Tools** (place a point), **View** (back to the start view, fly forward and fly back: camera and target move together along the view, so you travel through the scene; hold to keep going; and [visible size](./objects#visible-size), which draws small models larger in the preview without saving it) and **Edit** (undo and redo). The arrow at its end folds it away to one button.
 
 - **Turn the view** as on the dashboard: drag to orbit, shift-drag, middle-drag or two fingers to pan, scroll or pinch to zoom (a touchpad swipe pans), `W` and `S` to fly forward and back. The preview does not follow moving points. The home button in the toolbar goes back to the start view.
 - **Select:** tap a point or an object to open it in its list. An object gets a box round it; a ring, path or beam is selected by tapping near its line. Opening a row in a list selects it on the scene too.

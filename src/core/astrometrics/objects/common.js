@@ -83,6 +83,8 @@ export const DEFAULT_COLORS = {
  * @property {() => string[]} [partNames]
  * @property {() => string} [loadState]
  * @property {number} [drawnSize] - a model's largest extent as drawn, scene units (its real size once the file is in)
+ * @property {number} [realExtent] - a real-size model's largest extent at its real size, scene units (`model_scale: visible` reads it)
+ * @property {(k: number) => void} [magnify] - a real-size model: draw it k times its real size, about its centre (1: real)
  * @property {() => ({ src: string, extent: number[], size: number, real: boolean } | null)} [modelInfo] - a model's file extent (its own
  *   units), its drawn size and whether that is its real size; null until the file is in
  * @property {() => void} [dispose] - its own cleanup besides geometry and materials

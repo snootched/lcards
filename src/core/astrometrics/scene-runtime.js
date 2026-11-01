@@ -24,6 +24,7 @@ import { webglAvailable } from '../packs/backgrounds/webgl/webgl-support.js';
 import { parseColorToRgba } from '../packs/textures/effects/noise-helpers.js';
 import { resolveColor as defaultResolveColor } from '../themes/resolve-color.js';
 import { prefersReducedMotion, onReducedMotionChange } from '../../utils/reduced-motion.js';
+import { createLoadingRing, LOADING_RING_CSS } from './loading-ring.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { CameraRig, viewToKeys, parseLimits, clampKeys, screenRay, rayPlane, cameraPose, viewHeight, DEFAULT_KEYS } from './camera-rig.js';
 import { ROOT } from './frames.js';
@@ -93,6 +94,9 @@ export const CAMERA_COMMANDS = {
 };
 
 /** @type {Record<string, string>} key (shift + key with an `S` prefix) to command */
+/** `model_scale: visible`: a real-size model is drawn at least this large on screen (its largest extent), CSS px */
+export const MODEL_MIN_PX = 40;
+
 const KEY_COMMANDS = {
   ArrowLeft: 'pan-left', ArrowRight: 'pan-right', ArrowUp: 'pan-up', ArrowDown: 'pan-down',
   SArrowLeft: 'orbit-left', SArrowRight: 'orbit-right', SArrowUp: 'orbit-up', SArrowDown: 'orbit-down',
@@ -123,6 +127,8 @@ const KEY_COMMANDS = {
  * @property {(hit: AstroTapHit) => void} [onHold] - a press held HOLD_MS within the tap distance, on a point or an object with a `hold_action`
  * @property {(reason: string) => void} [onFail] - no WebGL, or the context was lost
  * @property {(sky: import('./sky.js').SkyState) => void} [onSky] - the sky changed (a recompute that moved the sun or moon, at most once a minute); for label templates that read it
+ * @property {(mode: 'real' | 'visible', hasRealModels: boolean) => void} [onModelScale] - the model scale changed (the V key, an
+ *   action), or whether any model is at its real size did: the button's state, and whether it shows
  * @property {(clock: AstroClockState) => void} [onClock] - the scene date moved or its rate changed (every frame while it runs): the time slider's readout
  * @property {(card: Record<string, any>) => HTMLElement | null} [mountCard] - build the element for a point's Lovelace card (`card.card`); without it points show no cards
  * @property {(el: HTMLElement, hass: any) => void} [setCardHass] - give a mounted card hass
@@ -152,6 +158,10 @@ const KEY_COMMANDS = {
  * @property {(view: string | Record<string, any>, opts?: { duration?: number, warp?: boolean }) => Promise<void>} flyTo
  * @property {(scale: number) => void} setTimeScale - how fast the scene's motion runs (1 as configured, 0 holds it)
  * @property {() => number} timeScale
+ * @property {(mode: 'real' | 'visible') => void} setModelScale - models at their real size, or at least MODEL_MIN_PX on screen
+ *   (models with their own `size` keep it); not saved, a config change of `model_scale` sets it again
+ * @property {() => 'real' | 'visible'} modelScale
+ * @property {() => boolean} hasRealModels - whether any model is drawn at its real size (the toggle does something)
  * @property {(opts: { date?: any, rate?: any }) => boolean} setClock - set the scene date (now, ISO, ms) and or rate (live, days per second); false when a value was not understood
  * @property {() => AstroClockState} clock - the scene date and rate now
  * @property {(on: boolean | null) => void} setFlightWarp - camera.warp from an entity: fly-tos streak (true) or not; null as configured
@@ -201,8 +211,8 @@ const CSS = `
 .astro-scene:focus-visible { box-shadow: inset 0 0 0 var(--ha-border-width-md) var(--primary-color); }
 .astro-scene > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .astro-scene .astro-message { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-family: var(--lcars-font, 'Antonio'), sans-serif; color: var(--lcards-moonlight); opacity: 0.7; }
-`;
+  font-family: var(--lcars-font, 'Antonio'), 'Antonio', sans-serif; color: var(--lcards-moonlight); opacity: 0.7; }
+${LOADING_RING_CSS}`;
 
 /**
  * @param {HTMLElement | ShadowRoot} host - where the scene goes (sized by the card)
@@ -257,6 +267,14 @@ export function createAstroScene(host, config, options = {}) {
   let dateNow = sceneClock.date(performance.now());
   /** The config's `clock` last built (JSON): a rebuild for another reason keeps the slider's or action's date and rate */
   let clockCfg = '';
+  /** `model_scale` as last read from the config (a rebuild for another reason keeps what the button set) */
+  let modelScaleCfg = '';
+  /** @type {'real' | 'visible'} */
+  let modelScale = 'real';
+  /** Whether any model is drawn at its real size, as last told to the card */
+  let realModels = false;
+  const scratchV = new Vector3();
+  const scratchS = new Vector3();
   /** Something follows the scene date (body points, body or orbit objects, a clock with a sky) */
   let usesClock = false;
   let skyNotified = 0;
@@ -302,6 +320,8 @@ export function createAstroScene(host, config, options = {}) {
   loader.setCrossOrigin('anonymous');
   /** @type {Map<string, Promise<import('three/examples/jsm/loaders/GLTFLoader.js').GLTF>>} model files by src, parsed once for every build */
   const modelFiles = new Map();
+  /** A ring over the scene while model files load */
+  const loadingRing = createLoadingRing(wrap);
 
   /**
    * A file's URL from a config value: `builtin:<key>` from the LCARdS
@@ -414,8 +434,13 @@ export function createAstroScene(host, config, options = {}) {
       const cacheKey = src;
       let p = modelFiles.get(cacheKey);
       if (!p) {
-        p = fileUrl(src, 'model').then((url) => models.loadModelFile(url));
+        // the ring from the start (a slow server answers late)
+        loadingRing.progress(cacheKey, 0, 0);
+        p = fileUrl(src, 'model').then((url) => models.loadModelFile(url, {
+          onProgress: (loaded, total) => { if (!disposed) loadingRing.progress(cacheKey, loaded, total); }
+        }));
         modelFiles.set(cacheKey, p);
+        p.then(() => loadingRing.done(cacheKey), () => loadingRing.done(cacheKey));
         // a failed load is tried again on the next build
         p.catch(() => modelFiles.delete(cacheKey));
       }
@@ -468,6 +493,51 @@ export function createAstroScene(host, config, options = {}) {
    * The config's `clock` when it changed since the last build (a rebuild for
    * another reason keeps what the slider or an action set).
    */
+  function applyModelScale() {
+    const key = cfg.model_scale === 'visible' ? 'visible' : 'real';
+    if (key === modelScaleCfg) return;
+    modelScaleCfg = key;
+    setModelScale(key);
+  }
+
+  /** @param {'real' | 'visible'} mode */
+  function setModelScale(mode) {
+    const next = mode === 'visible' ? 'visible' : 'real';
+    if (next === modelScale) return;
+    modelScale = next;
+    options.onModelScale?.(modelScale, realModels);
+    requestFrame();
+  }
+
+  /**
+   * `visible`: each real-size model at least MODEL_MIN_PX on screen (its
+   * largest extent), scaled about its centre; real again once that large.
+   * @param {import('three').Camera} camera
+   */
+  function magnifyModels(camera) {
+    if (!world) return;
+    const any = world.list.some((b) => !!b.magnify);
+    if (any !== realModels) {
+      realModels = any;
+      options.onModelScale?.(modelScale, realModels);
+    }
+    const cam = /** @type {any} */ (camera);
+    // CSS px per world unit at distance d (perspective), or anywhere (orthographic)
+    const perUnit = cam.isOrthographicCamera
+      ? () => cssH / ((cam.top - cam.bottom) / (cam.zoom || 1))
+      : (/** @type {number} */ d) => cssH / (2 * Math.max(d, 1e-12) * Math.tan((cam.fov * Math.PI) / 360));
+    for (const b of world.list) {
+      if (!b.magnify) continue;
+      if (modelScale !== 'visible') {
+        b.magnify(1);
+        continue;
+      }
+      b.node.getWorldPosition(scratchV);
+      const across = (b.realExtent ?? 0) * b.node.getWorldScale(scratchS).x * perUnit(scratchV.distanceTo(camera.position));
+      b.magnify(across > 0 && across < MODEL_MIN_PX ? MODEL_MIN_PX / across : 1);
+    }
+  }
+
   function applyClock() {
     const key = JSON.stringify(cfg.clock ?? null);
     if (key === clockCfg) return;
@@ -801,6 +871,7 @@ export function createAstroScene(host, config, options = {}) {
       || (Array.isArray(cfg.objects) && cfg.objects.some((o) => o?.body !== undefined || o?.orbit !== undefined))
       || (usesSky && !!cfg.clock);
     applyClock();
+    applyModelScale();
     if (usesSky) refreshSky();
     // a look in the config (the card sends one that follows an entity)
     const named = parseLook(cfg.look);
@@ -944,6 +1015,7 @@ export function createAstroScene(host, config, options = {}) {
       }
     }
     const camera = rig.camera;
+    magnifyModels(camera);
     streaks(camera.position, dt, flying);
     // Stars sit at infinity: they move with the camera
     world.stars?.node.position.copy(camera.position);
@@ -1854,6 +1926,11 @@ export function createAstroScene(host, config, options = {}) {
       if (!e.repeat) press('reset');
       return;
     }
+    if (e.key === 'v' || e.key === 'V') {
+      e.preventDefault();
+      if (!e.repeat) setModelScale(modelScale === 'visible' ? 'real' : 'visible');
+      return;
+    }
     const command = KEY_COMMANDS[(e.shiftKey ? 'S' : '') + e.key] ?? KEY_COMMANDS[e.key];
     if (!command) return;
     e.preventDefault();
@@ -1910,6 +1987,9 @@ export function createAstroScene(host, config, options = {}) {
       requestFrame();
     },
     timeScale: () => timeScale,
+    setModelScale,
+    modelScale: () => modelScale,
+    hasRealModels: () => !!world?.list.some((b) => !!b.magnify),
     setClock(opts) {
       const ok = sceneClock.set(opts ?? {}, performance.now());
       dateNow = sceneClock.date(performance.now());
@@ -2088,10 +2168,12 @@ export function createAstroScene(host, config, options = {}) {
       textures.clear();
       if (renderer) release(user);
       renderer = null;
+      loadingRing.dispose();
       wrap.remove();
     },
     debug() {
       return {
+        loading: loadingRing.state(),
         frames,
         clock,
         builds,

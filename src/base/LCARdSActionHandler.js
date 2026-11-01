@@ -522,6 +522,10 @@ export class LCARdSActionHandler {
                 // An astrometrics card's scene date and rate, by the card's id
                 /** @type {any} */ (window).lcards?.cards?.astrometrics?.setClock(actionConfig.card, { date: actionConfig.date, rate: actionConfig.rate });
                 break;
+            case 'set-model-scale':
+                // An astrometrics card's models at their real size or larger, by the card's id
+                /** @type {any} */ (window).lcards?.cards?.astrometrics?.setModelScale(actionConfig.card, actionConfig.model_scale ?? 'toggle');
+                break;
             case 'none':
                 // Do nothing
                 break;
@@ -569,6 +573,9 @@ export class LCARdSActionHandler {
 
             case 'set-clock':
                 return typeof actionConfig.card === 'string' && (actionConfig.date !== undefined || actionConfig.rate !== undefined);
+
+            case 'set-model-scale':
+                return typeof actionConfig.card === 'string';
 
             case 'toggle':
             case 'more-info':
