@@ -73,7 +73,8 @@ const PRESS_REPEAT_MS = 300;
 /**
  * Camera commands (on-card buttons, keys): one step on press, then a rate
  * while held. Pan in view heights (x right, y up: the view moves), zoom in
- * zoom steps, orbit in degrees (as a drag the same way would).
+ * zoom steps, orbit in degrees (as a drag the same way would), travel in
+ * camera distances (camera and target together along the view).
  * @type {Record<string, { step: import('./camera-rig.js').CameraMotion, rate: import('./camera-rig.js').CameraMotion }>}
  */
 export const CAMERA_COMMANDS = {
@@ -86,14 +87,17 @@ export const CAMERA_COMMANDS = {
   'orbit-left': { step: { orbit: [15, 0] }, rate: { orbit: [60, 0] } },
   'orbit-right': { step: { orbit: [-15, 0] }, rate: { orbit: [-60, 0] } },
   'orbit-up': { step: { orbit: [0, -10] }, rate: { orbit: [0, -40] } },
-  'orbit-down': { step: { orbit: [0, 10] }, rate: { orbit: [0, 40] } }
+  'orbit-down': { step: { orbit: [0, 10] }, rate: { orbit: [0, 40] } },
+  'fly-forward': { step: { travel: 0.5 }, rate: { travel: 1.5 } },
+  'fly-back': { step: { travel: -0.5 }, rate: { travel: -1.5 } }
 };
 
 /** @type {Record<string, string>} key (shift + key with an `S` prefix) to command */
 const KEY_COMMANDS = {
   ArrowLeft: 'pan-left', ArrowRight: 'pan-right', ArrowUp: 'pan-up', ArrowDown: 'pan-down',
   SArrowLeft: 'orbit-left', SArrowRight: 'orbit-right', SArrowUp: 'orbit-up', SArrowDown: 'orbit-down',
-  '+': 'zoom-in', '=': 'zoom-in', '-': 'zoom-out', _: 'zoom-out'
+  '+': 'zoom-in', '=': 'zoom-in', '-': 'zoom-out', _: 'zoom-out',
+  w: 'fly-forward', W: 'fly-forward', PageUp: 'fly-forward', s: 'fly-back', S: 'fly-back', PageDown: 'fly-back'
 };
 
 /**
@@ -652,6 +656,8 @@ export function createAstroScene(host, config, options = {}) {
   }
 
   function letGo() {
+    // the followed point's highlight goes with it
+    if (follow && selected === follow.id) select(null);
     follow = null;
     rig.zoomAbout = false;
   }
@@ -702,6 +708,29 @@ export function createAstroScene(host, config, options = {}) {
     }
     return { center: [c.x, c.y, c.z], radius: r, ...(Number.isFinite(smallest) ? { smallest } : {}) };
   }
+
+  /** Object types travel slows down near (solid things you could fly into) */
+  const SOLID = new Set(['sphere', 'model', 'cube']);
+
+  /**
+   * Distance from `position` to the nearest solid object's bounds that the
+   * camera is outside of (the rig's travelReach): fly forward slows as it
+   * nears a planet or a station, as a step of half that distance.
+   * @param {number[]} position - current frame
+   */
+  function nearestSolid(position) {
+    if (!world) return Infinity;
+    const at = new Vector3(position[0], position[1], position[2]);
+    let best = Infinity;
+    for (const b of world.list) {
+      if (!SOLID.has(b.config.type) || world.outer.get(b)?.visible === false) continue;
+      const { center, radius } = bounds.world(b);
+      const d = at.distanceTo(center) - radius;
+      if (d > 0) best = Math.min(best, d);
+    }
+    return best;
+  }
+  rig.travelReach = nearestSolid;
 
   /** Camera options that need no new view: pan and drag modes, zoom, limits */
   function applyCameraOptions() {

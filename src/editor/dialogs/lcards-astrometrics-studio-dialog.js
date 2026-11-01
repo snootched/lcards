@@ -745,6 +745,14 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         aria-pressed=${b.active === undefined ? nothing : (b.active ? 'true' : 'false')} ?disabled=${!!b.disabled} @click=${b.action}>
         <ha-icon icon=${b.icon}></ha-icon>
       </button>`;
+    /** A camera command: one step on press, moving while held (as the on-card buttons) */
+    /** @param {{ icon: string, title: string, id: string }} b */
+    const hold = (b) => html`
+      <button class="canvas-toolbar-button" data-tool=${b.id} title=${b.title} aria-label=${b.title}
+        @pointerdown=${(/** @type {PointerEvent} */ e) => { if (e.button === 0) this._press(b.id); }}
+        @pointerup=${() => this._release()} @pointerleave=${() => this._release()} @pointercancel=${() => this._release()}>
+        <ha-icon icon=${b.icon}></ha-icon>
+      </button>`;
     const toggle = () => { this._toolbarExpanded = !this._toolbarExpanded; };
     if (!this._toolbarExpanded) {
       return html`
@@ -764,6 +772,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
           <div class="canvas-toolbar-group">
             <span class="canvas-toolbar-group-label">View</span>
             ${button({ id: 'home', icon: 'mdi:home-outline', title: 'Back to the start view', action: () => this._home() })}
+            ${hold({ id: 'fly-forward', icon: 'mdi:arrow-up-bold-outline', title: 'Fly forward (W, Page Up); hold to keep going' })}
+            ${hold({ id: 'fly-back', icon: 'mdi:arrow-down-bold-outline', title: 'Fly back (S, Page Down); hold to keep going' })}
           </div>
           <div class="canvas-toolbar-group">
             <span class="canvas-toolbar-group-label">Edit</span>
@@ -1553,6 +1563,18 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   async _home() {
     const scene = await this._previewCard?.studioScene?.();
     scene?.home();
+  }
+
+  /** A camera command on the preview (fly-forward, fly-back), held until _release @param {string} command @private */
+  async _press(command) {
+    const scene = await this._previewCard?.studioScene?.();
+    scene?.press(command);
+  }
+
+  /** @private */
+  async _release() {
+    const scene = await this._previewCard?.studioScene?.();
+    scene?.release();
   }
 
   /** @param {Event} e @private */

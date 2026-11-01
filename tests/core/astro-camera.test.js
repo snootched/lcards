@@ -278,3 +278,43 @@ test('lensFov: the field of view as set up to 2:1, narrower on wider cards so th
     assert.ok(Math.abs(across(40, aspect) - at2) < 1e-9, `${aspect}:1 is as wide as 2:1 (${at2.toFixed(1)} degrees)`);
   }
 });
+
+test('travel: camera and target move together along the view, in camera distances; held runs per second', async () => {
+  const rig = new CameraRig();
+  rig.limits = { ...rig.limits, target: null };
+  rig.set({ tx: 0, ty: 0, tz: 0, yaw: 30, tilt: 20, distance: 100, fov: 40 });
+  const before = cameraPose(rig.keys);
+  const n = rig.nudged({ travel: 0.5 });
+  const after = cameraPose(n);
+  const moved = [0, 1, 2].map((i) => after.position[i] - before.position[i]);
+  // half the distance along the view; the distance, yaw and tilt stay
+  for (let i = 0; i < 3; i++) close(moved[i], before.forward[i] * 50, 1e-9);
+  close(n.tx - rig.keys.tx, moved[0], 1e-9);
+  assert.deepEqual([n.distance, n.yaw, n.tilt], [100, 30, 20]);
+  // back is the other way; the same step at any scale (km or ly) is the same share of the distance
+  const back = rig.nudged({ travel: -0.5 });
+  close(back.tx, -n.tx, 1e-9);
+  rig.set({ distance: 5e4 });
+  close(Math.hypot(...[0, 1, 2].map((i) => cameraPose(rig.nudged({ travel: 0.5 })).position[i] - cameraPose(rig.keys).position[i])), 2.5e4, 1e-6);
+  // held: one distance a second for half a second
+  rig.set({ tx: 0, ty: 0, tz: 0, distance: 100 });
+  rig.setMotion({ travel: 1 });
+  rig.step(1000);
+  for (let t = 1100; t <= 1500; t += 100) rig.step(t);
+  close(Math.hypot(rig.keys.tx, rig.keys.ty, rig.keys.tz), 50, 1e-6);
+  rig.setMotion(null);
+  // near something solid (travelReach): half the way to its surface, never under the nearest zoom
+  rig.travelReach = () => 8;
+  rig.set({ tx: 0, ty: 0, tz: 0, distance: 100 });
+  const near = rig.nudged({ travel: 0.5 });
+  close(Math.hypot(near.tx, near.ty, near.tz), 4, 1e-9);
+  rig.travelReach = () => 1e-9;
+  const floor = rig.nudged({ travel: 0.5 });
+  close(Math.hypot(floor.tx, floor.ty, floor.tz), rig.limits.distance[0] * 0.5, 1e-9);
+  rig.travelReach = null;
+  // limits.target stops the travel as it stops a pan
+  rig.limits = { ...rig.limits, target: { center: [0, 0, 0], radius: 10 } };
+  rig.set({ tx: 0, ty: 0, tz: 0 });
+  const far = rig.nudged({ travel: 5 });
+  assert.ok(Math.hypot(far.tx, far.ty, far.tz) <= 10 + 1e-9);
+});

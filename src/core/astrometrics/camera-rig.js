@@ -33,9 +33,11 @@ const DEG = Math.PI / 180;
 /** @typedef {{ tilt: [number, number], distance: [number, number], yaw: [number, number] | null, target: TargetLimit | null }} CameraLimits */
 /**
  * Held motion (buttons, keys): per second, in view heights (pan, x right and
- * y up, the view moves), zoom steps (1 halves the distance at zoom_step 2) and
- * degrees (orbit: yaw, tilt).
- * @typedef {{ pan?: [number, number], zoom?: number, orbit?: [number, number] }} CameraMotion
+ * y up, the view moves), zoom steps (1 halves the distance at zoom_step 2),
+ * degrees (orbit: yaw, tilt) and camera distances (travel: camera and target
+ * move together along the view, + forward, so you fly through a scene
+ * instead of zooming in on one point).
+ * @typedef {{ pan?: [number, number], zoom?: number, orbit?: [number, number], travel?: number }} CameraMotion
  */
 
 /** @type {CameraKeys} */
@@ -368,6 +370,12 @@ export class CameraRig {
     this.wheelMode = 'auto';
     /** Wheel and pinch zoom about the target, not the cursor (the runtime sets it while following a moving point) */
     this.zoomAbout = false;
+    /**
+     * How far the camera is from the nearest solid thing (scene units), so
+     * travel slows as it nears a planet or a station; null for no limit.
+     * @type {((position: number[]) => number) | null}
+     */
+    this.travelReach = null;
     /** @type {CameraMotion | null} held motion, run by step() */
     this.motion = null;
     this._motionLast = -1;
@@ -646,6 +654,16 @@ export class CameraRig {
       k.tz += (right[2] * n.pan[0] + up[2] * n.pan[1]) * s;
     }
     if (n.zoom) k.distance *= Math.pow(this.zoomStep, -n.zoom * scale);
+    if (n.travel) {
+      const pose = cameraPose(k);
+      const f = pose.forward;
+      // half the camera distance a step, less near something solid (travelReach), never under the nearest zoom
+      const reach = Math.max(this.limits.distance[0], Math.min(k.distance, this.travelReach?.(pose.position) ?? Infinity));
+      const s = reach * n.travel * scale;
+      k.tx += f[0] * s;
+      k.ty += f[1] * s;
+      k.tz += f[2] * s;
+    }
     if (n.orbit) {
       k.yaw += n.orbit[0] * scale;
       k.tilt += n.orbit[1] * scale;

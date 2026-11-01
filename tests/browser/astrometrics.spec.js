@@ -988,6 +988,19 @@ test('N1 follow: a tap on a moving point lands on it and keeps it centred; zoom 
     const still = (await sceneState(page)).keys;
     expect(Math.hypot(still.tx - parked.tx, still.tz - parked.tz)).toBeGreaterThan(1);
     expect(Math.abs((await followGap(page, 'ship')) - gap)).toBeLessThan(0.5);
+
+    // fly forward (W) keeps following too, and the ship stays selected
+    const followState = () => page.evaluate(() => {
+        const d = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        return { follow: d.follow, selected: !!d.labelItems.find((l) => l.id === 'ship')?.selected };
+    });
+    await page.locator('lcards-astrometrics-card .astro-scene').focus();
+    await page.keyboard.press('w');
+    await page.waitForTimeout(300);
+    expect(await followState()).toEqual({ follow: { id: 'ship', moving: true }, selected: true });
+    // a tap on blank space lets go, and the highlight goes with it
+    await page.mouse.click(b.x + 20, b.y + b.h - 20);
+    expect(await followState()).toEqual({ follow: null, selected: false });
     await expectNoErrors(page);
 });
 
@@ -1636,5 +1649,52 @@ test('depth dust fills the view round the camera wherever it is, and looks the s
     await fly('far');
     await settle();
     expect(await outer()).toEqual(far);
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
+});
+
+test('fly forward and back: W and S move camera and target together along the view, slowing near the Sun, into its system and out again', async ({ page }) => {
+    await mountCase(page, 'astro-dive', { width: '800' });
+    await sceneReady(page);
+    const state = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        return { frame: s.frame, keys: s.keys };
+    });
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo('near_sol', { duration: 0 }));
+    const a = (await state()).keys;
+    await page.locator('lcards-astrometrics-card .astro-scene').focus();
+    // one step: half the distance along the view, the distance and the angles kept
+    await page.keyboard.press('w');
+    await expect.poll(async () => (await state()).keys.tx, { timeout: 3_000 }).not.toBe(a.tx);
+    await page.waitForTimeout(400);
+    const b = (await state()).keys;
+    expect(b.distance).toBeCloseTo(a.distance, 6);
+    expect([b.yaw, b.tilt]).toEqual([a.yaw, a.tilt]);
+    expect(Math.hypot(b.tx - a.tx, b.ty - a.ty, b.tz - a.tz)).toBeCloseTo(a.distance / 2, 3);
+    // on toward Sol: each step goes half the way to the Sun's surface, so the steps shrink as it nears,
+    // and the scene switches to the system's frame (km) on the way
+    const camAt = (k) => {
+        const t = k.tilt * Math.PI / 180, y = k.yaw * Math.PI / 180, c = Math.cos(t);
+        return [k.tx + k.distance * c * Math.sin(y), k.ty + k.distance * Math.sin(t), k.tz + k.distance * c * Math.cos(y)];
+    };
+    const steps = [];
+    let prev = camAt(b);
+    for (let i = 0; i < 40; i++) {
+        await page.keyboard.press('PageUp');
+        await page.waitForTimeout(300);
+        const st = await state();
+        if (st.frame !== 'root') break;
+        const now = camAt(st.keys);
+        steps.push(Math.hypot(now[0] - prev[0], now[1] - prev[1], now[2] - prev[2]));
+        prev = now;
+    }
+    await expect.poll(async () => (await state()).frame, { timeout: 3_000 }).toBe('sol_system');
+    expect(steps.length).toBeGreaterThan(4);
+    expect(steps[steps.length - 1]).toBeLessThan(steps[0] / 100);
+    // and back out the way it came: the steps grow again
+    for (let i = 0; i < 40 && (await state()).frame !== 'root'; i++) {
+        await page.keyboard.press(i % 2 ? 's' : 'PageDown');
+        await page.waitForTimeout(300);
+    }
+    await expect.poll(async () => (await state()).frame, { timeout: 3_000 }).toBe('root');
     expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
 });

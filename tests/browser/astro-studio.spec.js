@@ -790,3 +790,23 @@ test('studio UX1 P5 round 2: a new object sized to the view and where it looks; 
     await expect.poll(async () => (await bar())?.label).toMatch(/ ly$/);
     expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
 });
+
+test('studio UX1 P6a: fly forward and back on the toolbar move the preview camera and target together', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await openStudio(page);
+    const dialog = page.locator('lcards-astrometrics-studio-dialog');
+    const keys = () => page.evaluate(() => window.__studio._previewCard._scene.debug().keys);
+    const a = await keys();
+    await dialog.locator('[data-tool="fly-forward"]').click();
+    await expect.poll(async () => (await keys()).tx !== a.tx || (await keys()).tz !== a.tz, { timeout: 3_000 }).toBe(true);
+    await page.waitForTimeout(400);
+    const b = await keys();
+    expect(b.distance).toBeCloseTo(a.distance, 6);
+    expect(Math.hypot(b.tx - a.tx, b.ty - a.ty, b.tz - a.tz)).toBeCloseTo(a.distance / 2, 3);
+    await dialog.locator('[data-tool="fly-back"]').click();
+    await page.waitForTimeout(400);
+    const c = await keys();
+    expect(Math.hypot(c.tx - a.tx, c.ty - a.ty, c.tz - a.tz)).toBeLessThan(a.distance * 1e-3);
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
+});
