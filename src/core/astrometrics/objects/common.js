@@ -46,7 +46,7 @@ export const DEFAULT_COLORS = {
  * @property {(url: string) => any} loadTexture - three.js texture, redraws when loaded
  * @property {typeof import('../effects/index.js') | null} [effects] - the effects chunk, when the config uses it (`usesEffects`)
  * @property {typeof import('../model/index.js') | null} [models] - the model chunk, when the config has a model (`usesModels`)
- * @property {(src: string, maxMB: number) => (Promise<import('three/examples/jsm/loaders/GLTFLoader.js').GLTF> | null)} [loadModel] - a model file, parsed (once per src)
+ * @property {(src: string) => (Promise<import('three/examples/jsm/loaders/GLTFLoader.js').GLTF> | null)} [loadModel] - a model file, parsed (once per src)
  */
 
 /**
@@ -82,6 +82,9 @@ export const DEFAULT_COLORS = {
  * @property {(name: string) => (import('three').Object3D | null)} [partNode] - a named node (a model's part)
  * @property {() => string[]} [partNames]
  * @property {() => string} [loadState]
+ * @property {number} [drawnSize] - a model's largest extent as drawn, scene units (its real size once the file is in)
+ * @property {() => ({ src: string, extent: number[], size: number, real: boolean } | null)} [modelInfo] - a model's file extent (its own
+ *   units), its drawn size and whether that is its real size; null until the file is in
  * @property {() => void} [dispose] - its own cleanup besides geometry and materials
  * @property {(view: { camera: import('three').Camera, height: number, dpr: number }) => void} [lod] - before each render: change its level of detail for this view (height in CSS px)
  */

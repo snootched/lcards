@@ -810,3 +810,64 @@ test('studio UX1 P6a: fly forward and back on the toolbar move the preview camer
     expect(Math.hypot(c.tx - a.tx, c.ty - a.ty, c.tz - a.tz)).toBeLessThan(a.distance * 1e-3);
     expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
 });
+
+test('studio UX1 P6c: the model form says what the file measures and how it is drawn; Fit to view, File size, Real size', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-real-size', { width: '800' });
+    await openStudio(page);
+    const panel = (i) => page.evaluate(async (k) => {
+        const s = window.__studio;
+        await s.updateComplete;
+        const el = s.renderRoot.querySelector(`[data-object="${k}"] .model-size`);
+        return el ? { mode: el.dataset.mode, text: el.querySelector('.hint').textContent.replace(/\s+/g, ' ').trim(), real: !el.querySelector('[data-action="real-size"]').hasAttribute('disabled') } : null;
+    }, i);
+    const click = (i, action) => page.evaluate(([k, a]) => window.__studio.renderRoot.querySelector(`[data-object="${k}"] [data-action="${a}"]`).click(), [i, action]);
+    const obj = (i) => page.evaluate((k) => window.__studio._workingConfig.objects[k], i);
+    await page.evaluate(async () => { const s = window.__studio; s._activeTab = 'objects'; s._selectObject(1); await s.updateComplete; });
+    // the ship: real size in km, measured from the preview once it has loaded
+    await expect.poll(async () => (await panel(1))?.text, { timeout: 20_000 }).toContain('File: 127 x 67.9 x 289 m (largest 289 m).');
+    expect((await panel(1)).text).toContain('Drawn at its real size, as the file measures: 289 m = 0.289 km.');
+    expect((await panel(1)).real).toBe(false);
+    // Fit to view: a round size from the view (4 km out), then Real size clears it
+    await click(1, 'fit-view');
+    await expect.poll(async () => (await obj(1)).size).toBeGreaterThan(0);
+    expect(String((await obj(1)).size)).toMatch(/^[125](\.0*)?$|^0\.[0]*[125]$/);
+    await expect.poll(async () => (await panel(1)).mode).toBe('size');
+    await click(1, 'real-size');
+    await expect.poll(async () => 'size' in (await obj(1))).toBe(false);
+    // File size: its largest extent as the size
+    await click(1, 'file-size');
+    await expect.poll(async () => (await obj(1)).size).toBeCloseTo(289, 0);
+});
+
+test('studio UX1 P6c: another file reads its own measurements and the preview flies to it; Show flies to a model', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-real-size', { width: '800' });
+    await openStudio(page);
+    const text = (i) => page.evaluate(async (k) => {
+        const s = window.__studio;
+        await s.updateComplete;
+        return s.renderRoot.querySelector(`[data-object="${k}"] .model-size .hint`)?.textContent.replace(/\s+/g, ' ').trim() ?? '';
+    }, i);
+    const target = () => page.evaluate(async () => (await window.__studio._previewCard.studioScene()).viewNow().target);
+    await page.evaluate(async () => { const s = window.__studio; s._activeTab = 'objects'; s._selectObject(1); await s.updateComplete; });
+    await expect.poll(() => text(1), { timeout: 20_000 }).toContain('largest 289 m');
+    // the ship becomes Deep Space 9: the panel waits for that file (not the ship's build), the preview flies to it
+    await page.evaluate(() => {
+        const s = window.__studio;
+        const form = s.renderRoot.querySelector('[data-object="1"] lcards-astro-schema-form');
+        form.dispatchEvent(new CustomEvent('form-changed', { detail: { value: { ...s._workingConfig.objects[1], src: 'builtin:deep_space_nine' } } }));
+    });
+    await expect.poll(() => text(1), { timeout: 20_000 }).toContain('largest 1,450 m');
+    await expect.poll(async () => (await target())[0], { timeout: 10_000 }).toBeCloseTo(1.2, 1);
+    // Show: the feet ship, at [-1.2, 0, 0]
+    await page.evaluate(async () => { const s = window.__studio; s._selectObject(2); await s.updateComplete; });
+    await expect.poll(() => text(2), { timeout: 20_000 }).toContain('File:');
+    await page.evaluate(() => window.__studio.renderRoot.querySelector('[data-object="2"] [data-action="show-model"]').click());
+    await expect.poll(async () => (await target())[0], { timeout: 10_000 }).toBeCloseTo(-1.2, 1);
+    // the length field is in the form, labelled in metres
+    await page.evaluate(async () => { const s = window.__studio; s._selectObject(4); await s.updateComplete; });
+    await expect.poll(() => text(4), { timeout: 20_000 }).toContain('Drawn at its real length: 1,061 m = 1.06 km.');
+});

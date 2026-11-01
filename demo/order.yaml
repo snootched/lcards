@@ -47,6 +47,13 @@ releases:
         session: "UX1"
         docs: /cards/astrometrics/studio
         public: false
+      - file: astro-real-size
+        topic: astrometrics
+        summary: "Astrometrics real size: starbases and ships in proportion"
+        description: "Five built-in models with no size in a scene in km, so each is drawn at its real size from its file: Deep Space 9 (1.45 km) with a Constitution-class ship (289 m) beside it, Earth Spacedock (5.5 km tall) and a Utopia Planitia drydock (760 m) with a ship in its berth. The buttons fly to each. In the Studio, a model's form says what its file measures and how it is drawn, with Fit to view, File size and Real size."
+        session: "UX1"
+        docs: /cards/astrometrics/objects#real-size
+        public: true
       - file: chart-sources
         topic: charts
         summary: "Charts, rebuilt: entity history, long-term statistics and data sources"

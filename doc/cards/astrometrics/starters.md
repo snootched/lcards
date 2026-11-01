@@ -1089,7 +1089,7 @@ objects:
         tumble: 0
         seed: 9
         color: var(--lcars-blue)
-      - { type: model, id: station, at: ds9, src: builtin:deep_space_nine, size: 1.452, material: original }
+      - { type: model, id: station, at: ds9, src: builtin:deep_space_nine, material: original }
 camera:
   view: galaxy
   fly_duration: 5000

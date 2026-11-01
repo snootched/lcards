@@ -1,6 +1,7 @@
 /** A built-in starbase model at a point, with its name and main parts marked */
 
 import { centreRef } from './shared.js';
+import { kmPerUnit } from '../names.js';
 
 /** Each built-in starbase's labelled parts: [part, label] */
 const MARKS = /** @type {Record<string, [string, string][]>} */ ({
@@ -27,10 +28,13 @@ export default /** @type {import('./index.js').Starter} */ ({
     { key: 'centre', label: 'At', type: 'point', default: [0, 0, 0], helper: 'A point id or x, y, z.' },
     { key: 'size', label: 'Size (its largest extent)', type: 'number', default: 60, real: ({ model }) => REAL_KM[String(model)] ?? REAL_KM.deep_space_nine }
   ],
-  build: ({ label, model, centre, size }) => {
+  build: ({ label, model, centre, size }, { units }) => {
     const c = centreRef(centre);
     const key = MARKS[String(model)] ? String(model) : 'deep_space_nine';
     const s = Number(size) || 60;
+    // at its real size in named units: no size, the file's own (metres) sets it
+    const km = kmPerUnit(units);
+    const real = km !== null && Number((REAL_KM[key] / km).toPrecision(3)) === s;
     return {
       points: [
         ...c.points,
@@ -39,7 +43,7 @@ export default /** @type {import('./index.js').Starter} */ ({
         // far away the marker stands in for the model (the ranges meet, so they cross-fade)
         { id: 'far', at: c.ref, marker: 'starbase', min_distance: s * 12, tap_action: { action: 'fly-to', view: 'view' } }
       ],
-      objects: [{ type: 'model', id: 'station', src: `builtin:${key}`, at: c.ref, size: s, material: 'original', max_distance: s * 12 }],
+      objects: [{ type: 'model', id: 'station', src: `builtin:${key}`, at: c.ref, ...(real ? {} : { size: s }), material: 'original', max_distance: s * 12 }],
       views: { view: { target: c.ref, yaw: 30, tilt: 15, distance: s * 2 } }
     };
   }

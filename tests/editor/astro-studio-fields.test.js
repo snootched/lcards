@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { objectSchema, astrometricsSchema } from '../../src/cards/schemas/astrometrics-schema.js';
 import { OBJECT_TYPES, TYPE_GUIDE } from '../../src/core/astrometrics/names.js';
+import { modelSizeReadout, fitToViewSize, roundLength, shortNumber } from '../../src/editor/dialogs/astro-studio/model-size.js';
 import {
   fieldKind, objectBranch, scopeOf, appliesTo, tupleLabels, helperText, labelFor, withKey, parseNumbers, freshId, objectSummary, newObject, viewScale, reshape,
   choiceOptions, choiceValue, numberSelector, unitsLabel, groupOf, sectionIcon, OBJECT_GROUPS, COMMON_GROUPS, bindingBranch, isTour, isTemplateValue
@@ -172,6 +173,42 @@ test('a new object is sized to the view and placed where it looks', () => {
   }
 });
 
+test('UX1 P6c: a new model where the scope has units is drawn at its real size (no size); the size panel reads the file', () => {
+  assert.deepEqual(newObject('model', [], [], { scale: 500, real: true }), { type: 'model', id: 'model1', src: 'builtin:constitution' });
+  assert.equal(newObject('model', [], [], { scale: 500 }).size, 25000);
+  const ship = [127, 67.9, 289];
+  const real = modelSizeReadout({ type: 'model', src: 'builtin:constitution' }, ship, 'km');
+  assert.equal(real.mode, 'real');
+  assert.equal(real.file, '127 x 67.9 x 289 m (largest 289 m)');
+  assert.equal(real.real, '289 m = 0.289 km');
+  assert.ok(Math.abs(/** @type {number} */ (real.realSize) - 0.289) < 1e-9);
+  assert.equal(modelSizeReadout({ src: 'x' }, ship, 'm').real, '289 m');
+  assert.equal(modelSizeReadout({ src: 'x', file_units: 'ft' }, [10, 5, 100], 'm').real, '100 ft = 30.5 m');
+  assert.equal(modelSizeReadout({ src: 'x' }, ship, 'ly').real, '289 m = 3.05e-14 ly');
+  const sized = modelSizeReadout({ src: 'x', size: 60 }, ship, 'km');
+  assert.equal(sized.mode, 'size');
+  assert.equal(sized.note, 'Drawn at size 60 km across.');
+  const none = modelSizeReadout({ src: 'x' }, ship, '');
+  assert.equal(none.mode, 'default');
+  assert.equal(none.real, null);
+  assert.match(none.note, /no units/);
+  assert.equal(modelSizeReadout({ src: 'x' }, null, 'km').file, null);
+  // length: the real length, whatever the file measures (an Odyssey download at 53.3 units)
+  const odyssey = modelSizeReadout({ src: 'x', length: 1061, file_units: 'cm' }, [18.7, 7.43, 53.3], 'km');
+  assert.equal(odyssey.mode, 'real');
+  assert.equal(odyssey.file, '18.7 x 7.43 x 53.3 cm (largest 53.3 cm)');
+  assert.equal(odyssey.real, '1,061 m = 1.06 km');
+  assert.equal(odyssey.note, 'Drawn at its real length: 1,061 m = 1.06 km.');
+  assert.ok(Math.abs(/** @type {number} */ (odyssey.realSize) - 1.061) < 1e-9);
+  assert.equal(modelSizeReadout({ src: 'x', length: 1061 }, null, 'km').real, '1,061 m = 1.06 km', 'known before the file is in');
+  assert.equal(modelSizeReadout({ src: 'x', length: 1061, size: 2 }, null, 'km').mode, 'size');
+  assert.match(real.note, /Set Length \(m\)/);
+  assert.equal(fitToViewSize(1000), 200);
+  assert.equal(fitToViewSize(3.4), 0.5);
+  assert.equal(roundLength(0.0072), 0.005);
+  assert.equal(shortNumber(1234567), '1,230,000');
+});
+
 test('a new shape keeps the size: plane size to disc radius, sector radius to box size', () => {
   const plane = { type: 'grid', id: 'g', size: 100000, line_spacing: 5000 };
   assert.equal(reshape(plane, { ...plane, shape: 'disc' }).radius, 50000);
@@ -264,7 +301,7 @@ test('UX1 P2: object keys group by what they do; every group is known', () => {
   assert.equal(groupOf('color_major'), 'appearance');
   assert.equal(groupOf('line_width'), 'appearance');
   assert.equal(groupOf('pulse'), 'appearance');
-  assert.equal(groupOf('max_file_size'), 'advanced');
+  assert.equal(groupOf('occlude'), 'advanced');
   assert.equal(groupOf('radius'), 'main');
   assert.equal(groupOf('shape'), 'main');
   // a hint wins: a galaxy's dust is the opacity of its dust lanes

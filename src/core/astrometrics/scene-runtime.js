@@ -184,6 +184,10 @@ const KEY_COMMANDS = {
  *   point's placement for the spot at CSS px (x, y): on the object under it in its natural form (`latlon` on a sphere,
  *   `altaz` on a dome, `cell` on a lettered grid, else `xyz` local to it), else `xyz` on the ground; null when neither is hit
  * @property {(id: string) => (string[] | null)} partNames - a model object's named parts, null until it has loaded (or not a model)
+ * @property {(id: string) => ({ src: string, extent: number[], size: number, real: boolean } | null)} modelInfo - a model object's file
+ *   extent (the file's own units), its largest extent as drawn (scene units) and whether that is its real size; null until it has loaded
+ * @property {(id: string) => ({ src: string, state: string } | null)} modelState - a model object's file and whether it is
+ *   'loading', 'ready' or 'failed' (the build in the scene now: after a src change, the file before until the rebuild)
  * @property {(values: Record<string, AstroLabelValues>) => void} setLabelValues - label text and colours by point id (no rebuild)
  * @property {(values: Record<string, Record<string, number[] | null>>) => void} updatePoints - positions from entities by point id (no rebuild)
  * @property {(patches: { points?: Record<string, any>, objects?: Record<string, any> }) => void} patch - rule effects on points and objects (no world rebuild)
@@ -403,14 +407,14 @@ export function createAstroScene(host, config, options = {}) {
       textures.add(t);
       return t;
     },
-    loadModel: (src, maxMB) => {
+    loadModel: (src) => {
       const models = ctx.models;
       if (!models) return null;
       // builtin:constitution (the LCARdS model library), media-source://... (My models), a path
-      const cacheKey = `${src}|${maxMB}`;
+      const cacheKey = src;
       let p = modelFiles.get(cacheKey);
       if (!p) {
-        p = fileUrl(src, 'model').then((url) => models.loadModelFile(url, { maxBytes: maxMB * 1024 * 1024 }));
+        p = fileUrl(src, 'model').then((url) => models.loadModelFile(url));
         modelFiles.set(cacheKey, p);
         // a failed load is tried again on the next build
         p.catch(() => modelFiles.delete(cacheKey));
@@ -1301,8 +1305,8 @@ export function createAstroScene(host, config, options = {}) {
     if (!b || !tools) return;
     const box = tools.localBox(b.node);
     if (box.isEmpty()) return;
-    // A little larger than the object, so the box does not sit on its edges
-    box.expandByScalar(Math.max(0.5, box.getSize(new Vector3()).length() * 0.02));
+    // A little larger than the object, so the box does not sit on its edges (relative: a ship in km is 0.3 across)
+    box.expandByScalar(box.getSize(new Vector3()).length() * 0.03);
     boxLine = new FatLine(tools.boxRuns(box), { color: ctx.color('var(--lcards-moonlight)', '#ffffff'), width: 2, opacity: 0.9, renderOrder: 20 });
     boxLine.material.depthTest = false;
     boxLine.material.transparent = true;
@@ -1646,8 +1650,8 @@ export function createAstroScene(host, config, options = {}) {
     if (key === 'opacity') liveAlpha.set(id, Math.min(1, Math.max(0, value)));
     else if (key === 'spin') b.spin = value;
     else if (key === 'radius' || key === 'size') {
-      // against the size it was built at (the card builds it at the value it had then)
-      const built = Number(b.config[key]);
+      // against the size it was built at (the card builds it at the value it had then; a model at its real size, as drawn)
+      const built = Number(b.config[key] ?? (key === 'size' ? b.drawnSize : undefined));
       if (Number.isFinite(built) && built > 0 && value >= 0) b.node.scale.setScalar(value / built);
     }
   }
@@ -2041,6 +2045,13 @@ export function createAstroScene(host, config, options = {}) {
     partNames(id) {
       const b = world?.objects.get(id);
       return b?.partNames && b.loadState?.() === 'ready' ? b.partNames() : null;
+    },
+    modelInfo(id) {
+      return world?.objects.get(id)?.modelInfo?.() ?? null;
+    },
+    modelState(id) {
+      const b = world?.objects.get(id);
+      return b?.config?.type === 'model' && b.loadState ? { src: String(b.config.src ?? ''), state: b.loadState() } : null;
     },
     requestFrame,
     setLabelValues,

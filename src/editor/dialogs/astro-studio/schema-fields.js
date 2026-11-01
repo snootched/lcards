@@ -267,7 +267,7 @@ export const COMMON_GROUPS = {
 const APPEARANCE_KEY = /(^|_)(colou?rs?|opacity|glow|dash|blend|material|scanlines|edges)$|^(colou?r_|line_width|width|edge_width|image|scan|fill_effect|style|falloff|flow_speed$|pulse$)/;
 
 /** A type's own keys few need: limits and drawing order */
-const ADVANCED_KEYS = new Set(['max_file_size', 'occlude']);
+const ADVANCED_KEYS = new Set(['occlude']);
 
 /**
  * Which object-form group a key sits in: its `x-ui-hints.group`, the shared
@@ -572,11 +572,12 @@ export function viewScale(distance) {
 /**
  * A new object of a type, with what it needs to show at once: sized `scale`
  * times the default and placed `at` (a point id or a position), so it shows
- * where the camera looks.
+ * where the camera looks. With `real` (the scope has units) a model has no
+ * size: it is drawn at its real size.
  * @param {string} type
  * @param {string[]} objectIds
  * @param {string[]} pointIds
- * @param {{ scale?: number, at?: string | number[] }} [place]
+ * @param {{ scale?: number, at?: string | number[], real?: boolean }} [place]
  * @returns {Record<string, any>}
  */
 export function newObject(type, objectIds, pointIds, place = {}) {
@@ -607,7 +608,7 @@ export function newObject(type, objectIds, pointIds, place = {}) {
     case 'galaxy': obj.radius = round(100 * k); break;
     default: break;
   }
-  if (k !== 1 && SIZES[type]) {
+  if (k !== 1 && SIZES[type] && !(type === 'model' && place.real)) {
     for (const [key, v] of Object.entries(SIZES[type](k))) obj[key] = Array.isArray(v) ? v.map(round) : round(v);
   }
   return obj;

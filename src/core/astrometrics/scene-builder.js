@@ -69,7 +69,8 @@ const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image
  * @returns {import('./placements.js').PlacementHost}
  */
 function hostOf(b) {
-  return { node: b.placeNode ?? b.node, radius: b.radius, cellPoint: b.cellPoint, moving: b.spin !== 0 || b.moving === true, ready: b.isReady, partNode: b.partNode, warp: b.warp };
+  // radius read live: a model at its real size knows it once the file is in
+  return { node: b.placeNode ?? b.node, get radius() { return b.radius; }, cellPoint: b.cellPoint, moving: b.spin !== 0 || b.moving === true, ready: b.isReady, partNode: b.partNode, warp: b.warp };
 }
 
 /**
@@ -152,7 +153,12 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   }
   frames.place();
   /** @param {string | undefined} sys */
-  const unitsOf = (sys) => (sys ? systems.find((x) => String(x.id) === sys)?.units : config?.units);
+  const unitsOf = (sys) => {
+    if (!sys) return config?.units;
+    const o = systems.find((x) => String(x.id) === sys);
+    // a system with neither units nor scale is in its parent's (scale 1)
+    return o?.units ?? (o && o.scale === undefined ? config?.units : undefined);
+  };
   ctx.kmPerUnit = (sys) => kmPerUnit(unitsOf(sys));
   /** @type {Map<string, import('./objects/common.js').BuiltObject>} */
   const objects = new Map();

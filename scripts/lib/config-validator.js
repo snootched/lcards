@@ -423,6 +423,16 @@ export function astrometricsIssues(node) {
         err(`${at}.units`, `units: ${o.units} needs the card's own units (units: ly at the top of the card), or give the system a scale`);
       }
     }
+    // UX1 P6c: a model's real size needs units where it is
+    if (o.type === 'model') {
+      const units = system ? (system.units ?? (system.scale === undefined ? node.units : undefined)) : node.units;
+      for (const key of ['length', 'file_units']) {
+        if (o[key] === undefined) continue;
+        if (o.size !== undefined) warn(`${at}.${key}`, `${key} sets the real size: size is set, so it does nothing (leave size out for the real size)`);
+        else if (key === 'file_units' && o.length !== undefined) warn(`${at}.file_units`, 'file_units sets the real size from what the file measures: length is set, so it does nothing');
+        else if (!UNIT_NAMES.includes(units)) warn(`${at}.${key}`, `${key} needs units for a real size: give the ${system ? 'system or the card' : 'card'} units (km, au, ly); without them the model is drawn at 50`);
+      }
+    }
     // E6 effects: settings that silently do nothing
     if (o.type === 'sphere' && o.fill_effect && o.image !== undefined) warn(`${at}.image`, 'fill_effect paints the body: image is not shown');
     if (['ring', 'path', 'beam', 'trail'].includes(o.type) && o.flow_speed && !o.pulse && !(o.type !== 'beam' && Array.isArray(o.dash))) {

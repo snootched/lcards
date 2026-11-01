@@ -5,10 +5,13 @@
  * when a config has a model (`usesModels()` in `../names.js`).
  *
  * Structure: the object's node (spins) > `fit` (scales the file to `size`,
- * its largest extent, centred on its bounds) > `file` (the glTF scene in the
- * file's own coordinates). Points on the model (`object: <model>`, `xyz`,
- * `part`) are in file space, so `size` never moves them. Until the file is
- * in, a faint pulsing box of `size` stands in and points on the model wait.
+ * its largest extent, centred on its bounds; without `size`, to its real size
+ * in the scene's or system's `units`: `length` metres long, else as the file
+ * measures in `file_units`) > `file` (the glTF
+ * scene in the file's own coordinates). Points on the model (`object:
+ * <model>`, `xyz`, `part`) are in file space, so `size` never moves them.
+ * Until the file is in, a faint pulsing box stands in (of `size`, or about a
+ * starship's size) and points on the model wait.
  *
  * Looks: `material: hologram` (default: the shader in
  * `hologram-material.js`) or `original` (the file's own materials, lit by a
@@ -29,24 +32,19 @@ import { built, num, DEFAULT_COLORS } from '../objects/common.js';
 import { hologramUniforms, hologramMaterial, depthOnlyMaterial } from './hologram-material.js';
 import { OCCLUDER_LAYER } from '../depth-occlusion.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
-
-/** Default `max_file_size`, MB */
-export const DEFAULT_MAX_MB = 20;
+import { modelSizeSet, modelLengthSet, realScale } from '../names.js';
 
 /**
- * Fetch and parse a model file, refusing one over `maxBytes`.
+ * Fetch and parse a model file (any size: a big file is the dashboard
+ * owner's choice, see the models docs' Make it light).
  * @param {string} url
- * @param {{ maxBytes?: number, fetchImpl?: typeof fetch }} [o]
+ * @param {{ fetchImpl?: typeof fetch }} [o]
  * @returns {Promise<import('three/examples/jsm/loaders/GLTFLoader.js').GLTF>}
  */
-export async function loadModelFile(url, { maxBytes = DEFAULT_MAX_MB * 1024 * 1024, fetchImpl = fetch } = {}) {
+export async function loadModelFile(url, { fetchImpl = fetch } = {}) {
   const res = await fetchImpl(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const len = Number(res.headers.get('content-length'));
-  const tooBig = (/** @type {number} */ n) => new Error(`${(n / 1048576).toFixed(1)} MB is over max_file_size (${(maxBytes / 1048576).toFixed(1)} MB)`);
-  if (len > maxBytes) throw tooBig(len);
   const buf = await res.arrayBuffer();
-  if (buf.byteLength > maxBytes) throw tooBig(buf.byteLength);
   return parseModel(buf, url.slice(0, url.lastIndexOf('/') + 1));
 }
 
@@ -86,9 +84,42 @@ export function clipNames(value, available) {
 export function fitTransform(box, size) {
   const extent = box.getSize(new Vector3());
   const largest = Math.max(extent.x, extent.y, extent.z) || 1;
-  const scale = size / largest;
+  return scaleTransform(box, size / largest);
+}
+
+/**
+ * A file drawn at `scale` scene units per file unit (its real size), centred
+ * on its bounds.
+ * @param {Box3} box - the file's bounds, file space
+ * @param {number} scale
+ */
+export function scaleTransform(box, scale) {
+  const extent = box.getSize(new Vector3());
   const centre = box.getCenter(new Vector3());
   return { scale, offset: centre.multiplyScalar(-scale), extent };
+}
+
+/** The stand-in's size for a model at its real size, metres (about a starship) */
+const REAL_HOLDER_M = 300;
+
+/**
+ * How a model is sized: `size` when set, else its real size where the
+ * scene (or its system) has units (`length` metres long, else as the file
+ * measures in `file_units`), else the default 50.
+ * @param {any} cfg
+ * @param {number | null | undefined} kmPerSceneUnit
+ * @returns {{ size: number | null, real: number | null, isReal: boolean, holder: number }} size (largest extent, scene units)
+ *   or real (scene units per file unit); isReal: drawn at its real size (from length or the file); the stand-in box's size, scene units
+ */
+export function modelSizing(cfg, kmPerSceneUnit) {
+  const set = modelSizeSet(cfg);
+  if (set !== null) return { size: set, real: null, isReal: false, holder: set };
+  const real = realScale(cfg?.file_units, kmPerSceneUnit);
+  if (real === null) return { size: 50, real: null, isReal: false, holder: 50 };
+  const metresPerUnit = /** @type {number} */ (kmPerSceneUnit) * 1000;
+  const length = modelLengthSet(cfg);
+  if (length !== null) return { size: length / metresPerUnit, real: null, isReal: true, holder: length / metresPerUnit };
+  return { size: null, real, isReal: true, holder: REAL_HOLDER_M / metresPerUnit };
 }
 
 /**
@@ -105,7 +136,8 @@ export function buildModel(cfg, ctx) {
   file.name = 'file';
   fit.add(file);
   node.add(fit);
-  const size = Math.max(1e-3, num(cfg.size, 50));
+  const sizing = modelSizing(cfg, ctx.kmPerUnit?.(cfg._system));
+  const size = sizing.holder;
   const opacity = num(cfg.opacity, 0.85);
   const hologram = cfg.material !== 'original';
 
@@ -127,6 +159,8 @@ export function buildModel(cfg, ctx) {
   let disposed = false;
   const scanPeriod = num(cfg.scan_period, 0);
   const warnedParts = new Set();
+  /** @type {number[] | null} the file's extent, its own units (once in) */
+  let fileExtent = null;
 
   const out = built(cfg, node, {
     radius: size / 2,
@@ -144,7 +178,9 @@ export function buildModel(cfg, ctx) {
       return p ?? null;
     },
     partNames: () => [...parts.keys()],
-    loadState: () => state
+    loadState: () => state,
+    drawnSize: size,
+    modelInfo: () => (state === 'ready' && fileExtent ? { src: String(cfg.src ?? ''), extent: fileExtent, size: out.drawnSize ?? size, real: sizing.isReal } : null)
   });
 
   /** @param {import('three/examples/jsm/loaders/GLTFLoader.js').GLTF} gltf */
@@ -154,7 +190,11 @@ export function buildModel(cfg, ctx) {
     const scene = cloneSkinned(gltf.scene);
     scene.updateMatrixWorld(true);
     const box = new Box3().setFromObject(scene);
-    const { scale, offset, extent } = fitTransform(box, size);
+    const { scale, offset, extent } = sizing.real !== null ? scaleTransform(box, sizing.real) : fitTransform(box, size);
+    const largest = Math.max(extent.x, extent.y, extent.z);
+    out.radius = (largest * scale) / 2;
+    out.drawnSize = largest * scale;
+    fileExtent = [extent.x, extent.y, extent.z];
     fit.scale.setScalar(scale);
     fit.position.copy(offset);
     file.add(scene);
@@ -275,7 +315,7 @@ export function buildModel(cfg, ctx) {
   };
 
   const src = String(cfg.src ?? '');
-  const load = ctx.loadModel ? ctx.loadModel(src, num(cfg.max_file_size, DEFAULT_MAX_MB)) : null;
+  const load = ctx.loadModel ? ctx.loadModel(src) : null;
   if (!src || !load) {
     state = 'failed';
     holderMat.opacity = 0.1;

@@ -46,6 +46,7 @@ import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
 import { SCENE_SCOPE, scopeSystem, validScope, scopedList, setScopedList, scopedObjectIds, pointScope, objectScope, allPointIds, allObjectIds, pointsEditorConfig } from './astro-studio/systems.js';
 import { createHistory } from './astro-studio/history.js';
+import { modelSizeReadout, fitToViewSize } from './astro-studio/model-size.js';
 import { starterPicture, typePicture, TYPE_GROUPS, starterParamSchema, starterParamChoices, starterParamValues, starterAdds, fragmentCounts } from './astro-studio/starter-gallery.js';
 import { overviewGuide, startersGuide, objectsGuide, pointsGuide, cameraGuide } from './astro-studio/studio-guides.js';
 import './astro-studio/lcards-astro-schema-form.js';
@@ -81,6 +82,9 @@ export function isStarterCard(config) {
 }
 /** Debounce for preview updates while typing, ms */
 const PREVIEW_DELAY = 150;
+
+/** How long the Studio waits for a model file to load in the preview (a big download takes a while), ms */
+const MODEL_WAIT_MS = 5 * 60 * 1000;
 
 /** Keys of the Scene tab, in order */
 /**
@@ -139,7 +143,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       _trying: { state: true },
       _toolbarExpanded: { state: true },
       _historyVersion: { state: true },
-      _viewError: { state: true }
+      _viewError: { state: true },
+      _modelExtents: { state: true }
     };
   }
 
@@ -167,6 +172,10 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     this._expandedView = null;
     /** @type {string} why the last rename was refused */
     this._viewError = '';
+    /** @type {Record<string, number[]>} each model file's extent, its own units, by src (read from the preview once it has loaded) */
+    this._modelExtents = {};
+    /** @type {Set<string>} model files whose extent is being read */
+    this._extentPending = new Set();
     /** @type {string | null} the open starter in the Starters tab */
     this._openStarter = null;
     /** @type {Record<string, Record<string, any>>} what was typed into each starter's params */
@@ -1418,8 +1427,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     this._addingObject = false;
     const scene = await this._previewCard?.studioScene?.().catch(() => null);
     const system = this._system ? this._objectIdIn(SCENE_SCOPE, this._scope) : undefined;
-    /** @type {{ scale?: number, at?: string | number[] }} */
-    const place = {};
+    /** @type {{ scale?: number, at?: string | number[], real?: boolean }} */
+    const place = { real: !!this._units };
     if (scene?.viewIn) {
       const view = scene.viewIn(system);
       place.scale = viewScale(view.distance);
@@ -1434,7 +1443,10 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     }
     const objects = this._objects;
     this._expandedObject = objects.length;
-    this._setObjects([...objects, newObject(type, ids, this._pointIds, place)]);
+    const obj = newObject(type, ids, this._pointIds, place);
+    this._setObjects([...objects, obj]);
+    // a model at its real size can be a speck from here: fly to it once it is in
+    if (type === 'model') this._showModelWhenLoaded(String(obj.id), String(obj.src));
   }
 
   /**
@@ -1449,7 +1461,11 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     const id = this._objectId(obj, index);
     /** @param {Record<string, any>} next */
     // a new shape keeps the object's size (a plane's size is a disc's radius)
-    const set = (next) => this._setObjects(this._objects.map((o, i) => (i === index ? reshape(o, next) : o)));
+    const set = (next) => {
+      this._setObjects(this._objects.map((o, i) => (i === index ? reshape(o, next) : o)));
+      // a model given another file: fly to it once that is in
+      if (obj?.type === 'model' && next.src && next.src !== obj.src && next.id !== undefined) this._showModelWhenLoaded(String(next.id), String(next.src));
+    };
     const expanded = this._expandedObject === index;
     return html`
       <lcards-form-section class="object" data-object=${index} header=${id}
@@ -1513,14 +1529,128 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         const list = keys.filter((k) => groupFor(k) === g.id);
         if (!list.length) return nothing;
         // its points and objects open with the row's Open system button
-        if (g.id === 'main') return html`${form(list)}${obj?.type === 'system' ? html`
-          <div class="hint system-open">Holds ${systemCounts(obj)}.</div>` : nothing}`;
+        if (g.id === 'main') {
+          // a model's size panel right under size and file_units
+          const cut = obj?.type === 'model' ? Math.max(list.indexOf('size'), list.indexOf('file_units')) + 1 : 0;
+          if (cut > 0) return html`${form(list.slice(0, cut))}${this._renderModelSize(obj, set)}${list.length > cut ? form(list.slice(cut)) : nothing}`;
+          return html`${form(list)}${obj?.type === 'system' ? html`
+            <div class="hint system-open">Holds ${systemCounts(obj)}.</div>` : nothing}`;
+        }
         // a section with a setting that follows an entity opens, and says so
         const bound = keysBound(obj, list);
         return html`<lcards-form-section data-group=${g.id} header=${g.header} icon=${g.icon} secondary=${bound ? 'follows an entity' : ''}
           nested outlined ?expanded=${bound || g.id === 'appearance'}>${form(list)}</lcards-form-section>`;
       })}
     `;
+  }
+
+  /**
+   * A model's size: what its file measures, how it is drawn, and Fit to
+   * view, File size and Real size (UX1 P6c).
+   * @param {Record<string, any>} obj
+   * @param {(obj: Record<string, any>) => void} set
+   * @private
+   */
+  _renderModelSize(obj, set) {
+    const src = String(obj.src ?? '');
+    const extent = this._modelExtents[src] ?? null;
+    if (!extent && src && obj.id !== undefined) this._readModelExtent(String(obj.id), src);
+    const units = this._units;
+    const r = modelSizeReadout(obj, extent, units);
+    const { size: _size, ...withoutSize } = obj;
+    return html`
+      <div class="model-size" data-mode=${r.mode}>
+        <div class="hint">${r.file ? html`File: ${r.file}.` : 'File: measured once the preview has loaded it.'} ${r.note}</div>
+        <div class="view-actions">
+          <ha-button appearance="plain" size="s" data-action="show-model" ?disabled=${obj.id === undefined}
+            @click=${() => this._showObject(String(obj.id))}>
+            <ha-icon icon="mdi:crosshairs-gps" slot="start"></ha-icon>Show
+          </ha-button>
+          <ha-button appearance="plain" size="s" data-action="fit-view" @click=${() => this._fitModelToView(obj, set)}>
+            <ha-icon icon="mdi:fit-to-screen-outline" slot="start"></ha-icon>Fit to view
+          </ha-button>
+          <ha-button appearance="plain" size="s" data-action="file-size" ?disabled=${r.largest === null}
+            @click=${() => { if (r.largest !== null) set({ ...obj, size: Number(r.largest.toPrecision(4)) }); }}>
+            <ha-icon icon="mdi:file-outline" slot="start"></ha-icon>File size
+          </ha-button>
+          <ha-button appearance="plain" size="s" data-action="real-size" ?disabled=${!units || r.mode === 'real'}
+            @click=${() => set(withoutSize)}>
+            <ha-icon icon="mdi:ruler" slot="start"></ha-icon>Real size
+          </ha-button>
+        </div>
+      </div>`;
+  }
+
+  /**
+   * Fly the preview to an object.
+   * @param {string} id
+   * @private
+   */
+  async _showObject(id) {
+    const scene = await this._previewCard?.studioScene?.().catch(() => null);
+    await scene?.frameObject(id);
+  }
+
+  /**
+   * Fly the preview to a model once its file is in (framed by the file's own
+   * size, not the stand-in's).
+   * @param {string} id @param {string} src
+   * @private
+   */
+  async _showModelWhenLoaded(id, src) {
+    if (await this._whenModelLoaded(id, src)) await this._showObject(id);
+  }
+
+  /**
+   * A model's measurements once the preview has loaded `src` for it: as long
+   * as that file is loading (a 150 MB download takes a while), null when it
+   * fails, the dialog closes or after five minutes.
+   * @param {string} id @param {string} src
+   * @returns {Promise<{ src: string, extent: number[], size: number, real: boolean } | null>}
+   * @private
+   */
+  async _whenModelLoaded(id, src) {
+    const until = Date.now() + MODEL_WAIT_MS;
+    while (this.isConnected && Date.now() < until) {
+      const scene = await this._previewCard?.studioScene?.().catch(() => null);
+      // the preview may still hold the build of the file before (a src just changed)
+      const now = scene?.modelState?.(id);
+      if (now?.src === src && now.state === 'failed') return null;
+      const info = now?.src === src && now.state === 'ready' ? scene?.modelInfo?.(id) : null;
+      if (info) return info;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    return null;
+  }
+
+  /**
+   * A model file's extent from the preview, once it has loaded (kept by src:
+   * a size change rebuilds the model but its file measures the same).
+   * @param {string} id @param {string} src
+   * @private
+   */
+  async _readModelExtent(id, src) {
+    if (this._extentPending.has(src)) return;
+    this._extentPending.add(src);
+    try {
+      const info = await this._whenModelLoaded(id, src);
+      if (info) this._modelExtents = { ...this._modelExtents, [src]: info.extent };
+    } finally {
+      this._extentPending.delete(src);
+    }
+  }
+
+  /**
+   * Fit to view: size a model to about a fifth of the preview's view.
+   * @param {Record<string, any>} obj
+   * @param {(obj: Record<string, any>) => void} set
+   * @private
+   */
+  async _fitModelToView(obj, set) {
+    const scene = await this._previewCard?.studioScene?.().catch(() => null);
+    if (!scene?.viewIn) return;
+    const system = this._system ? this._objectIdIn(SCENE_SCOPE, this._scope) : undefined;
+    set({ ...obj, size: fitToViewSize(scene.viewIn(system).width) });
   }
 
   /** @param {number} index @param {number} delta @private */

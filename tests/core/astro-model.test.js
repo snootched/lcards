@@ -3,8 +3,8 @@
  * meshopt-compressed, the same geometry), the builder stands in a box until
  * the file is in and then fits the file to `size`, swaps in the hologram,
  * draws edges and plays clips on the scene clock; points on the model use the
- * file's coordinates and `part:` follows an animated part; the loader refuses
- * files over max_file_size.
+ * file's coordinates and `part:` follows an animated part; the loader takes
+ * a file of any size and reports a failed fetch.
  */
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -16,7 +16,7 @@ after(() => env.restore());
 const { Vector3, Box3 } = await import('three');
 const { buildScene } = await import('../../src/core/astrometrics/scene-builder.js');
 const models = await import('../../src/core/astrometrics/model/index.js');
-const { usesModels, OBJECT_TYPES } = await import('../../src/core/astrometrics/names.js');
+const { usesModels, OBJECT_TYPES, realScale, modelSizeSet, modelLengthSet } = await import('../../src/core/astrometrics/names.js');
 
 /** @param {string} rel */
 const bytes = (rel) => {
@@ -102,6 +102,83 @@ test('a placeholder box stands in, then the file is fitted to size with the holo
   assert.ok(twins >= PARTS.length, `depth twins ${twins}`);
   assert.ok(b.pickMeshes.length >= PARTS.length);
   assert.ok(c.frames > 0, 'asks for a frame when the file is in');
+  w.dispose();
+});
+
+/** The largest extent of a built model's hologram meshes, world units */
+const drawnExtent = (/** @type {any} */ w, /** @type {string} */ id) => {
+  w.scene.updateMatrixWorld(true);
+  const box = new Box3();
+  w.objects.get(id).node.traverse((/** @type {any} */ o) => { if (o.isMesh && o.material?.name === 'lcards-hologram') box.expandByObject(o, true); });
+  const size = box.getSize(new Vector3());
+  return Math.max(size.x, size.y, size.z);
+};
+
+test('real size: file_units and km per scene unit give scene units per file unit; size set or no units has none', () => {
+  assert.equal(realScale(undefined, 1), 0.001);
+  assert.equal(realScale('m', 1e-3), 1);
+  assert.equal(realScale('km', 1), 1);
+  assert.ok(Math.abs(realScale('ft', 1e-3) - 0.3048) < 1e-12);
+  assert.ok(Math.abs(realScale('in', 1e-3) - 0.0254) < 1e-12);
+  assert.ok(Math.abs(realScale('cm', 1e-3) - 0.01) < 1e-12);
+  assert.ok(Math.abs(realScale('mm', 1e-3) - 0.001) < 1e-12);
+  assert.equal(realScale('m', null), null);
+  assert.equal(realScale('nonsense', 1), 0.001, 'unknown units read as metres');
+  assert.deepEqual(models.modelSizing({ size: 60 }, 1), { size: 60, real: null, isReal: false, holder: 60 });
+  assert.deepEqual(models.modelSizing({}, null), { size: 50, real: null, isReal: false, holder: 50 });
+  // length: metres long in the scene's units; size wins, no units draws at 50
+  assert.deepEqual(models.modelSizing({ length: 1061, file_units: 'cm' }, 1), { size: 1.061, real: null, isReal: true, holder: 1.061 });
+  assert.deepEqual(models.modelSizing({ length: 1061, size: 2 }, 1), { size: 2, real: null, isReal: false, holder: 2 });
+  assert.equal(models.modelSizing({ length: 1061 }, null).size, 50);
+  assert.equal(modelLengthSet({ length: -3 }), null);
+  const km = models.modelSizing({}, 1);
+  assert.equal(km.size, null);
+  assert.equal(km.real, 0.001);
+  assert.equal(km.isReal, true);
+  assert.ok(Math.abs(km.holder - 0.3) < 1e-9, 'the stand-in is about a starship');
+  assert.equal(modelSizeSet({ size: 0 }), null);
+  assert.equal(modelSizeSet({ size: '' }), null);
+  assert.equal(modelSizeSet({ size: 12 }), 12);
+});
+
+test('without size the built-in ship is drawn at its real size in the scene\'s or its system\'s units; with size, at size', async () => {
+  const w = buildScene({
+    units: 'km',
+    objects: [
+      { type: 'model', id: 'real', src: 'builtin:constitution' },
+      { type: 'model', id: 'feet', src: 'builtin:constitution', file_units: 'ft' },
+      { type: 'model', id: 'sized', src: 'builtin:constitution', size: 60 },
+      { type: 'model', id: 'long', src: 'builtin:constitution', length: 1061 },
+      { type: 'system', id: 'local', at: [100, 0, 0], units: 'm', objects: [{ type: 'model', id: 'inner', src: 'builtin:constitution' }] }
+    ]
+  }, /** @type {any} */ (ctx()));
+  const real = w.objects.get('real');
+  assert.ok(real && Math.abs(/** @type {number} */ (real.radius) - 0.15) < 1e-9, 'the stand-in until the file is in');
+  await settle();
+  await settle();
+  assert.ok(Math.abs(drawnExtent(w, 'real') - 0.289) < 0.002, `real ${drawnExtent(w, 'real')}`);
+  assert.ok(Math.abs(/** @type {number} */ (real.radius) - 0.289 / 2) < 0.002, 'radius from the file');
+  assert.ok(Math.abs(drawnExtent(w, 'feet') - 0.289 * 0.3048) < 0.002, `feet ${drawnExtent(w, 'feet')}`);
+  assert.ok(Math.abs(drawnExtent(w, 'sized') - 60) < 0.5);
+  const info = real.modelInfo?.();
+  assert.ok(info && info.real && Math.abs(info.extent[2] - 289) < 2 && Math.abs(info.size - 0.289) < 0.002);
+  assert.equal(info?.src, 'builtin:constitution', 'which file the measurements are for (the Studio drops a build of the file before)');
+  assert.equal(w.objects.get('sized')?.modelInfo?.()?.real, false);
+  // length: drawn that long whatever the file measures, and still real
+  assert.ok(Math.abs(drawnExtent(w, 'long') - 1.061) < 0.005, `long ${drawnExtent(w, 'long')}`);
+  assert.equal(w.objects.get('long')?.modelInfo?.()?.real, true);
+  // in a system in metres: 289 of its units
+  const inner = w.objects.get('inner')?.modelInfo?.();
+  assert.ok(inner && Math.abs(inner.size - 289) < 2, `inner ${inner?.size}`);
+  w.dispose();
+});
+
+test('without units a model with no size is drawn at 50', async () => {
+  const w = buildScene({ objects: [{ type: 'model', id: 'ship', src: 'x' }] }, /** @type {any} */ (ctx()));
+  await settle();
+  await settle();
+  assert.ok(Math.abs(drawnExtent(w, 'ship') - 50) < 0.5);
+  assert.equal(w.objects.get('ship')?.modelInfo?.()?.real, false);
   w.dispose();
 });
 
@@ -204,12 +281,11 @@ test('a failed load leaves a dim stand-in; an unknown part warns and has no posi
   w.dispose();
 });
 
-test('the loader refuses a file over max_file_size, by Content-Length and by bytes', async () => {
-  const big = new ArrayBuffer(2 * 1024 * 1024);
-  /** @param {Record<string, string>} headers */
-  const fetchImpl = (headers) => /** @type {any} */ (async () => ({ ok: true, status: 200, headers: new Headers(headers), arrayBuffer: async () => big }));
-  await assert.rejects(models.loadModelFile('/m.glb', { maxBytes: 1024 * 1024, fetchImpl: fetchImpl({ 'content-length': String(big.byteLength) }) }), /over max_file_size/);
-  await assert.rejects(models.loadModelFile('/m.glb', { maxBytes: 1024 * 1024, fetchImpl: fetchImpl({}) }), /over max_file_size/);
+test('the loader takes a file of any size (no cap), and a failed fetch says why', async () => {
+  // a large file goes to the parser (these bytes are not a model, so the parser is what refuses them)
+  const big = new ArrayBuffer(150 * 1024 * 1024);
+  const fetchBig = /** @type {any} */ (async () => ({ ok: true, status: 200, headers: new Headers({ 'content-length': String(big.byteLength) }), arrayBuffer: async () => big }));
+  await assert.rejects(models.loadModelFile('/m.glb', { fetchImpl: fetchBig }), (/** @type {any} */ e) => !/max_file_size|MB/.test(String(e?.message)));
   await assert.rejects(models.loadModelFile('/m.glb', { fetchImpl: /** @type {any} */ (async () => ({ ok: false, status: 404, headers: new Headers() })) }), /HTTP 404/);
 });
 

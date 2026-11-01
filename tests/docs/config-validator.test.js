@@ -277,6 +277,27 @@ test('astrometrics face: motion needs an object at a point (M3)', () => {
     assert.deepEqual(messages(check(astro({ points: [{ id: 'far', xyz: [10, 0, 0] }], objects: [{ type: 'grid', shape: 'well', face: 'far' }] }))), []);
 });
 
+test('astrometrics model file_units: needs units where the model is, and no size (UX1 P6c)', () => {
+    const astro = (extra) => ({ type: 'custom:lcards-astrometrics-card', ...extra });
+    const ship = (extra = {}) => ({ type: 'model', id: 'ship', src: 'builtin:constitution', file_units: 'ft', ...extra });
+    assert.deepEqual(messages(check(astro({ units: 'km', objects: [ship()] }))), []);
+    assert.deepEqual(messages(check(astro({ objects: [ship()] }))), ['warning objects[0].file_units: file_units needs units for a real size: give the card units (km, au, ly); without them the model is drawn at 50']);
+    assert.deepEqual(messages(check(astro({ units: 'km', objects: [ship({ size: 20 })] }))), ['warning objects[0].file_units: file_units sets the real size: size is set, so it does nothing (leave size out for the real size)']);
+    // in a system: its units, or the card's when it names neither units nor scale
+    assert.deepEqual(messages(check(astro({ units: 'ly', objects: [{ type: 'system', id: 's', units: 'km', objects: [ship()] }] }))), []);
+    assert.deepEqual(messages(check(astro({ units: 'km', objects: [{ type: 'system', id: 's', objects: [ship()] }] }))), []);
+    assert.equal(messages(check(astro({ units: 'km', objects: [{ type: 'system', id: 's', scale: 0.5, objects: [ship()] }] }))).length, 1);
+    // no file_units: a model without size is fine with or without units
+    assert.deepEqual(messages(check(astro({ objects: [{ type: 'model', id: 'ship', src: 'builtin:constitution' }] }))), []);
+    // length: the same, and file_units beside it does nothing
+    const odyssey = (extra = {}) => ({ type: 'model', id: 'ship', src: '/local/odyssey.glb', length: 1061, ...extra });
+    assert.deepEqual(messages(check(astro({ units: 'km', objects: [odyssey()] }))), []);
+    assert.deepEqual(messages(check(astro({ objects: [odyssey()] }))), ['warning objects[0].length: length needs units for a real size: give the card units (km, au, ly); without them the model is drawn at 50']);
+    assert.deepEqual(messages(check(astro({ units: 'km', objects: [odyssey({ size: 1 })] }))), ['warning objects[0].length: length sets the real size: size is set, so it does nothing (leave size out for the real size)']);
+    assert.deepEqual(messages(check(astro({ units: 'km', objects: [odyssey({ file_units: 'cm' })] }))), ['warning objects[0].file_units: file_units sets the real size from what the file measures: length is set, so it does nothing']);
+    assert.ok(messages(check(astro({ units: 'km', objects: [odyssey({ length: 0 })] }))).some((m) => m.startsWith('error')), 'length must be above 0');
+});
+
 test('astrometrics distance: a range that never shows warns, on points and objects (E9)', () => {
     const astro = (extra) => ({ type: 'custom:lcards-astrometrics-card', ...extra });
     const out = messages(check(astro({

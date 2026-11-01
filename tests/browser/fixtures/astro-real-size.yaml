@@ -1,0 +1,20 @@
+# Models at their real size (UX1 P6c): no size in a km scene, so the built-in
+# ship (289 m) and Deep Space 9 (1,455 m) sit in proportion; the second ship
+# is a file made in feet; the sized one keeps its size; the long one is given
+# its real length (a download at an odd scale).
+type: custom:lcards-astrometrics-card
+height: 400
+units: km
+camera:
+  view: near
+  views:
+    near: { target: [0, 0, 0], yaw: 30, tilt: 20, distance: 4 }
+points:
+  - { id: ds9, xyz: [0, 0, 0] }
+  - { id: ship, xyz: [1.2, 0, 0] }
+objects:
+  - { type: model, id: station, src: builtin:deep_space_nine, at: ds9, material: original }
+  - { type: model, id: ship, src: builtin:constitution, at: ship }
+  - { type: model, id: feet, src: builtin:constitution, at: [-1.2, 0, 0], file_units: ft }
+  - { type: model, id: sized, src: builtin:constitution, at: [0, 0, 1.5], size: 0.5 }
+  - { type: model, id: long, src: builtin:constitution, at: [0, 0, -1.5], length: 1061 }

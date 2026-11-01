@@ -25,7 +25,7 @@ import {
 } from './common-schemas.js';
 import {
     OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, BODY_NAMES, FILL_EFFECTS, FILL_PRESETS, MODEL_MATERIALS,
-    WELL_SHAPE_NAMES, DEFORM_TYPES, BEND_MOTIONS, DEFORM_ANCHORS, UNIT_NAMES
+    WELL_SHAPE_NAMES, DEFORM_TYPES, BEND_MOTIONS, DEFORM_ANCHORS, UNIT_NAMES, FILE_UNIT_NAMES
 } from '../../core/astrometrics/names.js';
 import { LABEL_POSITION_NAMES, LABEL_OMITTED_KEYS } from '../../core/astrometrics/label-text.js';
 import { RATE_PATTERN } from '../../core/astrometrics/clock.js';
@@ -1128,7 +1128,9 @@ const modelObject = {
     properties: {
         type: { type: 'string', const: 'model', description: 'model: a glTF / GLB model.' },
         src: { type: 'string', assetSource: 'model', description: 'The file: a model shipped with LCARdS (builtin:constitution, a starship; builtin:deep_space_nine, builtin:earth_spacedock, builtin:utopia_planitia_drydock, starbases) or your own .glb / .gltf: from the My models folder (/config/www/lcards/models, media-source://lcards/my_models/<file>), or a path or URL. Meshopt compression works, Draco does not.' },
-        size: setting('Largest extent, scene units (the file is scaled and centred).', { exclusiveMinimum: 0, default: 50 }),
+        size: setting('Largest extent, scene units (the file is scaled and centred). Leave it out to draw the model at its real size (length, else what the file measures in file_units) in the scene\'s units (or its system\'s); a scene without units draws it at 50.', { exclusiveMinimum: 0 }),
+        length: { type: 'number', exclusiveMinimum: 0, 'x-ui-hints': { label: 'Length (m)' }, description: 'The real length in metres (the model\'s largest extent), for a file not made at its true scale (many downloads): drawn that long, whatever the file measures, in the scene\'s units. size, when set, wins; a scene without units draws it at 50.' },
+        file_units: { type: 'string', enum: [...FILE_UNIT_NAMES], default: 'm', description: 'The units the file was made in, for its real size (no size or length set): m (default; glTF files and the built-in models are in metres), cm, mm, km, ft or in.' },
         material: { type: 'string', enum: [...MODEL_MATERIALS], default: 'hologram', description: 'hologram (default): a glow with a bright rim and scanlines. original: the file\'s materials, lit.' },
         color: color('Hologram body colour. Default var(--lcars-blue).'),
         rim_color: color('Hologram rim colour. Default var(--lcards-moonlight).'),
@@ -1145,8 +1147,7 @@ const modelObject = {
             description: 'Clips to loop: all, a name or a list. None when left out.',
             oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' }, minItems: 1 }]
         },
-        occlude: { type: 'boolean', default: true, description: 'Hide labels behind it.' },
-        max_file_size: setting('The largest file to load, MB.', { exclusiveMinimum: 0, default: 20 })
+        occlude: { type: 'boolean', default: true, description: 'Hide labels behind it.' }
     }
 };
 

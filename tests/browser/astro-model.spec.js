@@ -143,3 +143,25 @@ test('E8 starbases: the built-in starbases load and points sit on their parts', 
     expect(await cardErrors(page)).toEqual([]);
     expect(missing.filter((u) => !/favicon/.test(u))).toEqual([]);
 });
+
+test('UX1 P6c real size: without size in a km scene the built-in models sit in proportion', async ({ page }) => {
+    await mountCase(page, 'astro-real-size', { width: '800' });
+    const info = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))?._scene;
+        return s ? Object.fromEntries(['station', 'ship', 'feet', 'sized', 'long'].map((id) => [id, s.modelInfo(id)])) : null;
+    });
+    await expect.poll(async () => Object.values((await info()) ?? {}).every(Boolean), { timeout: 20_000 }).toBe(true);
+    const m = await info();
+    expect(m.ship.real).toBe(true);
+    expect(m.ship.size).toBeCloseTo(0.289, 2);
+    expect(m.station.size).toBeCloseTo(1.455, 2);
+    // the station is five times the ship, as in canon
+    expect(m.station.size / m.ship.size).toBeCloseTo(1455 / 289, 1);
+    expect(m.feet.size).toBeCloseTo(0.289 * 0.3048, 2);
+    expect(m.sized.real).toBe(false);
+    expect(m.sized.size).toBeCloseTo(0.5, 3);
+    // length: its real length whatever the file measures, and still real
+    expect(m.long.real).toBe(true);
+    expect(m.long.size).toBeCloseTo(1.061, 3);
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
+});

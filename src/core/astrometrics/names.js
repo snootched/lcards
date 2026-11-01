@@ -59,6 +59,54 @@ export const kmPerUnit = (name) => {
 export const UNIT_NAMES = /** @type {UnitName[]} */ (Object.keys(UNITS));
 
 /**
+ * A model file's own units (`file_units`), in metres. glTF is metres by its
+ * spec, as are the built-in ships and starbases.
+ */
+export const FILE_UNITS = /** @type {const} */ ({ m: 1, cm: 0.01, mm: 0.001, km: 1e3, ft: 0.3048, in: 0.0254 });
+export const FILE_UNIT_NAMES = /** @type {(keyof typeof FILE_UNITS)[]} */ (Object.keys(FILE_UNITS));
+
+/**
+ * A model at its real size: scene units per file unit, from the file's
+ * units (metres when left out or unknown) and km per scene unit. null when
+ * the scene (or the system the model is in) names no units.
+ * @param {any} fileUnits
+ * @param {number | null | undefined} kmPerSceneUnit
+ * @returns {number | null}
+ */
+export function realScale(fileUnits, kmPerSceneUnit) {
+  if (!(Number(kmPerSceneUnit) > 0)) return null;
+  const m = FILE_UNITS[/** @type {keyof typeof FILE_UNITS} */ (fileUnits)] ?? 1;
+  return m / (/** @type {number} */ (kmPerSceneUnit) * 1000);
+}
+
+/**
+ * A model's `size` when it is set (a positive number): the largest extent,
+ * scene units. null means the model is drawn at its real size where the
+ * scene has units, else at the default size.
+ * @param {any} cfg - the model object's config
+ * @returns {number | null}
+ */
+export function modelSizeSet(cfg) {
+  return positive(cfg?.size);
+}
+
+/**
+ * A model's `length` when it is set (a positive number): its real largest
+ * extent in metres, whatever the file measures (a download at an odd scale).
+ * @param {any} cfg - the model object's config
+ * @returns {number | null}
+ */
+export function modelLengthSet(cfg) {
+  return positive(cfg?.length);
+}
+
+/** @param {any} v @returns {number | null} */
+function positive(v) {
+  const n = Number(v);
+  return v !== undefined && v !== null && v !== '' && Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
  * A system's scale: how many of its parent's units one of its own is (its
  * `scale`, else its named `units` over the parent's). null when it can not
  * be worked out (named units with a parent that names none).

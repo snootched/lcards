@@ -1,0 +1,58 @@
+# Astrometrics real size (UX1 P6c): models without size in a km scene are
+# drawn at their real size from their files (metres), so Deep Space 9, Earth
+# Spacedock, a Utopia Planitia drydock and two Constitution-class ships sit in
+# proportion. The last button opens the same ship at a size of its own.
+title: Astrometrics real size
+path: astro-real-size
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: ALL, show: true } }
+        tap_action: { action: fly-to, card: astro_real_size_1, view: all }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: DEEP SPACE 9, show: true } }
+        tap_action: { action: fly-to, card: astro_real_size_1, view: ds9 }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SPACEDOCK, show: true } }
+        tap_action: { action: fly-to, card: astro_real_size_1, view: spacedock }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: DRYDOCK, show: true } }
+        tap_action: { action: fly-to, card: astro_real_size_1, view: drydock }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_real_size_1
+        height: 650
+        grid_options: { columns: full }
+        units: km
+        camera:
+          view: all
+          buttons: true
+          views:
+            all: { target: [3, 0, 0], yaw: 25, tilt: 20, distance: 16 }
+            ds9: { target: [0.8, 0.1, 0.6], yaw: 30, tilt: 15, distance: 3.5 }
+            spacedock: { target: spacedock, yaw: 20, tilt: 10, distance: 12 }
+            drydock: { target: drydock, yaw: 75, tilt: 6, distance: 1.6 }
+        backdrop: { stars: { count: 2000 } }
+        points:
+          - { id: ds9, xyz: [0, 0, 0], label: DEEP SPACE 9, style: minor, tap_action: { action: fly-to, view: ds9 } }
+          - { id: defiant, xyz: [1.6, 0.3, 1.2] }
+          - { id: spacedock, xyz: [9, 0, -2], label: EARTH SPACEDOCK, style: minor, tap_action: { action: fly-to, view: spacedock } }
+          - { id: drydock, xyz: [-4, 0, 3], label: UTOPIA PLANITIA DRYDOCK, style: minor, tap_action: { action: fly-to, view: drydock } }
+          - { id: ship_label, object: ship, xyz: [0, 60, 0], label: CONSTITUTION CLASS 289 M, style: tiny }
+        objects:
+          - { type: model, id: station, src: builtin:deep_space_nine, at: ds9, material: original }
+          - { type: model, id: ship, src: builtin:constitution, at: defiant, rotation: [0, 200, 0], scan_period: 6 }
+          - { type: model, id: dock, src: builtin:earth_spacedock, at: spacedock, material: original }
+          - { type: model, id: frame, src: builtin:utopia_planitia_drydock, at: drydock, material: original }
+          - { type: model, id: berth_ship, src: builtin:constitution, at: drydock, scan_period: 6 }

@@ -122,7 +122,7 @@ export function solSystem({ station = false } = {}) {
       // the main belt (2.1 to 3.3 au) and the Kuiper belt (30 to 50 au): dots from afar
       { type: 'belt', id: 'main_belt', at: 'sun', radius: [2.1 * AU, 3.3 * AU], thickness: 0.15 * AU, count: 1500, size: [5, 300], tumble: 0, seed: 4 },
       { type: 'belt', id: 'kuiper_belt', at: 'sun', radius: [30 * AU, 50 * AU], thickness: 3 * AU, count: 2000, size: [50, 1200], tumble: 0, seed: 9, color: 'var(--lcars-blue)' },
-      ...(station ? [{ type: 'model', id: 'station', at: 'ds9', src: 'builtin:deep_space_nine', size: 1.452, material: 'original' }] : [])
+      ...(station ? [{ type: 'model', id: 'station', at: 'ds9', src: 'builtin:deep_space_nine', material: 'original' }] : [])
     ]
   };
 }

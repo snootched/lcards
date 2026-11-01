@@ -58,7 +58,9 @@ A model from elsewhere comes in its maker's units, facing their way, with their 
 
 | Key | Use |
 |---|---|
-| `size` | Its largest extent in scene units. Whatever units the file uses, `size` scales it to fit. To keep models in proportion, size each by its real length: a 289 m ship next to a 1452 m station is `size: 20` beside `size: 100`. |
+| `size` | Its largest extent in scene units. Whatever units the file uses, `size` scales it to fit. To keep models in proportion, leave `size` out in a scene with `units`: each is drawn at its [real size](./objects#real-size). |
+| `length` | Its real length in metres, for a file not at its true scale (many downloads are not): drawn that long at its [real size](./objects#real-size), whatever the file measures. |
+| `file_units` | The units the file was made in (`m` default; `cm`, `mm`, `km`, `ft`, `in`), for its real size. glTF files are in metres unless their maker got it wrong: if a model comes out a hundred times too large, try `cm`; at an odd scale, give its `length` instead. |
 | `rotation` | `[x, y, z]` degrees. LCARdS models face +z (bow forward); a model that comes in sideways or nose-up needs a quarter turn, e.g. `rotation: [0, 90, 0]` or `[-90, 0, 0]`. |
 | `material` | `hologram` (default) works on any model: glow, rim, scanlines, edges. `original` shows the file's own colours and textures, lit. |
 | `face: motion` | On a moving point, the model turns to face where it is going. See [points](./points). |
@@ -69,7 +71,7 @@ A model from elsewhere comes in its maker's units, facing their way, with their 
 
 The model is drawn on every frame the scene moves, and downloaded with the dashboard. The built-in ship has 6,500 triangles in 147 KB; models made for games or renders can have 100,000 or more, and tens of MB of textures.
 
-- **`max_file_size`** (default 20 MB) is the largest file the card loads. A bigger file is refused with a note in the browser console; raise it for one model if you need to, but a smaller file is better for every device that shows the dashboard.
+- **Any size loads**, but every device that shows the dashboard downloads the whole file and holds it in memory: a 100 MB model is slow to appear on a phone and may not load on a small tablet. A smaller file is better for all of them.
 - **Compress and simplify** with [glTF Transform](https://gltf-transform.dev/) (needs Node.js):
 
 ```sh
@@ -87,7 +89,7 @@ npx @gltf-transform/cli meshopt ship-small.glb ship-small.glb
 A dim stand-in box shows while the file loads, and stays if it fails. The browser console (filter on `Astrometrics`) says why:
 
 - **not found / could not resolve:** the path or the picked file is gone; pick it again.
-- **over max_file_size:** see [make it light](#make-it-light).
+- **slow to appear, or the tab runs out of memory:** the file is too big for that device; see [make it light](#make-it-light).
 - **Draco-compressed:** convert it with `meshopt` as above.
 - **blocked (CORS):** the file is on a server that does not allow it; copy it into My models.
 - **has no part:** the name is not in the file; the message lists the names it has.

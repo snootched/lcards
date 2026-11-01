@@ -549,7 +549,9 @@ A 3D model from a glTF file (`.glb` or `.gltf`): a starship, your house, a satel
 | Key | What it does |
 |---|---|
 | `src` | The file. `builtin:<name>` is a model shipped with LCARdS (see [built-in models](#built-in-models)). Your own goes in `/config/www/` and is `/local/...` here. |
-| `size` | Its largest extent in scene units (default 50): the file is scaled and centred to fit. |
+| `size` | Its largest extent in scene units: the file is scaled and centred to fit. Leave it out to draw the model at its [real size](#real-size). |
+| `length` | Its real length in metres (its largest extent), for a file not made at its true scale: drawn that long at its [real size](#real-size), whatever the file measures. |
+| `file_units` | The units the file was made in, for its real size: `m` (default), `cm`, `mm`, `km`, `ft` or `in`. |
 | `material` | `hologram` (default) or `original`. |
 | `color`, `rim_color`, `opacity`, `scanlines` | The hologram's body colour, rim colour, brightness and scanline strength. |
 | `solid` | `true` (default): the hologram hides its own far side. `false`: see-through. |
@@ -558,9 +560,31 @@ A 3D model from a glTF file (`.glb` or `.gltf`): a starship, your house, a satel
 | `edges`, `edge_angle`, `edge_color` | Feature edges as lines (on for holograms): where faces meet at more than `edge_angle` degrees. |
 | `animation` | Clips to loop: `all`, a clip name or a list. The built-in ship's clip is `bussards`. |
 | `occlude` | Hide labels and cards behind it (default `true`). |
-| `max_file_size` | The largest file it loads, MB (default 20). |
 
 A stand-in box shows while the file loads. Files compressed with meshopt load; Draco-compressed files do not (the browser console says why).
+
+### Real size
+
+A model without `size`, in a scene with `units` (or in a [star system](./scale#star-systems) with them), is drawn at its real size: the file's own measurements, converted from `file_units` (metres by default, as glTF files and the built-in models are) to the scene's units. Ships and stations then sit in proportion to each other and to the planets: the Constitution-class ship is 0.289 km long beside Deep Space 9's 1.45 km, round a planet 12,742 km across. Set `size` to draw one larger on purpose. A scene without `units` has no real size: a model without `size` is drawn 50 across.
+
+Many downloaded models are not made at their true scale: a Star Trek Online Odyssey-class ship from Sketchfab measures 53 units long, so read as metres it would be drawn 53 m long. Give such a model its real `length` in metres (the Odyssey is 1,061 m) and it is drawn that long, whatever the file measures. `length` stays right in any scene units, where a `size` would need changing with them. `size`, when set, wins over both.
+
+```yaml
+type: custom:lcards-astrometrics-card
+units: km
+points:
+  - { id: ds9, xyz: [0, 0, 0] }
+  - { id: ship, xyz: [2, 0, 1] }
+objects:
+  - { type: model, id: station, src: builtin:deep_space_nine, at: ds9, material: original }
+  - { type: model, id: ship, src: builtin:constitution, at: ship }
+  # a download made in feet
+  - { type: model, id: runabout, src: /local/models/runabout.glb, at: [1, 0, -1], file_units: ft }
+  # a download at an odd scale: its real length in metres
+  - { type: model, id: odyssey, src: /local/models/odyssey.glb, at: [-3, 0, 2], length: 1061 }
+```
+
+In the Astrometrics Studio, the model's form shows what its file measures and how it is drawn (a file read at its own measurements says to set **Length (m)** when it is not at its true scale), with **Show** (flies the preview to the model), **Fit to view** (a size about a fifth of the preview's view), **File size** (its largest extent as the size, for a file made in the scene's units) and **Real size** (clears `size`). A new model in a scene with units starts at its real size, and the preview flies to it once its file is in (and again when you pick another file), so a real-size ship is never a lost speck.
 
 **Points on a model** use `object:` with the model's id. `xyz` is then in the file's own coordinates, so `size` never moves them, and `part:` puts a point on a named part (a node in the file) so it follows that part when an animation moves it. In the Astrometrics Studio, **Pick on preview** places a point on the model's surface, and the part list fills in from the file. See [placement forms](./points#placement-forms).
 

@@ -149,6 +149,8 @@ test('a part goes into a system: its lists, ids card-wide, views on the card', (
   const sys = out.config.objects[1];
   assert.equal(out.config.objects.length, 2, 'nothing added to the scene');
   assert.ok(sys.objects.some((o) => o.id === 'starbase_station'));
+  // at its real size in km: no size, the file's own metres set it (UX1 P6c)
+  assert.equal(sys.objects.find((o) => o.id === 'starbase_station').size, undefined);
   assert.ok(sys.points.some((p) => p.id === 'starbase_name'));
   assert.ok(out.config.camera.views.starbase_view);
   assert.equal(out.config.units, 'ly');
@@ -165,6 +167,10 @@ test('a part in a system is sized in its units (real sizes); a unit-less scene k
   const globe = km.config.objects[1].objects.find((o) => o.id === 'planet_globe');
   assert.equal(ring.radius, 1.5e8);
   assert.equal(globe.radius, 6370);
+  // a typed size that is not the real one stays
+  const big = applyStarter(SYS(), byId('starbase'), { size: 20 }, { system: 1 });
+  assert.equal(big.config.objects[1].objects.find((o) => o.id === 'starbase_station').size, 20);
+  assert.equal(applyStarter({ type: TYPE }, byId('starbase')).config.objects.find((o) => o.id === 'starbase_station').size, 60);
   const plain = applyStarter({ type: TYPE }, byId('planet'));
   assert.equal(plain.config.objects.find((o) => o.id === 'planet_orbit').radius, 40);
   assert.equal(plain.config.objects.find((o) => o.id === 'planet_globe').radius, 3);
