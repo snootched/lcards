@@ -284,7 +284,7 @@ const cameraSchema = {
             description: 'A double-tap or double-click. In blank space, zoom flies in one zoom step toward that spot, which becomes the centre (shift: zoom out); on a point, it flies in close to the largest object standing there (a few times its size). none: nothing. Taps on tappable objects are never affected.'
         },
         buttons: {
-            description: 'On-card camera buttons: pan arrows, zoom in and out, reset (back to the start view). Press and hold repeats. true for all of them in the bottom right; an object to choose. Default off.',
+            description: 'On-card camera buttons: an LCARdS D-pad in the theme\'s D-pad colours (the arms pan, the centre resets to the start view, the corners zoom in and out (left) and fly forward and back (right)), with the time slider under it. Press and hold keeps moving. true for all of them in the bottom right; an object to choose. Default off.',
             anyOf: [
                 { type: 'boolean' },
                 {
@@ -297,9 +297,11 @@ const cameraSchema = {
                             default: 'bottom-right',
                             description: 'Where the buttons sit on the card.'
                         },
-                        pan: { type: 'boolean', default: true, description: 'Show the pan arrows.' },
-                        zoom: { type: 'boolean', default: true, description: 'Show zoom in and zoom out.' },
-                        reset: { type: 'boolean', default: true, description: 'Show reset (fly back to the start view).' },
+                        size: number('How big the D-pad is, px across. Default 180.', { minimum: 64, maximum: 320, default: 180 }),
+                        pan: { type: 'boolean', default: true, description: 'The arms pan. false: they are dimmed and do nothing.' },
+                        zoom: { type: 'boolean', default: true, description: 'The left corners zoom in (top) and out (bottom). false: they are dimmed and do nothing.' },
+                        travel: { type: 'boolean', default: true, description: 'The right corners fly forward (top) and back (bottom): camera and target move together along the view, as the W and S keys. false: they are dimmed and do nothing.' },
+                        reset: { type: 'boolean', default: true, description: 'The centre resets (flies back to the start view). false: it is dimmed and does nothing.' },
                         time: {
                             description: 'The time slider. speed: how fast the scene\'s motion runs (time_scale: spins, scans, drift), from held to four times as fast. date: the scene clock (clock), with the date, its rate from a year a second backward to a year a second forward, and NOW. both: either, with a switch. true (the default): both when the card has a clock, else speed. false hides it. It changes the view only, not the config.',
                             oneOf: [{ type: 'boolean' }, { type: 'string', enum: ['speed', 'date', 'both'] }],

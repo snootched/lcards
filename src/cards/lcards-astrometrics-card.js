@@ -32,7 +32,7 @@
  * @see doc/cards/astrometrics/
  */
 
-import { html, css } from 'lit';
+import { html, svg, css } from 'lit';
 import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { resolveColor } from '../core/themes/resolve-color.js';
@@ -42,7 +42,7 @@ import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { deepMergeImmutable } from '../utils/deepMerge.js';
 import { flattenSystems } from '../core/astrometrics/names.js';
 import { registerAstrometricsCard, unregisterAstrometricsCard } from './astrometrics-registry.js';
-import { cameraButtonLayout, timeMode, BUTTONS_IDLE_MS, TIME_STOPS, timeStop } from './astrometrics-buttons.js';
+import { cameraButtonLayout, timeMode, BUTTONS_IDLE_MS, TIME_STOPS, timeStop, PAD_AREAS, dpadPaths, padTokenStyle } from './astrometrics-buttons.js';
 import { DATE_STOPS, dateStop, formatSceneDate, LIVE_RATE } from '../core/astrometrics/clock.js';
 import { createHuiCardWrapper, createCardElement, applyHassToCard, applyCardConfig } from '../utils/ha-card-factory.js';
 
@@ -184,35 +184,21 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                 }
                 .astro-buttons {
                     position: absolute;
-                    display: grid;
-                    grid-template-columns: repeat(3, 32px);
-                    /* button rows are 32px; the time row grows to its content (the date panel is two lines) */
-                    grid-auto-rows: minmax(32px, auto);
-                    gap: var(--ha-space-1, 4px);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: var(--ha-space-2, 8px);
+                    width: var(--pad-size, 180px);
                     margin: var(--ha-space-3, 12px);
                     z-index: 1;
                 }
                 .astro-buttons[data-pos^='top'] { top: 0; }
                 .astro-buttons[data-pos^='bottom'] { bottom: 0; }
-                .astro-buttons[data-pos$='left'] { left: 0; }
-                .astro-buttons[data-pos$='right'] { right: 0; }
+                .astro-buttons[data-pos$='left'] { left: 0; align-items: flex-start; }
+                .astro-buttons[data-pos$='right'] { right: 0; align-items: flex-end; }
                 .astro-buttons[data-pos^='center'] { top: 50%; translate: 0 -50%; }
                 .astro-buttons[data-pos$='center'] { left: 50%; translate: -50% 0; }
                 .astro-buttons[data-pos='center'] { translate: -50% -50%; }
-                .astro-buttons button {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    padding: 0;
-                    border: none;
-                    border-radius: var(--ha-border-radius-md, 8px);
-                    background: var(--lcars-ui-secondary, var(--lcards-blue-medium));
-                    color: var(--primary-background-color);
-                    cursor: pointer;
-                    touch-action: none;
-                    opacity: 0.85;
-                    transition: opacity var(--ha-animation-duration-fast, 0.15s);
-                }
                 .astro-buttons {
                     transition: opacity var(--ha-animation-duration-normal, 0.2s);
                 }
@@ -222,66 +208,238 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                 }
                 @media (prefers-reduced-motion: reduce) {
                     .astro-buttons { transition: none; }
+                    .astro-pad path.seg { transition: none; }
                 }
-                .astro-buttons button:hover,
-                .astro-buttons button:focus-visible { opacity: 1; }
-                .astro-buttons button:focus-visible { outline: var(--ha-border-width-md) solid var(--primary-color); outline-offset: 1px; }
-                .astro-buttons button[data-cmd^='zoom'] {
-                    border-radius: var(--ha-border-radius-pill, 9999px);
-                    background: var(--lcars-orange, var(--lcards-orange-medium));
+                /* the LCARdS D-pad (camera pad): its paths in the D-pad theme tokens' colours */
+                .astro-pad {
+                    position: relative;
+                    width: var(--pad-size, 180px);
+                    height: var(--pad-size, 180px);
                 }
-                .astro-buttons button[data-cmd='fold'],
-                .astro-buttons button[data-cmd='unfold'],
-                .astro-buttons button[data-cmd='reset'] {
-                    border-radius: var(--ha-border-radius-circle, 50%);
-                    background: var(--lcars-ui-tertiary, var(--lcards-gray-medium-light));
+                .astro-pad svg {
+                    display: block;
+                    width: 100%;
+                    height: 100%;
                 }
-                .astro-time {
+                .astro-pad path.seg {
+                    fill: var(--pad-k-fill-rest);
+                    stroke: var(--pad-k-stroke-rest);
+                    stroke-width: var(--pad-k-width-rest);
+                    transition: fill var(--ha-animation-duration-fast, 0.15s);
+                }
+                .astro-pad path.seg.hover {
+                    fill: var(--pad-k-fill-hover);
+                    stroke: var(--pad-k-stroke-hover);
+                    stroke-width: var(--pad-k-width-hover);
+                }
+                .astro-pad path.seg.pressed {
+                    fill: var(--pad-k-fill-pressed);
+                    stroke: var(--pad-k-stroke-pressed);
+                    stroke-width: var(--pad-k-width-pressed);
+                }
+                .astro-pad path.seg.off {
+                    fill: var(--pad-k-fill-off);
+                    stroke: var(--pad-k-stroke-off);
+                    stroke-width: var(--pad-k-width-off);
+                    opacity: 0.5;
+                }
+                .astro-pad path.glyph {
+                    fill: none;
+                    stroke: var(--pad-k-glyph);
+                    stroke-width: 2.5;
+                    stroke-linecap: round;
+                    stroke-linejoin: round;
+                    pointer-events: none;
+                }
+                /* an arm's tip is small: its mark (on the centre's plus) lights in the tip's colour with it */
+                .astro-pad path.glyph[data-kind='directional'].hover,
+                .astro-pad path.glyph[data-kind='directional'].pressed { stroke: var(--pad-k-fill-rest); }
+                .astro-pad [data-kind='directional'] {
+                    --pad-k-fill-rest: var(--pad-directional-fill-rest, var(--lcars-card-button, var(--lcards-gray-medium)));
+                    --pad-k-stroke-rest: var(--pad-directional-stroke-rest, var(--lcars-background-color, black));
+                    --pad-k-width-rest: var(--pad-directional-width-rest, 1);
+                    --pad-k-fill-hover: var(--pad-directional-fill-hover, var(--pad-k-fill-rest));
+                    --pad-k-stroke-hover: var(--pad-directional-stroke-hover, var(--pad-k-stroke-rest));
+                    --pad-k-width-hover: var(--pad-directional-width-hover, var(--pad-k-width-rest));
+                    --pad-k-fill-pressed: var(--pad-directional-fill-pressed, var(--pad-k-fill-hover));
+                    --pad-k-stroke-pressed: var(--pad-directional-stroke-pressed, var(--pad-k-stroke-hover));
+                    --pad-k-width-pressed: var(--pad-directional-width-pressed, var(--pad-k-width-hover));
+                    --pad-k-fill-off: var(--pad-directional-fill-off, var(--lcards-gray-medium));
+                    --pad-k-stroke-off: var(--pad-directional-stroke-off, none);
+                    --pad-k-width-off: var(--pad-directional-width-off, 0.25);
+                    --pad-k-glyph: var(--pad-directional-glyph, black);
+                }
+                .astro-pad [data-kind='diagonal'] {
+                    --pad-k-fill-rest: var(--pad-diagonal-fill-rest, var(--lcars-ui-secondary, var(--lcards-gray-medium-light)));
+                    --pad-k-stroke-rest: var(--pad-diagonal-stroke-rest, var(--lcars-background-color, black));
+                    --pad-k-width-rest: var(--pad-diagonal-width-rest, 1);
+                    --pad-k-fill-hover: var(--pad-diagonal-fill-hover, var(--pad-k-fill-rest));
+                    --pad-k-stroke-hover: var(--pad-diagonal-stroke-hover, var(--pad-k-stroke-rest));
+                    --pad-k-width-hover: var(--pad-diagonal-width-hover, var(--pad-k-width-rest));
+                    --pad-k-fill-pressed: var(--pad-diagonal-fill-pressed, var(--pad-k-fill-hover));
+                    --pad-k-stroke-pressed: var(--pad-diagonal-stroke-pressed, var(--pad-k-stroke-hover));
+                    --pad-k-width-pressed: var(--pad-diagonal-width-pressed, var(--pad-k-width-hover));
+                    --pad-k-fill-off: var(--pad-diagonal-fill-off, var(--lcards-gray-medium));
+                    --pad-k-stroke-off: var(--pad-diagonal-stroke-off, none);
+                    --pad-k-width-off: var(--pad-diagonal-width-off, 0.25);
+                    --pad-k-glyph: var(--pad-diagonal-glyph, black);
+                }
+                .astro-pad [data-kind='center'] {
+                    --pad-k-fill-rest: var(--pad-center-fill-rest, var(--lcars-ui-primary, var(--lcards-gray-medium)));
+                    --pad-k-stroke-rest: var(--pad-center-stroke-rest, var(--lcars-background-color, black));
+                    --pad-k-width-rest: var(--pad-center-width-rest, 1);
+                    --pad-k-fill-hover: var(--pad-center-fill-hover, var(--pad-k-fill-rest));
+                    --pad-k-stroke-hover: var(--pad-center-stroke-hover, var(--pad-k-stroke-rest));
+                    --pad-k-width-hover: var(--pad-center-width-hover, var(--pad-k-width-rest));
+                    --pad-k-fill-pressed: var(--pad-center-fill-pressed, var(--pad-k-fill-hover));
+                    --pad-k-stroke-pressed: var(--pad-center-stroke-pressed, var(--pad-k-stroke-hover));
+                    --pad-k-width-pressed: var(--pad-center-width-pressed, var(--pad-k-width-hover));
+                    --pad-k-fill-off: var(--pad-center-fill-off, var(--lcards-gray-medium));
+                    --pad-k-stroke-off: var(--pad-center-stroke-off, none);
+                    --pad-k-width-off: var(--pad-center-width-off, 0.25);
+                    --pad-k-glyph: var(--pad-center-glyph, black);
+                }
+                /* input: a 3 x 3 grid of transparent buttons over the drawn pad */
+                .astro-pad-hits {
+                    position: absolute;
+                    inset: 0;
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    grid-template-rows: repeat(3, 1fr);
+                }
+                .astro-pad-hits button {
+                    padding: 0;
+                    border: none;
+                    border-radius: var(--ha-border-radius-md, 8px);
+                    background: transparent;
+                    cursor: pointer;
+                    touch-action: none;
+                    -webkit-tap-highlight-color: transparent;
+                }
+                /* browsers still send pointer events to disabled buttons */
+                .astro-pad-hits button:disabled { cursor: default; pointer-events: none; }
+                .astro-pad-hits button:focus-visible { outline: var(--ha-border-width-md) solid var(--primary-color); outline-offset: -2px; }
+                .astro-fold {
                     display: flex;
                     align-items: center;
-                    gap: var(--ha-space-1, 4px);
-                    padding: 0 var(--ha-space-2, 8px);
+                    justify-content: center;
+                    width: 32px;
+                    height: 32px;
+                    padding: 0;
+                    border: none;
                     border-radius: var(--ha-border-radius-pill, 9999px);
                     background: var(--lcars-ui-tertiary, var(--lcards-gray-medium-light));
                     color: var(--primary-background-color);
+                    cursor: pointer;
                     opacity: 0.85;
                 }
-                .astro-time:hover,
-                .astro-time:focus-within { opacity: 1; }
+                .astro-fold:hover,
+                .astro-fold:focus-visible { opacity: 1; }
+                .astro-fold:focus-visible { outline: var(--ha-border-width-md) solid var(--primary-color); outline-offset: 1px; }
+                /* the time slider as an LCARS bar: a rounded cap, a flat track filling in the
+                   button colour with a block thumb, the value in a rounded block; segments
+                   apart by a gap, colours from the slider and D-pad theme tokens */
+                .astro-time {
+                    --bar: 22px;
+                    --bar-gap: 3px;
+                    --bar-cap: var(--pad-center-fill-rest, var(--lcars-ui-primary, var(--lcards-gray-medium)));
+                    --bar-value: var(--pad-directional-fill-rest, var(--lcars-card-button, var(--lcards-gray-medium)));
+                    --bar-track: var(--pad-track, var(--lcars-card-button-off, var(--lcards-gray-medium-dark)));
+                    --bar-fill: var(--pad-track-fill, var(--lcars-card-button, var(--lcards-gray-medium)));
+                    --bar-thumb: var(--pad-directional-fill-hover, var(--lcars-ui-tertiary, var(--lcards-gray-light)));
+                    --bar-text: var(--pad-directional-glyph, black);
+                    --bar-edge: var(--lcars-background-color, black);
+                    align-self: stretch;
+                    display: flex;
+                    align-items: center;
+                    gap: var(--bar-gap);
+                    color: var(--bar-text);
+                }
+                .astro-time-cap,
+                .astro-buttons .astro-time button.astro-time-swap {
+                    flex: none;
+                    width: 18px;
+                    height: var(--bar);
+                    padding: 0 0 0 4px;
+                    border: none;
+                    border-radius: var(--ha-border-radius-pill, 9999px) 0 0 var(--ha-border-radius-pill, 9999px);
+                    background: var(--bar-cap);
+                    color: var(--bar-text);
+                }
+                .astro-buttons .astro-time button.astro-time-swap {
+                    width: 28px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                }
                 .astro-time input {
                     flex: 1;
                     min-width: 0;
+                    height: var(--bar);
                     margin: 0;
-                    accent-color: var(--lcars-orange, var(--lcards-orange-medium));
+                    background: transparent;
+                    -webkit-appearance: none;
+                    appearance: none;
+                    cursor: pointer;
                     touch-action: none;
                 }
-                .astro-time-value {
-                    min-width: 3ch;
-                    font-family: var(--lcars-font, 'Antonio'), sans-serif;
-                    font-size: 13px;
-                    text-align: right;
+                .astro-time input:focus-visible { outline: var(--ha-border-width-md) solid var(--primary-color); outline-offset: 1px; }
+                .astro-time input::-webkit-slider-runnable-track {
+                    height: var(--bar);
+                    background: linear-gradient(to right, var(--bar-fill) var(--p, 0%), var(--bar-track) var(--p, 0%));
                 }
-                /* the date panel and the switch need more room than the three button columns:
+                .astro-time input::-webkit-slider-thumb {
+                    -webkit-appearance: none;
+                    width: 10px;
+                    height: var(--bar);
+                    border: var(--ha-border-width-md) solid var(--bar-edge);
+                    background: var(--bar-thumb);
+                }
+                .astro-time input::-moz-range-track {
+                    height: var(--bar);
+                    background: var(--bar-track);
+                }
+                .astro-time input::-moz-range-progress {
+                    height: var(--bar);
+                    background: var(--bar-fill);
+                }
+                .astro-time input::-moz-range-thumb {
+                    width: 10px;
+                    height: var(--bar);
+                    border: var(--ha-border-width-md) solid var(--bar-edge);
+                    border-radius: 0;
+                    background: var(--bar-thumb);
+                }
+                .astro-time-value {
+                    flex: none;
+                    display: flex;
+                    align-items: center;
+                    justify-content: flex-end;
+                    min-width: 3ch;
+                    height: var(--bar);
+                    padding: 0 var(--ha-space-2, 8px) 0 var(--ha-space-1, 4px);
+                    border-radius: 0 var(--ha-border-radius-pill, 9999px) var(--ha-border-radius-pill, 9999px) 0;
+                    background: var(--bar-value);
+                    font-family: var(--lcars-font, 'Antonio'), sans-serif;
+                    font-size: 14px;
+                    text-transform: uppercase;
+                }
+                /* the date panel and the switch need more room than the pad is wide:
                    wider, reaching away from the card edge the buttons sit on */
                 .astro-time.astro-time-wide {
+                    align-self: auto;
                     width: 232px;
-                    justify-self: end;
+                    flex: none;
                 }
-                .astro-buttons[data-pos$='left'] .astro-time.astro-time-wide { justify-self: start; }
-                .astro-buttons[data-pos$='center'] .astro-time.astro-time-wide,
-                .astro-buttons[data-pos='center'] .astro-time.astro-time-wide { justify-self: center; }
                 .astro-date {
                     flex-direction: column;
                     align-items: stretch;
-                    gap: 0;
-                    padding: var(--ha-space-1, 4px) var(--ha-space-2, 8px);
-                    border-radius: var(--ha-border-radius-lg, 12px);
                 }
                 .astro-date-row {
                     display: flex;
                     align-items: center;
-                    gap: var(--ha-space-1, 4px);
-                    min-height: 24px;
+                    gap: var(--bar-gap);
                 }
                 /* the rate label keeps one width, so the slider does not jump as it changes */
                 .astro-time-wide .astro-time-value:last-child {
@@ -289,24 +447,35 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                 }
                 .astro-date-text {
                     flex: 1;
-                    text-align: left;
+                    display: flex;
+                    align-items: center;
+                    height: var(--bar);
+                    padding: 0 var(--ha-space-2, 8px) 0 var(--ha-space-3, 12px);
+                    border-radius: var(--ha-border-radius-pill, 9999px) 0 0 var(--ha-border-radius-pill, 9999px);
+                    background: var(--bar-cap);
+                    font-family: var(--lcars-font, 'Antonio'), sans-serif;
+                    font-size: 14px;
                     white-space: nowrap;
                 }
-                .astro-buttons .astro-time button {
-                    width: auto;
-                    height: 20px;
-                    min-width: 20px;
-                    padding: 0 var(--ha-space-1, 4px);
-                    border-radius: var(--ha-border-radius-pill, 9999px);
-                    background: var(--lcars-orange, var(--lcards-orange-medium));
+                .astro-buttons .astro-time button.astro-time-now {
+                    flex: none;
+                    height: var(--bar);
+                    padding: 0 var(--ha-space-3, 12px) 0 var(--ha-space-2, 8px);
+                    border: none;
+                    border-radius: 0 var(--ha-border-radius-pill, 9999px) var(--ha-border-radius-pill, 9999px) 0;
+                    background: var(--bar-value);
+                    color: var(--bar-text);
                     font-family: var(--lcars-font, 'Antonio'), sans-serif;
-                    font-size: 12px;
+                    font-size: 14px;
+                    cursor: pointer;
                 }
+                .astro-time button:focus-visible { outline: var(--ha-border-width-md) solid var(--primary-color); outline-offset: 1px; }
                 .astro-buttons .astro-time button svg {
                     width: 14px;
                     height: 14px;
                 }
-                .astro-buttons svg {
+                .astro-fold svg,
+                .astro-time svg {
                     width: 20px;
                     height: 20px;
                     fill: none;
@@ -406,6 +575,8 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._buttonsIdle = false;
         /** `buttons.hide: toggle`: folded away */
         this._buttonsFolded = false;
+        /** @type {{ theme: string, style: string } | null} the pad's token colours (_padStyle) */
+        this._padStyleCache = null;
         /** @type {number | null} the time slider's speed (null: the config's time_scale) */
         this._timeScale = null;
         /** The scene date as the time slider shows it (minutes), and its rate (days per second) */
@@ -1438,34 +1609,90 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
     }
 
     /**
-     * `camera.buttons`: pan arrows, zoom, reset over the scene.
+     * `camera.buttons`: the LCARdS D-pad over the scene (arms pan, centre
+     * resets, corners zoom and fly forward and back), the time slider under
+     * it and, with `hide: toggle`, the fold button nearest the card's edge.
+     * The pad is drawn from the D-pad component's paths in its theme tokens'
+     * colours; transparent buttons on a 3 x 3 grid over it take the input.
      * @private
      */
     _renderCameraButtons() {
         const layout = cameraButtonLayout(this.config?.camera?.buttons, { folded: this._buttonsFolded });
         if (!layout) return '';
         const idle = layout.hide === 'idle' && this._buttonsIdle;
+        const top = layout.position.startsWith('top');
+        const fold = layout.fold ? (() => {
+            const [cmd, , label, path] = /** @type {string[]} */ (layout.fold);
+            return html`
+                <button type="button" class="astro-fold" data-cmd=${cmd} aria-label=${label} title=${label}
+                    aria-expanded=${cmd === 'fold' ? 'true' : 'false'}
+                    @click=${() => { this._playSound('card_tap'); this._buttonsFolded = cmd === 'fold'; }}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d=${path}/></svg>
+                </button>`;
+        })() : '';
+        const paths = dpadPaths();
         return html`
-            <div class="astro-buttons" data-pos=${layout.position} style=${`grid-template-areas: ${layout.areas}`}
+            <div class="astro-buttons" data-pos=${layout.position} style=${`--pad-size: ${layout.size}px; ${this._padStyle()}`}
                 ?data-idle=${idle} ?inert=${idle}>
-                ${layout.buttons.map(([cmd, area, label, path]) => cmd === 'time' ? this._renderTimeSlider(area, label) : (cmd === 'fold' || cmd === 'unfold') ? html`
-                    <button type="button" data-cmd=${cmd} style=${`grid-area: ${area}`} aria-label=${label} title=${label}
-                        aria-expanded=${cmd === 'fold' ? 'true' : 'false'}
-                        @click=${() => { this._playSound('card_tap'); this._buttonsFolded = cmd === 'fold'; }}>
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d=${path}/></svg>
-                    </button>` : html`
-                    <button type="button" data-cmd=${cmd} style=${`grid-area: ${area}`} aria-label=${label} title=${label}
-                        @pointerdown=${(/** @type {PointerEvent} */ e) => this._pressCamera(cmd, e)}
-                        @pointerup=${() => this._releaseCamera()}
-                        @pointercancel=${() => this._releaseCamera()}
-                        @lostpointercapture=${() => this._releaseCamera()}
-                        @keydown=${(/** @type {KeyboardEvent} */ e) => { if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) { e.preventDefault(); this._pressCamera(cmd); } }}
-                        @keyup=${() => this._releaseCamera()}
-                        @contextmenu=${(/** @type {Event} */ e) => e.preventDefault()}>
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d=${path}/></svg>
-                    </button>`)}
+                ${top ? fold : ''}
+                ${layout.pad ? html`
+                    <div class="astro-pad">
+                        <svg viewBox="0 0 80 80" aria-hidden="true">
+                            ${layout.segments.map((s) => svg`<path class=${s.on ? 'seg' : 'seg off'} data-seg=${s.seg} data-kind=${s.kind} d=${paths[s.seg] ?? ''}/>`)}
+                            ${layout.segments.filter((s) => s.on).map((s) => svg`<path class="glyph" data-seg=${s.seg} data-kind=${s.kind} d=${s.glyph}/>`)}
+                        </svg>
+                        <div class="astro-pad-hits" style=${`grid-template-areas: ${PAD_AREAS}`}>
+                            ${layout.segments.map((s) => html`
+                                <button type="button" data-cmd=${s.cmd} data-seg=${s.seg} style=${`grid-area: ${s.area}`} aria-label=${s.label} title=${s.label}
+                                    ?disabled=${!s.on}
+                                    @pointerenter=${() => this._padState(s.seg, 'hover', true)}
+                                    @pointerleave=${() => this._padState(s.seg, 'hover', false)}
+                                    @pointerdown=${(/** @type {PointerEvent} */ e) => { if (!s.on) return; if (e.button === 0) this._padState(s.seg, 'pressed', true); this._pressCamera(s.cmd, e); }}
+                                    @pointerup=${() => this._releasePad(s.seg)}
+                                    @pointercancel=${() => this._releasePad(s.seg)}
+                                    @lostpointercapture=${() => this._releasePad(s.seg)}
+                                    @keydown=${(/** @type {KeyboardEvent} */ e) => { if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) { e.preventDefault(); this._padState(s.seg, 'pressed', true); this._pressCamera(s.cmd); } }}
+                                    @keyup=${() => this._releasePad(s.seg)}
+                                    @contextmenu=${(/** @type {Event} */ e) => e.preventDefault()}></button>`)}
+                        </div>
+                    </div>` : ''}
+                ${layout.time ? this._renderTimeSlider('time', 'Time speed') : ''}
+                ${top ? '' : fold}
             </div>
         `;
+    }
+
+    /**
+     * The pad's colours from the D-pad theme tokens, as CSS variables;
+     * read again only when the theme changes.
+     * @private
+     * @returns {string}
+     */
+    _padStyle() {
+        const theme = this._singletons?.themeManager?.activeThemeId ?? '';
+        const cached = this._padStyleCache;
+        if (cached && cached.theme === theme) return cached.style;
+        const style = padTokenStyle((path) => this.getThemeToken(path));
+        this._padStyleCache = { theme, style };
+        return style;
+    }
+
+    /**
+     * Hover and pressed looks on a pad segment (a class on its path and its
+     * mark; the buttons over the pad take the input, the paths show it).
+     * @private
+     * @param {string} seg
+     * @param {'hover' | 'pressed'} state
+     * @param {boolean} on
+     */
+    _padState(seg, state, on) {
+        this.renderRoot?.querySelectorAll(`.astro-pad path[data-seg="${seg}"]`).forEach((p) => p.classList.toggle(state, on));
+    }
+
+    /** @private @param {string} seg */
+    _releasePad(seg) {
+        this._padState(seg, 'pressed', false);
+        this._releaseCamera();
     }
 
     /**
@@ -1500,13 +1727,14 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         return html`
             <div class="astro-time astro-time-wide astro-date" style=${`grid-area: ${area}`}>
                 <div class="astro-date-row">
-                    <span class="astro-time-value astro-date-text">${this._clockText || '-'}</span>
+                    <span class="astro-date-text">${this._clockText || '-'}</span>
                     <button type="button" class="astro-time-now" data-cmd="clock-now" aria-label="Back to now" title="Now"
                         @click=${() => { this._playSound('card_tap'); this.setClock({ date: 'now', rate: 'live' }); }}>NOW</button>
                 </div>
                 <div class="astro-date-row">
-                    ${swap}
+                    ${swap || html`<span class="astro-time-cap"></span>`}
                     <input type="range" min="0" max=${DATE_STOPS.length - 1} step="1" .value=${String(stop)}
+                        style=${`--p: ${(stop / (DATE_STOPS.length - 1)) * 100}%`}
                         aria-label="Scene date rate" aria-valuetext=${rateText}
                         @input=${(/** @type {Event} */ e) => this.setClock({ rate: DATE_STOPS[Number(/** @type {HTMLInputElement} */ (e.target).value)]?.rate ?? LIVE_RATE })}>
                     <span class="astro-time-value">${rateText}</span>
@@ -1529,8 +1757,9 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         const text = scale === 0 ? 'HOLD' : `${scale}×`;
         return html`
             <label class=${swap ? 'astro-time astro-time-wide' : 'astro-time'} style=${`grid-area: ${area}`} title=${label}>
-                ${swap}
+                ${swap || html`<span class="astro-time-cap"></span>`}
                 <input type="range" min="0" max=${TIME_STOPS.length - 1} step="1" .value=${String(stop)}
+                    style=${`--p: ${(stop / (TIME_STOPS.length - 1)) * 100}%`}
                     aria-label=${label} aria-valuetext=${text}
                     @input=${(/** @type {Event} */ e) => this._setTimeScale(TIME_STOPS[Number(/** @type {HTMLInputElement} */ (e.target).value)] ?? 1)}>
                 <span class="astro-time-value">${text}</span>

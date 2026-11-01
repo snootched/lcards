@@ -63,7 +63,7 @@ camera:
     galaxy: { target: core, yaw: 20, tilt: 35, distance: 280 }
     map: { target: core, tilt: 90, distance: 300, projection: orthographic }
   controls: true              # drag, zoom, double-tap, keys (default true)
-  buttons: true               # on-card pan, zoom and reset buttons, fade when idle (default off)
+  buttons: true               # on-card D-pad (pan, zoom, fly, reset), fades when idle (default off)
   follow: true                # stay on a moving point after flying to it (default true)
   limits: { tilt: [5, 90], distance: [20, 800] }
   auto_rotate: 2              # degrees per second (0 = off)
@@ -92,7 +92,7 @@ camera:
 | Let go of a followed point | Click blank space | Tap blank space | Tap blank space | |
 | Back to the start view | | | | `Home` |
 
-`drag: pan` swaps orbit and pan for a one-finger or left-button drag, and with `limits.tilt` locked to one value a drag always pans (a map). The on-card `buttons` do the same as the keys (pan arrows, zoom, reset); press and hold keeps moving.
+`drag: pan` swaps orbit and pan for a one-finger or left-button drag, and with `limits.tilt` locked to one value a drag always pans (a map). The on-card `buttons` do the same as the keys; press and hold keeps moving.
 
 A double-tap on a point (one without a `tap_action` of its own, or with a `fly-to`) flies in close: to a few times the size of the largest object standing at the point, or much closer than now when nothing stands there. A station a few km across seen from the far side of its planet is a double-tap away. Taps on points and objects whose `tap_action` is another action run it each time.
 
@@ -105,7 +105,7 @@ camera:
   zoom_step: 2           # each step halves (or doubles) the distance
   double_tap: zoom       # or none
   follow: true           # or false: the camera stays where a fly-to lands
-  buttons: { position: bottom-right, pan: true, zoom: true, reset: true, time: true, hide: idle }
+  buttons: { position: bottom-right, size: 180, pan: true, zoom: true, travel: true, reset: true, time: true, hide: idle }
   limits:
     target: { radius: 300 }   # or a box { x: [a, b], z: [a, b] }, or false
 ```
@@ -113,6 +113,7 @@ camera:
 - **Pan** moves along the screen by default, so a side view pans up and down and a top view pans across the map. `pan: ground` keeps the target on its height.
 - **Touchpad or mouse wheel:** both send the same wheel events, so the card tells them apart by the events (a wheel moves in whole steps, a two-finger swipe in small ones and sideways too). A swipe pans, a mouse wheel zooms, and a pinch always zooms. If your mouse has a smooth wheel that pans instead, set `wheel: zoom`; `wheel: pan` makes every wheel event pan.
 - **Target limit:** the point the camera looks at stays inside a sphere 1.5 times the size of the scene, so panning cannot lose it. Set your own sphere (`radius`, optional `center`) or box, or `false` for none.
+- **Buttons:** an LCARdS D-pad. The arms pan, the centre flies back to the start view, the left corners zoom in (top) and out (bottom), and the right corners fly forward (top) and back (bottom). It takes the D-pad colours of your theme (`components.dpad` theme tokens, as on a button with `component: dpad`), so it follows HA-LCARS and alert modes. `size` sets how big it is (px across, 64 to 320, default 180); `pan`, `zoom`, `travel` or `reset: false` dims those parts and turns them off.
 - **Time slider:** under the buttons, it slows the scene's motion (orbits, spins, drift) down to a tenth, holds it, or speeds it up to four times, so a fast ship is easy to tap. It changes the view only; `time_scale` on the card sets the speed it starts at (`0.5` half speed, `0` still). `time: false` hides it.
 - **Date slider:** on a card with a [clock](./scale#the-scene-clock) the time slider also sets the scene date's rate: a year a second backward, a month, a day, paused, live, an hour, a day, a month or a year a second forward, with the date above it and NOW to go back to today. The clock button beside it switches between the two sliders. `time: date` shows only the date slider, `time: speed` only the speed one.
 - **Buttons** fade out after three seconds without input on the card and come back when the pointer moves over it, on a touch or a key (`hide: idle`). `hide: toggle` adds a small button that folds them away and back; `hide: never` keeps them shown.

@@ -441,11 +441,14 @@ test('wheel zooms toward the cursor: the spot under it stays put', async ({ page
     expect((1 - onScreen.y) / 2 * b.h).toBeCloseTo(at.y - b.y, 0);
 });
 
-test('camera buttons: a click steps, a hold keeps going, reset flies home', async ({ page }) => {
+test('camera pad: a click steps, a hold keeps going, reset flies home, the corners fly, parts turn off', async ({ page }) => {
     await mountCase(page, 'astro-camera', { width: '800' });
     await sceneReady(page);
+    // hide: never: under load more than the idle time can pass between steps, and Playwright's click
+    // checks what is under the pointer before moving it, so faded buttons would never wake
+    await reconfigureCamera(page, { buttons: { hide: 'never' } });
     const buttons = page.locator('lcards-astrometrics-card .astro-buttons button');
-    await expect(buttons).toHaveCount(7);
+    await expect(buttons).toHaveCount(9);
     await page.locator('lcards-astrometrics-card button[data-cmd="zoom-in"]').click();
     expect((await settled(page)).distance).toBeCloseTo(100, 3);
     const right = page.locator('lcards-astrometrics-card button[data-cmd="pan-right"]');
@@ -464,10 +467,45 @@ test('camera buttons: a click steps, a hold keeps going, reset flies home', asyn
     await page.waitForTimeout(700);
     const k = await settled(page);
     expect([Math.round(k.tx), Math.round(k.distance)]).toEqual([0, 200]);
-    // buttons: { zoom: false, position: top-left }
-    await reconfigureCamera(page, { buttons: { zoom: false, position: 'top-left' } });
-    await expect(buttons).toHaveCount(5);
+    // the top-right corner flies forward: camera and target together, the distance kept
+    await page.locator('lcards-astrometrics-card button[data-cmd="fly-forward"]').click();
+    const f = await settled(page);
+    expect(f.distance).toBeCloseTo(200, 3);
+    expect(Math.hypot(f.tx, f.ty, f.tz)).toBeGreaterThan(50);
+    // the pressed segment lights its path while held, and lets go on release
+    const up = page.locator('lcards-astrometrics-card button[data-cmd="pan-up"]');
+    const ub = await up.boundingBox();
+    await page.mouse.move(ub.x + ub.width / 2, ub.y + ub.height / 2);
+    await page.mouse.down();
+    await expect(page.locator('lcards-astrometrics-card .astro-pad path.seg[data-seg="up"]')).toHaveClass(/pressed/);
+    await page.mouse.up();
+    await expect(page.locator('lcards-astrometrics-card .astro-pad path.seg[data-seg="up"]')).not.toHaveClass(/pressed/);
+    // buttons: { zoom: false, position: top-left, size: 160 }: the zoom corners dim and do nothing; the pad keeps its shape
+    await reconfigureCamera(page, { buttons: { zoom: false, position: 'top-left', size: 160, hide: 'never' } });
+    await expect(buttons).toHaveCount(9);
     await expect(page.locator('lcards-astrometrics-card .astro-buttons')).toHaveAttribute('data-pos', 'top-left');
+    await expect(page.locator('lcards-astrometrics-card button[data-cmd="zoom-in"]')).toBeDisabled();
+    await expect(page.locator('lcards-astrometrics-card .astro-pad path.seg[data-seg="up-left"]')).toHaveClass(/off/);
+    const before = (await settled(page)).distance;
+    await page.locator('lcards-astrometrics-card button[data-cmd="zoom-in"]').click({ force: true });
+    await page.waitForTimeout(300);
+    expect((await settled(page)).distance).toBe(before);
+    expect(Math.round((await page.locator('lcards-astrometrics-card .astro-pad').boundingBox()).width)).toBe(160);
+    await expectNoErrors(page);
+});
+
+test('camera pad colours follow the theme: the D-pad tokens stay live CSS variables', async ({ page }) => {
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await sceneReady(page);
+    const fill = (seg) => page.locator(`lcards-astrometrics-card .astro-pad path.seg[data-seg="${seg}"]`).evaluate((el) => getComputedStyle(el).fill);
+    const arm = await fill('up');
+    // the arm tips read the theme's button colour (components.dpad.segment.directional.fill.default, colors.card.button):
+    // change it, the pad and the slider's fill follow without a re-render
+    await page.evaluate(() => document.documentElement.style.setProperty('--lcars-card-button-color', 'rgb(1, 2, 3)'));
+    await expect.poll(() => fill('up')).toBe('rgb(1, 2, 3)');
+    expect(arm).not.toBe('rgb(1, 2, 3)');
+    // the time slider: the value block in the same colour
+    expect(await page.locator('lcards-astrometrics-card .astro-time-value').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(1, 2, 3)');
     await expectNoErrors(page);
 });
 
@@ -1092,11 +1130,11 @@ test('N1 buttons: hide idle fades them after a few seconds and a pointer move br
 
     await reconfigureCamera(page, { buttons: { hide: 'toggle' } });
     const buttons = page.locator('lcards-astrometrics-card .astro-buttons button');
-    await expect(buttons).toHaveCount(8);
+    await expect(buttons).toHaveCount(10);
     await page.locator('lcards-astrometrics-card button[data-cmd="fold"]').click();
     await expect(buttons).toHaveCount(1);
     await page.locator('lcards-astrometrics-card button[data-cmd="unfold"]').click();
-    await expect(buttons).toHaveCount(8);
+    await expect(buttons).toHaveCount(10);
     await page.waitForTimeout(3500);
     await expect(group).not.toHaveAttribute('data-idle', '');
     await expectNoErrors(page);

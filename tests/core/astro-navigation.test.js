@@ -13,7 +13,7 @@ const env = installJsdom();
 after(() => env.restore());
 const { wheelKindOf, classifyWheel, wheelAction, wheelZoomFactor, WHEEL_GESTURE_GAP_MS } = await import('../../src/core/astrometrics/wheel-input.js');
 const { CameraRig, DEFAULT_KEYS } = await import('../../src/core/astrometrics/camera-rig.js');
-const { cameraButtonLayout, TIME_STOPS, timeStop } = await import('../../src/cards/astrometrics-buttons.js');
+const { cameraButtonLayout, TIME_STOPS, timeStop, PAD_AREAS, dpadPaths, padTokenStyle } = await import('../../src/cards/astrometrics-buttons.js');
 
 const close = (a, b, eps = 1e-6, msg = '') => assert.ok(Math.abs(a - b) < eps, `${msg} ${a} vs ${b}`);
 
@@ -152,30 +152,78 @@ test('moveTarget: moves the keys; in a flight, the landing (and with from the st
   close(rig.keys.tx, 10, 1e-6, 'a zoom step on the point moves whole');
 });
 
-test('cameraButtonLayout: hide defaults to idle; toggle adds a fold button at the edge row, folded shows only it', () => {
+test('cameraButtonLayout: hide defaults to idle; toggle adds a fold button, folded shows only it', () => {
   assert.equal(cameraButtonLayout(true)?.hide, 'idle');
+  assert.equal(cameraButtonLayout(true)?.fold, null);
   assert.equal(cameraButtonLayout({ hide: 'never' })?.hide, 'never');
   const open = cameraButtonLayout({ hide: 'toggle' });
-  assert.ok(open);
-  assert.ok(open.areas.endsWith('". . fold"'), open.areas);
-  assert.deepEqual(open.buttons.map((b) => b[0]).slice(-1), ['fold']);
+  assert.equal(open?.fold?.[0], 'fold');
+  assert.equal(open?.pad, true);
   const folded = cameraButtonLayout({ hide: 'toggle' }, { folded: true });
-  assert.deepEqual(folded?.buttons.map((b) => b[0]), ['unfold']);
-  assert.equal(folded?.areas, '". . fold"');
-  const topLeft = cameraButtonLayout({ hide: 'toggle', position: 'top-left' });
-  assert.ok(topLeft?.areas.startsWith('"fold . ."'), topLeft?.areas);
+  assert.equal(folded?.fold?.[0], 'unfold');
+  assert.deepEqual([folded?.pad, folded?.time], [false, false]);
 });
 
-test('time slider: a row of its own unless time: false; stops snap to the nearest', () => {
-  const on = cameraButtonLayout(true);
-  assert.ok(on?.areas.includes('"time time time"'));
-  assert.ok(on?.buttons.some((b) => b[0] === 'time'));
-  const off = cameraButtonLayout({ time: false });
-  assert.ok(!off?.areas.includes('time'));
-  const only = cameraButtonLayout({ pan: false, zoom: false, reset: false });
-  assert.equal(only?.areas, '"time time time"');
+test('camera pad: the D-pad segments, each a command on its cell of the 3 x 3 grid; options turn parts off; size clamps', () => {
+  const pad = cameraButtonLayout(true);
+  assert.ok(pad);
+  const by = Object.fromEntries(pad.segments.map((s) => [s.seg, s]));
+  assert.deepEqual(Object.fromEntries(pad.segments.map((s) => [s.seg, s.cmd])), {
+    up: 'pan-up', down: 'pan-down', left: 'pan-left', right: 'pan-right', center: 'reset',
+    'up-left': 'zoom-in', 'down-left': 'zoom-out', 'up-right': 'fly-forward', 'down-right': 'fly-back'
+  });
+  assert.ok(pad.segments.every((s) => s.on));
+  // every grid cell is one segment's, each named once
+  const cells = PAD_AREAS.replace(/"/g, '').split(/\s+/);
+  assert.equal(cells.length, 9);
+  assert.deepEqual([...cells].sort(), pad.segments.map((s) => s.area).sort());
+  assert.equal(cells[0], by['up-left'].area);
+  assert.equal(cells[4], by.center.area);
+  assert.equal(cells[8], by['down-right'].area);
+  // the paths come from the D-pad component
+  const paths = dpadPaths();
+  for (const s of pad.segments) assert.ok(paths[s.seg]?.startsWith('m'), s.seg);
+  // options dim their parts; the pad keeps its shape
+  const noTravel = cameraButtonLayout({ travel: false, zoom: false });
+  assert.deepEqual(noTravel?.segments.filter((s) => !s.on).map((s) => s.cmd).sort(), ['fly-back', 'fly-forward', 'zoom-in', 'zoom-out']);
+  assert.equal(noTravel?.segments.length, 9);
+  assert.equal(cameraButtonLayout(true)?.size, 180);
+  assert.equal(cameraButtonLayout({ size: 200 })?.size, 200);
+  assert.equal(cameraButtonLayout({ size: 20 })?.size, 64);
+  assert.equal(cameraButtonLayout({ size: 900 })?.size, 320);
+});
+
+test('camera pad colours: CSS variables from the D-pad theme tokens, var() kept live', () => {
+  const asked = /** @type {string[]} */ ([]);
+  const style = padTokenStyle((path) => { asked.push(path); return path.includes('.fill.') ? `var(--t-${path.split('.').slice(-3).join('-')})` : null; });
+  assert.ok(asked.includes('components.dpad.segment.directional.fill.default'));
+  assert.ok(asked.includes('components.dpad.segment.diagonal.fill.hover'));
+  assert.ok(asked.includes('components.dpad.segment.center.stroke-width.pressed'));
+  assert.match(style, /--pad-directional-fill-rest: var\(--t-directional-fill-default\)/);
+  assert.match(style, /--pad-center-fill-off: var\(--t-center-fill-unavailable\)/);
+  // a token that does not resolve is left out (the CSS fallback applies)
+  assert.doesNotMatch(style, /--pad-directional-stroke-rest/);
+});
+
+test('time slider: shown unless time: false; alone without the pad; stops snap to the nearest', () => {
+  assert.equal(cameraButtonLayout(true)?.time, true);
+  assert.equal(cameraButtonLayout({ time: false })?.time, false);
+  const only = cameraButtonLayout({ pan: false, zoom: false, reset: false, travel: false });
+  assert.deepEqual([only?.pad, only?.time], [false, true]);
+  assert.equal(cameraButtonLayout({ pan: false, zoom: false, reset: false, travel: false, time: false }), null);
   assert.equal(TIME_STOPS[timeStop(1)], 1);
   assert.equal(TIME_STOPS[timeStop(0.3)], 0.25);
   assert.equal(TIME_STOPS[timeStop(0)], 0);
   assert.equal(TIME_STOPS[timeStop(10)], 4);
+});
+
+test('camera pad colours: every D-pad token the pad reads exists in the default theme', async () => {
+  const { lcardsDefaultTokens } = await import('../../src/core/packs/themes/tokens/lcardsDefaultTokens.js');
+  const missing = /** @type {string[]} */ ([]);
+  padTokenStyle((path) => {
+    const v = path.split('.').reduce((/** @type {any} */ o, k) => o?.[k], lcardsDefaultTokens);
+    if (v === undefined) missing.push(path);
+    return v;
+  });
+  assert.deepEqual(missing, []);
 });

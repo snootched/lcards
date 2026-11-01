@@ -5,21 +5,91 @@
  *
  * @module cards/astrometrics-buttons
  */
+import { dpadComponents } from '../core/packs/components/dpad/index.js';
 
-/** On-card camera buttons: command, grid area, label, SVG path (24 x 24) */
-export const CAMERA_BUTTONS = {
-    pan: [
-        ['pan-up', 'up', 'Pan up', 'M6 15l6-6 6 6'],
-        ['pan-left', 'left', 'Pan left', 'M15 6l-6 6 6 6'],
-        ['pan-right', 'right', 'Pan right', 'M9 6l6 6-6 6'],
-        ['pan-down', 'down', 'Pan down', 'M6 9l6 6 6-6']
-    ],
-    zoom: [
-        ['zoom-out', 'zout', 'Zoom out', 'M6 12h12'],
-        ['zoom-in', 'zin', 'Zoom in', 'M6 12h12M12 6v12']
-    ],
-    reset: [['reset', 'reset', 'Reset view', 'M12 5a7 7 0 1 0 0 14a7 7 0 1 0 0-14M12 10a2 2 0 1 0 0 4a2 2 0 1 0 0-4']]
-};
+/**
+ * The on-card camera pad: the LCARdS D-pad's nine segments (its paths, from
+ * the `dpad` component, viewBox 0 0 80 80), each a camera command. Arms pan,
+ * the centre resets, the corners zoom and fly forward and back. `grid` is
+ * the segment's cell in the 3 x 3 hit grid (taps land on a third of the pad,
+ * not only on the drawn shape: the arm tips are thin), `glyph` a mark drawn
+ * on it (viewBox units), `kind` its D-pad theme tokens, `option` the
+ * `camera.buttons` key that turns it off.
+ * @type {{ seg: string, cmd: string, kind: 'directional' | 'diagonal' | 'center', area: string, label: string, glyph: string, option: string }[]}
+ */
+export const PAD_SEGMENTS = [
+    { seg: 'up', cmd: 'pan-up', kind: 'directional', area: 'up', label: 'Pan up', glyph: 'M35 21l5-5 5 5', option: 'pan' },
+    { seg: 'down', cmd: 'pan-down', kind: 'directional', area: 'down', label: 'Pan down', glyph: 'M35 59l5 5 5-5', option: 'pan' },
+    { seg: 'left', cmd: 'pan-left', kind: 'directional', area: 'left', label: 'Pan left', glyph: 'M21 35l-5 5 5 5', option: 'pan' },
+    { seg: 'right', cmd: 'pan-right', kind: 'directional', area: 'right', label: 'Pan right', glyph: 'M59 35l5 5-5 5', option: 'pan' },
+    { seg: 'center', cmd: 'reset', kind: 'center', area: 'reset', label: 'Reset view', glyph: 'M36 40a4 4 0 1 0 8 0a4 4 0 1 0-8 0', option: 'reset' },
+    { seg: 'up-left', cmd: 'zoom-in', kind: 'diagonal', area: 'zin', label: 'Zoom in', glyph: 'M14 20h12M20 14v12', option: 'zoom' },
+    { seg: 'down-left', cmd: 'zoom-out', kind: 'diagonal', area: 'zout', label: 'Zoom out', glyph: 'M14 60h12', option: 'zoom' },
+    { seg: 'up-right', cmd: 'fly-forward', kind: 'diagonal', area: 'fwd', label: 'Fly forward', glyph: 'M54 20l6-6 6 6M54 26l6-6 6 6', option: 'travel' },
+    { seg: 'down-right', cmd: 'fly-back', kind: 'diagonal', area: 'back', label: 'Fly back', glyph: 'M54 54l6 6 6-6M54 60l6 6 6-6', option: 'travel' }
+];
+
+/** The hit grid's areas (CSS grid-template-areas) */
+export const PAD_AREAS = '"zin up fwd" "left reset right" "zout down back"';
+
+/** Default and allowed pad size, CSS px */
+export const PAD_SIZE = { default: 180, min: 64, max: 320 };
+
+/** @type {Record<string, string> | null} */
+let padPaths = null;
+
+/**
+ * The D-pad component's path for each segment id (parsed once from its SVG).
+ * @returns {Record<string, string>}
+ */
+export function dpadPaths() {
+    if (padPaths) return padPaths;
+    /** @type {Record<string, string>} */
+    const out = {};
+    for (const m of String(dpadComponents.dpad.svg).matchAll(/<path id="([a-z-]+)" d="([^"]+)"/g)) out[m[1]] = m[2];
+    padPaths = out;
+    return out;
+}
+
+/** The pad's states and the D-pad token state each reads (a segment that is off reads `unavailable`) */
+const PAD_STATES = { rest: ['default', 'default', 'default'], hover: ['hover', 'hover', 'hover'], pressed: ['pressed', 'pressed', 'pressed'], off: ['unavailable', 'unavailable', 'unavailable'] };
+
+/**
+ * CSS variables for the pad from the D-pad theme tokens
+ * (`components.dpad.segment.<kind>.<fill|stroke|stroke-width>.<state>`),
+ * as `--pad-<kind>-<prop>-<state>`, plus `--pad-<kind>-glyph` (the marks,
+ * `components.dpad.segment.<kind>.glyph.default`), and `--pad-track` /
+ * `--pad-track-fill` for the time slider (the slider card's track tokens).
+ * Token values are CSS (var() stays live, so theme changes and alert modes
+ * recolour the pad without a re-render); a token that does not resolve is
+ * left out and the CSS fallback applies.
+ * @param {(path: string) => any} token - the card's token lookup
+ * @returns {string} a style attribute value
+ */
+export function padTokenStyle(token) {
+    /** @type {string[]} */
+    const out = [];
+    for (const kind of ['directional', 'diagonal', 'center']) {
+        for (const [state, [fill, stroke, width]] of Object.entries(PAD_STATES)) {
+            const f = token(`components.dpad.segment.${kind}.fill.${fill}`);
+            const s = token(`components.dpad.segment.${kind}.stroke.${stroke}`);
+            const w = token(`components.dpad.segment.${kind}.stroke-width.${width}`);
+            if (f != null) out.push(`--pad-${kind}-fill-${state}: ${f}`);
+            if (s != null) out.push(`--pad-${kind}-stroke-${state}: ${s}`);
+            if (w != null) out.push(`--pad-${kind}-width-${state}: ${w}`);
+        }
+    }
+    // the time slider's track and fill, as the slider card's
+    const track = token('components.slider.track.background.default');
+    const fill = token('components.slider.track.background.active');
+    if (track != null) out.push(`--pad-track: ${track}`);
+    if (fill != null) out.push(`--pad-track-fill: ${fill}`);
+    for (const kind of ['directional', 'diagonal', 'center']) {
+        const g = token(`components.dpad.segment.${kind}.glyph.default`);
+        if (g != null) out.push(`--pad-${kind}-glyph: ${g}`);
+    }
+    return out.join('; ');
+}
 
 /** `buttons.hide: toggle`: fold (shown while open) and unfold (a four-way arrow) */
 const FOLD_BUTTON = {
@@ -59,34 +129,25 @@ export function timeMode(cfg, hasClock = false) {
 export const BUTTONS_IDLE_MS = 3000;
 
 /**
- * The button grid for `camera.buttons`: which buttons, and the grid areas.
- * With `hide: toggle` a fold button sits in the corner nearest the card's
- * edge (a row of its own); folded, only it shows.
+ * The pad for `camera.buttons`: where it sits, its size, each segment (off
+ * when its option is false), the time slider and, with `hide: toggle`, the
+ * fold button (folded, only it shows).
  * @param {any} cfg - `camera.buttons`
  * @param {{ folded?: boolean }} [state]
- * @returns {{ position: string, areas: string, buttons: string[][], hide: 'idle' | 'never' | 'toggle' } | null}
+ * @returns {{ position: string, size: number, hide: 'idle' | 'never' | 'toggle', segments: (typeof PAD_SEGMENTS[number] & { on: boolean })[], pad: boolean, time: boolean, fold: string[] | null } | null}
  */
 export function cameraButtonLayout(cfg, { folded = false } = {}) {
     if (!cfg) return null;
     const o = cfg === true ? {} : cfg;
-    const pan = o.pan !== false;
-    const zoom = o.zoom !== false;
-    const reset = o.reset !== false;
+    const segments = PAD_SEGMENTS.map((s) => ({ ...s, on: o[s.option] !== false }));
+    const pad = segments.some((s) => s.on);
     const time = o.time !== false;
+    if (!pad && !time) return null;
     const hide = o.hide === 'never' || o.hide === 'toggle' ? o.hide : 'idle';
     const position = typeof o.position === 'string' ? o.position : 'bottom-right';
-    /** @type {string[]} */
-    const rows = [];
-    if (pan) rows.push('". up ."', `"left ${reset ? 'reset' : '.'} right"`, '". down ."');
-    if (zoom) rows.push(`"zout ${reset && !pan ? 'reset' : '.'} zin"`);
-    if (!pan && !zoom && reset) rows.push('". reset ."');
-    if (time) rows.push('"time time time"');
-    if (!rows.length) return null;
-    const buttons = [...(pan ? CAMERA_BUTTONS.pan : []), ...(zoom ? CAMERA_BUTTONS.zoom : []), ...(reset ? CAMERA_BUTTONS.reset : []), ...(time ? [['time', 'time', 'Time speed', '']] : [])];
-    if (hide !== 'toggle') return { position, areas: rows.join(' '), buttons, hide };
-    const foldRow = position.endsWith('left') ? '"fold . ."' : position.endsWith('right') ? '". . fold"' : '". fold ."';
-    const fold = folded ? FOLD_BUTTON.folded : FOLD_BUTTON.open;
-    if (folded) return { position, areas: foldRow, buttons: [fold], hide };
-    const areas = position.startsWith('top') ? [foldRow, ...rows] : [...rows, foldRow];
-    return { position, areas: areas.join(' '), buttons: [...buttons, fold], hide };
+    const n = Number(o.size);
+    const size = Number.isFinite(n) && n > 0 ? Math.min(PAD_SIZE.max, Math.max(PAD_SIZE.min, n)) : PAD_SIZE.default;
+    const fold = hide === 'toggle' ? (folded ? FOLD_BUTTON.folded : FOLD_BUTTON.open) : null;
+    if (fold && folded) return { position, size, hide, segments, pad: false, time: false, fold };
+    return { position, size, hide, segments, pad, time, fold };
 }

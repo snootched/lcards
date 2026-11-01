@@ -452,86 +452,114 @@ export const lcardsDefaultTokens = {
     // DPAD COMPONENT
     // ------------------------------------------------------------------------
     dpad: {
+      // Colours by role, from the theme: the arm tips in the theme's button
+      // (accent) colour, the centre and corners in its UI greys/colours; a
+      // press flashes the accent colour. Gaps between segments in the
+      // background colour, marks in dark text (LCARS black on colour).
       segment: {
+        // the four arm tips
         directional: {
           fill: {
-            default: 'var(--lcars-green, var(--lcards-green-medium))',
-            active: 'var(--lcars-orange, var(--lcards-orange-medium))',
-            inactive: 'darken(colors.card.button, 0.35)',
-            hover: 'var(--lcars-yellow, var(--lcards-yellow-medium))',
-            pressed: 'darken(colors.card.button, 0.15)',
-            unavailable: 'var(--lcards-gray-medium)',
-            unknown: 'var(--lcards-gray-medium)'
+            default: 'colors.card.button',
+            active: 'lighten(colors.card.button, 0.2)',
+            inactive: 'colors.card.buttonOff',
+            hover: 'lighten(colors.card.button, 0.2)',
+            pressed: 'lighten(colors.card.button, 0.35)',
+            unavailable: 'colors.card.buttonUnavailable',
+            unknown: 'colors.card.buttonUnavailable'
           },
+          // the background colour between segments: LCARS gaps, not outlines
           stroke: {
-            active: 'var(--lcars-text-light, var(--lcards-moonlight))',
-            inactive: 'var(--lcars-orange, var(--lcards-orange-medium))',
-            hover: 'var(--lcars-text-light, var(--lcards-moonlight))',
-            pressed: 'var(--lcars-text-light, var(--lcards-moonlight))',
-            unavailable: 'var(--lcards-gray-medium)',
-            unknown: 'var(--lcards-gray-medium)'
+            default: 'var(--lcars-background-color, black)',
+            active: 'var(--lcars-background-color, black)',
+            inactive: 'var(--lcars-background-color, black)',
+            hover: 'var(--lcars-background-color, black)',
+            pressed: 'var(--lcars-background-color, black)',
+            unavailable: 'var(--lcars-background-color, black)',
+            unknown: 'var(--lcars-background-color, black)'
           },
           'stroke-width': {
-            active: 0.5,
-            inactive: 0.5,
-            hover: 0.75,
+            default: 1,
+            active: 1,
+            inactive: 1,
+            hover: 1,
             pressed: 1,
-            unavailable: 0.25,
-            unknown: 0.25
+            unavailable: 1,
+            unknown: 1
+          },
+          // marks drawn on the segment (the astrometrics camera pad's arrows, plus and minus)
+          glyph: {
+            default: 'colors.text.onLight'
           }
         },
+        // the four corners
         diagonal: {
           fill: {
-            default: 'darken(colors.card.buttonOff, 0.35)',    // at-rest = inactive
-            active: 'var(--lcars-blue, var(--lcards-blue-medium))',
-            inactive: 'darken(colors.card.buttonOff, 0.35)',
-            hover: 'lighten(colors.card.button, 0.15)',
-            pressed: 'darken(colors.card.buttonOff, 0.15)',
-            unavailable: 'var(--lcards-gray-medium)',
-            unknown: 'var(--lcards-gray-medium)'
+            default: 'colors.ui.secondary',
+            active: 'lighten(colors.ui.secondary, 0.2)',
+            inactive: 'colors.card.buttonOff',
+            hover: 'lighten(colors.ui.secondary, 0.2)',
+            pressed: 'colors.card.button',
+            unavailable: 'colors.card.buttonUnavailable',
+            unknown: 'colors.card.buttonUnavailable'
           },
+          // the background colour between segments: LCARS gaps, not outlines
           stroke: {
-            active: 'var(--lcars-text-light, var(--lcards-moonlight))',
-            inactive: 'var(--lcars-blue, var(--lcards-blue-medium))',
-            hover: 'var(--lcars-text-light, var(--lcards-moonlight))',
-            pressed: 'var(--lcars-text-light, var(--lcards-moonlight))',
-            unavailable: 'var(--lcards-gray-medium)',
-            unknown: 'var(--lcards-gray-medium)'
+            default: 'var(--lcars-background-color, black)',
+            active: 'var(--lcars-background-color, black)',
+            inactive: 'var(--lcars-background-color, black)',
+            hover: 'var(--lcars-background-color, black)',
+            pressed: 'var(--lcars-background-color, black)',
+            unavailable: 'var(--lcars-background-color, black)',
+            unknown: 'var(--lcars-background-color, black)'
           },
           'stroke-width': {
-            active: 0.5,
-            inactive: 0.5,
-            hover: 0.75,
+            default: 1,
+            active: 1,
+            inactive: 1,
+            hover: 1,
             pressed: 1,
-            unavailable: 0.25,
-            unknown: 0.25
+            unavailable: 1,
+            unknown: 1
+          },
+          // marks drawn on the segment (the astrometrics camera pad's arrows, plus and minus)
+          glyph: {
+            default: 'colors.text.onLight'
           }
         },
+        // the centre (the plus)
         center: {
           fill: {
-            default: 'darken(colors.card.button, 0.35)',       // at-rest = inactive
-            active: 'var(--lcards-blue-medium-light)',
-            inactive: 'darken(colors.card.button, 0.35)',
-            hover: 'lighten(colors.card.button, 0.15)',
-            pressed: 'darken(colors.card.button, 0.15)',
-            unavailable: 'var(--lcards-gray-medium)',
-            unknown: 'var(--lcards-gray-medium)'
+            default: 'colors.ui.primary',
+            active: 'lighten(colors.ui.primary, 0.2)',
+            inactive: 'colors.card.buttonOff',
+            hover: 'lighten(colors.ui.primary, 0.2)',
+            pressed: 'colors.card.button',
+            unavailable: 'colors.card.buttonUnavailable',
+            unknown: 'colors.card.buttonUnavailable'
           },
+          // the background colour between segments: LCARS gaps, not outlines
           stroke: {
-            active: 'var(--lcars-text-light, var(--lcards-moonlight))',
-            inactive: 'var(--lcards-blue-medium-light)',
-            hover: 'var(--lcars-text-light, var(--lcards-moonlight))',
-            pressed: 'var(--lcars-text-light, var(--lcards-moonlight))',
-            unavailable: 'var(--lcards-gray-medium)',
-            unknown: 'var(--lcards-gray-medium)'
+            default: 'var(--lcars-background-color, black)',
+            active: 'var(--lcars-background-color, black)',
+            inactive: 'var(--lcars-background-color, black)',
+            hover: 'var(--lcars-background-color, black)',
+            pressed: 'var(--lcars-background-color, black)',
+            unavailable: 'var(--lcars-background-color, black)',
+            unknown: 'var(--lcars-background-color, black)'
           },
           'stroke-width': {
-            active: 0.75,
-            inactive: 0.75,
+            default: 1,
+            active: 1,
+            inactive: 1,
             hover: 1,
-            pressed: 1.5,
-            unavailable: 0.25,
-            unknown: 0.25
+            pressed: 1,
+            unavailable: 1,
+            unknown: 1
+          },
+          // marks drawn on the segment (the astrometrics camera pad's arrows, plus and minus)
+          glyph: {
+            default: 'colors.text.onLight'
           }
         },
         // Secondary/decorative ring & accent segments (e.g. dpad_voyager's
