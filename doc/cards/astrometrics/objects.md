@@ -227,7 +227,7 @@ Each `cells` entry is a range `from` one corner cell `to` the other (or one `cel
 
 ## volume
 
-A see-through box of grid cells: a territory. `shape: sector` spans `radius: [inner, outer]`, bearings `angle: [from, to]` (to may pass 360 to cross north) and `height: [bottom, top]` round the centre; `shape: box` is `size: [w, h, d]` round `at`; `shape: prism` is any border you draw, `outline: [[x, z], ...]` (at least three points, from `at`; -z is north) between `height: [bottom, top]`, for territories that are not pie slices.
+A see-through box of grid cells: a territory. `shape: sector` spans `radius: [inner, outer]`, bearings `angle: [from, to]` (to may pass 360 to cross north) and `height: [bottom, top]` round the centre; `shape: box` is `size: [w, h, d]` round `at`; `shape: prism` is any border you draw, `outline: [[x, z], ...]` (at least three points, from `at`; -z is north) between `height: [bottom, top]`, for territories that are not pie slices. In the Astrometrics Studio you can [draw and drag the outline on the preview](./studio#objects).
 
 | Key | What it does |
 |---|---|

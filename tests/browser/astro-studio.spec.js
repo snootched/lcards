@@ -891,3 +891,78 @@ test('studio UX1 P6c visible size: the toolbar toggle draws small models larger 
     expect((await tool()).pressed).toBe('true');
     expect(await page.evaluate(() => 'model_scale' in window.__studio._workingConfig)).toBe(false);
 });
+
+test('studio UX1 P6d: a prism outline edited on the preview: drag a corner (snapped), add one, remove one, draw a new outline', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-prism', { width: '800' });
+    await openStudio(page);
+    await page.evaluate(async () => { const s = window.__studio; s._activeTab = 'objects'; s._selectObject(1); await s.updateComplete; });
+    const outline = () => page.evaluate(() => window.__studio._workingConfig.objects[1].outline);
+    const click = (action) => page.evaluate((a) => window.__studio.renderRoot.querySelector(`[data-object="1"] [data-action="${a}"]`).click(), action);
+    // the corner handles on the preview, in page px
+    const handles = (cls) => page.evaluate((c) => {
+        const card = window.__studio._previewCard;
+        return [...card.renderRoot.querySelectorAll(`.astro-outline button.${c}`)].map((b) => { const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2, hidden: b.hidden }; });
+    }, cls);
+    await expect.poll(async () => (await page.evaluate(() => window.__studio.renderRoot.querySelectorAll('[data-object="1"] .outline-row').length)), { timeout: 20_000 }).toBe(4);
+    await click('outline-edit');
+    await expect.poll(async () => (await handles('corner')).length, { timeout: 10_000 }).toBe(4);
+    const c = await handles('corner');
+    // px per unit across the first edge ([-5, -5] to [5, -5])
+    const k = (c[1].x - c[0].x) / 10;
+    expect(k).toBeGreaterThan(5);
+    // corner 3 ([5, 5]) to about [8.1, 7.9]: snapped to the grid's 2, so [8, 8]
+    await page.mouse.move(c[2].x, c[2].y);
+    await page.mouse.down();
+    await page.mouse.move(c[2].x + 1.5 * k, c[2].y + 1.5 * k, { steps: 4 });
+    await page.mouse.move(c[2].x + 3.1 * k, c[2].y + 2.9 * k, { steps: 4 });
+    await page.mouse.up();
+    await expect.poll(outline).toEqual([[-5, -5], [5, -5], [8, 8], [-5, 5]]);
+    // the + on the first edge adds a corner at its middle; Delete removes the selected one
+    const m = await handles('middle');
+    await page.mouse.click(m[0].x, m[0].y);
+    await expect.poll(outline).toEqual([[-5, -5], [0, -5], [5, -5], [8, 8], [-5, 5]]);
+    await page.keyboard.press('Delete');
+    await expect.poll(outline).toEqual([[-5, -5], [5, -5], [8, 8], [-5, 5]]);
+    // undo brings the corner back (each change is one step)
+    await page.evaluate(() => window.__studio._undo());
+    await expect.poll(outline).toEqual([[-5, -5], [0, -5], [5, -5], [8, 8], [-5, 5]]);
+    // Escape ends the editing, not the Studio
+    const h = await handles('corner');
+    await page.mouse.click(h[0].x, h[0].y);
+    await page.keyboard.press('Escape');
+    await expect.poll(() => page.evaluate(() => window.__studio._outlineEdit)).toBe(null);
+    expect(await page.evaluate(() => window.__studio.isConnected)).toBe(true);
+    // Draw new outline: three taps on the ground, then the first corner closes it
+    await click('outline-draw');
+    const preview = await page.evaluate(() => { const r = window.__studio._previewCard.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+    await page.mouse.click(preview.x, preview.y);
+    await page.mouse.click(preview.x + 4 * k, preview.y);
+    await page.mouse.click(preview.x, preview.y + 4 * k);
+    const first = (await handles('corner'))[0];
+    await page.mouse.click(first.x, first.y);
+    await expect.poll(async () => (await outline()).length).toBe(3);
+    const drawn = await outline();
+    expect(Math.abs(drawn[1][0] - drawn[0][0])).toBeCloseTo(4, 0);
+    expect(await page.evaluate(() => window.__studio._outlineEdit?.draw)).toBe(false);
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
+});
+
+test('the preview sizes its canvas by layout, not by a CSS transform (the dialog opens from 0.8 scale)', async ({ page }) => {
+    await mountCase(page, 'astro-prism', { width: '800' });
+    // shrunk by a transform while a resize happens (as during the dialog's opening animation), then back
+    const sizes = await page.evaluate(async () => {
+        const mount = /** @type {HTMLElement} */ (document.querySelector('#mount'));
+        mount.style.transform = 'scale(0.8)';
+        mount.style.transformOrigin = '0 0';
+        mount.style.width = '780px';
+        await new Promise((r) => setTimeout(r, 300));
+        mount.style.transform = '';
+        await new Promise((r) => setTimeout(r, 300));
+        const card = /** @type {any} */ (mount.firstElementChild);
+        const c = card.renderRoot.querySelector('.astro-scene canvas');
+        return { canvas: c.width / devicePixelRatio, client: c.clientWidth };
+    });
+    expect(Math.abs(sizes.canvas - sizes.client)).toBeLessThanOrEqual(1);
+});

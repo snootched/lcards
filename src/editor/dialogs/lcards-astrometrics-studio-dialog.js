@@ -46,7 +46,8 @@ import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
 import { SCENE_SCOPE, scopeSystem, validScope, scopedList, setScopedList, scopedObjectIds, pointScope, objectScope, allPointIds, allObjectIds, pointsEditorConfig } from './astro-studio/systems.js';
 import { createHistory } from './astro-studio/history.js';
-import { modelSizeReadout, fitToViewSize } from './astro-studio/model-size.js';
+import { modelSizeReadout, fitToViewSize, roundLength, shortNumber } from './astro-studio/model-size.js';
+import { prismOutline } from '../../core/astrometrics/objects/volume.js';
 import { starterPicture, typePicture, TYPE_GROUPS, starterParamSchema, starterParamChoices, starterParamValues, starterAdds, fragmentCounts } from './astro-studio/starter-gallery.js';
 import { overviewGuide, startersGuide, objectsGuide, pointsGuide, cameraGuide } from './astro-studio/studio-guides.js';
 import './astro-studio/lcards-astro-schema-form.js';
@@ -143,6 +144,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       _trying: { state: true },
       _toolbarExpanded: { state: true },
       _modelScale: { state: true },
+      _outlineEdit: { state: true },
       _hasRealModels: { state: true },
       _historyVersion: { state: true },
       _viewError: { state: true },
@@ -197,6 +199,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     this._onPlaceKey = this._onPlaceKey.bind(this);
     /** @type {any} the preview card */
     this._previewCard = null;
+    /** @type {{ id: string, draw: boolean } | null} a prism's outline edited on the preview (P6d) */
+    this._outlineEdit = null;
     /** @type {'real' | 'visible'} the preview's model scale (its toolbar toggle; not saved) */
     this._modelScale = 'real';
     /** Whether the preview has a model at its real size (the toggle is on offer) */
@@ -230,6 +234,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     window.removeEventListener('keydown', this._onKey);
     window.removeEventListener('keydown', this._onPlaceKey, true);
     this._previewCard?.attachStudio?.(null);
+    this._outlineEdit = null;
   }
 
   firstUpdated() {
@@ -241,6 +246,12 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     if (changed.has('hass') && this._previewCard) this._previewCard.hass = this.hass;
     // the scale bar's units: the scope's, a starter being tried, or the scene's changed
     if (changed.has('_scope') || changed.has('_trying') || changed.has('_workingConfig')) this._updateScaleBar();
+    // the outline editor: ends when its prism is closed, gone or no longer a prism; else follows the form
+    if (this._outlineEdit && (changed.has('_workingConfig') || changed.has('_expandedObject') || changed.has('_scope') || changed.has('_activeTab'))) {
+      const obj = this._objects[this._expandedObject];
+      if (this._activeTab !== 'objects' || !obj || String(obj.id) !== this._outlineEdit.id || obj.shape !== 'prism') this._endOutline();
+      else if (!this._outlineEdit.draw) this._outlineSync(obj);
+    }
   }
 
   // ── Working config ─────────────────────────────────────────────────────────
@@ -644,6 +655,9 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
           border-radius: var(--ha-border-radius-pill); background: rgba(0, 0, 0, 0.75); color: white; box-shadow: var(--ha-box-shadow-m); }
         .try-bar span { font-weight: var(--ha-font-weight-medium); }
         .view-actions { display: flex; flex-wrap: wrap; gap: var(--ha-space-2); margin-bottom: var(--ha-space-3); }
+        .outline-panel { display: flex; flex-direction: column; gap: var(--ha-space-2); margin-bottom: var(--ha-space-3); }
+        .outline-row { display: grid; grid-template-columns: 24px 1fr 1fr repeat(3, 40px); align-items: center; gap: var(--ha-space-2); }
+        .outline-n { text-align: right; opacity: 0.7; }
         .view-name { display: block; margin-bottom: var(--ha-space-3); }
         .views-section { display: block; margin-bottom: var(--ha-space-4); }
         .views-actions { display: flex; justify-content: flex-end; margin-bottom: var(--ha-space-2); }
@@ -1545,6 +1559,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         if (!list.length) return nothing;
         // its points and objects open with the row's Open system button
         if (g.id === 'main') {
+          // a prism's outline: its own panel (rows, Edit on preview, Draw new outline) after the shape keys
+          if (obj?.type === 'volume' && obj.shape === 'prism') return html`${form(list.filter((k) => k !== 'outline'))}${this._renderOutline(obj)}`;
           // a model's size panel right under size and file_units
           const cut = obj?.type === 'model' ? Math.max(list.indexOf('size'), list.indexOf('file_units')) + 1 : 0;
           if (cut > 0) return html`${form(list.slice(0, cut))}${this._renderModelSize(obj, set)}${list.length > cut ? form(list.slice(cut)) : nothing}`;
@@ -1557,6 +1573,155 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
           nested outlined ?expanded=${bound || g.id === 'appearance'}>${form(list)}</lcards-form-section>`;
       })}
     `;
+  }
+
+  /**
+   * A prism's outline (P6d): a row per corner ([x, z] from the object's
+   * position, scene units), and Edit on preview (corner handles on its base)
+   * and Draw new outline.
+   * @param {Record<string, any>} obj
+   * @private
+   */
+  _renderOutline(obj) {
+    const outline = /** @type {[number, number][]} */ (Array.isArray(obj.outline) ? obj.outline.map((/** @type {any} */ p) => (Array.isArray(p) ? [Number(p[0]) || 0, Number(p[1]) || 0] : [0, 0])) : []);
+    const id = obj.id === undefined ? null : String(obj.id);
+    const editing = !!id && this._outlineEdit?.id === id;
+    const drawing = editing && !!this._outlineEdit?.draw;
+    const units = this._units ? ` (${this._units})` : '';
+    /** @param {[number, number][]} next */
+    const put = (next) => this._commitOutline(id, next, obj);
+    /** @param {number} i @param {0 | 1} axis @param {string} v */
+    const setAt = (i, axis, v) => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return;
+      put(outline.map((p, k) => (k === i ? /** @type {[number, number]} */ (axis === 0 ? [n, p[1]] : [p[0], n]) : p)));
+    };
+    /** @param {number} i @param {number} d */
+    const swap = (i, d) => {
+      const next = [...outline];
+      [next[i], next[i + d]] = [next[i + d], next[i]];
+      put(next);
+    };
+    return html`
+      <div class="outline-panel" data-outline>
+        <div class="hint">Outline: ${outline.length} corners, x and z${units} from the object's position (-z is north). At least 3.</div>
+        ${outline.map((p, i) => html`
+          <div class="outline-row" data-corner=${i}>
+            <span class="outline-n">${i + 1}</span>
+            <ha-input type="number" .label=${'x'} .value=${String(p[0])} @change=${(/** @type {Event} */ e) => setAt(i, 0, /** @type {any} */ (e.target).value)}></ha-input>
+            <ha-input type="number" .label=${'z'} .value=${String(p[1])} @change=${(/** @type {Event} */ e) => setAt(i, 1, /** @type {any} */ (e.target).value)}></ha-input>
+            <ha-icon-button .label=${'Move up'} ?disabled=${i === 0} @click=${() => swap(i, -1)}><ha-icon icon="mdi:arrow-up"></ha-icon></ha-icon-button>
+            <ha-icon-button .label=${'Move down'} ?disabled=${i === outline.length - 1} @click=${() => swap(i, 1)}><ha-icon icon="mdi:arrow-down"></ha-icon></ha-icon-button>
+            <ha-icon-button .label=${'Remove corner'} ?disabled=${outline.length <= 3} @click=${() => put(outline.filter((_, k) => k !== i))}><ha-icon icon="mdi:close"></ha-icon></ha-icon-button>
+          </div>`)}
+        <div class="view-actions">
+          <ha-button appearance="plain" size="s" data-action="outline-add" ?disabled=${outline.length < 2}
+            @click=${() => put(outline.length >= 2 ? [...outline, /** @type {[number, number]} */ ([Number(((outline[0][0] + outline[outline.length - 1][0]) / 2).toPrecision(6)), Number(((outline[0][1] + outline[outline.length - 1][1]) / 2).toPrecision(6))])] : outline)}>
+            <ha-icon icon="mdi:plus" slot="start"></ha-icon>Add corner
+          </ha-button>
+          <ha-button appearance=${editing && !drawing ? 'filled' : 'plain'} size="s" data-action="outline-edit" ?disabled=${!id || outline.length < 3}
+            @click=${() => (editing && !drawing ? this._endOutline() : this._startOutline(obj, false))}>
+            <ha-icon icon=${editing && !drawing ? 'mdi:check' : 'mdi:vector-polygon'} slot="start"></ha-icon>${editing && !drawing ? 'Done' : 'Edit on preview'}
+          </ha-button>
+          <ha-button appearance=${drawing ? 'filled' : 'plain'} size="s" data-action="outline-draw" ?disabled=${!id}
+            @click=${() => (drawing ? this._finishDraw() : this._startOutline(obj, true))}>
+            <ha-icon icon=${drawing ? 'mdi:check' : 'mdi:draw'} slot="start"></ha-icon>${drawing ? 'Close outline' : 'Draw new outline'}
+          </ha-button>
+        </div>
+        ${editing ? html`<div class="hint" data-outline-hint>${drawing
+          ? 'Tap the ground for each corner in order, then tap the first corner (or Close outline) to finish. Shift: no snapping. Esc stops.'
+          : html`Drag a corner to move it (it snaps to ${shortNumber(this._outlineSnapValue(obj, outline))}${units}; Shift: no snapping). Tap a + to add a corner there; select a corner and press Delete to remove it. Esc or Done to finish.`}</div>` : nothing}
+      </div>`;
+  }
+
+  /**
+   * The snap step for a prism's corners: a grid's line spacing in the same
+   * scope, else about a twentieth of the outline's span (a fiftieth of the
+   * view for a new one), rounded.
+   * @param {Record<string, any>} obj
+   * @param {[number, number][]} outline
+   * @param {number} [viewWidth]
+   * @private
+   */
+  _outlineSnapValue(obj, outline, viewWidth) {
+    const grid = this._objects.find((o) => o?.type === 'grid' && Number(o.line_spacing) > 0);
+    if (grid) return Number(grid.line_spacing);
+    if (outline.length >= 3) {
+      const xs = outline.map((p) => p[0]);
+      const zs = outline.map((p) => p[1]);
+      return roundLength(Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs)) / 20);
+    }
+    return roundLength((viewWidth ?? 100) / 50);
+  }
+
+  /**
+   * @param {string | null} id
+   * @param {[number, number][]} outline
+   * @param {Record<string, any>} [fallback] - the object, when it has no id to find it by
+   * @private
+   */
+  _commitOutline(id, outline, fallback) {
+    const objects = this._objects.map((o) => ((id !== null ? String(o?.id) === id : o === fallback) ? { ...o, outline } : o));
+    // each corner moved, added or removed is its own undo step (not merged as typing is)
+    this._commit(setScopedList(this._workingConfig, this._scope, 'objects', objects), { step: true });
+  }
+
+  /**
+   * Edit a prism's outline on the preview, or draw a new one.
+   * @param {Record<string, any>} obj
+   * @param {boolean} draw
+   * @private
+   */
+  async _startOutline(obj, draw) {
+    const scene = await this._previewCard?.studioScene?.().catch(() => null);
+    if (!scene?.editOutline || obj.id === undefined) return;
+    const id = String(obj.id);
+    const outline = prismOutline(obj.outline) ?? [];
+    const system = this._system ? this._objectIdIn(SCENE_SCOPE, this._scope) : undefined;
+    const snap = this._outlineSnapValue(obj, draw ? [] : outline, scene.viewIn?.(system)?.width);
+    this._outlineEdit = { id, draw };
+    scene.editOutline(id, {
+      snap, draw, outline,
+      onChange: (/** @type {[number, number][]} */ next, /** @type {boolean} */ done) => {
+        if (!done) return;
+        this._commitOutline(id, next);
+        // a drawn outline closed: on to editing it
+        if (this._outlineEdit?.draw) this._outlineEdit = { id, draw: false };
+      },
+      onExit: () => this._endOutline()
+    });
+  }
+
+  /** @private */
+  async _finishDraw() {
+    const scene = await this._previewCard?.studioScene?.().catch(() => null);
+    // Close outline: the corners tapped so far (at least 3); the editor's change commits them
+    if (scene?.finishOutline && !scene.finishOutline()) this._status = 'An outline needs at least 3 corners.';
+  }
+
+  /**
+   * The editor follows the form (a typed corner, a removed one, undo).
+   * @param {Record<string, any>} obj
+   * @private
+   */
+  async _outlineSync(obj) {
+    const edit = this._outlineEdit;
+    const scene = await this._previewCard?.studioScene?.().catch(() => null);
+    if (!scene?.editOutline || !edit || edit.draw) return;
+    const outline = prismOutline(obj.outline) ?? [];
+    const system = this._system ? this._objectIdIn(SCENE_SCOPE, this._scope) : undefined;
+    scene.editOutline(edit.id, {
+      snap: this._outlineSnapValue(obj, outline, scene.viewIn?.(system)?.width), draw: false, outline,
+      onChange: (/** @type {[number, number][]} */ next, /** @type {boolean} */ done) => { if (done) this._commitOutline(edit.id, next); },
+      onExit: () => this._endOutline()
+    });
+  }
+
+  /** @private */
+  async _endOutline() {
+    this._outlineEdit = null;
+    const scene = await this._previewCard?.studioScene?.().catch(() => null);
+    scene?.editOutline?.(null);
   }
 
   /**

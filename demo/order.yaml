@@ -54,6 +54,13 @@ releases:
         session: "UX1"
         docs: /cards/astrometrics/objects#real-size
         public: true
+      - file: astro-prism-outline
+        topic: astrometrics
+        summary: "Astrometrics prism outlines: edit a territory's border on the preview"
+        description: "Two territories as prism volumes over a map. In the card's Studio, Objects, open a territory: its outline is a row per corner, and Edit on preview puts the corners on the map to drag (snapped to the map's 5, Shift for free), a + between corners adds one, Delete removes the selected one; Draw new outline taps a new border, closing on its first corner. Each change is one undo step."
+        session: "UX1"
+        docs: /cards/astrometrics/studio#objects
+        public: true
       - file: chart-sources
         topic: charts
         summary: "Charts, rebuilt: entity history, long-term statistics and data sources"

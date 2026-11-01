@@ -1,0 +1,38 @@
+# Astrometrics prism outlines (UX1 P6d): two territories as prism volumes
+# over a sector map. Open the card's Studio, Objects, a territory: its
+# outline panel has Edit on preview (drag the corners, + to add, Delete to
+# remove) and Draw new outline.
+title: Astrometrics prism outlines
+path: astro-prism-outline
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        id: astro_prism_outline_1
+        height: 650
+        grid_options: { columns: full }
+        camera:
+          view: map
+          views:
+            map: { target: [0, 0, 0], yaw: 20, tilt: 55, distance: 150 }
+          buttons: true
+        points:
+          - { id: home, xyz: [-25, 0, 10], label: HOME SECTOR, marker: diamond, style: major }
+          - { id: border, xyz: [30, 0, -20], label: NEUTRAL ZONE, marker: dot }
+        objects:
+          - { type: grid, id: map, shape: plane, size: 120, line_spacing: 5, pattern: both }
+          - type: volume
+            id: federation
+            shape: prism
+            height: [0, 8]
+            outline: [[-50, -10], [-20, -25], [5, -5], [0, 25], [-40, 30]]
+            color: var(--lcars-blue)
+          - type: volume
+            id: neutral_zone
+            shape: prism
+            height: [0, 4]
+            outline: [[10, -40], [45, -35], [50, 0], [20, -5]]
+            color: var(--lcars-orange)

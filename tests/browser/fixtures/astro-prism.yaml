@@ -1,0 +1,11 @@
+# A prism volume (a territory) seen from above, for the Studio's outline
+# editor (UX1 P6d): four corners 10 apart, snapping to the grid's spacing 2.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: top
+  views:
+    top: { target: [0, 0, 0], yaw: 0, tilt: 89, distance: 40 }
+objects:
+  - { type: grid, id: floor, shape: plane, size: 40, line_spacing: 2 }
+  - { type: volume, id: zone, shape: prism, outline: [[-5, -5], [5, -5], [5, 5], [-5, 5]], height: [0, 2] }

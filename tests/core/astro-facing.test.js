@@ -135,7 +135,9 @@ test('a trail behind a ship circling a moving planet lies on its orbit round the
   const moonRing = /** @type {any} */ (w.objects.get('moon_orbit'));
   const trail = /** @type {any} */ (w.objects.get('wake'));
   const realNow = performance.now;
-  let clock = 0;
+  // on from the real clock: the build already stamped the trail's first sample with it, and a clock
+  // from 0 ran backwards from there (failing whenever the process took over 4 s, the trail's length, to get here)
+  let clock = performance.now();
   performance.now = () => clock;
   try {
     for (let i = 0; i < 200; i++) {

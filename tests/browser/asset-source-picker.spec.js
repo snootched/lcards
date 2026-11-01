@@ -257,7 +257,6 @@ test('astrometrics: a model given as media-source:// loads through the media bro
     });
     await expect.poll(states, { timeout: 20_000 }).toEqual(['ready', 'failed']);
     expect(await page.evaluate(() => window.__resolved.sort())).toEqual(['media-source://lcards/my_models/ds9.glb', 'media-source://lcards/my_models/nope.glb']);
-    // parts of a user model work like a built-in's
-    const ops = await page.evaluate(() => document.querySelector('#mount > *')._scene.debug().world.places.get('ops'));
-    expect(ops?.y).toBeGreaterThan(5);
+    // parts of a user model work like a built-in's (placed on the frame after the file is in)
+    await expect.poll(() => page.evaluate(() => document.querySelector('#mount > *')._scene.debug().world.places.get('ops')?.y), { timeout: 5_000 }).toBeGreaterThan(5);
 });

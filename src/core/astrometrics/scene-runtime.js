@@ -25,6 +25,7 @@ import { parseColorToRgba } from '../packs/textures/effects/noise-helpers.js';
 import { resolveColor as defaultResolveColor } from '../themes/resolve-color.js';
 import { prefersReducedMotion, onReducedMotionChange } from '../../utils/reduced-motion.js';
 import { createLoadingRing, LOADING_RING_CSS } from './loading-ring.js';
+import { createOutlineEditor, OUTLINE_EDITOR_CSS } from './outline-editor.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { CameraRig, viewToKeys, parseLimits, clampKeys, screenRay, rayPlane, cameraPose, viewHeight, DEFAULT_KEYS } from './camera-rig.js';
 import { ROOT } from './frames.js';
@@ -135,6 +136,16 @@ const KEY_COMMANDS = {
  */
 
 /**
+ * @typedef {Object} AstroOutlineEditOptions
+ * @property {number} [snap] - corners snap to this step (scene units; Shift drags freely); default a twentieth of the outline's span, rounded
+ * @property {boolean} [draw] - draw a new outline: tap corners in order, tap the first one to close
+ * @property {[number, number][]} [outline] - the outline as the Studio has it now (else the built prism's)
+ * @property {(outline: [number, number][], done: boolean) => void} [onChange] - live while dragging (done false), then done
+ * @property {() => void} [onExit] - Escape
+ * @property {(index: number) => void} [onSelectCorner]
+ */
+
+/**
  * Edit mode (the Astrometrics Studio): taps select instead of acting.
  * @typedef {Object} AstroEditHooks
  * @property {(hit: AstroTapHit | null) => void} [onSelect] - a tap: what is under it (any point or object), null in blank space
@@ -158,6 +169,9 @@ const KEY_COMMANDS = {
  * @property {(view: string | Record<string, any>, opts?: { duration?: number, warp?: boolean }) => Promise<void>} flyTo
  * @property {(scale: number) => void} setTimeScale - how fast the scene's motion runs (1 as configured, 0 holds it)
  * @property {() => number} timeScale
+ * @property {(id: string | null, opts?: AstroOutlineEditOptions) => void} editOutline - a prism volume's outline as handles on
+ *   its base (the Studio's Edit on preview), or drawn anew (`draw`); null ends it
+ * @property {() => boolean} finishOutline - drawing: close the outline (Close outline), false with under 3 corners
  * @property {(mode: 'real' | 'visible') => void} setModelScale - models at their real size, or at least MODEL_MIN_PX on screen
  *   (models with their own `size` keep it); not saved, a config change of `model_scale` sets it again
  * @property {() => 'real' | 'visible'} modelScale
@@ -212,7 +226,7 @@ const CSS = `
 .astro-scene > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .astro-scene .astro-message { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-family: var(--lcars-font, 'Antonio'), 'Antonio', sans-serif; color: var(--lcards-moonlight); opacity: 0.7; }
-${LOADING_RING_CSS}`;
+${LOADING_RING_CSS}${OUTLINE_EDITOR_CSS}`;
 
 /**
  * @param {HTMLElement | ShadowRoot} host - where the scene goes (sized by the card)
@@ -322,6 +336,8 @@ export function createAstroScene(host, config, options = {}) {
   const modelFiles = new Map();
   /** A ring over the scene while model files load */
   const loadingRing = createLoadingRing(wrap);
+  /** @type {{ id: string, editor: ReturnType<typeof createOutlineEditor>, opts: AstroOutlineEditOptions } | null} the Studio's prism outline editor */
+  let outlineEdit = null;
 
   /**
    * A file's URL from a config value: `builtin:<key>` from the LCARdS
@@ -536,6 +552,72 @@ export function createAstroScene(host, config, options = {}) {
       const across = (b.realExtent ?? 0) * b.node.getWorldScale(scratchS).x * perUnit(scratchV.distanceTo(camera.position));
       b.magnify(across > 0 && across < MODEL_MIN_PX ? MODEL_MIN_PX / across : 1);
     }
+  }
+
+  /**
+   * The Studio's outline editor on a prism volume (see AstroSceneApi.editOutline).
+   * @param {string | null} id
+   * @param {AstroOutlineEditOptions} [opts]
+   */
+  function editOutline(id, opts = {}) {
+    if (id === null) {
+      outlineEdit?.editor.dispose();
+      outlineEdit = null;
+      requestFrame();
+      return;
+    }
+    const base = () => {
+      const b = world?.objects.get(id);
+      if (!b) return null;
+      const h = b.config?.height;
+      const y0 = Array.isArray(h) && Number.isFinite(Number(h[0])) ? Number(h[0]) : 0;
+      return { b, y0 };
+    };
+    if (outlineEdit && outlineEdit.id !== id) editOutline(null);
+    if (!outlineEdit) {
+      const editor = createOutlineEditor({
+        wrap,
+        project: (p) => {
+          const s = base();
+          if (!s) return null;
+          s.b.node.updateWorldMatrix(true, false);
+          const v = s.b.node.localToWorld(new Vector3(p[0], s.y0, p[1])).project(rig.camera);
+          if (v.z > 1 || v.z < -1) return null;
+          return { x: ((v.x + 1) / 2) * cssW, y: ((1 - v.y) / 2) * cssH };
+        },
+        ground: (x, y) => {
+          const s = base();
+          if (!s) return null;
+          const node = s.b.node;
+          node.updateWorldMatrix(true, false);
+          const origin = node.localToWorld(new Vector3(0, s.y0, 0));
+          const up = node.localToWorld(new Vector3(0, s.y0 + 1, 0)).sub(origin).normalize();
+          const g = rayPlane(screenRay(rig.keys, rig.projection, x, y, cssW, cssH), origin.toArray(), up.toArray(), 0.02);
+          if (!g) return null;
+          const local = node.worldToLocal(new Vector3(g[0], g[1], g[2]));
+          return [Number(local.x.toPrecision(6)), Number(local.z.toPrecision(6))];
+        },
+        onChange: (outline, done) => {
+          const s = base();
+          // the prism follows at once (one object rebuilt); the Studio commits when done
+          if (s) patch({ objects: { [id]: { ...s.b.config, outline } } });
+          outlineEdit?.opts.onChange?.(outline, done);
+        },
+        onExit: () => outlineEdit?.opts.onExit?.(),
+        onSelectCorner: (i) => outlineEdit?.opts.onSelectCorner?.(i)
+      });
+      outlineEdit = { id, editor, opts };
+      const s = base();
+      editor.set(opts.outline ?? (Array.isArray(s?.b.config?.outline) ? s.b.config.outline : []), { snap: opts.snap, draw: opts.draw });
+    } else {
+      // the same prism: new options (draw again, another snap) start over; else the form's outline
+      const s = base();
+      const next = opts.outline ?? (Array.isArray(s?.b.config?.outline) ? s.b.config.outline : []);
+      if (opts.draw !== outlineEdit.opts.draw || opts.snap !== outlineEdit.opts.snap) outlineEdit.editor.set(next, { snap: opts.snap, draw: opts.draw });
+      else outlineEdit.editor.sync(next);
+      outlineEdit.opts = opts;
+    }
+    requestFrame();
   }
 
   function applyClock() {
@@ -946,9 +1028,12 @@ export function createAstroScene(host, config, options = {}) {
   }
 
   function resize() {
+    // the layout size, not the bounding box: a CSS transform (a dialog opening from 0.8 scale, as the
+    // Studio's does) shrinks the box, and no resize follows when it ends, so the canvas stayed small
+    // and stretched while the labels sat at its small size
     const rect = wrap.getBoundingClientRect();
-    cssW = Math.max(1, rect.width || wrap.clientWidth || 1);
-    cssH = Math.max(1, rect.height || wrap.clientHeight || 1);
+    cssW = Math.max(1, wrap.clientWidth || rect.width || 1);
+    cssH = Math.max(1, wrap.clientHeight || rect.height || 1);
     dpr = Math.min(2, globalThis.devicePixelRatio || 1);
     canvas.width = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
@@ -1057,6 +1142,8 @@ export function createAstroScene(host, config, options = {}) {
     }
     if (!settle) captureDepth(camera);
     updateLabels(camera, fadeDt);
+    // after the render, as the labels: the camera's matrices are this frame's
+    outlineEdit?.editor.update();
     frames++;
     if (moving || flying || fader.settling || labels.stats.fading > 0) requestFrame();
   }
@@ -1912,6 +1999,13 @@ export function createAstroScene(host, config, options = {}) {
 
   /** @param {KeyboardEvent} e */
   const onKeyDown = (e) => {
+    if (e.key === 'Escape' && outlineEdit) {
+      // not the dialog's Escape: it ends the outline editing only
+      e.preventDefault();
+      e.stopPropagation();
+      outlineEdit.opts.onExit?.();
+      return;
+    }
     if (e.key === 'Escape' && cards.openId) {
       if (selected === cards.openId) select(null);
       cards.close();
@@ -1989,6 +2083,8 @@ export function createAstroScene(host, config, options = {}) {
     timeScale: () => timeScale,
     setModelScale,
     modelScale: () => modelScale,
+    editOutline,
+    finishOutline: () => outlineEdit?.editor.finish() ?? false,
     hasRealModels: () => !!world?.list.some((b) => !!b.magnify),
     setClock(opts) {
       const ok = sceneClock.set(opts ?? {}, performance.now());
@@ -2169,11 +2265,13 @@ export function createAstroScene(host, config, options = {}) {
       if (renderer) release(user);
       renderer = null;
       loadingRing.dispose();
+      outlineEdit?.editor.dispose();
       wrap.remove();
     },
     debug() {
       return {
         loading: loadingRing.state(),
+        outline: outlineEdit ? { id: outlineEdit.id, ...outlineEdit.editor.state() } : null,
         frames,
         clock,
         builds,
