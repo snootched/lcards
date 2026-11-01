@@ -127,7 +127,7 @@ releases:
       - file: astro-bindings
         topic: astrometrics
         summary: "Astrometrics settings from entities: shields, power and a guided tour"
-        description: "Any number on a point or object can follow an entity. SHIELDS sets the shield bubble's opacity round the station (it eases to each new value). POWER opens the wormhole: its throat grows, its wobble follows a template, its glow brightens and the ring spins faster. PREVIOUS STOP and NEXT STOP step the stage helper, and the camera flies through four views; the last one holds the scene clock. STAGE goes back to the start."
+        description: "Any number on a point or object can follow an entity. SHIELDS sets the shield bubble's opacity round the station (it eases to each new value). POWER opens the wormhole: its throat grows, its wobble follows a template, its glow brightens, the ring spins faster and debris gathers round it (a belt whose rock count follows the power, a whole number). PREVIOUS STOP and NEXT STOP step the stage helper, and the camera flies through four views; the last one holds the scene clock. STAGE goes back to the start."
         session: "R4b"
         docs: /cards/astrometrics/data#settings-from-entities
         public: true

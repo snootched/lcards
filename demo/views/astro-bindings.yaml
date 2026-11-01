@@ -83,3 +83,5 @@ sections:
               - { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: "[[[ return Number(states['input_number.lcards_test_power']?.state ?? 0) / 1000 ]]]" }
           - { type: glow, id: mouth_glow, at: mouth, color: var(--lcars-blue), size: { entity: input_number.lcards_test_power, to: [20, 160] } }
           - { type: ring, id: mouth_ring, at: mouth, radius: 70, dash: [6, 10], width: 2, flow_speed: 40, spin: { entity: input_number.lcards_test_power, to: [0, 90] } }
+          # debris round the mouth: how many rocks follows the power (a whole number, rebuilt when it changes)
+          - { type: belt, id: mouth_debris, at: mouth, radius: [52, 64], thickness: 3, period: 30, size: [0.15, 0.9], count: { entity: input_number.lcards_test_power, to: [0, 1200] }, colors: [var(--lcards-gray-light), var(--lcards-gray-medium)] }

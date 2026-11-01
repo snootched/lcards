@@ -1058,6 +1058,8 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
     _applySetting(b, value, force = false) {
         const runtime = this._runtime;
         if (!runtime || !this._scene) return;
+        // a whole-number key (count, arms, ...) rounded: it rebuilds only when the whole number changes
+        value = runtime.roundedSetting(b, value);
         const key = runtime.bindingKey(b);
         if (!force && this._settingValues.has(key) && this._settingValues.get(key) === value) return;
         const prev = this._settingValues.get(key);

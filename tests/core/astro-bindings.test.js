@@ -7,9 +7,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  collectBindings, bindingKey, mapEntity, mapNumber, dateValue, withValues, isTourView, tourStop, easeStep, isBinding, isTemplateValue,
+  collectBindings, bindingKey, roundedSetting, mapEntity, mapNumber, dateValue, withValues, isTourView, tourStop, easeStep, isBinding, isTemplateValue,
   DEFAULT_SMOOTH_MS
 } from '../../src/core/astrometrics/bindings.js';
+
+import { WHOLE_NUMBER_KEYS } from '../../src/core/astrometrics/names.js';
+import { astrometricsSchema } from '../../src/cards/schemas/astrometrics-schema.js';
 
 const shields = (state, attrs = { min: 0, max: 100 }) => ({ entity_id: 'input_number.shields', state: String(state), attributes: attrs });
 
@@ -106,4 +109,43 @@ test('easeStep: smoothstep from to, done at the end, 0 ms steps', () => {
   assert.equal(easeStep(0, 1, 0, 600, 300).value, 0.5);
   assert.deepEqual(easeStep(0, 1, 0, 600, 600), { value: 1, done: true });
   assert.deepEqual(easeStep(0, 1, 0, 0, 0), { value: 1, done: true });
+});
+
+test('whole-number settings: count, arms, lobes ... bind (any depth), their values rounded; seeds and card keys are not whole', () => {
+  const list = collectBindings({
+    time_scale: { entity: 'input_number.speed' },
+    objects: [
+      { type: 'belt', id: 'belt', count: { entity: 'input_number.rocks', to: [100, 500] }, seed: 2 },
+      { type: 'galaxy', id: 'g', arms: "[[[ return 3 ]]]", stars: { entity: 'sensor.s' } },
+      { type: 'grid', id: 'well', deform: [{ type: 'wobble', lobes: { entity: 'input_number.lobes' }, amplitude: { entity: 'input_number.a' } }] }
+    ]
+  });
+  const by = Object.fromEntries(list.map((b) => [bindingKey(b), b]));
+  for (const k of ['object:belt:count', 'object:g:arms', 'object:g:stars', 'object:well:deform.0.lobes']) {
+    assert.equal(by[k]?.kind, 'whole', k);
+    assert.equal(by[k].live, false, `${k} rebuilds its object`);
+  }
+  assert.equal(by['object:well:deform.0.amplitude'].kind, 'number');
+  assert.equal(by['card::time_scale'].kind, 'number');
+  assert.equal(roundedSetting(by['object:belt:count'], mapNumber(by['object:belt:count'].spec, '33.3')), 233);
+  assert.equal(roundedSetting(by['object:belt:count'], null), null);
+  assert.equal(roundedSetting(by['object:well:deform.0.amplitude'], 0.37), 0.37, 'a decimal key as it is');
+});
+
+test('whole-number settings: the schema\'s integer settings (an integer, a binding or a template) are exactly WHOLE_NUMBER_KEYS', () => {
+  /** @type {Set<string>} */
+  const found = new Set();
+  const seen = new Set();
+  /** @param {any} node */
+  const visit = (node) => {
+    if (!node || typeof node !== 'object' || seen.has(node)) return;
+    seen.add(node);
+    for (const [k, v] of Object.entries(node.properties ?? {})) {
+      const alts = /** @type {any} */ (v)?.anyOf;
+      if (Array.isArray(alts) && alts[0]?.type === 'integer' && alts.some((/** @type {any} */ a) => a?.properties?.entity)) found.add(k);
+    }
+    for (const v of Object.values(node)) if (v && typeof v === 'object') visit(v);
+  };
+  visit(astrometricsSchema);
+  assert.deepEqual([...found].sort(), [...WHOLE_NUMBER_KEYS].sort());
 });

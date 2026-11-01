@@ -89,6 +89,22 @@ const setting = (description, extra = {}) => {
 };
 
 /**
+ * A whole number (how many of something) that can follow an entity or a
+ * template, as setting() does; a bound value is rounded (WHOLE_NUMBER_KEYS in
+ * names.js, bindings.js roundedSetting).
+ * @param {string} description
+ * @param {Record<string, any>} [extra] - limits and the default
+ */
+const wholeSetting = (description, extra = {}) => {
+    const { default: def, ...limits } = extra;
+    return {
+        description,
+        anyOf: [{ type: 'integer', ...limits }, settingBinding, settingTemplate],
+        ...(def !== undefined ? { default: def } : {})
+    };
+};
+
+/**
  * A random range [low, high] of opacities, 0 to 1: each star, particle or
  * cloud gets its own value between them (seeded). Items may be settings.
  * @param {string} description
@@ -647,7 +663,7 @@ const fillEffectSchema = {
             oneOf: [color('A colour.'), { type: 'array', items: color('A colour.'), minItems: 1 }]
         },
         base_frequency: setting('Noise detail per scene unit: lower is larger features. Default about 3 noise cells across the radius.', { minimum: 0 }),
-        num_octaves: { type: 'integer', minimum: 1, maximum: 8, description: 'Layers of finer detail (1 smooth, 8 rough). Default plasma 3, fluid 4, contour 2.' },
+        num_octaves: wholeSetting('Layers of finer detail (1 smooth, 8 rough). Default plasma 3, fluid 4, contour 2.', { minimum: 1, maximum: 8 }),
         num_bands: setting('contour: how many bands (low is bold steps, high is near smooth). bands: how many belts pole to pole.', { minimum: 2, maximum: 64, default: 5 }),
         turbulence: setting('bands: how much the belt edges swirl, 0 (straight) to 1 (stormy).', { minimum: 0, maximum: 1, default: 0.3 }),
         fill_level: setting('contour: flood the lowest bands, 0 to 0.95 (0: none).', { minimum: 0, maximum: 0.95, default: 0 }),
@@ -662,8 +678,8 @@ const fillEffectSchema = {
 const gridLook = {
     pattern: { type: 'string', enum: [...GRID_PATTERNS], description: 'Line pattern (the background grid effect\'s names): both (rows and columns, default), horizontal, vertical, diagonal, hexagonal, dots, polar (rings and spokes; default on a disc).' },
     line_spacing: setting('Distance between lines, scene units. On curved shapes line_spacing_deg is usually easier.', { exclusiveMinimum: 0 }),
-    major_row_interval: { type: 'integer', minimum: 0, default: 0, description: 'A major (brighter, wider) line every N rows (rings on a disc); 0 for none.' },
-    major_col_interval: { type: 'integer', minimum: 0, default: 0, description: 'A major line every N columns (spokes on a disc); 0 for none.' },
+    major_row_interval: wholeSetting('A major (brighter, wider) line every N rows (rings on a disc); 0 for none.', { minimum: 0, default: 0 }),
+    major_col_interval: wholeSetting('A major line every N columns (spokes on a disc); 0 for none.', { minimum: 0, default: 0 }),
     line_width: setting('Line width, px.', { minimum: 0, default: 1 }),
     line_width_major: setting('Major line width, px. Default 1.5 x line_width (at least 1.5).', { minimum: 0 }),
     color: color('Line colour. Default theme:colors.ui.tertiary.'),
@@ -682,7 +698,7 @@ const deformSchema = {
     properties: {
         type: { type: 'string', enum: [...DEFORM_TYPES], description: 'wobble (bulges travelling round, or ripples across a flat grid), bend (the axis bends or sways; a flat grid curls), twist (turns more toward the far end; a flat grid swirls like a whirlpool) or noise (smooth random lumps).', enumDescriptions: { wobble: 'Travelling bulges or ripples', bend: 'Bending or swaying axis', twist: 'Twist or whirlpool', noise: 'Smooth random lumps' } },
         amplitude: setting('wobble, bend, noise: how far the surface moves, as a fraction of the grid\'s size (its radius, or half a plane\'s longer side). Default wobble 0.08, bend 0.25, noise 0.05.'),
-        lobes: { type: 'integer', minimum: 0, default: 3, description: 'wobble: bulges round the circumference (0: the whole ring swells at once; on a flat grid, ripples ring out from the centre).' },
+        lobes: wholeSetting('wobble: bulges round the circumference (0: the whole ring swells at once; on a flat grid, ripples ring out from the centre).', { minimum: 0, default: 3 }),
         waves: setting('wobble: waves along the axis (or out from the centre of a flat grid) between bulges, so they spiral.', { default: 1 }),
         period: setting('wobble, bend, twist: seconds per cycle (a bulge travels round once, a sway goes to and fro, the bend turns once, the twist swings). 0: a still shape.', { minimum: 0, default: 0 }),
         drift: setting('noise: how fast the lumps drift through the grid, scene units per second; 0 holds them still.', { default: 0 }),
@@ -691,7 +707,7 @@ const deformSchema = {
         angle: setting('twist: degrees turned at the far end (at the centre of a flat grid). With speed the twist swings between plus and minus this.', { default: 90 }),
         anchor: { type: 'string', enum: [...DEFORM_ANCHORS], default: 'bottom', description: 'bend, twist round an axis: the end that stays put (middle: both ends move).' },
         base_frequency: setting('noise: detail per scene unit, lower is larger lumps (as on fill_effect). Default about 3 lumps across the grid\'s size.', { exclusiveMinimum: 0 }),
-        num_octaves: { type: 'integer', minimum: 1, maximum: 6, default: 2, description: 'noise: layers of finer detail (as on fill_effect).' },
+        num_octaves: wholeSetting('noise: layers of finer detail (as on fill_effect).', { minimum: 1, maximum: 6, default: 2 }),
         seed: setting('noise: changes the pattern.', { default: 0 })
     }
 };
@@ -721,7 +737,7 @@ const gridObject = {
         ...gridLook,
         fill_color: color('Colour filling the cells behind the lines. Default none.'),
         fill_effect: fillEffectSchema,
-        spoke_count: { type: 'integer', minimum: 0, default: 36, description: 'pattern polar: spokes round the centre (meridians on a curved shape). line_spacing_deg wins on a disc.' },
+        spoke_count: wholeSetting('pattern polar: spokes round the centre (meridians on a curved shape). line_spacing_deg wins on a disc.', { minimum: 0, default: 36 }),
         hex_radius: setting('pattern hexagonal: hexagon size, scene units. Default line_spacing.', { exclusiveMinimum: 0 }),
         dot_radius: setting('pattern dots: dot radius, scene units. Default 8% of line_spacing.', { exclusiveMinimum: 0 }),
         edges: { type: 'boolean', default: true, description: 'Outline the open edges: the rim of a disc, dome or well, the ends of a cylinder, the frame of a plane.' },
@@ -1042,7 +1058,7 @@ const beltObject = {
         type: { type: 'string', const: 'belt', description: 'belt: an asteroid belt.' },
         radius: settingOrPair('[inner, outer] radius of the band, scene units; one number is the outer radius (the inner is 0.8 of it). Default [80, 100].'),
         thickness: setting('How far the rocks spread above and below the plane, scene units. Default 0.15 of the band\'s width.', { minimum: 0 }),
-        count: { type: 'integer', minimum: 0, maximum: 5000, default: 600, description: 'How many rocks (at most 5000).' },
+        count: wholeSetting('How many rocks (at most 5000).', { minimum: 0, maximum: 5000, default: 600 }),
         size: settingOrPair('Rock size [smallest, largest], scene units (many small ones, a few large); one number is the largest (the smallest is a quarter of it). Default [0.4, 1.6].'),
         seed: { type: 'integer', default: 1, description: 'A different number gives a different belt.' },
         period: setting('Seconds for the inner edge to go round once (the outer rocks take longer, as real orbits do). 0: still. Off under reduced motion.', { minimum: 0, default: 0 }),
@@ -1061,12 +1077,12 @@ const galaxyObject = {
     properties: {
         type: { type: 'string', const: 'galaxy', description: 'galaxy: a spiral galaxy.' },
         radius: setting('Radius of the disc, scene units. Default 50000 (light years, the Milky Way\'s).', { exclusiveMinimum: 0 }),
-        arms: { type: 'integer', minimum: 1, maximum: 8, description: 'A spiral of this many equal arms instead of the Milky Way\'s (leave out for the Milky Way).' },
+        arms: wholeSetting('A spiral of this many equal arms instead of the Milky Way\'s (leave out for the Milky Way).', { minimum: 1, maximum: 8 }),
         pitch: setting('How tightly the arms wind, degrees (the Milky Way\'s are about 12; larger opens them).', { minimum: 4, maximum: 45, default: 12 }),
         bar: setting('The central bar\'s half-length as a fraction of the radius (0: no bar).', { minimum: 0, maximum: 0.8, default: 0.32 }),
         bar_angle: setting('Bearing of the bar\'s near end, degrees; the arms start at its ends and turn with it. Default 153: 27 degrees off the line from the centre to the Sun\'s place, as in the Milky Way.', { default: 153 }),
         thickness: setting('The disc\'s thickness as a fraction of the radius.', { minimum: 0, maximum: 0.5, default: 0.02 }),
-        stars: { type: 'integer', minimum: 0, maximum: 100000, default: 40000, description: 'How many stars (at most 100,000). Far away fewer of them draw.' },
+        stars: wholeSetting('How many stars (at most 100,000). Far away fewer of them draw.', { minimum: 0, maximum: 100000, default: 40000 }),
         seed: { type: 'integer', default: 3, description: 'A different number gives a different scatter of stars.' },
         core_color: color('Colour of the bulge and bar stars and the core\'s glow. Default var(--lcars-yellow).'),
         arm_color: color('Colour the arm stars lean toward, and the arms\' glow. Default var(--lcars-blue).'),
@@ -1090,7 +1106,7 @@ const nebulaObject = {
             description: 'Or inside a box [width, height, depth] (one number for a cube), scene units. Replaces radius.',
             anyOf: [{ type: 'number', exclusiveMinimum: 0 }, { type: 'array', items: { type: 'number', exclusiveMinimum: 0 }, minItems: 3, maxItems: 3 }, settingBinding, settingTemplate]
         },
-        cloud_count: { type: 'integer', minimum: 1, maximum: 10, default: 4, description: 'How many clouds the seed places (the background preset\'s key).' },
+        cloud_count: wholeSetting('How many clouds the seed places (the background preset\'s key).', { minimum: 1, maximum: 10, default: 4 }),
         clouds: {
             type: 'array',
             maxItems: 10,

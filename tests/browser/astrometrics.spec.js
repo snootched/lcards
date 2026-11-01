@@ -1379,6 +1379,31 @@ test('R4b settings from entities: opacity and size ease to their entity, a templ
     await expectNoErrors(page);
 });
 
+test('whole-number settings: a belt\'s count follows its entity as a whole number, rebuilding only when that changes', async ({ page }) => {
+    await mountCase(page, 'astro-bindings', { width: '800' });
+    await sceneReady(page);
+    const belt = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const b = s.world.objects.get('rocks');
+        // the belt's node: the same one until the belt is rebuilt (power also drives other objects here)
+        return { count: b?.node.getObjectByName('rocks')?.count ?? null, config: b?.config.count, node: b?.node.uuid };
+    });
+    // power 33.3: 100 + 0.333 * 400 = 233.2 rocks, so 233
+    await page.evaluate(() => window.__setState('input_number.lcards_test_power', '33.3'));
+    await expect.poll(async () => (await belt()).count, { timeout: 5000 }).toBe(233);
+    expect((await belt()).config).toBe(233);
+    // 33.31 is 233.24 rocks: the same whole number, so no rebuild of the belt
+    await page.waitForTimeout(600);
+    const before = (await belt()).node;
+    await page.evaluate(() => window.__setState('input_number.lcards_test_power', '33.31'));
+    await page.waitForTimeout(800);
+    expect((await belt()).node).toBe(before);
+    // 100: all 500
+    await page.evaluate(() => window.__setState('input_number.lcards_test_power', '100'));
+    await expect.poll(async () => (await belt()).count, { timeout: 5000 }).toBe(500);
+    await expectNoErrors(page);
+});
+
 test('R4c1 galaxy: the Milky Way draws in light years, fewer stars far away, a prism territory at Sol', async ({ page }) => {
     await mountCase(page, 'astro-galaxy-object', { width: '800' });
     await sceneReady(page);

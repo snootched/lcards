@@ -135,6 +135,7 @@ objects:
 - **No value** (unavailable, not a number): the key's default.
 - **Templates** work too: `spin: "[[[ return states['input_number.lcards_test_power'].state / 10 ]]]"`, or `{{ }}` and `{entity.state}`.
 - **What changes in place:** an object's `opacity`, `radius`, `size` and `spin` ease to their new value without rebuilding anything. Any other key (a deformation's `amplitude`, a belt's `count`, a point's `alt`) rebuilds that one object or point, at most four times a second, and steps.
+- **Whole numbers:** how-many settings (a belt's `count`, a galaxy's `arms` and `stars`, a nebula's `cloud_count`, a wobble's `lobes`, a polar grid's `spoke_count`, `num_octaves`, `major_row_interval` and `major_col_interval`) take the mapped value rounded, so `count: { entity: input_number.lcards_test_power, to: [100, 500] }` gives 233 rocks at 33.3 %, and the object rebuilds only when the whole number changes. Seeds do not follow entities.
 - **On the card:** `time_scale`, `clock.rate` and `clock.date` follow entities the same way (`clock: { date: { entity: input_datetime.lcards_test_date } }` shows the planets on the date in a helper). Positions follow entities their own way: see [Positions from entities](#positions-from-entities).
 - Pairs and lists (`[x, y, z]`, `rotation`) and whole numbers (`count`, `spoke_count`) do not follow entities yet.
 

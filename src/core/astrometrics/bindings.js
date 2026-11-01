@@ -27,6 +27,7 @@
 import { TemplateDetector } from '../templates/TemplateDetector.js';
 import { templateRefs } from '../templates/template-refs.js';
 import { BINDABLE_FORMS } from './placements.js';
+import { WHOLE_NUMBER_KEYS } from './names.js';
 
 /** How long a live key eases to a new value, ms (`smooth` on the binding) */
 export const DEFAULT_SMOOTH_MS = 600;
@@ -54,7 +55,8 @@ const SKIP = new Set([
  * @property {string[]} entities - what it reads (the mapping's entity; a template's references)
  * @property {boolean} live - the scene changes it in place and eases (else the object rebuilds)
  * @property {number} smooth - ease time, ms (0: step)
- * @property {'number' | 'date'} kind - clock.date resolves to a date, everything else to a number
+ * @property {'number' | 'whole' | 'date'} kind - clock.date resolves to a date, a whole-number key (WHOLE_NUMBER_KEYS) to a
+ *   whole number, everything else to a number
  */
 
 /** @param {any} v */
@@ -73,6 +75,7 @@ export const isTemplateValue = (v) => typeof v === 'string' && TemplateDetector.
  */
 function makeBinding(scope, id, path, v, kind = 'number') {
   const key = path[path.length - 1];
+  if (kind === 'number' && scope !== 'card' && WHOLE_NUMBER_KEYS.includes(/** @type {any} */ (key))) kind = 'whole';
   const live = (scope === 'object' && path.length === 1 && LIVE_OBJECT_KEYS.includes(/** @type {any} */ (key)))
     || (scope === 'card' && (path.join('.') === 'time_scale' || path.join('.') === 'clock.rate'));
   if (isBinding(v)) {
@@ -132,6 +135,16 @@ export function collectBindings(config) {
   add(makeBinding('card', '', ['clock', 'rate'], config?.clock?.rate));
   add(makeBinding('card', '', ['clock', 'date'], config?.clock?.date, 'date'));
   return out;
+}
+
+/**
+ * A bound value as its key takes it: a whole-number key's rounded (so an
+ * entity moving within one step does not rebuild the object), else as it is.
+ * @param {SettingBinding} b
+ * @param {any} value
+ */
+export function roundedSetting(b, value) {
+  return b.kind === 'whole' && typeof value === 'number' ? Math.round(value) : value;
 }
 
 /** A binding's key, unique in a card: `object:ring1:deform.0.amplitude` @param {SettingBinding} b */

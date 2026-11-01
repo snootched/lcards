@@ -160,6 +160,14 @@ export function flattenSystems(config) {
   return { ...c, points, objects };
 }
 
+/**
+ * Whole-number settings (how many of something) that can follow an entity:
+ * the schema takes an integer, a binding or a template for them, and a bound
+ * value is rounded (bindings.js), so the object rebuilds only when the whole
+ * number changes. Seeds are not settings.
+ */
+export const WHOLE_NUMBER_KEYS = /** @type {const} */ (['count', 'stars', 'arms', 'cloud_count', 'lobes', 'spoke_count', 'num_octaves', 'major_row_interval', 'major_col_interval']);
+
 /** Object types built from the effects chunk (`core/astrometrics/effects`) */
 export const EFFECT_TYPES = /** @type {const} */ (['nebula', 'cube']);
 

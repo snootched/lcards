@@ -309,3 +309,13 @@ test('astrometrics distance: a range that never shows warns, on points and objec
         'warning objects[0].fade: fade is [start, end]: start nearer than end'
     ]);
 });
+
+test('astrometrics whole-number settings follow an entity or a template; a plain number must still be whole', () => {
+    const astro = (belt) => ({ type: 'custom:lcards-astrometrics-card', objects: [{ type: 'belt', id: 'b', ...belt }] });
+    const errors = (c) => messages(check(c)).filter((m) => m.startsWith('error'));
+    assert.deepEqual(errors(astro({ count: { entity: 'input_number.rocks', to: [100, 500] } })), []);
+    assert.deepEqual(errors(astro({ count: '[[[ return 300 ]]]' })), []);
+    assert.deepEqual(errors(astro({ count: 300 })), []);
+    assert.ok(errors(astro({ count: 2.5 })).length > 0, 'a plain number must still be whole');
+    assert.deepEqual(errors({ type: 'custom:lcards-astrometrics-card', objects: [{ type: 'grid', id: 'g', deform: [{ type: 'wobble', lobes: { entity: 'input_number.lobes' } }] }] }), []);
+});

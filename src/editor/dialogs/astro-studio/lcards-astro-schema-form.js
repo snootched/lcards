@@ -369,10 +369,12 @@ export class LCARdSAstroSchemaForm extends LitElement {
       for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
       this._set(key, next);
     };
-    const pair = (/** @type {'range' | 'to'} */ k, /** @type {string} */ name) => html`
+    // range: the entity's values; to: the setting's values they become (YAML keys range and to)
+    /** @param {'range' | 'to'} k @param {[string, string]} names @param {[string, string]} helpers */
+    const pair = (k, names, helpers) => html`
       <div class="row">
         ${[0, 1].map((i) => this._selector(`${key}~${k}${i}`, { number: { mode: 'box', step: 'any' } },
-          Array.isArray(value[k]) ? value[k][i] : undefined, `${name} ${i ? 'high' : 'low'}`, '', '', (v) => {
+          Array.isArray(value[k]) ? value[k][i] : undefined, names[i], helpers[i], '', (v) => {
             const cur = Array.isArray(value[k]) ? [...value[k]] : [undefined, undefined];
             cur[i] = num(v);
             set({ [k]: cur.every((x) => x === undefined) ? undefined : cur.map((x) => x ?? 0) });
@@ -381,8 +383,9 @@ export class LCARdSAstroSchemaForm extends LitElement {
     return this._subPanel(key, 'mdi:link-variant', `${label}: follows an entity`, kind === 'choice' || kind === 'boolean' ? 'Back to a fixed value' : 'Back to a number', html`
       ${this._selector(`${key}~entity`, { entity: {} }, value.entity || undefined, 'Entity', helper, '', (v) => set({ entity: v || '', attribute: undefined }))}
       ${takes.attribute ? this._attribute(key, value, set) : nothing}
-      ${numeric && takes.range ? pair('range', 'Range') : nothing}
-      ${numeric && takes.to ? pair('to', 'To') : nothing}
+      ${numeric && takes.range ? pair('range', ['Entity low', 'Entity high'], ['Default: its min (else 0)', 'Default: its max (else 100)']) : nothing}
+      ${numeric && takes.to ? pair('to', [`${label} at entity low`, `${label} at entity high`],
+        ['Both empty: the entity\'s own number', 'Held at the ends outside the range']) : nothing}
       ${numeric && takes.smooth ? this._selector(`${key}~smooth`, { number: { mode: 'box', min: 0, step: 50 } }, value.smooth, 'Smooth (ms)', 'opacity, radius, size and spin ease over this; default 600, 0 steps.', '', (v) => set({ smooth: num(v) })) : nothing}`);
   }
 
