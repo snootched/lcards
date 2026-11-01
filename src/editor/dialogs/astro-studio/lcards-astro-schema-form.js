@@ -32,6 +32,7 @@ import '../../components/shared/lcards-color-list.js';
 import '../../components/editors/lcards-font-selector.js';
 import '../../components/editors/lcards-text-field-editor.js';
 import { valueEditor } from './text-adapter.js';
+import { shapePicture } from './starter-gallery.js';
 import '../../components/shared/lcards-asset-source-picker.js';
 import '../../components/yaml/lcards-yaml-editor.js';
 
@@ -120,6 +121,14 @@ export class LCARdSAstroSchemaForm extends LitElement {
       .stop { display: flex; gap: var(--ha-space-1); align-items: flex-start; }
       .stop > div { flex: 1; min-width: 0; display: grid; gap: var(--ha-space-2); }
       .pills { display: flex; align-items: center; gap: var(--ha-space-2); }
+      .shape-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--ha-space-2); }
+      .shape-tile { display: flex; flex-direction: column; gap: var(--ha-space-1); padding: 0 0 var(--ha-space-1); cursor: pointer; overflow: hidden;
+        font: inherit; color: var(--primary-text-color); background: none; text-align: center;
+        border: var(--ha-border-width-sm) solid var(--divider-color); border-radius: var(--ha-border-radius-md); }
+      .shape-tile:hover, .shape-tile:focus-visible { border-color: var(--primary-color); outline: none; }
+      .shape-tile[aria-checked='true'] { border: var(--ha-border-width-md) solid var(--primary-color); }
+      .shape-picture { position: relative; aspect-ratio: 16 / 9; background: black; }
+      .shape-picture img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
       .pills wa-button-group ha-button::part(base) { border-radius: 0; }
       .pills wa-button-group ha-button:first-child::part(base) {
         border-start-start-radius: var(--ha-border-radius-pill); border-end-start-radius: var(--ha-border-radius-pill);
@@ -226,6 +235,8 @@ export class LCARdSAstroSchemaForm extends LitElement {
       }
       case 'range':
         return this._range(key, s, value, label, helper);
+      case 'shape':
+        return this._shape(key, s, value, label, helper);
       case 'rate':
         return this._bindable(key, s, 'full', this._rate(key, value, label, helper, (v) => this._set(key, v)));
       case 'date':
@@ -480,6 +491,35 @@ export class LCARdSAstroSchemaForm extends LitElement {
               .value=${typeof vals[i] === 'number' ? vals[i] : def[i]} .label=${name.charAt(0).toUpperCase() + name.slice(1)} .required=${false}
               @value-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); change(i, e.detail.value); }}>
             </ha-selector>`)}
+        </div>
+        ${helper ? html`<div class="hint">${helper}</div>` : nothing}
+      </div>`;
+  }
+
+  /**
+   * A shape as a row of pictures (the object's type picks them); a missing
+   * picture leaves the shape's name.
+   * @param {string} key
+   * @param {any} s
+   * @param {any} value
+   * @param {string} label
+   * @param {string} helper
+   */
+  _shape(key, s, value, label, helper) {
+    const type = String(this.value?.type ?? '');
+    const descs = s.enumDescriptions ?? {};
+    const current = value ?? s.default;
+    return html`
+      <div class="full" data-key=${key}>
+        <span class="field-label" id="shape-${key}">${label}</span>
+        <div class="shape-picker" role="radiogroup" aria-labelledby="shape-${key}">
+          ${s.enum.map((/** @type {string} */ v) => html`
+            <button type="button" class="shape-tile" role="radio" data-shape=${v} aria-checked=${v === current ? 'true' : 'false'}
+              title=${descs[v] ?? v} @click=${() => this._set(key, v === s.default ? undefined : v)}>
+              <span class="shape-picture"><img src=${shapePicture(type, v)} alt="" loading="lazy"
+                @error=${(/** @type {Event} */ e) => { /** @type {HTMLElement} */ (e.target).hidden = true; }}></span>
+              <span>${v}</span>
+            </button>`)}
         </div>
         ${helper ? html`<div class="hint">${helper}</div>` : nothing}
       </div>`;

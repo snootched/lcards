@@ -2,6 +2,8 @@
 
 import { centreRef } from './shared.js';
 
+const LY_KM = 9.4607304725808e12;
+
 const SETS = [
   { id: 'a', label: 'TERRITORY A', color: 'var(--lcars-blue)', angle: [0, 60] },
   { id: 'b', label: 'TERRITORY B', color: 'var(--lcars-red)', angle: [70, 130] },
@@ -18,19 +20,22 @@ export default /** @type {import('./index.js').Starter} */ ({
   params: [
     { key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: 'zone' },
     { key: 'centre', label: 'Centre', type: 'point', default: [0, 0, 0], helper: 'A point id or x, y, z.' },
-    { key: 'inner', label: 'Inner radius', type: 'number', default: 30 },
-    { key: 'outer', label: 'Outer radius', type: 'number', default: 80 }
+    { key: 'inner', label: 'Inner radius', type: 'number', default: 30, real: 5 * LY_KM },
+    { key: 'outer', label: 'Outer radius', type: 'number', default: 80, real: 20 * LY_KM }
   ],
   build: ({ centre, inner, outer }) => {
     const c = centreRef(centre);
     const r0 = Number(inner) || 30;
     const r1 = Number(outer) || 80;
+    // heights and label lift follow the band's depth (50 at the defaults)
+    const k = Math.abs(r1 - r0) / 50 || 1;
+    const sig = (/** @type {number} */ n) => Number(n.toPrecision(3));
     return {
       points: [...c.points, ...SETS.map((s) => ({
-        id: s.id, at: c.ref, offset: polarOffset((r0 + r1) / 2, (s.angle[0] + s.angle[1]) / 2, 16), label: s.label, style: 'major', color: s.color
+        id: s.id, at: c.ref, offset: polarOffset((r0 + r1) / 2, (s.angle[0] + s.angle[1]) / 2, sig(16 * k)), label: s.label, style: 'major', color: s.color
       }))],
       objects: SETS.map((s) => ({
-        type: 'volume', id: `${s.id}_space`, at: c.ref, shape: 'sector', radius: [r0, r1], angle: s.angle, height: [-4, 10],
+        type: 'volume', id: `${s.id}_space`, at: c.ref, shape: 'sector', radius: [r0, r1], angle: s.angle, height: [sig(-4 * k), sig(10 * k)],
         cells: { ring: 10, angle: 10, layer: 7 }, color: s.color, tap_action: { action: 'fly-to' }
       }))
     };

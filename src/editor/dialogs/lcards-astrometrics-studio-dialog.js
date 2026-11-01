@@ -36,17 +36,17 @@ import { messageStyles } from '../base/surface-styles.js';
 import { studioDialogStyles } from './studio-dialog-styles.js';
 import { astrometricsSchema, objectSchema } from '../../cards/schemas/astrometrics-schema.js';
 import { TYPE_GUIDE } from '../../core/astrometrics/names.js';
-import { objectBranch, objectSummary, freshId, newObject, OBJECT_GROUPS, groupOf, keysBound } from './astro-studio/schema-fields.js';
+import { objectBranch, objectSummary, freshId, newObject, viewScale, reshape, OBJECT_GROUPS, groupOf, keysBound } from './astro-studio/schema-fields.js';
 import {
   viewsOf, startViewName, captureView, freshViewName, setView, deleteView, moveView, renameView, viewNameProblem, viewSummary
 } from './astro-studio/camera-views.js';
-import { STARTERS, applyStarter, hasScene, unitsClash } from '../../core/astrometrics/starters/index.js';
+import { STARTERS, applyStarter, hasScene, unitsClash, targetUnits } from '../../core/astrometrics/starters/index.js';
 import { starterYaml } from '../../core/astrometrics/starters/yaml.js';
 import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
 import { SCENE_SCOPE, scopeSystem, validScope, scopedList, setScopedList, scopedObjectIds, pointScope, objectScope, allPointIds, allObjectIds, pointsEditorConfig } from './astro-studio/systems.js';
 import { createHistory } from './astro-studio/history.js';
-import { starterPicture, starterParamSchema, starterParamChoices, starterParamValues, starterAdds, fragmentCounts } from './astro-studio/starter-gallery.js';
+import { starterPicture, typePicture, TYPE_GROUPS, starterParamSchema, starterParamChoices, starterParamValues, starterAdds, fragmentCounts } from './astro-studio/starter-gallery.js';
 import { overviewGuide, startersGuide, objectsGuide, pointsGuide, cameraGuide } from './astro-studio/studio-guides.js';
 import './astro-studio/lcards-astro-schema-form.js';
 import '../components/shared/lcards-form-section.js';
@@ -131,6 +131,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       _addingObject: { state: true },
       _placing: { state: true },
       _status: { state: true },
+      _scaleBar: { state: true },
       _expandedView: { state: true },
       _openStarter: { state: true },
       _starterParams: { state: true },
@@ -160,6 +161,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     this._placing = false;
     /** @type {string} the toolbar's line while dragging or placing (else the hint) */
     this._status = '';
+    /** @type {{ px: number, label: string } | null} the preview's scale bar (_updateScaleBar) */
+    this._scaleBar = null;
     /** @type {string | null} the open view row in the Camera tab */
     this._expandedView = null;
     /** @type {string} why the last rename was refused */
@@ -221,6 +224,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   /** @param {Map<string, unknown>} changed */
   updated(changed) {
     if (changed.has('hass') && this._previewCard) this._previewCard.hass = this.hass;
+    // the scale bar's units: the scope's, a starter being tried, or the scene's changed
+    if (changed.has('_scope') || changed.has('_trying') || changed.has('_workingConfig')) this._updateScaleBar();
   }
 
   // ── Working config ─────────────────────────────────────────────────────────
@@ -350,16 +355,56 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   }
 
   /**
-   * Open a scope in the Points and Objects tabs (rows closed).
+   * Open a scope in the Points and Objects tabs (rows closed). With `fly`
+   * (the Open and Back buttons) the preview goes with it: to the system,
+   * whole, or back to the start view.
    * @param {number} scope
+   * @param {{ fly?: boolean }} [opts]
    * @private
    */
-  _openScope(scope) {
+  _openScope(scope, { fly = false } = {}) {
     if (scope === this._scope) return;
+    // a starter being tried was put where the old scope was
+    if (this._trying) this._discardTry();
     this._scope = scope;
     this._expandedObject = -1;
     this._addingObject = false;
     this._selectedPoint = null;
+    if (fly) this._flyToScope();
+  }
+
+  /**
+   * The scale bar under the units chip: a round length (1, 2 or 5 times a
+   * power of ten) about a fifth of the view's width across the spot the
+   * camera looks at, in the open scope's units.
+   * @private
+   */
+  async _updateScaleBar() {
+    const scene = await this._previewCard?.studioScene?.();
+    if (!scene?.viewIn) return;
+    const system = !this._trying && this._system ? this._objectIdIn(SCENE_SCOPE, this._scope) : undefined;
+    const { width, px } = scene.viewIn(system);
+    if (!(width > 0) || !(px > 0) || !Number.isFinite(width)) {
+      this._scaleBar = null;
+      return;
+    }
+    const target = width / 5;
+    const exp = Math.floor(Math.log10(target));
+    const base = target / 10 ** exp;
+    const length = (base >= 5 ? 5 : base >= 2 ? 2 : 1) * 10 ** exp;
+    const units = system ? this._units : (this._trying?.config ?? this._workingConfig).units;
+    const label = `${length.toLocaleString(undefined, { maximumSignificantDigits: 1 })} ${units || 'units'}`;
+    const bar = Math.round((length / width) * px);
+    if (this._scaleBar?.px !== bar || this._scaleBar?.label !== label) this._scaleBar = { px: bar, label };
+  }
+
+  /** The preview to the open scope: the system's frame, or the scene's start view @private */
+  async _flyToScope() {
+    const scene = await this._previewCard?.studioScene?.();
+    if (!scene) return;
+    const id = this._system ? this._objectIdIn(SCENE_SCOPE, this._scope) : undefined;
+    if (id !== undefined) scene.frameObject(id);
+    else scene.home();
   }
 
   // ── Preview ────────────────────────────────────────────────────────────────
@@ -383,6 +428,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     host.replaceChildren(card);
     this._previewCard = card;
     card.attachStudio?.({
+      onView: () => this._updateScaleBar(),
       onSelect: (/** @type {any} */ hit) => this._onSceneSelect(hit),
       onDrag: (/** @type {string} */ id, /** @type {string} */ form, /** @type {any} */ value, /** @type {boolean} */ done) => this._onPointDrag(id, form, value, done)
     });
@@ -568,7 +614,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         .type-picker { margin-bottom: var(--ha-space-3); }
         .scope-bar { display: flex; align-items: center; gap: var(--ha-space-2); margin-bottom: var(--ha-space-3); padding: var(--ha-space-2) var(--ha-space-3); border: var(--ha-border-width-sm) solid var(--divider-color); border-radius: var(--ha-border-radius-md); }
         .scope-bar span { flex: 1; }
-        .system-open { display: flex; align-items: center; justify-content: space-between; gap: var(--ha-space-2); margin: var(--ha-space-2) 0; }
+        .system-open { margin: var(--ha-space-2) 0; }
         .type-picker-actions { display: flex; justify-content: flex-end; gap: var(--ha-space-2); margin-top: var(--ha-space-2); }
         lcards-form-section { display: block; }
         .canvas-toolbar { align-items: center; }
@@ -595,6 +641,9 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         .units-chip ha-assist-chip { --ha-assist-chip-filled-container-color: var(--primary-color); --ha-assist-chip-label-text-color: white;
           --ha-chip-label-size: var(--ha-font-size-l, 16px); }
         .units-chip ha-icon { --mdc-icon-size: 18px; color: white; }
+        .scale-bar { display: flex; align-items: center; gap: var(--ha-space-2); margin-top: var(--ha-space-2);
+          color: var(--lcards-moonlight); font-size: var(--ha-font-size-s, 12px); pointer-events: none; }
+        .scale-line { height: 6px; box-sizing: border-box; border: var(--ha-border-width-md) solid currentColor; border-top: none; }
         .starter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--ha-space-3); }
         .starter-tile { display: flex; flex-direction: column; gap: var(--ha-space-1); padding: 0 0 var(--ha-space-2); text-align: start; cursor: pointer;
           font: inherit; color: inherit; background: none; overflow: hidden;
@@ -742,6 +791,11 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     return html`
       <div class="units-chip" data-units=${units || ''} title="Positions, sizes and distances are in these units">
         <ha-assist-chip filled label=${text}><ha-icon slot="icon" icon="mdi:arrow-expand-horizontal"></ha-icon></ha-assist-chip>
+        ${this._scaleBar ? html`
+          <div class="scale-bar" title="This length on the preview, where the camera looks">
+            <span class="scale-line" style=${`width: ${this._scaleBar.px}px`}></span>
+            <span class="scale-label">${this._scaleBar.label}</span>
+          </div>` : nothing}
       </div>`;
   }
 
@@ -987,30 +1041,62 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   /** @private */
   _renderStartersTab() {
     const open = STARTERS.find((st) => st.id === this._openStarter);
-    if (open) return this._renderStarterDetail(open);
+    if (open) return html`${this._renderScopeBar('starters')}${this._renderStarterDetail(open)}`;
+    const inSystem = !!this._system;
     const group = (/** @type {'scene' | 'part'} */ kind, /** @type {string} */ header, /** @type {string} */ icon, /** @type {string} */ hint) => html`
       <lcards-form-section class="starter-group" data-group=${kind} header=${header} icon=${icon} description=${hint} outlined expanded>
         <div class="starter-grid">${STARTERS.filter((st) => st.kind === kind).map((st) => this._renderStarterTile(st))}</div>
       </lcards-form-section>`;
     return html`
       ${startersGuide()}
-      ${group('scene', 'Scenes', 'mdi:image-filter-hdr-outline', 'A whole scene: use it in place of yours, or merge it into yours.')}
-      ${group('part', 'Parts', 'mdi:puzzle-outline', 'One thing to add next to your scene, such as a planet with moons.')}
+      ${this._renderScopeBar('starters')}
+      ${group('scene', 'Scenes', 'mdi:image-filter-hdr-outline', inSystem
+        ? 'A whole scene: it acts on the whole card, not only this system.'
+        : 'A whole scene: use it in place of yours, or merge it into yours.')}
+      ${group('part', 'Parts', 'mdi:puzzle-outline', inSystem
+        ? 'One thing to add to this system, sized in its units, such as a planet with moons.'
+        : 'One thing to add next to your scene, such as a planet with moons.')}
     `;
   }
 
   /**
-   * A starter's picture; its icon when the picture is missing.
-   * @param {import('../../core/astrometrics/starters/index.js').Starter} starter
+   * A gallery picture; the icon when the picture is missing.
+   * @param {string} src
+   * @param {string} icon
    * @private
    */
-  _starterPicture(starter) {
+  _picture(src, icon) {
     return html`
       <div class="starter-picture">
-        <ha-icon icon=${starter.icon}></ha-icon>
-        <img src=${starterPicture(starter.id)} alt="" loading="lazy"
+        <ha-icon icon=${icon}></ha-icon>
+        <img src=${src} alt="" loading="lazy"
           @error=${(/** @type {Event} */ e) => { /** @type {HTMLElement} */ (e.target).hidden = true; }}>
       </div>`;
+  }
+
+  /**
+   * Where Starters put a part: the open system (an index into the card's
+   * objects), or undefined for the scene.
+   * @returns {number | undefined}
+   */
+  get _starterSystem() {
+    return this._system ? this._scope : undefined;
+  }
+
+  /** The units a part is sized in where it goes ('' when not named) */
+  get _starterUnits() {
+    return targetUnits(this._workingConfig, this._starterSystem) ?? '';
+  }
+
+  /**
+   * A part's units when they differ from where it goes, else null; scenes
+   * always act on the card.
+   * @param {import('../../core/astrometrics/starters/index.js').Starter} starter
+   * @param {Record<string, any>} [typed]
+   * @private
+   */
+  _starterClash(starter, typed) {
+    return unitsClash(this._workingConfig, starter, typed, starter.kind === 'part' ? this._starterSystem : undefined);
   }
 
   /**
@@ -1020,13 +1106,13 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
    */
   _renderStarterTile(starter) {
     // a part in other units cannot be added to this scene (a scene can still replace it)
-    const clash = starter.kind === 'part' ? unitsClash(this._workingConfig, starter) : null;
+    const clash = starter.kind === 'part' ? this._starterClash(starter) : null;
     return html`
       <button class="starter-tile ${clash ? 'clash' : ''}" data-starter=${starter.id} @click=${() => { this._openStarter = starter.id; }}>
-        ${this._starterPicture(starter)}
+        ${this._picture(starterPicture(starter.id), starter.icon)}
         <span class="starter-title">${starter.title}</span>
         <span class="starter-summary">${starter.summary}</span>
-        ${clash ? html`<span class="starter-note"><ha-icon icon="mdi:arrow-expand-horizontal"></ha-icon>In ${clash}; this scene is in ${this._workingConfig.units ?? 'scene units'}</span>` : nothing}
+        ${clash ? html`<span class="starter-note"><ha-icon icon="mdi:arrow-expand-horizontal"></ha-icon>In ${clash}; this ${this._system ? 'system' : 'scene'} is in ${this._starterUnits || 'scene units'}</span>` : nothing}
       </button>`;
   }
 
@@ -1040,7 +1126,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
    */
   _starterMode(starter) {
     if (starter.kind === 'scene') return 'replace';
-    if (!unitsClash(this._workingConfig, starter, this._starterParams[starter.id])) return 'merge';
+    // in a system a part only adds (a clashing one goes to the scene instead)
+    if (this._system || !this._starterClash(starter, this._starterParams[starter.id])) return 'merge';
     return starter.scene ? 'scene' : 'replace';
   }
 
@@ -1054,10 +1141,14 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     const typed = this._starterParams[starter.id] ?? {};
     const trying = this._trying?.id === starter.id;
     const scene = starter.kind === 'scene';
-    const clash = unitsClash(this._workingConfig, starter, typed);
+    const clash = this._starterClash(starter, typed);
     const mode = this._starterMode(starter);
     const host = starter.scene ? STARTERS.find((st) => st.id === starter.scene) : undefined;
     const here = this._workingConfig.units ?? 'scene units';
+    // a part in a system goes into it, sized in its units; one in other units has to go to the scene
+    const sysId = !scene && this._system ? this._objectIdIn(SCENE_SCOPE, this._scope) : null;
+    const blocked = !!(sysId && clash);
+    const units = scene ? this._workingConfig.units ?? '' : this._starterUnits;
     return html`
       <div class="starter-detail" data-starter-detail=${starter.id}>
         <div class="tab-header">
@@ -1066,11 +1157,14 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
             All starters
           </ha-button>
         </div>
-        ${this._starterPicture(starter)}
+        ${this._picture(starterPicture(starter.id), starter.icon)}
         <h3 class="starter-detail-title"><ha-icon icon=${starter.icon}></ha-icon>${starter.title}</h3>
         <p class="starter-description">${starter.description}</p>
-        <p class="hint starter-adds">${mode === 'scene' ? `Replaces the scene with ${host?.title}, then adds` : scene || mode === 'replace' ? 'Replaces the scene with' : 'Adds'} ${starterAdds(starter, typed)}.</p>
-        ${clash && !scene ? html`
+        <p class="hint starter-adds">${mode === 'scene' ? `Replaces the scene with ${host?.title}, then adds` : scene || mode === 'replace' ? 'Replaces the scene with' : 'Adds'} ${starterAdds(starter, typed)}${sysId && !blocked ? ` to system ${sysId}` : ''}.</p>
+        ${blocked ? html`
+          <lcards-message type="info" class="starter-clash">
+            This part is in ${clash} and system ${sysId} is in ${units || 'its parent\'s units'}, so it cannot go into it. Go back to the scene to add it there.
+          </lcards-message>` : clash && !scene ? html`
           <lcards-message type="info" class="starter-clash">
             This part is in ${clash} and your scene is in ${here}, so it cannot go next to it.
             ${host ? html`It is made for ${host.title}: start with that scene and add this part to it.` : 'It can replace the scene instead.'}
@@ -1078,18 +1172,22 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
           </lcards-message>` : nothing}
         ${starter.params.length ? html`
           <lcards-form-section header="Settings" icon="mdi:tune-variant" outlined expanded>
-            <lcards-astro-schema-form .hass=${this.hass} .schema=${starterParamSchema(starter)} .value=${starterParamValues(starter, typed)}
-              .pointIds=${this._pointIds} .choices=${starterParamChoices(starter)} .units=${this._workingConfig.units ?? ''}
+            <lcards-astro-schema-form .hass=${this.hass} .schema=${starterParamSchema(starter)} .value=${starterParamValues(starter, typed, units || null)}
+              .pointIds=${this._pointIds} .choices=${starterParamChoices(starter)} .units=${units}
               @form-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); this._setStarterParams(starter, e.detail.value); }}>
             </lcards-astro-schema-form>
           </lcards-form-section>` : nothing}
         <lcards-form-section header="YAML" icon="mdi:code-braces" description="What it puts into the card" outlined>
-          <pre class="starter-yaml">${this._starterYaml(starter, typed)}</pre>
+          <pre class="starter-yaml">${this._starterYaml(starter, typed, units)}</pre>
         </lcards-form-section>
         ${this._starterMessage?.starter === starter.id
           ? html`<lcards-message type=${this._starterMessage.type}>${this._starterMessage.text}</lcards-message>` : nothing}
         <div class="starter-actions">
-          ${trying ? html`
+          ${blocked ? html`
+            <ha-button data-action="to-scene" @click=${() => this._openScope(SCENE_SCOPE, { fly: true })}>
+              <ha-icon icon="mdi:arrow-left" slot="start"></ha-icon>
+              Back to the scene to add it
+            </ha-button>` : trying ? html`
             <ha-button appearance="plain" @click=${this._discardTry}>Discard</ha-button>
             <ha-button variant="brand" @click=${this._keepTry}>
               <ha-icon icon="mdi:check" slot="start"></ha-icon>
@@ -1112,7 +1210,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
               </ha-button>` : html`
               <ha-button data-action="insert" @click=${() => this._insertStarter(starter, mode)}>
                 <ha-icon icon=${mode === 'merge' ? 'mdi:plus' : 'mdi:swap-horizontal'} slot="start"></ha-icon>
-                ${mode === 'merge' ? 'Add to the scene' : mode === 'scene' ? `Start with ${host?.title} and add it` : 'Replace the scene with it'}
+                ${mode === 'merge' ? (sysId ? `Add to system ${sysId}` : 'Add to the scene') : mode === 'scene' ? `Start with ${host?.title} and add it` : 'Replace the scene with it'}
               </ha-button>`}`}
         </div>
       </div>
@@ -1137,12 +1235,15 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
    * The YAML a starter adds, with the params as typed.
    * @param {import('../../core/astrometrics/starters/index.js').Starter} starter
    * @param {Record<string, any>} typed
+   * @param {string} [units]
    * @private
    */
-  _starterYaml(starter, typed) {
-    const out = applyStarter({}, starter, typed);
+  _starterYaml(starter, typed, units = '') {
+    // sized in the units where it goes; they only show when the starter sets them
+    const out = applyStarter(units ? { units } : {}, starter, typed);
     if (!out.config) return out.error;
     const { type: _type, ...added } = out.config;
+    if (out.added.units === undefined) delete added.units;
     return starterYaml(added);
   }
 
@@ -1158,7 +1259,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     let base = this._workingConfig;
     const host = mode === 'scene' ? STARTERS.find((st) => st.id === starter.scene) : undefined;
     if (host) base = applyStarter(base, host, this._starterParams[host.id] ?? {}, { mode: 'replace' }).config ?? base;
-    const out = applyStarter(base, starter, this._starterParams[starter.id] ?? {}, { mode: mode === 'scene' ? 'merge' : mode });
+    const system = starter.kind === 'part' && mode === 'merge' ? this._starterSystem : undefined;
+    const out = applyStarter(base, starter, this._starterParams[starter.id] ?? {}, { mode: mode === 'scene' ? 'merge' : mode, system });
     if (!out.config || !out.added) {
       this._starterMessage = { starter: starter.id, type: 'error', text: String(out.error) };
       return null;
@@ -1243,9 +1345,9 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   }
 
   /**
-   * Over the Points and Objects tabs while a system is open: whose lists
-   * these are, its units, and the way back to the scene's.
-   * @param {'points' | 'objects'} tab
+   * Over the Points, Objects and Starters tabs while a system is open:
+   * whose lists these are (where parts go), its units, and the way back.
+   * @param {'points' | 'objects' | 'starters'} tab
    * @private
    */
   _renderScopeBar(tab) {
@@ -1256,25 +1358,38 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     return html`
       <div class="scope-bar">
         <ha-icon icon="mdi:white-balance-sunny"></ha-icon>
-        <span>${tab === 'points' ? 'Points' : 'Objects'} of system <b>${id}</b> (${units})</span>
-        <ha-button appearance="plain" @click=${() => this._openScope(SCENE_SCOPE)}>
+        <span>${tab === 'starters' ? 'Parts go into system' : tab === 'points' ? 'Points of system' : 'Objects of system'} <b>${id}</b> (${units})</span>
+        <ha-button appearance="plain" @click=${() => this._openScope(SCENE_SCOPE, { fly: true })}>
           <ha-icon icon="mdi:arrow-left" slot="start"></ha-icon>
           Back to the scene
         </ha-button>
       </div>`;
   }
 
-  /** @private */
+  /**
+   * Add object: a gallery of the types by what they are for, a picture and
+   * a line each.
+   * @private
+   */
   _renderTypePicker() {
     // one level: no system in a system
-    const options = TYPE_GUIDE.filter((t) => !(this._system && t.type === 'system')).map((t) => ({ value: t.type, label: t.type, description: t.use }));
-    // box mode shows each type's description under its name
+    const types = TYPE_GUIDE.filter((t) => !(this._system && t.type === 'system'));
     return html`
-      <lcards-form-section class="type-picker" header="Which type for what" icon="mdi:shape-plus-outline" outlined ?expanded=${true}>
-        <ha-selector .hass=${this.hass} .required=${false}
-          .selector=${{ select: { mode: 'box', options } }}
-          @value-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); if (e.detail.value) this._addObject(e.detail.value); }}>
-        </ha-selector>
+      <lcards-form-section class="type-picker" header="Add an object" icon="mdi:shape-plus-outline" outlined ?expanded=${true}>
+        ${TYPE_GROUPS.map((g) => {
+          const list = types.filter((t) => /** @type {readonly string[]} */ (g.types).includes(t.type));
+          if (!list.length) return nothing;
+          return html`
+            <lcards-form-section class="starter-group" data-type-group=${g.id} header=${g.header} icon=${g.icon} nested outlined expanded>
+              <div class="starter-grid">${list.map((t) => html`
+                <button class="starter-tile" data-type=${t.type} @click=${() => this._addObject(t.type)}>
+                  ${this._picture(typePicture(t.type), t.icon)}
+                  <span class="starter-title">${t.type}</span>
+                  <span class="starter-summary">${t.use}</span>
+                </button>`)}
+              </div>
+            </lcards-form-section>`;
+        })}
         <div class="type-picker-actions">
           <ha-button appearance="plain" @click=${() => { this._addingObject = false; }}>Cancel</ha-button>
         </div>
@@ -1282,13 +1397,34 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     `;
   }
 
-  /** @param {string} type @private */
-  _addObject(type) {
-    const objects = this._objects;
+  /**
+   * Add an object of a type, sized to the preview's view and where it looks
+   * (on the point there, when it is one in this scope), so it shows at once.
+   * @param {string} type
+   * @private
+   */
+  async _addObject(type) {
     const ids = allObjectIds(this._workingConfig);
     this._addingObject = false;
+    const scene = await this._previewCard?.studioScene?.().catch(() => null);
+    const system = this._system ? this._objectIdIn(SCENE_SCOPE, this._scope) : undefined;
+    /** @type {{ scale?: number, at?: string | number[] }} */
+    const place = {};
+    if (scene?.viewIn) {
+      const view = scene.viewIn(system);
+      place.scale = viewScale(view.distance);
+      const point = scene.viewNow?.().target;
+      if (typeof point === 'string' && pointScope(this._workingConfig, point) === this._scope) place.at = point;
+      else {
+        // a spot off the centre, to a thousandth of the view (a power of ten)
+        const grain = 10 ** Math.floor(Math.log10(view.distance * 1e-3));
+        const spot = view.target.map((v) => Number((Math.round(v / grain) * grain).toPrecision(12)));
+        if (spot.some((v) => v !== 0)) place.at = spot;
+      }
+    }
+    const objects = this._objects;
     this._expandedObject = objects.length;
-    this._setObjects([...objects, newObject(type, ids, this._pointIds)]);
+    this._setObjects([...objects, newObject(type, ids, this._pointIds, place)]);
   }
 
   /**
@@ -1302,7 +1438,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     const guide = TYPE_GUIDE.find((t) => t.type === obj?.type);
     const id = this._objectId(obj, index);
     /** @param {Record<string, any>} next */
-    const set = (next) => this._setObjects(this._objects.map((o, i) => (i === index ? next : o)));
+    // a new shape keeps the object's size (a plane's size is a disc's radius)
+    const set = (next) => this._setObjects(this._objects.map((o, i) => (i === index ? reshape(o, next) : o)));
     const expanded = this._expandedObject === index;
     return html`
       <lcards-form-section class="object" data-object=${index} header=${id}
@@ -1310,10 +1447,12 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         icon=${guide?.icon ?? 'mdi:shape-outline'} outlined ?expanded=${expanded}
         @expanded-changed=${(/** @type {CustomEvent} */ e) => { if (e.detail.expanded) this._selectObject(index); else if (this._expandedObject === index) this._selectObject(-1); }}>
         ${obj?.type === 'system' && !this._system ? html`
-          <ha-icon-button slot="header-icons" .label=${'Edit its points and objects'}
-            @click=${(/** @type {Event} */ e) => { e.stopPropagation(); this._openScope(index); }}>
-            <ha-icon icon="mdi:folder-open-outline"></ha-icon>
-          </ha-icon-button>` : nothing}
+          <ha-button slot="header-icons" size="s" class="open-system" data-action="open-system"
+            title=${`Open the system: its ${systemCounts(obj)}`}
+            @click=${(/** @type {Event} */ e) => { e.stopPropagation(); this._openScope(index, { fly: true }); }}>
+            <ha-icon icon="mdi:folder-open-outline" slot="start"></ha-icon>
+            Open
+          </ha-button>` : nothing}
         <ha-icon-button slot="header-icons" .label=${'Move up'} ?disabled=${index === 0}
           @click=${(/** @type {Event} */ e) => { e.stopPropagation(); this._moveObject(index, -1); }}>
           <ha-icon icon="mdi:arrow-up"></ha-icon>
@@ -1363,14 +1502,9 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       ${OBJECT_GROUPS.map((g) => {
         const list = keys.filter((k) => groupFor(k) === g.id);
         if (!list.length) return nothing;
+        // its points and objects open with the row's Open system button
         if (g.id === 'main') return html`${form(list)}${obj?.type === 'system' ? html`
-          <div class="system-open">
-            <span class="hint">${systemCounts(obj)}</span>
-            <ha-button @click=${() => this._openScope(this._expandedObject)}>
-              <ha-icon icon="mdi:folder-open-outline" slot="start"></ha-icon>
-              Edit its points and objects
-            </ha-button>
-          </div>` : nothing}`;
+          <div class="hint system-open">Holds ${systemCounts(obj)}.</div>` : nothing}`;
         // a section with a setting that follows an entity opens, and says so
         const bound = keysBound(obj, list);
         return html`<lcards-form-section data-group=${g.id} header=${g.header} icon=${g.icon} secondary=${bound ? 'follows an entity' : ''}

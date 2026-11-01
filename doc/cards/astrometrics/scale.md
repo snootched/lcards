@@ -154,9 +154,10 @@ An object's distance is to its nearest edge. A flat grid (`shape: plane` or `dis
 
 ## In the Studio
 
-The [Studio](./studio) edits a system's points and objects in the same Points and Objects tabs: open the system's row and select **Edit its points and objects** (or the folder button on the row). The tabs then show that system's lists, in its units, with a bar naming it and **Back to the scene**. Tapping a point or object on the preview opens the list it is in. Inside a system:
+The [Studio](./studio) edits a system's points and objects in the same Points and Objects tabs: select **Open** on the system's row. The tabs then show that system's lists, in its units, with a bar naming it and **Back to the scene**. Tapping a point or object on the preview opens the list it is in. Inside a system:
 
 - **Place** and **Pick on preview** put points on the system's own ground plane, in its units.
 - **Drag** moves a point on its system's plane.
 - **Capture** a view while the camera looks at a point (after a fly-to it does): the view names the point, with the distance in its units.
 - New ids are checked against the whole card, since ids are card-wide.
+- **Starters** adds parts into the system. A planet, belt, nebula field, territories or starbase starts at real sizes in the system's units (an Earth-sized planet one au out in a km system); a part in other units than the system's goes to the scene instead.

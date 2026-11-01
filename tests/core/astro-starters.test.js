@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { getSchemaEntries } from '../../scripts/lib/card-schemas.js';
 import { buildRegistries } from '../../scripts/lib/registries.js';
 import { createConfigValidator } from '../../scripts/lib/config-validator.js';
-import { STARTERS, applyStarter, prefixFragment, parsePointParam, starterParams, hasScene, unitsClash } from '../../src/core/astrometrics/starters/index.js';
+import { STARTERS, applyStarter, prefixFragment, parsePointParam, starterParams, hasScene, unitsClash, targetUnits } from '../../src/core/astrometrics/starters/index.js';
 
 const registries = await buildRegistries();
 const checker = createConfigValidator({ entries: getSchemaEntries(), registries });
@@ -133,4 +133,74 @@ test('unitsClash names a starter\'s units when a scene in other units is there; 
   const both = /** @type {any} */ (applyStarter(host, minor)).config;
   assert.deepEqual(issues(both), []);
   for (const s of STARTERS.filter((x) => x.scene)) assert.ok(byId(s.scene)?.kind === 'scene', `${s.id}: scene ${s.scene}`);
+});
+
+// UX1 P5: parts into an open system, at real sizes in its units
+const SYS = (extra = {}) => ({
+  type: TYPE,
+  units: 'ly',
+  points: [{ id: 'sol', xyz: [0, 0, 0] }],
+  objects: [{ type: 'grid', id: 'map', shape: 'disc', radius: 50 }, { type: 'system', id: 'sys', at: 'sol', units: 'km', objects: [{ type: 'sphere', id: 'sun', radius: 696000 }], ...extra }]
+});
+
+test('a part goes into a system: its lists, ids card-wide, views on the card', () => {
+  const out = applyStarter(SYS(), byId('starbase'), {}, { system: 1 });
+  assert.ok(out.config, out.error);
+  const sys = out.config.objects[1];
+  assert.equal(out.config.objects.length, 2, 'nothing added to the scene');
+  assert.ok(sys.objects.some((o) => o.id === 'starbase_station'));
+  assert.ok(sys.points.some((p) => p.id === 'starbase_name'));
+  assert.ok(out.config.camera.views.starbase_view);
+  assert.equal(out.config.units, 'ly');
+  assert.deepEqual(issues(out.config), []);
+  // ids are card-wide: the same part again clashes, in the scene too
+  const again = applyStarter(out.config, byId('starbase'), {}, {});
+  assert.match(String(again.error), /starbase_station/);
+});
+
+test('a part in a system is sized in its units (real sizes); a unit-less scene keeps its numbers', () => {
+  const km = applyStarter(SYS(), byId('planet'), {}, { system: 1 });
+  assert.ok(km.config, km.error);
+  const ring = km.config.objects[1].objects.find((o) => o.id === 'planet_orbit');
+  const globe = km.config.objects[1].objects.find((o) => o.id === 'planet_globe');
+  assert.equal(ring.radius, 1.5e8);
+  assert.equal(globe.radius, 6370);
+  const plain = applyStarter({ type: TYPE }, byId('planet'));
+  assert.equal(plain.config.objects.find((o) => o.id === 'planet_orbit').radius, 40);
+  assert.equal(plain.config.objects.find((o) => o.id === 'planet_globe').radius, 3);
+  // a typed size wins
+  const typed = applyStarter(SYS(), byId('planet'), { radius: 3390 }, { system: 1 });
+  assert.equal(typed.config.objects[1].objects.find((o) => o.id === 'planet_globe').radius, 3390);
+  // a model's real size, and the scene's own named units
+  const ds = starterParams(byId('starbase'), { model: 'earth_spacedock' }, 'km');
+  assert.equal(ds.size, 5.48);
+  assert.equal(starterParams(byId('starbase'), {}, 'km').size, 1.45);
+  assert.equal(starterParams(byId('planet'), {}, 'au').orbit, 1);
+  assert.equal(targetUnits(SYS(), 1), 'km');
+  assert.equal(targetUnits(SYS({ units: undefined }), 1), 'ly');
+  assert.equal(targetUnits(SYS({ units: undefined, scale: 0.01 }), 1), null);
+  // every unit-less part validates in a km system and an au one
+  for (const id of ['planet', 'asteroid_belt', 'nebula_field', 'sector_volumes', 'starbase']) {
+    for (const units of ['km', 'au']) {
+      const out = applyStarter(SYS({ units }), byId(id), {}, { system: 1 });
+      assert.ok(out.config, `${id} in ${units}: ${out.error}`);
+      assert.deepEqual(issues(out.config), [], `${id} in ${units}`);
+    }
+  }
+});
+
+test('units clash with the system, not the scene; an empty system takes the part\'s units', () => {
+  const ly = byId('st_minor_powers');
+  assert.equal(unitsClash(SYS(), ly, {}, 1), 'ly', 'a km system');
+  assert.equal(unitsClash(SYS(), ly), null, 'the ly scene');
+  assert.match(String(applyStarter(SYS(), ly, {}, { system: 1 }).error), /this system is in km/);
+  const empty = SYS({ objects: undefined, units: undefined, scale: 0.5 });
+  const out = applyStarter(empty, byId('st_transwarp'), {}, { system: 1 });
+  assert.ok(out.config, out.error);
+  assert.equal(out.config.objects[1].units, 'ly');
+  assert.equal(out.config.objects[1].scale, undefined);
+  // only parts go into a system, and only added
+  assert.match(String(applyStarter(SYS(), byId('galaxy'), {}, { system: 1 }).error), /Only a part/);
+  assert.match(String(applyStarter(SYS(), byId('planet'), {}, { system: 1, mode: 'replace' }).error), /Only a part/);
+  assert.match(String(applyStarter(SYS(), byId('planet'), {}, { system: 0 }).error), /not a system/);
 });

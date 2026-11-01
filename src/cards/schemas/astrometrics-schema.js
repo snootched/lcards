@@ -701,7 +701,7 @@ const gridObject = {
     description: 'A see-through grid surface: plane (a sector map), disc (a galaxy disc), dome (a sky), sphere (a wireframe ball; for a solid planet use sphere), cylinder or well (a funnel, a wormhole), optionally deformed (deform).',
     properties: {
         type: { type: 'string', const: 'grid', description: 'grid: a grid surface.' },
-        shape: { type: 'string', enum: [...GRID_SHAPES], default: 'plane', description: 'plane (size), disc (radius, or [inner, outer] for a hole in the middle), dome (a half sphere, radius), sphere (radius), cylinder (radius, height) or well (a funnel down from its rim: radius, depth, well_shape).' ,
+        shape: { type: 'string', enum: [...GRID_SHAPES], 'x-ui-hints': { widget: 'shape' }, default: 'plane', description: 'plane (size), disc (radius, or [inner, outer] for a hole in the middle), dome (a half sphere, radius), sphere (radius), cylinder (radius, height) or well (a funnel down from its rim: radius, depth, well_shape).' ,
             enumDescriptions: { plane: 'Flat rectangle', disc: 'Flat circle', dome: 'Half sphere', sphere: 'Globe', cylinder: 'Tube', well: 'Funnel down from a rim' } },
         size: settingOrPair('plane: width and depth [w, d], scene units (one number for a square). Default 200.'),
         radius: {
@@ -795,7 +795,7 @@ const volumeObject = {
     description: 'A see-through box of grid cells (a territory): a sector of a disc, a box, or a prism of any outline.',
     properties: {
         type: { type: 'string', const: 'volume', description: 'volume: a see-through cell box.' },
-        shape: { type: 'string', enum: [...VOLUME_SHAPES], default: 'sector', description: 'sector: between two radii, two bearings and two heights round the centre. box: size centred on at. prism: the outline (any polygon, a territory\'s border) between two heights.' ,
+        shape: { type: 'string', enum: [...VOLUME_SHAPES], 'x-ui-hints': { widget: 'shape' }, default: 'sector', description: 'sector: between two radii, two bearings and two heights round the centre. box: size centred on at. prism: the outline (any polygon, a territory\'s border) between two heights.' ,
             enumDescriptions: { sector: 'Wedge between radii, bearings and heights', box: 'Box', prism: 'Any outline between two heights' } },
         outline: {
             type: 'array',
@@ -1007,7 +1007,7 @@ const imageObject = {
         type: { type: 'string', const: 'image', description: 'image: a picture on the scene plane.' },
         src: { type: 'string', assetSource: 'image', description: 'The image: a built-in one (builtin:<name>), a path or URL (/local/galaxy.jpg), or a Home Assistant media item (media-source://...).' },
         size: settingOrPair('Width and depth [w, d], scene units (one number for a square); a disc takes the width as its diameter. Default 200.'),
-        shape: { type: 'string', enum: [...IMAGE_SHAPES], default: 'plane', description: 'plane (a rectangle) or disc.' },
+        shape: { type: 'string', enum: [...IMAGE_SHAPES], 'x-ui-hints': { widget: 'shape' }, default: 'plane', description: 'plane (a rectangle) or disc.' },
         alt: setting('Height above the plane, scene units (just under it by default, so grids draw over it).', { default: -0.01 }),
         blend: { ...blendAdd, description: 'add: black in the image becomes see-through (a photo of space on black). Default normal.' }
     }

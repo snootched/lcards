@@ -40,6 +40,13 @@ releases:
         session: "UX1"
         docs: /cards/astrometrics/studio
         public: false
+      - file: astro-studio-objects
+        topic: astrometrics
+        summary: "Astrometrics Studio objects: add by picture, parts into a system"
+        description: "A galaxy in light years with Sol as a system in km. In the Studio: Add object is a gallery by group, shapes are picked by picture, the system row has Open, and with the system open Starters adds parts into it at real sizes."
+        session: "UX1"
+        docs: /cards/astrometrics/studio
+        public: false
       - file: chart-sources
         topic: charts
         summary: "Charts, rebuilt: entity history, long-term statistics and data sources"

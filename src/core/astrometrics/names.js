@@ -17,7 +17,8 @@ export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', '
 
 /**
  * Which type for what: the objects docs page's table (doc/cards/astrometrics/objects.md,
- * kept in step by tests/core/astrometrics-names.test.js) and the Studio's type picker.
+ * kept in step by tests/core/astrometrics-names.test.js) and the Studio's add-object
+ * gallery (grouped by the Studio's TYPE_GROUPS, astro-studio/starter-gallery.js).
  * @type {readonly { type: typeof OBJECT_TYPES[number], use: string, icon: string }[]}
  */
 export const TYPE_GUIDE = [

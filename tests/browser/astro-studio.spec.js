@@ -354,7 +354,7 @@ test('studio: a star system opens in the Points and Objects tabs; a tap inside i
     expect(formKeys).not.toContain('points');
     await page.evaluate(async (i) => {
         const s = window.__studio;
-        s.renderRoot.querySelector(`[data-object="${i}"] .system-open ha-button`).click();
+        s.renderRoot.querySelector(`[data-object="${i}"] [data-action="open-system"]`).click();
         await s.updateComplete;
     }, sys);
     let st = await studio();
@@ -632,6 +632,8 @@ test('studio UX1 P4: starter gallery with pictures, try in the preview (keep, di
 });
 
 test('studio UX1 P4 round 2: scenes and parts in their own sections, a part in other units dimmed and started with its scene, the units chip', async ({ page }) => {
+    // about 8 s alone; the Star Trek galaxy and the true-scale dive build slowly beside the other WebGL tests in a full run
+    test.setTimeout(60_000);
     await page.setViewportSize({ width: 1400, height: 900 });
     await mountCase(page, 'astro-camera', { width: '800' });
     await openStudio(page);
@@ -664,5 +666,127 @@ test('studio UX1 P4 round 2: scenes and parts in their own sections, a part in o
     // undo: the card's own scene again
     await page.evaluate(() => window.__studio._undo());
     await expect(dialog.locator('.units-chip ha-assist-chip')).toHaveAttribute('label', 'Scene: scene units');
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
+});
+
+test('studio UX1 P5: add-object gallery by group, shapes by picture, Open system on its row, parts into the open system in its units', async ({ page }) => {
+    // about 8 s alone; the Star Trek galaxy and the true-scale dive build slowly beside the other WebGL tests in a full run
+    test.setTimeout(60_000);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-dive', { width: '800' });
+    await openStudio(page);
+    const root = (sel) => page.evaluate((q) => [...window.__studio.renderRoot.querySelectorAll(q)].map((el) => /** @type {HTMLElement} */ (el).dataset), sel);
+
+    // the gallery: groups in order, a tile per type with its picture, system offered in the scene
+    await page.evaluate(async () => { const s = window.__studio; s._activeTab = 'objects'; s._addingObject = true; await s.updateComplete; });
+    expect((await root('[data-type-group]')).map((d) => d.typeGroup)).toEqual(['maps', 'bodies', 'routes', 'light', 'models', 'systems']);
+    const tiles = (await root('[data-type]')).map((d) => d.type);
+    expect(tiles).toHaveLength(15);
+    expect(await page.evaluate(() => window.__studio.renderRoot.querySelector('[data-type="grid"] img').getAttribute('src'))).toBe('/lcards/images/astro-studio/type-grid.webp');
+    await expect.poll(() => page.evaluate(() => window.__studio.renderRoot.querySelector('[data-type="grid"] img').naturalWidth)).toBeGreaterThan(0);
+    const before = await page.evaluate(() => window.__studio._workingConfig.objects.length);
+    await page.evaluate(() => window.__studio.renderRoot.querySelector('[data-type="volume"]').click());
+    // added once the preview says where it looks (round 2)
+    await expect.poll(() => page.evaluate(() => window.__studio._workingConfig.objects.length)).toBe(before + 1);
+    const added = await page.evaluate(() => window.__studio._workingConfig.objects.at(-1));
+    expect(added.type).toBe('volume');
+    expect(await page.evaluate(() => window.__studio._workingConfig.objects.length)).toBe(before + 1);
+    expect(await page.evaluate(() => window.__studio._addingObject)).toBe(false);
+
+    // its shape is a row of pictures; a tap picks one, the default leaves the key out
+    const shapes = () => page.evaluate(async (i) => {
+        const form = window.__studio.renderRoot.querySelector(`[data-object="${i}"] lcards-astro-schema-form`);
+        await form.updateComplete;
+        return [...form.renderRoot.querySelectorAll('.shape-tile')].map((b) => [b.dataset.shape, b.getAttribute('aria-checked')]);
+    }, before);
+    expect(await shapes()).toEqual([['sector', 'true'], ['box', 'false'], ['prism', 'false']]);
+    await page.evaluate((i) => window.__studio.renderRoot.querySelector(`[data-object="${i}"] lcards-astro-schema-form`).renderRoot.querySelector('[data-shape="box"]').click(), before);
+    await expect.poll(() => page.evaluate((i) => window.__studio._workingConfig.objects[i].shape, before)).toBe('box');
+    await page.evaluate((i) => window.__studio.renderRoot.querySelector(`[data-object="${i}"] lcards-astro-schema-form`).renderRoot.querySelector('[data-shape="sector"]').click(), before);
+    await expect.poll(() => page.evaluate((i) => 'shape' in window.__studio._workingConfig.objects[i], before)).toBe(false);
+
+    // the system's row: Open system shows while the row is closed
+    const sys = await page.evaluate(() => window.__studio._workingConfig.objects.findIndex((o) => o.type === 'system'));
+    await page.evaluate(async () => { const s = window.__studio; s._selectObject(-1); await s.updateComplete; });
+    await page.evaluate((i) => window.__studio.renderRoot.querySelector(`[data-object="${i}"] [data-action="open-system"]`).click(), sys);
+    expect(await page.evaluate(() => window.__studio._scope)).toBe(sys);
+    // inside a system the gallery has no system tile
+    await page.evaluate(async () => { const s = window.__studio; s._addingObject = true; await s.updateComplete; });
+    expect((await root('[data-type]')).map((d) => d.type)).not.toContain('system');
+
+    // Starters with the km system open: the scope bar, a planet sized in km, added into the system
+    await page.evaluate(async () => { const s = window.__studio; s._activeTab = 'starters'; s._openStarter = 'planet'; await s.updateComplete; });
+    expect(await page.evaluate(() => window.__studio.renderRoot.querySelector('.scope-bar')?.textContent)).toMatch(/Parts go into system/);
+    await expect(page.locator('lcards-astrometrics-studio-dialog pre.starter-yaml')).toContainText('150000000');
+    await page.locator('lcards-astrometrics-studio-dialog [data-action="insert"]').filter({ hasText: 'Add to system' }).click();
+    const sysCfg = await page.evaluate((i) => window.__studio._workingConfig.objects[i], sys);
+    expect(sysCfg.objects.find((o) => o.id === 'planet_globe').radius).toBe(6370);
+    expect(await page.evaluate(() => window.__studio._workingConfig.objects.some((o) => o.id === 'planet_globe'))).toBe(false);
+
+    // a part in ly cannot go into the km system: dimmed, and its button goes back to the scene
+    await page.evaluate(async () => { const s = window.__studio; s._openStarter = null; await s.updateComplete; });
+    expect(await page.evaluate(() => window.__studio.renderRoot.querySelector('[data-starter="st_minor_powers"]').classList.contains('clash'))).toBe(true);
+    await page.evaluate(async () => { const s = window.__studio; s._openStarter = 'st_minor_powers'; await s.updateComplete; });
+    await page.locator('lcards-astrometrics-studio-dialog [data-action="to-scene"]').click();
+    expect(await page.evaluate(() => window.__studio._scope)).toBe(-1);
+    // in the ly scene it adds
+    expect(await page.evaluate(() => window.__studio.renderRoot.querySelector('[data-action="insert"]')?.textContent?.trim())).toBe('Add to the scene');
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
+});
+
+test('studio UX1 P5 round 2: a new object sized to the view and where it looks; Open flies to the system, Back flies home; a new shape keeps the size; the scale bar', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-dive', { width: '800' });
+    await openStudio(page);
+    const scene = () => page.evaluate(async () => { const sc = await window.__studio._previewCard.studioScene(); const d = sc.debug(); return { distance: d.keys.distance, frame: d.frame, flying: !!d.rig.fly }; });
+    await expect.poll(async () => (await scene()).flying).toBe(false);
+    // the scale bar under the units chip: a round length in the scene's units, about a fifth of the view
+    const bar = () => page.evaluate(() => {
+        const el = window.__studio.renderRoot.querySelector('.scale-bar');
+        return el ? { label: el.querySelector('.scale-label').textContent.trim(), px: el.querySelector('.scale-line').getBoundingClientRect().width } : null;
+    });
+    await expect.poll(async () => (await bar())?.label).toMatch(/^[125]0*(,0+)* ly$/);
+    expect((await bar()).px).toBeGreaterThan(80);
+    expect((await bar()).px).toBeLessThan(400);
+
+    // the galaxy from 140,000 ly: a grid at the core, a hundred thousand across (not 200 at the origin)
+    await page.evaluate(async () => { const s = window.__studio; s._activeTab = 'objects'; s._addingObject = true; await s.updateComplete; });
+    const before = await page.evaluate(() => window.__studio._workingConfig.objects.length);
+    await page.evaluate(() => window.__studio.renderRoot.querySelector('[data-type="grid"]').click());
+    await expect.poll(() => page.evaluate(() => window.__studio._workingConfig.objects.length)).toBe(before + 1);
+    const grid = await page.evaluate(() => window.__studio._workingConfig.objects.at(-1));
+    expect(grid).toEqual({ type: 'grid', id: 'grid1', at: 'core', size: 100000, line_spacing: 5000 });
+    // a disc keeps its size
+    await page.evaluate((i) => window.__studio.renderRoot.querySelector(`[data-object="${i}"] lcards-astro-schema-form`).renderRoot.querySelector('[data-shape="disc"]').click(), before);
+    await expect.poll(() => page.evaluate((i) => window.__studio._workingConfig.objects[i].radius, before)).toBe(50000);
+
+    // Open on the system's row: the preview flies into it (its frame), framing what it holds
+    const sys = await page.evaluate(() => window.__studio._workingConfig.objects.findIndex((o) => o.type === 'system'));
+    await page.evaluate(async () => { const s = window.__studio; s._addingObject = false; s._selectObject(-1); await s.updateComplete; });
+    await page.evaluate((i) => window.__studio.renderRoot.querySelector(`[data-object="${i}"] [data-action="open-system"]`).click(), sys);
+    await expect.poll(async () => (await scene()).frame, { timeout: 10_000 }).toBe('sol_system');
+    await expect.poll(async () => (await scene()).flying, { timeout: 10_000 }).toBe(false);
+    // the Earth's orbit (1 au) in view: a few au out, in km
+    const inside = await scene();
+    expect(inside.distance).toBeGreaterThan(1.5e8);
+    expect(inside.distance).toBeLessThan(2e9);
+    await expect.poll(async () => (await bar())?.label).toMatch(/ km$/);
+
+    // a glow added in the system: sized in km for that view, on the sun it looks at
+    const held = await page.evaluate((i) => window.__studio._workingConfig.objects[i].objects.length, sys);
+    await page.evaluate(async () => { const s = window.__studio; s._addingObject = true; await s.updateComplete; });
+    await page.evaluate(() => window.__studio.renderRoot.querySelector('[data-type="glow"]').click());
+    await expect.poll(() => page.evaluate((i) => window.__studio._workingConfig.objects[i].objects.length, sys)).toBe(held + 1);
+    const glow = await page.evaluate((i) => window.__studio._workingConfig.objects[i].objects.at(-1), sys);
+    expect(glow.size).toBeGreaterThan(1e7);
+    expect(glow.at).toBe('sun');
+
+    // Back to the scene: the start view again
+    await page.locator('lcards-astrometrics-studio-dialog .scope-bar ha-button').click();
+    await expect.poll(async () => (await scene()).frame, { timeout: 10_000 }).toBe('root');
+    await expect.poll(async () => (await scene()).flying, { timeout: 10_000 }).toBe(false);
+    expect((await scene()).distance).toBeCloseTo(140000, -2);
+    await expect.poll(async () => (await bar())?.label).toMatch(/ ly$/);
     expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
 });

@@ -14,7 +14,7 @@
 import { simpleColorSchema } from '../../../cards/schemas/common-schemas.js';
 
 /**
- * @typedef {'boolean' | 'enum' | 'number' | 'range' | 'textDefault' | 'rate' | 'date' | 'color' | 'colorList' | 'font' | 'text' | 'asset' | 'strings' | 'tuple' | 'numbers'
+ * @typedef {'boolean' | 'enum' | 'number' | 'range' | 'textDefault' | 'rate' | 'date' | 'shape' | 'color' | 'colorList' | 'font' | 'text' | 'asset' | 'strings' | 'tuple' | 'numbers'
  *   | 'pointRef' | 'numberOrTuple' | 'boolOrObject' | 'boolOrNumber' | 'boolOrList' | 'choice' | 'object' | 'objectList' | 'pointList' | 'yaml'} FieldKind
  */
 
@@ -128,6 +128,8 @@ export function fieldKind(s, key) {
   // the scene clock's rate and date (clock-fields.js)
   if (widget === 'rate') return 'rate';
   if (widget === 'date') return 'date';
+  // a grid's, volume's or image's shape: a picture picker
+  if (widget === 'shape' && Array.isArray(s.enum)) return 'shape';
   // generated labels' text (ring_labels.text: only default): the card editors' text controls
   if (widget === 'textDefault') return 'textDefault';
   if (isRange(s)) return 'range';
@@ -465,7 +467,9 @@ export function parseNumbers(text) {
 }
 
 /**
- * A short summary of an object for its list row: type plus the main sizes.
+ * A short summary of an object for its list row (after its type): one key
+ * value (its shape, look or size, where it stands, or its route's ends),
+ * then whether it is hidden or follows an entity.
  * @param {any} obj
  */
 export function objectSummary(obj) {
@@ -473,9 +477,12 @@ export function objectSummary(obj) {
   const bits = [obj.shape ?? obj.material ?? obj.sky].filter(Boolean).map(String);
   const sz = obj.radius ?? obj.size;
   if (typeof sz === 'number' || Array.isArray(sz)) bits.push(Array.isArray(sz) ? sz.join(' x ') : String(sz));
+  if (obj.type === 'system' && obj.units) bits.push(`in ${obj.units}`);
   if (typeof obj.at === 'string') bits.push(`at ${obj.at}`);
-  if (obj.from !== undefined && obj.to !== undefined && typeof obj.from === 'string' && typeof obj.to === 'string') bits.push(`${obj.from} to ${obj.to}`);
-  if (Array.isArray(obj.points)) bits.push(`${obj.points.length} points`);
+  // a route only when nothing above says what it is
+  if (!bits.length && typeof obj.from === 'string' && typeof obj.to === 'string') bits.push(`${obj.from} to ${obj.to}`);
+  if (!bits.length && obj.type === 'path' && Array.isArray(obj.points)) bits.push(`${obj.points.length} points`);
+  if (!bits.length && typeof obj.point === 'string') bits.push(`behind ${obj.point}`);
   if (obj.visible === false) bits.push('hidden');
   const follows = boundIn(obj);
   if (follows.length) bits.push(`follows ${follows.join(', ')}`);
@@ -526,32 +533,116 @@ export function freshId(base, taken) {
 }
 
 /**
- * A new object of a type, with what it needs to show at once.
+ * Each type's size keys at `k` times the size it draws at with none set
+ * (the builders' defaults, made for a scene about 100 units across).
+ * @type {Record<string, (k: number) => Record<string, any>>}
+ */
+const SIZES = {
+  grid: (k) => ({ size: 200 * k, line_spacing: 10 * k }),
+  volume: (k) => ({ radius: [50 * k, 100 * k], height: [0, 10 * k] }),
+  sphere: (k) => ({ radius: 10 * k }),
+  image: (k) => ({ size: 200 * k }),
+  glow: (k) => ({ size: 60 * k }),
+  nebula: (k) => ({ radius: 100 * k }),
+  model: (k) => ({ size: 50 * k }),
+  belt: (k) => ({ radius: [80 * k, 100 * k], size: [0.4 * k, 1.6 * k] }),
+  cube: (k) => ({ size: 20 * k })
+};
+
+/** Types placed by their ends or a point, not by `at` */
+const UNPLACED = new Set(['path', 'beam', 'trail']);
+
+/**
+ * How much larger than the builders' defaults a new object should be to fill
+ * the view from `distance` (a default-sized scene is framed from about 280):
+ * 1 unless the defaults would be lost in the view or fill it (more than 3
+ * times off), else a round 1, 2 or 5 times a power of ten.
+ * @param {number} distance - the camera's distance, in the units the object goes in
+ */
+export function viewScale(distance) {
+  if (!(distance > 0) || !Number.isFinite(distance)) return 1;
+  const raw = distance / 280;
+  if (raw >= 1 / 3 && raw <= 3) return 1;
+  const exp = Math.floor(Math.log10(raw));
+  const base = raw / 10 ** exp;
+  const step = base < 1.5 ? 1 : base < 3.5 ? 2 : base < 7.5 ? 5 : 10;
+  return Number((step * 10 ** exp).toPrecision(1));
+}
+
+/**
+ * A new object of a type, with what it needs to show at once: sized `scale`
+ * times the default and placed `at` (a point id or a position), so it shows
+ * where the camera looks.
  * @param {string} type
  * @param {string[]} objectIds
  * @param {string[]} pointIds
+ * @param {{ scale?: number, at?: string | number[] }} [place]
  * @returns {Record<string, any>}
  */
-export function newObject(type, objectIds, pointIds) {
+export function newObject(type, objectIds, pointIds, place = {}) {
   /** @type {Record<string, any>} */
   const obj = { type, id: freshId(type, objectIds) };
+  const k = place.scale ?? 1;
+  const at = place.at;
+  // ends round a position (a point's spot is not known here)
+  const c = Array.isArray(at) ? at : [0, 0, 0];
+  /** @param {number} x */
+  const end = (x) => [c[0] + x * k, c[1], c[2]].map(round);
+  if (at !== undefined && !UNPLACED.has(type)) obj.at = at;
   const [a, b] = pointIds;
   switch (type) {
     case 'model': obj.src = 'builtin:constitution'; break;
-    case 'ring': obj.radius = 50; break;
+    case 'ring': obj.radius = round(50 * k); break;
     case 'path':
-      if (a && b) obj.points = [a, b]; else obj.points = [[-50, 0, 0], [50, 0, 0]];
+      if (a && b) obj.points = [a, b]; else obj.points = [end(-50), end(50)];
       break;
     case 'beam':
-      obj.from = a ?? [-50, 0, 0];
-      obj.to = b ?? [50, 0, 0];
+      obj.from = a ?? end(-50);
+      obj.to = b ?? end(50);
       break;
     case 'trail':
       if (a) obj.point = a;
       break;
     // a galaxy at the scale of a scene built to fit (the schema default is 50,000 ly)
-    case 'galaxy': obj.radius = 100; break;
+    case 'galaxy': obj.radius = round(100 * k); break;
     default: break;
   }
+  if (k !== 1 && SIZES[type]) {
+    for (const [key, v] of Object.entries(SIZES[type](k))) obj[key] = Array.isArray(v) ? v.map(round) : round(v);
+  }
   return obj;
+}
+
+/**
+ * An object given a new `shape`, its size carried across when the new shape
+ * reads another key (a plane's `size` is a disc's `radius`, a sector's
+ * `radius` a box's `size`), so a scaled object keeps its scale.
+ * @param {Record<string, any>} obj - before
+ * @param {Record<string, any>} next - with the new shape
+ * @returns {Record<string, any>}
+ */
+export function reshape(obj, next) {
+  if (!obj || next.shape === obj.shape) return next;
+  const out = { ...next };
+  /** @param {any} v */
+  const outer = (v) => (Array.isArray(v) ? Number(v[1] ?? v[0]) : Number(v));
+  /** @param {any} v */
+  const widest = (v) => (Array.isArray(v) ? Math.max(...v.map(Number)) : Number(v));
+  if (obj.type === 'grid') {
+    const toPlane = (next.shape ?? 'plane') === 'plane';
+    if (toPlane && out.size === undefined && obj.radius !== undefined) out.size = round(outer(obj.radius) * 2);
+    if (!toPlane && out.radius === undefined && obj.size !== undefined) out.radius = round(widest(obj.size) / 2);
+  } else if (obj.type === 'volume') {
+    if (next.shape === 'box' && out.size === undefined && obj.radius !== undefined) out.size = round(outer(obj.radius));
+    if ((next.shape ?? 'sector') === 'sector' && out.radius === undefined && obj.size !== undefined) {
+      const s = widest(obj.size);
+      out.radius = [round(s / 2), round(s)];
+    }
+  }
+  return out;
+}
+
+/** A length to 3 significant figures (a converted size reads cleanly) @param {number} v */
+function round(v) {
+  return Number.isFinite(v) && v !== 0 ? Number(v.toPrecision(3)) : v;
 }

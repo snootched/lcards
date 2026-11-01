@@ -1,6 +1,8 @@
 /** A nebula field: two clouds of gas round a bright heart */
 
 import { centreRef } from './shared.js';
+
+const LY_KM = 9.4607304725808e12;
 export default /** @type {import('./index.js').Starter} */ ({
   id: 'nebula_field',
   kind: 'part',
@@ -12,7 +14,7 @@ export default /** @type {import('./index.js').Starter} */ ({
     { key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: 'nebula' },
     { key: 'label', label: 'Label', type: 'text', default: 'NEBULA' },
     { key: 'centre', label: 'Centre', type: 'point', default: [0, 10, 0], helper: 'A point id or x, y, z.' },
-    { key: 'radius', label: 'Radius', type: 'number', default: 40 }
+    { key: 'radius', label: 'Radius', type: 'number', default: 40, real: 2 * LY_KM }
   ],
   build: ({ label, centre, radius }) => {
     const c = centreRef(centre);

@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import { objectSchema, astrometricsSchema } from '../../src/cards/schemas/astrometrics-schema.js';
 import { OBJECT_TYPES, TYPE_GUIDE } from '../../src/core/astrometrics/names.js';
 import {
-  fieldKind, objectBranch, scopeOf, appliesTo, tupleLabels, helperText, labelFor, withKey, parseNumbers, freshId, objectSummary, newObject,
+  fieldKind, objectBranch, scopeOf, appliesTo, tupleLabels, helperText, labelFor, withKey, parseNumbers, freshId, objectSummary, newObject, viewScale, reshape,
   choiceOptions, choiceValue, numberSelector, unitsLabel, groupOf, sectionIcon, OBJECT_GROUPS, COMMON_GROUPS, bindingBranch, isTour, isTemplateValue
 } from '../../src/editor/dialogs/astro-studio/schema-fields.js';
 
@@ -79,7 +79,9 @@ test('field kinds for the shapes the schema uses', () => {
   assert.equal(fieldKind(props.size, 'size'), 'numberOrTuple');
   assert.equal(fieldKind(props.radius, 'radius'), 'numberOrTuple');
   assert.equal(fieldKind(props.color, 'color'), 'color');
-  assert.equal(fieldKind(props.shape, 'shape'), 'enum');
+  // shapes are a picture picker (UX1 P5)
+  assert.equal(fieldKind(props.shape, 'shape'), 'shape');
+  for (const t of ['volume', 'image']) assert.equal(fieldKind(objectBranch(objectSchema, t).own.shape, 'shape'), 'shape', t);
   assert.equal(fieldKind(props.deform, 'deform'), 'objectList');
   assert.equal(fieldKind(props.fill_effect, 'fill_effect'), 'object');
   assert.equal(fieldKind(props.well_profile, 'well_profile'), 'numbers');
@@ -143,6 +145,44 @@ test('a new object of every type is valid for its branch (required keys present)
   }
   assert.deepEqual(newObject('path', [], ['a', 'b']).points, ['a', 'b']);
   assert.equal(newObject('grid', ['grid1'], []).id, 'grid2');
+});
+
+test('a new object is sized to the view and placed where it looks', () => {
+  // a default-sized scene is framed from about 280: no sizes written
+  assert.equal(viewScale(280), 1);
+  assert.equal(viewScale(120), 1);
+  assert.equal(viewScale(840), 1);
+  assert.equal(viewScale(40), 0.1);
+  assert.equal(viewScale(2000), 5);
+  assert.equal(viewScale(140000), 500);
+  assert.equal(viewScale(0), 1);
+  assert.deepEqual(newObject('grid', [], [], { scale: 1 }), { type: 'grid', id: 'grid1' });
+  // a galaxy seen from 140,000 ly: a grid 100,000 across on the galactic core's scale
+  const grid = newObject('grid', [], [], { scale: 500, at: 'sol' });
+  assert.deepEqual(grid, { type: 'grid', id: 'grid1', at: 'sol', size: 100000, line_spacing: 5000 });
+  assert.deepEqual(newObject('belt', [], [], { scale: 500 }).radius, [40000, 50000]);
+  assert.equal(newObject('ring', [], [], { scale: 500 }).radius, 25000);
+  // ends round a position, not `at`
+  const beam = newObject('beam', [], [], { scale: 2, at: [10, 0, 0] });
+  assert.deepEqual([beam.from, beam.to, beam.at], [[-90, 0, 0], [110, 0, 0], undefined]);
+  for (const type of OBJECT_TYPES) {
+    const obj = newObject(type, [], ['a', 'b'], { scale: 1000, at: [1, 2, 3] });
+    const { branch } = objectBranch(objectSchema, type);
+    for (const k of branch.required ?? []) assert.ok(obj[k] !== undefined, `${type} needs ${k}`);
+  }
+});
+
+test('a new shape keeps the size: plane size to disc radius, sector radius to box size', () => {
+  const plane = { type: 'grid', id: 'g', size: 100000, line_spacing: 5000 };
+  assert.equal(reshape(plane, { ...plane, shape: 'disc' }).radius, 50000);
+  const disc = { type: 'grid', id: 'g', shape: 'disc', radius: 50000 };
+  const { shape, ...back } = disc;
+  assert.equal(reshape(disc, back).size, 100000);
+  const sector = { type: 'volume', id: 'v', radius: [25000, 50000] };
+  assert.equal(reshape(sector, { ...sector, shape: 'box' }).size, 50000);
+  // a size already set stays; the same shape is left alone
+  assert.equal(reshape(plane, { ...plane, shape: 'disc', radius: 7 }).radius, 7);
+  assert.equal(reshape(plane, plane), plane);
 });
 
 test('TYPE_GUIDE matches the objects page table and covers every type', () => {
@@ -281,4 +321,13 @@ test('UX1 P2 round 2: label styles take how labels look, not what they say', () 
   // a point's own label still says what it says
   const point = astrometricsSchema.properties.points.items;
   assert.ok(point.properties.text.additionalProperties.properties.content);
+});
+
+test('UX1 P5: an object row says one key value, a route only when nothing else does', () => {
+  assert.equal(objectSummary({ type: 'beam', from: 'a', to: 'b' }), 'a to b');
+  assert.equal(objectSummary({ type: 'path', points: ['a', 'b', 'c'] }), '3 points');
+  assert.equal(objectSummary({ type: 'path', points: ['a', 'b'], width: 2, visible: false }), '2 points · hidden');
+  assert.equal(objectSummary({ type: 'trail', point: 'ship' }), 'behind ship');
+  assert.equal(objectSummary({ type: 'system', at: 'sol', units: 'km', points: [{ id: 'x' }] }), 'in km · at sol');
+  assert.equal(objectSummary({ type: 'ring', radius: 40, at: 'sun', from: 'a', to: 'b' }), '40 · at sun');
 });

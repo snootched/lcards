@@ -9,6 +9,9 @@ const MARKS = /** @type {Record<string, [string, string][]>} */ ({
   utopia_planitia_drydock: [['bow', 'BOW'], ['berth', 'BERTH']]
 });
 
+/** Each built-in starbase's largest extent, km (the model pack's sizes) */
+const REAL_KM = /** @type {Record<string, number>} */ ({ deep_space_nine: 1.452, earth_spacedock: 5.48, utopia_planitia_drydock: 0.76 });
+
 export default /** @type {import('./index.js').Starter} */ ({
   id: 'starbase',
   kind: 'part',
@@ -22,7 +25,7 @@ export default /** @type {import('./index.js').Starter} */ ({
     { key: 'model', label: 'Model', type: 'text', default: 'deep_space_nine', helper: 'deep_space_nine, earth_spacedock or utopia_planitia_drydock.',
       options: [{ value: 'deep_space_nine', label: 'Deep Space 9' }, { value: 'earth_spacedock', label: 'Earth Spacedock' }, { value: 'utopia_planitia_drydock', label: 'Utopia Planitia drydock' }] },
     { key: 'centre', label: 'At', type: 'point', default: [0, 0, 0], helper: 'A point id or x, y, z.' },
-    { key: 'size', label: 'Size (its largest extent)', type: 'number', default: 60 }
+    { key: 'size', label: 'Size (its largest extent)', type: 'number', default: 60, real: ({ model }) => REAL_KM[String(model)] ?? REAL_KM.deep_space_nine }
   ],
   build: ({ label, model, centre, size }) => {
     const c = centreRef(centre);

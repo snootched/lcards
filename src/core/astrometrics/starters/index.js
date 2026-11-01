@@ -28,7 +28,7 @@ import starTrekGalaxy from './scene-star-trek-galaxy.js';
 import stMinorPowers from './part-st-minor-powers.js';
 import stDeltaPowers from './part-st-delta-powers.js';
 import stTranswarp from './part-st-transwarp.js';
-import { flattenSystems } from '../names.js';
+import { flattenSystems, kmPerUnit } from '../names.js';
 import planet from './part-planet.js';
 import asteroidBelt from './part-asteroid-belt.js';
 import nebulaField from './part-nebula-field.js';
@@ -44,6 +44,8 @@ import starbase from './part-starbase.js';
  * @property {string} [helper]
  * @property {{ value: string, label: string }[]} [options] - text: a dropdown of these
  * @property {boolean} [custom] - with options: other values may be typed too
+ * @property {number | ((params: Record<string, any>) => number)} [real] - number: its real size in km, the default
+ *   when the part goes where the units are named (a km or au system); a function gets the other params (a model's own size)
  */
 
 /**
@@ -76,7 +78,7 @@ import starbase from './part-starbase.js';
  * @property {StarterParam[]} params
  * @property {string} [scene] - a part made for one scene starter (its id): its numbers only make sense there
  * @property {StarterPicture} [picture]
- * @property {(params: Record<string, any>) => StarterFragment} build
+ * @property {(params: Record<string, any>, ctx: { units: string | null }) => StarterFragment} build - `units`: where it goes, when they are named
  */
 
 /** @type {Starter[]} */
@@ -88,20 +90,58 @@ const REF_KEYS = new Set(['id', 'at', 'object', 'target', 'from', 'to', 'points'
 const isObj = (/** @type {any} */ v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /**
- * A starter's params with the defaults filled in.
+ * A starter's params with the defaults filled in. With named `units` (where
+ * the part goes), a param's `real` size in km becomes its default in them.
  * @param {Starter} starter
  * @param {Record<string, any>} [params]
+ * @param {string | null} [units]
  */
-export function starterParams(starter, params = {}) {
+export function starterParams(starter, params = {}, units = null) {
   /** @type {Record<string, any>} */
   const out = {};
-  for (const p of starter.params) {
+  const km = kmPerUnit(units);
+  const typed = (/** @type {StarterParam} */ p) => {
     const v = params[p.key];
-    const value = v === undefined || v === '' || v === null ? p.default : v;
-    out[p.key] = p.type === 'point' ? parsePointParam(value) : p.type === 'number' ? Number(value) : value;
+    return v === undefined || v === '' || v === null ? undefined : v;
+  };
+  // real sizes may read the other params (a model's own size), so those fill first
+  for (const p of starter.params) if (p.real === undefined || km === null) out[p.key] = convert(p, typed(p) ?? p.default);
+  for (const p of starter.params) {
+    if (p.real === undefined || km === null) continue;
+    const real = typeof p.real === 'function' ? p.real(out) : p.real;
+    out[p.key] = convert(p, typed(p) ?? sigFigs(real / km));
   }
   return out;
 }
+
+/** @param {StarterParam} p @param {any} value */
+const convert = (p, value) => (p.type === 'point' ? parsePointParam(value) : p.type === 'number' ? Number(value) : value);
+
+/**
+ * A number to 3 significant figures, so converted sizes read cleanly.
+ * @param {number} n
+ */
+export function sigFigs(n) {
+  return Number.isFinite(n) && n !== 0 ? Number(n.toPrecision(3)) : n;
+}
+
+/**
+ * The units a starter put into a card goes into: the card's, or with
+ * `system` (an index into the card's objects) that system's; a system with
+ * no units of its own and no `scale` is in its parent's. null when not named.
+ * @param {Record<string, any>} config
+ * @param {number} [system]
+ * @returns {string | null}
+ */
+export function targetUnits(config, system) {
+  if (system === undefined || system < 0) return config.units ?? null;
+  const sys = Array.isArray(config.objects) ? config.objects[system] : undefined;
+  if (sys?.units !== undefined) return sys.units;
+  return sys?.scale === undefined ? config.units ?? null : null;
+}
+
+/** A starter's fragment, with the target's units for its sizes @param {Starter} starter @param {Record<string, any>} params @param {string | null} units */
+const buildStarter = (starter, params, units) => starter.build(starterParams(starter, params, units), { units: kmPerUnit(units) === null ? null : units });
 
 /**
  * A `point` param's text as the config wants it: three numbers become
@@ -181,45 +221,67 @@ export function hasScene(/** @type {Record<string, any>} */ config) {
 const SCENE_KEYS = ['points', 'objects', 'camera', 'backdrop', 'labels', 'background_animation', 'units', 'clock'];
 
 /**
- * The units a starter is in when they differ from a card's scene, so it
- * cannot merge (every number in it would mean something else), else null.
- * A card with no scene takes any units.
+ * The units a starter is in when they differ from where it goes (the card's
+ * scene, or with `system` that system), so it cannot merge (every number in
+ * it would mean something else), else null. An empty scene or system takes
+ * any units.
  * @param {Record<string, any>} config
  * @param {Starter} starter
  * @param {Record<string, any>} [params]
+ * @param {number} [system] - an index into the card's objects
  * @returns {string | null}
  */
-export function unitsClash(config, starter, params = {}) {
-  const frag = starter.build(starterParams(starter, params));
-  return frag.units !== undefined && (config.units ?? null) !== frag.units && hasScene(config) ? frag.units : null;
+export function unitsClash(config, starter, params = {}, system) {
+  const units = targetUnits(config, system);
+  const frag = buildStarter(starter, params, units);
+  return frag.units !== undefined && units !== frag.units && hasScene(targetOf(config, system)) ? frag.units : null;
 }
+
+/**
+ * The lists a starter goes into: the card, or a system of it.
+ * @param {Record<string, any>} config
+ * @param {number} [system]
+ * @returns {Record<string, any>}
+ */
+const targetOf = (config, system) => (system === undefined || system < 0 ? config : config.objects?.[system] ?? {});
 
 /**
  * Put a starter into a card config.
  * Scenes replace the scene (`mode: 'replace'`, the default for scenes) or
  * merge into it; parts add (the default) or, with `mode: 'replace'`, start
- * the scene over on their own. Any id the starter would add that the
- * config already uses is refused, naming the clash.
+ * the scene over on their own. With `system` (an index into the card's
+ * objects, a part only) the points and objects go into that system, sized
+ * in its units; views stay the card's. Any id the starter would add that
+ * the config already uses (anywhere in the card) is refused, naming the clash.
  * @param {Record<string, any>} config
  * @param {Starter} starter
  * @param {Record<string, any>} [params]
- * @param {{ mode?: 'replace' | 'merge' }} [opts]
+ * @param {{ mode?: 'replace' | 'merge', system?: number }} [opts]
  * @returns {{ config: Record<string, any>, added: StarterFragment, error?: undefined } | { error: string, config?: undefined, added?: undefined }}
  */
-export function applyStarter(config, starter, params = {}, { mode } = {}) {
-  const filled = starterParams(starter, params);
-  let frag = starter.build(filled);
-  if (starter.kind === 'part') frag = prefixFragment(frag, String(filled.prefix ?? '').trim());
+export function applyStarter(config, starter, params = {}, { mode, system } = {}) {
   // a scene replaces unless told to merge; a part adds unless told to replace (it then starts the scene over on its own)
   const replace = (mode ?? (starter.kind === 'scene' ? 'replace' : 'merge')) === 'replace';
+  const into = system !== undefined && system >= 0 ? system : undefined;
+  if (into !== undefined) {
+    if (starter.kind !== 'part' || replace) return { error: 'Only a part can go into a system, added next to what is there.' };
+    if (config.objects?.[into]?.type !== 'system') return { error: `Object ${into} is not a system.` };
+  }
 
   /** @type {Record<string, any>} */
   const base = { ...config };
   if (replace) for (const k of SCENE_KEYS) delete base[k];
+  const units = targetUnits(base, into);
+  const filled = starterParams(starter, params, units);
+  let frag = starter.build(filled, { units: kmPerUnit(units) === null ? null : units });
+  if (starter.kind === 'part') frag = prefixFragment(frag, String(filled.prefix ?? '').trim());
 
   // a scene in other units cannot be merged: every number in it would mean something else
-  if (frag.units !== undefined && !replace && (base.units ?? null) !== frag.units && hasScene(base)) {
-    return { error: `This ${starter.kind} is in ${frag.units} and the card is in ${base.units ?? 'scene units'}: replace the scene instead.` };
+  const target = targetOf(base, into);
+  if (frag.units !== undefined && !replace && units !== frag.units && hasScene(target)) {
+    const where = into === undefined ? 'the card' : 'this system';
+    const fix = into === undefined ? 'replace the scene instead' : 'add it to the scene instead';
+    return { error: `This ${starter.kind} is in ${frag.units} and ${where} is in ${units ?? 'scene units'}: ${fix}.` };
   }
 
   const taken = configIds(base);
@@ -235,8 +297,20 @@ export function applyStarter(config, starter, params = {}, { mode } = {}) {
   }
 
   const next = base;
-  if (frag.points?.length) next.points = [...(Array.isArray(base.points) ? base.points : []), ...frag.points];
-  if (frag.objects?.length) next.objects = [...(Array.isArray(base.objects) ? base.objects : []), ...frag.objects];
+  if (into !== undefined) {
+    const sys = { ...base.objects[into] };
+    if (frag.points?.length) sys.points = [...(Array.isArray(sys.points) ? sys.points : []), ...frag.points];
+    if (frag.objects?.length) sys.objects = [...(Array.isArray(sys.objects) ? sys.objects : []), ...frag.objects];
+    // an empty system takes a part's units (they replace a scale)
+    if (frag.units !== undefined && units !== frag.units) {
+      sys.units = frag.units;
+      delete sys.scale;
+    }
+    next.objects = base.objects.map((/** @type {any} */ o, /** @type {number} */ i) => (i === into ? sys : o));
+  } else {
+    if (frag.points?.length) next.points = [...(Array.isArray(base.points) ? base.points : []), ...frag.points];
+    if (frag.objects?.length) next.objects = [...(Array.isArray(base.objects) ? base.objects : []), ...frag.objects];
+  }
   if (frag.views || frag.camera) {
     const camera = { ...(isObj(base.camera) ? base.camera : {}) };
     // a merged scene's camera keys never override the card's own
@@ -245,7 +319,7 @@ export function applyStarter(config, starter, params = {}, { mode } = {}) {
     next.camera = camera;
   }
   if (frag.backdrop && (replace || next.backdrop === undefined)) next.backdrop = frag.backdrop;
-  if (frag.units !== undefined) next.units = frag.units;
+  if (frag.units !== undefined && into === undefined) next.units = frag.units;
   // a merged scene keeps the card's own clock
   if (frag.clock && (replace || next.clock === undefined)) next.clock = frag.clock;
   return { config: next, added: frag };

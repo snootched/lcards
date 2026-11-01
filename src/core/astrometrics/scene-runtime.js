@@ -25,7 +25,7 @@ import { parseColorToRgba } from '../packs/textures/effects/noise-helpers.js';
 import { resolveColor as defaultResolveColor } from '../themes/resolve-color.js';
 import { prefersReducedMotion, onReducedMotionChange } from '../../utils/reduced-motion.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { CameraRig, viewToKeys, parseLimits, clampKeys, screenRay, rayPlane, cameraPose, DEFAULT_KEYS } from './camera-rig.js';
+import { CameraRig, viewToKeys, parseLimits, clampKeys, screenRay, rayPlane, cameraPose, viewHeight, DEFAULT_KEYS } from './camera-rig.js';
 import { ROOT } from './frames.js';
 import { LabelLayer } from './label-layer.js';
 import { CardLayer, pointCard } from './card-layer.js';
@@ -63,6 +63,8 @@ const TAP_SLOP = 6;
 /** Two taps in blank space this close in time (ms) and place (CSS px) are a double-tap */
 const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_SLOP = 24;
+/** Framing an object or system: the camera this many times its radius out (the start view frames the bounds so) */
+const FRAME_FIT = 2.8;
 /** A double-tap zoom flies this long (ms) */
 const DOUBLE_TAP_FLY_MS = 450;
 /** A button or key held this long (ms) after its first step moves continuously */
@@ -128,6 +130,7 @@ const KEY_COMMANDS = {
  * @property {(hit: AstroTapHit | null) => void} [onSelect] - a tap: what is under it (any point or object), null in blank space
  * @property {(id: string, form: string, value: number[] | string, done: boolean) => void} [onDrag] - set to let points be dragged:
  *   the point's new value in its own placement form (`dragForm`), per move and once more with `done` on release (shown live, no rebuild)
+ * @property {() => void} [onView] - the camera's distance, lens or frame, or the card's width, changed (the Studio's scale bar reads `viewIn`)
  */
 
 /**
@@ -166,6 +169,10 @@ const KEY_COMMANDS = {
  * @property {() => { target: string | number[], yaw: number, tilt: number, distance: number, fov: number, projection: 'perspective' | 'orthographic' }} viewNow -
  *   the camera now as a view: the target is the point it looks at when there is one, the distance in that point's units
  * @property {() => Record<string, number[]>} pointPositions - every point's world position now, by id (unplaceable ones left out)
+ * @property {(system?: string) => { target: number[], distance: number, width: number, px: number }} viewIn - where the camera looks,
+ *   how far out it is and how wide the view is across that spot, in a system's units (the scene's without one), and the
+ *   view's width in CSS px: what a new object there is sized and placed by, and the Studio's scale bar
+ * @property {(id: string) => Promise<void>} frameObject - fly to see an object, or a system and what it holds, whole
  * @property {(handler: ((x: number, y: number) => void) | null) => void} setPickHandler - while set, a tap goes to it (no actions, no double-tap)
  * @property {(x: number, y: number, form: string, object?: string, system?: string) => (number[] | string | null)} placeAt - a placement
  *   form's value for the spot at CSS px (x, y), or null; on the ground of `system` (its units) when it names one
@@ -896,6 +903,13 @@ export function createAstroScene(host, config, options = {}) {
     world.layout();
     stepFollow();
     rig.apply();
+    if (editHooks?.onView) {
+      const seen = `${rig.keys.distance} ${rig.keys.fov} ${world.frames.current} ${cssW} ${cssH}`;
+      if (seen !== viewSeen) {
+        viewSeen = seen;
+        editHooks.onView();
+      }
+    }
     const camera = rig.camera;
     streaks(camera.position, dt, flying);
     // Stars sit at infinity: they move with the camera
@@ -1288,6 +1302,8 @@ export function createAstroScene(host, config, options = {}) {
   let pickHandler = null;
   /** @type {AstroEditHooks | null} edit mode (the Studio) */
   let editHooks = null;
+  /** The camera as onView last saw it (distance, lens, frame, size) */
+  let viewSeen = '';
 
   /**
    * A placement form's value for what is under (x, y) CSS px: on the
@@ -1889,6 +1905,8 @@ export function createAstroScene(host, config, options = {}) {
     zoomTo,
     setEditMode(hooks) {
       editHooks = hooks;
+      viewSeen = '';
+      requestFrame();
       blankTap = null;
       if (hooks) letGo();
       if (hooks && !tools) {
@@ -1938,6 +1956,40 @@ export function createAstroScene(host, config, options = {}) {
       const f = world.frames;
       const d = k.distance * f.ratio(f.current, refFrame(best));
       return { ...keys, target: best, distance: d >= 10 ? Math.round(d * 10) / 10 : Number(d.toPrecision(4)) };
+    },
+    viewIn(system) {
+      const k = rig.keys;
+      const f = world?.frames;
+      const frame = system !== undefined && f?.frames.has(system) ? system : ROOT;
+      const target = f ? f.convert([k.tx, k.ty, k.tz], f.current, frame) : [k.tx, k.ty, k.tz];
+      const ratio = f ? f.ratio(f.current, frame) : 1;
+      const aspect = cssW / Math.max(1, cssH);
+      return { target, distance: k.distance * ratio, width: viewHeight(k, aspect) * aspect * ratio, px: cssW };
+    },
+    frameObject(id) {
+      if (!world) return Promise.resolve();
+      const f = world.frames;
+      const duration = num(cfg.camera?.fly_duration, 1600);
+      // a system: its origin, far enough out to see what it holds (inside it, so in its frame)
+      if (id !== ROOT && f.frames.has(id)) {
+        const r = f.get(id).radius || 1;
+        return fly(() => {
+          const c = toCurrent([0, 0, 0], id);
+          return { tx: c[0], ty: c[1], tz: c[2], distance: r * FRAME_FIT * unitOf(id) };
+        }, { pos: [0, 0, 0], frame: id }, { duration, ease: cfg.camera?.ease });
+      }
+      const b = world.objects.get(id);
+      if (!b) return Promise.resolve();
+      world.scene.updateMatrixWorld(true);
+      const { center, radius } = bounds.world(b);
+      const frame = b.config?._system ?? ROOT;
+      // in its own frame's units, read again once the flight has moved into it
+      const pos = f.convert(center.toArray(), f.current, frame);
+      const size = (radius || 1) * FRAME_FIT * f.ratio(f.current, frame);
+      return fly(() => {
+        const c = toCurrent(pos, frame);
+        return { tx: c[0], ty: c[1], tz: c[2], distance: size * unitOf(frame) };
+      }, { pos, frame }, { duration, ease: cfg.camera?.ease });
     },
     pointPositions() {
       /** @type {Record<string, number[]>} */

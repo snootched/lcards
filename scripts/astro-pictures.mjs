@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 /**
- * astro-pictures.mjs - render the Astrometrics Studio's starter pictures.
+ * astro-pictures.mjs - render the Astrometrics Studio's pictures: starters,
+ * object types (the add-object gallery) and shapes (the shape picker).
  *
- *   npm run astro:pictures [id ...] [-- --headed]
+ *   npm run astro:pictures [name ...] [-- --headed]
+ *
+ * A name picks pictures by file name: `planet`, `type-grid`, `shape-volume`
+ * (every volume shape), `type` (every type).
  *
  * Each starter (src/core/astrometrics/starters/) is put into an empty card
  * with its default params and rendered on the browser harness
@@ -12,7 +16,8 @@
  * the build copies it to custom_components/lcards/images/, served at
  * /lcards/images/astro-studio/; written there too so no rebuild is needed). The Studio's Starters
  * gallery shows them; tests/editor/astro-starter-pictures.test.js fails when
- * one is missing.
+ * one is missing. Types and shapes come from src/core/astrometrics/object-samples.js
+ * (shape-<type>-<shape>.webp, smaller: 320x180).
  *
  * A scene shows its own start view. A part has no camera or backdrop of its
  * own: it gets stars and a view framed round its coordinates, or the
@@ -25,6 +30,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { chromium } from '@playwright/test';
 import { STARTERS, applyStarter } from '../src/core/astrometrics/starters/index.js';
+import { TYPE_SAMPLES, SHAPE_SAMPLES } from '../src/core/astrometrics/object-samples.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'src/assets/images/astro-studio');
@@ -37,7 +43,7 @@ const GPU_FLAGS = ['--ignore-gpu-blocklist', '--enable-gpu', '--use-angle=vulkan
 
 const args = process.argv.slice(2);
 const headed = args.includes('--headed');
-const only = new Set(args.filter((a) => !a.startsWith('--')));
+const only = args.filter((a) => !a.startsWith('--'));
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const byId = (id) => STARTERS.find((s) => s.id === id);
@@ -67,6 +73,31 @@ function extentOf(frag) {
   const centre = lo.map((l, i) => (l + hi[i]) / 2);
   const span = Math.max(...hi.map((h, i) => h - lo[i]), size * 2, 1);
   return { centre, span };
+}
+
+/**
+ * The card config of an object or shape sample: stars behind, its own view.
+ * @param {import('../src/core/astrometrics/object-samples.js').ObjectSample} sample
+ */
+export function sampleConfig(sample) {
+  return {
+    type: TYPE, height: '100%',
+    ...(sample.points ? { points: sample.points } : {}),
+    objects: sample.objects,
+    backdrop: { stars: true },
+    camera: { view: 'picture', views: { picture: sample.camera }, buttons: false }
+  };
+}
+
+/** Every picture: file stem, card config, output size */
+function pictures() {
+  const list = STARTERS.map((st) => ({ name: `starter-${st.id}`, id: st.id, config: () => pictureConfig(st), w: 480, h: 270 }));
+  for (const [type, sample] of Object.entries(TYPE_SAMPLES)) list.push({ name: `type-${type}`, id: '', config: () => sampleConfig(sample), w: 480, h: 270, motion: !!sample.motion });
+  for (const [type, shapes] of Object.entries(SHAPE_SAMPLES)) {
+    for (const [shape, sample] of Object.entries(shapes)) list.push({ name: `shape-${type}-${shape}`, id: '', config: () => sampleConfig(sample), w: 320, h: 180 });
+  }
+  // a starter by its id, anything by its file name or the start of it
+  return list.filter((p) => !only.length || only.some((n) => n === p.id || p.name === n || p.name.startsWith(`${n}-`)));
 }
 
 /** The card config a starter's picture is taken of */
@@ -117,18 +148,20 @@ async function main() {
     });
     const page = await browser.newPage({ viewport: { width: WIDTH + 40, height: HEIGHT + 40 } });
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    const list = STARTERS.filter((s) => !only.size || only.has(s.id));
-    for (const starter of list) {
-      const config = pictureConfig(starter);
+    for (const pic of pictures()) {
+      const config = pic.config();
       const query = new URLSearchParams({ case: 'astro-galaxy', width: String(WIDTH), height: String(HEIGHT), now: String(NOW), seed: '7', freeze: '1' });
       await page.goto(`${base}/harness.html?${query}`);
       await page.waitForFunction(() => window.__ready !== false, null, { timeout: 20_000 });
+      // a picture of motion (a trail) runs for a few seconds; the rest are still
+      await page.emulateMedia({ reducedMotion: pic.motion ? 'no-preference' : 'reduce' });
       await page.evaluate((c) => window.__reconfigure(c), config);
       // the scene draws on demand: wait until it is built, then until it stops drawing
       const frames = () => page.evaluate(() => document.querySelector('#mount > *')?._scene?.debug().frames ?? 0);
       const t0 = Date.now();
       let last = -1, still = 0;
-      while (Date.now() - t0 < 30_000) {
+      if (pic.motion) await page.waitForTimeout(5000);
+      while (!pic.motion && Date.now() - t0 < 30_000) {
         await page.waitForTimeout(400);
         const f = await frames();
         still = f > 0 && f === last ? still + 1 : 0;
@@ -147,12 +180,12 @@ async function main() {
         canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
         return canvas.toDataURL('image/webp', 0.8).split(',')[1];
-      }, { b64: png.toString('base64'), w: 480, h: 270 });
-      const file = join(OUT, `starter-${starter.id}.webp`);
+      }, { b64: png.toString('base64'), w: pic.w, h: pic.h });
+      const file = join(OUT, `${pic.name}.webp`);
       writeFileSync(file, Buffer.from(webp, 'base64'));
-      writeFileSync(join(SERVED, `starter-${starter.id}.webp`), Buffer.from(webp, 'base64'));
+      writeFileSync(join(SERVED, `${pic.name}.webp`), Buffer.from(webp, 'base64'));
       const errors = (await page.evaluate(() => window.__errors)).filter((e) => !/favicon|SoundManager/.test(e));
-      console.log(`${starter.id}: ${Math.round(Buffer.from(webp, 'base64').length / 1024)} KB${errors.length ? `  errors: ${errors.join(' | ')}` : ''}`);
+      console.log(`${pic.name}: ${Math.round(Buffer.from(webp, 'base64').length / 1024)} KB${errors.length ? `  errors: ${errors.join(' | ')}` : ''}`);
     }
     await browser.close();
   } finally {

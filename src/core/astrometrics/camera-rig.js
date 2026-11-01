@@ -112,7 +112,7 @@ export function lensFov(fov, aspect) {
  * @param {CameraKeys} k
  * @param {number} [aspect] - the card's w / h
  */
-function viewHeight(k, aspect = 1) {
+export function viewHeight(k, aspect = 1) {
   return 2 * k.distance * Math.tan((lensFov(k.fov, aspect) * DEG) / 2);
 }
 
