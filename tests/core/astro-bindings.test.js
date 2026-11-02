@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  collectBindings, bindingKey, roundedSetting, mapEntity, mapNumber, dateValue, withValues, isTourView, tourStop, easeStep, isBinding, isTemplateValue,
+  collectBindings, bindingKey, roundedSetting, settingConfig, mapEntity, mapNumber, dateValue, withValues, isTourView, tourStop, easeStep, isBinding, isTemplateValue,
   DEFAULT_SMOOTH_MS
 } from '../../src/core/astrometrics/bindings.js';
 
@@ -151,4 +151,17 @@ test('whole-number settings: the schema\'s integer settings (an integer, a bindi
   };
   visit(astrometricsSchema);
   assert.deepEqual([...found].sort(), [...WHOLE_NUMBER_KEYS].sort());
+});
+
+test('a pair setting: each side can follow its own entity (rebuilds), the values go back into the pair', () => {
+  const config = {
+    objects: [{ type: 'belt', id: 'belt', radius: [{ entity: 'input_number.a', output: [40, 60] }, { entity: 'input_number.b', output: [100, 120] }] }]
+  };
+  const list = collectBindings(config);
+  assert.deepEqual(list.map(bindingKey).sort(), ['object:belt:radius.0', 'object:belt:radius.1']);
+  for (const b of list) assert.equal(b.live, false, 'a side rebuilds (only a whole radius scales in place)');
+  const values = new Map([['object:belt:radius.0', 50], ['object:belt:radius.1', 110]]);
+  assert.deepEqual(settingConfig(config, list, values).objects[0].radius, [50, 110]);
+  // before a side has a value: undefined there, so the builder's default for that side
+  assert.deepEqual(settingConfig(config, list, new Map([['object:belt:radius.1', 110]])).objects[0].radius, [undefined, 110]);
 });

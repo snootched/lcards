@@ -262,6 +262,9 @@ test('R4b: what an object follows, for its row and its sections (text and action
   assert.equal(keysBound({ at: 'mouth', spin: 3 }, ['at', 'spin']), false);
   assert.match(objectSummary(wormhole), /follows input_number\.lcards_test_power, a template/);
   assert.doesNotMatch(objectSummary(wormhole), /object Object/);
+  // a side of a pair that follows an entity or a template
+  assert.equal(objectSummary({ type: 'belt', radius: [52, { entity: 'input_number.p', output: [60, 90] }] }).split(' · ')[0], '52 x entity');
+  assert.equal(objectSummary({ type: 'belt', radius: ['[[[ return 1 ]]]', 90] }).split(' · ')[0], 'template x 90');
 });
 
 test('UX1 P2: colour lists, fonts and the systems list get their own fields', () => {

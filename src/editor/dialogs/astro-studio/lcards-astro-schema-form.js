@@ -21,7 +21,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { configToYaml, yamlToConfig } from '../../utils/yaml-utils.js';
 import {
   fieldKind, tupleLabels, tupleSize, labelFor, helperText, appliesTo, withKey, parseNumbers, isUnset, objectAlternative, choiceOptions, choiceValue,
-  isBoundValue, boundIn, uiHints, numberSelector, unitsLabel, bindingBranch, takesTemplate, isTemplateValue, isTour, sectionIcon, rangeItem
+  isBoundValue, boundIn, uiHints, numberSelector, unitsLabel, bindingBranch, takesTemplate, isTemplateValue, isTour, sectionIcon, rangeItem, pairItemSchema
 } from './schema-fields.js';
 import {
   RATE_PRESETS, RATE_UNIT_NAMES, CUSTOM_RATE, rateField, customParts, presetValue, customRateValue, isNowDate, dateSelectorValue, todayValue
@@ -114,6 +114,9 @@ export class LCARdSAstroSchemaForm extends LitElement {
       lcards-form-section { display: block; }
       .bindable { display: flex; align-items: flex-start; gap: var(--ha-space-1); }
       .bindable > ha-selector, .bindable > div, .bindable > lcards-font-selector { flex: 1; min-width: 0; }
+      /* a side of a pair that follows an entity: its panel is under the row */
+      .side-bound { display: flex; align-items: center; min-height: 56px; padding: 0 var(--ha-space-3); font-size: var(--ha-font-size-s);
+        color: var(--secondary-text-color); border: var(--ha-border-width-sm) dashed var(--divider-color); border-radius: var(--ha-border-radius-sm); }
       /* what a key holds besides its plain value: a nested section under the key's name */
       .sub-body { display: grid; gap: var(--ha-space-3); }
       .stack { display: grid; gap: var(--ha-space-2); }
@@ -344,12 +347,13 @@ export class LCARdSAstroSchemaForm extends LitElement {
    * plain value, with the way back to one in its header.
    * @param {string} key @param {string} icon @param {string} title @param {string} back - the back button's label
    * @param {any} body
+   * @param {(v: any) => void} [put] - writes the value (a side of a pair writes into the pair)
    */
-  _subPanel(key, icon, title, back, body) {
+  _subPanel(key, icon, title, back, body, put = (v) => this._set(key, v)) {
     return html`
       <lcards-form-section class="full binding" data-key=${key} header=${title} icon=${icon} nested outlined ?expanded=${true}>
         <ha-icon-button slot="header-icons" data-key=${`${key}-unbind`} .label=${back} title=${back}
-          @click=${(/** @type {Event} */ e) => { e.stopPropagation(); this._set(key, undefined); }}>
+          @click=${(/** @type {Event} */ e) => { e.stopPropagation(); put(undefined); }}>
           <ha-icon icon="mdi:link-variant-off"></ha-icon>
         </ha-icon-button>
         <div class="sub-body">${body}</div>
@@ -360,14 +364,15 @@ export class LCARdSAstroSchemaForm extends LitElement {
    * A setting that follows an entity: entity and attribute, and for a
    * number input, output, clamp and smooth (the keys its binding takes).
    * @param {string} key @param {any} s @param {string} kind @param {Record<string, any>} value @param {string} label @param {string} helper
+   * @param {(v: any) => void} [put] - writes the binding (a side of a pair writes into the pair)
    */
-  _binding(key, s, kind, value, label, helper) {
+  _binding(key, s, kind, value, label, helper, put = (v) => this._set(key, v)) {
     const takes = bindingBranch(s)?.properties ?? {};
     const numeric = kind !== 'text' && kind !== 'boolean';
     const set = (/** @type {Record<string, any>} */ patch) => {
       const next = { ...value, ...patch };
       for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
-      this._set(key, next);
+      put(next);
     };
     // input: the entity's values; output: the setting's values they become (the map_range keys)
     /** @param {'input' | 'output'} k @param {[string, string]} names @param {[string, string]} helpers */
@@ -387,16 +392,17 @@ export class LCARdSAstroSchemaForm extends LitElement {
       ${numeric && takes.output ? pair('output', [`${label} at entity low`, `${label} at entity high`],
         ['Both empty: the entity\'s own number', 'Held at the ends outside the entity range']) : nothing}
       ${numeric && takes.clamp ? this._selector(`${key}~clamp`, { boolean: {} }, value.clamp !== false, 'Clamp', 'Off: values past the entity range carry on past the ends.', '', (v) => set({ clamp: v ? undefined : false })) : nothing}
-      ${numeric && takes.smooth ? this._selector(`${key}~smooth`, { number: { mode: 'box', min: 0, step: 50 } }, value.smooth, 'Smooth (ms)', 'opacity, radius, size and spin ease over this; default 600, 0 steps.', '', (v) => set({ smooth: num(v) })) : nothing}`);
+      ${numeric && takes.smooth ? this._selector(`${key}~smooth`, { number: { mode: 'box', min: 0, step: 50 } }, value.smooth, 'Smooth (ms)', 'opacity, radius, size and spin ease over this; default 600, 0 steps.', '', (v) => set({ smooth: num(v) })) : nothing}`, put);
   }
 
   /**
    * A setting given as a template: shown as text (edit it here or in the YAML tab).
    * @param {string} key @param {string} value @param {string} label
+   * @param {(v: any) => void} [put] - writes the value (a side of a pair writes into the pair)
    */
-  _templateField(key, value, label) {
+  _templateField(key, value, label, put = (v) => this._set(key, v)) {
     return this._subPanel(key, 'mdi:code-braces', `${label}: a template`, 'Back to a number',
-      this._selector(`${key}~template`, { text: { multiline: true } }, value, '', 'JavaScript [[[ ]]], Jinja2 {{ }} or a {entity.state} token.', '', (v) => this._set(key, v || undefined)));
+      this._selector(`${key}~template`, { text: { multiline: true } }, value, '', 'JavaScript [[[ ]]], Jinja2 {{ }} or a {entity.state} token.', '', (v) => put(v || undefined)), put);
   }
 
   /**
@@ -671,24 +677,45 @@ export class LCARdSAstroSchemaForm extends LitElement {
     const n = tupleSize(s);
     const names = tupleLabels(s.description ?? s.oneOf?.find((/** @type {any} */ b) => b.description)?.description, n);
     const vals = Array.isArray(value) ? value : (typeof value === 'number' ? [value] : []);
-    /** @param {number} i @param {any} v */
+    // a side that can follow an entity on its own (a pair setting: the array's items take a binding)
+    const item = pairItemSchema(s);
+    /** a side's value: a number, or a binding or template kept as it is */
+    const keep = (/** @type {any} */ v) => (isBoundValue(v) || isTemplateValue(v) ? v : num(v));
+    /** @param {number} i @param {any} v - a number, a binding or template, or undefined */
     const change = (i, v) => {
-      const next = Array.from({ length: n }, (_, j) => (j === i ? num(v) : num(vals[j])));
+      const next = Array.from({ length: n }, (_, j) => (j === i ? keep(v) : keep(vals[j])));
       if (next.every((x) => x === undefined)) return this._set(key, undefined);
-      if (kind === 'numberOrTuple' && next.slice(1).every((x) => x === undefined)) return this._set(key, next[0]);
-      const fill = next.find((x) => x !== undefined) ?? 0;
+      if (kind === 'numberOrTuple' && next.slice(1).every((x) => x === undefined) && typeof next[0] === 'number') return this._set(key, next[0]);
+      const fill = next.find((x) => typeof x === 'number') ?? 0;
       this._set(key, next.map((x) => (x === undefined ? (kind === 'numberOrTuple' ? fill : 0) : x)));
     };
+    const bound = names.map((_, i) => isBoundValue(vals[i]) || isTemplateValue(vals[i]));
     return html`
       <div class="full" data-key=${key}>
         <span class="field-label">${label}</span>
         <div class="row">
-          ${names.map((name, i) => html`
-            <ha-selector .hass=${this.hass} .selector=${{ number: { mode: 'box', step: 'any' } }} .value=${vals[i]} .label=${name} .required=${false}
-              @value-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); change(i, e.detail.value); }}>
-            </ha-selector>`)}
+          ${names.map((name, i) => bound[i] ? html`
+            <div class="side-bound" data-side=${i}>${name}: ${isBoundValue(vals[i]) ? 'follows an entity' : 'a template'}</div>` : html`
+            <div class=${item ? 'bindable' : ''}>
+              <ha-selector .hass=${this.hass} .selector=${{ number: { mode: 'box', step: 'any' } }} .value=${vals[i]} .label=${name} .required=${false}
+                @value-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); change(i, e.detail.value); }}>
+              </ha-selector>
+              ${item ? html`
+                <ha-icon-button class="bind" data-key=${`${key}-${i}-bind`} .label=${`${name}: follow an entity`} title=${`${name}: follow an entity`}
+                  @click=${() => change(i, { entity: '' })}>
+                  <ha-icon icon="mdi:link-variant"></ha-icon>
+                </ha-icon-button>` : nothing}
+            </div>`)}
         </div>
-        ${helper ? html`<div class="hint">${helper}${kind === 'numberOrTuple' ? ' Fill only the first box for one number.' : ''}</div>` : nothing}
+        ${helper ? html`<div class="hint">${helper}${kind === 'numberOrTuple' ? ' Fill only the first box for one number.' : ''}${item ? ' Each side can follow an entity of its own (its link button).' : ''}</div>` : nothing}
+        ${item ? names.map((name, i) => {
+          if (!bound[i]) return nothing;
+          // back to a number: the side's output low, else 0
+          const put = (/** @type {any} */ v) => change(i, v === undefined ? (Number(vals[i]?.output?.[0]) || 0) : v);
+          return isBoundValue(vals[i])
+            ? this._binding(`${key}~${i}`, item, 'number', vals[i], `${label} ${name}`, '', put)
+            : this._templateField(`${key}~${i}`, vals[i], `${label} ${name}`, put);
+        }) : nothing}
       </div>`;
   }
 

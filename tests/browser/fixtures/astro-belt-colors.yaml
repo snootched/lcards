@@ -1,0 +1,6 @@
+# A belt with an [inner, outer] radius, for the Studio's per-side binding
+# (astro-studio.spec.js).
+type: custom:lcards-astrometrics-card
+height: 400
+objects:
+  - { type: belt, id: rocks, radius: [40, 60], count: 300, colors: [var(--lcards-gray-light), var(--lcards-yellow-dark)] }

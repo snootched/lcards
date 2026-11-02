@@ -453,7 +453,7 @@ An asteroid belt: a band of low-poly rocks round its centre (`at`, a point id or
 
 | Key | What it does |
 |---|---|
-| `radius` | `[inner, outer]` radius of the band, scene units. One number is the outer radius (the inner is 0.8 of it). Default `[80, 100]`. |
+| `radius` | `[inner, outer]` radius of the band, scene units. One number is the outer radius (the inner is 0.8 of it). Default `[80, 100]`. Either edge can [follow an entity](./data#settings-from-entities) of its own. |
 | `thickness` | How far the rocks spread above and below the plane. Default 0.15 of the band's width. |
 | `count` | How many rocks, at most 5000 (default 600). They are one draw, so thousands are fine. |
 | `size` | `[smallest, largest]` rock, scene units: many small ones and a few large. Default `[0.4, 1.6]`. |

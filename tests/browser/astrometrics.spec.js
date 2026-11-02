@@ -1401,6 +1401,9 @@ test('whole-number settings: a belt\'s count follows its entity as a whole numbe
     // 100: all 500
     await page.evaluate(() => window.__setState('input_number.lcards_test_power', '100'));
     await expect.poll(async () => (await belt()).count, { timeout: 5000 }).toBe(500);
+    // the inner edge on its own entity (a side of the pair): shields 50 gives 40 + 0.5 * 30 = 55, the outer stays 90
+    await page.evaluate(() => window.__setState('input_number.lcards_test_shields', '50'));
+    await expect.poll(() => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world.objects.get('rocks').config.radius), { timeout: 5000 }).toEqual([55, 90]);
     await expectNoErrors(page);
 });
 

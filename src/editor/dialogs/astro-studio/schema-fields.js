@@ -40,7 +40,8 @@ const hasType = (s, t) => s?.type === t || (Array.isArray(s?.type) && s.type.inc
 const isNumberSchema = (s) => hasType(s, 'number') || hasType(s, 'integer');
 
 /** @param {any} s */
-const isNumberArray = (s) => hasType(s, 'array') && isNumberSchema(s.items);
+/** an array of numbers; its items may be settings (a number that can follow an entity: a pair's sides) */
+const isNumberArray = (s) => hasType(s, 'array') && (isNumberSchema(s.items) || !!settingNumber(s.items));
 
 /** A fixed-length number array (2 to 4): [x, y, z], [from, to] @param {any} s */
 const isTuple = (s) => isNumberArray(s) && s.minItems !== undefined && s.minItems === s.maxItems && s.minItems >= 2 && s.minItems <= 4;
@@ -98,6 +99,16 @@ export const isBoundValue = (v) => isObj(v) && typeof v.entity === 'string';
  * @returns {any}
  */
 export const bindingBranch = (s) => (s?.oneOf ?? s?.anyOf ?? []).find(isBindingSchema) ?? null;
+
+/**
+ * A pair setting whose sides can each follow an entity ([inner, outer] with a
+ * binding on either): the array branch's item schema, else null.
+ * @param {any} s
+ */
+export function pairItemSchema(s) {
+  const arr = (s?.oneOf ?? s?.anyOf ?? []).find((/** @type {any} */ b) => b?.type === 'array');
+  return arr?.items && bindingBranch(arr.items) ? arr.items : null;
+}
 
 /** Whether a property takes a template string @param {any} s */
 export const takesTemplate = (s) => (s?.oneOf ?? s?.anyOf ?? []).some(isTemplateSchema);
@@ -476,7 +487,8 @@ export function objectSummary(obj) {
   if (!isObj(obj)) return '';
   const bits = [obj.shape ?? obj.material ?? obj.sky].filter(Boolean).map(String);
   const sz = obj.radius ?? obj.size;
-  if (typeof sz === 'number' || Array.isArray(sz)) bits.push(Array.isArray(sz) ? sz.join(' x ') : String(sz));
+  // a side of a pair that follows an entity or a template reads as such
+  if (typeof sz === 'number' || Array.isArray(sz)) bits.push(Array.isArray(sz) ? sz.map((v) => (isBoundValue(v) ? 'entity' : isTemplateValue(v) ? 'template' : v)).join(' x ') : String(sz));
   if (obj.type === 'system' && obj.units) bits.push(`in ${obj.units}`);
   if (typeof obj.at === 'string') bits.push(`at ${obj.at}`);
   // a route only when nothing above says what it is

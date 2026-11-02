@@ -319,3 +319,11 @@ test('astrometrics whole-number settings follow an entity or a template; a plain
     assert.ok(errors(astro({ count: 2.5 })).length > 0, 'a plain number must still be whole');
     assert.deepEqual(errors({ type: 'custom:lcards-astrometrics-card', objects: [{ type: 'grid', id: 'g', deform: [{ type: 'wobble', lobes: { entity: 'input_number.lobes' } }] }] }), []);
 });
+
+test('astrometrics pair settings: either side can follow an entity or a template', () => {
+    const errors = (c) => messages(check(c)).filter((m) => m.startsWith('error'));
+    const belt = (radius) => ({ type: 'custom:lcards-astrometrics-card', objects: [{ type: 'belt', id: 'b', radius }] });
+    assert.deepEqual(errors(belt([{ entity: 'input_number.a', output: [40, 60] }, 100])), []);
+    assert.deepEqual(errors(belt([50, '[[[ return 90 ]]]'])), []);
+    assert.ok(errors(belt([50, { entity: 'input_number.a', to: [1, 2] }])).length > 0, 'the old words are unknown keys');
+});

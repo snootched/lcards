@@ -966,3 +966,30 @@ test('the preview sizes its canvas by layout, not by a CSS transform (the dialog
     });
     expect(Math.abs(sizes.canvas - sizes.client)).toBeLessThanOrEqual(1);
 });
+
+test('studio: either side of a pair follows an entity on its own (link button per side), and back to a number', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-belt-colors', { width: '800' });
+    await openStudio(page);
+    await page.evaluate(async () => { const s = window.__studio; s._activeTab = 'objects'; s._selectObject(0); await s.updateComplete; });
+    const radius = () => page.evaluate(() => window.__studio._workingConfig.objects[0].radius);
+    const deep = (sel) => page.evaluate((q) => {
+        const find = (r) => { for (const el of r.querySelectorAll('*')) { if (el.matches?.(q)) return el; if (el.shadowRoot) { const f = find(el.shadowRoot); if (f) return f; } } return null; };
+        return !!find(window.__studio.renderRoot);
+    }, sel);
+    const click = (sel) => page.evaluate((q) => {
+        const find = (r) => { for (const el of r.querySelectorAll('*')) { if (el.matches?.(q)) return el; if (el.shadowRoot) { const f = find(el.shadowRoot); if (f) return f; } } return null; };
+        find(window.__studio.renderRoot).click();
+    }, sel);
+    await expect.poll(() => deep('[data-key="radius-1-bind"]'), { timeout: 10_000 }).toBe(true);
+    expect(await radius()).toEqual([40, 60]);
+    // the outer side follows an entity; the inner keeps its number
+    await click('[data-key="radius-1-bind"]');
+    await expect.poll(radius).toEqual([40, { entity: '' }]);
+    await expect.poll(() => deep('[data-side="1"]')).toBe(true);
+    await expect.poll(() => deep('[data-key="radius~1-unbind"]')).toBe(true);
+    // back to a number (the output's low, else 0)
+    await click('[data-key="radius~1-unbind"]');
+    await expect.poll(radius).toEqual([40, 0]);
+});

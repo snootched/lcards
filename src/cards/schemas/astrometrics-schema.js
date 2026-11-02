@@ -63,13 +63,19 @@ const settingTemplate = {
 };
 
 /**
- * A number or [a, b] on an object, where the one number can follow an entity
- * or a template (a grid's or belt's radius).
+ * A number or [a, b] on an object: the one number can follow an entity or a
+ * template, and so can either side of the pair on its own (a belt's inner and
+ * outer radius each from an entity; a bound side rebuilds the object).
  * @param {string} description
  */
 const settingOrPair = (description) => ({
     description,
-    anyOf: [{ type: 'number' }, { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 }, settingBinding, settingTemplate]
+    anyOf: [
+        { type: 'number' },
+        { type: 'array', items: { anyOf: [{ type: 'number' }, settingBinding, settingTemplate] }, minItems: 2, maxItems: 2 },
+        settingBinding,
+        settingTemplate
+    ]
 });
 
 /**
