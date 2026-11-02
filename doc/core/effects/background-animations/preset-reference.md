@@ -1157,7 +1157,7 @@ Animatable: `speed`, `streak`, `camera_tilt`, `camera_yaw`, `camera_roll`, `fov`
     speed: 4
     camera_yaw:
       map_range:
-        entity_id: input_number.lcards_test_value
+        entity: input_number.lcards_test_value
         input: [0, 100]
         output: [-30, 30]
 ```
@@ -1213,7 +1213,7 @@ Animatable: `rotate_speed`, `tilt`, `size`, `position_x`, `position_y`, `back_op
     tilt: 15
     rotate_speed:
       map_range:
-        entity_id: input_number.lcards_test_value
+        entity: input_number.lcards_test_value
         input: [0, 100]
         output: [0.5, 6]
 ```

@@ -15,4 +15,4 @@ objects:
   - { type: sphere, id: real, radius: 25, fill_color: var(--lcars-blue), look: realistic }
   - { type: ring, id: always, radius: 45 }
   # a vortex whose size follows an entity: rebuilt at its first value, its stars sized to the canvas
-  - { type: galaxy, id: swirl, radius: { entity: input_number.lcards_test_power, to: [10, 30] }, arms: 3, bar: 0, stars: 2000, look: realistic }
+  - { type: galaxy, id: swirl, radius: { entity: input_number.lcards_test_power, output: [10, 30] }, arms: 3, bar: 0, stars: 2000, look: realistic }

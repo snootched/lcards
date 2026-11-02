@@ -18,14 +18,14 @@ const shields = (state, attrs = { min: 0, max: 100 }) => ({ entity_id: 'input_nu
 
 test('collectBindings: object and point keys at any depth; live keys; card time_scale and clock; positions and text left out', () => {
   const config = {
-    time_scale: { entity: 'input_number.speed', to: [0, 4] },
+    time_scale: { entity: 'input_number.speed', output: [0, 4] },
     clock: { rate: { entity: 'input_number.rate' }, date: { entity: 'input_datetime.date' } },
     points: [
       { id: 'ship', xyz: { entity: 'device_tracker.ship' }, alt: { entity: 'sensor.alt' }, label: '{entity.state}', text: { label: { content: '[[[ return 1 ]]]' } } },
       { id: 'plain', xyz: [0, 0, 0] }
     ],
     objects: [
-      { type: 'sphere', id: 'bubble', opacity: { entity: 'input_number.shields', to: [0, 0.6], smooth: 1000 }, radius: { entity: 'sensor.r' } },
+      { type: 'sphere', id: 'bubble', opacity: { entity: 'input_number.shields', output: [0, 0.6], smooth: 1000 }, radius: { entity: 'sensor.r' } },
       { type: 'grid', id: 'well', shape: 'well', deform: [{ type: 'wobble', amplitude: "[[[ return states['input_number.power'].state / 100 ]]]" }] },
       { type: 'ring', id: 'r', tap_action: { action: 'more-info', entity: 'light.x' } },
       { type: 'system', id: 'sys', units: 'km' }
@@ -57,20 +57,23 @@ test('isBinding and isTemplateValue', () => {
   assert.equal(isTemplateValue('tilted'), false);
 });
 
-test('mapping: range from min / max, else 0 to 100; clamped; no to is the raw number; missing values are null', () => {
-  const spec = { entity: 'input_number.shields', to: [0, 0.6] };
+test('mapping (map_range words): input from min / max, else 0 to 100; clamped unless clamp: false; no output is the raw number; missing values are null', () => {
+  const spec = { entity: 'input_number.shields', output: [0, 0.6] };
   assert.equal(mapEntity(spec, shields(50)), 0.3);
   assert.equal(mapEntity(spec, shields(120)), 0.6, 'clamped high');
   assert.equal(mapEntity(spec, shields(-5)), 0, 'clamped low');
   assert.ok(Math.abs(mapEntity(spec, shields(15, { min: 10, max: 35 })) - 0.12) < 1e-12, 'the entity\'s own min and max');
-  assert.equal(mapEntity({ ...spec, range: [0, 200] }, shields(100)), 0.3, 'range wins');
-  assert.equal(mapEntity({ entity: 'sensor.x' }, shields(42)), 42, 'no to: the number as it is');
-  assert.equal(mapEntity({ entity: 'sensor.x', attribute: 'level', to: [0, 1] }, { state: 'on', attributes: { level: 25 } }), 0.25, 'an attribute');
+  assert.equal(mapEntity({ ...spec, input: [0, 200] }, shields(100)), 0.3, 'input wins');
+  assert.ok(Math.abs(mapEntity({ ...spec, clamp: false }, shields(120)) - 0.72) < 1e-12, 'clamp: false carries on past the end');
+  assert.equal(mapEntity({ entity: 'sensor.x' }, shields(42)), 42, 'no output: the number as it is');
+  assert.equal(mapEntity({ entity: 'sensor.x', attribute: 'level', output: [0, 1] }, { state: 'on', attributes: { level: 25 } }), 0.25, 'an attribute');
   assert.equal(mapEntity(spec, shields('unavailable')), null);
   assert.equal(mapEntity(spec, undefined), null);
   assert.equal(mapNumber(null, ' 7 '), 7, 'a template result');
   assert.equal(mapNumber(null, true), null);
-  assert.equal(mapNumber({ to: [10, 20] }, 50), 15, 'to with the default 0 to 100 range');
+  assert.equal(mapNumber({ output: [10, 20] }, 50), 15, 'output with the default 0 to 100 input');
+  // the old R4b words (never released) are not read: the setting gets the entity's number as it is
+  assert.equal(mapNumber({ to: [10, 20], range: [0, 200] }, 50), 50);
 });
 
 test('dates: an input_datetime state or attribute, a template result; unknown is none', () => {
@@ -115,7 +118,7 @@ test('whole-number settings: count, arms, lobes ... bind (any depth), their valu
   const list = collectBindings({
     time_scale: { entity: 'input_number.speed' },
     objects: [
-      { type: 'belt', id: 'belt', count: { entity: 'input_number.rocks', to: [100, 500] }, seed: 2 },
+      { type: 'belt', id: 'belt', count: { entity: 'input_number.rocks', output: [100, 500] }, seed: 2 },
       { type: 'galaxy', id: 'g', arms: "[[[ return 3 ]]]", stars: { entity: 'sensor.s' } },
       { type: 'grid', id: 'well', deform: [{ type: 'wobble', lobes: { entity: 'input_number.lobes' }, amplitude: { entity: 'input_number.a' } }] }
     ]

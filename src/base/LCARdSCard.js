@@ -2428,8 +2428,9 @@ export class LCARdSCard extends LCARdSNativeCard {
             node.forEach(item => this._extractMapRangeEntities(item, out));
             return out;
         }
-        if (node.map_range && typeof node.map_range === 'object' && typeof node.map_range.entity === 'string') {
-            out.add(node.map_range.entity);
+        if (node.map_range && typeof node.map_range === 'object') {
+            // `entity`; background animations also read the older `entity_id`
+            for (const id of [node.map_range.entity, node.map_range.entity_id]) if (typeof id === 'string' && id) out.add(id);
         }
         for (const value of Object.values(node)) {
             this._extractMapRangeEntities(value, out);

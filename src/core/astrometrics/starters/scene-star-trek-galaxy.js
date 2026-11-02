@@ -153,7 +153,7 @@ export const THROAT_LINE = Object.freeze({ color: 'var(--lcars-blue)', width: 5,
  */
 export function wormholeMouth({ prefix, at, aim, radius: R, depth: D, power, extra = {}, stars = 4000 }) {
   /** @param {number} lo @param {number} hi @param {number} [smooth] */
-  const opens = (lo, hi, smooth) => (power ? { entity: power, to: [lo, hi], ...(smooth ? { smooth } : {}) } : hi);
+  const opens = (lo, hi, smooth) => (power ? { entity: power, output: [lo, hi], ...(smooth ? { smooth } : {}) } : hi);
   const mouth = `${prefix}_mouth`;
   const shape = { shape: 'well', well_shape: 'trumpet', well_throat: 0.1, at, face: aim, radius: opens(0.15 * R, R, 1500), depth: D };
   const wobble = power ? `[[[ return Number(states['${power}']?.state ?? 0) / 1000 ]]]` : 0.06;

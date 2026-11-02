@@ -106,7 +106,7 @@ For whole degrees, round in JavaScript: `[[[ return 'SOL ' + Math.round(sky.sun.
 
 ## Settings from entities
 
-Any number on a point or object can follow an entity instead of holding still: a shield bubble's opacity follows the shields, a wormhole's glow follows the power. Write the key as `{ entity, to }`:
+Any number on a point or object can follow an entity instead of holding still: a shield bubble's opacity follows the shields, a wormhole's glow follows the power. Write the key as `{ entity, output }`:
 
 ```yaml
 type: custom:lcards-astrometrics-card
@@ -116,26 +116,28 @@ objects:
     radius: 30
     fill_color: var(--lcars-blue)
     # shields 0 to 100 % gives an opacity of 0 to 0.6
-    opacity: { entity: input_number.lcards_test_shields, to: [0, 0.6] }
+    opacity: { entity: input_number.lcards_test_shields, output: [0, 0.6] }
   - type: glow
     id: core
     # power 0 to 100 % gives a glow 10 to 60 across, easing over 1 s
-    size: { entity: input_number.lcards_test_power, range: [0, 100], to: [10, 60], smooth: 1000 }
+    size: { entity: input_number.lcards_test_power, input: [0, 100], output: [10, 60], smooth: 1000 }
 ```
 
 | Key | What it does |
 |---|---|
 | `entity` | The entity to follow. |
 | `attribute` | Read this attribute instead of the state. |
-| `range` | `[low, high]` of the entity's value. Default the entity's `min` and `max` (an `input_number`), else 0 to 100. |
-| `to` | `[low, high]` of the setting the range maps to. Leave it out to use the entity's number as it is. |
+| `input` | `[low, high]` of the entity's value. Default the entity's `min` and `max` (an `input_number`), else 0 to 100. |
+| `output` | `[low, high]` of the setting the input maps to. Leave it out to use the entity's number as it is. |
+| `clamp` | `false`: a value outside `input` carries on past the ends of `output`. Default `true`. |
 | `smooth` | How long a change eases, ms (default 600; `0` steps). |
 
-- **Clamped:** a value outside `range` stays at the end of `to`.
+- **Clamped:** a value outside `input` stays at the end of `output` (unless `clamp: false`).
+- **The same words as elsewhere:** `input` and `output` are the keys of `map_range` in [animations](/core/animations) and background animations, and of the rules' `map_range_cond`.
 - **No value** (unavailable, not a number): the key's default.
 - **Templates** work too: `spin: "[[[ return states['input_number.lcards_test_power'].state / 10 ]]]"`, or `{{ }}` and `{entity.state}`.
 - **What changes in place:** an object's `opacity`, `radius`, `size` and `spin` ease to their new value without rebuilding anything. Any other key (a deformation's `amplitude`, a belt's `count`, a point's `alt`) rebuilds that one object or point, at most four times a second, and steps.
-- **Whole numbers:** how-many settings (a belt's `count`, a galaxy's `arms` and `stars`, a nebula's `cloud_count`, a wobble's `lobes`, a polar grid's `spoke_count`, `num_octaves`, `major_row_interval` and `major_col_interval`) take the mapped value rounded, so `count: { entity: input_number.lcards_test_power, to: [100, 500] }` gives 233 rocks at 33.3 %, and the object rebuilds only when the whole number changes. Seeds do not follow entities.
+- **Whole numbers:** how-many settings (a belt's `count`, a galaxy's `arms` and `stars`, a nebula's `cloud_count`, a wobble's `lobes`, a polar grid's `spoke_count`, `num_octaves`, `major_row_interval` and `major_col_interval`) take the mapped value rounded, so `count: { entity: input_number.lcards_test_power, output: [100, 500] }` gives 233 rocks at 33.3 %, and the object rebuilds only when the whole number changes. Seeds do not follow entities.
 - **On the card:** `time_scale`, `clock.rate` and `clock.date` follow entities the same way (`clock: { date: { entity: input_datetime.lcards_test_date } }` shows the planets on the date in a helper). Positions follow entities their own way: see [Positions from entities](#positions-from-entities).
 - Pairs and lists (`[x, y, z]`, `rotation`) and whole numbers (`count`, `spoke_count`) do not follow entities yet.
 

@@ -18,10 +18,10 @@ objects:
     id: bubble
     radius: 30
     fill_color: var(--lcars-blue)
-    opacity: { entity: input_number.lcards_test_shields, range: [0, 100], to: [0, 0.6] }
+    opacity: { entity: input_number.lcards_test_shields, input: [0, 100], output: [0, 0.6] }
   - type: glow
     id: core
-    size: { entity: input_number.lcards_test_power, range: [0, 100], to: [10, 60], smooth: 400 }
+    size: { entity: input_number.lcards_test_power, input: [0, 100], output: [10, 60], smooth: 400 }
   - type: grid
     id: well
     shape: plane
@@ -31,4 +31,4 @@ objects:
   - type: belt
     id: rocks
     radius: [70, 90]
-    count: { entity: input_number.lcards_test_power, range: [0, 100], to: [100, 500] }
+    count: { entity: input_number.lcards_test_power, input: [0, 100], output: [100, 500] }

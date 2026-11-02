@@ -1658,7 +1658,7 @@ const backgroundAnimationEffectSchema = {
                 schemas: BACKGROUND_ANIMATION_PARAMS_SCHEMAS_REACTIVE_AWARE,
                 default: { type: 'object', additionalProperties: true }
             },
-            description: 'Preset-specific configuration options. Shape depends on the sibling `preset` field. Supports entity-reactive values via map_range descriptor ({ map_range: { attribute, input, output } }) or template strings ([[[...]]]). entity_id defaults to the card-bound entity.'
+            description: 'Preset-specific configuration options. Shape depends on the sibling `preset` field. Supports entity-reactive values via map_range descriptor ({ map_range: { entity, attribute, input, output } }) or template strings ([[[...]]]). entity (the older entity_id also works) defaults to the card-bound entity.'
         },
         enabled: {
             type: 'boolean',

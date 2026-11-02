@@ -214,7 +214,7 @@ The card is the scene only. For an LCARS frame round it (an "ALPHA QUADRANT" bar
 | `look` | `diagram`, `realistic` or `mixed` (default), or `{ entity }` naming one: which objects and points show ([Looks](#looks-diagram-and-realistic)) |
 | `model_scale` | `real` (default) or `visible`: how models at their real size start ([Objects: visible size](./objects#visible-size)) |
 | `clock` | The scene date (`date: now` or an ISO date) and how fast it runs (`rate: live` or days per second) for real Solar System bodies and the sky ([The scene clock](./scale#the-scene-clock)) |
-| Any number on a point or object | Can follow an entity: `opacity: { entity, to }` ([Settings from entities](./data#settings-from-entities)); `camera.view` can follow one as a [guided tour](./data#a-guided-tour) |
+| Any number on a point or object | Can follow an entity: `opacity: { entity, output }` ([Settings from entities](./data#settings-from-entities)); `camera.view` can follow one as a [guided tour](./data#a-guided-tour) |
 | `units` | What one scene unit is: `m`, `km`, `au`, `ly` or `pc` (optional; a [star system](./scale#star-systems) needs it to give its own) |
 | `backdrop` | `stars`, `dust` ([Backdrop](#backdrop)) |
 | `background_animation` | Flat background effects behind the scene ([Backdrop](#backdrop)) |

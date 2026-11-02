@@ -358,7 +358,7 @@ export class LCARdSAstroSchemaForm extends LitElement {
 
   /**
    * A setting that follows an entity: entity and attribute, and for a
-   * number range, to and smooth (the keys its binding takes).
+   * number input, output, clamp and smooth (the keys its binding takes).
    * @param {string} key @param {any} s @param {string} kind @param {Record<string, any>} value @param {string} label @param {string} helper
    */
   _binding(key, s, kind, value, label, helper) {
@@ -369,8 +369,8 @@ export class LCARdSAstroSchemaForm extends LitElement {
       for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
       this._set(key, next);
     };
-    // range: the entity's values; to: the setting's values they become (YAML keys range and to)
-    /** @param {'range' | 'to'} k @param {[string, string]} names @param {[string, string]} helpers */
+    // input: the entity's values; output: the setting's values they become (the map_range keys)
+    /** @param {'input' | 'output'} k @param {[string, string]} names @param {[string, string]} helpers */
     const pair = (k, names, helpers) => html`
       <div class="row">
         ${[0, 1].map((i) => this._selector(`${key}~${k}${i}`, { number: { mode: 'box', step: 'any' } },
@@ -383,9 +383,10 @@ export class LCARdSAstroSchemaForm extends LitElement {
     return this._subPanel(key, 'mdi:link-variant', `${label}: follows an entity`, kind === 'choice' || kind === 'boolean' ? 'Back to a fixed value' : 'Back to a number', html`
       ${this._selector(`${key}~entity`, { entity: {} }, value.entity || undefined, 'Entity', helper, '', (v) => set({ entity: v || '', attribute: undefined }))}
       ${takes.attribute ? this._attribute(key, value, set) : nothing}
-      ${numeric && takes.range ? pair('range', ['Entity low', 'Entity high'], ['Default: its min (else 0)', 'Default: its max (else 100)']) : nothing}
-      ${numeric && takes.to ? pair('to', [`${label} at entity low`, `${label} at entity high`],
-        ['Both empty: the entity\'s own number', 'Held at the ends outside the range']) : nothing}
+      ${numeric && takes.input ? pair('input', ['Entity low', 'Entity high'], ['Default: its min (else 0)', 'Default: its max (else 100)']) : nothing}
+      ${numeric && takes.output ? pair('output', [`${label} at entity low`, `${label} at entity high`],
+        ['Both empty: the entity\'s own number', 'Held at the ends outside the entity range']) : nothing}
+      ${numeric && takes.clamp ? this._selector(`${key}~clamp`, { boolean: {} }, value.clamp !== false, 'Clamp', 'Off: values past the entity range carry on past the ends.', '', (v) => set({ clamp: v ? undefined : false })) : nothing}
       ${numeric && takes.smooth ? this._selector(`${key}~smooth`, { number: { mode: 'box', min: 0, step: 50 } }, value.smooth, 'Smooth (ms)', 'opacity, radius, size and spin ease over this; default 600, 0 steps.', '', (v) => set({ smooth: num(v) })) : nothing}`);
   }
 
@@ -655,7 +656,7 @@ export class LCARdSAstroSchemaForm extends LitElement {
         @value-changed=${(/** @type {CustomEvent} */ e) => {
           e.stopPropagation();
           const out = toValue(e.detail.value);
-          // sub-fields (key~part: a binding's entity, range, ...) set the key themselves
+          // sub-fields (key~part: a binding's entity, input, ...) set the key themselves
           if (!key.includes('~') && !key.endsWith('-on') && !key.endsWith('-n')) this._set(key, out);
         }}>
       </ha-selector>`;

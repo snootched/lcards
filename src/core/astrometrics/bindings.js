@@ -3,14 +3,17 @@
  * the card's `time_scale`, `warp_factor`, `clock.rate` and `clock.date`, can follow an
  * entity instead of holding a number:
  *
- *   opacity: { entity: input_number.shields, to: [0, 0.6] }        the mapping form
- *   radius: { entity: sensor.x, attribute: level, range: [0, 10], to: [5, 40], smooth: 1000 }
+ *   opacity: { entity: input_number.shields, output: [0, 0.6] }        the mapping form
+ *   radius: { entity: sensor.x, attribute: level, input: [0, 10], output: [5, 40], smooth: 1000 }
  *   spin: "[[[ return states['input_number.power'].state / 10 ]]]"  a template
  *
- * `range` defaults to the entity's `min` / `max` attributes, else 0 to 100;
- * without `to` the value is the entity's number as it is. Values outside
- * `range` clamp to the ends of `to`. A missing or non-numeric value leaves
- * the key at its default.
+ * The mapping speaks the `map_range` vocabulary used across LCARdS
+ * (animations, background animations, the rules' `map_range_cond`): `input`
+ * [low, high] of the entity, `output` [low, high] of the setting. `input`
+ * defaults to the entity's `min` / `max` attributes, else 0 to 100; without
+ * `output` the value is the entity's number as it is. Values outside `input`
+ * hold at the ends of `output` unless `clamp: false`. A missing or
+ * non-numeric value leaves the key at its default.
  *
  * `camera.view` can follow an entity too (a guided tour): a number picks
  * `views[n]` (from 0), a text state names a view; a stop may also set the
@@ -168,20 +171,21 @@ export function mapEntity(spec, entity) {
  * A raw value through a mapping (a template's result too).
  * @param {Record<string, any> | null} spec
  * @param {any} raw
- * @param {Record<string, any>} [attributes] - for the range default (min / max)
+ * @param {Record<string, any>} [attributes] - for the input default (min / max)
  * @returns {number | null}
  */
 export function mapNumber(spec, raw, attributes = {}) {
   if (raw === null || raw === undefined || raw === '' || typeof raw === 'boolean') return null;
   const n = Number(raw);
   if (!Number.isFinite(n)) return null;
-  const to = pairOf(spec?.to);
-  if (!to) return n;
-  const range = pairOf(spec?.range) ?? (Number.isFinite(Number(attributes?.min)) && Number.isFinite(Number(attributes?.max)) && Number(attributes.max) !== Number(attributes.min)
+  const output = pairOf(spec?.output);
+  if (!output) return n;
+  const input = pairOf(spec?.input) ?? (Number.isFinite(Number(attributes?.min)) && Number.isFinite(Number(attributes?.max)) && Number(attributes.max) !== Number(attributes.min)
     ? [Number(attributes.min), Number(attributes.max)] : [0, 100]);
-  const span = range[1] - range[0];
-  const t = span === 0 ? 0 : Math.min(1, Math.max(0, (n - range[0]) / span));
-  return to[0] + t * (to[1] - to[0]);
+  const span = input[1] - input[0];
+  const t0 = span === 0 ? 0 : (n - input[0]) / span;
+  const t = spec?.clamp === false ? t0 : Math.min(1, Math.max(0, t0));
+  return output[0] + t * (output[1] - output[0]);
 }
 
 /** @param {any} v @returns {[number, number] | null} */

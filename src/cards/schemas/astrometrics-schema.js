@@ -43,12 +43,13 @@ const settingBinding = {
     type: 'object',
     required: ['entity'],
     additionalProperties: false,
-    description: 'Follow an entity: its state (or attribute) mapped from range to to, clamped. A missing or non-numeric value leaves the default.',
+    description: 'Follow an entity: its state (or attribute) mapped from input to output (the map_range keys used across LCARdS), held at the ends. A missing or non-numeric value leaves the default.',
     properties: {
         entity: { type: 'string', pattern: '^[a-z_]+\\.[a-z0-9_]+$', description: 'The entity to follow.' },
         attribute: { type: 'string', description: 'Read this attribute instead of the state.' },
-        range: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description: '[low, high] of the entity\'s value. Default the entity\'s min and max attributes (an input_number), else 0 to 100.' },
-        to: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description: '[low, high] of the setting the range maps to. Leave out to use the entity\'s number as it is.' },
+        input: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description: '[low, high] of the entity\'s value. Default the entity\'s min and max attributes (an input_number), else 0 to 100.' },
+        output: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description: '[low, high] of the setting the input maps to. Leave out to use the entity\'s number as it is.' },
+        clamp: { type: 'boolean', default: true, description: 'false: a value outside input carries on past the ends of output (default true: held at the ends).' },
         smooth: { type: 'number', minimum: 0, description: 'opacity, radius, size and spin ease to a new value over this many ms (default 600; 0 steps). Other keys step.' }
     }
 };

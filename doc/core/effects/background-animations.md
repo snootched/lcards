@@ -321,7 +321,7 @@ config:
       attribute: brightness   # entity attribute to read (omit to use entity.state)
       input:  [0, 255]        # input range (raw entity value)
       output: [-200, 200]     # output range (effect param value)
-      # entity_id: light.other  # optional - defaults to the card's config.entity
+      # entity: light.other     # optional - defaults to the card's config.entity
       # clamp: true             # optional, default true - clamp output to range
 ```
 
@@ -353,7 +353,7 @@ background_animation:
 | `attribute` | string | ❌ | Entity attribute to read. Omit to use `entity.state`. |
 | `input` | `[min, max]` | ✅ | Expected range of the raw entity value. |
 | `output` | `[min, max]` | ✅ | Desired output range for the effect param. |
-| `entity_id` | string | ❌ | Override entity. Defaults to card-bound `entity`. |
+| `entity` | string | ❌ | Override entity. Defaults to card-bound `entity`. The same key as `map_range` in [animations](../animations) and astrometrics settings (`entity_id`, the older name, still works). |
 | `clamp` | boolean | ❌ | Clamp output to range (default: `true`). |
 
 ### Template string: Advanced

@@ -146,7 +146,7 @@ export async function showcaseCard() {
       { type: 'ring', id: 'bajor_orbit', radius: 150000000, width: 1, opacity: 0.5, tags: ['orbits'] },
       { type: 'belt', id: 'denorios_belt', at: 'bhavael', radius: [222000000, 242000000], thickness: 2000000, count: 1500, size: [0.5, 30], tumble: 0, seed: 21 },
       { type: 'model', id: 'ds9_model', at: 'ds9', src: 'builtin:deep_space_nine', size: 1.452, material: 'original' },
-      { type: 'sphere', id: 'ds9_shields', at: 'ds9', radius: 1.2, fill_color: 'var(--lcars-blue)', color: 'var(--lcars-blue)', line_spacing_deg: 20, opacity: { entity: 'input_number.lcards_test_shields', to: [0, 0.45] } },
+      { type: 'sphere', id: 'ds9_shields', at: 'ds9', radius: 1.2, fill_color: 'var(--lcars-blue)', color: 'var(--lcars-blue)', line_spacing_deg: 20, opacity: { entity: 'input_number.lcards_test_shields', output: [0, 0.45] } },
       ...bajorMouth.objects,
       // hidden from afar (its clouds would wash over Sol in the galaxy view)
       { type: 'nebula', id: 'chintoka', at: 'nebula', radius: 70000, colors: ['var(--lcars-orange)', 'var(--lcars-violet)'], drift: 300, max_distance: 3000000 },
@@ -174,7 +174,7 @@ export async function showcaseCard() {
   card.backdrop = { ...card.backdrop, stars: { ...(card.backdrop?.stars ?? {}), spectrum: true } };
   // warp: the WARP toggle engages it, the FACTOR slider sets its speed
   card.warp = { entity: 'input_boolean.lcards_test_warp' };
-  card.warp_factor = { entity: 'input_number.lcards_test_warp_factor', to: [1, 9.9] };
+  card.warp_factor = { entity: 'input_number.lcards_test_warp_factor', output: [1, 9.9] };
   // the scene date's rate follows the RATE selector (the time slider's stops, an hour a second to start);
   // the date comes from the date helper (an automation)
   card.clock = { date: 'now', rate: `[[[ return ({ ${Object.entries(RATES).map(([k, v]) => `"${k}": ${v}`).join(', ')} })[states["input_select.lcards_test_rate"]?.state] ?? 1 / 24 ]]]` };

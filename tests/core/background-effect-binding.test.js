@@ -64,3 +64,11 @@ test('a template on nebula.scroll_speed_y reaches the effect', () => {
   bg.updateHass(hass(0), null, {});
   assert.equal(base(effects[0]).scrollSpeedY, 7);
 });
+
+test('map_range takes entity, as animations and astrometrics do (entity_id, the older name, still works)', () => {
+  for (const key of ['entity', 'entity_id']) {
+    const { bg, effects } = load([{ preset: 'starfield', transition: 0, config: { seed: 1, scroll_speed_x: { map_range: { [key]: 'sensor.level', input: [0, 100], output: [0, 200] } } } }]);
+    bg.updateHass(hass(50), null, {});
+    assert.equal(base(effects[0]).scrollSpeedX, 100, key);
+  }
+});

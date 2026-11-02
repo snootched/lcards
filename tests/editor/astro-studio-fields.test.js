@@ -252,7 +252,7 @@ test('R4b: what an object follows, for its row and its sections (text and action
   const { boundIn, keysBound } = await import('../../src/editor/dialogs/astro-studio/schema-fields.js');
   const wormhole = {
     type: 'grid', id: 'wormhole', shape: 'well', at: 'mouth', label: '{entity.state}',
-    radius: { entity: 'input_number.lcards_test_power', to: [10, 50] },
+    radius: { entity: 'input_number.lcards_test_power', output: [10, 50] },
     deform: [{ type: 'wobble', amplitude: "[[[ return 1 ]]]" }],
     tap_action: { action: 'more-info', entity: 'light.x' }
   };

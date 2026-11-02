@@ -190,7 +190,7 @@ Tap the label to warp in; tap the glow to fly back out.
 
 ```yaml
 warp: { entity: input_boolean.warp }
-warp_factor: { entity: input_number.warp_factor, to: [1, 9.9] }
+warp_factor: { entity: input_number.warp_factor, output: [1, 9.9] }
 ```
 
 `warp` reads `on`, `true` or a number above 0 as engaged. Going to warp takes about two seconds, dropping out a little less. Nothing streams under reduced motion. `camera.warp` is different: it streaks the stars only while a fly-to moves the camera.

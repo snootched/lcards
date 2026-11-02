@@ -253,7 +253,7 @@ export class BackgroundAnimationRenderer {
    *
    * Descriptor shape:
    *   map_range:
-   *     entity_id: light.tv      # optional — defaults to card's config.entity
+   *     entity: light.tv         # optional, defaults to card's config.entity (entity_id: the older name, still read)
    *     attribute: brightness    # optional — defaults to entity state
    *     input:  [0, 255]         # input range
    *     output: [-200, 200]      # output range (numbers or hex color strings)
@@ -271,7 +271,8 @@ export class BackgroundAnimationRenderer {
     if (!cfg) return undefined;
 
     // Resolve the entity to read from
-    const entityId = cfg.entity_id || cardConfig?.entity || null;
+    // `entity`, as map_range everywhere else in LCARdS; `entity_id` is the name this used first
+    const entityId = cfg.entity || cfg.entity_id || cardConfig?.entity || null;
     let entityObj;
     if (entityId) {
       entityObj = hass?.states?.[entityId] ?? null;
@@ -599,7 +600,7 @@ export class BackgroundAnimationRenderer {
           resolvedConfig[key] = evaluated;
           hasTemplates = true;
         } else if (val && typeof val === 'object' && val.map_range !== undefined) {
-          // Form 3: { map_range: { entity_id?, attribute?, input, output } }
+          // Form 3: { map_range: { entity?, attribute?, input, output } }
           const resolved = this._resolveMapRange(val, hass, entity, cardConfig);
           if (resolved !== undefined) {
             resolvedConfig[key] = resolved;

@@ -71,7 +71,7 @@ sections:
             at: outpost
             radius: 8
             color: var(--lcars-blue)
-            opacity: { entity: input_number.lcards_test_shields, to: [0, 0.6] }
+            opacity: { entity: input_number.lcards_test_shields, output: [0, 0.6] }
           - type: system
             id: sol_system
             at: sol

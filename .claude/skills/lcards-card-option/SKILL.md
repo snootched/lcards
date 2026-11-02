@@ -15,6 +15,25 @@ Never commit, stage or push unless the user asks. Never claim it works in HA; gi
 - Which schema: the card's `src/cards/schemas/<card>-schema.js`; keys every card shares are in `common-schemas.js` (`cardLevelProperties`, `cardWidthSchema`, `animationSchema`, ...); MSD in `msd-schema.js`; layout card and view in `layout-card-schema.js`; the shell strategy in `shell-strategy-schema.js`. All are listed in `scripts/lib/card-schemas.js`.
 - Option lists the runtime passes into a schema factory (positions, presets, components) come from `scripts/lib/card-schemas.js` `BUILTIN_OPTIONS` and `src/cards/schemas/schema-options.js` at build time; keep both sides on the same list.
 
+## 1b. Check the vocabulary on every card first
+
+A new key (or a new shape for an existing idea) must use the names the other cards already use for the same thing. R4b once shipped `{ entity, range, to }` beside the `map_range` `{ entity, input, output }` every other card used; the user caught it. Before naming anything:
+
+- Search all the schemas for the concept, not just this card's: `grep -rn "<word>" src/cards/schemas/` for likely names and synonyms (range / input, to / output, entity / entity_id, colour / color, ...), and read `doc/public/lcards-schema.json` (`npm run generate:llm-schema`) when the idea is broad (a binding, an action, a size, a colour list).
+- Reuse the name and the shape: same key names, same defaults where the meaning is the same, same nesting. Additions are fine (astrometrics' `smooth`); a different word for the same thing is not.
+- Established words (extend this list when a new shared one is settled):
+
+  | Idea | Words |
+  |---|---|
+  | Map an entity's number onto a setting | `entity`, `attribute`, `input: [low, high]`, `output: [low, high]`, `clamp` (`map_range` in animations and background animations, rules' `map_range_cond`, astrometrics settings) |
+  | One colour, or a list picked per item | `color`, `colors` (`colors` wins) |
+  | Templates | `[[[ JS ]]]`, `{{ Jinja2 }}`, `{entity.state}` tokens |
+  | Actions | `tap_action`, `hold_action`, `double_tap_action` with `action:` |
+  | A seeded random layout | `seed` (an integer; never bound to an entity) |
+
+- If the right name differs from what exists, or two cards already disagree, stop and ask the user which to standardise on (and, for an unreleased key, rename outright; for a released one, keep the old key as an alias).
+- `tests/docs/schema-vocabulary.test.js` guards the entity mapping words on every card; when you settle another shared word, add a check there.
+
 ## 2. Schema (the contract)
 
 - Model exactly what the runtime accepts, no stricter and no looser: read the code that consumes the value (a number becomes px? a string goes straight into CSS? a default when missing?). If the runtime defaults it, don't make it `required`.
