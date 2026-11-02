@@ -26,6 +26,20 @@ releases:
         session: "R4d"
         docs: /cards/astrometrics/
         public: true
+      - file: astro-comet
+        topic: astrometrics
+        summary: "Astrometrics comet: tails away from its star"
+        description: "type: comet: a dark nucleus, a glowing coma and two tails pointing away from its star (light): a straight blue ion tail and a pale dust tail that bends back along the comet's path. On an orbit centred off the star, with activity: distance it grows and brightens as it swings in and fades as it swings out. COMET flies to it. Second card: TAIL, COMA and GLOW follow sliders and ease in place."
+        session: "AC1"
+        docs: /cards/astrometrics/objects#comet
+        public: true
+      - file: astro-asteroid
+        topic: astrometrics
+        summary: "Astrometrics asteroid: one rock up close"
+        description: "type: asteroid: one rock with lumps and craters, tumbling, lit from its star (light: a point id). The star here goes round it, so day and night sweep across it. FAR shows it from thousands of units away, where it is a dot. Second card: three seeds and colours, all lit from one star."
+        session: "AC1"
+        docs: /cards/astrometrics/objects#asteroid
+        public: true
       - file: astro-studio-forms
         topic: astrometrics
         summary: "Astrometrics Studio forms: a card to open in the Studio"
@@ -197,7 +211,7 @@ releases:
       - file: astro-belt
         topic: astrometrics
         summary: "Astrometrics asteroid belt: rocks round a star"
-        description: "type: belt: a band of low-poly rocks round the Sun, the inner ones going round faster (period) and each tumbling, lit from the Sun, grey and tan rocks from a colors list (each rock takes one). Fly to MAIN BELT for a close look. Second card: a ring of small rocks round a planet. The buttons above a scene fly its camera to each of its named views."
+        description: "type: belt: a band of low-poly rocks round the Sun, the inner ones going round faster (period) and each tumbling, lit from the Sun, grey and tan rocks from a colors list (each rock takes one). Fly to MAIN BELT for a close look. Second card: a ring of small rocks round a planet. Third card: the band follows sliders and eases in place round the same rocks (INNER EDGE and OUTER + ROCKS move each edge, the second also adds rocks; THICKNESS spreads them up and down). The buttons above a scene fly its camera to each of its named views."
         session: "E8"
         docs: /cards/astrometrics/objects#belt
         public: true

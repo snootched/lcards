@@ -33,6 +33,8 @@ import { buildImage } from './objects/image.js';
 import { buildStars, buildDust } from './objects/stars.js';
 import { buildGlow } from './objects/glow.js';
 import { buildBelt } from './objects/belt.js';
+import { buildAsteroid } from './objects/asteroid.js';
+import { buildComet } from './objects/comet.js';
 import { buildGalaxy } from './objects/galaxy.js';
 import { applyRotation, disposeNode, num } from './objects/common.js';
 import { localBounds } from './distance-fade.js';
@@ -41,7 +43,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export { OBJECT_TYPES };
 /** Builders of the objects points can stand on; line objects read points, so they come second */
-const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image: buildImage, glow: buildGlow, belt: buildBelt, galaxy: buildGalaxy };
+const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image: buildImage, glow: buildGlow, belt: buildBelt, asteroid: buildAsteroid, comet: buildComet, galaxy: buildGalaxy };
 
 /**
  * @typedef {Object} AstroScene
@@ -351,6 +353,27 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
     return turned;
   };
 
+  const lightWorld = new Vector3();
+  /**
+   * Hand the objects lit from a point (`light`) where it is, world: a point
+   * id, or [x, y, z] in the object's own frame; default that frame's origin
+   * (its star).
+   */
+  const light = () => {
+    for (const [b, g] of outer) {
+      if (!b.lightAt) continue;
+      const ref = b.config.light;
+      const frame = g.parent;
+      if (typeof ref === 'string' && ref !== '') {
+        const p = places.resolve(ref);
+        if (p) b.lightAt(p);
+        continue;
+      }
+      const v = Array.isArray(ref) && ref.length >= 3 ? lightWorld.set(num(ref[0], 0), num(ref[1], 0), num(ref[2], 0)) : lightWorld.set(0, 0, 0);
+      b.lightAt(frame ? frame.localToWorld(v) : v);
+    }
+  };
+
   const layout = () => {
     scene.updateMatrixWorld();
     places.invalidate();
@@ -384,6 +407,7 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
       scene.updateMatrixWorld();
       places.invalidate();
     }
+    light();
     for (const b of list) {
       if (b.dynamic) b.update?.();
       else b.repin?.();

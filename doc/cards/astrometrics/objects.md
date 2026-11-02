@@ -22,6 +22,8 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 | A star, a galactic core, a beacon (a soft light) | [`glow`](#glow) |
 | Clouds of gas | [`nebula`](#nebula) |
 | An asteroid belt (a band of rocks round a centre) | [`belt`](#belt) |
+| One asteroid up close (a tumbling rock, lit from its star) | [`asteroid`](#asteroid) |
+| A comet (a nucleus, a glowing coma and tails pointing away from its star) | [`comet`](#comet) |
 | A spiral galaxy (stars, arms, a bar and dust; the Milky Way by default) | [`galaxy`](#galaxy) |
 | Your own picture on the plane | [`image`](#image) |
 | A ship, a station, any 3D model | [`model`](#model) |
@@ -463,7 +465,7 @@ An asteroid belt: a band of low-poly rocks round its centre (`at`, a point id or
 | `color` | The rocks' colour, varied a little per rock. Default `var(--lcards-gray-light)`. |
 | `colors` | Several rock colours: each rock takes one, picked by the `seed` (wins over `color`). |
 
-`rotation` tilts the belt, and `spin` turns it as one piece. `period` and `tumble` hold still under reduced motion. From far away, when even the largest rocks would be under about 1.5 px, the rocks are drawn as dots of the same size and shade (cheaper, and it looks the same); zoom in and they are rocks again.
+`rotation` tilts the belt, and `spin` turns it as one piece. `period` and `tumble` hold still under reduced motion. Following an entity, `radius` (each edge too), `thickness` and `count` change in place and ease: the band widens, thins or fills round the same rocks. From far away, when even the largest rocks would be under about 1.5 px, the rocks are drawn as dots of the same size and shade (cheaper, and it looks the same); zoom in and they are rocks again.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -490,6 +492,73 @@ camera:
 objects:
   - { type: glow, size: 30, color: var(--lcars-yellow) }
   - { type: belt, radius: [44, 56], thickness: 4, count: 1500, size: [0.2, 1.6], tumble: 20, color: var(--lcars-khaki) }
+```
+
+## asteroid
+
+One rock for a close look: broad lumps, craters and fine roughness, stretched its own way, with flat faces that catch the light. It tumbles on its own axis and is lit from its star (`light`), with a hard edge between day and night. For many rocks round a centre, use a [belt](#belt).
+
+| Key | What it does |
+|---|---|
+| `size` | Largest extent, scene units. Default 4. |
+| `seed` | A different number gives a different rock; the same config always gives the same one. |
+| `tumble` | How fast it turns on its own axis (picked by the seed), degrees per second. Default 10; 0 holds it still. |
+| `light` | Where the light comes from: a point id (a star that moves too), or `[x, y, z]`. Default the origin of the frame it is in: the scene's origin, or a [system](#system)'s star. |
+| `color` | The rock's colour on its lit side. Default `var(--lcards-gray-light)`. |
+| `occlude` | Hide labels and cards behind it (default true). |
+
+`spin`, `face` and `rotation` turn it as for any object; `tumble` holds still under reduced motion. It hides labels behind it. From far away, when it would be under about 1.5 px, it is drawn as a dot, as bright as its lit part seen from where you are.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 320
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 30, tilt: 12, distance: 30 }
+points:
+  - { id: sun, xyz: [-70, 20, 40] }
+  - { id: rock_label, xyz: [0, 9, 0], label: 433 EROS, style: minor }
+objects:
+  - { type: glow, at: sun, size: 14, color: var(--lcars-yellow) }
+  - { type: asteroid, id: eros, size: 16, seed: 4, tumble: 12, light: sun }
+```
+
+## comet
+
+A comet: a small dark nucleus (an [asteroid](#asteroid)'s rock), a glowing coma round it and two tails pointing away from its star (`light`). The ion tail is narrow, straight and bluish; the dust tail is broader and paler, and bends back along the comet's path as it moves (a gentle fixed curve while it stands still). The tails stream outward with the scene clock and hold still under reduced motion. `face`, `spin` and `rotation` turn the nucleus, never the tails.
+
+| Key | What it does |
+|---|---|
+| `size` | The nucleus's largest extent, scene units. Default 2. |
+| `coma_size` | Diameter of the coma, the glowing cloud round the nucleus. Default 10. |
+| `tail_length` | How far the tails reach away from the star. Default 60. |
+| `glow` | Opacity of the coma and the tails, 0 to 1 (the nucleus stays). Default 1. |
+| `tails` | `both` (default), `ion`, `dust` or `none`. |
+| `light` | The star: a point id, or `[x, y, z]`. Default the origin of its frame, as for an [asteroid](#asteroid). |
+| `activity` | `fixed` (default): as set. `distance`: the coma, the tails and the glow grow as the comet nears its star and fade as it leaves, every frame. |
+| `activity_range` | `[near, far]` for `activity: distance`: full at near and closer, falling with the square of the distance, gone at far. Default `[50, 300]`. |
+| `seed`, `tumble` | The nucleus's shape and how fast it turns (default 10 degrees per second). |
+| `color` | The coma and the dust tail. Default `var(--lcards-moonlight)`. |
+| `ion_color` | The ion tail. Default `var(--lcards-blue-medium)`. |
+| `nucleus_color` | The nucleus. Default `var(--lcards-gray-medium-dark)`. |
+
+`size`, `coma_size`, `tail_length` and `glow` can [follow an entity](./data#settings-from-entities) and ease in place (with `activity: distance`, an entity's value is the comet at full activity).
+
+On an orbit centred off its star, the comet below swings in, grows its tails and brightens, then fades as it swings out:
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 360
+camera:
+  views:
+    v: { target: [30, 0, 0], yaw: 0, tilt: 55, distance: 330 }
+points:
+  - { id: sun, xyz: [0, 0, 0], label: STAR, style: minor }
+  - { id: comet_at, polar: [100, 300], object: orbit }
+objects:
+  - { type: glow, at: sun, size: 40, color: var(--lcars-yellow) }
+  - { type: ring, id: orbit, at: [75, 0, 0], radius: 100, spin: 10, width: 1, color: theme:colors.ui.secondary, opacity: 0.4 }
+  - { type: comet, at: comet_at, light: sun, tail_length: 90, coma_size: 8, activity: distance, activity_range: [25, 175] }
 ```
 
 ## galaxy

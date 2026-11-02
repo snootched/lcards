@@ -46,6 +46,8 @@ export const TYPE_SAMPLES = {
   },
   beam: { objects: [FLOOR, { type: 'beam', id: 'phaser', from: [-50, 5, 10], to: [50, 5, -10] }], camera: VIEW },
   belt: { objects: [{ type: 'glow', id: 'star', size: 25 }, { type: 'belt', id: 'rocks', radius: [35, 50], count: 900, size: [0.4, 1.4], seed: 3 }], camera: { target: [0, 0, 0], yaw: 20, tilt: 30, distance: 110 } },
+  asteroid: { points: [{ id: 'sun', xyz: [-30, 25, 70] }], objects: [{ type: 'glow', at: 'sun', size: 12 }, { type: 'asteroid', id: 'rock', size: 16, seed: 3, light: 'sun' }], camera: { target: [0, 0, 0], yaw: 30, tilt: 15, distance: 32 } },
+  comet: { points: [{ id: 'sun', xyz: [-90, 0, 30] }], objects: [{ type: 'glow', at: 'sun', size: 30, color: 'var(--lcars-yellow)' }, { type: 'comet', id: 'comet', at: [20, 0, 0], light: 'sun', tail_length: 70 }], camera: { target: [45, 0, 0], yaw: 0, tilt: 35, distance: 95 } },
   galaxy: { objects: [{ type: 'galaxy', id: 'milky_way', radius: 50 }], camera: { target: [0, 0, 0], yaw: 20, tilt: 45, distance: 110 } },
   trail: {
     points: [{ id: 'ship', polar: [35, 0], object: 'orbit', marker: 'dot' }],

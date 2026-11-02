@@ -407,6 +407,42 @@ test('E8 belt: seeded layout inside the band, Kepler orbits (outer slower), tumb
   for (const { r, frac } of turned) assert.ok(Math.abs(frac - (Math.pow(40 / r, 1.5) % 1)) < 1e-6, `r ${r}: ${frac}`);
 });
 
+test('AC1 belt live settings: each radius side, thickness and count change in place round the same rocks; null puts the built value back', async () => {
+  const { buildBelt, beltLayout } = await import('../../src/core/astrometrics/objects/belt.js');
+  const { Matrix4, Vector3 } = await import('three');
+  const cfg = { id: 'b', radius: [40, 60], thickness: 4, count: 100, tumble: 0, seed: 2, _most: { count: 300 } };
+  const b = /** @type {any} */ (buildBelt(cfg, /** @type {any} */ ({ color: () => [0.5, 0.5, 0.5, 1] })));
+  const mesh = b.node.getObjectByName('rocks');
+  const dots = b.node.getObjectByName('dots');
+  assert.equal(mesh.instanceMatrix.count, 300, 'built for the most');
+  assert.equal(mesh.count, 100, 'draws the count');
+  assert.equal(dots.geometry.drawRange.count, 100);
+  const layout = beltLayout(cfg);
+  assert.deepEqual(layout.rocks.slice(0, 100), beltLayout({ ...cfg, _most: undefined }).rocks, 'the first n are the same belt');
+  const at = (/** @type {number} */ i) => { const m = new Matrix4(); mesh.getMatrixAt(i, m); return new Vector3().setFromMatrixPosition(m); };
+  const rho = (/** @type {number} */ i) => Math.hypot(at(i).x, at(i).z);
+  const u = layout.rocks.map((k) => k.u);
+  const g = layout.rocks.map((k) => k.g);
+  assert.equal(b.live('radius.1', 100), true);
+  for (let i = 0; i < 100; i++) assert.ok(Math.abs(rho(i) - (40 + 60 * u[i])) < 1e-4, 'the same fraction across a wider band');
+  assert.equal(b.radius, 100);
+  assert.equal(b.live('radius.0', 120), true, 'a side past the other: it becomes the outer edge');
+  for (let i = 0; i < 100; i++) assert.ok(Math.abs(rho(i) - (100 + 20 * u[i])) < 1e-4);
+  b.live('thickness', 10);
+  for (let i = 0; i < 100; i++) assert.ok(Math.abs(at(i).y - g[i] * 5) < 1e-4);
+  b.live('count', 250);
+  assert.equal(mesh.count, 250);
+  b.live('count', 9999);
+  assert.equal(mesh.count, 300, 'never past what it was built for');
+  for (const k of ['radius.0', 'radius.1', 'thickness', 'count']) b.live(k, null);
+  assert.equal(mesh.count, 100);
+  for (let i = 0; i < 100; i++) assert.ok(Math.abs(rho(i) - (40 + 20 * u[i])) < 1e-4 && Math.abs(at(i).y - g[i] * 2) < 1e-4, 'back as built');
+  assert.equal(b.live('period', 5), false, 'not a live key: the scene rebuilds it');
+  b.live('radius', 50);
+  assert.equal(b.radius, 50);
+  for (let i = 0; i < 100; i++) assert.ok(Math.abs(rho(i) - (40 + 10 * u[i])) < 1e-4, 'one number: outer, the inner 0.8 of it');
+});
+
 test('E8 trail: history keeps length seconds, samples spaced, tail shrinks, still point has no line', async () => {
   const { TrailHistory, TRAIL_SAMPLES } = await import('../../src/core/astrometrics/objects/lines.js');
   const h = new TrailHistory(1000);

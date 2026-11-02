@@ -1,7 +1,8 @@
 # Astrometrics follow (N1, astrometrics.spec.js): a ship point on a spinning
 # ring, seen from above. Tapping SHIP flies to it and the camera stays on it
 # as it circles; a pan, a tap on blank space or a fly-to a view lets go. BASE
-# is still (following it changes nothing). Buttons hide when idle (default).
+# is still (following it changes nothing). Buttons hide when idle (default). ROCK
+# stands on the ship: flying to it follows the ship point.
 type: custom:lcards-astrometrics-card
 id: astro_follow
 height: 400
@@ -17,3 +18,4 @@ points:
 objects:
   - { type: ring, id: orbit, radius: 80, spin: 30, width: 0.5 }
   - { type: grid, id: floor, shape: plane, size: [240, 240], line_spacing: 20 }
+  - { type: asteroid, id: rock, at: ship, size: 4, tumble: 0, occlude: false }

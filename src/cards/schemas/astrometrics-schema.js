@@ -25,7 +25,7 @@ import {
 } from './common-schemas.js';
 import {
     OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, BODY_NAMES, FILL_EFFECTS, FILL_PRESETS, MODEL_MATERIALS,
-    WELL_SHAPE_NAMES, DEFORM_TYPES, BEND_MOTIONS, DEFORM_ANCHORS, UNIT_NAMES, FILE_UNIT_NAMES
+    WELL_SHAPE_NAMES, DEFORM_TYPES, BEND_MOTIONS, DEFORM_ANCHORS, UNIT_NAMES, FILE_UNIT_NAMES, COMET_TAILS, COMET_ACTIVITY
 } from '../../core/astrometrics/names.js';
 import { LABEL_POSITION_NAMES, LABEL_OMITTED_KEYS } from '../../core/astrometrics/label-text.js';
 import { RATE_PATTERN } from '../../core/astrometrics/clock.js';
@@ -1075,6 +1075,56 @@ const beltObject = {
     }
 };
 
+/** What lights an asteroid or a comet: a point id or [x, y, z] */
+const lightRef = (/** @type {string} */ what) => pointRef(`Where the light comes from (its star): a point id, or [x, y, z] in the frame it is in. ${what} Default the origin of its frame (a system's star; the scene's origin outside systems).`);
+
+const asteroidObject = {
+    type: 'object',
+    title: 'asteroid',
+    required: ['type'],
+    allOf: [objectCommonSchema],
+    description: 'One irregular rock for a close look (lumps, craters, stretched its own way), tumbling, lit from its star (light). Seeded, so the same config always gives the same rock. Far away it shows as a dot. For many rocks round a centre use belt.',
+    properties: {
+        type: { type: 'string', const: 'asteroid', description: 'asteroid: one tumbling rock.' },
+        size: setting('Largest extent, scene units.', { exclusiveMinimum: 0, default: 4 }),
+        seed: { type: 'integer', default: 1, description: 'A different number gives a different rock.' },
+        tumble: setting('How fast it turns on its own (seeded) axis, degrees per second. 0: still. Off under reduced motion.', { default: 10 }),
+        light: lightRef('The side facing it is lit, the far side dark.'),
+        color: color('Rock colour (lit side). Default var(--lcards-gray-light).'),
+        occlude: { type: 'boolean', default: true, description: 'Hide labels and cards behind it.' }
+    }
+};
+
+const cometObject = {
+    type: 'object',
+    title: 'comet',
+    required: ['type'],
+    allOf: [objectCommonSchema],
+    description: 'A comet: a small dark nucleus, a glowing coma round it and two tails pointing away from its star (light): a straight ion tail and a broader dust tail that bends back along the comet\'s path as it moves. Seeded. With activity: distance it brightens and grows its tails as it nears its star.',
+    properties: {
+        type: { type: 'string', const: 'comet', description: 'comet: a nucleus, a coma and tails.' },
+        size: setting('The nucleus\'s largest extent, scene units.', { exclusiveMinimum: 0, default: 2 }),
+        coma_size: setting('Diameter of the coma, the glowing cloud round the nucleus, scene units.', { minimum: 0, default: 10 }),
+        tail_length: setting('How long the tails reach away from the star, scene units (the dust tail fades sooner).', { minimum: 0, default: 60 }),
+        glow: setting('Opacity of the coma and the tails, 0 to 1 (the nucleus stays).', { minimum: 0, maximum: 1, default: 1 }),
+        tails: {
+            type: 'string', enum: [...COMET_TAILS], default: 'both', description: 'Which tails draw.',
+            enumDescriptions: { both: 'The ion tail and the dust tail', ion: 'Only the straight ion tail', dust: 'Only the curved dust tail', none: 'No tails: the nucleus and its coma' }
+        },
+        light: lightRef('The tails point away from it, and the nucleus is lit from it.'),
+        activity: {
+            type: 'string', enum: [...COMET_ACTIVITY], default: 'fixed', description: 'fixed: the coma, tails and glow as set. distance: scaled by the distance to the star every frame, full at activity_range\'s near end, falling with the square of the distance, gone at its far end.',
+            enumDescriptions: { fixed: 'As set', distance: 'Grows and brightens near its star' }
+        },
+        activity_range: tuple(2, '[near, far] distance from the star for activity: distance, scene units (the frame\'s, in a system). Default [50, 300].'),
+        seed: { type: 'integer', default: 1, description: 'A different number gives a different nucleus and tail.' },
+        tumble: setting('How fast the nucleus turns on its own axis, degrees per second. 0: still. Off under reduced motion.', { default: 10 }),
+        color: color('Colour of the coma and the dust tail. Default var(--lcards-moonlight).'),
+        ion_color: color('Colour of the ion tail. Default var(--lcards-blue-medium).'),
+        nucleus_color: color('Colour of the nucleus. Default var(--lcards-gray-medium-dark).')
+    }
+};
+
 const galaxyObject = {
     type: 'object',
     title: 'galaxy',
@@ -1176,7 +1226,7 @@ const modelObject = {
     }
 };
 
-const OBJECT_SCHEMAS = { model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject, belt: beltObject, galaxy: galaxyObject, trail: trailObject, cube: cubeObject };
+const OBJECT_SCHEMAS = { model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject, belt: beltObject, asteroid: asteroidObject, comet: cometObject, galaxy: galaxyObject, trail: trailObject, cube: cubeObject };
 
 /** Object types a system can hold: every type but another system (one level) */
 const DRAWN_TYPES = OBJECT_TYPES.filter((t) => t !== 'system');

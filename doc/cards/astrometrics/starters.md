@@ -1775,6 +1775,68 @@ objects:
     colors: [var(--lcards-gray-light), var(--lcards-gray-medium), var(--lcards-yellow-dark)]
 ```
 
+### Asteroid
+
+One asteroid with lumps and craters, tumbling, lit from its star, with a label above it. Tap it to fly to it.
+
+Its ids start with its name (default `asteroid_`).
+
+| Setting | Default | Notes |
+|---|---|---|
+| Label | `ASTEROID` |  |
+| Where | `30, 0, 0` | A point id or x, y, z. |
+| Lit from | `0, 0, 0` | A point id (its star) or x, y, z. |
+| Size | `8` |  |
+| Shape (any whole number) | `4` |  |
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points:
+  - { id: asteroid_centre, xyz: [30, 0, 0] }
+  - { id: asteroid_body, at: asteroid_centre, label: ASTEROID, style: minor, offset: [0, 6.4, 0], tap_action: { action: fly-to } }
+objects: [{ type: asteroid, id: asteroid_rock, at: asteroid_centre, size: 8, seed: 4, light: [0, 0, 0] }]
+```
+
+### Comet
+
+A comet on an orbit centred off its star, so it swings in close and out far. Its tails point away from the star and it grows and brightens near it (activity: distance). Tap it to fly to it.
+
+Its ids start with its name (default `comet_`).
+
+| Setting | Default | Notes |
+|---|---|---|
+| Label | `COMET` |  |
+| Star | `0, 0, 0` | A point id (a star) or x, y, z. |
+| Closest to the star | `25` |  |
+| Farthest from the star | `175` |  |
+| Seconds per orbit | `36` |  |
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points:
+  - { id: comet_centre, xyz: [0, 0, 0] }
+  - { id: comet_body, polar: [100, 270], object: comet_orbit, label: COMET, style: tiny, tap_action: { action: fly-to } }
+objects:
+  - type: ring
+    id: comet_orbit
+    at: [75, 0, 0]
+    radius: 100
+    spin: 10
+    width: 1
+    color: theme:colors.ui.secondary
+    opacity: 0.4
+  - type: comet
+    id: comet_comet
+    at: comet_body
+    light: comet_centre
+    tail_length: 90
+    coma_size: 8
+    activity: distance
+    activity_range: [25, 175]
+```
+
 ### Nebula field
 
 Two overlapping, slowly drifting clouds of gas with a soft glow at their heart and a label.

@@ -558,6 +558,8 @@ const SIZES = {
   nebula: (k) => ({ radius: 100 * k }),
   model: (k) => ({ size: 50 * k }),
   belt: (k) => ({ radius: [80 * k, 100 * k], size: [0.4 * k, 1.6 * k] }),
+  asteroid: (k) => ({ size: 4 * k }),
+  comet: (k) => ({ size: 2 * k, coma_size: 10 * k, tail_length: 60 * k }),
   cube: (k) => ({ size: 20 * k })
 };
 

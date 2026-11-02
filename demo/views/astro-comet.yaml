@@ -1,0 +1,76 @@
+# Astrometrics comet (AC1 part 3): a comet on an off-centre orbit, activity from its distance to the star;
+# a still comet whose tail, coma and glow follow sliders (they ease in place).
+title: Astrometrics comet
+path: astro-comet
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: SYSTEM, show: true } }
+        tap_action: { action: fly-to, card: astro_comet_1, view: system }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: COMET, show: true } }
+        tap_action: { action: fly-to, card: astro_comet_1, point: comet_at }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_comet_1
+        height: 650
+        camera:
+          view: system
+          buttons: true
+          views:
+            system: { target: [ 30, 0, 0 ], yaw: 0, tilt: 55, distance: 330 }
+        backdrop: { stars: true }
+        points:
+          - { id: sun, xyz: [ 0, 0, 0 ], label: STAR, style: minor }
+          # an orbit centred off the star: the comet swings in to 25 and out to 175 (it starts just before its closest point)
+          - { id: comet_at, polar: [ 100, 300 ], object: orbit, label: COMET, style: tiny }
+        objects:
+          - { type: glow, at: sun, size: 40, color: var(--lcars-yellow) }
+          - { type: ring, id: orbit, at: [ 75, 0, 0 ], radius: 100, spin: 10, width: 1, color: theme:colors.ui.secondary, opacity: 0.4 }
+          - { type: comet, id: comet, at: comet_at, light: sun, tail_length: 90, coma_size: 8, activity: distance, activity_range: [ 25, 175 ] }
+        grid_options: { columns: full }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: TAIL } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: COMA } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: GLOW } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        height: 500
+        camera: { views: { v: { target: [ 40, 0, 0 ], yaw: 0, tilt: 25, distance: 120 } }, buttons: true }
+        backdrop: { stars: true }
+        points:
+          - { id: sun, xyz: [ -200, 0, 40 ] }
+        objects:
+          - type: comet
+            id: still
+            light: sun
+            tail_length: { entity: input_number.lcards_test_power, output: [ 10, 110 ], smooth: 1200 }
+            coma_size: { entity: input_number.lcards_test_shields, output: [ 2, 20 ] }
+            glow: { entity: input_number.lcards_test_value, output: [ 0.1, 1 ] }
+        grid_options: { columns: full }

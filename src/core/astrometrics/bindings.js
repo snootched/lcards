@@ -30,7 +30,7 @@
 import { TemplateDetector } from '../templates/TemplateDetector.js';
 import { templateRefs } from '../templates/template-refs.js';
 import { BINDABLE_FORMS } from './placements.js';
-import { WHOLE_NUMBER_KEYS } from './names.js';
+import { WHOLE_NUMBER_KEYS, LIVE_TYPE_KEYS } from './names.js';
 
 /** How long a live key eases to a new value, ms (`smooth` on the binding) */
 export const DEFAULT_SMOOTH_MS = 600;
@@ -38,6 +38,7 @@ export const DEFAULT_SMOOTH_MS = 600;
 /**
  * Object keys the scene changes in place (no rebuild), easing: `opacity`
  * scales the whole object, `radius` / `size` scale its node, `spin` turns it.
+ * A type can take more itself (names.js LIVE_TYPE_KEYS).
  */
 export const LIVE_OBJECT_KEYS = /** @type {const} */ (['opacity', 'radius', 'size', 'spin']);
 
@@ -45,7 +46,7 @@ export const LIVE_OBJECT_KEYS = /** @type {const} */ (['opacity', 'radius', 'siz
 const SKIP = new Set([
   'id', 'type', 'tags', 'label', 'text', 'tap_action', 'hold_action', 'card', 'entity', 'src', 'image', 'at', 'object',
   'part', 'cell', 'sky', 'body', 'center', 'orbit', 'points', 'from', 'to', 'point', 'color', 'colors', 'fill_color',
-  'color_to', 'scan_color', 'image_color', 'marker', 'style', 'shape', 'pattern', 'preset', 'axis_labels', 'material'
+  'color_to', 'scan_color', 'image_color', 'ion_color', 'nucleus_color', 'light', 'marker', 'style', 'shape', 'pattern', 'preset', 'axis_labels', 'material'
 ]);
 
 /**
@@ -57,6 +58,7 @@ const SKIP = new Set([
  * @property {string | null} template - the template text
  * @property {string[]} entities - what it reads (the mapping's entity; a template's references)
  * @property {boolean} live - the scene changes it in place and eases (else the object rebuilds)
+ * @property {number} [most] - a live key the object builds for the most it can reach (LIVE_TYPE_KEYS `most`)
  * @property {number} smooth - ease time, ms (0: step)
  * @property {'number' | 'whole' | 'date'} kind - clock.date resolves to a date, a whole-number key (WHOLE_NUMBER_KEYS) to a
  *   whole number, everything else to a number
@@ -76,17 +78,23 @@ export const isTemplateValue = (v) => typeof v === 'string' && TemplateDetector.
  * @param {SettingBinding['kind']} [kind]
  * @returns {SettingBinding | null}
  */
-function makeBinding(scope, id, path, v, kind = 'number') {
+function makeBinding(scope, id, path, v, kind = 'number', type = '') {
   const key = path[path.length - 1];
+  const joined = path.join('.');
   if (kind === 'number' && scope !== 'card' && WHOLE_NUMBER_KEYS.includes(/** @type {any} */ (key))) kind = 'whole';
+  const own = scope === 'object' ? LIVE_TYPE_KEYS[type] : undefined;
   const live = (scope === 'object' && path.length === 1 && LIVE_OBJECT_KEYS.includes(/** @type {any} */ (key)))
-    || (scope === 'card' && (path.join('.') === 'time_scale' || path.join('.') === 'clock.rate'));
+    || !!own?.keys.includes(joined)
+    || (scope === 'card' && (joined === 'time_scale' || joined === 'clock.rate'));
+  const cap = live ? own?.most?.[joined] : undefined;
   if (isBinding(v)) {
     const smooth = Number(v.smooth);
-    return { scope, id, path, spec: v, template: null, entities: [v.entity], live, smooth: Number.isFinite(smooth) && smooth >= 0 ? smooth : DEFAULT_SMOOTH_MS, kind };
+    const top = pairOf(v.output);
+    const most = cap === undefined ? {} : { most: top ? Math.min(cap, Math.max(0, Math.ceil(Math.max(top[0], top[1])))) : cap };
+    return { scope, id, path, spec: v, template: null, entities: [v.entity], live, smooth: Number.isFinite(smooth) && smooth >= 0 ? smooth : DEFAULT_SMOOTH_MS, kind, ...most };
   }
   if (isTemplateValue(v)) {
-    return { scope, id, path, spec: null, template: v, entities: [...templateRefs(v).entities], live, smooth: DEFAULT_SMOOTH_MS, kind };
+    return { scope, id, path, spec: null, template: v, entities: [...templateRefs(v).entities], live, smooth: DEFAULT_SMOOTH_MS, kind, ...(cap === undefined ? {} : { most: cap }) };
   }
   return null;
 }
@@ -131,7 +139,7 @@ export function collectBindings(config) {
   }
   for (const o of Array.isArray(config?.objects) ? config.objects : []) {
     if (!o || typeof o !== 'object' || o.id === undefined || o.type === 'system') continue;
-    walk(o, [], (path, v) => add(makeBinding('object', String(o.id), path, v)), false);
+    walk(o, [], (path, v) => add(makeBinding('object', String(o.id), path, v, 'number', String(o.type ?? ''))), false);
   }
   add(makeBinding('card', '', ['time_scale'], config?.time_scale));
   add(makeBinding('card', '', ['warp_factor'], config?.warp_factor));
@@ -287,7 +295,8 @@ export function easeStep(from, to, start, ms, now) {
 /**
  * A config with every setting binding replaced by its value now (the card's
  * values, by bindingKey; none yet: the key's default). A live opacity builds
- * at 1 (the scene multiplies the value in); the card's time_scale and clock
+ * at 1 (the scene multiplies the value in); a key with `most` also sets
+ * `_most.<key>`, the size to build for; the card's time_scale and clock
  * keys are left out (the scene gets them through setLive and setClock).
  * @param {Record<string, any>} config
  * @param {SettingBinding[]} settings
@@ -304,10 +313,13 @@ export function settingConfig(config, settings, values) {
       card.push([b.path, null]);
       continue;
     }
-    const v = b.live && b.path[0] === 'opacity' ? 1 : (values.get(bindingKey(b)) ?? null);
+    const v = b.live && b.path[0] === 'opacity' && b.path.length === 1 ? 1 : (values.get(bindingKey(b)) ?? null);
     const k = `${b.scope}:${b.id}`;
     if (!byItem.has(k)) byItem.set(k, []);
-    /** @type {any[]} */ (byItem.get(k)).push([b.path, v]);
+    const entries = /** @type {any[]} */ (byItem.get(k));
+    entries.push([b.path, v]);
+    // built for the most it can reach (`_most.count`), drawing the value now
+    if (b.most !== undefined) entries.push([['_most', ...b.path], b.most]);
   }
   const map = (/** @type {any[] | undefined} */ list, /** @type {string} */ scope) => list?.map((item) => {
     const entries = item && item.id !== undefined ? byItem.get(`${scope}:${String(item.id)}`) : undefined;

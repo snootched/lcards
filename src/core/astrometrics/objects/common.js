@@ -88,6 +88,10 @@ export const DEFAULT_COLORS = {
  * @property {() => ({ src: string, extent: number[], size: number, real: boolean } | null)} [modelInfo] - a model's file extent (its own
  *   units), its drawn size and whether that is its real size; null until the file is in
  * @property {() => void} [dispose] - its own cleanup besides geometry and materials
+ * @property {(world: import('three').Vector3) => void} [lightAt] - lit from a point (`light`): where it is now, world; the scene
+ *   builder sets it every layout pass
+ * @property {(key: string, value: number | null) => boolean} [live] - a setting that follows an entity, changed in place
+ *   (names.js LIVE_TYPE_KEYS; a joined path such as radius.0): true when it took it; null puts the built value back
  * @property {(view: { camera: import('three').Camera, height: number, dpr: number }) => void} [lod] - before each render: change its level of detail for this view (height in CSS px)
  */
 

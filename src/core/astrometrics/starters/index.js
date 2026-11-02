@@ -31,6 +31,8 @@ import stTranswarp from './part-st-transwarp.js';
 import { flattenSystems, kmPerUnit } from '../names.js';
 import planet from './part-planet.js';
 import asteroidBelt from './part-asteroid-belt.js';
+import asteroid from './part-asteroid.js';
+import comet from './part-comet.js';
 import nebulaField from './part-nebula-field.js';
 import sectorVolumes from './part-sector-volumes.js';
 import starbase from './part-starbase.js';
@@ -82,10 +84,10 @@ import starbase from './part-starbase.js';
  */
 
 /** @type {Starter[]} */
-export const STARTERS = [galaxy, sectorMap, skyDome, solarSystem, federationMap, starbaseApproach, deepSpaceNine, utopiaPlanitia, borgEncounter, trueScaleSolarSystem, trueScaleDive, starTrekGalaxy, planet, asteroidBelt, nebulaField, sectorVolumes, starbase, stMinorPowers, stDeltaPowers, stTranswarp];
+export const STARTERS = [galaxy, sectorMap, skyDome, solarSystem, federationMap, starbaseApproach, deepSpaceNine, utopiaPlanitia, borgEncounter, trueScaleSolarSystem, trueScaleDive, starTrekGalaxy, planet, asteroidBelt, asteroid, comet, nebulaField, sectorVolumes, starbase, stMinorPowers, stDeltaPowers, stTranswarp];
 
 /** Keys whose string values (or list entries) name a point, object or view */
-const REF_KEYS = new Set(['id', 'at', 'object', 'target', 'from', 'to', 'points', 'view']);
+const REF_KEYS = new Set(['id', 'at', 'object', 'target', 'from', 'to', 'points', 'view', 'light', 'face', 'point']);
 
 const isObj = (/** @type {any} */ v) => !!v && typeof v === 'object' && !Array.isArray(v);
 

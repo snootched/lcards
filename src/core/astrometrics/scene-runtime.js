@@ -293,7 +293,7 @@ export function createAstroScene(host, config, options = {}) {
   let usesClock = false;
   let skyNotified = 0;
   /**
-   * Settings that follow entities and change in place (bindings.js LIVE_OBJECT_KEYS, the card's
+   * Settings that follow entities and change in place (bindings.js LIVE_OBJECT_KEYS, names.js LIVE_TYPE_KEYS, the card's
    * time_scale), by `id\0key` ('' for the card): easing from `from` to `to`
    * @type {Map<string, { id: string, key: string, from: number, to: number, value: number, start: number, ms: number }>}
    */
@@ -805,7 +805,7 @@ export function createAstroScene(host, config, options = {}) {
 
   /** @param {string} id */
   function startFollow(id) {
-    const p = cfg.camera?.follow === false || editHooks ? null : resolveRef(id);
+    const p = cfg.camera?.follow === false ? null : resolveRef(id);
     if (!p) { letGo(); return; }
     follow = { id, last: p.toArray(), moving: false, landing: rig.fly };
     rig.zoomAbout = false;
@@ -1325,6 +1325,8 @@ export function createAstroScene(host, config, options = {}) {
     const grab = draggableAt(e.clientX - r0.left, e.clientY - r0.top);
     pointDrag = grab ? { ...grab, value: null } : null;
     if (pointDrag) {
+      // the camera holds still under a drag
+      letGo();
       canvas.setPointerCapture?.(e.pointerId);
       canvas.style.cursor = 'grabbing';
     }
@@ -1806,6 +1808,8 @@ export function createAstroScene(host, config, options = {}) {
     }
     const b = world?.objects.get(id);
     if (!b) return;
+    // the object's own in-place settings first (a belt takes its radius itself)
+    if (b.live?.(key, value)) return;
     if (key === 'opacity') liveAlpha.set(id, Math.min(1, Math.max(0, value)));
     else if (key === 'spin') b.spin = value;
     else if (key === 'radius' || key === 'size') {
@@ -1827,6 +1831,7 @@ export function createAstroScene(host, config, options = {}) {
     const b = world?.objects.get(id);
     if (key === 'opacity') liveAlpha.delete(id);
     if (!b) return;
+    if (b.live?.(key, null)) return;
     if (key === 'spin') b.spin = num(b.config.spin, 0);
     else if (key === 'radius' || key === 'size') b.node.scale.setScalar(1);
   }
@@ -1868,9 +1873,24 @@ export function createAstroScene(host, config, options = {}) {
 
   /** @param {AstroTapHit} hit */
   function flyToHit(hit) {
-    return hit.kind === 'point'
-      ? flyToPosition(hit.position, hit.config.view, { ref: hit.id }, refFrame(hit.id))
-      : flyToPosition(hit.position, hit.config.view, { pos: hit.position.toArray() }, hit.config?._system ?? ROOT);
+    const on = hit.kind === 'object' ? movingAt(hit.config) : null;
+    if (hit.kind === 'point' || on) {
+      const id = on ?? hit.id;
+      return flyToPosition(on ? (resolveRef(on) ?? hit.position) : hit.position, hit.config.view, { ref: id }, refFrame(id));
+    }
+    return flyToPosition(hit.position, hit.config.view, { pos: hit.position.toArray() }, hit.config?._system ?? ROOT);
+  }
+
+  /**
+   * The point an object stands on when that point moves (on a spinning ring,
+   * from an entity, in the sky): a flight to the object flies to the point
+   * and follows it. Null for an object that stays put.
+   * @param {any} config - the object's
+   * @returns {string | null}
+   */
+  function movingAt(config) {
+    const at = config?.at;
+    return typeof at === 'string' && at !== '' && world?.places.isDynamic(at) ? at : null;
   }
 
   /**
@@ -2192,6 +2212,15 @@ export function createAstroScene(host, config, options = {}) {
       world.scene.updateMatrixWorld(true);
       const { center, radius } = bounds.world(b);
       const frame = b.config?._system ?? ROOT;
+      // on a moving point: fly to the point and follow it (the object goes on moving)
+      const on = movingAt(b.config);
+      if (on) {
+        const size = (radius || 1) * FRAME_FIT * f.ratio(f.current, frame);
+        return fly(() => {
+          const c = resolveRef(on) ?? center;
+          return { tx: c.x, ty: c.y, tz: c.z, distance: size * unitOf(frame) };
+        }, { ref: on }, { duration, ease: cfg.camera?.ease });
+      }
       // in its own frame's units, read again once the flight has moved into it
       const pos = f.convert(center.toArray(), f.current, frame);
       const size = (radius || 1) * FRAME_FIT * f.ratio(f.current, frame);

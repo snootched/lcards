@@ -44,3 +44,47 @@ sections:
           - { type: sphere, id: saturn, radius: 8, fill_effect: { preset: ringed_giant }, line_width: 0.5, spin: 12 }
           - { type: belt, radius: [ 12, 22 ], thickness: 0.6, count: 3000, size: [ 0.05, 0.35 ], period: 20, tumble: 60, color: var(--lcars-khaki), rotation: [ 27, 0, 0 ] }
         grid_options: { columns: full }
+  # AC1: the band follows entities in place (each edge, thickness, how many rocks), easing round the same rocks
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: INNER EDGE } }
+        style: { shaped: { text_bands: { left: { size: 140 } } } }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: OUTER + ROCKS } }
+        style: { shaped: { text_bands: { left: { size: 140 } } } }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: THICKNESS } }
+        style: { shaped: { text_bands: { left: { size: 140 } } } }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        height: 650
+        camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 20, tilt: 30, distance: 240 } }, buttons: true }
+        points:
+          - { id: star, xyz: [ 0, 0, 0 ], label: STAR, style: minor }
+        objects:
+          - { type: glow, at: star, size: 36, color: var(--lcars-yellow) }
+          - type: belt
+            id: band
+            at: star
+            radius:
+              - { entity: input_number.lcards_test_shields, output: [ 25, 50 ] }
+              - { entity: input_number.lcards_test_power, output: [ 52, 85 ], smooth: 1200 }
+            thickness: { entity: input_number.lcards_test_value, output: [ 0.5, 16 ] }
+            count: { entity: input_number.lcards_test_power, output: [ 200, 2500 ], smooth: 1200 }
+            size: [ 0.2, 1.4 ]
+            period: 40
+            colors: [ var(--lcards-gray-light), var(--lcards-gray-medium), var(--lcards-yellow-dark) ]
+        grid_options: { columns: full }

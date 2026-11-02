@@ -655,6 +655,8 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._settingDirty = new Set();
         /** @type {ReturnType<typeof setTimeout> | undefined} */
         this._settingTimer = undefined;
+        /** @type {Map<string, number>} what each live setting with a `most` (a belt's bound count) was last built for, by bindingKey */
+        this._settingMost = new Map();
         /** @type {Record<string, any> | null} camera.view as a guided tour ({ entity, views }) */
         this._tour = null;
         /** @type {{ entity: string, attribute?: string } | null} the look's entity (looks.js) */
@@ -975,6 +977,17 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         this._settings = runtime.collectBindings(flat);
         const keys = new Set(this._settings.map((b) => runtime.bindingKey(b)));
         for (const k of [...this._settingValues.keys()]) if (!keys.has(k)) this._settingValues.delete(k);
+        // a live key built for the most it can reach changes in place and never rebuilds its object: build it
+        // once for that most (the scene's first build has no settings yet; an edited output changes it)
+        for (const b of this._settings) {
+            if (b.most === undefined) continue;
+            const key = runtime.bindingKey(b);
+            if (this._settingMost.get(key) === b.most) continue;
+            this._settingMost.set(key, b.most);
+            this._settingDirty.add(`${b.scope}:${b.id}`);
+        }
+        for (const k of [...this._settingMost.keys()]) if (!keys.has(k)) this._settingMost.delete(k);
+        if (this._settingDirty.size && this._settingTimer === undefined) this._settingTimer = setTimeout(() => this._flushSettings(), 250);
         const view = flat?.camera?.view;
         const tour = runtime.isTourView(view) ? view : null;
         if (JSON.stringify(tour) !== JSON.stringify(this._tour)) this._tourAt = null;
@@ -1076,7 +1089,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             return;
         }
         if (b.live) {
-            this._scene.setLive([{ id: b.id, key: String(b.path[0]), value: typeof value === 'number' ? value : null, smooth: b.smooth }]);
+            this._scene.setLive([{ id: b.id, key: path, value: typeof value === 'number' ? value : null, smooth: b.smooth }]);
             // a size scales against the size the object was built at: built before the first value, it has
             // none, so the first value also rebuilds it at that size
             const sized = path === 'radius' || path === 'size';

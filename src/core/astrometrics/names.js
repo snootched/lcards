@@ -13,7 +13,7 @@
  * they build second. `system` draws nothing itself: it holds points and
  * objects in units of their own (a star system in km inside a galaxy in ly).
  */
-export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt', 'galaxy', 'trail', 'cube', 'system']);
+export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt', 'asteroid', 'comet', 'galaxy', 'trail', 'cube', 'system']);
 
 /**
  * Which type for what: the objects docs page's table (doc/cards/astrometrics/objects.md,
@@ -32,6 +32,8 @@ export const TYPE_GUIDE = [
   { type: 'glow', use: 'A star, a galactic core, a beacon (a soft light)', icon: 'mdi:white-balance-sunny' },
   { type: 'nebula', use: 'Clouds of gas', icon: 'mdi:weather-cloudy' },
   { type: 'belt', use: 'An asteroid belt (a band of rocks round a centre)', icon: 'mdi:dots-circle' },
+  { type: 'asteroid', use: 'One asteroid up close (a tumbling rock, lit from its star)', icon: 'mdi:meteor' },
+  { type: 'comet', use: 'A comet (a nucleus, a glowing coma and tails pointing away from its star)', icon: 'mdi:star-shooting' },
   { type: 'galaxy', use: 'A spiral galaxy (stars, arms, a bar and dust; the Milky Way by default)', icon: 'mdi:weather-hurricane' },
   { type: 'image', use: 'Your own picture on the plane', icon: 'mdi:image' },
   { type: 'model', use: 'A ship, a station, any 3D model', icon: 'mdi:rocket' },
@@ -167,6 +169,28 @@ export function flattenSystems(config) {
  * number changes. Seeds are not settings.
  */
 export const WHOLE_NUMBER_KEYS = /** @type {const} */ (['count', 'stars', 'arms', 'cloud_count', 'lobes', 'spoke_count', 'num_octaves', 'major_row_interval', 'major_col_interval']);
+
+/** A comet's `tails`: which of its two draw */
+export const COMET_TAILS = /** @type {const} */ (['both', 'ion', 'dust', 'none']);
+
+/** A comet's `activity`: fixed, or from its distance to its star */
+export const COMET_ACTIVITY = /** @type {const} */ (['fixed', 'distance']);
+
+/** Most rocks one belt draws */
+export const MAX_ROCKS = 5000;
+
+/**
+ * Per object type, the settings it changes in place when they follow an
+ * entity (they ease, no rebuild), as joined paths so each side of a pair
+ * can be one (`radius.0`). The built object's `live(key, value)` takes them
+ * (objects/common.js). `most`: keys it builds for the most they can reach
+ * (the top of the binding's `output`, else this), drawing fewer.
+ * @type {Readonly<Record<string, { keys: readonly string[], most?: Readonly<Record<string, number>> }>>}
+ */
+export const LIVE_TYPE_KEYS = {
+  belt: { keys: ['radius', 'radius.0', 'radius.1', 'thickness', 'count'], most: { count: MAX_ROCKS } },
+  comet: { keys: ['size', 'coma_size', 'tail_length', 'glow'] }
+};
 
 /** Object types built from the effects chunk (`core/astrometrics/effects`) */
 export const EFFECT_TYPES = /** @type {const} */ (['nebula', 'cube']);

@@ -11,7 +11,7 @@ import {
   DEFAULT_SMOOTH_MS
 } from '../../src/core/astrometrics/bindings.js';
 
-import { WHOLE_NUMBER_KEYS } from '../../src/core/astrometrics/names.js';
+import { WHOLE_NUMBER_KEYS, LIVE_TYPE_KEYS } from '../../src/core/astrometrics/names.js';
 import { astrometricsSchema } from '../../src/cards/schemas/astrometrics-schema.js';
 
 const shields = (state, attrs = { min: 0, max: 100 }) => ({ entity_id: 'input_number.shields', state: String(state), attributes: attrs });
@@ -126,7 +126,7 @@ test('whole-number settings: count, arms, lobes ... bind (any depth), their valu
   const by = Object.fromEntries(list.map((b) => [bindingKey(b), b]));
   for (const k of ['object:belt:count', 'object:g:arms', 'object:g:stars', 'object:well:deform.0.lobes']) {
     assert.equal(by[k]?.kind, 'whole', k);
-    assert.equal(by[k].live, false, `${k} rebuilds its object`);
+    assert.equal(by[k].live, k === 'object:belt:count', k === 'object:belt:count' ? 'a belt draws fewer in place' : `${k} rebuilds its object`);
   }
   assert.equal(by['object:well:deform.0.amplitude'].kind, 'number');
   assert.equal(by['card::time_scale'].kind, 'number');
@@ -153,15 +153,39 @@ test('whole-number settings: the schema\'s integer settings (an integer, a bindi
   assert.deepEqual([...found].sort(), [...WHOLE_NUMBER_KEYS].sort());
 });
 
-test('a pair setting: each side can follow its own entity (rebuilds), the values go back into the pair', () => {
+test('a pair setting: each side can follow its own entity, the values go back into the pair', () => {
   const config = {
     objects: [{ type: 'belt', id: 'belt', radius: [{ entity: 'input_number.a', output: [40, 60] }, { entity: 'input_number.b', output: [100, 120] }] }]
   };
   const list = collectBindings(config);
   assert.deepEqual(list.map(bindingKey).sort(), ['object:belt:radius.0', 'object:belt:radius.1']);
-  for (const b of list) assert.equal(b.live, false, 'a side rebuilds (only a whole radius scales in place)');
+  for (const b of list) assert.equal(b.live, true, 'a belt takes each side in place (LIVE_TYPE_KEYS)');
+  // another type's pair side rebuilds
+  const image = collectBindings({ objects: [{ type: 'image', id: 'pic', size: [{ entity: 'input_number.w' }, 100] }] });
+  assert.equal(image[0].live, false);
   const values = new Map([['object:belt:radius.0', 50], ['object:belt:radius.1', 110]]);
   assert.deepEqual(settingConfig(config, list, values).objects[0].radius, [50, 110]);
   // before a side has a value: undefined there, so the builder's default for that side
   assert.deepEqual(settingConfig(config, list, new Map([['object:belt:radius.1', 110]])).objects[0].radius, [undefined, 110]);
+});
+
+test('per-type live keys (LIVE_TYPE_KEYS): a belt\'s thickness and count ease; count builds for the top of output (or the most)', () => {
+  const config = {
+    objects: [
+      { type: 'belt', id: 'belt', thickness: { entity: 'input_number.t' }, count: { entity: 'input_number.n', output: [100, 2400.4] } },
+      { type: 'belt', id: 'tpl', count: "[[[ return 10 ]]]" },
+      { type: 'galaxy', id: 'g', thickness: { entity: 'input_number.t' } }
+    ]
+  };
+  const list = collectBindings(config);
+  const by = Object.fromEntries(list.map((b) => [bindingKey(b), b]));
+  assert.equal(by['object:belt:thickness'].live, true);
+  assert.equal(by['object:belt:thickness'].most, undefined);
+  assert.equal(by['object:belt:count'].live, true);
+  assert.equal(by['object:belt:count'].most, 2401, 'the top of output, up');
+  assert.equal(by['object:tpl:count'].most, LIVE_TYPE_KEYS.belt.most?.count, 'a template: the most a belt draws');
+  assert.equal(by['object:g:thickness'].live, false, 'not a galaxy\'s');
+  const built = settingConfig(config, list, new Map([['object:belt:count', 300]])).objects[0];
+  assert.equal(built.count, 300);
+  assert.deepEqual(built._most, { count: 2401 });
 });

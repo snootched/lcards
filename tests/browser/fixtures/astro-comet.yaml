@@ -1,0 +1,16 @@
+# AC1 comet: the star to the left (-x), so the tails point right; the tail's length follows power
+# (eases in place: the comet is never rebuilt). astrometrics.spec.js compares the halves and reads the live value.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 0, tilt: 0, distance: 120 }
+points:
+  - { id: star, xyz: [-400, 0, 0] }
+objects:
+  - type: comet
+    id: comet
+    at: [-30, 0, 0]
+    light: star
+    coma_size: 6
+    tail_length: { entity: input_number.lcards_test_power, input: [0, 100], output: [20, 80] }

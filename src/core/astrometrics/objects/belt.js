@@ -13,6 +13,11 @@
  * radius^1.5); `tumble` turns each rock on its own axis. Both are per-frame
  * instance updates and hold still under reduced motion.
  *
+ * Following an entity, `radius` (or either side), `thickness` and `count`
+ * change in place and ease (`live`): each rock keeps its seeded place across
+ * and up the band, so the band widens or thins round the same rocks; a
+ * `count` binding builds for the most it can reach and draws the first n.
+ *
  * Far away the rocks become dots (no key): when the largest rock would be
  * under about 1.5 px on screen (`DOT_PX`, measured from the camera to the
  * band itself), one point per rock in the same place and shade takes over,
@@ -27,9 +32,9 @@ import {
 } from 'three';
 import { seededRandom } from '../../packs/backgrounds/webgl/scenes/scene-helpers.js';
 import { built, num, pair } from './common.js';
+import { MAX_ROCKS } from '../names.js';
 
-/** Most rocks one belt draws */
-export const MAX_ROCKS = 5000;
+export { MAX_ROCKS };
 const DEG = Math.PI / 180;
 const DEFAULT_COLOR = 'var(--lcards-gray-light)';
 
@@ -166,7 +171,11 @@ export function rockGeometry(rnd) {
  * The rocks' places, sizes and spins (pure, seeded: the same config gives
  * the same belt).
  * @param {any} cfg
- * @returns {{ inner: number, outer: number, thickness: number, largest: number, rocks: { r: number, angle: number, y: number, scale: number[], axis: number[], phase: number, tumble: number, shade: number }[] }}
+ * the same belt). `rocks` holds as many as the belt is built for (`count`,
+ * or `_most.count` when a binding can raise it), `count` how many draw.
+ * Each rock's `u` (0 inner edge, 1 outer) and `g` (-1 to 1, bottom to top)
+ * place it in the band whatever its edges (`r` and `y` are those now).
+ * @returns {{ inner: number, outer: number, thickness: number, largest: number, count: number, rocks: { r: number, u: number, angle: number, y: number, g: number, scale: number[], axis: number[], phase: number, tumble: number, shade: number }[] }}
  */
 export function beltLayout(cfg) {
   const rnd = seededRandom(num(cfg.seed, 1));
@@ -178,20 +187,23 @@ export function beltLayout(cfg) {
   const lo = Math.max(1e-3, Math.min(minS, maxS));
   const hi = Math.max(lo, minS, maxS);
   const count = Math.max(0, Math.min(MAX_ROCKS, Math.round(num(cfg.count, 600))));
+  const most = Math.max(count, Math.min(MAX_ROCKS, Math.round(num(cfg._most?.count, 0))));
   const tumble = num(cfg.tumble, 30);
   const rocks = [];
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < most; i++) {
     // densest across the middle of the band (a triangle distribution)
-    const r = inner + (outer - inner) * ((rnd() + rnd()) / 2);
+    const u = (rnd() + rnd()) / 2;
     // height: roughly normal, most rocks near the plane
     const g = (rnd() + rnd() + rnd() - 1.5) / 1.5;
     const s = lo + (hi - lo) * Math.pow(rnd(), 3);
     const ax = [rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1];
     const len = Math.hypot(ax[0], ax[1], ax[2]) || 1;
     rocks.push({
-      r,
+      r: inner + (outer - inner) * u,
+      u,
       angle: rnd() * 360,
       y: g * (thickness / 2),
+      g,
       scale: [s * (0.7 + rnd() * 0.6), s * (0.55 + rnd() * 0.4), s * (0.7 + rnd() * 0.6)],
       axis: ax.map((v) => v / len),
       phase: rnd() * 360,
@@ -200,7 +212,7 @@ export function beltLayout(cfg) {
     });
   }
   // a rock is about twice its scale across; the largest are stretched up to 1.3
-  return { inner, outer, thickness, largest: hi * 2.6, rocks };
+  return { inner, outer, thickness, largest: hi * 2.6, count, rocks };
 }
 
 /**
@@ -225,7 +237,10 @@ export function rockColorIndex(count, n, seed) {
 export function buildBelt(cfg, ctx) {
   const node = new Group();
   node.name = `belt:${cfg.id ?? ''}`;
-  const { inner, outer, thickness, largest, rocks } = beltLayout(cfg);
+  const layout = beltLayout(cfg);
+  const { largest, rocks } = layout;
+  // the band's edges and how many draw now: live settings change them (see live below)
+  let { inner, outer, thickness, count: drawn } = layout;
   const out = built(cfg, node, { radius: outer });
   if (!rocks.length) return out;
 
@@ -291,8 +306,10 @@ export function buildBelt(cfg, ctx) {
   const place = (t) => {
     clock = t;
     const period = num(cfg.period, 0);
-    for (let i = 0; i < rocks.length; i++) {
+    for (let i = 0; i < drawn; i++) {
       const k = rocks[i];
+      k.r = inner + (outer - inner) * k.u;
+      k.y = k.g * (thickness / 2);
       // Kepler: the outer rocks take longer round (period ~ r^1.5)
       const orbit = period > 0 ? (360 * t) / 1000 / (period * Math.pow(k.r / Math.max(1e-3, inner > 0 ? inner : k.r), 1.5)) : 0;
       // clockwise seen from above (as a positive spin), from north
@@ -315,10 +332,20 @@ export function buildBelt(cfg, ctx) {
     if (dots) dotGeo.attributes.position.needsUpdate = true;
     else mesh.instanceMatrix.needsUpdate = true;
   };
+  /** The rocks stay in their band as they move: one bound for every frame (again when the band changes) */
+  const bound = () => {
+    mesh.computeBoundingSphere();
+    dotGeo.boundingSphere = /** @type {import('three').Sphere} */ (mesh.boundingSphere).clone();
+  };
+  /** @param {number} n */
+  const setDrawn = (n) => {
+    drawn = n;
+    mesh.count = n;
+    dotGeo.setDrawRange(0, n);
+  };
+  setDrawn(drawn);
   place(0);
-  // the rocks stay in their band as they move: one bound for every frame
-  mesh.computeBoundingSphere();
-  dotGeo.boundingSphere = /** @type {import('three').Sphere} */ (mesh.boundingSphere).clone();
+  bound();
   node.add(mesh, dotCloud);
   const local = new Vector3();
   out.lod = ({ camera, height, dpr }) => {
@@ -337,6 +364,31 @@ export function buildBelt(cfg, ctx) {
     dotCloud.visible = dots;
     // the one now shown catches up with the motion
     place(clock);
+  };
+  // radius: [a, b] as built, each side live on its own
+  const builtSides = Array.isArray(cfg.radius) ? pair(cfg.radius, [80, 100]) : [layout.inner, layout.outer];
+  const sides = [...builtSides];
+  // a live setting (null: the built value again); the next frame draws it, now when the rocks stand still
+  out.live = (key, value) => {
+    const v = value === null ? null : Math.max(0, value);
+    if (key === 'radius') {
+      // one number is the outer edge, the inner 0.8 of it (as built)
+      outer = v ?? layout.outer;
+      inner = v === null ? layout.inner : v * 0.8;
+    } else if (key === 'radius.0' || key === 'radius.1') {
+      // a side each; whichever is smaller is the inner edge
+      const i = key === 'radius.0' ? 0 : 1;
+      sides[i] = v ?? builtSides[i];
+      inner = Math.min(sides[0], sides[1]);
+      outer = Math.max(sides[0], sides[1]);
+    } else if (key === 'thickness') thickness = v ?? layout.thickness;
+    else if (key === 'count') setDrawn(Math.min(rocks.length, Math.round(v ?? layout.count)));
+    else return false;
+    out.radius = outer;
+    place(clock);
+    // the bound covers the drawn rocks only (three.js counts mesh.count)
+    bound();
+    return true;
   };
   out.pickMeshes.push(mesh);
   const moving = num(cfg.period, 0) > 0 || rocks.some((k) => k.tumble !== 0);

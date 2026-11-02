@@ -1042,6 +1042,34 @@ test('N1 follow: a tap on a moving point lands on it and keeps it centred; zoom 
     await expectNoErrors(page);
 });
 
+test('follow an object on a moving point: frameObject flies to the point and follows it, in the Studio too (a point drag lets go)', async ({ page }) => {
+    await mountCase(page, 'astro-follow', { width: '800' });
+    await sceneReady(page);
+    const follow = () => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().follow);
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.frameObject('rock'));
+    await expect.poll(follow, { timeout: 5000 }).toEqual({ id: 'ship', moving: true });
+    await page.waitForTimeout(900);
+    expect(await followGap(page, 'ship')).toBeLessThan(0.5);
+    // edit mode (the Studio's preview): showing it follows as well
+    await page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene;
+        s.flyTo('top', { duration: 0 });
+        s.setEditMode({ onSelect: () => {}, onDrag: () => {} });
+    });
+    expect(await follow()).toBeNull();
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.frameObject('rock'));
+    await expect.poll(follow, { timeout: 5000 }).toEqual({ id: 'ship', moving: true });
+    await page.waitForTimeout(900);
+    expect(await followGap(page, 'ship')).toBeLessThan(0.5);
+    // grabbing the ship's label to drag it lets go first
+    const ship = await pointOnPage(page, 'ship');
+    await page.mouse.move(ship.x, ship.y);
+    await page.mouse.down();
+    expect(await follow()).toBeNull();
+    await page.mouse.up();
+    await expectNoErrors(page);
+});
+
 test('N1 follow: a still point never counts as moving; flying to a view or tapping blank space lets go; follow: false never follows', async ({ page }) => {
     await mountCase(page, 'astro-follow', { width: '800' });
     await sceneReady(page);
@@ -1379,31 +1407,86 @@ test('R4b settings from entities: opacity and size ease to their entity, a templ
     await expectNoErrors(page);
 });
 
-test('whole-number settings: a belt\'s count follows its entity as a whole number, rebuilding only when that changes', async ({ page }) => {
+test('whole-number settings and type live keys: a belt\'s count and inner edge ease in place, the belt never rebuilds', async ({ page }) => {
     await mountCase(page, 'astro-bindings', { width: '800' });
     await sceneReady(page);
     const belt = () => page.evaluate(() => {
         const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
         const b = s.world.objects.get('rocks');
-        // the belt's node: the same one until the belt is rebuilt (power also drives other objects here)
-        return { count: b?.node.getObjectByName('rocks')?.count ?? null, config: b?.config.count, node: b?.node.uuid };
+        const mesh = b?.node.getObjectByName('rocks');
+        // the belt's node: the same one unless the belt is rebuilt (power also drives other objects here)
+        return { count: mesh?.count ?? null, most: mesh?.instanceMatrix.count ?? null, node: b?.node.uuid, inner: s.live['rocks.radius.0'], radius: b?.radius };
     });
-    // power 33.3: 100 + 0.333 * 400 = 233.2 rocks, so 233
+    // power 33.3: 100 + 0.333 * 900 = 399.7 rocks, so 400 (a count binding builds for the top of output, 1000,
+    // above the 600 it draws before a value; the scene's first build has no settings yet, so the card builds the belt once more for it)
     await page.evaluate(() => window.__setState('input_number.lcards_test_power', '33.3'));
-    await expect.poll(async () => (await belt()).count, { timeout: 5000 }).toBe(233);
-    expect((await belt()).config).toBe(233);
-    // 33.31 is 233.24 rocks: the same whole number, so no rebuild of the belt
+    await expect.poll(async () => (await belt()).count, { timeout: 5000 }).toBe(400);
+    await expect.poll(async () => (await belt()).most, { timeout: 5000 }).toBe(1000);
     await page.waitForTimeout(600);
-    const before = (await belt()).node;
-    await page.evaluate(() => window.__setState('input_number.lcards_test_power', '33.31'));
-    await page.waitForTimeout(800);
-    expect((await belt()).node).toBe(before);
-    // 100: all 500
+    const node = (await belt()).node;
+    // 100: all 1000, eased, the same belt
     await page.evaluate(() => window.__setState('input_number.lcards_test_power', '100'));
-    await expect.poll(async () => (await belt()).count, { timeout: 5000 }).toBe(500);
+    // on its way (seen between the two), then there
+    await expect.poll(async () => { const n = (await belt()).count; return n > 400 && n < 1000; }, { timeout: 3000, intervals: [30] }).toBe(true);
+    await expect.poll(async () => (await belt()).count, { timeout: 5000 }).toBe(1000);
     // the inner edge on its own entity (a side of the pair): shields 50 gives 40 + 0.5 * 30 = 55, the outer stays 90
     await page.evaluate(() => window.__setState('input_number.lcards_test_shields', '50'));
-    await expect.poll(() => page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world.objects.get('rocks').config.radius), { timeout: 5000 }).toEqual([55, 90]);
+    await expect.poll(async () => (await belt()).inner?.value, { timeout: 5000 }).toBeCloseTo(55, 6);
+    expect((await belt()).radius).toBe(90);
+    await page.waitForTimeout(400);
+    expect((await belt()).node).toBe(node);
+    await expectNoErrors(page);
+});
+
+test('AC1 asteroid: one rock, the half toward its light bright, the far half dark', async ({ page }) => {
+    await mountCase(page, 'astro-asteroid', { width: '800' });
+    await sceneReady(page);
+    expect(await litPixels(page)).toBeGreaterThan(5000);
+    const halves = await page.evaluate(() => {
+        const canvas = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('.astro-scene canvas');
+        const { width, height } = canvas;
+        const data = canvas.getContext('2d').getImageData(0, 0, width, height).data;
+        let left = 0, right = 0;
+        for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+            const i = (y * width + x) * 4;
+            const v = data[i] + data[i + 1] + data[i + 2];
+            if (x < width / 2) left += v; else right += v;
+        }
+        return { left, right };
+    });
+    expect(halves.left).toBeGreaterThan(halves.right * 3);
+    await expectNoErrors(page);
+});
+
+test('AC1 comet: the tails light the side away from the star; tail_length eases in place', async ({ page }) => {
+    await mountCase(page, 'astro-comet', { width: '800' });
+    await sceneReady(page);
+    await page.evaluate(() => window.__setState('input_number.lcards_test_power', '100'));
+    const comet = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const b = s.world.objects.get('comet');
+        return { node: b.node.uuid, length: b.node.getObjectByName('ion_tail').material.uniforms.uLength.value, live: s.live['comet.tail_length'] };
+    });
+    await expect.poll(async () => (await comet()).length, { timeout: 5000 }).toBeCloseTo(80, 3);
+    await page.waitForTimeout(600);
+    const node = (await comet()).node;
+    const halves = await page.evaluate(() => {
+        const canvas = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('.astro-scene canvas');
+        const { width, height } = canvas;
+        const data = canvas.getContext('2d').getImageData(0, 0, width, height).data;
+        let left = 0, right = 0;
+        for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+            const i = (y * width + x) * 4;
+            const v = data[i] + data[i + 1] + data[i + 2];
+            if (x < width * 0.4) left += v; else if (x > width * 0.6) right += v;
+        }
+        return { left, right };
+    });
+    expect(halves.right).toBeGreaterThan(halves.left * 2);
+    await page.evaluate(() => window.__setState('input_number.lcards_test_power', '0'));
+    await expect.poll(async () => { const n = (await comet()).length; return n > 20 && n < 80; }, { timeout: 3000, intervals: [30] }).toBe(true);
+    await expect.poll(async () => (await comet()).length, { timeout: 5000 }).toBeCloseTo(20, 3);
+    expect((await comet()).node).toBe(node);
     await expectNoErrors(page);
 });
 
