@@ -4,7 +4,8 @@
  * twisted pipeline of strands, then the inside laid out along one axis: the
  * negative CTL region (nested shells with a cone inside), the ring
  * singularity, the positive CTL region, the point singularity (a bright cone)
- * opening into the verteron membrane, ringed by tilted orbits. Everything past
+ * opening into the verteron membrane, then the far mouth: rings square to the
+ * axis, each wider and further on, opening like a funnel. Everything past
  * the mouth is diagram only (its inside cannot be seen); the mouth switches
  * with the card's look (`wormholeMouth`).
  *
@@ -22,6 +23,9 @@ const WHITE = 'var(--lcards-moonlight)';
 const NEGATIVE_LOBE = [0.1, 0.7, 0.98, 1, 0.85, 0.45, 0.1];
 const POSITIVE_LOBE = [0.1, 0.85, 1, 0.95, 0.6, 0.1];
 const MEMBRANE = [0.3, 0.85, 1, 0.9, 0.55, 0.25];
+
+/** The far mouth past the membrane: [x along the axis, ring radius], layout units */
+const FAR_MOUTH = [[57, 11], [62, 14], [68, 17]];
 
 /**
  * One strand of the pipeline, offsets from the mouth (units of the layout,
@@ -87,7 +91,8 @@ export function bajoranWormhole({ prefix, at, size = 70, power, extra = {}, star
       pt('point_singularity', [52, -9, 0]),
       pt('membrane', [52, -9, 0]),
       pt('membrane_centre', [58, -9, 0]),
-      pt('middle', [30, -9, 0]),
+      pt('middle', [34, -9, 0]),
+      ...FAR_MOUTH.map(([x], i) => pt(`far_mouth_${i + 1}`, [x, -9, 0])),
       ...(labels
         ? [
           label('label_pipeline', [-4, -15, 0], 'PIPELINE'),
@@ -125,8 +130,9 @@ export function bajoranWormhole({ prefix, at, size = 70, power, extra = {}, star
       { type: 'glow', id: id('point_glow'), at: id('point_singularity'), size: 5 * k, color: WHITE, look: 'diagram', ...extra },
       lobe('membrane_outer', id('membrane'), MEMBRANE, 8, 13, 1),
       lobe('membrane_inner', id('membrane'), MEMBRANE, 5.5, 13, 0.6),
-      ...[[10, [75, -20, 10]], [13, [65, -35, -15]], [16, [80, -10, 25]]].map(([r, rotation], i) => ({
-        type: 'ring', id: id(`orbit_${i + 1}`), at: id('membrane_centre'), radius: /** @type {number} */ (r) * k, rotation, width: 2, color: BLUE, opacity: 0.8, look: 'diagram', ...extra
+      // the far mouth: coaxial rings widening along the axis (the reference draws them in perspective, so they look tilted)
+      ...FAR_MOUTH.map(([, r], i) => ({
+        type: 'ring', id: id(`far_mouth_ring_${i + 1}`), at: id(`far_mouth_${i + 1}`), face: id('east'), radius: r * k, width: 2, color: BLUE, opacity: 0.8, look: 'diagram', ...extra
       }))
     ]
   };

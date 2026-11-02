@@ -18,7 +18,7 @@ sections:
           card: astro_wormhole
           view: overview
         grid_options:
-          columns: 3
+          columns: 9
           rows: 1
       - type: custom:lcards-button
         preset: lozenge
@@ -29,7 +29,7 @@ sections:
           card: astro_wormhole
           view: mouth
         grid_options:
-          columns: 3
+          columns: 9
           rows: 1
       - type: custom:lcards-button
         preset: lozenge
@@ -40,7 +40,7 @@ sections:
           card: astro_wormhole
           view: inside
         grid_options:
-          columns: 3
+          columns: 9
           rows: 1
       - type: custom:lcards-button
         preset: lozenge
@@ -51,7 +51,7 @@ sections:
           card: astro_wormhole
           view: membrane
         grid_options:
-          columns: 3
+          columns: 9
           rows: 1
       - type: custom:lcards-slider
         entity: input_number.lcards_test_power
@@ -63,7 +63,7 @@ sections:
           shaped: {text_bands: {left: {size: 110}}}
         min_height: 0
         grid_options:
-          columns: 6
+          columns: 18
           rows: 1
       - type: custom:lcards-select-menu
         entity: input_select.lcards_test_look
@@ -72,7 +72,7 @@ sections:
           columns: 3
         min_height: 0
         grid_options:
-          columns: 6
+          columns: 18
           rows: 1
       - type: custom:lcards-astrometrics-card
         id: astro_wormhole
@@ -111,7 +111,10 @@ sections:
           - {id: wormhole_point_singularity, at: mouth, offset: [52, -9, 0]}
           - {id: wormhole_membrane, at: mouth, offset: [52, -9, 0]}
           - {id: wormhole_membrane_centre, at: mouth, offset: [58, -9, 0]}
-          - {id: wormhole_middle, at: mouth, offset: [30, -9, 0]}
+          - {id: wormhole_middle, at: mouth, offset: [34, -9, 0]}
+          - {id: wormhole_far_mouth_1, at: mouth, offset: [57, -9, 0]}
+          - {id: wormhole_far_mouth_2, at: mouth, offset: [62, -9, 0]}
+          - {id: wormhole_far_mouth_3, at: mouth, offset: [68, -9, 0]}
           - {id: wormhole_label_pipeline, at: mouth, offset: [-4, -15, 0], label: PIPELINE, style: minor, look: diagram, tap_action: {action: fly-to}}
           - {id: wormhole_label_negative, at: mouth, offset: [26, -18, 0], label: NEGATIVE CTL REGION, style: minor, look: diagram, tap_action: {action: fly-to}}
           - {id: wormhole_label_ring, at: mouth, offset: [33, 1, 0], label: RING SINGULARITY, style: minor, look: diagram, tap_action: {action: fly-to}}
@@ -158,12 +161,12 @@ sections:
           - {type: glow, id: wormhole_point_glow, at: wormhole_point_singularity, size: 5, color: var(--lcards-moonlight), look: diagram}
           - {type: grid, id: wormhole_membrane_outer, shape: well, well_profile: &ref_4 [0.3, 0.85, 1, 0.9, 0.55, 0.25], at: wormhole_membrane, face: wormhole_east, radius: 8, depth: 13, pattern: polar, spoke_count: 16, line_spacing: 2.4, color: var(--lcars-blue), opacity: 1, look: diagram, deform: *ref_2}
           - {type: grid, id: wormhole_membrane_inner, shape: well, well_profile: *ref_4, at: wormhole_membrane, face: wormhole_east, radius: 5.5, depth: 13, pattern: polar, spoke_count: 16, line_spacing: 2.4, color: var(--lcars-blue), opacity: 0.6, look: diagram, deform: *ref_2}
-          - {type: ring, id: wormhole_orbit_1, at: wormhole_membrane_centre, radius: 10, rotation: [75, -20, 10], width: 2, color: var(--lcars-blue), opacity: 0.8, look: diagram}
-          - {type: ring, id: wormhole_orbit_2, at: wormhole_membrane_centre, radius: 13, rotation: [65, -35, -15], width: 2, color: var(--lcars-blue), opacity: 0.8, look: diagram}
-          - {type: ring, id: wormhole_orbit_3, at: wormhole_membrane_centre, radius: 16, rotation: [80, -10, 25], width: 2, color: var(--lcars-blue), opacity: 0.8, look: diagram}
+          - {type: ring, id: wormhole_far_mouth_ring_1, at: wormhole_far_mouth_1, face: wormhole_east, radius: 11, width: 2, color: var(--lcars-blue), opacity: 0.8, look: diagram}
+          - {type: ring, id: wormhole_far_mouth_ring_2, at: wormhole_far_mouth_2, face: wormhole_east, radius: 14, width: 2, color: var(--lcars-blue), opacity: 0.8, look: diagram}
+          - {type: ring, id: wormhole_far_mouth_ring_3, at: wormhole_far_mouth_3, face: wormhole_east, radius: 17, width: 2, color: var(--lcars-blue), opacity: 0.8, look: diagram}
         camera:
           view: overview
-          views: {overview: {target: wormhole_middle, yaw: 28, tilt: 14, distance: 88}, mouth: {target: mouth, yaw: 20, tilt: 40, distance: 34}, inside: {target: wormhole_ring_singularity, yaw: 60, tilt: 10, distance: 30}, membrane: {target: wormhole_membrane_centre, yaw: 20, tilt: 20, distance: 34}}
+          views: {overview: {target: wormhole_middle, yaw: 40, tilt: 14, distance: 92}, mouth: {target: mouth, yaw: 20, tilt: 40, distance: 34}, inside: {target: wormhole_ring_singularity, yaw: 60, tilt: 10, distance: 30}, membrane: {target: wormhole_membrane_centre, yaw: 50, tilt: 15, distance: 52}}
           buttons: true
         backdrop:
           stars: {count: 2500}

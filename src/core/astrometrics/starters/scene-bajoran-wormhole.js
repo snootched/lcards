@@ -16,10 +16,10 @@ export default /** @type {import('./index.js').Starter} */ ({
     const w = bajoranWormhole({ prefix: 'wormhole', at: 'mouth', power: power ? String(power) : undefined, stars: 8000 });
     return {
       views: {
-        overview: { target: 'wormhole_middle', yaw: 28, tilt: 14, distance: 88 },
+        overview: { target: 'wormhole_middle', yaw: 40, tilt: 14, distance: 92 },
         mouth: { target: 'mouth', yaw: 20, tilt: 40, distance: 34 },
         inside: { target: 'wormhole_ring_singularity', yaw: 60, tilt: 10, distance: 30 },
-        membrane: { target: 'wormhole_membrane_centre', yaw: 20, tilt: 20, distance: 34 }
+        membrane: { target: 'wormhole_membrane_centre', yaw: 50, tilt: 15, distance: 52 }
       },
       camera: { view: 'overview' },
       backdrop: { stars: { count: 2500 } },

@@ -484,7 +484,10 @@ points:
   - { id: wormhole_point_singularity, at: mouth, offset: [52, -9, 0] }
   - { id: wormhole_membrane, at: mouth, offset: [52, -9, 0] }
   - { id: wormhole_membrane_centre, at: mouth, offset: [58, -9, 0] }
-  - { id: wormhole_middle, at: mouth, offset: [30, -9, 0] }
+  - { id: wormhole_middle, at: mouth, offset: [34, -9, 0] }
+  - { id: wormhole_far_mouth_1, at: mouth, offset: [57, -9, 0] }
+  - { id: wormhole_far_mouth_2, at: mouth, offset: [62, -9, 0] }
+  - { id: wormhole_far_mouth_3, at: mouth, offset: [68, -9, 0] }
   - id: wormhole_label_pipeline
     at: mouth
     offset: [-4, -15, 0]
@@ -1292,28 +1295,28 @@ objects:
     look: diagram
     deform: [{ type: wobble, lobes: 0, waves: 2, period: 4, amplitude: 0.03 }]
   - type: ring
-    id: wormhole_orbit_1
-    at: wormhole_membrane_centre
-    radius: 10
-    rotation: [75, -20, 10]
+    id: wormhole_far_mouth_ring_1
+    at: wormhole_far_mouth_1
+    face: wormhole_east
+    radius: 11
     width: 2
     color: var(--lcars-blue)
     opacity: 0.8
     look: diagram
   - type: ring
-    id: wormhole_orbit_2
-    at: wormhole_membrane_centre
-    radius: 13
-    rotation: [65, -35, -15]
+    id: wormhole_far_mouth_ring_2
+    at: wormhole_far_mouth_2
+    face: wormhole_east
+    radius: 14
     width: 2
     color: var(--lcars-blue)
     opacity: 0.8
     look: diagram
   - type: ring
-    id: wormhole_orbit_3
-    at: wormhole_membrane_centre
-    radius: 16
-    rotation: [80, -10, 25]
+    id: wormhole_far_mouth_ring_3
+    at: wormhole_far_mouth_3
+    face: wormhole_east
+    radius: 17
     width: 2
     color: var(--lcars-blue)
     opacity: 0.8
@@ -1321,10 +1324,10 @@ objects:
 camera:
   view: overview
   views:
-    overview: { target: wormhole_middle, yaw: 28, tilt: 14, distance: 88 }
+    overview: { target: wormhole_middle, yaw: 40, tilt: 14, distance: 92 }
     mouth: { target: mouth, yaw: 20, tilt: 40, distance: 34 }
     inside: { target: wormhole_ring_singularity, yaw: 60, tilt: 10, distance: 30 }
-    membrane: { target: wormhole_membrane_centre, yaw: 20, tilt: 20, distance: 34 }
+    membrane: { target: wormhole_membrane_centre, yaw: 50, tilt: 15, distance: 52 }
 backdrop: { stars: { count: 2500 } }
 ```
 
@@ -3189,7 +3192,10 @@ points:
   - { id: bajoran_wormhole_point_singularity, at: bajoran_centre, offset: [52, -9, 0] }
   - { id: bajoran_wormhole_membrane, at: bajoran_centre, offset: [52, -9, 0] }
   - { id: bajoran_wormhole_membrane_centre, at: bajoran_centre, offset: [58, -9, 0] }
-  - { id: bajoran_wormhole_middle, at: bajoran_centre, offset: [30, -9, 0] }
+  - { id: bajoran_wormhole_middle, at: bajoran_centre, offset: [34, -9, 0] }
+  - { id: bajoran_wormhole_far_mouth_1, at: bajoran_centre, offset: [57, -9, 0] }
+  - { id: bajoran_wormhole_far_mouth_2, at: bajoran_centre, offset: [62, -9, 0] }
+  - { id: bajoran_wormhole_far_mouth_3, at: bajoran_centre, offset: [68, -9, 0] }
   - id: bajoran_wormhole_label_pipeline
     at: bajoran_centre
     offset: [-4, -15, 0]
@@ -4002,28 +4008,28 @@ objects:
     look: diagram
     deform: [{ type: wobble, lobes: 0, waves: 2, period: 4, amplitude: 0.03 }]
   - type: ring
-    id: bajoran_wormhole_orbit_1
-    at: bajoran_wormhole_membrane_centre
-    radius: 10
-    rotation: [75, -20, 10]
+    id: bajoran_wormhole_far_mouth_ring_1
+    at: bajoran_wormhole_far_mouth_1
+    face: bajoran_wormhole_east
+    radius: 11
     width: 2
     color: var(--lcars-blue)
     opacity: 0.8
     look: diagram
   - type: ring
-    id: bajoran_wormhole_orbit_2
-    at: bajoran_wormhole_membrane_centre
-    radius: 13
-    rotation: [65, -35, -15]
+    id: bajoran_wormhole_far_mouth_ring_2
+    at: bajoran_wormhole_far_mouth_2
+    face: bajoran_wormhole_east
+    radius: 14
     width: 2
     color: var(--lcars-blue)
     opacity: 0.8
     look: diagram
   - type: ring
-    id: bajoran_wormhole_orbit_3
-    at: bajoran_wormhole_membrane_centre
-    radius: 16
-    rotation: [80, -10, 25]
+    id: bajoran_wormhole_far_mouth_ring_3
+    at: bajoran_wormhole_far_mouth_3
+    face: bajoran_wormhole_east
+    radius: 17
     width: 2
     color: var(--lcars-blue)
     opacity: 0.8

@@ -53,3 +53,19 @@ test('with power the mouth opens with the entity; without, it is fully open', ()
   const off = wormholeMouth({ prefix: 'm', at: 'a', aim: 'b', radius: 10, depth: 4 });
   assert.equal(off.objects.find((o) => o.id === 'm_funnel').radius, 15);
 });
+
+test('the far mouth is coaxial rings, square to the axis, each wider and further along (a funnel opening)', () => {
+  const w = bajoranWormhole({ prefix: 'wh', at: 'mouth' });
+  const rings = w.objects.filter((o) => o.id.startsWith('wh_far_mouth_ring_'));
+  assert.ok(rings.length >= 3);
+  const pts = new Map(w.points.map((p) => [p.id, p]));
+  let last = { x: -Infinity, r: 0 };
+  for (const r of rings) {
+    assert.equal(r.face, 'wh_east', `${r.id} faces along the axis`);
+    assert.equal(r.rotation, undefined, `${r.id} has no tilt of its own`);
+    const [x, y, z] = pts.get(r.at).offset;
+    assert.equal(y, -9); assert.equal(z, 0);
+    assert.ok(x > last.x && r.radius > last.r, `${r.id} is further on and wider`);
+    last = { x, r: r.radius };
+  }
+});
