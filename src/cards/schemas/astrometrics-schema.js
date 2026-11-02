@@ -643,7 +643,7 @@ const scanKeys = {
 const fillEffectSchema = {
     type: 'object',
     additionalProperties: false,
-    description: 'An animated fill on the surface, from the background presets: plasma (two-colour bands), fluid (a one-colour wash) or contour (topographic bands); or bands (latitude belts, a gas giant). Seamless round a sphere, and it turns with spin. On a sphere it paints the body over fill, in place of image (the body still hides what is behind it). A preset is a planet type to start from; the keys you set win over it.',
+    description: 'An animated fill on the surface, from the background presets: plasma (two-colour bands), fluid (a one-colour wash) or contour (topographic bands); or bands (latitude belts, a gas giant) or swirl (gas spiralling in, a whirlpool or a wormhole\'s mouth). Seamless round a sphere, and it turns with spin. On a sphere it paints the body over fill, in place of image (the body still hides what is behind it). A preset is a planet type to start from; the keys you set win over it.',
     properties: {
         preset: {
             type: 'string',
@@ -661,22 +661,22 @@ const fillEffectSchema = {
                 terran: 'Oceans, land and ice caps'
             }
         },
-        type: { type: 'string', enum: [...FILL_EFFECTS], description: 'plasma, fluid, contour (the contour-field preset) or bands (belts round the latitude, from the object\'s y axis). Default the preset\'s type, else plasma.' },
+        type: { type: 'string', enum: [...FILL_EFFECTS], description: 'plasma, fluid, contour (the contour-field preset), bands (belts round the latitude, from the object\'s y axis) or swirl (gas spiralling in round the y axis, faster near the middle, streaked along the spiral with dark lanes, a rippled heart and a ragged edge: a whirlpool, an accretion disc, a wormhole\'s mouth on a disc or well grid). Default the preset\'s type, else plasma.' },
         color_a: color('plasma: first colour. Default var(--lcars-blue).'),
         color_b: color('plasma: second colour. Default var(--lcars-orange).'),
         color: color('fluid: wash colour (its alpha is how strong). Default var(--lcars-blue).'),
         colors: {
-            description: 'contour: one colour, or stops spread over the bands from low to high. bands: the belt colours, repeated from the south pole to the north. Default blue to orange.',
+            description: 'contour: one colour, or stops spread over the bands from low to high. bands: the belt colours, repeated from the south pole to the north. swirl: stops from the middle out to the rim. Default blue to orange.',
             oneOf: [color('A colour.'), { type: 'array', items: color('A colour.'), minItems: 1 }]
         },
         base_frequency: setting('Noise detail per scene unit: lower is larger features. Default about 3 noise cells across the radius.', { minimum: 0 }),
         num_octaves: wholeSetting('Layers of finer detail (1 smooth, 8 rough). Default plasma 3, fluid 4, contour 2.', { minimum: 1, maximum: 8 }),
         num_bands: setting('contour: how many bands (low is bold steps, high is near smooth). bands: how many belts pole to pole.', { minimum: 2, maximum: 64, default: 5 }),
-        turbulence: setting('bands: how much the belt edges swirl, 0 (straight) to 1 (stormy).', { minimum: 0, maximum: 1, default: 0.3 }),
+        turbulence: setting('bands: how much the belt edges swirl, 0 (straight) to 1 (stormy). swirl: how much the gas clumps and how ragged its outer edge is (wisps trailing off).', { minimum: 0, maximum: 1, default: 0.3 }),
         fill_level: setting('contour: flood the lowest bands, 0 to 0.95 (0: none).', { minimum: 0, maximum: 0.95, default: 0 }),
         fill_color: color('contour: colour over the flooded bands. Default see-through.'),
         blend_colors: { type: 'boolean', default: true, description: 'contour and bands: colours fade between bands (false: flat bands with hard edges).' },
-        speed: setting('How fast the pattern flows through the object, scene units per second (0: still). Off under reduced motion.', { default: 0 }),
+        speed: setting('How fast the pattern flows through the object, scene units per second (0: still). swirl: how fast the gas turns at the rim (faster toward the middle). Off under reduced motion.', { default: 0 }),
         opacity: setting('Fill opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 })
     }
 };
@@ -916,6 +916,13 @@ const lineCommon = {
         description: 'A soft glow under the line: true (4 x the width) or a width factor.',
         oneOf: [{ type: 'boolean' }, { type: 'number', minimum: 1 }]
     },
+    line_look: {
+        type: 'string',
+        enum: ['flat', 'tube'],
+        default: 'flat',
+        description: 'flat: one brightness across the line. tube: shaded as a lit cylinder across its width (dark edges, a bright stripe), so a wide line reads as a pipe (from 6 px or so); pulses on it become bands of light round it. The glow stays soft.',
+        enumDescriptions: { flat: 'One brightness', tube: 'Shaded pipe' }
+    },
     blend: blendAdd,
     ...flowKeys
 };
@@ -951,7 +958,7 @@ const pathObject = {
     description: 'A line through points (a route), an arched route between two points, or the day track of the sun or moon.',
     properties: {
         type: { type: 'string', const: 'path', description: 'path: a line through points.' },
-        points: { type: 'array', items: pointRef('A point id or [x, y, z].'), description: 'The points the line passes through, in order (ids or [x, y, z]).' },
+        points: { type: 'array', items: pointRef('A point id or [x, y, z].'), description: 'The points the line passes through, in order (ids or [x, y, z]). With at, each [x, y, z] is an offset from at, turned with rotation and face (a shape drawn in its own place); ids stay where they are.' },
         from: pointRef('Start (instead of points).'),
         to: pointRef('End (instead of points).'),
         arc: setting('Arch each leg upward by this height at its middle, scene units (0: straight).', { default: 0 }),

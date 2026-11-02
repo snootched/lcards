@@ -198,3 +198,60 @@ test('anchored vertices: a line far from its frame\'s origin draws exactly near 
   parent.updateMatrixWorld(true);
   assert.ok(err() < 1e-9);
 });
+
+test('W1 line_look: tube shades the line and its pulses; the glow blends brightest-wins; a beam\'s wide layers are soft', async () => {
+  const { installJsdom } = await import('../helpers/jsdom-env.js');
+  const env = installJsdom();
+  try {
+    const { MaxEquation, CustomBlending } = await import('three');
+    const { buildPath, buildBeam } = await import('../../src/core/astrometrics/objects/lines.js');
+    const ctx = /** @type {any} */ ({ color: () => [1, 1, 1, 1], requestFrame: () => {} });
+    const m = new PxDashLineMaterial({ worldUnits: false });
+    assert.match(m.fragmentShader, /#ifdef USE_TUBE/);
+    assert.match(m.fragmentShader, /#ifdef USE_LIGHTEN\s+gl_FragColor = vec4\( gl_FragColor\.rgb \* gl_FragColor\.a/);
+    m.dispose();
+    const tube = buildPath({ type: 'path', points: [[0, 0, 0], [1, 0, 0]], width: 8, line_look: 'tube', glow: 2, pulse: true }, ctx, new Map());
+    const [glow, main, pulse] = tube.lines;
+    assert.ok('USE_TUBE' in main.material.defines, 'the line is a tube');
+    assert.ok('USE_TUBE' in pulse.material.defines, 'its pulses wrap round it');
+    assert.ok(!('USE_TUBE' in glow.material.defines), 'the glow stays soft');
+    assert.ok('USE_LIGHTEN' in glow.material.defines);
+    assert.equal(glow.material.blending, CustomBlending);
+    assert.equal(glow.material.blendEquation, MaxEquation, 'overlapping pieces of the glow do not add up (no beads)');
+    const flat = buildPath({ type: 'path', points: [[0, 0, 0], [1, 0, 0]] }, ctx, new Map());
+    assert.ok(!('USE_TUBE' in flat.lines[0].material.defines), 'flat by default');
+    const beam = buildBeam({ type: 'beam', from: [0, 0, 0], to: [0, 1, 0] }, ctx);
+    assert.deepEqual(beam.lines.map((l) => 'USE_SOFT' in l.material.defines), [true, true, false], 'the wide two fade to their edges, the core stays sharp');
+  } finally {
+    env.restore();
+  }
+});
+
+test('W1 path with at: [x, y, z] literals are offsets from at, turned with the object; ids stay put', async () => {
+  const { installJsdom } = await import('../helpers/jsdom-env.js');
+  const env = installJsdom();
+  try {
+    const { Group } = await import('three');
+    const { buildPath } = await import('../../src/core/astrometrics/objects/lines.js');
+    const places = { resolve: (/** @type {any} */ r) => (Array.isArray(r) ? new Vector3(r[0], r[1], r[2]) : r === 'p' ? new Vector3(0, 0, 50) : null), isDynamic: () => false };
+    const ctx = /** @type {any} */ ({ color: () => [1, 1, 1, 1], requestFrame: () => {}, places });
+    const path = buildPath({ type: 'path', at: 'p', points: [[10, 0, 0], 'p'] }, ctx, new Map());
+    // the object's group, placed at `at` and turned a quarter round y (as the scene builder does)
+    const group = new Group();
+    group.position.set(100, 0, 0);
+    group.rotation.y = Math.PI / 2;
+    group.add(path.node);
+    group.updateMatrixWorld(true);
+    path.update();
+    // the line's vertices are in the path node's space, its world matrix pinned to the anchor
+    const l = path.lines[0];
+    const a = new Vector3(l._abs[0], l._abs[1], l._abs[2]).applyMatrix4(path.node.matrixWorld);
+    const b = new Vector3(l._abs[3], l._abs[4], l._abs[5]).applyMatrix4(path.node.matrixWorld);
+    // +10 x turned a quarter round y is -10 z, from the group at x 100
+    close(a.x, 100, 1e-6); close(a.z, -10, 1e-6);
+    // the point id stays where it is
+    close(b.x, 0, 1e-6); close(b.z, 50, 1e-6);
+  } finally {
+    env.restore();
+  }
+});

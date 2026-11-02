@@ -89,7 +89,7 @@ objects:
 
 ## Animated surface fills
 
-`fill_effect` paints a [plasma](/core/effects/background-animations/preset-reference#plasma), [fluid](/core/effects/background-animations/preset-reference#fluid) or [contour-field](/core/effects/background-animations/preset-reference#contour-field) pattern, or `bands` (belts round the latitude, a gas giant), on a `sphere`'s body or under a `grid`'s lines: a star's surface, a gas giant's bands, an ocean, a density map. The pattern is drawn in 3D, so it has no seam round a sphere and no pinch at its poles, and it turns with `spin`. On a sphere it is painted over `fill` in place of `image`, and the body still hides what is behind it.
+`fill_effect` paints a [plasma](/core/effects/background-animations/preset-reference#plasma), [fluid](/core/effects/background-animations/preset-reference#fluid) or [contour-field](/core/effects/background-animations/preset-reference#contour-field) pattern, `bands` (belts round the latitude, a gas giant) or `swirl` (gas spiralling in, below), on a `sphere`'s body or under a `grid`'s lines: a star's surface, a gas giant's bands, an ocean, a density map. The pattern is drawn in 3D, so it has no seam round a sphere and no pinch at its poles, and it turns with `spin`. On a sphere it is painted over `fill` in place of `image`, and the body still hides what is behind it.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -112,14 +112,44 @@ objects:
 | Key | What it does |
 |---|---|
 | `preset` | A [planet type](#planet-types) to start from; the keys you set win over it. |
-| `type` | `plasma` (two-colour bands), `fluid` (a one-colour wash), `contour` (stepped topographic bands) or `bands` (belts round the latitude). Default the preset's type, else `plasma`. |
+| `type` | `plasma` (two-colour bands), `fluid` (a one-colour wash), `contour` (stepped topographic bands), `bands` (belts round the latitude) or `swirl` (gas spiralling in). Default the preset's type, else `plasma`. |
 | `color_a`, `color_b` | `plasma`: its two colours (default `var(--lcars-blue)` and `var(--lcars-orange)`). |
 | `color` | `fluid`: the wash colour; its alpha is how strong the wash is. |
 | `colors`, `num_bands`, `fill_level`, `fill_color`, `blend_colors` | `contour`: as on the contour-field preset (stops from low to high, how many bands, flooding the lowest ones). |
 | `colors`, `num_bands`, `turbulence`, `blend_colors` | `bands`: the belt colours, repeated from the south pole to the north; how many belts pole to pole; how much their edges swirl (0 straight to 1 stormy, default 0.3); soft or hard edges. The belts follow the object's y axis, so they suit a sphere. |
+| `colors`, `turbulence` | `swirl`: colour stops from the middle out to the rim; how much the gas clumps and how ragged its edge is (default 0.3). |
 | `base_frequency`, `num_octaves` | Detail: features per scene unit (default about 3 across the radius) and layers of finer detail. |
-| `speed` | How fast the pattern flows through the object, scene units per second. Default 0, still. |
+| `speed` | How fast the pattern flows through the object, scene units per second; `swirl`: how fast the gas turns at the rim. Default 0, still. |
 | `opacity` | The fill's opacity. |
+
+### Swirls
+
+`type: swirl` is gas spiralling in round the object's y axis: a whirlpool, an accretion disc, a wormhole's mouth. It turns faster toward the middle and is streaked along the spiral, with dark lanes of thinner gas between the streaks, a rippled heart and a ragged outer edge that trails off in wisps (`turbulence`). `colors` run from the heart out to the rim, and `speed` is how fast it turns at the rim. On a `well` grid the gas pours down the funnel; on a `disc` it lies flat. Set `line_width: 0` and `edges: false` on the grid to show the gas alone.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 340
+camera:
+  views:
+    v: { target: [0, -2, 0], yaw: 20, tilt: 40, distance: 34 }
+objects:
+  - type: grid
+    shape: well
+    well_throat: 0.07
+    radius: 15
+    depth: 5
+    line_width: 0
+    edges: false
+    fill_effect:
+      type: swirl
+      colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-dark)]
+      speed: 3
+      turbulence: 0.8
+      num_octaves: 5
+  - { type: glow, at: [0, 3, 0], size: 10, color: var(--lcards-orange-lightest) }
+```
+
+The [Bajoran wormhole starter](./starters#bajoran-wormhole) builds a whole mouth from it, with a shaft of light, sparkling stars and wisps of gas.
 
 ### Planet types
 

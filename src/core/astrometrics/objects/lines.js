@@ -136,7 +136,8 @@ function lineStyle(cfg, ctx, fallback) {
     width: num(cfg.width, 1.5),
     opacity: num(cfg.opacity, 1),
     dash: Array.isArray(cfg.dash) ? cfg.dash.map(Number) : null,
-    additive: cfg.blend === 'add'
+    additive: cfg.blend === 'add',
+    tube: cfg.line_look === 'tube'
   };
 }
 
@@ -151,7 +152,7 @@ function addLine(out, cfg, style) {
   const made = [];
   if (cfg.glow) {
     const k = typeof cfg.glow === 'number' ? Math.max(1, cfg.glow) : 4;
-    const glow = new FatLine([], { ...style, colorTo: style.colorTo, width: (style.width ?? 1.5) * k, opacity: (style.opacity ?? 1) * 0.22, dash: null, additive: true });
+    const glow = new FatLine([], { ...style, colorTo: style.colorTo, width: (style.width ?? 1.5) * k, opacity: (style.opacity ?? 1) * 0.45, dash: null, additive: true, tube: false, lighten: true });
     glow.object.renderOrder = 2.5;
     made.push(glow);
   }
@@ -184,7 +185,9 @@ function addPulse(out, cfg, ctx, width) {
     width: num(p.width, width + 1),
     opacity: num(cfg.opacity, 1),
     dash: [Math.max(0.5, num(p.length, PULSE.length)), Math.max(0, num(p.gap, PULSE.gap))],
-    additive: true
+    additive: true,
+    // on a tube, bands of light wrapped round it
+    tube: cfg.line_look === 'tube'
   });
   line.object.renderOrder = 3.5;
   out.node.add(line.object);
@@ -552,8 +555,14 @@ export function buildPath(cfg, ctx, objects) {
   }
   const refs = Array.isArray(cfg.points) ? cfg.points : [cfg.from, cfg.to].filter((r) => r !== undefined);
   const arc = num(cfg.arc, 0);
+  // with `at`, [x, y, z] literals are offsets in the path's own place and turn (rotation, face)
+  const local = cfg.at !== undefined;
   out.update = () => {
-    const pts = refs.map((r) => ctx.places?.resolve(r) ?? null).filter((p) => !!p);
+    if (local) node.parent?.updateWorldMatrix(true, false);
+    const pts = refs.map((r) => {
+      const p = ctx.places?.resolve(r) ?? null;
+      return p && local && Array.isArray(r) && node.parent ? p.applyMatrix4(node.parent.matrixWorld) : p;
+    }).filter((p) => !!p);
     if (pts.length < 2) { set([]); return; }
     // the arch in the path's own units, whichever frame the camera works in
     node.parent?.updateWorldMatrix(true, false);
@@ -567,7 +576,7 @@ export function buildPath(cfg, ctx, objects) {
     set(anchoredRuns(node, [run]));
   };
   out.repin = repinner(node, out.update);
-  out.dynamic = refs.some((r) => !!ctx.places?.isDynamic(r));
+  out.dynamic = refs.some((r) => !!ctx.places?.isDynamic(r)) || (local && !!ctx.places?.isDynamic(cfg.at));
   return out;
 }
 
@@ -583,10 +592,11 @@ export function buildBeam(cfg, ctx) {
   const color = ctx.color(cfg.color, DEFAULT_COLORS.line);
   const width = num(cfg.width, 12);
   const opacity = num(cfg.opacity, 1);
-  // wide faint, medium, thin bright core
-  const layers = [[width, 0.12], [width * 0.4, 0.25], [Math.min(1.5, width), 0.9]];
+  // wide faint, medium, thin bright core; the wide two fade to their edges (a
+  // haze, not a bar), so twice the opacity carries about the same light
+  const layers = [[width, 0.24], [width * 0.4, 0.5], [Math.min(1.5, width), 0.9]];
   /** @type {FatLine[]} */
-  const lines = layers.map(([w, a]) => new FatLine([], { color, width: w, opacity: opacity * a, additive: true }));
+  const lines = layers.map(([w, a], i) => new FatLine([], { color, width: w, opacity: opacity * a, additive: true, soft: i < 2 }));
   for (const l of lines) {
     node.add(l.object);
     out.lines.push(l);

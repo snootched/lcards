@@ -144,7 +144,7 @@ objects:
 
 ### Wells and wormholes
 
-`shape: well` is a funnel down from its rim: `radius` is the rim, `depth` how far down it goes (default the radius), and the profile is the background grid well's: `well_shape` (`trumpet`, the gravity well; `cone`; `bowl`; `wormhole`, two trumpets throat to throat) with `well_throat` (the throat as a fraction of the rim, default 0.15), or any `well_profile` (diameters from the rim down, such as `[1, 0.3, 0.6]`). The rim sits at the object's position, and the rings are spaced evenly along the surface however steep it gets. `border` draws the rim, and a wormhole's lower mouth.
+`shape: well` is a funnel down from its rim: `radius` is the rim, `depth` how far down it goes (default the radius), and the profile is the background grid well's: `well_shape` (`trumpet`, the gravity well; `cone`; `bowl`; `wormhole`, two trumpets throat to throat) with `well_throat` (the throat as a fraction of the rim, default 0.15), or any `well_profile` (diameters from the rim down, such as `[1, 0.3, 0.6]`). A profile can narrow several times, and diameters above 1 bulge past the rim, so `[0.1, 0.7, 1, 0.85, 0.45, 0.1]` is a rounded lobe with a neck at each end (the [Bajoran wormhole starter](./starters#bajoran-wormhole) chains three). The rim sits at the object's position, and the rings are spaced evenly along the surface however steep it gets. `border` draws the rim, and a wormhole's lower mouth.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -357,9 +357,9 @@ objects:
 
 ## path
 
-A line through `points` (ids or `[x, y, z]`), or `from` / `to`. `arc` lifts each leg into a curve by that height at its middle. With `sky: sun` or `sky: moon` and `object: <dome>`, it is today's track across the sky, cut at the horizon.
+A line through `points` (ids or `[x, y, z]`), or `from` / `to`. With `at`, each `[x, y, z]` is an offset from `at`, turned with `rotation` and `face`, so a drawn shape (a pipeline, an outline) moves with its point; ids stay where they are. `arc` lifts each leg into a curve by that height at its middle. With `sky: sun` or `sky: moon` and `object: <dome>`, it is today's track across the sky, cut at the horizon.
 
-**Line keys** (`ring` and `path`): `width` (px), `dash: [on, off]` (px: the dashes keep their size however close the camera is), `color`, `color_to` (fades along the line), `glow` (`true`, or a width factor), `blend: add`.
+**Line keys** (`ring` and `path`): `width` (px), `dash: [on, off]` (px: the dashes keep their size however close the camera is), `color`, `color_to` (fades along the line), `glow` (`true`, or a width factor: an even halo under the line), `line_look: tube` (shaded as a lit pipe across its width: dark edges and a bright stripe, best from 6 px or so; pulses on it become bands of light round it), `blend: add`.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -375,6 +375,7 @@ objects:
   - { type: ring, at: star, radius: 30, inclination: 25, node: 40, color: var(--lcars-blue) }
   - { type: ring, at: star, radius: [70, 50], dash: [4, 4] }
   - { type: path, points: [a, star, b], arc: 15, width: 2, color: var(--lcars-orange), color_to: var(--lcars-yellow), glow: true }
+  - { type: path, at: star, points: [[-40, -25, 0], [0, -32, 0], [40, -25, 0]], arc: 6, width: 8, line_look: tube, glow: 2, pulse: true, color: var(--lcars-blue) }
 ```
 
 ## beam

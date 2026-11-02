@@ -202,7 +202,7 @@ export const MODEL_TYPES = /** @type {const} */ (['model']);
 export const MODEL_MATERIALS = /** @type {const} */ (['hologram', 'original']);
 
 /** `fill_effect` types on spheres and grids (the background presets plasma, fluid, contour-field; bands: latitude belts) */
-export const FILL_EFFECTS = /** @type {const} */ (['plasma', 'fluid', 'contour', 'bands']);
+export const FILL_EFFECTS = /** @type {const} */ (['plasma', 'fluid', 'contour', 'bands', 'swirl']);
 
 /** `fill_effect` presets: named starting points for planet types (`effects/fills.js` FILL_PRESETS) */
 export const FILL_PRESETS = /** @type {const} */ (['gas_giant', 'ringed_giant', 'ice_giant', 'storm_giant', 'clouds', 'lava', 'ice', 'rocky', 'terran']);

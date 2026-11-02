@@ -436,6 +436,898 @@ camera:
 backdrop: { stars: { count: 2500 } }
 ```
 
+### Bajoran wormhole
+
+The Bajoran wormhole as the station displays draw it: the mouth (a swirl of gas round a warm heart in the realistic look, an entrance disc and funnel in the diagram) and, diagram only, its inside: the pipeline, the negative CTL region, the ring singularity, the positive CTL region, the point singularity and the verteron membrane. Switch the card's look to see one or the other. Tap a name to fly to it. With a power entity (0 to 100) the mouth opens and the regions wobble with it.
+
+| Setting | Default | Notes |
+|---|---|---|
+| Power entity (optional) | `` | A number from 0 to 100: the mouth opens with it. |
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points:
+  - { id: mouth, xyz: [0, 0, 0] }
+  - id: name
+    at: mouth
+    offset: [0, 14, 0]
+    label: BAJORAN WORMHOLE
+    style: major
+    tap_action: { action: fly-to, view: mouth }
+  - { id: wormhole_throat, object: wormhole_mouth, xyz: [0, -7, 0] }
+  - { id: wormhole_out, object: wormhole_mouth, xyz: [0, 54, 0] }
+  - { id: wormhole_haze, object: wormhole_mouth, xyz: [0, 14.4, 0] }
+  - { id: wormhole_shaft_1, object: wormhole_mouth, xyz: [0, 1.35, 0] }
+  - { id: wormhole_shaft_2, object: wormhole_mouth, xyz: [0, 4.35, 0] }
+  - { id: wormhole_shaft_3, object: wormhole_mouth, xyz: [0, 7.35, 0] }
+  - { id: wormhole_shaft_4, object: wormhole_mouth, xyz: [0, 10.35, 0] }
+  - { id: wormhole_shaft_5, object: wormhole_mouth, xyz: [0, 13.35, 0] }
+  - { id: wormhole_shaft_6, object: wormhole_mouth, xyz: [0, 16.35, 0] }
+  - { id: wormhole_shaft_7, object: wormhole_mouth, xyz: [0, 19.35, 0] }
+  - { id: wormhole_shaft_8, object: wormhole_mouth, xyz: [0, 22.35, 0] }
+  - { id: wormhole_shaft_9, object: wormhole_mouth, xyz: [0, 25.35, 0] }
+  - { id: wormhole_shaft_10, object: wormhole_mouth, xyz: [0, 28.35, 0] }
+  - { id: wormhole_shaft_11, object: wormhole_mouth, xyz: [0, 31.35, 0] }
+  - { id: wormhole_shaft_12, object: wormhole_mouth, xyz: [0, 34.35, 0] }
+  - { id: wormhole_shaft_13, object: wormhole_mouth, xyz: [0, 37.35, 0] }
+  - { id: wormhole_shaft_14, object: wormhole_mouth, xyz: [0, 40.35, 0] }
+  - { id: wormhole_shaft_15, object: wormhole_mouth, xyz: [0, 43.35, 0] }
+  - { id: wormhole_shaft_16, object: wormhole_mouth, xyz: [0, 46.35, 0] }
+  - { id: wormhole_down, at: mouth, offset: [0, -1000, 0] }
+  - { id: wormhole_east, at: mouth, offset: [1000, -9, 0] }
+  - { id: wormhole_west, at: mouth, offset: [-1000, -9, 0] }
+  - { id: wormhole_negative, at: mouth, offset: [20, -9, 0] }
+  - { id: wormhole_negative_cone, at: mouth, offset: [21, -9, 0] }
+  - { id: wormhole_ring_singularity, at: mouth, offset: [33, -9, 0] }
+  - { id: wormhole_positive, at: mouth, offset: [33.5, -9, 0] }
+  - { id: wormhole_point_singularity, at: mouth, offset: [52, -9, 0] }
+  - { id: wormhole_membrane, at: mouth, offset: [52, -9, 0] }
+  - { id: wormhole_membrane_centre, at: mouth, offset: [58, -9, 0] }
+  - { id: wormhole_middle, at: mouth, offset: [30, -9, 0] }
+  - id: wormhole_label_pipeline
+    at: mouth
+    offset: [-4, -15, 0]
+    label: PIPELINE
+    style: minor
+    look: diagram
+    tap_action: { action: fly-to }
+  - id: wormhole_label_negative
+    at: mouth
+    offset: [26, -18, 0]
+    label: NEGATIVE CTL REGION
+    style: minor
+    look: diagram
+    tap_action: { action: fly-to }
+  - id: wormhole_label_ring
+    at: mouth
+    offset: [33, 1, 0]
+    label: RING SINGULARITY
+    style: minor
+    look: diagram
+    tap_action: { action: fly-to }
+  - id: wormhole_label_positive
+    at: mouth
+    offset: [40, -19, 0]
+    label: POSITIVE CTL REGION
+    style: minor
+    look: diagram
+    tap_action: { action: fly-to }
+  - id: wormhole_label_point
+    at: mouth
+    offset: [50, -17, 0]
+    label: POINT SINGULARITY
+    style: minor
+    look: diagram
+    tap_action: { action: fly-to }
+  - id: wormhole_label_membrane
+    at: mouth
+    offset: [60, 2, 0]
+    label: VERTERON MEMBRANE
+    style: minor
+    look: diagram
+    tap_action: { action: fly-to }
+objects:
+  - type: grid
+    id: wormhole_mouth
+    shape: well
+    well_shape: trumpet
+    well_throat: 0.1
+    at: mouth
+    face: wormhole_down
+    radius: 9
+    depth: 7
+    line_spacing_deg: 20
+    color: var(--lcars-blue)
+    scan_period: 4
+    look: diagram
+    deform: [{ type: twist, angle: 60, anchor: top }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
+  - type: ring
+    id: wormhole_ring
+    at: mouth
+    face: wormhole_down
+    radius: 15.75
+    dash: [6, 10]
+    width: 2
+    flow_speed: 40
+    spin: 90
+    look: diagram
+  - { type: glow, id: wormhole_glow, at: mouth, color: var(--lcars-blue), size: 18, look: diagram }
+  - type: grid
+    id: wormhole_funnel
+    shape: well
+    well_shape: trumpet
+    well_throat: 0.07
+    at: mouth
+    face: wormhole_down
+    radius: 13.5
+    depth: 7
+    line_width: 0
+    edges: false
+    look: realistic
+    fill_effect:
+      type: swirl
+      colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-medium-dark), var(--lcards-blue-medium), var(--lcards-blue-dark)]
+      speed: 2.7
+      turbulence: 0.8
+      num_octaves: 5
+    deform: [{ type: twist, angle: 80, anchor: top, period: 6 }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
+  - type: galaxy
+    id: wormhole_vortex
+    at: mouth
+    face: wormhole_down
+    look: realistic
+    radius: 13.5
+    arms: 4
+    pitch: 20
+    bar: 0
+    thickness: 0.02
+    stars: 8000
+    seed: 4
+    glow: 0
+    dust: 0
+    arm_color: var(--lcards-blue-light)
+    core_color: var(--lcards-moonlight)
+    spin: 25
+  - { type: glow, id: wormhole_heart, at: mouth, color: var(--lcards-orange-lightest), size: 7.2, look: realistic }
+  - type: glow
+    id: wormhole_light_1
+    at: wormhole_shaft_1
+    size: 6.3
+    color: var(--lcards-orange-lightest)
+    opacity: 0.69
+    look: realistic
+  - type: glow
+    id: wormhole_light_2
+    at: wormhole_shaft_2
+    size: 7.38
+    color: var(--lcards-orange-lightest)
+    opacity: 0.626
+    look: realistic
+  - type: glow
+    id: wormhole_light_3
+    at: wormhole_shaft_3
+    size: 8.46
+    color: var(--lcards-orange-lightest)
+    opacity: 0.564
+    look: realistic
+  - type: glow
+    id: wormhole_light_4
+    at: wormhole_shaft_4
+    size: 9.54
+    color: var(--lcards-orange-lightest)
+    opacity: 0.505
+    look: realistic
+  - type: glow
+    id: wormhole_light_5
+    at: wormhole_shaft_5
+    size: 10.62
+    color: var(--lcards-orange-lightest)
+    opacity: 0.448
+    look: realistic
+  - type: glow
+    id: wormhole_light_6
+    at: wormhole_shaft_6
+    size: 11.7
+    color: var(--lcards-orange-lightest)
+    opacity: 0.394
+    look: realistic
+  - type: glow
+    id: wormhole_light_7
+    at: wormhole_shaft_7
+    size: 12.78
+    color: var(--lcards-orange-lightest)
+    opacity: 0.342
+    look: realistic
+  - type: glow
+    id: wormhole_light_8
+    at: wormhole_shaft_8
+    size: 13.86
+    color: var(--lcards-orange-lightest)
+    opacity: 0.293
+    look: realistic
+  - type: glow
+    id: wormhole_light_9
+    at: wormhole_shaft_9
+    size: 14.94
+    color: var(--lcards-orange-lightest)
+    opacity: 0.247
+    look: realistic
+  - type: glow
+    id: wormhole_light_10
+    at: wormhole_shaft_10
+    size: 16.02
+    color: var(--lcards-orange-lightest)
+    opacity: 0.204
+    look: realistic
+  - type: glow
+    id: wormhole_light_11
+    at: wormhole_shaft_11
+    size: 17.1
+    color: var(--lcards-orange-lightest)
+    opacity: 0.165
+    look: realistic
+  - type: glow
+    id: wormhole_light_12
+    at: wormhole_shaft_12
+    size: 18.18
+    color: var(--lcards-orange-lightest)
+    opacity: 0.13
+    look: realistic
+  - type: glow
+    id: wormhole_light_13
+    at: wormhole_shaft_13
+    size: 19.26
+    color: var(--lcards-orange-lightest)
+    opacity: 0.098
+    look: realistic
+  - type: glow
+    id: wormhole_light_14
+    at: wormhole_shaft_14
+    size: 20.34
+    color: var(--lcards-orange-lightest)
+    opacity: 0.072
+    look: realistic
+  - type: glow
+    id: wormhole_light_15
+    at: wormhole_shaft_15
+    size: 21.42
+    color: var(--lcards-orange-lightest)
+    opacity: 0.051
+    look: realistic
+  - type: glow
+    id: wormhole_light_16
+    at: wormhole_shaft_16
+    size: 22.5
+    color: var(--lcards-orange-lightest)
+    opacity: 0.04
+    look: realistic
+  - type: nebula
+    id: wormhole_wisps
+    at: mouth
+    radius: 16.2
+    cloud_count: 6
+    seed: 7
+    drift: 0.6
+    brightness: [0.15, 0.35]
+    colors: [var(--lcars-violet), var(--lcards-blue-medium)]
+    opacity: 1
+    look: realistic
+  - type: nebula
+    id: wormhole_wisps_out
+    at: wormhole_haze
+    radius: 6.075
+    cloud_count: 3
+    seed: 3
+    drift: 1
+    brightness: [0.1, 0.25]
+    colors: [var(--lcards-orange-lightest), var(--lcards-blue-light)]
+    opacity: 1
+    look: realistic
+  - type: path
+    id: wormhole_throat_tube
+    points: [mouth, wormhole_throat]
+    color: var(--lcars-blue)
+    width: 8
+    line_look: tube
+    glow: 3
+    pulse: true
+    flow_speed: 30
+    look: diagram
+  - type: grid
+    id: wormhole_entrance
+    shape: disc
+    at: mouth
+    radius: 9
+    pattern: polar
+    line_spacing_deg: 20
+    color: var(--lcars-blue)
+    opacity: 0.8
+    look: diagram
+  - type: path
+    id: wormhole_strand_1
+    at: mouth
+    points:
+      - [0, -6.55, 0]
+      - [0, -6.809, 0.088]
+      - [0, -7.071, 0.176]
+      - [0, -7.339, 0.261]
+      - [0, -7.61, 0.344]
+      - [0, -7.885, 0.424]
+      - [0, -8.164, 0.5]
+      - [0, -8.447, 0.571]
+      - [0, -8.733, 0.636]
+      - [0, -9.022, 0.696]
+      - [0, -9.314, 0.748]
+      - [0, -9.608, 0.794]
+      - [0, -9.905, 0.831]
+      - [0, -10.203, 0.861]
+      - [0, -10.502, 0.883]
+      - [0, -10.802, 0.896]
+      - [0, -11.103, 0.9]
+      - [0, -11.403, 0.896]
+      - [0, -11.703, 0.883]
+      - [0, -12.002, 0.861]
+      - [0, -12.3, 0.831]
+      - [0, -12.597, 0.794]
+      - [0, -12.891, 0.748]
+      - [0, -13.183, 0.696]
+      - [0, -13.472, 0.636]
+      - [0, -13.758, 0.571]
+      - [0, -14.041, 0.5]
+      - [0, -14.32, 0.424]
+      - [0, -14.595, 0.344]
+      - [0, -14.867, 0.261]
+      - [0, -15.134, 0.176]
+      - [0, -15.397, 0.088]
+      - [0, -15.655, 0]
+      - [0, -15.909, -0.088]
+      - [0, -16.159, -0.176]
+      - [0, -16.405, -0.261]
+      - [0, -16.647, -0.344]
+      - [0, -16.884, -0.424]
+      - [0, -17.118, -0.5]
+      - [0, -17.348, -0.571]
+      - [0.018, -17.513, -0.636]
+      - [0.07, -17.672, -0.696]
+      - [0.157, -17.825, -0.748]
+      - [0.277, -17.968, -0.794]
+      - [0.429, -18.1, -0.831]
+      - [0.612, -18.22, -0.861]
+      - [0.822, -18.326, -0.883]
+      - [1.058, -18.416, -0.896]
+      - [1.316, -18.49, -0.9]
+      - [1.595, -18.546, -0.896]
+      - [1.89, -18.584, -0.883]
+      - [2.197, -18.604, -0.861]
+      - [2.515, -18.604, -0.831]
+      - [2.838, -18.585, -0.794]
+      - [3.162, -18.547, -0.748]
+      - [3.485, -18.491, -0.696]
+      - [3.803, -18.416, -0.636]
+      - [4.11, -18.324, -0.571]
+      - [4.405, -18.216, -0.5]
+      - [4.684, -18.093, -0.424]
+      - [4.942, -17.956, -0.344]
+      - [5.178, -17.807, -0.261]
+      - [5.388, -17.648, -0.176]
+      - [5.571, -17.48, -0.088]
+      - [5.723, -17.306, -0.0]
+      - [5.843, -17.127, 0.088]
+      - [5.93, -16.946, 0.176]
+      - [5.982, -16.764, 0.261]
+      - [6, -16.584, 0.344]
+      - [6.237, -16.124, 0.424]
+      - [6.475, -15.687, 0.5]
+      - [6.712, -15.283, 0.571]
+      - [6.949, -14.916, 0.636]
+      - [7.186, -14.594, 0.696]
+      - [7.424, -14.319, 0.748]
+      - [7.661, -14.095, 0.794]
+      - [7.898, -13.922, 0.831]
+      - [8.136, -13.801, 0.861]
+      - [8.373, -13.73, 0.883]
+      - [8.61, -13.706, 0.896]
+      - [8.847, -13.724, 0.9]
+      - [9.085, -13.781, 0.896]
+      - [9.322, -13.87, 0.883]
+      - [9.559, -13.984, 0.861]
+      - [9.797, -14.116, 0.831]
+      - [10.034, -14.26, 0.794]
+      - [10.271, -14.407, 0.748]
+      - [10.508, -14.551, 0.696]
+      - [10.746, -14.684, 0.636]
+      - [10.983, -14.8, 0.571]
+      - [11.22, -14.894, 0.5]
+      - [11.458, -14.96, 0.424]
+      - [11.695, -14.994, 0.344]
+      - [11.932, -14.995, 0.261]
+      - [12.169, -14.959, 0.176]
+      - [12.407, -14.886, 0.088]
+      - [12.644, -14.776, 0]
+      - [12.881, -14.631, -0.088]
+      - [13.119, -14.451, -0.176]
+      - [13.356, -14.241, -0.261]
+      - [13.593, -14.004, -0.344]
+      - [13.831, -13.744, -0.424]
+      - [14.068, -13.466, -0.5]
+      - [14.305, -13.173, -0.571]
+      - [14.542, -12.872, -0.636]
+      - [14.78, -12.567, -0.696]
+      - [15.017, -12.263, -0.748]
+      - [15.254, -11.964, -0.794]
+      - [15.492, -11.673, -0.831]
+      - [15.729, -11.395, -0.861]
+      - [15.966, -11.131, -0.883]
+      - [16.203, -10.884, -0.896]
+      - [16.441, -10.655, -0.9]
+      - [16.678, -10.444, -0.896]
+      - [16.915, -10.251, -0.883]
+      - [17.153, -10.076, -0.861]
+      - [17.39, -9.916, -0.831]
+      - [17.627, -9.771, -0.794]
+      - [17.864, -9.638, -0.748]
+      - [18.102, -9.514, -0.696]
+      - [18.339, -9.396, -0.636]
+      - [18.576, -9.283, -0.571]
+      - [18.814, -9.17, -0.5]
+      - [19.051, -9.057, -0.424]
+      - [19.288, -8.939, -0.344]
+      - [19.525, -8.817, -0.261]
+      - [19.763, -8.688, -0.176]
+      - [20, -8.552, -0.088]
+    color: var(--lcars-blue)
+    width: 4
+    line_look: tube
+    glow: 2
+    pulse: true
+    flow_speed: 30
+    look: diagram
+  - type: path
+    id: wormhole_strand_2
+    at: mouth
+    points:
+      - [0, -7.227, 0.777]
+      - [0, -7.521, 0.729]
+      - [0, -7.811, 0.673]
+      - [0, -8.099, 0.612]
+      - [0, -8.384, 0.544]
+      - [0, -8.666, 0.471]
+      - [0, -8.943, 0.394]
+      - [0, -9.217, 0.312]
+      - [0, -9.487, 0.228]
+      - [0, -9.752, 0.142]
+      - [0, -10.013, 0.054]
+      - [0, -10.27, -0.034]
+      - [0, -10.523, -0.122]
+      - [0, -10.771, -0.209]
+      - [0, -11.015, -0.294]
+      - [0, -11.255, -0.376]
+      - [0, -11.491, -0.454]
+      - [0, -11.723, -0.528]
+      - [0, -11.952, -0.597]
+      - [0, -12.178, -0.66]
+      - [0, -12.4, -0.717]
+      - [0, -12.62, -0.767]
+      - [0, -12.838, -0.809]
+      - [0, -13.054, -0.844]
+      - [0, -13.268, -0.871]
+      - [0, -13.481, -0.889]
+      - [0, -13.694, -0.898]
+      - [0, -13.906, -0.899]
+      - [0, -14.118, -0.892]
+      - [0, -14.331, -0.875]
+      - [0, -14.545, -0.851]
+      - [0, -14.761, -0.818]
+      - [0, -14.978, -0.777]
+      - [0, -15.197, -0.729]
+      - [0, -15.419, -0.673]
+      - [0, -15.644, -0.612]
+      - [0, -15.872, -0.544]
+      - [0, -16.104, -0.471]
+      - [0, -16.339, -0.394]
+      - [0, -16.578, -0.312]
+      - [0.018, -16.759, -0.228]
+      - [0.07, -16.943, -0.142]
+      - [0.157, -17.126, -0.054]
+      - [0.277, -17.306, 0.034]
+      - [0.429, -17.482, 0.122]
+      - [0.612, -17.652, 0.209]
+      - [0.822, -17.813, 0.294]
+      - [1.058, -17.963, 0.376]
+      - [1.316, -18.101, 0.454]
+      - [1.595, -18.226, 0.528]
+      - [1.89, -18.335, 0.597]
+      - [2.197, -18.429, 0.66]
+      - [2.515, -18.504, 0.717]
+      - [2.838, -18.562, 0.767]
+      - [3.162, -18.601, 0.809]
+      - [3.485, -18.62, 0.844]
+      - [3.803, -18.62, 0.871]
+      - [4.11, -18.601, 0.889]
+      - [4.405, -18.563, 0.898]
+      - [4.684, -18.507, 0.899]
+      - [4.942, -18.433, 0.892]
+      - [5.178, -18.342, 0.875]
+      - [5.388, -18.236, 0.851]
+      - [5.571, -18.116, 0.818]
+      - [5.723, -17.983, 0.777]
+      - [5.843, -17.839, 0.729]
+      - [5.93, -17.686, 0.673]
+      - [5.982, -17.525, 0.612]
+      - [6, -17.359, 0.544]
+      - [6.237, -16.904, 0.471]
+      - [6.475, -16.466, 0.394]
+      - [6.712, -16.052, 0.312]
+      - [6.949, -15.67, 0.228]
+      - [7.186, -15.324, 0.142]
+      - [7.424, -15.018, 0.054]
+      - [7.661, -14.757, -0.034]
+      - [7.898, -14.54, -0.122]
+      - [8.136, -14.369, -0.209]
+      - [8.373, -14.243, -0.294]
+      - [8.61, -14.158, -0.376]
+      - [8.847, -14.113, -0.454]
+      - [9.085, -14.101, -0.528]
+      - [9.322, -14.119, -0.597]
+      - [9.559, -14.159, -0.66]
+      - [9.797, -14.216, -0.717]
+      - [10.034, -14.283, -0.767]
+      - [10.271, -14.354, -0.809]
+      - [10.508, -14.421, -0.844]
+      - [10.746, -14.48, -0.871]
+      - [10.983, -14.523, -0.889]
+      - [11.22, -14.546, -0.898]
+      - [11.458, -14.546, -0.899]
+      - [11.695, -14.517, -0.892]
+      - [11.932, -14.46, -0.875]
+      - [12.169, -14.371, -0.851]
+      - [12.407, -14.25, -0.818]
+      - [12.644, -14.099, -0.777]
+      - [12.881, -13.919, -0.729]
+      - [13.119, -13.712, -0.673]
+      - [13.356, -13.481, -0.612]
+      - [13.593, -13.23, -0.544]
+      - [13.831, -12.964, -0.471]
+      - [14.068, -12.687, -0.394]
+      - [14.305, -12.403, -0.312]
+      - [14.542, -12.119, -0.228]
+      - [14.78, -11.837, -0.142]
+      - [15.017, -11.564, -0.054]
+      - [15.254, -11.302, 0.034]
+      - [15.492, -11.055, 0.122]
+      - [15.729, -10.826, 0.209]
+      - [15.966, -10.618, 0.294]
+      - [16.203, -10.431, 0.376]
+      - [16.441, -10.266, 0.454]
+      - [16.678, -10.123, 0.528]
+      - [16.915, -10.002, 0.597]
+      - [17.153, -9.9, 0.66]
+      - [17.39, -9.817, 0.717]
+      - [17.627, -9.748, 0.767]
+      - [17.864, -9.691, 0.809]
+      - [18.102, -9.643, 0.844]
+      - [18.339, -9.6, 0.871]
+      - [18.576, -9.56, 0.889]
+      - [18.814, -9.517, 0.898]
+      - [19.051, -9.471, 0.899]
+      - [19.288, -9.416, 0.892]
+      - [19.525, -9.352, 0.875]
+      - [19.763, -9.277, 0.851]
+      - [20, -9.188, 0.818]
+    color: var(--lcars-blue)
+    width: 4
+    line_look: tube
+    glow: 2
+    pulse: true
+    flow_speed: 30
+    look: diagram
+  - type: path
+    id: wormhole_strand_3
+    at: mouth
+    points:
+      - [0, -7.221, -0.784]
+      - [0, -7.438, -0.824]
+      - [0, -7.653, -0.855]
+      - [0, -7.866, -0.879]
+      - [0, -8.079, -0.894]
+      - [0, -8.292, -0.9]
+      - [0, -8.504, -0.897]
+      - [0, -8.717, -0.886]
+      - [0, -8.93, -0.867]
+      - [0, -9.144, -0.839]
+      - [0, -9.361, -0.803]
+      - [0, -9.579, -0.759]
+      - [0, -9.799, -0.708]
+      - [0, -10.022, -0.65]
+      - [0, -10.248, -0.586]
+      - [0, -10.477, -0.516]
+      - [0, -10.71, -0.441]
+      - [0, -10.947, -0.362]
+      - [0, -11.188, -0.28]
+      - [0, -11.432, -0.195]
+      - [0, -11.681, -0.107]
+      - [0, -11.935, -0.019]
+      - [0, -12.192, 0.069]
+      - [0, -12.454, 0.157]
+      - [0, -12.721, 0.243]
+      - [0, -12.991, 0.326]
+      - [0, -13.265, 0.407]
+      - [0, -13.544, 0.484]
+      - [0, -13.826, 0.556]
+      - [0, -14.111, 0.623]
+      - [0, -14.399, 0.683]
+      - [0, -14.691, 0.737]
+      - [0, -14.985, 0.784]
+      - [0, -15.28, 0.824]
+      - [0, -15.578, 0.855]
+      - [0, -15.877, 0.879]
+      - [0, -16.177, 0.894]
+      - [0, -16.477, 0.9]
+      - [0, -16.778, 0.897]
+      - [0, -17.078, 0.886]
+      - [0.018, -17.316, 0.867]
+      - [0.07, -17.55, 0.839]
+      - [0.157, -17.778, 0.803]
+      - [0.277, -17.998, 0.759]
+      - [0.429, -18.206, 0.708]
+      - [0.612, -18.401, 0.65]
+      - [0.822, -18.579, 0.586]
+      - [1.058, -18.741, 0.516]
+      - [1.316, -18.882, 0.441]
+      - [1.595, -19.002, 0.362]
+      - [1.89, -19.1, 0.28]
+      - [2.197, -19.174, 0.195]
+      - [2.515, -19.223, 0.107]
+      - [2.838, -19.247, 0.019]
+      - [3.162, -19.246, -0.069]
+      - [3.485, -19.219, -0.157]
+      - [3.803, -19.168, -0.243]
+      - [4.11, -19.092, -0.326]
+      - [4.405, -18.992, -0.407]
+      - [4.684, -18.869, -0.484]
+      - [4.942, -18.726, -0.556]
+      - [5.178, -18.563, -0.623]
+      - [5.388, -18.382, -0.683]
+      - [5.571, -18.186, -0.737]
+      - [5.723, -17.976, -0.784]
+      - [5.843, -17.756, -0.824]
+      - [5.93, -17.527, -0.855]
+      - [5.982, -17.292, -0.879]
+      - [6, -17.054, -0.894]
+      - [6.237, -16.53, -0.9]
+      - [6.475, -16.027, -0.897]
+      - [6.712, -15.552, -0.886]
+      - [6.949, -15.113, -0.867]
+      - [7.186, -14.716, -0.839]
+      - [7.424, -14.366, -0.803]
+      - [7.661, -14.065, -0.759]
+      - [7.898, -13.817, -0.708]
+      - [8.136, -13.62, -0.65]
+      - [8.373, -13.476, -0.586]
+      - [8.61, -13.381, -0.516]
+      - [8.847, -13.332, -0.441]
+      - [9.085, -13.325, -0.362]
+      - [9.322, -13.354, -0.28]
+      - [9.559, -13.414, -0.195]
+      - [9.797, -13.497, -0.107]
+      - [10.034, -13.598, -0.019]
+      - [10.271, -13.708, 0.069]
+      - [10.508, -13.822, 0.157]
+      - [10.746, -13.932, 0.243]
+      - [10.983, -14.033, 0.326]
+      - [11.22, -14.118, 0.407]
+      - [11.458, -14.183, 0.484]
+      - [11.695, -14.225, 0.556]
+      - [11.932, -14.239, 0.623]
+      - [12.169, -14.225, 0.683]
+      - [12.407, -14.18, 0.737]
+      - [12.644, -14.106, 0.784]
+      - [12.881, -14.002, 0.824]
+      - [13.119, -13.87, 0.855]
+      - [13.356, -13.714, 0.879]
+      - [13.593, -13.535, 0.894]
+      - [13.831, -13.338, 0.9]
+      - [14.068, -13.126, 0.897]
+      - [14.305, -12.904, 0.886]
+      - [14.542, -12.675, 0.867]
+      - [14.78, -12.445, 0.839]
+      - [15.017, -12.217, 0.803]
+      - [15.254, -11.993, 0.759]
+      - [15.492, -11.779, 0.708]
+      - [15.729, -11.575, 0.65]
+      - [15.966, -11.385, 0.586]
+      - [16.203, -11.208, 0.516]
+      - [16.441, -11.047, 0.441]
+      - [16.678, -10.9, 0.362]
+      - [16.915, -10.766, 0.28]
+      - [17.153, -10.646, 0.195]
+      - [17.39, -10.535, 0.107]
+      - [17.627, -10.433, 0.019]
+      - [17.864, -10.336, -0.069]
+      - [18.102, -10.242, -0.157]
+      - [18.339, -10.148, -0.243]
+      - [18.576, -10.05, -0.326]
+      - [18.814, -9.946, -0.407]
+      - [19.051, -9.833, -0.484]
+      - [19.288, -9.709, -0.556]
+      - [19.525, -9.573, -0.623]
+      - [19.763, -9.423, -0.683]
+      - [20, -9.258, -0.737]
+    color: var(--lcars-blue)
+    width: 4
+    line_look: tube
+    glow: 2
+    pulse: true
+    flow_speed: 30
+    look: diagram
+  - type: grid
+    id: wormhole_negative_outer
+    shape: well
+    well_profile: [0.1, 0.7, 0.98, 1, 0.85, 0.45, 0.1]
+    at: wormhole_negative
+    face: wormhole_east
+    radius: 7
+    depth: 13
+    pattern: polar
+    spoke_count: 16
+    line_spacing: 2.4
+    color: var(--lcars-blue)
+    opacity: 1
+    look: diagram
+    deform: [{ type: wobble, lobes: 0, waves: 2, period: 4, amplitude: 0.03 }]
+  - type: grid
+    id: wormhole_negative_inner
+    shape: well
+    well_profile: [0.1, 0.7, 0.98, 1, 0.85, 0.45, 0.1]
+    at: wormhole_negative
+    face: wormhole_east
+    radius: 4.8
+    depth: 13
+    pattern: polar
+    spoke_count: 16
+    line_spacing: 2.4
+    color: var(--lcars-blue)
+    opacity: 0.6
+    look: diagram
+    deform: [{ type: wobble, lobes: 0, waves: 2, period: 4, amplitude: 0.03 }]
+  - type: grid
+    id: wormhole_negative_cone_grid
+    shape: well
+    well_shape: cone
+    well_throat: 0.05
+    at: wormhole_negative_cone
+    face: wormhole_east
+    radius: 2.5
+    depth: 11
+    line_spacing_deg: 30
+    color: var(--lcards-moonlight)
+    opacity: 0.8
+    look: diagram
+  - type: ring
+    id: wormhole_ring_singularity_ring
+    at: wormhole_ring_singularity
+    face: wormhole_east
+    radius: 1.6
+    width: 3
+    glow: 2
+    color: var(--lcards-moonlight)
+    look: diagram
+  - type: grid
+    id: wormhole_positive_outer
+    shape: well
+    well_profile: [0.1, 0.85, 1, 0.95, 0.6, 0.1]
+    at: wormhole_positive
+    face: wormhole_east
+    radius: 7.5
+    depth: 18.5
+    pattern: polar
+    spoke_count: 16
+    line_spacing: 2.4
+    color: var(--lcars-blue)
+    opacity: 1
+    look: diagram
+    deform: [{ type: wobble, lobes: 0, waves: 2, period: 4, amplitude: 0.03 }]
+  - type: grid
+    id: wormhole_positive_inner
+    shape: well
+    well_profile: [0.1, 0.85, 1, 0.95, 0.6, 0.1]
+    at: wormhole_positive
+    face: wormhole_east
+    radius: 5
+    depth: 18.5
+    pattern: polar
+    spoke_count: 16
+    line_spacing: 2.4
+    color: var(--lcars-blue)
+    opacity: 0.6
+    look: diagram
+    deform: [{ type: wobble, lobes: 0, waves: 2, period: 4, amplitude: 0.03 }]
+  - type: grid
+    id: wormhole_point_singularity_cone
+    shape: well
+    well_shape: cone
+    well_throat: 0.04
+    at: wormhole_point_singularity
+    face: wormhole_west
+    radius: 3
+    depth: 9
+    line_spacing_deg: 24
+    color: var(--lcards-moonlight)
+    look: diagram
+  - type: glow
+    id: wormhole_point_glow
+    at: wormhole_point_singularity
+    size: 5
+    color: var(--lcards-moonlight)
+    look: diagram
+  - type: grid
+    id: wormhole_membrane_outer
+    shape: well
+    well_profile: [0.3, 0.85, 1, 0.9, 0.55, 0.25]
+    at: wormhole_membrane
+    face: wormhole_east
+    radius: 8
+    depth: 13
+    pattern: polar
+    spoke_count: 16
+    line_spacing: 2.4
+    color: var(--lcars-blue)
+    opacity: 1
+    look: diagram
+    deform: [{ type: wobble, lobes: 0, waves: 2, period: 4, amplitude: 0.03 }]
+  - type: grid
+    id: wormhole_membrane_inner
+    shape: well
+    well_profile: [0.3, 0.85, 1, 0.9, 0.55, 0.25]
+    at: wormhole_membrane
+    face: wormhole_east
+    radius: 5.5
+    depth: 13
+    pattern: polar
+    spoke_count: 16
+    line_spacing: 2.4
+    color: var(--lcars-blue)
+    opacity: 0.6
+    look: diagram
+    deform: [{ type: wobble, lobes: 0, waves: 2, period: 4, amplitude: 0.03 }]
+  - type: ring
+    id: wormhole_orbit_1
+    at: wormhole_membrane_centre
+    radius: 10
+    rotation: [75, -20, 10]
+    width: 2
+    color: var(--lcars-blue)
+    opacity: 0.8
+    look: diagram
+  - type: ring
+    id: wormhole_orbit_2
+    at: wormhole_membrane_centre
+    radius: 13
+    rotation: [65, -35, -15]
+    width: 2
+    color: var(--lcars-blue)
+    opacity: 0.8
+    look: diagram
+  - type: ring
+    id: wormhole_orbit_3
+    at: wormhole_membrane_centre
+    radius: 16
+    rotation: [80, -10, 25]
+    width: 2
+    color: var(--lcars-blue)
+    opacity: 0.8
+    look: diagram
+camera:
+  view: overview
+  views:
+    overview: { target: wormhole_middle, yaw: 28, tilt: 14, distance: 88 }
+    mouth: { target: mouth, yaw: 20, tilt: 40, distance: 34 }
+    inside: { target: wormhole_ring_singularity, yaw: 60, tilt: 10, distance: 30 }
+    membrane: { target: wormhole_membrane_centre, yaw: 20, tilt: 20, distance: 34 }
+backdrop: { stars: { count: 2500 } }
+```
+
 ### Utopia Planitia yards
 
 Three drydocks of the Utopia Planitia Fleet Yards in orbit over Mars (its USGS Viking map), a Constitution-class starship in the first. Tap a drydock to fly to it.
@@ -1306,8 +2198,42 @@ points:
   - { id: wormhole_aim_alpha, at: wormhole_alpha, offset: [0, 12566, 0], hide_in_systems: true }
   - { id: wormhole_alpha_throat, object: wormhole_alpha_mouth, xyz: [0, -1.6, 0], hide_in_systems: true }
   - { id: wormhole_alpha_out, object: wormhole_alpha_mouth, xyz: [0, 3.5999999999999996, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_haze, object: wormhole_alpha_mouth, xyz: [0, 0.96, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_shaft_1, object: wormhole_alpha_mouth, xyz: [0, 0.09, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_shaft_2, object: wormhole_alpha_mouth, xyz: [0, 0.29, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_shaft_3, object: wormhole_alpha_mouth, xyz: [0, 0.49, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_shaft_4, object: wormhole_alpha_mouth, xyz: [0, 0.69, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_shaft_5, object: wormhole_alpha_mouth, xyz: [0, 0.89, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_shaft_6, object: wormhole_alpha_mouth, xyz: [0, 1.09, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_shaft_7, object: wormhole_alpha_mouth, xyz: [0, 1.29, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_shaft_8, object: wormhole_alpha_mouth, xyz: [0, 1.49, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_shaft_9, object: wormhole_alpha_mouth, xyz: [0, 1.69, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_shaft_10, object: wormhole_alpha_mouth, xyz: [0, 1.89, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_shaft_11, object: wormhole_alpha_mouth, xyz: [0, 2.09, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_shaft_12, object: wormhole_alpha_mouth, xyz: [0, 2.29, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_shaft_13, object: wormhole_alpha_mouth, xyz: [0, 2.49, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_shaft_14, object: wormhole_alpha_mouth, xyz: [0, 2.69, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_shaft_15, object: wormhole_alpha_mouth, xyz: [0, 2.89, 0], hide_in_systems: true }
+  - { id: wormhole_alpha_shaft_16, object: wormhole_alpha_mouth, xyz: [0, 3.09, 0], hide_in_systems: true }
   - { id: wormhole_gamma_throat, object: wormhole_gamma_mouth, xyz: [0, -1.6, 0], hide_in_systems: true }
   - { id: wormhole_gamma_out, object: wormhole_gamma_mouth, xyz: [0, 3.5999999999999996, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_haze, object: wormhole_gamma_mouth, xyz: [0, 0.96, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_shaft_1, object: wormhole_gamma_mouth, xyz: [0, 0.09, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_shaft_2, object: wormhole_gamma_mouth, xyz: [0, 0.29, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_shaft_3, object: wormhole_gamma_mouth, xyz: [0, 0.49, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_shaft_4, object: wormhole_gamma_mouth, xyz: [0, 0.69, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_shaft_5, object: wormhole_gamma_mouth, xyz: [0, 0.89, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_shaft_6, object: wormhole_gamma_mouth, xyz: [0, 1.09, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_shaft_7, object: wormhole_gamma_mouth, xyz: [0, 1.29, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_shaft_8, object: wormhole_gamma_mouth, xyz: [0, 1.49, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_shaft_9, object: wormhole_gamma_mouth, xyz: [0, 1.69, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_shaft_10, object: wormhole_gamma_mouth, xyz: [0, 1.89, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_shaft_11, object: wormhole_gamma_mouth, xyz: [0, 2.09, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_shaft_12, object: wormhole_gamma_mouth, xyz: [0, 2.29, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_shaft_13, object: wormhole_gamma_mouth, xyz: [0, 2.49, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_shaft_14, object: wormhole_gamma_mouth, xyz: [0, 2.69, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_shaft_15, object: wormhole_gamma_mouth, xyz: [0, 2.89, 0], hide_in_systems: true }
+  - { id: wormhole_gamma_shaft_16, object: wormhole_gamma_mouth, xyz: [0, 3.09, 0], hide_in_systems: true }
   - id: founders
     xyz: [-39500, 0, -31200]
     marker: dot
@@ -1472,7 +2398,8 @@ objects:
     points: [wormhole_alpha_throat, wormhole_gamma_throat]
     arc: 4000
     color: var(--lcars-blue)
-    width: 5
+    width: 8
+    line_look: tube
     glow: 3
     pulse: true
     flow_speed: 30
@@ -1509,6 +2436,28 @@ objects:
     at: wormhole_alpha
     color: var(--lcars-blue)
     size: 3
+    look: diagram
+    max_distance: 200
+    hide_in_systems: true
+  - type: grid
+    id: wormhole_alpha_funnel
+    shape: well
+    well_shape: trumpet
+    well_throat: 0.07
+    at: wormhole_alpha
+    face: wormhole_aim_gamma
+    radius: 0.9
+    depth: 1.6
+    line_width: 0
+    edges: false
+    look: realistic
+    fill_effect:
+      type: swirl
+      colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-medium-dark), var(--lcards-blue-medium), var(--lcards-blue-dark)]
+      speed: 0.18
+      turbulence: 0.8
+      num_octaves: 5
+    deform: [{ type: twist, angle: 80, anchor: top, period: 6 }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
     max_distance: 200
     hide_in_systems: true
   - type: galaxy
@@ -1516,43 +2465,195 @@ objects:
     at: wormhole_alpha
     face: wormhole_aim_gamma
     look: realistic
-    radius: 0.8999999999999999
-    arms: 3
-    pitch: 28
+    radius: 0.9
+    arms: 4
+    pitch: 20
     bar: 0
-    thickness: 0.06
+    thickness: 0.02
     stars: 4000
     seed: 4
-    glow: 0.35
-    dust: 0.3
-    arm_color: var(--lcars-blue)
+    glow: 0
+    dust: 0
+    arm_color: var(--lcards-blue-light)
     core_color: var(--lcards-moonlight)
-    spin: 60
+    spin: 25
     max_distance: 200
     hide_in_systems: true
-  - type: grid
-    id: wormhole_alpha_funnel
-    shape: well
-    well_shape: trumpet
-    well_throat: 0.1
+  - type: glow
+    id: wormhole_alpha_heart
     at: wormhole_alpha
-    face: wormhole_aim_gamma
-    radius: 0.6
-    depth: 1.6
-    line_spacing_deg: 30
-    color: var(--lcars-blue)
-    opacity: 0.5
+    color: var(--lcards-orange-lightest)
+    size: 0.48
     look: realistic
-    fill_effect: { type: plasma, color_a: var(--lcars-blue), color_b: var(--lcars-violet), speed: 0.3, opacity: 0.6 }
-    deform: [{ type: twist, angle: 80, anchor: top, period: 6 }]
     max_distance: 200
     hide_in_systems: true
-  - type: beam
-    id: wormhole_alpha_light
-    from: wormhole_alpha
-    to: wormhole_alpha_out
-    width: 8
-    color: var(--lcards-moonlight)
+  - type: glow
+    id: wormhole_alpha_light_1
+    at: wormhole_alpha_shaft_1
+    size: 0.42
+    color: var(--lcards-orange-lightest)
+    opacity: 0.69
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_alpha_light_2
+    at: wormhole_alpha_shaft_2
+    size: 0.492
+    color: var(--lcards-orange-lightest)
+    opacity: 0.626
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_alpha_light_3
+    at: wormhole_alpha_shaft_3
+    size: 0.564
+    color: var(--lcards-orange-lightest)
+    opacity: 0.564
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_alpha_light_4
+    at: wormhole_alpha_shaft_4
+    size: 0.636
+    color: var(--lcards-orange-lightest)
+    opacity: 0.505
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_alpha_light_5
+    at: wormhole_alpha_shaft_5
+    size: 0.708
+    color: var(--lcards-orange-lightest)
+    opacity: 0.448
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_alpha_light_6
+    at: wormhole_alpha_shaft_6
+    size: 0.78
+    color: var(--lcards-orange-lightest)
+    opacity: 0.394
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_alpha_light_7
+    at: wormhole_alpha_shaft_7
+    size: 0.852
+    color: var(--lcards-orange-lightest)
+    opacity: 0.342
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_alpha_light_8
+    at: wormhole_alpha_shaft_8
+    size: 0.924
+    color: var(--lcards-orange-lightest)
+    opacity: 0.293
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_alpha_light_9
+    at: wormhole_alpha_shaft_9
+    size: 0.996
+    color: var(--lcards-orange-lightest)
+    opacity: 0.247
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_alpha_light_10
+    at: wormhole_alpha_shaft_10
+    size: 1.068
+    color: var(--lcards-orange-lightest)
+    opacity: 0.204
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_alpha_light_11
+    at: wormhole_alpha_shaft_11
+    size: 1.14
+    color: var(--lcards-orange-lightest)
+    opacity: 0.165
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_alpha_light_12
+    at: wormhole_alpha_shaft_12
+    size: 1.212
+    color: var(--lcards-orange-lightest)
+    opacity: 0.13
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_alpha_light_13
+    at: wormhole_alpha_shaft_13
+    size: 1.284
+    color: var(--lcards-orange-lightest)
+    opacity: 0.098
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_alpha_light_14
+    at: wormhole_alpha_shaft_14
+    size: 1.356
+    color: var(--lcards-orange-lightest)
+    opacity: 0.072
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_alpha_light_15
+    at: wormhole_alpha_shaft_15
+    size: 1.428
+    color: var(--lcards-orange-lightest)
+    opacity: 0.051
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_alpha_light_16
+    at: wormhole_alpha_shaft_16
+    size: 1.5
+    color: var(--lcards-orange-lightest)
+    opacity: 0.04
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: nebula
+    id: wormhole_alpha_wisps
+    at: wormhole_alpha
+    radius: 1.0799999999999998
+    cloud_count: 6
+    seed: 7
+    drift: 0.6
+    brightness: [0.15, 0.35]
+    colors: [var(--lcars-violet), var(--lcards-blue-medium)]
+    opacity: 1
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: nebula
+    id: wormhole_alpha_wisps_out
+    at: wormhole_alpha_haze
+    radius: 0.40499999999999997
+    cloud_count: 3
+    seed: 3
+    drift: 1
+    brightness: [0.1, 0.25]
+    colors: [var(--lcards-orange-lightest), var(--lcards-blue-light)]
+    opacity: 1
     look: realistic
     max_distance: 200
     hide_in_systems: true
@@ -1560,7 +2661,8 @@ objects:
     id: wormhole_alpha_throat_tube
     points: [wormhole_alpha, wormhole_alpha_throat]
     color: var(--lcars-blue)
-    width: 5
+    width: 8
+    line_look: tube
     glow: 3
     pulse: true
     flow_speed: 30
@@ -1599,6 +2701,28 @@ objects:
     at: wormhole_gamma
     color: var(--lcars-blue)
     size: 3
+    look: diagram
+    max_distance: 200
+    hide_in_systems: true
+  - type: grid
+    id: wormhole_gamma_funnel
+    shape: well
+    well_shape: trumpet
+    well_throat: 0.07
+    at: wormhole_gamma
+    face: wormhole_aim_alpha
+    radius: 0.9
+    depth: 1.6
+    line_width: 0
+    edges: false
+    look: realistic
+    fill_effect:
+      type: swirl
+      colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-medium-dark), var(--lcards-blue-medium), var(--lcards-blue-dark)]
+      speed: 0.18
+      turbulence: 0.8
+      num_octaves: 5
+    deform: [{ type: twist, angle: 80, anchor: top, period: 6 }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
     max_distance: 200
     hide_in_systems: true
   - type: galaxy
@@ -1606,43 +2730,195 @@ objects:
     at: wormhole_gamma
     face: wormhole_aim_alpha
     look: realistic
-    radius: 0.8999999999999999
-    arms: 3
-    pitch: 28
+    radius: 0.9
+    arms: 4
+    pitch: 20
     bar: 0
-    thickness: 0.06
+    thickness: 0.02
     stars: 4000
     seed: 4
-    glow: 0.35
-    dust: 0.3
-    arm_color: var(--lcars-blue)
+    glow: 0
+    dust: 0
+    arm_color: var(--lcards-blue-light)
     core_color: var(--lcards-moonlight)
-    spin: 60
+    spin: 25
     max_distance: 200
     hide_in_systems: true
-  - type: grid
-    id: wormhole_gamma_funnel
-    shape: well
-    well_shape: trumpet
-    well_throat: 0.1
+  - type: glow
+    id: wormhole_gamma_heart
     at: wormhole_gamma
-    face: wormhole_aim_alpha
-    radius: 0.6
-    depth: 1.6
-    line_spacing_deg: 30
-    color: var(--lcars-blue)
-    opacity: 0.5
+    color: var(--lcards-orange-lightest)
+    size: 0.48
     look: realistic
-    fill_effect: { type: plasma, color_a: var(--lcars-blue), color_b: var(--lcars-violet), speed: 0.3, opacity: 0.6 }
-    deform: [{ type: twist, angle: 80, anchor: top, period: 6 }]
     max_distance: 200
     hide_in_systems: true
-  - type: beam
-    id: wormhole_gamma_light
-    from: wormhole_gamma
-    to: wormhole_gamma_out
-    width: 8
-    color: var(--lcards-moonlight)
+  - type: glow
+    id: wormhole_gamma_light_1
+    at: wormhole_gamma_shaft_1
+    size: 0.42
+    color: var(--lcards-orange-lightest)
+    opacity: 0.69
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_gamma_light_2
+    at: wormhole_gamma_shaft_2
+    size: 0.492
+    color: var(--lcards-orange-lightest)
+    opacity: 0.626
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_gamma_light_3
+    at: wormhole_gamma_shaft_3
+    size: 0.564
+    color: var(--lcards-orange-lightest)
+    opacity: 0.564
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_gamma_light_4
+    at: wormhole_gamma_shaft_4
+    size: 0.636
+    color: var(--lcards-orange-lightest)
+    opacity: 0.505
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_gamma_light_5
+    at: wormhole_gamma_shaft_5
+    size: 0.708
+    color: var(--lcards-orange-lightest)
+    opacity: 0.448
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_gamma_light_6
+    at: wormhole_gamma_shaft_6
+    size: 0.78
+    color: var(--lcards-orange-lightest)
+    opacity: 0.394
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_gamma_light_7
+    at: wormhole_gamma_shaft_7
+    size: 0.852
+    color: var(--lcards-orange-lightest)
+    opacity: 0.342
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_gamma_light_8
+    at: wormhole_gamma_shaft_8
+    size: 0.924
+    color: var(--lcards-orange-lightest)
+    opacity: 0.293
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_gamma_light_9
+    at: wormhole_gamma_shaft_9
+    size: 0.996
+    color: var(--lcards-orange-lightest)
+    opacity: 0.247
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_gamma_light_10
+    at: wormhole_gamma_shaft_10
+    size: 1.068
+    color: var(--lcards-orange-lightest)
+    opacity: 0.204
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_gamma_light_11
+    at: wormhole_gamma_shaft_11
+    size: 1.14
+    color: var(--lcards-orange-lightest)
+    opacity: 0.165
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_gamma_light_12
+    at: wormhole_gamma_shaft_12
+    size: 1.212
+    color: var(--lcards-orange-lightest)
+    opacity: 0.13
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_gamma_light_13
+    at: wormhole_gamma_shaft_13
+    size: 1.284
+    color: var(--lcards-orange-lightest)
+    opacity: 0.098
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_gamma_light_14
+    at: wormhole_gamma_shaft_14
+    size: 1.356
+    color: var(--lcards-orange-lightest)
+    opacity: 0.072
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_gamma_light_15
+    at: wormhole_gamma_shaft_15
+    size: 1.428
+    color: var(--lcards-orange-lightest)
+    opacity: 0.051
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: glow
+    id: wormhole_gamma_light_16
+    at: wormhole_gamma_shaft_16
+    size: 1.5
+    color: var(--lcards-orange-lightest)
+    opacity: 0.04
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: nebula
+    id: wormhole_gamma_wisps
+    at: wormhole_gamma
+    radius: 1.0799999999999998
+    cloud_count: 6
+    seed: 7
+    drift: 0.6
+    brightness: [0.15, 0.35]
+    colors: [var(--lcars-violet), var(--lcards-blue-medium)]
+    opacity: 1
+    look: realistic
+    max_distance: 200
+    hide_in_systems: true
+  - type: nebula
+    id: wormhole_gamma_wisps_out
+    at: wormhole_gamma_haze
+    radius: 0.40499999999999997
+    cloud_count: 3
+    seed: 3
+    drift: 1
+    brightness: [0.1, 0.25]
+    colors: [var(--lcards-orange-lightest), var(--lcards-blue-light)]
+    opacity: 1
     look: realistic
     max_distance: 200
     hide_in_systems: true
@@ -1650,7 +2926,8 @@ objects:
     id: wormhole_gamma_throat_tube
     points: [wormhole_gamma, wormhole_gamma_throat]
     color: var(--lcars-blue)
-    width: 5
+    width: 8
+    line_look: tube
     glow: 3
     pulse: true
     flow_speed: 30
@@ -1864,6 +3141,893 @@ objects:
     drift: 0.8
     colors: [var(--lcars-violet), var(--lcars-blue)]
   - { type: glow, id: nebula_glow, at: nebula_heart, size: 20, opacity: 0.7 }
+```
+
+### Wormhole
+
+The Bajoran wormhole as the station displays draw it. Its mouth is a swirl of gas round a warm heart in the realistic look, an entrance disc and funnel in the diagram. Past it, diagram only, the inside runs along +x: a pipeline of twisted strands, the negative CTL region, the ring singularity, the positive CTL region and the point singularity opening into the verteron membrane. With a power entity (0 to 100) the mouth opens and the regions wobble with it.
+
+Its ids start with its name (default `bajoran_`).
+
+| Setting | Default | Notes |
+|---|---|---|
+| Mouth | `0, 0, 0` | A point id or x, y, z. The inside runs along +x from here. |
+| Length | `70` |  |
+| Power entity (optional) | `` | A number from 0 to 100: the mouth opens with it. |
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points:
+  - { id: bajoran_centre, xyz: [0, 0, 0] }
+  - { id: bajoran_wormhole_throat, object: bajoran_wormhole_mouth, xyz: [0, -7, 0] }
+  - { id: bajoran_wormhole_out, object: bajoran_wormhole_mouth, xyz: [0, 54, 0] }
+  - { id: bajoran_wormhole_haze, object: bajoran_wormhole_mouth, xyz: [0, 14.4, 0] }
+  - { id: bajoran_wormhole_shaft_1, object: bajoran_wormhole_mouth, xyz: [0, 1.35, 0] }
+  - { id: bajoran_wormhole_shaft_2, object: bajoran_wormhole_mouth, xyz: [0, 4.35, 0] }
+  - { id: bajoran_wormhole_shaft_3, object: bajoran_wormhole_mouth, xyz: [0, 7.35, 0] }
+  - { id: bajoran_wormhole_shaft_4, object: bajoran_wormhole_mouth, xyz: [0, 10.35, 0] }
+  - { id: bajoran_wormhole_shaft_5, object: bajoran_wormhole_mouth, xyz: [0, 13.35, 0] }
+  - { id: bajoran_wormhole_shaft_6, object: bajoran_wormhole_mouth, xyz: [0, 16.35, 0] }
+  - { id: bajoran_wormhole_shaft_7, object: bajoran_wormhole_mouth, xyz: [0, 19.35, 0] }
+  - { id: bajoran_wormhole_shaft_8, object: bajoran_wormhole_mouth, xyz: [0, 22.35, 0] }
+  - { id: bajoran_wormhole_shaft_9, object: bajoran_wormhole_mouth, xyz: [0, 25.35, 0] }
+  - { id: bajoran_wormhole_shaft_10, object: bajoran_wormhole_mouth, xyz: [0, 28.35, 0] }
+  - { id: bajoran_wormhole_shaft_11, object: bajoran_wormhole_mouth, xyz: [0, 31.35, 0] }
+  - { id: bajoran_wormhole_shaft_12, object: bajoran_wormhole_mouth, xyz: [0, 34.35, 0] }
+  - { id: bajoran_wormhole_shaft_13, object: bajoran_wormhole_mouth, xyz: [0, 37.35, 0] }
+  - { id: bajoran_wormhole_shaft_14, object: bajoran_wormhole_mouth, xyz: [0, 40.35, 0] }
+  - { id: bajoran_wormhole_shaft_15, object: bajoran_wormhole_mouth, xyz: [0, 43.35, 0] }
+  - { id: bajoran_wormhole_shaft_16, object: bajoran_wormhole_mouth, xyz: [0, 46.35, 0] }
+  - { id: bajoran_wormhole_down, at: bajoran_centre, offset: [0, -1000, 0] }
+  - { id: bajoran_wormhole_east, at: bajoran_centre, offset: [1000, -9, 0] }
+  - { id: bajoran_wormhole_west, at: bajoran_centre, offset: [-1000, -9, 0] }
+  - { id: bajoran_wormhole_negative, at: bajoran_centre, offset: [20, -9, 0] }
+  - { id: bajoran_wormhole_negative_cone, at: bajoran_centre, offset: [21, -9, 0] }
+  - { id: bajoran_wormhole_ring_singularity, at: bajoran_centre, offset: [33, -9, 0] }
+  - { id: bajoran_wormhole_positive, at: bajoran_centre, offset: [33.5, -9, 0] }
+  - { id: bajoran_wormhole_point_singularity, at: bajoran_centre, offset: [52, -9, 0] }
+  - { id: bajoran_wormhole_membrane, at: bajoran_centre, offset: [52, -9, 0] }
+  - { id: bajoran_wormhole_membrane_centre, at: bajoran_centre, offset: [58, -9, 0] }
+  - { id: bajoran_wormhole_middle, at: bajoran_centre, offset: [30, -9, 0] }
+  - id: bajoran_wormhole_label_pipeline
+    at: bajoran_centre
+    offset: [-4, -15, 0]
+    label: PIPELINE
+    style: minor
+    look: diagram
+    tap_action: { action: fly-to }
+  - id: bajoran_wormhole_label_negative
+    at: bajoran_centre
+    offset: [26, -18, 0]
+    label: NEGATIVE CTL REGION
+    style: minor
+    look: diagram
+    tap_action: { action: fly-to }
+  - id: bajoran_wormhole_label_ring
+    at: bajoran_centre
+    offset: [33, 1, 0]
+    label: RING SINGULARITY
+    style: minor
+    look: diagram
+    tap_action: { action: fly-to }
+  - id: bajoran_wormhole_label_positive
+    at: bajoran_centre
+    offset: [40, -19, 0]
+    label: POSITIVE CTL REGION
+    style: minor
+    look: diagram
+    tap_action: { action: fly-to }
+  - id: bajoran_wormhole_label_point
+    at: bajoran_centre
+    offset: [50, -17, 0]
+    label: POINT SINGULARITY
+    style: minor
+    look: diagram
+    tap_action: { action: fly-to }
+  - id: bajoran_wormhole_label_membrane
+    at: bajoran_centre
+    offset: [60, 2, 0]
+    label: VERTERON MEMBRANE
+    style: minor
+    look: diagram
+    tap_action: { action: fly-to }
+objects:
+  - type: grid
+    id: bajoran_wormhole_mouth
+    shape: well
+    well_shape: trumpet
+    well_throat: 0.1
+    at: bajoran_centre
+    face: bajoran_wormhole_down
+    radius: 9
+    depth: 7
+    line_spacing_deg: 20
+    color: var(--lcars-blue)
+    scan_period: 4
+    look: diagram
+    deform: [{ type: twist, angle: 60, anchor: top }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
+  - type: ring
+    id: bajoran_wormhole_ring
+    at: bajoran_centre
+    face: bajoran_wormhole_down
+    radius: 15.75
+    dash: [6, 10]
+    width: 2
+    flow_speed: 40
+    spin: 90
+    look: diagram
+  - { type: glow, id: bajoran_wormhole_glow, at: bajoran_centre, color: var(--lcars-blue), size: 18, look: diagram }
+  - type: grid
+    id: bajoran_wormhole_funnel
+    shape: well
+    well_shape: trumpet
+    well_throat: 0.07
+    at: bajoran_centre
+    face: bajoran_wormhole_down
+    radius: 13.5
+    depth: 7
+    line_width: 0
+    edges: false
+    look: realistic
+    fill_effect:
+      type: swirl
+      colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-medium-dark), var(--lcards-blue-medium), var(--lcards-blue-dark)]
+      speed: 2.7
+      turbulence: 0.8
+      num_octaves: 5
+    deform: [{ type: twist, angle: 80, anchor: top, period: 6 }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
+  - type: galaxy
+    id: bajoran_wormhole_vortex
+    at: bajoran_centre
+    face: bajoran_wormhole_down
+    look: realistic
+    radius: 13.5
+    arms: 4
+    pitch: 20
+    bar: 0
+    thickness: 0.02
+    stars: 6000
+    seed: 4
+    glow: 0
+    dust: 0
+    arm_color: var(--lcards-blue-light)
+    core_color: var(--lcards-moonlight)
+    spin: 25
+  - type: glow
+    id: bajoran_wormhole_heart
+    at: bajoran_centre
+    color: var(--lcards-orange-lightest)
+    size: 7.2
+    look: realistic
+  - type: glow
+    id: bajoran_wormhole_light_1
+    at: bajoran_wormhole_shaft_1
+    size: 6.3
+    color: var(--lcards-orange-lightest)
+    opacity: 0.69
+    look: realistic
+  - type: glow
+    id: bajoran_wormhole_light_2
+    at: bajoran_wormhole_shaft_2
+    size: 7.38
+    color: var(--lcards-orange-lightest)
+    opacity: 0.626
+    look: realistic
+  - type: glow
+    id: bajoran_wormhole_light_3
+    at: bajoran_wormhole_shaft_3
+    size: 8.46
+    color: var(--lcards-orange-lightest)
+    opacity: 0.564
+    look: realistic
+  - type: glow
+    id: bajoran_wormhole_light_4
+    at: bajoran_wormhole_shaft_4
+    size: 9.54
+    color: var(--lcards-orange-lightest)
+    opacity: 0.505
+    look: realistic
+  - type: glow
+    id: bajoran_wormhole_light_5
+    at: bajoran_wormhole_shaft_5
+    size: 10.62
+    color: var(--lcards-orange-lightest)
+    opacity: 0.448
+    look: realistic
+  - type: glow
+    id: bajoran_wormhole_light_6
+    at: bajoran_wormhole_shaft_6
+    size: 11.7
+    color: var(--lcards-orange-lightest)
+    opacity: 0.394
+    look: realistic
+  - type: glow
+    id: bajoran_wormhole_light_7
+    at: bajoran_wormhole_shaft_7
+    size: 12.78
+    color: var(--lcards-orange-lightest)
+    opacity: 0.342
+    look: realistic
+  - type: glow
+    id: bajoran_wormhole_light_8
+    at: bajoran_wormhole_shaft_8
+    size: 13.86
+    color: var(--lcards-orange-lightest)
+    opacity: 0.293
+    look: realistic
+  - type: glow
+    id: bajoran_wormhole_light_9
+    at: bajoran_wormhole_shaft_9
+    size: 14.94
+    color: var(--lcards-orange-lightest)
+    opacity: 0.247
+    look: realistic
+  - type: glow
+    id: bajoran_wormhole_light_10
+    at: bajoran_wormhole_shaft_10
+    size: 16.02
+    color: var(--lcards-orange-lightest)
+    opacity: 0.204
+    look: realistic
+  - type: glow
+    id: bajoran_wormhole_light_11
+    at: bajoran_wormhole_shaft_11
+    size: 17.1
+    color: var(--lcards-orange-lightest)
+    opacity: 0.165
+    look: realistic
+  - type: glow
+    id: bajoran_wormhole_light_12
+    at: bajoran_wormhole_shaft_12
+    size: 18.18
+    color: var(--lcards-orange-lightest)
+    opacity: 0.13
+    look: realistic
+  - type: glow
+    id: bajoran_wormhole_light_13
+    at: bajoran_wormhole_shaft_13
+    size: 19.26
+    color: var(--lcards-orange-lightest)
+    opacity: 0.098
+    look: realistic
+  - type: glow
+    id: bajoran_wormhole_light_14
+    at: bajoran_wormhole_shaft_14
+    size: 20.34
+    color: var(--lcards-orange-lightest)
+    opacity: 0.072
+    look: realistic
+  - type: glow
+    id: bajoran_wormhole_light_15
+    at: bajoran_wormhole_shaft_15
+    size: 21.42
+    color: var(--lcards-orange-lightest)
+    opacity: 0.051
+    look: realistic
+  - type: glow
+    id: bajoran_wormhole_light_16
+    at: bajoran_wormhole_shaft_16
+    size: 22.5
+    color: var(--lcards-orange-lightest)
+    opacity: 0.04
+    look: realistic
+  - type: nebula
+    id: bajoran_wormhole_wisps
+    at: bajoran_centre
+    radius: 16.2
+    cloud_count: 6
+    seed: 7
+    drift: 0.6
+    brightness: [0.15, 0.35]
+    colors: [var(--lcars-violet), var(--lcards-blue-medium)]
+    opacity: 1
+    look: realistic
+  - type: nebula
+    id: bajoran_wormhole_wisps_out
+    at: bajoran_wormhole_haze
+    radius: 6.075
+    cloud_count: 3
+    seed: 3
+    drift: 1
+    brightness: [0.1, 0.25]
+    colors: [var(--lcards-orange-lightest), var(--lcards-blue-light)]
+    opacity: 1
+    look: realistic
+  - type: path
+    id: bajoran_wormhole_throat_tube
+    points: [bajoran_centre, bajoran_wormhole_throat]
+    color: var(--lcars-blue)
+    width: 8
+    line_look: tube
+    glow: 3
+    pulse: true
+    flow_speed: 30
+    look: diagram
+  - type: grid
+    id: bajoran_wormhole_entrance
+    shape: disc
+    at: bajoran_centre
+    radius: 9
+    pattern: polar
+    line_spacing_deg: 20
+    color: var(--lcars-blue)
+    opacity: 0.8
+    look: diagram
+  - type: path
+    id: bajoran_wormhole_strand_1
+    at: bajoran_centre
+    points:
+      - [0, -6.55, 0]
+      - [0, -6.809, 0.088]
+      - [0, -7.071, 0.176]
+      - [0, -7.339, 0.261]
+      - [0, -7.61, 0.344]
+      - [0, -7.885, 0.424]
+      - [0, -8.164, 0.5]
+      - [0, -8.447, 0.571]
+      - [0, -8.733, 0.636]
+      - [0, -9.022, 0.696]
+      - [0, -9.314, 0.748]
+      - [0, -9.608, 0.794]
+      - [0, -9.905, 0.831]
+      - [0, -10.203, 0.861]
+      - [0, -10.502, 0.883]
+      - [0, -10.802, 0.896]
+      - [0, -11.103, 0.9]
+      - [0, -11.403, 0.896]
+      - [0, -11.703, 0.883]
+      - [0, -12.002, 0.861]
+      - [0, -12.3, 0.831]
+      - [0, -12.597, 0.794]
+      - [0, -12.891, 0.748]
+      - [0, -13.183, 0.696]
+      - [0, -13.472, 0.636]
+      - [0, -13.758, 0.571]
+      - [0, -14.041, 0.5]
+      - [0, -14.32, 0.424]
+      - [0, -14.595, 0.344]
+      - [0, -14.867, 0.261]
+      - [0, -15.134, 0.176]
+      - [0, -15.397, 0.088]
+      - [0, -15.655, 0]
+      - [0, -15.909, -0.088]
+      - [0, -16.159, -0.176]
+      - [0, -16.405, -0.261]
+      - [0, -16.647, -0.344]
+      - [0, -16.884, -0.424]
+      - [0, -17.118, -0.5]
+      - [0, -17.348, -0.571]
+      - [0.018, -17.513, -0.636]
+      - [0.07, -17.672, -0.696]
+      - [0.157, -17.825, -0.748]
+      - [0.277, -17.968, -0.794]
+      - [0.429, -18.1, -0.831]
+      - [0.612, -18.22, -0.861]
+      - [0.822, -18.326, -0.883]
+      - [1.058, -18.416, -0.896]
+      - [1.316, -18.49, -0.9]
+      - [1.595, -18.546, -0.896]
+      - [1.89, -18.584, -0.883]
+      - [2.197, -18.604, -0.861]
+      - [2.515, -18.604, -0.831]
+      - [2.838, -18.585, -0.794]
+      - [3.162, -18.547, -0.748]
+      - [3.485, -18.491, -0.696]
+      - [3.803, -18.416, -0.636]
+      - [4.11, -18.324, -0.571]
+      - [4.405, -18.216, -0.5]
+      - [4.684, -18.093, -0.424]
+      - [4.942, -17.956, -0.344]
+      - [5.178, -17.807, -0.261]
+      - [5.388, -17.648, -0.176]
+      - [5.571, -17.48, -0.088]
+      - [5.723, -17.306, -0.0]
+      - [5.843, -17.127, 0.088]
+      - [5.93, -16.946, 0.176]
+      - [5.982, -16.764, 0.261]
+      - [6, -16.584, 0.344]
+      - [6.237, -16.124, 0.424]
+      - [6.475, -15.687, 0.5]
+      - [6.712, -15.283, 0.571]
+      - [6.949, -14.916, 0.636]
+      - [7.186, -14.594, 0.696]
+      - [7.424, -14.319, 0.748]
+      - [7.661, -14.095, 0.794]
+      - [7.898, -13.922, 0.831]
+      - [8.136, -13.801, 0.861]
+      - [8.373, -13.73, 0.883]
+      - [8.61, -13.706, 0.896]
+      - [8.847, -13.724, 0.9]
+      - [9.085, -13.781, 0.896]
+      - [9.322, -13.87, 0.883]
+      - [9.559, -13.984, 0.861]
+      - [9.797, -14.116, 0.831]
+      - [10.034, -14.26, 0.794]
+      - [10.271, -14.407, 0.748]
+      - [10.508, -14.551, 0.696]
+      - [10.746, -14.684, 0.636]
+      - [10.983, -14.8, 0.571]
+      - [11.22, -14.894, 0.5]
+      - [11.458, -14.96, 0.424]
+      - [11.695, -14.994, 0.344]
+      - [11.932, -14.995, 0.261]
+      - [12.169, -14.959, 0.176]
+      - [12.407, -14.886, 0.088]
+      - [12.644, -14.776, 0]
+      - [12.881, -14.631, -0.088]
+      - [13.119, -14.451, -0.176]
+      - [13.356, -14.241, -0.261]
+      - [13.593, -14.004, -0.344]
+      - [13.831, -13.744, -0.424]
+      - [14.068, -13.466, -0.5]
+      - [14.305, -13.173, -0.571]
+      - [14.542, -12.872, -0.636]
+      - [14.78, -12.567, -0.696]
+      - [15.017, -12.263, -0.748]
+      - [15.254, -11.964, -0.794]
+      - [15.492, -11.673, -0.831]
+      - [15.729, -11.395, -0.861]
+      - [15.966, -11.131, -0.883]
+      - [16.203, -10.884, -0.896]
+      - [16.441, -10.655, -0.9]
+      - [16.678, -10.444, -0.896]
+      - [16.915, -10.251, -0.883]
+      - [17.153, -10.076, -0.861]
+      - [17.39, -9.916, -0.831]
+      - [17.627, -9.771, -0.794]
+      - [17.864, -9.638, -0.748]
+      - [18.102, -9.514, -0.696]
+      - [18.339, -9.396, -0.636]
+      - [18.576, -9.283, -0.571]
+      - [18.814, -9.17, -0.5]
+      - [19.051, -9.057, -0.424]
+      - [19.288, -8.939, -0.344]
+      - [19.525, -8.817, -0.261]
+      - [19.763, -8.688, -0.176]
+      - [20, -8.552, -0.088]
+    color: var(--lcars-blue)
+    width: 4
+    line_look: tube
+    glow: 2
+    pulse: true
+    flow_speed: 30
+    look: diagram
+  - type: path
+    id: bajoran_wormhole_strand_2
+    at: bajoran_centre
+    points:
+      - [0, -7.227, 0.777]
+      - [0, -7.521, 0.729]
+      - [0, -7.811, 0.673]
+      - [0, -8.099, 0.612]
+      - [0, -8.384, 0.544]
+      - [0, -8.666, 0.471]
+      - [0, -8.943, 0.394]
+      - [0, -9.217, 0.312]
+      - [0, -9.487, 0.228]
+      - [0, -9.752, 0.142]
+      - [0, -10.013, 0.054]
+      - [0, -10.27, -0.034]
+      - [0, -10.523, -0.122]
+      - [0, -10.771, -0.209]
+      - [0, -11.015, -0.294]
+      - [0, -11.255, -0.376]
+      - [0, -11.491, -0.454]
+      - [0, -11.723, -0.528]
+      - [0, -11.952, -0.597]
+      - [0, -12.178, -0.66]
+      - [0, -12.4, -0.717]
+      - [0, -12.62, -0.767]
+      - [0, -12.838, -0.809]
+      - [0, -13.054, -0.844]
+      - [0, -13.268, -0.871]
+      - [0, -13.481, -0.889]
+      - [0, -13.694, -0.898]
+      - [0, -13.906, -0.899]
+      - [0, -14.118, -0.892]
+      - [0, -14.331, -0.875]
+      - [0, -14.545, -0.851]
+      - [0, -14.761, -0.818]
+      - [0, -14.978, -0.777]
+      - [0, -15.197, -0.729]
+      - [0, -15.419, -0.673]
+      - [0, -15.644, -0.612]
+      - [0, -15.872, -0.544]
+      - [0, -16.104, -0.471]
+      - [0, -16.339, -0.394]
+      - [0, -16.578, -0.312]
+      - [0.018, -16.759, -0.228]
+      - [0.07, -16.943, -0.142]
+      - [0.157, -17.126, -0.054]
+      - [0.277, -17.306, 0.034]
+      - [0.429, -17.482, 0.122]
+      - [0.612, -17.652, 0.209]
+      - [0.822, -17.813, 0.294]
+      - [1.058, -17.963, 0.376]
+      - [1.316, -18.101, 0.454]
+      - [1.595, -18.226, 0.528]
+      - [1.89, -18.335, 0.597]
+      - [2.197, -18.429, 0.66]
+      - [2.515, -18.504, 0.717]
+      - [2.838, -18.562, 0.767]
+      - [3.162, -18.601, 0.809]
+      - [3.485, -18.62, 0.844]
+      - [3.803, -18.62, 0.871]
+      - [4.11, -18.601, 0.889]
+      - [4.405, -18.563, 0.898]
+      - [4.684, -18.507, 0.899]
+      - [4.942, -18.433, 0.892]
+      - [5.178, -18.342, 0.875]
+      - [5.388, -18.236, 0.851]
+      - [5.571, -18.116, 0.818]
+      - [5.723, -17.983, 0.777]
+      - [5.843, -17.839, 0.729]
+      - [5.93, -17.686, 0.673]
+      - [5.982, -17.525, 0.612]
+      - [6, -17.359, 0.544]
+      - [6.237, -16.904, 0.471]
+      - [6.475, -16.466, 0.394]
+      - [6.712, -16.052, 0.312]
+      - [6.949, -15.67, 0.228]
+      - [7.186, -15.324, 0.142]
+      - [7.424, -15.018, 0.054]
+      - [7.661, -14.757, -0.034]
+      - [7.898, -14.54, -0.122]
+      - [8.136, -14.369, -0.209]
+      - [8.373, -14.243, -0.294]
+      - [8.61, -14.158, -0.376]
+      - [8.847, -14.113, -0.454]
+      - [9.085, -14.101, -0.528]
+      - [9.322, -14.119, -0.597]
+      - [9.559, -14.159, -0.66]
+      - [9.797, -14.216, -0.717]
+      - [10.034, -14.283, -0.767]
+      - [10.271, -14.354, -0.809]
+      - [10.508, -14.421, -0.844]
+      - [10.746, -14.48, -0.871]
+      - [10.983, -14.523, -0.889]
+      - [11.22, -14.546, -0.898]
+      - [11.458, -14.546, -0.899]
+      - [11.695, -14.517, -0.892]
+      - [11.932, -14.46, -0.875]
+      - [12.169, -14.371, -0.851]
+      - [12.407, -14.25, -0.818]
+      - [12.644, -14.099, -0.777]
+      - [12.881, -13.919, -0.729]
+      - [13.119, -13.712, -0.673]
+      - [13.356, -13.481, -0.612]
+      - [13.593, -13.23, -0.544]
+      - [13.831, -12.964, -0.471]
+      - [14.068, -12.687, -0.394]
+      - [14.305, -12.403, -0.312]
+      - [14.542, -12.119, -0.228]
+      - [14.78, -11.837, -0.142]
+      - [15.017, -11.564, -0.054]
+      - [15.254, -11.302, 0.034]
+      - [15.492, -11.055, 0.122]
+      - [15.729, -10.826, 0.209]
+      - [15.966, -10.618, 0.294]
+      - [16.203, -10.431, 0.376]
+      - [16.441, -10.266, 0.454]
+      - [16.678, -10.123, 0.528]
+      - [16.915, -10.002, 0.597]
+      - [17.153, -9.9, 0.66]
+      - [17.39, -9.817, 0.717]
+      - [17.627, -9.748, 0.767]
+      - [17.864, -9.691, 0.809]
+      - [18.102, -9.643, 0.844]
+      - [18.339, -9.6, 0.871]
+      - [18.576, -9.56, 0.889]
+      - [18.814, -9.517, 0.898]
+      - [19.051, -9.471, 0.899]
+      - [19.288, -9.416, 0.892]
+      - [19.525, -9.352, 0.875]
+      - [19.763, -9.277, 0.851]
+      - [20, -9.188, 0.818]
+    color: var(--lcars-blue)
+    width: 4
+    line_look: tube
+    glow: 2
+    pulse: true
+    flow_speed: 30
+    look: diagram
+  - type: path
+    id: bajoran_wormhole_strand_3
+    at: bajoran_centre
+    points:
+      - [0, -7.221, -0.784]
+      - [0, -7.438, -0.824]
+      - [0, -7.653, -0.855]
+      - [0, -7.866, -0.879]
+      - [0, -8.079, -0.894]
+      - [0, -8.292, -0.9]
+      - [0, -8.504, -0.897]
+      - [0, -8.717, -0.886]
+      - [0, -8.93, -0.867]
+      - [0, -9.144, -0.839]
+      - [0, -9.361, -0.803]
+      - [0, -9.579, -0.759]
+      - [0, -9.799, -0.708]
+      - [0, -10.022, -0.65]
+      - [0, -10.248, -0.586]
+      - [0, -10.477, -0.516]
+      - [0, -10.71, -0.441]
+      - [0, -10.947, -0.362]
+      - [0, -11.188, -0.28]
+      - [0, -11.432, -0.195]
+      - [0, -11.681, -0.107]
+      - [0, -11.935, -0.019]
+      - [0, -12.192, 0.069]
+      - [0, -12.454, 0.157]
+      - [0, -12.721, 0.243]
+      - [0, -12.991, 0.326]
+      - [0, -13.265, 0.407]
+      - [0, -13.544, 0.484]
+      - [0, -13.826, 0.556]
+      - [0, -14.111, 0.623]
+      - [0, -14.399, 0.683]
+      - [0, -14.691, 0.737]
+      - [0, -14.985, 0.784]
+      - [0, -15.28, 0.824]
+      - [0, -15.578, 0.855]
+      - [0, -15.877, 0.879]
+      - [0, -16.177, 0.894]
+      - [0, -16.477, 0.9]
+      - [0, -16.778, 0.897]
+      - [0, -17.078, 0.886]
+      - [0.018, -17.316, 0.867]
+      - [0.07, -17.55, 0.839]
+      - [0.157, -17.778, 0.803]
+      - [0.277, -17.998, 0.759]
+      - [0.429, -18.206, 0.708]
+      - [0.612, -18.401, 0.65]
+      - [0.822, -18.579, 0.586]
+      - [1.058, -18.741, 0.516]
+      - [1.316, -18.882, 0.441]
+      - [1.595, -19.002, 0.362]
+      - [1.89, -19.1, 0.28]
+      - [2.197, -19.174, 0.195]
+      - [2.515, -19.223, 0.107]
+      - [2.838, -19.247, 0.019]
+      - [3.162, -19.246, -0.069]
+      - [3.485, -19.219, -0.157]
+      - [3.803, -19.168, -0.243]
+      - [4.11, -19.092, -0.326]
+      - [4.405, -18.992, -0.407]
+      - [4.684, -18.869, -0.484]
+      - [4.942, -18.726, -0.556]
+      - [5.178, -18.563, -0.623]
+      - [5.388, -18.382, -0.683]
+      - [5.571, -18.186, -0.737]
+      - [5.723, -17.976, -0.784]
+      - [5.843, -17.756, -0.824]
+      - [5.93, -17.527, -0.855]
+      - [5.982, -17.292, -0.879]
+      - [6, -17.054, -0.894]
+      - [6.237, -16.53, -0.9]
+      - [6.475, -16.027, -0.897]
+      - [6.712, -15.552, -0.886]
+      - [6.949, -15.113, -0.867]
+      - [7.186, -14.716, -0.839]
+      - [7.424, -14.366, -0.803]
+      - [7.661, -14.065, -0.759]
+      - [7.898, -13.817, -0.708]
+      - [8.136, -13.62, -0.65]
+      - [8.373, -13.476, -0.586]
+      - [8.61, -13.381, -0.516]
+      - [8.847, -13.332, -0.441]
+      - [9.085, -13.325, -0.362]
+      - [9.322, -13.354, -0.28]
+      - [9.559, -13.414, -0.195]
+      - [9.797, -13.497, -0.107]
+      - [10.034, -13.598, -0.019]
+      - [10.271, -13.708, 0.069]
+      - [10.508, -13.822, 0.157]
+      - [10.746, -13.932, 0.243]
+      - [10.983, -14.033, 0.326]
+      - [11.22, -14.118, 0.407]
+      - [11.458, -14.183, 0.484]
+      - [11.695, -14.225, 0.556]
+      - [11.932, -14.239, 0.623]
+      - [12.169, -14.225, 0.683]
+      - [12.407, -14.18, 0.737]
+      - [12.644, -14.106, 0.784]
+      - [12.881, -14.002, 0.824]
+      - [13.119, -13.87, 0.855]
+      - [13.356, -13.714, 0.879]
+      - [13.593, -13.535, 0.894]
+      - [13.831, -13.338, 0.9]
+      - [14.068, -13.126, 0.897]
+      - [14.305, -12.904, 0.886]
+      - [14.542, -12.675, 0.867]
+      - [14.78, -12.445, 0.839]
+      - [15.017, -12.217, 0.803]
+      - [15.254, -11.993, 0.759]
+      - [15.492, -11.779, 0.708]
+      - [15.729, -11.575, 0.65]
+      - [15.966, -11.385, 0.586]
+      - [16.203, -11.208, 0.516]
+      - [16.441, -11.047, 0.441]
+      - [16.678, -10.9, 0.362]
+      - [16.915, -10.766, 0.28]
+      - [17.153, -10.646, 0.195]
+      - [17.39, -10.535, 0.107]
+      - [17.627, -10.433, 0.019]
+      - [17.864, -10.336, -0.069]
+      - [18.102, -10.242, -0.157]
+      - [18.339, -10.148, -0.243]
+      - [18.576, -10.05, -0.326]
+      - [18.814, -9.946, -0.407]
+      - [19.051, -9.833, -0.484]
+      - [19.288, -9.709, -0.556]
+      - [19.525, -9.573, -0.623]
+      - [19.763, -9.423, -0.683]
+      - [20, -9.258, -0.737]
+    color: var(--lcars-blue)
+    width: 4
+    line_look: tube
+    glow: 2
+    pulse: true
+    flow_speed: 30
+    look: diagram
+  - type: grid
+    id: bajoran_wormhole_negative_outer
+    shape: well
+    well_profile: [0.1, 0.7, 0.98, 1, 0.85, 0.45, 0.1]
+    at: bajoran_wormhole_negative
+    face: bajoran_wormhole_east
+    radius: 7
+    depth: 13
+    pattern: polar
+    spoke_count: 16
+    line_spacing: 2.4
+    color: var(--lcars-blue)
+    opacity: 1
+    look: diagram
+    deform: [{ type: wobble, lobes: 0, waves: 2, period: 4, amplitude: 0.03 }]
+  - type: grid
+    id: bajoran_wormhole_negative_inner
+    shape: well
+    well_profile: [0.1, 0.7, 0.98, 1, 0.85, 0.45, 0.1]
+    at: bajoran_wormhole_negative
+    face: bajoran_wormhole_east
+    radius: 4.8
+    depth: 13
+    pattern: polar
+    spoke_count: 16
+    line_spacing: 2.4
+    color: var(--lcars-blue)
+    opacity: 0.6
+    look: diagram
+    deform: [{ type: wobble, lobes: 0, waves: 2, period: 4, amplitude: 0.03 }]
+  - type: grid
+    id: bajoran_wormhole_negative_cone_grid
+    shape: well
+    well_shape: cone
+    well_throat: 0.05
+    at: bajoran_wormhole_negative_cone
+    face: bajoran_wormhole_east
+    radius: 2.5
+    depth: 11
+    line_spacing_deg: 30
+    color: var(--lcards-moonlight)
+    opacity: 0.8
+    look: diagram
+  - type: ring
+    id: bajoran_wormhole_ring_singularity_ring
+    at: bajoran_wormhole_ring_singularity
+    face: bajoran_wormhole_east
+    radius: 1.6
+    width: 3
+    glow: 2
+    color: var(--lcards-moonlight)
+    look: diagram
+  - type: grid
+    id: bajoran_wormhole_positive_outer
+    shape: well
+    well_profile: [0.1, 0.85, 1, 0.95, 0.6, 0.1]
+    at: bajoran_wormhole_positive
+    face: bajoran_wormhole_east
+    radius: 7.5
+    depth: 18.5
+    pattern: polar
+    spoke_count: 16
+    line_spacing: 2.4
+    color: var(--lcars-blue)
+    opacity: 1
+    look: diagram
+    deform: [{ type: wobble, lobes: 0, waves: 2, period: 4, amplitude: 0.03 }]
+  - type: grid
+    id: bajoran_wormhole_positive_inner
+    shape: well
+    well_profile: [0.1, 0.85, 1, 0.95, 0.6, 0.1]
+    at: bajoran_wormhole_positive
+    face: bajoran_wormhole_east
+    radius: 5
+    depth: 18.5
+    pattern: polar
+    spoke_count: 16
+    line_spacing: 2.4
+    color: var(--lcars-blue)
+    opacity: 0.6
+    look: diagram
+    deform: [{ type: wobble, lobes: 0, waves: 2, period: 4, amplitude: 0.03 }]
+  - type: grid
+    id: bajoran_wormhole_point_singularity_cone
+    shape: well
+    well_shape: cone
+    well_throat: 0.04
+    at: bajoran_wormhole_point_singularity
+    face: bajoran_wormhole_west
+    radius: 3
+    depth: 9
+    line_spacing_deg: 24
+    color: var(--lcards-moonlight)
+    look: diagram
+  - type: glow
+    id: bajoran_wormhole_point_glow
+    at: bajoran_wormhole_point_singularity
+    size: 5
+    color: var(--lcards-moonlight)
+    look: diagram
+  - type: grid
+    id: bajoran_wormhole_membrane_outer
+    shape: well
+    well_profile: [0.3, 0.85, 1, 0.9, 0.55, 0.25]
+    at: bajoran_wormhole_membrane
+    face: bajoran_wormhole_east
+    radius: 8
+    depth: 13
+    pattern: polar
+    spoke_count: 16
+    line_spacing: 2.4
+    color: var(--lcars-blue)
+    opacity: 1
+    look: diagram
+    deform: [{ type: wobble, lobes: 0, waves: 2, period: 4, amplitude: 0.03 }]
+  - type: grid
+    id: bajoran_wormhole_membrane_inner
+    shape: well
+    well_profile: [0.3, 0.85, 1, 0.9, 0.55, 0.25]
+    at: bajoran_wormhole_membrane
+    face: bajoran_wormhole_east
+    radius: 5.5
+    depth: 13
+    pattern: polar
+    spoke_count: 16
+    line_spacing: 2.4
+    color: var(--lcars-blue)
+    opacity: 0.6
+    look: diagram
+    deform: [{ type: wobble, lobes: 0, waves: 2, period: 4, amplitude: 0.03 }]
+  - type: ring
+    id: bajoran_wormhole_orbit_1
+    at: bajoran_wormhole_membrane_centre
+    radius: 10
+    rotation: [75, -20, 10]
+    width: 2
+    color: var(--lcars-blue)
+    opacity: 0.8
+    look: diagram
+  - type: ring
+    id: bajoran_wormhole_orbit_2
+    at: bajoran_wormhole_membrane_centre
+    radius: 13
+    rotation: [65, -35, -15]
+    width: 2
+    color: var(--lcars-blue)
+    opacity: 0.8
+    look: diagram
+  - type: ring
+    id: bajoran_wormhole_orbit_3
+    at: bajoran_wormhole_membrane_centre
+    radius: 16
+    rotation: [80, -10, 25]
+    width: 2
+    color: var(--lcars-blue)
+    opacity: 0.8
+    look: diagram
 ```
 
 ### Sector volume set

@@ -1847,3 +1847,47 @@ test('fly forward and back: W and S move camera and target together along the vi
     await expect.poll(async () => (await state()).frame, { timeout: 3_000 }).toBe('root');
     expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
 });
+
+test('W1 wormhole pieces: the swirl turns, tube lines are shaded, a path at a point is drawn from it, the glow does not add up', async ({ page }) => {
+    await mountCase(page, 'astro-wormhole', { width: '800' });
+    await sceneReady(page);
+    const read = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const funnel = s.world.objects.get('funnel');
+        let fill = null;
+        funnel.node.traverse((/** @type {any} */ c) => { if (c.material?.uniforms?.uTau) fill = c.material.uniforms; });
+        const pipe = s.world.objects.get('pipe');
+        const arch = s.world.objects.get('arch');
+        const line = pipe.lines[1];
+        const abs = line._abs;
+        // the first vertex in world space (the node's pinned matrix)
+        const e = pipe.node.matrixWorld.elements;
+        const x = e[0] * abs[0] + e[4] * abs[1] + e[8] * abs[2] + e[12];
+        return {
+            type: fill?.uType.value, tau: [...fill.uTau.value], fade: [...fill.uFade.value],
+            tube: 'USE_TUBE' in line.material.defines, pulseTube: 'USE_TUBE' in pipe.lines[2].material.defines,
+            glowMax: arch.lines[0].material.blendEquation, firstX: x
+        };
+    });
+    const a = await read();
+    expect(a.type).toBe(4);
+    expect(a.tube).toBe(true);
+    expect(a.pulseTube).toBe(true);
+    expect(a.glowMax).toBe(104); // MaxEquation
+    expect(a.firstX).toBeCloseTo(20, 3);
+    await page.waitForTimeout(400);
+    const b = await read();
+    expect(b.tau).not.toEqual(a.tau);
+    expect(b.fade[0] + b.fade[1]).toBeCloseTo(1, 6);
+    // the swirl draws: the middle of the card is lit
+    const lit = await page.evaluate(() => {
+        const canvas = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('.astro-scene canvas');
+        const { width, height } = canvas;
+        const data = canvas.getContext('2d').getImageData(Math.floor(width * 0.3), Math.floor(height * 0.3), Math.floor(width * 0.4), Math.floor(height * 0.4)).data;
+        let sum = 0;
+        for (let i = 0; i < data.length; i += 4) sum += data[i] + data[i + 1] + data[i + 2];
+        return sum / (data.length / 4);
+    });
+    expect(lit).toBeGreaterThan(20);
+    await expectNoErrors(page);
+});

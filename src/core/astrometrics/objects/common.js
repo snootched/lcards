@@ -299,7 +299,7 @@ export function combineTicks(...ticks) {
  * without one (or with the chunk missing: a warning, the object draws without it).
  * @param {any} cfg
  * @param {BuildContext} ctx
- * @param {{ radius: number, base?: number[], opacity?: number, solid?: boolean }} o
+ * @param {{ radius: number, base?: number[], opacity?: number, solid?: boolean, depth?: number }} o
  */
 export function fillFor(cfg, ctx, o) {
   if (!cfg.fill_effect) return null;

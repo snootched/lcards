@@ -33,6 +33,13 @@ releases:
         session: "AC1"
         docs: /cards/astrometrics/objects#comet
         public: true
+      - file: astro-wormhole
+        topic: astrometrics
+        summary: "Astrometrics wormhole: its mouth and the regions inside it"
+        description: "The Bajoran wormhole starter. Realistic look: a swirl of blue and violet gas pouring into the funnel round a warm rippled heart, a soft shaft of light and wisps trailing off. Diagram look: the entrance disc and funnel, the pipeline (three twisted strands drawn as lit tubes), the negative and positive CTL regions, the ring and point singularities and the verteron membrane. POWER opens the mouth and wobbles the regions; the look menu switches between them."
+        session: "W1"
+        docs: /cards/astrometrics/starters#bajoran-wormhole
+        public: true
       - file: astro-asteroid
         topic: astrometrics
         summary: "Astrometrics asteroid: one rock up close"

@@ -20,11 +20,13 @@ import { splitCoord } from '../../packs/backgrounds/webgl/scenes/noise-glsl.js';
 import { num } from '../objects/common.js';
 
 /** Fill effect names (the background presets they come from) */
-export const FILL_TYPES = { plasma: 0, fluid: 1, contour: 2, bands: 3 };
+export const FILL_TYPES = { plasma: 0, fluid: 1, contour: 2, bands: 3, swirl: 4 };
 /** Colour stops a contour fill holds; longer lists are resampled to this many */
 export const MAX_STOPS = 16;
 /** Noise cells across the object's radius when base_frequency is not set */
 const CELLS_PER_RADIUS = 3;
+/** Seconds a swirl layer runs before it fades out and restarts */
+const SWIRL_CYCLE = 10;
 /** The direction the field flows (`speed`), normalised */
 const FLOW = new Vector3(1, 0.35, 0.6).normalize();
 
@@ -95,6 +97,26 @@ uniform vec4 uBase;
 uniform float uOpacity;
 uniform float uRadius;
 uniform float uTurb;
+uniform vec2 uTau;
+uniform vec2 uFade;
+uniform float uAng;
+uniform float uFall;
+uniform float uWind;
+uniform float uRipple;
+uniform float uDepth;
+
+// swirl: one layer of gas, streaks along a log spiral, turned and drawn in by tau seconds
+float swirlLayer( float th, float r, float lr, float tau ) {
+  float u = th + uWind * lr - uAng * tau * 1.15 / ( r + 0.15 );
+  float l = lr + uFall * tau;
+  float k = uFreq * uRadius / 3.0;
+  // a coarse warp breaks the rings into clumps, then fine noise streaked along the spiral
+  float w = lcFbm3( uCell, vec3( cos( u ) * 1.4, sin( u ) * 1.4, l * 2.5 ) * k + vec3( 5.2, 1.3, 7.7 ), 3 );
+  l += 0.12 * uTurb * w;
+  u += 0.5 * uTurb * w;
+  vec3 p = vec3( cos( u ) * 2.4, sin( u ) * 2.4, l * 8.0 ) * k;
+  return lcFbm3( uCell, p, uOctaves );
+}
 
 vec4 colorAtBand( float bandValue ) {
   float p = bandValue * float( uStopCount - 1 );
@@ -133,6 +155,27 @@ void main() {
     vec4 c0 = uStops[ i0 ];
     c = uBlend ? mix( c0, uStops[ i1 ], smoothstep( 0.55, 1.0, fract( s ) ) ) : c0;
     c.rgb *= 0.9 + 0.2 * n;
+  } else if ( uType == 4 ) {
+    // swirl: gas spiralling in round the object's y axis, faster near the
+    // middle, streaked along the spiral with dark lanes, colours from the
+    // middle (first stop) out to the rim, a rippled heart and a ragged edge.
+    // Two layers a half cycle apart crossfade, so the winding never piles up.
+    float r = length( vPos.xz ) / uRadius;
+    float th = atan( vPos.z, vPos.x );
+    float lr = log( max( r, 1e-3 ) );
+    float g = uFade.x * swirlLayer( th, r, lr, uTau.x ) + uFade.y * swirlLayer( th, r, lr, uTau.y );
+    g /= max( 1e-3, sqrt( uFade.x * uFade.x + uFade.y * uFade.y ) );
+    float dens = smoothstep( -0.6, 0.5, g );
+    float heart = 1.0 - smoothstep( 0.0, 0.28, r );
+    float ripple = 0.75 + 0.25 * sin( r * 70.0 - uRipple );
+    float coarse = lcFbm3( uCell, vec3( cos( th ), sin( th ), lr * 2.0 ) * 1.3, 2 );
+    float edge = 1.0 - smoothstep( 0.55, 1.0, r + uTurb * 0.4 * coarse );
+    c = colorAtBand( clamp( r, 0.0, 1.0 ) );
+    // the lanes are thin gas, not empty: a dim floor under the streaks
+    c.rgb *= mix( 0.3 + 1.0 * dens, ripple * 1.2, heart );
+    c.a *= mix( 0.3 + 0.7 * dens, 1.0, heart * 0.8 ) * edge;
+    // down a well the gas thins out before the narrow throat, into the light at its heart
+    if ( uDepth > 0.0 ) c.a *= 1.0 - smoothstep( 0.3, 0.75, -vPos.y / uDepth );
   } else {
     // contour: stepped bands, the lowest flooded below fill_level
     float bands = max( 2.0, floor( uBands + 0.5 ) );
@@ -171,9 +214,9 @@ export function contourStops(list) {
  * The fill material for one object, and its tick when it moves.
  * @param {any} fill - the `fill_effect` config
  * @param {import('../objects/common.js').BuildContext} ctx
- * @param {{ radius: number, base?: number[], opacity?: number, solid?: boolean }} o -
+ * @param {{ radius: number, base?: number[], opacity?: number, solid?: boolean, depth?: number }} o -
  *   radius sets the default detail; base is the colour under the fill (straight rgba);
- *   solid writes depth (a sphere's body, which hides what is behind it)
+ *   solid writes depth (a sphere's body, which hides what is behind it); depth is a well's (a swirl thins out down it)
  * @returns {{ material: ShaderMaterial, tick: ((dt: number, t: number) => boolean) | null }}
  */
 export function fillMaterial(fill, ctx, o) {
@@ -184,7 +227,7 @@ export function fillMaterial(fill, ctx, o) {
   const octaves = Math.max(1, Math.min(MAX_OCTAVES3, Math.round(num(f.num_octaves, type === FILL_TYPES.contour ? 2 : type === FILL_TYPES.plasma ? 3 : 4))));
   const stops = new Float32Array(MAX_STOPS * 4);
   let stopCount = 2;
-  if (type === FILL_TYPES.contour || type === FILL_TYPES.bands) {
+  if (type === FILL_TYPES.contour || type === FILL_TYPES.bands || type === FILL_TYPES.swirl) {
     const list = Array.isArray(f.colors) ? f.colors : f.colors !== undefined ? [f.colors] : [FILL_COLORS.a, FILL_COLORS.b];
     const resolved = contourStops(list.map((/** @type {any} */ c) => ctx.color(c, FILL_COLORS.a)));
     resolved.forEach((c, i) => stops.set([c[0], c[1], c[2], c[3] ?? 1], i * 4));
@@ -208,7 +251,15 @@ export function fillMaterial(fill, ctx, o) {
     uBase: { value: o.base ?? [0, 0, 0, 0] },
     uOpacity: { value: Math.max(0, Math.min(1, num(f.opacity, 1))) * (o.opacity ?? 1) },
     uRadius: { value: radius },
-    uTurb: { value: Math.max(0, Math.min(1, num(f.turbulence, 0.3))) }
+    uTurb: { value: Math.max(0, Math.min(1, num(f.turbulence, 0.3))) },
+    uTau: { value: [0, 0] },
+    uFade: { value: [1, 0] },
+    // swirl: radians a second at the rim, log-radius a second drawn in, spiral winding, ripple phase
+    uAng: { value: num(f.speed, 0) / radius },
+    uFall: { value: 0.04 * Math.sign(num(f.speed, 0)) },
+    uWind: { value: 2.2 },
+    uRipple: { value: 0 },
+    uDepth: { value: Math.max(0, o.depth ?? 0) }
   };
   const material = new ShaderMaterial({
     uniforms: u,
@@ -222,6 +273,24 @@ export function fillMaterial(fill, ctx, o) {
     depthWrite: !!o.solid
   });
   const speed = num(f.speed, 0);
+  if (type === FILL_TYPES.swirl) {
+    return {
+      material,
+      tick: speed
+        ? (/** @type {number} */ _dt, /** @type {number} */ t) => {
+          // two layers SWIRL_CYCLE apart by half, each restarting as it fades out
+          const s = t / 1000;
+          for (let k = 0; k < 2; k++) {
+            const ph = (s / SWIRL_CYCLE + k / 2) % 1;
+            u.uTau.value[k] = ph * SWIRL_CYCLE;
+            u.uFade.value[k] = 1 - Math.abs(2 * ph - 1);
+          }
+          u.uRipple.value = (s * 2.5) % (2 * Math.PI);
+          return true;
+        }
+        : null
+    };
+  }
   /** noise cells per ms along FLOW */
   const rate = (speed * freq) / 1000;
   const tick = rate

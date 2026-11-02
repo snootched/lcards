@@ -20,6 +20,7 @@ import solarSystem from './scene-solar-system.js';
 import federationMap from './scene-federation-map.js';
 import starbaseApproach from './scene-starbase-approach.js';
 import deepSpaceNine from './scene-deep-space-nine.js';
+import bajoranWormhole from './scene-bajoran-wormhole.js';
 import utopiaPlanitia from './scene-utopia-planitia.js';
 import borgEncounter from './scene-borg-encounter.js';
 import trueScaleSolarSystem from './scene-true-scale-solar-system.js';
@@ -34,6 +35,7 @@ import asteroidBelt from './part-asteroid-belt.js';
 import asteroid from './part-asteroid.js';
 import comet from './part-comet.js';
 import nebulaField from './part-nebula-field.js';
+import wormhole from './part-wormhole.js';
 import sectorVolumes from './part-sector-volumes.js';
 import starbase from './part-starbase.js';
 
@@ -84,7 +86,7 @@ import starbase from './part-starbase.js';
  */
 
 /** @type {Starter[]} */
-export const STARTERS = [galaxy, sectorMap, skyDome, solarSystem, federationMap, starbaseApproach, deepSpaceNine, utopiaPlanitia, borgEncounter, trueScaleSolarSystem, trueScaleDive, starTrekGalaxy, planet, asteroidBelt, asteroid, comet, nebulaField, sectorVolumes, starbase, stMinorPowers, stDeltaPowers, stTranswarp];
+export const STARTERS = [galaxy, sectorMap, skyDome, solarSystem, federationMap, starbaseApproach, deepSpaceNine, bajoranWormhole, utopiaPlanitia, borgEncounter, trueScaleSolarSystem, trueScaleDive, starTrekGalaxy, planet, asteroidBelt, asteroid, comet, nebulaField, wormhole, sectorVolumes, starbase, stMinorPowers, stDeltaPowers, stTranswarp];
 
 /** Keys whose string values (or list entries) name a point, object or view */
 const REF_KEYS = new Set(['id', 'at', 'object', 'target', 'from', 'to', 'points', 'view', 'light', 'face', 'point']);

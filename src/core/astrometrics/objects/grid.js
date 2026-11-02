@@ -267,7 +267,8 @@ export function buildGrid(cfg, ctx) {
   }
   // fill_effect: one material under every face's lines (drawn after the far side, before the near side)
   const size = pair(cfg.size, [200, 200]);
-  const effect = fillFor(cfg, ctx, { radius: out.radius ?? Math.max(size[0], size[1]) / 2, opacity });
+  // a well's depth: a swirl thins out down its throat
+  const effect = fillFor(cfg, ctx, { radius: out.radius ?? Math.max(size[0], size[1]) / 2, opacity, depth: shape === 'well' && extent ? -extent[0] : 0 });
   if (effect) {
     /** @type {import('three').Object3D[]} */
     const fills = [];

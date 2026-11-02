@@ -560,3 +560,32 @@ test('depth dust: wraps round the camera, the same on a revisit, faded at the re
   assert.ok(Math.abs(u.uCam.value.x - 2) < 1e-9 && u.uCam.value.y === 0);
   assert.ok(Math.abs(u.uTail.value.x - 0.5) < 1e-9);
 });
+
+test('W1 swirl fill: its own type, colour stops from the heart out, and two layers that only restart while faded out', async () => {
+  const { fillMaterial, FILL_TYPES } = await import('../../src/core/astrometrics/effects/fills.js');
+  const { FILL_EFFECTS } = await import('../../src/core/astrometrics/names.js');
+  assert.ok(FILL_EFFECTS.includes('swirl'));
+  const ctx = /** @type {any} */ ({ color: (/** @type {any} */ c) => (c === 'a' ? [1, 0, 0, 1] : [0, 0, 1, 1]) });
+  const { material, tick } = fillMaterial({ type: 'swirl', colors: ['a', 'b'], speed: 3 }, ctx, { radius: 15 });
+  const u = /** @type {any} */ (material.uniforms);
+  assert.equal(u.uType.value, FILL_TYPES.swirl);
+  assert.equal(u.uStopCount.value, 2);
+  assert.deepEqual([...u.uStops.value.slice(0, 4)], [1, 0, 0, 1], 'the first stop is the heart');
+  assert.ok(Math.abs(u.uAng.value - 3 / 15) < 1e-9, 'speed is the turn at the rim');
+  assert.ok(tick, 'a moving swirl ticks');
+  let prev = [-1, -1];
+  for (let t = 0; t < 60000; t += 50) {
+    /** @type {any} */ (tick)(50, t);
+    const fade = u.uFade.value;
+    assert.ok(Math.abs(fade[0] + fade[1] - 1) < 1e-9, 'the two layers always add up to one');
+    for (let k = 0; k < 2; k++) {
+      // a layer's clock jumps back only when it has faded out (no visible jump)
+      if (u.uTau.value[k] < prev[k]) assert.ok(fade[k] < 0.02, `layer ${k} restarted at fade ${fade[k]}`);
+      prev[k] = u.uTau.value[k];
+    }
+  }
+  assert.equal(fillMaterial({ type: 'swirl' }, ctx, { radius: 15 }).tick, null, 'still without a speed');
+  // down a well it thins out before the throat (no pale tube below the gas)
+  assert.equal(/** @type {any} */ (fillMaterial({ type: 'swirl' }, ctx, { radius: 15, depth: 5 }).material.uniforms).uDepth.value, 5);
+  assert.match(material.fragmentShader, /if \( uDepth > 0\.0 \) c\.a \*= 1\.0 - smoothstep/);
+});

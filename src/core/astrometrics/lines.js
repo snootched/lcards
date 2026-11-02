@@ -24,7 +24,7 @@
  *
  * @module core/astrometrics/lines
  */
-import { InstancedInterleavedBuffer, InterleavedBufferAttribute, AdditiveBlending, Color, SRGBColorSpace, Matrix4, Vector3 } from 'three';
+import { InstancedInterleavedBuffer, InterleavedBufferAttribute, AdditiveBlending, CustomBlending, MaxEquation, OneFactor, Color, SRGBColorSpace, Matrix4, Vector3 } from 'three';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
@@ -41,7 +41,24 @@ export class PxDashLineMaterial extends LineMaterial {
       .replace('gl_Position = clip;', 'gl_Position = clip;\n\t\t\t#ifdef USE_DASH\n\t\t\t\tvPxW = clip.w;\n\t\t\t\tvPxD = vLineDistance * clip.w;\n\t\t\t#endif');
     this.fragmentShader = this.fragmentShader
       .replace('void main() {', 'varying float vPxW;\nvarying float vPxD;\nvoid main() {')
-      .replace('mod( vLineDistance + dashOffset', 'mod( vPxD / vPxW + dashOffset');
+      .replace('mod( vLineDistance + dashOffset', 'mod( vPxD / vPxW + dashOffset')
+      // tube: shaded as a lit cylinder across its width (vUv.x runs -1 to 1 edge to edge)
+      .replace('gl_FragColor = vec4( diffuseColor.rgb, alpha );', `#ifdef USE_TUBE
+				float tx = clamp( vUv.x, -1.0, 1.0 );
+				float nz = sqrt( max( 0.0, 1.0 - tx * tx ) );
+				float spec = exp( -pow( ( tx + 0.3 ) / 0.16, 2.0 ) );
+				diffuseColor.rgb = diffuseColor.rgb * ( 0.18 + 0.82 * nz ) + vec3( 0.55 * spec );
+			#endif
+			#ifdef USE_SOFT
+				alpha *= exp( -3.0 * vUv.x * vUv.x );
+			#endif
+			gl_FragColor = vec4( diffuseColor.rgb, alpha );`)
+      // lighten: the brightest piece wins where pieces overlap (max blending
+      // ignores alpha, so the colour carries it)
+      .replace('#include <colorspace_fragment>', `#include <colorspace_fragment>
+			#ifdef USE_LIGHTEN
+				gl_FragColor = vec4( gl_FragColor.rgb * gl_FragColor.a, gl_FragColor.a );
+			#endif`);
   }
 }
 
@@ -161,6 +178,9 @@ const _cam = new Vector3();
  * @property {number[] | null} [dash] - [on, off] CSS px
  * @property {boolean} [additive]
  * @property {number} [renderOrder]
+ * @property {boolean} [tube] - shaded as a lit cylinder across its width
+ * @property {boolean} [soft] - fades out toward its edges (a beam's haze)
+ * @property {boolean} [lighten] - overlapping pieces show the brightest, not their sum (a glow under a curve)
  */
 
 export class FatLine {
@@ -185,6 +205,15 @@ export class FatLine {
       depthWrite: false
     });
     if (style.additive) this.material.blending = AdditiveBlending;
+    if (style.tube) this.material.defines.USE_TUBE = '';
+    if (style.soft) this.material.defines.USE_SOFT = '';
+    if (style.lighten) {
+      this.material.defines.USE_LIGHTEN = '';
+      this.material.blending = CustomBlending;
+      this.material.blendEquation = MaxEquation;
+      this.material.blendSrc = OneFactor;
+      this.material.blendDst = OneFactor;
+    }
     this.dashed = dashed;
     this.geometry = new LineSegmentsGeometry();
     this.object = new LineSegments2(this.geometry, this.material);
