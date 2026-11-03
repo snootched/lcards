@@ -42,6 +42,113 @@ const colorValueSchema = {
 };
 
 // ============================================================================
+// PROCESSORS - one branch per type (doc/core/datasources/processor-reference.md)
+// ============================================================================
+
+/** Keys every processor takes */
+const processorCommon = {
+    input_source: {
+        type: 'string',
+        description: 'Name of another processor in this pipeline whose output this one reads (creates a dependency chain). If omitted, uses the raw entity value.',
+        examples: ['fahrenheit', 'smoothed', 'scaled']
+    },
+    enabled: { type: 'boolean', description: 'Set false to pass values through unchanged (default true)' }
+};
+
+/**
+ * One processor type's branch: its `type` and settings, plus the common keys.
+ * @param {string} type
+ * @param {string} description
+ * @param {Record<string, any>} [settings]
+ * @param {string[]} [required]
+ */
+function processorBranch(type, description, settings = {}, required = []) {
+    return {
+        type: 'object',
+        title: type,
+        description,
+        required: ['type', ...required],
+        properties: {
+            type: { type: 'string', const: type, description: `${type}: ${description}` },
+            ...processorCommon,
+            ...settings
+        }
+    };
+}
+
+const PROCESSOR_BRANCHES = [
+    processorBranch('convert_unit', 'Convert between units (temperature, power, energy, distance, speed, pressure, data).', {
+        from: { type: 'string', description: 'Source unit (e.g. c, f, w, kw). Not a chaining key: use input_source.' },
+        to: { type: 'string', description: 'Target unit.' }
+    }, ['from', 'to']),
+    processorBranch('scale', 'Map a value from one range to another, with an optional curve.', {
+        input_range: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description: '[min, max] of the input (default [0, 100]).' },
+        output_range: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description: '[min, max] of the output (default [0, 1]).' },
+        curve: { type: 'string', enum: ['linear', 'exponential', 'logarithmic', 'sigmoid'], description: 'Mapping curve (default linear).' }
+    }),
+    processorBranch('smooth', 'Smooth out noise.', {
+        method: { type: 'string', enum: ['exponential', 'moving_average', 'gaussian'], description: 'Smoothing method (default exponential).' },
+        alpha: { type: 'number', minimum: 0, maximum: 1, description: 'exponential: weight of the newest value, 0 to 1 (default 0.3).' },
+        window: { type: 'number', minimum: 1, description: 'moving_average and gaussian: samples in the window (default 10).' }
+    }),
+    processorBranch('expression', 'Compute a value with a JavaScript expression.', {
+        expression: { type: 'string', description: 'JavaScript expression using value/v, t, sources, entity and Math helpers.' },
+        sources: { type: 'array', items: { type: 'string' }, description: 'Processor names available as sources[0], sources[1], ...' }
+    }, ['expression']),
+    processorBranch('statistics', 'Statistics over a time window.', {
+        stats: {
+            type: 'array',
+            items: { type: 'string', enum: ['min', 'max', 'mean', 'avg', 'median', 'std_dev', 'stddev', 'q1', 'q3', 'range', 'count', 'sum'] },
+            description: 'Which statistics: min, max, mean, median, std_dev, q1, q3, range, count, sum (avg and stddev are aliases).'
+        },
+        window: { type: ['number', 'string'], description: 'Time window: seconds, a duration like "5m", or "session".' },
+        max_points: { type: 'number', minimum: 1, description: 'Keep a time series of this many results.' }
+    }),
+    processorBranch('rate', 'Rate of change.', {
+        unit: { type: 'string', enum: ['per_second', 'per_minute', 'per_hour'], description: 'Time unit (default per_second).' },
+        smoothing: { type: 'boolean', description: 'Smooth the rate.' }
+    }),
+    processorBranch('trend', 'Whether the value is rising, falling or stable.', {
+        samples: { type: 'number', minimum: 2, description: 'Samples in the slope window (default 5).' },
+        threshold: { type: 'number', minimum: 0, description: 'Slope below which the trend is stable.' }
+    }),
+    processorBranch('duration', 'How long a condition has held.', {
+        condition: { type: 'string', description: 'Condition like "> 20" that starts the timer.' },
+        reset_on: { type: 'string', description: 'Condition that resets the timer.' }
+    }, ['condition']),
+    processorBranch('threshold', 'Switch between two outputs at a point.', {
+        threshold: { type: 'number', description: 'Switch point.' },
+        above: { description: 'Output when above (default 1).' },
+        below: { description: 'Output when below (default 0).' },
+        hysteresis: { type: 'number', minimum: 0, description: 'Dead band around the switch point.' }
+    }, ['threshold']),
+    processorBranch('clamp', 'Keep the value within bounds.', {
+        min: { type: 'number', description: 'Lower bound.' },
+        max: { type: 'number', description: 'Upper bound.' }
+    }),
+    processorBranch('round', 'Round to a number of decimal places.', {
+        method: { type: 'string', enum: ['round', 'floor', 'ceil'], description: 'Rounding method (default round).' },
+        precision: { type: 'number', minimum: 0, description: 'Decimal places (default 0).' }
+    }),
+    processorBranch('delta', 'Change since the previous value.', {
+        absolute: { type: 'boolean', description: 'Report the absolute change.' }
+    })
+];
+
+/** The processor types, in reference order */
+export const PROCESSOR_TYPES = PROCESSOR_BRANCHES.map((b) => b.title);
+
+/** One named processor in a data source's `processing` map */
+export const processorSchema = {
+    type: 'object',
+    description: `A processor in the pipeline. type picks one of: ${PROCESSOR_TYPES.join(', ')}.`,
+    required: ['type'],
+    // ajv (validator, tests) picks the branch by type and reports only its errors
+    discriminator: { propertyName: 'type' },
+    oneOf: PROCESSOR_BRANCHES
+};
+
+// ============================================================================
 // DATA SOURCES SCHEMA - Historical data queries and processing pipeline
 // ============================================================================
 
@@ -128,63 +235,7 @@ export const dataSourcesSchema = {
             processing: {
                 type: 'object',
                 description: 'Processing pipeline with named processors. Each processor transforms data and stores results in a buffer accessible via templates.',
-                additionalProperties: {
-                    type: 'object',
-                    properties: {
-                        type: {
-                            type: 'string',
-                            enum: [
-                                'convert_unit',
-                                'scale',
-                                'smooth',
-                                'expression',
-                                'statistics',
-                                'rate',
-                                'trend',
-                                'duration',
-                                'threshold',
-                                'clamp',
-                                'round',
-                                'delta'
-                            ],
-                            description: 'Processor type',
-                            examples: ['convert_unit', 'smooth', 'expression']
-                        },
-                        input_source: {
-                            type: 'string',
-                            description: 'Name of another processor in this pipeline whose output this one reads (creates a dependency chain). If omitted, uses the raw entity value.',
-                            examples: ['fahrenheit', 'smoothed', 'scaled']
-                        },
-                        enabled: { type: 'boolean', description: 'Set false to pass values through unchanged (default true)' },
-                        // Per-type parameters (see doc/core/datasources/processor-reference.md).
-                        from: { type: 'string', description: 'convert_unit: source unit (e.g. c, f, w, kw). Not a chaining key: use input_source.' },
-                        to: { type: 'string', description: 'convert_unit: target unit' },
-                        input_range: { type: 'array', items: { type: 'number' }, description: 'scale: [min, max] of the input' },
-                        output_range: { type: 'array', items: { type: 'number' }, description: 'scale: [min, max] of the output' },
-                        curve: { type: 'string', enum: ['linear', 'exponential', 'logarithmic', 'sigmoid'], description: 'scale: mapping curve' },
-                        method: { type: 'string', description: 'smooth: exponential | moving_average | gaussian. round: round | floor | ceil' },
-                        alpha: { type: 'number', description: 'smooth (exponential): weight of the newest value, 0 to 1 (default 0.3)' },
-                        window: { type: ['number', 'string'], description: 'smooth: sample count (default 10). statistics: time window like "5m" or "session"' },
-                        expression: { type: 'string', description: 'expression: JavaScript expression using value/v, t, sources, entity and Math helpers' },
-                        sources: { type: 'array', items: { type: 'string' }, description: 'expression: processor names available as sources[0], sources[1], ...' },
-                        stats: { type: 'array', items: { type: 'string' }, description: 'statistics: min, max, mean, median, std_dev, q1, q3, range, count, sum' },
-                        max_points: { type: 'number', description: 'statistics: keep a time series of this many results' },
-                        unit: { type: 'string', enum: ['per_second', 'per_minute', 'per_hour'], description: 'rate: time unit' },
-                        smoothing: { type: 'boolean', description: 'rate: smooth the rate' },
-                        samples: { type: 'number', description: 'trend: samples in the slope window (default 5)' },
-                        threshold: { type: 'number', description: 'trend: slope below which the trend is stable. threshold: switch point' },
-                        above: { description: 'threshold: output when above (default 1)' },
-                        below: { description: 'threshold: output when below (default 0)' },
-                        hysteresis: { type: 'number', description: 'threshold: dead band around the switch point' },
-                        condition: { type: 'string', description: 'duration: condition like "> 20" that starts the timer' },
-                        reset_on: { type: 'string', description: 'duration: condition that resets the timer' },
-                        min: { type: 'number', description: 'clamp: lower bound' },
-                        max: { type: 'number', description: 'clamp: upper bound' },
-                        precision: { type: 'number', description: 'round: decimal places (default 0)' },
-                        absolute: { type: 'boolean', description: 'delta: report the absolute change' }
-                    },
-                    required: ['type']
-                }
+                additionalProperties: processorSchema
             },
             window_seconds: {
                 type: ['number', 'string'],

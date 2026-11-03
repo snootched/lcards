@@ -1,0 +1,10 @@
+# Nebula drift following an entity (astrometrics.spec.js): it eases in place
+# through live(), the nebula is not rebuilt.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: wide
+  views:
+    wide: { target: [0, 0, 0], yaw: 20, tilt: 25, distance: 300 }
+objects:
+  - { type: nebula, id: neb, size: [200, 40, 200], cloud_count: 5, seed: 5, drift: { entity: input_number.lcards_test_power, input: [0, 100], output: [0, 12] } }

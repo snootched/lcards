@@ -69,6 +69,11 @@ test('docs links: detailed maps, common options, card pages, absolute urls', () 
     // Processor names are free-form keys: anything under processing links to the reference.
     assert.equal(docsFor('chart', ['data_sources', 'temp', 'processing', 'smoothed', 'alpha']), '/core/datasources/processor-reference');
     assert.equal(docsFor('processor-lab', ['processing', 'smoothed', 'type']), '/core/datasources/processor-reference');
+    // with the config: the section of the processor's type
+    const cfg = { data_sources: { temp: { processing: { f: { type: 'convert_unit' }, s: { type: 'smooth' }, x: { type: 'nope' } } } } };
+    assert.equal(docsFor('chart', ['data_sources', 'temp', 'processing', 'f', 'from'], cfg), '/core/datasources/processor-reference#convert-unit');
+    assert.equal(docsFor('chart', ['data_sources', 'temp', 'processing', 's'], cfg), '/core/datasources/processor-reference#smooth');
+    assert.equal(docsFor('chart', ['data_sources', 'temp', 'processing', 'x', 'type'], cfg), '/core/datasources/processor-reference');
     assert.equal(docsFor('lcards-processor-lab', ['entity']), '/core/datasources/#top-level-fields');
     assert.equal(docsFor('button', ['text', 'label']), '/core/text-fields');
     assert.equal(docsFor('slider', []), '/cards/slider-card/#card-options');

@@ -661,12 +661,11 @@ Ring variants (drag any of them):
 
 ## Picard Component
 
-Use `component: picard` for the Picard-style gauge rendering: a decorative range frame, a dedicated solid value bar, and a scanning activity indicator alongside the standard gauge elements. Requires `component: picard` explicitly; presets like `picard-gauge-vertical` only declare compatibility, they don't set it for you.
+The Picard component draws the Picard-style gauge: a decorative range frame, a dedicated solid value bar, and a scanning activity indicator alongside the standard gauge elements. The `picard-gauge-vertical` preset sets `component: picard` for you; set it yourself to use the component with another preset.
 
 ```yaml live
 type: custom:lcards-slider
 entity: sensor.temperature
-component: picard
 preset: picard-gauge-vertical
 grid_options:
   rows: 7            # draws to its cell height: give it rows in a sections view

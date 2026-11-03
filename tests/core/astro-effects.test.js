@@ -11,7 +11,7 @@ const env = installJsdom();
 after(() => env.restore());
 const { buildScene } = await import('../../src/core/astrometrics/scene-builder.js');
 const { stepObjects, built } = await import('../../src/core/astrometrics/objects/common.js');
-const { usesEffects, OBJECT_TYPES } = await import('../../src/core/astrometrics/names.js');
+const { usesEffects, OBJECT_TYPES, LIVE_TYPE_KEYS } = await import('../../src/core/astrometrics/names.js');
 const effects = await import('../../src/core/astrometrics/effects/index.js');
 const { nearFade, MAX_CLOUDS } = await import('../../src/core/astrometrics/effects/nebula.js');
 const { Group } = await import('three');
@@ -122,6 +122,37 @@ test('nebula in a scene: one mesh of camera-facing quads, no pick meshes, still 
       }
     }
   }
+});
+
+test('nebula drift follows an entity in place (live): it eases without a jump, and a still one starts where it stands', () => {
+  assert.deepEqual([...LIVE_TYPE_KEYS.nebula.keys], ['drift', 'drift.0', 'drift.1']);
+  const n = buildScene({ objects: [{ type: 'nebula', id: 'n', drift: [2, 1] }] }, /** @type {any} */ (ctx())).objects.get('n');
+  const u = /** @type {any} */ (n?.node.children[0]).material.uniforms;
+  const at = () => [u.uWarpCell.value.x + u.uWarpLocal.value.x, u.uWarpCell.value.y + u.uWarpLocal.value.y];
+  n?.tick?.(16, 10_000);
+  const before = at();
+  // the drift eases up and down every frame: the clouds never jump
+  let prev = before;
+  for (let t = 10_016, k = 0; k < 200; t += 16, k++) {
+    assert.equal(n?.live?.('drift', 2 + 20 * Math.sin(k / 10)), true);
+    n?.tick?.(16, t);
+    const p = at();
+    assert.ok(Math.hypot(p[0] - prev[0], p[1] - prev[1]) < 0.05, `no jump at frame ${k}`);
+    prev = p;
+  }
+  assert.equal(n?.live?.('drift.1', 0), true);
+  assert.equal(n?.live?.('seed', 4), false, 'other keys rebuild');
+  n?.live?.('drift', null);
+
+  const still = buildScene({ objects: [{ type: 'nebula', id: 's' }] }, /** @type {any} */ (ctx())).objects.get('s');
+  assert.equal(still?.tick, null);
+  const su = /** @type {any} */ (still?.node.children[0]).material.uniforms;
+  still?.live?.('drift', 5);
+  assert.equal(typeof still?.tick, 'function', 'a live drift sets it moving');
+  still?.tick?.(16, 50_000);
+  assert.equal(su.uWarpCell.value.x + su.uWarpLocal.value.x, 0, 'from where it stood, not the clock');
+  assert.equal(still?.tick?.(16, 51_000), true);
+  assert.ok(su.uWarpCell.value.x + su.uWarpLocal.value.x > 0);
 });
 
 test('nebula without the effects chunk is skipped, not thrown', () => {

@@ -26,10 +26,10 @@ export function splitPath(path) {
   return path.split(/\.|(?=\[)/).filter(Boolean).map(seg => (/^\[\d+\]$/.test(seg) ? Number(seg.slice(1, -1)) : seg))
 }
 
-/** Docs link (site-relative) for an option path of a card. */
-export function docsLink(tag, path) {
+/** Docs link (site-relative) for an option path of a card (its config: a processor links to its type's section). */
+export function docsLink(tag, path, config) {
   const short = tag === 'lcards-msd-card' ? 'msd' : tag
-  const link = docsFor(short, splitPath(path))
+  const link = docsFor(short, splitPath(path), config)
   return link ?? PAGE_FOR_TAG[tag]
 }
 
@@ -134,7 +134,7 @@ export function createChecker({ entries, registries = null }) {
       const issues = friendlyIssues([...inCard, ...validator.validateNode(node, tag, '')]).map(issue => ({
         ...issue,
         line: lineOf([...base, ...splitPath(issue.path)]),
-        docs: docsLink(tag, issue.path),
+        docs: docsLink(tag, issue.path, node),
       }))
       return { path: path || '(root)', tag, line: base.length ? lineOf(base) : 1, docs: PAGE_FOR_TAG[tag] ?? docsLink(tag, ''), issues }
     })

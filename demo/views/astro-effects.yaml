@@ -7,6 +7,13 @@ sections:
   - type: grid
     column_span: 4
     cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: NEBULA DRIFT } }
+        style: { shaped: { text_bands: { left: { size: 140 } } } }
+        grid_options: { columns: 12, rows: 1 }
       - type: custom:lcards-astrometrics-card
         height: 650
         camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 20, tilt: 25, distance: 300 } } }
@@ -22,7 +29,8 @@ sections:
             size: [ 220, 50, 220 ]
             cloud_count: 8
             seed: 5
-            drift: 3
+            # follows the slider above and eases to each new speed (no jump)
+            drift: { entity: input_number.lcards_test_power, input: [ 0, 100 ], output: [ 0, 12 ] }
             colors: [ var(--lcars-violet), var(--lcars-blue), var(--lcars-red) ]
         grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card

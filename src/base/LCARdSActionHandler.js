@@ -18,6 +18,49 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import { TriggerManager } from '../core/animation/TriggerManager.js';
 
 /**
+ * States a toggle turns on from (Home Assistant's STATES_OFF, src/common/const.ts
+ * in the frontend); any other state turns off.
+ */
+export const TOGGLE_OFF_STATES = ['closed', 'locked', 'off'];
+
+/**
+ * Domains whose toggle is not turn_on / turn_off: Home Assistant's
+ * SPECIAL_TOGGLE_ACTIONS (src/common/entity/get_toggle_action.ts in the
+ * frontend). A domain with only `on` calls it both ways.
+ * @type {Record<string, { on: string, off?: string }>}
+ */
+export const SPECIAL_TOGGLE_ACTIONS = {
+    button: { on: 'press' },
+    camera: { on: 'turn_on', off: 'turn_off' },
+    climate: { on: 'turn_on', off: 'turn_off' },
+    cover: { on: 'open_cover', off: 'close_cover' },
+    input_button: { on: 'press' },
+    lock: { on: 'unlock', off: 'lock' },
+    media_player: { on: 'turn_on', off: 'turn_off' },
+    scene: { on: 'turn_on' },
+    siren: { on: 'turn_on', off: 'turn_off' },
+    valve: { on: 'open_valve', off: 'close_valve' }
+};
+
+/**
+ * The service a toggle calls, as Home Assistant's own toggle picks it: from
+ * the entity's state (off, closed, locked: on; else off) and its domain. A
+ * group goes through the homeassistant domain. With no known state, the
+ * domain's own toggle service.
+ * @param {string} entityId
+ * @param {string | undefined} state
+ * @returns {{ domain: string, service: string }}
+ */
+export function toggleService(entityId, state) {
+    const domain = entityId.split('.')[0];
+    if (state === undefined) return { domain, service: 'toggle' };
+    const turnOn = TOGGLE_OFF_STATES.includes(state);
+    const special = SPECIAL_TOGGLE_ACTIONS[domain];
+    const service = special?.[turnOn ? 'on' : 'off'] || special?.on || (turnOn ? 'turn_on' : 'turn_off');
+    return { domain: domain === 'group' ? 'homeassistant' : domain, service };
+}
+
+/**
  * Action handler for LCARdS cards
  *
  * Provides unified action handling across all card types:
@@ -231,7 +274,7 @@ export class LCARdSActionHandler {
             const liveHass = options.getHass?.() ?? hass;
             if (!entityId || !liveHass?.states?.[entityId]) return false;
             const state = liveHass.states[entityId].state;
-            playSound(state === 'on' ? 'toggle_off' : 'toggle_on');
+            playSound(TOGGLE_OFF_STATES.includes(state) ? 'toggle_on' : 'toggle_off');
             return true;
         };
 
@@ -630,9 +673,9 @@ export class LCARdSActionHandler {
             return;
         }
 
-        const domain = entityId.split('.')[0];
-        lcardsLog.debug(`[LCARdSActionHandler] Toggling ${entityId}`);
-        hass.callService(domain, 'toggle', { entity_id: entityId });
+        const { domain, service } = toggleService(entityId, hass.states?.[entityId]?.state);
+        lcardsLog.debug(`[LCARdSActionHandler] Toggling ${entityId}: ${domain}.${service}`);
+        hass.callService(domain, service, { entity_id: entityId });
     }
 
     /**

@@ -56,9 +56,10 @@ for (const [name, gallery] of Object.entries(CARD_GALLERIES)) {
     }
 }
 
-// A slider preset that declares only non-default components (picard-gauge-vertical)
-// but doesn't set one itself renders as a plain gauge unless the config sets
-// component: so every demo config using one must set a compatible component.
+// A slider preset that declares only non-default components but doesn't set one
+// itself would render as a plain gauge unless the config sets component: so every
+// demo config using one must set a compatible component. (Every built-in preset
+// sets its own today; picard-gauge-vertical did not until 2026-11-02.)
 function presetComponentProblem(config) {
     if (config.type !== 'custom:lcards-slider' || !config.preset) return null;
     const preset = SLIDER_PRESETS[config.preset];
@@ -66,6 +67,14 @@ function presetComponentProblem(config) {
     if (preset?.component || compatible.includes('default')) return null;
     return compatible.includes(config.component) ? null : `preset ${config.preset} needs component: ${compatible.join(' | ')}`;
 }
+
+test('a slider preset compatible only with non-default components sets one itself', () => {
+    const missing = Object.entries(SLIDER_PRESETS)
+        .filter(([, p]) => p.compatibleComponents && !p.compatibleComponents.includes('default') && !p.component)
+        .map(([name, p]) => `${name} (${p.compatibleComponents.join(' | ')})`);
+    assert.deepEqual(missing, [], 'set component: in these presets, or the slider draws a plain gauge');
+    assert.equal(SLIDER_PRESETS['picard-gauge-vertical'].component, 'picard');
+});
 
 test('demo configs set the component their slider preset needs', () => {
     const configs = [

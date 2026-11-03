@@ -510,6 +510,8 @@ export const SLIDER_PRESETS = {
     description: 'Picard-style vertical slider',
     compatibleComponents: ['picard'],
 
+    component: 'picard',
+
     style: {
       track: {
         orientation: 'vertical',

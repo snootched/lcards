@@ -65,6 +65,20 @@ test('schema errors and unknown keys are reported at their full path', () => {
     assert.ok(m.some(x => x.startsWith('error views[0].cards[0].height:')), m.join('\n'));
 });
 
+test('processor settings are checked against their own type (2026-11-02: one shared list before)', () => {
+    const m = messages(check({ type: 'custom:lcards-button', data_sources: { t: { entity: 'sensor.temp', processing: {
+        s: { type: 'smooth', method: 'wobbly', alpha: 7 },
+        r: { type: 'round', alpha: 0.2, precision: 1 },
+        d: { type: 'duration' },
+        ok: { type: 'scale', curve: 'sigmoid' },
+    } } } }));
+    assert.ok(m.includes('error data_sources.t.processing.r.alpha: unknown key (not in the schema)'), m.join('\n'));
+    assert.ok(m.some(x => x.startsWith('error data_sources.t.processing.s.method:')), m.join('\n'));
+    assert.ok(m.some(x => x.startsWith('error data_sources.t.processing.s.alpha:')), m.join('\n'));
+    assert.ok(m.some(x => x.startsWith("error data_sources.t.processing.d: must have required property 'condition'")), m.join('\n'));
+    assert.ok(!m.some(x => x.includes('processing.ok')), 'scale with only a curve is valid (ranges default)');
+});
+
 test('an unknown custom:lcards-* type is an error, with the full type suggested', () => {
     // It used to pass silently: there is no schema to check it against
     const m = messages(check({ type: 'custom:lcards-msd', msd: { base_svg: { source: 'builtin:ncc-1701-kelvin' } } }));

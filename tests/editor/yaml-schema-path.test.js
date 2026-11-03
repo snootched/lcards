@@ -7,6 +7,7 @@ import yaml from 'js-yaml';
 import { yamlPathAt, schemaAt, optionsAt, valueChoicesAt, lenientParse } from '../../src/editor/utils/yaml-schema-path.js';
 import { getChartSchema } from '../../src/cards/schemas/chart-schema.js';
 import { dataGridSchema } from '../../src/cards/schemas/data-grid-schema.js';
+import { dataSourcesSchema, processorSchema } from '../../src/cards/schemas/common-schemas.js';
 
 /** Position at the `|` marker (marker removed). */
 function at(textWithCursor) {
@@ -85,4 +86,15 @@ test('lenientParse drops a half-typed cursor line', () => {
     const parsed = lenientParse(text, text.length, yaml.load);
     assert.equal(parsed.format, 'hex');
     assert.equal(parsed.animations[0].preset, 'cascade-color');
+});
+
+test('a discriminator picks the branch by the value\'s own type: a processor offers its own settings', () => {
+    const cfg = { t: { entity: 'sensor.x', processing: { s: { type: 'smooth' }, r: { type: 'round' } } } };
+    const keys = (n) => optionsAt(dataSourcesSchema, ['t', 'processing', n], cfg).map(o => o.key).sort();
+    assert.deepEqual(keys('s'), ['alpha', 'enabled', 'input_source', 'method', 'window']);
+    assert.deepEqual(keys('r'), ['enabled', 'input_source', 'method', 'precision']);
+    assert.deepEqual(schemaAt(dataSourcesSchema, ['t', 'processing', 'r', 'method'], cfg).enum, ['round', 'floor', 'ceil']);
+    assert.deepEqual(schemaAt(dataSourcesSchema, ['t', 'processing', 's', 'method'], cfg).enum, ['exponential', 'moving_average', 'gaussian']);
+    // no type yet: every type's keys
+    assert.ok(optionsAt(processorSchema, [], {}).length > 20);
 });

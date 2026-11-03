@@ -24,7 +24,7 @@ LCARdS cards support actions `tap_action`, `hold_action`, and `double_tap_action
 
 | `action` value | Description |
 |---------------|-------------|
-| `toggle` | Toggle the card's entity on/off |
+| `toggle` | Toggle the card's entity as Home Assistant's own cards do: from `off`, `closed` or `locked` it turns on, from any other state off. Locks unlock and lock, covers and valves open and close, buttons are pressed, scenes are turned on. |
 | `more-info` | Open the Home Assistant more-info dialog for the entity |
 | `call-service` | Call a Home Assistant service (use `service` + `service_data`) |
 | `perform-action` | Alias for `call-service` (Home Assistant 2024+ naming); name the action with `perform_action` (or `service`) and its data with `data` |

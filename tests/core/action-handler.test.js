@@ -3,7 +3,7 @@
  */
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { LCARdSActionHandler } from '../../src/base/LCARdSActionHandler.js';
+import { LCARdSActionHandler, toggleService } from '../../src/base/LCARdSActionHandler.js';
 import { createFakeHass } from '../helpers/fake-hass.js';
 
 /** EventTarget standing in for the card element; records dispatched events. */
@@ -56,25 +56,37 @@ test('_validateActionConfig: required fields per action', () => {
     for (const [cfg, want] of cases) assert.equal(handler._validateActionConfig(cfg), want, JSON.stringify(cfg));
 });
 
-test('toggle: <domain>.toggle on the configured, default or element entity', () => {
+test('toggle: on the configured, default or element entity, from its state', () => {
+    hass = createFakeHass({ states: { 'switch.a': 'off', 'light.desk': 'on' } });
     handler._executeAction({ action: 'toggle', entity: 'switch.a' }, hass, null);
     handler._executeAction({ action: 'toggle' }, hass, null, 'light.desk');
-    handler._executeAction({ action: 'toggle' }, hass, fakeElement({ entity: 'fan.b' }));
+    handler._executeAction({ action: 'toggle' }, hass, fakeElement({ entity: 'fan.b' })); // no state known: fan.toggle
     handler._executeAction({ action: 'toggle' }, hass, fakeElement()); // no entity: ignored
     assert.deepEqual(hass.serviceCalls.map(c => [c.domain, c.service, c.data.entity_id]), [
-        ['switch', 'toggle', 'switch.a'],
-        ['light', 'toggle', 'light.desk'],
+        ['switch', 'turn_on', 'switch.a'],
+        ['light', 'turn_off', 'light.desk'],
         ['fan', 'toggle', 'fan.b'],
     ]);
 });
 
-test('toggle: every domain gets <domain>.toggle, unlike HA (current behaviour)', () => {
-    // HA's own toggle maps lock -> lock/unlock, button -> press, scene -> turn_on,
-    // cover -> open_cover/close_cover. These services do not exist in HA.
-    for (const id of ['lock.door', 'button.ring', 'scene.night']) {
-        handler._executeAction({ action: 'toggle', entity: id }, hass, null);
+test('toggle: the service Home Assistant\'s own toggle picks for each domain', () => {
+    const cases = [
+        ['lock.door', 'locked', 'lock.unlock'], ['lock.door', 'unlocked', 'lock.lock'],
+        ['cover.blind', 'closed', 'cover.open_cover'], ['cover.blind', 'open', 'cover.close_cover'],
+        ['valve.main', 'closed', 'valve.open_valve'], ['valve.main', 'open', 'valve.close_valve'],
+        ['button.ring', 'unknown', 'button.press'], ['input_button.go', '2026-11-02T00:00:00', 'input_button.press'],
+        ['scene.night', 'scening', 'scene.turn_on'],
+        ['group.lights', 'on', 'homeassistant.turn_off'], ['group.lights', 'off', 'homeassistant.turn_on'],
+        ['media_player.tv', 'playing', 'media_player.turn_off'],
+        ['input_boolean.x', 'off', 'input_boolean.turn_on'], ['light.desk', 'unavailable', 'light.turn_off'],
+    ];
+    for (const [id, state, want] of cases) {
+        assert.deepEqual(toggleService(id, state), { domain: want.split('.')[0], service: want.split('.')[1] }, `${id} ${state}`);
     }
-    assert.deepEqual(hass.serviceCalls.map(c => `${c.domain}.${c.service}`), ['lock.toggle', 'button.toggle', 'scene.toggle']);
+    hass = createFakeHass({ states: { 'lock.door': 'locked', 'button.ring': 'unknown' } });
+    handler._executeAction({ action: 'toggle', entity: 'lock.door' }, hass, null);
+    handler._executeAction({ action: 'toggle', entity: 'button.ring' }, hass, null);
+    assert.deepEqual(hass.serviceCalls.map(c => `${c.domain}.${c.service}`), ['lock.unlock', 'button.press']);
 });
 
 test('call-service / perform-action: service or perform_action, data merged with target', () => {

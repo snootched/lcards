@@ -52,6 +52,7 @@
 import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSCard } from '../base/LCARdSCard.js';
+import { toggleService } from '../base/LCARdSActionHandler.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
@@ -2070,8 +2071,8 @@ export class LCARdSButton extends LCARdSCard {
         switch (action.action) {
             case 'toggle':
                 if (entityId) {
-                    const [domain] = entityId.split('.');
-                    await this.hass?.callService(domain, 'toggle', { entity_id: entityId });
+                    const { domain, service } = toggleService(entityId, this.hass?.states?.[entityId]?.state);
+                    await this.hass?.callService(domain, service, { entity_id: entityId });
                 }
                 break;
 

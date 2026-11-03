@@ -40,7 +40,7 @@ objects:
 | `colors` | One colour, or a list the seed picks from per cloud. Default `var(--lcars-violet)`. |
 | `turbulence` | How ragged the edges are, 0 to 1 (default 0.5). |
 | `noise_scale` | Detail of the gas per scene unit; lower is larger, smoother wisps. |
-| `drift` | How fast the gas churns, scene units per second (`[x, y]` for a direction). Default 0, still. |
+| `drift` | How fast the gas churns, scene units per second (`[x, y]` for a direction). Default 0, still. [Following an entity](./data#settings-from-entities) it eases to each new speed. |
 | `blend` | `add` (default: light adds up) or `normal`. |
 
 Clouds are never tappable, so they never get in the way of points behind them. A label for a cloud is a [point](./points) at the same place.

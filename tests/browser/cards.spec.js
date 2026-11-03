@@ -60,6 +60,12 @@ test('invalid config: validation error is logged, card still renders its placeho
     await expect(page.locator('lcards-chart .chart-preview')).toBeVisible();
 });
 
+test('slider: picard-gauge-vertical draws the picard component without component: in the config', async ({ page }) => {
+    await mountCase(page, 'slider-picard-gauge', { height: '320' });
+    await expect.poll(() => page.locator('lcards-slider').evaluate(el => /** @type {any} */ (el)._componentMetadata?.name)).toBe('picard');
+    await expectNoErrors(page);
+});
+
 test('button: state change switches the state colour', async ({ page }) => {
     await mountCase(page, 'button-more-info');
     await expect.poll(() => bgFill(page)).toBe('rgb(51, 51, 102)'); // inactive
@@ -69,11 +75,11 @@ test('button: state change switches the state colour', async ({ page }) => {
     await expect.poll(() => bgFill(page)).toBe('rgb(51, 51, 102)');
 });
 
-test('button: tap toggle calls the entity domain toggle service', async ({ page }) => {
+test('button: tap toggle turns the entity off from on, as Home Assistant\'s toggle does', async ({ page }) => {
     await mountCase(page, 'button-lozenge');
     await page.locator('lcards-button path.button-bg').click();
     await expect.poll(() => page.evaluate(() => window.__hass.serviceCalls))
-        .toEqual([{ domain: 'light', service: 'toggle', data: { entity_id: 'light.demo' } }]);
+        .toEqual([{ domain: 'light', service: 'turn_off', data: { entity_id: 'light.demo' } }]);
 });
 
 test('button: tap more-info fires hass-more-info for the entity', async ({ page }) => {

@@ -10,6 +10,7 @@
  */
 
 import { DOCS, PANEL_TAB_DOCS } from '../../utils/docs-url.js';
+import { PROCESSOR_TYPES } from '../../cards/schemas/common-schemas.js';
 
 export { DOCS_SITE, docsBase, docsUrl, DOCS, PANEL_TAB_DOCS } from '../../utils/docs-url.js';
 
@@ -237,21 +238,40 @@ export function normalizeCardType(cardType = '') {
 
 /**
  * Docs link for an option path: the longest matching key prefix for the card.
+ * Inside a processor (`processing.<name>`), with the config: that processor
+ * type's section of the processor reference.
  * @param {string} cardType
  * @param {Array<string|number>} path
+ * @param {*} [config] - parsed config, for a processor's `type`
  * @returns {string|undefined} site-relative link
  */
-export function docsFor(cardType, path) {
+export function docsFor(cardType, path, config) {
   const type = normalizeCardType(cardType);
   const map = DETAILED[type] || {};
   const keys = path.filter(seg => typeof seg === 'string');
-  if (keys.slice(0, -1).includes('processing') || (keys[keys.length - 1] === 'processing' && keys.length > 1)) return PROCESSORS;
+  const at = path.lastIndexOf('processing');
+  if (at >= 0 && at < path.length - 1) return processorDocs(path.slice(0, at + 2), config);
+  if (keys[keys.length - 1] === 'processing' && keys.length > 1) return PROCESSORS;
   for (let n = keys.length; n >= 1; n--) {
     const prefix = keys.slice(0, n).join('.');
     if (map[prefix]) return map[prefix];
     if (n === 1 && COMMON[prefix]) return COMMON[prefix];
   }
   return map[''] || CARD_PAGES[type];
+}
+
+/**
+ * The processor reference, at the section of the processor at `entryPath`
+ * when its `type` is one (headings: `convert_unit` is #convert-unit).
+ * @param {Array<string|number>} entryPath - path to the `processing.<name>` entry
+ * @param {*} [config]
+ * @returns {string}
+ */
+function processorDocs(entryPath, config) {
+  let node = config;
+  for (const seg of entryPath) node = node && typeof node === 'object' ? node[seg] : undefined;
+  const t = node && typeof node === 'object' ? node.type : undefined;
+  return typeof t === 'string' && PROCESSOR_TYPES.includes(t) ? `${PROCESSORS}#${t.replace(/_/g, '-')}` : PROCESSORS;
 }
 
 // ── Editor tabs ────────────────────────────────────────────────────────────────
@@ -327,5 +347,6 @@ export function listDocsLinks() {
     ...PANEL_TAB_DOCS,
     ...Object.values(ASTRO_STUDIO_DOCS),
     PROCESSORS,
+    ...PROCESSOR_TYPES.map(t => processorDocs(['p'], { p: { type: t } })),
   ])];
 }

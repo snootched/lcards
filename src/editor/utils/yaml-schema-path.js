@@ -146,12 +146,25 @@ export function valueAtPath(config, path) {
  * merged properties, first items/additionalProperties, union of enums and
  * types. Deprecated branches are skipped (the node's own flags are kept).
  *
+ * A `discriminator` (`oneOf` branches told apart by a `const` property, such
+ * as processors and astrometrics objects by `type`) keeps only the branch
+ * matching the value's own property, when it has one.
+ *
  * @param {Object|null|undefined} node
  * @param {Object} [sibling] - parent object's value, for `discriminatedBy`
+ * @param {*} [own] - this node's own value, for `discriminator`
  * @returns {Object|null}
  */
-export function resolveSchema(node, sibling) {
+export function resolveSchema(node, sibling, own) {
   if (!isObject(node)) return null;
+  const prop = node.discriminator?.propertyName;
+  if (prop && Array.isArray(node.oneOf) && isObject(own) && typeof own[prop] === 'string') {
+    const match = node.oneOf.filter(b => isObject(b) && b.properties?.[prop]?.const === own[prop]);
+    if (match.length === 1) {
+      const { discriminator, oneOf, ...rest } = node;
+      return resolveSchema({ ...rest, allOf: [...(rest.allOf || []), match[0]] }, sibling);
+    }
+  }
   if (node.discriminatedBy) {
     const { field, schemas, default: fallback } = node.discriminatedBy;
     const chosen = schemas?.[sibling?.[field]] ?? fallback;
@@ -213,7 +226,7 @@ export function resolveSchema(node, sibling) {
  * @returns {Object|null}
  */
 export function schemaAt(schema, path, config) {
-  let node = resolveSchema(schema, undefined);
+  let node = resolveSchema(schema, undefined, config);
   for (let i = 0; i < path.length; i++) {
     if (!node) return null;
     const seg = path[i];
@@ -224,7 +237,7 @@ export function schemaAt(schema, path, config) {
     } else {
       next = node.properties?.[seg] ?? (isObject(node.additionalProperties) ? node.additionalProperties : undefined);
     }
-    node = resolveSchema(next, isObject(parentValue) ? parentValue : undefined);
+    node = resolveSchema(next, isObject(parentValue) ? parentValue : undefined, valueAtPath(config, path.slice(0, i + 1)));
   }
   return node;
 }

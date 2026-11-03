@@ -42,7 +42,7 @@ export function panelAt(schema, text, offset, parse, cardType = '') {
   if (!schema) return empty;
   const where = yamlPathAt(text, offset);
   const cfg = lenientParse(text, offset, parse);
-  const decorate = (path) => optionsAt(schema, path, cfg).map(o => ({ ...o, docs: docsFor(cardType, [...path, o.key]) }));
+  const decorate = (path) => optionsAt(schema, path, cfg).map(o => ({ ...o, docs: docsFor(cardType, [...path, o.key], cfg) }));
   const crumb = (path) => (path.length ? path.join(' > ') : 'top level');
 
   if (where.position === 'value' && where.key) {
@@ -62,7 +62,7 @@ export function panelAt(schema, text, offset, parse, cardType = '') {
       key: where.key,
       type: typeLabel(node),
       description: node?.description,
-      docs: docsFor(cardType, path),
+      docs: docsFor(cardType, path, cfg),
       options: [],
       indent: where.indent,
       listItem: false,

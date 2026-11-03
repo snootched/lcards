@@ -1,0 +1,4 @@
+# picard-gauge-vertical with no component: the preset sets component: picard (cards.spec.js)
+type: custom:lcards-slider
+entity: sensor.demo_temperature
+preset: picard-gauge-vertical

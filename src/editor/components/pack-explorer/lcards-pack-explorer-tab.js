@@ -1149,7 +1149,7 @@ export class LCARdSPackExplorerTab extends LitElement {
       cardType = 'lcards-slider';
       const vertical = id.includes('vertical');
       size = vertical ? 'width: 160px; height: 320px;' : 'width: 100%; max-width: 360px; height: 80px;';
-      config = { preset: id, ...(id === 'picard-gauge-vertical' ? { component: 'picard' } : {}) };
+      config = { preset: id };
     } else {
       return html`<div class="preview-placeholder">Preview not available for this preset type</div>`;
     }

@@ -1506,6 +1506,27 @@ test('AC1 asteroid: one rock, the half toward its light bright, the far half dar
     await expectNoErrors(page);
 });
 
+test('nebula drift from an entity eases in place: no rebuild, the clouds keep drifting', async ({ page }) => {
+    await mountCase(page, 'astro-nebula-drift', { width: '800' });
+    await sceneReady(page);
+    const neb = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const b = s.world.objects.get('neb');
+        const u = b?.node.children[0]?.material.uniforms;
+        return { node: b?.node.uuid, live: s.live['neb.drift'], x: u ? u.uWarpCell.value.x + u.uWarpLocal.value.x : null };
+    });
+    await expect.poll(async () => (await neb()).node).toBeTruthy();
+    const first = await neb();
+    await page.evaluate(() => window.__setState('input_number.lcards_test_power', '100'));
+    await expect.poll(async () => (await neb()).live?.value, { timeout: 5000 }).toBeCloseTo(12, 3);
+    const a = await neb();
+    await page.waitForTimeout(300);
+    const b = await neb();
+    expect(b.x, 'the clouds drift').toBeGreaterThan(a.x);
+    expect(b.node, 'the same nebula, not rebuilt').toBe(first.node);
+    await expectNoErrors(page);
+});
+
 test('AC1 comet: the tails light the side away from the star; tail_length eases in place', async ({ page }) => {
     await mountCase(page, 'astro-comet', { width: '800' });
     await sceneReady(page);

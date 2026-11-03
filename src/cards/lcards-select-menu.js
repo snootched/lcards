@@ -29,6 +29,7 @@
 
 import { html, css, svg } from 'lit';
 import { LCARdSCard } from '../base/LCARdSCard.js';
+import { toggleService } from '../base/LCARdSActionHandler.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { deepMergeImmutable } from '../utils/deepMerge.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
@@ -538,8 +539,8 @@ export class LCARdSSelectMenu extends LCARdSCard {
                 break;
             case 'toggle':
                 if (entityId) {
-                    const [dom] = entityId.split('.');
-                    await this.hass?.callService(dom, 'toggle', { entity_id: entityId });
+                    const { domain, service } = toggleService(entityId, this.hass?.states?.[entityId]?.state);
+                    await this.hass?.callService(domain, service, { entity_id: entityId });
                 }
                 break;
             default:

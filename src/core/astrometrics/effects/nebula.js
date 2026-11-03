@@ -288,14 +288,39 @@ export function buildNebula(cfg, ctx) {
 
   const out = built(cfg, node, { radius: extent });
   // noise cells per ms: `drift` scene units per second over the puffs' mean radius
-  const rate = pair(cfg.drift, [0, 0]).map((d) => ((d / meanRadius) * scale) / 1000);
-  if (rate[0] || rate[1]) {
-    out.tick = (_dt, t) => {
-      driftUniforms(u.uWarpCell.value, u.uWarpLocal.value, t * rate[0], t * rate[1]);
-      // wisps: three times finer, drifting back at 1.7 times the speed
-      driftUniforms(u.uWispCell.value, u.uWispLocal.value, -1.7 * t * rate[0], -1.7 * t * rate[1]);
-      return true;
-    };
-  }
+  const toRate = (/** @type {number} */ d) => ((d / meanRadius) * scale) / 1000;
+  const baseDrift = pair(cfg.drift, [0, 0]);
+  const drift = [...baseDrift];
+  // how far it has drifted, in noise cells: added up per frame, so a drift that
+  // eases (live) slows or speeds the clouds without a jump; from the clock at first
+  /** @type {[number, number] | null} */
+  let offset = null;
+  /** @type {number | null} */
+  let lastT = null;
+  const tick = (/** @type {number} */ _dt, /** @type {number} */ t) => {
+    const rate = drift.map(toRate);
+    if (!offset) offset = [t * rate[0], t * rate[1]];
+    else if (lastT !== null) offset = [offset[0] + (t - lastT) * rate[0], offset[1] + (t - lastT) * rate[1]];
+    lastT = t;
+    driftUniforms(u.uWarpCell.value, u.uWarpLocal.value, offset[0], offset[1]);
+    // wisps: three times finer, drifting back at 1.7 times the speed
+    driftUniforms(u.uWispCell.value, u.uWispLocal.value, -1.7 * offset[0], -1.7 * offset[1]);
+    return rate[0] !== 0 || rate[1] !== 0;
+  };
+  // still unless it drifts: an idle scene draws nothing
+  out.tick = baseDrift[0] || baseDrift[1] ? tick : null;
+  // live settings (null: the built value again): drift, or one side of a pair
+  out.live = (key, value) => {
+    const sides = key === 'drift' ? [0, 1] : key === 'drift.0' ? [0] : key === 'drift.1' ? [1] : null;
+    if (!sides) return false;
+    for (const i of sides) drift[i] = value === null || !Number.isFinite(value) ? baseDrift[i] : value;
+    if (!out.tick) {
+      // built still: start from where the clouds stand (no offset yet)
+      offset = [0, 0];
+      lastT = null;
+      out.tick = tick;
+    }
+    return true;
+  };
   return out;
 }
