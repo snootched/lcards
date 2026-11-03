@@ -6,7 +6,7 @@
 
 ## Overview
 
-CoreConfigManager provides unified configuration processing for all LCARdS card types (LCARdS Card, MSD, future cards). It orchestrates existing systems (mergePacks, CoreValidationService, StylePresetManager, ThemeManager) through a consistent API.
+CoreConfigManager provides unified configuration processing for all LCARdS card types (LCARdS Card, MSD, future cards). It orchestrates existing systems (CoreValidationService, StylePresetManager, ThemeManager) through a consistent API.
 
 ## Key Principle: Behavioral vs. Style Defaults
 
@@ -330,20 +330,17 @@ rules: [{
 
 ## MSD Compatibility
 
-CoreConfigManager automatically detects MSD-style configs and uses pack-based merging:
+MSD cards keep their settings under a nested `msd:` object. `processConfig` detects that shape (`cardType === 'msd'` with an `msd` key) and runs the full config through the same validation, defaults and provenance steps as every other card (`_processMsdConfig()`). Packs are not merged per card: `PackManager` registers them globally at startup.
 
 ```javascript
-// MSD config (has use_packs)
 const msdConfig = {
-  use_packs: {
-    builtin: ['core'],
-    external: []
-  },
-  overlays: [/* ... */],
-  rules: [/* ... */]
+  type: 'custom:lcards-msd-card',
+  msd: {
+    base_svg: { source: 'builtin:ncc-1701-a-blue' },
+    overlays: [/* ... */]
+  }
 };
 
-// CoreConfigManager detects MSD and uses mergePacks internally
 const result = await configManager.processConfig(msdConfig, 'msd', {});
 
 // Result includes full MSD provenance tracking

@@ -352,11 +352,12 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         ``card_id`` is the card's ``id``; ``view`` a named camera view or
         ``point`` a point id (``point`` wins); ``duration`` (ms) overrides the
-        card's fly_duration. Every open dashboard showing that card flies
-        unless targeted.
+        card's fly_duration; ``warp`` (bool) overrides the view's and the
+        card's warp. Every open dashboard showing that card flies unless
+        targeted.
         """
         payload: dict = {"card_id": call.data["card_id"]}
-        for key in ("view", "point", "duration"):
+        for key in ("view", "point", "duration", "warp"):
             if call.data.get(key) is not None:
                 payload[key] = call.data[key]
         _LOGGER.info("LCARdS service: fly_to %r", payload)
@@ -580,6 +581,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 vol.Optional("view"):     vol.All(str, vol.Length(min=1)),
                 vol.Optional("point"):    vol.All(str, vol.Length(min=1)),
                 vol.Optional("duration"): vol.All(int, vol.Range(min=0, max=60000)),
+                vol.Optional("warp"):     bool,
                 **_TARGET_FIELDS,
             }),
             vol.Any(

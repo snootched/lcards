@@ -1599,6 +1599,8 @@ export function createAstroScene(host, config, options = {}) {
     }
     if (!hit) {
       letGo();
+      // a blank tap in between: the next tap on a point is not a double-click
+      pointTap = null;
       const now = performance.now();
       const b = blankTap;
       if (b && now - b.t < DOUBLE_TAP_MS && Math.hypot(x - b.x, y - b.y) <= DOUBLE_TAP_SLOP && cfg.camera?.double_tap !== 'none' && cfg.camera?.controls !== false) {
@@ -1871,14 +1873,20 @@ export function createAstroScene(host, config, options = {}) {
     requestFrame();
   }
 
-  /** @param {AstroTapHit} hit */
+  /**
+   * Fly to what was tapped; a fly-to tap_action's own `warp` and `duration` win
+   * @param {AstroTapHit} hit
+   */
   function flyToHit(hit) {
+    const act = hit.config?.tap_action?.action === 'fly-to' ? hit.config.tap_action : null;
+    const view = typeof act?.warp === 'boolean' ? { ...hit.config.view, warp: act.warp } : hit.config.view;
+    const duration = act?.duration;
     const on = hit.kind === 'object' ? movingAt(hit.config) : null;
     if (hit.kind === 'point' || on) {
       const id = on ?? hit.id;
-      return flyToPosition(on ? (resolveRef(on) ?? hit.position) : hit.position, hit.config.view, { ref: id }, refFrame(id));
+      return flyToPosition(on ? (resolveRef(on) ?? hit.position) : hit.position, view, { ref: id }, refFrame(id), duration);
     }
-    return flyToPosition(hit.position, hit.config.view, { pos: hit.position.toArray() }, hit.config?._system ?? ROOT);
+    return flyToPosition(hit.position, view, { pos: hit.position.toArray() }, hit.config?._system ?? ROOT, duration);
   }
 
   /**
@@ -1898,8 +1906,9 @@ export function createAstroScene(host, config, options = {}) {
    * @param {any} [view] - keys to land on (`distance`, `tilt`, `yaw`; the distance in `frame`'s units)
    * @param {{ ref?: any, pos?: number[] }} [target] - what it lands on (a point id)
    * @param {string} [frame] - the frame the point is in
+   * @param {number} [duration] - ms; default `camera.fly_duration`
    */
-  function flyToPosition(p, view, target = { pos: p.toArray() }, frame = ROOT) {
+  function flyToPosition(p, view, target = { pos: p.toArray() }, frame = ROOT, duration) {
     const keys = () => {
       // a point is read again (fly() may have moved into its frame)
       const q = (target.ref !== undefined ? resolveRef(target.ref) : null) ?? p;
@@ -1909,7 +1918,7 @@ export function createAstroScene(host, config, options = {}) {
       if (own.distance !== undefined) own.distance *= unitOf(frame);
       return { tx: q.x, ty: q.y, tz: q.z, distance: Math.min(rig.keys.distance, startDist * 0.35), ...own };
     };
-    return fly(keys, target, { duration: num(cfg.camera?.fly_duration, 1600), ease: cfg.camera?.ease, warp: warpFor(view) });
+    return fly(keys, target, { duration: Number.isFinite(duration) ? /** @type {number} */ (duration) : num(cfg.camera?.fly_duration, 1600), ease: cfg.camera?.ease, warp: warpFor(view) });
   }
 
   /**
@@ -1929,13 +1938,13 @@ export function createAstroScene(host, config, options = {}) {
         return fly(() => viewKeys(v), { ref: v.target }, { duration, ease: cfg.camera?.ease, projection: v.projection === 'orthographic' ? 'orthographic' : 'perspective', warp: opts.warp ?? warpFor(v) });
       }
       const p = world.places.get(view);
-      if (p) return flyToPosition(p, undefined, { ref: view }, refFrame(view));
+      if (p) return flyToPosition(p, opts.warp !== undefined ? { warp: opts.warp } : undefined, { ref: view }, refFrame(view), opts.duration);
       lcardsLog.warn(`[Astrometrics] no view or point '${view}'`);
       return Promise.resolve();
     }
     if (view && typeof view === 'object' && typeof view.point === 'string') {
       const p = world.places.get(view.point);
-      return p ? flyToPosition(p, opts.warp !== undefined ? { ...view, warp: opts.warp } : view, { ref: view.point }, refFrame(view.point)) : Promise.resolve();
+      return p ? flyToPosition(p, opts.warp !== undefined ? { ...view, warp: opts.warp } : view, { ref: view.point }, refFrame(view.point), opts.duration) : Promise.resolve();
     }
     return fly(() => viewKeys(view), { ref: view?.target }, { duration, ease: cfg.camera?.ease, warp: opts.warp ?? warpFor(view) });
   }

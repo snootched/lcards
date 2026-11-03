@@ -239,6 +239,7 @@ Give a `view` or a `point`; if both are given, `point` wins.
 | `view` | string | | A named view of the card (`camera.views`). |
 | `point` | string | | A point id of the card; the camera flies to it as a tap on it would. |
 | `duration` | number | | Flight time in ms. Default: the card's `camera.fly_duration`. |
+| `warp` | boolean | | Stars and dust streak on the way (`true`), or not (`false`). Default: the view's own `warp`, else the card's `camera.warp`. |
 | `target_device_ids` | list | | → [Targeting](#targeting) |
 | `target_device_names` | list | | → [Targeting](#targeting) |
 | `target_user_ids` | list | | → [Targeting](#targeting) |
@@ -259,6 +260,7 @@ data:
   card_id: galaxy
   view: sector
   duration: 4000
+  warp: true
   target_device_names:
     - Bridge Tablet
 ```

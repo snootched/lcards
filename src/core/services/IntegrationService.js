@@ -520,7 +520,7 @@ export class IntegrationService extends BaseService {
             }
 
             case 'fly_to': {
-                const flown = window.lcards?.cards?.astrometrics?.flyTo(payload.card_id, payload.point ? { point: payload.point } : { view: payload.view }, { duration: payload.duration }) ?? 0;
+                const flown = window.lcards?.cards?.astrometrics?.flyTo(payload.card_id, payload.point ? { point: payload.point } : { view: payload.view }, { duration: payload.duration, warp: payload.warp }) ?? 0;
                 lcardsLog.info(`[IntegrationService] fly_to '${payload.card_id}': ${flown} card(s) here`);
                 break;
             }

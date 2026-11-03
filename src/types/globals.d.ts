@@ -18,11 +18,6 @@ declare global {
     // Lit TemplateResult — HTML template result (from html`` tagged literals)
     type TemplateResult = import('lit').TemplateResult<1>;
 
-    // Global perf utility stubs (used in mergePacks.js and others)
-    function perfTime(label: string, fn: () => any, meta?: object): any;
-    function perfTimeAsync(label: string, fn: () => Promise<any>, meta?: object): Promise<any>;
-    function perfCount(label: string, value?: any): void;
-
     interface Window {
         lcards: any;
         /** Set by the loader stub (src/lcards.js): the integration's ?log= level. */

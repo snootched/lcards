@@ -753,6 +753,12 @@ fly_to:
           max: 60000
           step: 100
           unit_of_measurement: ms
+    warp:
+      name: Warp
+      description: Stars and dust streak on the way (warp), or off for none. Default the view's own `warp`, else the card's `camera.warp`.
+      required: false
+      selector:
+        boolean:
     target_device_ids:
       name: Target Device IDs
       description: >

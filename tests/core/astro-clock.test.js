@@ -136,6 +136,23 @@ test('registry setClock: the card by id, a date or a rate needed', async () => {
   }
 });
 
+test('registry flyTo: duration and warp passed on when given, left out otherwise', async () => {
+  const { astrometricsRegistry, registerAstrometricsCard, unregisterAstrometricsCard } = await import('../../src/cards/astrometrics-registry.js');
+  const calls = [];
+  const card = /** @type {any} */ ({ config: { id: 'sol' }, flyTo: (to, opts) => { calls.push([to, opts]); return Promise.resolve(); } });
+  registerAstrometricsCard(card);
+  try {
+    assert.equal(astrometricsRegistry.flyTo('sol', { point: 'earth' }, { duration: 500, warp: true }), 1);
+    assert.deepEqual(calls[0], [{ point: 'earth' }, { duration: 500, warp: true }]);
+    astrometricsRegistry.flyTo('sol', 'top', { warp: false });
+    assert.deepEqual(calls[1][1], { warp: false }, 'false is kept: it turns warp off');
+    astrometricsRegistry.flyTo('sol', 'top', { duration: -1, warp: /** @type {any} */ ('yes') });
+    assert.deepEqual(calls[2][1], {}, 'a bad duration and a non-boolean warp are left out');
+  } finally {
+    unregisterAstrometricsCard(card);
+  }
+});
+
 test('parseRate: a rate with its unit reads as the time slider shows it', async () => {
   const { parseRate, LIVE_RATE } = await import('../../src/core/astrometrics/clock.js');
   assert.equal(parseRate('1 h/s'), 1 / 24);

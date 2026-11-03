@@ -865,7 +865,7 @@ class LCARdSCore {
         }
 
         if (this.animationManager) {
-            /** @type {any} */ (this.animationManager).destroy();
+            this.animationManager.dispose();
             this.animationManager = null;
         }
 

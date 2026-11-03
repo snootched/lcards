@@ -327,6 +327,10 @@ export const actionSchema = {
             minimum: 0,
             description: 'fly-to only: how long the flight takes, ms. Default the card\'s camera.fly_duration.'
         },
+        warp: {
+            type: 'boolean',
+            description: 'fly-to only: stars and dust streak on the way (warp), or false for none. Default the view\'s own warp, else the card\'s camera.warp.'
+        },
         date: {
             type: 'string',
             description: 'set-clock only: the scene date, now or an ISO date and time (2026-10-30, 2026-10-30T12:00:00Z). Leave out to keep the date running on.',

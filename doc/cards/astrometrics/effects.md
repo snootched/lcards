@@ -186,7 +186,7 @@ objects:
 
 ## Warp and dust
 
-A fly-to with `warp` streaks the stars past the camera, by how fast it moves for its distance from what it looks at, so a hop between planets streaks as a jump across the galaxy does. Turn it on for every fly-to with `camera.warp: true`, or for one view with `warp: true` in that view (a point's or object's `view` takes it too). `camera.warp: { entity: input_boolean.warp_travel }` follows a toggle: fly-tos streak while it is on. The streaks grow with the camera's speed and shrink back to stars as it lands.
+A fly-to with `warp` streaks the stars past the camera, by how fast it moves for its distance from what it looks at, so a hop between planets streaks as a jump across the galaxy does. Turn it on for every fly-to with `camera.warp: true`, or for one view with `warp: true` in that view (a point's or object's `view` takes it too), or for one action with `warp: true` on its `fly-to` (or the [`lcards.fly_to`](/configuration/ha-actions#lcards-fly-to) action); `false` there turns it off. `camera.warp: { entity: input_boolean.warp_travel }` follows a toggle: fly-tos streak while it is on. The streaks grow with the camera's speed and shrink back to stars as it lands.
 
 - `backdrop.stars.streak` scales the streaks (default 1; 0 never streaks).
 - `backdrop.stars.spectrum: true` splits each streak into colour, as a Doppler shift of the star's own colour: violet toward the tail (nearer the direction of flight) and red toward the head. White stars show the whole rainbow; a blue star streaks green to violet, its tail fading as it shifts past violet, and a red star the other way. `spectrum_direction: reverse` puts violet at the head instead.

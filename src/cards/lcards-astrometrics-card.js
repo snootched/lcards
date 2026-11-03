@@ -1408,17 +1408,21 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             return true;
         }
         if (action.action === 'fly-to') {
+            /** @type {{ duration?: number, warp?: boolean }} */
+            const flight = {};
+            if (action.duration !== undefined) flight.duration = action.duration;
+            if (typeof action.warp === 'boolean') flight.warp = action.warp;
             if (action.point) {
-                this._scene?.flyTo({ point: action.point }, action.duration !== undefined ? { duration: action.duration } : {});
+                this._scene?.flyTo({ point: action.point }, flight);
                 return true;
             }
             if (action.view) {
-                this._scene?.flyTo(action.view);
+                this._scene?.flyTo(action.view, flight);
                 return true;
             }
             if (key === 'tap_action') return false;
             const p = hit.position;
-            this._scene?.flyTo(hit.kind === 'point' ? { point: hit.id, ...hit.config.view } : { target: [p.x, p.y, p.z], ...hit.config.view });
+            this._scene?.flyTo(hit.kind === 'point' ? { point: hit.id, ...hit.config.view } : { target: [p.x, p.y, p.z], ...hit.config.view }, flight);
             return true;
         }
         if (action.action === 'none') return true;

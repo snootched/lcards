@@ -185,7 +185,6 @@ Domain subfolders contain only raw data (presets, components, tokens) that pack 
 src/core/packs/
   loadBuiltinPacks.js               ← manifest + loader ONLY (no pack data)
   externalPackLoader.js
-  mergePacks.js
   core_fonts.json
   ── Pack wrappers (all visible at one level) ──────────────────────
   core-pack.js                      ← version anchor only, no data keys

@@ -1,7 +1,7 @@
 /**
  * @fileoverview CoreConfigManager - Unified configuration processing facade
  *
- * Orchestrates existing systems (mergePacks, CoreValidationService, StylePresetManager,
+ * Orchestrates existing systems (CoreValidationService, StylePresetManager,
  * ThemeManager) to provide card-type-agnostic config processing with validation,
  * merging, and provenance tracking.
  *
@@ -12,7 +12,6 @@
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { mergePacks } from '../packs/mergePacks.js';
 import { deepMerge, trackFieldSources } from './merge-helpers.js';
 
 /**

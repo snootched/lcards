@@ -1,9 +1,6 @@
 /**
  * Packs: builtin registry, PackManager registration, and a headless
  * lcardsCore.initialize() under jsdom (packs + default theme).
- *
- * mergePacks.js is not covered: nothing calls it (CoreConfigManager imports it
- * unused) and it depends on perfTime/perfTimeAsync globals that no longer exist.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -73,8 +70,10 @@ test('lcardsCore.initialize under jsdom: every builtin pack registered, default 
         assert.equal(globalThis.lcards.core.borgAssimilationManager, lcardsCore.borgAssimilationManager);
         assert.match(lcardsCore.themeManager.resolver.resolve('colors.ui.primary'), /^var\(--lcars-ui-primary, /);
     } finally {
-        // lcardsCore.destroy() throws (AnimationManager has no destroy()), and
-        // nothing in the product calls it; stop the global hass poll directly.
-        clearInterval(lcardsCore._globalHassTimer);
+        // tears down every service (it threw before: the core called a destroy() AnimationManager lacks)
+        lcardsCore.destroy();
     }
+    assert.equal(lcardsCore._globalHassTimer, null, 'the global hass poll stops');
+    assert.equal(lcardsCore.animationManager, null);
+    assert.equal(lcardsCore.themeManager, null);
 });

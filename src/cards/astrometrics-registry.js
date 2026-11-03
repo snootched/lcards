@@ -60,7 +60,7 @@ export const astrometricsRegistry = {
      * Fly every connected card with this `id`.
      * @param {string} id
      * @param {string | { view?: string, point?: string }} target - a view name or point id, or `{ view }` / `{ point }`
-     * @param {{ duration?: number }} [opts]
+     * @param {{ duration?: number, warp?: boolean }} [opts] - warp: true or false overrides the view's and the card's
      * @returns {number} how many cards flew
      */
     flyTo(id, target, opts = {}) {
@@ -75,7 +75,11 @@ export const astrometricsRegistry = {
             return 0;
         }
         const duration = Number(opts.duration);
-        for (const card of matches) card.flyTo(to, Number.isFinite(duration) && duration >= 0 ? { duration } : {});
+        /** @type {{ duration?: number, warp?: boolean }} */
+        const flight = {};
+        if (Number.isFinite(duration) && duration >= 0) flight.duration = duration;
+        if (typeof opts.warp === 'boolean') flight.warp = opts.warp;
+        for (const card of matches) card.flyTo(to, flight);
         return matches.length;
     },
 

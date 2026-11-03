@@ -516,7 +516,7 @@ export class LCARdSActionHandler {
                 break;
             case 'fly-to':
                 // An astrometrics card's camera, by the card's id
-                /** @type {any} */ (window).lcards?.cards?.astrometrics?.flyTo(actionConfig.card, actionConfig.point ? { point: actionConfig.point } : { view: actionConfig.view }, { duration: actionConfig.duration });
+                /** @type {any} */ (window).lcards?.cards?.astrometrics?.flyTo(actionConfig.card, actionConfig.point ? { point: actionConfig.point } : { view: actionConfig.view }, { duration: actionConfig.duration, warp: actionConfig.warp });
                 break;
             case 'set-clock':
                 // An astrometrics card's scene date and rate, by the card's id

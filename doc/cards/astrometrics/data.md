@@ -198,9 +198,10 @@ tap_action:
   card: galaxy          # the astrometrics card's id
   point: earth          # or view: <a camera view>
   duration: 2500        # optional, ms
+  warp: true            # optional: streak the stars on the way (false: never)
 ```
 
 The camera of every open card with that id flies, in the same browser. From an automation use the [`lcards.fly_to`](/configuration/ha-actions#lcards-fly-to) action, which reaches every open dashboard (or only the devices and users you target).
 
-In the browser console, `window.lcards.cards.astrometrics` has `getAll()`, `get(id)` and `flyTo(id, view or { point }, { duration })`.
+In the browser console, `window.lcards.cards.astrometrics` has `getAll()`, `get(id)` and `flyTo(id, view or { point }, { duration, warp })`.
 

@@ -2,13 +2,14 @@
 # date, held (rate 0), with their real orbits and Earth's globe turned as it
 # really is (astrometrics.spec.js: positions match the ephemeris, the date
 # slider runs the date, NOW, set-clock from the registry and lcards.set_clock).
+# Buttons never hide: under load the idle fade can come before a click.
 type: custom:lcards-astrometrics-card
 id: astro_clock
 height: 400
 units: au
 clock: { date: '2026-10-30T12:00:00Z', rate: 0 }
 camera:
-  buttons: true
+  buttons: { hide: never }
   view: inner
   views:
     inner: { target: sun, yaw: 30, tilt: 40, distance: 4.5 }

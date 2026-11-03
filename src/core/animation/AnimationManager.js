@@ -1809,6 +1809,7 @@ export class AnimationManager extends BaseService {
     this.customPresets.clear();
     this.activeAnimations.clear();
     this.registeredAnimations.clear();
+    this._entityToSpeedBindings.clear();
 
     this.initialized = false;
 

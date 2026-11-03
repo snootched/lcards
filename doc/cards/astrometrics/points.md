@@ -204,6 +204,7 @@ Labels behind a planet are hidden; the see-through volumes and grids hide nothin
 - `more-info` and `toggle` without an `entity` act on the point's `entity` (else the card's).
 - `{ action: fly-to }`: the same, stated explicitly (on an object: fly to its middle).
 - `{ action: fly-to, view: map }`: fly to the named view instead.
+- A `fly-to` takes `duration` (ms) and `warp` (`true` streaks the stars on the way, `false` never), over the card's `camera.fly_duration` and `camera.warp` and the view's own `warp`.
 - `{ action: set-clock, date: now, rate: 30 }`: set the [scene date](./scale#the-scene-clock) and or its rate (`card: <id>` for another card; from any LCARdS card, `card` is needed).
 - `{ action: set-model-scale }`: switch the card's models between their real size and [visible size](./objects#visible-size) (`model_scale: real` or `visible` sets one; `card: <id>` for another card, needed from any LCARdS card).
 - A point's own `view: { distance, tilt, yaw }` sets where the camera lands when it flies to that point.

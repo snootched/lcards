@@ -15,6 +15,7 @@ import { BaseEffect } from './BaseEffect.js';
 import { ColorUtils } from '../../../themes/ColorUtils.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 import { resolveColor } from '../../../themes/resolve-color.js';
+import { decorativeValue, DECORATIVE_FORMATS } from '../../../../data-grid/data-grid-model.js';
 
 /**
  * CascadeEffect - LCARS data-waterfall colour-cycling background animation
@@ -129,46 +130,17 @@ export class CascadeEffect extends BaseEffect {
   }
 
   // ============================================================================
-  // Data generators (matches lcards-data-grid._generateRandomGrid)
+  // Data generators (the data grid's decorative values)
   // ============================================================================
 
   /**
-   * Generate a single cell value according to the configured format.
-   * The 'mixed' case inlines all sub-generators to avoid mutating this.format.
+   * Generate a single cell value according to the configured format
+   * (an unknown format: hex).
    * @private
    * @returns {string}
    */
   _generateCell() {
-    switch (this.format) {
-      case 'digit':
-        return Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-      case 'float':
-        return (Math.random() * 100).toFixed(2);
-      case 'alpha': {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        return chars.charAt(Math.floor(Math.random() * chars.length)) +
-               chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      case 'hex':
-        return Math.floor(Math.random() * 65535).toString(16).toUpperCase().padStart(4, '0');
-      case 'mixed': {
-        // Inline all sub-cases to avoid mutating this.format (re-entrancy risk)
-        const pick = Math.floor(Math.random() * 4);
-        if (pick === 0) {
-          return Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-        } else if (pick === 1) {
-          return (Math.random() * 100).toFixed(2);
-        } else if (pick === 2) {
-          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-          return chars.charAt(Math.floor(Math.random() * chars.length)) +
-                 chars.charAt(Math.floor(Math.random() * chars.length));
-        } else {
-          return Math.floor(Math.random() * 65535).toString(16).toUpperCase().padStart(4, '0');
-        }
-      }
-      default:
-        return Math.floor(Math.random() * 65535).toString(16).toUpperCase().padStart(4, '0');
-    }
+    return decorativeValue(DECORATIVE_FORMATS.includes(this.format) ? this.format : 'hex');
   }
 
   /**

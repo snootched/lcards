@@ -587,6 +587,54 @@ test('fly-to from outside: the registry, lcards_event fly_to, and a fly-to actio
     await expectNoErrors(page);
 });
 
+test('fly-to warp and duration reach the flight from the registry, the service event, an action and a tap', async ({ page }) => {
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await sceneReady(page);
+    // a point whose own tap flies to it, with its own warp and duration
+    await page.evaluate(() => {
+        const card = /** @type {any} */ (document.querySelector('#mount > *'));
+        const config = JSON.parse(JSON.stringify(card._rawConfig));
+        config.points.push({ id: 'gate', xyz: [60, 0, 0], marker: 'diamond', label: 'GATE', tap_action: { action: 'fly-to', warp: true, duration: 250 } });
+        window.__reconfigure(config);
+    });
+    await expect.poll(() => page.evaluate(() => !!/** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().labelItems.find((l) => l.id === 'gate')?.visible)).toBe(true);
+    // record what each flight asks the camera rig for
+    await page.evaluate(() => {
+        const rig = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().rig;
+        window.__flights = [];
+        const fly = rig.flyTo.bind(rig);
+        rig.flyTo = (to, opts = {}) => { window.__flights.push({ duration: opts.duration, warp: opts.warp }); return fly(to, { ...opts, duration: 0 }); };
+    });
+    const last = () => page.evaluate(() => window.__flights.at(-1));
+    await page.evaluate(() => window.lcards.cards.astrometrics.flyTo('astro_cam', { point: 'svc' }, { duration: 300, warp: true }));
+    expect(await last(), 'registry, a point: its duration and warp').toEqual({ duration: 300, warp: true });
+    await page.evaluate(() => window.lcards.core.integrationService._handleLcardsEvent({ action: 'fly_to', card_id: 'astro_cam', view: 'top', duration: 200, warp: false }));
+    expect(await last(), 'the service event, a view').toEqual({ duration: 200, warp: false });
+    await page.evaluate(() => {
+        const card = /** @type {any} */ (document.querySelector('#mount > *'));
+        card._actionHandler.runAction({ action: 'fly-to', card: 'astro_cam', point: 'svc', warp: true }, card.hass, card);
+    });
+    expect((await last()).warp, 'an action naming the card').toBe(true);
+    // back to the overview, then tap the marker once its place on screen has settled
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo('top', { duration: 0 }));
+    const gateAt = () => page.evaluate(() => {
+        const it = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().labelItems.find((l) => l.id === 'gate');
+        return it?.visible ? [Math.round(it.sx), Math.round(it.sy)] : null;
+    });
+    await expect.poll(async () => {
+        const a = await gateAt();
+        await page.waitForTimeout(150);
+        return a !== null && JSON.stringify(a) === JSON.stringify(await gateAt());
+    }).toBe(true);
+    await page.evaluate(() => {
+        const d = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const it = d.labelItems.find((l) => l.id === 'gate');
+        d.tap(it.sx, it.sy);
+    });
+    expect(await last(), 'a tap on a point with a fly-to of its own').toEqual({ duration: 250, warp: true });
+    await expectNoErrors(page);
+});
+
 test('points list pick: the preview places a point on the next tap (xyz, a cell), Escape cancels', async ({ page }) => {
     await mountCase(page, 'astro-camera', { width: '800' });
     await sceneReady(page);
@@ -1802,19 +1850,28 @@ test('depth dust fills the view round the camera wherever it is, and looks the s
 });
 
 test('fly forward and back: W and S move camera and target together along the view, slowing near the Sun, into its system and out again', async ({ page }) => {
+    // up to 80 flights, each waited out to its end: slower than 30 s under a loaded run
+    test.setTimeout(120_000);
     await mountCase(page, 'astro-dive', { width: '800' });
     await sceneReady(page);
     const state = () => page.evaluate(() => {
         const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
-        return { frame: s.frame, keys: s.keys };
+        return { frame: s.frame, keys: s.keys, flying: s.rig.flying };
     });
+    /** Press `key`, then wait until the camera has moved and its flight has ended (not a fixed time: a busy run is slower) */
+    const step = async (key) => {
+        const before = JSON.stringify((await state()).keys);
+        await page.keyboard.press(key);
+        await expect.poll(async () => {
+            const st = await state();
+            return JSON.stringify(st.keys) !== before && !st.flying;
+        }, { timeout: 5_000 }).toBe(true);
+    };
     await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo('near_sol', { duration: 0 }));
     const a = (await state()).keys;
     await page.locator('lcards-astrometrics-card .astro-scene').focus();
     // one step: half the distance along the view, the distance and the angles kept
-    await page.keyboard.press('w');
-    await expect.poll(async () => (await state()).keys.tx, { timeout: 3_000 }).not.toBe(a.tx);
-    await page.waitForTimeout(400);
+    await step('w');
     const b = (await state()).keys;
     expect(b.distance).toBeCloseTo(a.distance, 6);
     expect([b.yaw, b.tilt]).toEqual([a.yaw, a.tilt]);
@@ -1828,8 +1885,7 @@ test('fly forward and back: W and S move camera and target together along the vi
     const steps = [];
     let prev = camAt(b);
     for (let i = 0; i < 40; i++) {
-        await page.keyboard.press('PageUp');
-        await page.waitForTimeout(300);
+        await step('PageUp');
         const st = await state();
         if (st.frame !== 'root') break;
         const now = camAt(st.keys);
@@ -1841,8 +1897,7 @@ test('fly forward and back: W and S move camera and target together along the vi
     expect(steps[steps.length - 1]).toBeLessThan(steps[0] / 100);
     // and back out the way it came: the steps grow again
     for (let i = 0; i < 40 && (await state()).frame !== 'root'; i++) {
-        await page.keyboard.press(i % 2 ? 's' : 'PageDown');
-        await page.waitForTimeout(300);
+        await step(i % 2 ? 's' : 'PageDown');
     }
     await expect.poll(async () => (await state()).frame, { timeout: 3_000 }).toBe('root');
     expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
