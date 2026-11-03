@@ -125,6 +125,21 @@ function walk(node, path, found, isPoint) {
 }
 
 /**
+ * Each object's id as the scene builder names it: its own, or `type#n` for one
+ * without (n counted per type in config order). Null for a non-object entry.
+ * @param {any[]} objects
+ * @returns {(string | null)[]}
+ */
+export function objectIds(objects) {
+  const counts = /** @type {Record<string, number>} */ ({});
+  return objects.map((o) => {
+    if (!o || typeof o !== 'object') return null;
+    counts[o.type] = (counts[o.type] ?? 0) + 1;
+    return o.id === undefined || o.id === null || o.id === '' ? `${o.type}#${counts[o.type]}` : String(o.id);
+  });
+}
+
+/**
  * Every setting binding in a (flattened) card config.
  * @param {any} config
  * @returns {SettingBinding[]}
@@ -137,10 +152,12 @@ export function collectBindings(config) {
     if (!p || typeof p !== 'object' || p.id === undefined) continue;
     walk(p, [], (path, v) => add(makeBinding('point', String(p.id), path, v)), true);
   }
-  for (const o of Array.isArray(config?.objects) ? config.objects : []) {
-    if (!o || typeof o !== 'object' || o.id === undefined || o.type === 'system') continue;
-    walk(o, [], (path, v) => add(makeBinding('object', String(o.id), path, v, 'number', String(o.type ?? ''))), false);
-  }
+  const objects = Array.isArray(config?.objects) ? config.objects : [];
+  const ids = objectIds(objects);
+  objects.forEach((o, i) => {
+    if (!o || typeof o !== 'object' || o.type === 'system') return;
+    walk(o, [], (path, v) => add(makeBinding('object', /** @type {string} */ (ids[i]), path, v, 'number', String(o.type ?? ''))), false);
+  });
   add(makeBinding('card', '', ['time_scale'], config?.time_scale));
   add(makeBinding('card', '', ['warp_factor'], config?.warp_factor));
   add(makeBinding('card', '', ['clock', 'rate'], config?.clock?.rate));
@@ -321,10 +338,14 @@ export function settingConfig(config, settings, values) {
     // built for the most it can reach (`_most.count`), drawing the value now
     if (b.most !== undefined) entries.push([['_most', ...b.path], b.most]);
   }
-  const map = (/** @type {any[] | undefined} */ list, /** @type {string} */ scope) => list?.map((item) => {
-    const entries = item && item.id !== undefined ? byItem.get(`${scope}:${String(item.id)}`) : undefined;
-    return entries ? withValues(item, entries) : item;
-  });
+  const map = (/** @type {any[] | undefined} */ list, /** @type {string} */ scope) => {
+    const ids = scope === 'object' && list ? objectIds(list) : null;
+    return list?.map((item, i) => {
+      const id = ids ? ids[i] : item && item.id !== undefined ? String(item.id) : null;
+      const entries = id !== null ? byItem.get(`${scope}:${id}`) : undefined;
+      return entries ? withValues(item, entries) : item;
+    });
+  };
   return withValues({
     ...config,
     ...(Array.isArray(config.points) ? { points: map(config.points, 'point') } : {}),

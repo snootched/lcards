@@ -155,6 +155,28 @@ test('nebula drift follows an entity in place (live): it eases without a jump, a
   assert.ok(su.uWarpCell.value.x + su.uWarpLocal.value.x > 0);
 });
 
+test('a bound setting on an object without an id: bindings name it as the scene builder does (type#n)', async () => {
+  const { objectIds, collectBindings, settingConfig, bindingKey } = await import('../../src/core/astrometrics/bindings.js');
+  const objects = [
+    { type: 'grid' },
+    { type: 'nebula', drift: { entity: 'input_number.p', output: [0, 12] } },
+    { type: 'ring', radius: 30 },
+    { type: 'grid', id: 'floor' },
+    { type: 'nebula', seed: 2 },
+    { type: 'ring', radius: 40 },
+  ];
+  const w = buildScene({ objects }, /** @type {any} */ (ctx()));
+  assert.deepEqual(objectIds(objects), ['grid#1', 'nebula#1', 'ring#1', 'floor', 'nebula#2', 'ring#2']);
+  for (const id of objectIds(objects)) assert.ok(w.objects.has(/** @type {string} */ (id)), `the builder has ${id}`);
+  // the nebula's drift binds (it was skipped: no id), and its value reaches the right object on a rebuild
+  const [drift] = collectBindings({ objects });
+  assert.equal(drift.id, 'nebula#1');
+  assert.equal(drift.live, true, 'drift eases in place');
+  const out = settingConfig({ objects }, [drift], new Map([[bindingKey(drift), 7]]));
+  assert.equal(out.objects[1].drift, 7);
+  assert.equal(out.objects[4].drift, undefined);
+});
+
 test('nebula without the effects chunk is skipped, not thrown', () => {
   const w = buildScene({ objects: [{ type: 'nebula', id: 'neb' }, { type: 'grid', id: 'g' }] }, /** @type {any} */ (ctx({ effects: null })));
   assert.equal(w.objects.has('neb'), false);
