@@ -26,6 +26,13 @@ releases:
         session: "R4d"
         docs: /cards/astrometrics/
         public: true
+      - file: astro-nebula-volume
+        topic: astrometrics
+        summary: "Astrometrics nebula you can fly into (render: volume)"
+        description: "A nebula drawn as one body of gas (render: volume) round a disc grid, with a planet inside it: the planet hides the gas behind it, the gas in front still shows. OUTSIDE, FLY IN and PLANET fly the camera; from inside there is gas all round. Every tunable setting has a slider: DENSITY and DRIFT change in place; TURBULENCE, DETAIL (noise_scale), CLOUDS (cloud_count) and SEED rebuild the gas. Below: the same seeded clouds as puffs and as a volume."
+        session: "E6 volume"
+        docs: /cards/astrometrics/effects#gas-you-can-fly-into
+        public: true
       - file: astro-comet
         topic: astrometrics
         summary: "Astrometrics comet: tails away from its star"

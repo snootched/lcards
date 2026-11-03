@@ -1,0 +1,133 @@
+# Astrometrics nebula render: volume: the gas raymarched as one body you can fly into, a planet inside
+# it hiding the gas behind it. Every tunable setting on a slider: density and drift change in place;
+# turbulence, detail (noise_scale), clouds (cloud_count) and seed rebuild the nebula. Then the same
+# seeded clouds as puffs and as a volume, side by side.
+title: Astrometrics nebula volume
+path: astro-nebula-volume
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: OUTSIDE, show: true}
+        tap_action: {action: fly-to, card: astro_nebula_volume, view: outside}
+        grid_options: {columns: 6, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: FLY IN, show: true}
+        tap_action: {action: fly-to, card: astro_nebula_volume, view: inside}
+        grid_options: {columns: 6, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: PLANET, show: true}
+        tap_action: {action: fly-to, card: astro_nebula_volume, view: planet}
+        grid_options: {columns: 6, rows: 1}
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text:
+          name: {content: DENSITY}
+        style:
+          shaped: {text_bands: {left: {size: 140}}}
+        grid_options: {columns: 18, rows: 1}
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: shaped-horizontal
+        component: shaped
+        text:
+          name: {content: TURBULENCE}
+        style:
+          shaped: {text_bands: {left: {size: 120}}}
+        grid_options: {columns: 12, rows: 1}
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_humidity
+        preset: shaped-horizontal
+        component: shaped
+        text:
+          name: {content: DETAIL}
+        style:
+          shaped: {text_bands: {left: {size: 120}}}
+        grid_options: {columns: 12, rows: 1}
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_temperature
+        preset: shaped-horizontal
+        component: shaped
+        text:
+          name: {content: DRIFT}
+        style:
+          shaped: {text_bands: {left: {size: 120}}}
+        grid_options: {columns: 12, rows: 1}
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_stage
+        preset: shaped-horizontal
+        component: shaped
+        text:
+          name: {content: CLOUDS}
+        style:
+          shaped: {text_bands: {left: {size: 140}}}
+        grid_options: {columns: 18, rows: 1}
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text:
+          name: {content: SEED}
+        style:
+          shaped: {text_bands: {left: {size: 140}}}
+        grid_options: {columns: 18, rows: 1}
+      - type: custom:lcards-astrometrics-card
+        id: astro_nebula_volume
+        height: 650
+        grid_options: {columns: full}
+        camera:
+          view: outside
+          views:
+            outside: {target: [0, 0, 0], yaw: 20, tilt: 20, distance: 320}
+            inside: {target: [40, 0, 10], yaw: 200, tilt: 6, distance: 30}
+            planet: {target: [30, 0, -20], yaw: 150, tilt: 10, distance: 80}
+          warp: true
+        backdrop: {stars: {count: 2500}}
+        points:
+          - {id: world, xyz: [30, 0, -20], label: KESSIK IV, style: minor}
+        objects:
+          - {type: grid, shape: disc, radius: 110, pattern: polar, line_spacing: 10, spoke_count: 36}
+          - {type: sphere, id: kessik, at: world, radius: 14, fill_color: var(--lcars-orange)}
+          - type: nebula
+            id: gas
+            render: volume
+            size: [240, 70, 240]
+            colors: [var(--lcars-violet), var(--lcars-blue), var(--lcars-red)]
+            density: {entity: input_number.lcards_test_power, input: [0, 100], output: [0.2, 3]}
+            turbulence: {entity: input_number.lcards_test_shields, input: [0, 100], output: [0, 1]}
+            noise_scale: {entity: input_number.lcards_test_humidity, input: [0, 100], output: [0.02, 0.3]}
+            drift: {entity: input_number.lcards_test_temperature, input: [10, 35], output: [0, 8]}
+            cloud_count: {entity: input_number.lcards_test_stage, input: [0, 20], output: [1, 10]}
+            seed: {entity: input_number.lcards_test_value, input: [0, 100], output: [1, 101]}
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 380
+        grid_options: {columns: 24}
+        camera: {views: {v: {target: [0, 0, 0], yaw: 20, tilt: 20, distance: 300}}}
+        backdrop: {stars: {count: 1500}}
+        points:
+          - {id: tag, xyz: [0, 60, 0], label: "RENDER: PUFFS", style: minor}
+        objects:
+          - {type: nebula, size: [220, 60, 220], cloud_count: 8, seed: 5, colors: [var(--lcars-violet), var(--lcars-blue), var(--lcars-red)]}
+      - type: custom:lcards-astrometrics-card
+        height: 380
+        grid_options: {columns: 24}
+        camera: {views: {v: {target: [0, 0, 0], yaw: 20, tilt: 20, distance: 300}}}
+        backdrop: {stars: {count: 1500}}
+        points:
+          - {id: tag, xyz: [0, 60, 0], label: "RENDER: VOLUME", style: minor}
+        objects:
+          - {type: nebula, render: volume, size: [220, 60, 220], cloud_count: 8, seed: 5, colors: [var(--lcars-violet), var(--lcars-blue), var(--lcars-red)]}

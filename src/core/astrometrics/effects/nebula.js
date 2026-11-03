@@ -16,15 +16,20 @@
  * `drift` (scene units per second) slides the noise through the clouds;
  * still by default, so a still scene draws nothing.
  *
+ * `render: volume` draws the same clouds raymarched instead (`nebula-volume.js`).
+ *
  * @module core/astrometrics/effects/nebula
  */
 import { Group, Mesh, BufferGeometry, Float32BufferAttribute, Uint16BufferAttribute, ShaderMaterial, AdditiveBlending, NormalBlending, Vector2 } from 'three';
 import { NOISE_GLSL, splitCoord } from '../../packs/backgrounds/webgl/scenes/noise-glsl.js';
 import { seededRandom } from '../../packs/backgrounds/webgl/scenes/scene-helpers.js';
 import { built, num, pair, DEFAULT_COLORS } from '../objects/common.js';
+import { buildNebulaVolume } from './nebula-volume.js';
 
 /** The `nebula` preset caps cloud_count at 10 */
 export const MAX_CLOUDS = 10;
+/** Default cloud radii with render: volume, fractions of the region */
+export const VOLUME_RADII = [0.25, 0.55];
 /** Puffs per cloud */
 const PUFFS = [3, 5];
 /** A puff fades out between these multiples of its radius from the camera */
@@ -53,7 +58,9 @@ export function nebulaLayout(cfg) {
   const box = cfg.size !== undefined ? boxSize(cfg.size) : null;
   const R = box ? Math.max(...box) / 2 : Math.max(1e-3, num(cfg.radius, 100));
   const colorCount = Math.max(1, Array.isArray(cfg.colors) ? cfg.colors.length : 1);
-  const [r0, r1] = [num(cfg.min_radius, R * 0.15), num(cfg.max_radius, R * 0.4)].map((v) => Math.max(1e-3, v)).sort((a, b) => a - b);
+  // a volume fills its region: bigger clouds by default
+  const [f0, f1] = cfg.render === 'volume' ? VOLUME_RADII : [0.15, 0.4];
+  const [r0, r1] = [num(cfg.min_radius, R * f0), num(cfg.max_radius, R * f1)].map((v) => Math.max(1e-3, v)).sort((a, b) => a - b);
   const [o0, o1] = [num(cfg.brightness?.[0], 0.3), num(cfg.brightness?.[1], 0.8)].map((v) => Math.max(0, Math.min(1, v))).sort((a, b) => a - b);
 
   /** @type {{ xyz: number[], radius: number, color: number, opacity: number }[]} */
@@ -228,6 +235,8 @@ export function buildNebula(cfg, ctx) {
   const palette = list.map((/** @type {any} */ c) => ctx.color(c, DEFAULT_COLORS.nebula));
   /** @param {number} i - a palette index, or -1 - n for cloud n's own colour */
   const colorOf = (i) => (i >= 0 ? palette[i % palette.length] : ctx.color(cfg.clouds[-1 - i].color, DEFAULT_COLORS.nebula));
+  // the same clouds, raymarched as one body of gas
+  if (cfg.render === 'volume') return buildNebulaVolume(cfg, ctx, { clouds }, colorOf);
 
   const n = puffs.length;
   const position = new Float32Array(n * 12);

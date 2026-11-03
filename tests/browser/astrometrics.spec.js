@@ -703,6 +703,64 @@ test('nebula: the effects chunk loads, a drifting nebula keeps drawing, reduced 
     expect(later.frames - held.frames).toBeLessThanOrEqual(1);
 });
 
+test('nebula render: volume: the gas draws from outside and from inside', async ({ page }) => {
+    await mountCase(page, 'astro-nebula-volume', { width: '800' });
+    await sceneReady(page);
+    const info = await page.evaluate(() => {
+        const w = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world;
+        const b = w.objects.get('neb');
+        return { type: b?.type, mesh: b?.node.children[0]?.name, pick: b?.pickMeshes.length, prerender: typeof b?.prerender };
+    });
+    expect(info).toEqual({ type: 'nebula', mesh: 'nebula-volume', pick: 0, prerender: 'function' });
+    /** Bright blue pixels (the gas; the grid and the planet are orange) */
+    const gas = () => page.evaluate(() => {
+        const canvas = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('.astro-scene canvas');
+        const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+        let n = 0;
+        for (let i = 0; i < data.length; i += 4) if (data[i + 2] > 40 && data[i + 2] > data[i] + 15) n++;
+        return n / (data.length / 4);
+    });
+    await expect.poll(gas).toBeGreaterThan(0.02);
+    // inside the region: gas across much of the view
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo('inside', { duration: 0 }));
+    await expect.poll(gas, { timeout: 5_000 }).toBeGreaterThan(0.15);
+    await expectNoErrors(page);
+});
+
+test('nebula render: volume: a solid in front of the gas hides it (the solid depth pass)', async ({ page }) => {
+    await mountCase(page, 'astro-nebula-volume-solid', { width: '600', height: '400' });
+    await sceneReady(page);
+    /** Mean colour of a small square at the middle of the canvas (the sphere), and the blue over the whole canvas */
+    const probe = () => page.evaluate(() => {
+        const canvas = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('.astro-scene canvas');
+        const { width, height } = canvas;
+        const data = canvas.getContext('2d').getImageData(0, 0, width, height).data;
+        const mid = [0, 0, 0];
+        let n = 0;
+        for (let y = -4; y <= 4; y++) for (let x = -4; x <= 4; x++) {
+            const i = ((Math.round(height / 2) + y) * width + Math.round(width / 2) + x) * 4;
+            mid[0] += data[i]; mid[1] += data[i + 1]; mid[2] += data[i + 2]; n++;
+        }
+        let blue = 0;
+        for (let i = 0; i < data.length; i += 4) blue += data[i + 2];
+        return { mid: mid.map((v) => v / n), blue };
+    });
+    await expect.poll(async () => (await probe()).blue).toBeGreaterThan(0);
+    await page.waitForTimeout(300);
+    const withGas = await probe();
+    // the same scene without the nebula
+    await page.evaluate(() => {
+        const card = /** @type {any} */ (document.querySelector('#mount > *'));
+        window.__reconfigure({ ...card.config, objects: card.config.objects.filter((/** @type {any} */ o) => o.type !== 'nebula') });
+    });
+    await expect.poll(async () => (await sceneState(page))?.objects).toBe(1);
+    await page.waitForTimeout(300);
+    const bare = await probe();
+    expect(withGas.blue, 'the gas shows round the sphere').toBeGreaterThan(bare.blue * 1.5);
+    for (let c = 0; c < 3; c++) expect(Math.abs(withGas.mid[c] - bare.mid[c]), `channel ${c} of the sphere`).toBeLessThan(3);
+    await expectNoErrors(page);
+});
+
 test('E8 planets: built-in maps load, fill_effect planet types and the Saturn ring band draw', async ({ page }) => {
     const failed = [];
     page.on('response', (r) => { if (r.url().includes('/lcards/images/') && !r.ok()) failed.push(r.url()); });

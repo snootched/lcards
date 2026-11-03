@@ -35,15 +35,48 @@ objects:
 | `radius` or `size` | The region the clouds fill: a ball of `radius` (default 100), or a box `[width, height, depth]` (one number for a cube), round `at`. |
 | `cloud_count`, `seed` | How many clouds (1 to 10, default 4) the seed places; the same seed always places the same clouds. |
 | `clouds` | Place them yourself instead: a list of `{ xyz, radius, color, opacity }`. |
-| `min_radius`, `max_radius` | Cloud sizes, scene units (default 0.15 and 0.4 of the region). |
+| `render` | `puffs` (default) or `volume`: [gas you can fly into](#gas-you-can-fly-into). |
+| `min_radius`, `max_radius` | Cloud sizes, scene units (default 0.15 and 0.4 of the region; 0.25 and 0.55 with `render: volume`). |
 | `brightness` | `[dimmest, brightest]`: each cloud's opacity is picked at random between them (default `[0.3, 0.8]`); a cloud's own `opacity` wins. |
 | `colors` | One colour, or a list the seed picks from per cloud. Default `var(--lcars-violet)`. |
 | `turbulence` | How ragged the edges are, 0 to 1 (default 0.5). |
 | `noise_scale` | Detail of the gas per scene unit; lower is larger, smoother wisps. |
 | `drift` | How fast the gas churns, scene units per second (`[x, y]` for a direction). Default 0, still. [Following an entity](./data#settings-from-entities) it eases to each new speed. |
 | `blend` | `add` (default: light adds up) or `normal`. |
+| `density` | With `render: volume`: how thick the gas is (default 1; 2 is twice as thick). [Following an entity](./data#settings-from-entities) it eases to each new value. |
 
 Clouds are never tappable, so they never get in the way of points behind them. A label for a cloud is a [point](./points) at the same place.
+
+### Gas you can fly into
+
+`render: volume` draws the same clouds (the same seed, colours and brightness) as one body of gas filling the region, instead of puffs. Fly into it and there is gas all round you, which puffs facing the camera cannot give. The gas fades out toward the edges of the region, so its box or ball never shows. A planet, model or other solid object inside the gas hides the gas behind it, and the gas in front of it still shows.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 340
+camera:
+  view: outside
+  views:
+    outside: { target: [0, 0, 0], yaw: 20, tilt: 20, distance: 300 }
+    inside: { target: [40, 0, 10], yaw: 200, tilt: 6, distance: 30 }
+backdrop:
+  stars: { count: 2000 }
+points:
+  - { id: fly_in, xyz: [40, 0, 10], label: FLY INSIDE, tap_action: { action: fly-to, view: inside } }
+  - { id: fly_out, xyz: [-90, 0, 0], label: BACK OUT, tap_action: { action: fly-to, view: outside } }
+objects:
+  - { type: grid, shape: disc, radius: 100, pattern: polar, line_spacing: 10, spoke_count: 36 }
+  - { type: sphere, at: [30, 0, -20], radius: 14, fill_color: var(--lcars-orange) }
+  - type: nebula
+    render: volume
+    size: [220, 60, 220]
+    cloud_count: 7
+    seed: 5
+    drift: 2
+    colors: [var(--lcars-violet), var(--lcars-blue)]
+```
+
+`turbulence` erodes the clouds into wisps and holes (0 gives smooth blobs), and `density` makes the gas thicker or thinner. A volume is drawn at half the screen's resolution, which soft gas does not show, and costs about as much as the puffs.
 
 ## Scan bands
 
@@ -227,4 +260,4 @@ warp_factor: { entity: input_number.warp_factor, output: [1, 9.9] }
 
 ## Cost
 
-Measured on an Intel Arc laptop GPU at 1300 x 866 px, each effect adds about 1 to 2 ms per frame while it moves: well inside a 60 frames per second budget. A still effect costs nothing between frames, because a still scene draws nothing. The nebula and fill shaders load in a small extra download the first time a card uses one.
+Measured on an Intel Arc laptop GPU at 1300 x 866 px, each effect adds about 1 to 2 ms per frame while it moves: well inside a 60 frames per second budget. A still effect costs nothing between frames, because a still scene draws nothing. The nebula and fill shaders load in a small extra download the first time a card uses one. A nebula with `render: volume` adds about 1 ms seen from outside and 1.5 ms from inside the gas.

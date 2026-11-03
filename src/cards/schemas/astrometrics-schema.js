@@ -1165,6 +1165,14 @@ const nebulaObject = {
     description: 'Clouds of gas in the scene (the nebula background preset in 3D): they shift against each other and the grids as the camera turns, and fade as you fly into them.',
     properties: {
         type: { type: 'string', const: 'nebula', description: 'nebula: clouds of gas.' },
+        render: {
+            type: 'string',
+            enum: ['puffs', 'volume'],
+            default: 'puffs',
+            enumDescriptions: { puffs: 'Soft puffs facing the camera', volume: 'One body of gas you can fly into' },
+            description: 'How the gas is drawn. puffs (default): a few soft puffs a cloud, facing the camera. volume: the same clouds as one body of gas filling the region, fading out at its edges; seen from inside, there is gas all round.'
+        },
+        density: setting('render: volume only: how thick the gas is (1 default; 2 twice as thick).', { minimum: 0, default: 1 }),
         radius: setting('The clouds sit inside a ball this big round the object, scene units. Default 100.', { exclusiveMinimum: 0 }),
         size: {
             description: 'Or inside a box [width, height, depth] (one number for a cube), scene units. Replaces radius.',

@@ -125,7 +125,7 @@ test('nebula in a scene: one mesh of camera-facing quads, no pick meshes, still 
 });
 
 test('nebula drift follows an entity in place (live): it eases without a jump, and a still one starts where it stands', () => {
-  assert.deepEqual([...LIVE_TYPE_KEYS.nebula.keys], ['drift', 'drift.0', 'drift.1']);
+  assert.deepEqual([...LIVE_TYPE_KEYS.nebula.keys], ['drift', 'drift.0', 'drift.1', 'density']);
   const n = buildScene({ objects: [{ type: 'nebula', id: 'n', drift: [2, 1] }] }, /** @type {any} */ (ctx())).objects.get('n');
   const u = /** @type {any} */ (n?.node.children[0]).material.uniforms;
   const at = () => [u.uWarpCell.value.x + u.uWarpLocal.value.x, u.uWarpCell.value.y + u.uWarpLocal.value.y];
@@ -641,4 +641,116 @@ test('W1 swirl fill: its own type, colour stops from the heart out, and two laye
   // down a well it thins out before the throat (no pale tube below the gas)
   assert.equal(/** @type {any} */ (fillMaterial({ type: 'swirl' }, ctx, { radius: 15, depth: 5 }).material.uniforms).uDepth.value, 5);
   assert.match(material.fragmentShader, /if \( uDepth > 0\.0 \) c\.a \*= 1\.0 - smoothstep/);
+});
+
+// ---- nebula render: volume ----
+
+test('noise texture: deterministic, tileable (no seam where it repeats), bytes in a sane spread', async () => {
+    const { noiseVolume, NOISE_SIZE } = await import('../../src/core/astrometrics/effects/noise3-texture.js');
+    const a = noiseVolume();
+    assert.equal(a.length, NOISE_SIZE ** 3);
+    assert.deepEqual(noiseVolume(), a, 'the same bytes every time');
+    const N = NOISE_SIZE;
+    const at = (x, y, z) => a[((x + N) % N) + N * (((y + N) % N) + N * ((z + N) % N))];
+    // across the wrap (63 to 0) no bigger a step than between neighbours anywhere else
+    let seam = 0;
+    let inner = 0;
+    for (let z = 0; z < N; z += 3) for (let y = 0; y < N; y += 3) {
+        seam = Math.max(seam, Math.abs(at(N - 1, y, z) - at(0, y, z)), Math.abs(at(y, N - 1, z) - at(y, 0, z)), Math.abs(at(y, z, N - 1) - at(y, z, 0)));
+        for (let x = 0; x < N - 1; x++) inner = Math.max(inner, Math.abs(at(x + 1, y, z) - at(x, y, z)));
+    }
+    assert.ok(seam <= inner, `seam ${seam} vs neighbours ${inner}`);
+    let sum = 0;
+    for (const v of a) sum += v;
+    const mean = sum / a.length / 255;
+    // the shader standardises around this mean (NOISE_MEAN in nebula-volume.js)
+    assert.ok(Math.abs(mean - 0.55) < 0.03, `mean ${mean}`);
+});
+
+test('nebula volume: gas fades to nothing at the region\'s faces, full well inside (box and ball)', async () => {
+    const { edgeFalloff } = await import('../../src/core/astrometrics/effects/nebula-volume.js');
+    for (const ball of [false, true]) {
+        assert.equal(edgeFalloff([0, 0, 0], ball), 1);
+        assert.equal(edgeFalloff([1, 0, 0], ball), 0);
+        assert.equal(edgeFalloff([0, -1, 0], ball), 0);
+        assert.ok(edgeFalloff([0.5, 0, 0], ball) > edgeFalloff([0.9, 0, 0], ball));
+    }
+    // a box's corner is rounded: no gas there
+    assert.equal(edgeFalloff([0.95, 0.95, 0.95], false), 0);
+});
+
+test('nebula layout: render: volume keeps the seeded clouds (places, colours, opacities), bigger by default', () => {
+    const cfg = { type: 'nebula', seed: 9, cloud_count: 5, radius: 80, colors: ['red', 'blue', 'green'] };
+    const puffs = effects.nebulaLayout(cfg);
+    const vol = effects.nebulaLayout({ ...cfg, render: 'volume' });
+    assert.deepEqual(vol.clouds.map((c) => [c.xyz, c.color, c.opacity]), puffs.clouds.map((c) => [c.xyz, c.color, c.opacity]));
+    for (const c of vol.clouds) assert.ok(c.radius >= 80 * 0.25 - 1e-9 && c.radius <= 80 * 0.55 + 1e-9);
+    // radii set by hand: the same clouds in both modes
+    const set = { ...cfg, min_radius: 10, max_radius: 20 };
+    assert.deepEqual(effects.nebulaLayout({ ...set, render: 'volume' }).clouds, effects.nebulaLayout(set).clouds);
+});
+
+test('nebula render: volume: one region mesh, not pickable, a prerender pass; density and drift ease in place', () => {
+    const frames = [];
+    const b = effects.buildNebula({ type: 'nebula', id: 'v', render: 'volume', size: [200, 40, 200], cloud_count: 3, seed: 2 }, ctx({ requestFrame: () => frames.push(1) }));
+    const mesh = /** @type {any} */ (b.node.children[0]);
+    assert.equal(mesh.name, 'nebula-volume');
+    assert.equal(b.pickMeshes.length, 0);
+    assert.equal(typeof b.prerender, 'function');
+    assert.equal(b.tick, null, 'still unless it drifts');
+    assert.equal(mesh.material.depthWrite, false);
+    assert.equal(mesh.material.depthTest, false, 'its own back face must not hide the gas in front of a planet');
+    assert.ok(mesh.renderOrder > 2, 'after the grid faces (a sphere\'s face paints its body)');
+    assert.equal(b.live?.('density', 2.5), true);
+    assert.ok(frames.length > 0, 'a density change asks for a frame');
+    assert.equal(b.live?.('drift', 4), true);
+    assert.equal(typeof b.tick, 'function', 'drift from an entity starts the tick');
+    assert.equal(b.tick?.(16, 1000), true);
+    assert.equal(b.live?.('turbulence', 1), false, 'not live: a rebuild');
+    assert.ok(LIVE_TYPE_KEYS.nebula.keys.includes('density'));
+    // a ball when there is no size
+    const ball = effects.buildNebula({ type: 'nebula', render: 'volume', radius: 50 }, ctx());
+    assert.equal(/** @type {any} */ (ball.node.children[0]).geometry.type, 'IcosahedronGeometry');
+});
+
+test('nebula volume drift: body and wisp offsets move smoothly through every wrap (no jump when the body loops)', async () => {
+    const { stepDrift } = await import('../../src/core/astrometrics/effects/nebula-volume.js');
+    // distance round the 0 to 1 circle the texture repeats on
+    const gap = (/** @type {number} */ a, /** @type {number} */ b) => { const d = Math.abs(a - b) % 1; return Math.min(d, 1 - d); };
+    let o = { body: /** @type {[number, number]} */ ([0, 0]), wisp: /** @type {[number, number]} */ ([0, 0]) };
+    const d = /** @type {[number, number]} */ ([0.013, -0.007]);
+    let bodyWraps = 0;
+    for (let i = 0; i < 400; i++) {
+        const n = stepDrift(o, d);
+        if (n.body[0] < o.body[0]) bodyWraps++;
+        for (const k of [0, 1]) {
+            assert.ok(gap(n.body[k], o.body[k]) <= Math.abs(d[k]) + 1e-9, `body ${k} steps by d`);
+            assert.ok(gap(n.wisp[k], o.wisp[k]) <= Math.abs(d[k]) * 1.7 * 2.7 + 1e-9, `wisp ${k} steps by d x its rate, step ${i}`);
+            assert.ok(n.body[k] >= 0 && n.body[k] < 1 && n.wisp[k] >= 0 && n.wisp[k] < 1, 'kept within 0 to 1');
+        }
+        o = n;
+    }
+    assert.ok(bodyWraps >= 5, 'the run crosses several body wraps');
+});
+
+test('solid depth: only meshes that write depth count as solids', async () => {
+    const { isSolid } = await import('../../src/core/astrometrics/effects/solid-depth.js');
+    const { Mesh, Line, BoxGeometry, MeshBasicMaterial } = await import('three');
+    const geo = new BoxGeometry();
+    assert.equal(isSolid(new Mesh(geo, new MeshBasicMaterial({ depthWrite: true }))), true);
+    assert.equal(isSolid(new Mesh(geo, new MeshBasicMaterial({ depthWrite: false }))), false);
+    assert.equal(isSolid(new Line(geo, new MeshBasicMaterial({ depthWrite: true }))), false);
+    assert.equal(isSolid(new Mesh(geo, [new MeshBasicMaterial({ depthWrite: false }), new MeshBasicMaterial({ depthWrite: true })])), true);
+});
+
+test('schema: nebula render and density', async () => {
+    const { CoreValidationService } = await import('../../src/core/validation-service/index.js');
+    const { astrometricsSchema } = await import('../../src/cards/schemas/astrometrics-schema.js');
+    const v = new CoreValidationService({ cacheResults: false });
+    const issues = (o) => { const r = v.validate({ type: 'custom:lcards-astrometrics-card', objects: [{ type: 'nebula', ...o }] }, astrometricsSchema); return [...r.errors, ...r.warnings]; };
+    assert.deepEqual(issues({ render: 'volume', density: 2 }), []);
+    assert.deepEqual(issues({ render: 'puffs' }), []);
+    assert.ok(issues({ render: 'cloud' }).some((e) => e.field === 'objects[0].render'));
+    assert.ok(issues({ density: -1 }).some((e) => e.field === 'objects[0].density'));
+    assert.deepEqual(issues({ render: 'volume', density: { entity: 'input_number.x', input: [0, 100], output: [0, 3] } }), []);
 });

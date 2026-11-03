@@ -1,0 +1,14 @@
+# Astrometrics volume nebula (astrometrics.spec.js): render: volume draws the
+# clouds as raymarched gas; a solid sphere inside hides the gas behind it.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: wide
+  views:
+    wide: { target: [0, 0, 0], yaw: 20, tilt: 25, distance: 320 }
+    side: { target: [0, 0, 0], yaw: 90, tilt: 4, distance: 260 }
+    inside: { target: [40, 0, 0], yaw: 200, tilt: 6, distance: 30 }
+objects:
+  - { type: grid, shape: disc, radius: 100 }
+  - { type: sphere, id: planet, at: [0, 0, 0], radius: 18, fill_color: "var(--lcars-orange, orange)", fill_opacity: 1 }
+  - { type: nebula, id: neb, render: volume, size: [220, 60, 220], cloud_count: 6, seed: 5, colors: ["var(--lcars-violet, #b38cff)", "var(--lcars-blue, #6699ff)"] }

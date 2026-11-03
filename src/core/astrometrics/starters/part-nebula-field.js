@@ -1,4 +1,4 @@
-/** A nebula field: two clouds of gas round a bright heart */
+/** A nebula field: a body of gas you can fly into, a veil of puffs and a bright heart */
 
 import { centreRef } from './shared.js';
 
@@ -7,8 +7,8 @@ export default /** @type {import('./index.js').Starter} */ ({
   id: 'nebula_field',
   kind: 'part',
   title: 'Nebula field',
-  summary: 'Two drifting clouds of gas with a glow at their heart',
-  description: 'Two overlapping, slowly drifting clouds of gas with a soft glow at their heart and a label.',
+  summary: 'Drifting gas you can fly into, with a glow at its heart',
+  description: 'A slowly drifting body of gas (render: volume, so the camera can fly into it), a veil of lighter puffs, a soft glow at the heart and a label.',
   icon: 'mdi:weather-cloudy',
   params: [
     { key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: 'nebula' },
@@ -22,7 +22,7 @@ export default /** @type {import('./index.js').Starter} */ ({
     return {
       points: [...c.points, { id: 'heart', at: c.ref, label: String(label), style: 'major' }],
       objects: [
-        { type: 'nebula', id: 'clouds', at: 'heart', radius: r, cloud_count: 10, seed: 7, drift: 0.5 },
+        { type: 'nebula', id: 'clouds', at: 'heart', render: 'volume', radius: r, cloud_count: 8, seed: 7, drift: 0.5 },
         { type: 'nebula', id: 'veil', at: 'heart', radius: r * 0.6, cloud_count: 6, seed: 23, drift: 0.8, colors: ['var(--lcars-violet)', 'var(--lcars-blue)'] },
         { type: 'glow', id: 'glow', at: 'heart', size: r * 0.5, opacity: 0.7 }
       ]

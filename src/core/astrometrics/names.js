@@ -190,7 +190,7 @@ export const MAX_ROCKS = 5000;
 export const LIVE_TYPE_KEYS = {
   belt: { keys: ['radius', 'radius.0', 'radius.1', 'thickness', 'count'], most: { count: MAX_ROCKS } },
   comet: { keys: ['size', 'coma_size', 'tail_length', 'glow'] },
-  nebula: { keys: ['drift', 'drift.0', 'drift.1'] }
+  nebula: { keys: ['drift', 'drift.0', 'drift.1', 'density'] }
 };
 
 /** Object types built from the effects chunk (`core/astrometrics/effects`) */

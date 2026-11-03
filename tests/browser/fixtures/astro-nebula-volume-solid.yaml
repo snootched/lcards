@@ -1,0 +1,12 @@
+# Astrometrics volume nebula and solids (astrometrics.spec.js): a solid
+# sphere wholly in front of the gas hides it; the sphere looks the same with
+# the nebula as without.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: front
+  views:
+    front: { target: [0, 0, 0], yaw: 0, tilt: 0, distance: 300 }
+objects:
+  - { type: sphere, id: moon, at: [0, 0, 120], radius: 22, fill_color: "#cc6633", fill_opacity: 1 }
+  - { type: nebula, id: gas, render: volume, radius: 70, cloud_count: 1, clouds: [{ xyz: [0, 0, 0], radius: 70, opacity: 1 }], turbulence: 0, density: 3, colors: ["#6699ff"] }

@@ -92,6 +92,8 @@ export const DEFAULT_COLORS = {
  *   builder sets it every layout pass
  * @property {(key: string, value: number | null) => boolean} [live] - a setting that follows an entity, changed in place
  *   (names.js LIVE_TYPE_KEYS; a joined path such as radius.0): true when it took it; null puts the built value back
+ * @property {(renderer: import('three').WebGLRenderer, scene: import('three').Scene, camera: import('three').PerspectiveCamera | import('three').OrthographicCamera, w: number, h: number, frame: number) => void} [prerender] - before each render, while
+ *   it shows: draw what it needs first (a volume nebula's solid depth); w and h in drawing buffer px
  * @property {(view: { camera: import('three').Camera, height: number, dpr: number }) => void} [lod] - before each render: change its level of detail for this view (height in CSS px)
  */
 

@@ -1127,7 +1127,11 @@ export function createAstroScene(host, config, options = {}) {
     try {
       const plan = depthPlan(camera);
       const scene = world.scene;
-      out = sharedRender(scene, camera, W, H, (r) => drawPasses(r, scene, camera, plan));
+      out = sharedRender(scene, camera, W, H, (r) => {
+        // what an object needs drawn first (a volume nebula: where the solids are)
+        for (const b of world?.list ?? []) if (b.prerender && (world?.outer.get(b)?.visible ?? true)) b.prerender(r, scene, camera, W, H, frames);
+        drawPasses(r, scene, camera, plan);
+      });
     } catch (error) {
       lcardsLog.warn('[Astrometrics] render failed:', error);
       fail('render failed');
