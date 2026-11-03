@@ -168,7 +168,7 @@ export function flattenSystems(config) {
  * value is rounded (bindings.js), so the object rebuilds only when the whole
  * number changes. Seeds are not settings.
  */
-export const WHOLE_NUMBER_KEYS = /** @type {const} */ (['count', 'stars', 'arms', 'cloud_count', 'lobes', 'spoke_count', 'num_octaves', 'major_row_interval', 'major_col_interval']);
+export const WHOLE_NUMBER_KEYS = /** @type {const} */ (['count', 'stars', 'arms', 'cloud_count', 'lobes', 'spoke_count', 'num_octaves', 'major_row_interval', 'major_col_interval', 'dust_count']);
 
 /** A comet's `tails`: which of its two draw */
 export const COMET_TAILS = /** @type {const} */ (['both', 'ion', 'dust', 'none']);
@@ -231,6 +231,8 @@ export const GRID_PATTERNS = /** @type {const} */ (['both', 'horizontal', 'verti
 
 /** `volume` shapes */
 export const VOLUME_SHAPES = /** @type {const} */ (['sector', 'box', 'prism']);
+/** A volume nebula's density field forms (`shape`) */
+export const NEBULA_SHAPES = /** @type {const} */ (['clouds', 'shell', 'bipolar', 'filaments', 'cavity']);
 
 /** `image` shapes */
 export const IMAGE_SHAPES = /** @type {const} */ (['plane', 'disc']);

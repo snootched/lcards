@@ -754,3 +754,62 @@ test('schema: nebula render and density', async () => {
     assert.ok(issues({ density: -1 }).some((e) => e.field === 'objects[0].density'));
     assert.deepEqual(issues({ render: 'volume', density: { entity: 'input_number.x', input: [0, 100], output: [0, 3] } }), []);
 });
+
+test('NB1 nebula layout: stretch and dust from their own seed streams (no gas cloud moves); hand size and rotation', () => {
+  const cfg = { type: 'nebula', render: 'volume', seed: 4, cloud_count: 6, radius: 130 };
+  const round = effects.nebulaLayout(cfg);
+  for (const c of round.clouds) {
+    assert.deepEqual(c.axes, [c.radius, c.radius, c.radius], 'round by default');
+    assert.deepEqual(c.turn, [0, 0, 0]);
+    assert.equal(c.dust, false);
+  }
+  const stretched = effects.nebulaLayout({ ...cfg, stretch: 0.6 });
+  assert.deepEqual(stretched, effects.nebulaLayout({ ...cfg, stretch: 0.6 }), 'deterministic');
+  stretched.clouds.forEach((c, i) => {
+    assert.deepEqual([c.xyz, c.radius, c.color, c.opacity], [round.clouds[i].xyz, round.clouds[i].radius, round.clouds[i].color, round.clouds[i].opacity], 'same places, sizes, colours');
+    assert.ok(c.axes[0] > c.radius && c.axes[1] < c.radius, 'one axis long, one short');
+  });
+  const dusty = effects.nebulaLayout({ ...cfg, dust_count: 2 });
+  assert.equal(dusty.clouds.length, 8);
+  assert.deepEqual(dusty.clouds.slice(0, 6), round.clouds, 'adding dust moves no gas cloud');
+  assert.deepEqual(dusty.puffs, round.puffs, 'dust makes no puffs');
+  assert.ok(dusty.clouds.slice(6).every((c) => c.dust));
+  assert.equal(effects.nebulaLayout({ ...cfg, dust_count: 40 }).clouds.filter((c) => c.dust).length, 4, 'at most 4 dust clouds');
+  const hand = effects.nebulaLayout({ clouds: [{ xyz: [0, 0, 0], size: [80, 20, 40], rotation: [0, 90, 0] }, { radius: 5, dust: true }] });
+  assert.deepEqual(hand.clouds[0].axes, [40, 10, 20]);
+  assert.equal(hand.clouds[0].radius, 40, 'its bound: the longest half axis');
+  assert.ok(Math.abs(hand.clouds[0].turn[1] + Math.PI / 2) < 1e-9, 'y the other way, as an object\'s rotation');
+  assert.equal(hand.clouds[1].dust, true);
+});
+
+test('NB1 cloud matrix: a round cloud is I / r; an ellipsoid maps its own surface to the unit ball', async () => {
+  const { cloudMatrix } = await import('../../src/core/astrometrics/effects/nebula-volume.js');
+  const { Vector3 } = await import('three');
+  const m = cloudMatrix({ axes: [20, 20, 20], turn: [0, 0, 0] }).elements;
+  assert.deepEqual(m.map((v) => +v.toFixed(9)), [0.05, 0, 0, 0, 0.05, 0, 0, 0, 0.05]);
+  // a long axis of 40 on x turned 90 degrees on y (rotation [0, 90, 0]: turn y = -pi/2)
+  const c = { axes: [40, 10, 20], turn: [0, -Math.PI / 2, 0] };
+  const along = effects.turnYXZ([40, 0, 0], c.turn);
+  const len = new Vector3(...along).applyMatrix3(cloudMatrix(c)).length();
+  assert.ok(Math.abs(len - 1) < 1e-9, `the tip of the long axis is on the surface (${len})`);
+  assert.ok(Math.abs(Math.abs(along[2]) - 40) < 1e-9, 'turned onto z');
+});
+
+test('NB1 schema: nebula shape, stretch, dust, core colour, ellipsoid clouds', async () => {
+  const { CoreValidationService } = await import('../../src/core/validation-service/index.js');
+  const { astrometricsSchema } = await import('../../src/cards/schemas/astrometrics-schema.js');
+  const v = new CoreValidationService({ cacheResults: false });
+  const issues = (o) => { const r = v.validate({ type: 'custom:lcards-astrometrics-card', objects: [{ type: 'nebula', ...o }] }, astrometricsSchema); return [...r.errors, ...r.warnings]; };
+  assert.deepEqual(issues({ render: 'volume', shape: 'bipolar', stretch: 0.4, core_color: 'var(--lcards-moonlight)', dust: 0.5, dust_count: 2, dust_color: 'var(--lcars-gray)', clouds: [{ size: [10, 2, 4], rotation: [0, 20, 0] }, { dust: true }] }), []);
+  for (const s of ['clouds', 'shell', 'bipolar', 'filaments', 'cavity']) assert.deepEqual(issues({ render: 'volume', shape: s }), []);
+  assert.ok(issues({ shape: 'layers' }).some((e) => e.field === 'objects[0].shape'), 'layers comes in NB2');
+  assert.ok(issues({ stretch: 2 }).some((e) => e.field === 'objects[0].stretch'));
+  assert.ok(issues({ dust_count: 1.5 }).length > 0);
+  assert.ok(issues({ dust_count: 9 }).length > 0);
+});
+
+test('NB1 nebula layout: the seed places today\'s clouds where they always were (pinned before NB1)', () => {
+  const l = effects.nebulaLayout({ seed: 5, cloud_count: 3, size: [220, 60, 220], render: 'volume' });
+  const got = l.clouds.map((c) => [c.xyz.map((v) => +v.toFixed(4)), +c.radius.toFixed(4), c.color, +c.opacity.toFixed(4)]);
+  assert.deepEqual(got, [[[60.0035, -16.8142, 27.0993], 30.3095, 0, 0.5961], [[-9.2171, 24.3373, -59.5256], 53.2355, 0, 0.6703], [[-106.9593, -2.0759, -43.8999], 57.0861, 0, 0.4441]]);
+});

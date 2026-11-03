@@ -1,0 +1,17 @@
+# Astrometrics nebula dust (NB1; astrometrics.spec.js): a dark lane placed by hand
+# through the front of one bright cloud hides the gas behind it.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: front
+  views:
+    front: { target: [0, 0, 0], yaw: 0, tilt: 0, distance: 400 }
+objects:
+  - type: nebula
+    id: neb
+    render: volume
+    radius: 130
+    colors: ["var(--lcars-orange, #ff9900)"]
+    clouds:
+      - { xyz: [0, 0, 0], radius: 100, opacity: 0.9 }
+      - { xyz: [0, 0, 40], size: [260, 40, 30], dust: true }

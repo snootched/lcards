@@ -417,6 +417,12 @@ export function astrometricsIssues(node) {
     hideIn(`${at}.hide_in_systems`, o.hide_in_systems);
     if (typeof o.face === 'string' && o.face !== 'motion') pointRef(`${at}.face`, o.face);
     if (o.face === 'motion' && !(typeof o.at === 'string' && o.at !== '')) warn(`${at}.face`, 'face: motion turns the object along its point\'s travel: give it at: a point id');
+    // the shapes and dust are drawn only by the raymarched gas
+    if (o.type === 'nebula' && o.render !== 'volume') {
+      const only = ['shape', 'dust', 'dust_count', 'dust_color'].filter((k) => o[k] !== undefined && !(k === 'shape' && o.shape === 'clouds'));
+      if (Array.isArray(o.clouds) && o.clouds.some((/** @type {any} */ c) => c?.dust === true)) only.push('clouds[].dust');
+      for (const k of only) warn(`${at}.${k}`, `${k} applies only with render: volume (this nebula draws puffs)`);
+    }
     if (o.type === 'system') {
       if (system !== undefined) err(at, `a system cannot hold another system (one level: "${system.id ?? 'system'}" holds "${o.id ?? 'system'}")`);
       else if (o.scale === undefined && typeof o.units === 'string' && UNIT_NAMES.includes(o.units) && node.units === undefined) {

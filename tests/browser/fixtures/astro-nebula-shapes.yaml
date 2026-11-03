@@ -1,0 +1,15 @@
+# Astrometrics nebula shapes (NB1; astrometrics.spec.js, visual.spec.js): render: volume
+# as a shell, an hourglass, filaments and a cavity across the top, a band of stretched
+# clouds with dust and a core colour below.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: all
+  views:
+    all: { target: [0, 0, 0], yaw: 0, tilt: 0, distance: 520 }
+objects:
+  - { type: nebula, id: shell, render: volume, shape: shell, at: [-180, 60, 0], radius: 55, cloud_count: 8, seed: 4, colors: ["var(--lcars-ice, #99ccff)", "var(--lcars-violet, #b38cff)"] }
+  - { type: nebula, id: bipolar, render: volume, shape: bipolar, at: [-60, 60, 0], radius: 55, cloud_count: 8, seed: 4, colors: ["var(--lcars-orange, #ff9900)", "var(--lcars-red, #cc4444)"], core_color: "var(--lcards-moonlight, #ffffff)" }
+  - { type: nebula, id: filaments, render: volume, shape: filaments, at: [60, 60, 0], radius: 55, cloud_count: 8, seed: 4, stretch: 0.5, colors: ["var(--lcars-red, #cc4444)", "var(--lcars-ice, #99ccff)"] }
+  - { type: nebula, id: cavity, render: volume, shape: cavity, at: [180, 60, 0], radius: 55, cloud_count: 8, seed: 4, colors: ["var(--lcars-red, #cc4444)", "var(--lcars-orange, #ff9900)"], core_color: "var(--lcars-ice, #99ccff)" }
+  - { type: nebula, id: band, render: volume, at: [0, -80, 0], size: [340, 70, 90], cloud_count: 8, seed: 3, stretch: 0.7, dust_count: 3, colors: ["var(--lcars-violet, #b38cff)", "var(--lcars-blue, #6699ff)"], core_color: "var(--lcars-ice, #99ccff)" }

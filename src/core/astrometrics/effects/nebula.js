@@ -48,10 +48,36 @@ const CELLS_PER_RADIUS = 1.5;
  */
 
 /**
+ * @typedef {Object} NebulaCloud
+ * @property {number[]} xyz - local position
+ * @property {number} radius - its size before stretch (a round cloud's radius)
+ * @property {[number, number, number]} axes - the ellipsoid's half axes, scene units
+ * @property {[number, number, number]} turn - the ellipsoid's turn, radians (as an object's rotation: YXZ, y the other way)
+ * @property {number} color - a palette index, or -1 - n for hand cloud n's own colour
+ * @property {number} opacity
+ * @property {boolean} dust - a dark cloud: blocks the gas behind it (render: volume)
+ */
+
+/** Dark clouds from dust_count, at most */
+export const MAX_DUST = 4;
+
+/**
+ * A cloud's half axes and turn from `stretch` (0 round, 1 long and flat):
+ * one axis long, one short, turned its own way.
+ * @param {number} r @param {number} s @param {() => number} rnd
+ * @returns {{ axes: [number, number, number], turn: [number, number, number] }}
+ */
+export function stretchedAxes(r, s, rnd) {
+  const turn = /** @type {[number, number, number]} */ ([(rnd() - 0.5) * Math.PI, rnd() * Math.PI * 2, (rnd() - 0.5) * Math.PI]);
+  if (s <= 0) return { axes: [r, r, r], turn: [0, 0, 0] };
+  return { axes: [r * (1 + 1.5 * s), r * (1 - 0.6 * s), r * (1 - 0.3 * s)], turn };
+}
+
+/**
  * The clouds and their puffs, from the config (pure, seeded: the same
  * config always gives the same nebula).
  * @param {any} cfg
- * @returns {{ clouds: { xyz: number[], radius: number, color: number, opacity: number }[], puffs: NebulaPuff[], extent: number }}
+ * @returns {{ clouds: NebulaCloud[], puffs: NebulaPuff[], extent: number }}
  */
 export function nebulaLayout(cfg) {
   const rnd = seededRandom(num(cfg.seed, 1));
@@ -63,21 +89,53 @@ export function nebulaLayout(cfg) {
   const [r0, r1] = [num(cfg.min_radius, R * f0), num(cfg.max_radius, R * f1)].map((v) => Math.max(1e-3, v)).sort((a, b) => a - b);
   const [o0, o1] = [num(cfg.brightness?.[0], 0.3), num(cfg.brightness?.[1], 0.8)].map((v) => Math.max(0, Math.min(1, v))).sort((a, b) => a - b);
 
-  /** @type {{ xyz: number[], radius: number, color: number, opacity: number }[]} */
+  /** @type {NebulaCloud[]} */
   let clouds;
   if (Array.isArray(cfg.clouds) && cfg.clouds.length) {
-    clouds = cfg.clouds.filter((/** @type {any} */ c) => c && typeof c === 'object').slice(0, MAX_CLOUDS).map((/** @type {any} */ c, /** @type {number} */ i) => ({
-      xyz: Array.isArray(c.xyz) ? [num(c.xyz[0], 0), num(c.xyz[1], 0), num(c.xyz[2], 0)] : [0, 0, 0],
-      radius: Math.max(1e-3, num(c.radius, (r0 + r1) / 2)),
-      color: c.color !== undefined ? -1 - i : i % colorCount,
-      opacity: Math.max(0, Math.min(1, num(c.opacity, (o0 + o1) / 2)))
-    }));
+    const hand = cfg.clouds.filter((/** @type {any} */ c) => c && typeof c === 'object');
+    // at most MAX_CLOUDS of gas and MAX_DUST of dust (the index stays the cloud's place in the list: its own colour)
+    let gas = 0;
+    let dark = 0;
+    clouds = [];
+    hand.forEach((/** @type {any} */ c, /** @type {number} */ i) => {
+      const dust = c.dust === true;
+      if (dust ? dark++ >= MAX_DUST : gas++ >= MAX_CLOUDS) return;
+      const radius = Math.max(1e-3, num(c.radius, (r0 + r1) / 2));
+      const sz = Array.isArray(c.size) ? c.size : null;
+      const axes = /** @type {[number, number, number]} */ (sz ? [0, 1, 2].map((k) => Math.max(1e-3, num(sz[k], radius * 2) / 2)) : [radius, radius, radius]);
+      const rot = Array.isArray(c.rotation) ? c.rotation : null;
+      const turn = /** @type {[number, number, number]} */ (rot ? [num(rot[0], 0), -num(rot[1], 0), num(rot[2], 0)].map((d) => (d * Math.PI) / 180) : [0, 0, 0]);
+      clouds.push({
+        xyz: Array.isArray(c.xyz) ? [num(c.xyz[0], 0), num(c.xyz[1], 0), num(c.xyz[2], 0)] : [0, 0, 0],
+        radius: sz ? Math.max(...axes) : radius,
+        axes,
+        turn,
+        color: c.color !== undefined ? -1 - i : i % colorCount,
+        opacity: Math.max(0, Math.min(1, num(c.opacity, (o0 + o1) / 2))),
+        dust
+      });
+    });
   } else {
     const n = Math.max(1, Math.min(MAX_CLOUDS, Math.round(num(cfg.cloud_count, 4))));
+    const s = Math.max(0, Math.min(1, num(cfg.stretch, 0)));
+    // the stretch and the dust from their own streams: neither moves a cloud the seed placed
+    const shapeRnd = seededRandom(num(cfg.seed, 1) * 7919 + 13);
     clouds = [];
     for (let i = 0; i < n; i++) {
       const color = Math.floor(rnd() * colorCount) % colorCount;
-      clouds.push({ xyz: inside(rnd, box, R), radius: r0 + rnd() * (r1 - r0), color, opacity: o0 + rnd() * (o1 - o0) });
+      // in this order: the seed's draws place today's clouds where they always were
+      const xyz = inside(rnd, box, R);
+      const radius = r0 + rnd() * (r1 - r0);
+      clouds.push({ xyz, radius, ...stretchedAxes(radius, s, shapeRnd), color, opacity: o0 + rnd() * (o1 - o0), dust: false });
+    }
+    const dustRnd = seededRandom(num(cfg.seed, 1) * 104729 + 71);
+    const nd = Math.max(0, Math.min(MAX_DUST, Math.round(num(cfg.dust_count, 0))));
+    for (let i = 0; i < nd; i++) {
+      // a lane across a gas cloud (dust only shows against gas behind it), always drawn out long
+      const g = clouds[i % n];
+      const off = inside(dustRnd, null, g.radius * 0.25);
+      const radius = g.radius * (0.8 + dustRnd() * 0.3);
+      clouds.push({ xyz: g.xyz.map((v, k) => v + off[k]), radius, ...stretchedAxes(radius, Math.max(s, 0.55), dustRnd), color: 0, opacity: 1, dust: true });
     }
   }
 
@@ -85,13 +143,15 @@ export function nebulaLayout(cfg) {
   const puffs = [];
   let extent = 0;
   clouds.forEach((c, i) => {
+    // dust is drawn only in the volume
+    if (c.dust) return;
     const k = PUFFS[0] + Math.floor(rnd() * (PUFFS[1] - PUFFS[0] + 1));
     // the preset's gradient stops: mid 60 to 90 %, outer 10 to 30 %
     const stops = /** @type {[number, number]} */ ([0.6 + rnd() * 0.3, 0.1 + rnd() * 0.2]);
     for (let j = 0; j < k; j++) {
       // the first puff is the cloud's core; the rest sit round it
       const spread = j === 0 ? 0 : c.radius * 0.45;
-      const d = j === 0 ? [0, 0, 0] : inside(rnd, null, spread);
+      const d = j === 0 ? [0, 0, 0] : alongAxes(inside(rnd, null, spread), c);
       const xyz = [c.xyz[0] + d[0], c.xyz[1] + d[1] * 0.6, c.xyz[2] + d[2]];
       const radius = c.radius * (j === 0 ? 1 : 0.55 + rnd() * 0.35);
       // puffs overlap in the middle: share the cloud's opacity so it stays about as bright as one
@@ -100,6 +160,31 @@ export function nebulaLayout(cfg) {
     }
   });
   return { clouds, puffs, extent };
+}
+
+/**
+ * An offset round a cloud's centre, stretched along its axes and turned with
+ * it (a round cloud: unchanged), so a stretched cloud's puffs line up.
+ * @param {number[]} d @param {NebulaCloud} c
+ */
+function alongAxes(d, c) {
+  if (c.axes[0] === c.axes[1] && c.axes[1] === c.axes[2] && !c.turn.some(Boolean)) return d;
+  const v = [0, 1, 2].map((k) => (d[k] * c.axes[k]) / c.radius);
+  return turnYXZ(v, c.turn);
+}
+
+/**
+ * Turn a vector as three's Euler YXZ order does (an object's rotation).
+ * @param {number[]} v @param {number[]} t - radians [x, y, z]
+ */
+export function turnYXZ(v, t) {
+  const [cx, sx, cy, sy, cz, sz] = [Math.cos(t[0]), Math.sin(t[0]), Math.cos(t[1]), Math.sin(t[1]), Math.cos(t[2]), Math.sin(t[2])];
+  // R = Ry Rx Rz, applied to v
+  let [x, y, z] = v;
+  [x, y] = [x * cz - y * sz, x * sz + y * cz];
+  [y, z] = [y * cx - z * sx, y * sx + z * cx];
+  [x, z] = [x * cy + z * sy, -x * sy + z * cy];
+  return [x, y, z];
 }
 
 /** @param {any} v @returns {[number, number, number]} */

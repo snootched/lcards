@@ -8,7 +8,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   kind: 'part',
   title: 'Nebula field',
   summary: 'Drifting gas you can fly into, with a glow at its heart',
-  description: 'A slowly drifting body of gas (render: volume, so the camera can fly into it), a veil of lighter puffs, a soft glow at the heart and a label.',
+  description: 'A slowly drifting body of gas (render: volume, so the camera can fly into it) with drawn-out clouds, a pale core and a dust lane, a veil of lighter puffs, a soft glow at the heart and a label.',
   icon: 'mdi:weather-cloudy',
   params: [
     { key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: 'nebula' },
@@ -22,7 +22,7 @@ export default /** @type {import('./index.js').Starter} */ ({
     return {
       points: [...c.points, { id: 'heart', at: c.ref, label: String(label), style: 'major' }],
       objects: [
-        { type: 'nebula', id: 'clouds', at: 'heart', render: 'volume', radius: r, cloud_count: 8, seed: 7, drift: 0.5 },
+        { type: 'nebula', id: 'clouds', at: 'heart', render: 'volume', radius: r, cloud_count: 8, seed: 7, drift: 0.5, stretch: 0.4, dust_count: 1, core_color: 'var(--lcars-ice)' },
         { type: 'nebula', id: 'veil', at: 'heart', radius: r * 0.6, cloud_count: 6, seed: 23, drift: 0.8, colors: ['var(--lcars-violet)', 'var(--lcars-blue)'] },
         { type: 'glow', id: 'glow', at: 'heart', size: r * 0.5, opacity: 0.7 }
       ]

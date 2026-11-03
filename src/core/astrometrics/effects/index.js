@@ -5,6 +5,6 @@
  *
  * @module core/astrometrics/effects
  */
-export { buildNebula, nebulaLayout } from './nebula.js';
+export { buildNebula, nebulaLayout, turnYXZ } from './nebula.js';
 export { buildCube, cubeSize, cubeSpots } from './cube.js';
 export { fillMaterial, FILL_TYPES } from './fills.js';

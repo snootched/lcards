@@ -3119,7 +3119,7 @@ objects:
 
 ### Nebula field
 
-A slowly drifting body of gas (render: volume, so the camera can fly into it), a veil of lighter puffs, a soft glow at the heart and a label.
+A slowly drifting body of gas (render: volume, so the camera can fly into it) with drawn-out clouds, a pale core and a dust lane, a veil of lighter puffs, a soft glow at the heart and a label.
 
 Its ids start with its name (default `nebula_`).
 
@@ -3134,7 +3134,17 @@ type: custom:lcards-astrometrics-card
 height: 400
 points: [{ id: nebula_centre, xyz: [0, 10, 0] }, { id: nebula_heart, at: nebula_centre, label: NEBULA, style: major }]
 objects:
-  - { type: nebula, id: nebula_clouds, at: nebula_heart, render: volume, radius: 40, cloud_count: 8, seed: 7, drift: 0.5 }
+  - type: nebula
+    id: nebula_clouds
+    at: nebula_heart
+    render: volume
+    radius: 40
+    cloud_count: 8
+    seed: 7
+    drift: 0.5
+    stretch: 0.4
+    dust_count: 1
+    core_color: var(--lcars-ice)
   - type: nebula
     id: nebula_veil
     at: nebula_heart

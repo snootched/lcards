@@ -1,0 +1,103 @@
+# Astrometrics nebula shapes (NB1): render: volume nebulae as a shell, an hourglass (bipolar),
+# filaments and a cavity, and a long band of drawn-out clouds with dust lanes and a pale core.
+# STRETCH draws the seeded clouds out (all five); DUST lays 0 to 4 dark lanes across the band.
+title: Astrometrics nebula shapes
+path: astro-nebula-shapes
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: ALL, show: true}
+        tap_action: {action: fly-to, card: astro_nebula_shapes, view: all}
+        grid_options: {columns: 4, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: SHELL, show: true}
+        tap_action: {action: fly-to, card: astro_nebula_shapes, view: shell}
+        grid_options: {columns: 4, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: BIPOLAR, show: true}
+        tap_action: {action: fly-to, card: astro_nebula_shapes, view: bipolar}
+        grid_options: {columns: 4, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: FILAMENTS, show: true}
+        tap_action: {action: fly-to, card: astro_nebula_shapes, view: filaments}
+        grid_options: {columns: 4, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: CAVITY, show: true}
+        tap_action: {action: fly-to, card: astro_nebula_shapes, view: cavity}
+        grid_options: {columns: 4, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: DUST, show: true}
+        tap_action: {action: fly-to, card: astro_nebula_shapes, view: dust}
+        grid_options: {columns: 4, rows: 1}
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text:
+          name: {content: STRETCH}
+        style:
+          shaped: {text_bands: {left: {size: 140}}}
+        grid_options: {columns: 12, rows: 1}
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_stage
+        preset: shaped-horizontal
+        component: shaped
+        text:
+          name: {content: DUST}
+        style:
+          shaped: {text_bands: {left: {size: 140}}}
+        grid_options: {columns: 12, rows: 1}
+      - type: custom:lcards-astrometrics-card
+        id: astro_nebula_shapes
+        height: 650
+        grid_options: {columns: full}
+        camera:
+          view: all
+          views:
+            all: {target: [0, 0, 0], yaw: 0, tilt: 10, distance: 460}
+            shell: {target: shell_at, yaw: 25, tilt: 12, distance: 170}
+            bipolar: {target: bipolar_at, yaw: 25, tilt: 12, distance: 170}
+            filaments: {target: filaments_at, yaw: 25, tilt: 12, distance: 170}
+            cavity: {target: cavity_at, yaw: 0, tilt: 12, distance: 170}
+            dust: {target: [0, -80, 0], yaw: 0, tilt: 5, distance: 260}
+            inside: {target: [-60, 60, 0], yaw: 200, tilt: 4, distance: 12}
+        backdrop: {stars: {count: 2500}}
+        points:
+          - {id: shell_at, xyz: [-180, 60, 0], label: SHELL, style: minor}
+          - {id: bipolar_at, xyz: [-60, 60, 0], label: BIPOLAR, style: minor}
+          - {id: filaments_at, xyz: [60, 60, 0], label: FILAMENTS, style: minor}
+          - {id: cavity_at, xyz: [180, 60, 0], label: CAVITY, style: minor}
+          - {id: band_at, xyz: [0, -80, 0], label: DUST AND CORE, style: minor}
+        objects:
+          - {type: nebula, id: shell, render: volume, shape: shell, at: shell_at, radius: 55, cloud_count: 8, seed: 4, colors: [var(--lcars-ice), var(--lcars-violet)], stretch: {entity: input_number.lcards_test_power, input: [0, 100], output: [0, 1]}}
+          - {type: nebula, id: bipolar, render: volume, shape: bipolar, at: bipolar_at, radius: 55, cloud_count: 8, seed: 4, colors: [var(--lcars-orange), var(--lcars-red)], core_color: var(--lcards-moonlight), stretch: {entity: input_number.lcards_test_power, input: [0, 100], output: [0, 1]}}
+          - {type: nebula, id: filaments, render: volume, shape: filaments, at: filaments_at, radius: 55, cloud_count: 8, seed: 4, colors: [var(--lcars-red), var(--lcars-ice)], stretch: {entity: input_number.lcards_test_power, input: [0, 100], output: [0, 1]}}
+          - {type: nebula, id: cavity, render: volume, shape: cavity, at: cavity_at, radius: 55, cloud_count: 8, seed: 4, colors: [var(--lcars-red), var(--lcars-orange)], core_color: var(--lcars-ice), stretch: {entity: input_number.lcards_test_power, input: [0, 100], output: [0, 1]}}
+          - type: nebula
+            id: band
+            render: volume
+            at: band_at
+            size: [340, 70, 90]
+            cloud_count: 8
+            seed: 3
+            colors: [var(--lcars-violet), var(--lcars-blue)]
+            core_color: var(--lcars-ice)
+            stretch: 0.7
+            dust_count: {entity: input_number.lcards_test_stage, input: [0, 20], output: [0, 4]}
+            drift: 1

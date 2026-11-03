@@ -34,7 +34,7 @@ objects:
 |---|---|
 | `radius` or `size` | The region the clouds fill: a ball of `radius` (default 100), or a box `[width, height, depth]` (one number for a cube), round `at`. |
 | `cloud_count`, `seed` | How many clouds (1 to 10, default 4) the seed places; the same seed always places the same clouds. |
-| `clouds` | Place them yourself instead: a list of `{ xyz, radius, color, opacity }`. |
+| `clouds` | Place them yourself instead: a list of `{ xyz, radius, color, opacity }`; `size: [width, height, depth]` and `rotation: [x, y, z]` make one an ellipsoid, `dust: true` a [dust cloud](#shapes-dust-and-colour). |
 | `render` | `puffs` (default) or `volume`: [gas you can fly into](#gas-you-can-fly-into). |
 | `min_radius`, `max_radius` | Cloud sizes, scene units (default 0.15 and 0.4 of the region; 0.25 and 0.55 with `render: volume`). |
 | `brightness` | `[dimmest, brightest]`: each cloud's opacity is picked at random between them (default `[0.3, 0.8]`); a cloud's own `opacity` wins. |
@@ -44,6 +44,9 @@ objects:
 | `drift` | How fast the gas churns, scene units per second (`[x, y]` for a direction). Default 0, still. [Following an entity](./data#settings-from-entities) it eases to each new speed. |
 | `blend` | `add` (default: light adds up) or `normal`. |
 | `density` | With `render: volume`: how thick the gas is (default 1; 2 is twice as thick). [Following an entity](./data#settings-from-entities) it eases to each new value. |
+| `stretch` | How drawn out each seeded cloud is, 0 (round, default) to 1 (long and flat), each turned its own way. |
+| `core_color` | A colour deep in the gas, running out to the cloud colours at the edges. |
+| `shape`, `dust`, `dust_count`, `dust_color` | With `render: volume`: [shapes, dust and colour](#shapes-dust-and-colour). |
 
 Clouds are never tappable, so they never get in the way of points behind them. A label for a cloud is a [point](./points) at the same place.
 
@@ -77,6 +80,56 @@ objects:
 ```
 
 `turbulence` erodes the clouds into wisps and holes (0 gives smooth blobs), and `density` makes the gas thicker or thinner. A volume is drawn at half the screen's resolution, which soft gas does not show, and costs about as much as the puffs.
+
+### Shapes, dust and colour
+
+With `render: volume`, `shape` gives the gas a form, after the real nebulae. The clouds still give the clumps and the colours inside the form, so `cloud_count`, `seed` and `colors` keep working; turn the form with `rotation`.
+
+| `shape` | The gas |
+|---|---|
+| `clouds` (default) | The clouds themselves. |
+| `shell` | A thin hollow sphere: a ring with a dark middle from any side (the Ring nebula). |
+| `bipolar` | An hourglass along the object's y axis: two hollow lobes joined at a narrow waist, the gas streaked outward (the Butterfly, the Hourglass). |
+| `filaments` | Long thin strands running along the object's x axis (the Veil). |
+| `cavity` | A thick cup round a hollow that opens on the object's +z side: a bright bowl seen from there, a crescent from the side (a blister, as in Orion). |
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 360
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 0, tilt: 10, distance: 420 }
+backdrop:
+  stars: { count: 2000 }
+objects:
+  - { type: nebula, render: volume, shape: shell, at: [-150, 60, 0], radius: 55, cloud_count: 8, colors: [var(--lcars-ice), var(--lcars-violet)] }
+  - { type: nebula, render: volume, shape: bipolar, at: [-50, 60, 0], radius: 55, cloud_count: 8, colors: [var(--lcars-orange), var(--lcars-red)], core_color: var(--lcards-moonlight) }
+  - { type: nebula, render: volume, shape: filaments, at: [50, 60, 0], radius: 55, cloud_count: 8, stretch: 0.5, colors: [var(--lcars-red), var(--lcars-ice)] }
+  - { type: nebula, render: volume, shape: cavity, at: [150, 60, 0], radius: 55, cloud_count: 8, colors: [var(--lcars-red), var(--lcars-orange)], core_color: var(--lcars-ice) }
+  - { type: nebula, render: volume, at: [0, -70, 0], size: [300, 60, 80], cloud_count: 8, stretch: 0.7, dust_count: 3, colors: [var(--lcars-violet), var(--lcars-blue)], core_color: var(--lcars-ice) }
+```
+
+- `stretch` draws each seeded cloud out (0 round to 1 long and flat); placed by hand, a cloud takes `size` and `rotation` instead. The same seed with or without `stretch` places the same clouds.
+- `core_color` colours the gas deep inside a cloud (in a shape: near its middle), running out to the cloud colours at the edges, as in the Hubble pictures.
+- **Dust** is dark gas that hides the gas behind it: `dust_count` (0 to 4) lays dark clouds across the gas clouds, or mark a hand-placed cloud `dust: true`. `dust` sets how dark (0 to 1, default 0.8) and `dust_color` its colour (default black). With `blend: add` (the default) the dust darkens only this nebula's own gas, so the stars behind still show through; with `blend: normal` it hides what is behind the nebula too. A lane placed by hand through a bright cloud reads most clearly:
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 300
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 0, tilt: 0, distance: 400 }
+backdrop:
+  stars: { count: 2000 }
+objects:
+  - type: nebula
+    render: volume
+    radius: 130
+    colors: [var(--lcars-orange)]
+    clouds:
+      - { xyz: [0, 0, 0], radius: 100, opacity: 0.9 }
+      - { xyz: [0, 0, 40], size: [200, 20, 30], rotation: [0, 0, 20], dust: true }
+```
 
 ## Scan bands
 
@@ -260,4 +313,4 @@ warp_factor: { entity: input_number.warp_factor, output: [1, 9.9] }
 
 ## Cost
 
-Measured on an Intel Arc laptop GPU at 1300 x 866 px, each effect adds about 1 to 2 ms per frame while it moves: well inside a 60 frames per second budget. A still effect costs nothing between frames, because a still scene draws nothing. The nebula and fill shaders load in a small extra download the first time a card uses one. A nebula with `render: volume` adds about 1 ms seen from outside and 1.5 ms from inside the gas.
+Measured on an Intel Arc laptop GPU at 1300 x 866 px, each effect adds about 1 to 2 ms per frame while it moves: well inside a 60 frames per second budget. A still effect costs nothing between frames, because a still scene draws nothing. The nebula and fill shaders load in a small extra download the first time a card uses one. A nebula with `render: volume` adds about 1 ms seen from outside and 1.5 ms from inside the gas; a `shape`, `stretch`, `core_color` or dust adds at most 0.8 ms more.

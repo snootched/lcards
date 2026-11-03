@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { STARTERS } from '../../src/core/astrometrics/starters/index.js';
 import { starterPicture, typePicture, shapePicture, TYPE_GROUPS, starterParamSchema, starterParamChoices, starterParamValues, starterAdds, PICTURE_BASE } from '../../src/editor/dialogs/astro-studio/starter-gallery.js';
 import { fieldKind } from '../../src/editor/dialogs/astro-studio/schema-fields.js';
-import { OBJECT_TYPES, GRID_SHAPES, VOLUME_SHAPES, IMAGE_SHAPES } from '../../src/core/astrometrics/names.js';
+import { OBJECT_TYPES, GRID_SHAPES, VOLUME_SHAPES, IMAGE_SHAPES, NEBULA_SHAPES } from '../../src/core/astrometrics/names.js';
 import { TYPE_SAMPLES, SHAPE_SAMPLES } from '../../src/core/astrometrics/object-samples.js';
 import { getSchemaEntries } from '../../scripts/lib/card-schemas.js';
 import { buildRegistries } from '../../scripts/lib/registries.js';
@@ -24,7 +24,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const DIR = join(ROOT, 'src/assets/images/astro-studio');
 const fileOf = (/** @type {string} */ url) => join(DIR, url.slice(PICTURE_BASE.length));
 
-const SHAPES = { grid: GRID_SHAPES, volume: VOLUME_SHAPES, image: IMAGE_SHAPES };
+const SHAPES = { grid: GRID_SHAPES, volume: VOLUME_SHAPES, image: IMAGE_SHAPES, nebula: NEBULA_SHAPES };
 
 test('every starter, type and shape has its picture (npm run astro:pictures), and no picture is left over', () => {
   const urls = [

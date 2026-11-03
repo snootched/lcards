@@ -21,10 +21,11 @@
  *
  * @module core/astrometrics/effects/nebula-volume
  */
-import { Group, Mesh, Scene, BoxGeometry, IcosahedronGeometry, ShaderMaterial, BackSide, AdditiveBlending, NormalBlending, NoBlending, Vector2, Vector3, Vector4, Matrix4, WebGLRenderTarget, LinearFilter, Color } from 'three';
+import { Group, Mesh, Scene, BoxGeometry, IcosahedronGeometry, ShaderMaterial, BackSide, AdditiveBlending, NormalBlending, NoBlending, Vector2, Vector3, Vector4, Matrix3, Matrix4, Euler, WebGLRenderTarget, LinearFilter, Color } from 'three';
 import { noiseTexture } from './noise3-texture.js';
 import { SOLID_DEPTH_GLSL, solidUniforms, solidDepth, useSolidDepth, disposeSolidDepth } from './solid-depth.js';
 import { built, num, pair } from '../objects/common.js';
+import { NEBULA_SHAPES } from '../names.js';
 
 /** Samples along each ray */
 export const VOLUME_STEPS = 48;
@@ -35,6 +36,8 @@ const TEXTURE_CELLS = 4;
 /** The two-read noise's mean and spread (standard deviation), measured on the texture */
 const NOISE_MEAN = '0.55';
 const NOISE_SPREAD = '0.08';
+/** A shape's noise against the clouds' (shell, bipolar, cavity) */
+const SHAPE_FREQ = 0.5;
 /** Wisps: this many times finer than the main field */
 const WISP_SCALE = 2.7;
 
@@ -63,7 +66,23 @@ export function edgeFalloff(q, ball) {
   return ss(0, 0.45, 1 - Math.pow(q[0] ** 4 + q[1] ** 4 + q[2] ** 4, 0.25));
 }
 
-const MAX_CLOUDS = 10;
+/** Gas clouds and dust clouds the shader takes (nebula.js MAX_CLOUDS + MAX_DUST) */
+const MAX_CLOUDS = 14;
+
+/**
+ * A cloud's ellipsoid as the shader takes it: M maps a point's offset from
+ * the centre to the unit ball (M = A^-1 R^T, A its half axes, R its turn);
+ * a round cloud is I / r.
+ * @param {{ axes: number[], turn: number[] }} c
+ */
+export function cloudMatrix(c) {
+  const r = new Matrix4().makeRotationFromEuler(new Euler(c.turn[0], c.turn[1], c.turn[2], 'YXZ'));
+  const m = new Matrix3().setFromMatrix4(r).transpose();
+  const e = m.elements;
+  // scale the rows (column-major: element col * 3 + row)
+  for (let col = 0; col < 3; col++) for (let row = 0; row < 3; row++) e[col * 3 + row] /= c.axes[row];
+  return m;
+}
 
 const VERT = /* glsl */ `
 varying vec3 vLocal;
@@ -87,7 +106,12 @@ uniform float uBall;
 uniform vec3 uHalf;
 uniform int uCount;
 uniform vec4 uClouds[ ${MAX_CLOUDS} ];
+uniform mat3 uShapes[ ${MAX_CLOUDS} ];
 uniform vec4 uTints[ ${MAX_CLOUDS} ];
+uniform vec4 uBase;
+uniform vec4 uCore;
+uniform float uDust;
+uniform vec3 uDustColor;
 uniform float uDensity;
 uniform float uK;
 uniform float uMinStep;
@@ -125,6 +149,55 @@ float edge( vec3 p ) {
   return smoothstep( 0.0, 0.45, 1.0 - sqrt( sqrt( dot( q, q ) ) ) );
 }
 
+// cavity: where the hollow sits (it breaks out of the gas on the +z side) and its radius
+const vec3 CAVITY = vec3( 0.0, 0.0, 0.5 );
+const float HOLLOW = 0.55;
+
+// bipolar: a lobe's radius (round the y axis) at a height 0 (the waist) to 1 (its far end), over the region
+float lobe( float s ) {
+  s = clamp( s, 0.0, 1.0 );
+  // a cup: narrow at the waist, widest about two thirds out, closing at the end
+  return 0.05 + 0.6 * sqrt( s ) * pow( 1.0 - s, 0.3 );
+}
+
+// noise is streaked along these axes (smaller: longer streaks)
+#if SHAPE == 2
+const vec3 STREAK = vec3( 1.0, 0.4, 1.0 );
+#elif SHAPE == 3
+const vec3 STREAK = vec3( 0.3, 1.0, 1.0 );
+#else
+const vec3 STREAK = vec3( 1.0 );
+#endif
+
+// the region's form over the region (q: -1 to 1 inside), 0 to 1
+float envelope( vec3 q ) {
+  float r = length( q );
+#if SHAPE == 1
+  // shell: a hollow sphere, the gas at about three quarters of the radius
+  float d = ( r - 0.75 ) / 0.09;
+  return exp( -d * d );
+#elif SHAPE == 2
+  // bipolar: an hourglass up and down the y axis, two hollow lobes joined at a pinched waist;
+  // the gas is in their walls (bright where seen edge on), a little inside
+  float s = abs( q.y ) / 0.95;
+  float rho = lobe( s );
+  // distance to the wall, not just across: the wall leans where the lobe widens or closes
+  float slope = ( lobe( s + 0.02 ) - lobe( s - 0.02 ) ) / 0.04 / 0.95;
+  float d = ( length( q.xz ) - rho ) / sqrt( 1.0 + slope * slope );
+  float wall = exp( -pow( d / 0.06, 2.0 ) );
+  float fill = 0.2 * ( 1.0 - smoothstep( -0.05, 0.0, d ) );
+  return max( wall, fill ) * ( 1.0 - smoothstep( 0.9, 1.0, s ) );
+#elif SHAPE == 4
+  // cavity: a thick cup of gas round a hollow that opens on its +z side (a blister:
+  // a bright bowl seen from there, a crescent from the side), faintly lit inside
+  float h = length( q - CAVITY );
+  float cup = smoothstep( HOLLOW - 0.05, HOLLOW + 0.06, h ) * ( 1.0 - smoothstep( HOLLOW + 0.2, HOLLOW + 0.45, h ) );
+  return max( cup, 0.06 * ( 1.0 - smoothstep( 0.0, HOLLOW, h ) ) ) * ( 1.0 - smoothstep( 0.75, 1.0, r ) );
+#else
+  return 1.0;
+#endif
+}
+
 void main() {
   vec3 ro;
   vec3 rd;
@@ -150,6 +223,7 @@ void main() {
   // (a ray that misses them all costs nothing more, and every sample lands in gas)
   float c0 = 1e30;
   float c1 = -1e30;
+#if SHAPE == 0 || SHAPE == 3
   for ( int j = 0; j < ${MAX_CLOUDS}; j++ ) {
     if ( j >= uCount ) break;
     vec3 oc = ro - uClouds[ j ].xyz;
@@ -162,45 +236,95 @@ void main() {
   }
   a = max( a, c0 );
   b = min( b, c1 );
+#endif
   if ( b <= a ) discard;
   // steps no shorter than uMinStep: a short span through gas takes fewer samples
-  float dt = max( ( b - a ) / float( ${VOLUME_STEPS} ), uMinStep );
+  float dt = max( ( b - a ) / float( STEPS ), uMinStep );
   // a different start per pixel: steps show as grain, not as bands
   float jitter = fract( 52.9829189 * fract( dot( gl_FragCoord.xy, vec2( 0.06711056, 0.00583715 ) ) ) );
   // emission per unit length: at density 1 a ray through the middle of a cloud gathers about 1
   float k = uDensity * uK;
   vec3 acc = vec3( 0.0 );
   float alpha = 0.0;
-  for ( int i = 0; i < ${VOLUME_STEPS}; i++ ) {
+  for ( int i = 0; i < STEPS; i++ ) {
     float t = a + ( float( i ) + jitter ) * dt;
     if ( t > b ) break;
     vec3 p = ro + rd * t;
     // the clouds' shape (how far into one), and their colour and opacity where they overlap
     float field = 0.0;
+    float dark = 0.0;
+#if SHAPE == 0 || SHAPE == 3
     vec4 tint = vec4( 0.0 );
+    float tw = 0.0;
+#else
+    // a soft floor: where no cloud reaches (a shape's envelope), the first colour
+    vec4 tint = uBase * 1e-3;
+    float tw = 1e-3;
+#endif
     for ( int j = 0; j < ${MAX_CLOUDS}; j++ ) {
       if ( j >= uCount ) break;
-      vec3 d = ( p - uClouds[ j ].xyz ) / uClouds[ j ].w;
-      float w = max( 0.0, 1.0 - dot( d, d ) );
+      vec3 d = uShapes[ j ] * ( p - uClouds[ j ].xyz );
+      float dd = dot( d, d );
+      float w = max( 0.0, 1.0 - dd );
       w *= w;
+      if ( uClouds[ j ].w < 0.0 ) { dark += w; continue; }
       field += w;
+#if SHAPE == 0 || SHAPE == 3
       tint += w * uTints[ j ];
+      tw += w;
+#else
+      // shapes: colour from the nearest clouds, reaching past their edges
+      float wc = exp( -2.0 * dd );
+      tint += wc * uTints[ j ];
+      tw += wc;
+#endif
     }
-    if ( field < 1e-4 ) continue;
-    tint /= field;
-    float n1 = texture( uNoise, p * uFreq + uWarpOff ).r;
+#if SHAPE != 0 && SHAPE != 3
+    // the shape gives the form, the clouds the clumps in it
+    field = envelope( p / uHalf ) * ( 0.35 + 0.65 * min( field, 1.0 ) ) * 1.15;
+#endif
+    if ( field < 1e-4 && dark < 1e-4 ) continue;
+    tint /= max( tw, 1e-6 );
+    // deep in the gas (a shape: near its middle), the core colour
+#if SHAPE == 0 || SHAPE == 3
+    float coreAt = smoothstep( 0.45, 1.1, field );
+#else
+    float coreAt = 1.0 - smoothstep( 0.0, 0.65, length( p / uHalf ) );
+#endif
+    tint.rgb = mix( tint.rgb, uCore.rgb, uCore.a * coreAt );
+    vec3 pn = p * STREAK;
+    float n1 = texture( uNoise, pn * uFreq + uWarpOff ).r;
     // wisps: finer, and pushed about by the coarse field (curls, not blobs)
     // (turned against the texture's axes: its repeat and grid do not line up with the coarse field's)
-    float n2 = texture( uNoise, WISP_TURN * p * uFreq * ${WISP_SCALE.toFixed(1)} + uWispOff + ( n1 - ${NOISE_MEAN} ) * 2.5 ).r;
+    float n2 = texture( uNoise, WISP_TURN * pn * uFreq * ${WISP_SCALE.toFixed(1)} + uWispOff + ( n1 - ${NOISE_MEAN} ) * 2.5 ).r;
     // the texture's fBm is narrow (mean about 0.55, spread about 0.08): standardise it
     float z = ( n1 * 0.65 + n2 * 0.35 - ${NOISE_MEAN} ) / ${NOISE_SPREAD};
     // the noise moves each cloud's edge in and out: ragged edges and holes, a dense middle
     float gas = smoothstep( 0.0, 0.5, min( field, 1.0 ) - 0.6 * uTurb + z * 0.5 * uTurb );
+#if SHAPE == 3
+    // filaments: thin wrinkled sheets where the noise crosses its middle (thread-like seen edge on)
+    float zr = ( n1 - ${NOISE_MEAN} ) / ${NOISE_SPREAD};
+    float zs = ( n2 - ${NOISE_MEAN} ) / ${NOISE_SPREAD};
+    float ridge = pow( max( 0.0, 1.0 - abs( zr + 0.15 * zs ) * 0.7 ), 5.0 );
+    gas = smoothstep( 0.0, 0.35, min( field, 1.0 ) ) * ridge * 3.0;
+#elif SHAPE == 4
+    // cavity: the wall of the hollow is lit (the stars inside)
+    float rq = length( p / uHalf - CAVITY );
+    float rim = exp( -pow( ( rq - HOLLOW - 0.06 ) / 0.07, 2.0 ) );
+    gas *= 1.0 + 2.5 * rim;
+#endif
     // brighter filaments, darker lanes
     float glow = 0.5 + 0.5 * smoothstep( -1.5, 1.5, z );
-    float s = clamp( gas * tint.a * edge( p ) * k * dt, 0.0, 1.0 );
-    acc += ( 1.0 - alpha ) * tint.rgb * s * glow;
-    alpha += ( 1.0 - alpha ) * s;
+    float fade = edge( p );
+    float s = clamp( gas * tint.a * fade * k * dt, 0.0, 1.0 );
+    // dust: dark gas, eroded as the gas is, that hides what is behind it
+    float sd = 0.0;
+    if ( dark > 1e-4 ) {
+      float dgas = smoothstep( 0.0, 0.5, min( dark, 1.0 ) - 0.6 * uTurb + z * 0.5 * uTurb );
+      sd = clamp( dgas * uDust * fade * k * 4.0 * dt, 0.0, 1.0 );
+    }
+    acc += ( 1.0 - alpha ) * ( tint.rgb * s * glow * ( 1.0 - sd ) + uDustColor * sd );
+    alpha += ( 1.0 - alpha ) * clamp( s + sd, 0.0, 1.0 );
     if ( alpha > 0.98 ) break;
   }
   // premultiplied: add adds acc, normal lays it over
@@ -248,7 +372,7 @@ export function stepDrift(o, d) {
 /**
  * @param {any} cfg
  * @param {import('../objects/common.js').BuildContext} ctx
- * @param {{ clouds: { xyz: number[], radius: number, color: number, opacity: number }[] }} layout
+ * @param {{ clouds: import('./nebula.js').NebulaCloud[] }} layout
  * @param {(i: number) => number[]} colorOf - a cloud's colour index to rgba
  * @returns {import('../objects/common.js').BuiltObject}
  */
@@ -258,10 +382,19 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
   const ball = cfg.size === undefined;
   const half = ball ? (() => { const R = Math.max(1e-3, num(cfg.radius, 100)); return [R, R, R]; })() : regionBox(cfg.size).map((v) => v / 2);
   const clouds = layout.clouds.slice(0, MAX_CLOUDS);
-  const meanRadius = clouds.length ? clouds.reduce((s, c) => s + c.radius, 0) / clouds.length : 1;
+  const gasClouds = clouds.filter((c) => !c.dust);
+  const meanRadius = gasClouds.length ? gasClouds.reduce((s, c) => s + c.radius, 0) / gasClouds.length : 1;
+  const shape = Math.max(0, NEBULA_SHAPES.indexOf(cfg.shape));
+  // filaments are thin: finer noise, more steps
+  const steps = shape === 3 ? 64 : VOLUME_STEPS;
   // texture repeats per scene unit: noise_scale is noise cells per scene unit, as for the puffs
   const cellsPerUnit = cfg.noise_scale !== undefined ? Math.max(0, num(cfg.noise_scale, 0)) : CELLS_PER_RADIUS / meanRadius;
-  const freq = cellsPerUnit / TEXTURE_CELLS;
+  // a shape is one smooth form across the whole region, which shows the texture's repeat: coarser noise
+  const shapeFreq = shape === 3 ? 0.8 : shape > 0 ? SHAPE_FREQ : 1;
+  const freq = (cellsPerUnit / TEXTURE_CELLS) * (cfg.noise_scale === undefined ? shapeFreq : 1);
+  const base = colorOf(0);
+  const core = cfg.core_color !== undefined ? ctx.color(cfg.core_color, '#ffffff') : null;
+  const dustColor = cfg.dust_color !== undefined ? ctx.color(cfg.dust_color, '#000000') : [0, 0, 0];
 
   const solid = solidUniforms();
   const u = {
@@ -274,10 +407,16 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
     uBall: { value: ball ? 1 : 0 },
     uHalf: { value: new Vector3(half[0], half[1], half[2]) },
     uCount: { value: clouds.length },
-    uClouds: { value: Array.from({ length: MAX_CLOUDS }, (_, i) => (clouds[i] ? new Vector4(clouds[i].xyz[0], clouds[i].xyz[1], clouds[i].xyz[2], clouds[i].radius) : new Vector4(0, 0, 0, 1))) },
+    // w: the bounding radius (the ray clip), negative for dust
+    uClouds: { value: Array.from({ length: MAX_CLOUDS }, (_, i) => (clouds[i] ? new Vector4(clouds[i].xyz[0], clouds[i].xyz[1], clouds[i].xyz[2], Math.max(...clouds[i].axes) * (clouds[i].dust ? -1 : 1)) : new Vector4(0, 0, 0, 1))) },
+    uShapes: { value: Array.from({ length: MAX_CLOUDS }, (_, i) => (clouds[i] ? cloudMatrix(clouds[i]) : new Matrix3())) },
+    uBase: { value: new Vector4(base[0], base[1], base[2], (base[3] ?? 1) * 0.55) },
+    uCore: { value: core ? new Vector4(core[0], core[1], core[2], 1) : new Vector4(0, 0, 0, 0) },
+    uDust: { value: Math.max(0, Math.min(1, num(cfg.dust, 0.8))) },
+    uDustColor: { value: new Vector3(dustColor[0], dustColor[1], dustColor[2]) },
     uTints: {
       value: Array.from({ length: MAX_CLOUDS }, (_, i) => {
-        if (!clouds[i]) return new Vector4(0, 0, 0, 0);
+        if (!clouds[i] || clouds[i].dust) return new Vector4(0, 0, 0, 0);
         const c = colorOf(clouds[i].color);
         return new Vector4(c[0], c[1], c[2], (c[3] ?? 1) * clouds[i].opacity);
       })
@@ -295,6 +434,7 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
     uniforms: u,
     vertexShader: VERT,
     fragmentShader: FRAG,
+    defines: { SHAPE: shape, STEPS: steps },
     depthTest: false,
     depthWrite: false,
     side: BackSide,

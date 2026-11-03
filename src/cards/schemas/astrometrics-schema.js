@@ -24,7 +24,7 @@ import {
     stateClassificationSchema, triggersUpdateSchema, dataSourcesSchema
 } from './common-schemas.js';
 import {
-    OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, BODY_NAMES, FILL_EFFECTS, FILL_PRESETS, MODEL_MATERIALS,
+    OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, NEBULA_SHAPES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, BODY_NAMES, FILL_EFFECTS, FILL_PRESETS, MODEL_MATERIALS,
     WELL_SHAPE_NAMES, DEFORM_TYPES, BEND_MOTIONS, DEFORM_ANCHORS, UNIT_NAMES, FILE_UNIT_NAMES, COMET_TAILS, COMET_ACTIVITY
 } from '../../core/astrometrics/names.js';
 import { LABEL_POSITION_NAMES, LABEL_OMITTED_KEYS } from '../../core/astrometrics/label-text.js';
@@ -1173,6 +1173,19 @@ const nebulaObject = {
             description: 'How the gas is drawn. puffs (default): a few soft puffs a cloud, facing the camera. volume: the same clouds as one body of gas filling the region, fading out at its edges; seen from inside, there is gas all round.'
         },
         density: setting('render: volume only: how thick the gas is (1 default; 2 twice as thick).', { minimum: 0, default: 1 }),
+        shape: {
+            type: 'string',
+            enum: [...NEBULA_SHAPES],
+            'x-ui-hints': { widget: 'shape' },
+            default: 'clouds',
+            enumDescriptions: { clouds: 'Clouds', shell: 'A hollow sphere', bipolar: 'An hourglass', filaments: 'Thin strands', cavity: 'A hollow open on one side' },
+            description: 'render: volume only: the form of the gas. clouds (default): the clouds themselves. shell: a thin hollow sphere (the Ring nebula). bipolar: an hourglass along the object\'s y axis, two hollow lobes joined at a narrow waist (the Butterfly). filaments: long thin strands running along the object\'s x axis (the Veil). cavity: a thick cup round a hollow that opens on the object\'s +z side (a blister, as in Orion). In every shape but clouds the clouds give the clumps and colours inside the form; turn it with rotation.'
+        },
+        stretch: setting('Seeded clouds: how drawn out each one is, 0 (round, default) to 1 (long and flat), each turned its own way. Hand-placed clouds take size and rotation instead.', { minimum: 0, maximum: 1, default: 0 }),
+        core_color: color('Colour deep in the gas (in a shape other than clouds: near its middle), running out to the cloud colours at the edges. Default none: the cloud colours throughout.'),
+        dust: setting('render: volume only: how dark the dust clouds are, 0 to 1 (they hide the gas behind them).', { minimum: 0, maximum: 1, default: 0.8 }),
+        dust_count: wholeSetting('render: volume only: how many dark dust clouds the seed lays across the gas clouds (their own seed stream: adding dust moves no gas cloud).', { minimum: 0, maximum: 4, default: 0 }),
+        dust_color: color('Colour of the dust. Default black. With blend: add the dust darkens only this nebula\'s gas behind it; with blend: normal it also hides what is behind the nebula.'),
         radius: setting('The clouds sit inside a ball this big round the object, scene units. Default 100.', { exclusiveMinimum: 0 }),
         size: {
             description: 'Or inside a box [width, height, depth] (one number for a cube), scene units. Replaces radius.',
@@ -1190,7 +1203,10 @@ const nebulaObject = {
                     xyz: tuple(3, 'Where the cloud sits [x, y, z], scene units from the object.'),
                     radius: setting('Cloud radius, scene units. Default between min_radius and max_radius.', { exclusiveMinimum: 0 }),
                     color: color('This cloud\'s colour. Default from colors.'),
-                    opacity: setting('Opacity, 0 to 1. Default random within brightness.', { minimum: 0, maximum: 1 })
+                    opacity: setting('Opacity, 0 to 1. Default random within brightness.', { minimum: 0, maximum: 1 }),
+                    size: tuple(3, 'Or an ellipsoid [width, height, depth], scene units (replaces radius).'),
+                    rotation: tuple(3, 'Turn the ellipsoid [x, y, z] in degrees, as an object\'s rotation.'),
+                    dust: { type: 'boolean', default: false, description: 'render: volume only: a dark dust cloud that hides the gas behind it (dust, dust_color) instead of glowing.' }
                 }
             }
         },

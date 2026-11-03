@@ -33,6 +33,13 @@ releases:
         session: "E6 volume"
         docs: /cards/astrometrics/effects#gas-you-can-fly-into
         public: true
+      - file: astro-nebula-shapes
+        topic: astrometrics
+        summary: "Astrometrics nebula shapes, dust and colour"
+        description: "Volume nebulae in the forms of real ones: a shell (the Ring nebula), an hourglass (bipolar, the Butterfly), filaments (the Veil) and a cavity open toward you (Orion's blister), and below them a long band of drawn-out clouds with a pale core colour and dust lanes. The buttons fly to each; STRETCH draws the seeded clouds out, DUST lays 0 to 4 dark lanes across the band."
+        session: "NB1"
+        docs: /cards/astrometrics/effects#shapes-dust-and-colour
+        public: true
       - file: astro-comet
         topic: astrometrics
         summary: "Astrometrics comet: tails away from its star"

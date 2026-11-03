@@ -761,6 +761,58 @@ test('nebula render: volume: a solid in front of the gas hides it (the solid dep
     await expectNoErrors(page);
 });
 
+test('NB1 nebula shapes: each shape and the dusty band draw their gas (no shader errors)', async ({ page }) => {
+    await mountCase(page, 'astro-nebula-shapes', { width: '800', height: '400' });
+    await sceneReady(page);
+    /** Share of lit pixels in each of the top row's four columns, and in the bottom band */
+    const lit = () => page.evaluate(() => {
+        const canvas = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('.astro-scene canvas');
+        const { width, height } = canvas;
+        const data = canvas.getContext('2d').getImageData(0, 0, width, height).data;
+        const share = (/** @type {number} */ x0, /** @type {number} */ x1, /** @type {number} */ y0, /** @type {number} */ y1) => {
+            let n = 0, all = 0;
+            for (let y = Math.round(y0 * height); y < y1 * height; y++) for (let x = Math.round(x0 * width); x < x1 * width; x++) {
+                const i = (y * width + x) * 4;
+                all++;
+                if (data[i] + data[i + 1] + data[i + 2] > 60) n++;
+            }
+            return n / all;
+        };
+        return { top: [0, 1, 2, 3].map((c) => share(0.1 + c * 0.2, 0.1 + (c + 1) * 0.2, 0.1, 0.5)), band: share(0.15, 0.85, 0.6, 0.85) };
+    });
+    await expect.poll(async () => Math.min(...(await lit()).top)).toBeGreaterThan(0.05);
+    expect((await lit()).band).toBeGreaterThan(0.05);
+    await expectNoErrors(page);
+});
+
+test('NB1 nebula dust: a dark lane hides the gas behind it', async ({ page }) => {
+    await mountCase(page, 'astro-nebula-dust', { width: '600', height: '400' });
+    await sceneReady(page);
+    /** Mean brightness of a strip across the middle (the lane) */
+    const mid = () => page.evaluate(() => {
+        const canvas = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('.astro-scene canvas');
+        const { width, height } = canvas;
+        const data = canvas.getContext('2d').getImageData(0, 0, width, height).data;
+        let sum = 0, n = 0;
+        for (let y = Math.round(height * 0.48); y < height * 0.52; y++) for (let x = Math.round(width * 0.35); x < width * 0.65; x++) {
+            const i = (y * width + x) * 4;
+            sum += data[i] + data[i + 1] + data[i + 2]; n++;
+        }
+        return sum / n;
+    });
+    await expect.poll(mid).toBeGreaterThan(0);
+    await page.waitForTimeout(300);
+    const dusty = await mid();
+    // the same cloud without its dust
+    await page.evaluate(() => {
+        const card = /** @type {any} */ (document.querySelector('#mount > *'));
+        const neb = card.config.objects[0];
+        window.__reconfigure({ ...card.config, objects: [{ ...neb, clouds: neb.clouds.filter((/** @type {any} */ c) => !c.dust) }] });
+    });
+    await expect.poll(mid).toBeGreaterThan(dusty * 1.5);
+    await expectNoErrors(page);
+});
+
 test('E8 planets: built-in maps load, fill_effect planet types and the Saturn ring band draw', async ({ page }) => {
     const failed = [];
     page.on('response', (r) => { if (r.url().includes('/lcards/images/') && !r.ok()) failed.push(r.url()); });

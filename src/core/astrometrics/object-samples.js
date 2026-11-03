@@ -9,7 +9,7 @@
  * @module core/astrometrics/object-samples
  */
 
-import { GRID_SHAPES, VOLUME_SHAPES, IMAGE_SHAPES } from './names.js';
+import { GRID_SHAPES, VOLUME_SHAPES, IMAGE_SHAPES, NEBULA_SHAPES } from './names.js';
 
 /**
  * @typedef {Object} ObjectSample
@@ -82,8 +82,25 @@ export const SHAPE_SAMPLES = {
   image: Object.fromEntries(IMAGE_SHAPES.map((shape) => [shape, {
     objects: [{ type: 'image', id: 'shape', shape, src: 'builtin:nebula_orange_red', size: 100, blend: 'add' }],
     camera: { target: [0, 0, 0], yaw: 0, tilt: 50, distance: 150 }
+  }])),
+  nebula: Object.fromEntries(NEBULA_SHAPES.map((shape) => [shape, {
+    objects: [{ type: 'nebula', id: 'shape', render: 'volume', shape, radius: 50, cloud_count: 8, seed: 4, ...nebulaLook(shape) }],
+    // the cavity opens toward +z: look into it
+    camera: { target: [0, 0, 0], yaw: shape === 'cavity' ? 0 : 20, tilt: shape === 'cavity' ? 8 : 15, distance: 150 }
   }]))
 };
+
+/** @param {string} shape */
+function nebulaLook(shape) {
+  // the picture page has the LCARdS palette (--lcards-*), not a theme's --lcars-* colours
+  switch (shape) {
+    case 'shell': return { colors: ['var(--lcards-blue-light)', 'var(--lcards-blue-medium-dark)'] };
+    case 'bipolar': return { colors: ['var(--lcards-orange-medium)', 'var(--lcards-orange-dark)'], core_color: 'var(--lcards-moonlight)' };
+    case 'filaments': return { colors: ['var(--lcards-orange-dark)', 'var(--lcards-blue-light)'], stretch: 0.5 };
+    case 'cavity': return { colors: ['var(--lcards-orange-dark)', 'var(--lcards-yellow-medium)'], core_color: 'var(--lcards-blue-lightest)' };
+    default: return { colors: ['var(--lcards-blue-medium)', 'var(--lcards-orange-medium)'] };
+  }
+}
 
 /** @param {string} shape */
 function gridSize(shape) {
