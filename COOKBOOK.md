@@ -239,7 +239,7 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 | C: real HA | `npm run test:ha` | local | `npm run build`, dev HA at `localhost:8123`, `.ha-token` |
 | Docs site | `npm run test:docs` | CI + local | `npm run docs:build` |
 
-Run one node test file: `node --import ./tests/setup/browser-shims.js --import ./tests/setup/vite-imports.js --test <file>`. Every fix gets a test in the right layer.
+Run one node test file: `node --no-maglev --import ./tests/setup/browser-shims.js --import ./tests/setup/vite-imports.js --test <file>`. Keep `--no-maglev` on node scripts that run the config checker (tests, `validate-doc-examples`, `validate:config`): V8's Maglev compiler otherwise spends up to 10 GB optimising ajv's generated validators. Every fix gets a test in the right layer.
 
 ---
 
