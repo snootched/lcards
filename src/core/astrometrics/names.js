@@ -13,7 +13,7 @@
  * they build second. `system` draws nothing itself: it holds points and
  * objects in units of their own (a star system in km inside a galaxy in ly).
  */
-export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt', 'asteroid', 'comet', 'galaxy', 'trail', 'cube', 'system']);
+export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt', 'asteroid', 'comet', 'galaxy', 'trail', 'cube', 'lightning', 'system']);
 
 /**
  * Which type for what: the objects docs page's table (doc/cards/astrometrics/objects.md,
@@ -38,6 +38,7 @@ export const TYPE_GUIDE = [
   { type: 'image', use: 'Your own picture on the plane', icon: 'mdi:image' },
   { type: 'model', use: 'A ship, a station, any 3D model', icon: 'mdi:rocket' },
   { type: 'cube', use: 'A Borg cube (or a plain shaded box)', icon: 'mdi:cube' },
+  { type: 'lightning', use: 'Lightning: bolts that flash and go, or held flickering columns (lights the gas of a volume nebula it strikes in)', icon: 'mdi:lightning-bolt' },
   { type: 'system', use: 'A star system at true scale inside a larger scene (its own points and objects, in units of its own)', icon: 'mdi:white-balance-sunny' }
 ];
 
@@ -168,7 +169,7 @@ export function flattenSystems(config) {
  * value is rounded (bindings.js), so the object rebuilds only when the whole
  * number changes. Seeds are not settings.
  */
-export const WHOLE_NUMBER_KEYS = /** @type {const} */ (['count', 'lobes', 'spoke_count', 'num_octaves', 'row_interval', 'col_interval']);
+export const WHOLE_NUMBER_KEYS = /** @type {const} */ (['count', 'lobes', 'spoke_count', 'num_octaves', 'row_interval', 'col_interval', 'branches']);
 
 /** A comet's `activity.mode`: fixed, or from its distance to its star */
 export const COMET_ACTIVITY = /** @type {const} */ (['fixed', 'distance']);
@@ -232,7 +233,16 @@ export const GRID_PATTERNS = /** @type {const} */ (['both', 'horizontal', 'verti
 /** `volume` shapes */
 export const VOLUME_SHAPES = /** @type {const} */ (['sector', 'box', 'prism']);
 /** A volume nebula's density field forms (`shape`) */
-export const NEBULA_SHAPES = /** @type {const} */ (['clouds', 'shell', 'bipolar', 'filaments', 'cavity']);
+export const NEBULA_SHAPES = /** @type {const} */ (['clouds', 'shell', 'bipolar', 'filaments', 'cavity', 'layers']);
+
+/** Nebula presets: named bundles of defaults (`nebula-presets.js`) */
+export const NEBULA_PRESETS = /** @type {const} */ (['badlands', 'badlands_voyager']);
+
+/** What stands between a layers nebula's floor and ceiling (`columns.kind`) */
+export const COLUMN_KINDS = /** @type {const} */ (['fire', 'vortex', 'lightning']);
+
+/** How lightning shows: bolts that flash and go, or held columns */
+export const LIGHTNING_MODES = /** @type {const} */ (['strike', 'column']);
 
 /** `image` shapes */
 export const IMAGE_SHAPES = /** @type {const} */ (['plane', 'disc']);

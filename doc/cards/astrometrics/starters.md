@@ -3153,6 +3153,44 @@ objects:
   - { type: glow, id: nebula_glow, at: nebula_heart, size: 20, opacity: 0.7 }
 ```
 
+### Badlands (Deep Space Nine)
+
+The Badlands as Deep Space Nine drew them (nebula preset: badlands): a floor and a ceiling of liquid fire in yellow, orange and red, an orange band glowing in the gap between them and fire columns, thick and thin, standing from the floor to the ceiling. Fly the camera into the gap. Every key of the preset can be set on the nebula to change it.
+
+Its ids start with its name (default `badlands_`).
+
+| Setting | Default | Notes |
+|---|---|---|
+| Label | `BADLANDS` |  |
+| Centre | `0, 0, 0` | A point id or x, y, z. |
+| Width | `500` |  |
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points: [{ id: badlands_centre, xyz: [0, 0, 0] }, { id: badlands_heart, at: badlands_centre, label: BADLANDS, style: major }]
+objects: [{ type: nebula, id: badlands_plasma, at: badlands_heart, preset: badlands, size: [500, 140, 500] }]
+```
+
+### Badlands (Voyager)
+
+The Badlands as Voyager drew them (nebula preset: badlands_voyager): a floor and a ceiling of peach and mauve gas with a pale band between, held pink lightning columns crawling from the floor to the ceiling, and strikes that flash in the gap and light the gas round them. Fly the camera into the gap. Every key of the preset can be set on the nebula to change it.
+
+Its ids start with its name (default `badlands_`).
+
+| Setting | Default | Notes |
+|---|---|---|
+| Label | `BADLANDS` |  |
+| Centre | `0, 0, 0` | A point id or x, y, z. |
+| Width | `500` |  |
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points: [{ id: badlands_centre, xyz: [0, 0, 0] }, { id: badlands_heart, at: badlands_centre, label: BADLANDS, style: major }]
+objects: [{ type: nebula, id: badlands_plasma, at: badlands_heart, preset: badlands_voyager, size: [500, 160, 500] }]
+```
+
 ### Wormhole
 
 The Bajoran wormhole as the station displays draw it. Its mouth is a swirl of gas round a warm heart in the realistic look, an entrance disc and funnel in the diagram. Past it, diagram only, the inside runs along +x: a pipeline of twisted strands, the negative CTL region, the ring singularity, the positive CTL region and the point singularity opening into the verteron membrane. With a power entity (0 to 100) the mouth opens and the regions wobble with it.

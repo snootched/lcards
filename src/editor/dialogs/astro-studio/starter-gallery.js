@@ -47,7 +47,7 @@ export const TYPE_GROUPS = /** @type {const} */ ([
   { id: 'maps', header: 'Maps and grids', icon: 'mdi:grid', types: ['grid', 'volume', 'image'] },
   { id: 'bodies', header: 'Bodies', icon: 'mdi:earth', types: ['sphere', 'belt', 'asteroid', 'comet'] },
   { id: 'routes', header: 'Routes and motion', icon: 'mdi:vector-polyline', types: ['ring', 'path', 'beam', 'trail'] },
-  { id: 'light', header: 'Light and clouds', icon: 'mdi:white-balance-sunny', types: ['glow', 'nebula', 'galaxy'] },
+  { id: 'light', header: 'Light and clouds', icon: 'mdi:white-balance-sunny', types: ['glow', 'nebula', 'galaxy', 'lightning'] },
   { id: 'models', header: 'Ships and models', icon: 'mdi:rocket', types: ['model', 'cube'] },
   { id: 'systems', header: 'Systems', icon: 'mdi:folder-outline', types: ['system'] }
 ]);

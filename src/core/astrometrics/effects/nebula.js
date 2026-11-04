@@ -25,6 +25,7 @@ import { NOISE_GLSL, splitCoord } from '../../packs/backgrounds/webgl/scenes/noi
 import { seededRandom } from '../../packs/backgrounds/webgl/scenes/scene-helpers.js';
 import { built, num, pair, sub, DEFAULT_COLORS } from '../objects/common.js';
 import { buildNebulaVolume } from './nebula-volume.js';
+import { withNebulaPreset } from '../nebula-presets.js';
 
 /** The `nebula` preset caps cloud_count at 10 (the object's count) */
 export const MAX_CLOUDS = 10;
@@ -313,6 +314,8 @@ void main() {
  * @returns {import('../objects/common.js').BuiltObject}
  */
 export function buildNebula(cfg, ctx) {
+  // a preset's defaults under the config's own keys
+  cfg = withNebulaPreset(cfg);
   const node = new Group();
   node.name = `nebula:${cfg.id ?? ''}`;
   const { clouds, puffs, extent } = nebulaLayout(cfg);

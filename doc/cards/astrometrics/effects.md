@@ -92,6 +92,7 @@ With `render: volume`, `shape` gives the gas a form, after the real nebulae. The
 | `bipolar` | An hourglass along the object's y axis: two hollow lobes joined at a narrow waist, the gas streaked outward (the Butterfly, the Hourglass). |
 | `filaments` | Long thin strands running along the object's x axis (the Veil). |
 | `cavity` | A thick cup round a hollow that opens on the object's +z side: a bright bowl seen from there, a crescent from the side (a blister, as in Orion). |
+| `layers` | A floor and a ceiling of gas across a box with a gap between: see [the Badlands](#the-badlands-layers-columns-and-lightning). |
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -313,6 +314,74 @@ warp_factor: { entity: input_number.warp_factor, output: [1, 9.9] }
 
 `warp` reads `on`, `true` or a number above 0 as engaged. Going to warp takes about two seconds, dropping out a little less. Nothing streams under reduced motion. `camera.warp` is different: it streaks the stars only while a fly-to moves the camera.
 
+### The Badlands: layers, columns and lightning
+
+The Badlands, the plasma storms of Deep Space Nine and Voyager, start from a preset: `preset: badlands` (Deep Space Nine: liquid fire in yellow, orange and red, an orange band glowing between the sheets, fire columns thick and thin) or `preset: badlands_voyager` (peach and mauve layers, held pink lightning columns, strikes that light the gas). Every key you set wins over the preset's; in `band`, `columns` and `lightning` key by key, so `columns: { count: 3 }` keeps the preset's kind and colour. Fly the camera into the gap.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 360
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 30, tilt: 3, distance: 110 }
+backdrop:
+  stars: { count: 2000 }
+objects:
+  - { type: nebula, preset: badlands }
+```
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 360
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 200, tilt: 3, distance: 160 }
+backdrop:
+  stars: { count: 2000 }
+objects:
+  - { type: nebula, preset: badlands_voyager }
+```
+
+Both presets are `render: volume` with `shape: layers` in a `size: [500, 140, 500]` box (Voyager's 160 high): a floor and a ceiling of gas with their surfaces rolled into ridges, `colors` running from each sheet's surface into its depth. The keys that shape them:
+
+| Key | What it does |
+|---|---|
+| `gap` | How much of the height is open between the sheets, 0 (they touch) to 0.9. Default 0.56. |
+| `veins` | Bright fine veins in the sheets' surfaces with darker gas between (liquid fire), 0 to 1. Default 0. |
+| `band` | Light glowing in the gap, brightest in a thin sheet at its middle: `true`, `false` (default), or `{ brightness, width, color }`. `brightness` 0 to 3 (default 1); `width` how far the glow reaches from the middle, a fraction of half the height (default 0.08). |
+| `columns.kind` | What stands from the floor to the ceiling: `fire` (default; rising flame, wide at the foot, a splash ring on the floor), `vortex` (a twisting funnel, dark at its rim) or `lightning` (a held, crawling bolt that lights the gas round it). |
+| `columns.count` | How many (1 to 10, default 4), spread over the region. |
+| `columns.width` | `fire` and `vortex`: how thick, times the usual. One number, or `[thinnest, thickest]`: each column gets its own width between them, so thick columns and thin strands stand together. |
+| `columns.waist` | `vortex`: how wide the middle is against the ends, 0.05 (two funnels meeting at a point) to 1 (one straight column). Default 0.2. |
+| `columns.speed` | `lightning`: how fast the bolts crawl and flicker: 1 (default) as drawn, 0.5 half as fast, 0 still. |
+| `columns.color` | The fire's white-hot heart (its edge takes the sheets' surface colour), the vortex, or the bolt. `columns.glow.color`: a lightning column's glow. |
+| `lightning` | Strikes inside the gas that light it: `true`, `false` (default), or the [lightning object's](./objects#lightning) `rate`, `flash`, `color`, `glow`, `width`, `jaggedness`, `branches`, `brightness` and `seed`. Any volume nebula takes it, not only `layers`. |
+
+A vortex field, with the funnels joined into columns:
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 360
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 200, tilt: 4, distance: 150 }
+backdrop:
+  stars: { count: 2000 }
+objects:
+  - type: nebula
+    render: volume
+    shape: layers
+    size: [500, 160, 500]
+    count: 6
+    seed: 8
+    drift: [3, 0]
+    colors: [var(--lcars-violet-creme), var(--lcars-violet), var(--lcars-blue)]
+    band: { brightness: 0.8, color: var(--lcars-violet-creme) }
+    columns: { count: 6, kind: vortex, waist: 0.4, width: 1.5, color: var(--lcars-violet-creme) }
+```
+
+A [lightning object](./objects#lightning) striking inside any volume nebula lights its gas too. Under reduced motion the columns stand still and no strike shows.
+
 ## Cost
 
-Measured on an Intel Arc laptop GPU at 1300 x 866 px, each effect adds about 1 to 2 ms per frame while it moves: well inside a 60 frames per second budget. A still effect costs nothing between frames, because a still scene draws nothing. The nebula and fill shaders load in a small extra download the first time a card uses one. A nebula with `render: volume` adds about 1 ms seen from outside and 1.5 ms from inside the gas; a `shape`, `stretch`, `core.color` or dust adds at most 0.8 ms more.
+Measured on an Intel Arc laptop GPU at 1300 x 866 px, each effect adds about 1 to 2 ms per frame while it moves: well inside a 60 frames per second budget. A still effect costs nothing between frames, because a still scene draws nothing. The nebula and fill shaders load in a small extra download the first time a card uses one. A nebula with `render: volume` adds about 1 ms seen from outside and 1.5 ms from inside the gas; a `shape`, `stretch`, `core.color` or dust adds at most 0.8 ms more. The Badlands cost more from inside: about 7 to 8 ms a frame in all with columns and `veins` (`veins` alone about 2.4 ms); lightning adds about 0.3 ms.

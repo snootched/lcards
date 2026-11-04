@@ -19,12 +19,22 @@
  * fragments march). No depth test against its own back face (that would
  * lose the gas in front of a planet).
  *
+ * `shape: layers` (the Badlands) is a floor and a ceiling of gas with a
+ * gap between (`gap`): bright veins in their surfaces (`veins`), a band
+ * glowing mid-gap (a thin sheet added once where the ray crosses it, and a
+ * smooth glow through the gap), and columns standing floor to ceiling
+ * (`columns`: fire and vortex in the march, each added once where the ray
+ * passes its axis; lightning as bolts of a `lightning` object). Lightning,
+ * its own (`lightning:` here) or a `type: lightning` striking inside the
+ * region, lights the gas through four light uniforms (`setLights`).
+ *
  * @module core/astrometrics/effects/nebula-volume
  */
 import { Group, Mesh, Scene, BoxGeometry, IcosahedronGeometry, ShaderMaterial, BackSide, AdditiveBlending, NormalBlending, NoBlending, Vector2, Vector3, Vector4, Matrix3, Matrix4, Euler, WebGLRenderTarget, LinearFilter, Color } from 'three';
 import { noiseTexture } from './noise3-texture.js';
 import { SOLID_DEPTH_GLSL, solidUniforms, solidDepth, useSolidDepth, disposeSolidDepth } from './solid-depth.js';
-import { built, num, pair, sub } from '../objects/common.js';
+import { built, num, pair, sub, isOn, DEFAULT_COLORS } from '../objects/common.js';
+import { buildLightning, MAX_LIGHTS } from '../objects/lightning.js';
 import { NEBULA_SHAPES } from '../names.js';
 
 /** Samples along each ray */
@@ -119,6 +129,24 @@ uniform float uTurb;
 uniform float uFreq;
 uniform vec3 uWarpOff;
 uniform vec3 uWispOff;
+uniform vec4 uStops[ 4 ];
+uniform int uStopCount;
+uniform vec4 uBand;
+// band: its glow's half-thickness (of the half height); the open gap's half-height
+uniform float uBandW;
+uniform float uGap;
+// columns: width range (multipliers); a vortex's radius at its middle against its ends
+uniform vec2 uColWidth;
+uniform float uWaist;
+uniform float uTime;
+uniform int uColKind;
+uniform int uColCount;
+uniform vec4 uColColor;
+// lights in the gas (lightning): local xyz and radius; rgb and level
+uniform vec4 uLights[ 4 ];
+uniform vec4 uLightColor[ 4 ];
+uniform int uLightCount;
+uniform float uVeins;
 
 vec2 enterLeave( vec3 ro, vec3 rd ) {
   if ( uBall > 0.5 ) {
@@ -165,6 +193,9 @@ float lobe( float s ) {
 const vec3 STREAK = vec3( 1.0, 0.4, 1.0 );
 #elif SHAPE == 3
 const vec3 STREAK = vec3( 0.3, 1.0, 1.0 );
+#elif SHAPE == 5
+// layers: long rolling streaks along x, flatter in y
+const vec3 STREAK = vec3( 0.25, 1.6, 0.6 );
 #else
 const vec3 STREAK = vec3( 1.0 );
 #endif
@@ -197,6 +228,96 @@ float envelope( vec3 q ) {
   return 1.0;
 #endif
 }
+
+#if SHAPE == 5
+// layers: a floor and a ceiling of gas with a gap between; their surfaces roll in ridges
+// and troughs (h: the surface noise, about -2 to 2). Returns the field and how deep in (0 to 1).
+vec2 layerField( vec3 p, vec3 q ) {
+  vec3 s = vec3( p.x * 0.35, 0.0, p.z * 0.8 ) * uFreq;
+  float hf = ( texture( uNoise, s + vec3( 0.0, 0.21, 0.0 ) + uWarpOff ).r - ${NOISE_MEAN} ) / ${NOISE_SPREAD};
+  float hc = ( texture( uNoise, s + vec3( 0.5, 0.63, 0.3 ) + uWarpOff ).r - ${NOISE_MEAN} ) / ${NOISE_SPREAD};
+  // ridged: sharp crests, broad troughs
+  float ff = ( texture( uNoise, s * 3.1 + vec3( 0.2, 0.47, 0.8 ) + uWarpOff * 1.7 ).r - ${NOISE_MEAN} ) / ${NOISE_SPREAD};
+  float rf = 1.0 - abs( hf ) + 0.35 * ff;
+  float rc = 1.0 - abs( hc ) - 0.35 * ff;
+  float top = -uGap + 0.12 * rf;
+  float bot = uGap - 0.12 * rc;
+  float fl = smoothstep( 0.0, 0.1, top - q.y );
+  float ce = smoothstep( 0.0, 0.1, q.y - bot );
+  float depth = fl >= ce ? ( top - q.y ) / 0.7 : ( q.y - bot ) / 0.7;
+  return vec2( max( fl, ce ), clamp( depth, 0.0, 1.0 ) );
+}
+
+// columns between floor and ceiling, on a sunflower spiral over the region: kind 1 fire
+// (wide at the foot, rising flame, a splash ring on the floor), 2 vortex (a twisting hourglass, dark
+// at its rim). Thinner than a march step, so each is added once where the ray passes its axis.
+vec2 columnAt( int j ) {
+  float fa = float( j ) * 2.39996 + 0.7;
+  return vec2( cos( fa ), sin( fa ) ) * sqrt( ( float( j ) + 0.5 ) / float( uColCount ) ) * 0.75 * uHalf.xz;
+}
+float columnWidth( int j ) {
+  return mix( uColWidth.x, uColWidth.y, fract( float( j ) * 0.618 + 0.37 ) );
+}
+float columnBase( int j ) {
+  return uHalf.x * ( uColKind == 2 ? 0.05 : 0.045 ) * ( 0.7 + 0.6 * fract( float( j ) * 0.618 ) ) * columnWidth( j );
+}
+float columnRadius( int j, float qy ) {
+  float R = columnBase( j );
+  float prof = uColKind == 2 ? 1.75 * uWaist + 1.75 * ( 1.0 - uWaist ) * pow( abs( qy ) / 0.35, 2.0 ) : 1.15 - 0.75 * clamp( ( qy + 0.35 ) / 0.7, 0.0, 1.0 );
+  return R * min( prof, 2.5 );
+}
+// the glow (rgb) and cover (a) a ray picks up passing column j at its closest point t
+vec4 columnPass( int j, vec3 ro, vec3 rd, float t ) {
+  vec3 p = ro + rd * t;
+  vec3 q = p / uHalf;
+  if ( abs( q.y ) > 0.55 ) return vec4( 0.0 );
+  float rr = columnRadius( j, q.y );
+  // the axis waves as it rises (within the pass window: about half a radius)
+  float wv = p.y * 0.045 + float( j ) * 1.7 + uTime * ( uColKind == 2 ? 6.0e-4 : 3.0e-4 );
+  vec2 off = p.xz - columnAt( j ) - vec2( sin( wv ), cos( wv * 1.3 ) ) * rr * ( uColKind == 2 ? 0.12 : 0.45 );
+  float d = length( off ) / rr;
+  if ( d > 2.0 ) return vec4( 0.0 );
+  // across the column as seen (for the flame's streaks), twisting for a vortex
+  vec2 h = normalize( rd.xz + 1e-6 );
+  float side = ( h.x * off.y - h.y * off.x ) / rr;
+  float rise = uTime * ( uColKind == 2 ? 1.0e-5 : 4.0e-5 );
+  float tw = uColKind == 2 ? q.y * 4.0 + uTime * 1.2e-3 : 0.0;
+  float zc = ( texture( uNoise, vec3( ( side + tw ) * ( uColKind == 2 ? 0.15 : 0.3 ), p.y * 0.6 * uFreq - rise, float( j ) * 0.13 ) ).r - ${NOISE_MEAN} ) / ${NOISE_SPREAD};
+  float zf = ( texture( uNoise, vec3( ( side + tw ) * 0.9 + 0.31, p.y * 1.9 * uFreq - rise * 2.5, float( j ) * 0.13 + 0.5 ) ).r - ${NOISE_MEAN} ) / ${NOISE_SPREAD};
+  // fire: fine flame streaks; a vortex keeps its smooth twist
+  zc = uColKind == 2 ? zc : zc * 0.7 + zf * 0.5;
+  float chord = min( 1.0 / max( length( rd.xz ), 0.05 ), 3.0 );
+  float ends = 1.0 - smoothstep( 0.4, 0.55, abs( q.y ) );
+  float body = exp( -d * d * 1.6 ) * smoothstep( -0.6, 1.1, zc ) * ends * chord;
+  float glow = body * ( uColKind == 1 ? 1.0 : 0.8 );
+  float cover = clamp( body * 0.5, 0.0, 1.0 );
+  if ( uColKind == 2 ) cover = clamp( cover + exp( -pow( ( d - 1.05 ) / 0.3, 2.0 ) ) * ends * 0.35 * chord, 0.0, 0.9 );
+  // white-hot heart, the sheets' surface colour at the edge (fire); the column colour throughout (vortex)
+  vec3 col = uColKind == 1 ? mix( uColColor.rgb, uStops[ 0 ].rgb, smoothstep( 0.1, 1.1, d ) ) : uColColor.rgb;
+  return vec4( col * glow, cover );
+}
+// the fire's splash ring on the floor (wide and flat: sampled with the gas)
+float splash( vec3 p, vec3 q ) {
+  float b = 0.0;
+  for ( int j = 0; j < ${MAX_CLOUDS}; j++ ) {
+    if ( j >= uColCount ) break;
+    float R = columnBase( j );
+    float rl = length( p.xz - columnAt( j ) ) / R;
+    b += exp( -pow( ( rl - 1.9 ) / 0.4, 2.0 ) ) * exp( -pow( ( q.y + 0.24 ) / 0.05, 2.0 ) ) / columnWidth( j );
+  }
+  return b;
+}
+
+// colour stops through a sheet's depth (0: its surface)
+vec4 layerTint( float d ) {
+  if ( uStopCount < 2 ) return uStops[ 0 ];
+  float x = d * float( uStopCount - 1 );
+  int i = int( floor( x ) );
+  vec4 c = uStops[ 0 ];
+  for ( int j = 0; j < 3; j++ ) if ( j == i ) c = mix( uStops[ j ], uStops[ j + 1 ], fract( x ) );
+  return i >= uStopCount - 1 ? uStops[ uStopCount - 1 ] : c;
+}
+#endif
 
 void main() {
   vec3 ro;
@@ -246,6 +367,35 @@ void main() {
   float k = uDensity * uK;
   vec3 acc = vec3( 0.0 );
   float alpha = 0.0;
+#if SHAPE == 5
+  // where the ray crosses the band's plane (y = 0), if it does
+  float bandT = abs( rd.y ) > 1e-5 ? -ro.y / rd.y : -1.0;
+  if ( bandT < a || bandT > b ) bandT = -1e30;
+  // where the ray passes closest to each column's axis, in order along it (each step then checks
+  // only the next one)
+  float colT[ ${MAX_CLOUDS} ];
+  int colI[ ${MAX_CLOUDS} ];
+  int colN = 0;
+  for ( int j = 0; j < ${MAX_CLOUDS}; j++ ) {
+    if ( j >= uColCount ) break;
+    vec2 o = ro.xz - columnAt( j );
+    float vv = dot( rd.xz, rd.xz );
+    if ( vv < 1e-8 ) continue;
+    float tc = -dot( o, rd.xz ) / vv;
+    // passes near enough to show, inside the span
+    vec2 near = o + rd.xz * tc;
+    if ( tc < a || tc > b || dot( near, near ) > 25.0 * uHalf.x * uHalf.x * 0.0081 * uColWidth.y * uColWidth.y ) continue;
+    int k = colN;
+    for ( int m = ${MAX_CLOUDS} - 1; m > 0; m-- ) {
+      if ( m > colN ) continue;
+      if ( colT[ m - 1 ] > tc ) { colT[ m ] = colT[ m - 1 ]; colI[ m ] = colI[ m - 1 ]; k = m - 1; } else break;
+    }
+    colT[ k ] = tc;
+    colI[ k ] = j;
+    colN++;
+  }
+  int colNext = 0;
+#endif
   for ( int i = 0; i < STEPS; i++ ) {
     float t = a + ( float( i ) + jitter ) * dt;
     if ( t > b ) break;
@@ -253,6 +403,7 @@ void main() {
     // the clouds' shape (how far into one), and their colour and opacity where they overlap
     float field = 0.0;
     float dark = 0.0;
+    float boost = 1.0;
 #if SHAPE == 0 || SHAPE == 3
     vec4 tint = vec4( 0.0 );
     float tw = 0.0;
@@ -279,7 +430,51 @@ void main() {
       tw += wc;
 #endif
     }
-#if SHAPE != 0 && SHAPE != 3
+#if SHAPE == 5
+    vec2 lf = layerField( p, p / uHalf );
+    // a faint haze fills the gap (the gas never quite clears); the band lights it round the middle
+    float bg = uBand.a * exp( -pow( p.y / uHalf.y / max( uBandW * 3.0, uGap ), 2.0 ) ) * ( 1.0 - lf.x );
+    field = max( lf.x * 1.2, 0.16 + 0.12 * min( bg, 1.0 ) );
+    tint = layerTint( lf.y );
+    tint.rgb = mix( tint.rgb, uBand.rgb, clamp( bg, 0.0, 1.0 ) );
+    tw = 1.0;
+    boost = 1.0 + 0.4 * bg;
+    // the band's light through the gap: smooth (not the gas's noise), bright seen along it
+    acc += ( 1.0 - alpha ) * uBand.rgb * bg * edge( p ) * 0.15 * dt / uHalf.x;
+    // the band itself: a thin bright sheet at the middle, added once where the ray crosses it
+    if ( uBand.a > 0.0 && abs( bandT - t ) <= 0.5 * dt ) {
+      vec3 pb = ro + rd * bandT;
+      float zb = ( texture( uNoise, vec3( pb.x * 0.6, 0.37, pb.z * 0.6 ) * uFreq + uWarpOff ).r - ${NOISE_MEAN} ) / ${NOISE_SPREAD};
+      float ln = uBand.a * min( uBandW * 0.15 / max( abs( rd.y ), 1e-3 ), 1.5 ) * clamp( 0.75 + 0.35 * zb, 0.2, 1.6 ) * edge( pb );
+      acc += ( 1.0 - alpha ) * uBand.rgb * ln;
+      alpha += ( 1.0 - alpha ) * clamp( ln * 0.1, 0.0, 1.0 );
+    }
+    // (only near the floor's surface)
+    if ( uColKind == 1 && abs( p.y / uHalf.y + 0.24 ) < 0.15 ) {
+      float sp = clamp( splash( p, p / uHalf ), 0.0, 1.0 );
+      field = max( field, sp * 1.4 );
+      tint = mix( tint, uColColor, sp );
+      boost *= 1.0 + 2.0 * sp;
+    }
+    // liquid fire: fine bright veins in the sheets' surfaces, darker between (high contrast)
+    if ( uVeins > 0.0 && lf.y < 0.4 ) {
+      float fz = ( texture( uNoise, vec3( p.x * 0.9, p.y * 1.6, p.z * 1.4 ) * uFreq * 1.3 + uWispOff ).r - ${NOISE_MEAN} ) / ${NOISE_SPREAD};
+      float vein = pow( max( 0.0, 1.0 - abs( fz ) * 0.6 ), 3.0 );
+      float near = ( 1.0 - smoothstep( 0.0, 0.4, lf.y ) ) * uVeins;
+      field *= mix( 1.0, 0.45 + 1.1 * vein, near );
+      boost *= 1.0 + 2.5 * vein * near;
+    }
+    // columns this step passes (in order along the ray)
+    for ( int g = 0; g < 2; g++ ) {
+      if ( colNext >= colN ) break;
+      float tc = colT[ colNext ];
+      if ( tc >= t + 0.5 * dt ) break;
+      vec4 c = columnPass( colI[ colNext ], ro, rd, tc );
+      acc += ( 1.0 - alpha ) * c.rgb;
+      alpha += ( 1.0 - alpha ) * c.a;
+      colNext++;
+    }
+#elif SHAPE != 0 && SHAPE != 3
     // the shape gives the form, the clouds the clumps in it
     field = envelope( p / uHalf ) * ( 0.35 + 0.65 * min( field, 1.0 ) ) * 1.15;
 #endif
@@ -291,7 +486,9 @@ void main() {
 #else
     float coreAt = 1.0 - smoothstep( 0.0, 0.65, length( p / uHalf ) );
 #endif
+#if SHAPE != 5
     tint.rgb = mix( tint.rgb, uCore.rgb, uCore.a * coreAt );
+#endif
     vec3 pn = p * STREAK;
     float n1 = texture( uNoise, pn * uFreq + uWarpOff ).r;
     // wisps: finer, and pushed about by the coarse field (curls, not blobs)
@@ -323,7 +520,16 @@ void main() {
       float dgas = smoothstep( 0.0, 0.5, min( dark, 1.0 ) - 0.6 * uTurb + z * 0.5 * uTurb );
       sd = clamp( dgas * uDust * fade * k * 4.0 * dt, 0.0, 1.0 );
     }
-    acc += ( 1.0 - alpha ) * ( tint.rgb * s * glow * ( 1.0 - sd ) + uDustColor * sd );
+    // lit from inside (a strike): the gas brightens and takes the light's colour
+    vec3 lit = vec3( 0.0 );
+    for ( int j = 0; j < 4; j++ ) {
+      if ( j >= uLightCount ) break;
+      vec3 dl = p - uLights[ j ].xyz;
+      float x2 = dot( dl, dl ) / ( uLights[ j ].w * uLights[ j ].w );
+      lit += uLightColor[ j ].rgb * uLightColor[ j ].a * ( exp( -x2 ) + 0.3 / ( 1.0 + 2.0 * x2 ) );
+    }
+    float litL = max( lit.r, max( lit.g, lit.b ) );
+    acc += ( 1.0 - alpha ) * ( ( tint.rgb * glow * boost * ( 1.0 + 2.5 * litL ) + lit * 2.0 ) * s * ( 1.0 - sd ) + uDustColor * sd );
     alpha += ( 1.0 - alpha ) * clamp( s + sd, 0.0, 1.0 );
     if ( alpha > 0.98 ) break;
   }
@@ -398,6 +604,13 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
   const dust = sub(cfg.dust);
   const dustColor = dust.color !== undefined ? ctx.color(dust.color, '#000000') : [0, 0, 0];
 
+  const stopCount = Math.max(1, Math.min(4, Array.isArray(cfg.colors) ? cfg.colors.length : 1));
+  // layers only: the band between the sheets, the columns, strikes in the gas
+  const band = shape === 5 && isOn(cfg.band, false) ? sub(cfg.band) : null;
+  const cols = shape === 5 && cfg.columns ? sub(cfg.columns) : null;
+  const strikes = isOn(cfg.lightning, false) ? sub(cfg.lightning) : null;
+  const bandColor = band ? ctx.color(band.color, DEFAULT_COLORS.glow) : [0, 0, 0];
+
   const solid = solidUniforms();
   const u = {
     ...solid,
@@ -430,7 +643,23 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
     uTurb: { value: Math.max(0, Math.min(1, num(cfg.turbulence, 0.5))) },
     uFreq: { value: freq },
     uWarpOff: { value: new Vector3() },
-    uWispOff: { value: new Vector3() }
+    uWispOff: { value: new Vector3() },
+    // layers: the colours from the surface down, the band, the scene clock
+    uStops: { value: Array.from({ length: 4 }, (_, i) => { const c = colorOf(Math.min(i, stopCount - 1)); return new Vector4(c[0], c[1], c[2], (c[3] ?? 1) * 0.8); }) },
+    uStopCount: { value: stopCount },
+    uBand: { value: band ? new Vector4(bandColor[0], bandColor[1], bandColor[2], Math.max(0, num(band.brightness, 1))) : new Vector4(0, 0, 0, 0) },
+    uBandW: { value: band ? Math.max(0.01, Math.min(0.5, num(band.width, 0.08))) : 0.08 },
+    uGap: { value: Math.max(0, Math.min(0.45, num(cfg.gap, 0.56) / 2)) },
+    uColWidth: { value: (() => { const w = cols?.width; const r = Array.isArray(w) ? [num(w[0], 1), num(w[1] ?? w[0], 1)] : [num(w, 1), num(w, 1)]; return new Vector2(Math.max(0.1, Math.min(r[0], r[1])), Math.max(0.1, r[0], r[1])); })() },
+    uWaist: { value: Math.max(0.05, Math.min(1, num(cols?.waist, 0.2))) },
+    uTime: { value: 0 },
+    uColKind: { value: cols ? Math.max(0, ['none', 'fire', 'vortex'].indexOf(cols.kind ?? 'fire')) : 0 },
+    uLights: { value: Array.from({ length: MAX_LIGHTS }, () => new Vector4(0, 0, 0, 1)) },
+    uLightColor: { value: Array.from({ length: MAX_LIGHTS }, () => new Vector4(0, 0, 0, 0)) },
+    uLightCount: { value: 0 },
+    uVeins: { value: shape === 5 ? Math.max(0, Math.min(1, num(cfg.veins, 0))) : 0 },
+    uColCount: { value: cols && cols.kind !== 'lightning' ? Math.min(MAX_CLOUDS, Math.max(0, Math.round(num(cols.count, 4)))) : 0 },
+    uColColor: { value: (() => { const c = cols ? ctx.color(cols.color, DEFAULT_COLORS.glow) : [1, 1, 1, 1]; return new Vector4(c[0], c[1], c[2], c[3] ?? 1); })() }
   };
   const march = new ShaderMaterial({
     uniforms: u,
@@ -488,6 +717,45 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
   };
 
   const out = built(cfg, node, { radius: Math.hypot(half[0], half[1], half[2]) });
+
+  // lights from lightning, by source; the brightest MAX_LIGHTS go to the march
+  /** @type {Map<object, { at: number[], radius: number, color: number[], level: number }[]>} */
+  const lightSets = new Map();
+  const toLocal = new Matrix4();
+  const lp = new Vector3();
+  out.setLights = (source, lights) => {
+    if (lights.length) lightSets.set(source, lights);
+    else if (!lightSets.delete(source)) return;
+    const all = [...lightSets.values()].flat().sort((a, b) => b.level - a.level).slice(0, MAX_LIGHTS);
+    mesh.updateWorldMatrix(true, false);
+    toLocal.copy(mesh.matrixWorld).invert();
+    const scale = mesh.matrixWorld.getMaxScaleOnAxis() || 1;
+    all.forEach((l, i) => {
+      lp.set(l.at[0], l.at[1], l.at[2]).applyMatrix4(toLocal);
+      u.uLights.value[i].set(lp.x, lp.y, lp.z, Math.max(1e-3, l.radius / scale));
+      u.uLightColor.value[i].set(l.color[0], l.color[1], l.color[2], l.level);
+    });
+    u.uLightCount.value = all.length;
+    ctx.requestFrame?.();
+  };
+  out.contains = (world) => {
+    mesh.updateWorldMatrix(true, false);
+    lp.set(world[0], world[1], world[2]).applyMatrix4(toLocal.copy(mesh.matrixWorld).invert());
+    return ball ? lp.length() <= half[0] : Math.abs(lp.x) <= half[0] && Math.abs(lp.y) <= half[1] && Math.abs(lp.z) <= half[2];
+  };
+  // lightning columns: held discharges floor to ceiling, as a lightning object of its own
+  const bolts = cols && cols.kind === 'lightning'
+    ? buildLightning({ type: 'lightning', id: `${out.id}:columns`, mode: 'column', count: Math.min(MAX_CLOUDS, Math.max(1, Math.round(num(cols.count, 4)))), size: [half[0] * 2, half[1] * 0.5, half[2] * 2], color: cols.color, glow: cols.glow, speed: cols.speed, seed: num(cfg.seed, 1) }, ctx)
+    : null;
+  // strikes in the gas (lightning: true or { ... }): a lightning object of its own over most of the region
+  const struck = strikes
+    ? buildLightning({ seed: num(cfg.seed, 1), ...strikes, type: 'lightning', id: `${out.id}:lightning`, mode: 'strike', size: [half[0] * 1.8, half[1] * (shape === 5 ? 0.75 : 1.5), half[2] * 1.8] }, ctx)
+    : null;
+  for (const b of [bolts, struck]) {
+    if (!b) continue;
+    node.add(b.node);
+    out.lines.push(...b.lines);
+  }
   /** @type {import('three').Scene | null} */
   let sceneOf = null;
   // before each render: where the solids are this frame, then the gas at their resolution
@@ -519,6 +787,8 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
     show.uFull.value.set(w, h);
   };
   out.dispose = () => {
+    bolts?.dispose?.();
+    struck?.dispose?.();
     target?.dispose();
     march.dispose();
     if (sceneOf) disposeSolidDepth(sceneOf);
@@ -539,9 +809,12 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
     lastT = t;
     u.uWarpOff.value.set(-offsets.body[0], 0, -offsets.body[1]);
     u.uWispOff.value.set(offsets.wisp[0], 0.37, offsets.wisp[1]);
-    return rate[0] !== 0 || rate[1] !== 0;
+    u.uTime.value = t;
+    bolts?.tick?.(_dt, t);
+    struck?.tick?.(_dt, t);
+    return rate[0] !== 0 || rate[1] !== 0 || !!cols || !!struck;
   };
-  out.tick = baseDrift[0] || baseDrift[1] ? tick : null;
+  out.tick = baseDrift[0] || baseDrift[1] || cols || struck ? tick : null;
   const baseDensity = u.uDensity.value;
   out.live = (key, value) => {
     if (key === 'density') {

@@ -701,7 +701,7 @@ test('studio UX1 P5: add-object gallery by group, shapes by picture, Open system
     await page.evaluate(async () => { const s = window.__studio; s._activeTab = 'objects'; s._addingObject = true; await s.updateComplete; });
     expect((await root('[data-type-group]')).map((d) => d.typeGroup)).toEqual(['maps', 'bodies', 'routes', 'light', 'models', 'systems']);
     const tiles = (await root('[data-type]')).map((d) => d.type);
-    expect(tiles).toHaveLength(17);
+    expect(tiles).toHaveLength(18);
     expect(await page.evaluate(() => window.__studio.renderRoot.querySelector('[data-type="grid"] img').getAttribute('src'))).toBe('/lcards/images/astro-studio/type-grid.webp');
     await expect.poll(() => page.evaluate(() => window.__studio.renderRoot.querySelector('[data-type="grid"] img').naturalWidth)).toBeGreaterThan(0);
     const before = await page.evaluate(() => window.__studio._workingConfig.objects.length);

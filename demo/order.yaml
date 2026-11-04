@@ -33,6 +33,13 @@ releases:
         session: "E6 volume"
         docs: /cards/astrometrics/effects#gas-you-can-fly-into
         public: true
+      - file: astro-badlands
+        topic: astrometrics
+        summary: "Astrometrics Badlands: layered plasma, fire, vortex and lightning columns, strikes"
+        description: "The Badlands, both ways the shows drew them. DS9: the badlands preset, two sheets of liquid fire with an orange band glowing between them and fire columns thick and thin, Deep Space Nine inside. VOYAGER: the badlands_voyager preset, mauve layers with held pink lightning columns and strikes that light the gas round them. VORTEX: twisting funnels joined into columns (columns kind vortex, waist 0.4). STORM: a lightning object striking inside a cloud nebula, each strike lighting the clouds round it. The OUTSIDE buttons show the gas from afar; fly in and around with the mouse."
+        session: "NB2c"
+        docs: /cards/astrometrics/effects#the-badlands-layers-columns-and-lightning
+        public: true
       - file: astro-nebula-shapes
         topic: astrometrics
         summary: "Astrometrics nebula shapes, dust and colour"

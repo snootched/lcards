@@ -1,0 +1,81 @@
+# Astrometrics Badlands (NB2c): nebula shape: layers (a floor and a ceiling of gas with a
+# glowing band between), fire, vortex and lightning columns, and the lightning object that
+# lights the gas it strikes in. Four scenes 2000 apart; the buttons fly to each.
+title: Astrometrics Badlands
+path: astro-badlands
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: DS9, show: true}
+        tap_action: {action: fly-to, card: astro_badlands, view: ds9}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: VOYAGER, show: true}
+        tap_action: {action: fly-to, card: astro_badlands, view: voyager}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: VORTEX, show: true}
+        tap_action: {action: fly-to, card: astro_badlands, view: vortex}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: STORM, show: true}
+        tap_action: {action: fly-to, card: astro_badlands, view: storm}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: DS9 OUTSIDE, show: true}
+        tap_action: {action: fly-to, card: astro_badlands, view: ds9_out}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: VOY OUTSIDE, show: true}
+        tap_action: {action: fly-to, card: astro_badlands, view: voyager_out}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: STORM OUTSIDE, show: true}
+        tap_action: {action: fly-to, card: astro_badlands, view: storm_out}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-astrometrics-card
+        id: astro_badlands
+        height: 700
+        grid_options: {columns: full}
+        camera:
+          view: ds9
+          views:
+            ds9: {target: [0, 0, 0], yaw: 30, tilt: 3, distance: 110}
+            ds9_out: {target: [0, 0, 0], yaw: 30, tilt: 28, distance: 650}
+            voyager: {target: [2000, 0, 0], yaw: 200, tilt: 3, distance: 160}
+            voyager_out: {target: [2000, 0, 0], yaw: 200, tilt: 28, distance: 650}
+            vortex: {target: [4000, 0, 0], yaw: 200, tilt: 4, distance: 150}
+            storm: {target: [6000, 0, 0], yaw: 30, tilt: 6, distance: 170}
+            storm_out: {target: [6000, 0, 0], yaw: 30, tilt: 25, distance: 650}
+        backdrop: {stars: {count: 2500}}
+        objects:
+          # Deep Space Nine's Badlands: liquid fire, an orange band, fire columns thick and thin
+          - {type: nebula, id: ds9_badlands, at: [0, 0, 0], preset: badlands}
+          - {type: model, src: builtin:deep_space_nine, at: [40, 6, -30], size: 10}
+          # Voyager's: mauve layers, held pink lightning columns, strikes lighting the gas
+          - {type: nebula, id: voyager_badlands, at: [2000, 0, 0], preset: badlands_voyager}
+          - {type: model, src: builtin:constitution, at: [2030, 4, 40], size: 12}
+          # vortex columns: waist 0.4 joins the two funnels into one column
+          - {type: nebula, id: vortex_gas, at: [4000, 0, 0], render: volume, shape: layers, size: [500, 160, 500], count: 6, colors: [var(--lcars-violet-creme), var(--lcars-violet), var(--lcars-blue)], seed: 8, drift: [3, 0], band: {brightness: 0.8, color: var(--lcars-violet-creme)}, columns: {count: 6, kind: vortex, waist: 0.4, width: 1.5, color: var(--lcars-violet-creme)}}
+          # a storm: clouds lit from inside by forked strikes (a lightning object)
+          - {type: nebula, id: storm_gas, at: [6000, 0, 0], render: volume, size: [500, 260, 500], count: 10, colors: [var(--lcars-orange), var(--lcars-amber), var(--lcars-red)], seed: 5, drift: [3, 1], turbulence: 0.6, density: 1.6, max_radius: 200}
+          - {type: lightning, id: storm_strikes, at: [6000, 0, 0], size: [320, 200, 320], rate: 2.5, color: var(--lcars-space-white), glow: {color: var(--lcars-lavender)}, width: 2.2, branches: 4, seed: 4}
+          - {type: model, src: builtin:constitution, at: [6060, 20, 40], size: 12}

@@ -24,7 +24,7 @@ import {
     stateClassificationSchema, triggersUpdateSchema, dataSourcesSchema
 } from './common-schemas.js';
 import {
-    OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, NEBULA_SHAPES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, BODY_NAMES, FILL_EFFECTS, FILL_PRESETS, MODEL_MATERIALS,
+    OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, NEBULA_SHAPES, NEBULA_PRESETS, COLUMN_KINDS, LIGHTNING_MODES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, BODY_NAMES, FILL_EFFECTS, FILL_PRESETS, MODEL_MATERIALS,
     WELL_SHAPE_NAMES, DEFORM_TYPES, BEND_MOTIONS, DEFORM_ANCHORS, UNIT_NAMES, FILE_UNIT_NAMES, COMET_ACTIVITY, CUBE_SHAPES
 } from '../../core/astrometrics/names.js';
 import { LABEL_POSITION_NAMES, LABEL_OMITTED_KEYS } from '../../core/astrometrics/label-text.js';
@@ -1268,6 +1268,49 @@ const galaxyObject = {
     }
 };
 
+/** A bolt's look and timing: the lightning object's keys, and a nebula's own lightning */
+const lightningLook = {
+    color: objectColor('The bolt\'s colour (its bright core). Default var(--lcards-moonlight).'),
+    glow: part('The soft glow round the bolt: true (default), false, or { color, width }.', {
+        color: objectColor('Glow colour. Default the bolt\'s colour.'),
+        width: setting('How wide the glow is, times the bolt\'s width.', { minimum: 0, default: 6 })
+    }, { toggle: true }),
+    width: setting('The bolt\'s width, px (its branches are about half as wide).', { minimum: 0.5, default: 2 }),
+    rate: setting('strike: about how many strikes a second (the pauses vary round it). 0: none. Off under reduced motion.', { minimum: 0, default: 0.5 }),
+    flash: setting('strike: how long a strike shows, ms: a quick rise, a fade and a weaker second stroke.', { minimum: 30, default: 150 }),
+    jaggedness: setting('How far the channel zigzags, 0 (straight) to 1. Default 0.5 for a strike, 0.25 for a column.', { minimum: 0, maximum: 1 }),
+    branches: wholeSetting('Forks off the main channel (each may fork once more). Default 3 for a strike, 1 for a column.', { minimum: 0, maximum: 8 }),
+    brightness: setting('How strongly it lights the gas of a volume nebula, 0 (not at all) to 2.', { minimum: 0, maximum: 2, default: 1 }),
+    seed: { type: 'integer', default: 1, description: 'Where the strikes fall and how the bolts are shaped: a different number gives different ones.' }
+};
+
+const lightningObject = {
+    type: 'object',
+    title: 'lightning',
+    required: ['type'],
+    allOf: [objectCommonSchema],
+    description: 'Lightning: jagged forked bolts that flash and go at random places in a region (mode: strike), or held flickering columns from its floor to its ceiling (mode: column). A bolt inside a volume nebula lights the gas round it.',
+    properties: {
+        type: { type: 'string', const: 'lightning', description: 'lightning: flashing bolts or held columns.' },
+        mode: {
+            type: 'string',
+            enum: [...LIGHTNING_MODES],
+            default: 'strike',
+            enumDescriptions: { strike: 'Bolts that flash and go', column: 'Held, flickering columns' },
+            description: 'strike (default): a bolt flashes at a random place in the region, mostly from high to low, then a pause (rate). column: count bolts held from the region\'s floor to its ceiling, crawling and flickering. Under reduced motion strikes never show and columns stand still and dim.'
+        },
+        radius: setting('The region: a ball this big round the object, scene units. Default 50.', { exclusiveMinimum: 0 }),
+        size: {
+            description: 'Or a box [width, height, depth] (one number for a cube), scene units. Replaces radius.',
+            anyOf: [{ type: 'number', exclusiveMinimum: 0 }, { type: 'array', items: { type: 'number', exclusiveMinimum: 0 }, minItems: 3, maxItems: 3 }, settingBinding, settingTemplate]
+        },
+        count: wholeSetting('column: how many columns, spread over the region.', { minimum: 1, maximum: 10, default: 1 }),
+        speed: setting('column: how fast the held bolts crawl (take a new shape) and flicker: 1 (default) as drawn, 0.5 half as fast, 0 still. Strikes are timed by rate and flash.', { minimum: 0, default: 1 }),
+        lights: { type: 'boolean', default: true, description: 'Light the gas of every volume nebula a bolt is inside (true, default). false: the bolts only.' },
+        ...lightningLook
+    }
+};
+
 const nebulaObject = {
     type: 'object',
     title: 'nebula',
@@ -1276,6 +1319,12 @@ const nebulaObject = {
     description: 'Clouds of gas in the scene (the nebula background preset in 3D): they shift against each other and the grids as the camera turns, and fade as you fly into them.',
     properties: {
         type: { type: 'string', const: 'nebula', description: 'nebula: clouds of gas.' },
+        preset: {
+            type: 'string',
+            enum: [...NEBULA_PRESETS],
+            enumDescriptions: { badlands: 'The Badlands (Deep Space Nine): liquid fire, a bright band, fire columns', badlands_voyager: 'The Badlands (Voyager): mauve layers, pink lightning columns, strikes' },
+            description: 'A named nebula to start from; the keys you set win over it (in band, columns and lightning, key by key). badlands: two sheets of liquid fire in yellow, orange and red, an orange band glowing between them and fire columns, thick and thin (Deep Space Nine). badlands_voyager: mauve and peach layers, held pink lightning columns and strikes that light the gas (Voyager). Both are render: volume, shape: layers in a 500 wide box; set size to change it.'
+        },
         render: {
             type: 'string',
             enum: ['puffs', 'volume'],
@@ -1289,9 +1338,28 @@ const nebulaObject = {
             enum: [...NEBULA_SHAPES],
             'x-ui-hints': { widget: 'shape' },
             default: 'clouds',
-            enumDescriptions: { clouds: 'Clouds', shell: 'A hollow sphere', bipolar: 'An hourglass', filaments: 'Thin strands', cavity: 'A hollow open on one side' },
-            description: 'render: volume only: the form of the gas. clouds (default): the clouds themselves. shell: a thin hollow sphere (the Ring nebula). bipolar: an hourglass along the object\'s y axis, two hollow lobes joined at a narrow waist (the Butterfly). filaments: long thin strands running along the object\'s x axis (the Veil). cavity: a thick cup round a hollow that opens on the object\'s +z side (a blister, as in Orion). In every shape but clouds the clouds give the clumps and colours inside the form; turn it with rotation.'
+            enumDescriptions: { clouds: 'Clouds', shell: 'A hollow sphere', bipolar: 'An hourglass', filaments: 'Thin strands', cavity: 'A hollow open on one side', layers: 'A floor and a ceiling with a gap' },
+            description: 'render: volume only: the form of the gas. clouds (default): the clouds themselves. shell: a thin hollow sphere (the Ring nebula). bipolar: an hourglass along the object\'s y axis, two hollow lobes joined at a narrow waist (the Butterfly). filaments: long thin strands running along the object\'s x axis (the Veil). cavity: a thick cup round a hollow that opens on the object\'s +z side (a blister, as in Orion). layers: a floor and a ceiling of gas across the region with a gap between (the Badlands): colors run from each sheet\'s surface into its depth; gap, veins, band and columns shape it. In every shape but clouds the clouds give the clumps and colours inside the form; turn it with rotation.'
         },
+        gap: setting('shape: layers only: how much of the height is open between the floor and the ceiling, 0 (they touch) to 0.9.', { minimum: 0, maximum: 0.9, default: 0.56 }),
+        veins: setting('shape: layers only: bright fine veins in the sheets\' surfaces with darker gas between (liquid fire), 0 (none) to 1.', { minimum: 0, maximum: 1, default: 0 }),
+        band: part('shape: layers only: a band of light glowing in the gap, brightest in a thin sheet at its middle: true, false (default), or { brightness, width, color }.', {
+            brightness: setting('How bright, 0 to 3.', { minimum: 0, maximum: 3, default: 1 }),
+            width: setting('How far its glow reaches from the middle, a fraction of half the height.', { minimum: 0.01, maximum: 0.5, default: 0.08 }),
+            color: objectColor('Its colour. Default var(--lcards-moonlight).')
+        }, { toggle: true }),
+        columns: part('shape: layers only: columns standing from the floor to the ceiling, spread over the region.', {
+            count: wholeSetting('How many.', { minimum: 1, maximum: 10, default: 4 }),
+            kind: { type: 'string', enum: [...COLUMN_KINDS], default: 'fire', enumDescriptions: { fire: 'Rising flame', vortex: 'A twisting funnel', lightning: 'A held bolt' }, description: 'fire (default): rising flame, wide at the foot with a splash ring on the floor. vortex: a twisting funnel, narrow at its middle (waist), dark at its rim. lightning: a held, crawling bolt that lights the gas round it.' },
+            width: settingOrPair('fire and vortex: how thick, times the usual: one number, or [thinnest, thickest] and each column gets its own width between them (thick columns and thin strands together). Default 1.'),
+            waist: setting('vortex: how wide the middle is against the ends, 0.05 (two funnels meeting at a point) to 1 (one straight column).', { minimum: 0.05, maximum: 1, default: 0.2 }),
+            color: objectColor('Their colour: the fire\'s white-hot heart (its edge takes the sheets\' surface colour), the vortex, or the bolt. Default var(--lcards-moonlight).'),
+            speed: setting('lightning: how fast the bolts crawl and flicker: 1 (default) as drawn, 0.5 half as fast, 0 still.', { minimum: 0, default: 1 }),
+            glow: part('lightning: the glow round the bolts.', {
+                color: objectColor('Glow colour. Default the column colour.')
+            })
+        }),
+        lightning: part('render: volume only: lightning striking inside the gas and lighting it: true (default settings), false (default), or the settings of a lightning object\'s strikes.', lightningLook, { toggle: true }),
         stretch: setting('Seeded clouds: how drawn out each one is, 0 (round, default) to 1 (long and flat), each turned its own way. Hand-placed clouds take size and rotation instead.', { minimum: 0, maximum: 1, default: 0 }),
         core: part('The gas deep inside (in a shape other than clouds: near its middle).', {
             color: objectColor('Colour there, running out to the cloud colours at the edges. Default none: the cloud colours throughout.')
@@ -1374,7 +1442,7 @@ const modelObject = {
     }
 };
 
-const OBJECT_SCHEMAS = { model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject, belt: beltObject, asteroid: asteroidObject, comet: cometObject, galaxy: galaxyObject, trail: trailObject, cube: cubeObject };
+const OBJECT_SCHEMAS = { lightning: lightningObject, model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject, belt: beltObject, asteroid: asteroidObject, comet: cometObject, galaxy: galaxyObject, trail: trailObject, cube: cubeObject };
 
 /** Object types a system can hold: every type but another system (one level) */
 const DRAWN_TYPES = OBJECT_TYPES.filter((t) => t !== 'system');

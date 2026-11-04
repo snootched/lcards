@@ -56,6 +56,8 @@ export const TYPE_SAMPLES = {
     motion: true
   },
   cube: { objects: [{ type: 'cube', id: 'borg', size: 40 }], camera: { target: [0, 0, 0], yaw: 30, tilt: 25, distance: 100 } },
+  // held columns: a strike would be gone before the picture is taken
+  lightning: { objects: [FLOOR, { type: 'lightning', id: 'bolts', mode: 'column', count: 3, size: [90, 50, 90], width: 2.5, glow: { color: 'var(--lcards-blue-light)' } }], camera: VIEW },
   system: {
     objects: [
       { type: 'grid', id: 'map', shape: 'disc', radius: 55, pattern: 'polar', line_spacing: 10, opacity: 0.4 },
@@ -98,6 +100,8 @@ function nebulaLook(shape) {
     case 'bipolar': return { colors: ['var(--lcards-orange-medium)', 'var(--lcards-orange-dark)'], core: { color: 'var(--lcards-moonlight)' } };
     case 'filaments': return { colors: ['var(--lcards-orange-dark)', 'var(--lcards-blue-light)'], stretch: 0.5 };
     case 'cavity': return { colors: ['var(--lcards-orange-dark)', 'var(--lcards-yellow-medium)'], core: { color: 'var(--lcards-blue-lightest)' } };
+    // a slab: floor and ceiling across a box, the band between
+    case 'layers': return { size: [110, 40, 110], colors: ['var(--lcards-yellow-medium)', 'var(--lcards-orange-medium)', 'var(--lcards-orange-dark)'], veins: 0.8, band: { color: 'var(--lcards-orange-medium)', brightness: 1.5 } };
     default: return { colors: ['var(--lcards-blue-medium)', 'var(--lcards-orange-medium)'] };
   }
 }

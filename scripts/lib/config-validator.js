@@ -24,6 +24,7 @@ import { migrateChartConfig } from '../../src/charts/chart-config-migration.js';
 import { migrateDataGridConfig } from '../../src/data-grid/data-grid-config-migration.js';
 import { classifyThemePath } from './theme-token-rules.js';
 import { PLACEMENT_FORMS, LABEL_STYLE_NAMES, UNIT_NAMES } from '../../src/core/astrometrics/names.js';
+import { withNebulaPreset } from '../../src/core/astrometrics/nebula-presets.js';
 
 /**
  * Keys every card accepts that card schemas don't list (HA / layout plumbing, and the
@@ -418,10 +419,34 @@ export function astrometricsIssues(node) {
     if (typeof o.face === 'string' && o.face !== 'motion') pointRef(`${at}.face`, o.face);
     if (o.face === 'motion' && !(typeof o.at === 'string' && o.at !== '')) warn(`${at}.face`, 'face: motion turns the object along its point\'s travel: give it at: a point id');
     // the shapes and dust are drawn only by the raymarched gas
-    if (o.type === 'nebula' && o.render !== 'volume') {
-      const only = ['shape', 'dust'].filter((k) => o[k] !== undefined && !(k === 'shape' && o.shape === 'clouds'));
-      if (Array.isArray(o.clouds) && o.clouds.some((/** @type {any} */ c) => c?.dust === true)) only.push('clouds[].dust');
-      for (const k of only) warn(`${at}.${k}`, `${k} applies only with render: volume (this nebula draws puffs)`);
+    if (o.type === 'nebula') {
+      // a preset's own keys under the config's (a Badlands preset is volume and layers)
+      const n = withNebulaPreset(o);
+      if (n.render !== 'volume') {
+        const only = ['shape', 'dust', 'lightning'].filter((k) => o[k] !== undefined && !(k === 'shape' && o.shape === 'clouds') && !(k === 'lightning' && o.lightning === false));
+        if (Array.isArray(o.clouds) && o.clouds.some((/** @type {any} */ c) => c?.dust === true)) only.push('clouds[].dust');
+        for (const k of only) warn(`${at}.${k}`, `${k} applies only with render: volume (this nebula draws puffs)`);
+      }
+      // the layers' parts
+      if (n.render === 'volume' && n.shape !== 'layers') {
+        for (const k of ['gap', 'veins', 'band', 'columns']) {
+          if (o[k] !== undefined && o[k] !== false) warn(`${at}.${k}`, `${k} applies only with shape: layers`);
+        }
+      }
+      const cols = n.columns && typeof n.columns === 'object' ? n.columns : null;
+      const kind = cols?.kind ?? 'fire';
+      if (cols && o.columns && typeof o.columns === 'object') {
+        if (o.columns.waist !== undefined && kind !== 'vortex') warn(`${at}.columns.waist`, `waist shapes a vortex (this column kind is ${kind})`);
+        if (o.columns.width !== undefined && kind === 'lightning') warn(`${at}.columns.width`, 'width sets fire and vortex columns (lightning columns take the bolt width of their own)');
+        if (o.columns.glow !== undefined && kind !== 'lightning') warn(`${at}.columns.glow`, `glow is for lightning columns (this column kind is ${kind})`);
+        if (o.columns.speed !== undefined && kind !== 'lightning') warn(`${at}.columns.speed`, `speed is for lightning columns (this column kind is ${kind}; fire and vortex move with drift)`);
+      }
+    }
+    if (o.type === 'lightning') {
+      const mode = o.mode ?? 'strike';
+      if (mode === 'column') for (const k of ['rate', 'flash']) if (o[k] !== undefined) warn(`${at}.${k}`, `${k} times strikes (mode: column holds its bolts)`);
+      if (mode === 'strike' && o.count !== undefined) warn(`${at}.count`, 'count is how many columns (mode: column); strikes come one at a time');
+      if (mode === 'strike' && o.speed !== undefined) warn(`${at}.speed`, 'speed sets how fast held columns crawl (mode: column); strikes are timed by rate and flash');
     }
     if (o.type === 'system') {
       if (system !== undefined) err(at, `a system cannot hold another system (one level: "${system.id ?? 'system'}" holds "${o.id ?? 'system'}")`);

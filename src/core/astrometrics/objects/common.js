@@ -47,6 +47,7 @@ export const DEFAULT_COLORS = {
  * @property {typeof import('../effects/index.js') | null} [effects] - the effects chunk, when the config uses it (`usesEffects`)
  * @property {typeof import('../model/index.js') | null} [models] - the model chunk, when the config has a model (`usesModels`)
  * @property {(src: string) => (Promise<import('three/examples/jsm/loaders/GLTFLoader.js').GLTF> | null)} [loadModel] - a model file, parsed (once per src)
+ * @property {() => Map<string, BuiltObject>} [objects] - the scene's objects by id, live (set by buildScene)
  */
 
 /**
@@ -90,6 +91,8 @@ export const DEFAULT_COLORS = {
  * @property {() => void} [dispose] - its own cleanup besides geometry and materials
  * @property {(world: import('three').Vector3) => void} [lightAt] - lit from a point (`light`): where it is now, world; the scene
  *   builder sets it every layout pass
+ * @property {(source: object, lights: { at: number[], radius: number, color: number[], level: number }[]) => void} [setLights] - a volume nebula: lights from one source (lightning), world
+ * @property {(world: number[]) => boolean} [contains] - whether a world position is inside its region (a volume nebula)
  * @property {(key: string, value: number | null) => boolean} [live] - a setting that follows an entity, changed in place
  *   (names.js LIVE_TYPE_KEYS; a joined path such as radius.0): true when it took it; null puts the built value back
  * @property {(renderer: import('three').WebGLRenderer, scene: import('three').Scene, camera: import('three').PerspectiveCamera | import('three').OrthographicCamera, w: number, h: number, frame: number) => void} [prerender] - before each render, while

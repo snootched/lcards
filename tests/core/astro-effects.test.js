@@ -801,8 +801,8 @@ test('NB1 schema: nebula shape, stretch, dust, core colour, ellipsoid clouds', a
   const v = new CoreValidationService({ cacheResults: false });
   const issues = (o) => { const r = v.validate({ type: 'custom:lcards-astrometrics-card', objects: [{ type: 'nebula', ...o }] }, astrometricsSchema); return [...r.errors, ...r.warnings]; };
   assert.deepEqual(issues({ render: 'volume', shape: 'bipolar', stretch: 0.4, core: { color: 'var(--lcards-moonlight)' }, dust: { amount: 0.5, count: 2, color: 'var(--lcars-gray)' }, clouds: [{ size: [10, 2, 4], rotation: [0, 20, 0] }, { dust: true }] }), []);
-  for (const s of ['clouds', 'shell', 'bipolar', 'filaments', 'cavity']) assert.deepEqual(issues({ render: 'volume', shape: s }), []);
-  assert.ok(issues({ shape: 'layers' }).some((e) => e.field === 'objects[0].shape'), 'layers comes in NB2');
+  for (const s of ['clouds', 'shell', 'bipolar', 'filaments', 'cavity', 'layers']) assert.deepEqual(issues({ render: 'volume', shape: s }), []);
+  assert.ok(issues({ shape: 'torus' }).some((e) => e.field === 'objects[0].shape'));
   assert.ok(issues({ stretch: 2 }).some((e) => e.field === 'objects[0].stretch'));
   assert.ok(issues({ dust: { count: 1.5 } }).length > 0);
   assert.ok(issues({ dust: { count: 9 } }).length > 0);
@@ -812,4 +812,48 @@ test('NB1 nebula layout: the seed places today\'s clouds where they always were 
   const l = effects.nebulaLayout({ seed: 5, count: 3, size: [220, 60, 220], render: 'volume' });
   const got = l.clouds.map((c) => [c.xyz.map((v) => +v.toFixed(4)), +c.radius.toFixed(4), c.color, +c.opacity.toFixed(4)]);
   assert.deepEqual(got, [[[60.0035, -16.8142, 27.0993], 30.3095, 0, 0.5961], [[-9.2171, 24.3373, -59.5256], 53.2355, 0, 0.6703], [[-106.9593, -2.0759, -43.8999], 57.0861, 0, 0.4441]]);
+});
+
+test('NB2c schema: layers keys, band, columns, a nebula\'s own lightning, presets, the lightning object', async () => {
+  const { CoreValidationService } = await import('../../src/core/validation-service/index.js');
+  const { astrometricsSchema } = await import('../../src/cards/schemas/astrometrics-schema.js');
+  const v = new CoreValidationService({ cacheResults: false });
+  const issues = (o) => { const r = v.validate({ type: 'custom:lcards-astrometrics-card', objects: [o] }, astrometricsSchema); return [...r.errors, ...r.warnings]; };
+  const neb = (o) => issues({ type: 'nebula', ...o });
+  assert.deepEqual(neb({ preset: 'badlands' }), []);
+  assert.deepEqual(neb({ preset: 'badlands_voyager', columns: { count: 3 }, band: false, lightning: true }), []);
+  assert.deepEqual(neb({ render: 'volume', shape: 'layers', gap: 0.4, veins: 0.8, band: { brightness: 1.5, width: 0.1, color: 'var(--lcars-orange)' }, columns: { count: 6, kind: 'vortex', waist: 0.4, width: [1, 3], color: 'var(--lcars-violet)' } }), []);
+  assert.deepEqual(neb({ render: 'volume', lightning: { rate: 2, color: 'var(--lcards-moonlight)', glow: { color: 'var(--lcars-lavender)', width: 4 }, branches: 4, seed: 2 } }), []);
+  assert.ok(neb({ preset: 'nexus' }).length > 0);
+  assert.ok(neb({ columns: { kind: 'smoke' } }).length > 0);
+  assert.ok(neb({ columns: { waist: 2 } }).length > 0);
+  assert.ok(neb({ gap: 1.5 }).length > 0);
+  // the lightning object
+  assert.deepEqual(issues({ type: 'lightning', size: [300, 200, 300], rate: 2.5, color: 'var(--lcards-moonlight)', glow: false, width: 2, branches: 4, jaggedness: 0.6, brightness: 1.2, flash: 200, seed: 3, lights: false }), []);
+  assert.deepEqual(issues({ type: 'lightning', mode: 'column', radius: 40, count: 3, glow: { color: 'var(--lcars-magenta)' } }), []);
+  assert.deepEqual(issues({ type: 'lightning', mode: 'column', count: 2, speed: 0.3 }), []);
+  assert.deepEqual(neb({ preset: 'badlands_voyager', columns: { speed: 0 } }), []);
+  assert.ok(issues({ type: 'lightning', mode: 'column', speed: -1 }).length > 0);
+  assert.ok(issues({ type: 'lightning', mode: 'crawl' }).length > 0);
+});
+
+test('NB2c presets: names in step, merged under the config\'s keys, parts key by key', async () => {
+  const { NEBULA_PRESET_CONFIGS, withNebulaPreset } = await import('../../src/core/astrometrics/nebula-presets.js');
+  const { NEBULA_PRESETS } = await import('../../src/core/astrometrics/names.js');
+  assert.deepEqual(Object.keys(NEBULA_PRESET_CONFIGS).sort(), [...NEBULA_PRESETS].sort());
+  for (const p of NEBULA_PRESETS) {
+    const c = withNebulaPreset({ type: 'nebula', preset: p });
+    assert.equal(c.render, 'volume', p);
+    assert.equal(c.shape, 'layers', p);
+  }
+  const plain = { type: 'nebula', radius: 40 };
+  assert.equal(withNebulaPreset(plain), plain, 'no preset: the config as it is');
+  const c = withNebulaPreset({ type: 'nebula', preset: 'badlands', seed: 9, columns: { count: 3 }, band: false });
+  assert.equal(c.seed, 9, 'own keys win');
+  assert.deepEqual(c.columns, { ...NEBULA_PRESET_CONFIGS.badlands.columns, count: 3 }, 'a part key by key');
+  assert.equal(c.band, false, 'a part turned off');
+  assert.deepEqual(withNebulaPreset({ type: 'nebula', preset: 'badlands_voyager', lightning: true }).lightning, NEBULA_PRESET_CONFIGS.badlands_voyager.lightning, 'true: the preset\'s part');
+  const r = withNebulaPreset({ type: 'nebula', preset: 'badlands', radius: 80 });
+  assert.equal(r.size, undefined, 'a radius of your own replaces the preset\'s box');
+  assert.equal(r.radius, 80);
 });

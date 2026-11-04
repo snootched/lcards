@@ -304,6 +304,26 @@ test('astrometrics nebula: shapes and dust only with render: volume (NB1)', () =
     assert.ok(messages(check(astro({ objects: [{ type: 'nebula', render: 'volume', shape: 'ring' }] }))).some((m) => m.startsWith('error objects[0].shape')));
 });
 
+test('astrometrics Badlands: layers keys only with shape: layers, column keys by kind, lightning by mode (NB2c)', () => {
+    const warns = (o) => messages(check({ type: 'custom:lcards-astrometrics-card', objects: [o] })).filter((m) => m.startsWith('warning'));
+    assert.deepEqual(warns({ type: 'nebula', preset: 'badlands' }), [], 'a preset is volume and layers');
+    assert.deepEqual(warns({ type: 'nebula', preset: 'badlands', columns: { kind: 'vortex', waist: 0.4 }, gap: 0.3 }), []);
+    assert.deepEqual(warns({ type: 'nebula', render: 'volume', shape: 'shell', gap: 0.3, band: true, lightning: true }), [
+        'warning objects[0].gap: gap applies only with shape: layers',
+        'warning objects[0].band: band applies only with shape: layers'
+    ]);
+    assert.deepEqual(warns({ type: 'nebula', lightning: { rate: 1 } }), ['warning objects[0].lightning: lightning applies only with render: volume (this nebula draws puffs)']);
+    assert.deepEqual(warns({ type: 'nebula', preset: 'badlands', columns: { waist: 0.4 } }), ['warning objects[0].columns.waist: waist shapes a vortex (this column kind is fire)']);
+    assert.deepEqual(warns({ type: 'nebula', preset: 'badlands_voyager', columns: { width: 2 } }), ['warning objects[0].columns.width: width sets fire and vortex columns (lightning columns take the bolt width of their own)']);
+    assert.deepEqual(warns({ type: 'lightning', mode: 'column', rate: 2 }), ['warning objects[0].rate: rate times strikes (mode: column holds its bolts)']);
+    assert.deepEqual(warns({ type: 'lightning', count: 3 }), ['warning objects[0].count: count is how many columns (mode: column); strikes come one at a time']);
+    // speed: held lightning columns only
+    assert.deepEqual(warns({ type: 'lightning', mode: 'column', speed: 0.4 }), []);
+    assert.deepEqual(warns({ type: 'nebula', preset: 'badlands_voyager', columns: { speed: 0.4 } }), []);
+    assert.deepEqual(warns({ type: 'lightning', speed: 0.4 }), ['warning objects[0].speed: speed sets how fast held columns crawl (mode: column); strikes are timed by rate and flash']);
+    assert.deepEqual(warns({ type: 'nebula', preset: 'badlands', columns: { speed: 0.4 } }), ['warning objects[0].columns.speed: speed is for lightning columns (this column kind is fire; fire and vortex move with drift)']);
+});
+
 test('astrometrics model file_units: needs units where the model is, and no size (UX1 P6c)', () => {
     const astro = (extra) => ({ type: 'custom:lcards-astrometrics-card', ...extra });
     const ship = (extra = {}) => ({ type: 'model', id: 'ship', src: 'builtin:constitution', file_units: 'ft', ...extra });

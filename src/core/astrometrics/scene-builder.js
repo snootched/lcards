@@ -36,6 +36,7 @@ import { buildBelt } from './objects/belt.js';
 import { buildAsteroid } from './objects/asteroid.js';
 import { buildComet } from './objects/comet.js';
 import { buildGalaxy } from './objects/galaxy.js';
+import { buildLightning } from './objects/lightning.js';
 import { applyRotation, disposeNode, num } from './objects/common.js';
 import { localBounds } from './distance-fade.js';
 import { Facing, spinTangent, axisFacing } from './facing.js';
@@ -43,7 +44,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export { OBJECT_TYPES };
 /** Builders of the objects points can stand on; line objects read points, so they come second */
-const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image: buildImage, glow: buildGlow, belt: buildBelt, asteroid: buildAsteroid, comet: buildComet, galaxy: buildGalaxy };
+const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image: buildImage, glow: buildGlow, belt: buildBelt, asteroid: buildAsteroid, comet: buildComet, galaxy: buildGalaxy, lightning: buildLightning };
 
 /**
  * @typedef {Object} AstroScene
@@ -168,6 +169,8 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   const list = [];
   /** @type {Map<import('./objects/common.js').BuiltObject, Group>} */
   const outer = new Map();
+  // the live map (a rebuilt object replaces its entry): lightning finds the nebulae it lights
+  ctx.objects = () => objects;
   const cfgs = Array.isArray(config?.objects) ? config.objects.filter((o) => o && typeof o === 'object') : [];
   const counts = /** @type {Record<string, number>} */ ({});
 

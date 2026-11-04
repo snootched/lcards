@@ -38,6 +38,8 @@ import nebulaField from './part-nebula-field.js';
 import wormhole from './part-wormhole.js';
 import sectorVolumes from './part-sector-volumes.js';
 import starbase from './part-starbase.js';
+import badlands from './part-badlands.js';
+import badlandsVoyager from './part-badlands-voyager.js';
 
 /**
  * @typedef {Object} StarterParam
@@ -86,7 +88,7 @@ import starbase from './part-starbase.js';
  */
 
 /** @type {Starter[]} */
-export const STARTERS = [galaxy, sectorMap, skyDome, solarSystem, federationMap, starbaseApproach, deepSpaceNine, bajoranWormhole, utopiaPlanitia, borgEncounter, trueScaleSolarSystem, trueScaleDive, starTrekGalaxy, planet, asteroidBelt, asteroid, comet, nebulaField, wormhole, sectorVolumes, starbase, stMinorPowers, stDeltaPowers, stTranswarp];
+export const STARTERS = [galaxy, sectorMap, skyDome, solarSystem, federationMap, starbaseApproach, deepSpaceNine, bajoranWormhole, utopiaPlanitia, borgEncounter, trueScaleSolarSystem, trueScaleDive, starTrekGalaxy, planet, asteroidBelt, asteroid, comet, nebulaField, badlands, badlandsVoyager, wormhole, sectorVolumes, starbase, stMinorPowers, stDeltaPowers, stTranswarp];
 
 /** Keys whose string values (or list entries) name a point, object or view */
 const REF_KEYS = new Set(['id', 'at', 'object', 'target', 'from', 'to', 'points', 'view', 'light', 'face', 'point']);

@@ -28,6 +28,7 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 | Your own picture on the plane | [`image`](#image) |
 | A ship, a station, any 3D model | [`model`](#model) |
 | A Borg cube (or a plain shaded box) | [`cube`](#cube) |
+| Lightning: bolts that flash and go, or held flickering columns (lights the gas of a volume nebula it strikes in) | [`lightning`](#lightning) |
 | A star system at true scale inside a larger scene (its own points and objects, in units of its own) | [`system`](#system) |
 
 ## Keys every object takes
@@ -446,9 +447,45 @@ objects:
   - { type: cube, at: cube, size: 20, spin: 5 }
 ```
 
+## lightning
+
+Jagged, forked bolts. With `mode: strike` (the default) a bolt flashes at a random place in the object's region, mostly from high to low: a quick rise, a fade and a weaker second stroke, then a pause. With `mode: column` it holds `count` bolts from the region's floor to its ceiling, crawling and flickering. A bolt inside a [volume nebula](./effects#gas-you-can-fly-into) lights the gas round it in its own colour; any volume nebula it falls in, nothing to link.
+
+| Key | What it does |
+|---|---|
+| `mode` | `strike` (default) or `column`. |
+| `radius`, `size` | The region round `at`: a ball (`radius`, default 50) or a box `[width, height, depth]`. Strikes fall inside it; columns stand on its floor. |
+| `rate` | `strike`: about how many strikes a second (default 0.5; the pauses vary round it). 0: none. Can [follow an entity](./data#settings-from-entities). |
+| `flash` | `strike`: how long a strike shows, ms (default 150). |
+| `count` | `column`: how many columns, spread over the region (default 1). |
+| `speed` | `column`: how fast the held bolts crawl (take a new shape) and flicker: 1 (default) as drawn, 0.5 half as fast, 0 still. Can follow an entity. |
+| `color` | The bolt (its bright core). Default `var(--lcards-moonlight)`. |
+| `glow` | The soft glow round it: `true` (default), `false`, or `{ color, width }` (`width` times the bolt's, default 6). |
+| `width` | The bolt's width, px (default 2); its branches are about half as wide. |
+| `jaggedness` | How far the channel zigzags, 0 (straight) to 1. Default 0.5 for a strike, 0.25 for a column. |
+| `branches` | Forks off the channel, each may fork once more. Default 3 for a strike, 1 for a column. |
+| `brightness` | How strongly it lights the gas, 0 to 2 (default 1). Can follow an entity. |
+| `lights` | `false`: the bolts only, the gas stays dark. |
+| `seed` | Where the strikes fall and how the bolts are shaped. |
+
+Under reduced motion no strike shows and columns stand still and dim. A volume nebula can also have strikes of its own (`lightning:` on the nebula, see [the Badlands](./effects#the-badlands-layers-columns-and-lightning)).
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 360
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 30, tilt: 6, distance: 300 }
+backdrop:
+  stars: { count: 2000 }
+objects:
+  - { type: nebula, render: volume, size: [400, 220, 400], count: 10, colors: [var(--lcars-orange), var(--lcars-red)], seed: 5, density: 1.6, max_radius: 160 }
+  - { type: lightning, size: [260, 170, 260], rate: 2, color: var(--lcars-space-white), glow: { color: var(--lcars-lavender) }, branches: 4, seed: 4 }
+```
+
 ## nebula
 
-Clouds of gas in the scene, in the look of the nebula background preset: `radius` or `size` (the region), `count`, `seed`, `colors`, `turbulence`, `drift`. See [Effects: nebula](./effects#nebula).
+Clouds of gas in the scene, in the look of the nebula background preset: `radius` or `size` (the region), `count`, `seed`, `colors`, `turbulence`, `drift`. `preset: badlands` or `badlands_voyager` starts from the Badlands. See [Effects: nebula](./effects#nebula).
 
 ## belt
 

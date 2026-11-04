@@ -785,6 +785,67 @@ test('NB1 nebula shapes: each shape and the dusty band draw their gas (no shader
     await expectNoErrors(page);
 });
 
+test('NB2c Badlands: both presets draw their layers and columns (no shader errors)', async ({ page }) => {
+    await mountCase(page, 'astro-badlands', { width: '800', height: '400' });
+    await sceneReady(page);
+    /** Share of lit pixels in the left and right halves */
+    const lit = () => page.evaluate(() => {
+        const canvas = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('.astro-scene canvas');
+        const { width, height } = canvas;
+        const data = canvas.getContext('2d').getImageData(0, 0, width, height).data;
+        const share = (/** @type {number} */ x0, /** @type {number} */ x1) => {
+            let n = 0, all = 0;
+            for (let y = Math.round(0.2 * height); y < 0.8 * height; y++) for (let x = Math.round(x0 * width); x < x1 * width; x++) {
+                const i = (y * width + x) * 4;
+                all++;
+                if (data[i] + data[i + 1] + data[i + 2] > 60) n++;
+            }
+            return n / all;
+        };
+        return [share(0.05, 0.48), share(0.52, 0.95)];
+    });
+    await expect.poll(async () => Math.min(...(await lit()))).toBeGreaterThan(0.1);
+    // the Voyager preset's lightning columns and strikes are lightning objects of the nebula's own
+    const bolts = await page.evaluate(() => {
+        const list = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world.list;
+        const voy = list.find((/** @type {any} */ b) => b.id === 'voyager');
+        return voy.node.children.filter((/** @type {any} */ c) => String(c.name).startsWith('lightning:')).map((/** @type {any} */ c) => c.name);
+    });
+    expect(bolts).toEqual(['lightning:voyager:columns', 'lightning:voyager:lightning']);
+    await expectNoErrors(page);
+});
+
+test('NB2c lightning: strikes flash and light the gas round them', async ({ page }) => {
+    await mountCase(page, 'astro-lightning', { width: '600', height: '400' });
+    await sceneReady(page);
+    // three seconds of frames: the canvas's mean brightness with a bolt showing and without
+    const seen = await page.evaluate(() => new Promise((resolve) => {
+        const card = /** @type {any} */ (document.querySelector('#mount > *'));
+        const canvas = card.renderRoot.querySelector('.astro-scene canvas');
+        const ctx = canvas.getContext('2d');
+        const on = /** @type {number[]} */ ([]);
+        const off = /** @type {number[]} */ ([]);
+        const end = performance.now() + 3000;
+        const frame = () => {
+            const bolt = card._scene.debug().world.list.find((/** @type {any} */ b) => b.id === 'bolts');
+            const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let sum = 0;
+            for (let i = 0; i < data.length; i += 16) sum += data[i] + data[i + 1] + data[i + 2];
+            const mean = sum / (data.length / 16);
+            if (bolt.node.visible && bolt.lines[2].material.opacity > 0.6) on.push(mean);
+            else if (!bolt.node.visible) off.push(mean);
+            if (performance.now() < end) requestAnimationFrame(frame);
+            else resolve({ on: on.length ? Math.max(...on) : 0, off: off.length ? Math.min(...off) : 0, strikes: on.length });
+        };
+        frame();
+    }));
+    const r = /** @type {{ on: number, off: number, strikes: number }} */ (seen);
+    expect(r.strikes).toBeGreaterThan(0);
+    // the gas lit round a strike: about 1.85 with lights, 1.05 with lights: false (the bolt alone)
+    expect(r.on).toBeGreaterThan(r.off * 1.3);
+    await expectNoErrors(page);
+});
+
 test('NB1 nebula dust: a dark lane hides the gas behind it', async ({ page }) => {
     await mountCase(page, 'astro-nebula-dust', { width: '600', height: '400' });
     await sceneReady(page);
