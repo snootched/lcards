@@ -149,6 +149,33 @@ export function stepObjects(list, dt, t) {
  * @param {any} v
  * @param {number} d
  */
+/**
+ * A part's settings (`coma: { size }`): the object, or {} when the part is
+ * left out or only switched (true / false).
+ * @param {any} v
+ * @returns {Record<string, any>}
+ */
+export function sub(v) {
+  return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+}
+
+/**
+ * Whether a part that can be switched (`edges: true | false | {...}`) is on:
+ * false is off, true or settings on, left out the default.
+ * @param {any} v @param {boolean} def
+ */
+export function isOn(v, def) {
+  return v === undefined || v === null ? def : v !== false;
+}
+
+/**
+ * Major line width, px (`major.line_width`, default 1.5 x line_width, at least 1.5)
+ * @param {any} cfg
+ */
+export function majorWidth(cfg) {
+  return num(sub(cfg.major).line_width, Math.max(1.5, num(cfg.line_width, 1) * 1.5));
+}
+
 export function num(v, d) {
   const n = Number(v);
   return v !== undefined && v !== null && v !== '' && Number.isFinite(n) ? n : d;
@@ -237,17 +264,18 @@ export function disposeNode(node) {
 export function gridLook(cfg, ctx, o) {
   const opacity = num(cfg.opacity, 1);
   const color = ctx.color(cfg.color, DEFAULT_COLORS.grid);
-  const colorMajor = cfg.color_major !== undefined ? ctx.color(cfg.color_major, DEFAULT_COLORS.grid) : [color[0], color[1], color[2], Math.min(1, (color[3] ?? 1) * 1.6)];
+  const major = sub(cfg.major);
+  const colorMajor = major.color !== undefined ? ctx.color(major.color, DEFAULT_COLORS.grid) : [color[0], color[1], color[2], Math.min(1, (color[3] ?? 1) * 1.6)];
   return {
     pattern: /** @type {any} */ (o.pattern ?? cfg.pattern ?? 'both'),
     cell: o.cell,
-    majorRow: o.majorRow ?? num(cfg.major_row_interval, 0),
-    majorCol: o.majorCol ?? num(cfg.major_col_interval, 0),
+    majorRow: o.majorRow ?? num(major.row_interval, 0),
+    majorCol: o.majorCol ?? num(major.col_interval, 0),
     widthMinor: num(cfg.line_width, 1),
-    widthMajor: num(cfg.line_width_major, Math.max(1.5, num(cfg.line_width, 1) * 1.5)),
+    widthMajor: majorWidth(cfg),
     color,
     colorMajor,
-    fill: cfg.fill_color !== undefined ? ctx.color(cfg.fill_color, 'transparent') : undefined,
+    fill: sub(cfg.fill).color !== undefined ? ctx.color(sub(cfg.fill).color, 'transparent') : undefined,
     spokes: num(cfg.spoke_count, 12),
     spacing: o.cell[0],
     hexRadius: num(cfg.hex_radius, o.cell[0]),
@@ -260,18 +288,19 @@ export function gridLook(cfg, ctx, o) {
 }
 
 /**
- * The scan band (`scan_period`, `scan_color`: the background grid's keys)
+ * The scan band (`scan: { period, color }`)
  * on an object's grid faces: each face sweeps its own range (see
- * `scanRange`) on the scene clock. Null when `scan_period` is not set.
+ * `scanRange`) on the scene clock. Null when `scan.period` is not set.
  * @param {any} cfg
  * @param {BuildContext} ctx
  * @param {import('three').Group[]} faces
  * @returns {((dt: number, t: number) => boolean) | null}
  */
 export function scanTicker(cfg, ctx, faces) {
-  const period = num(cfg.scan_period, 0);
+  const scan = sub(cfg.scan);
+  const period = num(scan.period, 0);
   if (!(period > 0) || !faces.length) return null;
-  const color = ctx.color(cfg.scan_color, DEFAULT_COLORS.scan);
+  const color = ctx.color(scan.color, DEFAULT_COLORS.scan);
   const runs = faces.map((face) => ({ face, range: scanRange(face) }));
   for (const { face } of runs) face.userData.uniforms.uScan.value = withOpacity(color, num(cfg.opacity, 1));
   return (_dt, t) => {
@@ -297,17 +326,18 @@ export function combineTicks(...ticks) {
 }
 
 /**
- * The `fill_effect` material for an object, from the effects chunk; null
+ * The `fill.effect` material for an object, from the effects chunk; null
  * without one (or with the chunk missing: a warning, the object draws without it).
  * @param {any} cfg
  * @param {BuildContext} ctx
  * @param {{ radius: number, base?: number[], opacity?: number, solid?: boolean, depth?: number }} o
  */
 export function fillFor(cfg, ctx, o) {
-  if (!cfg.fill_effect) return null;
+  const effect = sub(cfg.fill).effect;
+  if (!effect) return null;
   if (!ctx.effects) {
-    lcardsLog.warn(`[Astrometrics] fill_effect on '${cfg.id ?? cfg.type}' skipped: the effects chunk is not loaded`);
+    lcardsLog.warn(`[Astrometrics] fill.effect on '${cfg.id ?? cfg.type}' skipped: the effects chunk is not loaded`);
     return null;
   }
-  return ctx.effects.fillMaterial(cfg.fill_effect, ctx, o);
+  return ctx.effects.fillMaterial(effect, ctx, o);
 }

@@ -439,11 +439,15 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         if tendril_length is not None: canvas_overrides["tendrilLength"]   = tendril_length
         if particle_count is not None: canvas_overrides["particleCount"]   = particle_count
         # WebGL intro options (single words: same key in YAML and JS)
-        for key in ("renderer", "cube", "corruption", "overrun"):
+        for key in ("renderer", "corruption", "overrun"):
             if call.data.get(key) is not None:
                 canvas_overrides[key] = call.data[key]
-        if call.data.get("cube_style") is not None:
-            canvas_overrides["cubeStyle"] = call.data["cube_style"]
+        # cube: detailed | classic | none (the page's cube on/off and cubeStyle)
+        cube = call.data.get("cube")
+        if cube is not None:
+            canvas_overrides["cube"] = cube != "none"
+            if cube != "none":
+                canvas_overrides["cubeStyle"] = cube
 
         # Mapping from snake_case YAML keys → camelCase JS params.
         # Allows intro_layers.canvas to use either convention in YAML.
@@ -643,8 +647,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             vol.Optional("tendril_length"):    vol.All(int, vol.Range(min=100, max=1200)),
             vol.Optional("particle_count"):    vol.All(int, vol.Range(min=0, max=6)),
             vol.Optional("renderer"):          vol.In(["auto", "webgl", "canvas"]),
-            vol.Optional("cube"):              bool,
-            vol.Optional("cube_style"):        vol.In(["detailed", "classic"]),
+            vol.Optional("cube"):              vol.In(["detailed", "classic", "none"]),
             vol.Optional("corruption"):        vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
             vol.Optional("overrun"):           vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
             vol.Optional("suppress_persistent"): bool,

@@ -26,7 +26,7 @@ export default /** @type {import('./index.js').Starter} */ ({
     objects: [
       { type: 'glow', at: 'cube', size: 110, color: 'var(--lcards-green-medium)', opacity: 0.45 },
       { type: 'cube', id: 'borg', at: 'cube', size: 40, spin: 3, rotation: [8, 25, 0] },
-      { type: 'model', id: 'hull', src: 'builtin:constitution', at: 'ship', size: 20, rotation: [0, 160, 0], scan_period: 5 },
+      { type: 'model', id: 'hull', src: 'builtin:constitution', at: 'ship', size: 20, rotation: [0, 160, 0], scan: { period: 5 } },
       { type: 'beam', from: 'emitter', to: 'ship', width: 10, color: 'var(--lcards-green-medium)', pulse: true }
     ]
   })

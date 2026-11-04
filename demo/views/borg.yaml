@@ -21,7 +21,7 @@ sections:
         tap_action:
           action: perform-action
           perform_action: lcards.borg_assimilate
-          data: { intro_duration: 30000, cube_style: classic }
+          data: { intro_duration: 30000, cube: classic }
         grid_options: { columns: 6, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge

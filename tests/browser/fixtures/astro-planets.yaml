@@ -1,5 +1,5 @@
 # Astrometrics planet content (E8, astrometrics.spec.js): built-in maps,
-# fill_effect planet types (bands and contour) and Saturn's ring band.
+# fill.effect planet types (bands and contour) and Saturn's ring band.
 type: custom:lcards-astrometrics-card
 height: 400
 camera:
@@ -11,12 +11,12 @@ objects:
   - { type: sphere, id: mars, at: [-20, 22, 0], radius: 10, image: builtin:mars_viking, line_width: 0.5 }
   - { type: sphere, id: moon, at: [10, 22, 0], radius: 10, image: builtin:moon_lroc, line_width: 0.5 }
   - { type: sphere, id: venus, at: [40, 22, 0], radius: 10, image: builtin:venus_magellan, line_width: 0.5 }
-  - { type: sphere, id: giant, at: [-50, -6, 0], radius: 10, fill_effect: { preset: gas_giant }, line_width: 0.5 }
-  - { type: sphere, id: ice_giant, at: [-20, -6, 0], radius: 10, fill_effect: { preset: ice_giant }, line_width: 0.5 }
-  - { type: sphere, id: storm, at: [10, -6, 0], radius: 10, fill_effect: { preset: storm_giant }, line_width: 0.5 }
-  - { type: sphere, id: clouds, at: [40, -6, 0], radius: 10, fill_effect: { preset: clouds }, line_width: 0.5 }
-  - { type: sphere, id: lava, at: [-50, -32, 0], radius: 8, fill_effect: { preset: lava }, line_width: 0.5 }
-  - { type: sphere, id: ice, at: [-28, -32, 0], radius: 8, fill_effect: { preset: ice }, line_width: 0.5 }
-  - { type: sphere, id: terran, at: [-6, -32, 0], radius: 8, fill_effect: { preset: terran }, line_width: 0.5 }
-  - { type: sphere, id: saturn, at: [32, -34, 0], radius: 5, fill_effect: { preset: ringed_giant }, line_width: 0.5 }
-  - { type: ring, id: rings, at: [32, -34, 0], radius: 11.65, inner_radius: 5.55, inclination: 27, image: builtin:saturn_rings }
+  - { type: sphere, id: giant, at: [-50, -6, 0], radius: 10, fill: { effect: { preset: gas_giant } }, line_width: 0.5 }
+  - { type: sphere, id: ice_giant, at: [-20, -6, 0], radius: 10, fill: { effect: { preset: ice_giant } }, line_width: 0.5 }
+  - { type: sphere, id: storm, at: [10, -6, 0], radius: 10, fill: { effect: { preset: storm_giant } }, line_width: 0.5 }
+  - { type: sphere, id: clouds, at: [40, -6, 0], radius: 10, fill: { effect: { preset: clouds } }, line_width: 0.5 }
+  - { type: sphere, id: lava, at: [-50, -32, 0], radius: 8, fill: { effect: { preset: lava } }, line_width: 0.5 }
+  - { type: sphere, id: ice, at: [-28, -32, 0], radius: 8, fill: { effect: { preset: ice } }, line_width: 0.5 }
+  - { type: sphere, id: terran, at: [-6, -32, 0], radius: 8, fill: { effect: { preset: terran } }, line_width: 0.5 }
+  - { type: sphere, id: saturn, at: [32, -34, 0], radius: 5, fill: { effect: { preset: ringed_giant } }, line_width: 0.5 }
+  - { type: ring, id: rings, at: [32, -34, 0], radius: 11.65, band: { image: builtin:saturn_rings, inner_radius: 5.55 }, inclination: 27 }

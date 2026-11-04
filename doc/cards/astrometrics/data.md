@@ -114,7 +114,7 @@ objects:
   - type: sphere
     id: shields
     radius: 30
-    fill_color: var(--lcars-blue)
+    fill: { color: var(--lcars-blue) }
     # shields 0 to 100 % gives an opacity of 0 to 0.6
     opacity: { entity: input_number.lcards_test_shields, output: [0, 0.6] }
   - type: glow
@@ -136,9 +136,9 @@ objects:
 - **The same words as elsewhere:** `input` and `output` are the keys of `map_range` in [animations](/core/animations) and background animations, and of the rules' `map_range_cond`.
 - **No value** (unavailable, not a number): the key's default.
 - **Templates** work too: `spin: "[[[ return states['input_number.lcards_test_power'].state / 10 ]]]"`, or `{{ }}` and `{entity.state}`.
-- **What changes in place:** an object's `opacity`, `radius`, `size` and `spin` ease to their new value without rebuilding anything. Some types take more of their own: a belt's `radius` (each side too), `thickness` and `count` (the band widens or thins round the same rocks; a bound `count` builds for the top of its `output` and draws fewer, so keep `output` no higher than you need); a comet's `size`, `coma_size`, `tail_length` and `glow`; a nebula's `drift` (each side too: the clouds speed up or slow down from where they are). Any other key (a deformation's `amplitude`, a galaxy's `arms`, a point's `alt`) rebuilds that one object or point, at most four times a second, and steps.
+- **What changes in place:** an object's `opacity`, `radius`, `size` and `spin` ease to their new value without rebuilding anything. Some types take more of their own: a belt's `radius` (each side too), `thickness` and `count` (the band widens or thins round the same rocks; a bound `count` builds for the top of its `output` and draws fewer, so keep `output` no higher than you need); a comet's `nucleus.size`, `coma.size`, `tail.length` and `glow`; a nebula's `drift` (each side too: the clouds speed up or slow down from where they are). Any other key (a deformation's `amplitude`, a galaxy's `arms.count`, a point's `alt`) rebuilds that one object or point, at most four times a second, and steps.
 - **Pairs:** a setting that takes `[a, b]` (a belt's `[inner, outer]` radius and `[smallest, largest]` rock size, a grid's or image's `[w, d]` size, a ring's ellipse, a nebula's drift) can have either side follow an entity of its own: `radius: [{ entity: input_number.lcards_test_shields, output: [40, 70] }, 90]`. A whole `radius` bound to one entity gives one number (for a belt, the outer edge with the inner at 0.8 of it) and scales in place; a bound side rebuilds the object, except a belt's, which eases. In the Astrometrics Studio each box of a pair has its own link button.
-- **Whole numbers:** how-many settings (a belt's `count`, a galaxy's `arms` and `stars`, a nebula's `cloud_count`, a wobble's `lobes`, a polar grid's `spoke_count`, `num_octaves`, `major_row_interval` and `major_col_interval`) take the mapped value rounded, so `count: { entity: input_number.lcards_test_power, output: [100, 500] }` gives 233 rocks at 33.3 %, and the object rebuilds only when the whole number changes. Seeds do not follow entities.
+- **Whole numbers:** how-many settings (a belt's `count`, a galaxy's `arms.count` and `stars.count`, a nebula's `count`, a wobble's `lobes`, a polar grid's `spoke_count`, `num_octaves`, `major.row_interval` and `major.col_interval`) take the mapped value rounded, so `count: { entity: input_number.lcards_test_power, output: [100, 500] }` gives 233 rocks at 33.3 %, and the object rebuilds only when the whole number changes. Seeds do not follow entities.
 - **On the card:** `time_scale`, `clock.rate` and `clock.date` follow entities the same way (`clock: { date: { entity: input_datetime.lcards_test_date } }` shows the planets on the date in a helper). Positions follow entities their own way: see [Positions from entities](#positions-from-entities).
 - Pairs and lists (`[x, y, z]`, `rotation`) and whole numbers (`count`, `spoke_count`) do not follow entities yet.
 

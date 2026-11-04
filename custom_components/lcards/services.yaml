@@ -1105,20 +1105,12 @@ borg_assimilate:
             - webgl
             - canvas
     cube:
-      name: Borg Cube
+      name: Borg cube
       description: >
         WebGL intro only: a rotating Borg cube emerges at the centre of the
-        screen. Default: on.
-      required: false
-      default: true
-      selector:
-        boolean:
-    cube_style:
-      name: Cube style
-      description: >
-        WebGL intro only: `detailed` (default) draws a solid cube covered in
-        machinery, with a rail lattice, glowing spots and a soft halo.
-        `classic` draws the lighter wireframe cube.
+        screen. `detailed` (default) draws a solid cube covered in machinery,
+        with a rail lattice, glowing spots and a soft halo. `classic` draws the
+        lighter wireframe cube. `none` leaves the cube out.
       required: false
       default: detailed
       selector:
@@ -1126,6 +1118,7 @@ borg_assimilate:
           options:
             - detailed
             - classic
+            - none
     corruption:
       name: Signal Corruption
       description: >

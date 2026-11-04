@@ -12,7 +12,7 @@ points:
   - { id: real_name, xyz: [0, -40, 0], label: REAL, look: realistic }
 objects:
   - { type: sphere, id: wire, radius: 25, line_spacing_deg: 20, look: diagram }
-  - { type: sphere, id: real, radius: 25, fill_color: var(--lcars-blue), look: realistic }
+  - { type: sphere, id: real, radius: 25, fill: { color: var(--lcars-blue) }, look: realistic }
   - { type: ring, id: always, radius: 45 }
   # a vortex whose size follows an entity: rebuilt at its first value, its stars sized to the canvas
-  - { type: galaxy, id: swirl, radius: { entity: input_number.lcards_test_power, output: [10, 30] }, arms: 3, bar: 0, stars: 2000, look: realistic }
+  - { type: galaxy, id: swirl, radius: { entity: input_number.lcards_test_power, output: [10, 30] }, arms: { count: 3 }, bar: { length: 0 }, stars: { count: 2000 }, look: realistic }

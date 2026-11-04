@@ -1,5 +1,5 @@
 /**
- * `fill_effect` on a `sphere` body or under a `grid` surface's lines: the
+ * `fill.effect` on a `sphere` body or under a `grid` surface's lines: the
  * background presets `plasma` (two-colour bands), `fluid` (a one-colour
  * wash) and `contour-field` (topographic bands) painted on the object, with
  * the same formulas as their background shaders but sampled from 3D noise
@@ -34,7 +34,7 @@ const FLOW = new Vector3(1, 0.35, 0.6).normalize();
 const pal = (name) => `var(--lcards-${name})`;
 
 /**
- * Planet types for `fill_effect.preset` (names in `names.js` FILL_PRESETS):
+ * Planet types for `fill.effect.preset` (names in `names.js` FILL_PRESETS):
  * a type and its settings, with the config's own keys merged over.
  * @type {Record<string, Record<string, any>>}
  */
@@ -51,7 +51,7 @@ export const FILL_PRESETS = {
 };
 
 /**
- * A fill_effect config with its preset merged under it.
+ * A fill.effect config with its preset merged under it.
  * @param {any} fill
  * @returns {Record<string, any>}
  */
@@ -212,7 +212,7 @@ export function contourStops(list) {
 
 /**
  * The fill material for one object, and its tick when it moves.
- * @param {any} fill - the `fill_effect` config
+ * @param {any} fill - the `fill.effect` config
  * @param {import('../objects/common.js').BuildContext} ctx
  * @param {{ radius: number, base?: number[], opacity?: number, solid?: boolean, depth?: number }} o -
  *   radius sets the default detail; base is the colour under the fill (straight rgba);

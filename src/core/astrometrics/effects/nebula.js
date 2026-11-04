@@ -23,10 +23,10 @@
 import { Group, Mesh, BufferGeometry, Float32BufferAttribute, Uint16BufferAttribute, ShaderMaterial, AdditiveBlending, NormalBlending, Vector2 } from 'three';
 import { NOISE_GLSL, splitCoord } from '../../packs/backgrounds/webgl/scenes/noise-glsl.js';
 import { seededRandom } from '../../packs/backgrounds/webgl/scenes/scene-helpers.js';
-import { built, num, pair, DEFAULT_COLORS } from '../objects/common.js';
+import { built, num, pair, sub, DEFAULT_COLORS } from '../objects/common.js';
 import { buildNebulaVolume } from './nebula-volume.js';
 
-/** The `nebula` preset caps cloud_count at 10 */
+/** The `nebula` preset caps cloud_count at 10 (the object's count) */
 export const MAX_CLOUDS = 10;
 /** Default cloud radii with render: volume, fractions of the region */
 export const VOLUME_RADII = [0.25, 0.55];
@@ -58,7 +58,7 @@ const CELLS_PER_RADIUS = 1.5;
  * @property {boolean} dust - a dark cloud: blocks the gas behind it (render: volume)
  */
 
-/** Dark clouds from dust_count, at most */
+/** Dark clouds from dust.count, at most */
 export const MAX_DUST = 4;
 
 /**
@@ -116,7 +116,7 @@ export function nebulaLayout(cfg) {
       });
     });
   } else {
-    const n = Math.max(1, Math.min(MAX_CLOUDS, Math.round(num(cfg.cloud_count, 4))));
+    const n = Math.max(1, Math.min(MAX_CLOUDS, Math.round(num(cfg.count, 4))));
     const s = Math.max(0, Math.min(1, num(cfg.stretch, 0)));
     // the stretch and the dust from their own streams: neither moves a cloud the seed placed
     const shapeRnd = seededRandom(num(cfg.seed, 1) * 7919 + 13);
@@ -129,7 +129,7 @@ export function nebulaLayout(cfg) {
       clouds.push({ xyz, radius, ...stretchedAxes(radius, s, shapeRnd), color, opacity: o0 + rnd() * (o1 - o0), dust: false });
     }
     const dustRnd = seededRandom(num(cfg.seed, 1) * 104729 + 71);
-    const nd = Math.max(0, Math.min(MAX_DUST, Math.round(num(cfg.dust_count, 0))));
+    const nd = Math.max(0, Math.min(MAX_DUST, Math.round(num(sub(cfg.dust).count, 0))));
     for (let i = 0; i < nd; i++) {
       // a lane across a gas cloud (dust only shows against gas behind it), always drawn out long
       const g = clouds[i % n];

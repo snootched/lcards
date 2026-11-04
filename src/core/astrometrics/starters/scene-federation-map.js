@@ -28,14 +28,14 @@ export default /** @type {import('./index.js').Starter} */ ({
       { id: 'neutral_zone', polar: [60, 330], label: 'NEUTRAL ZONE', style: 'tiny', color: 'var(--lcars-green)' }
     ],
     objects: [
-      { type: 'grid', shape: 'disc', radius: 130, pattern: 'polar', line_spacing: 10, spoke_count: 36, major_row_interval: 3, opacity: 0.6 },
+      { type: 'grid', shape: 'disc', radius: 130, pattern: 'polar', line_spacing: 10, spoke_count: 36, major: { row_interval: 3 }, opacity: 0.6 },
       { type: 'ring', radius: 130, width: 2, color: 'theme:colors.ui.secondary' },
       { type: 'volume', id: 'federation_space', shape: 'sector', radius: [25, 75], angle: [130, 200], height: [-4, 6], color: 'var(--lcars-blue)', tap_action: { action: 'fly-to' } },
       { type: 'volume', id: 'klingon_space', shape: 'sector', radius: [50, 110], angle: [15, 75], height: [-4, 6], color: 'var(--lcars-red)', tap_action: { action: 'fly-to' } },
       { type: 'volume', id: 'romulan_space', shape: 'sector', radius: [65, 120], angle: [295, 350], height: [-4, 6], color: 'var(--lcars-green)', tap_action: { action: 'fly-to' } },
       { type: 'volume', id: 'cardassian_space', shape: 'sector', radius: [60, 115], angle: [210, 255], height: [-4, 6], color: 'var(--lcars-orange)', tap_action: { action: 'fly-to' } },
       { type: 'ring', radius: 62, arc: [295, 350], width: 2, dash: [6, 4], color: 'var(--lcars-green)' },
-      { type: 'path', points: ['earth', 'qonos'], arc: 10, dash: [6, 4], color: 'var(--lcars-orange)', flow_speed: 20 },
+      { type: 'path', points: ['earth', 'qonos'], arc: 10, dash: { pattern: [6, 4], speed: 20 }, color: 'var(--lcars-orange)' },
       { type: 'glow', at: [0, 0, 0], size: 40, opacity: 0.6 }
     ]
   })

@@ -18,7 +18,7 @@ import { altazToLocal } from '../placements.js';
 import { dayPath } from '../sky.js';
 import { orbitPath, periods, toScene, BODIES, AU_KM } from '../ephemeris.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
-import { built, num, pair, bodyTurn, DEFAULT_COLORS } from './common.js';
+import { built, num, pair, bodyTurn, sub, DEFAULT_COLORS } from './common.js';
 
 const DEG = Math.PI / 180;
 
@@ -122,6 +122,16 @@ export function refinedRuns(o, w) {
 }
 
 /**
+ * A line's dash pattern, px: `dash: [on, off]` or `dash: { pattern, speed }`
+ * @param {any} dash
+ * @returns {number[] | null}
+ */
+export function dashPattern(dash) {
+  const p = Array.isArray(dash) ? dash : sub(dash).pattern;
+  return Array.isArray(p) ? p.map(Number) : null;
+}
+
+/**
  * The px-width line style of a line object.
  * @param {any} cfg
  * @param {import('./common.js').BuildContext} ctx
@@ -129,13 +139,15 @@ export function refinedRuns(o, w) {
  * @returns {import('../lines.js').LineStyle}
  */
 function lineStyle(cfg, ctx, fallback) {
-  const color = ctx.color(cfg.color, fallback);
+  // colors: a gradient [from, to] along the line
+  const grad = Array.isArray(cfg.colors) && cfg.colors.length >= 2 ? cfg.colors : null;
+  const color = ctx.color(grad ? grad[0] : cfg.color, fallback);
   return {
     color,
-    colorTo: cfg.color_to !== undefined ? ctx.color(cfg.color_to, fallback) : undefined,
+    colorTo: grad ? ctx.color(grad[1], fallback) : undefined,
     width: num(cfg.width, 1.5),
     opacity: num(cfg.opacity, 1),
-    dash: Array.isArray(cfg.dash) ? cfg.dash.map(Number) : null,
+    dash: dashPattern(cfg.dash),
     additive: cfg.blend === 'add',
     tube: cfg.line_look === 'tube'
   };
@@ -196,14 +208,14 @@ function addPulse(out, cfg, ctx, width) {
 }
 
 /**
- * Dashes and pulses moving along the line at `flow_speed` px per second
- * (a pulse alone moves at 80); null when nothing moves.
+ * Dashes and pulses moving along the line at `dash.speed` px per second
+ * (pulses alone at `pulse.speed`, default 80); null when nothing moves.
  * @param {any} cfg
  * @param {FatLine[]} lines
  * @returns {((dt: number, t: number) => boolean) | null}
  */
 export function flowTicker(cfg, lines) {
-  const speed = num(cfg.flow_speed, cfg.pulse ? num(cfg.pulse?.speed, PULSE.speed) : 0);
+  const speed = num(sub(cfg.dash).speed, cfg.pulse ? num(cfg.pulse?.speed, PULSE.speed) : 0);
   const moving = lines.filter((l) => l.dashed);
   if (!speed || !moving.length) return null;
   return (_dt, t) => {
@@ -226,10 +238,11 @@ export function buildRing(cfg, ctx) {
   const [a, b] = pair(cfg.radius, [100, 100]);
   const [from, to] = Array.isArray(cfg.arc) ? pair(cfg.arc, [0, 360]) : [0, 360];
   const run = ellipseRun({ a, b, inclination: num(cfg.inclination, 0), node: num(cfg.node, 0), from, to });
-  if (cfg.image) addBand(out, cfg, ctx, { a, b, from, to });
+  const band = sub(cfg.band);
+  if (band.image) addBand(out, band, cfg, ctx, { a, b, from, to });
   // a textured band draws its line only when a width is set
   const style = lineStyle(cfg, ctx, DEFAULT_COLORS.line);
-  const lines = cfg.image && cfg.width === undefined ? [] : addLine(out, cfg, style);
+  const lines = band.image && cfg.width === undefined ? [] : addLine(out, cfg, style);
   const pulse = addPulse(out, cfg, ctx, style.width ?? 1.5);
   if (pulse) lines.push(pulse);
   for (const l of lines) l.setRuns([run]);
@@ -326,17 +339,18 @@ function buildOrbit(cfg, ctx) {
 }
 
 /**
- * A ring's `image` band: a flat strip from `inner_radius` out to the ring,
+ * A ring's `band`: a flat textured strip from `band.inner_radius` out to the ring,
  * in the ring's plane, the texture's u running across it (inner rim 0,
  * outer 1). Drawn after solid bodies, so a planet in its middle hides the
  * far side and the near side passes in front.
  * @param {import('./common.js').BuiltObject} out
+ * @param {Record<string, any>} band - the ring's band part
  * @param {any} cfg
  * @param {import('./common.js').BuildContext} ctx
  * @param {{ a: number, b: number, from: number, to: number }} o
  */
-function addBand(out, cfg, ctx, { a, b, from, to }) {
-  const [ia, ib] = pair(cfg.inner_radius, [a / 2, (a / 2) * (b / a)]);
+function addBand(out, band, cfg, ctx, { a, b, from, to }) {
+  const [ia, ib] = pair(band.inner_radius, [a / 2, (a / 2) * (b / a)]);
   const shape = { inclination: num(cfg.inclination, 0), node: num(cfg.node, 0), from, to };
   const outer = ellipseRun({ a, b, ...shape });
   const inner = ellipseRun({ a: ia, b: ib, ...shape });
@@ -359,11 +373,11 @@ function addBand(out, cfg, ctx, { a, b, from, to }) {
   geo.setAttribute('position', new Float32BufferAttribute(pos, 3));
   geo.setAttribute('uv', new Float32BufferAttribute(uv, 2));
   geo.setIndex(index);
-  const mat = new MeshBasicMaterial({ transparent: true, depthWrite: false, side: DoubleSide, opacity: num(cfg.image_opacity, 1) * num(cfg.opacity, 1) });
-  mat.map = ctx.loadTexture(String(cfg.image));
+  const mat = new MeshBasicMaterial({ transparent: true, depthWrite: false, side: DoubleSide, opacity: num(band.opacity, 1) * num(cfg.opacity, 1) });
+  mat.map = ctx.loadTexture(String(band.image));
   if (mat.map) mat.map.colorSpace = SRGBColorSpace;
-  if (cfg.image_color !== undefined) {
-    const c = ctx.color(cfg.image_color, '#ffffff');
+  if (band.color !== undefined) {
+    const c = ctx.color(band.color, '#ffffff');
     mat.color.setRGB(c[0], c[1], c[2], SRGBColorSpace);
   }
   const mesh = new Mesh(geo, mat);

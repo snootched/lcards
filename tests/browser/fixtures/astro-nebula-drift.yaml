@@ -7,4 +7,4 @@ camera:
   views:
     wide: { target: [0, 0, 0], yaw: 20, tilt: 25, distance: 300 }
 objects:
-  - { type: nebula, id: neb, size: [200, 40, 200], cloud_count: 5, seed: 5, drift: { entity: input_number.lcards_test_power, input: [0, 100], output: [0, 12] } }
+  - { type: nebula, id: neb, size: [200, 40, 200], count: 5, seed: 5, drift: { entity: input_number.lcards_test_power, input: [0, 100], output: [0, 12] } }

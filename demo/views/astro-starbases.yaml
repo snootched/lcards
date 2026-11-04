@@ -171,8 +171,9 @@ sections:
           - type: sphere
             at: bajor
             radius: 120
-            fill_effect:
-              preset: terran
+            fill:
+              effect:
+                preset: terran
             line_spacing_deg: 30
             line_width: 0.5
             opacity: 0.3
@@ -317,7 +318,7 @@ sections:
             src: builtin:constitution
             at: dock1
             size: 15
-            scan_period: 6
+            scan: { period: 6 }
           - type: model
             id: dock2_frame
             src: builtin:utopia_planitia_drydock
@@ -438,7 +439,7 @@ sections:
               - 0
               - 180
               - 0
-            scan_period: 6
+            scan: { period: 6 }
             animation: all
           - type: model
             id: spacedock
@@ -454,9 +455,10 @@ sections:
               - ship_centre
               - doors
             dash:
-              - 4
-              - 6
-            flow_speed: -30
+              pattern:
+                - 4
+                - 6
+              speed: -30
             color: var(--lcars-orange)
         grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
@@ -522,19 +524,19 @@ sections:
             src: builtin:deep_space_nine
             at: a
             size: 90
-            scan_period: 6
+            scan: { period: 6 }
           - type: model
             id: dock
             src: builtin:earth_spacedock
             at: b
             size: 100
-            scan_period: 6
+            scan: { period: 6 }
             color: var(--lcars-orange)
           - type: model
             id: dry
             src: builtin:utopia_planitia_drydock
             at: c
             size: 80
-            scan_period: 6
+            scan: { period: 6 }
             color: var(--lcars-violet)
         grid_options: { columns: full }

@@ -12,7 +12,7 @@ objects:
   - id: tornado
     type: grid
     shape: well
-    well_profile: [1, 0.35, 0.15, 0.08]
+    well: { profile: [1, 0.35, 0.15, 0.08] }
     radius: 40
     depth: 110
     at: [-60, 110, 0]
@@ -23,7 +23,7 @@ objects:
   - id: wormhole
     type: grid
     shape: well
-    well_shape: wormhole
+    well: { shape: wormhole }
     radius: 35
     depth: 90
     at: [70, 40, 0]

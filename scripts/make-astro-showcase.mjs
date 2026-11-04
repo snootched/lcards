@@ -141,16 +141,16 @@ export async function showcaseCard() {
     ],
     objects: [
       { type: 'glow', at: 'bhavael', size: 9000000, color: 'var(--lcars-yellow)' },
-      { type: 'sphere', id: 'bhavael_body', at: 'bhavael', radius: 650000, fill_color: 'var(--lcars-yellow)', color: 'var(--lcars-orange)', tags: ['planets'] },
-      { type: 'sphere', id: 'bajor_body', at: 'bajor_world', radius: 6300, fill_effect: { preset: 'terran' }, spin: 4, line_spacing_deg: 30, line_width: 0.5, tags: ['planets'] },
+      { type: 'sphere', id: 'bhavael_body', at: 'bhavael', radius: 650000, fill: { color: 'var(--lcars-yellow)' }, color: 'var(--lcars-orange)', tags: ['planets'] },
+      { type: 'sphere', id: 'bajor_body', at: 'bajor_world', radius: 6300, fill: { effect: { preset: 'terran' } }, spin: 4, line_spacing_deg: 30, line_width: 0.5, tags: ['planets'] },
       { type: 'ring', id: 'bajor_orbit', radius: 150000000, width: 1, opacity: 0.5, tags: ['orbits'] },
       { type: 'belt', id: 'denorios_belt', at: 'bhavael', radius: [222000000, 242000000], thickness: 2000000, count: 1500, size: [0.5, 30], tumble: 0, seed: 21 },
       { type: 'model', id: 'ds9_model', at: 'ds9', src: 'builtin:deep_space_nine', size: 1.452, material: 'original' },
-      { type: 'sphere', id: 'ds9_shields', at: 'ds9', radius: 1.2, fill_color: 'var(--lcars-blue)', color: 'var(--lcars-blue)', line_spacing_deg: 20, opacity: { entity: 'input_number.lcards_test_shields', output: [0, 0.45] } },
+      { type: 'sphere', id: 'ds9_shields', at: 'ds9', radius: 1.2, fill: { color: 'var(--lcars-blue)' }, color: 'var(--lcars-blue)', line_spacing_deg: 20, opacity: { entity: 'input_number.lcards_test_shields', output: [0, 0.45] } },
       ...bajorMouth.objects,
       // hidden from afar (its clouds would wash over Sol in the galaxy view)
       { type: 'nebula', id: 'chintoka', at: 'nebula', radius: 70000, colors: ['var(--lcars-orange)', 'var(--lcars-violet)'], drift: 300, max_distance: 3000000 },
-      { type: 'path', id: 'patrol_route', points: ['route_a', 'route_b'], arc: 8000, dash: [10, 8], flow_speed: 40, pulse: true, color: 'var(--lcars-orange)', width: 2 },
+      { type: 'path', id: 'patrol_route', points: ['route_a', 'route_b'], arc: 8000, dash: { pattern: [10, 8], speed: 40 }, pulse: true, color: 'var(--lcars-orange)', width: 2 },
       { type: 'cube', id: 'borg_cube', at: 'cube', size: 3 }
     ]
   };

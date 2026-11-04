@@ -84,7 +84,8 @@ objects:
     at: venus
     radius: 6051.8
     body: venus
-    fill_effect: { preset: clouds }
+    fill:
+      effect: { preset: clouds }
     line_spacing_deg: 30
     line_width: 0.5
   - type: sphere
@@ -124,7 +125,8 @@ objects:
     at: saturn
     radius: 58232
     body: saturn
-    fill_effect: { preset: ringed_giant }
+    fill:
+      effect: { preset: ringed_giant }
     line_spacing_deg: 30
     line_width: 0.5
   - type: sphere
@@ -132,7 +134,8 @@ objects:
     at: uranus
     radius: 25362
     body: uranus
-    fill_effect: { preset: ice_giant }
+    fill:
+      effect: { preset: ice_giant }
     line_spacing_deg: 30
     line_width: 0.5
   - type: sphere
@@ -140,7 +143,8 @@ objects:
     at: neptune
     radius: 24622
     body: neptune
-    fill_effect: { preset: storm_giant }
+    fill:
+      effect: { preset: storm_giant }
     line_spacing_deg: 30
     line_width: 0.5
   - type: sphere
@@ -172,8 +176,7 @@ objects:
     at: deimos
     radius: 6.27
     body: deimos
-    fill_color: var(--lcards-gray-medium)
-    fill_opacity: 1
+    fill: { color: var(--lcards-gray-medium), opacity: 1 }
     line_spacing_deg: 30
     line_width: 0.5
   - type: sphere
@@ -232,7 +235,7 @@ objects:
     image: builtin:charon_new_horizons
     line_spacing_deg: 30
     line_width: 0.5
-  - { type: ring, id: saturn_rings, at: saturn, radius: 140180, inner_radius: 66900, body: saturn, image: builtin:saturn_rings }
+  - { type: ring, id: saturn_rings, at: saturn, radius: 140180, band: { image: builtin:saturn_rings, inner_radius: 66900 }, body: saturn }
   - type: belt
     id: main_belt
     at: sun

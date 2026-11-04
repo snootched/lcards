@@ -208,8 +208,7 @@ Trigger the Borg assimilation on one or all connected browsers.
 | `tendril_length` | No | `600` | Maximum tendril reach in pixels (100–1200) |
 | `particle_count` | No | `2` | Nano-probe particles per tendril (0–6); `0` disables particles |
 | `renderer` | No | `auto` | `auto` or `webgl`: the WebGL intro where the browser supports it; `canvas`: the [classic intro](#classic-intro) |
-| `cube` | No | `true` | WebGL intro: show the Borg cube |
-| `cube_style` | No | `detailed` | WebGL intro: `detailed` (solid cube with machinery, lattice, glows and halo) or `classic` (wireframe) |
+| `cube` | No | `detailed` | WebGL intro: the Borg cube, `detailed` (solid cube with machinery, lattice, glows and halo), `classic` (wireframe) or `none` (no cube) |
 | `corruption` | No | `0.5` | WebGL intro: signal corruption strength (0–1); `0` turns it off |
 | `overrun` | No | `0.65` | WebGL intro: darkness behind the assimilation front (0–1) |
 | `transition_style` | No | `blur_fade` | Palette transition: `blur_fade`, `flash`, `fade_only`, `off` |
@@ -262,7 +261,7 @@ data:
 ```yaml
 action: lcards.borg_assimilate
 data:
-  cube: false
+  cube: none
   corruption: 0.2
   overrun: 0.3
 ```

@@ -25,7 +25,7 @@ import {
 } from './common-schemas.js';
 import {
     OBJECT_TYPES, GRID_SHAPES, GRID_PATTERNS, VOLUME_SHAPES, NEBULA_SHAPES, IMAGE_SHAPES, MARKERS, LABEL_STYLE_NAMES, SKY_BODIES, BODY_NAMES, FILL_EFFECTS, FILL_PRESETS, MODEL_MATERIALS,
-    WELL_SHAPE_NAMES, DEFORM_TYPES, BEND_MOTIONS, DEFORM_ANCHORS, UNIT_NAMES, FILE_UNIT_NAMES, COMET_TAILS, COMET_ACTIVITY
+    WELL_SHAPE_NAMES, DEFORM_TYPES, BEND_MOTIONS, DEFORM_ANCHORS, UNIT_NAMES, FILE_UNIT_NAMES, COMET_ACTIVITY, CUBE_SHAPES
 } from '../../core/astrometrics/names.js';
 import { LABEL_POSITION_NAMES, LABEL_OMITTED_KEYS } from '../../core/astrometrics/label-text.js';
 import { RATE_PATTERN } from '../../core/astrometrics/clock.js';
@@ -145,6 +145,20 @@ const numberOrPair = (description) => ({
  */
 const color = (description) => ({ type: 'string', description, allOf: [simpleColorSchema] });
 
+/**
+ * A sub-part of an object (its coma, its major lines, its edges): the part's
+ * settings in one object. With `toggle`, also true (on, its defaults) or false (off).
+ * @param {string} description
+ * @param {Record<string, any>} properties
+ * @param {{ toggle?: boolean, group?: string }} [o]
+ */
+const part = (description, properties, { toggle = false, group = 'appearance' } = {}) => {
+    const obj = { type: 'object', additionalProperties: false, properties };
+    return toggle
+        ? { description, 'x-ui-hints': { group }, oneOf: [{ type: 'boolean' }, obj] }
+        : { ...obj, description, 'x-ui-hints': { group } };
+};
+
 /** A point id or [x, y, z] in scene units @param {string} description */
 /** @param {string} description - the true form's */
 const hideInSystems = (description) => ({
@@ -160,7 +174,7 @@ const objectLook = (what, parts = false) => ({
     type: 'string',
     enum: parts ? ['diagram', 'realistic', 'all'] : ['diagram', 'realistic'],
     description: parts
-        ? `Which look of the card shows ${what}: diagram in the diagram and mixed looks, realistic in the realistic and mixed looks, all in every look as configured. Left out, it shows in every look, and one with a diagram part and a realistic part switches them: a sphere with an image or fill_effect is a wire globe over its plain fill in the diagram look and the bare map in the realistic look, a grid with a fill_effect shows its lines or its fill, a model with material: original is a hologram in the diagram look.`
+        ? `Which look of the card shows ${what}: diagram in the diagram and mixed looks, realistic in the realistic and mixed looks, all in every look as configured. Left out, it shows in every look, and one with a diagram part and a realistic part switches them: a sphere with an image or fill.effect is a wire globe over its plain fill in the diagram look and the bare map in the realistic look, a grid with a fill_effect shows its lines or its fill, a model with material: original is a hologram in the diagram look.`
         : `Which look of the card shows ${what}: diagram in the diagram and mixed looks, realistic in the realistic and mixed looks. Left out, it shows in every look.`,
     enumDescriptions: parts
         ? { diagram: 'The diagram look (wireframes, schematics)', realistic: 'The realistic look', all: 'Every look, as configured (no switching)' }
@@ -407,8 +421,9 @@ const starsSchema = {
                 opacity: number('Fades the whole star layer, 0 to 1: every star\'s brightness is multiplied by it.', { minimum: 0, maximum: 1, default: 1 }),
                 seed: number('Random seed: the same seed places the same stars.', { default: 7 }),
                 streak: number('How long stars and dust streak during a warp fly-to (camera.warp or a view\'s warp); 0: never.', { minimum: 0, default: 1 }),
-                spectrum: { type: 'boolean', default: false, description: 'Streaks split into colour: a Doppler shift of each star\'s own colour, violet toward the tail and red toward the head (white stars show the whole rainbow).' },
-                spectrum_direction: { type: 'string', enum: ['doppler', 'reverse'], default: 'doppler', description: 'doppler: violet toward the tail, as a real Doppler shift. reverse: violet toward the head.' }
+                spectrum: part('Streaks split into colour: a Doppler shift of each star\'s own colour, violet toward the tail and red toward the head (white stars show the whole rainbow). true, or { direction }. Default off.', {
+                    direction: { type: 'string', enum: ['doppler', 'reverse'], default: 'doppler', description: 'doppler: violet toward the tail, as a real Doppler shift. reverse: violet toward the head.' }
+                }, { toggle: true })
             }
         }
     ]
@@ -430,8 +445,9 @@ const dustSchema = {
                 colors: { type: 'array', items: simpleColorSchema, description: 'Several colours, picked at random per particle (wins over color).' },
                 opacity: number('Fades the whole dust layer, 0 to 1: every particle\'s brightness is multiplied by it.', { minimum: 0, maximum: 1, default: 1 }),
                 seed: number('Random seed.', { default: 7 }),
-                spectrum: { type: 'boolean', default: false, description: 'Streaks split into colour (a Doppler shift, as on the stars).' },
-                spectrum_direction: { type: 'string', enum: ['doppler', 'reverse'], default: 'doppler', description: 'doppler: violet toward the tail. reverse: violet toward the head.' }
+                spectrum: part('Streaks split into colour (a Doppler shift, as on the stars). true, or { direction }. Default off.', {
+                    direction: { type: 'string', enum: ['doppler', 'reverse'], default: 'doppler', description: 'doppler: violet toward the tail. reverse: violet toward the head.' }
+                }, { toggle: true })
             }
         }
     ]
@@ -633,11 +649,14 @@ const objectCommonSchema = { type: 'object', properties: objectCommon };
 
 const blendAdd = { type: 'string', enum: ['add', 'normal'], default: 'normal', description: 'add: light adds up where lines cross (a glow). Default normal.' };
 
-/** The scan band (the background grid's keys) */
-const scanKeys = {
-    scan_period: setting('Seconds per scan band sweep (0: none). A sphere sweeps north pole to south pole, a dome top to rim, a cylinder top to bottom, a polar disc rings out from the centre, a plane runs south to north. Off under reduced motion.', { minimum: 0, default: 0 }),
-    scan_color: color('Scan band colour. Default var(--lcards-moonlight).')
-};
+/**
+ * A bright band sweeping across the object
+ * @param {string} periodDescription - how it sweeps on this type
+ */
+const scanPart = (periodDescription) => part('A bright scan band sweeping across it: { period, color }. Off under reduced motion.', {
+    period: setting(`Seconds per sweep (0: none). ${periodDescription}`, { minimum: 0, default: 0 }),
+    color: color('Band colour. Default var(--lcards-moonlight).')
+});
 
 /** An animated fill painted on a sphere's body or under a grid's lines (the plasma, fluid and contour-field background presets) */
 const fillEffectSchema = {
@@ -685,15 +704,17 @@ const fillEffectSchema = {
 const gridLook = {
     pattern: { type: 'string', enum: [...GRID_PATTERNS], description: 'Line pattern (the background grid effect\'s names): both (rows and columns, default), horizontal, vertical, diagonal, hexagonal, dots, polar (rings and spokes; default on a disc).' },
     line_spacing: setting('Distance between lines, scene units. On curved shapes line_spacing_deg is usually easier.', { exclusiveMinimum: 0 }),
-    major_row_interval: wholeSetting('A major (brighter, wider) line every N rows (rings on a disc); 0 for none.', { minimum: 0, default: 0 }),
-    major_col_interval: wholeSetting('A major line every N columns (spokes on a disc); 0 for none.', { minimum: 0, default: 0 }),
     line_width: setting('Line width, px.', { minimum: 0, default: 1 }),
-    line_width_major: setting('Major line width, px. Default 1.5 x line_width (at least 1.5).', { minimum: 0 }),
     color: color('Line colour. Default theme:colors.ui.tertiary.'),
-    color_major: color('Major line colour. Default: color, brighter.'),
+    major: part('Major lines: brighter, wider lines every few rows and columns (rings and spokes on a disc).', {
+        row_interval: wholeSetting('A major line every N rows (rings on a disc); 0 for none.', { minimum: 0, default: 0 }),
+        col_interval: wholeSetting('A major line every N columns (spokes on a disc); 0 for none.', { minimum: 0, default: 0 }),
+        line_width: setting('Major line width, px. Default 1.5 x line_width (at least 1.5).', { minimum: 0 }),
+        color: color('Major line colour. Default: color, brighter.')
+    }),
     back_opacity: setting('Opacity of the far side seen through the surface, 0 to 1 (0 hides it).', { minimum: 0, maximum: 1 }),
     blend: blendAdd,
-    ...scanKeys
+    scan: scanPart('A sphere sweeps north pole to south pole, a dome top to rim, a cylinder top to bottom, a polar disc rings out from the centre, a plane runs south to north.')
 };
 
 /** One `deform:` entry on a grid: a warp of its surface (core/astrometrics/deform.js) */
@@ -713,8 +734,8 @@ const deformSchema = {
         motion: { type: 'string', enum: [...BEND_MOTIONS], default: 'sway', description: 'bend: sway (bends to and fro), circle (the bend turns round, a tornado) or none (a still bend).', enumDescriptions: { sway: 'Bends to and fro', circle: 'The bend turns round', none: 'Still bend' } },
         angle: setting('twist: degrees turned at the far end (at the centre of a flat grid). With speed the twist swings between plus and minus this.', { default: 90 }),
         anchor: { type: 'string', enum: [...DEFORM_ANCHORS], default: 'bottom', description: 'bend, twist round an axis: the end that stays put (middle: both ends move).' },
-        base_frequency: setting('noise: detail per scene unit, lower is larger lumps (as on fill_effect). Default about 3 lumps across the grid\'s size.', { exclusiveMinimum: 0 }),
-        num_octaves: wholeSetting('noise: layers of finer detail (as on fill_effect).', { minimum: 1, maximum: 6, default: 2 }),
+        base_frequency: setting('noise: detail per scene unit, lower is larger lumps (as on fill.effect). Default about 3 lumps across the grid\'s size.', { exclusiveMinimum: 0 }),
+        num_octaves: wholeSetting('noise: layers of finer detail (as on fill.effect).', { minimum: 1, maximum: 6, default: 2 }),
         seed: setting('noise: changes the pattern.', { default: 0 })
     }
 };
@@ -727,7 +748,7 @@ const gridObject = {
     description: 'A see-through grid surface: plane (a sector map), disc (a galaxy disc), dome (a sky), sphere (a wireframe ball; for a solid planet use sphere), cylinder or well (a funnel, a wormhole), optionally deformed (deform).',
     properties: {
         type: { type: 'string', const: 'grid', description: 'grid: a grid surface.' },
-        shape: { type: 'string', enum: [...GRID_SHAPES], 'x-ui-hints': { widget: 'shape' }, default: 'plane', description: 'plane (size), disc (radius, or [inner, outer] for a hole in the middle), dome (a half sphere, radius), sphere (radius), cylinder (radius, height) or well (a funnel down from its rim: radius, depth, well_shape).' ,
+        shape: { type: 'string', enum: [...GRID_SHAPES], 'x-ui-hints': { widget: 'shape' }, default: 'plane', description: 'plane (size), disc (radius, or [inner, outer] for a hole in the middle), dome (a half sphere, radius), sphere (radius), cylinder (radius, height) or well (a funnel down from its rim: radius, depth, well).' ,
             enumDescriptions: { plane: 'Flat rectangle', disc: 'Flat circle', dome: 'Half sphere', sphere: 'Globe', cylinder: 'Tube', well: 'Funnel down from a rim' } },
         size: settingOrPair('plane: width and depth [w, d], scene units (one number for a square). Default 200.'),
         radius: {
@@ -736,20 +757,25 @@ const gridObject = {
         },
         height: setting('cylinder: height, scene units. Default the radius.', { exclusiveMinimum: 0 }),
         depth: setting('well: depth below the rim, scene units (the rim is at the object\'s position). Default the radius.', { exclusiveMinimum: 0 }),
-        well_shape: { type: 'string', enum: [...WELL_SHAPE_NAMES], default: 'trumpet', description: 'well: profile from the rim down. trumpet (a gravity well: flat at the rim, plunging to the throat), cone, bowl or wormhole (two trumpets throat to throat, the throat halfway down). well_profile replaces it.', enumDescriptions: { trumpet: 'Gravity well', cone: 'Straight sides', bowl: 'Rounded bottom', wormhole: 'Hourglass' } },
-        well_throat: setting('well: throat diameter as a fraction of the rim (well_shape).', { minimum: 0.02, maximum: 1, default: 0.15 }),
-        well_profile: { type: 'array', items: { type: 'number', minimum: 0 }, minItems: 2, maxItems: 32, description: 'well: any profile, diameters as fractions of the rim from the rim down, evenly spaced along the depth; a smooth curve passes through each. [1, 0.4, 0.2, 0.15] is a trumpet, [1, 0.2, 1] an hourglass. Replaces well_shape.' },
+        well: part('well: the funnel\'s profile from the rim down: a named shape and its throat, or any profile.', {
+            shape: { type: 'string', enum: [...WELL_SHAPE_NAMES], default: 'trumpet', description: 'trumpet (a gravity well: flat at the rim, plunging to the throat), cone, bowl or wormhole (two trumpets throat to throat, the throat halfway down). profile replaces it.', enumDescriptions: { trumpet: 'Gravity well', cone: 'Straight sides', bowl: 'Rounded bottom', wormhole: 'Hourglass' } },
+            throat: setting('Throat diameter as a fraction of the rim (shape).', { minimum: 0.02, maximum: 1, default: 0.15 }),
+            profile: { type: 'array', items: { type: 'number', minimum: 0 }, minItems: 2, maxItems: 32, description: 'Any profile: diameters as fractions of the rim from the rim down, evenly spaced along the depth; a smooth curve passes through each. [1, 0.4, 0.2, 0.15] is a trumpet, [1, 0.2, 1] an hourglass. Replaces shape.' }
+        }, { group: 'main' }),
         deform: { type: 'array', items: deformSchema, description: 'Deformations of the surface, applied in order: wobble, bend, twist, noise. A wobbling cylinder is jelly; a well with bend (motion: circle) and twist is a tornado; a disc with twist is a whirlpool.' },
         line_spacing_deg: setting('disc: a spoke every N degrees; dome, sphere, cylinder, well: rings and meridians every N degrees (a whole number fits round). Default 15 on curved shapes.', { exclusiveMinimum: 0 }),
         ...gridLook,
-        fill_color: color('Colour filling the cells behind the lines. Default none.'),
-        fill_effect: fillEffectSchema,
+        fill: part('What fills the cells behind the lines: a colour, or an animated effect.', {
+            color: color('Fill colour. Default none.'),
+            effect: fillEffectSchema
+        }),
         spoke_count: wholeSetting('pattern polar: spokes round the centre (meridians on a curved shape). line_spacing_deg wins on a disc.', { minimum: 0, default: 36 }),
         hex_radius: setting('pattern hexagonal: hexagon size, scene units. Default line_spacing.', { exclusiveMinimum: 0 }),
         dot_radius: setting('pattern dots: dot radius, scene units. Default 8% of line_spacing.', { exclusiveMinimum: 0 }),
-        edges: { type: 'boolean', default: true, description: 'Outline the open edges: the rim of a disc, dome or well, the ends of a cylinder, the frame of a plane.' },
-        edge_width: setting('Edge width, px. Default line_width_major.', { minimum: 0 }),
-        edge_color: color('Edge colour. Default color_major.'),
+        edges: part('Outline the open edges: the rim of a disc, dome or well, the ends of a cylinder, the frame of a plane. true (default), false, or { width, color }.', {
+            width: setting('Edge width, px. Default the major line width.', { minimum: 0 }),
+            color: color('Edge colour. Default the major line colour.')
+        }, { toggle: true }),
         ring_labels: {
             type: 'object',
             description: 'disc or dome: bearing labels round the edge (0, 10, 20, ...).',
@@ -848,18 +874,23 @@ const volumeObject = {
                 depth: setting('box and prism: cell size along z, scene units. Default a quarter of the depth (an eighth of a prism\'s).', { exclusiveMinimum: 0 })
             }
         },
-        color: color('Colour of the faces (and the edges, unless edge_color). Default var(--lcars-blue).'),
-        face_opacity: setting('Opacity of the face grid lines (the edges stay brighter), 0 to 1.', { minimum: 0, maximum: 1, default: 0.45 }),
+        color: color('Colour of the faces (and the edges, unless edges.color). Default var(--lcars-blue).'),
         line_width: setting('Face line width, px.', { minimum: 0, default: 1 }),
-        edges: { type: 'boolean', default: true, description: 'Draw the outline edges.' },
-        edge_width: setting('Edge width, px.', { minimum: 0, default: 1.5 }),
-        edge_color: color('Edge colour. Default color.'),
+        faces: part('The grid lines on the faces.', {
+            opacity: setting('Opacity of the face grid lines (the edges stay brighter), 0 to 1.', { minimum: 0, maximum: 1, default: 0.45 })
+        }),
+        edges: part('Draw the outline edges: true (default), false, or { width, color }.', {
+            width: setting('Edge width, px.', { minimum: 0, default: 1.5 }),
+            color: color('Edge colour. Default color.')
+        }, { toggle: true }),
         back_opacity: setting('Opacity of the far faces, 0 to 1 (1: a wireframe, nothing hidden).', { minimum: 0, maximum: 1, default: 1 }),
         blend: blendAdd,
-        scan_period: setting('Seconds per scan band sweep down the walls, top to bottom (0: none). Off under reduced motion.', { minimum: 0, default: 0 }),
-        scan_color: scanKeys.scan_color
+        scan: scanPart('It sweeps down the walls, top to bottom.')
     }
 };
+
+/** A sphere's map: an equirectangular image */
+const imageSrc = { type: 'string', assetSource: 'image', description: 'An equirectangular map, longitude 0 in the middle. Built in (NASA and USGS maps, public domain): builtin:earth_blue_marble, builtin:moon_lroc, builtin:mars_viking, builtin:mercury_messenger, builtin:venus_magellan (the surface under the clouds), builtin:jupiter_cassini, builtin:pluto_new_horizons, builtin:sun_sdo, builtin:phobos_viking, builtin:ceres_dawn, builtin:io_galileo, builtin:europa_galileo, builtin:ganymede_galileo, builtin:callisto_galileo, builtin:titan_cassini (the surface under the haze), builtin:triton_voyager, builtin:charon_new_horizons. Or your own: /local/mars.jpg, or a Home Assistant media item (media-source://...). Planets without a map: fill.effect presets.', examples: ['builtin:earth_blue_marble', 'builtin:mars_viking', '/local/mars.jpg'] };
 
 const sphereObject = {
     type: 'object',
@@ -874,20 +905,47 @@ const sphereObject = {
         lat_step: setting('Latitude lines every N degrees, when different from line_spacing_deg.', { minimum: 1 }),
         lon_step: setting('Longitude lines every N degrees, when different from line_spacing_deg (rounded to fit round).', { minimum: 1 }),
         ...gridLook,
-        fill_color: color('Body colour. Default black.'),
-        fill_opacity: setting('Body opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 0.85 }),
-        image: { type: 'string', assetSource: 'image', description: 'A texture for the body instead of fill: an equirectangular map, longitude 0 in the middle. Built in (NASA and USGS maps, public domain): builtin:earth_blue_marble, builtin:moon_lroc, builtin:mars_viking, builtin:mercury_messenger, builtin:venus_magellan (the surface under the clouds), builtin:jupiter_cassini, builtin:pluto_new_horizons, builtin:sun_sdo, builtin:phobos_viking, builtin:ceres_dawn, builtin:io_galileo, builtin:europa_galileo, builtin:ganymede_galileo, builtin:callisto_galileo, builtin:titan_cassini (the surface under the haze), builtin:triton_voyager, builtin:charon_new_horizons. Or your own: /local/mars.jpg, or a Home Assistant media item (media-source://...). Planets without a map: fill_effect presets.', examples: ['builtin:earth_blue_marble', 'builtin:mars_viking', '/local/mars.jpg'] },
-        image_opacity: setting('Texture opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
+        fill: part('The body under the lines: a colour, or an animated effect (it paints the body in place of image).', {
+            color: color('Body colour. Default black.'),
+            opacity: setting('Body opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 0.85 }),
+            effect: fillEffectSchema
+        }),
+        image: {
+            description: 'A map on the body instead of fill: the image, or { src, opacity }.',
+            'x-ui-hints': { group: 'appearance' },
+            anyOf: [imageSrc, {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                    src: imageSrc,
+                    opacity: setting('Map opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 })
+                }
+            }]
+        },
         occlude: { type: 'boolean', default: true, description: 'Hide labels behind the sphere.' },
-        fill_effect: fillEffectSchema,
         deform: { type: 'array', items: deformSchema, description: 'Deformations of the planet, applied in order (as on a grid sphere): wobble, bend, twist, noise. The body, lines and points on it move with them.' },
         body: { type: 'string', enum: [...BODY_NAMES], description: 'Turn the sphere as this real body is turned at the scene clock\'s date (IAU rotation models): its north pole where the body\'s points, its day the real sidereal day, and longitude 0 of its map where the body\'s prime meridian is, so latlon points sit over the real places. spin and rotation do not apply. Pair it with a point that has the same body.' }
     }
 };
 
 /** Moving dashes and pulses along a line (the flow background preset) */
+/** Dashes along a line, and how fast they (and its pulses) move */
+const dashKey = {
+    dash: {
+        description: 'Dash pattern in px along the line: [on, off] (more pairs repeat), holding its size at any distance; or { pattern, speed } to move the dashes (and pulses) along the line.',
+        'x-ui-hints': { group: 'appearance' },
+        anyOf: [pxDash, {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+                pattern: pxDash,
+                speed: setting('Move the dashes (and pulses) along the line, px per second; negative runs backwards. Default 0. Off under reduced motion.')
+            }
+        }]
+    }
+};
+
 const flowKeys = {
-    flow_speed: setting('Move the dashes (and pulses) along the line, px per second; negative runs backwards. Default 0, or 80 with a pulse. Off under reduced motion.'),
     pulse: {
         description: 'Bright pulses travelling along the line: true, or their settings.',
         oneOf: [
@@ -900,7 +958,7 @@ const flowKeys = {
                     gap: setting('Space between pulses, px.', { minimum: 0, default: 90 }),
                     width: setting('Pulse width, px. Default the line width + 1.', { minimum: 0 }),
                     color: color('Pulse colour. Default var(--lcards-moonlight).'),
-                    speed: setting('px per second when flow_speed is not set.', { default: 80 })
+                    speed: setting('px per second when dash.speed is not set. Off under reduced motion.', { default: 80 })
                 }
             }
         ]
@@ -909,9 +967,9 @@ const flowKeys = {
 
 const lineCommon = {
     width: setting('Line width, px.', { minimum: 0, default: 1.5 }),
-    dash: pxDash,
+    ...dashKey,
     color: color('Line colour.'),
-    color_to: color('Colour at the far end: the line fades from color to color_to.'),
+    colors: { type: 'array', items: color('A colour.'), minItems: 2, maxItems: 2, description: 'A gradient [from, to]: the line fades from the first colour to the second along its length (wins over color).' },
     glow: {
         description: 'A soft glow under the line: true (4 x the width) or a width factor.',
         oneOf: [{ type: 'boolean' }, { type: 'number', minimum: 1 }]
@@ -939,12 +997,14 @@ const ringObject = {
         inclination: setting('Tilt of the ring\'s plane, degrees, about the line of nodes.', { default: 0 }),
         node: setting('Bearing of the line of nodes (where an inclined ring crosses the plane), degrees.', { default: 0 }),
         arc: tuple(2, 'Only part of the ring: [from, to] in degrees round it.'),
-        image: { type: 'string', assetSource: 'image', description: 'A flat band from inner_radius out to radius, textured across its width: the image\'s left edge is the inner rim, its right edge the outer (its height is not used). builtin:saturn_rings is Saturn\'s rings, D ring to F ring (radius 2.33 and inner_radius 1.11 times the planet\'s radius). The line is drawn too only when width is set.', examples: ['builtin:saturn_rings', '/local/rings.png'] },
-        inner_radius: settingOrPair('image: the band\'s inner radius, scene units, or [a, b] for an ellipse. Default half the radius.'),
-        image_opacity: setting('image: the band\'s opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
-        image_color: color('image: a colour the texture is multiplied by (a tint). Default none (the image\'s own colours).'),
+        band: part('A flat textured band from band.inner_radius out to radius (Saturn\'s rings): { image, inner_radius, opacity, color }. The line is drawn too only when width is set.', {
+            image: { type: 'string', assetSource: 'image', description: 'The band\'s texture, across its width: the image\'s left edge is the inner rim, its right edge the outer (its height is not used). builtin:saturn_rings is Saturn\'s rings, D ring to F ring (radius 2.33 and inner_radius 1.11 times the planet\'s radius).', examples: ['builtin:saturn_rings', '/local/rings.png'] },
+            inner_radius: settingOrPair('The band\'s inner radius, scene units, or [a, b] for an ellipse. Default half the radius.'),
+            opacity: setting('The band\'s opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
+            color: color('A colour the texture is multiplied by (a tint). Default none (the image\'s own colours).')
+        }),
         body: { type: 'string', enum: [...BODY_NAMES], description: 'Lay the ring in this real body\'s equator at the scene clock\'s date (Saturn\'s rings: body: saturn on a ring at Saturn). inclination and node tilt it from there; rotation does not apply.' },
-        orbit: { type: 'string', enum: BODY_NAMES.filter((b) => b !== 'sun'), description: 'Draw this real body\'s orbit at the scene clock\'s date (JPL elements): an ellipse with its parent at a focus, tilted and turned as it really is, in the frame\'s units. Put the ring at the parent\'s point (at: jupiter for Io; nothing for a planet, the Sun sits at the origin). radius, inclination, node, arc and image do not apply.' },
+        orbit: { type: 'string', enum: BODY_NAMES.filter((b) => b !== 'sun'), description: 'Draw this real body\'s orbit at the scene clock\'s date (JPL elements): an ellipse with its parent at a focus, tilted and turned as it really is, in the frame\'s units. Put the ring at the parent\'s point (at: jupiter for Io; nothing for a planet, the Sun sits at the origin). radius, inclination, node, arc and band do not apply.' },
         ...lineCommon,
         color: color('Line colour. Default theme:colors.ui.secondary.')
     }
@@ -992,21 +1052,24 @@ const cubeObject = {
     title: 'cube',
     required: ['type'],
     allOf: [objectCommonSchema],
-    description: 'A Borg cube (style borg, the default: carved machinery, a rail lattice, green light from inside and pulsing glow spots, as in the Borg screen effect) or a plain shaded box. Hides labels behind it.',
+    description: 'A Borg cube (shape borg, the default: carved machinery, a rail lattice, green light from inside and pulsing glow spots, as in the Borg screen effect) or a plain shaded box. Hides labels behind it.',
     properties: {
         type: { type: 'string', const: 'cube', description: 'cube: a Borg cube or a plain box.' },
-        style: { type: 'string', enum: ['borg', 'plain'], default: 'borg', description: 'borg (default): the Borg cube. plain: a shaded box with its edges.', enumDescriptions: ['The Borg cube, ray-marched machinery under a rail lattice', 'A shaded box with its edges drawn'] },
+        shape: { type: 'string', enum: [...CUBE_SHAPES], default: 'borg', description: 'borg (default): the Borg cube. box: a shaded box with its edges.', enumDescriptions: { borg: 'The Borg cube, ray-marched machinery under a rail lattice', box: 'A shaded box with its edges drawn' } },
         size: {
             description: 'Its size, scene units: one number for a cube, or [x, y, z] for a box. Default 20.',
             anyOf: [{ type: 'number', exclusiveMinimum: 0 }, { type: 'array', items: { type: 'number', exclusiveMinimum: 0 }, minItems: 3, maxItems: 3 }, settingBinding, settingTemplate]
         },
-        color: color('borg: the light from inside and the tint of the hull (default var(--lcards-green-medium)). plain: the box colour (default var(--lcards-gray-medium)).'),
-        glow_color: color('borg: the glow spots\' colour. Default var(--lcards-green-lightest).'),
+        color: color('borg: the light from inside and the tint of the hull (default var(--lcards-green-medium)). box: the box colour (default var(--lcards-gray-medium)).'),
+        glow: part('borg: the glow spots.', {
+            color: color('Glow spot colour. Default var(--lcards-green-lightest).')
+        }),
         detail: { type: 'boolean', default: true, description: 'borg: true (default) carves the machinery into the faces (ray-marched, about as costly as the screen effect\'s cube); false draws flat faces with the lattice, for slow graphics hardware.' },
         seed: { type: 'integer', default: 1, description: 'borg: where the glow spots sit. A different number moves them.' },
-        edges: { type: 'boolean', default: true, description: 'plain: draw the edges.' },
-        edge_color: color('plain: edge colour. Default theme:colors.ui.secondary.'),
-        opacity: setting('plain: opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
+        edges: part('box: draw the edges: true (default), false, or { color }.', {
+            color: color('Edge colour. Default theme:colors.ui.secondary.')
+        }, { toggle: true }),
+        opacity: setting('box: opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
         occlude: { type: 'boolean', default: true, description: 'Hide labels and cards behind it.' }
     }
 };
@@ -1023,7 +1086,7 @@ const trailObject = {
         length: setting('How far back the trail reaches, seconds of the point\'s motion.', { exclusiveMinimum: 0, default: 10 }),
         fade_tail: { type: 'boolean', default: true, description: 'Fade from the colour at the point to black at the tail (the background, in space). false: one colour all along.' },
         width: lineCommon.width,
-        dash: lineCommon.dash,
+        ...dashKey,
         color: color('Trail colour (at the point). Default var(--lcars-orange).'),
         blend: blendAdd,
         ...flowKeys
@@ -1107,28 +1170,35 @@ const cometObject = {
     title: 'comet',
     required: ['type'],
     allOf: [objectCommonSchema],
-    description: 'A comet: a small dark nucleus, a glowing coma round it and two tails pointing away from its star (light): a straight ion tail and a broader dust tail that bends back along the comet\'s path as it moves. Seeded. With activity: distance it brightens and grows its tails as it nears its star.',
+    description: 'A comet: a small dark nucleus, a glowing coma round it and two tails pointing away from its star (light): a straight ion tail and a broader dust tail that bends back along the comet\'s path as it moves. Seeded. With activity.mode: distance it brightens and grows its tails as it nears its star.',
     properties: {
         type: { type: 'string', const: 'comet', description: 'comet: a nucleus, a coma and tails.' },
-        size: setting('The nucleus\'s largest extent, scene units.', { exclusiveMinimum: 0, default: 2 }),
-        coma_size: setting('Diameter of the coma, the glowing cloud round the nucleus, scene units.', { minimum: 0, default: 10 }),
-        tail_length: setting('How long the tails reach away from the star, scene units (the dust tail fades sooner).', { minimum: 0, default: 60 }),
+        nucleus: part('The nucleus: the small dark rock at the heart.', {
+            size: setting('Its largest extent, scene units.', { exclusiveMinimum: 0, default: 2 }),
+            color: color('Its colour. Default var(--lcards-gray-medium-dark).'),
+            tumble: setting('How fast it turns on its own axis, degrees per second. 0: still. Off under reduced motion.', { default: 10 })
+        }, { group: 'main' }),
+        coma: part('The coma: the glowing cloud round the nucleus.', {
+            size: setting('Its diameter, scene units.', { minimum: 0, default: 10 }),
+            color: color('Its colour. Default color.')
+        }),
+        tail: part('Both tails.', {
+            length: setting('How far the tails reach away from the star, scene units (the dust tail fades sooner).', { minimum: 0, default: 60 })
+        }, { group: 'main' }),
+        ion_tail: part('The straight ion tail: true (default), false, or { color }.', {
+            color: color('Its colour. Default var(--lcards-blue-medium).')
+        }, { toggle: true }),
+        dust_tail: part('The broad dust tail that bends back along the comet\'s path: true (default), false, or { color }.', {
+            color: color('Its colour. Default color.')
+        }, { toggle: true }),
         glow: setting('Opacity of the coma and the tails, 0 to 1 (the nucleus stays).', { minimum: 0, maximum: 1, default: 1 }),
-        tails: {
-            type: 'string', enum: [...COMET_TAILS], default: 'both', description: 'Which tails draw.',
-            enumDescriptions: { both: 'The ion tail and the dust tail', ion: 'Only the straight ion tail', dust: 'Only the curved dust tail', none: 'No tails: the nucleus and its coma' }
-        },
         light: lightRef('The tails point away from it, and the nucleus is lit from it.'),
-        activity: {
-            type: 'string', enum: [...COMET_ACTIVITY], default: 'fixed', description: 'fixed: the coma, tails and glow as set. distance: scaled by the distance to the star every frame, full at activity_range\'s near end, falling with the square of the distance, gone at its far end.',
-            enumDescriptions: { fixed: 'As set', distance: 'Grows and brightens near its star' }
-        },
-        activity_range: tuple(2, '[near, far] distance from the star for activity: distance, scene units (the frame\'s, in a system). Default [50, 300].'),
+        activity: part('How the coma and tails change with the distance to the star.', {
+            mode: { type: 'string', enum: [...COMET_ACTIVITY], default: 'fixed', description: 'fixed: the coma, tails and glow as set. distance: scaled by the distance to the star every frame, full at range\'s near end, falling with the square of the distance, gone at its far end.', enumDescriptions: { fixed: 'As set', distance: 'Grows and brightens near its star' } },
+            range: tuple(2, '[near, far] distance from the star for mode: distance, scene units (the frame\'s, in a system). Default [50, 300].')
+        }, { group: 'main' }),
         seed: { type: 'integer', default: 1, description: 'A different number gives a different nucleus and tail.' },
-        tumble: setting('How fast the nucleus turns on its own axis, degrees per second. 0: still. Off under reduced motion.', { default: 10 }),
-        color: color('Colour of the coma and the dust tail. Default var(--lcards-moonlight).'),
-        ion_color: color('Colour of the ion tail. Default var(--lcards-blue-medium).'),
-        nucleus_color: color('Colour of the nucleus. Default var(--lcards-gray-medium-dark).')
+        color: color('Colour of the coma and the dust tail (unless they set their own). Default var(--lcards-moonlight).')
     }
 };
 
@@ -1141,19 +1211,29 @@ const galaxyObject = {
     properties: {
         type: { type: 'string', const: 'galaxy', description: 'galaxy: a spiral galaxy.' },
         radius: setting('Radius of the disc, scene units. Default 50000 (light years, the Milky Way\'s).', { exclusiveMinimum: 0 }),
-        arms: wholeSetting('A spiral of this many equal arms instead of the Milky Way\'s (leave out for the Milky Way).', { minimum: 1, maximum: 8 }),
-        pitch: setting('How tightly the arms wind, degrees (the Milky Way\'s are about 12; larger opens them).', { minimum: 4, maximum: 45, default: 12 }),
-        bar: setting('The central bar\'s half-length as a fraction of the radius (0: no bar).', { minimum: 0, maximum: 0.8, default: 0.32 }),
-        bar_angle: setting('Bearing of the bar\'s near end, degrees; the arms start at its ends and turn with it. Default 153: 27 degrees off the line from the centre to the Sun\'s place, as in the Milky Way.', { default: 153 }),
         thickness: setting('The disc\'s thickness as a fraction of the radius.', { minimum: 0, maximum: 0.5, default: 0.02 }),
-        stars: wholeSetting('How many stars (at most 100,000). Far away fewer of them draw.', { minimum: 0, maximum: 100000, default: 40000 }),
         seed: { type: 'integer', default: 3, description: 'A different number gives a different scatter of stars.' },
-        core_color: color('Colour of the bulge and bar stars and the core\'s glow. Default var(--lcars-yellow).'),
-        arm_color: color('Colour the arm stars lean toward, and the arms\' glow. Default var(--lcars-blue).'),
-        star_color: color('The stars\' base colour. Default var(--lcards-moonlight).'),
+        arms: part('The spiral arms: the Milky Way\'s unless count is set.', {
+            count: wholeSetting('A spiral of this many equal arms instead of the Milky Way\'s (leave out for the Milky Way).', { minimum: 1, maximum: 8 }),
+            pitch: setting('How tightly the arms wind, degrees (the Milky Way\'s are about 12; larger opens them).', { minimum: 4, maximum: 45, default: 12 }),
+            color: color('Colour the arm stars lean toward, and the arms\' glow. Default var(--lcars-blue).')
+        }, { group: 'main' }),
+        bar: part('The central bar.', {
+            length: setting('The central bar\'s half-length as a fraction of the radius (0: no bar).', { minimum: 0, maximum: 0.8, default: 0.32 }),
+            angle: setting('Bearing of the bar\'s near end, degrees; the arms start at its ends and turn with it. Default 153: 27 degrees off the line from the centre to the Sun\'s place, as in the Milky Way.', { default: 153 })
+        }, { group: 'main' }),
+        stars: part('The stars.', {
+            count: wholeSetting('How many stars (at most 100,000). Far away fewer of them draw.', { minimum: 0, maximum: 100000, default: 40000 }),
+            color: color('Their base colour. Default var(--lcards-moonlight).')
+        }, { group: 'main' }),
+        core: part('The bulge and the core\'s glow.', {
+            color: color('Colour of the bulge and bar stars and the core\'s glow. Default var(--lcars-yellow).')
+        }),
         glow: setting('Opacity of the soft glow along the arms and at the core, 0 to 1 (0: none).', { minimum: 0, maximum: 1, default: 0.6 }),
-        dust: setting('Opacity of the dark dust lanes on the arms\' inner edges, 0 to 1 (0: none).', { minimum: 0, maximum: 1, default: 0.5, 'x-ui-hints': { group: 'appearance' } }),
-        dust_color: color('Colour of the dust lanes. Default the background colour.')
+        dust: part('The dark dust lanes on the arms\' inner edges.', {
+            amount: setting('Their opacity, 0 to 1 (0: none).', { minimum: 0, maximum: 1, default: 0.5 }),
+            color: color('Their colour. Default the background colour.')
+        })
     }
 };
 
@@ -1182,20 +1262,24 @@ const nebulaObject = {
             description: 'render: volume only: the form of the gas. clouds (default): the clouds themselves. shell: a thin hollow sphere (the Ring nebula). bipolar: an hourglass along the object\'s y axis, two hollow lobes joined at a narrow waist (the Butterfly). filaments: long thin strands running along the object\'s x axis (the Veil). cavity: a thick cup round a hollow that opens on the object\'s +z side (a blister, as in Orion). In every shape but clouds the clouds give the clumps and colours inside the form; turn it with rotation.'
         },
         stretch: setting('Seeded clouds: how drawn out each one is, 0 (round, default) to 1 (long and flat), each turned its own way. Hand-placed clouds take size and rotation instead.', { minimum: 0, maximum: 1, default: 0 }),
-        core_color: color('Colour deep in the gas (in a shape other than clouds: near its middle), running out to the cloud colours at the edges. Default none: the cloud colours throughout.'),
-        dust: setting('render: volume only: how dark the dust clouds are, 0 to 1 (they hide the gas behind them).', { minimum: 0, maximum: 1, default: 0.8 }),
-        dust_count: wholeSetting('render: volume only: how many dark dust clouds the seed lays across the gas clouds (their own seed stream: adding dust moves no gas cloud).', { minimum: 0, maximum: 4, default: 0 }),
-        dust_color: color('Colour of the dust. Default black. With blend: add the dust darkens only this nebula\'s gas behind it; with blend: normal it also hides what is behind the nebula.'),
+        core: part('The gas deep inside (in a shape other than clouds: near its middle).', {
+            color: color('Colour there, running out to the cloud colours at the edges. Default none: the cloud colours throughout.')
+        }),
+        dust: part('render: volume only: dark dust clouds that hide the gas behind them.', {
+            amount: setting('How dark they are, 0 to 1.', { minimum: 0, maximum: 1, default: 0.8 }),
+            count: wholeSetting('How many the seed lays across the gas clouds (their own seed stream: adding dust moves no gas cloud).', { minimum: 0, maximum: 4, default: 0 }),
+            color: color('Their colour. Default black. With blend: add the dust darkens only this nebula\'s gas behind it; with blend: normal it also hides what is behind the nebula.')
+        }),
         radius: setting('The clouds sit inside a ball this big round the object, scene units. Default 100.', { exclusiveMinimum: 0 }),
         size: {
             description: 'Or inside a box [width, height, depth] (one number for a cube), scene units. Replaces radius.',
             anyOf: [{ type: 'number', exclusiveMinimum: 0 }, { type: 'array', items: { type: 'number', exclusiveMinimum: 0 }, minItems: 3, maxItems: 3 }, settingBinding, settingTemplate]
         },
-        cloud_count: wholeSetting('How many clouds the seed places (the background preset\'s key).', { minimum: 1, maximum: 10, default: 4 }),
+        count: wholeSetting('How many clouds the seed places (the background preset\'s key).', { minimum: 1, maximum: 10, default: 4 }),
         clouds: {
             type: 'array',
             maxItems: 10,
-            description: 'Clouds placed by hand, instead of cloud_count and the seed.',
+            description: 'Clouds placed by hand, instead of count and the seed.',
             items: {
                 type: 'object',
                 additionalProperties: false,
@@ -1206,7 +1290,7 @@ const nebulaObject = {
                     opacity: setting('Opacity, 0 to 1. Default random within brightness.', { minimum: 0, maximum: 1 }),
                     size: tuple(3, 'Or an ellipsoid [width, height, depth], scene units (replaces radius).'),
                     rotation: tuple(3, 'Turn the ellipsoid [x, y, z] in degrees, as an object\'s rotation.'),
-                    dust: { type: 'boolean', default: false, description: 'render: volume only: a dark dust cloud that hides the gas behind it (dust, dust_color) instead of glowing.' }
+                    dust: { type: 'boolean', default: false, description: 'render: volume only: a dark dust cloud that hides the gas behind it (dust.amount, dust.color) instead of glowing.' }
                 }
             }
         },
@@ -1239,16 +1323,18 @@ const modelObject = {
         file_units: { type: 'string', enum: [...FILE_UNIT_NAMES], default: 'm', description: 'The units the file was made in, for its real size (no size or length set): m (default; glTF files and the built-in models are in metres), cm, mm, km, ft or in.' },
         material: { type: 'string', enum: [...MODEL_MATERIALS], default: 'hologram', description: 'hologram (default): a glow with a bright rim and scanlines. original: the file\'s materials, lit.' },
         color: color('Hologram body colour. Default var(--lcars-blue).'),
-        rim_color: color('Hologram rim colour. Default var(--lcards-moonlight).'),
+        rim: part('The hologram\'s bright rim.', {
+            color: color('Rim colour. Default var(--lcards-moonlight).')
+        }),
         opacity: setting('Opacity, 0 to 1 (a hologram\'s brightness).', { minimum: 0, maximum: 1, default: 0.85 }),
         scanlines: setting('Scanline strength, 0 (none) to 1.', { minimum: 0, maximum: 1, default: 0.5 }),
-        scan_period: setting('Seconds per scan band sweep along the model (0: none).', { minimum: 0, default: 0 }),
-        scan_color: color('Scan band colour. Default var(--lcards-moonlight).'),
+        scan: scanPart('It sweeps along the model.'),
         solid: { type: 'boolean', default: true, description: 'false: see-through.' },
         blend: { type: 'string', enum: ['add', 'normal'], default: 'add', description: 'Hologram blending: add (default) or normal.' },
-        edges: { type: 'boolean', description: 'Draw feature edges. Default true for hologram, except on a model over 250,000 triangles (working them out freezes the page for seconds); true draws them anyway.' },
-        edge_angle: setting('Edges where faces meet at more than this angle, degrees.', { minimum: 0, maximum: 180, default: 30 }),
-        edge_color: color('Edge colour. Default the rim colour.'),
+        edges: part('Feature edges: true, false, or { angle, color }. Default on for hologram, except on a model over 250,000 triangles (working them out freezes the page for seconds); true or an object draws them anyway.', {
+            angle: setting('Edges where faces meet at more than this angle, degrees.', { minimum: 0, maximum: 180, default: 30 }),
+            color: color('Edge colour. Default the rim colour.')
+        }, { toggle: true }),
         animation: {
             description: 'Clips to loop: all, a name or a list. None when left out.',
             oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' }, minItems: 1 }]

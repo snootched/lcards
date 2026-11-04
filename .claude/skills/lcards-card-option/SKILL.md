@@ -30,9 +30,14 @@ A new key (or a new shape for an existing idea) must use the names the other car
   | Templates | `[[[ JS ]]]`, `{{ Jinja2 }}`, `{entity.state}` tokens |
   | Actions | `tap_action`, `hold_action`, `double_tap_action` with `action:` |
   | A seeded random layout | `seed` (an integer; never bound to an entity) |
+  | A named bundle of defaults your own keys override | `preset` (button, slider, elbow, select menu, `fill.effect`, nebula); never `style` |
+  | Style properties | `style: { ... }` (an object); never a string name |
+  | What is drawn (a structural variant) | `shape`, `type`, `render`, `mode` (astrometrics cube `shape: borg \| box`) |
+  | A sub-part's settings | nested under the part: `coma: { size, color }`, `edges: true \| false \| { width, color }` (the true-or-object pattern when the part can be switched); not `<part>_<setting>`. Settings of the object's own body stay flat (`radius`, `count`, `opacity`) |
+  | A part's colour | `color` / `colors` under the part, never `<part>_color` or `color_<x>` (params schemas mirroring released background presets keep their names: `fill_color`, `color_a`, `color_major`) |
 
 - If the right name differs from what exists, or two cards already disagree, stop and ask the user which to standardise on (and, for an unreleased key, rename outright; for a released one, keep the old key as an alias).
-- `tests/docs/schema-vocabulary.test.js` guards the entity mapping words on every card; when you settle another shared word, add a check there.
+- `tests/docs/schema-vocabulary.test.js` guards the entity mapping words on every card, and on astrometrics the nesting and colour rule (no `<part>_color`, no string `style`); when you settle another shared word, add a check there. Nesting a key moves its binding path (`coma.size`) and its live key (`LIVE_TYPE_KEYS`); `WHOLE_NUMBER_KEYS` match the last path segment.
 
 ## 2. Schema (the contract)
 

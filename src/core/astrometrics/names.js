@@ -168,13 +168,13 @@ export function flattenSystems(config) {
  * value is rounded (bindings.js), so the object rebuilds only when the whole
  * number changes. Seeds are not settings.
  */
-export const WHOLE_NUMBER_KEYS = /** @type {const} */ (['count', 'stars', 'arms', 'cloud_count', 'lobes', 'spoke_count', 'num_octaves', 'major_row_interval', 'major_col_interval', 'dust_count']);
+export const WHOLE_NUMBER_KEYS = /** @type {const} */ (['count', 'lobes', 'spoke_count', 'num_octaves', 'row_interval', 'col_interval']);
 
-/** A comet's `tails`: which of its two draw */
-export const COMET_TAILS = /** @type {const} */ (['both', 'ion', 'dust', 'none']);
-
-/** A comet's `activity`: fixed, or from its distance to its star */
+/** A comet's `activity.mode`: fixed, or from its distance to its star */
 export const COMET_ACTIVITY = /** @type {const} */ (['fixed', 'distance']);
+
+/** `cube` shapes: the Borg cube, or a plain shaded box */
+export const CUBE_SHAPES = /** @type {const} */ (['borg', 'box']);
 
 /** Most rocks one belt draws */
 export const MAX_ROCKS = 5000;
@@ -189,7 +189,7 @@ export const MAX_ROCKS = 5000;
  */
 export const LIVE_TYPE_KEYS = {
   belt: { keys: ['radius', 'radius.0', 'radius.1', 'thickness', 'count'], most: { count: MAX_ROCKS } },
-  comet: { keys: ['size', 'coma_size', 'tail_length', 'glow'] },
+  comet: { keys: ['nucleus.size', 'coma.size', 'tail.length', 'glow'] },
   nebula: { keys: ['drift', 'drift.0', 'drift.1', 'density'] }
 };
 
@@ -202,10 +202,10 @@ export const MODEL_TYPES = /** @type {const} */ (['model']);
 /** `model` looks: the hologram shader, or the file's own materials */
 export const MODEL_MATERIALS = /** @type {const} */ (['hologram', 'original']);
 
-/** `fill_effect` types on spheres and grids (the background presets plasma, fluid, contour-field; bands: latitude belts) */
+/** `fill.effect` types on spheres and grids (the background presets plasma, fluid, contour-field; bands: latitude belts) */
 export const FILL_EFFECTS = /** @type {const} */ (['plasma', 'fluid', 'contour', 'bands', 'swirl']);
 
-/** `fill_effect` presets: named starting points for planet types (`effects/fills.js` FILL_PRESETS) */
+/** `fill.effect` presets: named starting points for planet types (`effects/fills.js` FILL_PRESETS) */
 export const FILL_PRESETS = /** @type {const} */ (['gas_giant', 'ringed_giant', 'ice_giant', 'storm_giant', 'clouds', 'lava', 'ice', 'rocky', 'terran']);
 
 /** `grid` shapes */
@@ -214,7 +214,7 @@ export const GRID_SHAPES = /** @type {const} */ (['plane', 'disc', 'dome', 'sphe
 /** Grid shapes deformed round their y axis (the others are flat) */
 export const AXIAL_GRID_SHAPES = /** @type {const} */ (['dome', 'sphere', 'cylinder', 'well']);
 
-/** `well_shape` names (the background grid's well shapes, `grid-surface-model.js` WELL_SHAPES) */
+/** `well.shape` names (the background grid's well shapes, `grid-surface-model.js` WELL_SHAPES) */
 export const WELL_SHAPE_NAMES = /** @type {const} */ (['trumpet', 'cone', 'bowl', 'wormhole']);
 
 /** `deform:` types on a grid */
@@ -261,12 +261,12 @@ export const PLACEMENT_FORMS = /** @type {const} */ (['xyz', 'polar', 'latlon', 
 
 /**
  * Whether a config needs the effects chunk (its noise shaders): a nebula,
- * or a `fill_effect`.
+ * or a `fill.effect`.
  * @param {any} config
  */
 export function usesEffects(config) {
   const objects = Array.isArray(config?.objects) ? flattenSystems(config).objects : [];
-  return objects.some((o) => o && (/** @type {readonly string[]} */ (EFFECT_TYPES).includes(o.type) || o.fill_effect));
+  return objects.some((o) => o && (/** @type {readonly string[]} */ (EFFECT_TYPES).includes(o.type) || o.fill?.effect));
 }
 
 /**

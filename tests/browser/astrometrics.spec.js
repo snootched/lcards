@@ -1644,7 +1644,7 @@ test('AC1 comet: the tails light the side away from the star; tail_length eases 
     const comet = () => page.evaluate(() => {
         const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
         const b = s.world.objects.get('comet');
-        return { node: b.node.uuid, length: b.node.getObjectByName('ion_tail').material.uniforms.uLength.value, live: s.live['comet.tail_length'] };
+        return { node: b.node.uuid, length: b.node.getObjectByName('ion_tail').material.uniforms.uLength.value, live: s.live['comet.tail.length'] };
     });
     await expect.poll(async () => (await comet()).length, { timeout: 5000 }).toBeCloseTo(80, 3);
     await page.waitForTimeout(600);

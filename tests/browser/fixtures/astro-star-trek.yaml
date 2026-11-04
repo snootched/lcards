@@ -265,7 +265,7 @@ objects:
     line_spacing_deg: 20
     color: var(--lcars-yellow)
     opacity: 0.4
-    scan_period: 6
+    scan: { period: 6 }
     hide_in_systems: true
   - { type: glow, at: core, size: 7000, color: var(--lcars-yellow), opacity: 0.5, hide_in_systems: true }
   - type: volume
@@ -274,7 +274,7 @@ objects:
     outline: [[-4800, 23200], [-1200, 21800], [2200, 23000], [2600, 27200], [800, 30000], [-3200, 30400], [-5200, 27600]]
     height: [-1200, 1200]
     color: var(--lcars-blue)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     cells: { width: 2000, depth: 2000, height: 1200 }
     min_distance: 6000
     hide_in_systems: true
@@ -284,7 +284,7 @@ objects:
     outline: [[2400, 22600], [6200, 21400], [8400, 24200], [7400, 27600], [3000, 27000]]
     height: [-1200, 1200]
     color: var(--lcars-red)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     cells: { width: 2000, depth: 2000, height: 1200 }
     min_distance: 6000
     hide_in_systems: true
@@ -294,7 +294,7 @@ objects:
     outline: [[2800, 27400], [7200, 28000], [7800, 31800], [3600, 32600], [1200, 30400]]
     height: [-1200, 1200]
     color: var(--lcars-green)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     cells: { width: 2000, depth: 2000, height: 1200 }
     min_distance: 6000
     hide_in_systems: true
@@ -304,7 +304,7 @@ objects:
     outline: [[-5400, 27800], [-8800, 26600], [-10400, 29600], [-8200, 32200], [-4600, 31000]]
     height: [-1200, 1200]
     color: var(--lcars-orange)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     cells: { width: 2000, depth: 2000, height: 1200 }
     min_distance: 6000
     hide_in_systems: true
@@ -314,7 +314,7 @@ objects:
     outline: [[-30000, -27000], [-41000, -22000], [-46000, -32000], [-40000, -41000], [-29000, -37000]]
     height: [-1200, 1200]
     color: var(--lcars-violet)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     cells: { width: 2000, depth: 2000, height: 1200 }
     hide_in_systems: true
   - type: volume
@@ -323,7 +323,7 @@ objects:
     outline: [[14000, -14000], [30000, -10000], [40000, -24000], [32000, -40000], [16000, -34000], [10000, -22000]]
     height: [-1200, 1200]
     color: var(--lcars-green)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     cells: { width: 2000, depth: 2000, height: 1200 }
     hide_in_systems: true
   - type: grid
@@ -332,7 +332,7 @@ objects:
     at: sol
     size: [400, 400]
     line_spacing: 20
-    major_row_interval: 5
+    major: { row_interval: 5 }
     opacity: 0.5
     max_distance: 3000
     hide_in_systems: true
@@ -343,7 +343,7 @@ objects:
     outline: [[70, -40], [78, -40], [80, 60], [72, 60]]
     height: [-4, 4]
     color: var(--lcars-green)
-    face_opacity: 0.35
+    faces: { opacity: 0.35 }
     max_distance: 3000
     hide_in_systems: true
   - type: volume
@@ -353,7 +353,7 @@ objects:
     outline: [[-38, 12], [-42, 8], [-48, 34], [-44, 38]]
     height: [-4, 4]
     color: var(--lcars-orange)
-    face_opacity: 0.35
+    faces: { opacity: 0.35 }
     max_distance: 3000
     hide_in_systems: true
   - type: path
@@ -364,19 +364,18 @@ objects:
     width: 5
     glow: 3
     pulse: true
-    flow_speed: 30
+    dash: { speed: 30 }
   - type: grid
     id: wormhole_alpha_mouth
     shape: well
-    well_shape: trumpet
-    well_throat: 0.1
+    well: { shape: trumpet, throat: 0.1 }
     at: wormhole_alpha
     face: wormhole_aim_gamma
     radius: 0.6
     depth: 1.6
     line_spacing_deg: 20
     color: var(--lcars-blue)
-    scan_period: 4
+    scan: { period: 4 }
     look: diagram
     deform: [{ type: twist, angle: 60, anchor: top }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
     max_distance: 200
@@ -386,9 +385,8 @@ objects:
     at: wormhole_alpha
     face: wormhole_aim_gamma
     radius: 1.05
-    dash: [6, 10]
+    dash: { pattern: [6, 10], speed: 40 }
     width: 2
-    flow_speed: 40
     spin: 90
     look: diagram
     max_distance: 200
@@ -406,24 +404,21 @@ objects:
     face: wormhole_aim_gamma
     look: realistic
     radius: 0.8999999999999999
-    arms: 3
-    pitch: 28
-    bar: 0
+    arms: { count: 3, pitch: 28, color: var(--lcars-blue) }
+    bar: { length: 0 }
     thickness: 0.06
-    stars: 4000
+    stars: { count: 4000 }
     seed: 4
     glow: 0.35
-    dust: 0.3
-    arm_color: var(--lcars-blue)
-    core_color: var(--lcards-moonlight)
+    dust: { amount: 0.3 }
+    core: { color: var(--lcards-moonlight) }
     spin: 60
     max_distance: 200
     hide_in_systems: true
   - type: grid
     id: wormhole_alpha_funnel
     shape: well
-    well_shape: trumpet
-    well_throat: 0.1
+    well: { shape: trumpet, throat: 0.1 }
     at: wormhole_alpha
     face: wormhole_aim_gamma
     radius: 0.6
@@ -432,7 +427,8 @@ objects:
     color: var(--lcars-blue)
     opacity: 0.5
     look: realistic
-    fill_effect: { type: plasma, color_a: var(--lcars-blue), color_b: var(--lcars-violet), speed: 0.3, opacity: 0.6 }
+    fill:
+      effect: { type: plasma, color_a: var(--lcars-blue), color_b: var(--lcars-violet), speed: 0.3, opacity: 0.6 }
     deform: [{ type: twist, angle: 80, anchor: top, period: 6 }]
     max_distance: 200
     hide_in_systems: true
@@ -452,21 +448,20 @@ objects:
     width: 5
     glow: 3
     pulse: true
-    flow_speed: 30
+    dash: { speed: 30 }
     max_distance: 200
     hide_in_systems: true
   - type: grid
     id: wormhole_gamma_mouth
     shape: well
-    well_shape: trumpet
-    well_throat: 0.1
+    well: { shape: trumpet, throat: 0.1 }
     at: wormhole_gamma
     face: wormhole_aim_alpha
     radius: 0.6
     depth: 1.6
     line_spacing_deg: 20
     color: var(--lcars-blue)
-    scan_period: 4
+    scan: { period: 4 }
     look: diagram
     deform: [{ type: twist, angle: 60, anchor: top }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
     max_distance: 200
@@ -476,9 +471,8 @@ objects:
     at: wormhole_gamma
     face: wormhole_aim_alpha
     radius: 1.05
-    dash: [6, 10]
+    dash: { pattern: [6, 10], speed: 40 }
     width: 2
-    flow_speed: 40
     spin: 90
     look: diagram
     max_distance: 200
@@ -496,24 +490,21 @@ objects:
     face: wormhole_aim_alpha
     look: realistic
     radius: 0.8999999999999999
-    arms: 3
-    pitch: 28
-    bar: 0
+    arms: { count: 3, pitch: 28, color: var(--lcars-blue) }
+    bar: { length: 0 }
     thickness: 0.06
-    stars: 4000
+    stars: { count: 4000 }
     seed: 4
     glow: 0.35
-    dust: 0.3
-    arm_color: var(--lcars-blue)
-    core_color: var(--lcards-moonlight)
+    dust: { amount: 0.3 }
+    core: { color: var(--lcards-moonlight) }
     spin: 60
     max_distance: 200
     hide_in_systems: true
   - type: grid
     id: wormhole_gamma_funnel
     shape: well
-    well_shape: trumpet
-    well_throat: 0.1
+    well: { shape: trumpet, throat: 0.1 }
     at: wormhole_gamma
     face: wormhole_aim_alpha
     radius: 0.6
@@ -522,7 +513,8 @@ objects:
     color: var(--lcars-blue)
     opacity: 0.5
     look: realistic
-    fill_effect: { type: plasma, color_a: var(--lcars-blue), color_b: var(--lcars-violet), speed: 0.3, opacity: 0.6 }
+    fill:
+      effect: { type: plasma, color_a: var(--lcars-blue), color_b: var(--lcars-violet), speed: 0.3, opacity: 0.6 }
     deform: [{ type: twist, angle: 80, anchor: top, period: 6 }]
     max_distance: 200
     hide_in_systems: true
@@ -542,14 +534,13 @@ objects:
     width: 5
     glow: 3
     pulse: true
-    flow_speed: 30
+    dash: { speed: 30 }
     max_distance: 200
     hide_in_systems: true
   - type: path
     id: voyager_route
     points: [ocampa, nekrit, northwest_passage, endgame, sol]
-    dash: [10, 6]
-    flow_speed: 40
+    dash: { pattern: [10, 6], speed: 40 }
     color: var(--lcars-orange)
     width: 2
 camera:

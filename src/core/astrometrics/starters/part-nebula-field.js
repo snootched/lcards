@@ -22,8 +22,8 @@ export default /** @type {import('./index.js').Starter} */ ({
     return {
       points: [...c.points, { id: 'heart', at: c.ref, label: String(label), style: 'major' }],
       objects: [
-        { type: 'nebula', id: 'clouds', at: 'heart', render: 'volume', radius: r, cloud_count: 8, seed: 7, drift: 0.5, stretch: 0.4, dust_count: 1, core_color: 'var(--lcars-ice)' },
-        { type: 'nebula', id: 'veil', at: 'heart', radius: r * 0.6, cloud_count: 6, seed: 23, drift: 0.8, colors: ['var(--lcars-violet)', 'var(--lcars-blue)'] },
+        { type: 'nebula', id: 'clouds', at: 'heart', render: 'volume', radius: r, count: 8, seed: 7, drift: 0.5, stretch: 0.4, dust: { count: 1 }, core: { color: 'var(--lcars-ice)' } },
+        { type: 'nebula', id: 'veil', at: 'heart', radius: r * 0.6, count: 6, seed: 23, drift: 0.8, colors: ['var(--lcars-violet)', 'var(--lcars-blue)'] },
         { type: 'glow', id: 'glow', at: 'heart', size: r * 0.5, opacity: 0.7 }
       ]
     };

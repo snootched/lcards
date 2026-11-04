@@ -144,7 +144,9 @@ test('size budgets: each card/view/strategy file under 100 KB, the full bundle u
     // 650 until 2026-10-27: grid deform + well keys (E5) took it to 654 KB.
     // 700 until 2026-10-30: R4a's bodies and clock, then R4b made ~100 astrometrics numbers
     // bindable (anyOf number, binding, template; the binding itself is shared once) (705 KB).
-    assert.ok(bundleKb < 750, `lcards-schema.json is ${bundleKb.toFixed(1)} KB`);
+    // 750 until 2026-11-03: NB1's nebula shapes (749 KB), then NB2a's nested astrometrics parts
+    // (each part an object with its own description: 754 KB).
+    assert.ok(bundleKb < 800, `lcards-schema.json is ${bundleKb.toFixed(1)} KB`);
 });
 
 test('published text has no em dashes (CLAUDE.md: schema descriptions are user-facing)', () => {

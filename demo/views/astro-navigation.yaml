@@ -54,12 +54,12 @@ sections:
           - { id: shuttle, polar: [ 16, 0 ], object: moon_orbit, label: SHUTTLE, style: minor, offset: [ 0, 4, 0 ] }
           - { id: probe, polar: [ 100, 250 ], object: probe_path, marker: dot, label: PROBE, style: minor }
         objects:
-          - { type: sphere, at: star, radius: 12, fill_effect: { preset: rocky }, line_width: 0.5, opacity: 0.35, spin: 5 }
+          - { type: sphere, at: star, radius: 12, fill: { effect: { preset: rocky } }, line_width: 0.5, opacity: 0.35, spin: 5 }
           - { type: ring, id: patrol, radius: 70, spin: 4, width: 0.5, opacity: 0.25, rotation: [ 12, 0, 0 ] }
           - { type: model, src: builtin:constitution, at: enterprise, size: 16, face: motion }
           - { type: trail, point: enterprise, length: 6, width: 2, dash: [ 6, 4 ] }
           - { type: ring, id: outer, radius: 130, spin: 1.5, width: 0.5, opacity: 0.15 }
-          - { type: sphere, at: planet, radius: 7, fill_effect: { preset: ice }, line_width: 0.5 }
+          - { type: sphere, at: planet, radius: 7, fill: { effect: { preset: ice } }, line_width: 0.5 }
           - { type: ring, id: moon_orbit, at: planet, radius: 16, spin: 12, width: 0.5, opacity: 0.2 }
           - { type: model, src: builtin:constitution, at: shuttle, size: 4, face: motion }
           - { type: ring, id: probe_path, radius: 100, spin: -6, width: 0.5, opacity: 0.12, rotation: [ -25, 0, 10 ] }

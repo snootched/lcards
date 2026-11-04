@@ -19,7 +19,7 @@ import { wormholeMouth, THROAT_LINE } from './scene-star-trek-galaxy.js';
 const BLUE = 'var(--lcars-blue)';
 const WHITE = 'var(--lcards-moonlight)';
 
-/** Lobe profiles (well_profile, rim first): rounded "apples" narrowing to a neck at each end */
+/** Lobe profiles (well.profile, rim first): rounded "apples" narrowing to a neck at each end */
 const NEGATIVE_LOBE = [0.1, 0.7, 0.98, 1, 0.85, 0.45, 0.1];
 const POSITIVE_LOBE = [0.1, 0.85, 1, 0.95, 0.6, 0.1];
 const MEMBRANE = [0.3, 0.85, 1, 0.9, 0.55, 0.25];
@@ -74,7 +74,7 @@ export function bajoranWormhole({ prefix, at, size = 70, power, extra = {}, star
   const wobbleAmp = power ? `[[[ return Number(states['${power}']?.state ?? 0) / 2000 ]]]` : 0.03;
   const wobble = [{ type: 'wobble', lobes: 0, waves: 2, period: 4, amplitude: wobbleAmp }];
   const lobe = (/** @type {string} */ name, /** @type {string} */ where, /** @type {number[]} */ profile, /** @type {number} */ radius, /** @type {number} */ depth, /** @type {number} */ opacity) => ({
-    type: 'grid', id: id(name), shape: 'well', well_profile: profile, at: where, face: id('east'), radius: radius * k, depth: depth * k,
+    type: 'grid', id: id(name), shape: 'well', well: { profile }, at: where, face: id('east'), radius: radius * k, depth: depth * k,
     pattern: 'polar', spoke_count: 16, line_spacing: 2.4 * k, color: BLUE, opacity, look: 'diagram', deform: wobble, ...extra
   });
   const mouth = wormholeMouth({ prefix, at, aim: id('down'), radius: 9 * k, depth: 7 * k, power, extra, stars, glow: 2 });
@@ -117,14 +117,14 @@ export function bajoranWormhole({ prefix, at, size = 70, power, extra = {}, star
       lobe('negative_outer', id('negative'), NEGATIVE_LOBE, 7, 13, 1),
       lobe('negative_inner', id('negative'), NEGATIVE_LOBE, 4.8, 13, 0.6),
       {
-        type: 'grid', id: id('negative_cone_grid'), shape: 'well', well_shape: 'cone', well_throat: 0.05, at: id('negative_cone'), face: id('east'),
+        type: 'grid', id: id('negative_cone_grid'), shape: 'well', well: { shape: 'cone', throat: 0.05 }, at: id('negative_cone'), face: id('east'),
         radius: 2.5 * k, depth: 11 * k, line_spacing_deg: 30, color: WHITE, opacity: 0.8, look: 'diagram', ...extra
       },
       { type: 'ring', id: id('ring_singularity_ring'), at: id('ring_singularity'), face: id('east'), radius: 1.6 * k, width: 3, glow: 2, color: WHITE, look: 'diagram', ...extra },
       lobe('positive_outer', id('positive'), POSITIVE_LOBE, 7.5, 18.5, 1),
       lobe('positive_inner', id('positive'), POSITIVE_LOBE, 5, 18.5, 0.6),
       {
-        type: 'grid', id: id('point_singularity_cone'), shape: 'well', well_shape: 'cone', well_throat: 0.04, at: id('point_singularity'), face: id('west'),
+        type: 'grid', id: id('point_singularity_cone'), shape: 'well', well: { shape: 'cone', throat: 0.04 }, at: id('point_singularity'), face: id('west'),
         radius: 3 * k, depth: 9 * k, line_spacing_deg: 24, color: WHITE, look: 'diagram', ...extra
       },
       { type: 'glow', id: id('point_glow'), at: id('point_singularity'), size: 5 * k, color: WHITE, look: 'diagram', ...extra },

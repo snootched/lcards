@@ -150,7 +150,7 @@ test('a deformed grid in a scene: vertices, rim and points move with the clock; 
   const config = {
     objects: [
       { id: 'tube', type: 'grid', shape: 'cylinder', radius: 50, height: 100, deform: [{ type: 'bend', amplitude: 0.4, motion: 'circle', period: 4 }] },
-      { id: 'still', type: 'grid', shape: 'well', radius: 50, well_shape: 'wormhole', deform: [{ type: 'twist', angle: 60 }] },
+      { id: 'still', type: 'grid', shape: 'well', radius: 50, well: { shape: 'wormhole' }, deform: [{ type: 'twist', angle: 60 }] },
       { id: 'sheet', type: 'grid', size: 100 }
     ],
     points: [
@@ -242,7 +242,7 @@ test('deformations are still unless they have a period (or drift); a sphere defo
   assert.equal(makeDeformer([{ type: 'noise', drift: 5 }], AXIAL)?.moving, true);
   const w = buildScene({
     objects: [
-      { id: 'blob', type: 'sphere', radius: 20, fill_color: 'black', deform: [{ type: 'wobble', amplitude: 0.2, lobes: 2, waves: 0, period: 2 }] },
+      { id: 'blob', type: 'sphere', radius: 20, fill: { color: 'black' }, deform: [{ type: 'wobble', amplitude: 0.2, lobes: 2, waves: 0, period: 2 }] },
       { id: 'ring', type: 'grid', shape: 'disc', radius: [20, 60] }
     ],
     points: [{ id: 'eq', object: 'blob', latlon: [0, 45], label: 'EQ' }]

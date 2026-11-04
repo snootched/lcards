@@ -36,7 +36,7 @@ export default /** @type {import('./index.js').Starter} */ ({
       ...DOCKS.flatMap(([id, , , ship]) => [
         { type: 'model', id: `${id}_frame`, src: 'builtin:utopia_planitia_drydock', at: id, size: 40, material: 'original' },
         // the ship at the drydock's scale (289 m in a 772 m frame)
-        ...(ship ? [{ type: 'model', id: `${id}_ship`, src: 'builtin:constitution', at: id, size: 15, scan_period: 6 }] : [])
+        ...(ship ? [{ type: 'model', id: `${id}_ship`, src: 'builtin:constitution', at: id, size: 15, scan: { period: 6 } }] : [])
       ])
     ]
   })

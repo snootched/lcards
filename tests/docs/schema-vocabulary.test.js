@@ -59,3 +59,32 @@ test('the astrometrics setting binding is the map_range shape', () => {
   assert.ok(binding, 'a binding with entity, input, output (and smooth)');
   assert.deepEqual(Object.keys(/** @type {any} */ (binding)).sort(), ['attribute', 'clamp', 'entity', 'input', 'output', 'smooth']);
 });
+
+/**
+ * NB2a (the user, 2026-11-03): a setting of a sub-part lives under that part
+ * (`coma: { size, color }`), colours are only ever `color` or `colors`, and
+ * `style` is never a name (a named bundle of defaults is a `preset`; what is
+ * drawn is `shape`, `type`, `render` or `mode`). Held on astrometrics (the
+ * card that was retrofitted); `fill.effect` keeps the released background
+ * presets' names (fill_color, color_a, color_b, blend_colors), and a point's
+ * `style` names one of its label styles.
+ */
+test('astrometrics: part colours are color / colors under the part, never <part>_color; style is never a picked name', () => {
+  const astro = getSchemaEntries().find((e) => JSON.stringify(e.schema).includes('"title":"belt"'));
+  assert.ok(astro, 'the astrometrics schema is registered');
+  const FILL_PRESET_NAMES = ['fill_color', 'color_a', 'color_b', 'blend_colors'];
+  /** @type {string[]} */
+  const bad = [];
+  walk(astro.schema, 'astrometrics', (props, path) => {
+    // the card's own keys: shared card-level pieces (background animations, rules' animations)
+    // are the released presets' params, with their own flat names
+    if (path !== 'astrometrics' && !/^astrometrics\/properties\/(objects|backdrop|camera|labels|points|clock)\//.test(path)) return;
+    const fillEffect = 'num_octaves' in props && 'color_a' in props;
+    for (const [k, s] of Object.entries(props)) {
+      if (/_colou?rs?$|^colou?rs?_/.test(k) && !(fillEffect && FILL_PRESET_NAMES.includes(k))) bad.push(`${path}: ${k} (a part: { color })`);
+      // a string style is a picked name: only a label style may be one
+      if (k === 'style' && s?.type === 'string' && !(Array.isArray(s.examples) && s.examples.includes('minor'))) bad.push(`${path}: style is a name (preset, shape or mode)`);
+    }
+  });
+  assert.deepEqual(bad, []);
+});

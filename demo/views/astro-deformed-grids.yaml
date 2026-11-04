@@ -55,7 +55,7 @@ sections:
           - id: tornado
             type: grid
             shape: well
-            well_profile: [1, 0.35, 0.15, 0.08]
+            well: { profile: [1, 0.35, 0.15, 0.08] }
             radius: 40
             depth: 110
             at: [0, 110, 0]
@@ -67,13 +67,12 @@ sections:
           - id: wormhole
             type: grid
             shape: well
-            well_shape: wormhole
-            well_throat: 0.25
+            well: { shape: wormhole, throat: 0.25 }
             radius: 40
             depth: 110
             at: [130, 60, 0]
             line_spacing_deg: 20
-            scan_period: 4
+            scan: { period: 4 }
             deform:
               - { type: wobble, amplitude: 0.05, lobes: 0, waves: 2, period: 3 }
           - id: whirlpool

@@ -470,7 +470,7 @@
         pattern: polar
         line_spacing: 10
         spoke_count: 36
-        major_row_interval: 3
+        major: { row_interval: 3 }
         color: theme:colors.ui.tertiary
         ring_labels: {step: 10, radius: 106}
       - type: ring
@@ -519,8 +519,7 @@
         points: [deneb, rigel]
         arc: 8
         dash: [3, 3]
-        color: var(--lcars-orange)
-        color_to: var(--lcars-yellow)
+        colors: [var(--lcars-orange), var(--lcars-yellow)]
         glow: true
       - type: sphere
         id: planet
@@ -583,7 +582,7 @@
         id: sun_body
         at: sun
         radius: 5
-        fill_color: var(--lcars-yellow)
+        fill: { color: var(--lcars-yellow) }
         color: var(--lcars-orange)
         line_spacing_deg: 30
       - { type: ring, id: mercury_orbit, radius: 20, spin: 24, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }

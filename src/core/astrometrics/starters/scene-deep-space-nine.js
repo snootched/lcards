@@ -34,7 +34,7 @@ export default /** @type {import('./index.js').Starter} */ ({
       { type: 'glow', at: 'wormhole', size: 90, color: 'var(--lcars-blue)' },
       { type: 'glow', at: 'wormhole', size: 40, color: 'var(--lcards-moonlight)' },
       { type: 'ring', at: 'wormhole', radius: 26, rotation: [90, 0, 0], spin: 40, dash: [2, 4], width: 1.5, color: 'var(--lcars-blue)' },
-      { type: 'sphere', at: 'bajor', radius: 120, fill_effect: { preset: 'terran' }, line_spacing_deg: 30, line_width: 0.5, opacity: 0.3, spin: 3 }
+      { type: 'sphere', at: 'bajor', radius: 120, fill: { effect: { preset: 'terran' } }, line_spacing_deg: 30, line_width: 0.5, opacity: 0.3, spin: 3 }
     ]
   })
 });

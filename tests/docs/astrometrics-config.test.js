@@ -120,32 +120,32 @@ test('names.js lists match what the runtime draws, and are published in the regi
 test('E6 effects: every new key validates, and settings that silently do nothing warn', () => {
     const good = {
         camera: { warp: true, views: { near: { target: [0, 0, 0], distance: 20, warp: false } } },
-        backdrop: { stars: { count: 500, streak: 2, spectrum: true, spectrum_direction: 'reverse' }, dust: { count: 100, radius: 300, spectrum: true, spectrum_direction: 'doppler' } },
+        backdrop: { stars: { count: 500, streak: 2, spectrum: { direction: 'reverse' } }, dust: { count: 100, radius: 300, spectrum: { direction: 'doppler' } } },
         points: [{ id: 'a', xyz: [0, 0, 0] }, { id: 'b', xyz: [10, 0, 0], view: { distance: 5, warp: true } }],
         objects: [
-            { type: 'nebula', size: [200, 40, 200], cloud_count: 6, colors: ['var(--lcars-violet)', 'var(--lcars-blue)'], turbulence: 0.7, drift: [2, 1], seed: 3 },
+            { type: 'nebula', size: [200, 40, 200], count: 6, colors: ['var(--lcars-violet)', 'var(--lcars-blue)'], turbulence: 0.7, drift: [2, 1], seed: 3 },
             { type: 'nebula', clouds: [{ xyz: [10, 0, 0], radius: 20, color: 'var(--lcars-red)' }], blend: 'normal' },
-            { type: 'grid', shape: 'disc', radius: 100, scan_period: 5, scan_color: 'var(--lcars-yellow)', fill_effect: { type: 'contour', colors: ['var(--lcars-blue)', 'var(--lcars-orange)'], num_bands: 6, fill_level: 0.3 } },
-            { type: 'sphere', radius: 10, scan_period: 4, fill_effect: { type: 'plasma', color_a: 'var(--lcars-orange)', color_b: 'var(--lcars-yellow)', speed: 2 } },
-            { type: 'volume', shape: 'box', size: [10, 6, 10], scan_period: 3 },
-            { type: 'path', from: 'a', to: 'b', dash: [6, 4], flow_speed: 30 },
+            { type: 'grid', shape: 'disc', radius: 100, scan: { period: 5, color: 'var(--lcars-yellow)' }, fill: { effect: { type: 'contour', colors: ['var(--lcars-blue)', 'var(--lcars-orange)'], num_bands: 6, fill_level: 0.3 } } },
+            { type: 'sphere', radius: 10, scan: { period: 4 }, fill: { effect: { type: 'plasma', color_a: 'var(--lcars-orange)', color_b: 'var(--lcars-yellow)', speed: 2 } } },
+            { type: 'volume', shape: 'box', size: [10, 6, 10], scan: { period: 3 } },
+            { type: 'path', from: 'a', to: 'b', dash: { pattern: [6, 4], speed: 30 } },
             { type: 'ring', radius: 30, pulse: { length: 20, gap: 80, color: 'var(--lcars-yellow)' } },
-            { type: 'beam', from: 'a', to: 'b', pulse: true, flow_speed: -40 }
+            { type: 'beam', from: 'a', to: 'b', pulse: { speed: -40 } }
         ]
     };
     assert.deepEqual(issues(good), []);
     const bad = issues({
         camera: { views: { v: { target: [0, 0, 0], warp: true } } },
         objects: [
-            { type: 'sphere', image: '/local/x.jpg', fill_effect: { type: 'fluid' } },
-            { type: 'path', from: [0, 0, 0], to: [1, 0, 0], flow_speed: 20 },
-            { type: 'grid', fill_effect: { type: 'lava' } }
+            { type: 'sphere', image: '/local/x.jpg', fill: { effect: { type: 'fluid' } } },
+            { type: 'path', from: [0, 0, 0], to: [1, 0, 0], dash: { speed: 20 } },
+            { type: 'grid', fill: { effect: { type: 'lava' } } }
         ]
     });
     assert.ok(bad.some((m) => m.startsWith('warning') && m.includes('objects[0].image') && m.includes('image is not shown')), bad.join('\n'));
-    assert.ok(bad.some((m) => m.startsWith('warning') && m.includes('objects[1].flow_speed')), bad.join('\n'));
+    assert.ok(bad.some((m) => m.startsWith('warning') && m.includes('objects[1].dash.speed')), bad.join('\n'));
     assert.ok(bad.some((m) => m.startsWith('warning') && m.includes('backdrop') && m.includes('warp')), bad.join('\n'));
-    assert.ok(bad.some((m) => m.startsWith('error') && m.includes('fill_effect.type')), bad.join('\n'));
+    assert.ok(bad.some((m) => m.startsWith('error') && m.includes('fill.effect.type')), bad.join('\n'));
 });
 
 test('the browser fixtures of the references match the shared reference YAML', () => {
@@ -204,9 +204,9 @@ test('cohesion review (AR): keys the runtime and docs support validate; the old 
     const ok = issues({
         points: [{ id: 'a', xyz: [0, 0, 0], label: 'A', visible: false, opacity: 0.5 }],
         objects: [
-            { type: 'grid', id: 'g', shape: 'disc', radius: [20, 60], tags: ['map'], edges: true, edge_width: 2, edge_color: 'var(--lcars-blue)' },
-            { type: 'sphere', radius: 10, line_spacing_deg: 30, fill_color: 'black', deform: [{ type: 'wobble', period: 4 }, { type: 'noise', base_frequency: 0.1, num_octaves: 3, drift: 2 }] },
-            { type: 'volume', edge_color: 'var(--lcars-orange)' },
+            { type: 'grid', id: 'g', shape: 'disc', radius: [20, 60], tags: ['map'], edges: { width: 2, color: 'var(--lcars-blue)' } },
+            { type: 'sphere', radius: 10, line_spacing_deg: 30, fill: { color: 'black' }, deform: [{ type: 'wobble', period: 4 }, { type: 'noise', base_frequency: 0.1, num_octaves: 3, drift: 2 }] },
+            { type: 'volume', edges: { color: 'var(--lcars-orange)' } },
             { type: 'ring', at: 'a', radius: 30 },
             { type: 'nebula', size: [100, 30, 100] }
         ]
@@ -235,16 +235,16 @@ test('E8 content: planet maps and the ring band validate, built-in image names a
     const out = issues({
         objects: [
             { type: 'sphere', id: 'mars', image: 'builtin:mars_viking' },
-            { type: 'sphere', id: 'saturn', fill_effect: { preset: 'ringed_giant', turbulence: 0.2 } },
-            { type: 'ring', at: [0, 0, 0], radius: 9.8, inner_radius: 4.66, inclination: 27, image: 'builtin:saturn_rings', image_opacity: 0.9, image_color: 'var(--lcars-orange)' },
+            { type: 'sphere', id: 'saturn', fill: { effect: { preset: 'ringed_giant', turbulence: 0.2 } } },
+            { type: 'ring', at: [0, 0, 0], radius: 9.8, inclination: 27, band: { image: 'builtin:saturn_rings', inner_radius: 4.66, opacity: 0.9, color: 'var(--lcars-orange)' } },
             { type: 'sphere', id: 'own', image: '/local/planet.jpg' },
             { type: 'sphere', id: 'typo', image: 'builtin:mars_vikng' },
             { type: 'image', src: 'builtin:nope' },
-            { type: 'sphere', id: 'bad', fill_effect: { preset: 'jupiter' } },
+            { type: 'sphere', id: 'bad', fill: { effect: { preset: 'jupiter' } } },
         ],
     });
     assert.deepEqual(out.sort(), [
-        'error schema objects[6].fill_effect.preset: must be equal to one of the allowed values',
+        'error schema objects[6].fill.effect.preset: must be equal to one of the allowed values',
         'warning registry objects[4].image: unknown built-in image "builtin:mars_vikng" (did you mean "builtin:mars_viking"?)',
         'warning registry objects[5].src: unknown built-in image "builtin:nope"',
     ]);

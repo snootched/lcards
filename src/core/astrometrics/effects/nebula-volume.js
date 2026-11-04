@@ -24,7 +24,7 @@
 import { Group, Mesh, Scene, BoxGeometry, IcosahedronGeometry, ShaderMaterial, BackSide, AdditiveBlending, NormalBlending, NoBlending, Vector2, Vector3, Vector4, Matrix3, Matrix4, Euler, WebGLRenderTarget, LinearFilter, Color } from 'three';
 import { noiseTexture } from './noise3-texture.js';
 import { SOLID_DEPTH_GLSL, solidUniforms, solidDepth, useSolidDepth, disposeSolidDepth } from './solid-depth.js';
-import { built, num, pair } from '../objects/common.js';
+import { built, num, pair, sub } from '../objects/common.js';
 import { NEBULA_SHAPES } from '../names.js';
 
 /** Samples along each ray */
@@ -393,8 +393,10 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
   const shapeFreq = shape === 3 ? 0.8 : shape > 0 ? SHAPE_FREQ : 1;
   const freq = (cellsPerUnit / TEXTURE_CELLS) * (cfg.noise_scale === undefined ? shapeFreq : 1);
   const base = colorOf(0);
-  const core = cfg.core_color !== undefined ? ctx.color(cfg.core_color, '#ffffff') : null;
-  const dustColor = cfg.dust_color !== undefined ? ctx.color(cfg.dust_color, '#000000') : [0, 0, 0];
+  const coreColor = sub(cfg.core).color;
+  const core = coreColor !== undefined ? ctx.color(coreColor, '#ffffff') : null;
+  const dust = sub(cfg.dust);
+  const dustColor = dust.color !== undefined ? ctx.color(dust.color, '#000000') : [0, 0, 0];
 
   const solid = solidUniforms();
   const u = {
@@ -412,7 +414,7 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
     uShapes: { value: Array.from({ length: MAX_CLOUDS }, (_, i) => (clouds[i] ? cloudMatrix(clouds[i]) : new Matrix3())) },
     uBase: { value: new Vector4(base[0], base[1], base[2], (base[3] ?? 1) * 0.55) },
     uCore: { value: core ? new Vector4(core[0], core[1], core[2], 1) : new Vector4(0, 0, 0, 0) },
-    uDust: { value: Math.max(0, Math.min(1, num(cfg.dust, 0.8))) },
+    uDust: { value: Math.max(0, Math.min(1, num(dust.amount, 0.8))) },
     uDustColor: { value: new Vector3(dustColor[0], dustColor[1], dustColor[2]) },
     uTints: {
       value: Array.from({ length: MAX_CLOUDS }, (_, i) => {

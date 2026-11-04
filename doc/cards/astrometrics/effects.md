@@ -24,7 +24,7 @@ objects:
   - { type: grid, shape: disc, radius: 100, pattern: polar, line_spacing: 10, spoke_count: 36 }
   - type: nebula
     size: [220, 50, 220]
-    cloud_count: 8
+    count: 8
     seed: 5
     drift: 3
     colors: [var(--lcars-violet), var(--lcars-blue), var(--lcars-red)]
@@ -33,7 +33,7 @@ objects:
 | Key | What it does |
 |---|---|
 | `radius` or `size` | The region the clouds fill: a ball of `radius` (default 100), or a box `[width, height, depth]` (one number for a cube), round `at`. |
-| `cloud_count`, `seed` | How many clouds (1 to 10, default 4) the seed places; the same seed always places the same clouds. |
+| `count`, `seed` | How many clouds (1 to 10, default 4) the seed places; the same seed always places the same clouds. |
 | `clouds` | Place them yourself instead: a list of `{ xyz, radius, color, opacity }`; `size: [width, height, depth]` and `rotation: [x, y, z]` make one an ellipsoid, `dust: true` a [dust cloud](#shapes-dust-and-colour). |
 | `render` | `puffs` (default) or `volume`: [gas you can fly into](#gas-you-can-fly-into). |
 | `min_radius`, `max_radius` | Cloud sizes, scene units (default 0.15 and 0.4 of the region; 0.25 and 0.55 with `render: volume`). |
@@ -45,8 +45,8 @@ objects:
 | `blend` | `add` (default: light adds up) or `normal`. |
 | `density` | With `render: volume`: how thick the gas is (default 1; 2 is twice as thick). [Following an entity](./data#settings-from-entities) it eases to each new value. |
 | `stretch` | How drawn out each seeded cloud is, 0 (round, default) to 1 (long and flat), each turned its own way. |
-| `core_color` | A colour deep in the gas, running out to the cloud colours at the edges. |
-| `shape`, `dust`, `dust_count`, `dust_color` | With `render: volume`: [shapes, dust and colour](#shapes-dust-and-colour). |
+| `core.color` | A colour deep in the gas, running out to the cloud colours at the edges. |
+| `shape`, `dust` | With `render: volume`: [shapes, dust and colour](#shapes-dust-and-colour). |
 
 Clouds are never tappable, so they never get in the way of points behind them. A label for a cloud is a [point](./points) at the same place.
 
@@ -69,11 +69,11 @@ points:
   - { id: fly_out, xyz: [-90, 0, 0], label: BACK OUT, tap_action: { action: fly-to, view: outside } }
 objects:
   - { type: grid, shape: disc, radius: 100, pattern: polar, line_spacing: 10, spoke_count: 36 }
-  - { type: sphere, at: [30, 0, -20], radius: 14, fill_color: var(--lcars-orange) }
+  - { type: sphere, at: [30, 0, -20], radius: 14, fill: { color: var(--lcars-orange) } }
   - type: nebula
     render: volume
     size: [220, 60, 220]
-    cloud_count: 7
+    count: 7
     seed: 5
     drift: 2
     colors: [var(--lcars-violet), var(--lcars-blue)]
@@ -83,7 +83,7 @@ objects:
 
 ### Shapes, dust and colour
 
-With `render: volume`, `shape` gives the gas a form, after the real nebulae. The clouds still give the clumps and the colours inside the form, so `cloud_count`, `seed` and `colors` keep working; turn the form with `rotation`.
+With `render: volume`, `shape` gives the gas a form, after the real nebulae. The clouds still give the clumps and the colours inside the form, so `count`, `seed` and `colors` keep working; turn the form with `rotation`.
 
 | `shape` | The gas |
 |---|---|
@@ -102,16 +102,16 @@ camera:
 backdrop:
   stars: { count: 2000 }
 objects:
-  - { type: nebula, render: volume, shape: shell, at: [-150, 60, 0], radius: 55, cloud_count: 8, colors: [var(--lcars-ice), var(--lcars-violet)] }
-  - { type: nebula, render: volume, shape: bipolar, at: [-50, 60, 0], radius: 55, cloud_count: 8, colors: [var(--lcars-orange), var(--lcars-red)], core_color: var(--lcards-moonlight) }
-  - { type: nebula, render: volume, shape: filaments, at: [50, 60, 0], radius: 55, cloud_count: 8, stretch: 0.5, colors: [var(--lcars-red), var(--lcars-ice)] }
-  - { type: nebula, render: volume, shape: cavity, at: [150, 60, 0], radius: 55, cloud_count: 8, colors: [var(--lcars-red), var(--lcars-orange)], core_color: var(--lcars-ice) }
-  - { type: nebula, render: volume, at: [0, -70, 0], size: [300, 60, 80], cloud_count: 8, stretch: 0.7, dust_count: 3, colors: [var(--lcars-violet), var(--lcars-blue)], core_color: var(--lcars-ice) }
+  - { type: nebula, render: volume, shape: shell, at: [-150, 60, 0], radius: 55, count: 8, colors: [var(--lcars-ice), var(--lcars-violet)] }
+  - { type: nebula, render: volume, shape: bipolar, at: [-50, 60, 0], radius: 55, count: 8, colors: [var(--lcars-orange), var(--lcars-red)], core: { color: var(--lcards-moonlight) } }
+  - { type: nebula, render: volume, shape: filaments, at: [50, 60, 0], radius: 55, count: 8, stretch: 0.5, colors: [var(--lcars-red), var(--lcars-ice)] }
+  - { type: nebula, render: volume, shape: cavity, at: [150, 60, 0], radius: 55, count: 8, colors: [var(--lcars-red), var(--lcars-orange)], core: { color: var(--lcars-ice) } }
+  - { type: nebula, render: volume, at: [0, -70, 0], size: [300, 60, 80], count: 8, stretch: 0.7, dust: { count: 3 }, colors: [var(--lcars-violet), var(--lcars-blue)], core: { color: var(--lcars-ice) } }
 ```
 
 - `stretch` draws each seeded cloud out (0 round to 1 long and flat); placed by hand, a cloud takes `size` and `rotation` instead. The same seed with or without `stretch` places the same clouds.
-- `core_color` colours the gas deep inside a cloud (in a shape: near its middle), running out to the cloud colours at the edges, as in the Hubble pictures.
-- **Dust** is dark gas that hides the gas behind it: `dust_count` (0 to 4) lays dark clouds across the gas clouds, or mark a hand-placed cloud `dust: true`. `dust` sets how dark (0 to 1, default 0.8) and `dust_color` its colour (default black). With `blend: add` (the default) the dust darkens only this nebula's own gas, so the stars behind still show through; with `blend: normal` it hides what is behind the nebula too. A lane placed by hand through a bright cloud reads most clearly:
+- `core.color` colours the gas deep inside a cloud (in a shape: near its middle), running out to the cloud colours at the edges, as in the Hubble pictures.
+- **Dust** is dark gas that hides the gas behind it: `dust.count` (0 to 4) lays dark clouds across the gas clouds, or mark a hand-placed cloud `dust: true`. `dust.amount` sets how dark (0 to 1, default 0.8) and `dust.color` its colour (default black). With `blend: add` (the default) the dust darkens only this nebula's own gas, so the stars behind still show through; with `blend: normal` it hides what is behind the nebula too. A lane placed by hand through a bright cloud reads most clearly:
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -133,7 +133,7 @@ objects:
 
 ## Scan bands
 
-`scan_period` (seconds per sweep) on a `grid`, `sphere` or `volume` sends a bright band across its lines, as the background grid's `scan_period` does. A sphere sweeps from pole to pole, a dome from the top to its rim, a cylinder top to bottom, a polar disc rings out from its centre like a sensor ping, a plane runs south to north, and a volume sweeps down its walls. `scan_color` sets the band's colour (default `var(--lcards-moonlight)`).
+`scan: { period }` (seconds per sweep) on a `grid`, `sphere`, `volume` or `model` sends a bright band across its lines, as the background grid's `scan_period` does. A sphere sweeps from pole to pole, a dome from the top to its rim, a cylinder top to bottom, a polar disc rings out from its centre like a sensor ping, a plane runs south to north, and a volume sweeps down its walls. `scan.color` sets the band's colour (default `var(--lcards-moonlight)`).
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -142,17 +142,17 @@ camera:
   views:
     v: { target: [0, 10, 0], yaw: 20, tilt: 25, distance: 260 }
 objects:
-  - { type: grid, shape: disc, radius: 100, pattern: polar, line_spacing: 10, spoke_count: 36, scan_period: 6, scan_color: var(--lcars-yellow) }
-  - { type: sphere, at: [-50, 25, 0], radius: 22, scan_period: 5, color: var(--lcars-blue) }
-  - { type: volume, shape: sector, radius: [55, 95], angle: [100, 170], height: [0, 30], scan_period: 4, color: var(--lcars-green) }
+  - { type: grid, shape: disc, radius: 100, pattern: polar, line_spacing: 10, spoke_count: 36, scan: { period: 6, color: var(--lcars-yellow) } }
+  - { type: sphere, at: [-50, 25, 0], radius: 22, scan: { period: 5 }, color: var(--lcars-blue) }
+  - { type: volume, shape: sector, radius: [55, 95], angle: [100, 170], height: [0, 30], scan: { period: 4 }, color: var(--lcars-green) }
 ```
 
 ## Moving dashes and pulses
 
 On a `ring`, `path` or `beam`:
 
-- `flow_speed` moves a dashed line's dashes along it, px per second (negative runs backwards). Dashes keep their px size at any distance, so they move at the same speed on screen near or far.
-- `pulse` sends bright pulses along the line, as the [flow](/core/effects/background-animations/preset-reference#flow) preset's streaks: `true`, or `{ length, gap, width, color, speed }` (px; default 14 px pulses 90 px apart at 80 px per second, in `var(--lcards-moonlight)`). Pulses add light, so on a coloured line they burn toward white. With `flow_speed` set, the pulses move at that speed.
+- `dash: { pattern, speed }` moves a dashed line's dashes along it, `speed` px per second (negative runs backwards). Dashes keep their px size at any distance, so they move at the same speed on screen near or far.
+- `pulse` sends bright pulses along the line, as the [flow](/core/effects/background-animations/preset-reference#flow) preset's streaks: `true`, or `{ length, gap, width, color, speed }` (px; default 14 px pulses 90 px apart at 80 px per second, in `var(--lcards-moonlight)`). Pulses add light, so on a coloured line they burn toward white. With `dash.speed` set, the pulses move at that speed too.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -168,14 +168,14 @@ points:
 objects:
   - { type: grid, shape: disc, radius: 100, pattern: polar, line_spacing: 20, spoke_count: 12, opacity: 0.5 }
   - { type: path, from: hub, to: alpha, arc: 10, color: var(--lcars-orange), pulse: true }
-  - { type: path, from: hub, to: beta, arc: 10, color: var(--lcars-orange), dash: [8, 6], flow_speed: 30 }
+  - { type: path, from: hub, to: beta, arc: 10, color: var(--lcars-orange), dash: { pattern: [8, 6], speed: 30 } }
   - { type: path, from: hub, to: gamma, arc: 10, width: 2, color: var(--lcars-blue), pulse: { length: 24, gap: 120, color: var(--lcars-yellow) } }
-  - { type: ring, radius: 100, width: 2, dash: [12, 8], flow_speed: 20 }
+  - { type: ring, radius: 100, width: 2, dash: { pattern: [12, 8], speed: 20 } }
 ```
 
 ## Animated surface fills
 
-`fill_effect` paints a [plasma](/core/effects/background-animations/preset-reference#plasma), [fluid](/core/effects/background-animations/preset-reference#fluid) or [contour-field](/core/effects/background-animations/preset-reference#contour-field) pattern, `bands` (belts round the latitude, a gas giant) or `swirl` (gas spiralling in, below), on a `sphere`'s body or under a `grid`'s lines: a star's surface, a gas giant's bands, an ocean, a density map. The pattern is drawn in 3D, so it has no seam round a sphere and no pinch at its poles, and it turns with `spin`. On a sphere it is painted over `fill` in place of `image`, and the body still hides what is behind it.
+`fill.effect` paints a [plasma](/core/effects/background-animations/preset-reference#plasma), [fluid](/core/effects/background-animations/preset-reference#fluid) or [contour-field](/core/effects/background-animations/preset-reference#contour-field) pattern, `bands` (belts round the latitude, a gas giant) or `swirl` (gas spiralling in, below), on a `sphere`'s body or under a `grid`'s lines: a star's surface, a gas giant's bands, an ocean, a density map. The pattern is drawn in 3D, so it has no seam round a sphere and no pinch at its poles, and it turns with `spin`. On a sphere it is painted over `fill.color` in place of `image`, and the body still hides what is behind it.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -189,10 +189,11 @@ objects:
     size: [220, 140]
     line_spacing: 20
     opacity: 0.6
-    fill_effect: { type: contour, colors: [var(--lcars-blue), var(--lcars-green), var(--lcars-yellow), var(--lcars-orange)], num_bands: 6, fill_level: 0.3, opacity: 0.5 }
-  - { type: sphere, at: [-60, 30, 0], radius: 24, line_spacing_deg: 30, opacity: 0.4, fill_effect: { type: plasma, color_a: var(--lcars-orange), color_b: var(--lcars-yellow), speed: 2 } }
-  - { type: sphere, at: [10, 30, -10], radius: 20, opacity: 0.3, spin: 4, fill_effect: { type: contour, colors: [var(--lcars-orange), var(--lcars-yellow), var(--lcars-red)], num_bands: 8 } }
-  - { type: sphere, at: [70, 25, 10], radius: 18, color: var(--lcars-blue), fill_effect: { type: fluid, color: var(--lcars-blue) } }
+    fill:
+      effect: { type: contour, colors: [var(--lcars-blue), var(--lcars-green), var(--lcars-yellow), var(--lcars-orange)], num_bands: 6, fill_level: 0.3, opacity: 0.5 }
+  - { type: sphere, at: [-60, 30, 0], radius: 24, line_spacing_deg: 30, opacity: 0.4, fill: { effect: { type: plasma, color_a: var(--lcars-orange), color_b: var(--lcars-yellow), speed: 2 } } }
+  - { type: sphere, at: [10, 30, -10], radius: 20, opacity: 0.3, spin: 4, fill: { effect: { type: contour, colors: [var(--lcars-orange), var(--lcars-yellow), var(--lcars-red)], num_bands: 8 } } }
+  - { type: sphere, at: [70, 25, 10], radius: 18, color: var(--lcars-blue), fill: { effect: { type: fluid, color: var(--lcars-blue) } } }
 ```
 
 | Key | What it does |
@@ -221,17 +222,18 @@ camera:
 objects:
   - type: grid
     shape: well
-    well_throat: 0.07
+    well: { throat: 0.07 }
     radius: 15
     depth: 5
     line_width: 0
     edges: false
-    fill_effect:
-      type: swirl
-      colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-dark)]
-      speed: 3
-      turbulence: 0.8
-      num_octaves: 5
+    fill:
+      effect:
+        type: swirl
+        colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-dark)]
+        speed: 3
+        turbulence: 0.8
+        num_octaves: 5
   - { type: glow, at: [0, 3, 0], size: 10, color: var(--lcards-orange-lightest) }
 ```
 
@@ -260,14 +262,14 @@ camera:
   views:
     v: { target: [0, 0, 0], yaw: 0, tilt: 10, distance: 130 }
 objects:
-  - { type: sphere, at: [-48, 14, 0], radius: 10, fill_effect: { preset: gas_giant }, line_width: 0.5, spin: 8 }
-  - { type: sphere, at: [-16, 14, 0], radius: 10, fill_effect: { preset: ringed_giant }, line_width: 0.5, spin: 8 }
-  - { type: sphere, at: [16, 14, 0], radius: 10, fill_effect: { preset: ice_giant }, line_width: 0.5, spin: 8 }
-  - { type: sphere, at: [48, 14, 0], radius: 10, fill_effect: { preset: storm_giant }, line_width: 0.5, spin: 8 }
-  - { type: sphere, at: [-48, -14, 0], radius: 10, fill_effect: { preset: clouds }, line_width: 0.5, spin: 8 }
-  - { type: sphere, at: [-16, -14, 0], radius: 10, fill_effect: { preset: lava }, line_width: 0.5, spin: 8 }
-  - { type: sphere, at: [16, -14, 0], radius: 10, fill_effect: { preset: ice }, line_width: 0.5, spin: 8 }
-  - { type: sphere, at: [48, -14, 0], radius: 10, fill_effect: { preset: terran }, line_width: 0.5, spin: 8 }
+  - { type: sphere, at: [-48, 14, 0], radius: 10, fill: { effect: { preset: gas_giant } }, line_width: 0.5, spin: 8 }
+  - { type: sphere, at: [-16, 14, 0], radius: 10, fill: { effect: { preset: ringed_giant } }, line_width: 0.5, spin: 8 }
+  - { type: sphere, at: [16, 14, 0], radius: 10, fill: { effect: { preset: ice_giant } }, line_width: 0.5, spin: 8 }
+  - { type: sphere, at: [48, 14, 0], radius: 10, fill: { effect: { preset: storm_giant } }, line_width: 0.5, spin: 8 }
+  - { type: sphere, at: [-48, -14, 0], radius: 10, fill: { effect: { preset: clouds } }, line_width: 0.5, spin: 8 }
+  - { type: sphere, at: [-16, -14, 0], radius: 10, fill: { effect: { preset: lava } }, line_width: 0.5, spin: 8 }
+  - { type: sphere, at: [16, -14, 0], radius: 10, fill: { effect: { preset: ice } }, line_width: 0.5, spin: 8 }
+  - { type: sphere, at: [48, -14, 0], radius: 10, fill: { effect: { preset: terran } }, line_width: 0.5, spin: 8 }
 ```
 
 ## Warp and dust
@@ -275,8 +277,8 @@ objects:
 A fly-to with `warp` streaks the stars past the camera, by how fast it moves for its distance from what it looks at, so a hop between planets streaks as a jump across the galaxy does. Turn it on for every fly-to with `camera.warp: true`, or for one view with `warp: true` in that view (a point's or object's `view` takes it too), or for one action with `warp: true` on its `fly-to` (or the [`lcards.fly_to`](/configuration/ha-actions#lcards-fly-to) action); `false` there turns it off. `camera.warp: { entity: input_boolean.warp_travel }` follows a toggle: fly-tos streak while it is on. The streaks grow with the camera's speed and shrink back to stars as it lands.
 
 - `backdrop.stars.streak` scales the streaks (default 1; 0 never streaks).
-- `backdrop.stars.spectrum: true` splits each streak into colour, as a Doppler shift of the star's own colour: violet toward the tail (nearer the direction of flight) and red toward the head. White stars show the whole rainbow; a blue star streaks green to violet, its tail fading as it shifts past violet, and a red star the other way. `spectrum_direction: reverse` puts violet at the head instead.
-- `backdrop.dust` adds depth dust: faint particles that fill the space round the camera wherever it goes. Unlike the stars at infinity they stay put as the camera moves, so every pan and fly-to shows depth, and they streak in a warp too. The dust has no edge: particles fade out at `radius` from the camera and new ones fade in ahead as it travels, and coming back to a place shows the same dust. It takes the stars' keys (`count`, default 800; `min_radius`, `max_radius`, `brightness`, `colors`, `opacity`, `seed`, `spectrum`) plus `spectrum_direction` and `radius`, how far round the camera it reaches (default 1.5 times the scene's size; smaller is denser and shows depth on smaller moves).
+- `backdrop.stars.spectrum: true` splits each streak into colour, as a Doppler shift of the star's own colour: violet toward the tail (nearer the direction of flight) and red toward the head. White stars show the whole rainbow; a blue star streaks green to violet, its tail fading as it shifts past violet, and a red star the other way. `spectrum: { direction: reverse }` puts violet at the head instead.
+- `backdrop.dust` adds depth dust: faint particles that fill the space round the camera wherever it goes. Unlike the stars at infinity they stay put as the camera moves, so every pan and fly-to shows depth, and they streak in a warp too. The dust has no edge: particles fade out at `radius` from the camera and new ones fade in ahead as it travels, and coming back to a place shows the same dust. It takes the stars' keys (`count`, default 800; `min_radius`, `max_radius`, `brightness`, `colors`, `opacity`, `seed`, `spectrum`) plus `radius`, how far round the camera it reaches (default 1.5 times the scene's size; smaller is denser and shows depth on smaller moves).
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -313,4 +315,4 @@ warp_factor: { entity: input_number.warp_factor, output: [1, 9.9] }
 
 ## Cost
 
-Measured on an Intel Arc laptop GPU at 1300 x 866 px, each effect adds about 1 to 2 ms per frame while it moves: well inside a 60 frames per second budget. A still effect costs nothing between frames, because a still scene draws nothing. The nebula and fill shaders load in a small extra download the first time a card uses one. A nebula with `render: volume` adds about 1 ms seen from outside and 1.5 ms from inside the gas; a `shape`, `stretch`, `core_color` or dust adds at most 0.8 ms more.
+Measured on an Intel Arc laptop GPU at 1300 x 866 px, each effect adds about 1 to 2 ms per frame while it moves: well inside a 60 frames per second budget. A still effect costs nothing between frames, because a still scene draws nothing. The nebula and fill shaders load in a small extra download the first time a card uses one. A nebula with `render: volume` adds about 1 ms seen from outside and 1.5 ms from inside the gas; a `shape`, `stretch`, `core.color` or dust adds at most 0.8 ms more.

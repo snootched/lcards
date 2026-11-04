@@ -44,7 +44,7 @@ test('usesEffects: only configs with a nebula load the effects chunk', () => {
 });
 
 test('nebula layout: seeded (same config, same clouds), cloud_count capped, puffs inside the region', () => {
-  const cfg = { type: 'nebula', seed: 3, cloud_count: 6, radius: 50 };
+  const cfg = { type: 'nebula', seed: 3, count: 6, radius: 50 };
   const a = effects.nebulaLayout(cfg);
   const b = effects.nebulaLayout({ ...cfg });
   assert.deepEqual(a, b, 'deterministic');
@@ -54,13 +54,13 @@ test('nebula layout: seeded (same config, same clouds), cloud_count capped, puff
   // 3 to 5 puffs per cloud, each smaller than or as big as its cloud
   assert.ok(a.puffs.length >= 18 && a.puffs.length <= 30);
   for (const p of a.puffs) assert.ok(p.radius <= a.clouds[p.cloud].radius + 1e-9);
-  assert.equal(effects.nebulaLayout({ cloud_count: 40 }).clouds.length, MAX_CLOUDS);
+  assert.equal(effects.nebulaLayout({ count: 40 }).clouds.length, MAX_CLOUDS);
   // default radii: 0.15 to 0.4 of the region, as the preset's fractions
   for (const c of a.clouds) assert.ok(c.radius >= 7.5 - 1e-9 && c.radius <= 20 + 1e-9);
 });
 
 test('nebula layout: a box region, and clouds by hand replace the seed', () => {
-  const box = effects.nebulaLayout({ size: [200, 20], cloud_count: 10 });
+  const box = effects.nebulaLayout({ size: [200, 20], count: 10 });
   for (const c of box.clouds) {
     assert.ok(Math.abs(c.xyz[0]) <= 100 && Math.abs(c.xyz[2]) <= 100, 'width and depth 200');
     assert.ok(Math.abs(c.xyz[1]) <= 10, 'height 20');
@@ -83,12 +83,12 @@ test('nebula near fade: gone up close, full from 1.6 radii', () => {
 });
 
 test('nebula in a scene: one mesh of camera-facing quads, no pick meshes, still unless drift is set', () => {
-  const w = buildScene({ objects: [{ type: 'nebula', id: 'neb', cloud_count: 3, seed: 2 }, { type: 'grid' }] }, /** @type {any} */ (ctx()));
+  const w = buildScene({ objects: [{ type: 'nebula', id: 'neb', count: 3, seed: 2 }, { type: 'grid' }] }, /** @type {any} */ (ctx()));
   const neb = w.objects.get('neb');
   assert.ok(neb);
   const mesh = /** @type {any} */ (neb.node.children[0]);
   assert.equal(mesh.isMesh, true);
-  const puffs = effects.nebulaLayout({ cloud_count: 3, seed: 2 }).puffs.length;
+  const puffs = effects.nebulaLayout({ count: 3, seed: 2 }).puffs.length;
   assert.equal(mesh.geometry.getAttribute('position').count, puffs * 4, 'four corners a puff');
   assert.equal(mesh.geometry.index.count, puffs * 6);
   assert.equal(neb.pickMeshes.length, 0, 'never takes a tap');
@@ -187,11 +187,11 @@ test('scan: each shape sweeps its own range on the clock; a polar disc rings out
   const { scanRange } = await import('../../src/core/astrometrics/grid-mesh-material.js');
   const { scanAt } = await import('../../src/core/packs/backgrounds/webgl/scenes/scan-band.js');
   const w = buildScene({ objects: [
-    { type: 'sphere', id: 's', radius: 10, scan_period: 4 },
-    { type: 'grid', id: 'disc', shape: 'disc', radius: 50, scan_period: 4 },
-    { type: 'grid', id: 'cyl', shape: 'cylinder', radius: 5, height: 20, scan_period: 4 },
-    { type: 'grid', id: 'plane', shape: 'plane', size: [40, 30], scan_period: 4 },
-    { type: 'volume', id: 'v', shape: 'box', size: [10, 6, 10], scan_period: 4 },
+    { type: 'sphere', id: 's', radius: 10, scan: { period: 4 } },
+    { type: 'grid', id: 'disc', shape: 'disc', radius: 50, scan: { period: 4 } },
+    { type: 'grid', id: 'cyl', shape: 'cylinder', radius: 5, height: 20, scan: { period: 4 } },
+    { type: 'grid', id: 'plane', shape: 'plane', size: [40, 30], scan: { period: 4 } },
+    { type: 'volume', id: 'v', shape: 'box', size: [10, 6, 10], scan: { period: 4 } },
     { type: 'grid', id: 'plain' }
   ] }, /** @type {any} */ (ctx()));
   const face = (id) => /** @type {any} */ (w.objects.get(id)).gridFaces[0];
@@ -209,7 +209,7 @@ test('scan: each shape sweeps its own range on the clock; a polar disc rings out
   const p = scanRange(face('plane'));
   assert.ok(near(p.from - p.to, 30) && p.from > p.to, JSON.stringify(p));
   // a polar plane rings out from its middle
-  const pp = scanRange(buildScene({ objects: [{ type: 'grid', id: 'pp', shape: 'plane', size: [40, 30], pattern: 'polar', scan_period: 2 }] }, /** @type {any} */ (ctx())).objects.get('pp')?.gridFaces[0]);
+  const pp = scanRange(buildScene({ objects: [{ type: 'grid', id: 'pp', shape: 'plane', size: [40, 30], pattern: 'polar', scan: { period: 2 } }] }, /** @type {any} */ (ctx())).objects.get('pp')?.gridFaces[0]);
   assert.ok(pp.radial && near(pp.to, 25), JSON.stringify(pp));
   assert.equal(w.objects.get('plain')?.tick, null, 'no scan_period: no tick');
 
@@ -237,7 +237,7 @@ test('flow: dashes slide along the line at flow_speed px/s, pulses ride over it,
   const w = buildScene({
     points: [{ id: 'a', xyz: [0, 0, 0] }, { id: 'b', xyz: [50, 0, 0] }],
     objects: [
-      { type: 'ring', id: 'r', radius: 30, dash: [6, 4], flow_speed: 20 },
+      { type: 'ring', id: 'r', radius: 30, dash: { pattern: [6, 4], speed: 20 } },
       { type: 'path', id: 'p', from: 'a', to: 'b', pulse: true },
       { type: 'beam', id: 'bm', from: 'a', to: 'b', pulse: { length: 10, gap: 30, speed: -40 } },
       { type: 'path', id: 'still', from: 'a', to: 'b', dash: [6, 4] }
@@ -276,12 +276,12 @@ test('fill_effect: names match, the sphere body takes the fill and still hides w
   const { FILL_EFFECTS } = await import('../../src/core/astrometrics/names.js');
   const { contourStops, MAX_STOPS } = await import('../../src/core/astrometrics/effects/fills.js');
   assert.deepEqual(Object.keys(effects.FILL_TYPES), [...FILL_EFFECTS]);
-  assert.equal(usesEffects({ objects: [{ type: 'sphere', fill_effect: { type: 'plasma' } }] }), true);
+  assert.equal(usesEffects({ objects: [{ type: 'sphere', fill: { effect: { type: 'plasma' } } }] }), true);
 
   const w = buildScene({ objects: [
-    { type: 'sphere', id: 'star', radius: 10, fill_effect: { type: 'plasma', speed: 2 } },
-    { type: 'sphere', id: 'giant', radius: 10, image: '/local/x.jpg', fill_effect: { type: 'contour', colors: ['red', 'blue', 'green'] } },
-    { type: 'grid', id: 'map', shape: 'plane', size: [100, 60], fill_effect: { type: 'fluid' } },
+    { type: 'sphere', id: 'star', radius: 10, fill: { effect: { type: 'plasma', speed: 2 } } },
+    { type: 'sphere', id: 'giant', radius: 10, image: '/local/x.jpg', fill: { effect: { type: 'contour', colors: ['red', 'blue', 'green'] } } },
+    { type: 'grid', id: 'map', shape: 'plane', size: [100, 60], fill: { effect: { type: 'fluid' } } },
     { type: 'sphere', id: 'plain', radius: 10 }
   ] }, /** @type {any} */ (ctx()));
   const star = /** @type {any} */ (w.objects.get('star'));
@@ -317,7 +317,7 @@ test('fill_effect: names match, the sphere body takes the fill and still hides w
   assert.equal(contourStops(Array.from({ length: 40 }, () => [0, 0, 0, 1])).length, MAX_STOPS);
 
   // without the chunk: drawn without the fill
-  const bare = buildScene({ objects: [{ type: 'sphere', id: 's', fill_effect: { type: 'plasma' } }] }, /** @type {any} */ (ctx({ effects: null })));
+  const bare = buildScene({ objects: [{ type: 'sphere', id: 's', fill: { effect: { type: 'plasma' } } }] }, /** @type {any} */ (ctx({ effects: null })));
   assert.equal(/** @type {any} */ (bare.objects.get('s')).pickMeshes[0].material.isMeshBasicMaterial, true);
 });
 
@@ -377,8 +377,8 @@ test('E8 fill presets: names match, a preset gives its type and colours, the con
   assert.equal(resolveFill({ preset: 'nope', type: 'fluid' }).type, 'fluid', 'an unknown preset adds nothing');
 
   const w = buildScene({ objects: [
-    { type: 'sphere', id: 'jove', radius: 8, fill_effect: { preset: 'gas_giant' } },
-    { type: 'sphere', id: 'calm', radius: 8, fill_effect: { type: 'bands', colors: ['red', 'blue'], turbulence: 0 } }
+    { type: 'sphere', id: 'jove', radius: 8, fill: { effect: { preset: 'gas_giant' } } },
+    { type: 'sphere', id: 'calm', radius: 8, fill: { effect: { type: 'bands', colors: ['red', 'blue'], turbulence: 0 } } }
   ] }, /** @type {any} */ (ctx()));
   const u = /** @type {any} */ (w.objects.get('jove')).pickMeshes[0].material.uniforms;
   assert.equal(u.uType.value, effects.FILL_TYPES.bands);
@@ -556,7 +556,7 @@ test('E8 cube: in the effects chunk, sized, seeded spots, borg shader shares the
   assert.deepEqual(effects.cubeSpots(3), a, 'seeded');
   assert.notDeepEqual(effects.cubeSpots(4), a);
 
-  const w = buildScene({ objects: [{ type: 'cube', id: 'borg', size: [10, 20, 30] }, { type: 'cube', id: 'box', style: 'plain', size: 8 }] }, /** @type {any} */ (ctx()));
+  const w = buildScene({ objects: [{ type: 'cube', id: 'borg', size: [10, 20, 30] }, { type: 'cube', id: 'box', shape: 'box', size: 8 }] }, /** @type {any} */ (ctx()));
   const borg = w.objects.get('borg');
   const mesh = borg.node.getObjectByName('cube');
   assert.deepEqual(mesh.scale.toArray(), [5, 10, 15]);
@@ -680,7 +680,7 @@ test('nebula volume: gas fades to nothing at the region\'s faces, full well insi
 });
 
 test('nebula layout: render: volume keeps the seeded clouds (places, colours, opacities), bigger by default', () => {
-    const cfg = { type: 'nebula', seed: 9, cloud_count: 5, radius: 80, colors: ['red', 'blue', 'green'] };
+    const cfg = { type: 'nebula', seed: 9, count: 5, radius: 80, colors: ['red', 'blue', 'green'] };
     const puffs = effects.nebulaLayout(cfg);
     const vol = effects.nebulaLayout({ ...cfg, render: 'volume' });
     assert.deepEqual(vol.clouds.map((c) => [c.xyz, c.color, c.opacity]), puffs.clouds.map((c) => [c.xyz, c.color, c.opacity]));
@@ -692,7 +692,7 @@ test('nebula layout: render: volume keeps the seeded clouds (places, colours, op
 
 test('nebula render: volume: one region mesh, not pickable, a prerender pass; density and drift ease in place', () => {
     const frames = [];
-    const b = effects.buildNebula({ type: 'nebula', id: 'v', render: 'volume', size: [200, 40, 200], cloud_count: 3, seed: 2 }, ctx({ requestFrame: () => frames.push(1) }));
+    const b = effects.buildNebula({ type: 'nebula', id: 'v', render: 'volume', size: [200, 40, 200], count: 3, seed: 2 }, ctx({ requestFrame: () => frames.push(1) }));
     const mesh = /** @type {any} */ (b.node.children[0]);
     assert.equal(mesh.name, 'nebula-volume');
     assert.equal(b.pickMeshes.length, 0);
@@ -756,7 +756,7 @@ test('schema: nebula render and density', async () => {
 });
 
 test('NB1 nebula layout: stretch and dust from their own seed streams (no gas cloud moves); hand size and rotation', () => {
-  const cfg = { type: 'nebula', render: 'volume', seed: 4, cloud_count: 6, radius: 130 };
+  const cfg = { type: 'nebula', render: 'volume', seed: 4, count: 6, radius: 130 };
   const round = effects.nebulaLayout(cfg);
   for (const c of round.clouds) {
     assert.deepEqual(c.axes, [c.radius, c.radius, c.radius], 'round by default');
@@ -769,12 +769,12 @@ test('NB1 nebula layout: stretch and dust from their own seed streams (no gas cl
     assert.deepEqual([c.xyz, c.radius, c.color, c.opacity], [round.clouds[i].xyz, round.clouds[i].radius, round.clouds[i].color, round.clouds[i].opacity], 'same places, sizes, colours');
     assert.ok(c.axes[0] > c.radius && c.axes[1] < c.radius, 'one axis long, one short');
   });
-  const dusty = effects.nebulaLayout({ ...cfg, dust_count: 2 });
+  const dusty = effects.nebulaLayout({ ...cfg, dust: { count: 2 } });
   assert.equal(dusty.clouds.length, 8);
   assert.deepEqual(dusty.clouds.slice(0, 6), round.clouds, 'adding dust moves no gas cloud');
   assert.deepEqual(dusty.puffs, round.puffs, 'dust makes no puffs');
   assert.ok(dusty.clouds.slice(6).every((c) => c.dust));
-  assert.equal(effects.nebulaLayout({ ...cfg, dust_count: 40 }).clouds.filter((c) => c.dust).length, 4, 'at most 4 dust clouds');
+  assert.equal(effects.nebulaLayout({ ...cfg, dust: { count: 40 } }).clouds.filter((c) => c.dust).length, 4, 'at most 4 dust clouds');
   const hand = effects.nebulaLayout({ clouds: [{ xyz: [0, 0, 0], size: [80, 20, 40], rotation: [0, 90, 0] }, { radius: 5, dust: true }] });
   assert.deepEqual(hand.clouds[0].axes, [40, 10, 20]);
   assert.equal(hand.clouds[0].radius, 40, 'its bound: the longest half axis');
@@ -800,16 +800,16 @@ test('NB1 schema: nebula shape, stretch, dust, core colour, ellipsoid clouds', a
   const { astrometricsSchema } = await import('../../src/cards/schemas/astrometrics-schema.js');
   const v = new CoreValidationService({ cacheResults: false });
   const issues = (o) => { const r = v.validate({ type: 'custom:lcards-astrometrics-card', objects: [{ type: 'nebula', ...o }] }, astrometricsSchema); return [...r.errors, ...r.warnings]; };
-  assert.deepEqual(issues({ render: 'volume', shape: 'bipolar', stretch: 0.4, core_color: 'var(--lcards-moonlight)', dust: 0.5, dust_count: 2, dust_color: 'var(--lcars-gray)', clouds: [{ size: [10, 2, 4], rotation: [0, 20, 0] }, { dust: true }] }), []);
+  assert.deepEqual(issues({ render: 'volume', shape: 'bipolar', stretch: 0.4, core: { color: 'var(--lcards-moonlight)' }, dust: { amount: 0.5, count: 2, color: 'var(--lcars-gray)' }, clouds: [{ size: [10, 2, 4], rotation: [0, 20, 0] }, { dust: true }] }), []);
   for (const s of ['clouds', 'shell', 'bipolar', 'filaments', 'cavity']) assert.deepEqual(issues({ render: 'volume', shape: s }), []);
   assert.ok(issues({ shape: 'layers' }).some((e) => e.field === 'objects[0].shape'), 'layers comes in NB2');
   assert.ok(issues({ stretch: 2 }).some((e) => e.field === 'objects[0].stretch'));
-  assert.ok(issues({ dust_count: 1.5 }).length > 0);
-  assert.ok(issues({ dust_count: 9 }).length > 0);
+  assert.ok(issues({ dust: { count: 1.5 } }).length > 0);
+  assert.ok(issues({ dust: { count: 9 } }).length > 0);
 });
 
 test('NB1 nebula layout: the seed places today\'s clouds where they always were (pinned before NB1)', () => {
-  const l = effects.nebulaLayout({ seed: 5, cloud_count: 3, size: [220, 60, 220], render: 'volume' });
+  const l = effects.nebulaLayout({ seed: 5, count: 3, size: [220, 60, 220], render: 'volume' });
   const got = l.clouds.map((c) => [c.xyz.map((v) => +v.toFixed(4)), +c.radius.toFixed(4), c.color, +c.opacity.toFixed(4)]);
   assert.deepEqual(got, [[[60.0035, -16.8142, 27.0993], 30.3095, 0, 0.5961], [[-9.2171, 24.3373, -59.5256], 53.2355, 0, 0.6703], [[-106.9593, -2.0759, -43.8999], 57.0861, 0, 0.4441]]);
 });

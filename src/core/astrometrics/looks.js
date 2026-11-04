@@ -10,7 +10,7 @@
  * An object without a `look` that has a diagram part and a realistic part
  * switches its parts instead (`lookParts` on the built object): a mapped
  * planet is a wire globe over a plain body in the diagram look and the bare
- * map in the realistic one; a grid with a fill_effect shows its lines or its
+ * map in the realistic one; a grid with a fill.effect shows its lines or its
  * fill; a model with `material: original` becomes a hologram in the diagram
  * look. Mixed shows them as they are configured. `look: all` keeps the whole
  * object as configured in every look.

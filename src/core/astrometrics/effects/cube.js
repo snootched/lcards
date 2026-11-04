@@ -1,11 +1,11 @@
 /**
- * `type: cube`: a cube in the scene. `style: borg` (default) is the Borg cube
+ * `type: cube`: a cube in the scene. `shape: borg` (default) is the Borg cube
  * of the screen effect, ray-marched in object space on a box: carved
  * machinery under every face, the rail lattice over it, green light from the
  * recesses and glow spots pulsing deep inside. The face functions are the
  * effect's own (borg-face-glsl.js, shared with its worker). `detail: false`
  * draws the flat faces with the lattice only (no march) for slow GPUs.
- * `style: plain` is a shaded box with its edges.
+ * `shape: box` is a shaded box with its edges.
  *
  * The march writes gl_FragDepth at the hit, so other objects pass into the
  * cube's recesses correctly; labels hide behind it by its box (the depth
@@ -17,11 +17,10 @@ import { Group, Mesh, BoxGeometry, ShaderMaterial, Matrix4, Vector3, Vector4, Co
 import { BORG_FACE_GLSL } from '../../screen-effects/effects/borg-face-glsl.js';
 import { seededRandom } from '../../packs/backgrounds/webgl/scenes/scene-helpers.js';
 import { OCCLUDER_LAYER } from '../depth-occlusion.js';
-import { built, num } from '../objects/common.js';
+import { built, num, sub, isOn } from '../objects/common.js';
 
 /** Glow spots on the faces (as the screen effect's `cubeSpots`) */
 export const CUBE_SPOTS = 18;
-export const CUBE_STYLES = /** @type {const} */ (['borg', 'plain']);
 const DEFAULT_COLOR = 'var(--lcards-green-medium)';
 const DEFAULT_GLOW = 'var(--lcards-green-lightest)';
 const DEFAULT_PLAIN = 'var(--lcards-gray-medium)';
@@ -228,7 +227,7 @@ export function buildCube(cfg, ctx) {
   const geo = new BoxGeometry(2, 2, 2);
   /** @type {Mesh} */
   let mesh;
-  if (cfg.style === 'plain') {
+  if (cfg.shape === 'box') {
     const c = ctx.color(cfg.color, DEFAULT_PLAIN);
     const opacity = num(cfg.opacity, 1) * (c[3] ?? 1);
     const mat = new ShaderMaterial({
@@ -243,8 +242,8 @@ export function buildCube(cfg, ctx) {
       polygonOffsetUnits: 1
     });
     mesh = new Mesh(geo, mat);
-    if (cfg.edges !== false) {
-      const e = ctx.color(cfg.edge_color, 'theme:colors.ui.secondary');
+    if (isOn(cfg.edges, true)) {
+      const e = ctx.color(sub(cfg.edges).color, 'theme:colors.ui.secondary');
       const lines = new LineSegments(new EdgesGeometry(geo), new LineBasicMaterial({ color: new Color().setRGB(e[0], e[1], e[2], SRGBColorSpace), transparent: true, opacity: e[3] ?? 1 }));
       lines.name = 'edges';
       mesh.add(lines);
@@ -253,7 +252,7 @@ export function buildCube(cfg, ctx) {
     const spots = cubeSpots(num(cfg.seed, 1));
     const uniforms = {
       uColor: { value: linear(ctx.color(cfg.color, DEFAULT_COLOR)) },
-      uGlow: { value: linear(ctx.color(cfg.glow_color, DEFAULT_GLOW)) },
+      uGlow: { value: linear(ctx.color(sub(cfg.glow).color, DEFAULT_GLOW)) },
       uTime: { value: 0 },
       uDetail: { value: cfg.detail === false ? 0 : 1 },
       // 1: the distance fade scales it while the cube fades out

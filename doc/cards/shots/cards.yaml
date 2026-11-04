@@ -378,7 +378,7 @@
         pattern: polar
         line_spacing: 10
         spoke_count: 36
-        major_row_interval: 3
+        major: { row_interval: 3 }
         ring_labels: { step: 10, radius: 106 }
       - { type: ring, radius: 100, width: 3, color: theme:colors.ui.secondary }
       - type: volume

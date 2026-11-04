@@ -46,7 +46,7 @@ objects:
     pattern: polar
     line_spacing: 10
     spoke_count: 36
-    major_row_interval: 3
+    major: { row_interval: 3 }
     ring_labels: { step: 10, radius: 106 }
   - { type: ring, radius: 100, width: 3, color: theme:colors.ui.secondary }
   - type: volume
@@ -183,7 +183,7 @@ objects:
     id: sun_body
     at: sun
     radius: 5
-    fill_color: var(--lcars-yellow)
+    fill: { color: var(--lcars-yellow) }
     color: var(--lcars-orange)
     line_spacing_deg: 30
   - { type: ring, id: mercury_orbit, radius: 20, spin: 24, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
@@ -200,7 +200,7 @@ objects:
     id: venus_body
     at: venus
     radius: 2
-    fill_effect: { preset: clouds }
+    fill: { effect: { preset: clouds } }
     line_spacing_deg: 30
     line_width: 0.5
     spin: 15
@@ -236,7 +236,7 @@ objects:
     id: saturn_body
     at: saturn
     radius: 4.2
-    fill_effect: { preset: ringed_giant }
+    fill: { effect: { preset: ringed_giant } }
     line_spacing_deg: 30
     line_width: 0.5
     spin: 15
@@ -245,7 +245,7 @@ objects:
     id: uranus_body
     at: uranus
     radius: 3
-    fill_effect: { preset: ice_giant }
+    fill: { effect: { preset: ice_giant } }
     line_spacing_deg: 30
     line_width: 0.5
     spin: 15
@@ -254,11 +254,16 @@ objects:
     id: neptune_body
     at: neptune
     radius: 3
-    fill_effect: { preset: storm_giant }
+    fill: { effect: { preset: storm_giant } }
     line_spacing_deg: 30
     line_width: 0.5
     spin: 15
-  - { type: ring, id: saturn_rings, at: saturn, radius: 9.8, inner_radius: 4.66, inclination: 27, image: builtin:saturn_rings }
+  - type: ring
+    id: saturn_rings
+    at: saturn
+    radius: 9.8
+    inclination: 27
+    band: { image: builtin:saturn_rings, inner_radius: 4.66 }
   - { type: ring, id: moon_orbit, at: earth, radius: 5, spin: 40, width: 1, dash: [3, 3], opacity: 0.6, max_distance: 80 }
   - type: sphere
     id: moon_body
@@ -302,7 +307,7 @@ objects:
     pattern: polar
     line_spacing: 10
     spoke_count: 36
-    major_row_interval: 3
+    major: { row_interval: 3 }
     opacity: 0.6
   - { type: ring, radius: 130, width: 2, color: theme:colors.ui.secondary }
   - type: volume
@@ -338,7 +343,7 @@ objects:
     color: var(--lcars-orange)
     tap_action: { action: fly-to }
   - { type: ring, radius: 62, arc: [295, 350], width: 2, dash: [6, 4], color: var(--lcars-green) }
-  - { type: path, points: [earth, qonos], arc: 10, dash: [6, 4], color: var(--lcars-orange), flow_speed: 20 }
+  - { type: path, points: [earth, qonos], arc: 10, dash: { pattern: [6, 4], speed: 20 }, color: var(--lcars-orange) }
   - { type: glow, at: [0, 0, 0], size: 40, opacity: 0.6 }
 camera:
   view: overview
@@ -376,10 +381,10 @@ objects:
     at: ship_centre
     size: 25
     rotation: [0, 180, 0]
-    scan_period: 6
+    scan: { period: 6 }
     animation: all
   - { type: model, id: spacedock, src: builtin:earth_spacedock, at: [0, -110, -110], size: 480, material: original }
-  - { type: path, points: [ship_centre, doors], dash: [4, 6], flow_speed: -30, color: var(--lcars-orange) }
+  - { type: path, points: [ship_centre, doors], dash: { pattern: [4, 6], speed: -30 }, color: var(--lcars-orange) }
 camera:
   view: approach
   views:
@@ -421,7 +426,7 @@ objects:
   - type: sphere
     at: bajor
     radius: 120
-    fill_effect: { preset: terran }
+    fill: { effect: { preset: terran } }
     line_spacing_deg: 30
     line_width: 0.5
     opacity: 0.3
@@ -534,15 +539,14 @@ objects:
   - type: grid
     id: wormhole_mouth
     shape: well
-    well_shape: trumpet
-    well_throat: 0.1
+    well: { shape: trumpet, throat: 0.1 }
     at: mouth
     face: wormhole_down
     radius: 9
     depth: 7
     line_spacing_deg: 20
     color: var(--lcars-blue)
-    scan_period: 4
+    scan: { period: 4 }
     look: diagram
     deform: [{ type: twist, angle: 60, anchor: top }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
   - type: ring
@@ -550,17 +554,15 @@ objects:
     at: mouth
     face: wormhole_down
     radius: 15.75
-    dash: [6, 10]
+    dash: { pattern: [6, 10], speed: 40 }
     width: 2
-    flow_speed: 40
     spin: 90
     look: diagram
   - { type: glow, id: wormhole_glow, at: mouth, color: var(--lcars-blue), size: 18, look: diagram }
   - type: grid
     id: wormhole_funnel
     shape: well
-    well_shape: trumpet
-    well_throat: 0.07
+    well: { shape: trumpet, throat: 0.07 }
     at: mouth
     face: wormhole_down
     radius: 13.5
@@ -568,12 +570,13 @@ objects:
     line_width: 0
     edges: false
     look: realistic
-    fill_effect:
-      type: swirl
-      colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-medium-dark), var(--lcards-blue-medium), var(--lcards-blue-dark)]
-      speed: 2.7
-      turbulence: 0.8
-      num_octaves: 5
+    fill:
+      effect:
+        type: swirl
+        colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-medium-dark), var(--lcards-blue-medium), var(--lcards-blue-dark)]
+        speed: 2.7
+        turbulence: 0.8
+        num_octaves: 5
     deform: [{ type: twist, angle: 80, anchor: top, period: 6 }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
   - type: galaxy
     id: wormhole_vortex
@@ -581,16 +584,14 @@ objects:
     face: wormhole_down
     look: realistic
     radius: 13.5
-    arms: 4
-    pitch: 20
-    bar: 0
+    arms: { count: 4, pitch: 20, color: var(--lcards-blue-light) }
+    bar: { length: 0 }
     thickness: 0.02
-    stars: 8000
+    stars: { count: 8000 }
     seed: 4
     glow: 0
-    dust: 0
-    arm_color: var(--lcards-blue-light)
-    core_color: var(--lcards-moonlight)
+    dust: { amount: 0 }
+    core: { color: var(--lcards-moonlight) }
     spin: 25
   - { type: glow, id: wormhole_heart, at: mouth, color: var(--lcards-orange-lightest), size: 7.2, look: realistic }
   - type: glow
@@ -709,7 +710,7 @@ objects:
     id: wormhole_wisps
     at: mouth
     radius: 16.2
-    cloud_count: 6
+    count: 6
     seed: 7
     drift: 0.6
     brightness: [0.15, 0.35]
@@ -720,7 +721,7 @@ objects:
     id: wormhole_wisps_out
     at: wormhole_haze
     radius: 6.075
-    cloud_count: 3
+    count: 3
     seed: 3
     drift: 1
     brightness: [0.1, 0.25]
@@ -735,7 +736,7 @@ objects:
     line_look: tube
     glow: 3
     pulse: true
-    flow_speed: 30
+    dash: { speed: 30 }
     look: diagram
   - type: grid
     id: wormhole_entrance
@@ -884,7 +885,7 @@ objects:
     line_look: tube
     glow: 2
     pulse: true
-    flow_speed: 30
+    dash: { speed: 30 }
     look: diagram
   - type: path
     id: wormhole_strand_2
@@ -1023,7 +1024,7 @@ objects:
     line_look: tube
     glow: 2
     pulse: true
-    flow_speed: 30
+    dash: { speed: 30 }
     look: diagram
   - type: path
     id: wormhole_strand_3
@@ -1162,12 +1163,12 @@ objects:
     line_look: tube
     glow: 2
     pulse: true
-    flow_speed: 30
+    dash: { speed: 30 }
     look: diagram
   - type: grid
     id: wormhole_negative_outer
     shape: well
-    well_profile: [0.1, 0.7, 0.98, 1, 0.85, 0.45, 0.1]
+    well: { profile: [0.1, 0.7, 0.98, 1, 0.85, 0.45, 0.1] }
     at: wormhole_negative
     face: wormhole_east
     radius: 7
@@ -1182,7 +1183,7 @@ objects:
   - type: grid
     id: wormhole_negative_inner
     shape: well
-    well_profile: [0.1, 0.7, 0.98, 1, 0.85, 0.45, 0.1]
+    well: { profile: [0.1, 0.7, 0.98, 1, 0.85, 0.45, 0.1] }
     at: wormhole_negative
     face: wormhole_east
     radius: 4.8
@@ -1197,8 +1198,7 @@ objects:
   - type: grid
     id: wormhole_negative_cone_grid
     shape: well
-    well_shape: cone
-    well_throat: 0.05
+    well: { shape: cone, throat: 0.05 }
     at: wormhole_negative_cone
     face: wormhole_east
     radius: 2.5
@@ -1219,7 +1219,7 @@ objects:
   - type: grid
     id: wormhole_positive_outer
     shape: well
-    well_profile: [0.1, 0.85, 1, 0.95, 0.6, 0.1]
+    well: { profile: [0.1, 0.85, 1, 0.95, 0.6, 0.1] }
     at: wormhole_positive
     face: wormhole_east
     radius: 7.5
@@ -1234,7 +1234,7 @@ objects:
   - type: grid
     id: wormhole_positive_inner
     shape: well
-    well_profile: [0.1, 0.85, 1, 0.95, 0.6, 0.1]
+    well: { profile: [0.1, 0.85, 1, 0.95, 0.6, 0.1] }
     at: wormhole_positive
     face: wormhole_east
     radius: 5
@@ -1249,8 +1249,7 @@ objects:
   - type: grid
     id: wormhole_point_singularity_cone
     shape: well
-    well_shape: cone
-    well_throat: 0.04
+    well: { shape: cone, throat: 0.04 }
     at: wormhole_point_singularity
     face: wormhole_west
     radius: 3
@@ -1267,7 +1266,7 @@ objects:
   - type: grid
     id: wormhole_membrane_outer
     shape: well
-    well_profile: [0.3, 0.85, 1, 0.9, 0.55, 0.25]
+    well: { profile: [0.3, 0.85, 1, 0.9, 0.55, 0.25] }
     at: wormhole_membrane
     face: wormhole_east
     radius: 8
@@ -1282,7 +1281,7 @@ objects:
   - type: grid
     id: wormhole_membrane_inner
     shape: well
-    well_profile: [0.3, 0.85, 1, 0.9, 0.55, 0.25]
+    well: { profile: [0.3, 0.85, 1, 0.9, 0.55, 0.25] }
     at: wormhole_membrane
     face: wormhole_east
     radius: 5.5
@@ -1376,7 +1375,7 @@ objects:
     opacity: 0.3
     spin: 2
   - { type: model, id: dock1_frame, src: builtin:utopia_planitia_drydock, at: dock1, size: 40, material: original }
-  - { type: model, id: dock1_ship, src: builtin:constitution, at: dock1, size: 15, scan_period: 6 }
+  - { type: model, id: dock1_ship, src: builtin:constitution, at: dock1, size: 15, scan: { period: 6 } }
   - { type: model, id: dock2_frame, src: builtin:utopia_planitia_drydock, at: dock2, size: 40, material: original }
   - { type: model, id: dock3_frame, src: builtin:utopia_planitia_drydock, at: dock3, size: 40, material: original }
 camera:
@@ -1410,7 +1409,7 @@ points:
 objects:
   - { type: glow, at: cube, size: 110, color: var(--lcards-green-medium), opacity: 0.45 }
   - { type: cube, id: borg, at: cube, size: 40, spin: 3, rotation: [8, 25, 0] }
-  - { type: model, id: hull, src: builtin:constitution, at: ship, size: 20, rotation: [0, 160, 0], scan_period: 5 }
+  - { type: model, id: hull, src: builtin:constitution, at: ship, size: 20, rotation: [0, 160, 0], scan: { period: 5 } }
   - { type: beam, from: emitter, to: ship, width: 10, color: var(--lcards-green-medium), pulse: true }
 camera:
   view: encounter
@@ -1507,7 +1506,7 @@ objects:
     at: venus
     radius: 6051.8
     body: venus
-    fill_effect: { preset: clouds }
+    fill: { effect: { preset: clouds } }
     line_spacing_deg: 30
     line_width: 0.5
   - type: sphere
@@ -1547,7 +1546,7 @@ objects:
     at: saturn
     radius: 58232
     body: saturn
-    fill_effect: { preset: ringed_giant }
+    fill: { effect: { preset: ringed_giant } }
     line_spacing_deg: 30
     line_width: 0.5
   - type: sphere
@@ -1555,7 +1554,7 @@ objects:
     at: uranus
     radius: 25362
     body: uranus
-    fill_effect: { preset: ice_giant }
+    fill: { effect: { preset: ice_giant } }
     line_spacing_deg: 30
     line_width: 0.5
   - type: sphere
@@ -1563,7 +1562,7 @@ objects:
     at: neptune
     radius: 24622
     body: neptune
-    fill_effect: { preset: storm_giant }
+    fill: { effect: { preset: storm_giant } }
     line_spacing_deg: 30
     line_width: 0.5
   - type: sphere
@@ -1595,8 +1594,7 @@ objects:
     at: deimos
     radius: 6.27
     body: deimos
-    fill_color: var(--lcards-gray-medium)
-    fill_opacity: 1
+    fill: { color: var(--lcards-gray-medium), opacity: 1 }
     line_spacing_deg: 30
     line_width: 0.5
   - type: sphere
@@ -1655,7 +1653,12 @@ objects:
     image: builtin:charon_new_horizons
     line_spacing_deg: 30
     line_width: 0.5
-  - { type: ring, id: saturn_rings, at: saturn, radius: 140180, inner_radius: 66900, body: saturn, image: builtin:saturn_rings }
+  - type: ring
+    id: saturn_rings
+    at: saturn
+    radius: 140180
+    body: saturn
+    band: { image: builtin:saturn_rings, inner_radius: 66900 }
   - type: belt
     id: main_belt
     at: sun
@@ -1810,7 +1813,7 @@ objects:
         at: venus
         radius: 6051.8
         body: venus
-        fill_effect: { preset: clouds }
+        fill: { effect: { preset: clouds } }
         line_spacing_deg: 30
         line_width: 0.5
       - type: sphere
@@ -1850,7 +1853,7 @@ objects:
         at: saturn
         radius: 58232
         body: saturn
-        fill_effect: { preset: ringed_giant }
+        fill: { effect: { preset: ringed_giant } }
         line_spacing_deg: 30
         line_width: 0.5
       - type: sphere
@@ -1858,7 +1861,7 @@ objects:
         at: uranus
         radius: 25362
         body: uranus
-        fill_effect: { preset: ice_giant }
+        fill: { effect: { preset: ice_giant } }
         line_spacing_deg: 30
         line_width: 0.5
       - type: sphere
@@ -1866,7 +1869,7 @@ objects:
         at: neptune
         radius: 24622
         body: neptune
-        fill_effect: { preset: storm_giant }
+        fill: { effect: { preset: storm_giant } }
         line_spacing_deg: 30
         line_width: 0.5
       - type: sphere
@@ -1898,8 +1901,7 @@ objects:
         at: deimos
         radius: 6.27
         body: deimos
-        fill_color: var(--lcards-gray-medium)
-        fill_opacity: 1
+        fill: { color: var(--lcards-gray-medium), opacity: 1 }
         line_spacing_deg: 30
         line_width: 0.5
       - type: sphere
@@ -1962,9 +1964,8 @@ objects:
         id: saturn_rings
         at: saturn
         radius: 140180
-        inner_radius: 66900
         body: saturn
-        image: builtin:saturn_rings
+        band: { image: builtin:saturn_rings, inner_radius: 66900 }
       - type: belt
         id: main_belt
         at: sun
@@ -2305,7 +2306,7 @@ objects:
     line_spacing_deg: 20
     color: var(--lcars-yellow)
     opacity: 0.4
-    scan_period: 6
+    scan: { period: 6 }
     hide_in_systems: true
   - { type: glow, at: core, size: 7000, color: var(--lcars-yellow), opacity: 0.5, hide_in_systems: true }
   - type: volume
@@ -2314,7 +2315,7 @@ objects:
     outline: [[-4800, 23200], [-1200, 21800], [2200, 23000], [2600, 27200], [800, 30000], [-3200, 30400], [-5200, 27600]]
     height: [-1200, 1200]
     color: var(--lcars-blue)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     cells: { width: 2000, depth: 2000, height: 1200 }
     min_distance: 6000
     hide_in_systems: true
@@ -2324,7 +2325,7 @@ objects:
     outline: [[2400, 22600], [6200, 21400], [8400, 24200], [7400, 27600], [3000, 27000]]
     height: [-1200, 1200]
     color: var(--lcars-red)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     cells: { width: 2000, depth: 2000, height: 1200 }
     min_distance: 6000
     hide_in_systems: true
@@ -2334,7 +2335,7 @@ objects:
     outline: [[2800, 27400], [7200, 28000], [7800, 31800], [3600, 32600], [1200, 30400]]
     height: [-1200, 1200]
     color: var(--lcars-green)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     cells: { width: 2000, depth: 2000, height: 1200 }
     min_distance: 6000
     hide_in_systems: true
@@ -2344,7 +2345,7 @@ objects:
     outline: [[-5400, 27800], [-8800, 26600], [-10400, 29600], [-8200, 32200], [-4600, 31000]]
     height: [-1200, 1200]
     color: var(--lcars-orange)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     cells: { width: 2000, depth: 2000, height: 1200 }
     min_distance: 6000
     hide_in_systems: true
@@ -2354,7 +2355,7 @@ objects:
     outline: [[-30000, -27000], [-41000, -22000], [-46000, -32000], [-40000, -41000], [-29000, -37000]]
     height: [-1200, 1200]
     color: var(--lcars-violet)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     cells: { width: 2000, depth: 2000, height: 1200 }
     hide_in_systems: true
   - type: volume
@@ -2363,7 +2364,7 @@ objects:
     outline: [[14000, -14000], [30000, -10000], [40000, -24000], [32000, -40000], [16000, -34000], [10000, -22000]]
     height: [-1200, 1200]
     color: var(--lcars-green)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     cells: { width: 2000, depth: 2000, height: 1200 }
     hide_in_systems: true
   - type: grid
@@ -2372,7 +2373,7 @@ objects:
     at: sol
     size: [400, 400]
     line_spacing: 20
-    major_row_interval: 5
+    major: { row_interval: 5 }
     opacity: 0.5
     max_distance: 3000
     hide_in_systems: true
@@ -2383,7 +2384,7 @@ objects:
     outline: [[70, -40], [78, -40], [80, 60], [72, 60]]
     height: [-4, 4]
     color: var(--lcars-green)
-    face_opacity: 0.35
+    faces: { opacity: 0.35 }
     max_distance: 3000
     hide_in_systems: true
   - type: volume
@@ -2393,7 +2394,7 @@ objects:
     outline: [[-38, 12], [-42, 8], [-48, 34], [-44, 38]]
     height: [-4, 4]
     color: var(--lcars-orange)
-    face_opacity: 0.35
+    faces: { opacity: 0.35 }
     max_distance: 3000
     hide_in_systems: true
   - type: path
@@ -2405,19 +2406,18 @@ objects:
     line_look: tube
     glow: 3
     pulse: true
-    flow_speed: 30
+    dash: { speed: 30 }
   - type: grid
     id: wormhole_alpha_mouth
     shape: well
-    well_shape: trumpet
-    well_throat: 0.1
+    well: { shape: trumpet, throat: 0.1 }
     at: wormhole_alpha
     face: wormhole_aim_gamma
     radius: 0.6
     depth: 1.6
     line_spacing_deg: 20
     color: var(--lcars-blue)
-    scan_period: 4
+    scan: { period: 4 }
     look: diagram
     deform: [{ type: twist, angle: 60, anchor: top }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
     max_distance: 200
@@ -2427,9 +2427,8 @@ objects:
     at: wormhole_alpha
     face: wormhole_aim_gamma
     radius: 1.05
-    dash: [6, 10]
+    dash: { pattern: [6, 10], speed: 40 }
     width: 2
-    flow_speed: 40
     spin: 90
     look: diagram
     max_distance: 200
@@ -2445,8 +2444,7 @@ objects:
   - type: grid
     id: wormhole_alpha_funnel
     shape: well
-    well_shape: trumpet
-    well_throat: 0.07
+    well: { shape: trumpet, throat: 0.07 }
     at: wormhole_alpha
     face: wormhole_aim_gamma
     radius: 0.9
@@ -2454,12 +2452,13 @@ objects:
     line_width: 0
     edges: false
     look: realistic
-    fill_effect:
-      type: swirl
-      colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-medium-dark), var(--lcards-blue-medium), var(--lcards-blue-dark)]
-      speed: 0.18
-      turbulence: 0.8
-      num_octaves: 5
+    fill:
+      effect:
+        type: swirl
+        colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-medium-dark), var(--lcards-blue-medium), var(--lcards-blue-dark)]
+        speed: 0.18
+        turbulence: 0.8
+        num_octaves: 5
     deform: [{ type: twist, angle: 80, anchor: top, period: 6 }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
     max_distance: 200
     hide_in_systems: true
@@ -2469,16 +2468,14 @@ objects:
     face: wormhole_aim_gamma
     look: realistic
     radius: 0.9
-    arms: 4
-    pitch: 20
-    bar: 0
+    arms: { count: 4, pitch: 20, color: var(--lcards-blue-light) }
+    bar: { length: 0 }
     thickness: 0.02
-    stars: 4000
+    stars: { count: 4000 }
     seed: 4
     glow: 0
-    dust: 0
-    arm_color: var(--lcards-blue-light)
-    core_color: var(--lcards-moonlight)
+    dust: { amount: 0 }
+    core: { color: var(--lcards-moonlight) }
     spin: 25
     max_distance: 200
     hide_in_systems: true
@@ -2638,7 +2635,7 @@ objects:
     id: wormhole_alpha_wisps
     at: wormhole_alpha
     radius: 1.0799999999999998
-    cloud_count: 6
+    count: 6
     seed: 7
     drift: 0.6
     brightness: [0.15, 0.35]
@@ -2651,7 +2648,7 @@ objects:
     id: wormhole_alpha_wisps_out
     at: wormhole_alpha_haze
     radius: 0.40499999999999997
-    cloud_count: 3
+    count: 3
     seed: 3
     drift: 1
     brightness: [0.1, 0.25]
@@ -2668,21 +2665,20 @@ objects:
     line_look: tube
     glow: 3
     pulse: true
-    flow_speed: 30
+    dash: { speed: 30 }
     max_distance: 200
     hide_in_systems: true
   - type: grid
     id: wormhole_gamma_mouth
     shape: well
-    well_shape: trumpet
-    well_throat: 0.1
+    well: { shape: trumpet, throat: 0.1 }
     at: wormhole_gamma
     face: wormhole_aim_alpha
     radius: 0.6
     depth: 1.6
     line_spacing_deg: 20
     color: var(--lcars-blue)
-    scan_period: 4
+    scan: { period: 4 }
     look: diagram
     deform: [{ type: twist, angle: 60, anchor: top }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
     max_distance: 200
@@ -2692,9 +2688,8 @@ objects:
     at: wormhole_gamma
     face: wormhole_aim_alpha
     radius: 1.05
-    dash: [6, 10]
+    dash: { pattern: [6, 10], speed: 40 }
     width: 2
-    flow_speed: 40
     spin: 90
     look: diagram
     max_distance: 200
@@ -2710,8 +2705,7 @@ objects:
   - type: grid
     id: wormhole_gamma_funnel
     shape: well
-    well_shape: trumpet
-    well_throat: 0.07
+    well: { shape: trumpet, throat: 0.07 }
     at: wormhole_gamma
     face: wormhole_aim_alpha
     radius: 0.9
@@ -2719,12 +2713,13 @@ objects:
     line_width: 0
     edges: false
     look: realistic
-    fill_effect:
-      type: swirl
-      colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-medium-dark), var(--lcards-blue-medium), var(--lcards-blue-dark)]
-      speed: 0.18
-      turbulence: 0.8
-      num_octaves: 5
+    fill:
+      effect:
+        type: swirl
+        colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-medium-dark), var(--lcards-blue-medium), var(--lcards-blue-dark)]
+        speed: 0.18
+        turbulence: 0.8
+        num_octaves: 5
     deform: [{ type: twist, angle: 80, anchor: top, period: 6 }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
     max_distance: 200
     hide_in_systems: true
@@ -2734,16 +2729,14 @@ objects:
     face: wormhole_aim_alpha
     look: realistic
     radius: 0.9
-    arms: 4
-    pitch: 20
-    bar: 0
+    arms: { count: 4, pitch: 20, color: var(--lcards-blue-light) }
+    bar: { length: 0 }
     thickness: 0.02
-    stars: 4000
+    stars: { count: 4000 }
     seed: 4
     glow: 0
-    dust: 0
-    arm_color: var(--lcards-blue-light)
-    core_color: var(--lcards-moonlight)
+    dust: { amount: 0 }
+    core: { color: var(--lcards-moonlight) }
     spin: 25
     max_distance: 200
     hide_in_systems: true
@@ -2903,7 +2896,7 @@ objects:
     id: wormhole_gamma_wisps
     at: wormhole_gamma
     radius: 1.0799999999999998
-    cloud_count: 6
+    count: 6
     seed: 7
     drift: 0.6
     brightness: [0.15, 0.35]
@@ -2916,7 +2909,7 @@ objects:
     id: wormhole_gamma_wisps_out
     at: wormhole_gamma_haze
     radius: 0.40499999999999997
-    cloud_count: 3
+    count: 3
     seed: 3
     drift: 1
     brightness: [0.1, 0.25]
@@ -2933,14 +2926,13 @@ objects:
     line_look: tube
     glow: 3
     pulse: true
-    flow_speed: 30
+    dash: { speed: 30 }
     max_distance: 200
     hide_in_systems: true
   - type: path
     id: voyager_route
     points: [ocampa, nekrit, northwest_passage, endgame, sol]
-    dash: [10, 6]
-    flow_speed: 40
+    dash: { pattern: [10, 6], speed: 40 }
     color: var(--lcars-orange)
     width: 2
 camera:
@@ -3002,7 +2994,13 @@ objects:
     width: 1
     color: theme:colors.ui.secondary
     opacity: 0.6
-  - { type: sphere, id: planet_globe, at: planet_body, radius: 3, fill_effect: { preset: rocky }, line_spacing_deg: 30, spin: 15 }
+  - type: sphere
+    id: planet_globe
+    at: planet_body
+    radius: 3
+    fill: { effect: { preset: rocky } }
+    line_spacing_deg: 30
+    spin: 15
   - type: ring
     id: planet_moon1_orbit
     at: planet_body
@@ -3080,7 +3078,7 @@ objects: [{ type: asteroid, id: asteroid_rock, at: asteroid_centre, size: 8, see
 
 ### Comet
 
-A comet on an orbit centred off its star, so it swings in close and out far. Its tails point away from the star and it grows and brightens near it (activity: distance). Tap it to fly to it.
+A comet on an orbit centred off its star, so it swings in close and out far. Its tails point away from the star and it grows and brightens near it (activity.mode: distance). Tap it to fly to it.
 
 Its ids start with its name (default `comet_`).
 
@@ -3111,10 +3109,9 @@ objects:
     id: comet_comet
     at: comet_body
     light: comet_centre
-    tail_length: 90
-    coma_size: 8
-    activity: distance
-    activity_range: [25, 175]
+    tail: { length: 90 }
+    coma: { size: 8 }
+    activity: { mode: distance, range: [25, 175] }
 ```
 
 ### Nebula field
@@ -3139,17 +3136,17 @@ objects:
     at: nebula_heart
     render: volume
     radius: 40
-    cloud_count: 8
+    count: 8
     seed: 7
     drift: 0.5
     stretch: 0.4
-    dust_count: 1
-    core_color: var(--lcars-ice)
+    dust: { count: 1 }
+    core: { color: var(--lcars-ice) }
   - type: nebula
     id: nebula_veil
     at: nebula_heart
     radius: 24
-    cloud_count: 6
+    count: 6
     seed: 23
     drift: 0.8
     colors: [var(--lcars-violet), var(--lcars-blue)]
@@ -3252,15 +3249,14 @@ objects:
   - type: grid
     id: bajoran_wormhole_mouth
     shape: well
-    well_shape: trumpet
-    well_throat: 0.1
+    well: { shape: trumpet, throat: 0.1 }
     at: bajoran_centre
     face: bajoran_wormhole_down
     radius: 9
     depth: 7
     line_spacing_deg: 20
     color: var(--lcars-blue)
-    scan_period: 4
+    scan: { period: 4 }
     look: diagram
     deform: [{ type: twist, angle: 60, anchor: top }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
   - type: ring
@@ -3268,17 +3264,15 @@ objects:
     at: bajoran_centre
     face: bajoran_wormhole_down
     radius: 15.75
-    dash: [6, 10]
+    dash: { pattern: [6, 10], speed: 40 }
     width: 2
-    flow_speed: 40
     spin: 90
     look: diagram
   - { type: glow, id: bajoran_wormhole_glow, at: bajoran_centre, color: var(--lcars-blue), size: 18, look: diagram }
   - type: grid
     id: bajoran_wormhole_funnel
     shape: well
-    well_shape: trumpet
-    well_throat: 0.07
+    well: { shape: trumpet, throat: 0.07 }
     at: bajoran_centre
     face: bajoran_wormhole_down
     radius: 13.5
@@ -3286,12 +3280,13 @@ objects:
     line_width: 0
     edges: false
     look: realistic
-    fill_effect:
-      type: swirl
-      colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-medium-dark), var(--lcards-blue-medium), var(--lcards-blue-dark)]
-      speed: 2.7
-      turbulence: 0.8
-      num_octaves: 5
+    fill:
+      effect:
+        type: swirl
+        colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-medium-dark), var(--lcards-blue-medium), var(--lcards-blue-dark)]
+        speed: 2.7
+        turbulence: 0.8
+        num_octaves: 5
     deform: [{ type: twist, angle: 80, anchor: top, period: 6 }, { type: wobble, lobes: 0, waves: 2, period: 3, amplitude: 0.06 }]
   - type: galaxy
     id: bajoran_wormhole_vortex
@@ -3299,16 +3294,14 @@ objects:
     face: bajoran_wormhole_down
     look: realistic
     radius: 13.5
-    arms: 4
-    pitch: 20
-    bar: 0
+    arms: { count: 4, pitch: 20, color: var(--lcards-blue-light) }
+    bar: { length: 0 }
     thickness: 0.02
-    stars: 6000
+    stars: { count: 6000 }
     seed: 4
     glow: 0
-    dust: 0
-    arm_color: var(--lcards-blue-light)
-    core_color: var(--lcards-moonlight)
+    dust: { amount: 0 }
+    core: { color: var(--lcards-moonlight) }
     spin: 25
   - type: glow
     id: bajoran_wormhole_heart
@@ -3432,7 +3425,7 @@ objects:
     id: bajoran_wormhole_wisps
     at: bajoran_centre
     radius: 16.2
-    cloud_count: 6
+    count: 6
     seed: 7
     drift: 0.6
     brightness: [0.15, 0.35]
@@ -3443,7 +3436,7 @@ objects:
     id: bajoran_wormhole_wisps_out
     at: bajoran_wormhole_haze
     radius: 6.075
-    cloud_count: 3
+    count: 3
     seed: 3
     drift: 1
     brightness: [0.1, 0.25]
@@ -3458,7 +3451,7 @@ objects:
     line_look: tube
     glow: 3
     pulse: true
-    flow_speed: 30
+    dash: { speed: 30 }
     look: diagram
   - type: grid
     id: bajoran_wormhole_entrance
@@ -3607,7 +3600,7 @@ objects:
     line_look: tube
     glow: 2
     pulse: true
-    flow_speed: 30
+    dash: { speed: 30 }
     look: diagram
   - type: path
     id: bajoran_wormhole_strand_2
@@ -3746,7 +3739,7 @@ objects:
     line_look: tube
     glow: 2
     pulse: true
-    flow_speed: 30
+    dash: { speed: 30 }
     look: diagram
   - type: path
     id: bajoran_wormhole_strand_3
@@ -3885,12 +3878,12 @@ objects:
     line_look: tube
     glow: 2
     pulse: true
-    flow_speed: 30
+    dash: { speed: 30 }
     look: diagram
   - type: grid
     id: bajoran_wormhole_negative_outer
     shape: well
-    well_profile: [0.1, 0.7, 0.98, 1, 0.85, 0.45, 0.1]
+    well: { profile: [0.1, 0.7, 0.98, 1, 0.85, 0.45, 0.1] }
     at: bajoran_wormhole_negative
     face: bajoran_wormhole_east
     radius: 7
@@ -3905,7 +3898,7 @@ objects:
   - type: grid
     id: bajoran_wormhole_negative_inner
     shape: well
-    well_profile: [0.1, 0.7, 0.98, 1, 0.85, 0.45, 0.1]
+    well: { profile: [0.1, 0.7, 0.98, 1, 0.85, 0.45, 0.1] }
     at: bajoran_wormhole_negative
     face: bajoran_wormhole_east
     radius: 4.8
@@ -3920,8 +3913,7 @@ objects:
   - type: grid
     id: bajoran_wormhole_negative_cone_grid
     shape: well
-    well_shape: cone
-    well_throat: 0.05
+    well: { shape: cone, throat: 0.05 }
     at: bajoran_wormhole_negative_cone
     face: bajoran_wormhole_east
     radius: 2.5
@@ -3942,7 +3934,7 @@ objects:
   - type: grid
     id: bajoran_wormhole_positive_outer
     shape: well
-    well_profile: [0.1, 0.85, 1, 0.95, 0.6, 0.1]
+    well: { profile: [0.1, 0.85, 1, 0.95, 0.6, 0.1] }
     at: bajoran_wormhole_positive
     face: bajoran_wormhole_east
     radius: 7.5
@@ -3957,7 +3949,7 @@ objects:
   - type: grid
     id: bajoran_wormhole_positive_inner
     shape: well
-    well_profile: [0.1, 0.85, 1, 0.95, 0.6, 0.1]
+    well: { profile: [0.1, 0.85, 1, 0.95, 0.6, 0.1] }
     at: bajoran_wormhole_positive
     face: bajoran_wormhole_east
     radius: 5
@@ -3972,8 +3964,7 @@ objects:
   - type: grid
     id: bajoran_wormhole_point_singularity_cone
     shape: well
-    well_shape: cone
-    well_throat: 0.04
+    well: { shape: cone, throat: 0.04 }
     at: bajoran_wormhole_point_singularity
     face: bajoran_wormhole_west
     radius: 3
@@ -3990,7 +3981,7 @@ objects:
   - type: grid
     id: bajoran_wormhole_membrane_outer
     shape: well
-    well_profile: [0.3, 0.85, 1, 0.9, 0.55, 0.25]
+    well: { profile: [0.3, 0.85, 1, 0.9, 0.55, 0.25] }
     at: bajoran_wormhole_membrane
     face: bajoran_wormhole_east
     radius: 8
@@ -4005,7 +3996,7 @@ objects:
   - type: grid
     id: bajoran_wormhole_membrane_inner
     shape: well
-    well_profile: [0.3, 0.85, 1, 0.9, 0.55, 0.25]
+    well: { profile: [0.3, 0.85, 1, 0.9, 0.55, 0.25] }
     at: bajoran_wormhole_membrane
     face: bajoran_wormhole_east
     radius: 5.5
@@ -4211,7 +4202,7 @@ objects:
     at: ferenginar
     height: [-6, 6]
     color: var(--lcars-yellow)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     max_distance: 3000
     outline: [[-18, -10], [-4, -20], [16, -12], [20, 8], [4, 20], [-16, 14]]
     hide_in_systems: true
@@ -4221,7 +4212,7 @@ objects:
     at: breen
     height: [-6, 6]
     color: var(--lcars-lilac)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     max_distance: 3000
     outline: [[-18, -10], [-4, -20], [16, -12], [20, 8], [4, 20], [-16, 14]]
     hide_in_systems: true
@@ -4231,7 +4222,7 @@ objects:
     at: tzenkethi
     height: [-6, 6]
     color: var(--lcars-magenta)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     max_distance: 3000
     outline: [[-18, -10], [-4, -20], [16, -12], [20, 8], [4, 20], [-16, 14]]
     hide_in_systems: true
@@ -4241,7 +4232,7 @@ objects:
     at: tholia
     height: [-6, 6]
     color: var(--lcars-orange)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     max_distance: 3000
     outline: [[-18, -10], [-4, -20], [16, -12], [20, 8], [4, 20], [-16, 14]]
     hide_in_systems: true
@@ -4251,7 +4242,7 @@ objects:
     at: gorn
     height: [-6, 6]
     color: var(--lcars-green)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     max_distance: 3000
     outline: [[-18, -10], [-4, -20], [16, -12], [20, 8], [4, 20], [-16, 14]]
     hide_in_systems: true
@@ -4293,7 +4284,7 @@ objects:
     outline: [[33000, -38000], [41000, -36000], [42000, -29000], [35000, -27000], [31000, -31000]]
     height: [-1000, 1000]
     color: var(--lcars-orange)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     cells: { width: 2000, depth: 2000, height: 1000 }
     hide_in_systems: true
   - type: volume
@@ -4302,7 +4293,7 @@ objects:
     outline: [[30000, -29000], [35000, -26000], [33000, -20000], [27000, -21000]]
     height: [-1000, 1000]
     color: var(--lcars-red)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     cells: { width: 2000, depth: 2000, height: 1000 }
     hide_in_systems: true
   - type: volume
@@ -4311,7 +4302,7 @@ objects:
     outline: [[16000, -8000], [26000, -6000], [27000, 2000], [17000, 3000], [12000, -2000]]
     height: [-1000, 1000]
     color: var(--lcars-violet)
-    face_opacity: 0.25
+    faces: { opacity: 0.25 }
     cells: { width: 2000, depth: 2000, height: 1000 }
     hide_in_systems: true
 units: ly
@@ -4378,8 +4369,7 @@ objects:
     id: conduit_tw_unicomplex
     points: [tw_hub, tw_unicomplex]
     arc: 1500
-    dash: [4, 6]
-    flow_speed: 60
+    dash: { pattern: [4, 6], speed: 60 }
     color: var(--lcars-green)
     width: 1.5
     glow: true
@@ -4388,8 +4378,7 @@ objects:
     id: conduit_tw_exit_1
     points: [tw_hub, tw_exit_1]
     arc: 1500
-    dash: [4, 6]
-    flow_speed: 60
+    dash: { pattern: [4, 6], speed: 60 }
     color: var(--lcars-green)
     width: 1.5
     glow: true
@@ -4398,8 +4387,7 @@ objects:
     id: conduit_tw_exit_2
     points: [tw_hub, tw_exit_2]
     arc: 1500
-    dash: [4, 6]
-    flow_speed: 60
+    dash: { pattern: [4, 6], speed: 60 }
     color: var(--lcars-green)
     width: 1.5
     glow: true
@@ -4408,8 +4396,7 @@ objects:
     id: conduit_tw_exit_3
     points: [tw_hub, tw_exit_3]
     arc: 1500
-    dash: [4, 6]
-    flow_speed: 60
+    dash: { pattern: [4, 6], speed: 60 }
     color: var(--lcars-green)
     width: 1.5
     glow: true
@@ -4418,8 +4405,7 @@ objects:
     id: conduit_tw_earth
     points: [tw_hub, tw_earth]
     arc: 6000
-    dash: [4, 6]
-    flow_speed: 60
+    dash: { pattern: [4, 6], speed: 60 }
     color: var(--lcars-green)
     width: 1.5
     glow: true

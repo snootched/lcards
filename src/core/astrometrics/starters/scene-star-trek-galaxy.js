@@ -130,7 +130,7 @@ export const WORMHOLE_AIM = Math.round(Math.PI * WORMHOLE_ARC);
  * thick glowing blue pipe (px wide at any distance: a tube that reads the same up close and
  * from across the galaxy, shaded as one) with bands of light running through it
  */
-export const THROAT_LINE = Object.freeze({ color: 'var(--lcars-blue)', width: 8, line_look: 'tube', glow: 3, pulse: true, flow_speed: 30 });
+export const THROAT_LINE = Object.freeze({ color: 'var(--lcars-blue)', width: 8, line_look: 'tube', glow: 3, pulse: true, dash: { speed: 30 } });
 
 /**
  * The realistic swirl's colours, from the heart out to the rim: a warm white
@@ -179,7 +179,7 @@ export function wormholeMouth({ prefix, at, aim, radius: R, depth: D, power, ext
   /** @param {number} lo @param {number} hi @param {number} [smooth] */
   const opens = (lo, hi, smooth) => (power ? { entity: power, output: [r3(lo), r3(hi)], ...(smooth ? { smooth } : {}) } : r3(hi));
   const mouth = `${prefix}_mouth`;
-  const shape = { shape: 'well', well_shape: 'trumpet', well_throat: 0.1, at, face: aim, radius: opens(0.15 * R, R, 1500), depth: D };
+  const shape = { shape: 'well', well: { shape: 'trumpet', throat: 0.1 }, at, face: aim, radius: opens(0.15 * R, R, 1500), depth: D };
   const wobbleAmp = power ? `[[[ return Number(states['${power}']?.state ?? 0) / 1000 ]]]` : 0.06;
   const wobble = { type: 'wobble', lobes: 0, waves: 2, period: 3, amplitude: wobbleAmp };
   // the swirl reaches past the diagram's rim, as the gas does round the mouth
@@ -194,20 +194,20 @@ export function wormholeMouth({ prefix, at, aim, radius: R, depth: D, power, ext
     ],
     objects: [
       {
-        type: 'grid', id: mouth, ...shape, line_spacing_deg: 20, color: 'var(--lcars-blue)', scan_period: 4, look: 'diagram',
+        type: 'grid', id: mouth, ...shape, line_spacing_deg: 20, color: 'var(--lcars-blue)', scan: { period: 4 }, look: 'diagram',
         deform: [{ type: 'twist', angle: 60, anchor: 'top' }, wobble], ...extra
       },
-      { type: 'ring', id: `${prefix}_ring`, at, face: aim, radius: 1.75 * R, dash: [6, 10], width: 2, flow_speed: 40, spin: opens(0, 90), look: 'diagram', ...extra },
+      { type: 'ring', id: `${prefix}_ring`, at, face: aim, radius: 1.75 * R, dash: { pattern: [6, 10], speed: 40 }, width: 2, spin: opens(0, 90), look: 'diagram', ...extra },
       { type: 'glow', id: `${prefix}_glow`, at, color: 'var(--lcars-blue)', size: opens(0.5 * R, glow * R), look: 'diagram', ...extra },
       {
-        type: 'grid', id: `${prefix}_funnel`, ...shape, well_throat: 0.07, radius: opens(0.15 * S, S, 1500), line_width: 0, edges: false, look: 'realistic',
-        fill_effect: { type: 'swirl', colors: [...SWIRL_COLORS], speed: 0.2 * S, turbulence: 0.8, num_octaves: 5 },
+        type: 'grid', id: `${prefix}_funnel`, ...shape, well: { ...shape.well, throat: 0.07 }, radius: opens(0.15 * S, S, 1500), line_width: 0, edges: false, look: 'realistic',
+        fill: { effect: { type: 'swirl', colors: [...SWIRL_COLORS], speed: 0.2 * S, turbulence: 0.8, num_octaves: 5 } },
         deform: [{ type: 'twist', angle: 80, anchor: 'top', period: 6 }, wobble], ...extra
       },
       {
         type: 'galaxy', id: `${prefix}_vortex`, at, face: aim, look: 'realistic', radius: opens(0.15 * S, S, 1500),
-        arms: 4, pitch: 20, bar: 0, thickness: 0.02, stars, seed: 4, glow: 0, dust: 0,
-        arm_color: 'var(--lcards-blue-light)', core_color: 'var(--lcards-moonlight)', spin: opens(5, 25), ...extra
+        arms: { count: 4, pitch: 20, color: 'var(--lcards-blue-light)' }, bar: { length: 0 }, thickness: 0.02, stars: { count: stars }, seed: 4, glow: 0, dust: { amount: 0 },
+        core: { color: 'var(--lcards-moonlight)' }, spin: opens(5, 25), ...extra
       },
       { type: 'glow', id: `${prefix}_heart`, at, color: 'var(--lcards-orange-lightest)', size: opens(0.2 * R, 0.8 * R), look: 'realistic', ...extra },
       // the shaft: soft glows up the axis, wider and fainter as they go (scene-sized, so it
@@ -217,11 +217,11 @@ export function wormholeMouth({ prefix, at, aim, radius: R, depth: D, power, ext
         opacity: opens(0.15 * a, a), look: 'realistic', ...extra
       })),
       {
-        type: 'nebula', id: `${prefix}_wisps`, at, radius: 1.2 * S, cloud_count: 6, seed: 7, drift: 0.6, brightness: [0.15, 0.35],
+        type: 'nebula', id: `${prefix}_wisps`, at, radius: 1.2 * S, count: 6, seed: 7, drift: 0.6, brightness: [0.15, 0.35],
         colors: ['var(--lcars-violet)', 'var(--lcards-blue-medium)'], opacity: opens(0.1, 1), look: 'realistic', ...extra
       },
       {
-        type: 'nebula', id: `${prefix}_wisps_out`, at: `${prefix}_haze`, radius: 0.45 * S, cloud_count: 3, seed: 3, drift: 1, brightness: [0.1, 0.25],
+        type: 'nebula', id: `${prefix}_wisps_out`, at: `${prefix}_haze`, radius: 0.45 * S, count: 3, seed: 3, drift: 1, brightness: [0.1, 0.25],
         colors: ['var(--lcards-orange-lightest)', 'var(--lcards-blue-light)'], opacity: opens(0, 1), look: 'realistic', ...extra
       },
       { type: 'path', id: `${prefix}_throat_tube`, points: [at, `${prefix}_throat`], ...THROAT_LINE, ...extra }
@@ -326,23 +326,23 @@ export default /** @type {import('./index.js').Starter} */ ({
         { type: 'beam', id: 'alpha_beta_line', from: [0, 0, -52000], to: [0, 0, 52000], width: 1.5, color: 'theme:colors.ui.secondary', min_distance: 2000 },
         { type: 'beam', id: 'gamma_delta_line', from: [-52000, 0, 0], to: [52000, 0, 0], width: 1.5, color: 'theme:colors.ui.secondary', min_distance: 2000 },
         // the Great Barrier round the core: about 15,000 ly across (Star Charts)
-        { type: 'grid', id: 'great_barrier', shape: 'sphere', radius: 7500, line_spacing_deg: 20, color: 'var(--lcars-yellow)', opacity: 0.4, scan_period: 6 },
+        { type: 'grid', id: 'great_barrier', shape: 'sphere', radius: 7500, line_spacing_deg: 20, color: 'var(--lcars-yellow)', opacity: 0.4, scan: { period: 6 } },
         { type: 'glow', at: 'core', size: 7000, color: 'var(--lcars-yellow)', opacity: 0.5 },
         // the powers' regions; the near ones hide once the camera is inside them (the close-up)
         ...POWERS.map(([id, , color, outline, , near]) => ({
-          type: 'volume', id: `${id}_space`, shape: 'prism', outline, height: [-1200, 1200], color, face_opacity: 0.25,
+          type: 'volume', id: `${id}_space`, shape: 'prism', outline, height: [-1200, 1200], color, faces: { opacity: 0.25 },
           // the near powers' nearest edges are 1,200 to 5,400 ly from Sol: hidden anywhere near it
           cells: { width: 2000, depth: 2000, height: 1200 }, ...(near ? { min_distance: 6000 } : {})
         })),
         // Federation space: the sector grid round Sol (20 ly sectors) and the neutral zones
-        { type: 'grid', id: 'sectors', shape: 'plane', at: 'sol', size: [400, 400], line_spacing: 20, major_row_interval: 5, opacity: 0.5, max_distance: 3000 },
-        { type: 'volume', id: 'romulan_neutral_zone', shape: 'prism', at: 'sol', outline: [[70, -40], [78, -40], [80, 60], [72, 60]], height: [-4, 4], color: 'var(--lcars-green)', face_opacity: 0.35, max_distance: 3000 },
-        { type: 'volume', id: 'cardassian_dmz', shape: 'prism', at: 'sol', outline: [[-38, 12], [-42, 8], [-48, 34], [-44, 38]], height: [-4, 4], color: 'var(--lcars-orange)', face_opacity: 0.35, max_distance: 3000 },
+        { type: 'grid', id: 'sectors', shape: 'plane', at: 'sol', size: [400, 400], line_spacing: 20, major: { row_interval: 5 }, opacity: 0.5, max_distance: 3000 },
+        { type: 'volume', id: 'romulan_neutral_zone', shape: 'prism', at: 'sol', outline: [[70, -40], [78, -40], [80, 60], [72, 60]], height: [-4, 4], color: 'var(--lcars-green)', faces: { opacity: 0.35 }, max_distance: 3000 },
+        { type: 'volume', id: 'cardassian_dmz', shape: 'prism', at: 'sol', outline: [[-38, 12], [-42, 8], [-48, 34], [-44, 38]], height: [-4, 4], color: 'var(--lcars-orange)', faces: { opacity: 0.35 }, max_distance: 3000 },
         // the Bajoran wormhole: one wormhole, a mouth at each end, the link its throat across the galaxy
         { type: 'path', id: 'wormhole_link', points: ['wormhole_alpha_throat', 'wormhole_gamma_throat'], arc: WORMHOLE_ARC, ...THROAT_LINE },
         ...MOUTHS.flatMap((m) => m.objects),
         // Voyager's way home
-        { type: 'path', id: 'voyager_route', points: [...VOYAGER.map(([id]) => id), 'sol'], dash: [10, 6], flow_speed: 40, color: 'var(--lcars-orange)', width: 2 }
+        { type: 'path', id: 'voyager_route', points: [...VOYAGER.map(([id]) => id), 'sol'], dash: { pattern: [10, 6], speed: 40 }, color: 'var(--lcars-orange)', width: 2 }
       ]
     });
   }

@@ -26,7 +26,7 @@ export default /** @type {import('./index.js').Starter} */ ({
       { id: 'away', latlon: [10, 40], object: 'planet', alt: 0.3, marker: 'dot', label: 'AWAY TEAM', style: 'tiny', color: 'var(--lcars-orange)', max_distance: 100 }
     ],
     objects: [
-      { type: 'grid', shape: 'disc', radius: 100, pattern: 'polar', line_spacing: 10, spoke_count: 36, major_row_interval: 3, ring_labels: { step: 10, radius: 106 } },
+      { type: 'grid', shape: 'disc', radius: 100, pattern: 'polar', line_spacing: 10, spoke_count: 36, major: { row_interval: 3 }, ring_labels: { step: 10, radius: 106 } },
       { type: 'ring', radius: 100, width: 3, color: 'theme:colors.ui.secondary' },
       {
         type: 'volume', id: 'federation_space', shape: 'sector', radius: [55, 95], angle: [100, 170], height: [-6, 18],

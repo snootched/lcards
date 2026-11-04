@@ -268,7 +268,7 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
                 if (data.sound) opts.sound = data.sound;
                 if (service === 'borg_assimilate') {
                     if (data.intro_duration) opts.duration = data.intro_duration;
-                    if (data.cube_style) opts.intro = { canvas: { cubeStyle: data.cube_style } };
+                    if (data.cube) opts.intro = { canvas: data.cube === 'none' ? { cube: false } : { cube: true, cubeStyle: data.cube } };
                     bam.assimilate(opts);
                 } else if (service === 'borg_deassimilate') bam.deassimilate(opts);
                 return { context: { id: 'demo' } };

@@ -16,7 +16,7 @@ objects:
   - type: sphere
     id: bubble
     radius: 30
-    fill_color: var(--lcars-blue)
+    fill: { color: var(--lcars-blue) }
     opacity: { entity: input_number.lcards_test_shields, input: [0, 100], output: [0, 0.6] }
   - type: glow
     id: core

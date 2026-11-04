@@ -29,7 +29,7 @@ test('the Milky Way model: four arms and the spur, a bar 0.32 of the radius, the
   assert.equal(((pe.start - sc.start) % 360 + 360) % 360, 180);
   assert.equal(sc.start, m.barAngle);
   // n equal arms instead
-  const g = galaxyModel({ arms: 3, radius: 100, bar: 0 });
+  const g = galaxyModel({ arms: { count: 3 }, radius: 100, bar: { length: 0 } });
   assert.equal(g.arms.length, 3);
   assert.equal(g.bar, 0);
   assert.equal(g.R, 100);
@@ -59,7 +59,7 @@ test('stars: seeded (the same config, the same galaxy), every part present, the 
 });
 
 test('arm stars follow their spirals; no bar, no bar stars', () => {
-  const m = galaxyModel({ arms: 2, bar: 0, radius: 1000, pitch: 15 });
+  const m = galaxyModel({ arms: { count: 2, pitch: 15 }, bar: { length: 0 }, radius: 1000 });
   const { positions, parts } = galaxyStars(m, 4000, seededRandom(9));
   const r0 = 0.12 * m.R;
   let near = 0, arm = 0;
@@ -89,14 +89,14 @@ test('blobs: glow along the arms and dust beside them, sized by the radius', () 
 });
 
 test('a galaxy builds: one star field and its blobs, a flat object of its radius', () => {
-  const w = buildScene({ objects: [{ type: 'galaxy', id: 'mw', stars: 2000, radius: 100 }] }, ctx());
+  const w = buildScene({ objects: [{ type: 'galaxy', id: 'mw', stars: { count: 2000 }, radius: 100 }] }, ctx());
   const b = w.objects.get('mw');
   assert.equal(b.type, 'galaxy');
   assert.equal(b.radius, 100);
   assert.equal(b.flat, true);
   assert.ok(b.field, 'a star field');
   assert.equal(b.node.children.length, 4, 'stars, arm glow, core glow, dust');
-  const none = buildScene({ objects: [{ type: 'galaxy', id: 'g', stars: 10, glow: 0, dust: 0 }] }, ctx()).objects.get('g');
+  const none = buildScene({ objects: [{ type: 'galaxy', id: 'g', stars: { count: 10 }, glow: 0, dust: { amount: 0 } }] }, ctx()).objects.get('g');
   assert.equal(none.node.children.length, 1, 'no glow, no dust');
 });
 

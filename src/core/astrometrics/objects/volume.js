@@ -14,7 +14,7 @@ import { gridFace } from '../grid-mesh-material.js';
 import { discGeometry, cylinderGeometry, radialWallGeometry, rectGeometry, polygonGeometry, wallGeometry } from '../surface.js';
 import { FatLine } from '../lines.js';
 import { bearingXZ } from '../placements.js';
-import { built, num, pair, withOpacity, scanTicker, DEFAULT_COLORS } from './common.js';
+import { built, num, pair, withOpacity, scanTicker, sub, isOn, DEFAULT_COLORS } from './common.js';
 
 const DEG = Math.PI / 180;
 
@@ -42,7 +42,7 @@ export function buildVolume(cfg, ctx) {
   const opacity = num(cfg.opacity, 1);
   const base = ctx.color(cfg.color, DEFAULT_COLORS.volume);
   // Faces fainter than the edges unless set
-  const faceAlpha = num(cfg.face_opacity, 0.45);
+  const faceAlpha = num(sub(cfg.faces).opacity, 0.45);
   const col = withOpacity(base, faceAlpha);
   const colMajor = withOpacity(base, Math.min(1, faceAlpha * 1.8));
   const back = num(cfg.back_opacity, 1);
@@ -140,8 +140,9 @@ export function buildVolume(cfg, ctx) {
     const [mx, mz] = bearingXZ((r0 + r1) / 2, (a0 + a1) / 2);
     out.centre = [mx, (y0 + y1) / 2, mz];
   }
-  if (cfg.edges !== false) {
-    const line = new FatLine(edges, { color: cfg.edge_color !== undefined ? ctx.color(cfg.edge_color, DEFAULT_COLORS.volume) : base, width: num(cfg.edge_width, 1.5), opacity: opacity * 0.9, additive: cfg.blend === 'add' });
+  if (isOn(cfg.edges, true)) {
+    const e = sub(cfg.edges);
+    const line = new FatLine(edges, { color: e.color !== undefined ? ctx.color(e.color, DEFAULT_COLORS.volume) : base, width: num(e.width, 1.5), opacity: opacity * 0.9, additive: cfg.blend === 'add' });
     node.add(line.object);
     out.lines.push(line);
   }

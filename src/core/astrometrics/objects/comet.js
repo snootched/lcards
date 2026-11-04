@@ -1,9 +1,9 @@
 /**
  * `type: comet`: a small dark nucleus (an asteroid's rock), a soft coma
  * round it and two tails pointing away from its star (`light`): a narrow,
- * straight ion tail (`ion_color`) and a broader dust tail (`color`) that
+ * straight ion tail (`ion_tail`) and a broader dust tail (`dust_tail`) that
  * bends back along the comet's path as it moves (a gentle fixed curve while
- * it stands still). `tails` picks which draw.
+ * it stands still); either can be switched off (false).
  *
  * The tails are seeded particles streaming outward (one draw each, placed in
  * the vertex shader, added up as light), so they read from every angle. The
@@ -11,10 +11,10 @@
  * draw, so `face`, `spin` and `rotation` turn the nucleus but never the
  * tails. The streaming follows the scene clock and holds under reduced motion.
  *
- * `size` (the nucleus), `coma_size`, `tail_length` and `glow` (the coma's and
+ * `nucleus.size`, `coma.size`, `tail.length` and `glow` (the coma's and
  * tails' opacity) change in place when they follow an entity (names.js
- * LIVE_TYPE_KEYS). `activity: distance` scales the coma, the tails and the
- * glow by the distance to the star every frame: full at `activity_range`'s
+ * LIVE_TYPE_KEYS). `activity.mode: distance` scales the coma, the tails and the
+ * glow by the distance to the star every frame: full at `activity.range`'s
  * near end, falling off with the square of the distance, gone at its far end.
  *
  * @module core/astrometrics/objects/comet
@@ -23,12 +23,11 @@ import {
   Group, ShaderMaterial, BufferGeometry, BufferAttribute, Points, Vector3, Matrix4, Color, SRGBColorSpace, AdditiveBlending, Sphere
 } from 'three';
 import { seededRandom } from '../../packs/backgrounds/webgl/scenes/scene-helpers.js';
-import { built, num, pair } from './common.js';
+import { built, num, pair, sub, isOn } from './common.js';
 import { buildAsteroid } from './asteroid.js';
 import { buildGlow } from './glow.js';
 import { pixelSize } from './belt.js';
 import { Facing } from '../facing.js';
-import { COMET_TAILS } from '../names.js';
 const NUCLEUS_COLOR = 'var(--lcards-gray-medium-dark)';
 const DUST_COLOR = 'var(--lcards-moonlight)';
 const ION_COLOR = 'var(--lcards-blue-medium)';
@@ -128,27 +127,27 @@ export function buildComet(cfg, ctx) {
   const node = new Group();
   node.name = `comet:${cfg.id ?? ''}`;
   const seed = num(cfg.seed, 1);
+  const parts = { nucleus: sub(cfg.nucleus), coma: sub(cfg.coma), ion: sub(cfg.ion_tail), dust: sub(cfg.dust_tail), activity: sub(cfg.activity) };
   const base = {
-    size: Math.max(1e-6, num(cfg.size, 2)),
-    coma: Math.max(0, num(cfg.coma_size, 10)),
-    tail: Math.max(0, num(cfg.tail_length, 60)),
+    size: Math.max(1e-6, num(parts.nucleus.size, 2)),
+    coma: Math.max(0, num(parts.coma.size, 10)),
+    tail: Math.max(0, num(sub(cfg.tail).length, 60)),
     glow: Math.min(1, Math.max(0, num(cfg.glow, 1)))
   };
   const now = { ...base };
   const out = built(cfg, node, { radius: Math.max(now.size, now.coma) / 2 });
 
   // the nucleus: a dark rock, lit from the same star
-  const nucleus = buildAsteroid({ id: cfg.id, size: base.size, seed, tumble: cfg.tumble ?? 10, color: cfg.nucleus_color ?? NUCLEUS_COLOR, occlude: false }, ctx);
+  const nucleus = buildAsteroid({ id: cfg.id, size: base.size, seed, tumble: parts.nucleus.tumble ?? 10, color: parts.nucleus.color ?? NUCLEUS_COLOR, occlude: false }, ctx);
   // the coma shows through it (it writes no depth: the glow's middle is not hidden behind its near side)
   const rock = /** @type {import('three').Mesh} */ (nucleus.node.getObjectByName('rock'));
   /** @type {import('three').Material} */ (rock.material).depthWrite = false;
   node.add(nucleus.node);
   // the coma: a soft glow round it (its size and opacity set per frame)
-  const coma = buildGlow({ size: 1, color: cfg.color ?? DUST_COLOR, opacity: 1, falloff: 1.6 }, ctx);
+  const coma = buildGlow({ size: 1, color: parts.coma.color ?? cfg.color ?? DUST_COLOR, opacity: 1, falloff: 1.6 }, ctx);
   const comaSprite = /** @type {import('three').Sprite} */ (coma.node.children[0]);
   node.add(coma.node);
 
-  const which = COMET_TAILS.includes(cfg.tails) ? cfg.tails : 'both';
   /**
    * @param {number} count @param {number} s @param {any} colorValue @param {string} fallback @param {number} spread @param {number} speed @param {number} size
    */
@@ -184,8 +183,8 @@ export function buildComet(cfg, ctx) {
     return { pts, mat, alpha: c[3] ?? 1 };
   };
   const tails = [];
-  if (which === 'both' || which === 'ion') tails.push({ kind: 'ion', ...tail(ION_COUNT, seed + 11, cfg.ion_color, ION_COLOR, 0.025, 0.09, 0.08) });
-  if (which === 'both' || which === 'dust') tails.push({ kind: 'dust', ...tail(DUST_COUNT, seed + 23, cfg.color, DUST_COLOR, 0.1, 0.03, 0.14) });
+  if (isOn(cfg.ion_tail, true)) tails.push({ kind: 'ion', ...tail(ION_COUNT, seed + 11, parts.ion.color, ION_COLOR, 0.025, 0.09, 0.08) });
+  if (isOn(cfg.dust_tail, true)) tails.push({ kind: 'dust', ...tail(DUST_COUNT, seed + 23, parts.dust.color ?? cfg.color, DUST_COLOR, 0.1, 0.03, 0.14) });
   for (const t of tails) t.pts.name = `${t.kind}_tail`;
 
   // the star, world (from the builder's light pass); the comet's motion for the dust tail's bend
@@ -194,8 +193,8 @@ export function buildComet(cfg, ctx) {
     lightWorld.copy(p);
     nucleus.lightAt?.(p);
   };
-  const activity = cfg.activity === 'distance';
-  const [near, far] = Array.isArray(cfg.activity_range) ? pair(cfg.activity_range, [50, 300]) : [50, 300];
+  const activity = parts.activity.mode === 'distance';
+  const [near, far] = Array.isArray(parts.activity.range) ? pair(parts.activity.range, [50, 300]) : [50, 300];
   const facing = new Facing();
   /** the dust tail's lag, local (eases toward where the motion puts it) */
   const bend = new Vector3();
@@ -266,11 +265,11 @@ export function buildComet(cfg, ctx) {
 
   // live settings (null: the built value again)
   out.live = (key, value) => {
-    if (key === 'size') {
+    if (key === 'nucleus.size') {
       now.size = value === null ? base.size : Math.max(1e-6, value);
       nucleus.node.scale.setScalar(now.size / base.size);
-    } else if (key === 'coma_size') now.coma = value === null ? base.coma : Math.max(0, value);
-    else if (key === 'tail_length') now.tail = value === null ? base.tail : Math.max(0, value);
+    } else if (key === 'coma.size') now.coma = value === null ? base.coma : Math.max(0, value);
+    else if (key === 'tail.length') now.tail = value === null ? base.tail : Math.max(0, value);
     else if (key === 'glow') now.glow = value === null ? base.glow : Math.min(1, Math.max(0, value));
     else return false;
     apply();

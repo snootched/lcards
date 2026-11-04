@@ -132,7 +132,7 @@ objects:
     pattern: polar
     line_spacing: 10
     spoke_count: 36
-    major_row_interval: 3
+    major: { row_interval: 3 }
     color: theme:colors.ui.tertiary
     ring_labels:
       step: 10
@@ -219,8 +219,7 @@ objects:
     dash:
       - 3
       - 3
-    color: var(--lcars-orange)
-    color_to: var(--lcars-yellow)
+    colors: [var(--lcars-orange), var(--lcars-yellow)]
     glow: true
   - type: sphere
     id: planet

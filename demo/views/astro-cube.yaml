@@ -113,7 +113,7 @@ sections:
               - 0
               - 160
               - 0
-            scan_period: 5
+            scan: { period: 5 }
           - type: beam
             from: emitter
             to: ship
@@ -195,5 +195,5 @@ sections:
               - 10
               - 20
             spin: 6
-            style: plain
+            shape: box
         grid_options: { columns: full }

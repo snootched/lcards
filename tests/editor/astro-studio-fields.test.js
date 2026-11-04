@@ -12,7 +12,7 @@ import { objectSchema, astrometricsSchema } from '../../src/cards/schemas/astrom
 import { OBJECT_TYPES, TYPE_GUIDE } from '../../src/core/astrometrics/names.js';
 import { modelSizeReadout, fitToViewSize, roundLength, shortNumber } from '../../src/editor/dialogs/astro-studio/model-size.js';
 import {
-  fieldKind, objectBranch, scopeOf, appliesTo, tupleLabels, helperText, labelFor, withKey, parseNumbers, freshId, objectSummary, newObject, viewScale, reshape,
+  fieldKind, shorthandKey, objectBranch, scopeOf, appliesTo, tupleLabels, helperText, labelFor, withKey, parseNumbers, freshId, objectSummary, newObject, viewScale, reshape,
   choiceOptions, choiceValue, numberSelector, unitsLabel, groupOf, sectionIcon, OBJECT_GROUPS, COMMON_GROUPS, bindingBranch, isTour, isTemplateValue
 } from '../../src/editor/dialogs/astro-studio/schema-fields.js';
 
@@ -84,8 +84,17 @@ test('field kinds for the shapes the schema uses', () => {
   assert.equal(fieldKind(props.shape, 'shape'), 'shape');
   for (const t of ['volume', 'image']) assert.equal(fieldKind(objectBranch(objectSchema, t).own.shape, 'shape'), 'shape', t);
   assert.equal(fieldKind(props.deform, 'deform'), 'objectList');
-  assert.equal(fieldKind(props.fill_effect, 'fill_effect'), 'object');
-  assert.equal(fieldKind(props.well_profile, 'well_profile'), 'numbers');
+  assert.equal(fieldKind(props.fill, 'fill'), 'object');
+  assert.equal(fieldKind(props.fill.properties.effect, 'effect'), 'object');
+  assert.equal(fieldKind(props.well.properties.profile, 'profile'), 'numbers');
+  assert.equal(fieldKind(props.edges, 'edges'), 'boolOrObject');
+  // a short value or the part's settings: a sphere's image, a line's dash
+  const sphereOwn = objectBranch(objectSchema, 'sphere').own;
+  assert.equal(fieldKind(sphereOwn.image, 'image'), 'valueOrObject');
+  assert.equal(shorthandKey(sphereOwn.image), 'src');
+  const ringOwn = objectBranch(objectSchema, 'ring').own;
+  assert.equal(fieldKind(ringOwn.dash, 'dash'), 'valueOrObject');
+  assert.equal(shorthandKey(ringOwn.dash), 'pattern');
   assert.equal(fieldKind(props.tags, 'tags'), 'strings');
   assert.equal(fieldKind(props.tap_action, 'tap_action'), 'yaml');
   const path = objectBranch(objectSchema, 'path');
@@ -113,8 +122,8 @@ test('scopes: keys for other shapes hide until set', () => {
   const pp = { ...path.common, ...path.own };
   assert.equal(appliesTo('span', pp, {}), false);
   assert.equal(appliesTo('span', pp, { sky: 'sun' }), true);
-  // a scope key with no value or default (fill_effect type) shows everything
-  const fill = grid.own.fill_effect.properties;
+  // a scope key with no value or default (fill.effect type) shows everything
+  const fill = grid.own.fill.properties.effect.properties;
   assert.equal(appliesTo('num_bands', fill, {}), true);
   assert.equal(appliesTo('num_bands', fill, { type: 'plasma' }), false);
   assert.equal(appliesTo('num_bands', fill, { type: 'contour' }), true);
@@ -124,7 +133,7 @@ test('labels, helpers and small helpers', () => {
   assert.deepEqual(tupleLabels('sector: inner and outer radius [r0, r1], scene units. Default [50, 100].', 2), ['r0', 'r1']);
   assert.deepEqual(tupleLabels('Turn the object [x, y, z] in degrees', 3), ['x', 'y', 'z']);
   assert.deepEqual(tupleLabels('No brackets', 2), ['1', '2']);
-  assert.equal(labelFor('line_width_major'), 'Line width major');
+  assert.equal(labelFor('line_width'), 'Line width');
   assert.equal(helperText('Line width, px. More words here. Default 1.'), 'Line width, px. Default 1.');
   assert.equal(helperText(''), '');
   assert.deepEqual(withKey({ a: 1, b: 2 }, 'b', undefined), { a: 1 });
@@ -236,14 +245,17 @@ test('files are pickers: model src (models) and textures (images), from the sche
   };
   assert.equal(fieldKind(props('model').src, 'src'), 'asset');
   assert.equal(props('model').src.assetSource, 'model');
-  for (const [type, key] of [['image', 'src'], ['sphere', 'image'], ['ring', 'image']]) {
-    assert.equal(fieldKind(props(type)[key], key), 'asset', `${type}.${key}`);
-    assert.equal(props(type)[key].assetSource, 'image', `${type}.${key}`);
+  // a sphere's map and a ring's band image sit in a part: their own picker inside it
+  const sphereSrc = props('sphere').image.anyOf[1].properties.src;
+  const bandImage = props('ring').band.properties.image;
+  for (const [where, s] of [['image.src', props('image').src], ['sphere.image.src', sphereSrc], ['ring.band.image', bandImage]]) {
+    assert.equal(fieldKind(s, 'src'), 'asset', where);
+    assert.equal(s.assetSource, 'image', where);
   }
   // no other string key is a file
   for (const type of OBJECT_TYPES) {
     for (const [key, s] of Object.entries(props(type))) {
-      if (fieldKind(s, key) === 'asset') assert.ok(['model.src', 'image.src', 'sphere.image', 'ring.image'].includes(`${type}.${key}`), `${type}.${key}`);
+      if (fieldKind(s, key) === 'asset') assert.ok(['model.src', 'image.src'].includes(`${type}.${key}`), `${type}.${key}`);
     }
   }
 });
@@ -283,7 +295,7 @@ test('UX1 P2: bounded numbers are sliders, others boxes; a hint wins', () => {
   const grid = objectBranch(objectSchema, 'grid');
   assert.deepEqual(numberSelector(grid.common.opacity), { number: { mode: 'slider', min: 0, max: 1, step: 'any' } });
   const galaxy = objectBranch(objectSchema, 'galaxy');
-  assert.deepEqual(numberSelector(galaxy.own.arms), { number: { mode: 'slider', min: 1, max: 8, step: 1 } });
+  assert.deepEqual(numberSelector(galaxy.own.arms.properties.count), { number: { mode: 'slider', min: 1, max: 8, step: 1 } });
   assert.equal(numberSelector(grid.own.line_spacing).number.mode, 'box');
   const hinted = { type: 'number', minimum: 0, maximum: 1, 'x-ui-hints': { selector: { number: { mode: 'box', step: 0.1 } } } };
   assert.deepEqual(numberSelector(hinted), { number: { mode: 'box', step: 0.1 } });
@@ -301,7 +313,7 @@ test('UX1 P2: object keys group by what they do; every group is known', () => {
   assert.equal(groupOf('spin'), 'position');
   assert.equal(groupOf('hide_in_systems'), 'visibility');
   assert.equal(groupOf('tap_action'), 'actions');
-  assert.equal(groupOf('color_major'), 'appearance');
+  assert.equal(groupOf('major', { 'x-ui-hints': { group: 'appearance' } }), 'appearance');
   assert.equal(groupOf('line_width'), 'appearance');
   assert.equal(groupOf('pulse'), 'appearance');
   assert.equal(groupOf('occlude'), 'advanced');

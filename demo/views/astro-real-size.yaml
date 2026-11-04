@@ -52,7 +52,7 @@ sections:
           - { id: ship_label, object: ship, xyz: [0, 60, 0], label: CONSTITUTION CLASS 289 M, style: tiny }
         objects:
           - { type: model, id: station, src: builtin:deep_space_nine, at: ds9, material: original }
-          - { type: model, id: ship, src: builtin:constitution, at: defiant, rotation: [0, 200, 0], scan_period: 6 }
+          - { type: model, id: ship, src: builtin:constitution, at: defiant, rotation: [0, 200, 0], scan: { period: 6 } }
           - { type: model, id: dock, src: builtin:earth_spacedock, at: spacedock, material: original }
           - { type: model, id: frame, src: builtin:utopia_planitia_drydock, at: drydock, material: original }
-          - { type: model, id: berth_ship, src: builtin:constitution, at: drydock, scan_period: 6 }
+          - { type: model, id: berth_ship, src: builtin:constitution, at: drydock, scan: { period: 6 } }

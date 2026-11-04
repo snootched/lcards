@@ -27,7 +27,7 @@ test('the inside is diagram only; the mouth has a part in each look', () => {
   for (const o of w.objects) if (!mouthIds.has(o.id)) assert.equal(o.look, 'diagram', `${o.id} is diagram only`);
   const looks = new Set(w.objects.filter((o) => mouthIds.has(o.id)).map((o) => o.look));
   assert.ok(looks.has('diagram') && looks.has('realistic'));
-  assert.ok(w.objects.some((o) => o.fill_effect?.type === 'swirl' && o.look === 'realistic'), 'the realistic mouth is a swirl');
+  assert.ok(w.objects.some((o) => o.fill?.effect?.type === 'swirl' && o.look === 'realistic'), 'the realistic mouth is a swirl');
   assert.ok(w.objects.filter((o) => o.type === 'path').every((o) => o.line_look === 'tube'), 'pipeline and throat are tubes');
 });
 

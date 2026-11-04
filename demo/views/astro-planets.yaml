@@ -1,4 +1,4 @@
-# Astrometrics planet content (E8 part 1): built-in maps, fill_effect planet
+# Astrometrics planet content (E8 part 1): built-in maps, fill.effect planet
 # types and Saturn's ring band.
 title: Astrometrics planets
 path: astro-planets
@@ -41,21 +41,21 @@ sections:
           - { id: g, xyz: [ 16, -26, 0 ], label: ice, style: minor }
           - { id: h, xyz: [ 48, -26, 0 ], label: terran, style: minor }
         objects:
-          - { type: sphere, at: [ -48, 14, 0 ], radius: 10, fill_effect: { preset: gas_giant }, line_width: 0.5, spin: 8 }
-          - { type: sphere, at: [ -16, 14, 0 ], radius: 10, fill_effect: { preset: ringed_giant }, line_width: 0.5, spin: 8 }
-          - { type: sphere, at: [ 16, 14, 0 ], radius: 10, fill_effect: { preset: ice_giant }, line_width: 0.5, spin: 8 }
-          - { type: sphere, at: [ 48, 14, 0 ], radius: 10, fill_effect: { preset: storm_giant }, line_width: 0.5, spin: 8 }
-          - { type: sphere, at: [ -48, -14, 0 ], radius: 10, fill_effect: { preset: clouds }, line_width: 0.5, spin: 8 }
-          - { type: sphere, at: [ -16, -14, 0 ], radius: 10, fill_effect: { preset: lava }, line_width: 0.5, spin: 8 }
-          - { type: sphere, at: [ 16, -14, 0 ], radius: 10, fill_effect: { preset: ice }, line_width: 0.5, spin: 8 }
-          - { type: sphere, at: [ 48, -14, 0 ], radius: 10, fill_effect: { preset: terran }, line_width: 0.5, spin: 8 }
+          - { type: sphere, at: [ -48, 14, 0 ], radius: 10, fill: { effect: { preset: gas_giant } }, line_width: 0.5, spin: 8 }
+          - { type: sphere, at: [ -16, 14, 0 ], radius: 10, fill: { effect: { preset: ringed_giant } }, line_width: 0.5, spin: 8 }
+          - { type: sphere, at: [ 16, 14, 0 ], radius: 10, fill: { effect: { preset: ice_giant } }, line_width: 0.5, spin: 8 }
+          - { type: sphere, at: [ 48, 14, 0 ], radius: 10, fill: { effect: { preset: storm_giant } }, line_width: 0.5, spin: 8 }
+          - { type: sphere, at: [ -48, -14, 0 ], radius: 10, fill: { effect: { preset: clouds } }, line_width: 0.5, spin: 8 }
+          - { type: sphere, at: [ -16, -14, 0 ], radius: 10, fill: { effect: { preset: lava } }, line_width: 0.5, spin: 8 }
+          - { type: sphere, at: [ 16, -14, 0 ], radius: 10, fill: { effect: { preset: ice } }, line_width: 0.5, spin: 8 }
+          - { type: sphere, at: [ 48, -14, 0 ], radius: 10, fill: { effect: { preset: terran } }, line_width: 0.5, spin: 8 }
         grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
         height: 650
         camera: { views: { v: { target: [ 0, 0, 0 ], yaw: 25, tilt: 18, distance: 50 } }, buttons: true }
         objects:
-          - { type: sphere, id: saturn, radius: 8, fill_effect: { preset: ringed_giant }, line_width: 0.5, spin: 12 }
-          - { type: ring, radius: 18.6, inner_radius: 8.9, inclination: 27, image: builtin:saturn_rings }
+          - { type: sphere, id: saturn, radius: 8, fill: { effect: { preset: ringed_giant } }, line_width: 0.5, spin: 12 }
+          - { type: ring, radius: 18.6, band: { image: builtin:saturn_rings, inner_radius: 8.9 }, inclination: 27 }
         grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
         height: 650
@@ -65,5 +65,6 @@ sections:
             radius: 14
             spin: 6
             line_width: 0.5
-            fill_effect: { preset: gas_giant, num_bands: 9, turbulence: 0.6, speed: 0.5 }
+            fill:
+              effect: { preset: gas_giant, num_bands: 9, turbulence: 0.6, speed: 0.5 }
         grid_options: { columns: full }

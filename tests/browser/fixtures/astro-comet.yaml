@@ -12,5 +12,6 @@ objects:
     id: comet
     at: [-30, 0, 0]
     light: star
-    coma_size: 6
-    tail_length: { entity: input_number.lcards_test_power, input: [0, 100], output: [20, 80] }
+    coma: { size: 6 }
+    tail:
+      length: { entity: input_number.lcards_test_power, input: [0, 100], output: [20, 80] }

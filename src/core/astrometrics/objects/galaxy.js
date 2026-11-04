@@ -24,7 +24,7 @@ import {
 } from 'three';
 import { seededRandom } from '../../packs/backgrounds/webgl/scenes/scene-helpers.js';
 import { createStarField } from '../star-field.js';
-import { built, num, DEFAULT_COLORS } from './common.js';
+import { built, num, sub, DEFAULT_COLORS } from './common.js';
 
 const DEG = Math.PI / 180;
 
@@ -78,22 +78,24 @@ const xz = (r, bearing) => [r * Math.sin(bearing * DEG), -r * Math.cos(bearing *
  */
 
 /**
- * The model from a config: the Milky Way by default, or `arms: n` equal arms.
+ * The model from a config: the Milky Way by default, or `arms.count: n` equal arms.
  * @param {any} cfg
  * @returns {GalaxyModel}
  */
 export function galaxyModel(cfg) {
   const R = Math.max(1e-6, num(cfg.radius, 50000));
-  const n = Math.round(num(cfg.arms, 0));
-  const barAngle = num(cfg.bar_angle, MILKY_WAY_BAR_ANGLE);
+  const armsPart = sub(cfg.arms);
+  const barPart = sub(cfg.bar);
+  const n = Math.round(num(armsPart.count, 0));
+  const barAngle = num(barPart.angle, MILKY_WAY_BAR_ANGLE);
   const arms = n > 0
     ? Array.from({ length: Math.min(8, n) }, (_, i) => ({ name: `arm ${i + 1}`, start: barAngle + (360 * i) / n, weight: 1, end: 1 }))
     : MILKY_WAY_ARMS.map((a) => ({ ...a, start: a.spur ? 0 : a.start + barAngle }));
   return {
     R,
-    bar: Math.max(0, num(cfg.bar, 0.32)) * R,
+    bar: Math.max(0, num(barPart.length, 0.32)) * R,
     barAngle,
-    pitch: Math.min(45, Math.max(4, num(cfg.pitch, 12))),
+    pitch: Math.min(45, Math.max(4, num(armsPart.pitch, 12))),
     thickness: Math.max(0, num(cfg.thickness, 0.02)) * R,
     arms
   };
@@ -263,11 +265,11 @@ export function buildGalaxy(cfg, ctx) {
   const out = built(cfg, node, { radius: m.R, flat: true });
   const opacity = num(cfg.opacity, 1);
   const rnd = seededRandom(num(cfg.seed, 3));
-  const n = Math.max(0, Math.min(100000, Math.round(num(cfg.stars, 40000))));
+  const n = Math.max(0, Math.min(100000, Math.round(num(sub(cfg.stars).count, 40000))));
   const { positions, parts } = galaxyStars(m, n, rnd);
-  const core = ctx.color(cfg.core_color, 'var(--lcars-yellow, var(--lcards-yellow-medium))');
-  const arm = ctx.color(cfg.arm_color, 'var(--lcars-blue, var(--lcards-blue-medium))');
-  const star = ctx.color(cfg.star_color, DEFAULT_COLORS.stars);
+  const core = ctx.color(sub(cfg.core).color, 'var(--lcars-yellow, var(--lcards-yellow-medium))');
+  const arm = ctx.color(sub(cfg.arms).color, 'var(--lcars-blue, var(--lcards-blue-medium))');
+  const star = ctx.color(sub(cfg.stars).color, DEFAULT_COLORS.stars);
   const sizes = new Float32Array(n);
   const cols = new Float32Array(n * 4);
   for (let i = 0; i < n; i++) {
@@ -284,7 +286,8 @@ export function buildGalaxy(cfg, ctx) {
   out.field = field;
   // glow along the arms and at the core, dust on the arms' inner edges
   const glowOpacity = Math.max(0, num(cfg.glow, 0.6)) * opacity;
-  const dustOpacity = Math.max(0, num(cfg.dust, 0.5)) * opacity;
+  const dust = sub(cfg.dust);
+  const dustOpacity = Math.max(0, num(dust.amount, 0.5)) * opacity;
   const blobs = galaxyBlobs(m, 260, seededRandom(num(cfg.seed, 3) + 1));
   if (glowOpacity > 0) {
     const g = blobField(blobs.glow, [arm[0], arm[1], arm[2], 0.18], glowOpacity, true);
@@ -295,7 +298,7 @@ export function buildGalaxy(cfg, ctx) {
     node.add(c);
   }
   if (dustOpacity > 0) {
-    const bg = ctx.color(cfg.dust_color, 'var(--primary-background-color, #000)');
+    const bg = ctx.color(dust.color, 'var(--primary-background-color, #000)');
     const d = blobField(blobs.dust, [bg[0], bg[1], bg[2], 0.6], dustOpacity, false);
     d.renderOrder = -0.4;
     node.add(d);

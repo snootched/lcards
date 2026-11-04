@@ -1,7 +1,7 @@
 /**
  * `type: grid`: a grid surface, `shape: plane | disc | dome | sphere | cylinder`,
  * styled with the background `grid` effect's keys (`pattern`, `line_spacing`,
- * `major_*_interval`, `line_width*`, `color*`, `fill_color`, `spoke_count`,
+ * `major`, `line_width`, `color`, `fill.color`, `spoke_count`,
  * `back_opacity`) in scene units. Curved shapes take `line_spacing_deg`
  * (rings and meridians every N degrees) and always fit a whole number of
  * cells round (no seam).
@@ -13,7 +13,7 @@
  * optional `edges` outline, and `cell: AF3` placements).
  *
  * `shape: well` is a funnel round the y axis (the background grid's
- * `well_shape` / `well_throat` / `well_profile`), rim at y = 0. `deform:`
+ * `well: { shape, throat, profile }`), rim at y = 0. `deform:`
  * warps any shape (wobble, bend, twist, noise; `deform.js`): the faces,
  * rims, cell fills and the points on the grid all move with it.
  *
@@ -26,7 +26,7 @@ import { makeDeformer } from '../deform.js';
 import { wellProfile } from '../../packs/backgrounds/effects/grid-surface-model.js';
 import { FatLine } from '../lines.js';
 import { lettersToIndex, indexToLetters, parseCell, bearingXZ } from '../placements.js';
-import { built, num, pair, gridLook, scanTicker, combineTicks, fillFor, DEFAULT_COLORS } from './common.js';
+import { built, num, pair, gridLook, scanTicker, combineTicks, fillFor, sub, isOn, majorWidth, DEFAULT_COLORS } from './common.js';
 import { GRID_SHAPES, AXIAL_GRID_SHAPES } from '../names.js';
 
 const DEG = Math.PI / 180;
@@ -122,9 +122,10 @@ export function buildGrid(cfg, ctx) {
   const node = new Group();
   node.name = `grid:${cfg.id ?? ''}`;
   const out = built(cfg, node);
-  const border = cfg.edges !== false;
-  const edgeColor = ctx.color(cfg.edge_color ?? cfg.color_major ?? cfg.color, DEFAULT_COLORS.grid);
-  const edgeWidth = num(cfg.edge_width, num(cfg.line_width_major, Math.max(1.5, num(cfg.line_width, 1) * 1.5)));
+  const border = isOn(cfg.edges, true);
+  const edges = sub(cfg.edges);
+  const edgeColor = ctx.color(edges.color ?? sub(cfg.major).color ?? cfg.color, DEFAULT_COLORS.grid);
+  const edgeWidth = num(edges.width, majorWidth(cfg));
   // radius: a number, or [inner, outer] (a disc with a hole)
   const [innerR, outerR] = Array.isArray(cfg.radius) ? [num(cfg.radius[0], 0), num(cfg.radius[1], 100)] : [0, num(cfg.radius, 100)];
   const opacity = num(cfg.opacity, 1);
@@ -251,7 +252,9 @@ export function buildGrid(cfg, ctx) {
       extent = [-R, R];
     } else if (shape === 'well') {
       const depth = Math.max(1e-3, num(cfg.depth, R));
-      const profile = wellProfile(cfg, R);
+      // the background grid surface's params, from the object's well part
+      const well = sub(cfg.well);
+      const profile = wellProfile({ well_shape: well.shape, well_throat: well.throat, well_profile: well.profile }, R);
       addFace(wellGeometry({ profile, depth, around: scale, detail }), look);
       if (border) addEdge(profile[0] > 1e-3 ? [circleRun(R), circleRun(profile[0], -depth)] : [circleRun(R)]);
       extent = [-depth, 0];
@@ -265,7 +268,7 @@ export function buildGrid(cfg, ctx) {
     out.radius = R;
     ringLabels(cfg, R, out);
   }
-  // fill_effect: one material under every face's lines (drawn after the far side, before the near side)
+  // fill.effect: one material under every face's lines (drawn after the far side, before the near side)
   const size = pair(cfg.size, [200, 200]);
   // a well's depth: a swirl thins out down its throat
   const effect = fillFor(cfg, ctx, { radius: out.radius ?? Math.max(size[0], size[1]) / 2, opacity, depth: shape === 'well' && extent ? -extent[0] : 0 });

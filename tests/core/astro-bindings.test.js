@@ -119,12 +119,12 @@ test('whole-number settings: count, arms, lobes ... bind (any depth), their valu
     time_scale: { entity: 'input_number.speed' },
     objects: [
       { type: 'belt', id: 'belt', count: { entity: 'input_number.rocks', output: [100, 500] }, seed: 2 },
-      { type: 'galaxy', id: 'g', arms: "[[[ return 3 ]]]", stars: { entity: 'sensor.s' } },
+      { type: 'galaxy', id: 'g', arms: { count: "[[[ return 3 ]]]" }, stars: { count: { entity: 'sensor.s' } } },
       { type: 'grid', id: 'well', deform: [{ type: 'wobble', lobes: { entity: 'input_number.lobes' }, amplitude: { entity: 'input_number.a' } }] }
     ]
   });
   const by = Object.fromEntries(list.map((b) => [bindingKey(b), b]));
-  for (const k of ['object:belt:count', 'object:g:arms', 'object:g:stars', 'object:well:deform.0.lobes']) {
+  for (const k of ['object:belt:count', 'object:g:arms.count', 'object:g:stars.count', 'object:well:deform.0.lobes']) {
     assert.equal(by[k]?.kind, 'whole', k);
     assert.equal(by[k].live, k === 'object:belt:count', k === 'object:belt:count' ? 'a belt draws fewer in place' : `${k} rebuilds its object`);
   }

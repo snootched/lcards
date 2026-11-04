@@ -34,7 +34,7 @@ sections:
         objects:
           - { type: glow, at: sun, size: 40, color: var(--lcars-yellow) }
           - { type: ring, id: orbit, at: [ 75, 0, 0 ], radius: 100, spin: 10, width: 1, color: theme:colors.ui.secondary, opacity: 0.4 }
-          - { type: comet, id: comet, at: comet_at, light: sun, tail_length: 90, coma_size: 8, activity: distance, activity_range: [ 25, 175 ] }
+          - { type: comet, id: comet, at: comet_at, light: sun, tail: { length: 90 }, coma: { size: 8 }, activity: { mode: distance, range: [ 25, 175 ] } }
         grid_options: { columns: full }
   - type: grid
     column_span: 4
@@ -70,7 +70,9 @@ sections:
           - type: comet
             id: still
             light: sun
-            tail_length: { entity: input_number.lcards_test_power, output: [ 10, 110 ], smooth: 1200 }
-            coma_size: { entity: input_number.lcards_test_shields, output: [ 2, 20 ] }
+            tail:
+              length: { entity: input_number.lcards_test_power, output: [ 10, 110 ], smooth: 1200 }
+            coma:
+              size: { entity: input_number.lcards_test_shields, output: [ 2, 20 ] }
             glow: { entity: input_number.lcards_test_value, output: [ 0.1, 1 ] }
         grid_options: { columns: full }

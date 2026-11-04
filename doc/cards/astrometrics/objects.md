@@ -87,9 +87,9 @@ points:
   - { id: alpha_throat, object: mouth_alpha, xyz: [0, -50, 0] }
   - { id: gamma_throat, object: mouth_gamma, xyz: [0, -50, 0] }
 objects:
-  - { type: grid, id: mouth_alpha, shape: well, well_throat: 0.1, radius: 40, depth: 50, at: alpha, face: gamma, line_spacing_deg: 20, color: var(--lcars-blue) }
-  - { type: grid, id: mouth_gamma, shape: well, well_throat: 0.1, radius: 40, depth: 50, at: gamma, face: alpha, line_spacing_deg: 20, color: var(--lcars-blue) }
-  - { type: path, points: [alpha_throat, gamma_throat], dash: [6, 4], flow_speed: 30, color: var(--lcars-yellow), width: 2 }
+  - { type: grid, id: mouth_alpha, shape: well, well: { throat: 0.1 }, radius: 40, depth: 50, at: alpha, face: gamma, line_spacing_deg: 20, color: var(--lcars-blue) }
+  - { type: grid, id: mouth_gamma, shape: well, well: { throat: 0.1 }, radius: 40, depth: 50, at: gamma, face: alpha, line_spacing_deg: 20, color: var(--lcars-blue) }
+  - { type: path, points: [alpha_throat, gamma_throat], dash: { pattern: [6, 4], speed: 30 }, color: var(--lcars-yellow), width: 2 }
 ```
 
 An arched path (`arc`) leaves each end rising: it climbs about 3.14 times its `arc` over the distance between the ends. To line a mouth up with it, face a point that much above the far end (`{ id: aim, at: gamma, offset: [0, 12566, 0] }` for an `arc` of 4000). The [Star Trek galaxy starter](./starters#star-trek-galaxy)'s Bajoran wormhole is built this way.
@@ -125,9 +125,9 @@ objects:
 
 ## grid
 
-A grid surface. `shape` picks it: `plane` (`size`), `disc` (`radius`, or `[inner, outer]` for a hole in the middle), `dome` (a half sphere), `sphere`, `cylinder` (`radius`, `height`) or `well` (a funnel, [below](#wells-and-wormholes)). Any shape can be [deformed](#deformed-grids). The line keys are the [background grid](/core/effects/background-animations/preset-reference#grid)'s: `pattern`, `line_spacing`, `major_row_interval`, `major_col_interval`, `line_width`, `line_width_major`, `color`, `color_major`, `fill_color`, `spoke_count`, `hex_radius`, `dot_radius`, `back_opacity`. On curved shapes `line_spacing_deg` puts rings and meridians every N degrees.
+A grid surface. `shape` picks it: `plane` (`size`), `disc` (`radius`, or `[inner, outer]` for a hole in the middle), `dome` (a half sphere), `sphere`, `cylinder` (`radius`, `height`) or `well` (a funnel, [below](#wells-and-wormholes)). Any shape can be [deformed](#deformed-grids). The line keys follow the [background grid](/core/effects/background-animations/preset-reference#grid): `pattern`, `line_spacing`, `line_width`, `color`, `spoke_count`, `hex_radius`, `dot_radius`, `back_opacity`; `major: { row_interval, col_interval, line_width, color }` for the brighter major lines, and `fill: { color }` behind the lines. On curved shapes `line_spacing_deg` puts rings and meridians every N degrees.
 
-- `edges` (default on): outlines on the open edges: the rim of a disc, dome or well, the ends of a cylinder, the frame of a plane; `edge_width` (default `line_width_major`) and `edge_color` (default `color_major`).
+- `edges` (default on): outlines on the open edges: the rim of a disc, dome or well, the ends of a cylinder, the frame of a plane. `false` turns them off; `edges: { width, color }` sets them (default the major lines' width and colour).
 - `ring_labels: { step, radius, start, alt, style, color }`: bearing labels round a disc or dome.
 
 ```yaml live
@@ -144,7 +144,7 @@ objects:
 
 ### Wells and wormholes
 
-`shape: well` is a funnel down from its rim: `radius` is the rim, `depth` how far down it goes (default the radius), and the profile is the background grid well's: `well_shape` (`trumpet`, the gravity well; `cone`; `bowl`; `wormhole`, two trumpets throat to throat) with `well_throat` (the throat as a fraction of the rim, default 0.15), or any `well_profile` (diameters from the rim down, such as `[1, 0.3, 0.6]`). A profile can narrow several times, and diameters above 1 bulge past the rim, so `[0.1, 0.7, 1, 0.85, 0.45, 0.1]` is a rounded lobe with a neck at each end (the [Bajoran wormhole starter](./starters#bajoran-wormhole) chains three). The rim sits at the object's position, and the rings are spaced evenly along the surface however steep it gets. `border` draws the rim, and a wormhole's lower mouth.
+`shape: well` is a funnel down from its rim: `radius` is the rim, `depth` how far down it goes (default the radius), and the profile is set in `well`: `well.shape` (`trumpet`, the gravity well; `cone`; `bowl`; `wormhole`, two trumpets throat to throat) with `well.throat` (the throat as a fraction of the rim, default 0.15), or any `well.profile` (diameters from the rim down, such as `[1, 0.3, 0.6]`). A profile can narrow several times, and diameters above 1 bulge past the rim, so `[0.1, 0.7, 1, 0.85, 0.45, 0.1]` is a rounded lobe with a neck at each end (the [Bajoran wormhole starter](./starters#bajoran-wormhole) chains three). The rim sits at the object's position, and the rings are spaced evenly along the surface however steep it gets. `border` draws the rim, and a wormhole's lower mouth.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -155,7 +155,7 @@ camera:
 objects:
   - { type: grid, shape: disc, radius: [50, 60], at: [-65, 0, 0], pattern: polar, spoke_count: 24, line_spacing: 5 }
   - { type: grid, shape: well, radius: 50, depth: 60, at: [-65, 0, 0], line_spacing_deg: 15 }
-  - { type: grid, shape: well, well_shape: wormhole, well_throat: 0.25, radius: 40, depth: 110, at: [65, 0, 0], line_spacing_deg: 20, color: var(--lcars-blue) }
+  - { type: grid, shape: well, well: { shape: wormhole, throat: 0.25 }, radius: 40, depth: 110, at: [65, 0, 0], line_spacing_deg: 20, color: var(--lcars-blue) }
 ```
 
 ### Deformed grids
@@ -191,7 +191,7 @@ objects:
   - id: tornado
     type: grid
     shape: well
-    well_profile: [1, 0.35, 0.15, 0.08]
+    well: { profile: [1, 0.35, 0.15, 0.08] }
     radius: 40
     depth: 110
     at: [0, 110, 0]
@@ -234,8 +234,8 @@ A see-through box of grid cells: a territory. `shape: sector` spans `radius: [in
 | Key | What it does |
 |---|---|
 | `cells` | Cell size on the faces: `ring`, `angle` (degrees), `layer` for a sector; `width`, `height`, `depth` for a box or a prism |
-| `color`, `face_opacity` | Colour, and the face lines' opacity (the edges stay brighter) |
-| `line_width`, `edges`, `edge_width`, `edge_color` | Face line width; outline on or off; outline width and colour (default `color`) |
+| `color`, `faces.opacity` | Colour, and the face lines' opacity (the edges stay brighter) |
+| `line_width`, `edges` | Face line width; the outline: `true` (default), `false`, or `{ width, color }` (default `color`) |
 | `back_opacity` | The far faces (1: a wireframe, nothing hidden) |
 
 ```yaml live
@@ -258,7 +258,7 @@ objects:
 
 ## sphere
 
-A planet or globe: latitude and longitude lines (`line_spacing_deg`, or `lat_step` and `lon_step` for different spacings) over a solid body (`fill_color`, `fill_opacity`) that hides what is behind it, labels included (`occlude: false` turns that off). `image` wraps a map around it: one of the [built-in planet maps](#built-in-planet-maps), or your own equirectangular picture (`/local/mars.jpg`; longitude 0 in the middle). For a planet with no map (or a made-up one), a [`fill_effect` preset](./effects#planet-types) paints a planet type. The grid line keys (`color`, `line_width`, ...) work as on a grid, and `deform` as on a grid sphere. `latlon` points stand on it and turn with its `spin`. For a see-through wireframe ball with no body, use a [grid](#grid) with `shape: sphere`.
+A planet or globe: latitude and longitude lines (`line_spacing_deg`, or `lat_step` and `lon_step` for different spacings) over a solid body (`fill: { color, opacity }`) that hides what is behind it, labels included (`occlude: false` turns that off). `image` wraps a map around it: one of the [built-in planet maps](#built-in-planet-maps), or your own equirectangular picture (`/local/mars.jpg`; longitude 0 in the middle). For a planet with no map (or a made-up one), a [`fill.effect` preset](./effects#planet-types) paints a planet type. The grid line keys (`color`, `line_width`, ...) work as on a grid, and `deform` as on a grid sphere. `latlon` points stand on it and turn with its `spin`. For a see-through wireframe ball with no body, use a [grid](#grid) with `shape: sphere`.
 
 `body: earth` (any [real body](./scale#the-real-solar-system)) turns the sphere as that body really is at the scene date: its axis tilted where the real pole points, a real sidereal day, and longitude 0 of its map where its prime meridian is, so `latlon` points stand over the real places. `spin` and `rotation` do not apply then.
 
@@ -320,7 +320,7 @@ LCARdS ships these maps (2048 x 1024, longitude 0 in the middle). All are public
 | `builtin:triton_voyager` | Triton | USGS Astrogeology, Voyager 2 colour mosaic; most of the north was never seen and is grey |
 | `builtin:charon_new_horizons` | Charon | USGS Astrogeology, New Horizons global mosaic (July 2017); the far south was never seen and is grey |
 
-Saturn, Uranus and Neptune have no public-domain global maps: use the `ringed_giant`, `ice_giant` and `storm_giant` [planet types](./effects#planet-types), and Venus as seen from space (a cloud deck) is the `clouds` type. (A 2025 Cassini global map of Saturn exists, but it has gaps at the poles and the rings' shadow across the south, and no clear licence.) Deimos has no global map: give it a grey `fill_color`. Saturn's rings are a [ring band](#ring).
+Saturn, Uranus and Neptune have no public-domain global maps: use the `ringed_giant`, `ice_giant` and `storm_giant` [planet types](./effects#planet-types), and Venus as seen from space (a cloud deck) is the `clouds` type. (A 2025 Cassini global map of Saturn exists, but it has gaps at the poles and the rings' shadow across the south, and no clear licence.) Deimos has no global map: give it a grey `fill.color`. Saturn's rings are a [ring band](#ring).
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -342,7 +342,7 @@ A circle or ellipse: an orbit, a rim, a range ring. `at` is its centre (a point 
 
 `orbit: mars` draws a [real body's](./scale#the-real-solar-system) orbit at the scene date instead: an ellipse with its parent at a focus, tilted and turned as it really is, in the frame's units. Leave `at` out for a planet (the Sun sits at the origin) and put a moon's at its planet (`orbit: io`, `at: jupiter`). `body: saturn` lays a ring in that body's equator (Saturn's rings, below).
 
-With `image`, the ring is a flat band from `inner_radius` (default half the radius) out to `radius`, the picture laid across its width: its left edge on the inner rim, its right edge on the outer. `builtin:saturn_rings` is Saturn's rings from the D ring to the F ring, drawn from their published radii: use `radius` 2.33 and `inner_radius` 1.11 times the planet's radius. `image_opacity` fades it and `image_color` tints it. A planet in its middle hides the far side of the band, and the near side passes in front. The ring's line is drawn too only when you set `width`.
+With `band: { image }`, the ring is a flat band from `band.inner_radius` (default half the radius) out to `radius`, the picture laid across its width: its left edge on the inner rim, its right edge on the outer. `builtin:saturn_rings` is Saturn's rings from the D ring to the F ring, drawn from their published radii: use `radius` 2.33 and `band.inner_radius` 1.11 times the planet's radius. `band.opacity` fades it and `band.color` tints it. A planet in its middle hides the far side of the band, and the near side passes in front. The ring's line is drawn too only when you set `width`.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -351,15 +351,15 @@ camera:
   views:
     v: { target: [0, 0, 0], yaw: 25, tilt: 18, distance: 50 }
 objects:
-  - { type: sphere, id: saturn, radius: 8, fill_effect: { preset: ringed_giant }, line_width: 0.5, spin: 12 }
-  - { type: ring, radius: 18.6, inner_radius: 8.9, inclination: 27, image: builtin:saturn_rings }
+  - { type: sphere, id: saturn, radius: 8, fill: { effect: { preset: ringed_giant } }, line_width: 0.5, spin: 12 }
+  - { type: ring, radius: 18.6, band: { image: builtin:saturn_rings, inner_radius: 8.9 }, inclination: 27 }
 ```
 
 ## path
 
 A line through `points` (ids or `[x, y, z]`), or `from` / `to`. With `at`, each `[x, y, z]` is an offset from `at`, turned with `rotation` and `face`, so a drawn shape (a pipeline, an outline) moves with its point; ids stay where they are. `arc` lifts each leg into a curve by that height at its middle. With `sky: sun` or `sky: moon` and `object: <dome>`, it is today's track across the sky, cut at the horizon.
 
-**Line keys** (`ring` and `path`): `width` (px), `dash: [on, off]` (px: the dashes keep their size however close the camera is), `color`, `color_to` (fades along the line), `glow` (`true`, or a width factor: an even halo under the line), `line_look: tube` (shaded as a lit pipe across its width: dark edges and a bright stripe, best from 6 px or so; pulses on it become bands of light round it), `blend: add`.
+**Line keys** (`ring` and `path`): `width` (px), `dash: [on, off]` (px: the dashes keep their size however close the camera is; `dash: { pattern, speed }` moves them), `color`, or `colors: [from, to]` (fades along the line), `glow` (`true`, or a width factor: an even halo under the line), `line_look: tube` (shaded as a lit pipe across its width: dark edges and a bright stripe, best from 6 px or so; pulses on it become bands of light round it), `blend: add`.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -374,7 +374,7 @@ points:
 objects:
   - { type: ring, at: star, radius: 30, inclination: 25, node: 40, color: var(--lcars-blue) }
   - { type: ring, at: star, radius: [70, 50], dash: [4, 4] }
-  - { type: path, points: [a, star, b], arc: 15, width: 2, color: var(--lcars-orange), color_to: var(--lcars-yellow), glow: true }
+  - { type: path, points: [a, star, b], arc: 15, width: 2, colors: [var(--lcars-orange), var(--lcars-yellow)], glow: true }
   - { type: path, at: star, points: [[-40, -25, 0], [0, -32, 0], [40, -25, 0]], arc: 6, width: 8, line_look: tube, glow: 2, pulse: true, color: var(--lcars-blue) }
 ```
 
@@ -415,17 +415,17 @@ objects:
 
 ## cube
 
-A Borg cube, the same one as the [Borg screen effect](/core/borg) draws: machinery carved into every face, a rail lattice over it, green light from the recesses and glow spots pulsing deep inside. It sits in the scene like any object: it turns with `rotation` and `spin`, other objects pass into its recesses, and labels behind it hide. `style: plain` is a plain shaded box with its edges instead.
+A Borg cube, the same one as the [Borg screen effect](/core/borg) draws: machinery carved into every face, a rail lattice over it, green light from the recesses and glow spots pulsing deep inside. It sits in the scene like any object: it turns with `rotation` and `spin`, other objects pass into its recesses, and labels behind it hide. `shape: box` is a plain shaded box with its edges instead.
 
 | Key | What it does |
 |---|---|
-| `style` | `borg` (default) or `plain`. |
+| `shape` | `borg` (default) or `box`. |
 | `size` | Scene units: one number for a cube, or `[x, y, z]` for a box. Default 20. |
-| `color` | `borg`: the light from inside and the hull's tint (default `var(--lcards-green-medium)`). `plain`: the box (default `var(--lcards-gray-medium)`). |
-| `glow_color` | `borg`: the glow spots (default `var(--lcards-green-lightest)`). |
+| `color` | `borg`: the light from inside and the hull's tint (default `var(--lcards-green-medium)`). `box`: the box (default `var(--lcards-gray-medium)`). |
+| `glow.color` | `borg`: the glow spots (default `var(--lcards-green-lightest)`). |
 | `detail` | `borg`: `true` (default) carves the machinery into the faces; `false` draws flat faces with the lattice, for slow graphics hardware. |
 | `seed` | `borg`: where the glow spots sit. |
-| `edges`, `edge_color`, `opacity` | `plain`: its edges (on by default, `theme:colors.ui.secondary`) and how see-through it is. |
+| `edges`, `opacity` | `box`: its edges (`true` by default, `false`, or `{ color }`, default `theme:colors.ui.secondary`) and how see-through it is. |
 | `occlude` | Hide labels and cards behind it (default `true`). |
 
 The spots pulse on the scene clock, so they hold still under reduced motion. For the cube's green halo, put a `glow` at the same point. The carved cube costs about as much as the screen effect's cube for the pixels it covers: one cube filling the card is fine on a laptop; for many cubes or a slow tablet use `detail: false`.
@@ -448,7 +448,7 @@ objects:
 
 ## nebula
 
-Clouds of gas in the scene, in the look of the nebula background preset: `radius` or `size` (the region), `cloud_count`, `seed`, `colors`, `turbulence`, `drift`. See [Effects: nebula](./effects#nebula).
+Clouds of gas in the scene, in the look of the nebula background preset: `radius` or `size` (the region), `count`, `seed`, `colors`, `turbulence`, `drift`. See [Effects: nebula](./effects#nebula).
 
 ## belt
 
@@ -478,7 +478,7 @@ points:
   - { id: sun, xyz: [0, 0, 0], label: SOL, style: minor }
 objects:
   - { type: glow, at: sun, size: 40, color: var(--lcars-yellow) }
-  - { type: sphere, at: sun, radius: 6, fill_color: var(--lcars-yellow), color: var(--lcars-orange), line_spacing_deg: 30 }
+  - { type: sphere, at: sun, radius: 6, fill: { color: var(--lcars-yellow) }, color: var(--lcars-orange), line_spacing_deg: 30 }
   - { type: belt, at: sun, radius: [45, 62], count: 1500, size: [0.3, 1.8], period: 40, colors: [var(--lcards-gray-light), var(--lcards-gray-medium), var(--lcards-yellow-dark)] }
 ```
 
@@ -530,20 +530,17 @@ A comet: a small dark nucleus (an [asteroid](#asteroid)'s rock), a glowing coma 
 
 | Key | What it does |
 |---|---|
-| `size` | The nucleus's largest extent, scene units. Default 2. |
-| `coma_size` | Diameter of the coma, the glowing cloud round the nucleus. Default 10. |
-| `tail_length` | How far the tails reach away from the star. Default 60. |
+| `nucleus` | The nucleus: `size` (its largest extent, scene units, default 2), `color` (default `var(--lcards-gray-medium-dark)`) and `tumble` (how fast it turns, default 10 degrees per second). |
+| `coma` | The glowing cloud round the nucleus: `size` (its diameter, default 10) and `color` (default `color`). |
+| `tail.length` | How far the tails reach away from the star. Default 60. |
 | `glow` | Opacity of the coma and the tails, 0 to 1 (the nucleus stays). Default 1. |
-| `tails` | `both` (default), `ion`, `dust` or `none`. |
+| `ion_tail`, `dust_tail` | Each tail: `true` (default), `false`, or `{ color }` (the ion tail `var(--lcards-blue-medium)`, the dust tail `color`). |
 | `light` | The star: a point id, or `[x, y, z]`. Default the origin of its frame, as for an [asteroid](#asteroid). |
-| `activity` | `fixed` (default): as set. `distance`: the coma, the tails and the glow grow as the comet nears its star and fade as it leaves, every frame. |
-| `activity_range` | `[near, far]` for `activity: distance`: full at near and closer, falling with the square of the distance, gone at far. Default `[50, 300]`. |
-| `seed`, `tumble` | The nucleus's shape and how fast it turns (default 10 degrees per second). |
-| `color` | The coma and the dust tail. Default `var(--lcards-moonlight)`. |
-| `ion_color` | The ion tail. Default `var(--lcards-blue-medium)`. |
-| `nucleus_color` | The nucleus. Default `var(--lcards-gray-medium-dark)`. |
+| `activity` | `mode: fixed` (default): as set. `mode: distance`: the coma, the tails and the glow grow as the comet nears its star and fade as it leaves, every frame; `range: [near, far]`: full at near and closer, falling with the square of the distance, gone at far (default `[50, 300]`). |
+| `seed` | The nucleus's shape. |
+| `color` | The coma and the dust tail, unless they set their own. Default `var(--lcards-moonlight)`. |
 
-`size`, `coma_size`, `tail_length` and `glow` can [follow an entity](./data#settings-from-entities) and ease in place (with `activity: distance`, an entity's value is the comet at full activity).
+`nucleus.size`, `coma.size`, `tail.length` and `glow` can [follow an entity](./data#settings-from-entities) and ease in place (with `activity.mode: distance`, an entity's value is the comet at full activity).
 
 On an orbit centred off its star, the comet below swings in, grows its tails and brightens, then fades as it swings out:
 
@@ -559,7 +556,7 @@ points:
 objects:
   - { type: glow, at: sun, size: 40, color: var(--lcars-yellow) }
   - { type: ring, id: orbit, at: [75, 0, 0], radius: 100, spin: 10, width: 1, color: theme:colors.ui.secondary, opacity: 0.4 }
-  - { type: comet, at: comet_at, light: sun, tail_length: 90, coma_size: 8, activity: distance, activity_range: [25, 175] }
+  - { type: comet, at: comet_at, light: sun, tail: { length: 90 }, coma: { size: 8 }, activity: { mode: distance, range: [25, 175] } }
 ```
 
 ## galaxy
@@ -571,13 +568,12 @@ By default it is the Milky Way: the bar, the two major arms (Scutum-Centaurus an
 | Key | What it does |
 |---|---|
 | `radius` | The disc's radius (default 50,000) |
-| `arms` | A spiral of this many equal arms (leave out for the Milky Way) |
-| `pitch` | How tightly the arms wind, degrees (default 12) |
-| `bar`, `bar_angle` | The bar's half-length as a fraction of the radius (default 0.32; 0 none), and the bearing of its near end (default 153, 27 degrees off the line to the Sun; the arms turn with it) |
+| `arms` | `count`: a spiral of this many equal arms (leave out for the Milky Way); `pitch`: how tightly they wind, degrees (default 12); `color`: the colour the arm stars lean toward, and the arms' glow |
+| `bar` | `length`: the bar's half-length as a fraction of the radius (default 0.32; 0 none); `angle`: the bearing of its near end (default 153, 27 degrees off the line to the Sun; the arms turn with it) |
 | `thickness` | The disc's thickness as a fraction of the radius (default 0.02) |
-| `stars`, `seed` | How many stars (default 40,000, at most 100,000) and their scatter |
-| `core_color`, `arm_color`, `star_color` | The bulge and core glow, the arms, the stars' base (theme colours by default) |
-| `glow`, `dust`, `dust_color` | The glow's and dust lanes' opacity (0 to 1; 0 none), and the dust colour (the background by default) |
+| `stars`, `seed` | `stars: { count, color }`: how many stars (default 40,000, at most 100,000) and their base colour; `seed`: their scatter |
+| `core.color` | The bulge and the core's glow (theme colours by default) |
+| `glow`, `dust` | The glow's opacity (0 to 1; 0 none); the dust lanes: `dust: { amount, color }` (opacity, and the colour, the background by default) |
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -589,7 +585,7 @@ camera:
 points:
   - { id: sol, polar: [26000, 180], marker: dot, label: SOL }
 objects:
-  - { type: galaxy, stars: 30000 }
+  - { type: galaxy, stars: { count: 30000 } }
 ```
 
 ## glow
@@ -613,7 +609,7 @@ A 3D model from a glTF file (`.glb` or `.gltf`): a starship, your house, a satel
   id: ship
   src: builtin:constitution     # or /local/models/ship.glb
   size: 70                      # its largest extent, scene units
-  scan_period: 5                # a scan band sweeps along it every 5 seconds
+  scan: { period: 5 }           # a scan band sweeps along it every 5 seconds
   animation: all                # loop the file's animation clips
 ```
 
@@ -624,11 +620,11 @@ A 3D model from a glTF file (`.glb` or `.gltf`): a starship, your house, a satel
 | `length` | Its real length in metres (its largest extent), for a file not made at its true scale: drawn that long at its [real size](#real-size), whatever the file measures. |
 | `file_units` | The units the file was made in, for its real size: `m` (default), `cm`, `mm`, `km`, `ft` or `in`. |
 | `material` | `hologram` (default) or `original`. |
-| `color`, `rim_color`, `opacity`, `scanlines` | The hologram's body colour, rim colour, brightness and scanline strength. |
+| `color`, `rim.color`, `opacity`, `scanlines` | The hologram's body colour, rim colour, brightness and scanline strength. |
 | `solid` | `true` (default): the hologram hides its own far side. `false`: see-through. |
 | `blend` | `add` (default) or `normal`. |
-| `scan_period`, `scan_color` | A scan band sweeping along the model, seconds per sweep. |
-| `edges`, `edge_angle`, `edge_color` | Feature edges as lines (on for holograms, off on a model over 250,000 triangles: see [make it light](./models#make-it-light)): where faces meet at more than `edge_angle` degrees. |
+| `scan` | A scan band sweeping along the model: `{ period, color }`, seconds per sweep. |
+| `edges` | Feature edges as lines (on for holograms, off on a model over 250,000 triangles: see [make it light](./models#make-it-light)): `true`, `false`, or `{ angle, color }`, where faces meet at more than `angle` degrees. |
 | `animation` | Clips to loop: `all`, a clip name or a list. The built-in ship's clip is `bussards`. |
 | `occlude` | Hide labels and cards behind it (default `true`). |
 
@@ -675,7 +671,7 @@ points:
   - { id: starboard, object: ship, part: nacelle_starboard, label: STARBOARD NACELLE, marker: dot }
 objects:
   - { type: grid, shape: disc, radius: 70, pattern: polar, line_spacing: 10, spoke_count: 24, at: [0, -25, 0] }
-  - { type: model, id: ship, src: builtin:constitution, size: 70, scan_period: 5, animation: all }
+  - { type: model, id: ship, src: builtin:constitution, size: 70, scan: { period: 5 }, animation: all }
 ```
 
 Labels on the far side of the ship hide behind it: drag to turn the ship until the port nacelle is behind the hull, and its label goes. Models hide labels by their real shape (a small depth image of the scene, taken only when the camera or the model moves), not by a bounding sphere.
@@ -759,7 +755,7 @@ objects:
       - { id: sun, xyz: [0, 0, 0] }
       - { id: earth, polar: [149597870.7, 30], marker: dot, label: EARTH }
     objects:
-      - { type: sphere, at: sun, radius: 696340, fill_color: var(--lcars-yellow) }
+      - { type: sphere, at: sun, radius: 696340, fill: { color: var(--lcars-yellow) } }
       - { type: ring, radius: 149597870.7, width: 1, color: var(--lcars-blue) }
       - { type: sphere, at: earth, radius: 6371, image: builtin:earth_blue_marble }
 ```

@@ -27,7 +27,7 @@ objects:
     radius: 100
     pattern: both
     line_spacing_deg: 15
-    major_col_interval: 6
+    major: { col_interval: 6 }
     color: theme:colors.ui.tertiary
   - type: ring
     radius: 100

@@ -80,7 +80,7 @@ sections:
             pattern: polar
             line_spacing: 10
             spoke_count: 36
-            major_row_interval: 3
+            major: { row_interval: 3 }
             ring_labels: { step: 10, radius: 106 }
           - { type: ring, radius: 100, width: 3, color: theme:colors.ui.secondary }
           - type: volume
@@ -127,6 +127,6 @@ sections:
           - { id: b, xyz: [ -80, 0, -30 ], label: Vulcan, style: minor }
           - { id: c, xyz: [ 20, 0, -90 ], label: Andoria, style: minor }
         objects:
-          - { type: grid, shape: plane, size: 300, line_spacing: 20, major_row_interval: 5 }
+          - { type: grid, shape: plane, size: 300, line_spacing: 20, major: { row_interval: 5 } }
           - { type: path, points: [ a, core, b ], dash: [ 6, 4 ], color: var(--lcars-orange) }
         grid_options: { columns: full }

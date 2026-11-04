@@ -15,7 +15,7 @@ import { simpleColorSchema } from '../../../cards/schemas/common-schemas.js';
 
 /**
  * @typedef {'boolean' | 'enum' | 'number' | 'range' | 'textDefault' | 'rate' | 'date' | 'shape' | 'color' | 'colorList' | 'font' | 'text' | 'asset' | 'strings' | 'tuple' | 'numbers'
- *   | 'pointRef' | 'numberOrTuple' | 'boolOrObject' | 'boolOrNumber' | 'boolOrList' | 'choice' | 'object' | 'objectList' | 'pointList' | 'yaml'} FieldKind
+ *   | 'pointRef' | 'numberOrTuple' | 'boolOrObject' | 'valueOrObject' | 'boolOrNumber' | 'boolOrList' | 'choice' | 'object' | 'objectList' | 'pointList' | 'yaml'} FieldKind
  */
 
 const isObj = (/** @type {any} */ v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -167,6 +167,8 @@ export function fieldKind(s, key) {
       if (alts.some((b) => hasType(b, 'boolean')) && alts.some(isNumberSchema)) return 'boolOrNumber';
       // true, or a list of names (hide_in_systems: true, or the systems to hide in)
       if (alts.some((b) => hasType(b, 'boolean')) && alts.some((b) => hasType(b, 'array') && hasType(b.items, 'string'))) return 'boolOrList';
+      // a short value, or the part's settings (a sphere's image: the map, or { src, opacity }; dash: [on, off], or { pattern, speed })
+      if (alts.some(isWalkable) && alts.some((b) => !isWalkable(b) && !hasType(b, 'boolean'))) return 'valueOrObject';
     }
     // words, plus true / false or any number (a clock rate: live or days per second; the time slider: true or a mode)
     if (choiceOptions(s)) return 'choice';
@@ -275,7 +277,7 @@ export const COMMON_GROUPS = {
 };
 
 /** A type's own keys that are about how it looks (colours, opacity, line widths, effects) */
-const APPEARANCE_KEY = /(^|_)(colou?rs?|opacity|glow|dash|blend|material|scanlines|edges)$|^(colou?r_|line_width|width|edge_width|image|scan|fill_effect|style|falloff|flow_speed$|pulse$)/;
+const APPEARANCE_KEY = /(^|_)(colou?rs?|opacity|glow|dash|blend|material|scanlines|edges)$|^(colou?r_|line_width|width|image|scan|fill$|style|falloff|pulse$)/;
 
 /** A type's own keys few need: limits and drawing order */
 const ADVANCED_KEYS = new Set(['occlude']);
@@ -301,10 +303,13 @@ export function groupOf(key, s) {
 const SECTION_ICONS = {
   backdrop: 'mdi:weather-night', stars: 'mdi:star-four-points-outline', dust: 'mdi:blur', labels: 'mdi:label-outline',
   clock: 'mdi:clock-outline', buttons: 'mdi:gesture-tap-button', limits: 'mdi:arrow-expand-all', target: 'mdi:crosshairs',
-  fill_effect: 'mdi:texture-box', deform: 'mdi:waves', cells: 'mdi:grid', ring_labels: 'mdi:label-multiple-outline',
+  fill: 'mdi:texture-box', effect: 'mdi:texture-box', deform: 'mdi:waves', cells: 'mdi:grid', ring_labels: 'mdi:label-multiple-outline',
   axis_labels: 'mdi:label-multiple-outline', pulse: 'mdi:pulse', clouds: 'mdi:weather-cloudy', text: 'mdi:format-text',
   default: 'mdi:format-text', styles: 'mdi:format-list-text', outline: 'mdi:vector-polygon', animation: 'mdi:animation-play',
-  sky: 'mdi:weather-sunset', body: 'mdi:earth', orbit: 'mdi:orbit', well_profile: 'mdi:chart-bell-curve', edges: 'mdi:vector-square'
+  sky: 'mdi:weather-sunset', body: 'mdi:earth', orbit: 'mdi:orbit', well: 'mdi:chart-bell-curve', edges: 'mdi:vector-square',
+  major: 'mdi:grid-large', scan: 'mdi:radar', band: 'mdi:ring', faces: 'mdi:cube-outline', rim: 'mdi:circle-outline', core: 'mdi:circle-slice-8',
+  nucleus: 'mdi:circle-small', coma: 'mdi:blur-radial', tail: 'mdi:arrow-right-thin', ion_tail: 'mdi:arrow-right-thin', dust_tail: 'mdi:weather-windy',
+  activity: 'mdi:sun-thermometer-outline', arms: 'mdi:rotate-orbit', bar: 'mdi:minus', spectrum: 'mdi:looks', glow: 'mdi:brightness-7'
 };
 
 /**
@@ -326,6 +331,21 @@ export function sectionIcon(key, kind) {
  * @param {any} s
  */
 export const objectAlternative = (s) => (s?.oneOf ?? s?.anyOf ?? []).find(isWalkable) ?? null;
+
+/**
+ * A `valueOrObject` property's short form: the key of its object form that
+ * takes the short value (the same schema: a sphere image's `src`, a dash's
+ * `pattern`), else the first key.
+ * @param {any} s
+ * @returns {string | null}
+ */
+export function shorthandKey(s) {
+  const alt = objectAlternative(s);
+  if (!alt) return null;
+  const short = (s.oneOf ?? s.anyOf).find((/** @type {any} */ b) => b !== alt);
+  const keys = Object.keys(alt.properties);
+  return keys.find((k) => alt.properties[k] === short) ?? keys[0] ?? null;
+}
 
 /**
  * Names for a tuple's (or pair's) boxes from the description's first
@@ -423,7 +443,7 @@ export function appliesTo(key, properties, value) {
   if (!scope || scope.key === key) return true;
   const current = value?.[scope.key] ?? properties[scope.key]?.default;
   if (scope.values === null) return current !== undefined;
-  // a scope key with no value and no default (fill_effect type): show everything
+  // a scope key with no value and no default (fill.effect type): show everything
   if (current === undefined) return true;
   return scope.values.includes(current);
 }
@@ -559,7 +579,7 @@ const SIZES = {
   model: (k) => ({ size: 50 * k }),
   belt: (k) => ({ radius: [80 * k, 100 * k], size: [0.4 * k, 1.6 * k] }),
   asteroid: (k) => ({ size: 4 * k }),
-  comet: (k) => ({ size: 2 * k, coma_size: 10 * k, tail_length: 60 * k }),
+  comet: (k) => ({ nucleus: { size: 2 * k }, coma: { size: 10 * k }, tail: { length: 60 * k } }),
   cube: (k) => ({ size: 20 * k })
 };
 
@@ -623,7 +643,9 @@ export function newObject(type, objectIds, pointIds, place = {}) {
     default: break;
   }
   if (k !== 1 && SIZES[type] && !(type === 'model' && place.real)) {
-    for (const [key, v] of Object.entries(SIZES[type](k))) obj[key] = Array.isArray(v) ? v.map(round) : round(v);
+    /** @param {any} v @returns {any} */
+    const scaled = (v) => (Array.isArray(v) ? v.map(round) : isObj(v) ? Object.fromEntries(Object.entries(v).map(([kk, vv]) => [kk, scaled(vv)])) : round(v));
+    for (const [key, v] of Object.entries(SIZES[type](k))) obj[key] = scaled(v);
   }
   return obj;
 }

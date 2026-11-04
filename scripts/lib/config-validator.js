@@ -419,7 +419,7 @@ export function astrometricsIssues(node) {
     if (o.face === 'motion' && !(typeof o.at === 'string' && o.at !== '')) warn(`${at}.face`, 'face: motion turns the object along its point\'s travel: give it at: a point id');
     // the shapes and dust are drawn only by the raymarched gas
     if (o.type === 'nebula' && o.render !== 'volume') {
-      const only = ['shape', 'dust', 'dust_count', 'dust_color'].filter((k) => o[k] !== undefined && !(k === 'shape' && o.shape === 'clouds'));
+      const only = ['shape', 'dust'].filter((k) => o[k] !== undefined && !(k === 'shape' && o.shape === 'clouds'));
       if (Array.isArray(o.clouds) && o.clouds.some((/** @type {any} */ c) => c?.dust === true)) only.push('clouds[].dust');
       for (const k of only) warn(`${at}.${k}`, `${k} applies only with render: volume (this nebula draws puffs)`);
     }
@@ -440,9 +440,10 @@ export function astrometricsIssues(node) {
       }
     }
     // E6 effects: settings that silently do nothing
-    if (o.type === 'sphere' && o.fill_effect && o.image !== undefined) warn(`${at}.image`, 'fill_effect paints the body: image is not shown');
-    if (['ring', 'path', 'beam', 'trail'].includes(o.type) && o.flow_speed && !o.pulse && !(o.type !== 'beam' && Array.isArray(o.dash))) {
-      warn(`${at}.flow_speed`, 'flow_speed moves dashes or pulses: this line has neither (add dash or pulse)');
+    if (o.type === 'sphere' && o.fill?.effect && o.image !== undefined) warn(`${at}.image`, 'fill.effect paints the body: image is not shown');
+    const dashSpeed = o.dash && typeof o.dash === 'object' && !Array.isArray(o.dash) ? o.dash : null;
+    if (['ring', 'path', 'trail'].includes(o.type) && dashSpeed?.speed && !o.pulse && !Array.isArray(dashSpeed.pattern)) {
+      warn(`${at}.dash.speed`, 'dash.speed moves dashes or pulses: this line has neither (add dash.pattern or pulse)');
     }
     for (const key of ['ring_labels', 'axis_labels']) {
       const st = o[key]?.style;

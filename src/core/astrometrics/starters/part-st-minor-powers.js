@@ -33,7 +33,7 @@ export default /** @type {import('./index.js').Starter} */ ({
     points: POWERS.map(([id, label, dx, dz, color]) => ({ id, xyz: nearSol(dx, dz), marker: 'diamond', label, style: 'minor', color, max_distance: 3000 })),
     // a small territory round each homeworld (ly; the outline is our own)
     objects: POWERS.map(([id, , , , color]) => ({
-      type: 'volume', id: `${id}_space`, shape: 'prism', at: id, height: [-6, 6], color, face_opacity: 0.25, max_distance: 3000,
+      type: 'volume', id: `${id}_space`, shape: 'prism', at: id, height: [-6, 6], color, faces: { opacity: 0.25 }, max_distance: 3000,
       outline: [[-18, -10], [-4, -20], [16, -12], [20, 8], [4, 20], [-16, 14]]
     }))
   })

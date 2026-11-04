@@ -293,11 +293,11 @@ test('astrometrics face: motion needs an object at a point (M3)', () => {
 
 test('astrometrics nebula: shapes and dust only with render: volume (NB1)', () => {
     const astro = (extra) => ({ type: 'custom:lcards-astrometrics-card', ...extra });
-    const neb = { type: 'nebula', shape: 'shell', stretch: 0.5, dust_count: 2, core_color: 'var(--lcars-ice)', clouds: [{ xyz: [0, 0, 0], size: [40, 10, 20], rotation: [0, 30, 0] }, { radius: 5, dust: true }] };
+    const neb = { type: 'nebula', shape: 'shell', stretch: 0.5, dust: { count: 2 }, core: { color: 'var(--lcars-ice)' }, clouds: [{ xyz: [0, 0, 0], size: [40, 10, 20], rotation: [0, 30, 0] }, { radius: 5, dust: true }] };
     assert.deepEqual(messages(check(astro({ objects: [{ ...neb, render: 'volume' }] }))), []);
     assert.deepEqual(messages(check(astro({ objects: [neb] }))), [
         'warning objects[0].shape: shape applies only with render: volume (this nebula draws puffs)',
-        'warning objects[0].dust_count: dust_count applies only with render: volume (this nebula draws puffs)',
+        'warning objects[0].dust: dust applies only with render: volume (this nebula draws puffs)',
         'warning objects[0].clouds[].dust: clouds[].dust applies only with render: volume (this nebula draws puffs)'
     ]);
     assert.deepEqual(messages(check(astro({ objects: [{ type: 'nebula', shape: 'clouds', stretch: 1 }] }))), [], 'clouds and stretch suit puffs');

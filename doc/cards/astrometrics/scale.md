@@ -33,7 +33,7 @@ points:
   - { id: ds9, at: earth, offset: [-21082, 0, 36515], label: DEEP SPACE 9, style: tiny }
 objects:
   - { type: glow, at: sun, size: 9000000, color: var(--lcars-yellow) }
-  - { type: sphere, at: sun, radius: 696340, fill_color: var(--lcars-yellow) }
+  - { type: sphere, at: sun, radius: 696340, fill: { color: var(--lcars-yellow) } }
   - { type: ring, radius: 149597870.7, width: 1, color: var(--lcars-blue) }
   - { type: sphere, at: earth, radius: 6371, image: builtin:earth_blue_marble }
   - { type: model, at: ds9, src: builtin:deep_space_nine, size: 1.452, material: original }
@@ -74,7 +74,7 @@ objects:
       - { id: ds9, at: earth, offset: [-21082, 0, 36515], label: DEEP SPACE 9, style: tiny, max_distance: 3000000 }
     objects:
       - { type: glow, at: sun, size: 9000000, color: var(--lcars-yellow) }
-      - { type: sphere, at: sun, radius: 696340, fill_color: var(--lcars-yellow) }
+      - { type: sphere, at: sun, radius: 696340, fill: { color: var(--lcars-yellow) } }
       - { type: ring, radius: 149597870.7, width: 1, color: var(--lcars-blue) }
       - { type: sphere, at: earth, radius: 6371, image: builtin:earth_blue_marble }
       - { type: model, at: ds9, src: builtin:deep_space_nine, size: 1.452, material: original }

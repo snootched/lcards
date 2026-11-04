@@ -7,7 +7,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   kind: 'part',
   title: 'Comet',
   summary: 'A comet swinging round its star, its tails away from it',
-  description: 'A comet on an orbit centred off its star, so it swings in close and out far. Its tails point away from the star and it grows and brightens near it (activity: distance). Tap it to fly to it.',
+  description: 'A comet on an orbit centred off its star, so it swings in close and out far. Its tails point away from the star and it grows and brightens near it (activity.mode: distance). Tap it to fly to it.',
   icon: 'mdi:star-shooting',
   picture: { camera: { target: [0, 0, 0], yaw: 0, tilt: 55, distance: 220 } },
   params: [
@@ -37,7 +37,7 @@ export default /** @type {import('./index.js').Starter} */ ({
       ],
       objects: [
         { type: 'ring', id: 'orbit', at: ringAt, radius, spin, width: 1, color: 'theme:colors.ui.secondary', opacity: 0.4 },
-        { type: 'comet', id: 'comet', at: 'body', light: c.ref, tail_length: Math.round(radius * 0.9), coma_size: Math.max(2, Math.round(radius / 12)), activity: 'distance', activity_range: [n, f] }
+        { type: 'comet', id: 'comet', at: 'body', light: c.ref, tail: { length: Math.round(radius * 0.9) }, coma: { size: Math.max(2, Math.round(radius / 12)) }, activity: { mode: 'distance', range: [n, f] } }
       ]
     };
   }

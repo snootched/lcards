@@ -27,7 +27,7 @@ sections:
             spoke_count: 36
           - type: nebula
             size: [ 220, 50, 220 ]
-            cloud_count: 8
+            count: 8
             seed: 5
             # follows the slider above and eases to each new speed (no jump)
             drift: { entity: input_number.lcards_test_power, input: [ 0, 100 ], output: [ 0, 12 ] }
@@ -43,15 +43,14 @@ sections:
             pattern: polar
             line_spacing: 10
             spoke_count: 36
-            scan_period: 6
-            scan_color: var(--lcars-yellow)
-          - { type: sphere, at: [ -50, 25, 0 ], radius: 22, scan_period: 5, color: var(--lcars-blue) }
+            scan: { period: 6, color: var(--lcars-yellow) }
+          - { type: sphere, at: [ -50, 25, 0 ], radius: 22, scan: { period: 5 }, color: var(--lcars-blue) }
           - type: volume
             shape: sector
             radius: [ 55, 95 ]
             angle: [ 100, 170 ]
             height: [ 0, 30 ]
-            scan_period: 4
+            scan: { period: 4 }
             color: var(--lcars-green)
         grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
@@ -81,8 +80,7 @@ sections:
             to: beta
             arc: 10
             color: var(--lcars-orange)
-            dash: [ 8, 6 ]
-            flow_speed: 30
+            dash: { pattern: [ 8, 6 ], speed: 30 }
           - type: path
             from: hub
             to: gamma
@@ -90,7 +88,7 @@ sections:
             width: 2
             color: var(--lcars-blue)
             pulse: { length: 24, gap: 120, color: var(--lcars-yellow) }
-          - { type: ring, radius: 100, width: 2, dash: [ 12, 8 ], flow_speed: 20 }
+          - { type: ring, radius: 100, width: 2, dash: { pattern: [ 12, 8 ], speed: 20 } }
         grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
         height: 650
@@ -101,36 +99,40 @@ sections:
             size: [ 220, 140 ]
             line_spacing: 20
             opacity: 0.6
-            fill_effect:
-              type: contour
-              colors: [ var(--lcars-blue), var(--lcars-green), var(--lcars-yellow), var(--lcars-orange) ]
-              num_bands: 6
-              fill_level: 0.3
-              opacity: 0.5
+            fill:
+              effect:
+                type: contour
+                colors: [ var(--lcars-blue), var(--lcars-green), var(--lcars-yellow), var(--lcars-orange) ]
+                num_bands: 6
+                fill_level: 0.3
+                opacity: 0.5
           - type: sphere
             at: [ -60, 30, 0 ]
             radius: 24
             line_spacing_deg: 30
             opacity: 0.4
-            fill_effect:
-              type: plasma
-              color_a: var(--lcars-orange)
-              color_b: var(--lcars-yellow)
-              speed: 2
+            fill:
+              effect:
+                type: plasma
+                color_a: var(--lcars-orange)
+                color_b: var(--lcars-yellow)
+                speed: 2
           - type: sphere
             at: [ 10, 30, -10 ]
             radius: 20
             opacity: 0.3
             spin: 4
-            fill_effect:
-              type: contour
-              colors: [ var(--lcars-orange), var(--lcars-yellow), var(--lcars-red) ]
-              num_bands: 8
+            fill:
+              effect:
+                type: contour
+                colors: [ var(--lcars-orange), var(--lcars-yellow), var(--lcars-red) ]
+                num_bands: 8
           - type: sphere
             at: [ 70, 25, 10 ]
             radius: 18
             color: var(--lcars-blue)
-            fill_effect: { type: fluid, color: var(--lcars-blue) }
+            fill:
+              effect: { type: fluid, color: var(--lcars-blue) }
         grid_options: { columns: full }
       - type: custom:lcards-button
         preset: lozenge

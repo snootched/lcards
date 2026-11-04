@@ -5,13 +5,13 @@ import { FILL_PRESETS } from '../names.js';
 
 /**
  * The globe's surface from the Surface field: a picture (builtin: or a path)
- * as its image, anything else as a fill_effect preset; empty for none.
+ * as its image, anything else as a fill.effect preset; empty for none.
  * @param {any} look
  */
 function surface(look) {
   const v = String(look ?? '').trim();
   if (!v) return {};
-  return /^(builtin:|\/|https?:)/.test(v) ? { image: v } : { fill_effect: { preset: v } };
+  return /^(builtin:|\/|https?:)/.test(v) ? { image: v } : { fill: { effect: { preset: v } } };
 }
 
 /** Moon orbit spins, degrees per second (the first moons go round fastest) */

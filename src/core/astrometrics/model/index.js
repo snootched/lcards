@@ -28,7 +28,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { scanAt } from '../../packs/backgrounds/webgl/scenes/scan-band.js';
-import { built, num, DEFAULT_COLORS } from '../objects/common.js';
+import { built, num, sub, isOn, DEFAULT_COLORS } from '../objects/common.js';
 import { hologramUniforms, hologramMaterial, depthOnlyMaterial } from './hologram-material.js';
 import { OCCLUDER_LAYER } from '../depth-occlusion.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
@@ -203,7 +203,7 @@ export function buildModel(cfg, ctx) {
   let uniforms = null;
   let state = /** @type {'loading' | 'ready' | 'failed'} */ ('loading');
   let disposed = false;
-  const scanPeriod = num(cfg.scan_period, 0);
+  const scanPeriod = num(sub(cfg.scan).period, 0);
   const warnedParts = new Set();
   /** @type {number[] | null} the file's extent, its own units (once in) */
   let fileExtent = null;
@@ -286,8 +286,8 @@ export function buildModel(cfg, ctx) {
     const makeHologram = (copy) => {
       const look = {
         color: c0,
-        rim: ctx.color(cfg.rim_color, DEFAULT_COLORS.modelRim),
-        scan: ctx.color(cfg.scan_color, DEFAULT_COLORS.scan),
+        rim: ctx.color(sub(cfg.rim).color, DEFAULT_COLORS.modelRim),
+        scan: ctx.color(sub(cfg.scan).color, DEFAULT_COLORS.scan),
         opacity,
         scanlines: Math.min(1, Math.max(0, num(cfg.scanlines, 0.5)))
       };
@@ -326,10 +326,10 @@ export function buildModel(cfg, ctx) {
      * @param {boolean} holo - a hologram's (its rim colour)
      */
     const addEdges = (copy, holo) => {
-      const ec = ctx.color(cfg.edge_color, holo ? DEFAULT_COLORS.modelRim : DEFAULT_COLORS.model);
+      const ec = ctx.color(sub(cfg.edges).color, holo ? DEFAULT_COLORS.modelRim : DEFAULT_COLORS.model);
       const edgeMat = new LineBasicMaterial({ transparent: true, depthWrite: false, opacity: (ec[3] ?? 1) * Math.min(1, opacity + 0.15) });
       edgeMat.color.setRGB(ec[0], ec[1], ec[2], SRGBColorSpace);
-      const angle = num(cfg.edge_angle, 30);
+      const angle = num(sub(cfg.edges).angle, 30);
       /** @type {Mesh[]} */
       const meshes = [];
       copy.traverse((o) => { if (/** @type {any} */ (o).isMesh && !(/** @type {any} */ (o).isSkinnedMesh)) meshes.push(/** @type {Mesh} */ (o)); });
@@ -361,12 +361,12 @@ export function buildModel(cfg, ctx) {
       twin.visible = false;
       file.add(twin);
       makeHologram(twin);
-      if (cfg.edges ?? edgesByDefault) addEdges(twin, true);
+      if (isOn(cfg.edges, edgesByDefault)) addEdges(twin, true);
       copies.push(twin);
       out.lookParts = { realistic: [scene], diagramOnly: [twin] };
     }
 
-    if (cfg.edges ?? (hologram && edgesByDefault)) addEdges(scene, hologram);
+    if (isOn(cfg.edges, hologram && edgesByDefault)) addEdges(scene, hologram);
 
     scene.traverse((o) => { if (/** @type {any} */ (o).isMesh && /** @type {any} */ (o).material?.name !== 'lcards-hologram-depth') out.pickMeshes.push(o); });
     // The meshes hide labels behind them (the depth pass renders this layer)

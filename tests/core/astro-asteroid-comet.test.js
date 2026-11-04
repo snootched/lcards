@@ -122,9 +122,9 @@ test('comet: tails away from the light in its own space (face and rotation turn 
   const w = buildScene({
     points: [{ id: 'star', xyz: [-100, 0, 0] }],
     objects: [
-      { type: 'comet', id: 'c', at: [0, 0, 0], light: 'star', rotation: [0, 90, 0], tail_length: 50 },
-      { type: 'comet', id: 'ion', at: [0, 0, 50], tails: 'ion' },
-      { type: 'comet', id: 'none', at: [0, 0, -50], tails: 'none' }
+      { type: 'comet', id: 'c', at: [0, 0, 0], light: 'star', rotation: [0, 90, 0], tail: { length: 50 } },
+      { type: 'comet', id: 'ion', at: [0, 0, 50], dust_tail: false },
+      { type: 'comet', id: 'none', at: [0, 0, -50], ion_tail: false, dust_tail: false }
     ]
   }, /** @type {any} */ (ctx()));
   w.layout();
@@ -144,15 +144,15 @@ test('comet: tails away from the light in its own space (face and rotation turn 
   assert.deepEqual(names('ion'), ['ion_tail']);
   assert.deepEqual(names('none'), []);
   // live: the length, the coma, the glow, the nucleus (null: as built)
-  assert.equal(c.live('tail_length', 80), true);
+  assert.equal(c.live('tail.length', 80), true);
   assert.equal(ion.material.uniforms.uLength.value, 80);
-  c.live('coma_size', 20);
+  c.live('coma.size', 20);
   assert.equal(c.node.getObjectByName('glow:').children[0].scale.x, 20);
   c.live('glow', 0);
   assert.equal(ion.visible, false, 'no glow: no tails');
-  c.live('size', 4);
+  c.live('nucleus.size', 4);
   assert.equal(c.node.getObjectByName('asteroid:c').scale.x, 2);
-  for (const k of ['tail_length', 'coma_size', 'glow', 'size']) c.live(k, null);
+  for (const k of ['tail.length', 'coma.size', 'glow', 'nucleus.size']) c.live(k, null);
   assert.equal(ion.material.uniforms.uLength.value, 50);
   assert.equal(ion.visible, true);
   assert.equal(c.live('seed', 3), false);
@@ -162,9 +162,9 @@ test('comet activity: distance scales the tails by the distance to its light', a
   const w = buildScene({
     points: [{ id: 'star', xyz: [0, 0, 0] }],
     objects: [
-      { type: 'comet', id: 'near', at: [40, 0, 0], light: 'star', activity: 'distance', activity_range: [50, 300] },
-      { type: 'comet', id: 'mid', at: [100, 0, 0], light: 'star', activity: 'distance', activity_range: [50, 300] },
-      { type: 'comet', id: 'far', at: [400, 0, 0], light: 'star', activity: 'distance', activity_range: [50, 300] }
+      { type: 'comet', id: 'near', at: [40, 0, 0], light: 'star', activity: { mode: 'distance', range: [50, 300] } },
+      { type: 'comet', id: 'mid', at: [100, 0, 0], light: 'star', activity: { mode: 'distance', range: [50, 300] } },
+      { type: 'comet', id: 'far', at: [400, 0, 0], light: 'star', activity: { mode: 'distance', range: [50, 300] } }
     ]
   }, /** @type {any} */ (ctx()));
   w.layout();
@@ -182,6 +182,6 @@ test('comet activity: distance scales the tails by the distance to its light', a
 
 test('comet bounds reach as far as its tail (a fly-to frames the comet whole)', async () => {
   const { localBounds } = await import('../../src/core/astrometrics/distance-fade.js');
-  const w = buildScene({ objects: [{ type: 'comet', id: 'c', tail_length: 60, coma_size: 10 }] }, /** @type {any} */ (ctx()));
+  const w = buildScene({ objects: [{ type: 'comet', id: 'c', tail: { length: 60 }, coma: { size: 10 } }] }, /** @type {any} */ (ctx()));
   assert.equal(localBounds(/** @type {any} */ (w.objects.get('c')).node).radius, 65);
 });

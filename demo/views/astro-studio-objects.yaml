@@ -44,7 +44,7 @@ sections:
               - { id: ds9, at: earth, offset: [-21082, 0, 36515], label: DEEP SPACE 9, style: tiny, max_distance: 3000000 }
             objects:
               - { type: glow, at: sun, size: 9000000, color: var(--lcars-yellow) }
-              - { type: sphere, id: sun_body, at: sun, radius: 696340, fill_color: var(--lcars-yellow), color: var(--lcars-orange) }
+              - { type: sphere, id: sun_body, at: sun, radius: 696340, fill: { color: var(--lcars-yellow) }, color: var(--lcars-orange) }
               - { type: ring, id: earth_orbit, radius: 149597870.7, width: 1, color: var(--lcars-blue), opacity: 0.6 }
               - { type: sphere, id: earth_body, at: earth, radius: 6371, image: builtin:earth_blue_marble, line_spacing_deg: 30, line_width: 0.5 }
               - { type: sphere, id: moon_body, at: moon, radius: 1737, image: builtin:moon_lroc, line_spacing_deg: 45, line_width: 0.5 }

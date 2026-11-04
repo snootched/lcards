@@ -112,7 +112,7 @@ test('E8 ring image: a flat band from inner_radius to radius, u across it; the l
   try {
     const { buildRing } = await import('../../src/core/astrometrics/objects/lines.js');
     const ctx = /** @type {any} */ ({ color: () => [1, 1, 1, 1], loadTexture: () => null, requestFrame: () => {} });
-    const band = buildRing({ type: 'ring', radius: 10, inner_radius: 4, image: '/local/r.png' }, ctx);
+    const band = buildRing({ type: 'ring', radius: 10, band: { image: '/local/r.png', inner_radius: 4 } }, ctx);
     assert.equal(band.lines.length, 0, 'no line without a width');
     const mesh = /** @type {any} */ (band.pickMeshes[0]);
     const pos = mesh.geometry.getAttribute('position');
@@ -122,7 +122,7 @@ test('E8 ring image: a flat band from inner_radius to radius, u across it; the l
     assert.deepEqual([uv.getX(0), uv.getX(1)], [0, 1], 'inner rim u 0, outer u 1');
     assert.equal(mesh.material.depthWrite, false);
     // default inner: half the radius; a width draws the line too
-    const lined = buildRing({ type: 'ring', radius: [10, 6], image: '/local/r.png', width: 1 }, ctx);
+    const lined = buildRing({ type: 'ring', radius: [10, 6], band: { image: '/local/r.png' }, width: 1 }, ctx);
     assert.equal(lined.lines.length, 1);
     const p2 = /** @type {any} */ (lined.pickMeshes[0]).geometry.getAttribute('position');
     close(Math.hypot(p2.getX(0), p2.getZ(0)), 3, 1e-4);

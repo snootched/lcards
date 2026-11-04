@@ -171,8 +171,8 @@ Anything without a `look` shows in every look, and an object that has a diagram 
 
 | Object | Diagram look | Realistic look |
 |---|---|---|
-| `sphere` with an `image` or a `fill_effect` | Its lines over a plain body (its `fill_color`) | The bare map or painted surface |
-| `grid` with a `fill_effect` | Its lines | Its fill |
+| `sphere` with an `image` or a `fill.effect` | Its lines over a plain body (its `fill.color`) | The bare map or painted surface |
+| `grid` with a `fill.effect` | Its lines | Its fill |
 | `model` with `material: original` | A hologram | Its own materials |
 
 `mixed` shows them as configured. So a mapped planet is a wire globe in the diagram look and a photograph in the realistic one, with nothing extra to write. `look: all` keeps an object as configured in every look. For what has no realistic form, such as a wormhole's wire funnel and its glowing vortex, give each its own `look`. Switching crossfades in place (no rebuild).
@@ -229,7 +229,7 @@ The [config checker](/getting-started/config-checker) also checks what the schem
 
 - **Scene units** are yours to pick: a galaxy disc of radius 100, a planet of radius 10. Sizes, distances and positions are in scene units; line widths, dashes, label sizes and card offsets are in px, so they hold their size at any zoom.
 - **Bearings** are degrees clockwise from north (north is away from the default camera), as on a compass seen from above.
-- **Motion is off until you set it,** and every moving key follows one rule: turning in degrees per second (`spin`, `camera.auto_rotate`); travel in its own units per second (`flow_speed` in px, a fill's `speed` and a nebula's or noise's `drift` in scene units); repeating cycles as a `period` in seconds (`scan_period`, a deformation's `period`). Fly-to times are in ms, as everywhere in LCARdS.
+- **Motion is off until you set it,** and every moving key follows one rule: turning in degrees per second (`spin`, `camera.auto_rotate`); travel in its own units per second (`dash.speed` in px, a fill's `speed` and a nebula's or noise's `drift` in scene units); repeating cycles as a `period` in seconds (`scan.period`, a deformation's `period`). Fly-to times are in ms, as everywhere in LCARdS.
 
 ## True scale
 

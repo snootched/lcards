@@ -80,5 +80,5 @@ sections:
               - { id: sun, xyz: [0, 0, 0] }
               - { id: earth, polar: [1, 40], marker: dot, label: EARTH, style: tiny }
             objects:
-              - { type: sphere, id: sun_body, at: sun, radius: 0.05, fill_color: var(--lcars-yellow), color: var(--lcars-orange) }
+              - { type: sphere, id: sun_body, at: sun, radius: 0.05, fill: { color: var(--lcars-yellow) }, color: var(--lcars-orange) }
               - { type: ring, id: earth_orbit, radius: 1, width: 1, color: var(--lcars-blue), opacity: 0.6 }

@@ -20,7 +20,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { configToYaml, yamlToConfig } from '../../utils/yaml-utils.js';
 import {
-  fieldKind, tupleLabels, tupleSize, labelFor, helperText, appliesTo, withKey, parseNumbers, isUnset, objectAlternative, choiceOptions, choiceValue,
+  fieldKind, tupleLabels, tupleSize, labelFor, helperText, appliesTo, withKey, parseNumbers, isUnset, objectAlternative, shorthandKey, choiceOptions, choiceValue,
   isBoundValue, boundIn, uiHints, numberSelector, unitsLabel, bindingBranch, takesTemplate, isTemplateValue, isTour, sectionIcon, rangeItem, pairItemSchema
 } from './schema-fields.js';
 import {
@@ -162,7 +162,7 @@ export class LCARdSAstroSchemaForm extends LitElement {
   render() {
     const props = this.schema ?? {};
     const keys = (this.keys ?? Object.keys(props)).filter((k) => props[k] && appliesTo(k, props, this.value ?? {}));
-    const NESTED = ['object', 'objectList', 'boolOrObject', 'textDefault'];
+    const NESTED = ['object', 'objectList', 'boolOrObject', 'valueOrObject', 'textDefault'];
     const flat = keys.filter((k) => ![...NESTED, 'yaml'].includes(fieldKind(props[k], k)));
     const nested = keys.filter((k) => NESTED.includes(fieldKind(props[k], k)));
     const yaml = keys.filter((k) => fieldKind(props[k], k) === 'yaml');
@@ -811,6 +811,18 @@ export class LCARdSAstroSchemaForm extends LitElement {
           </ha-switch>
           ${on ? this._sub(alt.properties, isObj(value) ? value : {}, (v) => this._set(key, isUnset(v) ? true : v))
             : html`<div class="hint">Off. Turn it on with the switch to set it up.</div>`}
+        </lcards-form-section>`;
+    }
+    if (kind === 'valueOrObject') {
+      // the short form shows in its own field; set alone, it stays short (image: builtin:mars_viking)
+      const alt = objectAlternative(s);
+      const sk = /** @type {string} */ (shorthandKey(s));
+      const obj = isObj(value) ? value : value === undefined ? {} : { [sk]: value };
+      /** @param {any} v */
+      const set = (v) => this._set(key, isUnset(v) ? undefined : isObj(v) && Object.keys(v).length === 1 && v[sk] !== undefined ? v[sk] : v);
+      return html`
+        <lcards-form-section data-key=${key} header=${label} description=${helper} icon=${sectionIcon(key, kind)} nested outlined ?expanded=${value !== undefined}>
+          ${this._sub(alt.properties, obj, set)}
         </lcards-form-section>`;
     }
     // objectList

@@ -16,13 +16,13 @@ points:
   - { id: planet, polar: [ 85, 90 ], object: outer, marker: dot, label: PLANET, style: tiny }
   - { id: shuttle, polar: [ 12, 0 ], object: moon_orbit }
 objects:
-  - { type: sphere, at: base, radius: 12, fill_effect: { preset: rocky }, line_width: 0.5, opacity: 0.3, spin: 5 }
+  - { type: sphere, at: base, radius: 12, fill: { effect: { preset: rocky } }, line_width: 0.5, opacity: 0.3, spin: 5 }
   - { type: ring, id: patrol, radius: 60, spin: 15, width: 0.5, opacity: 0.2, rotation: [ 20, 0, 0 ] }
   - { type: model, src: builtin:constitution, at: facing, size: 18, face: motion }
   - { type: model, src: builtin:constitution, at: sliding, size: 18 }
   - { type: trail, point: facing, length: 5, width: 2, dash: [ 6, 4 ] }
   - { type: ring, id: outer, radius: 85, spin: 6, width: 0.5, opacity: 0.15 }
-  - { type: sphere, at: planet, radius: 4, fill_effect: { preset: ice }, line_width: 0.5 }
+  - { type: sphere, at: planet, radius: 4, fill: { effect: { preset: ice } }, line_width: 0.5 }
   - { type: ring, id: moon_orbit, at: planet, radius: 12, spin: 40, width: 0.5, opacity: 0.2 }
   - { type: model, src: builtin:constitution, at: shuttle, size: 5, face: motion }
   - { type: trail, point: shuttle, length: 3, width: 1.5, color: var(--lcars-blue) }

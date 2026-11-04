@@ -121,7 +121,6 @@ sections:
             points: [ a, star, b ]
             arc: 15
             width: 2
-            color: var(--lcars-orange)
-            color_to: var(--lcars-yellow)
+            colors: [var(--lcars-orange), var(--lcars-yellow)]
             glow: true
         grid_options: { columns: full }

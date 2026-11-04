@@ -58,8 +58,8 @@ sections:
           # the name above the ship (a label inside the model hides behind it)
           - { id: ship_name, at: ship, offset: [ 0, 12, 0 ], label: USS ENTERPRISE, style: minor }
         objects:
-          - { type: sphere, at: planet, radius: 14, fill_effect: { preset: rocky }, line_width: 0.5, opacity: 0.3, spin: 5 }
+          - { type: sphere, at: planet, radius: 14, fill: { effect: { preset: rocky } }, line_width: 0.5, opacity: 0.3, spin: 5 }
           - { type: ring, id: patrol, radius: 60, spin: 15, width: 0.5, opacity: 0.15, rotation: [ 10, 0, 0 ] }
-          - { type: model, id: hull, src: builtin:constitution, at: ship, size: 22, scan_period: 4 }
+          - { type: model, id: hull, src: builtin:constitution, at: ship, size: 22, scan: { period: 4 } }
           - { type: trail, point: ship, length: 8, width: 3, dash: [ 6, 4 ] }
         grid_options: { columns: full }

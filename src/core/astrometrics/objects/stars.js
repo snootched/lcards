@@ -13,7 +13,7 @@
 import { Group } from 'three';
 import { seededRandom } from '../../packs/backgrounds/webgl/scenes/scene-helpers.js';
 import { createStarField } from '../star-field.js';
-import { built, num, DEFAULT_COLORS } from './common.js';
+import { built, num, sub, isOn, DEFAULT_COLORS } from './common.js';
 
 /** Radius of the star shell round the camera, scene units */
 export const STAR_SHELL = 3000;
@@ -43,7 +43,7 @@ function field(cfg, ctx, d) {
     sizes[i] = Math.max(0.5, (r0 + size * (r1 - r0)) * 2);
     cols.set([c[0], c[1], c[2], (c[3] ?? 1) * alpha], i * 4);
   }
-  return createStarField({ positions, sizes, colors: cols, opacity: num(cfg.opacity, 1), spectrum: cfg.spectrum === true, reverse: cfg.spectrum_direction === 'reverse', reach: d.reach });
+  return createStarField({ positions, sizes, colors: cols, opacity: num(cfg.opacity, 1), spectrum: isOn(cfg.spectrum, false), reverse: sub(cfg.spectrum).direction === 'reverse', reach: d.reach });
 }
 
 /** @param {() => number} rnd @param {number} R a uniform point on a sphere of radius R */

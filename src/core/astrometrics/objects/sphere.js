@@ -2,7 +2,7 @@
  * `type: sphere`: a planet or globe. A grid of latitude and longitude lines
  * (`line_spacing_deg`, or `lat_step` / `lon_step` degrees) over a solid body
  * that writes depth, so lines and labels behind it are hidden. `image` puts
- * the user's own texture on the body instead of `fill_color`. `spin` turns it
+ * the user's own texture on the body instead of `fill.color`. `spin` turns it
  * (degrees per second, positive is prograde: the front moves east); `latlon`
  * points on it follow. `body: <name>` turns it as the real body is at the
  * scene clock's date instead (pole and prime meridian). `deform` warps body
@@ -13,7 +13,7 @@
 import { Group, Mesh, MeshBasicMaterial, SphereGeometry, SRGBColorSpace } from 'three';
 import { gridFace } from '../grid-mesh-material.js';
 import { sphereGeometry } from '../surface.js';
-import { built, num, gridLook, scanTicker, combineTicks, fillFor, bodyTurn, DEFAULT_COLORS } from './common.js';
+import { built, num, gridLook, scanTicker, combineTicks, fillFor, bodyTurn, sub, DEFAULT_COLORS } from './common.js';
 import { deformTicker } from './grid.js';
 
 const DEG = Math.PI / 180;
@@ -39,21 +39,23 @@ export function buildSphere(cfg, ctx) {
   node.add(face);
   out.gridFaces.push(face);
 
-  const baseColor = ctx.color(cfg.fill_color, DEFAULT_COLORS.fill);
-  // fill_effect paints the body (over the fill colour) and still writes depth
-  const effect = fillFor(cfg, ctx, { radius: R, base: [baseColor[0], baseColor[1], baseColor[2], num(cfg.fill_opacity, 0.85) * (baseColor[3] ?? 1)], solid: true });
+  const fill = sub(cfg.fill);
+  const map = typeof cfg.image === 'string' ? { src: cfg.image } : sub(cfg.image);
+  const baseColor = ctx.color(fill.color, DEFAULT_COLORS.fill);
+  // fill.effect paints the body (over the fill colour) and still writes depth
+  const effect = fillFor(cfg, ctx, { radius: R, base: [baseColor[0], baseColor[1], baseColor[2], num(fill.opacity, 0.85) * (baseColor[3] ?? 1)], solid: true });
   /** @type {import('three').Material} */
   let bodyMat;
   if (effect) bodyMat = effect.material;
   else {
     const fillMat = new MeshBasicMaterial({ transparent: true, depthWrite: true });
-    if (cfg.image) {
-      fillMat.map = ctx.loadTexture(String(cfg.image));
+    if (map.src) {
+      fillMat.map = ctx.loadTexture(String(map.src));
       if (fillMat.map) fillMat.map.colorSpace = SRGBColorSpace;
-      fillMat.opacity = num(cfg.image_opacity, 1);
+      fillMat.opacity = num(map.opacity, 1);
     } else {
       fillMat.color.setRGB(baseColor[0], baseColor[1], baseColor[2], SRGBColorSpace);
-      fillMat.opacity = num(cfg.fill_opacity, 0.85) * (baseColor[3] ?? 1);
+      fillMat.opacity = num(fill.opacity, 0.85) * (baseColor[3] ?? 1);
     }
     bodyMat = fillMat;
   }
@@ -69,10 +71,10 @@ export function buildSphere(cfg, ctx) {
   body.rotation.y = 0;
   // A mapped or painted body is the realistic part, the lines the diagram's; in the diagram look a
   // plain body (the fill colour, sharing the body's geometry) stands in for the map (looks.js)
-  if (effect || cfg.image) {
+  if (effect || map.src) {
     const plainMat = new MeshBasicMaterial({ transparent: true, depthWrite: true });
     plainMat.color.setRGB(baseColor[0], baseColor[1], baseColor[2], SRGBColorSpace);
-    plainMat.opacity = num(cfg.fill_opacity, 0.85) * (baseColor[3] ?? 1);
+    plainMat.opacity = num(fill.opacity, 0.85) * (baseColor[3] ?? 1);
     const plain = new Mesh(body.geometry, plainMat);
     plain.renderOrder = 0;
     plain.visible = false;

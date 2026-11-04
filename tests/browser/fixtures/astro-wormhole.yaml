@@ -14,11 +14,12 @@ objects:
   - type: grid
     id: funnel
     shape: well
-    well_throat: 0.07
+    well: { throat: 0.07 }
     radius: 15
     depth: 5
     line_width: 0
     edges: false
-    fill_effect: { type: swirl, colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcards-blue-medium), var(--lcards-blue-dark)], speed: 3, turbulence: 0.8 }
+    fill:
+      effect: { type: swirl, colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcards-blue-medium), var(--lcards-blue-dark)], speed: 3, turbulence: 0.8 }
   - { type: path, id: pipe, at: side, points: [[0, 0, 0], [0, -10, 0]], width: 8, line_look: tube, glow: 2, pulse: true }
   - { type: path, id: arch, points: [[-15, 0, 10], [15, 0, 10]], arc: 6, width: 3, glow: 3 }

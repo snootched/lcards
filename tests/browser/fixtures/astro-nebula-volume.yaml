@@ -10,5 +10,5 @@ camera:
     inside: { target: [40, 0, 0], yaw: 200, tilt: 6, distance: 30 }
 objects:
   - { type: grid, shape: disc, radius: 100 }
-  - { type: sphere, id: planet, at: [0, 0, 0], radius: 18, fill_color: "var(--lcars-orange, orange)", fill_opacity: 1 }
-  - { type: nebula, id: neb, render: volume, size: [220, 60, 220], cloud_count: 6, seed: 5, colors: ["var(--lcars-violet, #b38cff)", "var(--lcars-blue, #6699ff)"] }
+  - { type: sphere, id: planet, at: [0, 0, 0], radius: 18, fill: { color: "var(--lcars-orange, orange)", opacity: 1 } }
+  - { type: nebula, id: neb, render: volume, size: [220, 60, 220], count: 6, seed: 5, colors: ["var(--lcars-violet, #b38cff)", "var(--lcars-blue, #6699ff)"] }

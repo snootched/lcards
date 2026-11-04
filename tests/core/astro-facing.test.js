@@ -170,7 +170,7 @@ test('face: a point id turns a model toward it, and a well down its axis, its th
       { id: 'throat', object: 'mouth', xyz: [0, -4, 0] }
     ],
     objects: [
-      { type: 'grid', id: 'mouth', shape: 'well', well_shape: 'wormhole', radius: 2, depth: 4, at: 'here', face: 'there' },
+      { type: 'grid', id: 'mouth', shape: 'well', well: { shape: 'wormhole' }, radius: 2, depth: 4, at: 'here', face: 'there' },
       { type: 'sphere', id: 'hull', at: 'here', radius: 1, face: 'there' }
     ]
   }, /** @type {any} */ (ctx()));

@@ -34,7 +34,7 @@ export default /** @type {import('./index.js').Starter} */ ({
       { id: 'tw_earth', xyz: nearSol(0.6, -0.5, 0.2), label: 'Transwarp aperture', style: 'tiny', color: 'var(--lcars-green)', max_distance: 30 }
     ],
     objects: [...EXITS.map(([id]) => id), 'tw_earth'].map((to) => ({
-      type: 'path', id: `conduit_${to}`, points: ['tw_hub', to], arc: to === 'tw_earth' ? 6000 : 1500, dash: [4, 6], flow_speed: 60,
+      type: 'path', id: `conduit_${to}`, points: ['tw_hub', to], arc: to === 'tw_earth' ? 6000 : 1500, dash: { pattern: [4, 6], speed: 60 }, 
       color: 'var(--lcars-green)', width: 1.5, glow: true
     }))
   })

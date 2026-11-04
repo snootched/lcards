@@ -50,7 +50,7 @@ sections:
             pattern: polar
             line_spacing: 10
             spoke_count: 36
-            major_row_interval: 3
+            major: { row_interval: 3 }
             ring_labels: { step: 10, radius: 106 }
           - { type: ring, radius: 100, width: 3, color: theme:colors.ui.secondary }
           - type: volume
@@ -175,7 +175,7 @@ sections:
             id: sun_body
             at: sun
             radius: 5
-            fill_color: var(--lcars-yellow)
+            fill: { color: var(--lcars-yellow) }
             color: var(--lcars-orange)
             line_spacing_deg: 30
           - { type: ring, id: mercury_orbit, radius: 20, spin: 24, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
@@ -234,7 +234,7 @@ sections:
             pattern: polar
             line_spacing: 10
             spoke_count: 36
-            major_row_interval: 3
+            major: { row_interval: 3 }
             opacity: 0.6
           - { type: ring, radius: 130, width: 2, color: theme:colors.ui.secondary }
           - type: volume
@@ -270,7 +270,7 @@ sections:
             color: var(--lcars-orange)
             tap_action: { action: fly-to }
           - { type: ring, radius: 62, arc: [295, 350], width: 2, dash: [6, 4], color: var(--lcars-green) }
-          - { type: path, points: [earth, qonos], arc: 10, dash: [6, 4], color: var(--lcars-orange), flow_speed: 20 }
+          - { type: path, points: [earth, qonos], arc: 10, dash: { pattern: [6, 4], speed: 20 }, color: var(--lcars-orange) }
           - { type: glow, at: [0, 0, 0], size: 40, opacity: 0.6 }
         camera:
           view: overview
@@ -322,7 +322,7 @@ sections:
             at: ship_centre
             size: 50
             rotation: [0, 180, 0]
-            scan_period: 6
+            scan: { period: 6 }
             animation: all
           - type: grid
             id: starbase_dome
@@ -334,7 +334,7 @@ sections:
             color: theme:colors.ui.secondary
             opacity: 0.7
           - { type: grid, id: starbase_stem, shape: cylinder, at: [0, -50, -40], radius: 8, height: 50, pattern: both, line_spacing: 6 }
-          - { type: path, points: [ship_centre, dock], dash: [4, 6], flow_speed: -30, color: var(--lcars-orange) }
+          - { type: path, points: [ship_centre, dock], dash: { pattern: [4, 6], speed: -30 }, color: var(--lcars-orange) }
           - { type: grid, shape: plane, size: [300, 300], line_spacing: 20, at: [0, -60, 0], opacity: 0.25 }
         camera:
           view: approach
@@ -444,12 +444,12 @@ sections:
             cells: { ring: 10, angle: 10, layer: 7 }
             color: var(--lcars-green)
             tap_action: { action: fly-to }
-          - { type: nebula, id: veil_clouds, at: veil_heart, radius: 45, cloud_count: 10, seed: 7, drift: 0.5 }
+          - { type: nebula, id: veil_clouds, at: veil_heart, radius: 45, count: 10, seed: 7, drift: 0.5 }
           - type: nebula
             id: veil_veil
             at: veil_heart
             radius: 27
-            cloud_count: 6
+            count: 6
             seed: 23
             drift: 0.8
             colors: [var(--lcars-violet), var(--lcars-blue)]

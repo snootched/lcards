@@ -28,7 +28,7 @@ export default /** @type {import('./index.js').Starter} */ ({
     units: 'ly',
     points: POWERS.map(([id, label, color, , [x, z]]) => ({ id: `${id}_name`, xyz: [x, 1500, z], label, style: 'minor', color })),
     objects: POWERS.map(([id, , color, outline]) => ({
-      type: 'volume', id: `${id}_space`, shape: 'prism', outline, height: [-1000, 1000], color, face_opacity: 0.25, cells: { width: 2000, depth: 2000, height: 1000 }
+      type: 'volume', id: `${id}_space`, shape: 'prism', outline, height: [-1000, 1000], color, faces: { opacity: 0.25 }, cells: { width: 2000, depth: 2000, height: 1000 }
     }))
   })
 });

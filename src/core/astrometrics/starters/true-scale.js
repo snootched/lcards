@@ -46,26 +46,26 @@ const RADIUS = /** @type {Record<string, number>} */ ({
   uranus: 25362, neptune: 24622, triton: 1353.4, pluto: 1188.3, charon: 606
 });
 
-/** Each body's surface: a built-in map, or a fill_effect preset where there is no public-domain map */
+/** Each body's surface: a built-in map, or a fill.effect preset where there is no public-domain map */
 const LOOKS = /** @type {Record<string, Record<string, any>>} */ ({
   sun: { image: 'builtin:sun_sdo' },
   mercury: { image: 'builtin:mercury_messenger' },
-  venus: { fill_effect: { preset: 'clouds' } },
+  venus: { fill: { effect: { preset: 'clouds' } } },
   earth: { image: 'builtin:earth_blue_marble' },
   moon: { image: 'builtin:moon_lroc' },
   mars: { image: 'builtin:mars_viking' },
   phobos: { image: 'builtin:phobos_viking' },
-  deimos: { fill_color: 'var(--lcards-gray-medium)', fill_opacity: 1 },
+  deimos: { fill: { color: 'var(--lcards-gray-medium)', opacity: 1 } },
   ceres: { image: 'builtin:ceres_dawn' },
   jupiter: { image: 'builtin:jupiter_cassini' },
   io: { image: 'builtin:io_galileo' },
   europa: { image: 'builtin:europa_galileo' },
   ganymede: { image: 'builtin:ganymede_galileo' },
   callisto: { image: 'builtin:callisto_galileo' },
-  saturn: { fill_effect: { preset: 'ringed_giant' } },
+  saturn: { fill: { effect: { preset: 'ringed_giant' } } },
   titan: { image: 'builtin:titan_cassini' },
-  uranus: { fill_effect: { preset: 'ice_giant' } },
-  neptune: { fill_effect: { preset: 'storm_giant' } },
+  uranus: { fill: { effect: { preset: 'ice_giant' } } },
+  neptune: { fill: { effect: { preset: 'storm_giant' } } },
   triton: { image: 'builtin:triton_voyager' },
   pluto: { image: 'builtin:pluto_new_horizons' },
   charon: { image: 'builtin:charon_new_horizons' }
@@ -118,7 +118,7 @@ export function solSystem({ station = false } = {}) {
         type: 'sphere', id: `${id}_body`, at: id, radius: RADIUS[id], body: id, ...LOOKS[id], line_spacing_deg: 30, line_width: 0.5
       })),
       // Saturn's rings, D ring to F ring, in Saturn's equator
-      { type: 'ring', id: 'saturn_rings', at: 'saturn', radius: 140180, inner_radius: 66900, body: 'saturn', image: 'builtin:saturn_rings' },
+      { type: 'ring', id: 'saturn_rings', at: 'saturn', radius: 140180, body: 'saturn', band: { image: 'builtin:saturn_rings', inner_radius: 66900 } },
       // the main belt (2.1 to 3.3 au) and the Kuiper belt (30 to 50 au): dots from afar
       { type: 'belt', id: 'main_belt', at: 'sun', radius: [2.1 * AU, 3.3 * AU], thickness: 0.15 * AU, count: 1500, size: [5, 300], tumble: 0, seed: 4 },
       { type: 'belt', id: 'kuiper_belt', at: 'sun', radius: [30 * AU, 50 * AU], thickness: 3 * AU, count: 2000, size: [50, 1200], tumble: 0, seed: 9, color: 'var(--lcars-blue)' },

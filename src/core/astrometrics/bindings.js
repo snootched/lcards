@@ -45,8 +45,9 @@ export const LIVE_OBJECT_KEYS = /** @type {const} */ (['opacity', 'radius', 'siz
 /** Keys never walked for bindings: text, actions, references and what is not a setting */
 const SKIP = new Set([
   'id', 'type', 'tags', 'label', 'text', 'tap_action', 'hold_action', 'card', 'entity', 'src', 'image', 'at', 'object',
-  'part', 'cell', 'sky', 'body', 'center', 'orbit', 'points', 'from', 'to', 'point', 'color', 'colors', 'fill_color',
-  'color_to', 'scan_color', 'image_color', 'ion_color', 'nucleus_color', 'light', 'marker', 'style', 'shape', 'pattern', 'preset', 'axis_labels', 'material'
+  'part', 'cell', 'sky', 'body', 'center', 'orbit', 'points', 'from', 'to', 'point', 'color', 'colors',
+  // fill.effect's colour keys (the background presets' names)
+  'fill_color', 'color_a', 'color_b', 'light', 'marker', 'style', 'shape', 'pattern', 'preset', 'axis_labels', 'material'
 ]);
 
 /**
@@ -101,7 +102,7 @@ function makeBinding(scope, id, path, v, kind = 'number', type = '') {
 
 /**
  * Bindings inside a point or object config, at any depth (deform steps,
- * fill_effect, pulse), skipping text, actions and references.
+ * fill.effect, pulse), skipping text, actions and references.
  * @param {any} node
  * @param {(string | number)[]} path
  * @param {(path: (string | number)[], v: any) => void} found
