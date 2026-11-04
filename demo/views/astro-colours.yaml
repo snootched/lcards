@@ -1,0 +1,77 @@
+# Astrometrics colours from entities (NB2b): TOGGLE turns the deck grid
+# orange; POWER over 80 reddens the deck's edges and, through a template,
+# the shield bubble; MODE picks the nebula's second colour and the comet's
+# ion tail. Only lcards_test_* helpers.
+title: Astrometrics colours from entities
+path: astro-colours
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_toggle
+        text: { name: { content: TOGGLE, show: true } }
+        tap_action: { action: toggle }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: MODE ALPHA, show: true } }
+        tap_action: { action: perform-action, perform_action: input_select.select_option, target: { entity_id: input_select.lcards_test_mode }, data: { option: alpha } }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: MODE BETA, show: true } }
+        tap_action: { action: perform-action, perform_action: input_select.select_option, target: { entity_id: input_select.lcards_test_mode }, data: { option: beta } }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: MODE GAMMA, show: true } }
+        tap_action: { action: perform-action, perform_action: input_select.select_option, target: { entity_id: input_select.lcards_test_mode }, data: { option: gamma } }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: POWER } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 24, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_colours_1
+        grid_options: { columns: full }
+        height: 600
+        camera: { buttons: true, views: { v: { target: [0, 20, 0], yaw: 25, tilt: 30, distance: 330 } } }
+        backdrop:
+          stars: { count: 1500 }
+        objects:
+          # the deck: lines by the toggle, edges by the power
+          - type: grid
+            id: deck
+            shape: plane
+            size: [240, 160]
+            line_spacing: 20
+            color: { entity: input_boolean.lcards_test_toggle, active: var(--lcars-orange), inactive: var(--lcars-gray) }
+            edges: { width: 3, color: { entity: input_number.lcards_test_power, "above:80": var(--lcars-red), default: var(--lcars-blue) } }
+          # a shield bubble coloured by a template
+          - type: sphere
+            id: bubble
+            at: [-60, 30, 0]
+            radius: 30
+            line_spacing_deg: 20
+            opacity: 0.6
+            color: "[[[ return Number(states['input_number.lcards_test_power']?.state ?? 0) > 80 ? 'var(--lcars-red)' : 'var(--lcars-blue)' ]]]"
+          # the nebula's second colour and the comet's ion tail follow the mode
+          - type: nebula
+            id: cloud
+            at: [60, 30, -20]
+            radius: 45
+            colors:
+              - var(--lcars-blue)
+              - { entity: input_select.lcards_test_mode, alpha: var(--lcars-violet), beta: var(--lcars-orange), default: var(--lcars-red) }
+          - type: comet
+            id: comet
+            at: [0, 60, 50]
+            nucleus: { size: 3 }
+            ion_tail: { color: { entity: input_select.lcards_test_mode, alpha: var(--lcars-blue), beta: var(--lcars-yellow), default: var(--lcars-red) } }

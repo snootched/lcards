@@ -1596,6 +1596,49 @@ test('whole-number settings and type live keys: a belt\'s count and inner edge e
     await expectNoErrors(page);
 });
 
+test('NB2b colours from entities: a state map (state, active / inactive, above:N), a colours item and a template rebuild their object with the colour', async ({ page }) => {
+    await mountCase(page, 'astro-colours', { width: '800' });
+    await sceneReady(page);
+    const colors = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const cfg = (/** @type {string} */ id) => s.world.objects.get(id)?.config ?? {};
+        return { deck: cfg('deck').color, edges: cfg('deck').edges?.color, cloud: cfg('cloud').colors?.[1], bubble: cfg('bubble').color, builds: s.objectBuilds };
+    });
+    // orange pixels on the canvas: the deck's lines, drawn in the colour
+    const orange = () => page.evaluate(() => {
+        const canvas = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('.astro-scene canvas');
+        const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+        let n = 0;
+        for (let i = 0; i < data.length; i += 4) if (data[i] > 170 && data[i + 1] > 90 && data[i + 1] < 190 && data[i + 2] < 90) n++;
+        return n;
+    });
+    await page.evaluate(() => window.__setState('input_boolean.lcards_test_toggle', 'on'));
+    await expect.poll(async () => (await colors()).deck, { timeout: 5000 }).toBe('#ff9900');
+    await expect.poll(orange, { timeout: 5000 }).toBeGreaterThan(500);
+    await page.evaluate(() => window.__setState('input_boolean.lcards_test_toggle', 'off'));
+    await expect.poll(async () => (await colors()).deck, { timeout: 5000 }).toBe('#808080');
+    await expect.poll(orange, { timeout: 5000 }).toBeLessThan(100);
+    // a number over 80: the edges' above:80 key and the sphere's template
+    await page.evaluate(() => window.__setState('input_number.lcards_test_power', '50'));
+    await expect.poll(async () => (await colors()).edges, { timeout: 5000 }).toBe('#0000ff');
+    await expect.poll(async () => (await colors()).bubble, { timeout: 5000 }).toBe('#00ff00');
+    await page.evaluate(() => window.__setState('input_number.lcards_test_power', '90'));
+    await expect.poll(async () => (await colors()).edges, { timeout: 5000 }).toBe('#ff0000');
+    await expect.poll(async () => (await colors()).bubble, { timeout: 5000 }).toBe('#ff0000');
+    // one item of a colours list by its own entity; the other stays
+    await page.evaluate(() => window.__setState('input_select.lcards_test_mode', 'beta'));
+    await expect.poll(async () => (await colors()).cloud, { timeout: 5000 }).toBe('#ff6600');
+    await page.evaluate(() => window.__setState('input_select.lcards_test_mode', 'delta'));
+    await expect.poll(async () => (await colors()).cloud, { timeout: 5000 }).toBe('#ff0000');
+    expect(await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world.objects.get('cloud').config.colors[0])).toBe('#3366ff');
+    // the same colour again does not rebuild
+    const before = (await colors()).builds;
+    await page.evaluate(() => window.__setState('input_select.lcards_test_mode', 'gamma'));
+    await page.waitForTimeout(600);
+    expect((await colors()).builds).toBe(before);
+    await expectNoErrors(page);
+});
+
 test('AC1 asteroid: one rock, the half toward its light bright, the far half dark', async ({ page }) => {
     await mountCase(page, 'astro-asteroid', { width: '800' });
     await sceneReady(page);

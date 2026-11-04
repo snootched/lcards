@@ -1,0 +1,24 @@
+# NB2b colours from entities: a grid's lines follow a toggle (active / inactive),
+# its edges a number (above:80), a nebula's second colour an input_select, a
+# sphere's colour a template (astrometrics.spec.js drives them with __setState).
+type: custom:lcards-astrometrics-card
+id: astro_colours
+height: 400
+camera: { views: { v: { target: [0, 0, 0], yaw: 20, tilt: 30, distance: 260 } } }
+objects:
+  - type: grid
+    id: deck
+    shape: plane
+    size: 200
+    color: { entity: input_boolean.lcards_test_toggle, active: "#ff9900", inactive: "#808080" }
+    edges: { color: { entity: input_number.lcards_test_power, "above:80": "#ff0000", default: "#0000ff" } }
+  - type: nebula
+    id: cloud
+    at: [60, 20, 0]
+    radius: 40
+    colors: ["#3366ff", { entity: input_select.lcards_test_mode, alpha: "#aa00ff", beta: "#ff6600", default: "#ff0000" }]
+  - type: sphere
+    id: bubble
+    at: [-60, 20, 0]
+    radius: 25
+    color: "[[[ return Number(states['input_number.lcards_test_power']?.state ?? 0) > 80 ? '#ff0000' : '#00ff00' ]]]"

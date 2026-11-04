@@ -80,6 +80,10 @@ test('field kinds for the shapes the schema uses', () => {
   assert.equal(fieldKind(props.size, 'size'), 'numberOrTuple');
   assert.equal(fieldKind(props.radius, 'radius'), 'numberOrTuple');
   assert.equal(fieldKind(props.color, 'color'), 'color');
+  // an object's colour can follow an entity (NB2b): still a colour field, with a bind button
+  assert.ok(bindingBranch(props.color)?.properties?.active, 'a colour binding');
+  assert.equal(fieldKind(props.major.properties.color, 'color'), 'color');
+  assert.equal(fieldKind(objectBranch(objectSchema, 'path').own.colors ?? objectBranch(objectSchema, 'path').common.colors, 'colors'), 'colorList');
   // shapes are a picture picker (UX1 P5)
   assert.equal(fieldKind(props.shape, 'shape'), 'shape');
   for (const t of ['volume', 'image']) assert.equal(fieldKind(objectBranch(objectSchema, t).own.shape, 'shape'), 'shape', t);
@@ -274,6 +278,7 @@ test('R4b: what an object follows, for its row and its sections (text and action
   assert.equal(keysBound({ at: 'mouth', spin: 3 }, ['at', 'spin']), false);
   assert.match(objectSummary(wormhole), /follows input_number\.lcards_test_power, a template/);
   assert.doesNotMatch(objectSummary(wormhole), /object Object/);
+  assert.doesNotMatch(objectSummary({ type: 'grid', color: { entity: 'input_boolean.x', active: 'red' } }), /object Object/);
   // a side of a pair that follows an entity or a template
   assert.equal(objectSummary({ type: 'belt', radius: [52, { entity: 'input_number.p', output: [60, 90] }] }).split(' · ')[0], '52 x entity');
   assert.equal(objectSummary({ type: 'belt', radius: ['[[[ return 1 ]]]', 90] }).split(' · ')[0], 'template x 90');

@@ -40,6 +40,10 @@ const isObj = (/** @type {any} */ v) => !!v && typeof v === 'object' && !Array.i
 /** Kinds laid out two to a row */
 const SHORT = new Set(['boolean', 'enum', 'choice', 'number', 'text', 'strings', 'numbers', 'font']);
 const COORDS = 'coords';
+/** A colour by state: the keys shown as pickers (the rest of a state map stays YAML) */
+const STATE_COLOR_KEYS = ['default', 'active', 'inactive', 'unavailable'];
+/** @type {Record<string, string>} */
+const STATE_COLOR_LABELS = { default: 'Default (no other match)', active: 'Active (on)', inactive: 'Inactive (off)', unavailable: 'Unavailable' };
 
 /** Whether a schema can only be a list (a colour list that takes no single colour) @param {any} s */
 const hasArrayType = (s) => s?.type === 'array';
@@ -268,15 +272,12 @@ export class LCARdSAstroSchemaForm extends LitElement {
       case 'numbers':
         return this._selector(key, { text: {} }, Array.isArray(value) ? value.join(', ') : '', label, `${helper} Numbers separated by commas.`, cls, parseNumbers);
       case 'color':
-        return html`
-          <div class="full">
-            <span class="field-label">${label}</span>
-            <lcards-color-picker .hass=${this.hass} .value=${value ?? ''}
-              @value-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); this._set(key, e.detail.value || undefined); }}>
-            </lcards-color-picker>
-            ${helper ? html`<div class="hint">${helper}</div>` : nothing}
-          </div>`;
+        // an object's colour can follow an entity or a template (bindings.js entityColor)
+        if (isTemplateValue(value)) return this._templateField(key, value, label, undefined, 'Back to a colour');
+        return this._bindable(key, s, 'full', this._color(key, value, label, helper));
       case 'colorList': {
+        // a colour that follows an entity or a template stays YAML (a list keeps plain colours)
+        if ((Array.isArray(value) ? value : [value]).some((c) => isObj(c) || isTemplateValue(c))) return this._yaml(key, s);
         // one colour or a list: one left is written as one colour where the schema takes it
         const single = !hasArrayType(s);
         const colors = Array.isArray(value) ? value : (typeof value === 'string' && value ? [value] : []);
@@ -323,6 +324,22 @@ export class LCARdSAstroSchemaForm extends LitElement {
       default:
         return nothing;
     }
+  }
+
+  /**
+   * A colour picker with its label and helper.
+   * @param {string} key @param {any} value @param {string} label @param {string} helper
+   * @param {(v: any) => void} [put]
+   */
+  _color(key, value, label, helper, put = (v) => this._set(key, v)) {
+    return html`
+      <div data-key=${key}>
+        <span class="field-label">${label}</span>
+        <lcards-color-picker .hass=${this.hass} .value=${value ?? ''}
+          @value-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); put(e.detail.value || undefined); }}>
+        </lcards-color-picker>
+        ${helper ? html`<div class="hint">${helper}</div>` : nothing}
+      </div>`;
   }
 
   /**
@@ -385,9 +402,16 @@ export class LCARdSAstroSchemaForm extends LitElement {
             set({ [k]: cur.every((x) => x === undefined) ? undefined : cur.map((x) => x ?? 0) });
           }))}
       </div>`;
-    return this._subPanel(key, 'mdi:link-variant', `${label}: follows an entity`, kind === 'choice' || kind === 'boolean' ? 'Back to a fixed value' : 'Back to a number', html`
-      ${this._selector(`${key}~entity`, { entity: {} }, value.entity || undefined, 'Entity', helper, '', (v) => set({ entity: v || '', attribute: undefined }))}
+    const color = kind === 'color';
+    const back = color ? 'Back to a colour' : kind === 'choice' || kind === 'boolean' ? 'Back to a fixed value' : 'Back to a number';
+    // a colour by state: the usual state keys here, any other state or range (heat, above:80) in YAML
+    const others = color ? Object.keys(value).filter((k) => !['entity', 'attribute', ...STATE_COLOR_KEYS].includes(k)) : [];
+    return this._subPanel(key, 'mdi:link-variant', `${label}: follows an entity`, back, html`
+      ${this._selector(`${key}~entity`, { entity: {} }, value.entity || undefined, 'Entity', color ? '' : helper, '', (v) => set({ entity: v || '', attribute: undefined }))}
       ${takes.attribute ? this._attribute(key, value, set) : nothing}
+      ${color ? html`
+        ${STATE_COLOR_KEYS.map((k) => this._color(`${key}~${k}`, value[k], STATE_COLOR_LABELS[k], '', (v) => set({ [k]: v })))}
+        <div class="hint full">${others.length ? `Also by state in YAML: ${others.join(', ')}.` : 'Other states ("heat", "above:80", "between:20:80") go in YAML, each with its colour. No key matching: the entity\'s own colour (attribute: rgb_color on a light).'}</div>` : nothing}
       ${numeric && takes.input ? pair('input', ['Entity low', 'Entity high'], ['Default: its min (else 0)', 'Default: its max (else 100)']) : nothing}
       ${numeric && takes.output ? pair('output', [`${label} at entity low`, `${label} at entity high`],
         ['Both empty: the entity\'s own number', 'Held at the ends outside the entity range']) : nothing}
@@ -399,9 +423,10 @@ export class LCARdSAstroSchemaForm extends LitElement {
    * A setting given as a template: shown as text (edit it here or in the YAML tab).
    * @param {string} key @param {string} value @param {string} label
    * @param {(v: any) => void} [put] - writes the value (a side of a pair writes into the pair)
+   * @param {string} [back] - the back button's label
    */
-  _templateField(key, value, label, put = (v) => this._set(key, v)) {
-    return this._subPanel(key, 'mdi:code-braces', `${label}: a template`, 'Back to a number',
+  _templateField(key, value, label, put = (v) => this._set(key, v), back = 'Back to a number') {
+    return this._subPanel(key, 'mdi:code-braces', `${label}: a template`, back,
       this._selector(`${key}~template`, { text: { multiline: true } }, value, '', 'JavaScript [[[ ]]], Jinja2 {{ }} or a {entity.state} token.', '', (v) => put(v || undefined)), put);
   }
 

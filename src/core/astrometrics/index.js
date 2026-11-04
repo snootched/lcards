@@ -17,6 +17,6 @@ export { MARKERS } from './markers.js';
 export { LABEL_STYLES } from './label-layer.js';
 export { resolveLabel, plainColor, selectedColor } from './label-text.js';
 export { labelSources, fieldNeedsUpdate, bindingValue, bindingEntity } from './point-data.js';
-export { collectBindings, bindingKey, roundedSetting, mapEntity, mapNumber, dateValue, withValues, isTourView, tourStop, settingConfig } from './bindings.js';
+export { collectBindings, bindingKey, roundedSetting, mapEntity, mapNumber, dateValue, entityColor, templateColor, withValues, isTourView, tourStop, settingConfig } from './bindings.js';
 export { GRID_SHAPES } from './objects/grid.js';
 export { skyState, sunPosition, moonPosition } from './sky.js';

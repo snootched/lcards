@@ -166,6 +166,13 @@ releases:
         session: "R4b"
         docs: /cards/astrometrics/data#settings-from-entities
         public: true
+      - file: astro-colours
+        topic: astrometrics
+        summary: "Astrometrics colours from entities: state maps and templates on object colours"
+        description: "Any object colour can follow an entity or a template. TOGGLE turns the deck grid's lines orange (active and inactive). POWER over 80 turns the deck's edges red (an above:80 key) and the shield bubble too (a template). The MODE buttons pick the nebula's second colour and the comet's ion tail (a colour per input_select option). Each change rebuilds that one object."
+        session: "NB2b"
+        docs: /cards/astrometrics/data#colours-from-entities
+        public: true
       - file: astro-real-sol
         topic: astrometrics
         summary: "Astrometrics real Sol: the planets and moons where they are today"

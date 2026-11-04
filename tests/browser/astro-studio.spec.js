@@ -475,6 +475,26 @@ test('studio UX1 P2: grouped object sections, sliders, bind panels, the look swi
     await settle();
     expect(await page.evaluate(() => window.__studio._workingConfig.objects[0].opacity)).toBeUndefined();
 
+    // a colour binds too (NB2b): the entity, then a picker per state colour; back to a colour
+    const before = await page.evaluate(() => window.__studio._workingConfig.objects[0].color);
+    await page.evaluate(() => { window.__own = (sel) => window.__find(sel).filter((e) => /** @type {any} */ (e.getRootNode()).host?.value?.type === 'grid'); });
+    await page.evaluate(() => window.__own('[data-key="color-bind"]')[0].click());
+    await settle();
+    expect(await page.evaluate(() => window.__own('lcards-form-section.binding[data-key="color"]')[0].header)).toBe('Color: follows an entity');
+    await page.evaluate(() => window.__own('ha-selector[data-key="color~entity"]')[0]
+        .dispatchEvent(new CustomEvent('value-changed', { detail: { value: 'input_boolean.lcards_test_toggle' } })));
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.objects[0].color)).toEqual({ entity: 'input_boolean.lcards_test_toggle' });
+    expect(await page.evaluate(() => window.__own('[data-key^="color~"] lcards-color-picker').length)).toBe(4);
+    await page.evaluate(() => window.__own('[data-key="color~active"] lcards-color-picker')[0]
+        .dispatchEvent(new CustomEvent('value-changed', { detail: { value: 'var(--lcars-orange)' } })));
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.objects[0].color)).toEqual({ entity: 'input_boolean.lcards_test_toggle', active: 'var(--lcars-orange)' });
+    await page.evaluate(() => window.__own('[data-key="color-unbind"]')[0].click());
+    await settle();
+    expect(await page.evaluate(() => window.__studio._workingConfig.objects[0].color)).toBeUndefined();
+    if (before !== undefined) await page.evaluate((c) => { window.__studio._workingConfig.objects[0].color = c; }, before);
+
     // Scene: sections by what they hold, each with an icon
     await page.evaluate(() => { window.__studio._activeTab = 'scene'; });
     await settle();

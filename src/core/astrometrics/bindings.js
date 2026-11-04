@@ -15,6 +15,20 @@
  * hold at the ends of `output` unless `clamp: false`. A missing or
  * non-numeric value leaves the key at its default.
  *
+ * Colours on an object (`color` at any depth, each item of `colors`, and
+ * fill.effect's colour keys) can follow an entity or a template too:
+ *
+ *   color: { entity: input_select.alert, default: var(--lcars-blue), red: var(--lcars-red) }   a state map
+ *   color: { entity: light.desk, attribute: rgb_color }      the entity's own colour
+ *   color: "[[[ return states['sensor.x'].state > 50 ? 'red' : 'blue' ]]]"
+ *
+ * The state map speaks the state colour words of the other cards
+ * (state-color-resolver.js: a state, active, inactive, unavailable, zero,
+ * non_zero, above:N, below:N, between:A:B, default), plus `entity` (an object
+ * has none of its own) and `attribute` (matched instead of the state). No key
+ * matching, the value itself when it is a colour ([r, g, b] too). Colours
+ * step (the object rebuilds); points keep their own state colours (labels).
+ *
  * `camera.view` can follow an entity too (a guided tour): a number picks
  * `views[n]` (from 0), a text state names a view; a stop may also set the
  * clock (`{ view, date, rate }`).
@@ -31,6 +45,8 @@ import { TemplateDetector } from '../templates/TemplateDetector.js';
 import { templateRefs } from '../templates/template-refs.js';
 import { BINDABLE_FORMS } from './placements.js';
 import { WHOLE_NUMBER_KEYS, LIVE_TYPE_KEYS } from './names.js';
+import { stateKeyFor } from '../../utils/state-color-resolver.js';
+import { isColorValue } from '../themes/color-syntax.js';
 
 /** How long a live key eases to a new value, ms (`smooth` on the binding) */
 export const DEFAULT_SMOOTH_MS = 600;
@@ -43,12 +59,15 @@ export const DEFAULT_SMOOTH_MS = 600;
 export const LIVE_OBJECT_KEYS = /** @type {const} */ (['opacity', 'radius', 'size', 'spin']);
 
 /** Keys never walked for bindings: text, actions, references and what is not a setting */
-const SKIP = new Set([
+export const SKIP = new Set([
   'id', 'type', 'tags', 'label', 'text', 'tap_action', 'hold_action', 'card', 'entity', 'src', 'image', 'at', 'object',
   'part', 'cell', 'sky', 'body', 'center', 'orbit', 'points', 'from', 'to', 'point', 'color', 'colors',
   // fill.effect's colour keys (the background presets' names)
   'fill_color', 'color_a', 'color_b', 'light', 'marker', 'style', 'shape', 'pattern', 'preset', 'axis_labels', 'material'
 ]);
+
+/** An object's colour keys (fill.effect's take the background presets' names); `colors` holds a list of them */
+const COLOR_KEYS = new Set(['color', 'colors', 'fill_color', 'color_a', 'color_b']);
 
 /**
  * @typedef {Object} SettingBinding
@@ -61,8 +80,8 @@ const SKIP = new Set([
  * @property {boolean} live - the scene changes it in place and eases (else the object rebuilds)
  * @property {number} [most] - a live key the object builds for the most it can reach (LIVE_TYPE_KEYS `most`)
  * @property {number} smooth - ease time, ms (0: step)
- * @property {'number' | 'whole' | 'date'} kind - clock.date resolves to a date, a whole-number key (WHOLE_NUMBER_KEYS) to a
- *   whole number, everything else to a number
+ * @property {'number' | 'whole' | 'date' | 'color'} kind - clock.date resolves to a date, a whole-number key (WHOLE_NUMBER_KEYS) to a
+ *   whole number, an object's colour to a colour (entityColor, templateColor), everything else to a number
  */
 
 /** @param {any} v */
@@ -84,9 +103,9 @@ function makeBinding(scope, id, path, v, kind = 'number', type = '') {
   const joined = path.join('.');
   if (kind === 'number' && scope !== 'card' && WHOLE_NUMBER_KEYS.includes(/** @type {any} */ (key))) kind = 'whole';
   const own = scope === 'object' ? LIVE_TYPE_KEYS[type] : undefined;
-  const live = (scope === 'object' && path.length === 1 && LIVE_OBJECT_KEYS.includes(/** @type {any} */ (key)))
+  const live = kind !== 'color' && ((scope === 'object' && path.length === 1 && LIVE_OBJECT_KEYS.includes(/** @type {any} */ (key)))
     || !!own?.keys.includes(joined)
-    || (scope === 'card' && (joined === 'time_scale' || joined === 'clock.rate'));
+    || (scope === 'card' && (joined === 'time_scale' || joined === 'clock.rate')));
   const cap = live ? own?.most?.[joined] : undefined;
   if (isBinding(v)) {
     const smooth = Number(v.smooth);
@@ -102,10 +121,11 @@ function makeBinding(scope, id, path, v, kind = 'number', type = '') {
 
 /**
  * Bindings inside a point or object config, at any depth (deform steps,
- * fill.effect, pulse), skipping text, actions and references.
+ * fill.effect, pulse), skipping text, actions and references. An object's
+ * colours are found as colours; a point's colour is its label's state colour.
  * @param {any} node
  * @param {(string | number)[]} path
- * @param {(path: (string | number)[], v: any) => void} found
+ * @param {(path: (string | number)[], v: any, kind?: SettingBinding['kind']) => void} found
  * @param {boolean} isPoint
  */
 function walk(node, path, found, isPoint) {
@@ -117,6 +137,12 @@ function walk(node, path, found, isPoint) {
     return;
   }
   for (const [k, v] of Object.entries(node ?? {})) {
+    if (!isPoint && COLOR_KEYS.has(k)) {
+      for (const [at, c] of Array.isArray(v) ? v.map((c, i) => /** @type {const} */ ([[...path, k, i], c])) : [[[...path, k], v]]) {
+        if (isBinding(c) || isTemplateValue(c)) found(/** @type {any} */ (at), c, 'color');
+      }
+      continue;
+    }
     if (SKIP.has(k)) continue;
     // a point's position from an entity is the older position binding
     if (isPoint && path.length === 0 && BINDABLE_FORMS.includes(/** @type {any} */ (k))) continue;
@@ -157,7 +183,7 @@ export function collectBindings(config) {
   const ids = objectIds(objects);
   objects.forEach((o, i) => {
     if (!o || typeof o !== 'object' || o.type === 'system') return;
-    walk(o, [], (path, v) => add(makeBinding('object', /** @type {string} */ (ids[i]), path, v, 'number', String(o.type ?? ''))), false);
+    walk(o, [], (path, v, kind) => add(makeBinding('object', /** @type {string} */ (ids[i]), path, v, kind ?? 'number', String(o.type ?? ''))), false);
   });
   add(makeBinding('card', '', ['time_scale'], config?.time_scale));
   add(makeBinding('card', '', ['warp_factor'], config?.warp_factor));
@@ -219,6 +245,44 @@ function pairOf(v) {
   if (!Array.isArray(v) || v.length < 2) return null;
   const a = Number(v[0]), b = Number(v[1]);
   return Number.isFinite(a) && Number.isFinite(b) ? [a, b] : null;
+}
+
+/**
+ * The colour a state map gives for an entity now (an object's colour that
+ * follows an entity): the matching state key's colour, as configured (the
+ * object resolves it); no key matching, the value itself when it is a
+ * colour. null: the key's default.
+ * @param {Record<string, any>} spec - `{ entity, attribute?, <state>: colour, ... }`
+ * @param {any} entity - a Home Assistant state object
+ * @param {string} classified - the entity's state class (active, inactive, unavailable, ...)
+ * @returns {string | null}
+ */
+export function entityColor(spec, entity, classified) {
+  const { entity: _id, attribute, ...map } = spec;
+  const attr = typeof attribute === 'string' && attribute ? attribute : null;
+  const raw = attr ? entity?.attributes?.[attr] : entity?.state;
+  const n = attr ? parseFloat(raw) : undefined;
+  const key = stateKeyFor({
+    actualState: entity?.state ?? null,
+    classifiedState: classified,
+    colorConfig: map,
+    ...(attr ? { attributeState: raw === null || raw === undefined ? undefined : String(raw), numericState: n } : {})
+  });
+  if (key !== null) return String(map[key]);
+  return Array.isArray(raw) || isColorValue(raw) ? templateColor(raw) : null;
+}
+
+/**
+ * A template's result (or an entity's value) as a colour: text as it is,
+ * [r, g, b] as rgb(); null for nothing or anything else.
+ * @param {any} v
+ * @returns {string | null}
+ */
+export function templateColor(v) {
+  if (Array.isArray(v) && v.length >= 3 && v.slice(0, 3).every((x) => Number.isFinite(Number(x)))) return `rgb(${v.slice(0, 3).map(Number).join(', ')})`;
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  return t === '' || t === 'unknown' || t === 'unavailable' ? null : t;
 }
 
 /**

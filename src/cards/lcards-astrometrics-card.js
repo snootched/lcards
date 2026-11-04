@@ -1021,7 +1021,9 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             if (changed && !b.entities.some((e) => changed.has(e))) continue;
             if (b.spec) {
                 const entity = this.hass?.states?.[b.spec.entity];
-                this._applySetting(b, b.kind === 'date' ? runtime.dateValue(b.spec, entity) : runtime.mapEntity(b.spec, entity), !changed);
+                this._applySetting(b, b.kind === 'date' ? runtime.dateValue(b.spec, entity)
+                    : b.kind === 'color' ? runtime.entityColor(b.spec, entity, entity ? this._classifyEntityState(entity) : 'unavailable')
+                        : runtime.mapEntity(b.spec, entity), !changed);
                 continue;
             }
             const key = runtime.bindingKey(b);
@@ -1029,7 +1031,8 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             this._settingSeq.set(key, seq);
             this.processTemplate(/** @type {string} */ (b.template), { entity: null, field: key }).then((out) => {
                 if (this._settingSeq.get(key) !== seq) return;
-                this._applySetting(b, b.kind === 'date' ? runtime.dateValue(null, out) : runtime.mapNumber(null, out), !changed);
+                this._applySetting(b, b.kind === 'date' ? runtime.dateValue(null, out)
+                    : b.kind === 'color' ? runtime.templateColor(out) : runtime.mapNumber(null, out), !changed);
             }).catch((/** @type {any} */ error) => lcardsLog.warn(`[LCARdSAstrometricsCard] ${key}: template failed`, error));
         }
         const flight = this._flightWarpEntity;

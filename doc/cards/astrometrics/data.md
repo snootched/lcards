@@ -1,5 +1,5 @@
 ---
-description: "Astrometrics card live data: points with their own entity, positions from entity attributes (a phone on a globe, the sun on a dome), label templates with sky values, and rules that recolour, relabel, hide or move points and objects."
+description: "Astrometrics card live data: points with their own entity, positions from entity attributes (a phone on a globe, the sun on a dome), label templates with sky values, settings and colours from entities, and rules that recolour, relabel, hide or move points and objects."
 ---
 
 # Live data
@@ -141,6 +141,44 @@ objects:
 - **Whole numbers:** how-many settings (a belt's `count`, a galaxy's `arms.count` and `stars.count`, a nebula's `count`, a wobble's `lobes`, a polar grid's `spoke_count`, `num_octaves`, `major.row_interval` and `major.col_interval`) take the mapped value rounded, so `count: { entity: input_number.lcards_test_power, output: [100, 500] }` gives 233 rocks at 33.3 %, and the object rebuilds only when the whole number changes. Seeds do not follow entities.
 - **On the card:** `time_scale`, `clock.rate` and `clock.date` follow entities the same way (`clock: { date: { entity: input_datetime.lcards_test_date } }` shows the planets on the date in a helper). Positions follow entities their own way: see [Positions from entities](#positions-from-entities).
 - Pairs and lists (`[x, y, z]`, `rotation`) and whole numbers (`count`, `spoke_count`) do not follow entities yet.
+
+### Colours from entities
+
+Any colour on an object (its `color`, a part's `color` such as `edges.color` or `core.color`, each colour in a `colors` list, and the colours of a `fill.effect`) can follow an entity or a template too. Write it as a [state map](/core/colours) with the entity it reads, using the same state words as the other cards:
+
+```yaml
+type: custom:lcards-astrometrics-card
+objects:
+  - type: grid
+    id: deck
+    shape: plane
+    size: 120
+    # the lines turn orange while the toggle is on
+    color: { entity: input_boolean.lcards_test_toggle, active: var(--lcars-orange), inactive: var(--lcars-gray) }
+    edges: { color: { entity: input_number.lcards_test_power, "above:80": var(--lcars-red), default: var(--lcars-blue) } }
+  - type: nebula
+    id: cloud
+    radius: 40
+    # one colour of the list follows the mode, the other stays
+    colors:
+      - var(--lcars-blue)
+      - { entity: input_select.lcards_test_mode, alpha: var(--lcars-violet), beta: var(--lcars-orange), default: var(--lcars-red) }
+```
+
+| Key | What it does |
+|---|---|
+| `entity` | The entity to follow. |
+| `attribute` | Match this attribute's value instead of the state. |
+| a state (`heat`, `alpha`) | The colour for that exact state (or attribute value). |
+| `active`, `inactive`, `unavailable` | The colour while the entity is on, off, or unavailable (with the card's `state_classification`). |
+| `zero`, `non_zero`, `above:N`, `below:N`, `between:A:B` | Colours for numbers. |
+| `default` | The colour when nothing else matches. |
+
+- **The entity's own colour:** with no key matching, a value that is itself a colour is used, so `color: { entity: light.desk, attribute: rgb_color }` follows a light's colour.
+- **Templates:** `color: "[[[ return states['input_boolean.lcards_test_toggle'].state === 'on' ? 'var(--lcars-red)' : 'var(--lcars-blue)' ]]]"`, or `{{ }}`. The result is a colour (`[r, g, b]` works too).
+- **Nothing matching**, and no `default`: the colour the key has when it is left out.
+- A colour change rebuilds that one object (at most four times a second) and steps; it does not fade.
+- A point's colour already follows the point's own entity: see [A point's entity](#a-point-s-entity).
 
 ### A guided tour
 

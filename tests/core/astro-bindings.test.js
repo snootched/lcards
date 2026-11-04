@@ -2,12 +2,13 @@
  * Astrometrics settings from entities (R4b, src/core/astrometrics/bindings.js):
  * which keys bind (any depth, positions and text left out), the mapping
  * (range default from min / max, clamp, raw without to, missing values),
- * dates, values set into a config, the tour's stops, and the ease.
+ * dates, object colours (state maps and templates), values set into a config,
+ * the tour's stops, and the ease.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  collectBindings, bindingKey, roundedSetting, settingConfig, mapEntity, mapNumber, dateValue, withValues, isTourView, tourStop, easeStep, isBinding, isTemplateValue,
+  collectBindings, bindingKey, roundedSetting, settingConfig, mapEntity, mapNumber, dateValue, entityColor, templateColor, SKIP, withValues, isTourView, tourStop, easeStep, isBinding, isTemplateValue,
   DEFAULT_SMOOTH_MS
 } from '../../src/core/astrometrics/bindings.js';
 
@@ -188,4 +189,92 @@ test('per-type live keys (LIVE_TYPE_KEYS): a belt\'s thickness and count ease; c
   const built = settingConfig(config, list, new Map([['object:belt:count', 300]])).objects[0];
   assert.equal(built.count, 300);
   assert.deepEqual(built._most, { count: 2401 });
+});
+
+test('object colours (NB2b): color at any depth, colors items and fill.effect colours bind as colours, never live; a point\'s colour is its label\'s', () => {
+  const config = {
+    points: [{ id: 'p', entity: 'light.x', color: { active: 'red', default: 'blue' } }],
+    objects: [
+      { type: 'nebula', id: 'neb', colors: ['var(--lcars-blue)', { entity: 'input_select.alert', red: 'var(--lcars-red)' }], core: { color: '{{ states("sensor.c") }}' } },
+      { type: 'grid', id: 'g', color: { entity: 'input_boolean.on', active: 'orange' }, fill: { effect: { preset: 'plasma', color_a: '[[[ return "red" ]]]' } } },
+      { type: 'comet', id: 'c', ion_tail: { color: { entity: 'sensor.t', 'above:50': 'red' } }, opacity: { entity: 'input_number.o' } }
+    ]
+  };
+  const list = collectBindings(config);
+  const colors = list.filter((b) => b.kind === 'color').map(bindingKey).sort();
+  assert.deepEqual(colors, ['object:c:ion_tail.color', 'object:g:color', 'object:g:fill.effect.color_a', 'object:neb:colors.1', 'object:neb:core.color']);
+  assert.ok(list.filter((b) => b.kind === 'color').every((b) => !b.live));
+  assert.ok(!list.some((b) => b.scope === 'point'), 'a point\'s state colour is not a setting');
+  assert.deepEqual(list.find((b) => bindingKey(b) === 'object:neb:colors.1')?.entities, ['input_select.alert']);
+  assert.deepEqual(list.find((b) => bindingKey(b) === 'object:neb:core.color')?.entities, ['sensor.c']);
+  // a plain colour is not a binding
+  assert.equal(collectBindings({ objects: [{ type: 'grid', id: 'g', color: 'red', colors: ['red', 'blue'] }] }).length, 0);
+});
+
+test('entityColor: the state colour words (a state, active / inactive, unavailable, zero, ranges, default), attribute, the entity\'s own colour', () => {
+  const ent = (state, attributes = {}) => ({ entity_id: 'x.y', state, attributes });
+  const map = { entity: 'x.y', heat: 'orange', active: 'green', inactive: 'gray', unavailable: 'black', default: 'blue' };
+  assert.equal(entityColor(map, ent('heat'), 'active'), 'orange', 'an exact state wins');
+  assert.equal(entityColor(map, ent('on'), 'active'), 'green');
+  assert.equal(entityColor(map, ent('off'), 'inactive'), 'gray');
+  assert.equal(entityColor(map, undefined, 'unavailable'), 'black', 'no entity: unavailable');
+  assert.equal(entityColor({ entity: 'x.y', default: 'blue' }, ent('on'), 'active'), 'blue');
+  const ranges = { entity: 'sensor.t', zero: 'white', 'above:80': 'red', 'below:20': 'blue', default: 'green' };
+  assert.equal(entityColor(ranges, ent('0'), 'active'), 'white');
+  assert.equal(entityColor(ranges, ent('90'), 'active'), 'red');
+  assert.equal(entityColor(ranges, ent('10'), 'active'), 'blue');
+  assert.equal(entityColor(ranges, ent('50'), 'active'), 'green');
+  // attribute: matched (and ranged) instead of the state
+  assert.equal(entityColor({ entity: 'climate.x', attribute: 'hvac_action', heating: 'red', default: 'blue' }, ent('heat', { hvac_action: 'heating' }), 'active'), 'red');
+  assert.equal(entityColor({ entity: 'light.x', attribute: 'brightness', 'above:200': 'white', default: 'gray' }, ent('on', { brightness: 250 }), 'active'), 'white');
+  // no key matches: the value itself when it is a colour
+  assert.equal(entityColor({ entity: 'light.x', attribute: 'rgb_color' }, ent('on', { rgb_color: [255, 120, 0] }), 'active'), 'rgb(255, 120, 0)');
+  assert.equal(entityColor({ entity: 'input_text.c' }, ent('var(--lcars-red)'), 'active'), 'var(--lcars-red)');
+  assert.equal(entityColor({ entity: 'input_text.c' }, ent('hello'), 'active'), null, 'not a colour: the default');
+  assert.equal(entityColor({ entity: 'light.x', attribute: 'rgb_color' }, ent('off', {}), 'inactive'), null);
+});
+
+test('templateColor: text as it is, [r, g, b] as rgb(), nothing or unknown is the default', () => {
+  assert.equal(templateColor(' var(--lcars-red) '), 'var(--lcars-red)');
+  assert.equal(templateColor([10, 20, 30]), 'rgb(10, 20, 30)');
+  assert.equal(templateColor(''), null);
+  assert.equal(templateColor('unknown'), null);
+  assert.equal(templateColor(null), null);
+  assert.equal(templateColor(42), null);
+});
+
+test('object colours into the config: the resolved colour at its path, none yet: the key\'s default (removed)', () => {
+  const config = { objects: [{ type: 'grid', id: 'g', color: { entity: 'input_boolean.on', active: 'orange' }, edges: { color: '[[[ return "red" ]]]' } }] };
+  const list = collectBindings(config);
+  const values = new Map([[bindingKey(list[0]), 'orange']]);
+  const out = settingConfig(config, list, values).objects[0];
+  assert.equal(out.color, 'orange');
+  assert.deepEqual(out.edges, {});
+});
+
+test('object colours in the schema: every object colour takes the entity form (one shared definition); backdrop colours do not', () => {
+  const found = [];
+  const visit = (s, path) => {
+    if (!s || typeof s !== 'object') return;
+    if (Array.isArray(s.anyOf) && s.anyOf.some((b) => b?.required?.includes?.('entity') && b.properties?.active)) found.push(path);
+    for (const [k, v] of Object.entries(s)) if (v && typeof v === 'object') visit(v, `${path}/${k}`);
+  };
+  const objects = astrometricsSchema.properties.objects;
+  visit(objects, 'objects');
+  assert.ok(found.length >= 40, `object colours that follow an entity: ${found.length}`);
+  const bindings = new Set();
+  const collect = (s) => {
+    if (!s || typeof s !== 'object') return;
+    if (Array.isArray(s.anyOf)) s.anyOf.forEach((b) => { if (b?.properties?.active) bindings.add(b); });
+    for (const v of Object.values(s)) if (v && typeof v === 'object') collect(v);
+  };
+  collect(objects);
+  assert.equal(bindings.size, 1, 'one shared colour binding');
+  // every one sits where collectBindings looks (not under a skipped key: axis_labels, light, marker, ...)
+  const hidden = found.map((p) => p.split('/').filter((k) => !/^(properties|anyOf|oneOf|allOf|items|\d+)$/.test(k)))
+    .filter((keys) => keys.slice(1, -1).some((k) => SKIP.has(k) && k !== 'objects'));
+  assert.deepEqual(hidden, [], 'object colours the bindings never reach');
+  found.length = 0;
+  visit(astrometricsSchema.properties.backdrop, 'backdrop');
+  assert.deepEqual(found, [], 'backdrop colours stay plain');
 });

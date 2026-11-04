@@ -145,6 +145,37 @@ const numberOrPair = (description) => ({
  */
 const color = (description) => ({ type: 'string', description, allOf: [simpleColorSchema] });
 
+/** A colour (or a template that gives one), shared by objectColor() */
+const colorText = { type: 'string', allOf: [simpleColorSchema] };
+
+/**
+ * A colour that follows an entity (bindings.js entityColor): the state colour
+ * words of the other cards plus the entity. One shared definition ($defs).
+ */
+const colorBinding = {
+    type: 'object',
+    required: ['entity'],
+    description: 'Follow an entity: { entity, attribute, default, active, inactive, unavailable, zero, non_zero, above:N, below:N, between:A:B, <state>: colour }. The first key that matches its state (or attribute) gives the colour; none: the entity\'s value when it is a colour (a light\'s rgb_color), else default.',
+    properties: {
+        entity: { type: 'string', pattern: '^[a-z_]+\\.[a-z0-9_]+$', description: 'The entity to follow.' },
+        attribute: { type: 'string', description: 'Match this attribute\'s value instead of the state (rgb_color: a light\'s own colour).' },
+        default: { ...colorText, description: 'Colour when no other key matches.' },
+        active: { ...colorText, description: 'Colour while the entity is on (active).' },
+        inactive: { ...colorText, description: 'Colour while the entity is off (inactive).' },
+        unavailable: { ...colorText, description: 'Colour while the entity is unavailable or unknown.' },
+        zero: { ...colorText, description: 'Colour when the value is the number 0.' },
+        non_zero: { ...colorText, description: 'Colour when the value is any other number.' }
+    },
+    additionalProperties: { ...colorText, description: 'Colour for a state ("heat", "red") or a range ("above:80", "below:20", "between:20:80").' }
+};
+
+/**
+ * An object's colour: a colour, a template that gives one, or a state map
+ * with its own entity (colorBinding). The object rebuilds when it changes.
+ * @param {string} description
+ */
+const objectColor = (description) => ({ description, anyOf: [colorText, colorBinding] });
+
 /**
  * A sub-part of an object (its coma, its major lines, its edges): the part's
  * settings in one object. With `toggle`, also true (on, its defaults) or false (off).
@@ -655,7 +686,7 @@ const blendAdd = { type: 'string', enum: ['add', 'normal'], default: 'normal', d
  */
 const scanPart = (periodDescription) => part('A bright scan band sweeping across it: { period, color }. Off under reduced motion.', {
     period: setting(`Seconds per sweep (0: none). ${periodDescription}`, { minimum: 0, default: 0 }),
-    color: color('Band colour. Default var(--lcards-moonlight).')
+    color: objectColor('Band colour. Default var(--lcards-moonlight).')
 });
 
 /** An animated fill painted on a sphere's body or under a grid's lines (the plasma, fluid and contour-field background presets) */
@@ -681,19 +712,19 @@ const fillEffectSchema = {
             }
         },
         type: { type: 'string', enum: [...FILL_EFFECTS], description: 'plasma, fluid, contour (the contour-field preset), bands (belts round the latitude, from the object\'s y axis) or swirl (gas spiralling in round the y axis, faster near the middle, streaked along the spiral with dark lanes, a rippled heart and a ragged edge: a whirlpool, an accretion disc, a wormhole\'s mouth on a disc or well grid). Default the preset\'s type, else plasma.' },
-        color_a: color('plasma: first colour. Default var(--lcars-blue).'),
-        color_b: color('plasma: second colour. Default var(--lcars-orange).'),
-        color: color('fluid: wash colour (its alpha is how strong). Default var(--lcars-blue).'),
+        color_a: objectColor('plasma: first colour. Default var(--lcars-blue).'),
+        color_b: objectColor('plasma: second colour. Default var(--lcars-orange).'),
+        color: objectColor('fluid: wash colour (its alpha is how strong). Default var(--lcars-blue).'),
         colors: {
             description: 'contour: one colour, or stops spread over the bands from low to high. bands: the belt colours, repeated from the south pole to the north. swirl: stops from the middle out to the rim. Default blue to orange.',
-            oneOf: [color('A colour.'), { type: 'array', items: color('A colour.'), minItems: 1 }]
+            oneOf: [objectColor('A colour.'), { type: 'array', items: objectColor('A colour.'), minItems: 1 }]
         },
         base_frequency: setting('Noise detail per scene unit: lower is larger features. Default about 3 noise cells across the radius.', { minimum: 0 }),
         num_octaves: wholeSetting('Layers of finer detail (1 smooth, 8 rough). Default plasma 3, fluid 4, contour 2.', { minimum: 1, maximum: 8 }),
         num_bands: setting('contour: how many bands (low is bold steps, high is near smooth). bands: how many belts pole to pole.', { minimum: 2, maximum: 64, default: 5 }),
         turbulence: setting('bands: how much the belt edges swirl, 0 (straight) to 1 (stormy). swirl: how much the gas clumps and how ragged its outer edge is (wisps trailing off).', { minimum: 0, maximum: 1, default: 0.3 }),
         fill_level: setting('contour: flood the lowest bands, 0 to 0.95 (0: none).', { minimum: 0, maximum: 0.95, default: 0 }),
-        fill_color: color('contour: colour over the flooded bands. Default see-through.'),
+        fill_color: objectColor('contour: colour over the flooded bands. Default see-through.'),
         blend_colors: { type: 'boolean', default: true, description: 'contour and bands: colours fade between bands (false: flat bands with hard edges).' },
         speed: setting('How fast the pattern flows through the object, scene units per second (0: still). swirl: how fast the gas turns at the rim (faster toward the middle). Off under reduced motion.', { default: 0 }),
         opacity: setting('Fill opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 })
@@ -705,12 +736,12 @@ const gridLook = {
     pattern: { type: 'string', enum: [...GRID_PATTERNS], description: 'Line pattern (the background grid effect\'s names): both (rows and columns, default), horizontal, vertical, diagonal, hexagonal, dots, polar (rings and spokes; default on a disc).' },
     line_spacing: setting('Distance between lines, scene units. On curved shapes line_spacing_deg is usually easier.', { exclusiveMinimum: 0 }),
     line_width: setting('Line width, px.', { minimum: 0, default: 1 }),
-    color: color('Line colour. Default theme:colors.ui.tertiary.'),
+    color: objectColor('Line colour. Default theme:colors.ui.tertiary.'),
     major: part('Major lines: brighter, wider lines every few rows and columns (rings and spokes on a disc).', {
         row_interval: wholeSetting('A major line every N rows (rings on a disc); 0 for none.', { minimum: 0, default: 0 }),
         col_interval: wholeSetting('A major line every N columns (spokes on a disc); 0 for none.', { minimum: 0, default: 0 }),
         line_width: setting('Major line width, px. Default 1.5 x line_width (at least 1.5).', { minimum: 0 }),
-        color: color('Major line colour. Default: color, brighter.')
+        color: objectColor('Major line colour. Default: color, brighter.')
     }),
     back_opacity: setting('Opacity of the far side seen through the surface, 0 to 1 (0 hides it).', { minimum: 0, maximum: 1 }),
     blend: blendAdd,
@@ -766,7 +797,7 @@ const gridObject = {
         line_spacing_deg: setting('disc: a spoke every N degrees; dome, sphere, cylinder, well: rings and meridians every N degrees (a whole number fits round). Default 15 on curved shapes.', { exclusiveMinimum: 0 }),
         ...gridLook,
         fill: part('What fills the cells behind the lines: a colour, or an animated effect.', {
-            color: color('Fill colour. Default none.'),
+            color: objectColor('Fill colour. Default none.'),
             effect: fillEffectSchema
         }),
         spoke_count: wholeSetting('pattern polar: spokes round the centre (meridians on a curved shape). line_spacing_deg wins on a disc.', { minimum: 0, default: 36 }),
@@ -774,7 +805,7 @@ const gridObject = {
         dot_radius: setting('pattern dots: dot radius, scene units. Default 8% of line_spacing.', { exclusiveMinimum: 0 }),
         edges: part('Outline the open edges: the rim of a disc, dome or well, the ends of a cylinder, the frame of a plane. true (default), false, or { width, color }.', {
             width: setting('Edge width, px. Default the major line width.', { minimum: 0 }),
-            color: color('Edge colour. Default the major line colour.')
+            color: objectColor('Edge colour. Default the major line colour.')
         }, { toggle: true }),
         ring_labels: {
             type: 'object',
@@ -785,7 +816,7 @@ const gridObject = {
                 start: setting('First bearing labelled, degrees.', { default: 0 }),
                 alt: setting('Height of the labels above the plane, scene units.', { default: 0 }),
                 style: styleNameSchema('Label style (built-in or labels.styles). Default minor.'),
-                color: color('Label colour.'),
+                color: objectColor('Label colour.'),
                 text: generatedTextSchema
             }
         },
@@ -815,7 +846,7 @@ const gridObject = {
                     from: { type: 'string', description: 'First corner cell, such as AF3.' },
                     to: { type: 'string', description: 'Opposite corner cell. Default: from (one cell).' },
                     cell: { type: 'string', description: 'One cell (instead of from and to).' },
-                    color: color('Fill colour. Default var(--lcars-blue).'),
+                    color: objectColor('Fill colour. Default var(--lcars-blue).'),
                     opacity: setting('Fill opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 0.25 }),
                     shade: setting('Per-cell brightness variation, 0 to 1 (a printed sector map look); the same cell always gets the same shade.', { minimum: 0, maximum: 1, default: 0 }),
                     seed: setting('Changes which cells are lighter and darker with shade.', { default: 0 }),
@@ -827,7 +858,7 @@ const gridObject = {
                                 type: 'object',
                                 properties: {
                                     width: setting('Outline width, px.', { minimum: 0, default: 1.5 }),
-                                    color: color('Outline colour. Default the fill colour.'),
+                                    color: objectColor('Outline colour. Default the fill colour.'),
                                     opacity: setting('Outline opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 0.9 })
                                 }
                             }
@@ -874,14 +905,14 @@ const volumeObject = {
                 depth: setting('box and prism: cell size along z, scene units. Default a quarter of the depth (an eighth of a prism\'s).', { exclusiveMinimum: 0 })
             }
         },
-        color: color('Colour of the faces (and the edges, unless edges.color). Default var(--lcars-blue).'),
+        color: objectColor('Colour of the faces (and the edges, unless edges.color). Default var(--lcars-blue).'),
         line_width: setting('Face line width, px.', { minimum: 0, default: 1 }),
         faces: part('The grid lines on the faces.', {
             opacity: setting('Opacity of the face grid lines (the edges stay brighter), 0 to 1.', { minimum: 0, maximum: 1, default: 0.45 })
         }),
         edges: part('Draw the outline edges: true (default), false, or { width, color }.', {
             width: setting('Edge width, px.', { minimum: 0, default: 1.5 }),
-            color: color('Edge colour. Default color.')
+            color: objectColor('Edge colour. Default color.')
         }, { toggle: true }),
         back_opacity: setting('Opacity of the far faces, 0 to 1 (1: a wireframe, nothing hidden).', { minimum: 0, maximum: 1, default: 1 }),
         blend: blendAdd,
@@ -906,7 +937,7 @@ const sphereObject = {
         lon_step: setting('Longitude lines every N degrees, when different from line_spacing_deg (rounded to fit round).', { minimum: 1 }),
         ...gridLook,
         fill: part('The body under the lines: a colour, or an animated effect (it paints the body in place of image).', {
-            color: color('Body colour. Default black.'),
+            color: objectColor('Body colour. Default black.'),
             opacity: setting('Body opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 0.85 }),
             effect: fillEffectSchema
         }),
@@ -957,7 +988,7 @@ const flowKeys = {
                     length: setting('Pulse length, px.', { exclusiveMinimum: 0, default: 14 }),
                     gap: setting('Space between pulses, px.', { minimum: 0, default: 90 }),
                     width: setting('Pulse width, px. Default the line width + 1.', { minimum: 0 }),
-                    color: color('Pulse colour. Default var(--lcards-moonlight).'),
+                    color: objectColor('Pulse colour. Default var(--lcards-moonlight).'),
                     speed: setting('px per second when dash.speed is not set. Off under reduced motion.', { default: 80 })
                 }
             }
@@ -968,8 +999,8 @@ const flowKeys = {
 const lineCommon = {
     width: setting('Line width, px.', { minimum: 0, default: 1.5 }),
     ...dashKey,
-    color: color('Line colour.'),
-    colors: { type: 'array', items: color('A colour.'), minItems: 2, maxItems: 2, description: 'A gradient [from, to]: the line fades from the first colour to the second along its length (wins over color).' },
+    color: objectColor('Line colour.'),
+    colors: { type: 'array', items: objectColor('A colour.'), minItems: 2, maxItems: 2, description: 'A gradient [from, to]: the line fades from the first colour to the second along its length (wins over color).' },
     glow: {
         description: 'A soft glow under the line: true (4 x the width) or a width factor.',
         oneOf: [{ type: 'boolean' }, { type: 'number', minimum: 1 }]
@@ -1001,12 +1032,12 @@ const ringObject = {
             image: { type: 'string', assetSource: 'image', description: 'The band\'s texture, across its width: the image\'s left edge is the inner rim, its right edge the outer (its height is not used). builtin:saturn_rings is Saturn\'s rings, D ring to F ring (radius 2.33 and inner_radius 1.11 times the planet\'s radius).', examples: ['builtin:saturn_rings', '/local/rings.png'] },
             inner_radius: settingOrPair('The band\'s inner radius, scene units, or [a, b] for an ellipse. Default half the radius.'),
             opacity: setting('The band\'s opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
-            color: color('A colour the texture is multiplied by (a tint). Default none (the image\'s own colours).')
+            color: objectColor('A colour the texture is multiplied by (a tint). Default none (the image\'s own colours).')
         }),
         body: { type: 'string', enum: [...BODY_NAMES], description: 'Lay the ring in this real body\'s equator at the scene clock\'s date (Saturn\'s rings: body: saturn on a ring at Saturn). inclination and node tilt it from there; rotation does not apply.' },
         orbit: { type: 'string', enum: BODY_NAMES.filter((b) => b !== 'sun'), description: 'Draw this real body\'s orbit at the scene clock\'s date (JPL elements): an ellipse with its parent at a focus, tilted and turned as it really is, in the frame\'s units. Put the ring at the parent\'s point (at: jupiter for Io; nothing for a planet, the Sun sits at the origin). radius, inclination, node, arc and band do not apply.' },
         ...lineCommon,
-        color: color('Line colour. Default theme:colors.ui.secondary.')
+        color: objectColor('Line colour. Default theme:colors.ui.secondary.')
     }
 };
 
@@ -1027,7 +1058,7 @@ const pathObject = {
         span: { type: 'string', enum: ['today'], description: 'sky: which track (only today, midnight to midnight local time).' },
         alt: setting('sky: height above the dome, scene units.', { default: 0 }),
         ...lineCommon,
-        color: color('Line colour. Default var(--lcars-orange).')
+        color: objectColor('Line colour. Default var(--lcars-orange).')
     }
 };
 
@@ -1042,7 +1073,7 @@ const beamObject = {
         from: pointRef('One end: a point id or [x, y, z].'),
         to: pointRef('The other end.'),
         width: setting('Glow width, px (the core stays thin).', { minimum: 0, default: 12 }),
-        color: color('Beam colour. Default theme:colors.ui.secondary.'),
+        color: objectColor('Beam colour. Default theme:colors.ui.secondary.'),
         ...flowKeys
     }
 };
@@ -1060,14 +1091,14 @@ const cubeObject = {
             description: 'Its size, scene units: one number for a cube, or [x, y, z] for a box. Default 20.',
             anyOf: [{ type: 'number', exclusiveMinimum: 0 }, { type: 'array', items: { type: 'number', exclusiveMinimum: 0 }, minItems: 3, maxItems: 3 }, settingBinding, settingTemplate]
         },
-        color: color('borg: the light from inside and the tint of the hull (default var(--lcards-green-medium)). box: the box colour (default var(--lcards-gray-medium)).'),
+        color: objectColor('borg: the light from inside and the tint of the hull (default var(--lcards-green-medium)). box: the box colour (default var(--lcards-gray-medium)).'),
         glow: part('borg: the glow spots.', {
-            color: color('Glow spot colour. Default var(--lcards-green-lightest).')
+            color: objectColor('Glow spot colour. Default var(--lcards-green-lightest).')
         }),
         detail: { type: 'boolean', default: true, description: 'borg: true (default) carves the machinery into the faces (ray-marched, about as costly as the screen effect\'s cube); false draws flat faces with the lattice, for slow graphics hardware.' },
         seed: { type: 'integer', default: 1, description: 'borg: where the glow spots sit. A different number moves them.' },
         edges: part('box: draw the edges: true (default), false, or { color }.', {
-            color: color('Edge colour. Default theme:colors.ui.secondary.')
+            color: objectColor('Edge colour. Default theme:colors.ui.secondary.')
         }, { toggle: true }),
         opacity: setting('box: opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
         occlude: { type: 'boolean', default: true, description: 'Hide labels and cards behind it.' }
@@ -1087,7 +1118,7 @@ const trailObject = {
         fade_tail: { type: 'boolean', default: true, description: 'Fade from the colour at the point to black at the tail (the background, in space). false: one colour all along.' },
         width: lineCommon.width,
         ...dashKey,
-        color: color('Trail colour (at the point). Default var(--lcars-orange).'),
+        color: objectColor('Trail colour (at the point). Default var(--lcars-orange).'),
         blend: blendAdd,
         ...flowKeys
     }
@@ -1118,7 +1149,7 @@ const glowObject = {
     properties: {
         type: { type: 'string', const: 'glow', description: 'glow: a soft camera-facing light.' },
         size: setting('Diameter, scene units.', { minimum: 0, default: 60 }),
-        color: color('Colour. Default var(--lcards-moonlight).'),
+        color: objectColor('Colour. Default var(--lcards-moonlight).'),
         opacity: setting('Opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 0.9 }),
         falloff: setting('How fast it fades from the middle: higher is a tighter, brighter core.', { minimum: 0.25, default: 2 }),
         blend: { type: 'string', enum: ['add', 'normal'], default: 'add', description: 'add (default): light adds up. normal: drawn over what is behind.' }
@@ -1140,8 +1171,8 @@ const beltObject = {
         seed: { type: 'integer', default: 1, description: 'A different number gives a different belt.' },
         period: setting('Seconds for the inner edge to go round once (the outer rocks take longer, as real orbits do). 0: still. Off under reduced motion.', { minimum: 0, default: 0 }),
         tumble: setting('How fast the rocks turn on their own axes, degrees per second (each a little faster or slower). 0: still. Off under reduced motion.', { minimum: 0, default: 30 }),
-        color: color('Rock colour (varied a little per rock). Default var(--lcards-gray-light).'),
-        colors: { type: 'array', items: simpleColorSchema, description: 'Several rock colours: each rock takes one, picked by the seed (wins over color).' }
+        color: objectColor('Rock colour (varied a little per rock). Default var(--lcards-gray-light).'),
+        colors: { type: 'array', items: objectColor('A rock colour.'), description: 'Several rock colours: each rock takes one, picked by the seed (wins over color).' }
     }
 };
 
@@ -1160,7 +1191,7 @@ const asteroidObject = {
         seed: { type: 'integer', default: 1, description: 'A different number gives a different rock.' },
         tumble: setting('How fast it turns on its own (seeded) axis, degrees per second. 0: still. Off under reduced motion.', { default: 10 }),
         light: lightRef('The side facing it is lit, the far side dark.'),
-        color: color('Rock colour (lit side). Default var(--lcards-gray-light).'),
+        color: objectColor('Rock colour (lit side). Default var(--lcards-gray-light).'),
         occlude: { type: 'boolean', default: true, description: 'Hide labels and cards behind it.' }
     }
 };
@@ -1175,21 +1206,21 @@ const cometObject = {
         type: { type: 'string', const: 'comet', description: 'comet: a nucleus, a coma and tails.' },
         nucleus: part('The nucleus: the small dark rock at the heart.', {
             size: setting('Its largest extent, scene units.', { exclusiveMinimum: 0, default: 2 }),
-            color: color('Its colour. Default var(--lcards-gray-medium-dark).'),
+            color: objectColor('Its colour. Default var(--lcards-gray-medium-dark).'),
             tumble: setting('How fast it turns on its own axis, degrees per second. 0: still. Off under reduced motion.', { default: 10 })
         }, { group: 'main' }),
         coma: part('The coma: the glowing cloud round the nucleus.', {
             size: setting('Its diameter, scene units.', { minimum: 0, default: 10 }),
-            color: color('Its colour. Default color.')
+            color: objectColor('Its colour. Default color.')
         }),
         tail: part('Both tails.', {
             length: setting('How far the tails reach away from the star, scene units (the dust tail fades sooner).', { minimum: 0, default: 60 })
         }, { group: 'main' }),
         ion_tail: part('The straight ion tail: true (default), false, or { color }.', {
-            color: color('Its colour. Default var(--lcards-blue-medium).')
+            color: objectColor('Its colour. Default var(--lcards-blue-medium).')
         }, { toggle: true }),
         dust_tail: part('The broad dust tail that bends back along the comet\'s path: true (default), false, or { color }.', {
-            color: color('Its colour. Default color.')
+            color: objectColor('Its colour. Default color.')
         }, { toggle: true }),
         glow: setting('Opacity of the coma and the tails, 0 to 1 (the nucleus stays).', { minimum: 0, maximum: 1, default: 1 }),
         light: lightRef('The tails point away from it, and the nucleus is lit from it.'),
@@ -1198,7 +1229,7 @@ const cometObject = {
             range: tuple(2, '[near, far] distance from the star for mode: distance, scene units (the frame\'s, in a system). Default [50, 300].')
         }, { group: 'main' }),
         seed: { type: 'integer', default: 1, description: 'A different number gives a different nucleus and tail.' },
-        color: color('Colour of the coma and the dust tail (unless they set their own). Default var(--lcards-moonlight).')
+        color: objectColor('Colour of the coma and the dust tail (unless they set their own). Default var(--lcards-moonlight).')
     }
 };
 
@@ -1216,7 +1247,7 @@ const galaxyObject = {
         arms: part('The spiral arms: the Milky Way\'s unless count is set.', {
             count: wholeSetting('A spiral of this many equal arms instead of the Milky Way\'s (leave out for the Milky Way).', { minimum: 1, maximum: 8 }),
             pitch: setting('How tightly the arms wind, degrees (the Milky Way\'s are about 12; larger opens them).', { minimum: 4, maximum: 45, default: 12 }),
-            color: color('Colour the arm stars lean toward, and the arms\' glow. Default var(--lcars-blue).')
+            color: objectColor('Colour the arm stars lean toward, and the arms\' glow. Default var(--lcars-blue).')
         }, { group: 'main' }),
         bar: part('The central bar.', {
             length: setting('The central bar\'s half-length as a fraction of the radius (0: no bar).', { minimum: 0, maximum: 0.8, default: 0.32 }),
@@ -1224,15 +1255,15 @@ const galaxyObject = {
         }, { group: 'main' }),
         stars: part('The stars.', {
             count: wholeSetting('How many stars (at most 100,000). Far away fewer of them draw.', { minimum: 0, maximum: 100000, default: 40000 }),
-            color: color('Their base colour. Default var(--lcards-moonlight).')
+            color: objectColor('Their base colour. Default var(--lcards-moonlight).')
         }, { group: 'main' }),
         core: part('The bulge and the core\'s glow.', {
-            color: color('Colour of the bulge and bar stars and the core\'s glow. Default var(--lcars-yellow).')
+            color: objectColor('Colour of the bulge and bar stars and the core\'s glow. Default var(--lcars-yellow).')
         }),
         glow: setting('Opacity of the soft glow along the arms and at the core, 0 to 1 (0: none).', { minimum: 0, maximum: 1, default: 0.6 }),
         dust: part('The dark dust lanes on the arms\' inner edges.', {
             amount: setting('Their opacity, 0 to 1 (0: none).', { minimum: 0, maximum: 1, default: 0.5 }),
-            color: color('Their colour. Default the background colour.')
+            color: objectColor('Their colour. Default the background colour.')
         })
     }
 };
@@ -1263,12 +1294,12 @@ const nebulaObject = {
         },
         stretch: setting('Seeded clouds: how drawn out each one is, 0 (round, default) to 1 (long and flat), each turned its own way. Hand-placed clouds take size and rotation instead.', { minimum: 0, maximum: 1, default: 0 }),
         core: part('The gas deep inside (in a shape other than clouds: near its middle).', {
-            color: color('Colour there, running out to the cloud colours at the edges. Default none: the cloud colours throughout.')
+            color: objectColor('Colour there, running out to the cloud colours at the edges. Default none: the cloud colours throughout.')
         }),
         dust: part('render: volume only: dark dust clouds that hide the gas behind them.', {
             amount: setting('How dark they are, 0 to 1.', { minimum: 0, maximum: 1, default: 0.8 }),
             count: wholeSetting('How many the seed lays across the gas clouds (their own seed stream: adding dust moves no gas cloud).', { minimum: 0, maximum: 4, default: 0 }),
-            color: color('Their colour. Default black. With blend: add the dust darkens only this nebula\'s gas behind it; with blend: normal it also hides what is behind the nebula.')
+            color: objectColor('Their colour. Default black. With blend: add the dust darkens only this nebula\'s gas behind it; with blend: normal it also hides what is behind the nebula.')
         }),
         radius: setting('The clouds sit inside a ball this big round the object, scene units. Default 100.', { exclusiveMinimum: 0 }),
         size: {
@@ -1286,7 +1317,7 @@ const nebulaObject = {
                 properties: {
                     xyz: tuple(3, 'Where the cloud sits [x, y, z], scene units from the object.'),
                     radius: setting('Cloud radius, scene units. Default between min_radius and max_radius.', { exclusiveMinimum: 0 }),
-                    color: color('This cloud\'s colour. Default from colors.'),
+                    color: objectColor('This cloud\'s colour. Default from colors.'),
                     opacity: setting('Opacity, 0 to 1. Default random within brightness.', { minimum: 0, maximum: 1 }),
                     size: tuple(3, 'Or an ellipsoid [width, height, depth], scene units (replaces radius).'),
                     rotation: tuple(3, 'Turn the ellipsoid [x, y, z] in degrees, as an object\'s rotation.'),
@@ -1299,7 +1330,7 @@ const nebulaObject = {
         brightness: brightness('Each cloud\'s opacity is picked at random between these [dimmest, brightest], 0 to 1 (a cloud\'s own opacity wins). Default [0.3, 0.8].', [0.3, 0.8], true),
         colors: {
             description: 'Cloud colour, or a list the seed picks from per cloud. Default var(--lcars-violet).',
-            oneOf: [color('A colour.'), { type: 'array', items: color('A colour.'), minItems: 1 }]
+            oneOf: [objectColor('A colour.'), { type: 'array', items: objectColor('A colour.'), minItems: 1 }]
         },
         turbulence: setting('How ragged the cloud edges are, 0 to 1.', { minimum: 0, maximum: 1, default: 0.5 }),
         noise_scale: setting('Detail of the gas per scene unit: lower is larger, smoother wisps. Default about 1.5 noise cells across a cloud.', { minimum: 0 }),
@@ -1322,9 +1353,9 @@ const modelObject = {
         length: { type: 'number', exclusiveMinimum: 0, 'x-ui-hints': { label: 'Length (m)' }, description: 'The real length in metres (the model\'s largest extent), for a file not made at its true scale (many downloads): drawn that long, whatever the file measures, in the scene\'s units. size, when set, wins; a scene without units draws it at 50.' },
         file_units: { type: 'string', enum: [...FILE_UNIT_NAMES], default: 'm', description: 'The units the file was made in, for its real size (no size or length set): m (default; glTF files and the built-in models are in metres), cm, mm, km, ft or in.' },
         material: { type: 'string', enum: [...MODEL_MATERIALS], default: 'hologram', description: 'hologram (default): a glow with a bright rim and scanlines. original: the file\'s materials, lit.' },
-        color: color('Hologram body colour. Default var(--lcars-blue).'),
+        color: objectColor('Hologram body colour. Default var(--lcars-blue).'),
         rim: part('The hologram\'s bright rim.', {
-            color: color('Rim colour. Default var(--lcards-moonlight).')
+            color: objectColor('Rim colour. Default var(--lcards-moonlight).')
         }),
         opacity: setting('Opacity, 0 to 1 (a hologram\'s brightness).', { minimum: 0, maximum: 1, default: 0.85 }),
         scanlines: setting('Scanline strength, 0 (none) to 1.', { minimum: 0, maximum: 1, default: 0.5 }),
@@ -1333,7 +1364,7 @@ const modelObject = {
         blend: { type: 'string', enum: ['add', 'normal'], default: 'add', description: 'Hologram blending: add (default) or normal.' },
         edges: part('Feature edges: true, false, or { angle, color }. Default on for hologram, except on a model over 250,000 triangles (working them out freezes the page for seconds); true or an object draws them anyway.', {
             angle: setting('Edges where faces meet at more than this angle, degrees.', { minimum: 0, maximum: 180, default: 30 }),
-            color: color('Edge colour. Default the rim colour.')
+            color: objectColor('Edge colour. Default the rim colour.')
         }, { toggle: true }),
         animation: {
             description: 'Clips to loop: all, a name or a list. None when left out.',

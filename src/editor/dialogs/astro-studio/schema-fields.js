@@ -21,7 +21,11 @@ import { simpleColorSchema } from '../../../cards/schemas/common-schemas.js';
 const isObj = (/** @type {any} */ v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** @param {any} s */
-const isColor = (s) => !!s && (s === simpleColorSchema || (Array.isArray(s.allOf) && s.allOf.includes(simpleColorSchema)));
+const isPlainColor = (s) => !!s && (s === simpleColorSchema || (Array.isArray(s.allOf) && s.allOf.includes(simpleColorSchema)));
+
+/** A colour, or one that can also follow an entity (astrometrics objectColor) @param {any} s */
+const isColor = (s) => isPlainColor(s)
+  || (Array.isArray(s?.anyOf) && s.anyOf.some(isPlainColor) && s.anyOf.every((/** @type {any} */ b) => isPlainColor(b) || isBindingSchema(b)));
 
 /** A list of colours @param {any} s */
 const isColorArray = (s) => hasType(s, 'array') && isColor(s.items);
