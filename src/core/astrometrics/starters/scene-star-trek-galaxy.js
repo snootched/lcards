@@ -145,6 +145,25 @@ export const SWIRL_COLORS = Object.freeze([
  * The realistic mouth's shaft of light: [height, size, opacity] of each glow, in rims: 16
  * glows close enough to blend, wider and fainter up the shaft
  */
+/**
+ * @typedef {Object} MouthPalette
+ * @property {readonly string[]} swirl - the swirl fill's colours, outside in
+ * @property {string} diagram - the diagram funnel, ring and glow
+ * @property {string} arms - the sparkle's arms
+ * @property {string} heart - the heart and the shaft of light
+ * @property {[string, string]} wisps - the gas round the rim
+ * @property {[string, string]} haze - the wisps drifting out along the light
+ */
+/** A mouth's colours by default (the Bajoran end) @type {MouthPalette} */
+export const MOUTH_PALETTE = Object.freeze({
+  swirl: SWIRL_COLORS,
+  diagram: 'var(--lcars-blue)',
+  arms: 'var(--lcards-blue-light)',
+  heart: 'var(--lcards-orange-lightest)',
+  wisps: /** @type {[string, string]} */ (['var(--lcars-violet)', 'var(--lcards-blue-medium)']),
+  haze: /** @type {[string, string]} */ (['var(--lcards-orange-lightest)', 'var(--lcards-blue-light)'])
+});
+
 const SHAFT = Array.from({ length: 16 }, (_, i) => {
   const t = i / 15;
   return [0.15 + 5 * t, 0.7 + 1.8 * t, 0.65 * (1 - t) ** 1.5 + 0.04];
@@ -171,11 +190,13 @@ const r3 = (/** @type {number} */ v) => Math.round(v * 1000) / 1000;
  * `<prefix>_haze` (the wisps drifting out). Objects: `<prefix>_mouth` (the diagram funnel),
  * `_ring`, `_glow`, `_vortex` (the sparkle), `_funnel` (the swirl), `_heart`, `_light_1` to
  * `_light_16` (the shaft, at points `_shaft_1` to `_shaft_16`), `_wisps`, `_wisps_out`, `_throat_tube`.
- * @param {{ prefix: string, at: string, aim: string, radius: number, depth: number, power?: string, extra?: Record<string, any>, stars?: number, glow?: number }} o -
- *   `extra` goes on every object (a distance range); `glow` the diagram glow's size when open, in rims (default 5)
+ * @param {{ prefix: string, at: string, aim: string, radius: number, depth: number, power?: string, extra?: Record<string, any>, stars?: number, glow?: number, palette?: Partial<MouthPalette>, turn?: 1 | -1 }} o -
+ *   `extra` goes on every object (a distance range); `glow` the diagram glow's size when open, in rims (default 5);
+ *   `palette` the colours (default MOUTH_PALETTE, blue and violet round a warm heart); `turn` -1 twists and spins it the other way
  * @returns {{ points: any[], objects: any[] }}
  */
-export function wormholeMouth({ prefix, at, aim, radius: R, depth: D, power, extra = {}, stars = 4000, glow = 5 }) {
+export function wormholeMouth({ prefix, at, aim, radius: R, depth: D, power, extra = {}, stars = 4000, glow = 5, palette = {}, turn = 1 }) {
+  const c = { ...MOUTH_PALETTE, ...palette };
   /** @param {number} lo @param {number} hi @param {number} [smooth] */
   const opens = (lo, hi, smooth) => (power ? { entity: power, output: [r3(lo), r3(hi)], ...(smooth ? { smooth } : {}) } : r3(hi));
   const mouth = `${prefix}_mouth`;
@@ -194,35 +215,35 @@ export function wormholeMouth({ prefix, at, aim, radius: R, depth: D, power, ext
     ],
     objects: [
       {
-        type: 'grid', id: mouth, ...shape, line_spacing_deg: 20, color: 'var(--lcars-blue)', scan: { period: 4 }, look: 'diagram',
-        deform: [{ type: 'twist', angle: 60, anchor: 'top' }, wobble], ...extra
+        type: 'grid', id: mouth, ...shape, line_spacing_deg: 20, color: c.diagram, scan: { period: 4 }, look: 'diagram',
+        deform: [{ type: 'twist', angle: 60 * turn, anchor: 'top' }, wobble], ...extra
       },
-      { type: 'ring', id: `${prefix}_ring`, at, face: aim, radius: 1.75 * R, dash: { pattern: [6, 10], speed: 40 }, width: 2, spin: opens(0, 90), look: 'diagram', ...extra },
-      { type: 'glow', id: `${prefix}_glow`, at, color: 'var(--lcars-blue)', size: opens(0.5 * R, glow * R), look: 'diagram', ...extra },
+      { type: 'ring', id: `${prefix}_ring`, at, face: aim, radius: 1.75 * R, dash: { pattern: [6, 10], speed: 40 }, width: 2, spin: opens(0, 90 * turn), look: 'diagram', ...(palette.diagram ? { color: c.diagram } : {}), ...extra },
+      { type: 'glow', id: `${prefix}_glow`, at, color: c.diagram, size: opens(0.5 * R, glow * R), look: 'diagram', ...extra },
       {
         type: 'grid', id: `${prefix}_funnel`, ...shape, well: { ...shape.well, throat: 0.07 }, radius: opens(0.15 * S, S, 1500), line_width: 0, edges: false, look: 'realistic',
-        fill: { effect: { type: 'swirl', colors: [...SWIRL_COLORS], speed: 0.2 * S, turbulence: 0.8, num_octaves: 5 } },
-        deform: [{ type: 'twist', angle: 80, anchor: 'top', period: 6 }, wobble], ...extra
+        fill: { effect: { type: 'swirl', colors: [...c.swirl], speed: 0.2 * S * turn, turbulence: 0.8, num_octaves: 5 } },
+        deform: [{ type: 'twist', angle: 80 * turn, anchor: 'top', period: 6 }, wobble], ...extra
       },
       {
         type: 'galaxy', id: `${prefix}_vortex`, at, face: aim, look: 'realistic', radius: opens(0.15 * S, S, 1500),
-        arms: { count: 4, pitch: 20, color: 'var(--lcards-blue-light)' }, bar: { length: 0 }, thickness: 0.02, stars: { count: stars }, seed: 4, glow: 0, dust: { amount: 0 },
-        core: { color: 'var(--lcards-moonlight)' }, spin: opens(5, 25), ...extra
+        arms: { count: 4, pitch: 20, color: c.arms }, bar: { length: 0 }, thickness: 0.02, stars: { count: stars }, seed: 4, glow: 0, dust: { amount: 0 },
+        core: { color: 'var(--lcards-moonlight)' }, spin: opens(5 * turn, 25 * turn), ...extra
       },
-      { type: 'glow', id: `${prefix}_heart`, at, color: 'var(--lcards-orange-lightest)', size: opens(0.2 * R, 0.8 * R), look: 'realistic', ...extra },
+      { type: 'glow', id: `${prefix}_heart`, at, color: c.heart, size: opens(0.2 * R, 0.8 * R), look: 'realistic', ...extra },
       // the shaft: soft glows up the axis, wider and fainter as they go (scene-sized, so it
       // scales with the mouth at any distance, where a beam is px wide)
       ...SHAFT.map(([h, size, a], i) => ({
-        type: 'glow', id: `${prefix}_light_${i + 1}`, at: `${prefix}_shaft_${i + 1}`, size: r3(size * R), color: 'var(--lcards-orange-lightest)',
+        type: 'glow', id: `${prefix}_light_${i + 1}`, at: `${prefix}_shaft_${i + 1}`, size: r3(size * R), color: c.heart,
         opacity: opens(0.15 * a, a), look: 'realistic', ...extra
       })),
       {
         type: 'nebula', id: `${prefix}_wisps`, at, radius: 1.2 * S, count: 6, seed: 7, drift: 0.6, brightness: [0.15, 0.35],
-        colors: ['var(--lcars-violet)', 'var(--lcards-blue-medium)'], opacity: opens(0.1, 1), look: 'realistic', ...extra
+        colors: [...c.wisps], opacity: opens(0.1, 1), look: 'realistic', ...extra
       },
       {
         type: 'nebula', id: `${prefix}_wisps_out`, at: `${prefix}_haze`, radius: 0.45 * S, count: 3, seed: 3, drift: 1, brightness: [0.1, 0.25],
-        colors: ['var(--lcards-orange-lightest)', 'var(--lcards-blue-light)'], opacity: opens(0, 1), look: 'realistic', ...extra
+        colors: [...c.haze], opacity: opens(0, 1), look: 'realistic', ...extra
       },
       { type: 'path', id: `${prefix}_throat_tube`, points: [at, `${prefix}_throat`], ...THROAT_LINE, ...extra }
     ]

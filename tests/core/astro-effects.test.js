@@ -858,6 +858,22 @@ test('NB2c presets: names in step, merged under the config\'s keys, parts key by
   assert.equal(r.radius, 80);
 });
 
+test('presets run the same at any size: drift and the ribbon\'s speed scale with a size of your own', async () => {
+  const { NEBULA_PRESET_CONFIGS, withNebulaPreset } = await import('../../src/core/astrometrics/nebula-presets.js');
+  // the showcase: a Badlands 10 ly across (the preset's box is 500), a Nexus 2 ly long (2000)
+  assert.deepEqual(withNebulaPreset({ type: 'nebula', preset: 'badlands', size: [10, 2.8, 10] }).drift, [0.08, 0.02]);
+  assert.equal(withNebulaPreset({ type: 'nebula', preset: 'nexus', size: [2, 0.5, 0.5] }).ribbon.speed, 0.04);
+  assert.deepEqual(withNebulaPreset({ type: 'nebula', preset: 'badlands', size: 1000 }).drift, [8, 2], 'one number: a cube');
+  assert.deepEqual(withNebulaPreset({ type: 'nebula', preset: 'badlands', radius: 125 }).drift, [2, 0.5], 'a radius: across is twice it');
+  // the preset's own size, or none: as the preset has them
+  assert.deepEqual(withNebulaPreset({ type: 'nebula', preset: 'badlands' }).drift, NEBULA_PRESET_CONFIGS.badlands.drift);
+  // values of your own stay as you wrote them
+  assert.equal(withNebulaPreset({ type: 'nebula', preset: 'badlands', size: [10, 3, 10], drift: 5 }).drift, 5);
+  assert.equal(withNebulaPreset({ type: 'nebula', preset: 'nexus', size: [2, 0.5, 0.5], ribbon: { speed: 7 } }).ribbon.speed, 7);
+  // a size that follows an entity (not a plain number): left as the preset has them
+  assert.deepEqual(withNebulaPreset({ type: 'nebula', preset: 'badlands', size: { entity: 'input_number.x' } }).drift, NEBULA_PRESET_CONFIGS.badlands.drift);
+});
+
 test('NB3 schema: shape wake, the ribbon, the wake, crawling lightning, preset nexus', async () => {
   const { CoreValidationService } = await import('../../src/core/validation-service/index.js');
   const { astrometricsSchema } = await import('../../src/cards/schemas/astrometrics-schema.js');

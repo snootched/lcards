@@ -94,6 +94,7 @@ export const DEFAULT_COLORS = {
  * @property {(source: object, lights: { at: number[], radius: number, color: number[], level: number }[]) => void} [setLights] - a volume nebula: lights from one source (lightning), world
  * @property {(world: number[]) => boolean} [contains] - whether a world position is inside its region (a volume nebula)
  * @property {(key: string, value: number | null) => boolean} [live] - a setting that follows an entity, changed in place
+ * @property {(key: string, color: string | null) => boolean} [liveColor] - a colour that follows an entity, changed in place (names.js LIVE_TYPE_KEYS); null: the config's again
  *   (names.js LIVE_TYPE_KEYS; a joined path such as radius.0): true when it took it; null puts the built value back
  * @property {(renderer: import('three').WebGLRenderer, scene: import('three').Scene, camera: import('three').PerspectiveCamera | import('three').OrthographicCamera, w: number, h: number, frame: number) => void} [prerender] - before each render, while
  *   it shows: draw what it needs first (a volume nebula's solid depth); w and h in drawing buffer px

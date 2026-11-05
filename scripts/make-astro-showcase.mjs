@@ -16,8 +16,14 @@
  *    both mouths face along the link (`face`), which runs throat to throat;
  *    each mouth has a diagram look and a realistic one (`look`, picked by
  *    the LOOK selector);
+ *  - from the starter parts, in the galaxy's ly: the Badlands as Deep Space
+ *    Nine drew them on the Cardassian border, as Voyager drew them in the
+ *    Delta Quadrant by Ocampa, and the Nexus on its orbit near Veridian; in a
+ *    km system at Melona IV, the Crystalline Entity with a ship and its beam
+ *    (the CRYSTAL selector colours it); in the Bajor system a comet round
+ *    B'hava'el and an asteroid by Deep Space 9;
  *
- * in an LCARS frame (lcards-layout-view): the 14 stops down the left, the
+ * in an LCARS frame (lcards-layout-view): the 18 stops down the left, the
  * controls along the bottom. The helpers it uses are in tests/ha/ha-client.mjs,
  * its tour script and automations in demo/package.yaml.
  *
@@ -44,12 +50,16 @@ export const STOPS = /** @type {const} */ ([
   ['jupiter', 'JUPITER'],
   ['saturn', 'SATURN'],
   ['pluto', 'PLUTO'],
+  ['entity', 'CRYSTALLINE ENTITY'],
+  ['nexus', 'NEXUS'],
   ['bajor_system', 'BAJOR SYSTEM'],
   ['ds9', 'DEEP SPACE 9'],
   ['wormhole', 'WORMHOLE'],
   ['nebula', 'NEBULA'],
+  ['badlands', 'BADLANDS'],
   ['cube', 'BORG CUBE'],
-  ['gamma', 'IDRAN']
+  ['gamma', 'IDRAN'],
+  ['delta_badlands', 'DELTA BADLANDS']
 ]);
 
 /** The RATE selector's options and their rates (days per second): the time slider's stops */
@@ -66,10 +76,20 @@ const MOUTH_DEPTH = 60;
  * @returns {Promise<Record<string, any>>}
  */
 export async function showcaseCard() {
-  const { applyStarter, STARTERS } = await import('../src/core/astrometrics/starters/index.js');
+  const { applyStarter, STARTERS, starterParams, prefixFragment } = await import('../src/core/astrometrics/starters/index.js');
   const { solSystem, SOL_VIEWS } = await import('../src/core/astrometrics/starters/true-scale.js');
-  const { WORMHOLE_AIM, wormholeMouth } = await import('../src/core/astrometrics/starters/scene-star-trek-galaxy.js');
+  const { WORMHOLE_AIM, wormholeMouth, nearSol } = await import('../src/core/astrometrics/starters/scene-star-trek-galaxy.js');
   const byId = (/** @type {string} */ id) => /** @type {any} */ (STARTERS.find((s) => s.id === id));
+  /**
+   * A starter part's points and objects in the given units (its real sizes in them), its ids prefixed
+   * @param {string} id @param {string} prefix @param {string} units @param {Record<string, any>} params
+   * @returns {{ points: any[], objects: any[] }}
+   */
+  const part = (id, prefix, units, params) => {
+    const starter = byId(id);
+    const frag = prefixFragment(starter.build(starterParams(starter, { ...params, prefix }, units), { units }), prefix);
+    return { points: frag.points ?? [], objects: frag.objects ?? [] };
+  };
   /** @type {any} */
   let card = applyStarter({ type: 'custom:lcards-astrometrics-card', id: CARD_ID }, byId('star_trek_galaxy')).config;
   for (const id of ['st_minor_powers', 'st_delta_powers', 'st_transwarp']) card = /** @type {any} */ (applyStarter(card, byId(id))).config;
@@ -83,7 +103,9 @@ export async function showcaseCard() {
   card.objects = card.objects
     .filter((/** @type {any} */ o) => !starterMouth(o.id))
     // the throat shows inside the systems at its ends, not across the Sol close-ups
-    .map((/** @type {any} */ o) => (o.id === 'wormhole_link' ? { ...o, points: ['wormhole_throat', 'gamma_wormhole_throat'], hide_in_systems: ['sol_system'] } : o));
+    .map((/** @type {any} */ o) => (o.id === 'wormhole_link' ? { ...o, points: ['wormhole_throat', 'gamma_wormhole_throat'], hide_in_systems: ['sol_system', 'melona_system', 'badlands_system', 'delta_badlands_system', 'nexus_system'] } : o))
+    // Voyager's route home shows in the Sol close-ups (it ends there), not across Melona IV's
+    .map((/** @type {any} */ o) => (o.id === 'voyager_route' ? { ...o, hide_in_systems: ['melona_system', 'badlands_system', 'delta_badlands_system', 'nexus_system'] } : o));
   // Federation names go to alert colours during a Borg incursion (a rule on the tag)
   card.points = card.points.map((/** @type {any} */ p) => (['federation_name', 'sol', 'vulcan', 'andoria', 'tellar'].includes(p.id) ? { ...p, tags: ['federation'] } : p));
 
@@ -118,6 +140,13 @@ export async function showcaseCard() {
   // the mouths in km, 40 km across at full power: the WORMHOLE slider opens them
   const power = 'input_number.lcards_test_power';
   const bajorMouth = wormholeMouth({ prefix: 'wormhole', at: 'bajor_wormhole', aim: 'wormhole_aim_gamma', radius: 40, depth: MOUTH_DEPTH, power, stars: 9000 });
+  // a comet swinging in from beyond the Denorios belt to 0.4 au from B'hava'el; the part sizes its coma
+  // and tails off the orbit to be seen from the system view, its head here smaller than the star
+  const comet = part('comet', 'comet', 'km', { label: 'COMET', centre: 'bhavael', near: 60000000, far: 600000000, period: 40 });
+  comet.objects = comet.objects.map((o) => (o.type === 'comet' ? { ...o, nucleus: { size: 500000 } } : o));
+  // a rock of the Denorios belt drifting past Deep Space 9, lit from B'hava'el; named only close by
+  const rock = part('asteroid', 'denorios_rock', 'km', { label: 'DENORIOS ASTEROID', at: 'rock_at', light: 'bhavael', size: 0.5, seed: 7 });
+  rock.points = rock.points.map((p) => (p.label ? { ...p, max_distance: 60 } : p));
   const bajor = {
     points: [
       { id: 'bhavael', xyz: [0, 0, 0], label: "B'HAVA'EL", style: 'minor' },
@@ -137,6 +166,9 @@ export async function showcaseCard() {
       { id: 'nebula', polar: [236000000, 52], label: 'CHIN\'TOKA NEBULA', style: 'minor', max_distance: 3000000 },
       { id: 'route_a', at: 'nebula', offset: [-90000, 2000, -30000] },
       { id: 'route_b', at: 'nebula', offset: [90000, -2000, 30000] },
+      { id: 'rock_at', at: 'ds9', offset: [-1, -0.35, 1] },
+      ...comet.points,
+      ...rock.points,
       ...bajorMouth.points
     ],
     objects: [
@@ -148,21 +180,84 @@ export async function showcaseCard() {
       { type: 'model', id: 'ds9_model', at: 'ds9', src: 'builtin:deep_space_nine', size: 1.452, material: 'original' },
       { type: 'sphere', id: 'ds9_shields', at: 'ds9', radius: 1.2, fill: { color: 'var(--lcars-blue)' }, color: 'var(--lcars-blue)', line_spacing_deg: 20, opacity: { entity: 'input_number.lcards_test_shields', output: [0, 0.45] } },
       ...bajorMouth.objects,
-      // hidden from afar (its clouds would wash over Sol in the galaxy view)
-      { type: 'nebula', id: 'chintoka', at: 'nebula', radius: 70000, colors: ['var(--lcars-orange)', 'var(--lcars-violet)'], drift: 300, max_distance: 3000000 },
+      ...comet.objects,
+      ...rock.objects,
+      // a volume of filaments with dust lanes, real depth from inside; hidden from afar (its clouds
+      // would wash over Sol in the galaxy view)
+      {
+        type: 'nebula', id: 'chintoka', render: 'volume', shape: 'filaments', at: 'nebula', radius: 70000, seed: 5,
+        colors: ['var(--lcars-orange)', 'var(--lcars-violet)'], dust: { count: 3 }, drift: 300, max_distance: 3000000
+      },
       { type: 'path', id: 'patrol_route', points: ['route_a', 'route_b'], arc: 8000, dash: { pattern: [10, 8], speed: 40 }, pulse: true, color: 'var(--lcars-orange)', width: 2 },
       { type: 'cube', id: 'borg_cube', at: 'cube', size: 3 }
     ]
   };
 
   // ── The Gamma end (km): the same mouth, facing back along the link ──
-  const gammaMouth = wormholeMouth({ prefix: 'gamma_wormhole', at: 'gamma_mouth', aim: 'wormhole_aim_alpha', radius: 40, depth: MOUTH_DEPTH, power, stars: 9000 });
+  // the far end in other colours, gold and amber round a pale heart, turning the other way (it faces back along the link)
+  const gammaMouth = wormholeMouth({
+    prefix: 'gamma_wormhole', at: 'gamma_mouth', aim: 'wormhole_aim_alpha', radius: 40, depth: MOUTH_DEPTH, power, stars: 9000, turn: -1,
+    palette: {
+      swirl: ['var(--lcards-moonlight)', 'var(--lcards-yellow-lightest)', 'var(--lcards-orange-light)', 'var(--lcards-orange-medium)', 'var(--lcards-yellow-medium)', 'var(--lcards-orange-dark)', 'var(--lcards-orange-medium-dark)', 'var(--lcards-orange-darkest)'],
+      diagram: 'var(--lcars-orange)',
+      arms: 'var(--lcards-yellow-lightest)',
+      heart: 'var(--lcards-moonlight)',
+      wisps: ['var(--lcards-orange-medium)', 'var(--lcars-red)'],
+      haze: ['var(--lcards-yellow-lightest)', 'var(--lcards-orange-light)']
+    }
+  });
   const gamma = {
     points: [{ id: 'gamma_mouth', xyz: [0, 0, 0], label: 'THE WORMHOLE (GAMMA)', style: 'minor', max_distance: 30000 }, ...gammaMouth.points],
     objects: gammaMouth.objects
   };
 
+  // ── Close-ups in ly: the two Badlands and the Nexus, each a system of its own so the galaxy's
+  // regions, sectors and names step aside inside it (as they do in Bajor's); hidden from the galaxy views ──
+  /** @param {string} id @param {string} at @param {{ points: any[], objects: any[] }} frag @param {number} far */
+  const closeUp = (id, at, frag, far) => ({
+    type: 'system', id, at, units: 'ly',
+    points: frag.points.map((p) => (p.label ? { ...p, max_distance: far } : p)),
+    objects: frag.objects.map((o) => ({ ...o, max_distance: far }))
+  });
+  // Deep Space 9's Badlands on the Cardassian border, clear of the DMZ, past Bajor from Sol (10 ly across)
+  card.points.push(
+    { id: 'badlands_at', xyz: nearSol(-30, 34) },
+    // Voyager's Badlands, here in the Delta Quadrant by Ocampa
+    { id: 'delta_badlands_at', xyz: [37030, 0, -33020] },
+    // the Nexus (Generations) near Veridian
+    { id: 'veridian', xyz: nearSol(26, -34), marker: 'dot', label: 'Veridian', style: 'tiny', color: 'var(--lcars-blue)', max_distance: 400, hide_in_systems: true }
+  );
+  const lySystems = [
+    closeUp('badlands_system', 'badlands_at', part('badlands', 'badlands', 'ly', { label: 'BADLANDS', centre: [0, 0, 0] }), 60),
+    closeUp('delta_badlands_system', 'delta_badlands_at', part('badlands_voyager', 'delta_badlands', 'ly', { label: 'BADLANDS', centre: [0, 0, 0] }), 60),
+    // on a wide orbit round Veridian (2 ly long, 3 ly out), its wake trailing
+    closeUp('nexus_system', 'veridian', part('nexus', 'nexus', 'ly', { label: 'NEXUS', centre: [0, 0, 0], travel: 'orbit', length: 2 }), 60)
+  ];
+
+  // ── Melona IV (km): the Crystalline Entity, a ship and its beam, the planet it stripped behind ──
+  card.points.push({ id: 'melona', xyz: nearSol(22, 12), marker: 'dot', label: 'Melona IV', style: 'tiny', color: 'var(--lcars-blue)', max_distance: 400, hide_in_systems: true });
+  const entity = part('crystalline-entity', 'entity', 'km', { label: 'CRYSTALLINE ENTITY', centre: [0, 0, 0], ship: 'beam' });
+  // the CRYSTAL selector colours it (as on the Crystalline Entity demo view)
+  const crystalColor = {
+    entity: 'input_select.lcards_test_color', LAVENDER: 'var(--lcars-african-violet, var(--lcards-blue-light))', ORANGE: 'var(--lcards-orange)', default: 'var(--lcards-blue-medium)'
+  };
+  const melona = {
+    points: [
+      ...entity.points,
+      // the stop's target: between the entity and the ship
+      { id: 'entity_view', at: 'entity_core', offset: [-0.8, 0, 0] },
+      // behind the ship's side of the entity, above the line of the beam
+      { id: 'melona_iv', xyz: [-9000, 7500, -40000], label: 'MELONA IV', style: 'minor', max_distance: 200000 }
+    ],
+    objects: [
+      ...entity.objects.map((o) => (o.type === 'crystalline' ? { ...o, color: crystalColor } : o)),
+      { type: 'sphere', id: 'melona_body', at: 'melona_iv', radius: 5000, fill: { effect: { preset: 'rocky' } }, spin: 3, line_spacing_deg: 30, line_width: 0.5, tags: ['planets'] }
+    ]
+  };
+
   card.objects.push(
+    ...lySystems,
+    { type: 'system', id: 'melona_system', at: 'melona', units: 'km', ...melona },
     { type: 'system', id: 'sol_system', at: 'sol', units: 'km', ...sol },
     { type: 'system', id: 'bajor_system', at: 'bajor', units: 'km', ...bajor },
     { type: 'system', id: 'gamma_system', at: 'wormhole_gamma', units: 'km', ...gamma }
@@ -197,7 +292,14 @@ export async function showcaseCard() {
     gamma: { target: 'gamma_mouth', yaw: 243, tilt: 5, distance: 320 },
     // at the nebula's edge (its clouds fade as you fly in), the patrol route crossing in front
     nebula: { target: 'nebula', yaw: 40, tilt: 8, distance: 110000 },
-    cube: { target: 'cube', yaw: 20, tilt: 10, distance: 12 }
+    cube: { target: 'cube', yaw: 20, tilt: 10, distance: 12 },
+    // the entity and the ship side by side, Melona IV behind them
+    entity: { target: 'entity_view', yaw: 0, tilt: 5, distance: 5 },
+    // beside the Nexus as it travels round Veridian (a flight to a point follows it)
+    nexus: { target: 'nexus_heart', yaw: 8, tilt: 10, distance: 2 },
+    // in the gap between the sheets of fire, looking away from Bajor and Sol
+    badlands: { target: 'badlands_heart', yaw: 210, tilt: 3, distance: 2.2 },
+    delta_badlands: { target: 'delta_badlands_heart', yaw: 200, tilt: 4, distance: 3.2 }
   };
   card.camera = {
     ...card.camera,
@@ -264,11 +366,11 @@ export async function showcaseView() {
     // sweep down to the footer sweep, the stops beside it, the controls in labelled groups
     layout: {
       height: 'calc(100dvh - var(--header-height, 56px))',
-      'min-height': '1150px',
+      'min-height': '1250px',
       padding: '12px',
       'grid-gap': '8px',
       'grid-template-columns': `${ARM}px 170px minmax(0, 1fr)`,
-      'grid-template-rows': '80px minmax(0, 1fr) 236px 44px',
+      'grid-template-rows': '80px minmax(0, 1fr) 326px 44px',
       'grid-template-areas': '"head head head" "arm stops scene" "arm stops controls" "foot foot foot"'
     },
     cards: [
@@ -300,7 +402,7 @@ export async function showcaseView() {
         layout: {
           'grid-gap': '8px 12px',
           'grid-template-columns': 'repeat(12, minmax(0, 1fr))',
-          'grid-template-rows': '26px minmax(0, 1fr) minmax(0, 1fr) 26px minmax(0, 1fr)'
+          'grid-template-rows': '26px minmax(0, 1fr) minmax(0, 1fr) 26px minmax(0, 1fr) 26px minmax(0, 1fr)'
         },
         cards: [
           heading('SCENE', 6),
@@ -321,21 +423,24 @@ export async function showcaseView() {
           span(slider('input_number.lcards_test_power', 'WORMHOLE'), 4),
           // the date's rate: the time slider's stops
           span({ type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_rate', preset: 'toggle-tab', grid: { columns: 6 } }, 4),
-          heading('RED ALERT', 3),
-          heading('LOOK', 3),
-          heading('WARP', 3),
-          heading('SCENE CLOCK', 3),
-          span({ type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_mode', preset: 'toggle-tab', grid: { columns: 3 } }, 3),
+          heading('RED ALERT', 4),
+          heading('LOOK', 4),
+          heading('CRYSTAL', 4),
+          span({ type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_mode', preset: 'toggle-tab', grid: { columns: 3 } }, 4),
           // the look: the wormholes and planets as LCARS diagrams, realistic, or both
-          span({ type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_look', preset: 'toggle-tab', grid: { columns: 3 } }, 3),
+          span({ type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_look', preset: 'toggle-tab', grid: { columns: 3 } }, 4),
+          // the Crystalline Entity's colour
+          span({ type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_color', preset: 'toggle-tab', grid: { columns: 3 } }, 4),
+          heading('WARP', 6),
+          heading('SCENE CLOCK', 6),
           // warp: engage, and the warp factor
-          span(toggle('input_boolean.lcards_test_warp', 'ENGAGE'), 1),
-          span({ ...slider('input_number.lcards_test_warp_factor', 'FACTOR'), style: { shaped: { text_bands: { left: { size: 70 } } } } }, 2),
+          span(toggle('input_boolean.lcards_test_warp', 'ENGAGE'), 2),
+          span({ ...slider('input_number.lcards_test_warp_factor', 'FACTOR'), style: { shaped: { text_bands: { left: { size: 70 } } } } }, 4),
           span({
             type: 'custom:lcards-button', preset: 'lozenge', entity: 'input_datetime.lcards_test_date',
             text: { name: { content: "[[[ return String(entity?.state ?? '').slice(0, 10) ]]]", show: true } }, tap_action: { action: 'more-info' }
-          }, 2),
-          span(action('NOW', { action: 'set-clock', card: CARD_ID, date: 'now' }), 1)
+          }, 4),
+          span(action('NOW', { action: 'set-clock', card: CARD_ID, date: 'now' }), 2)
         ]
       },
       // the footer: a sweep up into the arm, its bar of segments
@@ -366,7 +471,7 @@ export async function showcaseView() {
 const HEAD = `# Astrometrics showcase (R4d), written by scripts/make-astro-showcase.mjs: do not
 # edit by hand, change the script (or the starters it is built on) and run it.
 # The Star Trek galaxy with the real Sol system and a Bajor system inside it,
-# the 14 stops down the left, the controls along the bottom. Helpers in
+# the 18 stops down the left, the controls along the bottom. Helpers in
 # tests/ha/ha-client.mjs; uses: script.lcards_test_tour,
 # automation.lcards_test_alert, automation.lcards_test_date (demo/package.yaml).
 `;

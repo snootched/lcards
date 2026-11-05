@@ -193,7 +193,8 @@ export const LIVE_TYPE_KEYS = {
   belt: { keys: ['radius', 'radius.0', 'radius.1', 'thickness', 'count'], most: { count: MAX_ROCKS } },
   comet: { keys: ['nucleus.size', 'coma.size', 'tail.length', 'glow'] },
   nebula: { keys: ['drift', 'drift.0', 'drift.1', 'density'] },
-  crystalline: { keys: ['glow', 'opacity'] }
+  // color: a colour binding the object crossfades itself (the runtime passes the colour through)
+  crystalline: { keys: ['glow', 'opacity', 'color'] }
 };
 
 /** Object types built from the effects chunk (`core/astrometrics/effects`) */

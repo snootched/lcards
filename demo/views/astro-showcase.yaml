@@ -1,7 +1,7 @@
 # Astrometrics showcase (R4d), written by scripts/make-astro-showcase.mjs: do not
 # edit by hand, change the script (or the starters it is built on) and run it.
 # The Star Trek galaxy with the real Sol system and a Bajor system inside it,
-# the 14 stops down the left, the controls along the bottom. Helpers in
+# the 18 stops down the left, the controls along the bottom. Helpers in
 # tests/ha/ha-client.mjs; uses: script.lcards_test_tour,
 # automation.lcards_test_alert, automation.lcards_test_date (demo/package.yaml).
 title: Astrometrics showcase
@@ -9,11 +9,11 @@ path: astro-showcase
 type: custom:lcards-layout-view
 layout:
   height: calc(100dvh - var(--header-height, 56px))
-  min-height: 1150px
+  min-height: 1250px
   padding: 12px
   grid-gap: 8px
   grid-template-columns: 90px 170px minmax(0, 1fr)
-  grid-template-rows: 80px minmax(0, 1fr) 236px 44px
+  grid-template-rows: 80px minmax(0, 1fr) 326px 44px
   grid-template-areas: '"head head head" "arm stops scene" "arm stops controls" "foot foot foot"'
 cards:
   - type: custom:lcards-elbow
@@ -83,7 +83,7 @@ cards:
     layout:
       grid-gap: 8px
       grid-template-columns: minmax(0, 1fr)
-      grid-template-rows: repeat(14, minmax(0, 1fr))
+      grid-template-rows: repeat(18, minmax(0, 1fr))
     cards:
       - type: custom:lcards-button
         preset: lozenge
@@ -152,6 +152,22 @@ cards:
       - type: custom:lcards-button
         preset: lozenge
         text:
+          name: {content: CRYSTALLINE ENTITY, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: entity
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: NEXUS, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: nexus
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
           name: {content: BAJOR SYSTEM, show: true}
         tap_action:
           action: fly-to
@@ -184,6 +200,14 @@ cards:
       - type: custom:lcards-button
         preset: lozenge
         text:
+          name: {content: BADLANDS, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: badlands
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
           name: {content: BORG CUBE, show: true}
         tap_action:
           action: fly-to
@@ -197,6 +221,14 @@ cards:
           action: fly-to
           card: astro_showcase
           view: gamma
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: DELTA BADLANDS, show: true}
+        tap_action:
+          action: fly-to
+          card: astro_showcase
+          view: delta_badlands
   - type: custom:lcards-astrometrics-card
     id: astro_showcase
     points:
@@ -710,6 +742,38 @@ cards:
           - 0
           - 12566
           - 0
+      - id: badlands_at
+        xyz:
+          - -30
+          - 0
+          - 26034
+      - id: delta_badlands_at
+        xyz:
+          - 37030
+          - 0
+          - -33020
+      - id: veridian
+        xyz:
+          - 26
+          - 0
+          - 25966
+        marker: dot
+        label: Veridian
+        style: tiny
+        color: var(--lcars-blue)
+        max_distance: 400
+        hide_in_systems: true
+      - id: melona
+        xyz:
+          - 22
+          - 0
+          - 26012
+        marker: dot
+        label: Melona IV
+        style: tiny
+        color: var(--lcars-blue)
+        max_distance: 400
+        hide_in_systems: true
     objects:
       - type: galaxy
         id: milky_way
@@ -947,6 +1011,10 @@ cards:
           speed: 30
         hide_in_systems:
           - sol_system
+          - melona_system
+          - badlands_system
+          - delta_badlands_system
+          - nexus_system
       - type: path
         id: voyager_route
         points:
@@ -960,6 +1028,11 @@ cards:
           speed: 40
         color: var(--lcars-orange)
         width: 2
+        hide_in_systems:
+          - melona_system
+          - badlands_system
+          - delta_badlands_system
+          - nexus_system
       - type: volume
         id: ferenginar_space
         shape: prism
@@ -1180,6 +1253,50 @@ cards:
         glow: true
         hide_in_systems: true
       - type: system
+        id: badlands_system
+        at: badlands_at
+        units: ly
+        points:
+          - {id: badlands_centre, xyz: [0, 0, 0]}
+          - {id: badlands_heart, at: badlands_centre, label: BADLANDS, style: major, max_distance: 60}
+        objects:
+          - {type: nebula, id: badlands_plasma, at: badlands_heart, preset: badlands, size: [10, 2.8, 10], max_distance: 60}
+      - type: system
+        id: delta_badlands_system
+        at: delta_badlands_at
+        units: ly
+        points:
+          - {id: delta_badlands_centre, xyz: [0, 0, 0]}
+          - {id: delta_badlands_heart, at: delta_badlands_centre, label: BADLANDS, style: major, max_distance: 60}
+        objects:
+          - {type: nebula, id: delta_badlands_plasma, at: delta_badlands_heart, preset: badlands_voyager, size: [10, 3.2, 10], max_distance: 60}
+      - type: system
+        id: nexus_system
+        at: veridian
+        units: ly
+        points:
+          - {id: nexus_centre, xyz: [0, 0, 0]}
+          - {id: nexus_heart, polar: [3, 0], object: nexus_track, label: NEXUS, style: major, max_distance: 60}
+        objects:
+          - {type: ring, id: nexus_track, at: nexus_centre, radius: 3, spin: 2, width: 0.5, opacity: 0, max_distance: 60}
+          - {type: nebula, id: nexus_ribbon, at: nexus_heart, preset: nexus, size: [2, 0.5, 0.5], face: motion, rotation: [-90, 0, 0], max_distance: 60}
+      - type: system
+        id: melona_system
+        at: melona
+        units: km
+        points:
+          - {id: entity_centre, xyz: [0, 0, 0]}
+          - {id: entity_core, at: entity_centre}
+          - {id: entity_tag, at: entity_core, offset: [0, 1.68, 0], label: CRYSTALLINE ENTITY, style: major}
+          - {id: entity_ship_at, at: entity_core, offset: [-2.1, -0.09, 0.3], label: USS ENTERPRISE, style: minor}
+          - {id: entity_view, at: entity_core, offset: [-0.8, 0, 0]}
+          - {id: melona_iv, xyz: [-9000, 7500, -40000], label: MELONA IV, style: minor, max_distance: 200000}
+        objects:
+          - {type: crystalline, id: entity_crystal, at: entity_core, size: 3, spin: 2, color: {entity: input_select.lcards_test_color, LAVENDER: 'var(--lcars-african-violet, var(--lcards-blue-light))', ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium)}}
+          - {type: model, id: entity_ship, src: builtin:constitution, at: entity_ship_at, size: 0.289}
+          - {type: beam, id: entity_beam, from: entity_core, to: entity_ship_at, width: 10, color: var(--lcards-moonlight), pulse: true}
+          - {type: sphere, id: melona_body, at: melona_iv, radius: 5000, fill: {effect: {preset: rocky}}, spin: 3, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
+      - type: system
         id: sol_system
         at: sol
         units: km
@@ -1280,6 +1397,10 @@ cards:
           - {id: nebula, polar: [236000000, 52], label: CHIN'TOKA NEBULA, style: minor, max_distance: 3000000}
           - {id: route_a, at: nebula, offset: [-90000, 2000, -30000]}
           - {id: route_b, at: nebula, offset: [90000, -2000, 30000]}
+          - {id: rock_at, at: ds9, offset: [-1, -0.35, 1]}
+          - {id: comet_ring_centre, at: bhavael, offset: [270000000, 0, 0]}
+          - {id: comet_body, polar: [330000000, 270], object: comet_orbit, label: COMET, style: tiny, tap_action: {action: fly-to}}
+          - {id: denorios_rock_body, at: rock_at, label: DENORIOS ASTEROID, style: minor, offset: [0, 0.4, 0], tap_action: {action: fly-to}, max_distance: 60}
           - {id: wormhole_throat, object: wormhole_mouth, xyz: [0, -60, 0]}
           - {id: wormhole_out, object: wormhole_mouth, xyz: [0, 240, 0]}
           - {id: wormhole_haze, object: wormhole_mouth, xyz: [0, 64, 0]}
@@ -1332,7 +1453,10 @@ cards:
           - {type: nebula, id: wormhole_wisps, at: bajor_wormhole, radius: 72, count: 6, seed: 7, drift: 0.6, brightness: [0.15, 0.35], colors: [var(--lcars-violet), var(--lcards-blue-medium)], opacity: {entity: input_number.lcards_test_power, output: [0.1, 1]}, look: realistic}
           - {type: nebula, id: wormhole_wisps_out, at: wormhole_haze, radius: 27, count: 3, seed: 3, drift: 1, brightness: [0.1, 0.25], colors: [var(--lcards-orange-lightest), var(--lcards-blue-light)], opacity: {entity: input_number.lcards_test_power, output: [0, 1]}, look: realistic}
           - {type: path, id: wormhole_throat_tube, points: [bajor_wormhole, wormhole_throat], color: var(--lcars-blue), width: 8, line_look: tube, glow: 3, pulse: true, dash: {speed: 30}}
-          - {type: nebula, id: chintoka, at: nebula, radius: 70000, colors: [var(--lcars-orange), var(--lcars-violet)], drift: 300, max_distance: 3000000}
+          - {type: ring, id: comet_orbit, at: comet_ring_centre, radius: 330000000, spin: 9, width: 1, color: theme:colors.ui.secondary, opacity: 0.4}
+          - {type: comet, id: comet_comet, at: comet_body, light: bhavael, nucleus: {size: 500000}, tail: {length: 297000000}, coma: {size: 27500000}, activity: {mode: distance, range: [60000000, 600000000]}}
+          - {type: asteroid, id: denorios_rock_rock, at: rock_at, size: 0.5, seed: 7, light: bhavael}
+          - {type: nebula, id: chintoka, render: volume, shape: filaments, at: nebula, radius: 70000, seed: 5, colors: [var(--lcars-orange), var(--lcars-violet)], dust: {count: 3}, drift: 300, max_distance: 3000000}
           - {type: path, id: patrol_route, points: [route_a, route_b], arc: 8000, dash: {pattern: [10, 8], speed: 40}, pulse: true, color: var(--lcars-orange), width: 2}
           - {type: cube, id: borg_cube, at: cube, size: 3}
       - type: system
@@ -1361,30 +1485,30 @@ cards:
           - {id: gamma_wormhole_shaft_15, object: gamma_wormhole_mouth, xyz: [0, 192.667, 0]}
           - {id: gamma_wormhole_shaft_16, object: gamma_wormhole_mouth, xyz: [0, 206, 0]}
         objects:
-          - {type: grid, id: gamma_wormhole_mouth, shape: well, well: {shape: trumpet, throat: 0.1}, at: gamma_mouth, face: wormhole_aim_alpha, radius: {entity: input_number.lcards_test_power, output: [6, 40], smooth: 1500}, depth: 60, line_spacing_deg: 20, color: var(--lcars-blue), scan: {period: 4}, look: diagram, deform: [{type: twist, angle: 60, anchor: top}, {type: wobble, lobes: 0, waves: 2, period: 3, amplitude: '[[[ return Number(states[''input_number.lcards_test_power'']?.state ?? 0) / 1000 ]]]'}]}
-          - {type: ring, id: gamma_wormhole_ring, at: gamma_mouth, face: wormhole_aim_alpha, radius: 70, dash: {pattern: [6, 10], speed: 40}, width: 2, spin: {entity: input_number.lcards_test_power, output: [0, 90]}, look: diagram}
-          - {type: glow, id: gamma_wormhole_glow, at: gamma_mouth, color: var(--lcars-blue), size: {entity: input_number.lcards_test_power, output: [20, 200]}, look: diagram}
-          - {type: grid, id: gamma_wormhole_funnel, shape: well, well: {shape: trumpet, throat: 0.07}, at: gamma_mouth, face: wormhole_aim_alpha, radius: {entity: input_number.lcards_test_power, output: [9, 60], smooth: 1500}, depth: 60, line_width: 0, edges: false, look: realistic, fill: {effect: {type: swirl, colors: [var(--lcards-moonlight), var(--lcards-orange-lightest), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-medium-dark), var(--lcards-blue-medium), var(--lcards-blue-dark)], speed: 12, turbulence: 0.8, num_octaves: 5}}, deform: [{type: twist, angle: 80, anchor: top, period: 6}, {type: wobble, lobes: 0, waves: 2, period: 3, amplitude: '[[[ return Number(states[''input_number.lcards_test_power'']?.state ?? 0) / 1000 ]]]'}]}
-          - {type: galaxy, id: gamma_wormhole_vortex, at: gamma_mouth, face: wormhole_aim_alpha, look: realistic, radius: {entity: input_number.lcards_test_power, output: [9, 60], smooth: 1500}, arms: {count: 4, pitch: 20, color: var(--lcards-blue-light)}, bar: {length: 0}, thickness: 0.02, stars: {count: 9000}, seed: 4, glow: 0, dust: {amount: 0}, core: {color: var(--lcards-moonlight)}, spin: {entity: input_number.lcards_test_power, output: [5, 25]}}
-          - {type: glow, id: gamma_wormhole_heart, at: gamma_mouth, color: var(--lcards-orange-lightest), size: {entity: input_number.lcards_test_power, output: [8, 32]}, look: realistic}
-          - {type: glow, id: gamma_wormhole_light_1, at: gamma_wormhole_shaft_1, size: 28, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0.104, 0.69]}, look: realistic}
-          - {type: glow, id: gamma_wormhole_light_2, at: gamma_wormhole_shaft_2, size: 32.8, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0.094, 0.626]}, look: realistic}
-          - {type: glow, id: gamma_wormhole_light_3, at: gamma_wormhole_shaft_3, size: 37.6, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0.085, 0.564]}, look: realistic}
-          - {type: glow, id: gamma_wormhole_light_4, at: gamma_wormhole_shaft_4, size: 42.4, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0.076, 0.505]}, look: realistic}
-          - {type: glow, id: gamma_wormhole_light_5, at: gamma_wormhole_shaft_5, size: 47.2, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0.067, 0.448]}, look: realistic}
-          - {type: glow, id: gamma_wormhole_light_6, at: gamma_wormhole_shaft_6, size: 52, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0.059, 0.394]}, look: realistic}
-          - {type: glow, id: gamma_wormhole_light_7, at: gamma_wormhole_shaft_7, size: 56.8, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0.051, 0.342]}, look: realistic}
-          - {type: glow, id: gamma_wormhole_light_8, at: gamma_wormhole_shaft_8, size: 61.6, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0.044, 0.293]}, look: realistic}
-          - {type: glow, id: gamma_wormhole_light_9, at: gamma_wormhole_shaft_9, size: 66.4, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0.037, 0.247]}, look: realistic}
-          - {type: glow, id: gamma_wormhole_light_10, at: gamma_wormhole_shaft_10, size: 71.2, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0.031, 0.204]}, look: realistic}
-          - {type: glow, id: gamma_wormhole_light_11, at: gamma_wormhole_shaft_11, size: 76, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0.025, 0.165]}, look: realistic}
-          - {type: glow, id: gamma_wormhole_light_12, at: gamma_wormhole_shaft_12, size: 80.8, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0.019, 0.13]}, look: realistic}
-          - {type: glow, id: gamma_wormhole_light_13, at: gamma_wormhole_shaft_13, size: 85.6, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0.015, 0.098]}, look: realistic}
-          - {type: glow, id: gamma_wormhole_light_14, at: gamma_wormhole_shaft_14, size: 90.4, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0.011, 0.072]}, look: realistic}
-          - {type: glow, id: gamma_wormhole_light_15, at: gamma_wormhole_shaft_15, size: 95.2, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0.008, 0.051]}, look: realistic}
-          - {type: glow, id: gamma_wormhole_light_16, at: gamma_wormhole_shaft_16, size: 100, color: var(--lcards-orange-lightest), opacity: {entity: input_number.lcards_test_power, output: [0.006, 0.04]}, look: realistic}
-          - {type: nebula, id: gamma_wormhole_wisps, at: gamma_mouth, radius: 72, count: 6, seed: 7, drift: 0.6, brightness: [0.15, 0.35], colors: [var(--lcars-violet), var(--lcards-blue-medium)], opacity: {entity: input_number.lcards_test_power, output: [0.1, 1]}, look: realistic}
-          - {type: nebula, id: gamma_wormhole_wisps_out, at: gamma_wormhole_haze, radius: 27, count: 3, seed: 3, drift: 1, brightness: [0.1, 0.25], colors: [var(--lcards-orange-lightest), var(--lcards-blue-light)], opacity: {entity: input_number.lcards_test_power, output: [0, 1]}, look: realistic}
+          - {type: grid, id: gamma_wormhole_mouth, shape: well, well: {shape: trumpet, throat: 0.1}, at: gamma_mouth, face: wormhole_aim_alpha, radius: {entity: input_number.lcards_test_power, output: [6, 40], smooth: 1500}, depth: 60, line_spacing_deg: 20, color: var(--lcars-orange), scan: {period: 4}, look: diagram, deform: [{type: twist, angle: -60, anchor: top}, {type: wobble, lobes: 0, waves: 2, period: 3, amplitude: '[[[ return Number(states[''input_number.lcards_test_power'']?.state ?? 0) / 1000 ]]]'}]}
+          - {type: ring, id: gamma_wormhole_ring, at: gamma_mouth, face: wormhole_aim_alpha, radius: 70, dash: {pattern: [6, 10], speed: 40}, width: 2, spin: {entity: input_number.lcards_test_power, output: [0, -90]}, look: diagram, color: var(--lcars-orange)}
+          - {type: glow, id: gamma_wormhole_glow, at: gamma_mouth, color: var(--lcars-orange), size: {entity: input_number.lcards_test_power, output: [20, 200]}, look: diagram}
+          - {type: grid, id: gamma_wormhole_funnel, shape: well, well: {shape: trumpet, throat: 0.07}, at: gamma_mouth, face: wormhole_aim_alpha, radius: {entity: input_number.lcards_test_power, output: [9, 60], smooth: 1500}, depth: 60, line_width: 0, edges: false, look: realistic, fill: {effect: {type: swirl, colors: [var(--lcards-moonlight), var(--lcards-yellow-lightest), var(--lcards-orange-light), var(--lcards-orange-medium), var(--lcards-yellow-medium), var(--lcards-orange-dark), var(--lcards-orange-medium-dark), var(--lcards-orange-darkest)], speed: -12, turbulence: 0.8, num_octaves: 5}}, deform: [{type: twist, angle: -80, anchor: top, period: 6}, {type: wobble, lobes: 0, waves: 2, period: 3, amplitude: '[[[ return Number(states[''input_number.lcards_test_power'']?.state ?? 0) / 1000 ]]]'}]}
+          - {type: galaxy, id: gamma_wormhole_vortex, at: gamma_mouth, face: wormhole_aim_alpha, look: realistic, radius: {entity: input_number.lcards_test_power, output: [9, 60], smooth: 1500}, arms: {count: 4, pitch: 20, color: var(--lcards-yellow-lightest)}, bar: {length: 0}, thickness: 0.02, stars: {count: 9000}, seed: 4, glow: 0, dust: {amount: 0}, core: {color: var(--lcards-moonlight)}, spin: {entity: input_number.lcards_test_power, output: [-5, -25]}}
+          - {type: glow, id: gamma_wormhole_heart, at: gamma_mouth, color: var(--lcards-moonlight), size: {entity: input_number.lcards_test_power, output: [8, 32]}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_1, at: gamma_wormhole_shaft_1, size: 28, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0.104, 0.69]}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_2, at: gamma_wormhole_shaft_2, size: 32.8, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0.094, 0.626]}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_3, at: gamma_wormhole_shaft_3, size: 37.6, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0.085, 0.564]}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_4, at: gamma_wormhole_shaft_4, size: 42.4, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0.076, 0.505]}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_5, at: gamma_wormhole_shaft_5, size: 47.2, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0.067, 0.448]}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_6, at: gamma_wormhole_shaft_6, size: 52, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0.059, 0.394]}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_7, at: gamma_wormhole_shaft_7, size: 56.8, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0.051, 0.342]}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_8, at: gamma_wormhole_shaft_8, size: 61.6, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0.044, 0.293]}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_9, at: gamma_wormhole_shaft_9, size: 66.4, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0.037, 0.247]}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_10, at: gamma_wormhole_shaft_10, size: 71.2, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0.031, 0.204]}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_11, at: gamma_wormhole_shaft_11, size: 76, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0.025, 0.165]}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_12, at: gamma_wormhole_shaft_12, size: 80.8, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0.019, 0.13]}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_13, at: gamma_wormhole_shaft_13, size: 85.6, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0.015, 0.098]}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_14, at: gamma_wormhole_shaft_14, size: 90.4, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0.011, 0.072]}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_15, at: gamma_wormhole_shaft_15, size: 95.2, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0.008, 0.051]}, look: realistic}
+          - {type: glow, id: gamma_wormhole_light_16, at: gamma_wormhole_shaft_16, size: 100, color: var(--lcards-moonlight), opacity: {entity: input_number.lcards_test_power, output: [0.006, 0.04]}, look: realistic}
+          - {type: nebula, id: gamma_wormhole_wisps, at: gamma_mouth, radius: 72, count: 6, seed: 7, drift: 0.6, brightness: [0.15, 0.35], colors: [var(--lcards-orange-medium), var(--lcars-red)], opacity: {entity: input_number.lcards_test_power, output: [0.1, 1]}, look: realistic}
+          - {type: nebula, id: gamma_wormhole_wisps_out, at: gamma_wormhole_haze, radius: 27, count: 3, seed: 3, drift: 1, brightness: [0.1, 0.25], colors: [var(--lcards-yellow-lightest), var(--lcards-orange-light)], opacity: {entity: input_number.lcards_test_power, output: [0, 1]}, look: realistic}
           - {type: path, id: gamma_wormhole_throat_tube, points: [gamma_mouth, gamma_wormhole_throat], color: var(--lcars-blue), width: 8, line_look: tube, glow: 3, pulse: true, dash: {speed: 30}}
     camera:
       view:
@@ -1398,12 +1522,16 @@ cards:
           - jupiter
           - saturn
           - pluto
+          - entity
+          - nexus
           - bajor_system
           - ds9
           - wormhole
           - nebula
+          - badlands
           - cube
           - gamma
+          - delta_badlands
       fly_duration: 5000
       buttons: true
       views:
@@ -1506,6 +1634,26 @@ cards:
           yaw: 20
           tilt: 10
           distance: 12
+        entity:
+          target: entity_view
+          yaw: 0
+          tilt: 5
+          distance: 5
+        nexus:
+          target: nexus_heart
+          yaw: 8
+          tilt: 10
+          distance: 2
+        badlands:
+          target: badlands_heart
+          yaw: 210
+          tilt: 3
+          distance: 2.2
+        delta_badlands:
+          target: delta_badlands_heart
+          yaw: 200
+          tilt: 4
+          distance: 3.2
       warp:
         entity: input_boolean.lcards_test_warp_travel
     backdrop:
@@ -1553,7 +1701,7 @@ cards:
     layout:
       grid-gap: 8px 12px
       grid-template-columns: repeat(12, minmax(0, 1fr))
-      grid-template-rows: 26px minmax(0, 1fr) minmax(0, 1fr) 26px minmax(0, 1fr)
+      grid-template-rows: 26px minmax(0, 1fr) minmax(0, 1fr) 26px minmax(0, 1fr) 26px minmax(0, 1fr)
     cards:
       - type: custom:lcards-button
         preset: bar-label-left
@@ -1683,7 +1831,7 @@ cards:
         text:
           label: {content: RED ALERT}
         view_layout:
-          grid-column: span 3
+          grid-column: span 4
       - type: custom:lcards-button
         preset: bar-label-left
         interactive: false
@@ -1692,7 +1840,40 @@ cards:
         text:
           label: {content: LOOK}
         view_layout:
-          grid-column: span 3
+          grid-column: span 4
+      - type: custom:lcards-button
+        preset: bar-label-left
+        interactive: false
+        height: 26
+        min_height: 0
+        text:
+          label: {content: CRYSTAL}
+        view_layout:
+          grid-column: span 4
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_mode
+        preset: toggle-tab
+        grid:
+          columns: 3
+        min_height: 0
+        view_layout:
+          grid-column: span 4
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_look
+        preset: toggle-tab
+        grid:
+          columns: 3
+        min_height: 0
+        view_layout:
+          grid-column: span 4
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_color
+        preset: toggle-tab
+        grid:
+          columns: 3
+        min_height: 0
+        view_layout:
+          grid-column: span 4
       - type: custom:lcards-button
         preset: bar-label-left
         interactive: false
@@ -1701,7 +1882,7 @@ cards:
         text:
           label: {content: WARP}
         view_layout:
-          grid-column: span 3
+          grid-column: span 6
       - type: custom:lcards-button
         preset: bar-label-left
         interactive: false
@@ -1710,23 +1891,7 @@ cards:
         text:
           label: {content: SCENE CLOCK}
         view_layout:
-          grid-column: span 3
-      - type: custom:lcards-select-menu
-        entity: input_select.lcards_test_mode
-        preset: toggle-tab
-        grid:
-          columns: 3
-        min_height: 0
-        view_layout:
-          grid-column: span 3
-      - type: custom:lcards-select-menu
-        entity: input_select.lcards_test_look
-        preset: toggle-tab
-        grid:
-          columns: 3
-        min_height: 0
-        view_layout:
-          grid-column: span 3
+          grid-column: span 6
       - type: custom:lcards-button
         preset: lozenge
         entity: input_boolean.lcards_test_warp
@@ -1736,7 +1901,7 @@ cards:
           action: toggle
         min_height: 0
         view_layout:
-          grid-column: span 1
+          grid-column: span 2
       - type: custom:lcards-slider
         entity: input_number.lcards_test_warp_factor
         preset: shaped-horizontal
@@ -1747,7 +1912,7 @@ cards:
           shaped: {text_bands: {left: {size: 70}}}
         min_height: 0
         view_layout:
-          grid-column: span 2
+          grid-column: span 4
       - type: custom:lcards-button
         preset: lozenge
         entity: input_datetime.lcards_test_date
@@ -1757,7 +1922,7 @@ cards:
           action: more-info
         min_height: 0
         view_layout:
-          grid-column: span 2
+          grid-column: span 4
       - type: custom:lcards-button
         preset: lozenge
         text:
@@ -1768,7 +1933,7 @@ cards:
           date: now
         min_height: 0
         view_layout:
-          grid-column: span 1
+          grid-column: span 2
   - type: custom:lcards-layout-card
     view_layout:
       grid-area: foot

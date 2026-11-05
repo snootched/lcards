@@ -1092,7 +1092,9 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             return;
         }
         if (b.live) {
-            this._scene.setLive([{ id: b.id, key: path, value: typeof value === 'number' ? value : null, smooth: b.smooth }]);
+            // a live colour goes as its colour string (the object crossfades to it)
+            const v = b.kind === 'color' ? (typeof value === 'string' && value ? value : null) : typeof value === 'number' ? value : null;
+            this._scene.setLive([{ id: b.id, key: path, value: v, smooth: b.smooth }]);
             // a size scales against the size the object was built at: built before the first value, it has
             // none, so the first value also rebuilds it at that size
             const sized = path === 'radius' || path === 'size';

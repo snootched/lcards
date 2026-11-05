@@ -317,7 +317,7 @@ warp_factor: { entity: input_number.warp_factor, output: [1, 9.9] }
 
 ### The Badlands: layers, columns and lightning
 
-The Badlands, the plasma storms of Deep Space Nine and Voyager, start from a preset: `preset: badlands` (Deep Space Nine: liquid fire in yellow, orange and red, an orange band glowing between the sheets, fire columns thick and thin) or `preset: badlands_voyager` (peach and mauve layers, held pink lightning columns, strikes that light the gas). Every key you set wins over the preset's; in `band`, `columns` and `lightning` key by key, so `columns: { count: 3 }` keeps the preset's kind and colour. Fly the camera into the gap.
+The Badlands, the plasma storms of Deep Space Nine and Voyager, start from a preset: `preset: badlands` (Deep Space Nine: liquid fire in yellow, orange and red, an orange band glowing between the sheets, fire columns thick and thin) or `preset: badlands_voyager` (peach and mauve layers, held pink lightning columns, strikes that light the gas). Every key you set wins over the preset's; in `band`, `columns` and `lightning` key by key, so `columns: { count: 3 }` keeps the preset's kind and colour. The preset's box is 500 across; with a `size` (or `radius`) of your own, its `drift` scales with it, so the gas churns as fast for its size (a drift you set stays as you wrote it). Fly the camera into the gap.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -385,7 +385,7 @@ A [lightning object](./objects#lightning) striking inside any volume nebula ligh
 
 ### The Nexus: a ribbon and its wake
 
-The Nexus, the ribbon of energy in Star Trek Generations, starts from `preset: nexus`: a white-hot ribbon waving across a `size: [2000, 500, 500]` box, a wake of pink and red gas streaming out behind it, and small discharges crawling off it and lighting the gas. Every key you set wins over the preset's; in `ribbon`, `wake` and `lightning` key by key.
+The Nexus, the ribbon of energy in Star Trek Generations, starts from `preset: nexus`: a white-hot ribbon waving across a `size: [2000, 500, 500]` box, a wake of pink and red gas streaming out behind it, and small discharges crawling off it and lighting the gas. Every key you set wins over the preset's; in `ribbon`, `wake` and `lightning` key by key. With a `size` of your own, the ribbon's `speed` scales with its length, so the waves run as fast for its size (a speed you set stays as you wrote it).
 
 ```yaml live
 type: custom:lcards-astrometrics-card

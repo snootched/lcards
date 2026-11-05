@@ -182,7 +182,7 @@ const KEY_COMMANDS = {
  * @property {(on: boolean | null) => void} setFlightWarp - camera.warp from an entity: fly-tos streak (true) or not; null as configured
  * @property {(level: number, factor: number) => void} setCruise - at warp (warp-drive.js): the backdrop stars and dust stream along the view, `level` 0 to 1 of the way to the warp factor
  * @property {(look: any) => boolean} setLook - diagram, realistic or mixed (looks.js): crossfade to it; false when it names none
- * @property {(list: { id: string, key: string, value: number | null, smooth?: number }[]) => void} setLive - settings that follow
+ * @property {(list: { id: string, key: string, value: number | string | null, smooth?: number }[]) => void} setLive - settings that follow
  *   entities and change in place (opacity, radius, size, spin of an object; '' time_scale): ease to the value over smooth ms; null lets go
  * @property {() => void} requestFrame
  * @property {() => void} recolor - re-resolve theme colours (theme or alert change)
@@ -1842,14 +1842,20 @@ export function createAstroScene(host, config, options = {}) {
    * Settings that follow entities and change in place: each eases from where
    * it is to its new value over `smooth` ms (the first value lands at once).
    * `id` '' with `time_scale` is the card's. A null value lets go (the
-   * config's value again).
-   * @param {{ id: string, key: string, value: number | null, smooth?: number }[]} list
+   * config's value again). A string (a live colour) goes to the object as
+   * it is: the object eases to it itself.
+   * @param {{ id: string, key: string, value: number | string | null, smooth?: number }[]} list
    */
   function setLive(list) {
     const t = performance.now();
     for (const { id, key, value, smooth = 0 } of list ?? []) {
       const k = `${id}\u0000${key}`;
       const cur = live.get(k);
+      // a colour: the object takes (and eases to) it itself
+      if (typeof value === 'string') {
+        world?.objects.get(id)?.liveColor?.(key, value);
+        continue;
+      }
       if (value === null || !Number.isFinite(value)) {
         live.delete(k);
         resetLive(id, key);
@@ -1937,7 +1943,7 @@ export function createAstroScene(host, config, options = {}) {
     const b = world?.objects.get(id);
     if (key === 'opacity') liveAlpha.delete(id);
     if (!b) return;
-    if (b.live?.(key, null)) return;
+    if (b.live?.(key, null) || b.liveColor?.(key, null)) return;
     if (key === 'spin') b.spin = num(b.config.spin, 0);
     else if (key === 'radius' || key === 'size') b.node.scale.setScalar(1);
   }

@@ -5,7 +5,7 @@
 # "# uses: automation.<id>".
 script:
   # The astrometrics showcase's guided tour: step the stage every 12 seconds
-  # through the 14 stops, then back to the start.
+  # through the 18 stops, then back to the start.
   lcards_test_tour:
     alias: LCARdS Test Tour
     mode: restart
@@ -14,7 +14,7 @@ script:
         target: { entity_id: input_number.lcards_test_stage }
         data: { value: 0 }
       - repeat:
-          count: 13
+          count: 17
           sequence:
             - delay: { seconds: 12 }
             - action: input_number.increment

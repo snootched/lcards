@@ -103,9 +103,11 @@ function makeBinding(scope, id, path, v, kind = 'number', type = '') {
   const joined = path.join('.');
   if (kind === 'number' && scope !== 'card' && WHOLE_NUMBER_KEYS.includes(/** @type {any} */ (key))) kind = 'whole';
   const own = scope === 'object' ? LIVE_TYPE_KEYS[type] : undefined;
-  const live = kind !== 'color' && ((scope === 'object' && path.length === 1 && LIVE_OBJECT_KEYS.includes(/** @type {any} */ (key)))
-    || !!own?.keys.includes(joined)
-    || (scope === 'card' && (joined === 'time_scale' || joined === 'clock.rate')));
+  // colours rebuild their object, unless its type takes that colour in place (names.js LIVE_TYPE_KEYS)
+  const live = kind === 'color' ? !!own?.keys.includes(joined)
+    : ((scope === 'object' && path.length === 1 && LIVE_OBJECT_KEYS.includes(/** @type {any} */ (key)))
+      || !!own?.keys.includes(joined)
+      || (scope === 'card' && (joined === 'time_scale' || joined === 'clock.rate')));
   const cap = live ? own?.most?.[joined] : undefined;
   if (isBinding(v)) {
     const smooth = Number(v.smooth);

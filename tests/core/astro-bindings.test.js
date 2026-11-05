@@ -186,6 +186,14 @@ test('per-type live keys (LIVE_TYPE_KEYS): a belt\'s thickness and count ease; c
   assert.equal(by['object:belt:count'].most, 2401, 'the top of output, up');
   assert.equal(by['object:tpl:count'].most, LIVE_TYPE_KEYS.belt.most?.count, 'a template: the most a belt draws');
   assert.equal(by['object:g:thickness'].live, false, 'not a galaxy\'s');
+  // a colour is live only where the type takes it in place (the crystal); elsewhere it rebuilds
+  const colours = Object.fromEntries(collectBindings({ objects: [
+    { type: 'crystalline', id: 'c', color: { entity: 'input_select.c' } },
+    { type: 'glow', id: 'gl', color: { entity: 'input_select.c' } }
+  ] }).map((b) => [bindingKey(b), b]));
+  assert.equal(colours['object:c:color'].kind, 'color');
+  assert.equal(colours['object:c:color'].live, true);
+  assert.equal(colours['object:gl:color'].live, false);
   const built = settingConfig(config, list, new Map([['object:belt:count', 300]])).objects[0];
   assert.equal(built.count, 300);
   assert.deepEqual(built._most, { count: 2401 });

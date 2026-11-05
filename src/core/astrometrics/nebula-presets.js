@@ -76,5 +76,32 @@ export function withNebulaPreset(cfg) {
   }
   // the size in the preset is a box: a radius of your own replaces it
   if (cfg.radius !== undefined && cfg.size === undefined) delete out.size;
+  // the preset's speeds are scene units a second for its own box: at a size of your own they scale
+  // with it, so the gas churns and the ribbon's waves run as fast for its size (a Badlands 10 ly across
+  // would otherwise churn 50 times as fast); speeds of your own stay as written
+  const k = sizeRatio(cfg, preset);
+  if (k !== 1) {
+    if (cfg.drift === undefined && preset.drift !== undefined) out.drift = scaleSpeed(preset.drift, k);
+    const rib = out.ribbon;
+    const ownSpeed = cfg.ribbon && typeof cfg.ribbon === 'object' && cfg.ribbon.speed !== undefined;
+    if (rib && typeof rib === 'object' && !ownSpeed && typeof rib.speed === 'number') out.ribbon = { ...rib, speed: scaleSpeed(rib.speed, k) };
+  }
   return out;
 }
+
+/**
+ * How many times the preset's box across (x) a config's own size or radius
+ * is; 1 with neither, or one that is not plain numbers (a binding).
+ * @param {any} cfg @param {Record<string, any>} preset
+ */
+function sizeRatio(cfg, preset) {
+  const base = Array.isArray(preset.size) ? preset.size[0] : Number(preset.size);
+  /** @type {number} */
+  let across = NaN;
+  if (cfg.size !== undefined) across = Array.isArray(cfg.size) ? Number(cfg.size[0]) : typeof cfg.size === 'number' ? cfg.size : NaN;
+  else if (typeof cfg.radius === 'number') across = 2 * cfg.radius;
+  return Number.isFinite(across) && across > 0 && base > 0 ? across / base : 1;
+}
+
+/** A speed (or [x, y]) times k, to 4 significant figures @param {any} v @param {number} k */
+const scaleSpeed = (v, k) => (Array.isArray(v) ? v.map((x) => scaleSpeed(x, k)) : typeof v === 'number' ? Number((v * k).toPrecision(4)) : v);

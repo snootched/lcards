@@ -396,6 +396,9 @@ void main() {
   gl_FragColor = vec4( uCore, uOpacity );
 }`;
 
+/** How long a new colour (a live colour) takes to crossfade in, ms */
+const FADE_MS = 800;
+
 /**
  * @param {number[]} c - rgba
  */
@@ -497,8 +500,34 @@ export function buildCrystalline(cfg, ctx) {
     geometry.setDrawRange(0, levelEnds[Math.min(level, levelEnds.length - 1)] * vertsPerShard);
   };
 
-  // glow and opacity follow an entity in place (names.js LIVE_TYPE_KEYS)
+  // glow, opacity and the colour follow an entity in place (names.js LIVE_TYPE_KEYS); a new colour
+  // crossfades the body and its edges over FADE_MS (no rebuild)
   const baseGlow = glow.value;
+  /** @type {{ from: Color[], to: Color[], start: number | null } | null} */
+  let fade = null;
+  let tinted = false;
+  /** @param {number[]} b - the body colour @returns {Color[]} body, edge */
+  const tints = (b) => [rgb(b), rgb([...[0, 1, 2].map((k) => b[k] + (coreC[k] - b[k]) * 0.75), 1])];
+  out.liveColor = (key, value) => {
+    if (key === 'color') {
+      const next = typeof value === 'string' ? ctx.color(value, DEFAULT_CRYSTAL_COLOR) : body;
+      const to = tints(next);
+      // the first colour (a new scene gets every value again) and under reduced motion (no ticks run): at once
+      const first = !tinted;
+      tinted = true;
+      if (first || globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) {
+        mat.uniforms.uColor.value.copy(to[0]);
+        mat.uniforms.uEdge.value.copy(to[1]);
+        fade = null;
+      } else {
+        fade = { from: [mat.uniforms.uColor.value.clone(), mat.uniforms.uEdge.value.clone()], to, start: null };
+        // a still crystal (no pulse) ticks only while it fades
+        out.tick = tick;
+      }
+      return true;
+    }
+    return false;
+  };
   out.live = (key, value) => {
     if (key === 'glow') glow.value = value === null ? baseGlow : Math.min(1, Math.max(0, value));
     else if (key === 'opacity') {
@@ -509,9 +538,24 @@ export function buildCrystalline(cfg, ctx) {
   };
 
   const period = Math.max(0, num(core.period, 6));
-  out.tick = period > 0 ? (/** @type {number} */ _dt, /** @type {number} */ t) => {
-    pulse.value = 0.85 + 0.2 * Math.sin((2 * Math.PI * t) / (period * 1000));
-    return true;
-  } : null;
+  /** @param {number} _dt @param {number} t */
+  function tick(_dt, t) {
+    if (period > 0) pulse.value = 0.85 + 0.2 * Math.sin((2 * Math.PI * t) / (period * 1000));
+    if (fade) {
+      // wall time: the fade runs while the scene's clock is held (time_scale 0)
+      const now = performance.now();
+      if (fade.start === null) fade.start = now;
+      const k = Math.min(1, (now - fade.start) / FADE_MS);
+      const e = k * k * (3 - 2 * k);
+      mat.uniforms.uColor.value.lerpColors(fade.from[0], fade.to[0], e);
+      mat.uniforms.uEdge.value.lerpColors(fade.from[1], fade.to[1], e);
+      if (k >= 1) {
+        fade = null;
+        if (period <= 0) out.tick = null;
+      }
+    }
+    return period > 0 || !!fade;
+  }
+  out.tick = period > 0 ? tick : null;
   return out;
 }

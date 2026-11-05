@@ -103,6 +103,24 @@ test('the camera\'s frame: inside ENTER times a system\'s radius, out past LEAVE
   assert.equal(f.pick([100 * LEAVE * 1.1, 0, 0]), ROOT);
 });
 
+test('the camera\'s frame: of two systems whose reaches overlap, the one it is nearest for its size, whatever their order', () => {
+  // a big system (10 scene units across) 16 units from a small one (the showcase: a Badlands in ly by Bajor in km)
+  const f = new Frames();
+  const big = f.add('big', ROOT, 1);
+  big.radius = 7;
+  const small = f.add('small', ROOT, 1e-6);
+  small.origin = [16, 0, 0];
+  small.radius = 2.4e5; // own units: 0.24 scene units
+  // well inside the small one (and inside the big one's reach, 4 x 7 = 28)
+  assert.equal(f.pick([16.1, 0, 0]), 'small');
+  // near the big one, still inside the small one's reach only for the big one's sake: the big one
+  assert.equal(f.pick([3, 0, 0]), 'big');
+  // in the small one, held there (LEAVE) while still nearer it for its size
+  f.current = 'small';
+  f.place();
+  assert.equal(f.pick([1e5, 0, 0]), 'small');
+});
+
 test('a system builds in its units: points exact in its frame, objects in its group, its radius from its contents', () => {
   const w = buildScene(DIVE, /** @type {any} */ (ctx()));
   const f = w.frames;

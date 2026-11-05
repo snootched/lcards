@@ -146,26 +146,33 @@ export class Frames {
 
   /**
    * The frame the camera should work in: the deepest system it is inside
-   * (ENTER times the radius to come in, LEAVE to stay).
+   * (ENTER times the radius to come in, LEAVE to stay). Of systems as deep
+   * whose reaches overlap (a big one beside a small one), the one it is
+   * nearest for its reach, whatever their order.
    * @param {number[]} camera - its position, current frame
    * @returns {string}
    */
   pick(camera) {
     const inChain = new Set(this.chain(this.current).map((f) => f.id));
-    /** @param {Frame} f */
-    const inside = (f) => {
-      if (f.parent === null) return true;
-      if (!(f.radius > 0)) return false;
+    /** How far in the camera is, over the frame's reach: under 1 inside @param {Frame} f */
+    const depthIn = (f) => {
+      if (f.parent === null) return 0;
+      if (!(f.radius > 0)) return Infinity;
       const p = this.convert(camera, this.current, f.id);
-      return Math.hypot(p[0], p[1], p[2]) < f.radius * (inChain.has(f.id) ? LEAVE : ENTER);
+      return Math.hypot(p[0], p[1], p[2]) / (f.radius * (inChain.has(f.id) ? LEAVE : ENTER));
     };
     let best = ROOT;
     let depth = 0;
+    let near = Infinity;
     for (const f of this.frames.values()) {
       const chain = this.chain(f.id);
-      if (chain.length - 1 > depth && chain.every(inside)) {
+      const d = chain.length - 1;
+      if (d < depth || !chain.every((x) => depthIn(x) < 1)) continue;
+      const n = depthIn(f);
+      if (d > depth || n < near) {
         best = f.id;
-        depth = chain.length - 1;
+        depth = d;
+        near = n;
       }
     }
     return best;
