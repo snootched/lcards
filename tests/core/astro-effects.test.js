@@ -824,7 +824,7 @@ test('NB2c schema: layers keys, band, columns, a nebula\'s own lightning, preset
   assert.deepEqual(neb({ preset: 'badlands_voyager', columns: { count: 3 }, band: false, lightning: true }), []);
   assert.deepEqual(neb({ render: 'volume', shape: 'layers', gap: 0.4, veins: 0.8, band: { brightness: 1.5, width: 0.1, color: 'var(--lcars-orange)' }, columns: { count: 6, kind: 'vortex', waist: 0.4, width: [1, 3], color: 'var(--lcars-violet)' } }), []);
   assert.deepEqual(neb({ render: 'volume', lightning: { rate: 2, color: 'var(--lcards-moonlight)', glow: { color: 'var(--lcars-lavender)', width: 4 }, branches: 4, seed: 2 } }), []);
-  assert.ok(neb({ preset: 'nexus' }).length > 0);
+  assert.ok(neb({ preset: 'nexus_prime' }).length > 0);
   assert.ok(neb({ columns: { kind: 'smoke' } }).length > 0);
   assert.ok(neb({ columns: { waist: 2 } }).length > 0);
   assert.ok(neb({ gap: 1.5 }).length > 0);
@@ -844,7 +844,7 @@ test('NB2c presets: names in step, merged under the config\'s keys, parts key by
   for (const p of NEBULA_PRESETS) {
     const c = withNebulaPreset({ type: 'nebula', preset: p });
     assert.equal(c.render, 'volume', p);
-    assert.equal(c.shape, 'layers', p);
+    assert.equal(c.shape, p === 'nexus' ? 'wake' : 'layers', p);
   }
   const plain = { type: 'nebula', radius: 40 };
   assert.equal(withNebulaPreset(plain), plain, 'no preset: the config as it is');
@@ -856,4 +856,45 @@ test('NB2c presets: names in step, merged under the config\'s keys, parts key by
   const r = withNebulaPreset({ type: 'nebula', preset: 'badlands', radius: 80 });
   assert.equal(r.size, undefined, 'a radius of your own replaces the preset\'s box');
   assert.equal(r.radius, 80);
+});
+
+test('NB3 schema: shape wake, the ribbon, the wake, crawling lightning, preset nexus', async () => {
+  const { CoreValidationService } = await import('../../src/core/validation-service/index.js');
+  const { astrometricsSchema } = await import('../../src/cards/schemas/astrometrics-schema.js');
+  const v = new CoreValidationService({ cacheResults: false });
+  const neb = (o) => { const r = v.validate({ type: 'custom:lcards-astrometrics-card', objects: [{ type: 'nebula', ...o }] }, astrometricsSchema); return [...r.errors, ...r.warnings]; };
+  assert.deepEqual(neb({ preset: 'nexus' }), []);
+  assert.deepEqual(neb({ render: 'volume', shape: 'wake', size: [2000, 500, 500], ribbon: { waves: 3, amplitude: 0.3, speed: -20, width: 4, color: 'var(--lcards-moonlight)', glow: { color: 'var(--lcars-violet-creme)', width: 6 } }, wake: { side: 'down', lean: -0.4 }, lightning: { mode: 'crawl', count: 12, reach: 0.2, speed: 0.5, color: 'var(--lcards-moonlight)' } }), []);
+  assert.deepEqual(neb({ preset: 'nexus', ribbon: false, lightning: false }), []);
+  assert.deepEqual(neb({ preset: 'nexus', ribbon: { speed: { entity: 'input_number.x', input: [0, 100], output: [0, 120] } } }), []);
+  assert.ok(neb({ wake: { side: 'back' } }).length > 0);
+  assert.ok(neb({ wake: { lean: 2 } }).length > 0);
+  assert.ok(neb({ ribbon: { amplitude: 0.9 } }).length > 0);
+  assert.ok(neb({ lightning: { mode: 'column' } }).length > 0, 'a nebula\'s own lightning strikes or crawls');
+});
+
+test('NB3 presets: nexus is a wake with a moving ribbon and crawling discharges; parts merge key by key', async () => {
+  const { withNebulaPreset, NEBULA_PRESET_CONFIGS } = await import('../../src/core/astrometrics/nebula-presets.js');
+  const c = withNebulaPreset({ type: 'nebula', preset: 'nexus', ribbon: { speed: 0 }, wake: { side: 'down' }, lightning: { count: 3 } });
+  assert.equal(c.shape, 'wake');
+  assert.deepEqual(c.ribbon, { ...NEBULA_PRESET_CONFIGS.nexus.ribbon, speed: 0 });
+  assert.deepEqual(c.wake, { ...NEBULA_PRESET_CONFIGS.nexus.wake, side: 'down' });
+  assert.equal(c.lightning.mode, 'crawl');
+  assert.equal(c.lightning.count, 3);
+});
+
+test('NB3 ribbon curve: waves round the base, in range, moving with the phase', async () => {
+  const { ribbonAt } = await import('../../src/core/astrometrics/effects/nebula-volume.js');
+  const r = { waves: 2.5, ay: 0.2, az: 0.12, phase: 0, base: -0.55 };
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i <= 200; i++) {
+    const [y, z] = ribbonAt(-1 + i / 100, r);
+    lo = Math.min(lo, y); hi = Math.max(hi, y);
+    assert.ok(Math.abs(z) <= r.az + 1e-9);
+  }
+  // the harmonic is scaled in: never past the amplitude either side of the base
+  assert.ok(lo >= r.base - r.ay - 1e-9 && hi <= r.base + r.ay + 1e-9, `${lo} ${hi}`);
+  assert.ok(hi - lo > r.ay, 'it really waves');
+  assert.notDeepEqual(ribbonAt(0.3, r), ribbonAt(0.3, { ...r, phase: 1 }));
+  assert.deepEqual(ribbonAt(0.3, { ...r, ay: 0, az: 0 }), [r.base, 0]);
 });

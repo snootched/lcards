@@ -433,6 +433,19 @@ export function astrometricsIssues(node) {
           if (o[k] !== undefined && o[k] !== false) warn(`${at}.${k}`, `${k} applies only with shape: layers`);
         }
       }
+      // the wake's parts
+      if (n.render === 'volume' && n.shape !== 'wake') {
+        for (const k of ['ribbon', 'wake']) {
+          if (o[k] !== undefined && o[k] !== false) warn(`${at}.${k}`, `${k} applies only with shape: wake`);
+        }
+      }
+      const lt = n.lightning && typeof n.lightning === 'object' ? n.lightning : null;
+      if (lt && o.lightning && typeof o.lightning === 'object') {
+        const lmode = lt.mode ?? 'strike';
+        if (lmode === 'crawl' && n.shape !== 'wake') warn(`${at}.lightning.mode`, 'crawl runs along the ribbon of shape: wake (this nebula has none; it strikes instead)');
+        for (const k of ['count', 'reach', 'speed']) if (o.lightning[k] !== undefined && lmode !== 'crawl') warn(`${at}.lightning.${k}`, `${k} is for mode: crawl (strikes come one at a time, timed by rate and flash)`);
+        for (const k of ['rate', 'flash']) if (o.lightning[k] !== undefined && lmode === 'crawl') warn(`${at}.lightning.${k}`, `${k} times strikes (mode: crawl keeps its discharges going)`);
+      }
       const cols = n.columns && typeof n.columns === 'object' ? n.columns : null;
       const kind = cols?.kind ?? 'fire';
       if (cols && o.columns && typeof o.columns === 'object') {

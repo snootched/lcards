@@ -102,6 +102,8 @@ function nebulaLook(shape) {
     case 'cavity': return { colors: ['var(--lcards-orange-dark)', 'var(--lcards-yellow-medium)'], core: { color: 'var(--lcards-blue-lightest)' } };
     // a slab: floor and ceiling across a box, the band between
     case 'layers': return { size: [110, 40, 110], colors: ['var(--lcards-yellow-medium)', 'var(--lcards-orange-medium)', 'var(--lcards-orange-dark)'], veins: 0.8, band: { color: 'var(--lcards-orange-medium)', brightness: 1.5 } };
+    // a ribbon across a long box, the wake trailing up
+    case 'wake': return { size: [140, 50, 50], colors: ['var(--lcards-orange-lightest)', 'var(--lcards-orange-dark)', 'var(--lcards-gray-dark)'], ribbon: { width: 3, color: 'var(--lcards-moonlight)', glow: { color: 'var(--lcards-orange-lightest)' } } };
     default: return { colors: ['var(--lcards-blue-medium)', 'var(--lcards-orange-medium)'] };
   }
 }

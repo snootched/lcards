@@ -8,7 +8,7 @@
  */
 
 /** The parts a preset sets as objects: the config's own keys merge into them one level deep */
-const PARTS = ['band', 'columns', 'lightning', 'core', 'dust'];
+const PARTS = ['band', 'columns', 'lightning', 'core', 'dust', 'ribbon', 'wake'];
 
 /** @type {Record<string, Record<string, any>>} */
 export const NEBULA_PRESET_CONFIGS = {
@@ -38,6 +38,19 @@ export const NEBULA_PRESET_CONFIGS = {
     band: { brightness: 1, color: 'var(--lcars-butter, var(--lcards-yellow-lightest))' },
     columns: { count: 7, kind: 'lightning', speed: 0.6, color: 'var(--lcars-roseblush, var(--lcards-orange-lightest))', glow: { color: 'var(--lcars-magenta, var(--lcards-orange-medium))' } },
     lightning: { rate: 0.8, branches: 3, color: 'var(--lcars-space-white, var(--lcards-moonlight))', glow: { color: 'var(--lcars-magenta, var(--lcards-orange-medium))' } }
+  },
+  // The Nexus (Generations): a white-hot ribbon, a wake of pink and red gas trailing it
+  nexus: {
+    render: 'volume',
+    shape: 'wake',
+    size: [2000, 500, 500],
+    count: 8,
+    colors: ['var(--lcars-roseblush, var(--lcards-orange-lightest))', 'var(--lcars-red, var(--lcards-orange-dark))', 'var(--lcars-black-cherry, var(--lcards-gray-dark))'],
+    seed: 2,
+    turbulence: 0.55,
+    wake: { lean: 0.35 },
+    ribbon: { waves: 2.5, amplitude: 0.2, speed: 40, width: 4, color: 'var(--lcars-space-white, var(--lcards-moonlight))', glow: { color: 'var(--lcars-violet-creme, var(--lcards-moonlight))' } },
+    lightning: { mode: 'crawl', count: 18, reach: 0.18, width: 1.4, color: 'var(--lcars-space-white, var(--lcards-moonlight))', glow: { color: 'var(--lcars-lavender, var(--lcards-blue-light))' } }
   }
 };
 

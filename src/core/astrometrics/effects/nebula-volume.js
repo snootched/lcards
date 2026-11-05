@@ -35,6 +35,7 @@ import { noiseTexture } from './noise3-texture.js';
 import { SOLID_DEPTH_GLSL, solidUniforms, solidDepth, useSolidDepth, disposeSolidDepth } from './solid-depth.js';
 import { built, num, pair, sub, isOn, DEFAULT_COLORS } from '../objects/common.js';
 import { buildLightning, MAX_LIGHTS } from '../objects/lightning.js';
+import { FatLine } from '../lines.js';
 import { NEBULA_SHAPES } from '../names.js';
 
 /** Samples along each ray */
@@ -74,6 +75,20 @@ export function edgeFalloff(q, ball) {
   };
   if (ball) return ss(0, 0.3, 1 - Math.hypot(q[0], q[1], q[2]));
   return ss(0, 0.45, 1 - Math.pow(q[0] ** 4 + q[1] ** 4 + q[2] ** 4, 0.25));
+}
+
+/**
+ * The ribbon's curve (`shape: wake`, the Nexus) at x (-1 to 1 of the half
+ * length): its y and z over the half size, as the shader's ribbonAt.
+ * @param {number} x
+ * @param {{ waves: number, ay: number, az: number, phase: number, base: number }} r
+ * @returns {[number, number]}
+ */
+export function ribbonAt(x, r) {
+  const a = Math.PI * r.waves * (x + 1);
+  const y = r.base + (r.ay * (Math.sin(a + r.phase) + 0.3 * Math.sin(2.3 * a + 1.7 + r.phase * 1.3))) / 1.3;
+  const z = r.az * Math.sin(0.7 * a + 0.9 + r.phase * 0.8);
+  return [y, z];
 }
 
 /** Gas clouds and dust clouds the shader takes (nebula.js MAX_CLOUDS + MAX_DUST) */
@@ -147,6 +162,12 @@ uniform vec4 uLights[ 4 ];
 uniform vec4 uLightColor[ 4 ];
 uniform int uLightCount;
 uniform float uVeins;
+// wake (the Nexus): the ribbon's curve (waves along x, amplitude in y and z of the half size, phase)
+// and the wake (the ribbon's height, side +1 up / -1 down, how far it leans back along x going out); the ribbon's glow colour
+uniform vec4 uRibbon;
+uniform vec3 uWake;
+uniform vec3 uRibbonGlow;
+uniform vec3 uRibbonCore;
 
 vec2 enterLeave( vec3 ro, vec3 rd ) {
   if ( uBall > 0.5 ) {
@@ -196,6 +217,9 @@ const vec3 STREAK = vec3( 0.3, 1.0, 1.0 );
 #elif SHAPE == 5
 // layers: long rolling streaks along x, flatter in y
 const vec3 STREAK = vec3( 0.25, 1.6, 0.6 );
+#elif SHAPE == 6
+// wake: streaked out from the ribbon (the direction it streams)
+const vec3 STREAK = vec3( 0.9, 0.45, 0.9 );
 #else
 const vec3 STREAK = vec3( 1.0 );
 #endif
@@ -308,6 +332,38 @@ float splash( vec3 p, vec3 q ) {
   return b;
 }
 
+#endif
+
+#if SHAPE == 6
+// the ribbon's curve across the region's length (x: -1 to 1 of the half size): its y and z there
+vec2 ribbonAt( float x ) {
+  float a = 3.14159265 * uRibbon.x * ( x + 1.0 );
+  float y = uWake.x + uRibbon.y * ( sin( a + uRibbon.w ) + 0.3 * sin( 2.3 * a + 1.7 + uRibbon.w * 1.3 ) ) / 1.3;
+  float z = uRibbon.z * sin( 0.7 * a + 0.9 + uRibbon.w * 0.8 );
+  return vec2( y, z );
+}
+// the wake: a sheet of gas trailing the ribbon on one side, thickening and thinning out away
+// from it. x: the field; y: how far out (0 at the ribbon, 1 at the far edge); z: near the ribbon
+vec3 wakeField( vec3 q ) {
+  q.y *= uWake.y;
+  // leaning: further out, the gas comes from further along the ribbon (a fan trailing to one side)
+  q.x += uWake.z * max( q.y - uWake.x, 0.0 );
+  vec2 c = ribbonAt( q.x );
+  float dy = q.y - c.x;
+  float dz = q.z - c.y;
+  float slope = ( ribbonAt( q.x + 0.01 ).x - ribbonAt( q.x - 0.01 ).x ) / 0.02 * uHalf.y / uHalf.x;
+  float u = dy / max( 1.0 - c.x, 0.1 );
+  float th = 0.1 + 0.5 * clamp( u, 0.0, 1.0 );
+  float across = exp( -pow( dz / th, 2.0 ) );
+  float fall = u >= 0.0 ? exp( -2.4 * u ) * ( 1.0 - smoothstep( 0.4, 0.9, u ) ) : exp( -pow( u / 0.05, 2.0 ) );
+  // true distance to the ribbon (the curve leans where it waves), of the half height
+  float dc = length( vec2( dy * uHalf.y / sqrt( 1.0 + slope * slope ), dz * uHalf.z ) ) / uHalf.y;
+  float near = exp( -pow( dc / 0.14, 2.0 ) );
+  return vec3( across * fall, clamp( u, 0.0, 1.0 ), near );
+}
+#endif
+
+#if SHAPE == 5 || SHAPE == 6
 // colour stops through a sheet's depth (0: its surface)
 vec4 layerTint( float d ) {
   if ( uStopCount < 2 ) return uStops[ 0 ];
@@ -474,6 +530,17 @@ void main() {
       alpha += ( 1.0 - alpha ) * c.a;
       colNext++;
     }
+#elif SHAPE == 6
+    vec3 wk = wakeField( p / uHalf );
+    // the clouds give clumps in the sheet
+    field = wk.x * ( 0.75 + 0.35 * min( field, 1.0 ) ) * 1.8;
+    tint = layerTint( wk.y );
+    tint.rgb = mix( tint.rgb, uRibbonGlow, 0.6 * wk.z );
+    // white-hot right at the ribbon
+    tint.rgb = mix( tint.rgb, uRibbonCore, 0.85 * wk.z * wk.z * wk.z );
+    tw = 1.0;
+    // the ribbon lights the gas round it
+    boost = 1.4 + 4.0 * wk.z;
 #elif SHAPE != 0 && SHAPE != 3
     // the shape gives the form, the clouds the clumps in it
     field = envelope( p / uHalf ) * ( 0.35 + 0.65 * min( field, 1.0 ) ) * 1.15;
@@ -486,7 +553,9 @@ void main() {
 #else
     float coreAt = 1.0 - smoothstep( 0.0, 0.65, length( p / uHalf ) );
 #endif
-#if SHAPE != 5
+#if SHAPE == 6
+    tint.rgb = mix( tint.rgb, uCore.rgb, uCore.a * wk.z );
+#elif SHAPE != 5
     tint.rgb = mix( tint.rgb, uCore.rgb, uCore.a * coreAt );
 #endif
     vec3 pn = p * STREAK;
@@ -596,7 +665,7 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
   // texture repeats per scene unit: noise_scale is noise cells per scene unit, as for the puffs
   const cellsPerUnit = cfg.noise_scale !== undefined ? Math.max(0, num(cfg.noise_scale, 0)) : CELLS_PER_RADIUS / meanRadius;
   // a shape is one smooth form across the whole region, which shows the texture's repeat: coarser noise
-  const shapeFreq = shape === 3 ? 0.8 : shape > 0 ? SHAPE_FREQ : 1;
+  const shapeFreq = shape === 3 ? 0.8 : shape === 6 ? 2.2 : shape > 0 ? SHAPE_FREQ : 1;
   const freq = (cellsPerUnit / TEXTURE_CELLS) * (cfg.noise_scale === undefined ? shapeFreq : 1);
   const base = colorOf(0);
   const coreColor = sub(cfg.core).color;
@@ -610,6 +679,15 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
   const cols = shape === 5 && cfg.columns ? sub(cfg.columns) : null;
   const strikes = isOn(cfg.lightning, false) ? sub(cfg.lightning) : null;
   const bandColor = band ? ctx.color(band.color, DEFAULT_COLORS.glow) : [0, 0, 0];
+  // wake only: the ribbon (its curve, line and glow) and the wake's side
+  const wake = shape === 6 ? sub(cfg.wake) : null;
+  const rib = shape === 6 ? sub(cfg.ribbon) : null;
+  const side = wake?.side === 'down' ? -1 : 1;
+  const curve = { waves: Math.max(0, num(rib?.waves, 2.5)), ay: Math.max(0, num(rib?.amplitude, 0.2)), az: Math.max(0, num(rib?.amplitude, 0.2)) * 0.6, phase: 0, base: -0.55 };
+  const ribColor = rib ? ctx.color(rib.color, DEFAULT_COLORS.glow) : [1, 1, 1, 1];
+  const ribGlow = rib ? sub(rib.glow) : {};
+  const ribGlowColor = rib ? (ribGlow.color !== undefined ? ctx.color(ribGlow.color, DEFAULT_COLORS.glow) : colorOf(0)) : [1, 1, 1, 1];
+  const ribSpeed = rib ? num(rib.speed, 0) : 0;
 
   const solid = solidUniforms();
   const u = {
@@ -657,6 +735,10 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
     uLights: { value: Array.from({ length: MAX_LIGHTS }, () => new Vector4(0, 0, 0, 1)) },
     uLightColor: { value: Array.from({ length: MAX_LIGHTS }, () => new Vector4(0, 0, 0, 0)) },
     uLightCount: { value: 0 },
+    uRibbon: { value: new Vector4(curve.waves, curve.ay, curve.az, 0) },
+    uWake: { value: new Vector3(curve.base, side, Math.max(-1, Math.min(1, num(wake?.lean, 0)))) },
+    uRibbonCore: { value: new Vector3(ribColor[0], ribColor[1], ribColor[2]) },
+    uRibbonGlow: { value: new Vector3(ribGlowColor[0], ribGlowColor[1], ribGlowColor[2]) },
     uVeins: { value: shape === 5 ? Math.max(0, Math.min(1, num(cfg.veins, 0))) : 0 },
     uColCount: { value: cols && cols.kind !== 'lightning' ? Math.min(MAX_CLOUDS, Math.max(0, Math.round(num(cols.count, 4)))) : 0 },
     uColColor: { value: (() => { const c = cols ? ctx.color(cols.color, DEFAULT_COLORS.glow) : [1, 1, 1, 1]; return new Vector4(c[0], c[1], c[2], c[3] ?? 1); })() }
@@ -743,18 +825,49 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
     lp.set(world[0], world[1], world[2]).applyMatrix4(toLocal.copy(mesh.matrixWorld).invert());
     return ball ? lp.length() <= half[0] : Math.abs(lp.x) <= half[0] && Math.abs(lp.y) <= half[1] && Math.abs(lp.z) <= half[2];
   };
+  // the ribbon's line, local (wake only)
+  const ribRun = () => {
+    const pts = [];
+    for (let i = 0; i <= 160; i++) {
+      const x = -0.92 + (1.84 * i) / 160;
+      const [y, z] = ribbonAt(x, curve);
+      pts.push(x * half[0], y * side * half[1], z * half[2]);
+    }
+    return pts;
+  };
   // lightning columns: held discharges floor to ceiling, as a lightning object of its own
   const bolts = cols && cols.kind === 'lightning'
     ? buildLightning({ type: 'lightning', id: `${out.id}:columns`, mode: 'column', count: Math.min(MAX_CLOUDS, Math.max(1, Math.round(num(cols.count, 4)))), size: [half[0] * 2, half[1] * 0.5, half[2] * 2], color: cols.color, glow: cols.glow, speed: cols.speed, seed: num(cfg.seed, 1) }, ctx)
     : null;
   // strikes in the gas (lightning: true or { ... }): a lightning object of its own over most of the region
   const struck = strikes
-    ? buildLightning({ seed: num(cfg.seed, 1), ...strikes, type: 'lightning', id: `${out.id}:lightning`, mode: 'strike', size: [half[0] * 1.8, half[1] * (shape === 5 ? 0.75 : 1.5), half[2] * 1.8] }, ctx)
+    ? buildLightning(shape === 6 && strikes.mode === 'crawl'
+      // wake: discharges crawling off the ribbon
+      ? { seed: num(cfg.seed, 1), ...strikes, type: 'lightning', id: `${out.id}:lightning`, mode: 'crawl', size: [half[0] * 2, half[1] * 2, half[2] * 2], path: () => ribRun(), up: [0, side, 0] }
+      : { seed: num(cfg.seed, 1), ...strikes, type: 'lightning', id: `${out.id}:lightning`, mode: 'strike', size: [half[0] * 1.8, half[1] * (shape === 5 ? 0.75 : 1.5), half[2] * 1.8] }, ctx)
     : null;
   for (const b of [bolts, struck]) {
     if (!b) continue;
     node.add(b.node);
     out.lines.push(...b.lines);
+  }
+  // the ribbon: a white-hot line along the curve (a lit tube), a glow round it
+  /** @type {FatLine[]} */
+  const ribLines = [];
+  if (rib && isOn(cfg.ribbon, true)) {
+    const w = Math.max(0.5, num(rib.width, 6));
+    const glowOn = isOn(rib.glow, true);
+    const gw = glowOn ? Math.max(0, num(ribGlow.width, 8)) : 0;
+    const run = ribRun();
+    if (gw) ribLines.push(new FatLine([run], { color: ribGlowColor, width: w * gw, opacity: 0.5, soft: true, lighten: true }));
+    if (glowOn) ribLines.push(new FatLine([run], { color: ribGlowColor, width: w * 3, opacity: 0.9, soft: true, lighten: true }));
+    ribLines.push(new FatLine([run], { color: ribColor, width: w, opacity: 1, additive: true, tube: true }));
+    for (const l of ribLines) {
+      // the glows under the gas (max blending: drawn first, the gas adds over them), the line over it
+      l.object.renderOrder = l.style.lighten ? 2.2 : 3.4;
+      node.add(l.object);
+      out.lines.push(l);
+    }
   }
   /** @type {import('three').Scene | null} */
   let sceneOf = null;
@@ -810,11 +923,21 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
     u.uWarpOff.value.set(-offsets.body[0], 0, -offsets.body[1]);
     u.uWispOff.value.set(offsets.wisp[0], 0.37, offsets.wisp[1]);
     u.uTime.value = t;
+    if (ribSpeed) {
+      // the waves travel along the ribbon (scene units a second), the wake streams out from it
+      curve.phase = (-Math.PI * curve.waves * ribSpeed * t) / 1000 / half[0];
+      u.uRibbon.value.w = curve.phase;
+      const flow = ((ribSpeed * t) / 1000) * freq * 0.5;
+      u.uWarpOff.value.y = -(flow - Math.floor(flow));
+      u.uWispOff.value.y = 0.37 - ((flow * WISP_RATE) - Math.floor(flow * WISP_RATE));
+      const run = ribRun();
+      for (const l of ribLines) l.setRuns([run]);
+    }
     bolts?.tick?.(_dt, t);
     struck?.tick?.(_dt, t);
-    return rate[0] !== 0 || rate[1] !== 0 || !!cols || !!struck;
+    return rate[0] !== 0 || rate[1] !== 0 || !!cols || !!struck || !!ribSpeed;
   };
-  out.tick = baseDrift[0] || baseDrift[1] || cols || struck ? tick : null;
+  out.tick = baseDrift[0] || baseDrift[1] || cols || struck || ribSpeed ? tick : null;
   const baseDensity = u.uDensity.value;
   out.live = (key, value) => {
     if (key === 'density') {

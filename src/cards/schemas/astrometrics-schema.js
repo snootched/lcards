@@ -1322,8 +1322,8 @@ const nebulaObject = {
         preset: {
             type: 'string',
             enum: [...NEBULA_PRESETS],
-            enumDescriptions: { badlands: 'The Badlands (Deep Space Nine): liquid fire, a bright band, fire columns', badlands_voyager: 'The Badlands (Voyager): mauve layers, pink lightning columns, strikes' },
-            description: 'A named nebula to start from; the keys you set win over it (in band, columns and lightning, key by key). badlands: two sheets of liquid fire in yellow, orange and red, an orange band glowing between them and fire columns, thick and thin (Deep Space Nine). badlands_voyager: mauve and peach layers, held pink lightning columns and strikes that light the gas (Voyager). Both are render: volume, shape: layers in a 500 wide box; set size to change it.'
+            enumDescriptions: { badlands: 'The Badlands (Deep Space Nine): liquid fire, a bright band, fire columns', badlands_voyager: 'The Badlands (Voyager): mauve layers, pink lightning columns, strikes', nexus: 'The Nexus (Generations): a white-hot ribbon trailing pink gas' },
+            description: 'A named nebula to start from; the keys you set win over it (in band, columns, lightning, ribbon and wake, key by key). badlands: two sheets of liquid fire in yellow, orange and red, an orange band glowing between them and fire columns, thick and thin (Deep Space Nine). badlands_voyager: mauve and peach layers, held pink lightning columns and strikes that light the gas (Voyager). Both are render: volume, shape: layers in a 500 wide box. nexus: a white-hot ribbon waving across a 2000 long box, a wake of pink and red gas trailing it and small discharges crawling off it (Generations); render: volume, shape: wake. Set size to change the box.'
         },
         render: {
             type: 'string',
@@ -1338,8 +1338,8 @@ const nebulaObject = {
             enum: [...NEBULA_SHAPES],
             'x-ui-hints': { widget: 'shape' },
             default: 'clouds',
-            enumDescriptions: { clouds: 'Clouds', shell: 'A hollow sphere', bipolar: 'An hourglass', filaments: 'Thin strands', cavity: 'A hollow open on one side', layers: 'A floor and a ceiling with a gap' },
-            description: 'render: volume only: the form of the gas. clouds (default): the clouds themselves. shell: a thin hollow sphere (the Ring nebula). bipolar: an hourglass along the object\'s y axis, two hollow lobes joined at a narrow waist (the Butterfly). filaments: long thin strands running along the object\'s x axis (the Veil). cavity: a thick cup round a hollow that opens on the object\'s +z side (a blister, as in Orion). layers: a floor and a ceiling of gas across the region with a gap between (the Badlands): colors run from each sheet\'s surface into its depth; gap, veins, band and columns shape it. In every shape but clouds the clouds give the clumps and colours inside the form; turn it with rotation.'
+            enumDescriptions: { clouds: 'Clouds', shell: 'A hollow sphere', bipolar: 'An hourglass', filaments: 'Thin strands', cavity: 'A hollow open on one side', layers: 'A floor and a ceiling with a gap', wake: 'A ribbon trailing a sheet of gas' },
+            description: 'render: volume only: the form of the gas. clouds (default): the clouds themselves. shell: a thin hollow sphere (the Ring nebula). bipolar: an hourglass along the object\'s y axis, two hollow lobes joined at a narrow waist (the Butterfly). filaments: long thin strands running along the object\'s x axis (the Veil). cavity: a thick cup round a hollow that opens on the object\'s +z side (a blister, as in Orion). layers: a floor and a ceiling of gas across the region with a gap between (the Badlands): colors run from each sheet\'s surface into its depth; gap, veins, band and columns shape it. wake: a bright ribbon waving along the object\'s x axis near the bottom of the region and a sheet of gas trailing it upward (the Nexus): colors run from the ribbon out; ribbon and wake shape it. In every shape but clouds the clouds give the clumps and colours inside the form; turn it with rotation.'
         },
         gap: setting('shape: layers only: how much of the height is open between the floor and the ceiling, 0 (they touch) to 0.9.', { minimum: 0, maximum: 0.9, default: 0.56 }),
         veins: setting('shape: layers only: bright fine veins in the sheets\' surfaces with darker gas between (liquid fire), 0 (none) to 1.', { minimum: 0, maximum: 1, default: 0 }),
@@ -1359,7 +1359,28 @@ const nebulaObject = {
                 color: objectColor('Glow colour. Default the column colour.')
             })
         }),
-        lightning: part('render: volume only: lightning striking inside the gas and lighting it: true (default settings), false (default), or the settings of a lightning object\'s strikes.', lightningLook, { toggle: true }),
+        ribbon: part('shape: wake only: the bright line the wake trails, and the curve it follows: true (default), false (the gas only), or { waves, amplitude, speed, width, color, glow }.', {
+            waves: setting('How many waves along it, end to end.', { minimum: 0, default: 2.5 }),
+            amplitude: setting('How far it waves, a fraction of half the region\'s height (a little less in depth).', { minimum: 0, maximum: 0.5, default: 0.2 }),
+            speed: setting('How fast the waves run along it, scene units a second (the wake streams out from it as fast); negative runs the other way. Default 0: still. Off under reduced motion.', { default: 0 }),
+            width: setting('The line\'s width, px.', { minimum: 0.5, default: 6 }),
+            color: objectColor('The line\'s colour, and the gas right at it (white-hot). Default var(--lcards-moonlight).'),
+            glow: part('The glow round the line, and the gas near it: true (default), false, or { color, width }.', {
+                color: objectColor('Glow colour. Default the first of colors.'),
+                width: setting('How wide the outer glow is, times the line\'s width.', { minimum: 0, default: 8 })
+            }, { toggle: true })
+        }, { toggle: true }),
+        wake: part('shape: wake only: the sheet of gas trailing the ribbon.', {
+            side: { type: 'string', enum: ['up', 'down'], default: 'up', enumDescriptions: { up: 'Above the ribbon', down: 'Below the ribbon' }, description: 'Which way it trails: up (default, the ribbon near the bottom of the region) or down (the ribbon near the top). Turn the whole object with rotation to trail it another way.' },
+            lean: setting('How far it leans along the ribbon as it goes out, -1 to 1 (a fan trailing to one side seen from afar). Default 0: straight out.', { minimum: -1, maximum: 1, default: 0 })
+        }),
+        lightning: part('render: volume only: lightning in the gas, lighting it: true (default settings), false (default), or the settings of a lightning object\'s strikes; with shape: wake, mode: crawl sets discharges crawling off the ribbon instead.', {
+            mode: { type: 'string', enum: ['strike', 'crawl'], default: 'strike', enumDescriptions: { strike: 'Bolts that flash and go', crawl: 'Discharges crawling off the ribbon' }, description: 'strike (default): bolts flash at random places in the gas. crawl (shape: wake only): count short bolts and small loops stand off the ribbon, flicker and jump along it.' },
+            count: wholeSetting('crawl: how many discharges at once.', { minimum: 1, maximum: 40, default: 6 }),
+            reach: setting('crawl: how far they stand off the ribbon, a fraction of half the region\'s height.', { minimum: 0.01, maximum: 1, default: 0.35 }),
+            speed: setting('crawl: how fast they flicker, reshape and jump: 1 (default) as drawn, 0.5 half as fast.', { minimum: 0, default: 1 }),
+            ...lightningLook
+        }, { toggle: true }),
         stretch: setting('Seeded clouds: how drawn out each one is, 0 (round, default) to 1 (long and flat), each turned its own way. Hand-placed clouds take size and rotation instead.', { minimum: 0, maximum: 1, default: 0 }),
         core: part('The gas deep inside (in a shape other than clouds: near its middle).', {
             color: objectColor('Colour there, running out to the cloud colours at the edges. Default none: the cloud colours throughout.')

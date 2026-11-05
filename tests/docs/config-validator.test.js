@@ -324,6 +324,19 @@ test('astrometrics Badlands: layers keys only with shape: layers, column keys by
     assert.deepEqual(warns({ type: 'nebula', preset: 'badlands', columns: { speed: 0.4 } }), ['warning objects[0].columns.speed: speed is for lightning columns (this column kind is fire; fire and vortex move with drift)']);
 });
 
+test('astrometrics Nexus: ribbon and wake only with shape: wake, crawl only along a ribbon (NB3)', () => {
+    const warns = (o) => messages(check({ type: 'custom:lcards-astrometrics-card', objects: [o] })).filter((m) => m.startsWith('warning'));
+    assert.deepEqual(warns({ type: 'nebula', preset: 'nexus' }), [], 'the preset is volume and wake');
+    assert.deepEqual(warns({ type: 'nebula', preset: 'nexus', ribbon: { speed: 10 }, wake: { lean: 0.3 }, lightning: { count: 4, reach: 0.2 } }), []);
+    assert.deepEqual(warns({ type: 'nebula', render: 'volume', shape: 'layers', ribbon: { waves: 2 }, wake: { side: 'down' } }), [
+        'warning objects[0].ribbon: ribbon applies only with shape: wake',
+        'warning objects[0].wake: wake applies only with shape: wake'
+    ]);
+    assert.deepEqual(warns({ type: 'nebula', render: 'volume', lightning: { mode: 'crawl' } }), ['warning objects[0].lightning.mode: crawl runs along the ribbon of shape: wake (this nebula has none; it strikes instead)']);
+    assert.deepEqual(warns({ type: 'nebula', render: 'volume', lightning: { count: 3 } }), ['warning objects[0].lightning.count: count is for mode: crawl (strikes come one at a time, timed by rate and flash)']);
+    assert.deepEqual(warns({ type: 'nebula', preset: 'nexus', lightning: { rate: 2 } }), ['warning objects[0].lightning.rate: rate times strikes (mode: crawl keeps its discharges going)']);
+});
+
 test('astrometrics model file_units: needs units where the model is, and no size (UX1 P6c)', () => {
     const astro = (extra) => ({ type: 'custom:lcards-astrometrics-card', ...extra });
     const ship = (extra = {}) => ({ type: 'model', id: 'ship', src: 'builtin:constitution', file_units: 'ft', ...extra });

@@ -1,0 +1,72 @@
+# Astrometrics Nexus (NB3): nebula shape: wake (a white-hot ribbon trailing a sheet of gas),
+# preset: nexus, discharges crawling off the ribbon (lightning mode: crawl), and a second Nexus
+# travelling on a wide orbit, its wake turned to trail behind. The buttons fly to each look.
+title: Astrometrics Nexus
+path: astro-nexus
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: FAR, show: true}
+        tap_action: {action: fly-to, card: astro_nexus, view: afar}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: SIDE, show: true}
+        tap_action: {action: fly-to, card: astro_nexus, view: side}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: CLOSE, show: true}
+        tap_action: {action: fly-to, card: astro_nexus, view: close}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: BELOW, show: true}
+        tap_action: {action: fly-to, card: astro_nexus, view: under}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: TRAVEL, show: true}
+        tap_action: {action: fly-to, card: astro_nexus, view: travel}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text:
+          name: {content: WAVE SPEED}
+        style:
+          shaped: {text_bands: {left: {size: 140}}}
+        grid_options: {columns: 12, rows: 1}
+      - type: custom:lcards-astrometrics-card
+        id: astro_nexus
+        height: 700
+        grid_options: {columns: full}
+        camera:
+          view: side
+          views:
+            afar: {target: [0, 0, 0], yaw: 10, tilt: 4, distance: 2700}
+            side: {target: [-200, -60, 0], yaw: 5, tilt: 2, distance: 900}
+            close: {target: [100, -120, 0], yaw: 8, tilt: 6, distance: 420}
+            under: {target: [0, -100, 0], yaw: 20, tilt: -28, distance: 420}
+            travel: {target: [0, 0, 12000], yaw: 0, tilt: 40, distance: 8000}
+        backdrop: {stars: {count: 3000}}
+        points:
+          - {id: rider, polar: [3000, 0], object: track, label: NEXUS, style: minor}
+        objects:
+          # the Nexus: the preset, its waves running at the slider's speed
+          - {type: nebula, id: nexus, at: [0, 0, 0], preset: nexus, ribbon: {speed: {entity: input_number.lcards_test_power, input: [0, 100], output: [0, 120]}}}
+          - {type: model, src: builtin:constitution, at: [150, -260, 160], size: 30}
+          # travelling: on a wide orbit, face: motion turns its +z along the travel, rotation turns the wake behind
+          - {type: ring, id: track, at: [0, 0, 12000], radius: 3000, spin: 3, width: 0.5, opacity: 0.15}
+          - {type: nebula, id: rider_nexus, at: rider, preset: nexus, size: [1500, 400, 400], face: motion, rotation: [-90, 0, 0]}

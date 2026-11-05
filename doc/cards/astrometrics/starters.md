@@ -3191,6 +3191,26 @@ points: [{ id: badlands_centre, xyz: [0, 0, 0] }, { id: badlands_heart, at: badl
 objects: [{ type: nebula, id: badlands_plasma, at: badlands_heart, preset: badlands_voyager, size: [500, 160, 500] }]
 ```
 
+### The Nexus
+
+The Nexus as Generations drew it (nebula preset: nexus): a white-hot ribbon waving across space, its waves running along it, a wake of pink and red gas streaming out behind it, and small discharges crawling off it and lighting the gas. Set travel to orbit to send it round the centre on a wide orbit, its wake trailing behind. Every key of the preset can be set on the nebula to change it.
+
+Its ids start with its name (default `nexus_`).
+
+| Setting | Default | Notes |
+|---|---|---|
+| Label | `NEXUS` |  |
+| Centre | `0, 0, 0` | A point id or x, y, z. |
+| Length | `2000` |  |
+| Travel | `still` |  |
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points: [{ id: nexus_centre, xyz: [0, 0, 0] }, { id: nexus_heart, at: nexus_centre, label: NEXUS, style: major }]
+objects: [{ type: nebula, id: nexus_ribbon, at: nexus_heart, preset: nexus, size: [2000, 500, 500] }]
+```
+
 ### Wormhole
 
 The Bajoran wormhole as the station displays draw it. Its mouth is a swirl of gas round a warm heart in the realistic look, an entrance disc and funnel in the diagram. Past it, diagram only, the inside runs along +x: a pipeline of twisted strands, the negative CTL region, the ring singularity, the positive CTL region and the point singularity opening into the verteron membrane. With a power entity (0 to 100) the mouth opens and the regions wobble with it.

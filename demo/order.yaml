@@ -40,6 +40,13 @@ releases:
         session: "NB2c"
         docs: /cards/astrometrics/effects#the-badlands-layers-columns-and-lightning
         public: true
+      - file: astro-nexus
+        topic: astrometrics
+        summary: "Astrometrics Nexus: a white-hot ribbon, its wake, crawling discharges"
+        description: "The Nexus from Star Trek Generations (the nexus preset): a white-hot ribbon waving across space, a wake of pink and red gas streaming out from it, and small discharges crawling off it that light the gas. FAR, SIDE, CLOSE and BELOW fly round it; WAVE SPEED sets how fast its waves run. TRAVEL: a second Nexus on a wide orbit, its wake trailing behind (face: motion with rotation)."
+        session: "NB3"
+        docs: /cards/astrometrics/effects#the-nexus-a-ribbon-and-its-wake
+        public: true
       - file: astro-nebula-shapes
         topic: astrometrics
         summary: "Astrometrics nebula shapes, dust and colour"

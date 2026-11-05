@@ -155,6 +155,8 @@ export function buildLightning(cfg, ctx) {
   const node = new Group();
   node.name = `lightning:${cfg.id ?? ''}`;
   const column = cfg.mode === 'column';
+  // crawl: short bolts and loops standing off a line (cfg.path: a function giving the line, local)
+  const crawl = cfg.mode === 'crawl' && typeof cfg.path === 'function';
   const coreColor = ctx.color(cfg.color, DEFAULT_COLORS.glow);
   const glow = sub(cfg.glow);
   const glowOn = isOn(cfg.glow, true);
@@ -168,8 +170,8 @@ export function buildLightning(cfg, ctx) {
   const flash = Math.max(30, num(cfg.flash, 150));
   // column: how fast the held bolts crawl and flicker (1 as drawn, 0 still)
   const speed = Math.max(0, num(cfg.speed, 1));
-  const jaggedness = num(cfg.jaggedness, column ? 0.25 : 0.5);
-  const branchCount = num(cfg.branches, column ? 1 : 3);
+  const jaggedness = num(cfg.jaggedness, column ? 0.25 : crawl ? 0.6 : 0.5);
+  const branchCount = num(cfg.branches, column ? 1 : crawl ? 1 : 3);
   const brightness = Math.max(0, num(cfg.brightness, 1));
   const lights = cfg.lights !== false;
   const seed0 = Math.round(num(cfg.seed, 1));
@@ -269,7 +271,82 @@ export function buildLightning(cfg, ctx) {
     branchLines.forEach((l) => l.setRuns(brs));
   };
 
-  if (column) {
+  if (crawl) {
+    const n = Math.max(1, Math.round(num(cfg.count, 6)));
+    // how far a discharge stands off the line (the region's half height times this)
+    const reach = Math.max(0.01, num(cfg.reach, 0.35)) * half[1];
+    const up = Array.isArray(cfg.up) ? unit(cfg.up) : [0, 1, 0];
+    /** @type {{ s: number, t0: number, life: number, loop: boolean, len: number, lean: number, gen: number }[]} */
+    const arcs = [];
+    let gen = 0;
+    const spawn = (/** @type {number} */ t) => ({ s: 0.03 + rnd() * 0.94, t0: t, life: 150 + rnd() * 450, loop: rnd() < 0.45, len: reach * (0.3 + rnd() * 0.7), lean: rnd() < 0.8 ? 1 : -0.6, gen: gen++ });
+    /** @param {number[]} pts @param {number} s */
+    const along = (pts, s) => {
+      const m = pts.length / 3 - 1;
+      const f = Math.max(0, Math.min(m - 1e-6, s * m));
+      const i = Math.floor(f);
+      const k = f - i;
+      const p = [0, 1, 2].map((c) => pts[i * 3 + c] * (1 - k) + pts[(i + 1) * 3 + c] * k);
+      const d = unit([0, 1, 2].map((c) => pts[(i + 1) * 3 + c] - pts[i * 3 + c]));
+      return { p, d };
+    };
+    /** @param {number} t @param {number} step */
+    const drawArcs = (t, step) => {
+      const pts = cfg.path();
+      /** @type {number[][]} */
+      const mains = [];
+      /** @type {number[][]} */
+      const brs = [];
+      /** @type {{ at: number[], radius: number, level: number }[]} */
+      const spots = [];
+      for (const a of arcs) {
+        const { p, d } = along(pts, a.s);
+        // off the line: mostly the up side, leaning a little along it
+        const o = unit([up[0] * a.lean + d[0] * 0.3, up[1] * a.lean + d[1] * 0.3, up[2] * a.lean + d[2] * 0.3]);
+        const seed = seed0 * 131 + a.gen * 17 + step;
+        if (a.loop) {
+          // a loop: up off the line and back down to it a little further on
+          const span = a.len * 0.8 / Math.max(1e-3, len3([pts[0] - pts[pts.length - 3], pts[1] - pts[pts.length - 2], pts[2] - pts[pts.length - 1]]));
+          const q = along(pts, Math.min(1, a.s + span)).p;
+          const top = [(p[0] + q[0]) / 2 + o[0] * a.len, (p[1] + q[1]) / 2 + o[1] * a.len, (p[2] + q[2]) / 2 + o[2] * a.len];
+          const b1 = boltRuns(p, top, { jaggedness, branches: 0, seed, levels: 4 });
+          const b2 = boltRuns(top, q, { jaggedness, branches: 0, seed: seed + 7, levels: 4 });
+          mains.push([...b1.main, ...b2.main.slice(3)]);
+          spots.push({ at: top, radius: a.len * 0.9, level: 0.15 });
+        } else {
+          const end = [p[0] + o[0] * a.len, p[1] + o[1] * a.len, p[2] + o[2] * a.len];
+          const b = boltRuns(p, end, { jaggedness, branches: branchCount, seed, levels: 5 });
+          mains.push(b.main);
+          brs.push(...b.branches);
+          spots.push({ at: end, radius: a.len * 0.9, level: 0.12 });
+        }
+      }
+      mainLines.forEach((l) => l.setRuns(mains));
+      branchLines.forEach((l) => l.setRuns(brs));
+      return spots;
+    };
+    for (let i = 0; i < n; i++) arcs.push({ ...spawn(0), t0: -rnd() * 400 });
+    drawArcs(0, 0);
+    setLevel(0.5);
+    let lastStep = -1;
+    out.tick = (_dt, t) => {
+      const { step, level: k } = columnMotion(t, speed * 1.5);
+      let changed = step !== lastStep;
+      for (let i = 0; i < arcs.length; i++) {
+        if (t - arcs[i].t0 > arcs[i].life / Math.max(0.05, speed)) {
+          arcs[i] = spawn(t);
+          changed = true;
+        }
+      }
+      // the line itself moves (a slithering ribbon): redraw every tick it may have
+      lastStep = step;
+      const spots = drawArcs(t, step);
+      void changed;
+      setLevel(k);
+      pushLights(spots.map((sp) => ({ ...sp, level: sp.level * k })));
+      return true;
+    };
+  } else if (column) {
     drawColumns(seed0);
     // still (reduced motion, or before the first tick): dim
     setLevel(0.5);

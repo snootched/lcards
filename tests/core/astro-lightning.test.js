@@ -76,3 +76,27 @@ test('column spots follow the volume shader spiral and stay inside the region', 
   const fa = 0.7;
   assert.deepEqual(columnSpot(0, 4, half).map((v) => +v.toFixed(6)), [Math.cos(fa) * Math.sqrt(0.5 / 4) * 0.75 * 250, Math.sin(fa) * Math.sqrt(0.5 / 4) * 0.75 * 250].map((v) => +v.toFixed(6)));
 });
+
+test('crawl: discharges stand on the line, off it on the up side mostly, and light the gas faintly', async () => {
+  const { buildLightning } = await import('../../src/core/astrometrics/objects/lightning.js');
+  const line = [];
+  for (let i = 0; i <= 50; i++) line.push(-500 + i * 20, 0, 0);
+  const lit = [];
+  const ctx = { color: () => [1, 1, 1, 1], objects: () => new Map([['n', { setLights: (_k, l) => lit.push(...l) }]]) };
+  const out = buildLightning({ type: 'lightning', mode: 'crawl', count: 8, reach: 0.4, size: [1000, 200, 200], path: () => line, up: [0, 1, 0], seed: 3 }, /** @type {any} */ (ctx));
+  out.tick(16, 1000);
+  // every light sits within reach of the line, most above it
+  assert.ok(lit.length >= 8);
+  const reach = 0.4 * 100;
+  for (const l of lit) {
+    assert.ok(Math.abs(l.at[0]) <= 520 && Math.hypot(l.at[1], l.at[2]) <= reach * 1.5, JSON.stringify(l.at));
+    assert.ok(l.level < 0.2, 'faint, not a strike');
+  }
+  assert.ok(lit.filter((l) => l.at[1] > 0).length > lit.length / 2, 'mostly the up side');
+});
+
+test('crawl without a line falls back to strikes', async () => {
+  const { buildLightning } = await import('../../src/core/astrometrics/objects/lightning.js');
+  const out = buildLightning({ type: 'lightning', mode: 'crawl', radius: 50 }, /** @type {any} */ ({ color: () => [1, 1, 1, 1] }));
+  assert.equal(out.node.visible, false, 'a strike object waits hidden for its first strike');
+});

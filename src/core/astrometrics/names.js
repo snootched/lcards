@@ -233,10 +233,10 @@ export const GRID_PATTERNS = /** @type {const} */ (['both', 'horizontal', 'verti
 /** `volume` shapes */
 export const VOLUME_SHAPES = /** @type {const} */ (['sector', 'box', 'prism']);
 /** A volume nebula's density field forms (`shape`) */
-export const NEBULA_SHAPES = /** @type {const} */ (['clouds', 'shell', 'bipolar', 'filaments', 'cavity', 'layers']);
+export const NEBULA_SHAPES = /** @type {const} */ (['clouds', 'shell', 'bipolar', 'filaments', 'cavity', 'layers', 'wake']);
 
 /** Nebula presets: named bundles of defaults (`nebula-presets.js`) */
-export const NEBULA_PRESETS = /** @type {const} */ (['badlands', 'badlands_voyager']);
+export const NEBULA_PRESETS = /** @type {const} */ (['badlands', 'badlands_voyager', 'nexus']);
 
 /** What stands between a layers nebula's floor and ceiling (`columns.kind`) */
 export const COLUMN_KINDS = /** @type {const} */ (['fire', 'vortex', 'lightning']);

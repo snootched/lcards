@@ -93,6 +93,7 @@ With `render: volume`, `shape` gives the gas a form, after the real nebulae. The
 | `filaments` | Long thin strands running along the object's x axis (the Veil). |
 | `cavity` | A thick cup round a hollow that opens on the object's +z side: a bright bowl seen from there, a crescent from the side (a blister, as in Orion). |
 | `layers` | A floor and a ceiling of gas across a box with a gap between: see [the Badlands](#the-badlands-layers-columns-and-lightning). |
+| `wake` | A bright ribbon waving along the object's x axis and a sheet of gas trailing it: see [the Nexus](#the-nexus-a-ribbon-and-its-wake). |
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -382,6 +383,55 @@ objects:
 
 A [lightning object](./objects#lightning) striking inside any volume nebula lights its gas too. Under reduced motion the columns stand still and no strike shows.
 
+### The Nexus: a ribbon and its wake
+
+The Nexus, the ribbon of energy in Star Trek Generations, starts from `preset: nexus`: a white-hot ribbon waving across a `size: [2000, 500, 500]` box, a wake of pink and red gas streaming out behind it, and small discharges crawling off it and lighting the gas. Every key you set wins over the preset's; in `ribbon`, `wake` and `lightning` key by key.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 360
+camera:
+  views:
+    v: { target: [0, -60, 0], yaw: 8, tilt: 6, distance: 1500 }
+backdrop:
+  stars: { count: 3000 }
+objects:
+  - { type: nebula, preset: nexus }
+```
+
+The preset is `render: volume` with `shape: wake`: the ribbon waves along the object's x axis near the bottom of the region and the gas trails up from it, `colors` running from the ribbon out, white-hot right at it. The keys that shape it:
+
+| Key | What it does |
+|---|---|
+| `ribbon` | The bright line and the curve it follows: `true` (default), `false` (the gas only), or its settings below. |
+| `ribbon.waves` | How many waves along it, end to end. Default 2.5. |
+| `ribbon.amplitude` | How far it waves, a fraction of half the region's height (a little less in depth). Default 0.2. |
+| `ribbon.speed` | How fast the waves run along it, scene units a second; the wake streams out from it as fast. Default 0 (the preset: 40). |
+| `ribbon.width`, `ribbon.color` | The line's width in px (default 6) and colour, which is also the gas right at it. |
+| `ribbon.glow` | The glow round the line and in the gas near it: `true` (default), `false`, or `{ color, width }`. |
+| `wake.side` | Which way the gas trails: `up` (default) or `down`. Turn the object with `rotation` to trail it another way. |
+| `wake.lean` | How far the gas leans along the ribbon as it goes out, -1 to 1: a fan trailing to one side, seen from afar. Default 0. |
+| `lightning.mode` | `crawl`: discharges crawling off the ribbon (short bolts and small loops that flicker and jump along it) in place of strikes. With it, `lightning.count` (how many at once, default 6), `lightning.reach` (how far they stand off the ribbon, a fraction of half the height, default 0.35) and `lightning.speed`. |
+
+To send it travelling, put it `at:` a moving point with `face: motion`. Facing turns the object's +z along the travel, so `rotation: [-90, 0, 0]` turns the wake (its +y) to trail behind:
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 360
+camera:
+  views:
+    v: { target: [0, 0, 0], yaw: 0, tilt: 35, distance: 7000 }
+backdrop:
+  stars: { count: 3000 }
+points:
+  - { id: nexus, polar: [2500, 0], object: track, label: NEXUS }
+objects:
+  - { type: ring, id: track, radius: 2500, spin: 3, width: 0.5, opacity: 0.15 }
+  - { type: nebula, preset: nexus, at: nexus, size: [1500, 400, 400], face: motion, rotation: [-90, 0, 0] }
+```
+
+Under reduced motion the ribbon holds still and the discharges stand still and dim.
+
 ## Cost
 
-Measured on an Intel Arc laptop GPU at 1300 x 866 px, each effect adds about 1 to 2 ms per frame while it moves: well inside a 60 frames per second budget. A still effect costs nothing between frames, because a still scene draws nothing. The nebula and fill shaders load in a small extra download the first time a card uses one. A nebula with `render: volume` adds about 1 ms seen from outside and 1.5 ms from inside the gas; a `shape`, `stretch`, `core.color` or dust adds at most 0.8 ms more. The Badlands cost more from inside: about 7 to 8 ms a frame in all with columns and `veins` (`veins` alone about 2.4 ms); lightning adds about 0.3 ms.
+Measured on an Intel Arc laptop GPU at 1300 x 866 px, each effect adds about 1 to 2 ms per frame while it moves: well inside a 60 frames per second budget. A still effect costs nothing between frames, because a still scene draws nothing. The nebula and fill shaders load in a small extra download the first time a card uses one. A nebula with `render: volume` adds about 1 ms seen from outside and 1.5 ms from inside the gas; a `shape`, `stretch`, `core.color` or dust adds at most 0.8 ms more. The Badlands cost more from inside: about 7 to 8 ms a frame in all with columns and `veins` (`veins` alone about 2.4 ms); lightning adds about 0.3 ms. The Nexus adds at most 0.7 ms over a plain volume nebula.

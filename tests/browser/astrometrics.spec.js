@@ -815,6 +815,38 @@ test('NB2c Badlands: both presets draw their layers and columns (no shader error
     await expectNoErrors(page);
 });
 
+test('NB3 Nexus: the wake trails up from the ribbon, discharges crawl off it, the ribbon moves', async ({ page }) => {
+    await mountCase(page, 'astro-nexus', { width: '800', height: '400' });
+    await sceneReady(page);
+    /** Share of lit pixels in a band of rows (fractions of the height) */
+    const lit = (/** @type {number} */ y0, /** @type {number} */ y1) => page.evaluate(([a, b]) => {
+        const canvas = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('.astro-scene canvas');
+        const { width, height } = canvas;
+        const data = canvas.getContext('2d').getImageData(0, 0, width, height).data;
+        let n = 0, all = 0;
+        for (let y = Math.round(a * height); y < b * height; y++) for (let x = Math.round(0.2 * width); x < 0.8 * width; x++) {
+            const i = (y * width + x) * 4;
+            all++;
+            if (data[i] + data[i + 1] + data[i + 2] > 60) n++;
+        }
+        return n / all;
+    }, [y0, y1]);
+    // the ribbon sits low in the box: gas above it, little below
+    await expect.poll(() => lit(0.35, 0.55)).toBeGreaterThan(0.2);
+    expect(await lit(0.75, 0.95)).toBeLessThan(0.05);
+    const ribbon = () => page.evaluate(() => {
+        const list = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world.list;
+        const nx = list.find((/** @type {any} */ b) => b.id === 'nexus');
+        const tube = nx.lines.find((/** @type {any} */ l) => l.style.tube);
+        return { y: Array.from(tube._abs.slice(0, 60)).map((v) => Math.round(v)), bolts: nx.node.children.filter((/** @type {any} */ c) => String(c.name).startsWith('lightning:')).map((/** @type {any} */ c) => c.name) };
+    });
+    const first = await ribbon();
+    expect(first.bolts).toEqual(['lightning:nexus:lightning']);
+    // the preset's waves run along it (speed 40)
+    await expect.poll(async () => JSON.stringify((await ribbon()).y)).not.toBe(JSON.stringify(first.y));
+    await expectNoErrors(page);
+});
+
 test('NB2c lightning: strikes flash and light the gas round them', async ({ page }) => {
     await mountCase(page, 'astro-lightning', { width: '600', height: '400' });
     await sceneReady(page);

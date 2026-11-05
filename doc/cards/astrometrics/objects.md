@@ -468,7 +468,7 @@ Jagged, forked bolts. With `mode: strike` (the default) a bolt flashes at a rand
 | `lights` | `false`: the bolts only, the gas stays dark. |
 | `seed` | Where the strikes fall and how the bolts are shaped. |
 
-Under reduced motion no strike shows and columns stand still and dim. A volume nebula can also have strikes of its own (`lightning:` on the nebula, see [the Badlands](./effects#the-badlands-layers-columns-and-lightning)).
+Under reduced motion no strike shows and columns stand still and dim. A volume nebula can also have strikes of its own (`lightning:` on the nebula, see [the Badlands](./effects#the-badlands-layers-columns-and-lightning)), or discharges crawling along its ribbon (`mode: crawl`, see [the Nexus](./effects#the-nexus-a-ribbon-and-its-wake)).
 
 ```yaml live
 type: custom:lcards-astrometrics-card

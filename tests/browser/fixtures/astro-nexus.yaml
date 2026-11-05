@@ -1,0 +1,10 @@
+# Astrometrics Nexus (NB3; astrometrics.spec.js, visual.spec.js): the nexus preset from the
+# side: a white-hot ribbon across the middle, its wake trailing up, discharges crawling off it.
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  view: side
+  views:
+    side: { target: [0, 0, 0], yaw: 6, tilt: 3, distance: 2300 }
+objects:
+  - { type: nebula, id: nexus, preset: nexus }
