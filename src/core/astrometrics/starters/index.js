@@ -30,6 +30,10 @@ import stMinorPowers from './part-st-minor-powers.js';
 import stDeltaPowers from './part-st-delta-powers.js';
 import stTranswarp from './part-st-transwarp.js';
 import { flattenSystems, kmPerUnit } from '../names.js';
+import { sceneExtent } from './extent.js';
+import { sigFigs } from './shared.js';
+
+export { sigFigs };
 import planet from './part-planet.js';
 import asteroidBelt from './part-asteroid-belt.js';
 import asteroid from './part-asteroid.js';
@@ -53,6 +57,8 @@ import nexus from './part-nexus.js';
  * @property {boolean} [custom] - with options: other values may be typed too
  * @property {number | ((params: Record<string, any>) => number)} [real] - number: its real size in km, the default
  *   when the part goes where the units are named (a km or au system); a function gets the other params (a model's own size)
+ * @property {boolean} [fit] - number: an overall size, scaled with the others so the part fits the scene it goes into
+ *   when that scene's units have no name (see `fitFactor`)
  */
 
 /**
@@ -84,6 +90,7 @@ import nexus from './part-nexus.js';
  * @property {string} icon
  * @property {StarterParam[]} params
  * @property {string} [scene] - a part made for one scene starter (its id): its numbers only make sense there
+ * @property {number} [fitShare] - how much of the scene's radius a fitted part fills (default `FIT_SHARE`)
  * @property {StarterPicture} [picture]
  * @property {(params: Record<string, any>, ctx: { units: string | null }) => StarterFragment} build - `units`: where it goes, when they are named
  */
@@ -96,21 +103,54 @@ const REF_KEYS = new Set(['id', 'at', 'object', 'target', 'from', 'to', 'points'
 
 const isObj = (/** @type {any} */ v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
+/** A fitted part's radius as a share of the scene's radius */
+export const FIT_SHARE = 0.25;
+
+/** A param's typed value, or undefined when left empty @param {Record<string, any>} params @param {StarterParam} p */
+const typedValue = (params, p) => {
+  const v = params[p.key];
+  return v === undefined || v === '' || v === null ? undefined : v;
+};
+
+/**
+ * How much a part's `fit` sizes are scaled so it fits where it goes: a
+ * scene (or system) whose units have no name, with something in it. The
+ * part at its defaults (and the other params as typed) is measured, so is
+ * the target, and the part's radius becomes `fitShare` of the target's.
+ * null when it is not fitted (named units, an empty target, a scene
+ * starter, a part made for one scene, nothing to fit).
+ * @param {Starter} starter
+ * @param {Record<string, any> | null | undefined} target - the lists it goes into: the card config, or a system
+ * @param {string | null} [units] - the target's units
+ * @param {Record<string, any>} [params] - what was typed
+ * @returns {number | null}
+ */
+export function fitFactor(starter, target, units = null, params = {}) {
+  if (starter.kind !== 'part' || starter.scene || kmPerUnit(units) !== null || !target) return null;
+  const fits = starter.params.filter((p) => p.fit);
+  if (!fits.length || !hasScene(target)) return null;
+  const targetR = sceneExtent(target);
+  const others = Object.fromEntries(Object.entries(params).filter(([k]) => !fits.some((p) => p.key === k)));
+  const partR = sceneExtent(starter.build(starterParams(starter, others), { units: null }));
+  if (!(targetR > 0) || !(partR > 0)) return null;
+  return ((starter.fitShare ?? FIT_SHARE) * targetR) / partR;
+}
+
 /**
  * A starter's params with the defaults filled in. With named `units` (where
- * the part goes), a param's `real` size in km becomes its default in them.
+ * the part goes), a param's `real` size in km becomes its default in them;
+ * with unnamed units and a `target` with something in it, its `fit` sizes
+ * are scaled to fit it (`fitFactor`). Typed values always stay.
  * @param {Starter} starter
  * @param {Record<string, any>} [params]
  * @param {string | null} [units]
+ * @param {Record<string, any> | null} [target] - the lists it goes into: the card config, or a system
  */
-export function starterParams(starter, params = {}, units = null) {
+export function starterParams(starter, params = {}, units = null, target = null) {
   /** @type {Record<string, any>} */
   const out = {};
   const km = kmPerUnit(units);
-  const typed = (/** @type {StarterParam} */ p) => {
-    const v = params[p.key];
-    return v === undefined || v === '' || v === null ? undefined : v;
-  };
+  const typed = (/** @type {StarterParam} */ p) => typedValue(params, p);
   // real sizes may read the other params (a model's own size), so those fill first
   for (const p of starter.params) if (p.real === undefined || km === null) out[p.key] = convert(p, typed(p) ?? p.default);
   for (const p of starter.params) {
@@ -118,19 +158,14 @@ export function starterParams(starter, params = {}, units = null) {
     const real = typeof p.real === 'function' ? p.real(out) : p.real;
     out[p.key] = convert(p, typed(p) ?? sigFigs(real / km));
   }
+  const factor = target ? fitFactor(starter, target, units, params) : null;
+  if (factor !== null) for (const p of starter.params) if (p.fit && typed(p) === undefined) out[p.key] = sigFigs(Number(p.default) * factor);
   return out;
 }
 
 /** @param {StarterParam} p @param {any} value */
 const convert = (p, value) => (p.type === 'point' ? parsePointParam(value) : p.type === 'number' ? Number(value) : value);
 
-/**
- * A number to 3 significant figures, so converted sizes read cleanly.
- * @param {number} n
- */
-export function sigFigs(n) {
-  return Number.isFinite(n) && n !== 0 ? Number(n.toPrecision(3)) : n;
-}
 
 /**
  * The units a starter put into a card goes into: the card's, or with
@@ -147,8 +182,12 @@ export function targetUnits(config, system) {
   return sys?.scale === undefined ? config.units ?? null : null;
 }
 
-/** A starter's fragment, with the target's units for its sizes @param {Starter} starter @param {Record<string, any>} params @param {string | null} units */
-const buildStarter = (starter, params, units) => starter.build(starterParams(starter, params, units), { units: kmPerUnit(units) === null ? null : units });
+/**
+ * A starter's fragment, with the target's units (and size) for its sizes
+ * @param {Starter} starter @param {Record<string, any>} params @param {string | null} units @param {Record<string, any> | null} [target]
+ */
+const buildStarter = (starter, params, units, target = null) =>
+  starter.build(starterParams(starter, params, units, target), { units: kmPerUnit(units) === null ? null : units });
 
 /**
  * A `point` param's text as the config wants it: three numbers become
@@ -240,7 +279,7 @@ const SCENE_KEYS = ['points', 'objects', 'camera', 'backdrop', 'labels', 'backgr
  */
 export function unitsClash(config, starter, params = {}, system) {
   const units = targetUnits(config, system);
-  const frag = buildStarter(starter, params, units);
+  const frag = buildStarter(starter, params, units, targetOf(config, system));
   return frag.units !== undefined && units !== frag.units && hasScene(targetOf(config, system)) ? frag.units : null;
 }
 
@@ -250,7 +289,7 @@ export function unitsClash(config, starter, params = {}, system) {
  * @param {number} [system]
  * @returns {Record<string, any>}
  */
-const targetOf = (config, system) => (system === undefined || system < 0 ? config : config.objects?.[system] ?? {});
+export const targetOf = (config, system) => (system === undefined || system < 0 ? config : config.objects?.[system] ?? {});
 
 /**
  * Put a starter into a card config.
@@ -279,7 +318,7 @@ export function applyStarter(config, starter, params = {}, { mode, system } = {}
   const base = { ...config };
   if (replace) for (const k of SCENE_KEYS) delete base[k];
   const units = targetUnits(base, into);
-  const filled = starterParams(starter, params, units);
+  const filled = starterParams(starter, params, units, targetOf(base, into));
   let frag = starter.build(filled, { units: kmPerUnit(units) === null ? null : units });
   if (starter.kind === 'part') frag = prefixFragment(frag, String(filled.prefix ?? '').trim());
 

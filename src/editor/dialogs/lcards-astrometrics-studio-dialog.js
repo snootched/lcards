@@ -40,7 +40,7 @@ import { objectBranch, objectSummary, freshId, newObject, viewScale, reshape, OB
 import {
   viewsOf, startViewName, captureView, freshViewName, setView, deleteView, moveView, renameView, viewNameProblem, viewSummary
 } from './astro-studio/camera-views.js';
-import { STARTERS, applyStarter, hasScene, unitsClash, targetUnits } from '../../core/astrometrics/starters/index.js';
+import { STARTERS, applyStarter, hasScene, unitsClash, targetUnits, targetOf, fitFactor } from '../../core/astrometrics/starters/index.js';
 import { starterYaml } from '../../core/astrometrics/starters/yaml.js';
 import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
@@ -48,7 +48,7 @@ import { SCENE_SCOPE, scopeSystem, validScope, scopedList, setScopedList, scoped
 import { createHistory } from './astro-studio/history.js';
 import { modelSizeReadout, fitToViewSize, roundLength, shortNumber } from './astro-studio/model-size.js';
 import { prismOutline } from '../../core/astrometrics/objects/volume.js';
-import { starterPicture, typePicture, TYPE_GROUPS, starterParamSchema, starterParamChoices, starterParamValues, starterAdds, fragmentCounts } from './astro-studio/starter-gallery.js';
+import { starterPicture, typePicture, TYPE_GROUPS, starterParamSchema, starterParamChoices, starterParamValues, starterAdds, fragmentCounts, sceneUnitsText } from './astro-studio/starter-gallery.js';
 import { overviewGuide, startersGuide, objectsGuide, pointsGuide, cameraGuide } from './astro-studio/studio-guides.js';
 import './astro-studio/lcards-astro-schema-form.js';
 import '../components/shared/lcards-form-section.js';
@@ -94,6 +94,7 @@ const MODEL_WAIT_MS = 5 * 60 * 1000;
  * @type {{ id: string, header: string, icon: string, hint: string, parts: { path: string, keys: string[] }[] }[]}
  */
 const SCENE_GROUPS = [
+  { id: 'units', header: 'Units', icon: 'mdi:ruler', hint: 'Scene units are your own: every position, size and distance is in them. Name them (km, au, ly) for real data: parts and models then start at their real size, and bodies sit at real distances. In scene units, a part is sized to fit what is already there. Naming the units does not rescale the scene.', parts: [{ path: '', keys: ['units'] }] },
   { id: 'look', header: 'Look', icon: 'mdi:eye-outline', hint: 'Which objects and points show: the diagram ones, the realistic ones, or both. Each object and point can pick its look. Model scale: models at their real size, or drawn larger when they would be too small to see.', parts: [{ path: '', keys: ['look', 'model_scale'] }] },
   { id: 'time', header: 'Time', icon: 'mdi:clock-outline', hint: 'The scene date moves bodies and orbits; the time scale speeds up or slows the decorative motion.', parts: [{ path: 'clock', keys: ['date', 'rate'] }, { path: '', keys: ['time_scale'] }] },
   { id: 'warp', header: 'Warp', icon: 'mdi:rocket-launch-outline', hint: 'Stars and dust stream past while the scene is at warp.', parts: [{ path: '', keys: ['warp', 'warp_factor'] }] },
@@ -692,6 +693,9 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         .starter-detail-title { display: flex; align-items: center; gap: var(--ha-space-2); margin: 0 0 var(--ha-space-2); }
         .starter-description { margin: 0 0 var(--ha-space-2); }
         .starter-adds { margin: 0 0 var(--ha-space-3); }
+        .starter-units { display: flex; align-items: center; gap: var(--ha-space-1); margin: 0 0 var(--ha-space-2); }
+        .starter-units ha-icon { --mdc-icon-size: 18px; flex-shrink: 0; }
+        .starter-fit { margin: 0 0 var(--ha-space-2); }
         .starter-detail lcards-form-section { margin-bottom: var(--ha-space-3); }
         .starter-yaml { max-height: 320px; overflow: auto; margin: 0; padding: var(--ha-space-2) var(--ha-space-3);
           font-family: var(--ha-font-family-code, monospace); font-size: var(--ha-font-size-s, 12px); white-space: pre;
@@ -877,7 +881,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     return html`
       ${overviewGuide()}
       ${SCENE_GROUPS.map((g) => html`
-        <lcards-form-section data-group=${g.id} header=${g.header} icon=${g.icon} description=${g.hint} outlined ?expanded=${g.id === 'look' || g.id === 'time'}>
+        <lcards-form-section data-group=${g.id} header=${g.header} icon=${g.icon} description=${g.hint} outlined ?expanded=${g.id === 'look' || g.id === 'time' || g.id === 'units'}>
           ${g.parts.map((part) => html`
             <lcards-astro-schema-form .hass=${this.hass} .schema=${schemaAt(part.path)} .keys=${part.keys} .value=${valueAt(part.path)}
               .pointIds=${this._pointIds} .units=${cfg.units ?? ''}
@@ -1197,6 +1201,10 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     const sysId = !scene && this._system ? this._objectIdIn(SCENE_SCOPE, this._scope) : null;
     const blocked = !!(sysId && clash);
     const units = scene ? this._workingConfig.units ?? '' : this._starterUnits;
+    // a part goes in at a real size (named units) or sized to fit what is there (scene units)
+    const target = scene || mode !== 'merge' ? null : targetOf(this._workingConfig, this._starterSystem);
+    const values = starterParamValues(starter, typed, units || null, target);
+    const fitted = target && fitFactor(starter, target, units || null, typed) !== null;
     return html`
       <div class="starter-detail" data-starter-detail=${starter.id}>
         <div class="tab-header">
@@ -1208,6 +1216,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
         ${this._picture(starterPicture(starter.id), starter.icon)}
         <h3 class="starter-detail-title"><ha-icon icon=${starter.icon}></ha-icon>${starter.title}</h3>
         <p class="starter-description">${starter.description}</p>
+        ${scene ? html`<p class="hint starter-units"><ha-icon icon="mdi:ruler"></ha-icon>${sceneUnitsText(starter)}</p>` : nothing}
         <p class="hint starter-adds">${mode === 'scene' ? `Replaces the scene with ${host?.title}, then adds` : scene || mode === 'replace' ? 'Replaces the scene with' : 'Adds'} ${starterAdds(starter, typed)}${sysId && !blocked ? ` to system ${sysId}` : ''}.</p>
         ${blocked ? html`
           <lcards-message type="info" class="starter-clash">
@@ -1220,13 +1229,14 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
           </lcards-message>` : nothing}
         ${starter.params.length ? html`
           <lcards-form-section header="Settings" icon="mdi:tune-variant" outlined expanded>
-            <lcards-astro-schema-form .hass=${this.hass} .schema=${starterParamSchema(starter)} .value=${starterParamValues(starter, typed, units || null)}
+            ${fitted ? html`<p class="hint starter-fit">Sized to fit this ${this._system ? 'system' : 'scene'} (its units have no name). Change the sizes as you like.</p>` : nothing}
+            <lcards-astro-schema-form .hass=${this.hass} .schema=${starterParamSchema(starter)} .value=${values}
               .pointIds=${this._pointIds} .choices=${starterParamChoices(starter)} .units=${units}
               @form-changed=${(/** @type {CustomEvent} */ e) => { e.stopPropagation(); this._setStarterParams(starter, e.detail.value); }}>
             </lcards-astro-schema-form>
           </lcards-form-section>` : nothing}
         <lcards-form-section header="YAML" icon="mdi:code-braces" description="What it puts into the card" outlined>
-          <pre class="starter-yaml">${this._starterYaml(starter, typed, units)}</pre>
+          <pre class="starter-yaml">${this._starterYaml(starter, values, units)}</pre>
         </lcards-form-section>
         ${this._starterMessage?.starter === starter.id
           ? html`<lcards-message type=${this._starterMessage.type}>${this._starterMessage.text}</lcards-message>` : nothing}

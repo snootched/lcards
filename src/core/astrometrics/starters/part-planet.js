@@ -34,8 +34,8 @@ export default /** @type {import('./index.js').Starter} */ ({
     { key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: 'planet' },
     { key: 'label', label: 'Label', type: 'text', default: 'PLANET' },
     { key: 'centre', label: 'Orbits round', type: 'point', default: [0, 0, 0], helper: 'A point id (a star) or x, y, z.' },
-    { key: 'orbit', label: 'Orbit radius', type: 'number', default: 40, real: AU_KM },
-    { key: 'radius', label: 'Planet radius', type: 'number', default: 3, real: 6371 },
+    { key: 'orbit', label: 'Orbit radius', type: 'number', default: 40, real: AU_KM, fit: true },
+    { key: 'radius', label: 'Planet radius', type: 'number', default: 3, real: 6371, fit: true },
     { key: 'moons', label: 'Moons (0 to 4)', type: 'number', default: 2 },
     { key: 'look', label: 'Surface', type: 'text', default: 'rocky', helper: 'A planet type (gas_giant, ringed_giant, ice_giant, storm_giant, clouds, lava, ice, rocky, terran), a map (builtin:mars_viking) or your own picture (/local/planet.jpg).',
       options: FILL_PRESETS.map((value) => ({ value, label: value.replace(/_/g, ' ') })), custom: true }

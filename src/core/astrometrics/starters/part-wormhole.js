@@ -14,7 +14,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   params: [
     { key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: 'bajoran' },
     { key: 'centre', label: 'Mouth', type: 'point', default: [0, 0, 0], helper: 'A point id or x, y, z. The inside runs along +x from here.' },
-    { key: 'size', label: 'Length', type: 'number', default: 70 },
+    { key: 'size', label: 'Length', type: 'number', default: 70, real: 40, fit: true },
     { key: 'power', label: 'Power entity (optional)', type: 'text', default: '', helper: 'A number from 0 to 100: the mouth opens with it.' }
   ],
   build: ({ centre, size, power }) => {

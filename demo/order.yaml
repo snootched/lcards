@@ -47,6 +47,13 @@ releases:
         session: "NB3"
         docs: /cards/astrometrics/effects#the-nexus-a-ribbon-and-its-wake
         public: true
+      - file: astro-units
+        topic: astrometrics
+        summary: "Astrometrics units: parts sized for the scene they go into"
+        description: "The Solar system starter (scene units) with the Nexus, a comet and the Badlands added from the Studio: each sized to fit the scene instead of arriving at its own 2000, 175 or 500. Below, a scene in light years with the same parts at their real sizes: the Badlands 10 ly across, the Nexus 1 ly long, on a 5 ly grid."
+        session: "U1"
+        docs: /cards/astrometrics/scale#units
+        public: false
       - file: astro-nebula-shapes
         topic: astrometrics
         summary: "Astrometrics nebula shapes, dust and colour"

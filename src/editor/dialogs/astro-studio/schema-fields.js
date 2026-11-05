@@ -249,6 +249,25 @@ export function numberSelector(s) {
 }
 
 /**
+ * The unit a number field shows beside its value, read from the key's
+ * description: the open scope's units (or "units" when it names none) for
+ * scene units, units/s for speeds in them, px for screen sizes, m for
+ * metres; undefined for anything else (a factor, a count, degrees).
+ * @param {string | undefined} description
+ * @param {string | undefined} units
+ * @returns {string | undefined}
+ */
+export function unitSuffix(description, units) {
+  const d = String(description ?? '');
+  const scene = d.match(/(per )?scene units?(\s*\/\s*s\b| a second| per second)?/);
+  if (scene && !scene[1]) return `${units || 'units'}${scene[2] ? '/s' : ''}`;
+  if (/\bpx (per|a) second\b/.test(d)) return 'px/s';
+  if (/\bpx\b|\bpixels\b/.test(d)) return 'px';
+  if (/\bmetres\b/.test(d)) return 'm';
+  return undefined;
+}
+
+/**
  * A label with the open scope's units when the key is in scene units
  * ("Radius (ly)"); as it is when the scene names no units.
  * @param {string} label

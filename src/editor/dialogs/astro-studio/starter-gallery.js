@@ -65,8 +65,11 @@ export function starterParamSchema(starter) {
   const out = {};
   for (const p of starter.params) {
     const hints = { 'x-ui-hints': { label: p.label } };
-    // a size: its units in the label (unitsLabel reads "scene units"), real where they are named
-    const description = p.real !== undefined ? [p.helper, 'In scene units; in named units (km, au, ly) it starts at a real size.'].filter(Boolean).join(' ') : p.helper;
+    // a size: its units beside the field (the form reads "scene units"), real where they are named, fitted where not
+    const sizeNote = p.real !== undefined
+      ? `In scene units; in named units (km, au, ly) it starts at a real size${p.fit ? ', in a scene without named units at a size that fits it' : ''}.`
+      : p.fit ? 'In scene units; it starts at a size that fits the scene.' : undefined;
+    const description = [p.helper, sizeNote].filter(Boolean).join(' ') || undefined;
     if (p.type === 'number') out[p.key] = { type: 'number', description, ...hints };
     else if (p.type === 'point') out[p.key] = { ...POINT_SCHEMA, description, ...hints };
     // a fixed list: a dropdown with each option's name (a list that takes other values too is a text field with choices)
@@ -91,14 +94,16 @@ export function starterParamChoices(starter) {
 
 /**
  * The params to show: each default (a real size in the target's named
- * `units`), then what was typed over it.
+ * `units`, or sized to fit the `target` when they have no name), then what
+ * was typed over it.
  * @param {import('../../../core/astrometrics/starters/index.js').Starter} starter
  * @param {Record<string, any>} [typed]
  * @param {string | null} [units]
+ * @param {Record<string, any> | null} [target] - the lists it goes into: the card config, or a system
  */
-export function starterParamValues(starter, typed = {}, units = null) {
-  const real = starterParams(starter, typed, units);
-  return { ...Object.fromEntries(starter.params.map((p) => [p.key, p.real !== undefined ? real[p.key] : p.default])), ...typed };
+export function starterParamValues(starter, typed = {}, units = null, target = null) {
+  const filled = starterParams(starter, typed, units, target);
+  return { ...Object.fromEntries(starter.params.map((p) => [p.key, p.real !== undefined || p.fit ? filled[p.key] : p.default])), ...typed };
 }
 
 /**
@@ -122,4 +127,18 @@ export function fragmentCounts(frag) {
 export function starterAdds(starter, typed = {}) {
   const out = applyStarter({}, starter, typed);
   return out.added ? fragmentCounts(out.added) : String(out.error);
+}
+
+/** Unit names in words */
+const UNIT_WORDS = /** @type {Record<string, string>} */ ({ m: 'metres', km: 'kilometres', au: 'astronomical units', ly: 'light years', pc: 'parsecs' });
+
+/**
+ * What units a scene starter is in, in words (its detail says so).
+ * @param {import('../../../core/astrometrics/starters/index.js').Starter} starter
+ */
+export function sceneUnitsText(starter) {
+  const units = starter.build(starterParams(starter), { units: null }).units;
+  return units
+    ? `In ${UNIT_WORDS[units] ?? units}: sizes and distances are real, and parts you add start at their real size.`
+    : 'In scene units, sized to be seen: parts you add are sized to fit it.';
 }

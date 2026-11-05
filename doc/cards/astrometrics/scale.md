@@ -13,7 +13,25 @@ Both are the same card with the same keys. The **Solar system at true scale** an
 
 ## Units
 
-Scene units are yours to pick, and positions, sizes and distances are all in them. For real data, name them with `units` on the card: `m`, `km`, `au`, `ly` or `pc`. The name tells the card how a [star system](#star-systems) inside relates to the scene; on its own it changes nothing on screen.
+Scene units are yours to pick, and positions, sizes and distances are all in them. For real data, name them with `units` on the card: `m`, `km`, `au`, `ly` or `pc`. In the [Studio](./studio) it is the **Units** section of the Scene tab. The name tells the card how a [star system](#star-systems) inside relates to the scene, draws a [model](./objects#real-size) at its real size, places bodies (`planet:`) at their real distances and gives a galaxy the Milky Way's radius in those units. It does not rescale what is already there: naming the units of a scene built in scene units only says what its numbers mean.
+
+Screen sizes (line widths, label sizes, marker sizes) are in px whatever the units, and a model's `length` is in metres. Every other length is in the units of the frame it is in: the scene's, or its [system's](#star-systems). The Studio shows the unit beside each length field (`units` when the scene names none).
+
+Each [starter](./starters) is in one set of units:
+
+| Starters | Units |
+|---|---|
+| Solar system (real positions) | km |
+| Star Trek galaxy (and its Star Trek parts), Galaxy to station at true scale | ly (the station's system inside in km) |
+| Every other scene | Scene units, built to fit |
+
+A part added to a scene (a planet, a belt, a comet, a nebula field, territories, the Badlands, the Nexus, the wormhole) is sized for where it goes:
+
+- **Named units:** it starts at its real size: an Earth-sized planet one au out, the Badlands 10 ly across, the Nexus 1 ly long, the wormhole 40 km long, a comet 0.6 to 35 au from its star (Halley's). None of the three has a size on screen, so 10 ly, 1 ly and 40 km are plausible sizes, not canon.
+- **Scene units, with something in the scene:** it is sized to fit: about a quarter of the scene's size (a belt about half, out among the planets). The Nexus added to the Solar system starter is about 80 long, where Neptune's orbit is 160.
+- **An empty scene:** it keeps its own sizes.
+
+A starbase and a single asteroid keep their sizes in scene units (a model is drawn larger when it would be too small to see, [`model_scale`](./objects#real-size)). What you type always wins.
 
 ## One scene in real units
 
@@ -160,4 +178,4 @@ The [Studio](./studio) edits a system's points and objects in the same Points an
 - **Drag** moves a point on its system's plane.
 - **Capture** a view while the camera looks at a point (after a fly-to it does): the view names the point, with the distance in its units.
 - New ids are checked against the whole card, since ids are card-wide.
-- **Starters** adds parts into the system. A planet, belt, nebula field, territories or starbase starts at real sizes in the system's units (an Earth-sized planet one au out in a km system); a part in other units than the system's goes to the scene instead.
+- **Starters** adds parts into the system. A part with sizes starts at real sizes in the system's units (an Earth-sized planet one au out in a km system), or sized to fit the system when it has no named units ([Units](#units)); a part in other units than the system's goes to the scene instead.

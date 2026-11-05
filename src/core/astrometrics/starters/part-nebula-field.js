@@ -14,7 +14,7 @@ export default /** @type {import('./index.js').Starter} */ ({
     { key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: 'nebula' },
     { key: 'label', label: 'Label', type: 'text', default: 'NEBULA' },
     { key: 'centre', label: 'Centre', type: 'point', default: [0, 10, 0], helper: 'A point id or x, y, z.' },
-    { key: 'radius', label: 'Radius', type: 'number', default: 40, real: 2 * LY_KM }
+    { key: 'radius', label: 'Radius', type: 'number', default: 40, real: 2 * LY_KM, fit: true }
   ],
   build: ({ label, centre, radius }) => {
     const c = centreRef(centre);

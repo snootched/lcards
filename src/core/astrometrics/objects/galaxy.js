@@ -77,13 +77,19 @@ const xz = (r, bearing) => [r * Math.sin(bearing * DEG), -r * Math.cos(bearing *
  * @property {{ name: string, start: number, weight: number, end: number, spur?: boolean }[]} arms
  */
 
+/** The Milky Way's radius, light years (the default radius) */
+const MILKY_WAY_LY = 50000;
+/** A light year, km */
+const LY_KM = 9.4607304725808e12;
+
 /**
  * The model from a config: the Milky Way by default, or `arms.count: n` equal arms.
  * @param {any} cfg
+ * @param {number | null} [kmPerUnit] - the frame's named units: the default radius is the Milky Way's in them
  * @returns {GalaxyModel}
  */
-export function galaxyModel(cfg) {
-  const R = Math.max(1e-6, num(cfg.radius, 50000));
+export function galaxyModel(cfg, kmPerUnit = null) {
+  const R = Math.max(1e-6, num(cfg.radius, kmPerUnit ? (MILKY_WAY_LY * LY_KM) / kmPerUnit : MILKY_WAY_LY));
   const armsPart = sub(cfg.arms);
   const barPart = sub(cfg.bar);
   const n = Math.round(num(armsPart.count, 0));
@@ -261,7 +267,7 @@ function blobField(blobs, color, opacity, additive) {
 export function buildGalaxy(cfg, ctx) {
   const node = new Group();
   node.name = `galaxy:${cfg.id ?? ''}`;
-  const m = galaxyModel(cfg);
+  const m = galaxyModel(cfg, ctx.kmPerUnit?.(cfg._system) ?? null);
   const out = built(cfg, node, { radius: m.R, flat: true });
   const opacity = num(cfg.opacity, 1);
   const rnd = seededRandom(num(cfg.seed, 3));

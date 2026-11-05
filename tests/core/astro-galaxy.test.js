@@ -131,3 +131,10 @@ test('the Milky Way\'s arms cross the Sun\'s line in their real order: Scutum-Ce
   assert.ok(r['Scutum-Centaurus'] < r.Sagittarius && r.Sagittarius < sunR && sunR < r.Perseus && r.Perseus < r.Norma, JSON.stringify(r));
   assert.ok(Math.abs(r.Sagittarius - 24700) < 1500 && Math.abs(r.Perseus - 34500) < 1500, JSON.stringify(r));
 });
+
+test('U1: galaxy radius: the Milky Way\'s 50000 ly by default, in the frame\'s named units', () => {
+  assert.equal(galaxyModel({}).R, 50000);
+  assert.equal(galaxyModel({}, 9.4607304725808e12).R, 50000);
+  assert.ok(Math.abs(galaxyModel({}, 149597870.7).R / ((50000 * 9.4607304725808e12) / 149597870.7) - 1) < 1e-9);
+  assert.equal(galaxyModel({ radius: 100 }, 149597870.7).R, 100, 'a set radius stays');
+});

@@ -21,7 +21,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { configToYaml, yamlToConfig } from '../../utils/yaml-utils.js';
 import {
   fieldKind, tupleLabels, tupleSize, labelFor, helperText, appliesTo, withKey, parseNumbers, isUnset, objectAlternative, shorthandKey, choiceOptions, choiceValue,
-  isBoundValue, boundIn, uiHints, numberSelector, unitsLabel, bindingBranch, takesTemplate, isTemplateValue, isTour, sectionIcon, rangeItem, pairItemSchema
+  isBoundValue, boundIn, uiHints, numberSelector, unitsLabel, unitSuffix, bindingBranch, takesTemplate, isTemplateValue, isTour, sectionIcon, rangeItem, pairItemSchema
 } from './schema-fields.js';
 import {
   RATE_PRESETS, RATE_UNIT_NAMES, CUSTOM_RATE, rateField, customParts, presetValue, customRateValue, isNowDate, dateSelectorValue, todayValue
@@ -186,7 +186,9 @@ export class LCARdSAstroSchemaForm extends LitElement {
   _field(key, s) {
     const kind = fieldKind(s, key);
     const hints = uiHints(s);
-    const label = unitsLabel(hints.label ?? labelFor(key), s.description, this.units);
+    // a number shows its unit beside the value; other fields (a point, a pair) name it in the label
+    const unit = kind === 'number' ? unitSuffix(s.description, this.units) : undefined;
+    const label = unit ? hints.label ?? labelFor(key) : unitsLabel(hints.label ?? labelFor(key), s.description, this.units);
     const helper = helperText(s.description);
     const value = this._get(key);
     const cls = SHORT.has(kind) ? '' : 'full';
@@ -204,12 +206,13 @@ export class LCARdSAstroSchemaForm extends LitElement {
         // unset shows the default; choosing the default leaves the key out
         const descs = s.enumDescriptions ?? {};
         const options = s.enum.map((/** @type {string} */ v) => ({ value: v, label: descs[v] ? `${v}: ${descs[v]}` : v }));
-        if (s.default === undefined) options.unshift({ value: '', label: '(Not set)' });
+        if (s.default === undefined) options.unshift({ value: '', label: hints.empty ?? '(Not set)' });
         return this._selector(key, { select: { mode: 'dropdown', options } }, value ?? s.default ?? '', label, helper, cls,
           (v) => (!v || v === s.default ? undefined : v));
       }
       case 'number': {
-        const selector = numberSelector(s);
+        const base = numberSelector(s);
+        const selector = unit ? { number: { ...base.number, unit_of_measurement: unit } } : base;
         const slider = selector.number.mode === 'slider';
         const help = s.default !== undefined && !/Default/.test(helper) ? `${helper} Default ${s.default}.`.trim() : helper;
         // a slider takes the row; a box sits two to a row

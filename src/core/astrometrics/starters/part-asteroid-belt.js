@@ -7,6 +7,8 @@ const AU_KM = 149597870.7;
 export default /** @type {import('./index.js').Starter} */ ({
   id: 'asteroid_belt',
   kind: 'part',
+  // a belt lies out among the planets, not near the star
+  fitShare: 0.45,
   title: 'Asteroid belt',
   summary: 'A band of rocks going round a centre, lit by its star',
   description: 'A band of rocks going round a centre, the inner ones faster, lit from the centre as by its star, with a label on its edge.',
@@ -15,8 +17,8 @@ export default /** @type {import('./index.js').Starter} */ ({
     { key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: 'belt' },
     { key: 'label', label: 'Label', type: 'text', default: 'ASTEROID BELT' },
     { key: 'centre', label: 'Centre', type: 'point', default: [0, 0, 0], helper: 'A point id (a star) or x, y, z.' },
-    { key: 'radius', label: 'Radius', type: 'number', default: 65, real: 2.7 * AU_KM },
-    { key: 'width', label: 'Width', type: 'number', default: 8, real: AU_KM }
+    { key: 'radius', label: 'Radius', type: 'number', default: 65, real: 2.7 * AU_KM, fit: true },
+    { key: 'width', label: 'Width', type: 'number', default: 8, real: AU_KM, fit: true }
   ],
   build: ({ label, centre, radius, width }, { units }) => {
     const c = centreRef(centre);

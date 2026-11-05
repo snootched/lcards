@@ -1,6 +1,9 @@
 /** The Nexus (Generations): a white-hot ribbon trailing pink gas, discharges crawling off it */
 
-import { centreRef } from './shared.js';
+import { centreRef, sigFigs } from './shared.js';
+
+/** A light year, km */
+const LY_KM = 9.4607304725808e12;
 
 export default /** @type {import('./index.js').Starter} */ ({
   id: 'nexus',
@@ -14,7 +17,7 @@ export default /** @type {import('./index.js').Starter} */ ({
     { key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: 'nexus' },
     { key: 'label', label: 'Label', type: 'text', default: 'NEXUS' },
     { key: 'centre', label: 'Centre', type: 'point', default: [0, 0, 0], helper: 'A point id or x, y, z.' },
-    { key: 'length', label: 'Length', type: 'number', default: 2000 },
+    { key: 'length', label: 'Length', type: 'number', default: 2000, real: LY_KM, fit: true },
     { key: 'travel', label: 'Travel', type: 'text', default: 'still', options: [{ value: 'still', label: 'Still (its waves still run)' }, { value: 'orbit', label: 'Round the centre on a wide orbit' }] }
   ],
   build: ({ label, centre, length, travel }) => {
@@ -23,7 +26,7 @@ export default /** @type {import('./index.js').Starter} */ ({
     if (travel !== 'orbit') {
       return {
         points: [...c.points, { id: 'heart', at: c.ref, label: String(label), style: 'major' }],
-        objects: [{ type: 'nebula', id: 'ribbon', at: 'heart', preset: 'nexus', size: [L, L / 4, L / 4] }]
+        objects: [{ type: 'nebula', id: 'ribbon', at: 'heart', preset: 'nexus', size: [L, sigFigs(L / 4), sigFigs(L / 4)] }]
       };
     }
     // on a wide orbit round the centre, broadside on, the wake (+y) turned to trail behind (-z)
@@ -32,7 +35,7 @@ export default /** @type {import('./index.js').Starter} */ ({
       points: [...c.points, { id: 'heart', polar: [R, 0], object: 'track', label: String(label), style: 'major' }],
       objects: [
         { type: 'ring', id: 'track', at: c.ref, radius: R, spin: 2, width: 0.5, opacity: 0 },
-        { type: 'nebula', id: 'ribbon', at: 'heart', preset: 'nexus', size: [L, L / 4, L / 4], face: 'motion', rotation: [-90, 0, 0] }
+        { type: 'nebula', id: 'ribbon', at: 'heart', preset: 'nexus', size: [L, sigFigs(L / 4), sigFigs(L / 4)], face: 'motion', rotation: [-90, 0, 0] }
       ]
     };
   }

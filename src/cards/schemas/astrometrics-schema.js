@@ -216,7 +216,7 @@ const pointRef = (description) => ({
     description,
     oneOf: [
         { type: 'string', description: 'A point id' },
-        { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3, description: 'Scene coordinates [x, y, z]' }
+        { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3, description: 'Scene coordinates [x, y, z], scene units' }
     ]
 });
 
@@ -402,10 +402,10 @@ const cameraSchema = {
                             additionalProperties: false,
                             properties: {
                                 radius: number('Sphere radius, scene units.', { exclusiveMinimum: 0 }),
-                                center: tuple(3, 'Sphere centre [x, y, z]. Default: the centre of the scene.'),
-                                x: tuple(2, 'Box: lowest and highest x.'),
-                                y: tuple(2, 'Box: lowest and highest y.'),
-                                z: tuple(2, 'Box: lowest and highest z.')
+                                center: tuple(3, 'Sphere centre [x, y, z], scene units. Default: the centre of the scene.'),
+                                x: tuple(2, 'Box: lowest and highest x, scene units.'),
+                                y: tuple(2, 'Box: lowest and highest y, scene units.'),
+                                z: tuple(2, 'Box: lowest and highest z, scene units.')
                             }
                         }
                     ]
@@ -451,7 +451,7 @@ const starsSchema = {
                 colors: { type: 'array', items: simpleColorSchema, description: 'Several star colours, picked at random per star (wins over color).' },
                 opacity: number('Fades the whole star layer, 0 to 1: every star\'s brightness is multiplied by it.', { minimum: 0, maximum: 1, default: 1 }),
                 seed: number('Random seed: the same seed places the same stars.', { default: 7 }),
-                streak: number('How long stars and dust streak during a warp fly-to (camera.warp or a view\'s warp); 0: never.', { minimum: 0, default: 1 }),
+                streak: number('How long stars and dust streak during a warp fly-to (camera.warp or a view\'s warp), a multiple of the usual length; 0: never.', { minimum: 0, default: 1 }),
                 spectrum: part('Streaks split into colour: a Doppler shift of each star\'s own colour, violet toward the tail and red toward the head (white stars show the whole rainbow). true, or { direction }. Default off.', {
                     direction: { type: 'string', enum: ['doppler', 'reverse'], default: 'doppler', description: 'doppler: violet toward the tail, as a real Doppler shift. reverse: violet toward the head.' }
                 }, { toggle: true })
@@ -599,7 +599,7 @@ const pointSchema = {
         xyz: bindable(3, 'Position [x, y, z], scene units (y is up). With object: local to that object. Or { entity, attributes: [x, y, z] } to read it from an entity.', {
             attributes: attributeList(3, 'The attributes holding x, y and z. Default [x, y, z].')
         }),
-        polar: bindable(2, 'Position on the scene plane as [distance, bearing]: bearing in degrees, 0 north, clockwise seen from above; alt lifts it. With object: local to that object. Or { entity, attributes: [distance, bearing] }.', {
+        polar: bindable(2, 'Position on the scene plane as [distance, bearing]: distance in scene units, bearing in degrees, 0 north, clockwise seen from above; alt lifts it. With object: local to that object. Or { entity, attributes: [distance, bearing] }.', {
             attributes: attributeList(2, 'The attributes holding the distance and bearing. Default [distance, bearing].')
         }),
         latlon: bindable(2, 'Latitude and longitude [lat, lon] in degrees on the sphere named in object. Longitude 0 faces the default camera, east to the right; the point turns with the sphere\'s spin. Or { entity } for a person, device tracker or zone (its latitude and longitude attributes).', {
@@ -651,7 +651,7 @@ const pointSchema = {
 const objectCommon = {
     id: { type: 'string', description: 'Name of the object: points stand on it (object), rules target it. Default type#n (grid#1, ...).' },
     tags: { ...tagsSchema, description: 'Tags for rules: a rule on tag:<name> patches every object with the tag.' },
-    at: pointRef('Where the object sits: a point id (it follows the point) or [x, y, z]. Default the origin.'),
+    at: pointRef('Where the object sits: a point id (it follows the point) or [x, y, z] in scene units. Default the origin.'),
     rotation: tuple(3, 'Turn the object [x, y, z] in degrees: y is a bearing (clockwise from above), x tips it toward the camera, z rolls it.'),
     spin: setting('Turn round the object\'s own vertical axis, degrees per second (positive is prograde). Off under reduced motion.', { default: 0 }),
     face: {
@@ -1241,7 +1241,7 @@ const galaxyObject = {
     description: 'A spiral galaxy in 3D: seeded stars along a bar, a bulge, spiral arms and a thin disc, with soft glow on the arms and the core and dust lanes, at their real places (parallax as the camera moves). The Milky Way by default: the bar, Scutum-Centaurus and Perseus, Sagittarius and Norma, and the Orion spur; the Sun\'s place is 0.52 of the radius toward bearing 180.',
     properties: {
         type: { type: 'string', const: 'galaxy', description: 'galaxy: a spiral galaxy.' },
-        radius: setting('Radius of the disc, scene units. Default 50000 (light years, the Milky Way\'s).', { exclusiveMinimum: 0 }),
+        radius: setting('Radius of the disc, scene units. Default the Milky Way\'s, 50000 light years: 50000 in scene units or ly, converted when the units are named (km, au, pc).', { exclusiveMinimum: 0 }),
         thickness: setting('The disc\'s thickness as a fraction of the radius.', { minimum: 0, maximum: 0.5, default: 0.02 }),
         seed: { type: 'integer', default: 3, description: 'A different number gives a different scatter of stars.' },
         arms: part('The spiral arms: the Milky Way\'s unless count is set.', {
@@ -1477,10 +1477,11 @@ const systemMemberSchema = {
     oneOf: DRAWN_TYPES.map((t) => OBJECT_SCHEMAS[/** @type {keyof typeof OBJECT_SCHEMAS} */ (t)])
 };
 
-const unitsSchema = (/** @type {string} */ description) => ({
+const unitsSchema = (/** @type {string} */ description, /** @type {string} */ empty) => ({
     type: 'string',
     enum: [...UNIT_NAMES],
     description,
+    'x-ui-hints': { empty },
     enumDescriptions: { m: 'Metres', km: 'Kilometres', au: 'Astronomical units (149,597,870.7 km)', ly: 'Light years', pc: 'Parsecs (3.26 light years)' }
 });
 
@@ -1493,8 +1494,8 @@ const systemObject = {
         type: { type: 'string', const: 'system', description: 'system: points and objects in units of their own.' },
         id: { type: 'string', description: 'Name of the system. Default system#n.' },
         at: pointRef('Where the system\'s origin sits: a point of the scene (it stays there) or [x, y, z] in scene units. Default the origin.'),
-        units: unitsSchema('What one unit inside the system is (m, km, au, ly or pc). Needs the scene\'s units. Default: the scene\'s units (or scale).'),
-        scale: setting('How many scene units one unit inside the system is, when the units have no name. Wins over units.', { exclusiveMinimum: 0 }),
+        units: unitsSchema('What one unit inside the system is (m, km, au, ly or pc). Needs the scene\'s units. Default: the scene\'s units (or scale).', '(The scene\'s units)'),
+        scale: setting('How many of the scene\'s units one unit inside the system is (a ratio), when the units have no name. Wins over units.', { exclusiveMinimum: 0 }),
         visible: { type: 'boolean', default: true, description: 'false hides everything in the system (its points still work).' },
         points: { type: 'array', description: 'The system\'s points, in its units (polar: [149597870.7, 30] puts Earth 1 AU out in km).', items: pointSchema },
         objects: { type: 'array', description: 'The system\'s objects, in its units.', items: systemMemberSchema }
@@ -1553,7 +1554,7 @@ export const astrometricsSchema = {
                 snap: { type: 'boolean', default: false, description: 'Round label positions to whole px (crisper text on weak devices; fast motion looks steppier). Default: sub-pixel.' }
             }
         },
-        units: unitsSchema('What one scene unit is (m, km, au, ly or pc): positions, sizes and distances are in it. Optional: a scene can use any units; naming them lets a system (type: system) give its own.'),
+        units: unitsSchema('What one scene unit is (m, km, au, ly or pc): positions, sizes and distances are in it. Optional: a scene can use any units of its own (scene units); naming them lets a system (type: system) give its own, models and starter parts start at their real size, and bodies (planet:) sit at real distances. Naming them does not rescale what is already there.', '(Scene units)'),
         model_scale: {
             type: 'string',
             enum: ['real', 'visible'],

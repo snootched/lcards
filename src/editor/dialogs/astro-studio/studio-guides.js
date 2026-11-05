@@ -35,7 +35,7 @@ export function overviewGuide({ open = false } = {}) {
       <ul>
         <li><b>Objects</b> are what is drawn: grids and sector maps, planets, rings and orbits, routes, nebulae, galaxies, ships and stations.</li>
         <li><b>Points</b> are named places. They carry labels and markers, and objects, routes and camera views name them by id. A point can stand on an object: a city on a planet, a cell of a sector map, a part of a ship.</li>
-        <li><b>Units</b> are yours to pick. Positions, sizes and distances are all in scene units; name them (light years, au, km) when you use real numbers.</li>
+        <li><b>Units</b> are yours to pick (Scene tab, Units). Positions, sizes and distances are all in scene units; name them (light years, au, km) when you use real numbers. Each length field shows its unit, and a part you add is sized to fit the scene, or at its real size when the units are named.</li>
         <li><b>Systems</b> hold their own points and objects in units of their own at a point of the scene: a galaxy in light years with a solar system in km inside it. Open one from its row in the Objects tab. The camera works in a system's units while it is near.</li>
         <li><b>Camera views</b> are named places to look from. Tap actions fly to them, and one is where the card starts.</li>
       </ul>

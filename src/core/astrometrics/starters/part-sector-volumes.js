@@ -20,8 +20,8 @@ export default /** @type {import('./index.js').Starter} */ ({
   params: [
     { key: 'prefix', label: 'Name (prefix for its ids)', type: 'text', default: 'zone' },
     { key: 'centre', label: 'Centre', type: 'point', default: [0, 0, 0], helper: 'A point id or x, y, z.' },
-    { key: 'inner', label: 'Inner radius', type: 'number', default: 30, real: 5 * LY_KM },
-    { key: 'outer', label: 'Outer radius', type: 'number', default: 80, real: 20 * LY_KM }
+    { key: 'inner', label: 'Inner radius', type: 'number', default: 30, real: 5 * LY_KM, fit: true },
+    { key: 'outer', label: 'Outer radius', type: 'number', default: 80, real: 20 * LY_KM, fit: true }
   ],
   build: ({ centre, inner, outer }) => {
     const c = centreRef(centre);

@@ -1,0 +1,248 @@
+# Astrometrics units (U1): parts sized for the scene they go into.
+# Top: the Solar system starter (scene units, built to fit) with the Nexus, a comet and the Badlands
+# added from the Studio's Starters: each was sized to fit (about a quarter of the scene), not left
+# at its own 2000 / 175 / 500. Bottom: a scene in light years (units: ly) with the same two parts
+# at their real sizes: the Badlands 10 ly across, the Nexus 1 ly long, on a 5 ly grid.
+# Generated with applyStarter (the Studio's own path), so these are the numbers the Studio puts in.
+title: Astrometrics units
+path: astro-units
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: SYSTEM, show: true}
+        tap_action: {action: fly-to, card: astro_units_sol, view: system}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: NEXUS, show: true}
+        tap_action: {action: fly-to, card: astro_units_sol, view: nexus}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: BADLANDS, show: true}
+        tap_action: {action: fly-to, card: astro_units_sol, view: badlands}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: TOP, show: true}
+        tap_action: {action: fly-to, card: astro_units_sol, view: top}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-astrometrics-card
+        id: astro_units_sol
+        height: 650
+        grid_options: {columns: full}
+        points:
+          - { id: sun, xyz: [0, 0, 0], label: SOL, style: major }
+          - id: mercury
+            polar: [20, 40]
+            object: mercury_orbit
+            marker: dot
+            label: MERCURY
+            style: minor
+            tap_action: { action: fly-to }
+          - { id: venus, polar: [30, 150], object: venus_orbit, marker: dot, label: VENUS, style: minor, tap_action: { action: fly-to } }
+          - { id: earth, polar: [42, 250], object: earth_orbit, marker: dot, label: EARTH, style: minor, tap_action: { action: fly-to } }
+          - { id: mars, polar: [56, 320], object: mars_orbit, marker: dot, label: MARS, style: minor, tap_action: { action: fly-to } }
+          - id: jupiter
+            polar: [82, 100]
+            object: jupiter_orbit
+            marker: dot
+            label: JUPITER
+            style: minor
+            tap_action: { action: fly-to }
+          - id: saturn
+            polar: [112, 200]
+            object: saturn_orbit
+            marker: dot
+            label: SATURN
+            style: minor
+            tap_action: { action: fly-to }
+          - id: uranus
+            polar: [138, 20]
+            object: uranus_orbit
+            marker: dot
+            label: URANUS
+            style: minor
+            tap_action: { action: fly-to }
+          - id: neptune
+            polar: [160, 280]
+            object: neptune_orbit
+            marker: dot
+            label: NEPTUNE
+            style: minor
+            tap_action: { action: fly-to }
+          - { id: moon, polar: [5, 0], object: moon_orbit, marker: dot, label: LUNA, style: tiny, max_distance: 80 }
+          - { id: nexus_centre, xyz: [0, 30, -120] }
+          - { id: nexus_heart, at: nexus_centre, label: NEXUS, style: major }
+          - { id: comet_ring_centre, at: sun, offset: [17.49, 0, 0] }
+          - { id: comet_body, polar: [23.31, 270], object: comet_orbit, label: COMET, style: tiny, tap_action: { action: fly-to } }
+          - { id: badlands_centre, xyz: [130, 0, 90] }
+          - { id: badlands_heart, at: badlands_centre, label: BADLANDS, style: major }
+        objects:
+          - { type: glow, at: sun, size: 40, color: var(--lcars-yellow) }
+          - type: sphere
+            id: sun_body
+            at: sun
+            radius: 5
+            fill: { color: var(--lcars-yellow) }
+            color: var(--lcars-orange)
+            line_spacing_deg: 30
+          - { type: ring, id: mercury_orbit, radius: 20, spin: 24, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+          - type: sphere
+            id: mercury_body
+            at: mercury
+            radius: 1.2
+            image: builtin:mercury_messenger
+            line_spacing_deg: 30
+            line_width: 0.5
+            spin: 15
+          - { type: ring, id: venus_orbit, radius: 30, spin: 16, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+          - type: sphere
+            id: venus_body
+            at: venus
+            radius: 2
+            fill: { effect: { preset: clouds } }
+            line_spacing_deg: 30
+            line_width: 0.5
+            spin: 15
+          - { type: ring, id: earth_orbit, radius: 42, spin: 10, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+          - type: sphere
+            id: earth_body
+            at: earth
+            radius: 2.4
+            image: builtin:earth_blue_marble
+            line_spacing_deg: 30
+            line_width: 0.5
+            spin: 20
+          - { type: ring, id: mars_orbit, radius: 56, spin: 6, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+          - type: sphere
+            id: mars_body
+            at: mars
+            radius: 1.6
+            image: builtin:mars_viking
+            line_spacing_deg: 30
+            line_width: 0.5
+            spin: 15
+          - { type: ring, id: jupiter_orbit, radius: 82, spin: 2.5, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+          - type: sphere
+            id: jupiter_body
+            at: jupiter
+            radius: 5
+            image: builtin:jupiter_cassini
+            line_spacing_deg: 30
+            line_width: 0.5
+            spin: 15
+          - { type: ring, id: saturn_orbit, radius: 112, spin: 1.6, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+          - type: sphere
+            id: saturn_body
+            at: saturn
+            radius: 4.2
+            fill: { effect: { preset: ringed_giant } }
+            line_spacing_deg: 30
+            line_width: 0.5
+            spin: 15
+          - { type: ring, id: uranus_orbit, radius: 138, spin: 1.1, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+          - type: sphere
+            id: uranus_body
+            at: uranus
+            radius: 3
+            fill: { effect: { preset: ice_giant } }
+            line_spacing_deg: 30
+            line_width: 0.5
+            spin: 15
+          - { type: ring, id: neptune_orbit, radius: 160, spin: 0.8, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+          - type: sphere
+            id: neptune_body
+            at: neptune
+            radius: 3
+            fill: { effect: { preset: storm_giant } }
+            line_spacing_deg: 30
+            line_width: 0.5
+            spin: 15
+          - type: ring
+            id: saturn_rings
+            at: saturn
+            radius: 9.8
+            inclination: 27
+            band: { image: builtin:saturn_rings, inner_radius: 4.66 }
+          - { type: ring, id: moon_orbit, at: earth, radius: 5, spin: 40, width: 1, dash: [3, 3], opacity: 0.6, max_distance: 80 }
+          - type: sphere
+            id: moon_body
+            at: moon
+            radius: 0.6
+            image: builtin:moon_lroc
+            line_spacing_deg: 45
+            line_width: 0.5
+            max_distance: 80
+          - { type: nebula, id: nexus_ribbon, at: nexus_heart, preset: nexus, size: [81.5, 20.4, 20.4] }
+          - type: ring
+            id: comet_orbit
+            at: comet_ring_centre
+            radius: 23.31
+            spin: 10
+            width: 1
+            color: theme:colors.ui.secondary
+            opacity: 0.4
+          - type: comet
+            id: comet_comet
+            at: comet_body
+            light: sun
+            nucleus: { size: 0.466 }
+            tail: { length: 21 }
+            coma: { size: 1.94 }
+            activity: { mode: distance, range: [5.82, 40.8] }
+          - { type: nebula, id: badlands_plasma, at: badlands_heart, preset: badlands, size: [81.5, 22.8, 81.5] }
+        camera:
+          view: system
+          views:
+            system: { target: sun, yaw: 20, tilt: 40, distance: 380 }
+            top: { target: sun, tilt: 90, distance: 400 }
+            earth: { target: earth, yaw: 30, tilt: 20, distance: 22 }
+            nexus: { target: nexus_heart, yaw: 10, tilt: 8, distance: 110 }
+            badlands: { target: badlands_heart, yaw: 200, tilt: 25, distance: 150 }
+        backdrop: { stars: { count: 2000 } }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: AFAR, show: true}
+        tap_action: {action: fly-to, card: astro_units_ly, view: afar}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name: {content: NEXUS 1 LY, show: true}
+        tap_action: {action: fly-to, card: astro_units_ly, view: nexus}
+        grid_options: {columns: 3, rows: 1}
+      - type: custom:lcards-astrometrics-card
+        id: astro_units_ly
+        height: 650
+        grid_options: {columns: full}
+        units: ly
+        points:
+          - { id: origin, xyz: [0, 0, 0], label: 0 LY, style: tiny }
+          - { id: badlands_centre, xyz: [-10, 0, 0] }
+          - { id: badlands_heart, at: badlands_centre, label: BADLANDS, style: major }
+          - { id: nexus_centre, xyz: [15, 0, 10] }
+          - { id: nexus_heart, at: nexus_centre, label: NEXUS, style: major }
+        objects:
+          - { type: grid, shape: plane, size: [60, 60], line_spacing: 5, opacity: 0.3 }
+          - { type: nebula, id: badlands_plasma, at: badlands_heart, preset: badlands, size: [10, 2.8, 10] }
+          - { type: nebula, id: nexus_ribbon, at: nexus_heart, preset: nexus, size: [1, 0.25, 0.25] }
+        camera:
+          view: afar
+          views:
+            afar: { target: [0, 0, 0], yaw: 20, tilt: 35, distance: 70 }
+            nexus: { target: nexus_heart, yaw: 10, tilt: 8, distance: 1.6 }
+        backdrop: { stars: { count: 2000 } }

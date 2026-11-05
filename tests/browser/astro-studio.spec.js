@@ -327,6 +327,46 @@ test('studio: starters: a part round a card point (it orbits), clashes refused, 
     expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
 });
 
+test('studio U1: a Units field on the Scene tab, units beside length fields, a part sized to fit a scene in scene units, real in named units', async ({ page }) => {
+    // the whole Solar system scene in the preview: slow under a full run's load
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-camera', { width: '800' });
+    await openStudio(page);
+    const dialog = page.locator('lcards-astrometrics-studio-dialog');
+    const button = (starter, text) => dialog.locator(`[data-starter-detail="${starter}"] ha-button`).filter({ hasText: text });
+    const field = (key) => page.evaluate((k) => {
+        const deep = (root) => [...root.querySelectorAll('*')].flatMap((e) => [e, ...(e.shadowRoot ? deep(e.shadowRoot) : [])]);
+        const f = deep(window.__studio.renderRoot).find((e) => e.matches(`ha-selector[data-key="${k}"]`));
+        return f ? { selector: f.selector, value: f.value } : null;
+    }, key);
+
+    // the Scene tab: the card's units, unnamed by default
+    await page.evaluate(() => { window.__studio._activeTab = 'scene'; });
+    await expect.poll(async () => (await field('units'))?.selector.select.options[0].label).toBe('(Scene units)');
+
+    // the Solar system (scene units), then the Nexus: sized to fit it, not 2000 long
+    await page.evaluate(() => { window.__studio._activeTab = 'starters'; window.__studio._openStarter = 'solar_system'; });
+    await expect(dialog.locator('.starter-units')).toContainText('scene units');
+    await button('solar_system', 'Use this scene').click();
+    await expect.poll(() => page.evaluate(() => window.__studio._workingConfig.points?.[0]?.id)).toBe('sun');
+    await page.evaluate(() => { window.__studio._openStarter = 'nexus'; });
+    await expect(dialog.locator('.starter-fit')).toBeVisible();
+    await expect.poll(async () => (await field('length'))?.selector.number.unit_of_measurement).toBe('units');
+    const length = (await field('length')).value;
+    expect(length).toBeLessThan(200);
+    await expect(dialog.locator('pre.starter-yaml')).toContainText(String(length));
+    await button('nexus', 'Add to the scene').click();
+    await expect.poll(() => page.evaluate(() => window.__studio._workingConfig.objects.find((o) => o.id === 'nexus_ribbon')?.size[0])).toBe(length);
+
+    // named units: a planet starts at its real size, the field says au
+    await page.evaluate(() => { window.__studio._setTop('units', 'au'); window.__studio._openStarter = 'planet'; });
+    await expect.poll(async () => (await field('orbit'))?.value).toBe(1);
+    expect((await field('orbit')).selector.number.unit_of_measurement).toBe('au');
+    await expect(dialog.locator('.starter-fit')).toHaveCount(0);
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
+});
+
 test('studio: a star system opens in the Points and Objects tabs; a tap inside it opens its list; ids stay card-wide', async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 });
     await mountCase(page, 'astro-dive', { width: '800' });
@@ -499,7 +539,7 @@ test('studio UX1 P2: grouped object sections, sliders, bind panels, the look swi
     await page.evaluate(() => { window.__studio._activeTab = 'scene'; });
     await settle();
     expect(await page.evaluate(() => [...window.__studio.renderRoot.querySelectorAll('lcards-form-section[data-group]')].map((x) => [x.header, !!x.icon])))
-        .toEqual([['Look', true], ['Time', true], ['Warp', true], ['Space', true], ['Background', true], ['Labels', true]]);
+        .toEqual([['Units', true], ['Look', true], ['Time', true], ['Warp', true], ['Space', true], ['Background', true], ['Labels', true]]);
     expect(await page.evaluate(() => window.__find('lcards-background-animation-editor').length)).toBe(1);
     // the clock's rate: a preset, or a custom amount and unit
     const rate = (v) => page.evaluate((val) => window.__find('ha-selector[data-key="rate~preset"]')[0]
