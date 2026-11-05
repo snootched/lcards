@@ -171,6 +171,8 @@ export const GALLERY_HELPERS = {
         type: 'input_select/create', name: 'LCARdS Test Rate', options: ['PAUSED', 'LIVE', '1 H/S', '1 D/S', '30 D/S', '1 Y/S'], initial: '1 H/S',
     },
     'input_select.lcards_test_look': { type: 'input_select/create', name: 'LCARdS Test Look', options: ['DIAGRAM', 'REALISTIC', 'MIXED'] },
+    // The Crystalline Entity's colour (CE1); its own select, because lcards_test_mode sets the alert mode
+    'input_select.lcards_test_color': { type: 'input_select/create', name: 'LCARdS Test Color', options: ['BLUE', 'LAVENDER', 'ORANGE'], initial: 'BLUE' },
 };
 
 /** Sample states the gallery shots are taken with: [domain, service, data]. */

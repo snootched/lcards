@@ -46,13 +46,13 @@ export function watchErrors(page) {
     return errors;
 }
 
-/** Wait until every card demo on the page has mounted its card (or failed). */
+/** Wait until every card demo on the page has mounted its card (or failed): 2 s a card, at least 30 s (the starters page has one per starter). */
 export async function waitForDemos(page, expected) {
     await page.waitForFunction((n) => {
         const demos = [...document.querySelectorAll('.card-demo')];
         if (demos.length < n) return false;
         return demos.every(d => d.querySelector('.card-demo-mount > *') || d.querySelector('.card-demo-overlay.is-error'));
-    }, expected, { timeout: 30_000 });
+    }, expected, { timeout: Math.max(30_000, expected * 2_000) });
 }
 
 /** Snapshot of every card demo on the page. */

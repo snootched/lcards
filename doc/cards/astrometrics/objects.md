@@ -28,6 +28,7 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 | Your own picture on the plane | [`image`](#image) |
 | A ship, a station, any 3D model | [`model`](#model) |
 | A Borg cube (or a plain shaded box) | [`cube`](#cube) |
+| The Crystalline Entity (a glowing crystal spine and branches round a starburst core) | [`crystalline`](#crystalline) |
 | Lightning: bolts that flash and go, or held flickering columns (lights the gas of a volume nebula it strikes in) | [`lightning`](#lightning) |
 | A star system at true scale inside a larger scene (its own points and objects, in units of its own) | [`system`](#system) |
 
@@ -623,6 +624,41 @@ points:
   - { id: sol, polar: [26000, 180], marker: dot, label: SOL }
 objects:
   - { type: galaxy, stars: { count: 30000 } }
+```
+
+## crystalline
+
+The Crystalline Entity (Star Trek: The Next Generation, "Datalore" and "Silicon Avatar"), made in code: a glowing faceted spine along the object's y axis, a starburst core at its middle with crystal spikes round it, and branches in tiers round the spine that fork again and again, bending a little at each joint and ending in Y-shaped tips and thorns. It all fits a spindle `size` tall and 0.8 of that across. The crystal is glassy and see-through, lit from inside by the core, with bright edges; it needs no light of its own. The same `seed` always gives the same entity.
+
+| Key | What it does |
+|---|---|
+| `size` | Height along the spine. Default 3 km: 3 with `units: km`, converted for other named units, 3000 in plain scene units. No canon size exists: the production design was two or three Enterprise-D lengths (642 m each), and on screen it dwarfs the ship. |
+| `seed` | A different number gives a different branching. Default 7. |
+| `branches` | How many times the branches fork, 1 to 5 (each level smaller; the last are thorns). Default 4. |
+| `color` | The crystal's colour; its edges lean toward the core colour. Default `var(--lcards-blue-medium)`; `var(--lcars-african-violet)` gives the lavender of the show. |
+| `glow` | How brightly the core shines and how far its light reaches into the crystal, 0 to 1. 0: a dim core and only the edges lit; 1: a large bright core lighting the inner branches. Default 0.7. |
+| `opacity` | 0 to 1. Default 1. |
+| `blend` | `add` (default): overlapping crystal glows. `normal`: drawn over what is behind it. |
+| `core` | The starburst: `color` (its rays and the light along the spine, default `var(--lcards-moonlight)`) and `period` (seconds per slow pulse, default 6; 0 holds it steady). |
+
+Turn it slowly about its spine with `spin`; `face` and `rotation` turn it as any object. The pulse and the spin hold still under reduced motion. Far away, when it would be under about 10 px tall, it is drawn as a dot in the core colour; nearer, the finer forks draw only once it is large enough on screen to show them. `glow` and `opacity` can [follow an entity](./data#settings-from-entities) in place. The entity is see-through, so it hides no labels.
+
+Next to it below is the Constitution-class ship at its real size (289 m), and a beam from the entity's core to the ship:
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 380
+units: km
+camera:
+  views:
+    v: { target: [-0.8, 0, 0], yaw: 0, tilt: 5, distance: 5 }
+points:
+  - { id: entity_at, xyz: [0, 0, 0] }
+  - { id: ship_at, xyz: [-2.1, -0.1, 0.3], label: USS ENTERPRISE, style: minor }
+objects:
+  - { type: crystalline, id: entity, at: entity_at, spin: 2 }
+  - { type: model, id: ship, src: builtin:constitution, at: ship_at }
+  - { type: beam, from: entity_at, to: ship_at, width: 10, color: var(--lcards-moonlight), pulse: true }
 ```
 
 ## glow

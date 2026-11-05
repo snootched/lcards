@@ -34,6 +34,7 @@ import { buildStars, buildDust } from './objects/stars.js';
 import { buildGlow } from './objects/glow.js';
 import { buildBelt } from './objects/belt.js';
 import { buildAsteroid } from './objects/asteroid.js';
+import { buildCrystalline } from './objects/crystalline.js';
 import { buildComet } from './objects/comet.js';
 import { buildGalaxy } from './objects/galaxy.js';
 import { buildLightning } from './objects/lightning.js';
@@ -44,7 +45,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export { OBJECT_TYPES };
 /** Builders of the objects points can stand on; line objects read points, so they come second */
-const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image: buildImage, glow: buildGlow, belt: buildBelt, asteroid: buildAsteroid, comet: buildComet, galaxy: buildGalaxy, lightning: buildLightning };
+const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image: buildImage, glow: buildGlow, belt: buildBelt, asteroid: buildAsteroid, comet: buildComet, galaxy: buildGalaxy, lightning: buildLightning, crystalline: buildCrystalline };
 
 /**
  * @typedef {Object} AstroScene

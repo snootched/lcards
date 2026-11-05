@@ -13,7 +13,7 @@
  * they build second. `system` draws nothing itself: it holds points and
  * objects in units of their own (a star system in km inside a galaxy in ly).
  */
-export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt', 'asteroid', 'comet', 'galaxy', 'trail', 'cube', 'lightning', 'system']);
+export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', 'image', 'glow', 'nebula', 'model', 'ring', 'path', 'beam', 'belt', 'asteroid', 'comet', 'galaxy', 'trail', 'cube', 'lightning', 'crystalline', 'system']);
 
 /**
  * Which type for what: the objects docs page's table (doc/cards/astrometrics/objects.md,
@@ -38,6 +38,7 @@ export const TYPE_GUIDE = [
   { type: 'image', use: 'Your own picture on the plane', icon: 'mdi:image' },
   { type: 'model', use: 'A ship, a station, any 3D model', icon: 'mdi:rocket' },
   { type: 'cube', use: 'A Borg cube (or a plain shaded box)', icon: 'mdi:cube' },
+  { type: 'crystalline', use: 'The Crystalline Entity (a glowing crystal spine and branches round a starburst core)', icon: 'mdi:snowflake' },
   { type: 'lightning', use: 'Lightning: bolts that flash and go, or held flickering columns (lights the gas of a volume nebula it strikes in)', icon: 'mdi:lightning-bolt' },
   { type: 'system', use: 'A star system at true scale inside a larger scene (its own points and objects, in units of its own)', icon: 'mdi:white-balance-sunny' }
 ];
@@ -191,7 +192,8 @@ export const MAX_ROCKS = 5000;
 export const LIVE_TYPE_KEYS = {
   belt: { keys: ['radius', 'radius.0', 'radius.1', 'thickness', 'count'], most: { count: MAX_ROCKS } },
   comet: { keys: ['nucleus.size', 'coma.size', 'tail.length', 'glow'] },
-  nebula: { keys: ['drift', 'drift.0', 'drift.1', 'density'] }
+  nebula: { keys: ['drift', 'drift.0', 'drift.1', 'density'] },
+  crystalline: { keys: ['glow', 'opacity'] }
 };
 
 /** Object types built from the effects chunk (`core/astrometrics/effects`) */

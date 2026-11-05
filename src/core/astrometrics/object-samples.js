@@ -57,6 +57,7 @@ export const TYPE_SAMPLES = {
   },
   cube: { objects: [{ type: 'cube', id: 'borg', size: 40 }], camera: { target: [0, 0, 0], yaw: 30, tilt: 25, distance: 100 } },
   // held columns: a strike would be gone before the picture is taken
+  crystalline: { objects: [{ type: 'crystalline', id: 'entity', size: 100, seed: 7 }], camera: { target: [0, 0, 0], yaw: 30, tilt: 10, distance: 120 } },
   lightning: { objects: [FLOOR, { type: 'lightning', id: 'bolts', mode: 'column', count: 3, size: [90, 50, 90], width: 2.5, glow: { color: 'var(--lcards-blue-light)' } }], camera: VIEW },
   system: {
     objects: [

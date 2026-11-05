@@ -3214,6 +3214,33 @@ points: [{ id: nexus_centre, xyz: [0, 0, 0] }, { id: nexus_heart, at: nexus_cent
 objects: [{ type: nebula, id: nexus_ribbon, at: nexus_heart, preset: nexus, size: [2000, 500, 500] }]
 ```
 
+### Crystalline Entity
+
+The Crystalline Entity ("Datalore", "Silicon Avatar"): a crystalline object 3 km tall, turning slowly about its glowing spine, its core pulsing. With a ship, a Constitution-class starship stands off its side at the same scale (289 m against 3 km), and with the beam the entity's core fires on it. Change the crystal colour on the object (var(--lcars-african-violet) for the lavender of the show).
+
+Its ids start with its name (default `entity_`).
+
+| Setting | Default | Notes |
+|---|---|---|
+| Label | `CRYSTALLINE ENTITY` |  |
+| Centre | `0, 0, 0` | A point id or x, y, z. |
+| Height | `3000` |  |
+| Ship for scale | `beam` |  |
+
+```yaml live
+type: custom:lcards-astrometrics-card
+height: 400
+points:
+  - { id: entity_centre, xyz: [0, 0, 0] }
+  - { id: entity_core, at: entity_centre }
+  - { id: entity_tag, at: entity_core, offset: [0, 1680, 0], label: CRYSTALLINE ENTITY, style: major }
+  - { id: entity_ship_at, at: entity_core, offset: [-2100, -90, 300], label: USS ENTERPRISE, style: minor }
+objects:
+  - { type: crystalline, id: entity_crystal, at: entity_core, size: 3000, spin: 2 }
+  - { type: model, id: entity_ship, src: builtin:constitution, at: entity_ship_at, size: 289 }
+  - { type: beam, id: entity_beam, from: entity_core, to: entity_ship_at, width: 10, color: var(--lcards-moonlight), pulse: true }
+```
+
 ### Wormhole
 
 The Bajoran wormhole as the station displays draw it. Its mouth is a swirl of gas round a warm heart in the realistic look, an entrance disc and funnel in the diagram. Past it, diagram only, the inside runs along +x: a pipeline of twisted strands, the negative CTL region, the ring singularity, the positive CTL region and the point singularity opening into the verteron membrane. With a power entity (0 to 100) the mouth opens and the regions wobble with it.

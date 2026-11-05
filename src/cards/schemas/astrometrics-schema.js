@@ -1268,6 +1268,28 @@ const galaxyObject = {
     }
 };
 
+const crystallineObject = {
+    type: 'object',
+    title: 'crystalline',
+    required: ['type'],
+    allOf: [objectCommonSchema],
+    description: 'The Crystalline Entity (Star Trek: The Next Generation): a glowing faceted spine along the object\'s y axis, a starburst core at its middle, and branches in tiers round it that fork again and again into thorns, inside a spindle size tall and 0.8 of that across. Glassy and translucent, lit from inside by its core. Seeded, so the same config always gives the same entity. Far away it shows as a dot; nearer, fewer fork levels draw. Turn it with spin.',
+    properties: {
+        type: { type: 'string', const: 'crystalline', description: 'crystalline: the Crystalline Entity.' },
+        size: setting('Height along the spine, scene units. Default 3 km: 3 when the units are km, converted when they are named otherwise (m, au, ly, pc), 3000 in plain scene units.', { exclusiveMinimum: 0 }),
+        seed: { type: 'integer', default: 7, description: 'A different number gives a different branching.' },
+        branches: wholeSetting('How many times the branches fork, 1 to 5 (each level smaller, the last are thorns). Default 4.', { minimum: 1, maximum: 5, default: 4 }),
+        color: objectColor('Crystal colour (the edges lean toward the core colour). Default var(--lcards-blue-medium).'),
+        glow: setting('How brightly the core shines and how far its light reaches into the crystal, 0 to 1 (0: a dim core, only the edges lit; 1: a large bright core lighting the inner branches).', { minimum: 0, maximum: 1, default: 0.7 }),
+        opacity: setting('Opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 1 }),
+        blend: { ...blendAdd, default: 'add', description: 'add (default): light adds up, so overlapping crystal glows. normal: drawn over what is behind.' },
+        core: part('The starburst at the middle of the spine.', {
+            color: objectColor('Colour of the core, its rays and the light along the spine. Default var(--lcards-moonlight).'),
+            period: setting('Seconds per pulse of the core (0: steady). Off under reduced motion.', { minimum: 0, default: 6 })
+        })
+    }
+};
+
 /** A bolt's look and timing: the lightning object's keys, and a nebula's own lightning */
 const lightningLook = {
     color: objectColor('The bolt\'s colour (its bright core). Default var(--lcards-moonlight).'),
@@ -1463,7 +1485,7 @@ const modelObject = {
     }
 };
 
-const OBJECT_SCHEMAS = { lightning: lightningObject, model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject, belt: beltObject, asteroid: asteroidObject, comet: cometObject, galaxy: galaxyObject, trail: trailObject, cube: cubeObject };
+const OBJECT_SCHEMAS = { lightning: lightningObject, model: modelObject, grid: gridObject, volume: volumeObject, sphere: sphereObject, ring: ringObject, path: pathObject, beam: beamObject, image: imageObject, glow: glowObject, nebula: nebulaObject, belt: beltObject, asteroid: asteroidObject, comet: cometObject, galaxy: galaxyObject, crystalline: crystallineObject, trail: trailObject, cube: cubeObject };
 
 /** Object types a system can hold: every type but another system (one level) */
 const DRAWN_TYPES = OBJECT_TYPES.filter((t) => t !== 'system');

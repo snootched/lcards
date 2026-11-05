@@ -70,7 +70,7 @@ test('visual: grid + zoom on WebGL (background canvas)', async ({ page }) => {
 // spin held, so the frame is still), the sector map, the labels, and a
 // volume nebula round a planet (half-resolution march, solid depth), the nebula shapes (NB1), the Badlands presets (NB2c). The
 // scene draws on demand: wait until it is built and has stopped drawing.
-for (const name of ['astro-galaxy', 'astro-sector', 'astro-labels', 'astro-nebula-volume', 'astro-nebula-shapes', 'astro-badlands', 'astro-nexus']) {
+for (const name of ['astro-galaxy', 'astro-sector', 'astro-labels', 'astro-nebula-volume', 'astro-nebula-shapes', 'astro-badlands', 'astro-nexus', 'astro-crystalline']) {
     test(`visual: ${name}`, async ({ page }) => {
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await mountCase(page, name, { freeze: '1', width: '800' });

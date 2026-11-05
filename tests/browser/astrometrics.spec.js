@@ -2213,3 +2213,44 @@ test('W1 wormhole pieces: the swirl turns, tube lines are shaded, a path at a po
     expect(lit).toBeGreaterThan(20);
     await expectNoErrors(page);
 });
+
+test('CE1 crystalline: the spine lights the middle column, branches reach both sides; far away one dot; glow live', async ({ page }) => {
+    await mountCase(page, 'astro-crystalline', { width: '800' });
+    await sceneReady(page);
+    expect(await litPixels(page)).toBeGreaterThan(20000);
+    // brightness in five vertical bands: the spine's band brightest, the outer bands lit too
+    const bands = () => page.evaluate(() => {
+        const canvas = /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('.astro-scene canvas');
+        const { width, height } = canvas;
+        const data = canvas.getContext('2d').getImageData(0, 0, width, height).data;
+        const out = [0, 0, 0, 0, 0];
+        for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+            const i = (y * width + x) * 4;
+            out[Math.min(4, Math.floor((x / width) * 5))] += data[i] + data[i + 1] + data[i + 2];
+        }
+        return out;
+    });
+    const b = await bands();
+    expect(b[2]).toBeGreaterThan(b[0]);
+    expect(b[2]).toBeGreaterThan(b[4]);
+    expect(b[1], 'branches to the left').toBeGreaterThan(0);
+    expect(b[3], 'branches to the right').toBeGreaterThan(0);
+    const entity = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const e = s.world.objects.get('entity');
+        return { node: e.node.uuid, dot: e.node.getObjectByName('dot').visible, glow: e.node.getObjectByName('crystal').material.uniforms.uGlow.value, frames: s.frames };
+    });
+    // the core pulses, so the scene keeps drawing
+    const f0 = (await entity()).frames;
+    await page.waitForTimeout(400);
+    expect((await entity()).frames).toBeGreaterThan(f0);
+    // a setting from an entity changes in place
+    const first = await entity();
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world.objects.get('entity').live('glow', 0.2));
+    expect((await entity()).glow).toBeCloseTo(0.2, 5);
+    // far away: a dot
+    await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.flyTo('far', { duration: 0 }));
+    await expect.poll(async () => (await entity()).dot).toBe(true);
+    expect((await entity()).node).toBe(first.node);
+    await expectNoErrors(page);
+});

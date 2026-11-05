@@ -47,6 +47,13 @@ releases:
         session: "NB3"
         docs: /cards/astrometrics/effects#the-nexus-a-ribbon-and-its-wake
         public: true
+      - file: astro-crystalline
+        topic: astrometrics
+        summary: "Astrometrics Crystalline Entity: crystal branches round a starburst core"
+        description: "The Crystalline Entity from Star Trek: The Next Generation (type: crystalline): a glowing spine, a pulsing starburst core and branches that fork down to thorns, 3 km tall, with the Constitution-class ship beside it at its real 289 m. SIDE, CLOSE, BELOW and SHIP fly round it, FAR shows it as a dot, SECOND a second one in the show's lavender. CORE GLOW, FADE and SPIN change it in place; BLUE, LAVENDER and ORANGE set its colour; BRANCHES sets how many times its branches fork; FIRE fires its beam on the ship."
+        session: "CE1"
+        docs: /cards/astrometrics/objects#crystalline
+        public: true
       - file: astro-units
         topic: astrometrics
         summary: "Astrometrics units: parts sized for the scene they go into"

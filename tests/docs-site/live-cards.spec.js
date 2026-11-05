@@ -37,8 +37,10 @@ test('the live-page scan finds the card pages', () => {
 
 for (const [url, tags] of PAGES) {
     test(`${url}: every live example renders its card`, async ({ page }) => {
-        const errors = watchErrors(page);
         const expected = tags.length;
+        // a page of many WebGL cards (the astrometrics starters) needs longer than the default
+        test.setTimeout(Math.max(60_000, expected * 3_000));
+        const errors = watchErrors(page);
         await page.goto(url);
         await waitForDemos(page, expected);
         const demos = await demoState(page);
