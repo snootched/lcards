@@ -1,0 +1,31 @@
+# Astrometrics Studio ST1: drag objects by their point, fly to the selection.
+# Edit the dashboard, open this card's editor and its Studio. The planet, the
+# moon ring and the station stand at points: drag the planet (any time) or
+# the selected ring or station and their point moves, with the label. The
+# survey grid is placed by coordinates and does not drag. Select anything and
+# press F (or the toolbar's frame button) to fly to it.
+title: Astrometrics Studio move
+path: astro-studio-move
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 640
+        grid_options: { columns: full, rows: 12 }
+        camera:
+          view: map
+          views:
+            map: { target: [0, 0, 0], yaw: 20, tilt: 45, distance: 320 }
+        points:
+          - { id: bajor, xyz: [-60, 0, 10], marker: dot, label: BAJOR, style: major }
+          - { id: outpost, xyz: [70, 0, -40], marker: square, label: OUTPOST }
+          - { id: relay, xyz: [20, 0, 70], marker: none, label: RELAY, style: tiny }
+        objects:
+          - { type: grid, id: sector, shape: plane, size: [300, 220], line_spacing: 20 }
+          - { type: sphere, id: bajor_body, at: bajor, radius: 14 }
+          - { type: ring, id: bajor_orbit, at: bajor, radius: 30 }
+          - { type: grid, id: relay_pad, shape: disc, radius: 16, line_spacing: 8, at: relay }
+          - { type: grid, id: survey, shape: disc, radius: 24, line_spacing: 8, at: [80, 0, 60] }

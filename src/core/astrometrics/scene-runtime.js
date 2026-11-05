@@ -149,8 +149,9 @@ const KEY_COMMANDS = {
  * Edit mode (the Astrometrics Studio): taps select instead of acting.
  * @typedef {Object} AstroEditHooks
  * @property {(hit: AstroTapHit | null) => void} [onSelect] - a tap: what is under it (any point or object), null in blank space
- * @property {(id: string, form: string, value: number[] | string, done: boolean) => void} [onDrag] - set to let points be dragged:
- *   the point's new value in its own placement form (`dragForm`), per move and once more with `done` on release (shown live, no rebuild)
+ * @property {(id: string, form: string, value: number[] | string, done: boolean, via?: string) => void} [onDrag] - set to let points be dragged:
+ *   the point's new value in its own placement form (`dragForm`), per move and once more with `done` on release (shown live, no rebuild);
+ *   `via` names the selected object when it was grabbed instead (it stands at the point, `objectDragPoint`)
  * @property {() => void} [onView] - the camera's distance, lens or frame, or the card's width, changed (the Studio's scale bar reads `viewIn`)
  */
 
@@ -201,6 +202,7 @@ const KEY_COMMANDS = {
  *   how far out it is and how wide the view is across that spot, in a system's units (the scene's without one), and the
  *   view's width in CSS px: what a new object there is sized and placed by, and the Studio's scale bar
  * @property {(id: string) => Promise<void>} frameObject - fly to see an object, or a system and what it holds, whole
+ * @property {() => Promise<void>} frameSelected - fly to what is selected (the boxed object, else the selected point; F in edit mode)
  * @property {(handler: ((x: number, y: number) => void) | null) => void} setPickHandler - while set, a tap goes to it (no actions, no double-tap)
  * @property {(x: number, y: number, form: string, object?: string, system?: string) => (number[] | string | null)} placeAt - a placement
  *   form's value for the spot at CSS px (x, y), or null; on the ground of `system` (its units) when it names one
@@ -1305,7 +1307,7 @@ export function createAstroScene(host, config, options = {}) {
   /** @type {{ x: number, y: number, t: number, moved: boolean, held: boolean } | null} */
   let down = null;
   let holdTimer = /** @type {ReturnType<typeof setTimeout> | undefined} */ (undefined);
-  /** @type {{ id: string, form: string, def: any, value: number[] | string | null } | null} a point being dragged (edit mode) */
+  /** @type {{ id: string, form: string, def: any, value: number[] | string | null, via?: string } | null} a point being dragged (edit mode; via: the selected object grabbed, which stands at it) */
   let pointDrag = null;
   /**
    * The draggable point under (x, y) CSS px in edit mode, or null.
@@ -1317,7 +1319,24 @@ export function createAstroScene(host, config, options = {}) {
     const hit = labels.pick(x, y);
     const def = hit ? world.places.configs.get(hit.id) : undefined;
     const form = tools.dragForm(def);
-    return hit && form ? { id: hit.id, form, def } : null;
+    // (a press on a body at a point picks the point: the body, when selected, is what was grabbed)
+    if (hit) return form ? { id: hit.id, form, def, ...(boxed && world.objects.get(boxed)?.config.at === hit.id ? { via: boxed } : {}) } : null;
+    // the selected object, when it stands at a point, drags by that point (everything at it follows)
+    const b = boxed ? world.objects.get(boxed) : undefined;
+    if (!b || !boxed) return null;
+    const places = world.places;
+    const grab = tools.objectDragPoint(boxed, b.config, (/** @type {string} */ p) => places.configs.get(p));
+    if (!grab) return null;
+    // under the pointer: its meshes hit (whatever lies in front, as one lying on a floor), else its lines near
+    let on = false;
+    if (b.pickMeshes.length) {
+      ndc.set((x / cssW) * 2 - 1, -(y / cssH) * 2 + 1);
+      ray.setFromCamera(ndc, rig.camera);
+      on = ray.intersectObjects(b.pickMeshes, false).length > 0;
+    } else {
+      on = tools.screenDistance(b, rig.camera, cssW, cssH, x, y) <= tools.SELECT_RADIUS;
+    }
+    return on ? { ...grab, via: boxed } : null;
   };
   /** @param {PointerEvent} e */
   const onDown = (e) => {
@@ -1365,7 +1384,7 @@ export function createAstroScene(host, config, options = {}) {
     if (drag) {
       canvas.style.cursor = 'grab';
       if (d?.moved) {
-        if (drag.value !== null) editHooks?.onDrag?.(drag.id, drag.form, drag.value, true);
+        if (drag.value !== null) editHooks?.onDrag?.(drag.id, drag.form, drag.value, true, drag.via);
         return;
       }
     }
@@ -1388,7 +1407,7 @@ export function createAstroScene(host, config, options = {}) {
    * Move a dragged point to (x, y) CSS px, live (no rebuild), and tell the
    * hooks. `xyz` and `polar` slide on the point's own horizontal plane; the
    * surface forms follow the object under the pointer.
-   * @param {{ id: string, form: string, def: any, value: number[] | string | null }} drag
+   * @param {{ id: string, form: string, def: any, value: number[] | string | null, via?: string }} drag
    * @param {number} x
    * @param {number} y
    */
@@ -1404,7 +1423,7 @@ export function createAstroScene(host, config, options = {}) {
     drag.value = value;
     world.places.replaceDef(drag.id, { ...drag.def, [drag.form]: value });
     requestFrame();
-    editHooks?.onDrag?.(drag.id, drag.form, value, false);
+    editHooks?.onDrag?.(drag.id, drag.form, value, false, drag.via);
   }
   canvas.addEventListener('pointerdown', onDown);
   canvas.addEventListener('pointermove', onMove);
@@ -2053,6 +2072,12 @@ export function createAstroScene(host, config, options = {}) {
       if (!e.repeat) press('reset');
       return;
     }
+    // edit mode: F flies to what is selected
+    if (editHooks && (e.key === 'f' || e.key === 'F')) {
+      e.preventDefault();
+      if (!e.repeat) api.frameSelected();
+      return;
+    }
     if (e.key === 'v' || e.key === 'V') {
       e.preventDefault();
       if (!e.repeat) setModelScale(modelScale === 'visible' ? 'real' : 'visible');
@@ -2241,6 +2266,11 @@ export function createAstroScene(host, config, options = {}) {
         const c = toCurrent(pos, frame);
         return { tx: c[0], ty: c[1], tz: c[2], distance: size * unitOf(frame) };
       }, { pos, frame }, { duration, ease: cfg.camera?.ease });
+    },
+    frameSelected() {
+      if (boxed) return api.frameObject(boxed);
+      if (selected && world?.places.has(selected)) return flyTo({ point: selected });
+      return Promise.resolve();
     },
     pointPositions() {
       /** @type {Record<string, number[]>} */

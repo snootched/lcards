@@ -12,7 +12,7 @@ import { installJsdom } from '../helpers/jsdom-env.js';
 // edit-tools reads the camera rig, which loads anime.js (needs a document)
 const env = installJsdom();
 after(() => env.restore());
-const { dragForm, planeDragValue, segmentDistance, toScreen, localBox, boxRuns } = await import('../../src/core/astrometrics/edit-tools.js');
+const { dragForm, objectDragPoint, planeDragValue, segmentDistance, toScreen, localBox, boxRuns } = await import('../../src/core/astrometrics/edit-tools.js');
 const { Placements } = await import('../../src/core/astrometrics/placements.js');
 
 /** A ray straight down onto (x, z) */
@@ -86,4 +86,26 @@ test('localBox: in the node\'s own space (a turned node does not grow its box); 
   const runs = boxRuns(box);
   const segments = runs.reduce((n, r) => n + r.length / 3 - 1, 0);
   assert.equal(segments, 12);
+});
+
+test('objectDragPoint: an object drags by the point it stands at, when that point drags', () => {
+  const points = {
+    sol: { id: 'sol', xyz: [1, 0, 2] },
+    orbit: { id: 'orbit', object: 'planet', latlon: [10, 20] },
+    own: { id: 'own', object: 'ship', latlon: [0, 0] },
+    bound: { id: 'bound', xyz: { entity: 'sensor.x' } },
+    sky: { id: 'sky', radec: [10, 20] }
+  };
+  const get = (/** @type {string} */ id) => points[id];
+  assert.deepEqual(objectDragPoint('star', { at: 'sol' }, get), { id: 'sol', form: 'xyz', def: points.sol });
+  // a point on another object drags in that object's surface form
+  assert.equal(objectDragPoint('ship', { at: 'orbit' }, get)?.form, 'latlon');
+  // not by a point standing on the object itself
+  assert.equal(objectDragPoint('ship', { at: 'own' }, get), null);
+  // coordinates, the origin, unknown points, points that do not drag: no drag
+  assert.equal(objectDragPoint('a', { at: [1, 2, 3] }, get), null);
+  assert.equal(objectDragPoint('a', {}, get), null);
+  assert.equal(objectDragPoint('a', { at: 'nowhere' }, get), null);
+  assert.equal(objectDragPoint('a', { at: 'bound' }, get), null);
+  assert.equal(objectDragPoint('a', { at: 'sky' }, get), null);
 });

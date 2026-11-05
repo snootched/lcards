@@ -103,6 +103,13 @@ releases:
         session: "UX1"
         docs: /cards/astrometrics/studio
         public: false
+      - file: astro-studio-move
+        topic: astrometrics
+        summary: "Astrometrics Studio: drag objects by their point, fly to the selection"
+        description: "Open this card's editor, then its Studio. Drag the planet and its point moves with it; select the ring or the relay pad first, then drag it. The survey grid is placed by coordinates and does not drag. Select anything and press F, or the toolbar's frame button, to fly to it."
+        session: "ST1"
+        docs: /cards/astrometrics/studio
+        public: false
       - file: astro-real-size
         topic: astrometrics
         summary: "Astrometrics real size: starbases and ships in proportion"

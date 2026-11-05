@@ -979,6 +979,12 @@ test('studio UX1 P6d: a prism outline edited on the preview: drag a corner (snap
     await page.mouse.move(c[2].x + 3.1 * k, c[2].y + 2.9 * k, { steps: 4 });
     await page.mouse.up();
     await expect.poll(outline).toEqual([[-5, -5], [5, -5], [8, 8], [-5, 5]]);
+    // an undo straight after the drag puts the preview's corner back too (as a point's must, ST1), redo again
+    await page.evaluate(() => window.__studio._undo());
+    await expect.poll(outline).toEqual([[-5, -5], [5, -5], [5, 5], [-5, 5]]);
+    await expect.poll(async () => { const h = (await handles('corner'))[2]; return Math.round(Math.hypot(h.x - c[2].x, h.y - c[2].y)); }).toBeLessThan(3);
+    await page.evaluate(() => window.__studio._redo());
+    await expect.poll(outline).toEqual([[-5, -5], [5, -5], [8, 8], [-5, 5]]);
     // the + on the first edge adds a corner at its middle; Delete removes the selected one
     const m = await handles('middle');
     await page.mouse.click(m[0].x, m[0].y);
@@ -1052,4 +1058,113 @@ test('studio: either side of a pair follows an entity on its own (link button pe
     // back to a number (the output's low, else 0)
     await click('[data-key="radius~1-unbind"]');
     await expect.poll(radius).toEqual([40, 0]);
+});
+
+/** Page coordinates of an object on the studio preview: on it below its centre (clear of a marker there), or its centre */
+const previewObject = (page, id, centre = false) => page.evaluate(([oid, mid]) => {
+    const card = window.__studio._previewCard;
+    const d = card._scene.debug();
+    const b = d.world.objects.get(oid);
+    const c = b.node.getWorldPosition(b.node.position.clone());
+    const v = c.clone().project(d.rig.camera);
+    const e = c.clone().setZ(c.z + b.config.radius).project(d.rig.camera);
+    const r = card.renderRoot.querySelector('.astro-scene').getBoundingClientRect();
+    // y: below the centre, on the body but clear of a point marker at its centre
+    return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height + (mid ? 0 : Math.abs(e.y - v.y) / 2 * r.height * 0.7) };
+}, [id, centre]);
+
+test('studio ST1: the selected object drags by its point (one undo step); an object at coordinates does not; Frame selected and F', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-studio-move', { width: '800' });
+    await openStudio(page);
+    const studio = (fn) => page.evaluate(fn);
+
+    // not selected: a body at a point drags its point (as it always did), and the point opens
+    const p = await previewObject(page, 'planet');
+    await page.mouse.move(p.x, p.y);
+    await page.mouse.down();
+    await page.mouse.move(p.x + 80, p.y, { steps: 5 });
+    await page.mouse.up();
+    expect((await studio(() => window.__studio._workingConfig.points[0].xyz))[0]).toBeGreaterThan(-30);
+    expect(await studio(() => [window.__studio._activeTab, window.__studio._selectedPoint])).toEqual(['points', 'dock']);
+    await studio(() => window.__studio._undo());
+    expect(await studio(() => window.__studio._workingConfig.points[0].xyz)).toEqual([-40, 0, 0]);
+    // the preview puts it back too (an undo straight after a drag used to leave it where it was dragged)
+    await expect.poll(() => studio(() => window.__studio._previewCard._scene.debug().world.places.get('dock')?.toArray())).toEqual([-40, 0, 0]);
+
+    // a line object at a point (the pad) drags only once selected; before, the drag orbits
+    const pad0 = await previewObject(page, 'pad', true);
+    await page.mouse.move(pad0.x + 10, pad0.y);
+    await page.mouse.down();
+    await page.mouse.move(pad0.x + 60, pad0.y, { steps: 5 });
+    await page.mouse.up();
+    expect(await studio(() => window.__studio._workingConfig.points[1].xyz)).toEqual([0, 0, -50]);
+    await studio(() => { window.__studio._activeTab = 'objects'; return window.__studio._selectObject(3); });
+    await expect.poll(() => studio(() => window.__studio._previewCard._scene.debug().boxed)).toBe('pad');
+    await studio(() => window.__studio._home());
+    await page.waitForTimeout(2000);
+    const pad1 = await previewObject(page, 'pad', true);
+    // inside the disc (its pick mesh), projected
+    const rim = await studio(() => {
+        const card = window.__studio._previewCard;
+        const d = card._scene.debug();
+        const b = d.world.objects.get('pad');
+        const c = b.node.getWorldPosition(b.node.position.clone());
+        const v = c.clone().project(d.rig.camera);
+        const e = c.clone().setX(c.x + 14).project(d.rig.camera);
+        return (e.x - v.x) / 2 * card.renderRoot.querySelector('.astro-scene').getBoundingClientRect().width;
+    });
+    await page.mouse.move(pad1.x + rim * 0.6, pad1.y);
+    await page.mouse.down();
+    await page.mouse.move(pad1.x + rim * 0.6 + 60, pad1.y, { steps: 6 });
+    await page.mouse.up();
+    expect((await studio(() => window.__studio._workingConfig.points[1].xyz))[0]).toBeGreaterThan(10);
+    expect(await studio(() => [window.__studio._activeTab, window.__studio._expandedObject])).toEqual(['objects', 3]);
+    await studio(() => window.__studio._undo());
+
+    // selected: the drag moves its point, live, and commits on release; the planet stays selected
+    await studio(() => { window.__studio._activeTab = 'objects'; return window.__studio._selectObject(1); });
+    await expect.poll(() => studio(() => window.__studio._previewCard._scene.debug().boxed)).toBe('planet');
+    const yaw0 = await studio(() => window.__studio._previewCard._scene.debug().keys.yaw);
+    const q = await previewObject(page, 'planet');
+    await page.mouse.move(q.x, q.y);
+    await page.mouse.down();
+    await page.mouse.move(q.x + 40, q.y, { steps: 5 });
+    await expect.poll(() => studio(() => window.__studio._status)).toMatch(/^Moving point dock \(planet stands at it\): xyz /);
+    expect(await studio(() => window.__studio._workingConfig.points[0].xyz)).toEqual([-40, 0, 0]);
+    await page.mouse.move(q.x + 120, q.y, { steps: 5 });
+    await page.mouse.up();
+    const xyz = await studio(() => window.__studio._workingConfig.points[0].xyz);
+    expect(xyz[0]).toBeGreaterThan(-10);
+    expect(xyz[1]).toBe(0);
+    expect(await studio(() => window.__studio._previewCard._scene.debug().keys.yaw)).toBe(yaw0);
+    expect(await studio(() => [window.__studio._activeTab, window.__studio._expandedObject, window.__studio._selectedPoint])).toEqual(['objects', 1, null]);
+    // the planet followed its point on the preview, and is still boxed
+    await expect.poll(async () => Math.round((await previewObject(page, 'planet')).x - q.x)).toBeGreaterThan(80);
+    await expect.poll(() => studio(() => window.__studio._previewCard._scene.debug().boxed)).toBe('planet');
+    // one undo step puts the point back
+    await studio(() => window.__studio._undo());
+    expect(await studio(() => window.__studio._workingConfig.points[0].xyz)).toEqual([-40, 0, 0]);
+
+    // an object at coordinates does not drag, selected or not
+    await studio(() => window.__studio._selectObject(2));
+    await expect.poll(() => studio(() => window.__studio._previewCard._scene.debug().boxed)).toBe('rock');
+    const r0 = await previewObject(page, 'rock');
+    await page.mouse.move(r0.x, r0.y);
+    await page.mouse.down();
+    await page.mouse.move(r0.x + 80, r0.y, { steps: 5 });
+    await page.mouse.up();
+    expect(await studio(() => window.__studio._workingConfig.objects[2].at)).toEqual([50, 0, 20]);
+
+    // Frame selected flies to the rock; F (focus on the page) flies to the selected point
+    await page.locator('lcards-astrometrics-studio-dialog').evaluate(async () => window.__studio._home());
+    await expect.poll(() => studio(() => window.__studio._previewCard._scene.debug().keys.tx)).toBeCloseTo(0, 0);
+    await page.evaluate(() => window.__studio.renderRoot.querySelector('[data-tool="frame-selected"]').click());
+    await expect.poll(() => studio(() => { const k = window.__studio._previewCard._scene.debug().keys; return [Math.round(k.tx), Math.round(k.tz)]; }), { timeout: 5000 }).toEqual([50, 20]);
+    await studio(() => { window.__studio._activeTab = 'points'; return window.__studio._selectPoint('dock'); });
+    await expect.poll(() => studio(() => window.__studio.renderRoot.querySelector('[data-tool="frame-selected"]').disabled)).toBe(false);
+    await page.evaluate(() => /** @type {HTMLElement} */ (document.activeElement)?.blur?.());
+    await page.keyboard.press('f');
+    await expect.poll(() => studio(() => Math.round(window.__studio._previewCard._scene.debug().keys.tx)), { timeout: 5000 }).toBe(-40);
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
 });

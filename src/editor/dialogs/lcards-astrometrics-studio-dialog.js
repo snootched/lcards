@@ -344,9 +344,10 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
    * @private
    */
   _onKey(e) {
-    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
     const key = e.key.toLowerCase();
-    if (key !== 'z' && key !== 'y') return;
+    // F (no modifiers): fly to the selection; the preview handles it itself when it has the focus
+    const frame = key === 'f' && !(e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) && !e.defaultPrevented && !e.repeat;
+    if (!frame && (!(e.ctrlKey || e.metaKey) || e.altKey || (key !== 'z' && key !== 'y'))) return;
     const path = e.composedPath();
     const active = document.activeElement;
     if (!path.includes(this) && active && active !== document.body) return;
@@ -354,6 +355,10 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       && (el.matches('input, textarea, [contenteditable=""], [contenteditable="true"], ha-code-editor, .cm-editor')));
     if (typing) return;
     e.preventDefault();
+    if (frame) {
+      this._frameSelected();
+      return;
+    }
     e.stopPropagation();
     if (key === 'y' || e.shiftKey) this._redo();
     else this._undo();
@@ -371,9 +376,10 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
    * Replace the open scope's points or objects.
    * @param {'points' | 'objects'} key
    * @param {any[] | undefined} list
+   * @param {{ now?: boolean, step?: boolean }} [opts] - as _commit's
    */
-  _setList(key, list) {
-    this._commit(setScopedList(this._workingConfig, this._scope, key, list));
+  _setList(key, list, opts = {}) {
+    this._commit(setScopedList(this._workingConfig, this._scope, key, list), opts);
   }
 
   /** @param {any[]} objects */
@@ -461,7 +467,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     card.attachStudio?.({
       onView: () => this._updateScaleBar(),
       onSelect: (/** @type {any} */ hit) => this._onSceneSelect(hit),
-      onDrag: (/** @type {string} */ id, /** @type {string} */ form, /** @type {any} */ value, /** @type {boolean} */ done) => this._onPointDrag(id, form, value, done)
+      onDrag: (/** @type {string} */ id, /** @type {string} */ form, /** @type {any} */ value, /** @type {boolean} */ done, /** @type {string | undefined} */ via) => this._onPointDrag(id, form, value, done, via)
     });
   }
 
@@ -526,25 +532,37 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   /**
    * A point dragged on the preview: shown live by the scene; the value goes
    * into the working copy on release (and the point opens in its list).
+   * Dragged by the selected object standing at it (`via`), the object stays
+   * selected in the Objects tab.
    * @param {string} id
    * @param {string} form
    * @param {number[] | string} value
    * @param {boolean} done
+   * @param {string} [via] - the object grabbed
    * @private
    */
-  _onPointDrag(id, form, value, done) {
+  _onPointDrag(id, form, value, done, via) {
     const shown = Array.isArray(value) ? value.join(', ') : value;
     if (!done) {
-      this._status = `${id}: ${form} ${shown}`;
+      this._status = via ? `Moving point ${id} (${via} stands at it): ${form} ${shown}` : `${id}: ${form} ${shown}`;
       return;
     }
     this._status = '';
     const scope = pointScope(this._workingConfig, id);
     if (scope !== null) this._openScope(scope);
     const points = this._points.map((p) => (p && String(p.id) === id ? { ...p, [form]: value } : p));
-    this._setList('points', points);
+    // to the preview at once: an undo inside the preview's delay would otherwise find the card on the
+    // config before the drag and leave the point where it was dragged
+    this._setList('points', points, { now: true });
+    if (via !== undefined) return;
     this._activeTab = 'points';
     this._selectPoint(id);
+  }
+
+  /** Fly the preview to the selection: the boxed object, else the selected point @private */
+  async _frameSelected() {
+    const scene = await this._previewCard?.studioScene?.().catch(() => null);
+    await scene?.frameSelected?.();
   }
 
   // ── Place mode ─────────────────────────────────────────────────────────────
@@ -745,7 +763,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
                         Keep
                       </ha-button>
                     </div>` : html`
-                    <span class="toolbar-status">${this._status || 'Tap a point or object to edit it, drag a point to move it.'}</span>`}
+                    <span class="toolbar-status">${this._status || 'Tap a point or object to edit it; drag a point, or an object standing at one, to move it. F flies to the selection.'}</span>`}
                 </div>
               </div>
             </div>
@@ -809,6 +827,10 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
           <div class="canvas-toolbar-group">
             <span class="canvas-toolbar-group-label">View</span>
             ${button({ id: 'home', icon: 'mdi:home-outline', title: 'Back to the start view', action: () => this._home() })}
+            ${button({
+              id: 'frame-selected', icon: 'mdi:image-filter-center-focus', disabled: trying || (this._selectedPoint === null && !this._objects[this._expandedObject]),
+              title: 'Fly to what is selected (F)', action: () => this._frameSelected()
+            })}
             ${hold({ id: 'fly-forward', icon: 'mdi:arrow-up-bold-outline', title: 'Fly forward (W, Page Up); hold to keep going' })}
             ${hold({ id: 'fly-back', icon: 'mdi:arrow-down-bold-outline', title: 'Fly back (S, Page Down); hold to keep going' })}
             ${button({

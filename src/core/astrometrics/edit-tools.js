@@ -37,6 +37,25 @@ export function dragForm(def) {
   return null;
 }
 
+/**
+ * The point an object is dragged by: the point its `at` names, when that
+ * point can be dragged (`dragForm`) and does not stand on the object itself.
+ * Null for an object placed by coordinates (or at the origin): it does not
+ * drag.
+ * @param {string} id - the object's
+ * @param {any} config - the object's
+ * @param {(id: string) => any} pointDef - a point's config by id (undefined when there is none)
+ * @returns {{ id: string, form: NonNullable<ReturnType<typeof dragForm>>, def: any } | null}
+ */
+export function objectDragPoint(id, config, pointDef) {
+  const at = config?.at;
+  if (typeof at !== 'string' || at === '') return null;
+  const def = pointDef(at);
+  const form = dragForm(def);
+  if (!form || String(def.object ?? '') === id) return null;
+  return { id: at, form, def };
+}
+
 const r1 = (/** @type {number} */ v) => Math.round(v * 10) / 10;
 
 /**

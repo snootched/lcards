@@ -12,11 +12,12 @@ The preview is the real card, with your entities, templates, label styles, pinne
 
 ## On the scene
 
-The toolbar over the preview has three groups: **Tools** (place a point), **View** (back to the start view, fly forward and fly back: camera and target move together along the view, so you travel through the scene; hold to keep going; and [visible size](./objects#visible-size), which draws small models larger in the preview without saving it) and **Edit** (undo and redo). The arrow at its end folds it away to one button.
+The toolbar over the preview has three groups: **Tools** (place a point), **View** (back to the start view, fly to what is selected (also `F`), fly forward and fly back: camera and target move together along the view, so you travel through the scene; hold to keep going; and [visible size](./objects#visible-size), which draws small models larger in the preview without saving it) and **Edit** (undo and redo). The arrow at its end folds it away to one button.
 
 - **Turn the view** as on the dashboard: drag to orbit, shift-drag, middle-drag or two fingers to pan, scroll or pinch to zoom (a touchpad swipe pans), `W` and `S` to fly forward and back. The preview does not follow moving points. The home button in the toolbar goes back to the start view.
 - **Select:** tap a point or an object to open it in its list. An object gets a box round it; a ring, path or beam is selected by tapping near its line. Opening a row in a list selects it on the scene too.
 - **Drag a point** to move it. `xyz` and `polar` points slide at their own height, so a drag never changes `y` or `alt`; `latlon`, `altaz` and `cell` points follow the surface of their object. The toolbar shows the new numbers while you drag, and the point keeps its placement form. Points placed by `sky`, `at`, `part` or an entity do not drag.
+- **Drag an object by its point.** An object whose `at` names a point moves with that point, so dragging the object drags the point (and everything else standing at it). A body (a sphere, a model) drags this way at any time, as a press on it is a press on its point. Any other object (a grid, a ring, a volume) drags once it is selected; before that, a drag on it turns the view. The object stays selected in the Objects tab and the point's new numbers are saved. An object placed by `at: [x, y, z]` (or with no `at`) does not drag: type its position in its form, or give it a point to stand on.
 - **Place a point** (the marker button in the toolbar): the next tap adds a point there. On a sphere it gets `latlon`, on a dome `altaz`, on a plane grid its `cell`, on another object `xyz` on that object, and on blank space `xyz` on the ground. Escape cancels. An object needs an `id` for a point to stand on it.
 
 ## Undo and redo
