@@ -179,7 +179,7 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 | `test:browser` | Layer A, Playwright: fixture cards on the built bundle, fake hass (CI). |
 | `test:visual` | Layer B: screenshot baselines (local; `-- --update-snapshots` after an intended change). |
 | `test:ha` | Layer C: smoke tests on the dev HA (local; `.ha-token`). |
-| `test:docs` | Live demos, galleries, playgrounds and labs on the built docs site (after `docs:build`). |
+| `test:docs` | Live demos, galleries, playgrounds and labs on the built docs site (after `docs:build`). With `CI` set it skips the `@gpu` tests (the astrometrics pages after the first and the astrometrics demo view: CI has no GPU and draws WebGL on the CPU); run them all locally before a push. The tests ask the preview server for uncompressed files (`vitepress preview` brotli-compresses each response at full quality, about 4 s for the main chunk). |
 
 **Docs**
 
@@ -237,7 +237,7 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 | A: browser components | `npm run test:browser` | CI + local | `npm run build` |
 | B: visual baselines | `npm run test:visual` | local | `npm run build` |
 | C: real HA | `npm run test:ha` | local | `npm run build`, dev HA at `localhost:8123`, `.ha-token` |
-| Docs site | `npm run test:docs` | CI + local | `npm run docs:build` |
+| Docs site | `npm run test:docs` | CI (without `@gpu` tests) + local (all) | `npm run docs:build` |
 
 Run one node test file: `node --no-maglev --import ./tests/setup/browser-shims.js --import ./tests/setup/vite-imports.js --test <file>`. Keep `--no-maglev` on node scripts that run the config checker (tests, `validate-doc-examples`, `validate:config`): V8's Maglev compiler otherwise spends up to 10 GB optimising ajv's generated validators. Every fix gets a test in the right layer.
 

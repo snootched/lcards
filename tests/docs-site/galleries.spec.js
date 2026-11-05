@@ -4,7 +4,7 @@
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { test, expect, watchErrors } from './support.js';
+import { test, expect, watchErrors, gpuTag } from './support.js';
 
 /** Every docs page using CardGallery, with the gallery set names in page order. */
 function galleryPages() {
@@ -31,7 +31,7 @@ test('the gallery scan finds the gallery pages', () => {
 });
 
 for (const [url, sets] of PAGES) {
-    test(`${url}: every gallery tile renders its card`, async ({ page }) => {
+    test(`${url}: every gallery tile renders its card`, gpuTag(url), async ({ page }) => {
         const errors = watchErrors(page);
         await page.goto(url);
         const galleries = page.locator('.card-gallery');

@@ -25,8 +25,14 @@ export default defineConfig({
     // Each demo page loads the full card bundle; a few at a time keeps runs fast and stable.
     workers: 4,
     reporter: process.env.CI ? 'line' : 'list',
+    // CI skips the pages of many WebGL cards (support.js gpuTag): no GPU there. All run locally.
+    grepInvert: process.env.CI ? /@gpu/ : undefined,
     use: {
         viewport: { width: 1300, height: 900 },
+        // vitepress preview brotli-compresses every response at the highest quality, uncached:
+        // 4 s for the 2.2 MB LCARdS main chunk and 2 s for the theme chunk, on every page of
+        // every test (most of the 12 minutes CI took). Uncompressed is instant on localhost.
+        extraHTTPHeaders: { 'Accept-Encoding': 'identity' },
         // System Chromium locally (no download); CI installs Playwright's own build.
         // Locally WebGL runs on the real GPU (Vulkan through ANGLE): without these flags
         // headless Chromium draws with SwiftShader on the CPU, and the WebGL demos crawl.

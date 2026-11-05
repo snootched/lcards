@@ -47,7 +47,8 @@ const SAMPLES = [
     VIEWS.find(v => v.text.includes('background_animation') && !v.text.includes('custom:lcards-astrometrics-card')),
 ];
 for (const view of SAMPLES) {
-    test(`${view?.path}: every card mounts, no errors`, async ({ page }) => {
+    // the astrometrics view runs locally only (support.js gpuTag): CI draws WebGL on the CPU
+    test(`${view?.path}: every card mounts, no errors`, view?.text.includes('custom:lcards-astrometrics-card') ? { tag: '@gpu' } : {}, async ({ page }) => {
         expect(view).toBeTruthy();
         const errors = watchErrors(page);
         await openView(page, view);

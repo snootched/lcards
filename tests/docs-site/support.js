@@ -36,6 +36,14 @@ export const test = base.extend({
 });
 export { expect };
 
+/**
+ * Tests tagged `@gpu` (pages of many WebGL cards) run locally only: CI has no GPU, so
+ * Chromium draws WebGL on the CPU (SwiftShader) and those pages crawl. One astrometrics
+ * page stays on CI as a smoke test. playwright.docs.config.js leaves them out when CI is set.
+ * @param {string} url - a docs page path
+ */
+export const gpuTag = (url) => (/^\/cards\/astrometrics\/./.test(url) ? { tag: '@gpu' } : {});
+
 /** Collect page errors and LCARdS console errors for a page. */
 export function watchErrors(page) {
     const errors = [];

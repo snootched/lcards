@@ -4,7 +4,7 @@
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { test, expect, watchErrors, waitForDemos, demoState, DOCS_BASE } from './support.js';
+import { test, expect, watchErrors, waitForDemos, demoState, DOCS_BASE, gpuTag } from './support.js';
 
 // Card types rendered by CardDemo (chart and data grid have their own demos).
 const CARD_DEMO_TYPES = new Set(['lcards-button', 'lcards-elbow', 'lcards-slider', 'lcards-select-menu', 'lcards-msd-card', 'lcards-layout-card', 'lcards-astrometrics-card']);
@@ -36,7 +36,7 @@ test('the live-page scan finds the card pages', () => {
 });
 
 for (const [url, tags] of PAGES) {
-    test(`${url}: every live example renders its card`, async ({ page }) => {
+    test(`${url}: every live example renders its card`, gpuTag(url), async ({ page }) => {
         const expected = tags.length;
         // a page of many WebGL cards (the astrometrics starters) needs longer than the default
         test.setTimeout(Math.max(60_000, expected * 3_000));
