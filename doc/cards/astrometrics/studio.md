@@ -12,7 +12,14 @@ The preview is the real card, with your entities, templates, label styles, pinne
 
 ## On the scene
 
-The toolbar over the preview has three groups: **Tools** (place a point), **View** (back to the start view, fly to what is selected (also `F`), fly forward and fly back: camera and target move together along the view, so you travel through the scene; hold to keep going; and [visible size](./objects#visible-size), which draws small models larger in the preview without saving it) and **Edit** (undo and redo). The arrow at its end folds it away to one button.
+The toolbar over the preview has four groups. The arrow at its end folds it away to one button.
+
+- **Tools**: place a point, and **measure**: tap two places (a point's marker, an object's surface or the ground) and the line between them shows with its length in the open scene's or system's units, and once more in the next named unit when the units are named (`4.2 ly (266,000 au)`). A third tap starts again; Escape stops.
+- **View**: back to the start view; fly to what is selected (also `F`); **quick views**, top, front and side in turn, flat (orthographic) round where the camera looks, for placing things exactly (Home goes back); fly forward and fly back: camera and target move together along the view, so you travel through the scene; hold to keep going.
+- **Preview**, which changes only the preview, never the card: [visible size](./objects#visible-size) draws small models larger; **look** steps through diagram, realistic and mixed, and back to the card's own; **hold** stops all motion and the scene clock, so moving and spinning things are easy to tap and drag; **isolate** shows the selected object alone (a system with what it holds).
+- **Edit**: undo and redo.
+
+The units of the open scene or system, and a scale bar for where the camera looks, sit at the bottom right of the preview.
 
 - **Turn the view** as on the dashboard: drag to orbit, shift-drag, middle-drag or two fingers to pan, scroll or pinch to zoom (a touchpad swipe pans), `W` and `S` to fly forward and back. The preview does not follow moving points. The home button in the toolbar goes back to the start view.
 - **Select:** tap a point or an object to open it in its list. An object gets a box round it; a ring, path or beam is selected by tapping near its line. Opening a row in a list selects it on the scene too.
@@ -87,7 +94,7 @@ The view's own keys are below as a form. See [Camera and views](./#camera-and-vi
 
 With a system open, parts go into that system (its ids still unique across the card, its views the card's). A part with sizes (a planet, a belt, a comet, a nebula field, territories, the Badlands, the Nexus, the wormhole, a starbase) starts at real sizes when the scene or system names its units: a planet the size of Earth one au out in a km or au system, a starbase at its model's real length. In a scene without named units it is sized to fit what is there (about a quarter of the scene's size), and its settings say **Sized to fit this scene**; in an empty scene it keeps its own sizes. The size fields show their units, and what you type wins. An open scene starter says which units it is in. The scene's units are set in the Scene tab, **Units** ([Scale: Units](./scale#units)).
 
-A part in other units than your scene (the Star Trek parts are in light years) cannot go next to it: its tile is dimmed and says so. Open it to start over with the scene it is made for and add it (**Start with Star Trek galaxy and add it**), or to let it replace the scene; a scene in other units can replace yours but not merge. In an open system such a part offers **Back to the scene to add it**, and scenes always act on the whole card. The chip at the top left of the preview shows the units of the scene, or of the open system. Under it, a scale bar shows how long a round length ("20,000 ly", "10,000 km") is on the preview where the camera looks; it changes as you zoom, so you can see what sizes to type for a new object.
+A part in other units than your scene (the Star Trek parts are in light years) cannot go next to it: its tile is dimmed and says so. Open it to start over with the scene it is made for and add it (**Start with Star Trek galaxy and add it**), or to let it replace the scene; a scene in other units can replace yours but not merge. In an open system such a part offers **Back to the scene to add it**, and scenes always act on the whole card. The chip at the bottom right of the preview shows the units of the scene, or of the open system. Under it, a scale bar shows how long a round length ("20,000 ly", "10,000 km") is on the preview where the camera looks; it changes as you zoom, so you can see what sizes to type for a new object.
 
 A starter you put in is one undo step: undo takes it out again. If any point, object or view id it adds is already in the card, nothing is added and the message names them.
 

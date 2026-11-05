@@ -75,6 +75,7 @@ export function objectsGuide() {
       <ul>
         <li><b>Add object</b> lists every type by what it is for. A new object gets an id and the keys its type needs.</li>
         <li>Every object takes a place (<code>at</code>: coordinates or a point), rotation, spin, opacity and visibility; the rest is its type's own.</li>
+        <li><b>On the scene:</b> an object standing at a point moves with it: select the object and drag it, and its point moves. The toolbar's <b>Preview</b> group can show it alone or hold the motion while you work (not saved).</li>
         <li><b>Distance</b> keys pick what shows from how far away (above), so a busy scene stays readable as you zoom.</li>
         <li>Some types come in shapes or patterns (a grid is a plane, disc, dome, sphere, cylinder or well). A form shows only the keys for the object's own shape.</li>
         <li>An object's form starts with its shape and size, then <b>Appearance</b> (colours, opacity, lines), <b>Position and motion</b>, <b>Visibility and distance</b> and <b>Actions and tags</b>.</li>

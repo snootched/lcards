@@ -202,6 +202,12 @@ const KEY_COMMANDS = {
  *   how far out it is and how wide the view is across that spot, in a system's units (the scene's without one), and the
  *   view's width in CSS px: what a new object there is sized and placed by, and the Studio's scale bar
  * @property {(id: string) => Promise<void>} frameObject - fly to see an object, or a system and what it holds, whole
+ * @property {(x: number, y: number, system?: string) => ({ at: number[], point?: string } | null)} measureAt - where (x, y) CSS px is
+ *   for the Studio's measure: a point's marker, else an object's surface, else the ground, in the scope's units (`system`'s, else the scene's)
+ * @property {(a: number[] | null, b?: number[] | null, system?: string) => void} showMeasure - a line from a to b in the scope's units, over
+ *   everything (kept across rebuilds); null clears it
+ * @property {(on: boolean) => void} setHold - the Studio's hold: every motion and the scene clock stop until it lets go (not in the config)
+ * @property {() => boolean} held
  * @property {() => Promise<void>} frameSelected - fly to what is selected (the boxed object, else the selected point; F in edit mode)
  * @property {(handler: ((x: number, y: number) => void) | null) => void} setPickHandler - while set, a tap goes to it (no actions, no double-tap)
  * @property {(x: number, y: number, form: string, object?: string, system?: string) => (number[] | string | null)} placeAt - a placement
@@ -317,6 +323,12 @@ export function createAstroScene(host, config, options = {}) {
   let boxed = null;
   /** @type {FatLine | null} */
   let boxLine = null;
+  /** @type {{ a: number[], b: number[], system?: string } | null} the Studio's measure line, in its scope's units */
+  let measure = null;
+  /** @type {FatLine | null} */
+  let measureLine = null;
+  /** @type {{ timeScale: number, rate: number } | null} the Studio's hold: what to run at again when it lets go */
+  let held = null;
   /** @type {typeof import('./edit-tools.js') | null} edit-mode maths, loaded with the first edit mode (dashboards never need it) */
   let tools = null;
   /** @type {Map<string, AstroLabelValues>} */
@@ -970,6 +982,7 @@ export function createAstroScene(host, config, options = {}) {
     for (const it of world.labels) if (it.marker !== 'none') labels.style(it.id, { svg: markerSvg(it.marker, sky?.moon) });
     labels.select(selected);
     showBox();
+    showMeasure();
     // What the card resolved before this build (templates, state colours, entity positions) stays
     for (const [id, v] of labelValues) labels.style(id, v);
     for (const [id, forms] of boundValues) for (const [form, value] of Object.entries(forms)) world.places.setPosition(id, /** @type {any} */ (form), value);
@@ -1044,6 +1057,7 @@ export function createAstroScene(host, config, options = {}) {
       for (const b of world.list) sizeObject(b);
       for (const f of [world.stars?.field, world.dust?.field]) f?.setResolution(cssW, cssH, dpr);
       boxLine?.setResolution(cssW, cssH);
+      measureLine?.setResolution(cssW, cssH);
     }
     labels.invalidateSizes();
     requestFrame();
@@ -1496,6 +1510,73 @@ export function createAstroScene(host, config, options = {}) {
     boxLine.material.transparent = true;
     boxLine.setResolution(cssW, cssH);
     b.node.add(boxLine.object);
+    requestFrame();
+  }
+
+  /**
+   * The Studio's measure line between two places in a scope's units (the
+   * scene's, or a system's), drawn over everything; kept across rebuilds.
+   */
+  function showMeasure() {
+    if (measureLine) {
+      measureLine.object.removeFromParent();
+      measureLine.dispose();
+      measureLine = null;
+    }
+    if (!measure || !world) return;
+    const node = world.frames.get(measure.system).node;
+    measureLine = new FatLine([[...measure.a, ...measure.b]], { color: ctx.color('var(--lcards-moonlight)', '#ffffff'), width: 2, opacity: 0.9, renderOrder: 20 });
+    measureLine.material.depthTest = false;
+    measureLine.material.transparent = true;
+    measureLine.setResolution(cssW, cssH);
+    node.add(measureLine.object);
+    requestFrame();
+  }
+
+  /**
+   * Where (x, y) CSS px is for measuring, in a scope's units: a point's
+   * marker, else the nearest object surface under it, else the scope's
+   * ground; null when none is under it.
+   * @param {number} x
+   * @param {number} y
+   * @param {string} [system]
+   * @returns {{ at: number[], point?: string } | null}
+   */
+  function measureAt(x, y, system) {
+    if (!world) return null;
+    const node = world.frames.get(system).node;
+    const r1 = (/** @type {Vector3} */ v) => v.toArray().map((n) => Number(n.toPrecision(6)));
+    const hit = labels.pick(x, y);
+    const p = hit ? world.places.get(hit.id) : null;
+    if (hit && p) return { at: r1(node.worldToLocal(p.clone())), point: hit.id };
+    ndc.set((x / cssW) * 2 - 1, -(y / cssH) * 2 + 1);
+    ray.setFromCamera(ndc, rig.camera);
+    const meshes = world.list.filter((o) => o.pickMeshes.length && !w0(o)).flatMap((o) => o.pickMeshes);
+    const on = ray.intersectObjects(meshes, false)[0];
+    if (on) return { at: r1(node.worldToLocal(on.point.clone())) };
+    const g = rayPlane(screenRay(rig.keys, rig.projection, x, y, cssW, cssH), node.position.toArray(), [0, 1, 0], 0.02);
+    return g ? { at: r1(node.worldToLocal(new Vector3(g[0], g[1], g[2]))) } : null;
+  }
+
+  /**
+   * The Studio's hold: every motion and the scene clock stop (time_scale 0,
+   * clock rate 0) until it lets go, when both run as they did.
+   * @param {boolean} on
+   */
+  function setHold(on) {
+    const wall = performance.now();
+    if (on && !held) {
+      held = { timeScale, rate: sceneClock.rate };
+      timeScale = 0;
+      sceneClock.set({ rate: 0 }, wall);
+    } else if (!on && held) {
+      timeScale = held.timeScale;
+      sceneClock.set({ rate: held.rate }, wall);
+      held = null;
+      last = 0;
+    } else return;
+    dateNow = sceneClock.date(wall);
+    options.onClock?.(clockState());
     requestFrame();
   }
 
@@ -1969,7 +2050,9 @@ export function createAstroScene(host, config, options = {}) {
       const p = world.places.get(view.point);
       return p ? flyToPosition(p, opts.warp !== undefined ? { ...view, warp: opts.warp } : view, { ref: view.point }, refFrame(view.point), opts.duration) : Promise.resolve();
     }
-    return fly(() => viewKeys(view), { ref: view?.target }, { duration, ease: cfg.camera?.ease, warp: opts.warp ?? warpFor(view) });
+    // keys with a projection switch to it (the Studio's quick views); without one the camera keeps its own
+    const projection = view?.projection === 'orthographic' || view?.projection === 'perspective' ? view.projection : undefined;
+    return fly(() => viewKeys(view), { ref: view?.target }, { duration, ease: cfg.camera?.ease, projection, warp: opts.warp ?? warpFor(view) });
   }
 
   /**
@@ -2267,6 +2350,13 @@ export function createAstroScene(host, config, options = {}) {
         return { tx: c[0], ty: c[1], tz: c[2], distance: size * unitOf(frame) };
       }, { pos, frame }, { duration, ease: cfg.camera?.ease });
     },
+    measureAt,
+    showMeasure(a, b, system) {
+      measure = a && b ? { a, b, ...(system !== undefined ? { system } : {}) } : null;
+      showMeasure();
+    },
+    setHold,
+    held: () => !!held,
     frameSelected() {
       if (boxed) return api.frameObject(boxed);
       if (selected && world?.places.has(selected)) return flyTo({ point: selected });

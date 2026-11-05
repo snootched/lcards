@@ -105,8 +105,8 @@ releases:
         public: false
       - file: astro-studio-move
         topic: astrometrics
-        summary: "Astrometrics Studio: drag objects by their point, fly to the selection"
-        description: "Open this card's editor, then its Studio. Drag the planet and its point moves with it; select the ring or the relay pad first, then drag it. The survey grid is placed by coordinates and does not drag. Select anything and press F, or the toolbar's frame button, to fly to it."
+        summary: "Astrometrics Studio: drag objects by their point, measure, quick views, hold, isolate"
+        description: "Open this card's editor, then its Studio. Drag the planet and its point moves with it; select the ring or the relay pad first, then drag it. The survey grid is placed by coordinates and does not drag. Select anything and press F to fly to it. The toolbar also measures between two taps, steps through flat top, front and side views, and (preview only) switches the look, holds all motion and shows the selected object alone."
         session: "ST1"
         docs: /cards/astrometrics/studio
         public: false

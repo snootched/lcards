@@ -46,6 +46,7 @@ import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
 import { SCENE_SCOPE, scopeSystem, validScope, scopedList, setScopedList, scopedObjectIds, pointScope, objectScope, allPointIds, allObjectIds, pointsEditorConfig } from './astro-studio/systems.js';
 import { createHistory } from './astro-studio/history.js';
+import { QUICK_VIEWS, quickViewKeys, nextLook, measureText, isolateConfig } from './astro-studio/preview-tools.js';
 import { modelSizeReadout, fitToViewSize, roundLength, shortNumber } from './astro-studio/model-size.js';
 import { prismOutline } from '../../core/astrometrics/objects/volume.js';
 import { starterPicture, typePicture, TYPE_GROUPS, starterParamSchema, starterParamChoices, starterParamValues, starterAdds, fragmentCounts, sceneUnitsText } from './astro-studio/starter-gallery.js';
@@ -83,6 +84,9 @@ export function isStarterCard(config) {
 }
 /** Debounce for preview updates while typing, ms */
 const PREVIEW_DELAY = 150;
+
+/** The toolbar's look button, by the preview's look ('' the card's) */
+const LOOK_ICONS = /** @type {Record<string, string>} */ ({ '': 'mdi:eye-outline', diagram: 'mdi:vector-polyline', realistic: 'mdi:earth', mixed: 'mdi:layers-triple-outline' });
 
 /** How long the Studio waits for a model file to load in the preview (a big download takes a while), ms */
 const MODEL_WAIT_MS = 5 * 60 * 1000;
@@ -136,6 +140,11 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
       _selectedPoint: { state: true },
       _addingObject: { state: true },
       _placing: { state: true },
+      _measuring: { state: true },
+      _quickView: { state: true },
+      _previewLook: { state: true },
+      _held: { state: true },
+      _isolated: { state: true },
       _status: { state: true },
       _scaleBar: { state: true },
       _expandedView: { state: true },
@@ -169,6 +178,20 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     this._selectedPoint = null;
     this._addingObject = false;
     this._placing = false;
+    /** Measure mode (the toolbar's ruler): taps go to the measure tool */
+    this._measuring = false;
+    /** @type {{ at: number[], point?: string } | null} the measure's first place */
+    this._measureA = null;
+    /** @type {{ at: number[], point?: string } | null} the measure's second place (a third tap starts again) */
+    this._measureB = null;
+    /** The quick view the preview is on (QUICK_VIEWS index), -1 for none; Home goes back */
+    this._quickView = -1;
+    /** @type {string | null} the preview's look instead of the card's (not saved), null for the card's */
+    this._previewLook = null;
+    /** Whether the preview's motion and clock are held (not saved) */
+    this._held = false;
+    /** @type {string | null} the object shown alone in the preview (not saved) */
+    this._isolated = null;
     /** @type {string} the toolbar's line while dragging or placing (else the hint) */
     this._status = '';
     /** @type {{ px: number, label: string } | null} the preview's scale bar (_updateScaleBar) */
@@ -444,7 +467,11 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
 
   /** The config the preview card shows: the working copy (with the starter being tried), filling the panel. */
   _previewConfig() {
-    return { ...clone(this._trying?.config ?? this._workingConfig), height: '100%' };
+    let cfg = clone(this._trying?.config ?? this._workingConfig);
+    // the toolbar's look and isolate: the preview only
+    if (this._previewLook) cfg.look = this._previewLook;
+    if (this._isolated && !this._trying) cfg = isolateConfig(cfg, this._isolated);
+    return { ...cfg, height: '100%' };
   }
 
   /** @private */
@@ -460,6 +487,10 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     card.hass = this.hass;
     host.replaceChildren(card);
     this._previewCard = card;
+    // a new preview runs free with no measure
+    this._held = false;
+    this._measuring = false;
+    this._quickView = -1;
     card.addEventListener('astro-model-scale', (/** @type {CustomEvent} */ e) => {
       this._modelScale = e.detail.mode;
       this._hasRealModels = e.detail.hasRealModels;
@@ -578,6 +609,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
     const scene = await card?.studioScene?.();
     if (!scene) return;
     if (on) {
+      if (this._measuring) await this._setMeasuring(false);
       card.cancelPick?.();
       this._placing = true;
       const system = this._system ? this._objectIdIn(SCENE_SCOPE, this._scope) : undefined;
@@ -602,10 +634,88 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
 
   /** @param {KeyboardEvent} e @private */
   _onPlaceKey(e) {
-    if (e.key !== 'Escape' || !this._placing) return;
+    if (e.key !== 'Escape' || !(this._placing || this._measuring)) return;
     e.stopPropagation();
     e.preventDefault();
-    this._setPlacing(false);
+    if (this._measuring) this._setMeasuring(false);
+    else this._setPlacing(false);
+  }
+
+  /**
+   * Measure mode on or off: while on, taps on the preview measure from one
+   * place (a point, an object's surface, the ground) to the next, in the
+   * open scope's units; a third tap starts again. Nothing is saved.
+   * @param {boolean} on
+   * @private
+   */
+  async _setMeasuring(on) {
+    const card = this._previewCard;
+    const scene = await card?.studioScene?.();
+    if (!scene) return;
+    if (on) {
+      if (this._placing) await this._setPlacing(false);
+      card.cancelPick?.();
+      this._measuring = true;
+      this._measureA = this._measureB = null;
+      const system = this._system ? this._objectIdIn(SCENE_SCOPE, this._scope) : undefined;
+      this._status = 'Tap where to measure from: a point, an object or the ground. Escape stops.';
+      window.addEventListener('keydown', this._onPlaceKey, true);
+      /** @param {{ at: number[], point?: string }} m */
+      const where = (m) => m.point ?? `[${m.at.map((v) => shortNumber(v)).join(', ')}]`;
+      scene.setPickHandler((/** @type {number} */ x, /** @type {number} */ y) => {
+        const m = scene.measureAt(x, y, system);
+        if (!m) {
+          this._status = 'Nothing there to measure to: tap a point, an object or the ground.';
+          return;
+        }
+        if (!this._measureA || this._measureB) {
+          this._measureA = m;
+          this._measureB = null;
+          scene.showMeasure(null);
+          this._status = `From ${where(m)}: tap where to measure to.`;
+          return;
+        }
+        this._measureB = m;
+        scene.showMeasure(this._measureA.at, m.at, system);
+        this._status = `${where(this._measureA)} to ${where(m)}: ${measureText(this._measureA.at, m.at, this._units || undefined)}. Tap again to measure anew.`;
+      });
+    } else if (this._measuring) {
+      this._measuring = false;
+      this._measureA = this._measureB = null;
+      this._status = '';
+      window.removeEventListener('keydown', this._onPlaceKey, true);
+      scene.setPickHandler(null);
+      scene.showMeasure(null);
+    }
+  }
+
+  /** The preview's motion and scene clock held, or running again (not saved) @private */
+  async _toggleHold() {
+    const scene = await this._previewCard?.studioScene?.();
+    if (!scene) return;
+    this._held = !this._held;
+    scene.setHold(this._held);
+  }
+
+  /** The next quick view (top, front, side; orthographic, round where the camera looks) @private */
+  async _nextQuickView() {
+    const scene = await this._previewCard?.studioScene?.();
+    if (!scene) return;
+    this._quickView = (this._quickView + 1) % QUICK_VIEWS.length;
+    scene.flyTo(quickViewKeys(this._quickView, scene.cameraKeys()), { duration: 600 });
+  }
+
+  /** The preview's next look (the card's, diagram, realistic, mixed; not saved) @private */
+  _nextLook() {
+    this._previewLook = nextLook(this._previewLook);
+    this._updatePreview();
+  }
+
+  /** Show the selected object alone in the preview, or everything again (not saved) @private */
+  _toggleIsolate() {
+    const obj = this._objects[this._expandedObject];
+    this._isolated = this._isolated || !obj ? null : this._objectId(obj, this._expandedObject);
+    this._updatePreview();
   }
 
   /**
@@ -689,7 +799,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
           font-size: var(--ha-font-size-m, 14px); font-weight: var(--ha-font-weight-medium); color: var(--primary-text-color); }
         .starter-note ha-icon { --mdc-icon-size: 18px; flex-shrink: 0; }
         .starter-clash { display: block; margin-bottom: var(--ha-space-3); }
-        .units-chip { position: absolute; top: var(--ha-space-3); left: var(--ha-space-3); }
+        /* bottom right, as a map's scale: the toolbar has the top */
+        .units-chip { position: absolute; bottom: var(--ha-space-3); right: var(--ha-space-3); display: flex; flex-direction: column; align-items: flex-end; }
         .units-chip ha-assist-chip { --ha-assist-chip-filled-container-color: var(--primary-color); --ha-assist-chip-label-text-color: white;
           --ha-chip-label-size: var(--ha-font-size-l, 16px); }
         .units-chip ha-icon { --mdc-icon-size: 18px; color: white; }
@@ -794,6 +905,8 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   _renderToolbar() {
     void this._historyVersion;
     const trying = !!this._trying;
+    /** an object selected (its row open) */
+    const selected = !!this._objects[this._expandedObject];
     /** @param {{ icon: string, title: string, action: () => void, active?: boolean, disabled?: boolean, id: string }} b */
     const button = (b) => html`
       <button class="canvas-toolbar-button ${b.active ? 'active' : ''}" data-tool=${b.id} title=${b.title} aria-label=${b.title}
@@ -823,20 +936,44 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
           <div class="canvas-toolbar-group">
             <span class="canvas-toolbar-group-label">Tools</span>
             ${button({ id: 'place', icon: 'mdi:map-marker-plus-outline', title: 'Place a point', active: this._placing, disabled: trying, action: () => this._setPlacing(!this._placing) })}
+            ${button({ id: 'measure', icon: 'mdi:ruler', title: 'Measure: tap two places (Escape stops)', active: this._measuring, action: () => this._setMeasuring(!this._measuring) })}
           </div>
           <div class="canvas-toolbar-group">
             <span class="canvas-toolbar-group-label">View</span>
             ${button({ id: 'home', icon: 'mdi:home-outline', title: 'Back to the start view', action: () => this._home() })}
             ${button({
-              id: 'frame-selected', icon: 'mdi:image-filter-center-focus', disabled: trying || (this._selectedPoint === null && !this._objects[this._expandedObject]),
+              id: 'frame-selected', icon: 'mdi:image-filter-center-focus', disabled: trying || (this._selectedPoint === null && !selected),
               title: 'Fly to what is selected (F)', action: () => this._frameSelected()
+            })}
+            ${button({
+              id: 'quick-view', icon: 'mdi:axis-arrow', active: this._quickView >= 0,
+              title: `${QUICK_VIEWS[(this._quickView + 1) % QUICK_VIEWS.length].label} view, flat (orthographic); press again for the next, Home goes back`,
+              action: () => this._nextQuickView()
             })}
             ${hold({ id: 'fly-forward', icon: 'mdi:arrow-up-bold-outline', title: 'Fly forward (W, Page Up); hold to keep going' })}
             ${hold({ id: 'fly-back', icon: 'mdi:arrow-down-bold-outline', title: 'Fly back (S, Page Down); hold to keep going' })}
+          </div>
+          <div class="canvas-toolbar-group">
+            <span class="canvas-toolbar-group-label">Preview</span>
             ${button({
               id: 'model-scale', icon: 'mdi:magnify-plus-outline', active: this._modelScale === 'visible', disabled: !this._hasRealModels,
               title: this._hasRealModels ? 'Draw small models larger, to see them (V); not saved' : 'Draw small models larger: no model is at its real size',
               action: () => this._previewCard?.setModelScale?.('toggle')
+            })}
+            ${button({
+              id: 'look', icon: LOOK_ICONS[this._previewLook ?? ''], active: this._previewLook !== null,
+              title: `Look: ${this._previewLook ?? "the card's"}; press for ${nextLook(this._previewLook) ?? "the card's"} (not saved)`,
+              action: () => this._nextLook()
+            })}
+            ${button({
+              id: 'hold', icon: this._held ? 'mdi:play' : 'mdi:pause', active: this._held,
+              title: this._held ? 'Run the motion and the clock again' : 'Hold all motion and the scene clock, to work on moving things (not saved)',
+              action: () => this._toggleHold()
+            })}
+            ${button({
+              id: 'isolate', icon: 'mdi:eye-off-outline', active: !!this._isolated, disabled: !this._isolated && (trying || !selected),
+              title: this._isolated ? `Show everything again (${this._isolated} is shown alone)` : 'Show the selected object alone (not saved)',
+              action: () => this._toggleIsolate()
             })}
           </div>
           <div class="canvas-toolbar-group">
@@ -1904,6 +2041,7 @@ export class LCARdSAstrometricsStudioDialog extends LitElement {
   /** @private */
   async _home() {
     const scene = await this._previewCard?.studioScene?.();
+    this._quickView = -1;
     scene?.home();
   }
 

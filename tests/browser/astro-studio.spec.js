@@ -654,13 +654,13 @@ test('studio UX1 P4: starter gallery with pictures, try in the preview (keep, di
     await expect.poll(counts).toEqual({ working: before.working, preview: before.working + 10 });
 
     // discard: back to the working copy
-    await dialog.locator('.try-bar ha-button[data-try="discard"]').click();
+    await page.evaluate((t) => window.__studio.renderRoot.querySelector(`.try-bar ha-button[data-try="${t}"]`).click(), 'discard'); // (the harness lays the try bar out under the toolbar)
     await expect.poll(counts).toEqual(before);
     expect(await tabDisabled()).toEqual([]);
 
     // try again and keep: one undo step
     await detail.locator('ha-button[data-action="try"]').click();
-    await dialog.locator('.try-bar ha-button[data-try="keep"]').click();
+    await page.evaluate((t) => window.__studio.renderRoot.querySelector(`.try-bar ha-button[data-try="${t}"]`).click(), 'keep'); // (the harness lays the try bar out under the toolbar)
     await expect.poll(counts).toEqual({ working: before.working + 10, preview: before.working + 10 });
     expect(await page.evaluate(() => window.__studio._history.canUndo)).toBe(true);
 
@@ -716,7 +716,7 @@ test('studio UX1 P4 round 2: scenes and parts in their own sections, a part in o
     await detail.locator('ha-button[data-action="try"]').click();
     await expect(dialog.locator('.units-chip ha-assist-chip')).toHaveAttribute('label', 'Scene: ly');
     expect(await page.evaluate(() => window.__studio._workingConfig.units)).toBeUndefined();
-    await dialog.locator('.try-bar ha-button[data-try="keep"]').click();
+    await page.evaluate((t) => window.__studio.renderRoot.querySelector(`.try-bar ha-button[data-try="${t}"]`).click(), 'keep'); // (the harness lays the try bar out under the toolbar)
     const kept = await page.evaluate(() => {
         const c = window.__studio._workingConfig;
         return { units: c.units, ferenginar: c.points.some((p) => p.id === 'ferenginar'), svc: c.points.some((p) => p.id === 'svc') };
@@ -1166,5 +1166,77 @@ test('studio ST1: the selected object drags by its point (one undo step); an obj
     await page.evaluate(() => /** @type {HTMLElement} */ (document.activeElement)?.blur?.());
     await page.keyboard.press('f');
     await expect.poll(() => studio(() => Math.round(window.__studio._previewCard._scene.debug().keys.tx)), { timeout: 5000 }).toBe(-40);
+    expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
+});
+
+test('studio ST1 part 2: measure, hold, look, quick views, isolate (none of it saved)', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await mountCase(page, 'astro-studio-move', { width: '800' });
+    await openStudio(page);
+    const studio = (fn, arg) => page.evaluate(fn, arg);
+    const tool = (id) => page.evaluate((t) => window.__studio.renderRoot.querySelector(`[data-tool="${t}"]`).click(), id);
+    const debug = (fn) => page.evaluate(`(${fn})(window.__studio._previewCard._scene.debug())`);
+    const before = await studio(() => JSON.stringify(window.__studio._workingConfig));
+    /** page px of a world position on the preview */
+    const screenOf = (xyz) => page.evaluate((w) => {
+        const card = window.__studio._previewCard;
+        const d = card._scene.debug();
+        const v = d.rig.camera.position.clone().set(w[0], w[1], w[2]).project(d.rig.camera);
+        const r = card.renderRoot.querySelector('.astro-scene').getBoundingClientRect();
+        return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height };
+    }, xyz);
+
+    // measure: from the dock's marker to the ground at (20, 0, -30): about 67 scene units
+    await tool('measure');
+    expect(await studio(() => window.__studio._measuring)).toBe(true);
+    const dock = await previewPoint(page, 'dock');
+    await page.mouse.click(dock.x, dock.y);
+    await expect.poll(() => studio(() => window.__studio._status)).toMatch(/^From dock: tap where to measure to/);
+    const g = await screenOf([20, 0, -30]);
+    await page.mouse.click(g.x, g.y);
+    await expect.poll(() => studio(() => window.__studio._status)).toMatch(/^dock to \[.*\]: [\d.]+ scene units\./);
+    const d = Number((await studio(() => window.__studio._status)).match(/: ([\d.]+) scene units/)[1]);
+    expect(Math.abs(d - Math.hypot(60, 30))).toBeLessThan(2);
+    // Escape stops it, and taps select again
+    await page.keyboard.press('Escape');
+    expect(await studio(() => [window.__studio._measuring, window.__studio._status])).toEqual([false, '']);
+
+    // hold: the motion and the clock stop, and run again
+    await tool('hold');
+    await expect.poll(() => debug((d) => d.timeScale)).toBe(0);
+    const clockRate = () => studio(async () => (await window.__studio._previewCard.studioScene()).clock().rate);
+    expect(await studio(async () => (await window.__studio._previewCard.studioScene()).held())).toBe(true);
+    expect(await clockRate()).toBe(0);
+    await tool('hold');
+    await expect.poll(() => debug((d) => d.timeScale)).toBe(1);
+    expect(await clockRate()).toBeGreaterThan(0);
+
+    // look: the preview's only
+    await tool('look');
+    await expect.poll(() => debug((d) => d.look)).toBe('diagram');
+    await tool('look');
+    await expect.poll(() => debug((d) => d.look)).toBe('realistic');
+
+    // quick views: top, front, side, all flat; Home goes back
+    await tool('quick-view');
+    await tool('quick-view');
+    await expect.poll(() => debug((d) => [Math.round(d.keys.tilt), Math.round(d.keys.yaw), d.projection])).toEqual([0, 0, 'orthographic']);
+    await tool('quick-view');
+    await expect.poll(() => debug((d) => [Math.round(d.keys.tilt), Math.round(d.keys.yaw)])).toEqual([0, 90]);
+    await tool('home');
+    await expect.poll(() => debug((d) => Math.round(d.keys.tilt))).toBe(90);
+    expect(await studio(() => window.__studio._quickView)).toBe(-1);
+
+    // isolate: everything but the rock hidden in the preview, then back
+    expect(await studio(() => window.__studio.renderRoot.querySelector('[data-tool="isolate"]').disabled)).toBe(true);
+    await studio(() => { window.__studio._activeTab = 'objects'; return window.__studio._selectObject(2); });
+    await tool('isolate');
+    const shown = () => studio(() => window.__studio._previewCard._rawConfig.objects.map((o) => o.visible ?? true));
+    await expect.poll(shown).toEqual([false, false, true, false]);
+    await tool('isolate');
+    await expect.poll(shown).toEqual([true, true, true, true]);
+
+    // nothing of it reached the card's config
+    expect(await studio(() => JSON.stringify(window.__studio._workingConfig))).toBe(before);
     expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
 });
