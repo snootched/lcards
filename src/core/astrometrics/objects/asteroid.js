@@ -19,11 +19,12 @@
  * @module core/astrometrics/objects/asteroid
  */
 import {
-  Group, Mesh, IcosahedronGeometry, ShaderMaterial, Vector3, Color, SRGBColorSpace, BufferGeometry, BufferAttribute, Points
+  Group, Mesh, IcosahedronGeometry, ShaderMaterial, Vector3, Color, SRGBColorSpace, BufferGeometry, BufferAttribute, Points, EdgesGeometry
 } from 'three';
 import { seededRandom } from '../../packs/backgrounds/webgl/scenes/scene-helpers.js';
 import { OCCLUDER_LAYER } from '../depth-occlusion.js';
 import { built, num } from './common.js';
+import { addDiagram, edgeRuns } from './diagram.js';
 import { pixelSize, useDots } from './belt.js';
 
 const DEG = Math.PI / 180;
@@ -98,15 +99,19 @@ void main() {
   gl_FragColor = vec4( uColor * ( 0.08 + 0.6 * vPhase ), uOpacity * vCover );
 }`;
 
+/** The icosahedron detail of the diagram look's coarse rock (12 for the rock itself) */
+const DIAGRAM_DETAIL = 2;
+
 /**
  * The rock's shape (pure, seeded): unit-sphere corners pushed out by broad
  * lumps and medium knobs, in by craters (a bowl with a raised rim) and a
  * little at random, then stretched along its own axes. Smooth shading (so
  * a crater's bowl shades), largest extent 2.
  * @param {any} seed
+ * @param {number} [detail] - icosahedron subdivisions (12: the rock; fewer: the diagram look's coarse one)
  * @returns {BufferGeometry}
  */
-export function asteroidGeometry(seed) {
+export function asteroidGeometry(seed, detail = 12) {
   const rnd = seededRandom(num(seed, 1) + 101);
   const unit = () => {
     const v = new Vector3(rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1);
@@ -122,7 +127,7 @@ export function asteroidGeometry(seed) {
   ];
   const stretch = [1, 0.6 + rnd() * 0.3, 0.5 + rnd() * 0.3];
 
-  const base = new IcosahedronGeometry(1, 12);
+  const base = new IcosahedronGeometry(1, detail);
   const pos = base.getAttribute('position');
   /** @type {Map<string, number>} the same corner moves the same way on every face it belongs to */
   const pushes = new Map();
@@ -229,6 +234,13 @@ export function buildAsteroid(cfg, ctx) {
   // tumbles inside the node (which spins, faces and is placed by the scene)
   const spinner = new Group();
   spinner.add(mesh);
+  // the diagram look: the same rock made coarse (its lumps and big craters, about 300 faces) drawn as
+  // its edges, tumbling with it; far away the dot stands in, as in every look
+  const coarse = asteroidGeometry(cfg.seed, DIAGRAM_DETAIL);
+  const edges = new EdgesGeometry(coarse, 1);
+  addDiagram(out, { runs: edgeRuns(edges, size / 2), color: c, body: [mesh], parent: spinner });
+  edges.dispose();
+  coarse.dispose();
 
   const dotMat = new ShaderMaterial({
     uniforms: {

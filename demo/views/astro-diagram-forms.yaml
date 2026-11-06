@@ -1,0 +1,71 @@
+# Astrometrics diagram forms: each object type's LCARS wireframe for the diagram look. LOOK picks
+# DIAGRAM (the wireframes only), REALISTIC (the bodies) or MIXED (the bodies, as before: the new
+# wireframes show in the diagram look only). Batch 1: a glow (a ring marker facing the camera), a
+# Borg cube and a plain box (edges and a grid on each face), an asteroid (its rock's edges,
+# tumbling with it) and a belt (its inner and outer edges). The colour select recolours them all.
+title: Astrometrics diagram forms
+path: astro-diagram-forms
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_look
+        preset: toggle-tab
+        grid: { columns: 3 }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_color
+        preset: toggle-tab
+        grid: { columns: 3 }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_diagram_forms
+        height: 620
+        look: { entity: input_select.lcards_test_look }
+        backdrop: { stars: { count: 1200 } }
+        camera:
+          view: overview
+          views:
+            overview: { target: [0, 0, 0], yaw: 25, tilt: 30, distance: 300 }
+        points:
+          - { id: star, xyz: [0, 0, 0], label: GLOW, style: minor }
+          - { id: borg_at, xyz: [-95, 10, 40], label: BORG CUBE, style: minor }
+          - { id: box_at, xyz: [95, 10, -40], label: BOX, style: minor }
+          - { id: rock_at, xyz: [60, 25, 70], label: ASTEROID, style: minor }
+        objects:
+          - type: glow
+            id: star_glow
+            at: star
+            size: 45
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-yellow-medium), default: var(--lcards-blue-light) }
+          - type: cube
+            id: borg
+            at: borg_at
+            size: 40
+            spin: 6
+            # the hull and the lights (and so the diagram's lines) follow the select
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet, var(--lcards-blue-medium-dark))", ORANGE: var(--lcards-orange-dark), default: var(--lcards-blue-medium-dark) }
+            glow: { color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-light) } }
+          - type: cube
+            id: box
+            at: box_at
+            shape: box
+            size: [40, 25, 30]
+            spin: -5
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet, var(--lcards-blue-medium-dark))", ORANGE: var(--lcards-orange-dark), default: var(--lcards-blue-medium-dark) }
+          - type: asteroid
+            id: rock
+            at: rock_at
+            size: 30
+            seed: 7
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet-creme, var(--lcards-moonlight))", ORANGE: var(--lcards-orange-light), default: var(--lcards-gray-light) }
+          - type: belt
+            id: rocks
+            radius: [120, 150]
+            count: 700
+            seed: 4
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange-medium), default: var(--lcards-blue-medium) }
+        grid_options: { columns: full }

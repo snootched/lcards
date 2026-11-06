@@ -32,6 +32,7 @@ import {
 } from 'three';
 import { seededRandom } from '../../packs/backgrounds/webgl/scenes/scene-helpers.js';
 import { built, num, pair } from './common.js';
+import { addDiagram, bodyGroup, circleXZ, redrawDiagram } from './diagram.js';
 import { MAX_ROCKS } from '../names.js';
 
 export { MAX_ROCKS };
@@ -346,7 +347,14 @@ export function buildBelt(cfg, ctx) {
   setDrawn(drawn);
   place(0);
   bound();
-  node.add(mesh, dotCloud);
+  // the rocks (or their dots far away) are the realistic part; the diagram look draws the band's
+  // inner and outer edges in the belt's colour instead
+  const body = bodyGroup('belt-body');
+  body.add(mesh, dotCloud);
+  node.add(body);
+  const edgeLine = addDiagram(out, { runs: [], color: cols[0], body: [body] });
+  const drawEdges = () => redrawDiagram(edgeLine, [circleXZ(inner), circleXZ(outer)]);
+  drawEdges();
   const local = new Vector3();
   out.lod = ({ camera, height, dpr }) => {
     local.copy(camera.position);
@@ -386,6 +394,7 @@ export function buildBelt(cfg, ctx) {
     else return false;
     out.radius = outer;
     place(clock);
+    if (key !== 'count') drawEdges();
     // the bound covers the drawn rocks only (three.js counts mesh.count)
     bound();
     return true;

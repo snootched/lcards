@@ -17,6 +17,7 @@ import { Group, Mesh, BoxGeometry, ShaderMaterial, Matrix4, Vector3, Vector4, Co
 import { BORG_FACE_GLSL } from '../../screen-effects/effects/borg-face-glsl.js';
 import { seededRandom } from '../../packs/backgrounds/webgl/scenes/scene-helpers.js';
 import { OCCLUDER_LAYER } from '../depth-occlusion.js';
+import { addDiagram } from '../objects/diagram.js';
 import { built, num, sub, isOn } from '../objects/common.js';
 
 /** Glow spots on the faces (as the screen effect's `cubeSpots`) */
@@ -214,6 +215,34 @@ function linear(c) {
 }
 
 /**
+ * A box's edges and its faces divided `n` by `n`, as two-point runs: the
+ * diagram look's wireframe (half sizes hx, hy, hz).
+ * @param {number} hx @param {number} hy @param {number} hz @param {number} n
+ * @returns {number[][]}
+ */
+export function boxRuns(hx, hy, hz, n) {
+  /** @type {number[][]} */
+  const runs = [];
+  const h = [hx, hy, hz];
+  // on each axis pair: lines across the face at every division, on both faces of the third axis
+  for (let a = 0; a < 3; a++) {
+    const b = (a + 1) % 3, c = (a + 2) % 3;
+    for (const side of [-1, 1]) {
+      for (let i = 0; i <= n; i++) {
+        const t = -1 + (2 * i) / n;
+        const p = [0, 0, 0], q = [0, 0, 0];
+        p[c] = q[c] = side * h[c];
+        p[b] = q[b] = t * h[b];
+        p[a] = -h[a];
+        q[a] = h[a];
+        runs.push([...p, ...q]);
+      }
+    }
+  }
+  return runs;
+}
+
+/**
  * @param {any} cfg
  * @param {import('../objects/common.js').BuildContext} ctx
  * @returns {import('../objects/common.js').BuiltObject}
@@ -227,8 +256,11 @@ export function buildCube(cfg, ctx) {
   const geo = new BoxGeometry(2, 2, 2);
   /** @type {Mesh} */
   let mesh;
+  /** the diagram's line colour: a box's own, a Borg cube's lights */
+  let lineColor;
   if (cfg.shape === 'box') {
     const c = ctx.color(cfg.color, DEFAULT_PLAIN);
+    lineColor = c;
     const opacity = num(cfg.opacity, 1) * (c[3] ?? 1);
     const mat = new ShaderMaterial({
       uniforms: { uColor: { value: linear(c) }, uOpacity: { value: opacity } },
@@ -250,9 +282,11 @@ export function buildCube(cfg, ctx) {
     }
   } else {
     const spots = cubeSpots(num(cfg.seed, 1));
+    const glowC = ctx.color(sub(cfg.glow).color, DEFAULT_GLOW);
+    lineColor = glowC;
     const uniforms = {
       uColor: { value: linear(ctx.color(cfg.color, DEFAULT_COLOR)) },
-      uGlow: { value: linear(ctx.color(sub(cfg.glow).color, DEFAULT_GLOW)) },
+      uGlow: { value: linear(glowC) },
       uTime: { value: 0 },
       uDetail: { value: cfg.detail === false ? 0 : 1 },
       // 1: the distance fade scales it while the cube fades out
@@ -292,6 +326,8 @@ export function buildCube(cfg, ctx) {
   mesh.name = 'cube';
   mesh.scale.set(sx / 2, sy / 2, sz / 2);
   node.add(mesh);
+  // the diagram look: the box's edges and a three-by-three grid on each face
+  addDiagram(out, { runs: boxRuns(sx / 2, sy / 2, sz / 2, 3), color: lineColor, body: [mesh] });
   out.pickMeshes.push(mesh);
   out.occludes = cfg.occlude !== false;
   out.occluder = 'depth';

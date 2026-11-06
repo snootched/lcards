@@ -8,6 +8,7 @@
  */
 import { Group, Sprite, SpriteMaterial, DataTexture, RGBAFormat, LinearFilter, AdditiveBlending, NormalBlending, SRGBColorSpace } from 'three';
 import { built, num, DEFAULT_COLORS } from './common.js';
+import { addDiagram, circleXY } from './diagram.js';
 
 const SIZE = 64;
 
@@ -57,5 +58,10 @@ export function buildGlow(cfg, ctx) {
   sprite.scale.set(size, size, 1);
   sprite.renderOrder = 0.5;
   node.add(sprite);
-  return built(cfg, node, { radius: size / 2 });
+  const out = built(cfg, node, { radius: size / 2 });
+  // the diagram look: a ring marker with four ticks, facing the camera, in the glow's colour
+  const r = size * 0.2;
+  const ticks = [[1, 0], [0, 1], [-1, 0], [0, -1]].map(([x, y]) => [x * r * 1.3, y * r * 1.3, 0, x * r * 1.8, y * r * 1.8, 0]);
+  addDiagram(out, { runs: [circleXY(r), ...ticks], color: c, body: [sprite], facing: true });
+  return out;
 }

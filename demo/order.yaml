@@ -54,6 +54,13 @@ releases:
         session: "CE1"
         docs: /cards/astrometrics/objects#crystalline
         public: true
+      - file: astro-diagram-forms
+        topic: astrometrics
+        summary: "Astrometrics diagram forms: each object type's LCARS wireframe for the diagram look"
+        description: "LOOK switches the scene between DIAGRAM (each object as an LCARS wireframe in its own colour), REALISTIC and MIXED (as before). A glow becomes a ring marker facing the camera, a Borg cube and a box their edges and a grid on each face, an asteroid its rock's edges, tumbling with it, a belt its inner and outer edges. The colour select recolours the wireframes too."
+        session: "Astro polish"
+        docs: /cards/astrometrics/#looks-diagram-and-realistic
+        public: true
       - file: astro-recolor
         topic: astrometrics
         summary: "Astrometrics colours in place: colours and alert modes crossfade, nothing rebuilds"
