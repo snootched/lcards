@@ -51,6 +51,8 @@ export default {
     return {
       release,
       helperStates: helperSeed(),
+      // demo/package.yaml's scripts, run by the page's sample Home Assistant (card-env.js addScripts)
+      scripts: loadPackage().script,
       // the topic tree (demo/order.yaml), public views only: topic > groups > view paths
       topics: demo.topics
         .map(t => ({ id: t.id, title: t.title, groups: t.groups.map(g => ({ title: g.title, views: g.views.filter(f => isPublic.has(f)).map(f => views.find(v => v.file === f).path) })).filter(g => g.views.length) }))

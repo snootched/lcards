@@ -39,3 +39,24 @@ export const ALERT_SERVICES = {
     black_alert: 'black_alert',
     clear_alert: 'green_alert',
 };
+
+/**
+ * demo/package.yaml's automations as functions, for the docs (no Home Assistant to run
+ * their Jinja): the same trigger entity and the same action. One per automation id
+ * (tests/docs/demo-dashboard.test.js checks they match).
+ * @type {{ id: string, entity: string, run: (state: { state: string }, call: (domain: string, service: string, data?: any) => any) => any }[]}
+ */
+export const DEMO_AUTOMATIONS = [
+    {
+        // the showcase's alert status from the mode select: alpha normal, beta yellow, gamma red
+        id: 'lcards_test_alert',
+        entity: 'input_select.lcards_test_mode',
+        run: (s, call) => call('lcards', 'set_alert_mode', { mode: { alpha: 'green_alert', beta: 'yellow_alert', gamma: 'red_alert' }[s.state] ?? 'green_alert' }),
+    },
+    {
+        // the showcase's scene date from the date helper
+        id: 'lcards_test_date',
+        entity: 'input_datetime.lcards_test_date',
+        run: (s, call) => call('lcards', 'set_clock', { card_id: 'astro_showcase', date: s.state }),
+    },
+];

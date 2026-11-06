@@ -102,6 +102,29 @@ test('the demo helpers start as a fresh Home Assistant install has them (the sho
     expect(states).toEqual({ 'input_number.lcards_test_stage': '0', 'input_boolean.lcards_test_warp': 'off', 'input_select.lcards_test_look': 'MIXED' });
 });
 
+test('the showcase\'s controls work without Home Assistant: NEXT and PREV step the stop, PLAY TOUR runs the tour script', async ({ page }) => {
+    const showcase = VIEWS.find(v => v.path === 'astro-showcase');
+    await openView(page, showcase);
+    const state = (id) => page.evaluate(async (x) => (await globalThis.__lcardsDocsEnv).hass.states[x]?.state, id);
+    const stage = 'input_number.lcards_test_stage';
+    // a button by the name in its config (its label is drawn in SVG)
+    const button = (name) => page.evaluateHandle((n) => {
+        // into the layout cards' shadow roots
+        const all = (root) => [...root.querySelectorAll('*')].flatMap(el => [el, ...(el.shadowRoot ? all(el.shadowRoot) : [])]);
+        return all(document.querySelector('.demo-board-stage')).find(el => el.localName === 'lcards-button'
+            && String(/** @type {any} */ (el).config?.text?.name?.content ?? '').includes(n));
+    }, name);
+    const tap = async (name) => (await button(name)).asElement().click();
+    await tap('NEXT');
+    await expect.poll(() => state(stage)).toBe('1');
+    await tap('PREV');
+    await expect.poll(() => state(stage)).toBe('0');
+    await tap('PLAY TOUR');
+    await expect.poll(() => state('script.lcards_test_tour')).toBe('on');
+    await tap('PLAY TOUR');
+    await expect.poll(() => state('script.lcards_test_tour')).toBe('off');
+});
+
 test('the New in filter: shown only when there are older views; then it keeps this release\'s', async ({ page }) => {
     await page.goto(URL_PATH);
     await expect(page.locator('.demo-board-topic').first()).toBeVisible();

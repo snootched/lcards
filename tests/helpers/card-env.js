@@ -250,6 +250,63 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
         };
         // light.turn_on attributes that a slider or colour control may send.
         const LIGHT_ATTRS = ['brightness', 'color_temp', 'color_temp_kelvin', 'rgb_color', 'hs_color'];
+        // Scripts (demo/package.yaml, added with env.addScripts): action, delay and repeat steps,
+        // mode restart; the script is "on" while it runs. A run stops at its next step once replaced.
+        /** @type {Map<string, any>} */
+        const scripts = new Map();
+        /** @type {Map<string, { stopped: boolean }>} */
+        const runs = new Map();
+        const stopScript = (id) => {
+            const run = runs.get(id);
+            if (run) run.stopped = true;
+            runs.delete(id);
+            if (current.states[id]) env.setState(id, 'off');
+        };
+        const runScript = async (id) => {
+            const def = scripts.get(id);
+            if (!def) return;
+            stopScript(id);
+            const run = { stopped: false };
+            runs.set(id, run);
+            env.setState(id, { state: 'on', attributes: { friendly_name: def.alias ?? id } });
+            const delayMs = (d) => typeof d === 'object' ? ((d.hours ?? 0) * 3600 + (d.minutes ?? 0) * 60 + (d.seconds ?? 0)) * 1000 + (d.milliseconds ?? 0) : Number(d) * 1000;
+            const steps = async (list) => {
+                for (const step of list ?? []) {
+                    if (run.stopped) return;
+                    if (step.delay !== undefined) await new Promise(r => setTimeout(r, delayMs(step.delay)));
+                    else if (step.repeat) {
+                        for (let i = 0; i < (step.repeat.count ?? 0) && !run.stopped; i++) await steps(step.repeat.sequence);
+                    } else if (step.action) {
+                        const [d, srv] = String(step.action).split('.');
+                        await simulated(d, srv, step.data ?? {}, step.target);
+                    }
+                }
+            };
+            await steps(def.sequence);
+            if (runs.get(id) === run) stopScript(id);
+        };
+        // Automations as small functions (the docs cannot run their Jinja): { entity, run(newState, call) }
+        /** @type {{ entity: string, run: (state: any, call: Function) => any }[]} */
+        const automations = [];
+        const setStateBase = env.setState.bind(env);
+        env.setState = (entityId, value) => {
+            const before = current.states[entityId]?.state;
+            setStateBase(entityId, value);
+            const after = current.states[entityId];
+            if (after && after.state !== before) {
+                for (const a of automations) if (a.entity === entityId) a.run(after, simulated);
+            }
+        };
+        /** Add demo/package.yaml's scripts (their entities appear off). */
+        env.addScripts = (defs = {}) => {
+            for (const [key, def] of Object.entries(defs)) {
+                const id = `script.${key}`;
+                scripts.set(id, def);
+                if (!current.states[id]) setStateBase(id, { state: 'off', attributes: { friendly_name: def.alias ?? key } });
+            }
+        };
+        /** Add automations as functions (tests/helpers/demo-states.js DEMO_AUTOMATIONS). */
+        env.addAutomations = (list = []) => { automations.push(...list); };
         const simulated = async (domain, service, data = {}, target) => {
             await record(domain, service, data, target);
             // lcards.red_alert ... clear_alert, set_alert_mode: the alert helper's state, and
@@ -273,9 +330,36 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
                 } else if (service === 'borg_deassimilate') bam.deassimilate(opts);
                 return { context: { id: 'demo' } };
             }
+            // lcards.fly_to / set_clock: the astrometrics cards of this tab, as IntegrationService does
+            const astro = domain === 'lcards' && (service === 'fly_to' || service === 'set_clock') ? globalThis.window?.lcards?.cards?.astrometrics : null;
+            if (astro) {
+                if (service === 'fly_to') astro.flyTo(data.card_id, data.point ? { point: data.point } : { view: data.view }, { duration: data.duration, warp: data.warp });
+                else astro.setClock(data.card_id, { date: data.date, rate: data.rate });
+                return { context: { id: 'demo' } };
+            }
+            // a script: script.<id>, or script.turn_on with its entity
+            if (domain === 'script') {
+                const byEntity = ['turn_on', 'turn_off', 'toggle'].includes(service);
+                const which = byEntity ? [data.entity_id ?? target?.entity_id].flat().filter(Boolean) : [`script.${service}`];
+                for (const id of which) {
+                    if (service === 'turn_off' || (service === 'toggle' && runs.has(id))) stopScript(id);
+                    else runScript(id);
+                }
+                return { context: { id: 'demo' } };
+            }
             const ids = [data.entity_id ?? target?.entity_id].flat().filter(Boolean);
             for (const id of ids) {
                 const state = current.states[id]?.state;
+                if (service === 'increment' || service === 'decrement') {
+                    // input_number / number / counter: one step, held inside min and max
+                    const a = current.states[id]?.attributes ?? {};
+                    const step = Number(a.step) || 1;
+                    let v = Number(state) + (service === 'increment' ? step : -step);
+                    if (Number.isFinite(Number(a.max))) v = Math.min(Number(a.max), v);
+                    if (Number.isFinite(Number(a.min))) v = Math.max(Number(a.min), v);
+                    if (Number.isFinite(v)) env.setState(id, String(Number(v.toFixed(6))));
+                    continue;
+                }
                 if (service === 'toggle') env.setState(id, flip(state));
                 else if (service === 'turn_off') env.setState(id, 'off');
                 else if (service === 'turn_on') {

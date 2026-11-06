@@ -152,6 +152,9 @@ async function show(path) {
     if (!seeded) {
       seeded = true
       for (const [id, state] of Object.entries(data.helperStates)) env.setState(id, state)
+      // the demo scripts, and the automations as functions (no Home Assistant here to run them)
+      env.addScripts?.(data.scripts)
+      env.addAutomations?.((await import('../../../tests/helpers/demo-states.js')).DEMO_AUTOMATIONS)
     }
     if (run !== generation) return
     // Narrow screens: twice the columns per card, as Home Assistant reflows a section
@@ -169,7 +172,11 @@ async function show(path) {
         gridTemplateColumns: l['grid-template-columns'] ?? '1fr',
         gridTemplateRows: l['grid-template-rows'] ?? 'auto',
         gridTemplateAreas: l['grid-template-areas'] ?? 'none',
-        height: l['min-height'] ?? '900px'
+        // a dashboard's own height (the gallery's calc(100dvh - header) fills the window here too)
+        // and padding; the showcase gives a min-height
+        height: l.height ?? l['min-height'] ?? '900px',
+        padding: l.padding ?? '0',
+        boxSizing: 'border-box'
       })
       stage.value.appendChild(grid)
       for (const config of view.config.cards ?? []) {
