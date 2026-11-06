@@ -8,16 +8,16 @@ import { mountCase, expectNoErrors } from './support.js';
 
 const SIZE = { width: '260', height: '260' };
 
-/** Page point on the ring's stroke centre line at a fraction of the 270 degree sweep. */
+/** Page point on the ring's stroke centre line at a fraction of the 270 degree sweep (from the card's own layout). */
 async function ringPoint(page, fraction) {
     const box = await page.locator('lcards-slider .ring-overlay').boundingBox();
-    const cx = box.x + box.width / 2;
-    const cy = box.y + box.height / 2;
-    // preset ring: 12% thickness, no ticks; stroke centre ~ 0.44 of the box
-    const r = box.width * 0.44;
+    const ring = await page.locator('lcards-slider').evaluate(el => {
+        const l = el._ringLayout;
+        return { cx: l.cx - l.box.x, cy: l.cy - l.box.y, r: l.rMid };
+    });
     const deg = -135 + 270 * fraction;
     const rad = deg * Math.PI / 180;
-    return { x: cx + r * Math.sin(rad), y: cy - r * Math.cos(rad) };
+    return { x: box.x + ring.cx + ring.r * Math.sin(rad), y: box.y + ring.cy - ring.r * Math.cos(rad) };
 }
 
 const calls = (page) => page.evaluate(() => window.__hass.serviceCalls);

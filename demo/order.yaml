@@ -54,6 +54,13 @@ releases:
         session: "CE1"
         docs: /cards/astrometrics/objects#crystalline
         public: true
+      - file: slider-ring-fit
+        topic: cards
+        summary: "Slider rings fit their arc: a half ring fills a wide cell"
+        description: "A ring slider is as large as its arc lets it be in its cell: a half ring fills a wide cell with its value above the cut, a quarter ring sits in its corner, the default three-quarter ring is centred on its own shape, a full ring fills the smaller side. A Picard ring as a half ring across a whole row. Each follows the same helper."
+        session: "Backlog clean-up"
+        docs: /cards/slider-card/#ring-gauge
+        public: true
       - file: astro-diagram-forms
         topic: astrometrics
         summary: "Astrometrics diagram forms: each object type's LCARS wireframe for the diagram look"

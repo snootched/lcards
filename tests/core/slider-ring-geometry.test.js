@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    normalizeSweep, thicknessPx, ringLayout, polar, arcPath, fractionToAngle,
+    normalizeSweep, thicknessPx, ringLayout, arcExtent, polar, arcPath, fractionToAngle,
     pointToFraction, hitsRing, snapValue, fractionToValue, scaleValues, estimateTextWidth, labelCentre, ringTextZones, markerRadialSpan, ringMarkerSize,
 } from '../../src/cards/slider-ring-geometry.js';
 
@@ -29,9 +29,9 @@ test('thickness: % of the diameter, px number or string, capped below the radius
     assert.equal(thicknessPx(500, 100), 90);              // 0.9 r cap
 });
 
-test('layout centres the ring at the smaller side for square, wide and tall boxes', () => {
+test('layout centres a full ring at the smaller side for square, wide and tall boxes', () => {
     for (const [w, h] of [[200, 200], [400, 200], [200, 400]]) {
-        const l = ringLayout(w, h, { thickness: 20 });
+        const l = ringLayout(w, h, { thickness: 20, start_angle: 0, end_angle: 360 });
         assert.equal(l.cx, w / 2);
         assert.equal(l.cy, h / 2);
         assert.equal(l.rOuter, 99);
@@ -42,9 +42,48 @@ test('layout centres the ring at the smaller side for square, wide and tall boxe
         near(l.inner.x + l.inner.width / 2, l.cx);
     }
     // Room outside the ring for ticks, markers and labels; never more than leaves a usable ring.
-    const t = ringLayout(200, 200, {}, { outerPad: 20 });
+    const FULL = { start_angle: 0, end_angle: 360 };
+    const t = ringLayout(200, 200, FULL, { outerPad: 20 });
     assert.equal(t.rOuter, 100 - 20 - 1);
-    assert.equal(ringLayout(200, 200, {}, { outerPad: 500 }).rOuter, 10 - 1);
+    assert.equal(ringLayout(200, 200, FULL, { outerPad: 500 }).rOuter, 10 - 1);
+});
+
+test('arc extent: the arc\'s ends, the top/right/bottom/left points it passes, and its centre', () => {
+    assert.deepEqual(arcExtent(0, 360), { minX: -1, maxX: 1, minY: -1, maxY: 1 });
+    // a half ring over the top (left to right through the top)
+    assert.deepEqual(arcExtent(-90, 180), { minX: -1, maxX: 1, minY: -1, maxY: 0 });
+    // a quarter, top to right
+    assert.deepEqual(arcExtent(0, 90), { minX: 0, maxX: 1, minY: -1, maxY: 0 });
+    // the default three-quarter ring (-135 to 135): open at the bottom, its ends 0.707 down
+    const d = arcExtent(-135, 270);
+    assert.deepEqual([d.minX, d.maxX, d.minY], [-1, 1, -1]);
+    near(d.maxY, Math.SQRT1_2);
+});
+
+test('a partial ring fits its arc: a half ring fills a wide box, its arc touches the edges, its text stays inside', () => {
+    // a half ring over the top in a 400 x 200 box: as wide as the box (not a 200 square in it)
+    const half = ringLayout(400, 200, { start_angle: -90, end_angle: 90, thickness: 20 });
+    assert.equal(half.rOuter + 1, 200);
+    near(half.cx, 200);
+    near(half.cy, 200, 1e-9);
+    assert.deepEqual([half.box.x, half.box.y, half.box.width, half.box.height], [0, 0, 400, 200]);
+    // the centre text: in the open half, above the cut, inside the box
+    assert.ok(half.inner.y >= half.box.y && half.inner.y + half.inner.height <= half.box.y + half.box.height + 1e-9);
+    // a quarter ring (top to right) in a square: its corner at the bottom left
+    const q = ringLayout(200, 200, { start_angle: 0, end_angle: 90 });
+    assert.equal(q.rOuter + 1, 200);
+    near(q.cx, 0); near(q.cy, 200);
+    // the default three-quarter ring in a square: as wide as the box (radius as before), moved down so
+    // its shape is centred (its open bottom is shorter than its top half)
+    const d = ringLayout(200, 200, {});
+    assert.equal(d.rOuter + 1, 100);
+    near(d.cy, (200 - 100 * (1 + Math.SQRT1_2)) / 2 + 100);
+    // in a wide box it grows into the room its open bottom leaves
+    near(ringLayout(400, 200, {}).rOuter + 1, 200 / (1 + Math.SQRT1_2));
+    // padding goes round the arc's box
+    const p = ringLayout(400, 220, { start_angle: -90, end_angle: 90 }, { outerPad: 10 });
+    near(p.rOuter + 1, 190);
+    near(p.cx, 200); near(p.cy, (220 - 210) / 2 + 10 + 190);
 });
 
 test('angles: 0 is the top, clockwise', () => {

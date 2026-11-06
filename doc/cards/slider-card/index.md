@@ -550,7 +550,7 @@ grid_options:
   rows: 4            # draws to its cell: give it rows in a sections view
 ```
 
-Angles are in degrees, `0` is the top and they run clockwise; the value fills from `start_angle` to `end_angle`. The default sweep is 270 degrees with the gap at the bottom. An end at or before the start wraps round, and equal angles draw a full ring. The ring sits centred at the card's smaller side, so it stays round in any cell.
+Angles are in degrees, `0` is the top and they run clockwise; the value fills from `start_angle` to `end_angle`. The default sweep is 270 degrees with the gap at the bottom. An end at or before the start wraps round, and equal angles draw a full ring. The ring stays round in any cell and is as large as its arc lets it be: a full ring fills the card's smaller side, a half ring (`start_angle: -90`, `end_angle: 90`) fills a card twice as wide as it is tall, and the default three-quarter ring is centred on its own shape, its open bottom taking less room than its top. The centre text stays inside that shape (a half ring's sits above the cut).
 
 `picard-ring` is the Picard-era look (the Protostar.NX zone gauges): a near-full thick ring with flat ends, a small label over the number. Band ranges are drawn as arcs under the value arc; `scale` adds ticks and value labels outside the ring:
 

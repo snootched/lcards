@@ -10,6 +10,9 @@
  */
 
 /** Ring settings when the config sets none. */
+/** Degrees to radians */
+const DEG = Math.PI / 180;
+
 export const RING_DEFAULTS = Object.freeze({
     start_angle: -135,
     end_angle: 135,
@@ -67,13 +70,41 @@ export function thicknessPx(thickness, rOuter) {
  * @property {number} stroke - Band thickness (stroke width)
  * @property {number} start - Start angle (deg)
  * @property {number} sweep - Sweep (deg, 0 < sweep <= 360)
- * @property {{x:number, y:number, width:number, height:number}} box - Square around the ring and its ticks
- * @property {{x:number, y:number, width:number, height:number}} inner - Square inscribed in the inner edge (centre text)
+ * @property {{x:number, y:number, width:number, height:number}} box - The arc and its centre with the room for its ticks (a square for a full ring)
+ * @property {{x:number, y:number, width:number, height:number}} inner - The square inscribed in the inner edge, kept inside the box (centre text)
  */
 
 /**
- * Ring layout inside a width x height box: a circle centred at the smaller side,
- * leaving `outerPad` px outside the ring for ticks, markers and labels.
+ * The box round a ring's arc and its centre, with the ring's outer radius
+ * as 1 (0 = top, clockwise; y down): the arc's ends and every top, right,
+ * bottom or left point it passes. The centre is in it (the value text sits
+ * there), so a full ring is [-1, 1] each way and a half ring over the top
+ * [-1, 1] by [-1, 0].
+ * @param {number} start - degrees
+ * @param {number} sweep - degrees, 0 < sweep <= 360
+ * @returns {{ minX: number, maxX: number, minY: number, maxY: number }}
+ */
+export function arcExtent(start, sweep) {
+    const pts = [[0, 0]];
+    const at = (deg) => [Math.sin(deg * DEG), -Math.cos(deg * DEG)];
+    pts.push(at(start), at(start + sweep));
+    for (let k = 0; k < 4; k++) {
+        // how far past the start each quarter point is, 0 to 360
+        const past = (((k * 90 - start) % 360) + 360) % 360;
+        if (sweep >= 360 || past <= sweep) pts.push(at(k * 90));
+    }
+    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+    // rounded so a quarter point lands exactly on its side
+    const r = (v) => Math.round(v * 1e9) / 1e9;
+    return { minX: r(Math.min(...xs)), maxX: r(Math.max(...xs)), minY: r(Math.min(...ys)), maxY: r(Math.max(...ys)) };
+}
+
+/**
+ * Ring layout inside a width x height box: the ring as large as its arc
+ * allows (a half ring fills a wide box, not a square of it), leaving
+ * `outerPad` px round it for ticks, markers and labels, the arc and its
+ * centre in the middle of the box (arcExtent). A full ring is a circle on
+ * the smaller side, centred.
  * @param {number} width
  * @param {number} height
  * @param {Object} [ring] - style.ring
@@ -84,25 +115,40 @@ export function thicknessPx(thickness, rOuter) {
 export function ringLayout(width, height, ring = {}, opts = {}) {
     const w = Math.max(1, width || 0);
     const h = Math.max(1, height || 0);
-    const size = Math.min(w, h);
-    const cx = w / 2;
-    const cy = h / 2;
 
+    const start = Number.isFinite(ring?.start_angle) ? ring.start_angle : RING_DEFAULTS.start_angle;
+    const sweep = normalizeSweep(start, Number.isFinite(ring?.end_angle) ? ring.end_angle : RING_DEFAULTS.end_angle);
+    const e = arcExtent(start, sweep);
+    const ew = e.maxX - e.minX;
+    const eh = e.maxY - e.minY;
+
+    const size = Math.min(w, h);
     const pad = Math.max(0, Math.min(opts.outerPad ?? 0, size / 2 - 10));
-    // 1px safety so an antialiased edge never touches the box edge.
-    const rOuter = Math.max(2, size / 2 - pad - 1);
+    // the radius (to the ring's outer edge plus a 1px safety, so an antialiased edge never
+    // touches the box) that fits the arc's box, padded, in the card
+    const R = Math.max(3, Math.min((w - 2 * pad) / ew, (h - 2 * pad) / eh));
+    const rOuter = Math.max(2, R - 1);
     const stroke = thicknessPx(ring?.thickness, rOuter);
     const rInner = Math.max(0, rOuter - stroke);
     const rMid = rOuter - stroke / 2;
 
-    const start = Number.isFinite(ring?.start_angle) ? ring.start_angle : RING_DEFAULTS.start_angle;
-    const sweep = normalizeSweep(start, Number.isFinite(ring?.end_angle) ? ring.end_angle : RING_DEFAULTS.end_angle);
+    // the arc's box, padded, centred in the card; the ring's centre sits in it where the arc puts it
+    const bw = ew * R + 2 * pad;
+    const bh = eh * R + 2 * pad;
+    const bx = (w - bw) / 2;
+    const by = (h - bh) / 2;
+    const cx = bx + pad - e.minX * R;
+    const cy = by + pad - e.minY * R;
 
+    // the centre text: the square inscribed in the inner edge, kept inside the box (a half
+    // ring's text sits in its open half, above the cut)
     const innerSide = rInner * Math.SQRT2;
+    const ix0 = Math.max(cx - innerSide / 2, bx), ix1 = Math.min(cx + innerSide / 2, bx + bw);
+    const iy0 = Math.max(cy - innerSide / 2, by), iy1 = Math.min(cy + innerSide / 2, by + bh);
     return {
         cx, cy, rOuter, rInner, rMid, stroke, start, sweep,
-        box: { x: cx - size / 2, y: cy - size / 2, width: size, height: size },
-        inner: { x: cx - innerSide / 2, y: cy - innerSide / 2, width: innerSide, height: innerSide },
+        box: { x: bx, y: by, width: bw, height: bh },
+        inner: { x: ix0, y: iy0, width: Math.max(0, ix1 - ix0), height: Math.max(0, iy1 - iy0) },
     };
 }
 
