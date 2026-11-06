@@ -67,7 +67,8 @@ for (const v of views) {
 for (const board of Object.keys(BOARDS)) {
     test(`${board} board: index first, every view once, headers and index valid`, async () => {
         const config = buildDashboard(demo, { board });
-        const expected = views.filter(v => board === 'dev' || v.public).map(v => v.path);
+        // in the topic tree's order, like the index
+        const expected = views.filter(v => board === 'dev' || v.public).sort((a, b) => a.rank - b.rank).map(v => v.path);
         assert.equal(config.views[0].path, 'index');
         assert.deepEqual(config.views.slice(1).map(v => v.path), expected);
         const targets = [...new Set((JSON.stringify(config.views[0]).match(/"navigation_path":"[^"]+"/g) ?? []).map(t => t.split('/').pop().slice(0, -1)))];
@@ -97,13 +98,25 @@ test('public board: no benchmarks or checks; the dev board has them', () => {
     assert.ok(header.includes(`"${demo.releases[0].version}"`), 'the release is in the header bar');
 });
 
-test('topics: every view has one from the list; the index has a block per topic in its order', () => {
+test('topics: every view sits in one group of the topic tree; the index has a block per topic in the tree\'s order', () => {
     const ids = demo.topics.map(t => t.id);
     assert.equal(new Set(ids).size, ids.length, 'a topic listed twice');
-    for (const v of views) assert.ok(ids.includes(v.topic), `${v.file}: topic '${v.topic}' is not in order.yaml topics`);
+    assert.deepEqual(demo.ungrouped, [], 'views in no topic, or tree entries that are not listed views');
+    assert.deepEqual(demo.regrouped, [], 'views in two groups');
+    for (const v of views) assert.ok(ids.includes(v.topic), `${v.file}: no topic`);
+    for (const t of demo.topics) {
+        // a topic is either one untitled list or named groups, never a mix
+        const titled = t.groups.filter(g => g.title).length;
+        assert.ok(titled === 0 ? t.groups.length === 1 : titled === t.groups.length, `${t.id}: groups all named`);
+    }
     const groups = topicGroups(demo.releases, demo.topics);
     assert.deepEqual(groups.map(g => g.id), ids.filter(id => views.some(v => v.topic === id)));
     assert.equal(groups.reduce((n, g) => n + g.views.length, 0), views.length);
+    // within a topic, the tree's order
+    for (const g of groups) {
+        const tree = demo.topics.find(t => t.id === g.id).groups.flatMap(x => x.views);
+        assert.deepEqual(g.views.map(v => v.file), tree);
+    }
     const index = buildDashboard(demo, { board: 'dev' }).views[0];
     assert.equal(index.sections.length, 1 + groups.length);
     // each topic in a numbered frame: its title (not a button), a lozenge per view, the table
@@ -150,7 +163,7 @@ test('astrometrics demos are big: the card full width and at least 600 px tall',
 test('one release (the docs site): only that release\'s public views', () => {
     const release = demo.releases[0].version;
     const one = buildDashboard(demo, { board: 'public', release });
-    assert.deepEqual(one.views.slice(1).map(v => v.path), demo.releases[0].views.filter(v => v.public).map(v => v.path));
+    assert.deepEqual(one.views.slice(1).map(v => v.path), demo.releases[0].views.filter(v => v.public).sort((a, b) => a.rank - b.rank).map(v => v.path));
     assert.equal(buildDashboard(demo, { board: 'public', release: '1999.1.0' }).views.length, 1, 'an unknown release: index only');
 });
 
@@ -224,8 +237,15 @@ test('every scene has a frame of its own (cards never run together)', () => {
 test('headers: the title and plain segments are not buttons; Index and Docs are; the sweeps are rounded', () => {
     const board = buildDashboard(demo, { board: 'dev' });
     for (const view of board.views) {
-        const all = isLayoutView(view) ? view.cards : view.sections.flatMap(sec => sec.cards);
-        const headers = all.filter(c => c.type === 'custom:lcards-layout-card' && c.cards.some(x => x.preset === 'text-only'));
+        // header bars at any depth (a view's sits inside the frame round its description)
+        const headers = [];
+        (function find(cards) {
+            for (const c of cards ?? []) {
+                if (c.type !== 'custom:lcards-layout-card') continue;
+                if (c.cards.some(x => x.preset === 'text-only') && c.cards[0].elbow) headers.push(c);
+                else find(c.cards);
+            }
+        })(isLayoutView(view) ? view.cards : view.sections.flatMap(sec => sec.cards));
         assert.ok(headers.length, view.path);
         for (const h of headers) {
             for (const c of h.cards.filter(x => x.type === 'custom:lcards-button')) {
@@ -234,6 +254,33 @@ test('headers: the title and plain segments are not buttons; Index and Docs are;
             }
             assert.ok(h.cards[0].elbow.segment.outer_curve > h.cards[0].elbow.segment.bar_width / 2, 'rounder than the default sweep');
         }
+    }
+});
+
+test('every lozenge on a view is 8 grid columns wide (narrower ones turn round)', () => {
+    const odd = [];
+    for (const v of views) {
+        odd.length = 0;
+        (function walk(n) {
+            if (Array.isArray(n)) n.forEach(walk);
+            else if (n && typeof n === 'object') {
+                if (n.type === 'custom:lcards-button' && n.preset === 'lozenge' && n.grid_options && n.grid_options.columns !== 8) odd.push(`${n.text?.name?.content} (${n.grid_options.columns})`);
+                Object.values(n).forEach(walk);
+            }
+        })(v.config.sections ?? []);
+        assert.deepEqual(odd, [], v.file);
+    }
+});
+
+test('a view\'s description sits in a frame headed by the view\'s header bar', () => {
+    for (const view of buildDashboard(demo, { board: 'dev' }).views.slice(1).filter(v => !isLayoutView(v))) {
+        const source = views.find(v => v.path === view.path);
+        const [head] = view.sections[0].cards;
+        if (!source.description) continue;
+        assert.deepEqual(head.cards.map(c => c.elbow?.type ?? c.view_layout['grid-area']), ['top', 'bar', 'content', 'footer-left'], view.path);
+        assert.ok(head.cards[0].cards.some(c => c.preset === 'text-only'), `${view.path}: the title bar on top`);
+        assert.equal(head.cards[1].text, undefined, `${view.path}: no frame number on the header`);
+        assert.equal(head.cards[2].cards[0].rows[0][0], source.description);
     }
 });
 

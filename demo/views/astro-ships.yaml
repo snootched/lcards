@@ -14,22 +14,22 @@ sections:
         preset: lozenge
         text: { name: { content: BOTH, show: true } }
         tap_action: { action: fly-to, card: astro_ships_1, view: both }
-        grid_options: { columns: 6, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: 1701-A, show: true } }
         tap_action: { action: fly-to, card: astro_ships_1, view: refit }
-        grid_options: { columns: 6, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: 1701-D, show: true } }
         tap_action: { action: fly-to, card: astro_ships_1, view: galaxy }
-        grid_options: { columns: 6, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: BELOW, show: true } }
         tap_action: { action: fly-to, card: astro_ships_1, view: below }
-        grid_options: { columns: 6, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
         id: astro_ships_1
         height: 620

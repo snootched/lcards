@@ -160,7 +160,6 @@ export const GALLERY_HELPERS = {
     'input_number.lcards_test_stage': { type: 'input_number/create', name: 'LCARdS Test Stage', min: 0, max: 20, step: 1, mode: 'box' },
     // A date and time: the astrometrics showcase's scene date (R4d)
     'input_datetime.lcards_test_date': { type: 'input_datetime/create', name: 'LCARdS Test Date', has_date: true, has_time: true },
-    // The astrometrics showcase's look: a diagram, realistic, or both
     // The astrometrics showcase's warp: engaged, and its factor
     'input_boolean.lcards_test_warp': { type: 'input_boolean/create', name: 'LCARdS Test Warp' },
     // warp streaks on the flights between stops
@@ -170,7 +169,7 @@ export const GALLERY_HELPERS = {
     'input_select.lcards_test_rate': {
         type: 'input_select/create', name: 'LCARdS Test Rate', options: ['PAUSED', 'LIVE', '1 H/S', '1 D/S', '30 D/S', '1 Y/S'], initial: '1 H/S',
     },
-    'input_select.lcards_test_look': { type: 'input_select/create', name: 'LCARdS Test Look', options: ['DIAGRAM', 'REALISTIC', 'MIXED'] },
+    'input_select.lcards_test_look': { type: 'input_select/create', name: 'LCARdS Test Look', options: ['DIAGRAM', 'REALISTIC', 'MIXED'], initial: 'MIXED' },
     // The Crystalline Entity's colour (CE1); its own select, because lcards_test_mode sets the alert mode
     'input_select.lcards_test_color': { type: 'input_select/create', name: 'LCARdS Test Color', options: ['BLUE', 'LAVENDER', 'ORANGE'], initial: 'BLUE' },
 };

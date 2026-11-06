@@ -19,7 +19,7 @@ sections:
           card: astro_star_trek_1
           view: galaxy
         grid_options:
-          columns: 6
+          columns: 8
           rows: 1
       - type: custom:lcards-button
         preset: lozenge
@@ -30,7 +30,7 @@ sections:
           card: astro_star_trek_1
           view: quadrants
         grid_options:
-          columns: 6
+          columns: 8
           rows: 1
       - type: custom:lcards-button
         preset: lozenge
@@ -41,7 +41,7 @@ sections:
           card: astro_star_trek_1
           view: federation
         grid_options:
-          columns: 6
+          columns: 8
           rows: 1
       - type: custom:lcards-button
         preset: lozenge
@@ -52,7 +52,7 @@ sections:
           card: astro_star_trek_1
           view: neighbours
         grid_options:
-          columns: 6
+          columns: 8
           rows: 1
       - type: custom:lcards-button
         preset: lozenge
@@ -63,7 +63,7 @@ sections:
           card: astro_star_trek_1
           view: bajor
         grid_options:
-          columns: 6
+          columns: 8
           rows: 1
       - type: custom:lcards-button
         preset: lozenge
@@ -74,7 +74,7 @@ sections:
           card: astro_star_trek_1
           view: gamma
         grid_options:
-          columns: 6
+          columns: 8
           rows: 1
       - type: custom:lcards-button
         preset: lozenge
@@ -85,7 +85,7 @@ sections:
           card: astro_star_trek_1
           view: delta
         grid_options:
-          columns: 6
+          columns: 8
           rows: 1
       - type: custom:lcards-button
         preset: lozenge
@@ -96,7 +96,7 @@ sections:
           card: astro_star_trek_1
           view: barrier
         grid_options:
-          columns: 6
+          columns: 8
           rows: 1
       - type: custom:lcards-astrometrics-card
         id: astro_star_trek_1

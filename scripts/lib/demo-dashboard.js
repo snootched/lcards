@@ -22,18 +22,36 @@ export const BOARDS = {
 };
 /** The docs channel the Home Assistant boards link to (their features are documented there first). */
 export const DOCS_SITE = 'https://lcards.unimatrix01.ca/dev';
-const ENTRY_KEYS = new Set(['file', 'topic', 'summary', 'description', 'session', 'docs', 'public']);
+const ENTRY_KEYS = new Set(['file', 'summary', 'description', 'session', 'docs', 'public', 'heavy']);
 /** Card labels default to black, unreadable over the dark backgrounds. */
 const LABEL = 'var(--lcards-blue)';
 
 /**
  * Read demo/order.yaml and every view it lists.
- * @returns {{ title: string, topics: DemoTopic[], releases: Array<{ version: string, views: DemoView[] }>, unlisted: string[], missing: string[] }}
- * @typedef {{ id: string, title: string }} DemoTopic
- * @typedef {{ file: string, topic: string, summary: string, description: string, session: string, docs: string|null, public: boolean, path: string, title: string, text: string, config: any }} DemoView
+ * Each view takes its topic, group and place (`rank`) from the `topics` tree.
+ * @returns {{ title: string, topics: DemoTopic[], releases: Array<{ version: string, views: DemoView[] }>, unlisted: string[], missing: string[], ungrouped: string[], regrouped: string[] }}
+ * @typedef {{ id: string, title: string, groups: Array<{ title: string, views: string[] }> }} DemoTopic
+ * @typedef {{ file: string, topic: string, group: string, rank: number, summary: string, description: string, session: string, docs: string|null, public: boolean, heavy: boolean, path: string, title: string, text: string, config: any }} DemoView
  */
 export function loadDemo(dir = DEMO_DIR) {
     const order = yaml.load(readFileSync(join(dir, 'order.yaml'), 'utf8'));
+    // the topic tree: a topic lists its views directly (one untitled group) or in groups
+    const topics = (order.topics ?? []).map(t => ({
+        id: String(t.id),
+        title: String(t.title ?? t.id),
+        groups: (t.groups ?? [{ title: '', views: t.views ?? [] }]).map(g => ({ title: String(g.title ?? ''), views: (g.views ?? []).map(String) })),
+    }));
+    /** @type {Map<string, { topic: string, group: string, rank: number }>} */
+    const place = new Map();
+    const regrouped = [];
+    for (const t of topics) {
+        for (const g of t.groups) {
+            for (const file of g.views) {
+                if (place.has(file)) regrouped.push(file);
+                else place.set(file, { topic: t.id, group: g.title, rank: place.size });
+            }
+        }
+    }
     const files = new Set(readdirSync(join(dir, 'views')).filter(f => f.endsWith('.yaml')).map(f => f.slice(0, -5)));
     const listed = new Set();
     const missing = [];
@@ -51,15 +69,17 @@ export function loadDemo(dir = DEMO_DIR) {
             const text = readFileSync(join(dir, 'views', `${file}.yaml`), 'utf8');
             const config = yaml.load(text);
             return [{
-                file, topic: entry.topic ?? '', summary: entry.summary ?? '', description: entry.description ?? '', session: entry.session ?? '',
+                file, topic: place.get(file)?.topic ?? '', group: place.get(file)?.group ?? '', rank: place.get(file)?.rank ?? Infinity,
+                heavy: entry.heavy === true, summary: entry.summary ?? '', description: entry.description ?? '', session: entry.session ?? '',
                 docs: entry.docs ?? null, public: entry.public === true,
                 path: config.path ?? file, title: config.title ?? file, text, config: { path: file, ...config },
             }];
         }),
     }));
     const unlisted = [...files].filter(f => !listed.has(f)).sort();
-    const topics = (order.topics ?? []).map(t => ({ id: String(t.id), title: String(t.title ?? t.id) }));
-    return { title: order.title ?? 'LCARdS Demo', topics, releases, unlisted, missing };
+    // listed for a release but in no topic, or in the tree but not a listed view
+    const ungrouped = [...listed].filter(f => !place.has(f)).concat([...place.keys()].filter(f => !listed.has(f))).sort();
+    return { title: order.title ?? 'LCARdS Demo', topics, releases, unlisted, missing, ungrouped, regrouped };
 }
 
 /** Every view, in dashboard order. */
@@ -246,9 +266,11 @@ export function frameSection(section, n) {
  * grid would (re-packed at each width Home Assistant would use), and a closing sweep
  * along the bottom.
  * @param {any[]} cards
- * @param {number} n - the frame's number on the view (shown on the bar)
+ * @param {number} n - the frame's number on the view (shown on the bar; 0 shows none)
+ * @param {{ head?: any }} [opts] - head: a card in place of the top sweep (a view's
+ *   frameHeader, two section rows tall), so the header frames the description
  */
-export function frameCard(cards, n) {
+export function frameCard(cards, n, { head } = {}) {
     const color = SEGMENT_COLORS[n % SEGMENT_COLORS.length];
     const elbow = (type, area) => ({
         type: 'custom:lcards-elbow',
@@ -263,17 +285,17 @@ export function frameCard(cards, n) {
             height: 'auto',
             'grid-gap': '6px',
             'grid-template-columns': `${FRAME_WIDTH}px minmax(0, 1fr)`,
-            'grid-template-rows': '40px auto 40px',
+            'grid-template-rows': `${head ? 2 * ROW + GAP : 40}px auto 40px`,
             'grid-template-areas': '"top top" "bar content" "foot foot"',
         },
         cards: [
-            elbow('header-left', 'top'),
+            head ? { ...head, view_layout: { 'grid-area': 'top' } } : elbow('header-left', 'top'),
             {
                 type: 'custom:lcards-button',
                 preset: 'panel-light',
                 interactive: false,
                 view_layout: { 'grid-area': 'bar' },
-                text: { label: { content: String(n).padStart(2, '0'), position: 'bottom-right' } },
+                ...(n ? { text: { label: { content: String(n).padStart(2, '0'), position: 'bottom-right' } } } : {}),
                 style: { card: { color: { background: { default: color } } } },
             },
             {
@@ -326,7 +348,7 @@ export function headerNote(view, { board = 'dev', release = '' } = {}) {
 
 /**
  * The header section of a view: the LCARS header (Index, the release and session, Docs
- * in its bar) and the description. `index: false` (the docs site, which has its own
+ * in its bar) heading a frame round the description. `index: false` (the docs site, which has its own
  * picker) leaves the Index link out.
  */
 /**
@@ -349,21 +371,19 @@ export function headerSection(view, opts = {}) {
     return {
         type: 'grid',
         column_span: 4,
-        cards: [
-            frameHeader(view.title, segments),
-            ...(view.description ? [textBlock(view.description)] : []),
-        ],
+        // no description: the header bar alone; with one, a frame round it like the sections'
+        cards: [view.description ? frameCard([textBlock(view.description)], 0, { head: frameHeader(view.title, segments) }) : frameHeader(view.title, segments)],
     };
 }
 
 /**
- * The board's views by topic (demo/order.yaml `topics`, in that order), newest
- * release first within a topic; each view with its release.
+ * The board's views by topic (demo/order.yaml `topics`, in the tree's order); each
+ * view with its release.
  */
 export function topicGroups(releases, topics) {
     const all = releases.flatMap(r => r.views.map(v => ({ ...v, release: r.version })));
     return topics
-        .map(t => ({ ...t, views: all.filter(v => v.topic === t.id) }))
+        .map(t => ({ ...t, views: all.filter(v => v.topic === t.id).sort((a, b) => a.rank - b.rank) }))
         .filter(t => t.views.length);
 }
 
@@ -400,8 +420,8 @@ export function indexView(releases, { board = 'dev', topics = [] } = {}) {
                     {
                         type: 'custom:lcards-data-grid',
                         data_mode: 'data',
-                        rows: topic.views.map(v => [{ value: v.title, tap_action: navigate(v) }, v.summary, v.release]),
-                        grid: { 'grid-template-columns': 'minmax(0, 1fr) minmax(0, 2fr) 120px', 'grid-template-rows': `repeat(${topic.views.length}, min-content)` },
+                        rows: topic.views.map(v => [{ value: v.title, tap_action: navigate(v) }, v.summary, [v.group, v.release].filter(Boolean).join(' · ')]),
+                        grid: { 'grid-template-columns': 'minmax(0, 1fr) minmax(0, 2fr) 220px', 'grid-template-rows': `repeat(${topic.views.length}, min-content)` },
                         style: { font_size: 16, align: 'left', white_space: 'normal', color: 'var(--lcards-moonlight)' },
                         columns: [{ style: { color: LABEL, text_transform: 'uppercase' } }, {}, { style: { color: LABEL } }],
                         // about 42 px a line (measured on the board), in section rows of 56 px plus an 8 px gap
@@ -455,7 +475,10 @@ export function buildDashboard(demo, { board = 'dev', release = null, docsBase =
         title: BOARDS[board].title,
         views: [
             indexView(releases, { board, topics: demo.topics }),
-            ...releases.flatMap(r => r.views.map(v => viewWithHeader(v, { board, release: r.version, docsBase, index }))),
+            // in the topic tree's order, like the index
+            ...releases.flatMap(r => r.views.map(v => ({ v, release: r.version })))
+                .sort((a, b) => a.v.rank - b.v.rank)
+                .map(({ v, release: version }) => viewWithHeader(v, { board, release: version, docsBase, index })),
         ],
     };
 }

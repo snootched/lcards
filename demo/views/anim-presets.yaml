@@ -45,7 +45,7 @@ sections:
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: DECODE, show: true }, state: { show: true } }
-        grid_options: { columns: 16, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
         entity: input_number.lcards_test_value
         tap_action: { action: none }
         animations:

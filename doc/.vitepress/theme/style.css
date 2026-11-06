@@ -346,6 +346,15 @@ dialog.mz-svg-lightbox .mz-svg-inner {
 }
 .VPHomeContent .vp-doc { max-width: 100%; }
 
+/* Wide pages (frontmatter pageClass: demo-wide, the live demo): the content takes the
+   whole width instead of VitePress's reading column (its scoped rules out-rank a plain
+   selector, hence !important) */
+.demo-wide .VPDoc .container,
+.demo-wide .VPDoc .content,
+.demo-wide .VPDoc .content-container {
+  max-width: 1600px !important;
+}
+
 /* --------------------------------------------------------------------------
    Footer
    -------------------------------------------------------------------------- */

@@ -1,11 +1,13 @@
 ---
-description: "The new features of this LCARdS release, live: astrometrics scenes, WebGL backgrounds, grid surfaces, warp spectrum, animation presets, the ring gauge and the alert band, as real cards you can try."
+description: "LCARdS running live, by topic: astrometrics scenes, WebGL backgrounds, grid surfaces, charts, data grids, alerts and animation, as real cards you can try."
 aside: false
+sidebar: false
+pageClass: demo-wide
 ---
 
 # Live Demo
 
-What is new in LCARdS {{ data.release }}, running live: every view below is made of real LCARdS cards from this version, on sample entities, laid out the way a Home Assistant sections view lays them out. Pick a view, try the controls (the alert buttons, sliders, taps on the cards), then open **YAML of this view** to copy it, or follow the **Docs** button on the view to read about the feature.
+LCARdS running live: every view below is made of real LCARdS cards from this version, on sample entities, laid out the way a Home Assistant sections view lays them out. Open a topic in the menu and pick a view, try the controls (the alert buttons, sliders, taps on the cards), then open **YAML of this view** to copy it, or follow the **Docs** button on the view to read about the feature.<span v-if="data.views.some(v => !v.isNew)"> **Show: New in <span v-text="data.release"></span>** at the top of the menu keeps only this release's views.</span>
 
 The same views make up the demo dashboard the LCARdS developers check every release on.
 

@@ -14,7 +14,7 @@ sections:
           action: perform-action
           perform_action: lcards.borg_assimilate
           data: { intro_duration: 30000 }
-        grid_options: { columns: 6, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: CLASSIC CUBE, show: true } }
@@ -22,7 +22,7 @@ sections:
           action: perform-action
           perform_action: lcards.borg_assimilate
           data: { intro_duration: 30000, cube: classic }
-        grid_options: { columns: 6, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: WITH SOUND FILE, show: true } }
@@ -30,11 +30,11 @@ sections:
           action: perform-action
           perform_action: lcards.borg_assimilate
           data: { intro_duration: 30000, sound: /local/sounds/borg.mp3 }
-        grid_options: { columns: 6, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: DEASSIMILATE, show: true } }
         tap_action:
           action: perform-action
           perform_action: lcards.borg_deassimilate
-        grid_options: { columns: 6, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }

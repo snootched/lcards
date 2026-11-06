@@ -18,7 +18,7 @@ sections:
           card: astro_wormhole
           view: overview
         grid_options:
-          columns: 9
+          columns: 8
           rows: 1
       - type: custom:lcards-button
         preset: lozenge
@@ -29,7 +29,7 @@ sections:
           card: astro_wormhole
           view: mouth
         grid_options:
-          columns: 9
+          columns: 8
           rows: 1
       - type: custom:lcards-button
         preset: lozenge
@@ -40,7 +40,7 @@ sections:
           card: astro_wormhole
           view: inside
         grid_options:
-          columns: 9
+          columns: 8
           rows: 1
       - type: custom:lcards-button
         preset: lozenge
@@ -51,7 +51,7 @@ sections:
           card: astro_wormhole
           view: membrane
         grid_options:
-          columns: 9
+          columns: 8
           rows: 1
       - type: custom:lcards-slider
         entity: input_number.lcards_test_power

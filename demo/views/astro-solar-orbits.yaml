@@ -15,25 +15,25 @@ sections:
         text:
           name: {content: SYSTEM, show: true}
         tap_action: {action: fly-to, card: astro_solar_orbits, view: system}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: TOP, show: true}
         tap_action: {action: fly-to, card: astro_solar_orbits, view: top}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: EDGE, show: true}
         tap_action: {action: fly-to, card: astro_solar_orbits, view: edge}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: PLUTO, show: true}
         tap_action: {action: fly-to, card: astro_solar_orbits, view: pluto}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-astrometrics-card
         points:
           - { id: sun, xyz: [0, 0, 0], label: SOL, style: major }

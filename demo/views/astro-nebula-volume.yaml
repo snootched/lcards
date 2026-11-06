@@ -15,19 +15,19 @@ sections:
         text:
           name: {content: OUTSIDE, show: true}
         tap_action: {action: fly-to, card: astro_nebula_volume, view: outside}
-        grid_options: {columns: 6, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: FLY IN, show: true}
         tap_action: {action: fly-to, card: astro_nebula_volume, view: inside}
-        grid_options: {columns: 6, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: PLANET, show: true}
         tap_action: {action: fly-to, card: astro_nebula_volume, view: planet}
-        grid_options: {columns: 6, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-slider
         entity: input_number.lcards_test_power
         preset: shaped-horizontal

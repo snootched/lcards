@@ -439,6 +439,7 @@ export default withMermaid(defineConfig({
           },
         ],
       },
+      { text: 'Live Demo', link: '/getting-started/live-demo', activeMatch: '/getting-started/live-demo' },
       { text: 'Releases', link: '/releases/', activeMatch: '/releases/' },
       { text: 'About', link: '/credits' },
     ],

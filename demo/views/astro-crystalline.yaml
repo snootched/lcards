@@ -17,37 +17,37 @@ sections:
         text:
           name: {content: SIDE, show: true}
         tap_action: {action: fly-to, card: astro_crystalline, view: side}
-        grid_options: {columns: 4, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: CLOSE, show: true}
         tap_action: {action: fly-to, card: astro_crystalline, view: close}
-        grid_options: {columns: 4, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: BELOW, show: true}
         tap_action: {action: fly-to, card: astro_crystalline, view: below}
-        grid_options: {columns: 4, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: SHIP, show: true}
         tap_action: {action: fly-to, card: astro_crystalline, view: ship}
-        grid_options: {columns: 4, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: FAR, show: true}
         tap_action: {action: fly-to, card: astro_crystalline, view: far}
-        grid_options: {columns: 4, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: SECOND, show: true}
         tap_action: {action: fly-to, card: astro_crystalline, view: second}
-        grid_options: {columns: 4, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-slider
         entity: input_number.lcards_test_power
         preset: shaped-horizontal
@@ -74,7 +74,7 @@ sections:
         entity: input_boolean.lcards_test_toggle
         text: { name: { content: "FIRE", show: true } }
         tap_action: { action: toggle }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: "BLUE", show: true } }
@@ -94,22 +94,22 @@ sections:
         preset: lozenge
         text: { name: { content: "BRANCHES 1", show: true } }
         tap_action: { action: perform-action, perform_action: input_number.set_value, target: { entity_id: input_number.lcards_test_stage }, data: { value: 1 } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: "BRANCHES 3", show: true } }
         tap_action: { action: perform-action, perform_action: input_number.set_value, target: { entity_id: input_number.lcards_test_stage }, data: { value: 3 } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: "BRANCHES 4", show: true } }
         tap_action: { action: perform-action, perform_action: input_number.set_value, target: { entity_id: input_number.lcards_test_stage }, data: { value: 4 } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: "BRANCHES 5", show: true } }
         tap_action: { action: perform-action, perform_action: input_number.set_value, target: { entity_id: input_number.lcards_test_stage }, data: { value: 5 } }
-        grid_options: { columns: 12, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
         id: astro_crystalline
         height: 700

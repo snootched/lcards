@@ -17,25 +17,25 @@ sections:
         text:
           name: {content: SYSTEM, show: true}
         tap_action: {action: fly-to, card: astro_units_sol, view: system}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: NEXUS, show: true}
         tap_action: {action: fly-to, card: astro_units_sol, view: nexus}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: BADLANDS, show: true}
         tap_action: {action: fly-to, card: astro_units_sol, view: badlands}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: TOP, show: true}
         tap_action: {action: fly-to, card: astro_units_sol, view: top}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-astrometrics-card
         id: astro_units_sol
         height: 650
@@ -218,13 +218,13 @@ sections:
         text:
           name: {content: AFAR, show: true}
         tap_action: {action: fly-to, card: astro_units_ly, view: afar}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: NEXUS 1 LY, show: true}
         tap_action: {action: fly-to, card: astro_units_ly, view: nexus}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-astrometrics-card
         id: astro_units_ly
         height: 650

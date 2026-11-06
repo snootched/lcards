@@ -14,43 +14,43 @@ sections:
         text:
           name: {content: DS9, show: true}
         tap_action: {action: fly-to, card: astro_badlands, view: ds9}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: VOYAGER, show: true}
         tap_action: {action: fly-to, card: astro_badlands, view: voyager}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: VORTEX, show: true}
         tap_action: {action: fly-to, card: astro_badlands, view: vortex}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: STORM, show: true}
         tap_action: {action: fly-to, card: astro_badlands, view: storm}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: DS9 OUTSIDE, show: true}
         tap_action: {action: fly-to, card: astro_badlands, view: ds9_out}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: VOY OUTSIDE, show: true}
         tap_action: {action: fly-to, card: astro_badlands, view: voyager_out}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: STORM OUTSIDE, show: true}
         tap_action: {action: fly-to, card: astro_badlands, view: storm_out}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-astrometrics-card
         id: astro_badlands
         height: 700

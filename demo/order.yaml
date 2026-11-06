@@ -1,495 +1,465 @@
 # The demo boards (npm run demo:push): the views in demo/views/, grouped by release,
 # newest first. Every view file is listed exactly once (tests/docs/demo-dashboard.test.js).
-# Per view: topic (one of topics below: the index groups the views by it), summary (index
-# line), description (header text), session (dev board only), docs (a docs page path,
-# optional) and public (also on the public board and the docs site's live demo; false for
-# checks, benchmarks and comparisons).
+# Per view: summary (index line), description (header text), session (dev board only),
+# docs (a docs page path, optional), public (also on the public board and the docs site's
+# live demo; false for checks, benchmarks and comparisons) and heavy (the docs Live Demo
+# mounts it only on a click: many WebGL scenes at once).
 # The header and the index are generated from this file (scripts/lib/demo-dashboard.js).
 title: LCARdS Demo
-# The index's blocks, in this order
+# The topic tree: the index's and the docs Live Demo's blocks, in this order. Each
+# topic lists its views directly or in named groups; every view is in exactly one.
 topics:
-  - { id: astrometrics, title: Astrometrics }
-  - { id: charts, title: Charts }
-  - { id: data-grid, title: Data grid }
-  - { id: webgl, title: WebGL backgrounds }
-  - { id: grids, title: Grids }
-  - { id: alerts, title: Alerts and animation }
-  - { id: cards, title: Cards }
-  - { id: benchmarks, title: Benchmarks }
+  - id: astrometrics
+    title: Astrometrics
+    groups:
+      - title: Start here
+        views: [astro-showcase, astro-starters, astro-star-trek, astro-real-sol]
+      - title: Objects
+        views: [astro-objects, astro-planets, astro-belt, astro-asteroid, astro-comet, astro-galaxy, astro-crystalline, astro-cube, astro-wormhole]
+      - title: Ships and starbases
+        views: [astro-ships, astro-starbases, astro-own-models, astro-cards-models, astro-real-size]
+      - title: Nebulae and effects
+        views: [astro-effects, astro-nebula-volume, astro-nebula-shapes, astro-badlands, astro-nexus, astro-prism-outline, astro-deformed-grids]
+      - title: Scale
+        views: [astro-true-scale, astro-true-solar, astro-dive, astro-distance, astro-solar-orbits, astro-units]
+      - title: Camera and motion
+        views: [astro-camera, astro-navigation, astro-face, astro-trail]
+      - title: Looks and colours
+        views: [astro-diagram-forms, astro-recolor, astro-colours]
+      - title: Live data
+        views: [astro-points-data, astro-bindings]
+      - title: Studio
+        views: [astro-studio-starters, astro-studio-objects, astro-studio-forms, astro-studio-move]
+  - id: backgrounds
+    title: Backgrounds
+    groups:
+      - title: WebGL
+        views: [webgl-scenes, webgl-fields, holo-sphere, nebula-volumetric, warp-spectrum, zoom-webgl]
+      - title: Grids
+        views: [grid-views, grid-surfaces, grid-surfaces-inside, grid-polar, grid-wells, grid-motion]
+  - id: cards
+    title: Cards
+    groups:
+      - title: Slider
+        views: [ring-gauge, slider-ring-fit]
+      - title: Chart
+        views: [chart-sources, chart-types, chart-styling]
+      - title: Data grid
+        views: [datagrid-data, datagrid-decorative]
+  - id: alerts
+    title: Alerts and animation
+    views: [alert-band, borg, anim-presets, alert-recolour, alert-overlay-edit]
+  - id: benchmarks
+    title: Benchmarks
+    views: [bench-12, bench-20, bench-stars-500-instances, bench-stars-500-shader, bench-stars-2000-instances, bench-stars-2000-shader, bench-stars-5000-instances, bench-stars-5000-shader]
 releases:
   - version: "2026.11.0"
     views:
       - file: astro-showcase
-        topic: astrometrics
+        heavy: true
         summary: "Astrometrics showcase: the Star Trek galaxy down to Deep Space 9"
         description: "Every astrometrics feature in one card, in an LCARS frame. The stops on the left fly from the galaxy (the quadrants and the powers) to Federation space, the real Sol system on today's date (Spacedock at Earth, the Utopia Planitia yards over Mars, Jupiter, Saturn, Pluto), and on to the Bajor system: Deep Space 9 and its shields, the wormhole, a nebula to fly through and a Borg cube. Along the bottom: orbits and planet grids on or off, a Borg incursion, the shields, the wormhole's power, the date's rate, the alert status, the date itself, and the guided tour (PLAY TOUR steps through every stop)."
         session: "R4d"
         docs: /cards/astrometrics/
         public: true
       - file: astro-nebula-volume
-        topic: astrometrics
         summary: "Astrometrics nebula you can fly into (render: volume)"
         description: "A nebula drawn as one body of gas (render: volume) round a disc grid, with a planet inside it: the planet hides the gas behind it, the gas in front still shows. OUTSIDE, FLY IN and PLANET fly the camera; from inside there is gas all round. Every tunable setting has a slider: DENSITY and DRIFT change in place; TURBULENCE, DETAIL (noise_scale), CLOUDS (count) and SEED rebuild the gas. Below: the same seeded clouds as puffs and as a volume."
         session: "E6 volume"
         docs: /cards/astrometrics/effects#gas-you-can-fly-into
         public: true
       - file: astro-badlands
-        topic: astrometrics
         summary: "Astrometrics Badlands: layered plasma, fire, vortex and lightning columns, strikes"
         description: "The Badlands, both ways the shows drew them. DS9: the badlands preset, two sheets of liquid fire with an orange band glowing between them and fire columns thick and thin, Deep Space Nine inside. VOYAGER: the badlands_voyager preset, mauve layers with held pink lightning columns and strikes that light the gas round them. VORTEX: twisting funnels joined into columns (columns kind vortex, waist 0.4). STORM: a lightning object striking inside a cloud nebula, each strike lighting the clouds round it. The OUTSIDE buttons show the gas from afar; fly in and around with the mouse."
         session: "NB2c"
         docs: /cards/astrometrics/effects#the-badlands-layers-columns-and-lightning
         public: true
       - file: astro-nexus
-        topic: astrometrics
         summary: "Astrometrics Nexus: a white-hot ribbon, its wake, crawling discharges"
         description: "The Nexus from Star Trek Generations (the nexus preset): a white-hot ribbon waving across space, a wake of pink and red gas streaming out from it, and small discharges crawling off it that light the gas. FAR, SIDE, CLOSE and BELOW fly round it; WAVE SPEED sets how fast its waves run. TRAVEL: a second Nexus on a wide orbit, its wake trailing behind (face: motion with rotation)."
         session: "NB3"
         docs: /cards/astrometrics/effects#the-nexus-a-ribbon-and-its-wake
         public: true
       - file: astro-crystalline
-        topic: astrometrics
         summary: "Astrometrics Crystalline Entity: crystal branches round a starburst core"
         description: "The Crystalline Entity from Star Trek: The Next Generation (type: crystalline): a glowing spine, a pulsing starburst core and branches that fork down to thorns, 3 km tall, with the Constitution-class ship beside it at its real 289 m. SIDE, CLOSE, BELOW and SHIP fly round it, FAR shows it as a dot, SECOND a second one in the show's lavender. CORE GLOW, FADE and SPIN change it in place; BLUE, LAVENDER and ORANGE set its colour; BRANCHES sets how many times its branches fork; FIRE fires its beam on the ship."
         session: "CE1"
         docs: /cards/astrometrics/objects#crystalline
         public: true
       - file: slider-ring-fit
-        topic: cards
         summary: "Slider rings fit their arc: a half ring fills a wide cell"
         description: "A ring slider is as large as its arc lets it be in its cell: a half ring fills a wide cell with its value above the cut, a quarter ring sits in its corner, the default three-quarter ring is centred on its own shape, a full ring fills the smaller side. A Picard ring as a half ring across a whole row. Each follows the same helper."
         session: "Backlog clean-up"
         docs: /cards/slider-card/#ring-gauge
         public: true
       - file: astro-diagram-forms
-        topic: astrometrics
         summary: "Astrometrics diagram forms: each object type's LCARS wireframe for the diagram look"
         description: "LOOK switches the scene between DIAGRAM (each object as an LCARS wireframe in its own colour), REALISTIC and MIXED (as before). A glow becomes a ring marker facing the camera, a Borg cube and a box their edges and a grid on each face, an asteroid its rock's edges, tumbling with it, a belt its inner and outer edges. The colour select recolours the wireframes too."
         session: "Astro polish"
         docs: /cards/astrometrics/#looks-diagram-and-realistic
         public: true
       - file: astro-recolor
-        topic: astrometrics
         summary: "Astrometrics colours in place: colours and alert modes crossfade, nothing rebuilds"
         description: "Many object types in one scene (a grid, a glow, a ring, a sphere, a belt, the Crystalline Entity, a Borg cube, a volume nebula, a cloud nebula and a galaxy), each colour following the BLUE / LAVENDER / ORANGE select. A new colour, or GREEN / YELLOW / RED alert, crossfades every object to its new colours over a moment, with nothing built again: the spins, drift and pulse carry on through the change."
         session: "Astro polish"
         docs: /cards/astrometrics/data#colours-from-entities
         public: true
       - file: astro-solar-orbits
-        topic: astrometrics
         summary: "Astrometrics Solar system orbits: Pluto and every orbit at its real tilt"
         description: "The Solar system starter with Pluto added and each orbit ring tilted to its planet's real inclination about its ascending node, the planets going round in those planes. SYSTEM is the starter's view, TOP looks down, EDGE looks along the ecliptic so the tilts show (Pluto's 17 degrees most of all), PLUTO flies to Pluto."
         session: "Astro polish"
         docs: /cards/astrometrics/starters#solar-system
         public: true
       - file: astro-units
-        topic: astrometrics
         summary: "Astrometrics units: parts sized for the scene they go into"
         description: "The Solar system starter (scene units) with the Nexus, a comet and the Badlands added from the Studio: each sized to fit the scene instead of arriving at its own 2000, 175 or 500. Below, a scene in light years with the same parts at their real sizes: the Badlands 10 ly across, the Nexus 1 ly long, on a 5 ly grid."
         session: "U1"
         docs: /cards/astrometrics/scale#units
         public: false
       - file: astro-nebula-shapes
-        topic: astrometrics
         summary: "Astrometrics nebula shapes, dust and colour"
         description: "Volume nebulae in the forms of real ones: a shell (the Ring nebula), an hourglass (bipolar, the Butterfly), filaments (the Veil) and a cavity open toward you (Orion's blister), and below them a long band of drawn-out clouds with a pale core colour and dust lanes. The buttons fly to each; STRETCH draws the seeded clouds out, DUST lays 0 to 4 dark lanes across the band."
         session: "NB1"
         docs: /cards/astrometrics/effects#shapes-dust-and-colour
         public: true
       - file: astro-comet
-        topic: astrometrics
         summary: "Astrometrics comet: tails away from its star"
         description: "type: comet: a dark nucleus, a glowing coma and two tails pointing away from its star (light): a straight blue ion tail and a pale dust tail that bends back along the comet's path. On an orbit centred off the star, with activity.mode: distance it grows and brightens as it swings in and fades as it swings out. COMET flies to it. Second card: TAIL, COMA and GLOW follow sliders and ease in place."
         session: "AC1"
         docs: /cards/astrometrics/objects#comet
         public: true
       - file: astro-wormhole
-        topic: astrometrics
         summary: "Astrometrics wormhole: its mouth and the regions inside it"
         description: "The Bajoran wormhole starter. Realistic look: a swirl of blue and violet gas pouring into the funnel round a warm rippled heart, a soft shaft of light and wisps trailing off. Diagram look: the entrance disc and funnel, the pipeline (three twisted strands drawn as lit tubes), the negative and positive CTL regions, the ring and point singularities and the verteron membrane. POWER opens the mouth and wobbles the regions; the look menu switches between them."
         session: "W1"
         docs: /cards/astrometrics/starters#bajoran-wormhole
         public: true
       - file: astro-asteroid
-        topic: astrometrics
         summary: "Astrometrics asteroid: one rock up close"
         description: "type: asteroid: one rock with lumps and craters, tumbling, lit from its star (light: a point id). The star here goes round it, so day and night sweep across it. FAR shows it from thousands of units away, where it is a dot. Second card: three seeds and colours, all lit from one star."
         session: "AC1"
         docs: /cards/astrometrics/objects#asteroid
         public: true
       - file: astro-studio-forms
-        topic: astrometrics
         summary: "Astrometrics Studio forms: a card to open in the Studio"
         description: "Open this card's editor, then its Studio. The scene is in light years with a star system in astronomical units, and number fields say so. The look is a switch, the stars sit behind a switch, the nebula's colours are a colour list and the labels pick a font. The route hides inside the system, the shield's opacity follows SHIELDS, and the camera's first view is a guided tour on STAGE."
         session: "UX1"
         docs: /cards/astrometrics/studio
         public: false
       - file: astro-studio-starters
-        topic: astrometrics
         summary: "Astrometrics Studio starters: try a scene, keep it or undo it"
         description: "A new card with no scene. Open its editor, then its Studio: it opens on the Starters gallery. Open a starter to see what it adds and change its settings, try it in the preview, keep or discard it, and undo with Ctrl+Z or the toolbar."
         session: "UX1"
         docs: /cards/astrometrics/studio
         public: false
       - file: astro-studio-objects
-        topic: astrometrics
         summary: "Astrometrics Studio objects: add by picture, parts into a system"
         description: "A galaxy in light years with Sol as a system in km. In the Studio: Add object is a gallery by group, shapes are picked by picture, the system row has Open, and with the system open Starters adds parts into it at real sizes."
         session: "UX1"
         docs: /cards/astrometrics/studio
         public: false
       - file: astro-studio-move
-        topic: astrometrics
         summary: "Astrometrics Studio: drag objects by their point, measure, quick views, hold, isolate"
         description: "Open this card's editor, then its Studio. Drag the planet and its point moves with it; select the ring or the relay pad first, then drag it. The survey grid is placed by coordinates and does not drag. Select anything and press F to fly to it. The toolbar also measures between two taps, steps through flat top, front and side views, and (preview only) switches the look, holds all motion and shows the selected object alone."
         session: "ST1"
         docs: /cards/astrometrics/studio
         public: false
       - file: astro-real-size
-        topic: astrometrics
         summary: "Astrometrics real size: starbases and ships in proportion"
         description: "Five built-in models with no size in a scene in km, so each is drawn at its real size from its file: Deep Space 9 (1.45 km) with a Constitution-class ship (289 m) beside it, Earth Spacedock (5.5 km tall) and a Utopia Planitia drydock (760 m) with a ship in its berth. The buttons fly to each. From ALL the ships are specks: the REAL SIZE button under the camera pad (or the V key) switches to VISIBLE SIZE, which draws each small model at least 40 px across, and back. In the Studio, a model's form says what its file measures and how it is drawn, with Show, Fit to view, File size and Real size and a Length (m) field for a download at an odd scale."
         session: "UX1"
         docs: /cards/astrometrics/objects#real-size
         public: true
       - file: astro-prism-outline
-        topic: astrometrics
         summary: "Astrometrics prism outlines: edit a territory's border on the preview"
         description: "Two territories as prism volumes over a map. In the card's Studio, Objects, open a territory: its outline is a row per corner, and Edit on preview puts the corners on the map to drag (snapped to the map's 5, Shift for free), a + between corners adds one, Delete removes the selected one; Draw new outline taps a new border, closing on its first corner. Each change is one undo step."
         session: "UX1"
         docs: /cards/astrometrics/studio#objects
         public: true
       - file: chart-sources
-        topic: charts
         summary: "Charts, rebuilt: entity history, long-term statistics and data sources"
         description: "The chart card was rebuilt for this release: every series is one entry of sources. Top left, entity history: move POWER and SHIELDS and the lines follow. Top right, an LCARdS data source smoothing the same power value beside its raw history. Below, a week of hourly means from Home Assistant's long-term statistics, and TOGGLE plotted as on/off steps."
         session: "R3"
         docs: /cards/chart/#where-the-data-comes-from
         public: true
       - file: chart-types
-        topic: charts
         summary: "Chart types on the same four values"
         description: "Area, grouped columns, radial bars, donut, radar, polar area, treemap and heatmap, all drawn from the same four helpers. The round charts, the radar and the treemap show each series' latest value: drag a slider and they change at once; the time charts add the new value to their history."
         session: "R3"
         docs: /cards/chart/#chart-types
         public: true
       - file: chart-styling
-        topic: charts
         summary: "Chart styling: gradients, reference lines, labels and formatters"
         description: "Drag SHIELDS across the Nominal and Critical reference lines. Below, a real temperature sensor: two days as a gradient area with its 30-minute peak and tooltip and axis formatters, a week of daily highs as labelled rounded columns from statistics, and three days as a low-to-high range band."
         session: "R3"
         docs: /cards/chart/styling
         public: true
       - file: datagrid-data
-        topic: data-grid
         summary: "Data grid, rebuilt: live entity cells, colours and tap actions"
         description: "The data grid was rebuilt for this release: write rows of cells and each cell works out what it is (text, an entity, an attribute, a Home Assistant template, a JavaScript template or a data source value). Drag POWER, SHIELDS and TEMPERATURE: the readings change colour past their limits and pulse when they change; SHIELDS under 25 turns its cell red and the note to CRITICAL. Tap a LIGHTS or DOORS cell, or the buttons, to toggle it."
         session: "R3"
         docs: /cards/data-grid/data
         public: true
       - file: datagrid-decorative
-        topic: data-grid
         summary: "Data grid decorative mode: the LCARS number wall"
         description: "Decorative mode makes up its values: hex with digit columns trickling in and pulsing, floats refreshing faster, and a mixed wall under the cascade animation. Nothing to control: no entities."
         session: "R3"
         docs: /cards/data-grid/#decorative-mode
         public: true
       - file: astro-navigation
-        topic: astrometrics
         summary: "Astrometrics navigation: follow a moving ship, touchpad pan, a time slider, buttons that fade"
         description: "Tap ENTERPRISE, SHUTTLE or PROBE (the name or its marker): the camera flies to it and stays on it round its orbit, and the wheel or a pinch zooms straight in on it; a tap on blank space lets go (a pan or a fly forward keeps following, offset). On a touchpad a two-finger swipe pans and a pinch zooms; with a mouse the wheel zooms and a middle-drag pans. The LCARdS D-pad pans (arms), zooms (left corners), flies forward and back (right corners) and resets (centre); the slider under it slows the motion down, holds it or speeds it up. The buttons fade after a few seconds and come back when the pointer moves. The buttons fly to the system views, or to a ship and follow it. Click the scene and press W or S (Page Up, Page Down) to fly forward and back through it: camera and target move together."
         session: "N1"
         docs: /cards/astrometrics/#following-a-point
         public: true
       - file: astro-face
-        topic: astrometrics
         summary: "Astrometrics face: motion: ships nose first along their orbits"
         description: "Two starships share a tilted patrol orbit: the one with face: motion flies nose first and tips with the tilt, the other slides along sideways. The small ship circles a planet that is itself on an orbit, so its heading follows both motions. Under reduced motion they hold still, facing along their orbits. The buttons fly to the views, or to a ship and follow it nose first."
         session: "M3"
         docs: /cards/astrometrics/objects#facing-the-way-it-goes
         public: true
       - file: astro-star-trek
-        topic: astrometrics
         summary: "Astrometrics Star Trek galaxy: the quadrants, the powers, Federation space"
         description: "The Star Trek galaxy starter with its optional parts. The Milky Way cut into the four quadrants along the line from Sol to the core; the Federation, Klingon, Romulan and Cardassian regions, the Dominion and the Borg; the Bajoran wormhole to Idran, Voyager's route home and the Great Barrier. FEDERATION and SOL NEIGHBOURS fly in to the capitals and nearby stars: Vulcan, Andoria and Tellar at their real stars (40 Eridani, Procyon, 61 Cygni), the others at the distances the reference charts give. The galaxy view sizes the empires to be seen, so the two scales do not overlay exactly."
         session: "R4c2"
         docs: /cards/astrometrics/starters#star-trek-galaxy
         public: true
       - file: astro-galaxy
-        topic: astrometrics
         summary: "Astrometrics galaxy: a procedural Milky Way, and a prism territory"
         description: "The galaxy object: the Milky Way built from its real structure (the central bar, the Scutum-Centaurus and Perseus arms from its ends, Sagittarius and Norma between them, the Orion spur), each star at its own place, so flying in shows parallax. SOL sits 26,000 light years out with a prism territory round it, a border drawn as any outline. Below, a generic two-arm galaxy with no bar, turning."
         session: "R4c1"
         docs: /cards/astrometrics/objects#galaxy
         public: true
       - file: astro-bindings
-        topic: astrometrics
         summary: "Astrometrics settings from entities: shields, power and a guided tour"
         description: "Any number on a point or object can follow an entity. SHIELDS sets the shield bubble's opacity round the station (it eases to each new value). POWER opens the wormhole: its throat grows, its wobble follows a template, its glow brightens, the ring spins faster and debris gathers round it (a belt whose rock count follows the power, a whole number). PREVIOUS STOP and NEXT STOP step the stage helper, and the camera flies through four views; the last one holds the scene clock. STAGE goes back to the start."
         session: "R4b"
         docs: /cards/astrometrics/data#settings-from-entities
         public: true
       - file: astro-colours
-        topic: astrometrics
         summary: "Astrometrics colours from entities: state maps and templates on object colours"
         description: "Any object colour can follow an entity or a template. TOGGLE turns the deck grid's lines orange (active and inactive). POWER over 80 turns the deck's edges red (an above:80 key) and the shield bubble too (a template). The MODE buttons pick the nebula's second colour and the comet's ion tail (a colour per input_select option). Each change rebuilds that one object."
         session: "NB2b"
         docs: /cards/astrometrics/data#colours-from-entities
         public: true
       - file: astro-real-sol
-        topic: astrometrics
         summary: "Astrometrics real Sol: the planets and moons where they are today"
         description: "The Solar system (real positions) starter: the Sun, the planets, Pluto, Ceres and the major moons in km where they really are at the scene date, on their real orbits, with real tilts and spins, Saturn's rings in its equator, and the main and Kuiper belts. The first row flies the camera; the second sets the scene date and its speed (NOW, a day, a month or a year a second, rewind, the Apollo 11 landing). The date slider on the card does the same, and its clock button switches to the speed slider."
         session: "R4a"
         docs: /cards/astrometrics/scale#the-real-solar-system
         public: true
       - file: astro-true-solar
-        topic: astrometrics
         summary: "Astrometrics true-scale starter: the Sun and eight planets in km"
         description: "The Solar system at true scale starter as the Studio inserts it: every planet at its real distance and size, so from the whole system they are dots on their orbits. Tap EARTH, JUPITER or SATURN to fly in to it. The galaxy dive view now hides the galactic disc once you are inside the solar system. The buttons above a scene fly its camera to each of its named views."
         session: "E10"
         docs: /cards/astrometrics/scale
         public: true
       - file: astro-dive
-        topic: astrometrics
         summary: "Astrometrics star systems: a galaxy in light years with Sol in km inside it"
         description: "One card from the galaxy down to a station: the galaxy disc in light years, the Sol system in km at its real place 26,000 ly from the core, and Deep Space 9 in orbit round Earth. Tap SOL, then EARTH, then DEEP SPACE 9, or fly from the station straight back out and in again. The buttons above a scene fly its camera to each of its named views."
         session: "E10"
         docs: /cards/astrometrics/scale#star-systems
         public: true
       - file: astro-true-scale
-        topic: astrometrics
         summary: "Astrometrics at true scale: the Sun, Earth, the Moon and Deep Space 9 in km"
         description: "A scene built with real numbers: fly from the whole inner system (planets are dots at this scale) to Earth and to Deep Space 9, 1.5 km across, with Earth filling the sky behind it. Depth slices, scene-sized zoom limits and a log-distance fly-to make it hold. The buttons above a scene fly its camera to each of its named views."
         session: "E10"
         docs: /cards/astrometrics/scale#one-scene-in-real-units
         public: true
       - file: astro-distance
-        topic: astrometrics
         summary: "Astrometrics distance: objects that appear as you zoom in"
         description: "min_distance and max_distance on objects: zoom in and a galaxy sector gives way to a star system, then the Earth's Moon; Deep Space 9 is a starbase marker far away and its model close up; a ship marker hands over to the ship's model, and the asteroid belt's rocks are dots from far away. The buttons above a scene fly its camera to each of its named views."
         session: "E9"
         docs: /cards/astrometrics/objects#distance
         public: true
       - file: astro-cube
-        topic: astrometrics
         summary: "Astrometrics Borg cube: the screen effect's cube in the scene"
         description: "type: cube: the Borg cube with carved machinery, its rail lattice and pulsing glow spots, closing on a starship with a tractor beam (the Borg encounter starter); below, the styles side by side: borg, detail off and plain. The buttons above a scene fly its camera to each of its named views."
         session: "E8"
         docs: /cards/astrometrics/objects#cube
         public: true
       - file: astro-trail
-        topic: astrometrics
         summary: "Astrometrics trails: where moving points have been"
         description: "type: trail: fading lines behind planets and a comet on their orbits, built while the card is open, and a starship model riding an orbit with a dashed wake. The buttons above a scene fly its camera to each of its named views."
         session: "E8"
         docs: /cards/astrometrics/objects#trail
         public: true
       - file: astro-own-models
-        topic: astrometrics
         summary: "Astrometrics own models: one model file from the library, a path and the media browser"
         description: "The same Deep Space 9 file reached the three ways the Studio's Src picker offers: the asset library (builtin:), a custom path, and the Home Assistant media browser under LCARdS (the route your own models take from the My models folder, /config/www/lcards/models). The middle one shows as a hologram, the default for any model."
         session: "M2b"
         docs: /cards/astrometrics/models
         public: true
       - file: astro-ships
-        topic: astrometrics
         summary: "Astrometrics ships: the NCC-1701-A and the NCC-1701-D"
         description: "The two built-in starships made in code after the on-screen designs: the refit Constitution class (USS Enterprise NCC-1701-A, 305 m) and the Galaxy class (USS Enterprise NCC-1701-D, 642.5 m), side by side at the same scale as holograms with their parts labelled, each turning in its own materials, and the Galaxy class in its Utopia Planitia drydock. The buttons above the first scene fly its camera to each ship."
         session: "M2b"
         docs: /cards/astrometrics/objects#built-in-models
         public: true
       - file: astro-starbases
-        topic: astrometrics
         summary: "Astrometrics starbases: Deep Space 9, Earth Spacedock, Utopia Planitia"
         description: "Three built-in starbase models made in code after the on-screen designs: Deep Space 9 by the wormhole with Ops and its pylons marked, the Utopia Planitia drydocks over Mars with a starship in one, a starship approaching Earth Spacedock's space doors, and all three as holograms. The buttons above a scene fly its camera to each of its named views."
         session: "E8"
         docs: /cards/astrometrics/objects#built-in-models
         public: true
       - file: astro-belt
-        topic: astrometrics
         summary: "Astrometrics asteroid belt: rocks round a star"
         description: "type: belt: a band of low-poly rocks round the Sun, the inner ones going round faster (period) and each tumbling, lit from the Sun, grey and tan rocks from a colors list (each rock takes one). Fly to MAIN BELT for a close look. Second card: a ring of small rocks round a planet. Third card: the band follows sliders and eases in place round the same rocks (INNER EDGE and OUTER + ROCKS move each edge, the second also adds rocks; THICKNESS spreads them up and down). The buttons above a scene fly its camera to each of its named views."
         session: "E8"
         docs: /cards/astrometrics/objects#belt
         public: true
       - file: astro-planets
-        topic: astrometrics
         summary: "Astrometrics planets: maps, planet types, Saturn's rings"
         description: "The built-in planet maps (NASA and USGS, public domain), the nine fill.effect planet types (gas giant to terran), Saturn with its ring band, and a gas giant preset with its own keys on top (fewer belts, stormier, churning)."
         session: "E8"
         docs: /cards/astrometrics/objects#built-in-planet-maps
         public: true
       - file: astro-starters
-        topic: astrometrics
+        heavy: true
         summary: "Astrometrics starters: scenes and parts"
         description: "Every scene of the Astrometrics Studio's Starters tab with its defaults (galaxy, sector map, sky dome, solar system, Federation map, starbase approach), and the four parts added round one star: a planet with a moon, an asteroid belt, territories and a nebula. The buttons above a scene fly its camera to each of its named views."
         session: "E7"
         docs: /cards/astrometrics/starters
         public: true
       - file: astro-objects
-        topic: astrometrics
         summary: "Every astrometrics object type"
         description: "One card per object type: grid, volume, sphere (plain and textured) and path."
         session: "E2b"
         docs: /cards/astrometrics/objects
         public: true
       - file: astro-points-data
-        topic: astrometrics
         summary: "Points, labels, live data, globe and sky"
         description: "Placement forms, label styles, point actions, a point following an entity, templates, a globe with your home on it (zone.home) and the sky from your location (sun.sun). The buttons above a scene fly its camera to each of its named views. LIGHTS and TOGGLE switch the helpers the points beside them follow."
         session: "E3a"
         docs: /cards/astrometrics/points
         public: true
       - file: astro-camera
-        topic: astrometrics
         summary: "Camera controls and fly-to from other cards"
         description: "Drag to orbit, shift-drag, middle-drag, two fingers or a touchpad swipe to pan, wheel or pinch to zoom to the pointer, double-tap blank space to fly in (shift: out), the on-card buttons, and fly-to from other cards (the buttons below name the card by its id). The second card is a map: a one-finger drag pans."
         session: "E3b"
         docs: /cards/astrometrics/#controls
         public: true
       - file: astro-effects
-        topic: astrometrics
         summary: "Nebula, scans, flows, fills, warp and dust in 3D"
         description: "Background effects in 3D space: nebula, scan bands, moving dashes and pulses, animated surface fills, warp and dust. The buttons above a scene fly its camera to each of its named views."
         session: "E6"
         docs: /cards/astrometrics/effects
         public: true
       - file: astro-cards-models
-        topic: astrometrics
         summary: "Cards and 3D models in the scene"
         description: "The built-in starship as a hologram with points on its parts, LCARdS cards pinned to points (always shown, or opened with a tap on BRIDGE), labels hiding behind the hull, the ship with its own materials, and a see-through orange hologram. The buttons above a scene fly its camera to each of its named views. TOGGLE, LIGHTS and POWER drive the cards pinned on the ship."
         session: "E4"
         docs: /cards/astrometrics/objects#model
         public: true
       - file: astro-deformed-grids
-        topic: astrometrics
         summary: "Deformed grids, wells and a wormhole"
         description: "A jelly cylinder, a tornado (a twisted well whose bend circles), a wormhole with a ripple, a whirlpool disc, and a sector map on rolling noise with its cells and points riding the surface. The buttons above a scene fly its camera to each of its named views."
         session: "E5"
         docs: /cards/astrometrics/objects#deformed-grids
         public: true
       - file: webgl-scenes
-        topic: webgl
         summary: "WebGL background scenes, alone and stacked"
         description: "three.js background scenes: the WebGL noise presets, grid floor and warp starfield, alone and stacked. The sliders are bound with the card's entity and map_range: FLOOR TILT tilts card 5, WARP SPEED drives cards 1 and 2; RED ALERT warps card 3."
         session: "C2"
         docs: /core/effects/background-animations#webgl-presets
         public: true
       - file: webgl-fields
-        topic: webgl
         summary: "Noise presets on the GPU"
         description: "contour-field, plasma, fluid and the other noise presets on the GPU, with the renderer key. FILL LEVEL raises the waterline and noise scale of cards 6A and 6B; DRIFT moves the plasma and fluid (3 and 4), WebGL and Canvas together."
         session: "C3"
         docs: /core/effects/background-animations/preset-reference#contour-field
         public: true
       - file: holo-sphere
-        topic: webgl
         summary: "The holographic planet"
         description: "The holographic planet: lines, scan band, rotation and tilt. TURN + SIZE drives card 3, TILT leans the spheres in 1A and 1B; tap card 4 to tilt it."
         session: "C3"
         docs: /core/effects/background-animations/preset-reference#holo-sphere
         public: true
       - file: nebula-volumetric
-        topic: webgl
         summary: "The nebula, flat and volumetric"
         description: "The nebula preset on WebGL, flat and volumetric. TURBULENCE stirs 1A and 1B (volumetric and plain side by side), DRIFT moves card 2."
         session: "C3"
         docs: /core/effects/background-animations/preset-reference#nebula
         public: true
       - file: warp-spectrum
-        topic: webgl
         summary: "Doppler-shifted warp streaks"
         description: "spectrum: true splits each streak into colour, a Doppler shift of the star's own colour (violet toward the tail). White stars show the whole rainbow, coloured stars a part of it; reverse puts violet at the head. The last card warps on red alert and drops to dots when it clears: the colour fades in as the dots stretch. STREAK stretches cards 1 to 4 together, BANK turns the camera of card 6."
         session: "warp-starfield spectrum"
         docs: /core/effects/background-animations/preset-reference#warp-starfield
         public: true
       - file: grid-views
-        topic: grids
         summary: "Grid floors, camera and line widths"
         description: "grid, grid-diagonal and grid-hexagonal on WebGL: flat and floor views, camera, line widths, scan line. LINE WIDTH drives the floors 3, 4 and 7; CAMERA tilts floor 8 and banks the warp in card 10."
         session: "C3"
         docs: /core/effects/background-animations/preset-reference#grid-views-and-camera
         public: true
       - file: grid-surfaces
-        topic: grids
         summary: "Grids on cylinders, domes and spheres"
         description: "Grids wrapped round a cylinder, dome or sphere, with rims. TURN spins the cylinders and the sphere (1, 3, 4, 5) about their axis, CAMERA TILT the dome and the unbounded cylinder."
         session: "C4"
         docs: /core/effects/background-animations/preset-reference#grid-surfaces
         public: true
       - file: grid-surfaces-inside
-        topic: grids
         summary: "Grid surfaces seen from inside"
         description: "The camera inside a cylinder, dome or sphere. SPEED flies through the tunnel, LOOK UP tilts the camera inside the dome and the sphere."
         session: "C4"
         docs: /core/effects/background-animations/preset-reference#grid-surfaces
         public: true
       - file: grid-polar
-        topic: grids
         summary: "Polar grids"
         description: "pattern: polar, flat, as a floor and on surfaces. SPOKES sets the spoke count of 1, 5 and 6; CAMERA TILT the floors 2 and 8."
         session: "C5"
         docs: /core/effects/background-animations/preset-reference#polar-pattern
         public: true
       - file: grid-wells
-        topic: grids
         summary: "Grid wells, morph and ripple"
         description: "surface: well: funnels of any profile, morph and ripple. THROAT opens and closes the wells 1, 4 and 9; CAMERA TILT turns 6 and 10."
         session: "C5"
         docs: /core/effects/background-animations/preset-reference#grid-wells
         public: true
       - file: grid-motion
-        topic: grids
         summary: "Camera roll and surface rotation"
         description: "camera_roll and the surface_rotate_* keys: surfaces facing any way, animated. RIPPLE and RIPPLE SPEED drive the waves of cards 4 and 6; the rest animate on their own."
         session: "C5"
         docs: /core/effects/background-animations/preset-reference#grid-surfaces
         public: true
       - file: zoom-webgl
-        topic: webgl
         summary: "The zoom wrapper over WebGL"
         description: "The zoom wrapper over the WebGL presets."
         session: "C5"
         docs: /core/effects/background-animations#zoom-wrapper
         public: true
       - file: alert-recolour
-        topic: alerts
         summary: "Backgrounds through alert modes"
         description: "Every background should keep moving without a jump when the alert mode changes (press the alert buttons)."
         session: "F1"
         docs: /core/effects/background-animations
         public: false
       - file: anim-presets
-        topic: alerts
         summary: "New animation presets"
         description: "boot-sequence (tap a card to boot it again), text-decode (tap to decode, or drag the slider beside it), tap-ripple (tap a cell), sensor-sweep and morph on MSD overlays."
         session: "A4, B1"
         docs: /core/animations/preset-reference
         public: true
       - file: ring-gauge
-        topic: cards
         summary: "The slider's ring gauge"
         description: "The slider's ring component: full and partial rings, value markers and centre text. The rings follow the test value; drag one, or the slider below, to change it. The set point ring is a thermostat on the test temperature, its NOW marker follows the test value."
         session: "slider component: ring"
         docs: /cards/slider-card/#ring-gauge
         public: true
       - file: alert-band
-        topic: alerts
         summary: "The alert band"
         description: "display: band: a row of dashes across the screen with the alert symbol in the middle; the dashboard stays usable. Yellow alert shows the band (the symbol's bars sweep in, the dashes carry it out); red alert keeps the full-screen overlay. Click the symbol to dismiss."
         session: "alert overlay display: band"
         docs: /cards/alert-overlay/#alert-band
         public: true
       - file: alert-overlay-edit
-        topic: alerts
         summary: "The alert overlay in edit mode"
         description: "Two alert overlays: in edit mode the first says Active, the second Duplicate. Open the first in the card editor: its preview is a plain info box, not a duplicate, and the editor is a launcher: Open Alert Studio holds every setting, with a mock screen of each condition (pick Red to Gray in its toolbar) that never changes the alert mode. Overlay size and band settings show only for conditions that use them, the info guides have diagrams, and each condition picks Alert symbol, Customise the symbol (the button's own editor, saving only the changes) or Your own card. RED ALERT shows the message set for every condition (alert_button on the card); YELLOW ALERT its own message in white. Raise an alert while editing (another tab, or the lcards.red_alert action): nothing shows until you leave edit mode, then the alert shows and resets to green 15 seconds later."
         session: "Backlog clean-up"
         docs: /cards/alert-overlay/#limitations
         public: false
       - file: borg
-        topic: alerts
         summary: "Borg assimilation: the detailed cube and Borg sounds"
         description: "Assimilate plays the WebGL intro with the detailed Borg cube (it dismisses itself after 30 seconds, or click it). Classic cube shows the wireframe cube. With sound file plays /local/sounds/borg.mp3 (put a file in the www/sounds folder of your Home Assistant configuration first). Assign your own sound to the Borg assimilation and Borg deassimilation events in the sound overrides to hear them on every assimilation."
         session: "F2"
@@ -498,49 +468,41 @@ releases:
   - version: Benchmarks
     views:
       - file: bench-12
-        topic: benchmarks
         summary: "12 WebGL backgrounds"
         description: "Frame cost with 12 WebGL backgrounds on one view."
         session: "C2"
         public: false
       - file: bench-20
-        topic: benchmarks
         summary: "20 WebGL backgrounds"
         description: "Frame cost with 20 WebGL backgrounds on one view."
         session: "C2"
         public: false
       - file: bench-stars-500-instances
-        topic: benchmarks
         summary: "500 stars, instanced"
         description: "warp-starfield drawn with instanced quads, 500 stars."
         session: "C2"
         public: false
       - file: bench-stars-500-shader
-        topic: benchmarks
         summary: "500 stars, one shader"
         description: "warp-starfield drawn in one shader, 500 stars."
         session: "C2"
         public: false
       - file: bench-stars-2000-instances
-        topic: benchmarks
         summary: "2000 stars, instanced"
         description: "warp-starfield drawn with instanced quads, 2000 stars."
         session: "C2"
         public: false
       - file: bench-stars-2000-shader
-        topic: benchmarks
         summary: "2000 stars, one shader"
         description: "warp-starfield drawn in one shader, 2000 stars."
         session: "C2"
         public: false
       - file: bench-stars-5000-instances
-        topic: benchmarks
         summary: "5000 stars, instanced"
         description: "warp-starfield drawn with instanced quads, 5000 stars."
         session: "C2"
         public: false
       - file: bench-stars-5000-shader
-        topic: benchmarks
         summary: "5000 stars, one shader"
         description: "warp-starfield drawn in one shader, 5000 stars."
         session: "C2"

@@ -15,22 +15,22 @@ sections:
         entity: input_boolean.lcards_test_toggle
         text: { name: { content: TOGGLE, show: true } }
         tap_action: { action: toggle }
-        grid_options: { columns: 6, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: MODE ALPHA, show: true } }
         tap_action: { action: perform-action, perform_action: input_select.select_option, target: { entity_id: input_select.lcards_test_mode }, data: { option: alpha } }
-        grid_options: { columns: 6, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: MODE BETA, show: true } }
         tap_action: { action: perform-action, perform_action: input_select.select_option, target: { entity_id: input_select.lcards_test_mode }, data: { option: beta } }
-        grid_options: { columns: 6, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: MODE GAMMA, show: true } }
         tap_action: { action: perform-action, perform_action: input_select.select_option, target: { entity_id: input_select.lcards_test_mode }, data: { option: gamma } }
-        grid_options: { columns: 6, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_power
         preset: shaped-horizontal

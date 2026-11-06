@@ -11,17 +11,17 @@ sections:
         preset: lozenge
         text: { name: { content: RED ALERT, show: true } }
         tap_action: { action: perform-action, perform_action: lcards.red_alert }
-        grid_options: { columns: 4, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: YELLOW ALERT, show: true } }
         tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
-        grid_options: { columns: 4, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: CLEAR, show: true } }
         tap_action: { action: perform-action, perform_action: lcards.clear_alert }
-        grid_options: { columns: 4, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
   - type: grid
     column_span: 4
     cards:

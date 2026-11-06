@@ -14,37 +14,37 @@ sections:
         text:
           name: {content: ALL, show: true}
         tap_action: {action: fly-to, card: astro_nebula_shapes, view: all}
-        grid_options: {columns: 4, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: SHELL, show: true}
         tap_action: {action: fly-to, card: astro_nebula_shapes, view: shell}
-        grid_options: {columns: 4, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: BIPOLAR, show: true}
         tap_action: {action: fly-to, card: astro_nebula_shapes, view: bipolar}
-        grid_options: {columns: 4, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: FILAMENTS, show: true}
         tap_action: {action: fly-to, card: astro_nebula_shapes, view: filaments}
-        grid_options: {columns: 4, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: CAVITY, show: true}
         tap_action: {action: fly-to, card: astro_nebula_shapes, view: cavity}
-        grid_options: {columns: 4, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: DUST, show: true}
         tap_action: {action: fly-to, card: astro_nebula_shapes, view: dust}
-        grid_options: {columns: 4, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-slider
         entity: input_number.lcards_test_power
         preset: shaped-horizontal

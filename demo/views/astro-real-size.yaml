@@ -14,22 +14,22 @@ sections:
         preset: lozenge
         text: { name: { content: ALL, show: true } }
         tap_action: { action: fly-to, card: astro_real_size_1, view: all }
-        grid_options: { columns: 6, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: DEEP SPACE 9, show: true } }
         tap_action: { action: fly-to, card: astro_real_size_1, view: ds9 }
-        grid_options: { columns: 6, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: SPACEDOCK, show: true } }
         tap_action: { action: fly-to, card: astro_real_size_1, view: spacedock }
-        grid_options: { columns: 6, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
         text: { name: { content: DRYDOCK, show: true } }
         tap_action: { action: fly-to, card: astro_real_size_1, view: drydock }
-        grid_options: { columns: 6, rows: 1 }
+        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
         id: astro_real_size_1
         height: 650

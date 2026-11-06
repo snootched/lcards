@@ -14,7 +14,8 @@ export const DEMO_STATES = {
     'input_number.lcards_test_shields': number('LCARdS Test Shields', 64, 0, 100, '%'),
     'input_number.lcards_test_temperature': number('LCARdS Test Temperature', 21.5, 10, 35, '°C'),
     'input_number.lcards_test_humidity': number('LCARdS Test Humidity', 46, 0, 100, '%'),
-    'input_number.lcards_test_stage': number('LCARdS Test Stage', 20, 0, 20),
+    // 0 as in a fresh install: the showcase's tour starts at its first stop (the galaxy)
+    'input_number.lcards_test_stage': number('LCARdS Test Stage', 0, 0, 20),
     'input_boolean.lcards_test_toggle': toggle('LCARdS Test Toggle', false),
     'input_boolean.lcards_test_visible': toggle('LCARdS Test Visible', true),
     'input_boolean.lcards_test_lights': toggle('LCARdS Test Lights', true),

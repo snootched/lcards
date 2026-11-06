@@ -14,31 +14,31 @@ sections:
         text:
           name: {content: FAR, show: true}
         tap_action: {action: fly-to, card: astro_nexus, view: afar}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: SIDE, show: true}
         tap_action: {action: fly-to, card: astro_nexus, view: side}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: CLOSE, show: true}
         tap_action: {action: fly-to, card: astro_nexus, view: close}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: BELOW, show: true}
         tap_action: {action: fly-to, card: astro_nexus, view: under}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-button
         preset: lozenge
         text:
           name: {content: TRAVEL, show: true}
         tap_action: {action: fly-to, card: astro_nexus, view: travel}
-        grid_options: {columns: 3, rows: 1}
+        grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-slider
         entity: input_number.lcards_test_power
         preset: shaped-horizontal
