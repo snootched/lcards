@@ -1,14 +1,25 @@
 # The demo boards (npm run demo:push): the views in demo/views/, grouped by release,
 # newest first. Every view file is listed exactly once (tests/docs/demo-dashboard.test.js).
-# Per view: summary (index line), description (header text), session (dev board only),
+# Per view: title (optional: the view file's own title otherwise), summary (index line), description (header text), session (dev board only),
 # docs (a docs page path, optional), public (also on the public board and the docs site's
 # live demo; false for checks, benchmarks and comparisons) and heavy (the docs Live Demo
-# mounts it only on a click: many WebGL scenes at once).
+# mounts it only on a click: many WebGL scenes at once) and max_width (px: the docs Live Demo shows the view no wider, e.g. a phone layout).
 # The header and the index are generated from this file (scripts/lib/demo-dashboard.js).
 title: LCARdS Demo
 # The topic tree: the index's and the docs Live Demo's blocks, in this order. Each
 # topic lists its views directly or in named groups; every view is in exactly one.
 topics:
+  - id: dashboards
+    title: Dashboards
+    groups:
+      - title: Everyday
+        views: [gallery/bridge, gallery/engineering, gallery/environmental, gallery/security, gallery/alert]
+      - title: Picard era
+        views: [gallery/titan-operations, gallery/sciences]
+      - title: Design guide, Picard
+        views: [gallery/picard-console, gallery/picard-display, gallery/picard-split, gallery/picard-portrait]
+      - title: Design guide, classic
+        views: [gallery/tng-console, gallery/ds9-bracket, gallery/voyager-roster]
   - id: astrometrics
     title: Astrometrics
     groups:
@@ -501,6 +512,105 @@ releases:
         description: "ASSIMILATE plays the WebGL intro with the detailed Borg cube (it dismisses itself after 30 seconds, or click it). CLASSIC CUBE shows the wireframe cube. WITH SOUND FILE plays /local/sounds/borg.mp3, so it needs that file in your own Home Assistant (the www/sounds folder of its configuration). DEASSIMILATE ends it. Assign your own sound to the Borg assimilation and Borg deassimilation events in the sound overrides to hear them on every assimilation."
         session: "F2"
         docs: /core/borg
+        public: true
+      - file: gallery/bridge
+        title: "Bridge"
+        summary: "Bridge: an LCARS frame round a status grid, sliders, a toggle and a chart"
+        description: "An LCARS frame (header and footer elbows, a sidebar of buttons) round a status grid, power and shields sliders, a lights toggle and a temperature history chart."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#bridge
+        public: true
+      - file: gallery/engineering
+        title: "Engineering"
+        summary: "Engineering: the NCC-1701-A blueprint in a Picard frame, shields and routed controls"
+        description: "A Master Systems Display of the built-in NCC-1701-A blueprint in a Picard-era frame. The shield arcs round the ship change colour with SHIELDS, and three controls are joined to the bridge, warp core and shuttle bay by routed lines. Square sidebar buttons, a tick band, a systems table, two Picard sliders and a data cascade."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#engineering
+        public: true
+      - file: gallery/environmental
+        title: "Environmental"
+        summary: "Environmental: a shaped temperature slider, a humidity gauge, a grid and a chart"
+        description: "A shaped temperature slider, a humidity gauge, a status grid and a temperature history chart."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#environmental
+        public: true
+      - file: gallery/security
+        title: "Security"
+        summary: "Security: toggles, a mode select, a D-pad and a wall of sector tiles"
+        description: "Door and light toggles whose labels follow their state, a select menu for the security mode, a D-pad stepping a value (a stand-in for a camera pan), a status grid and a wall of sector tiles, one framed feed per sector with its live status."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#security
+        public: true
+      - file: gallery/alert
+        title: "Alert mode"
+        summary: "Alert mode: alert buttons beside a systems screen, with the alert overlay"
+        description: "Buttons that raise and clear an alert mode through the lcards.* actions, beside an everyday systems screen. Press RED ALERT or YELLOW ALERT: the alert overlay covers the view with the symbol for that alert; CLEAR ends it."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#alert-mode
+        public: true
+      - file: gallery/titan-operations
+        title: "Operations"
+        summary: "Operations (Picard era): segmented double elbows, lit buttons, a hex cascade"
+        description: "Picard-era screens use thinner, double-ringed frames, square-ended buttons and cooler blues and greys. Segmented double elbows, filled buttons that light up with their state, a select menu in the outline style, a cascade of changing hex values, a status table and two Picard sliders."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#operations
+        public: true
+      - file: gallery/sciences
+        title: "Sciences"
+        summary: "Sciences (Picard era): framed history with a smoothed trend, radial gauges"
+        description: "Segmented frames round a history chart with a smoothed data source trend and a set of radial gauges, a sensor table and hourly averages."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#sciences
+        public: true
+      - file: gallery/picard-console
+        title: "Picard console"
+        summary: "Picard console: utility pills in a bracket, a concentric sweep, a nested ship frame"
+        description: "A Titan.DS-style console built from the design guide: small utility pills housed in a bracket frame with red alert at the bottom, a concentric header sweep whose leg matches the code-block column, vertical gauges, a nested frame round a dimmed ship schematic and a column of numbers. Every colour is a theme role, so on this page it shows the default colours."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#picard-display-with-side-columns
+        public: true
+      - file: gallery/picard-display
+        title: "Picard display over controls"
+        summary: "Picard display over controls: a framed schematic over gauges, tiles and readouts"
+        description: "A concentric header sweep continued by a segmented bar of codes, a wide nested frame round a grey shuttle schematic, and a control deck under it: a gauge bank, a tile wall, readout rows and a selector."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#picard-display-over-controls
+        public: true
+      - file: gallery/picard-split
+        title: "Picard split screen"
+        summary: "Picard split screen: segmented elbows facing across a cut"
+        description: "A split header in the Picard style: two segmented elbows face each other across a cut through the screen, each band running on as thin segments, with utility pills in the upper curve, flagged blocks in the lower, readout gauges, a number cascade, a radar scope, a dimmed ship and toggle tabs."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#picard-split-screen
+        public: true
+      - file: gallery/picard-portrait
+        max_width: 600
+        title: "Picard portrait panel"
+        summary: "Picard portrait panel: for a phone or an upright tablet"
+        description: "For a phone or an upright tablet: a header bar with the title, code blocks beside a condition readout, a tile wall, a gauge bank, toggle tabs and a segmented closing bar."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#picard-portrait-panel
+        public: true
+      - file: gallery/tng-console
+        title: "Classic sweep console"
+        summary: "Classic sweep console: thick sweeps, coloured blocks, a pill grid led by big numbers"
+        description: "The classic look: thick header and footer sweeps continued as labelled segments, a sidebar of coloured blocks with code numbers, a pill grid led by big numbers, a slider over a strip of small pills, and a number cascade. In Home Assistant the view uses the LCARS Default theme; here it shows the default colours."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#classic-sweep-console
+        public: true
+      - file: gallery/ds9-bracket
+        title: "Classic bracket screen"
+        summary: "Classic bracket screen (DS9): segmented bars, a shuttlecraft cutaway, a readout list"
+        description: "DS9-style: top and bottom bars broken into labelled segments, a sidebar of coloured blocks with code numbers, a shuttlecraft cutaway in colour, a readout list and a row of pills. In Home Assistant the view uses the LCARS Zeldaar theme."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#classic-bracket-screen
+        public: true
+      - file: gallery/voyager-roster
+        title: "Classic list"
+        summary: "Classic list (Voyager): a split header, a duty roster, big numbers"
+        description: "Voyager-style: a split header whose two bars continue as segments, a number cascade, a duty roster list, a column of big numbers and pill groups. In Home Assistant the view uses the LCARS Nemesis Blue theme."
+        session: "S17 gallery"
+        docs: /getting-started/dashboard-gallery#classic-list
         public: true
   - version: Benchmarks
     views:

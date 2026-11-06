@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateTexts } from '../../scripts/lcards-validate.mjs';
-import { loadDemo, demoViews, viewTexts, buildDashboard, headerNote, topicGroups, BOARDS, packGrid, cardSpan, frameGroups, GRID_STEPS } from '../../scripts/lib/demo-dashboard.js';
+import { loadDemo, demoViews, viewTexts, buildDashboard, headerNote, topicGroups, BOARDS, GALLERY_PREFIX, packGrid, cardSpan, frameGroups, GRID_STEPS } from '../../scripts/lib/demo-dashboard.js';
 import { disallowedEntities } from '../helpers/allowed-entities.js';
 import yaml from 'js-yaml';
 
@@ -33,7 +33,9 @@ test('order.yaml and demo/views/ agree', () => {
 });
 
 test('view paths are unique and match their file names', () => {
-    for (const v of views) assert.equal(v.path, v.file, `${v.file}.yaml: path ${v.path}`);
+    // a gallery dashboard (file: gallery/<name>) is shown as dashboard-<name>
+    for (const v of views) assert.equal(v.path, v.file.startsWith(GALLERY_PREFIX) ? `dashboard-${v.file.slice(GALLERY_PREFIX.length)}` : v.file, `${v.file}.yaml: path ${v.path}`);
+    assert.equal(new Set(views.map(v => v.path)).size, views.length, 'paths unique');
     assert.ok(!views.some(v => v.path === 'index'), 'index is the generated view');
 });
 
@@ -236,7 +238,9 @@ test('every scene has a frame of its own (cards never run together)', () => {
 
 test('headers: the title and plain segments are not buttons; Index and Docs are; the sweeps are rounded', () => {
     const board = buildDashboard(demo, { board: 'dev' });
-    for (const view of board.views) {
+    // a gallery dashboard is a whole screen with its own LCARS frame: no generated header
+    const gallery = new Set(views.filter(v => v.file.startsWith(GALLERY_PREFIX)).map(v => v.path));
+    for (const view of board.views.filter(v => !gallery.has(v.path))) {
         // header bars at any depth (a view's sits inside the frame round its description)
         const headers = [];
         (function find(cards) {

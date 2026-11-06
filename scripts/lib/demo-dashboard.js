@@ -16,13 +16,16 @@ import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
 
 export const DEMO_DIR = fileURLToPath(new URL('../../demo', import.meta.url));
+/** The dashboard gallery (doc/gallery/dashboards/): `file: gallery/<name>` in order.yaml shows one as a demo view */
+export const GALLERY_DIR = fileURLToPath(new URL('../../doc/gallery/dashboards', import.meta.url));
+export const GALLERY_PREFIX = 'gallery/';
 export const BOARDS = {
     dev: { urlPath: 'lcards-demo', title: 'LCARdS Demo (dev)' },
     public: { urlPath: 'lcards-demo-public', title: 'LCARdS Demo' },
 };
 /** The docs channel the Home Assistant boards link to (their features are documented there first). */
 export const DOCS_SITE = 'https://lcards.unimatrix01.ca/dev';
-const ENTRY_KEYS = new Set(['file', 'summary', 'description', 'session', 'docs', 'public', 'heavy']);
+const ENTRY_KEYS = new Set(['file', 'title', 'summary', 'description', 'session', 'docs', 'public', 'heavy', 'max_width']);
 /** Card labels default to black, unreadable over the dark backgrounds. */
 const LABEL = 'var(--lcards-blue)';
 
@@ -31,7 +34,7 @@ const LABEL = 'var(--lcards-blue)';
  * Each view takes its topic, group and place (`rank`) from the `topics` tree.
  * @returns {{ title: string, topics: DemoTopic[], releases: Array<{ version: string, views: DemoView[] }>, unlisted: string[], missing: string[], ungrouped: string[], regrouped: string[] }}
  * @typedef {{ id: string, title: string, groups: Array<{ title: string, views: string[] }> }} DemoTopic
- * @typedef {{ file: string, topic: string, group: string, rank: number, summary: string, description: string, session: string, docs: string|null, public: boolean, heavy: boolean, path: string, title: string, text: string, config: any }} DemoView
+ * @typedef {{ file: string, topic: string, group: string, rank: number, maxWidth: number | null, summary: string, description: string, session: string, docs: string|null, public: boolean, heavy: boolean, path: string, title: string, text: string, config: any }} DemoView
  */
 export function loadDemo(dir = DEMO_DIR) {
     const order = yaml.load(readFileSync(join(dir, 'order.yaml'), 'utf8'));
@@ -62,17 +65,20 @@ export function loadDemo(dir = DEMO_DIR) {
             listed.add(file);
             const extra = Object.keys(entry).filter(k => !ENTRY_KEYS.has(k));
             if (extra.length) throw new Error(`demo/order.yaml ${file}: unknown keys ${extra.join(', ')}`);
-            if (!files.has(file)) {
+            // a gallery dashboard (one view, wrapped in views:): its file as the YAML, its view as the config
+            const gallery = file.startsWith(GALLERY_PREFIX) ? join(GALLERY_DIR, `${file.slice(GALLERY_PREFIX.length)}.yaml`) : null;
+            if (gallery ? !existsSync(gallery) : !files.has(file)) {
                 missing.push(file);
                 return [];
             }
-            const text = readFileSync(join(dir, 'views', `${file}.yaml`), 'utf8');
-            const config = yaml.load(text);
+            const text = readFileSync(gallery ?? join(dir, 'views', `${file}.yaml`), 'utf8');
+            const loaded = /** @type {any} */ (yaml.load(text));
+            const config = gallery ? { ...loaded.views[0], path: `dashboard-${file.slice(GALLERY_PREFIX.length)}` } : loaded;
             return [{
                 file, topic: place.get(file)?.topic ?? '', group: place.get(file)?.group ?? '', rank: place.get(file)?.rank ?? Infinity,
-                heavy: entry.heavy === true, summary: entry.summary ?? '', description: entry.description ?? '', session: entry.session ?? '',
+                heavy: entry.heavy === true, maxWidth: entry.max_width ?? null, summary: entry.summary ?? '', description: entry.description ?? '', session: entry.session ?? '',
                 docs: entry.docs ?? null, public: entry.public === true,
-                path: config.path ?? file, title: config.title ?? file, text, config: { path: file, ...config },
+                path: config.path ?? file, title: entry.title ?? config.title ?? file, text, config: { path: file, ...config },
             }];
         }),
     }));
@@ -87,7 +93,10 @@ export const demoViews = (demo) => demo.releases.flatMap(r => r.views);
 
 /** Every view file as { name, text }, for the config checker (validateTexts in scripts/lcards-validate.mjs). */
 export function viewTexts(demo, dir = DEMO_DIR) {
-    return demoViews(demo).map(v => ({ name: join(dir, 'views', `${v.file}.yaml`), text: v.text }));
+    return demoViews(demo).map(v => ({
+        name: v.file.startsWith(GALLERY_PREFIX) ? join(GALLERY_DIR, `${v.file.slice(GALLERY_PREFIX.length)}.yaml`) : join(dir, 'views', `${v.file}.yaml`),
+        text: v.text,
+    }));
 }
 
 /** Segment colours along a header bar, in turn (theme roles, so alert modes and themes recolour them). */

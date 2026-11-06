@@ -77,18 +77,22 @@ test('a topic closes and opens again on a click', async ({ page }) => {
     await expect(first).toHaveAttribute('aria-expanded', 'true');
 });
 
-test('the page opens on the first view; a heavy view mounts nothing until Load', async ({ page }) => {
+test('the page opens on the first view and mounts it; a heavy view mounts nothing until Load', async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto(URL_PATH);
     const first = VIEWS[0];
     await expect(page.locator('.demo-board-title')).toHaveText(first.title);
-    expect(first.heavy, 'the first view (the showcase) is heavy').toBe(true);
+    expect(first.heavy, 'the page opens on a light view').toBe(false);
+    await viewMounted(page, first.path);
+    const heavy = VIEWS.find(v => v.heavy);
+    // pick it without pressing Load
+    await pickView(page, { ...heavy, heavy: false });
     await expect(page.locator('.demo-board-poster')).toBeVisible();
     await page.waitForTimeout(1000);
     await expect(page.locator('.demo-board-cell')).toHaveCount(0);
     await page.locator('.demo-board-load').click();
     await expect(page.locator('.demo-board-poster')).toHaveCount(0);
-    await viewMounted(page, first.path);
+    await viewMounted(page, heavy.path);
     expect(errors).toEqual([]);
 });
 
@@ -208,14 +212,27 @@ for (const view of SAMPLES) {
 }
 
 test('switching views replaces the cards', async ({ page }) => {
-    const second = VIEWS.filter(v => !v.heavy)[1];
+    const second = VIEWS.filter(v => !v.heavy && v.config.sections)[1];
     await openView(page, second);
     // the generated header section plus the view's own sections, nothing left of the first view
     await expect(page.locator('.demo-board-section')).toHaveCount((second.config.sections?.length ?? 0) + 1);
 });
 
+test('a gallery dashboard mounts every card in its layout, at the dashboard\'s own height', async ({ page }) => {
+    const errors = watchErrors(page);
+    const bridge = VIEWS.find(v => v.file === 'gallery/bridge');
+    expect(bridge, 'the bridge dashboard is in the demo').toBeTruthy();
+    await openView(page, bridge);
+    await expect(page.locator('.demo-board-layout > .demo-board-cell')).toHaveCount(bridge.config.cards.length);
+    // calc(100dvh - header): about the window's height, not a fixed 900 px
+    const height = await page.locator('.demo-board-layout').evaluate(el => el.getBoundingClientRect().height);
+    const window = await page.evaluate(() => innerHeight);
+    expect(Math.abs(height - (window - 56))).toBeLessThan(4);
+    expect(errors).toEqual([]);
+});
+
 test('the alert buttons switch the alert mode', async ({ page }) => {
-    const withAlerts = VIEWS.find(v => v.text.includes('perform_action: lcards.red_alert'));
+    const withAlerts = VIEWS.find(v => v.config.sections && v.text.includes('perform_action: lcards.red_alert'));
     expect(withAlerts, 'a view with alert buttons').toBeTruthy();
     await openView(page, withAlerts);
     // the alert buttons are the first cards after the generated header, in its frame's content grid

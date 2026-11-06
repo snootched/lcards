@@ -67,6 +67,7 @@ export default {
         topic: v.topic,
         group: v.group,
         heavy: v.heavy,
+        maxWidth: v.maxWidth,
         release: v.release,
         isNew: v.release === release,
         yaml: v.text,

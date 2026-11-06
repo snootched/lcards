@@ -176,7 +176,9 @@ async function show(path) {
         // and padding; the showcase gives a min-height
         height: l.height ?? l['min-height'] ?? '900px',
         padding: l.padding ?? '0',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        // a phone layout (order.yaml max_width) at its own width, centred
+        ...(view.maxWidth ? { width: '100%', maxWidth: `${view.maxWidth}px`, margin: '0 auto' } : {})
       })
       stage.value.appendChild(grid)
       for (const config of view.config.cards ?? []) {
