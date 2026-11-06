@@ -301,11 +301,7 @@ const EDITOR_TABS = {
     Options: '/cards/select-menu/#options',
     Actions: '/cards/select-menu/#actions',
   },
-  'alert-overlay': {
-    Config: '/cards/alert-overlay/#card-options',
-    Backdrop: '/cards/alert-overlay/#layers',
-    Conditions: '/cards/alert-overlay/#conditions',
-  },
+  'alert-overlay': { Configuration: '/cards/alert-overlay/#alert-studio' },
   chart: { Configuration: '/cards/chart/' },
   'data-grid': { Configuration: '/cards/data-grid/' },
   msd: { Configuration: '/cards/msd/' },

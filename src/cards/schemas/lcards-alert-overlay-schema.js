@@ -86,6 +86,39 @@ const bandSchema = {
     additionalProperties: false,
 };
 
+/**
+ * A patch on the built-in alert symbol (the alert component of lcards-button):
+ * deep-merged over it, card level first, then the condition's. Every lcards-button
+ * key applies except type, component and preset.
+ */
+const alertButtonSchema = {
+    type: 'object',
+    description:
+        'Changes to the built-in alert symbol (an lcards-button with the alert component), merged over it: ' +
+        'any lcards-button key (text fields, style, animations, sounds, ...) except type, component and preset, ' +
+        'which stay fixed so each condition keeps its own colours. Only set what you want to change.',
+    properties: {
+        text: {
+            type: 'object',
+            description: 'Text field changes, as lcards-button text: e.g. text.sub_text.content, text.alert_text.color, text.sub_text.font_size',
+            additionalProperties: true,
+        },
+        alert: {
+            type: 'object',
+            description: 'Alert component settings: e.g. alert.color.shape, alert.color.bars',
+            additionalProperties: true,
+        },
+        speed: {
+            type: 'number',
+            minimum: 0.25,
+            maximum: 4,
+            description: 'Speed multiplier for the alert symbol bar sweep (2 = twice as fast). In band mode it follows band.speed unless set',
+            examples: [0.5, 2],
+        },
+    },
+    additionalProperties: true,
+};
+
 export const alertOverlaySchema = {
     $schema: 'http://json-schema.org/draft-07/schema#',
     $id: 'https://github.com/snootched/lcards/schemas/alert-overlay-schema',
@@ -198,6 +231,7 @@ export const alertOverlaySchema = {
             description: 'Content card height (CSS value). Percentages are of the screen. Default: 50% for the built-in alert symbol when no width is set either; otherwise the content sizes itself (auto).',
             examples: ['50%', '300px', 'auto'],
         },
+        alert_button: { ...alertButtonSchema, description: 'Changes to the built-in alert symbol for every condition (conditions.<key>.alert_button merges over it). Any lcards-button key except type, component and preset, which stay fixed so each condition keeps its own colours.' },
         conditions: {
             type: 'object',
             description: 'Per-condition overrides. Keys match alert mode values (red_alert, yellow_alert, etc.)',
@@ -213,34 +247,7 @@ export const alertOverlaySchema = {
                         required: ['type'],
                         additionalProperties: true,
                     },
-                    alert_button: {
-                        type: 'object',
-                        description:
-                            'Patch merged on top of the default lcards-button alert card for this condition. ' +
-                            'Only specify fields to override: type, component, and preset are inherited from the built-in default. ' +
-                            'Supports all lcards-button text and alert config keys. ' +
-                            'Ignored when `content` is also specified (content takes full precedence).',
-                        properties: {
-                            text: {
-                                type: 'object',
-                                description: 'Text field overrides: e.g. text.sub_text.content or text.alert_text.content',
-                                additionalProperties: true,
-                            },
-                            alert: {
-                                type: 'object',
-                                description: 'Alert component config overrides: e.g. alert.color.shape, alert.color.bars',
-                                additionalProperties: true,
-                            },
-                            speed: {
-                                type: 'number',
-                                minimum: 0.25,
-                                maximum: 4,
-                                description: 'Speed multiplier for the alert symbol bar sweep (2 = twice as fast). In band mode it follows band.speed unless set',
-                                examples: [0.5, 2],
-                            },
-                        },
-                        additionalProperties: true,
-                    },
+                    alert_button: { ...alertButtonSchema, description: 'Changes to the alert symbol for this condition, over the card alert_button. Ignored when content is set (content replaces the symbol).' },
                     backdrop: {
                         type: 'object',
                         description: '[DEPRECATED] Migrated at runtime to layers. Still accepted for backward compatibility.',

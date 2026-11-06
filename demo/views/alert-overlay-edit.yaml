@@ -29,6 +29,16 @@ sections:
         dismiss_mode: auto-reset
         auto_dismiss_seconds: 15
         width: 40%
+        # every condition: one message (each keeps its own colours)
+        alert_button:
+          text:
+            sub_text: { content: ALL HANDS TO BATTLE STATIONS }
+        conditions:
+          # yellow: its own message, in white (a text colour was ignored before)
+          yellow_alert:
+            alert_button:
+              text:
+                sub_text: { content: SHIELDS UP, color: white }
         grid_options: { columns: 24 }
       - type: custom:lcards-alert-overlay
         grid_options: { columns: 24 }

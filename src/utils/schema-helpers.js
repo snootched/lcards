@@ -127,15 +127,21 @@ export function hasEnum(propertySchema) {
  * @example
  * if (isPositionEnum(schema)) render position picker
  */
+const POSITION_VALUE = /^(top|bottom|left|right|center|middle)(-(top|bottom|left|right|center|middle))?$/;
+
 export function isPositionEnum(propertySchema) {
     if (!hasEnum(propertySchema)) return false;
 
     const enum_values = propertySchema.enum;
 
-    // Only trigger the 9-point picker when the enum contains hyphenated compound positions
-    // (e.g. 'top-left', 'bottom-center'). Schemas with only cardinal directions
-    // (top/bottom/left/right) or alignment values (left/center/right) use a plain select.
-    return enum_values && enum_values.some(val => typeof val === 'string' && val.includes('-'));
+    // The 9-point picker is for enums of positions only: every value a position word
+    // or two joined ('top-left', 'center', 'middle-right'), and at least one compound.
+    // Schemas with only cardinal directions (top/bottom/left/right) or alignment values
+    // (left/center/right) use a plain select, and so does any enum with another value:
+    // a hyphen alone ('auto-dismiss', 'call-service', 'hard-light') is not a position.
+    return Array.isArray(enum_values)
+        && enum_values.every(val => typeof val === 'string' && POSITION_VALUE.test(val))
+        && enum_values.some(val => val.includes('-'));
 }
 
 /**

@@ -326,3 +326,17 @@ test('button components brackets and radar render their segments', async ({ page
         await expectNoErrors(page);
     }
 });
+
+test('a component text field can use the whole symbol (zone: full), as a plain button can', async ({ page }) => {
+    const card = await mountCase(page, 'button-alert-symbol', { height: '220' });
+    await expect.poll(() => card.evaluate((el) => !!el.shadowRoot.querySelector('text'))).toBe(true);
+    const r = await card.evaluate((el) => {
+        const zones = el._processedSvg?.componentZones ?? {};
+        const corner = [...el.shadowRoot.querySelectorAll('text')].find((t) => t.textContent.trim() === 'FULL');
+        return { keys: Object.keys(zones), y: corner ? Number(corner.getAttribute('y')) : null, alertTop: zones.alert_line?.y };
+    });
+    expect(r.keys).toEqual(['alert_line', 'sub_line', 'full']);
+    // the corner text sits at the top of the symbol, above the label zones (alert_line starts at y 25.26)
+    expect(r.y).not.toBeNull();
+    expect(r.y).toBeLessThan(r.alertTop);
+});

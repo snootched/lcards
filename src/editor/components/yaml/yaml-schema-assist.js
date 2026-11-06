@@ -12,6 +12,7 @@
  * Path and schema logic lives in editor/utils/yaml-schema-path.js.
  */
 
+import { CARD_PLUMBING_KEYS } from '../../../cards/schemas/card-plumbing.js';
 import { autocompletion } from '@codemirror/autocomplete';
 import { hoverTooltip } from '@codemirror/view';
 import yaml from 'js-yaml';
@@ -234,6 +235,9 @@ export function validateTopLevel(config, schema) {
     if (!schema.properties) return errors;
 
     Object.keys(config).forEach(key => {
+        // Home Assistant's layout keys and card-mod / UIX styling are read by others,
+        // never by the card (card-plumbing.js): not unknown.
+        if (CARD_PLUMBING_KEYS.includes(key)) return;
         if (!schema.properties[key]) {
             errors.push({ field: key, message: `Unknown property '${key}' is not defined in the schema` });
         }

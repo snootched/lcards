@@ -488,6 +488,40 @@ test('chart studio: "Manage data sources" opens an HA dialog with the content in
     expect(errors).toEqual([]);
 });
 
+test('alert studio: the inset keeps its height on every tab; each condition previews without touching the alert mode', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    await mountEditor(page, 'lcards-alert-overlay', { type: 'custom:lcards-alert-overlay', conditions: { yellow_alert: { display: 'band' } } });
+    const mode = () => page.evaluate(() => document.querySelector('home-assistant').hass.states['input_select.lcards_alert_mode']?.state);
+    const before = await mode();
+    await page.evaluate(() => document.querySelector('home-assistant').shadowRoot.getElementById('lcards-test-editor')._openAlertStudio());
+    const studio = page.locator('lcards-alert-overlay-studio-dialog');
+    const layout = studio.locator('.studio-layout');
+    await expect(layout).toHaveCount(1);
+    const preview = studio.locator('lcards-alert-preview');
+    await expect(preview.locator('.content lcards-button')).toHaveCount(1, { timeout: 10_000 });
+
+    const height = () => layout.evaluate(el => el.offsetHeight);
+    const minimum = await page.evaluate(() => window.innerHeight * 0.6);
+    const tabs = studio.locator('.config-panel').getByRole('tab');
+    const heights = [];
+    for (let i = 0; i < await tabs.count(); i++) {
+        await tabs.nth(i).click();
+        heights.push(await height());
+    }
+    expect(heights.length).toBe(4);
+    for (const h of heights) {
+        expect(h).toBeGreaterThan(minimum);
+        expect(Math.abs(h - heights[0])).toBeLessThan(2);
+    }
+
+    await studio.locator('[data-condition="yellow_alert"]').click();
+    await expect(preview.locator('.content lcards-alert-band')).toHaveCount(1, { timeout: 10_000 });
+    expect(await mode()).toBe(before);
+    await page.evaluate(() => document.querySelector('home-assistant').shadowRoot.querySelector('lcards-alert-overlay-studio-dialog')?.remove());
+    await removeEditor(page);
+    expect(errors).toEqual([]);
+});
+
 test('data source studio: the inset fills the dialog on every tab', async ({ page }) => {
     const errors = await openDashboard(page, 'cards');
     const studio = await openStudio(page, { config: { entity: 'input_number.lcards_test_value' } });

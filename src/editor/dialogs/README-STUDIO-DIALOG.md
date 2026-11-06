@@ -9,6 +9,8 @@ The studios are full-size `ha-dialog`s for the cards whose config is too big for
 | Data Grid | `lcards-data-grid-studio-dialog-v4` | `lcards-data-grid-editor.js` `_openConfigurationStudio()` | 50 / 50 |
 | Layout | `lcards-layout-studio-dialog` | `lcards-layout-card-editor.js` `_openStudio()` | 1 / 2 |
 | Data source | `lcards-datasource-studio-dialog` | Main Engineering > Data Sources, chart studio | 50 / 50 |
+| Alert | `lcards-alert-overlay-studio-dialog` | `lcards-alert-overlay-editor.js` `_openAlertStudio()` | 40 / 60 |
+| Astrometrics | `lcards-astrometrics-studio-dialog` | `lcards-astrometrics-editor.js` `_openStudio()` | 1 / 3 |
 
 ## The shell
 

@@ -9,7 +9,10 @@ declare global {
         'lcards-about-tab': import('../panels/components/lcards-about-tab.js').LCARdSAboutTab;
         'lcards-alert-band': import('../cards/lcards-alert-band.js').LCARdSAlertBand;
         'lcards-alert-overlay': import('../cards/lcards-alert-overlay.js').LCARdSAlertOverlay;
+        'lcards-alert-overlay-diagram': import('../editor/components/shared/lcards-alert-overlay-diagram.js').LCARdSAlertOverlayDiagram;
         'lcards-alert-overlay-editor': import('../editor/cards/lcards-alert-overlay-editor.js').LCARdSAlertOverlayEditor;
+        'lcards-alert-overlay-studio-dialog': import('../editor/dialogs/lcards-alert-overlay-studio-dialog.js').LCARdSAlertOverlayStudioDialog;
+        'lcards-alert-preview': import('../editor/components/alert-overlay/lcards-alert-preview.js').LCARdSAlertPreview;
         'lcards-animation-editor': import('../editor/components/lcards-animation-editor.js').LCARdSAnimationEditor;
         'lcards-asset-source-picker': import('../editor/components/shared/lcards-asset-source-picker.js').LCARdSAssetSourcePicker;
         'lcards-astro-diagram': import('../editor/components/shared/lcards-astro-diagram.js').LCARdSAstroDiagram;

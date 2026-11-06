@@ -76,6 +76,16 @@ import { getButtonSchema } from './schemas/button-schema.js';
 import { TEXT_POSITIONS } from './schemas/schema-options.js';
 
 
+/**
+ * The whole viewBox of a component's SVG as a text zone (`full`).
+ * @param {string|undefined} viewBox - e.g. '0 0 100 73.49'
+ * @returns {{x:number,y:number,width:number,height:number}|null}
+ */
+export function componentFullZone(viewBox) {
+    const [x, y, width, height] = String(viewBox ?? '').trim().split(/[\s,]+/).map(Number);
+    return width > 0 && height > 0 ? { x: x || 0, y: y || 0, width, height } : null;
+}
+
 export class LCARdSButton extends LCARdSCard {
 
     /** Card type identifier for CoreConfigManager */
@@ -629,6 +639,13 @@ export class LCARdSButton extends LCARdSCard {
                 this._processedSvg.componentZones = componentDef.zones;
             } else if (componentDef.text_area) {
                 this._processedSvg.componentZones = { default: componentDef.text_area };
+            }
+            // Every component also has the whole symbol as a zone (`full`, as a plain
+            // button has), unless it names its own; added last so the default zone
+            // (the first) stays the component's own.
+            const fullZone = componentFullZone(this._processedSvg.viewBox);
+            if (this._processedSvg.componentZones && fullZone && !this._processedSvg.componentZones.full) {
+                this._processedSvg.componentZones = { ...this._processedSvg.componentZones, full: fullZone };
             }
 
             // Apply aspect-ratio to the host element derived from the SVG's viewBox.

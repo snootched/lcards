@@ -16,10 +16,13 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
-import { HATemplateEvaluator } from '../core/templates/HATemplateEvaluator.js';
 import { getAlertOverlaySchema } from './schemas/lcards-alert-overlay-schema.js';
-import { parseColor } from '../core/themes/color-syntax.js';
-import { resolveBandConfig, bandSpeed, EMBLEM_SWEEP_MS } from './alert-band-layout.js';
+import { resolveBandConfig } from './alert-band-layout.js';
+import {
+    displayFor, overlayContentSize, overlayPosition, buildContentConfig, resolveLayers, bandLayers, resolveJinjaText,
+} from './alert-overlay-config.js';
+
+export { overlayContentSize, DEFAULT_CONTENT_WIDTH, DEFAULT_SYMBOL_HEIGHT } from './alert-overlay-config.js';
 import './lcards-alert-band.js';
 
 
@@ -40,43 +43,6 @@ import './lcards-alert-band.js';
 //     placeholder, not the duplicate warning.
 // ─────────────────────────────────────────────────────────────────────────────
 let _activeOverlay = null;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Per-condition built-in defaults
-// These provide the floor values; alert_button overrides are applied on top.
-// ─────────────────────────────────────────────────────────────────────────────
-const CONDITION_DEFAULTS = {
-    red_alert:    { preset: 'condition_red',    alertText: 'ALERT', subText: 'CONDITION: RED' },
-    yellow_alert: { preset: 'condition_yellow', alertText: 'ALERT', subText: 'CONDITION: YELLOW' },
-    blue_alert:   { preset: 'condition_blue',   alertText: 'ALERT', subText: 'CONDITION: BLUE' },
-    black_alert:  { preset: 'condition_black',  alertText: 'ALERT', subText: 'CONDITION: BLACK' },
-    gray_alert:   { preset: 'condition_gray',   alertText: 'ALERT', subText: 'CONDITION: GRAY' },
-};
-
-// Content size when the config sets none: a share of the screen (the overlay covers
-// the whole viewport, so % is of its width and height). The built-in alert symbol
-// gets a box it scales to fit; a custom content card keeps its own height.
-export const DEFAULT_CONTENT_WIDTH  = '60%';
-export const DEFAULT_SYMBOL_HEIGHT  = '50%';
-
-/**
- * The overlay content's size for a condition: per-condition values, then the
- * card's, then the defaults above. A width set without a height leaves the height
- * to the content (the alert symbol keeps its aspect ratio from the width).
- * @param {Object} config - Card config
- * @param {string} condition - Active condition, e.g. 'red_alert'
- * @returns {{width: string, height: string}}
- */
-export function overlayContentSize(config, condition) {
-    const perCond = config?.conditions?.[condition];
-    const width  = perCond?.width  ?? config?.width;
-    const height = perCond?.height ?? config?.height;
-    const customContent = !!perCond?.content;
-    return {
-        width:  width ?? DEFAULT_CONTENT_WIDTH,
-        height: height ?? (width || customContent ? 'auto' : DEFAULT_SYMBOL_HEIGHT),
-    };
-}
 
 export class LCARdSAlertOverlay extends LitElement {
 
@@ -318,7 +284,8 @@ export class LCARdSAlertOverlay extends LitElement {
     // -------------------------------------------------------------------------
 
     async _mountContentCard(condition) {
-        const cardConfig = this._buildCardConfig(condition);
+        // What shows (alert-overlay-config.js, shared with the Alert Studio preview)
+        const cardConfig = buildContentConfig(this.config, condition);
 
         if (!cardConfig) {
             lcardsLog.warn(`[LCARdSAlertOverlay] No content config for condition: ${condition}`);
@@ -329,7 +296,7 @@ export class LCARdSAlertOverlay extends LitElement {
         // HASS connection before handing the config to POM.
         // JS ([[[...]]]) and token ({entity.state}) templates are synchronous and
         // are handled by lcards-button's own pipeline after mount.
-        const resolvedConfig = await this._resolveTextTemplates(cardConfig);
+        const resolvedConfig = await resolveJinjaText(cardConfig, this._hass);
 
         // Guard: condition or active state may have changed during async resolution.
         if (!this._isActive || this._isSuppressed || this._activeCondition !== condition) {
@@ -343,15 +310,14 @@ export class LCARdSAlertOverlay extends LitElement {
             return;
         }
 
-        if (this._displayFor(condition) === 'band') {
+        if (displayFor(this.config, condition) === 'band') {
             this._showBand(pom, condition, resolvedConfig);
             return;
         }
 
-        const size     = this._getEffectiveSize();
-        const layers   = this._resolveBackdropLayers();
-        const position = this.config?.conditions?.[this._activeCondition]?.position
-                         ?? this.config?.position ?? 'center';
+        const size     = overlayContentSize(this.config, condition);
+        const layers   = resolveLayers(this.config, condition);
+        const position = overlayPosition(this.config, condition);
 
         pom.show('alert-overlay', {
             position,
@@ -367,17 +333,6 @@ export class LCARdSAlertOverlay extends LitElement {
     }
 
     /**
-     * Presentation for a condition: `overlay` (backdrop + emblem, modal) or
-     * `band` (dashes across the screen, the dashboard stays usable).
-     * @param {string} condition
-     * @returns {'overlay'|'band'}
-     */
-    _displayFor(condition) {
-        const display = this.config?.conditions?.[condition]?.display ?? this.config?.display;
-        return display === 'band' ? 'band' : 'overlay';
-    }
-
-    /**
      * Show the alert band: full screen, clicks pass through except on the
      * emblem, which dismisses. Backdrop layers only when the config sets them.
      * @param {any} pom - PortalOverlayManager
@@ -385,7 +340,6 @@ export class LCARdSAlertOverlay extends LitElement {
      * @param {Object} emblem - Emblem card config (the alert button or `content`)
      */
     _showBand(pom, condition, emblem) {
-        const hasLayers = !!(this.config?.layers || this.config?.backdrop || this.config?.conditions?.[condition]?.layers);
         this._listenForBandDismiss();
         pom.show('alert-overlay', {
             position:    'top-left',
@@ -399,7 +353,7 @@ export class LCARdSAlertOverlay extends LitElement {
                 band: resolveBandConfig(this.config, condition),
                 emblem,
             },
-            layers: hasLayers ? this._resolveBackdropLayers() : null,
+            layers: bandLayers(this.config, condition),
         });
         this.requestUpdate();
     }
@@ -413,206 +367,6 @@ export class LCARdSAlertOverlay extends LitElement {
             window.lcards?.core?.portalOverlayManager?.hide('alert-overlay');
         };
         window.addEventListener('lcards-alert-band-dismiss', this._bandDismissHandler);
-    }
-
-    /**
-     * Walk all text fields in a card config, evaluate any Jinja2 content
-     * strings ({{ ... }} / {% ... %}) using this overlay's settled HASS
-     * websocket, and return an updated config copy.
-     *
-     * JS ([[[...]]]) and token ({entity.state}) templates are intentionally
-     * NOT resolved here — they are synchronous and handled by lcards-button's
-     * own template pipeline after the card is mounted.
-     *
-     * @param {Object} cardConfig
-     * @returns {Promise<Object>}
-     */
-    async _resolveTextTemplates(cardConfig) {
-        if (!this._hass || !cardConfig?.text) return cardConfig;
-
-        const evaluator = new HATemplateEvaluator({ hass: this._hass });
-        const resolvedText = {};
-
-        for (const [fieldId, fieldCfg] of Object.entries(cardConfig.text)) {
-            const content = fieldCfg?.content;
-            if (typeof content === 'string' &&
-                (content.includes('{{') || content.includes('{%'))) {
-                try {
-                    resolvedText[fieldId] = { ...fieldCfg, content: await evaluator.evaluate(content) };
-                    lcardsLog.debug(`[LCARdSAlertOverlay] Resolved Jinja2 in '${fieldId}'`);
-                } catch (e) {
-                    lcardsLog.warn(`[LCARdSAlertOverlay] Jinja2 eval failed for '${fieldId}':`, e);
-                    resolvedText[fieldId] = fieldCfg;
-                }
-            } else {
-                resolvedText[fieldId] = fieldCfg;
-            }
-        }
-
-        return { ...cardConfig, text: resolvedText };
-    }
-
-    // -------------------------------------------------------------------------
-    // Card config builder
-    //
-    // Three-tier resolution for each condition:
-    //   1. conditions.<key>.content   — full custom HA card (user supplies everything)
-    //   2. conditions.<key>.alert_button — patch specific fields on the default button
-    //   3. Built-in default           — preset + hardcoded text
-    //
-    // The alert_button tier builds the config EXPLICITLY here rather than relying
-    // on lcards-button's internal component-preset text injection, which runs
-    // asynchronously and can race with / overwrite user-supplied text values.
-    // -------------------------------------------------------------------------
-
-    _buildCardConfig(condition) {
-        const condCfg = this.config?.conditions?.[condition] ?? {};
-
-        // Tier 1: full custom card
-        if (condCfg.content) {
-            return condCfg.content;
-        }
-
-        const def = CONDITION_DEFAULTS[condition];
-        if (!def) return null;
-
-        const ab = condCfg.alert_button ?? {};
-
-        // Tier 2 / 3: build explicit button config.
-        // Text values are resolved HERE so the button receives final strings
-        // directly in its text config — bypassing any post-setConfig injection
-        // from the component preset system that could overwrite them.
-        //
-        // Build text dynamically: start with built-in defaults for the two
-        // standard fields, then overlay ALL keys from alert_button.text so
-        // any additional text field supported by the button component is
-        // forwarded rather than silently dropped.
-        const defaultText = {
-            alert_text: { content: def.alertText },
-            sub_text:   { content: def.subText   },
-        };
-        const overrideText = ab.text ?? {};
-        // Merge: for the two standard keys use the override's .content value if
-        // present; for any other keys pass the override field object through as-is.
-        const mergedText = { ...defaultText };
-        for (const [fieldId, fieldCfg] of Object.entries(overrideText)) {
-            if (fieldId in mergedText && fieldCfg?.content !== undefined) {
-                mergedText[fieldId] = { ...mergedText[fieldId], content: fieldCfg.content };
-            } else {
-                mergedText[fieldId] = fieldCfg;
-            }
-        }
-        const card = {
-            type:      'custom:lcards-button',
-            component: 'alert',
-            preset:    def.preset,
-            text:      mergedText,
-        };
-
-        // Forward component-level color overrides if present (e.g. alert.color.shape)
-        if (ab.alert) {
-            card.alert = ab.alert;
-        }
-
-        // Bar sweep speed: alert_button.speed, else (band mode) the band's speed so
-        // the symbol and the dashes keep step. Merged by id into the component's
-        // bars-*-sweep animations.
-        const speed = ab.speed ?? (this._displayFor(condition) === 'band'
-            ? resolveBandConfig(this.config, condition).speed : undefined);
-        if (speed !== undefined && bandSpeed(speed) !== 1) {
-            const duration = Math.round(EMBLEM_SWEEP_MS / bandSpeed(speed));
-            card.animations = ['bars-top-sweep', 'bars-bottom-sweep'].map(id => ({ id, params: { duration } }));
-        }
-
-        return card;
-    }
-
-    // -------------------------------------------------------------------------
-    // Style / layout helpers
-    // -------------------------------------------------------------------------
-
-    /**
-     * Resolve the final per-slot layer configuration by merging global `layers`
-     * with per-condition overrides.  Each slot in the returned object is either
-     * `{ preset, ...params }` or `null` (slot explicitly disabled).
-     *
-     * Priority: per-condition layer slot > global layer slot > legacy migration > default.
-     *
-     * @returns {{ backdrop: Object|null, color: Object|null, canvas: Object|null }}
-     */
-    _resolveBackdropLayers() {
-        const globalLayers  = this._getConfiguredLayers(this.config ?? {});
-        const condLayersRaw = this.config?.conditions?.[this._activeCondition]?.layers ?? null;
-        if (!condLayersRaw) return globalLayers;
-
-        // Per-condition: only override slots explicitly present (key exists).
-        return {
-            backdrop: 'backdrop' in condLayersRaw ? condLayersRaw.backdrop : globalLayers.backdrop,
-            color:    'color'    in condLayersRaw ? condLayersRaw.color    : globalLayers.color,
-            canvas:   'canvas'   in condLayersRaw ? condLayersRaw.canvas   : globalLayers.canvas,
-        };
-    }
-
-    /**
-     * Extract { backdrop, color, canvas } slot configs from a config object,
-     * migrating legacy schemas automatically.
-     * @private
-     */
-    _getConfiguredLayers(cfg) {
-        // Current schema: layers key.
-        if (cfg.layers) {
-            return {
-                backdrop: cfg.layers.backdrop ?? null,
-                color:    cfg.layers.color    ?? null,
-                canvas:   cfg.layers.canvas   ?? null,
-            };
-        }
-
-        // Legacy schema: backdrop.blur / opacity / color.
-        if (cfg.backdrop) {
-            return this._promoteLegacyBackdrop(cfg.backdrop);
-        }
-
-        // Default: blur-only, no color or canvas overlay.
-        return { backdrop: { preset: 'blur', amount: '8px' }, color: null, canvas: null };
-    }
-
-    /**
-     * Promote the legacy `backdrop.{blur, opacity, color}` object to per-slot layers.
-     * Opacity is folded into the color alpha to preserve the visual result.
-     * @private
-     */
-    _promoteLegacyBackdrop(backdrop) {
-        /** @type {{backdrop: object|null, color: object|null, canvas: object|null}} */
-        const result = { backdrop: null, color: null, canvas: null };
-        if (backdrop.blur) {
-            result.backdrop = { preset: 'blur', amount: backdrop.blur };
-        }
-        if (backdrop.color || backdrop.opacity !== undefined) {
-            const opacity = typeof backdrop.opacity === 'number' ? backdrop.opacity : 0.6;
-            const color   = backdrop.color ?? 'rgba(0,0,0,0.5)';
-            result.color  = { preset: 'color-tint', color: this._promoteColorWithOpacity(color, opacity) };
-        }
-        return result;
-    }
-
-    /**
-     * Fold a separate opacity multiplier into the alpha channel of a CSS rgba() colour.
-     * Used when promoting old `backdrop.color` + `backdrop.opacity` values.
-     *
-     * @param {string} color   - CSS colour string, ideally rgba().
-     * @param {number} opacity - Multiplier (0–1).
-     * @returns {string}
-     * @private
-     */
-    _promoteColorWithOpacity(color, opacity) {
-        const c = parseColor(color);
-        if (c) return `rgba(${c.r},${c.g},${c.b},${Math.min(1, c.a * opacity).toFixed(2)})`;
-        return color;
-    }
-
-    _getEffectiveSize() {
-        return overlayContentSize(this.config, this._activeCondition);
     }
 
     // -------------------------------------------------------------------------

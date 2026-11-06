@@ -169,8 +169,12 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                                 if (!card) {
                                     lcardsLog.warn('[ButtonEditor] Card preview not found in .element-preview');
                                 }
-                            } else {
+                            } else if (editorContainer.classList?.contains('element-editor')) {
+                                // In Home Assistant's card editor dialog the preview should be there
                                 lcardsLog.warn('[ButtonEditor] .element-preview not found in editor dialog');
+                            } else {
+                                // Embedded elsewhere (a studio's inline card editor): no preview pane
+                                lcardsLog.debug('[ButtonEditor] Embedded editor without a preview pane; using the global search');
                             }
                         }
                     }
@@ -693,6 +697,8 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         if (this.config?.component) {
             const componentDef = window.lcards?.core?.getComponentManager?.()?.getComponent?.(this.config.component);
             availableZones  = { ...(componentDef?.zones || {}) };
+            // the whole symbol, as the card adds it (lcards-button componentFullZone)
+            if (Object.keys(availableZones).length && !availableZones.full) availableZones.full = 'Full (the whole symbol)';
             // Preset field names (excluding 'default') so the editor can offer them as
             // one-click "add" suggestions styled differently from generic quick-add fields.
             const allComponentFields = Object.keys(componentDef?.text || {}).filter(k => k !== 'default');

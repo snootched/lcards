@@ -477,7 +477,7 @@ releases:
       - file: alert-overlay-edit
         topic: alerts
         summary: "The alert overlay in edit mode"
-        description: "Two alert overlays: in edit mode the first says Active, the second Duplicate. Open the first in the card editor: its preview is a plain info box, not a duplicate. Raise an alert while editing (another tab, or the lcards.red_alert action): nothing shows until you leave edit mode, then the alert shows and resets to green 15 seconds later."
+        description: "Two alert overlays: in edit mode the first says Active, the second Duplicate. Open the first in the card editor: its preview is a plain info box, not a duplicate, and the editor is a launcher: Open Alert Studio holds every setting, with a mock screen of each condition (pick Red to Gray in its toolbar) that never changes the alert mode. Overlay size and band settings show only for conditions that use them, the info guides have diagrams, and each condition picks Alert symbol, Customise the symbol (the button's own editor, saving only the changes) or Your own card. RED ALERT shows the message set for every condition (alert_button on the card); YELLOW ALERT its own message in white. Raise an alert while editing (another tab, or the lcards.red_alert action): nothing shows until you leave edit mode, then the alert shows and resets to green 15 seconds later."
         session: "Backlog clean-up"
         docs: /cards/alert-overlay/#limitations
         public: false

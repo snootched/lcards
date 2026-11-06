@@ -232,6 +232,29 @@ export class ScreenEffectManager extends BaseService {
     }
 
     /**
+     * Run a preset on an element of the caller's (not a screen slot): the Alert
+     * Studio's mock screen shows the layers inside its frame this way. Defaults
+     * and colours are resolved as for a slot.
+     *
+     * @param {HTMLElement} el
+     * @param {string} presetName
+     * @param {Object} [params]
+     * @returns {(() => void)|null} cleanup, or null when the preset is unknown or fails
+     */
+    enterPreset(el, presetName, params = {}) {
+        const preset = screenEffectPresetRegistry.get(presetName);
+        if (!preset) return null;
+        try {
+            const finalParams = this._resolveColorParams(preset, { ...(preset.defaults ?? {}), ...params });
+            const cleanup = preset.enter(el, finalParams);
+            return typeof cleanup === 'function' ? cleanup : () => {};
+        } catch (err) {
+            lcardsLog.warn(`[ScreenEffectManager] Preset '${presetName}' failed on a preview element:`, err);
+            return null;
+        }
+    }
+
+    /**
      * Release a slot: call its cleanup fn, hide the element, clear the timer.
      *
      * @param {string} slot

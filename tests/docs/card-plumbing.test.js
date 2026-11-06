@@ -51,3 +51,13 @@ test('every published card schema declares them', () => {
         for (const key of Object.keys(PLUMBING)) assert.ok(key in (doc.properties ?? {}), `${tag}: ${key}`);
     }
 });
+
+test('the YAML tab (editor and docs playground) does not call them unknown', async () => {
+    const { validateTopLevel } = await import('../../src/editor/components/yaml/yaml-schema-assist.js');
+    for (const { tag, schema } of cards) {
+        const own = { ...schema, properties: Object.fromEntries(Object.entries(schema.properties).filter(([k]) => !(k in PLUMBING))) };
+        const unknown = validateTopLevel({ type: `custom:${tag}`, ...PLUMBING }, own).filter((e) => /Unknown property/.test(e.message));
+        assert.deepEqual(unknown, [], tag);
+    }
+    assert.equal(validateTopLevel({ type: 'x', typo_key: 1 }, { properties: { type: {} } }).length, 1, 'a real unknown key is still reported');
+});

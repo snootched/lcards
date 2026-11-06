@@ -1,0 +1,10 @@
+# The alert component (the alert overlay's symbol), with a text field in the whole-symbol zone.
+type: custom:lcards-button
+component: alert
+preset: condition_red
+text:
+  corner:
+    content: FULL
+    zone: full
+    position: top-left
+    font_size: 6

@@ -54,7 +54,7 @@ import { createCardElement, applyHassToCard, applyCardConfig } from '../../utils
 // Position → flex alignment mapping
 // ---------------------------------------------------------------------------
 
-const POSITION_MAP = {
+export const POSITION_MAP = {
     'top-left':      { alignItems: 'flex-start', justifyContent: 'flex-start' },
     'top':           { alignItems: 'flex-start', justifyContent: 'center' },
     'top-center':    { alignItems: 'flex-start', justifyContent: 'center' },

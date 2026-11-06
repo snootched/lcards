@@ -50,6 +50,18 @@ views:
 
 ---
 
+## Alert Studio
+
+The alert overlay is set up in the **Alert Studio**: the card editor's **Open Alert Studio** button opens it (the card editor itself has only that, the Docs link and the YAML tab). The settings are on the left (Config, Backdrop, Conditions, YAML), and on the right a mock screen shows what each alert condition looks like. Pick the condition in the toolbar above the mock screen, or on the Conditions tab.
+
+The mock screen is laid out at your screen's size and scaled down, so sizes in %, px, `vw` and `vh` look as they will on the dashboard. It shows the screen effect layers, the alert symbol (or your content card) at its position and size, or the alert band. It is only a preview: the alert mode doesn't change and nothing shows on your dashboards. Click the backdrop (overlay) or the symbol (band) to try a dismiss, and **Replay** to show it again.
+
+On the Config tab, **Alert symbol** changes the symbol for every condition. On the Conditions tab each condition shows the **Alert symbol** as it is, **Customise the symbol** (the symbol's own button editor, saving only what you change), or **Your own card** (any card, edited in place with its own editor). See [Alert Symbol](#alert-symbol). Settings that don't apply are hidden: overlay position and size for a condition shown as a band, the band settings when no condition is one. The info guides (How the overlay works, How the band works, How condition overrides work) explain the settings with a diagram each.
+
+Save keeps the changes; Cancel leaves the card as it was.
+
+---
+
 ## Config Structure
 
 Annotated map of all top-level keys.
@@ -133,6 +145,7 @@ conditions:
 | `position` | string | `center` | Where to place the content card within the overlay; see [Position](#position) |
 | `width` | string | `60%` | Content card width (CSS value, e.g. `400px`, `50%`). Percentages are of the screen. For the default alert symbol and other SVG component cards, a width alone is enough: the height follows from the SVG's aspect ratio. |
 | `height` | string | see note | Content card height (CSS value). With neither `width` nor `height` set, the built-in alert symbol gets `50%` of the screen's height and scales to fit, so it suits wide, tall and phone screens alike. Otherwise the content sizes itself (`auto`); set a height for custom cards that can't size themselves from their width. |
+| `alert_button` | object | - | Changes to the built-in alert symbol for every condition: any `lcards-button` key except `type`, `component` and `preset`. Conditions can change it again. See [Alert Symbol](#alert-symbol) |
 | `layers` | object | - | Per-slot screen effect configuration: see [Layers](#layers) |
 | `conditions` | object | - | Per-condition overrides: see [Conditions](#conditions) |
 
@@ -245,7 +258,7 @@ band:
 | `band.phase` | number | - | Locks the band's animation to the symbol's bar sweep, this many degrees later (0 to 360). The symbol's bars light from the outside in, reaching the middle at 150; at `180` an outward band sweep starts as the symbol's finishes, so it reads as one sweep from the core out to the edges. Needs the built-in symbol, and the same speed for both (leave `alert_button.speed` unset) |
 | `band.color` | string | the condition colour | Dash colour |
 
-The symbol is the same alert button as the overlay's, so [`alert_button`](#default-alert-button-overrides) patches and a [content card](#content-cards) apply here too. Backdrop [layers](#layers) are off in band mode unless you set them. `display` and `band` can be set per condition:
+The symbol is the same alert button as the overlay's, so [`alert_button`](#alert-symbol) changes and a [content card](#content-cards) apply here too. Backdrop [layers](#layers) are off in band mode unless you set them. `display` and `band` can be set per condition:
 
 ```yaml
 type: custom:lcards-alert-overlay
@@ -365,7 +378,7 @@ Condition keys: `red_alert`, `yellow_alert`, `blue_alert`, `black_alert`, `gray_
 | Option | Type | Description |
 |--------|------|-------------|
 | `content` | object | Full Home Assistant card config to render inside the overlay. Any card type works. Overrides `alert_button` entirely. |
-| `alert_button` | object | Patch merged onto the default alert button. Override only the fields you need. See [Default Alert Button Overrides](#default-alert-button-overrides). |
+| `alert_button` | object | Changes to the alert symbol for this condition, merged over the card's `alert_button`. Ignored when `content` is set. See [Alert Symbol](#alert-symbol). |
 | `layers` | object | Per-slot effect overrides merged on top of the global `layers`. Only slots present in the condition override are applied; absent slots inherit global. Set a slot to `null` to explicitly clear it for this condition. |
 | `display` | string | `overlay` or `band` for this condition; see [Alert Band](#alert-band) |
 | `band` | object | Band settings for this condition, merged over the card's `band` |
@@ -406,31 +419,52 @@ If no `content` is specified for a condition, a built-in default is used: the LC
 
 ---
 
-## Default Alert Button Overrides
+## Alert Symbol
 
-The `alert_button` key lets you patch specific fields on the built-in default alert button **without having to supply a full `content:` block**. Only specify the fields you want to change; `type`, `component`, and `preset` are inherited from the built-in default automatically.
+Without a `content` card, each condition shows the built-in alert symbol: an `lcards-button` with the `alert` component, its condition's preset (`condition_red`, `condition_yellow`, ...) for the colours, and the text `ALERT` and `CONDITION: RED` (and so on). `alert_button` changes it **without a full `content:` card**: set only what you want to change, and it is merged over the symbol.
 
-This is the "middle tier" between no customisation and a full `content:` override:
+- **`alert_button` on the card** changes the symbol for every condition.
+- **`conditions.<key>.alert_button`** changes it for one condition, merged over the card's.
+- **`conditions.<key>.content`** replaces the symbol entirely; `alert_button` is ignored for that condition.
 
 ```
-_getDefaultContent(condition)          ← floor: built-in preset + hardcoded text
-  ↑ deepMerge
-conditions.<key>.alert_button          ← user delta: text, colours, etc.
-  ↑ replaced entirely by
-conditions.<key>.content               ← full card config override (existing)
+built-in symbol (the condition's preset and text)
+  ← alert_button                    (every condition)
+    ← conditions.<key>.alert_button (this condition)
+conditions.<key>.content            (replaces all of it)
 ```
 
-> **Note**: `alert_button` is ignored when `content` is also present. `content` always takes full precedence.
+Any `lcards-button` key can be changed: text fields (whole: `content`, `color`, `font_size`, ...), `style`, `animations`, `sounds` and the rest. `type`, `component` and `preset` stay fixed, so each condition keeps its own colours.
 
-### Supported `alert_button` sub-keys
+In the [Alert Studio](#alert-studio), the Config tab's **Alert symbol** section edits the card's `alert_button`, and each condition has three choices: **Alert symbol** (as it is), **Customise the symbol** (its `alert_button`, in the symbol's own button editor) and **Your own card** (`content`). The studio saves only what you change.
+
+### Common `alert_button` keys
 
 | Key | Type | Description |
 |-----|------|-------------|
-| `text` | object | Text field overrides: mirrors the `text` property of `lcards-button` |
-| `text.alert_text.content` | string | Override the top alert label (default: `ALERT`) |
-| `text.sub_text.content` | string | Override the sub-text message. Supports static strings and LCARdS templates. |
-| `alert` | object | Alert component config overrides: e.g. `alert.color.shape`, `alert.color.bars` |
+| `text.alert_text` | object | The top label: `content` (default `ALERT`), and any text field setting (`color`, `font_size`, ...) |
+| `text.sub_text` | object | The message: `content` (default `CONDITION: RED` and so on; static text or a template), and any text field setting |
+| `alert` | object | Alert component colours: e.g. `alert.color.shape`, `alert.color.bars` |
 | `speed` | number | Speed multiplier for the symbol's bar sweep (`2` = twice as fast). In band mode it follows `band.speed` unless set |
+
+### One message for every condition
+
+```yaml
+type: custom:lcards-alert-overlay
+alert_button:
+  text:
+    sub_text:
+      content: ALL HANDS TO BATTLE STATIONS
+      font_size: 22
+conditions:
+  blue_alert:
+    alert_button:
+      text:
+        sub_text:
+          content: SECURITY LOCKDOWN
+```
+
+Every condition shows the message in its own colours; blue alert shows its own message, still at size 22.
 
 ### Static text override
 
