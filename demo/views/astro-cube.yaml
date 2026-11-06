@@ -106,9 +106,9 @@ sections:
               - 0
           - type: model
             id: hull
-            src: builtin:constitution
+            src: builtin:galaxy_class
             at: ship
-            size: 20
+            size: 22
             rotation:
               - 0
               - 160

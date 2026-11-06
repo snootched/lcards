@@ -168,7 +168,7 @@ points:
   - { id: base, xyz: [0, 0, 0], label: STARBASE 11, leader: false }
 objects:
   - { type: ring, id: patrol, radius: 70, spin: 4 }
-  - { type: model, src: builtin:constitution, at: enterprise, size: 16, face: motion }
+  - { type: model, src: builtin:constitution_class_refit, at: enterprise, size: 16, face: motion }
   - { type: sphere, at: base, radius: 12 }
 ```
 

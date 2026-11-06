@@ -23,9 +23,9 @@ const bytes = (rel) => {
   const b = readFileSync(new URL(rel, import.meta.url));
   return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
 };
-const SHIP = bytes('../../src/assets/models/constitution.glb');
-const SHIP_MESHOPT = bytes('../fixtures/constitution-meshopt.glb');
-const PARTS = ['saucer', 'bridge', 'sensor_dome', 'impulse', 'neck', 'secondary_hull', 'deflector', 'shuttle_bay', 'pylon_port', 'pylon_starboard', 'nacelle_port', 'nacelle_starboard', 'bussard_port', 'bussard_starboard'];
+const SHIP = bytes('../../src/assets/models/constitution-class-refit.glb');
+const SHIP_MESHOPT = bytes('../fixtures/constitution-class-refit-meshopt.glb');
+const PARTS = ['saucer', 'bridge', 'sensor_dome', 'impulse', 'neck', 'torpedo_launcher', 'secondary_hull', 'deflector', 'shuttle_bay', 'pylon_port', 'pylon_starboard', 'nacelle_port', 'nacelle_starboard', 'bussard_port', 'bussard_starboard', 'grille_port', 'grille_starboard', 'windows'];
 
 /** A build context whose loadModel hands back `gltf` (a promise the test resolves) */
 function ctx(load = models.parseModel(SHIP.slice(0))) {
@@ -46,7 +46,7 @@ const settle = () => new Promise((r) => setTimeout(r, 0));
 
 test('the model type is known, and a config with one needs the model chunk', () => {
   assert.ok(OBJECT_TYPES.includes('model'));
-  assert.equal(usesModels({ objects: [{ type: 'model', src: 'builtin:constitution' }] }), true);
+  assert.equal(usesModels({ objects: [{ type: 'model', src: 'builtin:constitution_class_refit' }] }), true);
   assert.equal(usesModels({ objects: [{ type: 'grid' }] }), false);
 });
 
@@ -67,15 +67,15 @@ test('the built-in ship parses with every named part and the bussards clip; mesh
   for (const name of PARTS) assert.ok(plain.scene.getObjectByName(name), `part ${name}`);
   assert.deepEqual(plain.animations.map((a) => a.name), ['bussards']);
   assert.deepEqual(summary(packed), summary(plain));
-  // about 289 m long, the bow toward +z
+  // 305 m long (the refit), the bow toward +z
   const box = new Box3().setFromObject(plain.scene);
-  assert.ok(Math.abs(box.max.z - box.min.z - 289) < 2, `length ${box.max.z - box.min.z}`);
+  assert.ok(Math.abs(box.max.z - box.min.z - 305) < 2, `length ${box.max.z - box.min.z}`);
   assert.ok(plain.scene.getObjectByName('saucer').position.z > 50);
 });
 
 test('a placeholder box stands in, then the file is fitted to size with the hologram and edges', async () => {
   const c = ctx();
-  const w = buildScene({ objects: [{ type: 'model', id: 'ship', src: 'builtin:constitution', size: 60 }] }, /** @type {any} */ (c));
+  const w = buildScene({ objects: [{ type: 'model', id: 'ship', src: 'builtin:constitution_class_refit', size: 60 }] }, /** @type {any} */ (c));
   const b = w.objects.get('ship');
   assert.ok(b);
   assert.equal(b.loadState?.(), 'loading');
@@ -145,31 +145,31 @@ test('without size the built-in ship is drawn at its real size in the scene\'s o
   const w = buildScene({
     units: 'km',
     objects: [
-      { type: 'model', id: 'real', src: 'builtin:constitution' },
-      { type: 'model', id: 'feet', src: 'builtin:constitution', file_units: 'ft' },
-      { type: 'model', id: 'sized', src: 'builtin:constitution', size: 60 },
-      { type: 'model', id: 'long', src: 'builtin:constitution', length: 1061 },
-      { type: 'system', id: 'local', at: [100, 0, 0], units: 'm', objects: [{ type: 'model', id: 'inner', src: 'builtin:constitution' }] }
+      { type: 'model', id: 'real', src: 'builtin:constitution_class_refit' },
+      { type: 'model', id: 'feet', src: 'builtin:constitution_class_refit', file_units: 'ft' },
+      { type: 'model', id: 'sized', src: 'builtin:constitution_class_refit', size: 60 },
+      { type: 'model', id: 'long', src: 'builtin:constitution_class_refit', length: 1061 },
+      { type: 'system', id: 'local', at: [100, 0, 0], units: 'm', objects: [{ type: 'model', id: 'inner', src: 'builtin:constitution_class_refit' }] }
     ]
   }, /** @type {any} */ (ctx()));
   const real = w.objects.get('real');
   assert.ok(real && Math.abs(/** @type {number} */ (real.radius) - 0.15) < 1e-9, 'the stand-in until the file is in');
   await settle();
   await settle();
-  assert.ok(Math.abs(drawnExtent(w, 'real') - 0.289) < 0.002, `real ${drawnExtent(w, 'real')}`);
-  assert.ok(Math.abs(/** @type {number} */ (real.radius) - 0.289 / 2) < 0.002, 'radius from the file');
-  assert.ok(Math.abs(drawnExtent(w, 'feet') - 0.289 * 0.3048) < 0.002, `feet ${drawnExtent(w, 'feet')}`);
+  assert.ok(Math.abs(drawnExtent(w, 'real') - 0.305) < 0.002, `real ${drawnExtent(w, 'real')}`);
+  assert.ok(Math.abs(/** @type {number} */ (real.radius) - 0.305 / 2) < 0.002, 'radius from the file');
+  assert.ok(Math.abs(drawnExtent(w, 'feet') - 0.305 * 0.3048) < 0.002, `feet ${drawnExtent(w, 'feet')}`);
   assert.ok(Math.abs(drawnExtent(w, 'sized') - 60) < 0.5);
   const info = real.modelInfo?.();
-  assert.ok(info && info.real && Math.abs(info.extent[2] - 289) < 2 && Math.abs(info.size - 0.289) < 0.002);
-  assert.equal(info?.src, 'builtin:constitution', 'which file the measurements are for (the Studio drops a build of the file before)');
+  assert.ok(info && info.real && Math.abs(info.extent[2] - 305) < 2 && Math.abs(info.size - 0.305) < 0.002);
+  assert.equal(info?.src, 'builtin:constitution_class_refit', 'which file the measurements are for (the Studio drops a build of the file before)');
   assert.equal(w.objects.get('sized')?.modelInfo?.()?.real, false);
   // length: drawn that long whatever the file measures, and still real
   assert.ok(Math.abs(drawnExtent(w, 'long') - 1.061) < 0.005, `long ${drawnExtent(w, 'long')}`);
   assert.equal(w.objects.get('long')?.modelInfo?.()?.real, true);
-  // in a system in metres: 289 of its units
+  // in a system in metres: 305 of its units
   const inner = w.objects.get('inner')?.modelInfo?.();
-  assert.ok(inner && Math.abs(inner.size - 289) < 2, `inner ${inner?.size}`);
+  assert.ok(inner && Math.abs(inner.size - 305) < 2, `inner ${inner?.size}`);
   w.dispose();
 });
 
@@ -177,8 +177,8 @@ test('model_scale visible: a real-size model can be drawn k times larger about i
   const w = buildScene({
     units: 'km',
     objects: [
-      { type: 'model', id: 'real', src: 'builtin:constitution', at: [5, 0, 0] },
-      { type: 'model', id: 'sized', src: 'builtin:constitution', size: 1 }
+      { type: 'model', id: 'real', src: 'builtin:constitution_class_refit', at: [5, 0, 0] },
+      { type: 'model', id: 'sized', src: 'builtin:constitution_class_refit', size: 1 }
     ]
   }, /** @type {any} */ (ctx()));
   const real = w.objects.get('real');
@@ -189,19 +189,19 @@ test('model_scale visible: a real-size model can be drawn k times larger about i
   assert.ok(Math.abs(/** @type {number} */ (real?.radius) - 0.6) < 1e-9);
   await settle();
   await settle();
-  assert.ok(Math.abs(/** @type {number} */ (real?.realExtent) - 0.289) < 0.002);
-  assert.ok(Math.abs(drawnExtent(w, 'real') - 0.289 * 4) < 0.01, 'the file came in magnified');
+  assert.ok(Math.abs(/** @type {number} */ (real?.realExtent) - 0.305) < 0.002);
+  assert.ok(Math.abs(drawnExtent(w, 'real') - 0.305 * 4) < 0.01, 'the file came in magnified');
   real?.magnify?.(10);
-  assert.ok(Math.abs(drawnExtent(w, 'real') - 2.89) < 0.02);
-  assert.ok(Math.abs(/** @type {number} */ (real?.radius) - 1.445) < 0.01);
+  assert.ok(Math.abs(drawnExtent(w, 'real') - 3.05) < 0.02);
+  assert.ok(Math.abs(/** @type {number} */ (real?.radius) - 1.525) < 0.01);
   // about its centre: still at its place
   w.scene.updateMatrixWorld(true);
   const box = new Box3();
   real?.node.traverse((/** @type {any} */ o) => { if (o.isMesh && o.material?.name === 'lcards-hologram') box.expandByObject(o, true); });
   assert.ok(box.getCenter(new Vector3()).distanceTo(new Vector3(5, 0, 0)) < 0.05);
   real?.magnify?.(1);
-  assert.ok(Math.abs(drawnExtent(w, 'real') - 0.289) < 0.002);
-  assert.ok(Math.abs(/** @type {number} */ (real?.modelInfo?.()?.size) - 0.289) < 0.002, 'modelInfo stays the real size');
+  assert.ok(Math.abs(drawnExtent(w, 'real') - 0.305) < 0.002);
+  assert.ok(Math.abs(/** @type {number} */ (real?.modelInfo?.()?.size) - 0.305) < 0.002, 'modelInfo stays the real size');
   w.dispose();
 });
 
@@ -253,7 +253,7 @@ test('material: original keeps the file\'s materials and adds lights; solid: fal
   w.dispose();
 });
 
-test('points on the model use file coordinates (size does not move them), part follows the animated bussard', async () => {
+test('points on the model use file coordinates (size does not move them), part follows the animated (pulsing) bussard', async () => {
   const config = (/** @type {number} */ size) => ({
     objects: [{ type: 'model', id: 'ship', src: 'x', size, animation: 'bussards' }],
     points: [
@@ -262,7 +262,7 @@ test('points on the model use file coordinates (size does not move them), part f
       { id: 'collector', object: 'ship', part: 'bussard_port', xyz: [0, 5, 0], label: 'Collector' }
     ]
   });
-  const w = buildScene(config(289), /** @type {any} */ (ctx()));
+  const w = buildScene(config(305), /** @type {any} */ (ctx()));
   // nothing until the file is in
   assert.equal(w.places.get('bridge'), null);
   await settle();
@@ -270,20 +270,20 @@ test('points on the model use file coordinates (size does not move them), part f
   w.layout();
   const bow = w.places.get('bow');
   assert.ok(bow);
-  // size 289 is the file's own length: scale 1, recentred on the bounds (the bow stays near +144.5 z)
+  // size 305 is the file's own length: scale 1, recentred on the bounds (the bow stays near +144.5 z)
   const ship = w.objects.get('ship');
   assert.ok(ship?.placeNode);
   const local = ship.placeNode.worldToLocal(bow.clone());
   assert.ok(local.distanceTo(new Vector3(0, 24, 144.5)) < 1e-3);
   const bridge = w.places.get('bridge');
   assert.ok(bridge && bridge.y > 0);
-  // the collector's offset turns with the bussard (the clip turns it round z)
+  // the collector's offset swells with the bussard (the clip scales it)
   const before = w.places.get('collector')?.clone();
   assert.ok(before);
   assert.equal(ship.tick?.(500, 500), true);
   w.layout();
   const later = w.places.get('collector');
-  assert.ok(later && later.distanceTo(before) > 1, 'moved with the part');
+  assert.ok(later && later.distanceTo(before) > 0.05, 'moved with the part');
   assert.equal(w.places.isDynamic('collector'), true);
 
   // the same points with a smaller model: same file-space position
@@ -323,7 +323,7 @@ test('the loader takes a file of any size (no cap), and a failed fetch says why'
 
 test('feature edges: on by default up to the triangle budget, off on a denser model unless edges: true', async () => {
   const { Group, Mesh, BufferGeometry, BufferAttribute, MeshBasicMaterial } = await import('three');
-  assert.ok(Math.abs(models.triangleCount((await models.parseModel(SHIP.slice(0))).scene) - 6500) < 500);
+  assert.ok(Math.abs(models.triangleCount((await models.parseModel(SHIP.slice(0))).scene) - 10300) < 500);
   // a dense file: one triangle over the budget (degenerate, so it costs nothing to build)
   const g = new BufferGeometry();
   g.setAttribute('position', new BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 1]), 3));
@@ -365,8 +365,9 @@ test('clip names: all, one, a list, unknown names dropped', () => {
 test('E8 starbases: every built-in model parses with the parts its pack entry lists, at canon size', async () => {
   const { LCARDS_IMAGES_PACK } = await import('../../src/core/packs/lcards-images-pack.js');
   // [across (round the y axis), tall, long (z)] in metres: the on-screen designs
-  // (DS9 1452 across, pylons 969 tip to tip; Spacedock 3800 x about 5480), the drydock about 760 long and 330 tall
-  const SIZES = { deep_space_nine: [1452, 969], earth_spacedock: [3800, 5480], utopia_planitia_drydock: [null, 330, 760] };
+  // (DS9 1452 across, pylons 969 tip to tip; Spacedock 3800 x about 5480), the drydock about 760 long and 330 tall,
+  // the refit Constitution 305.1 x 71.3 m and the Galaxy class 642.5 x 137.5 m (length x height; the plates draw it 142)
+  const SIZES = { constitution_class_refit: [null, 71.3, 305.1], galaxy_class: [null, 137.5, 642.5], deep_space_nine: [1452, 969], earth_spacedock: [3800, 5480], utopia_planitia_drydock: [null, 330, 760] };
   for (const [key, m] of Object.entries(LCARDS_IMAGES_PACK.model_assets)) {
     const g = await models.parseModel(bytes(m.url.replace('/lcards/models/', '../../src/assets/models/')));
     for (const name of m.parts) assert.ok(g.scene.getObjectByName(name), `${key}: part ${name}`);

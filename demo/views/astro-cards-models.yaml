@@ -102,7 +102,7 @@ sections:
           - { id: v_top, xyz: [60, -24, 60], label: TOP, marker: square, tap_action: { action: fly-to, view: top } }
         objects:
           - { type: grid, shape: disc, radius: 70, pattern: polar, line_spacing: 10, spoke_count: 24, at: [0, -25, 0] }
-          - { type: model, id: ship, src: builtin:constitution, size: 70, scan: { period: 5 }, animation: all }
+          - { type: model, id: ship, src: builtin:constitution_class_refit, size: 70, scan: { period: 5 }, animation: all }
         grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
         height: 650
@@ -113,7 +113,7 @@ sections:
           - { id: bridge, object: ship, part: bridge, label: BRIDGE, marker: dot }
           - { id: shuttle_bay, object: ship, part: shuttle_bay, label: SHUTTLE BAY, marker: dot }
         objects:
-          - { type: model, id: ship, src: builtin:constitution, size: 60, material: original, spin: 6 }
+          - { type: model, id: ship, src: builtin:constitution_class_refit, size: 60, material: original, spin: 6 }
         grid_options: { columns: full }
       - type: custom:lcards-astrometrics-card
         height: 650
@@ -126,7 +126,7 @@ sections:
         objects:
           - type: model
             id: ship
-            src: builtin:constitution
+            src: builtin:constitution_class_refit
             size: 60
             color: var(--lcars-orange)
             rim: { color: var(--lcars-yellow) }

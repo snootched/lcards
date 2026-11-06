@@ -37,7 +37,7 @@ export const TYPE_SAMPLES = {
     ],
     camera: { target: [0, 0, 0], yaw: 20, tilt: 30, distance: 110 }
   },
-  model: { objects: [{ type: 'model', id: 'ship', src: 'builtin:constitution', size: 60, material: 'original' }], camera: { target: [0, 0, 0], yaw: 35, tilt: 20, distance: 75 } },
+  model: { objects: [{ type: 'model', id: 'ship', src: 'builtin:constitution_class_refit', size: 60, material: 'original' }], camera: { target: [0, 0, 0], yaw: 35, tilt: 20, distance: 75 } },
   ring: { objects: [FLOOR, { type: 'ring', id: 'orbit', radius: 40, inclination: 25, width: 2 }, { type: 'ring', id: 'range', radius: 25, dash: [4, 4] }], camera: VIEW },
   path: {
     points: [{ id: 'a', polar: [45, 250], marker: 'dot' }, { id: 'b', polar: [45, 70], marker: 'dot' }],

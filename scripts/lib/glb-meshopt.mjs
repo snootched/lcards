@@ -1,7 +1,7 @@
 /**
  * glb-meshopt.mjs: compresses a GLB's buffer views with EXT_meshopt_compression
  * (lossless: vertex attributes, animation samplers and triangle indices as
- * they are, no quantisation or filters). Used by `make-demo-ship.mjs
+ * they are, no quantisation or filters). Used by `make-ships.mjs
  * --meshopt` to write the test fixture that exercises the model chunk's
  * meshopt decoder.
  *

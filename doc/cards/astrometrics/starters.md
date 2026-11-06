@@ -424,7 +424,7 @@ backdrop: { stars: { count: 1500 } }
 
 ### Starbase approach
 
-The built-in Constitution-class starship on its way into Earth Spacedock through the space doors, with its bridge and nacelles marked and the approach lane drawn. To scale: the ship is 289 m long, Spacedock about 5.5 km tall and its doors 700 m wide.
+The built-in refit Constitution-class starship on its way into Earth Spacedock through the space doors, with its bridge and nacelles marked and the approach lane drawn. To scale: the ship is 305 m long, Spacedock about 5.5 km tall and its doors 700 m wide.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -445,9 +445,9 @@ points:
 objects:
   - type: model
     id: ship
-    src: builtin:constitution
+    src: builtin:constitution_class_refit
     at: ship_centre
-    size: 25
+    size: 26.7
     rotation: [0, 180, 0]
     scan: { period: 6 }
     animation: all
@@ -1400,7 +1400,7 @@ backdrop: { stars: { count: 2500 } }
 
 ### Utopia Planitia yards
 
-Three drydocks of the Utopia Planitia Fleet Yards in orbit over Mars (its USGS Viking map), a Constitution-class starship in the first. Tap a drydock to fly to it.
+Three drydocks of the Utopia Planitia Fleet Yards in orbit over Mars (its USGS Viking map), a Galaxy-class starship in the first. Tap a drydock to fly to it.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -1443,7 +1443,7 @@ objects:
     opacity: 0.3
     spin: 2
   - { type: model, id: dock1_frame, src: builtin:utopia_planitia_drydock, at: dock1, size: 40, material: original }
-  - { type: model, id: dock1_ship, src: builtin:constitution, at: dock1, size: 15, scan: { period: 6 } }
+  - { type: model, id: dock1_ship, src: builtin:galaxy_class, at: dock1, size: 33.8, scan: { period: 6 } }
   - { type: model, id: dock2_frame, src: builtin:utopia_planitia_drydock, at: dock2, size: 40, material: original }
   - { type: model, id: dock3_frame, src: builtin:utopia_planitia_drydock, at: dock3, size: 40, material: original }
 camera:
@@ -1458,7 +1458,7 @@ backdrop: { stars: { count: 2000 } }
 
 ### Borg encounter
 
-A Borg cube with its green halo bearing down on the built-in Constitution-class starship, its tractor beam locked on. Tap a name to fly to it.
+A Borg cube with its green halo bearing down on the built-in Galaxy-class starship, its tractor beam locked on. Tap a name to fly to it.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -1477,7 +1477,7 @@ points:
 objects:
   - { type: glow, at: cube, size: 110, color: var(--lcards-green-medium), opacity: 0.45 }
   - { type: cube, id: borg, at: cube, size: 40, spin: 3, rotation: [8, 25, 0] }
-  - { type: model, id: hull, src: builtin:constitution, at: ship, size: 20, rotation: [0, 160, 0], scan: { period: 5 } }
+  - { type: model, id: hull, src: builtin:galaxy_class, at: ship, size: 22, rotation: [0, 160, 0], scan: { period: 5 } }
   - { type: beam, from: emitter, to: ship, width: 10, color: var(--lcards-green-medium), pulse: true }
 camera:
   view: encounter
@@ -3282,7 +3282,7 @@ objects: [{ type: nebula, id: nexus_ribbon, at: nexus_heart, preset: nexus, size
 
 ### Crystalline Entity
 
-The Crystalline Entity ("Datalore", "Silicon Avatar"): a crystalline object 3 km tall, turning slowly about its glowing spine, its core pulsing. With a ship, a Constitution-class starship stands off its side at the same scale (289 m against 3 km), and with the beam the entity's core fires on it. Change the crystal colour on the object (var(--lcars-african-violet) for the lavender of the show).
+The Crystalline Entity ("Datalore", "Silicon Avatar"): a crystalline object 3 km tall, turning slowly about its glowing spine, its core pulsing. With a ship, a Galaxy-class starship (the Enterprise of both episodes) stands off its side at the same scale (642.5 m against 3 km), and with the beam the entity's core fires on it. Change the crystal colour on the object (var(--lcars-african-violet) for the lavender of the show).
 
 Its ids start with its name (default `entity_`).
 
@@ -3303,7 +3303,7 @@ points:
   - { id: entity_ship_at, at: entity_core, offset: [-2100, -90, 300], label: USS ENTERPRISE, style: minor }
 objects:
   - { type: crystalline, id: entity_crystal, at: entity_core, size: 3000, spin: 2 }
-  - { type: model, id: entity_ship, src: builtin:constitution, at: entity_ship_at, size: 289 }
+  - { type: model, id: entity_ship, src: builtin:galaxy_class, at: entity_ship_at, size: 642 }
   - { type: beam, id: entity_beam, from: entity_core, to: entity_ship_at, width: 10, color: var(--lcards-moonlight), pulse: true }
 ```
 

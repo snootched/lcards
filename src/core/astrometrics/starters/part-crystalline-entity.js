@@ -2,15 +2,15 @@
 
 import { centreRef, sigFigs } from './shared.js';
 
-/** The Constitution-class ship's length as a share of the entity's 3 km */
-const SHIP_SHARE = 0.289 / 3;
+/** The Galaxy-class ship's length as a share of the entity's 3 km */
+const SHIP_SHARE = 0.6425 / 3;
 
 export default /** @type {import('./index.js').Starter} */ ({
   id: 'crystalline-entity',
   kind: 'part',
   title: 'Crystalline Entity',
   summary: 'The Crystalline Entity, with a ship beside it for scale',
-  description: 'The Crystalline Entity ("Datalore", "Silicon Avatar"): a crystalline object 3 km tall, turning slowly about its glowing spine, its core pulsing. With a ship, a Constitution-class starship stands off its side at the same scale (289 m against 3 km), and with the beam the entity\'s core fires on it. Change the crystal colour on the object (var(--lcars-african-violet) for the lavender of the show).',
+  description: 'The Crystalline Entity ("Datalore", "Silicon Avatar"): a crystalline object 3 km tall, turning slowly about its glowing spine, its core pulsing. With a ship, a Galaxy-class starship (the Enterprise of both episodes) stands off its side at the same scale (642.5 m against 3 km), and with the beam the entity\'s core fires on it. Change the crystal colour on the object (var(--lcars-african-violet) for the lavender of the show).',
   icon: 'mdi:snowflake',
   picture: { camera: { target: [-800, 0, 0], yaw: 0, tilt: 5, distance: 5000 } },
   params: [
@@ -29,7 +29,7 @@ export default /** @type {import('./index.js').Starter} */ ({
     const objects = [{ type: 'crystalline', id: 'crystal', at: 'core', size: H, spin: 2 }];
     if (ship === 'ship' || ship === 'beam') {
       points.push({ id: 'ship_at', at: 'core', offset: [sigFigs(-H * 0.7), sigFigs(-H * 0.03), sigFigs(H * 0.1)], label: 'USS ENTERPRISE', style: 'minor' });
-      objects.push({ type: 'model', id: 'ship', src: 'builtin:constitution', at: 'ship_at', size: sigFigs(H * SHIP_SHARE) });
+      objects.push({ type: 'model', id: 'ship', src: 'builtin:galaxy_class', at: 'ship_at', size: sigFigs(H * SHIP_SHARE) });
       if (ship === 'beam') objects.push({ type: 'beam', id: 'beam', from: 'core', to: 'ship_at', width: 10, color: 'var(--lcards-moonlight)', pulse: true });
     }
     return { points, objects };

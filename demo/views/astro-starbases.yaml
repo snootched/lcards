@@ -315,9 +315,9 @@ sections:
             material: original
           - type: model
             id: dock1_ship
-            src: builtin:constitution
+            src: builtin:galaxy_class
             at: dock1
-            size: 15
+            size: 33.8
             scan: { period: 6 }
           - type: model
             id: dock2_frame
@@ -432,9 +432,9 @@ sections:
         objects:
           - type: model
             id: ship
-            src: builtin:constitution
+            src: builtin:constitution_class_refit
             at: ship_centre
-            size: 25
+            size: 26.7
             rotation:
               - 0
               - 180

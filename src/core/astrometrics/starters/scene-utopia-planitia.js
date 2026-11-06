@@ -12,7 +12,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   kind: 'scene',
   title: 'Utopia Planitia yards',
   summary: 'Three drydocks in orbit over Mars, a starship in the first',
-  description: 'Three drydocks of the Utopia Planitia Fleet Yards in orbit over Mars (its USGS Viking map), a Constitution-class starship in the first. Tap a drydock to fly to it.',
+  description: 'Three drydocks of the Utopia Planitia Fleet Yards in orbit over Mars (its USGS Viking map), a Galaxy-class starship in the first. Tap a drydock to fly to it.',
   icon: 'mdi:factory',
   params: [],
   build: () => ({
@@ -35,8 +35,8 @@ export default /** @type {import('./index.js').Starter} */ ({
       { type: 'sphere', id: 'mars_body', at: 'mars', radius: 190, image: 'builtin:mars_viking', line_spacing_deg: 30, line_width: 0.5, opacity: 0.3, spin: 2 },
       ...DOCKS.flatMap(([id, , , ship]) => [
         { type: 'model', id: `${id}_frame`, src: 'builtin:utopia_planitia_drydock', at: id, size: 40, material: 'original' },
-        // the ship at the drydock's scale (289 m in a 772 m frame)
-        ...(ship ? [{ type: 'model', id: `${id}_ship`, src: 'builtin:constitution', at: id, size: 15, scan: { period: 6 } }] : [])
+        // the ship at the drydock's scale (642.5 m in a 760 m drydock, which is built for it)
+        ...(ship ? [{ type: 'model', id: `${id}_ship`, src: 'builtin:galaxy_class', at: id, size: 33.8, scan: { period: 6 } }] : [])
       ])
     ]
   })

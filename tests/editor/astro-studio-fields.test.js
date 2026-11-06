@@ -187,10 +187,10 @@ test('a new object is sized to the view and placed where it looks', () => {
 });
 
 test('UX1 P6c: a new model where the scope has units is drawn at its real size (no size); the size panel reads the file', () => {
-  assert.deepEqual(newObject('model', [], [], { scale: 500, real: true }), { type: 'model', id: 'model1', src: 'builtin:constitution' });
+  assert.deepEqual(newObject('model', [], [], { scale: 500, real: true }), { type: 'model', id: 'model1', src: 'builtin:constitution_class_refit' });
   assert.equal(newObject('model', [], [], { scale: 500 }).size, 25000);
   const ship = [127, 67.9, 289];
-  const real = modelSizeReadout({ type: 'model', src: 'builtin:constitution' }, ship, 'km');
+  const real = modelSizeReadout({ type: 'model', src: 'builtin:constitution_class_refit' }, ship, 'km');
   assert.equal(real.mode, 'real');
   assert.equal(real.file, '127 x 67.9 x 289 m (largest 289 m)');
   assert.equal(real.real, '289 m = 0.289 km');

@@ -1,0 +1,95 @@
+# Astrometrics ships (M2b): the two built-in starships, the refit Constitution class
+# (USS Enterprise NCC-1701-A, 305 m) and the Galaxy class (USS Enterprise NCC-1701-D,
+# 642.5 m), side by side at the same scale as holograms with their parts labelled, each
+# turning in its own materials, and the Galaxy class in its Utopia Planitia drydock.
+title: Astrometrics ships
+path: astro-ships
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: BOTH, show: true } }
+        tap_action: { action: fly-to, card: astro_ships_1, view: both }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: 1701-A, show: true } }
+        tap_action: { action: fly-to, card: astro_ships_1, view: refit }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: 1701-D, show: true } }
+        tap_action: { action: fly-to, card: astro_ships_1, view: galaxy }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: BELOW, show: true } }
+        tap_action: { action: fly-to, card: astro_ships_1, view: below }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_ships_1
+        height: 620
+        grid_options: { columns: full }
+        camera:
+          view: both
+          buttons: true
+          views:
+            both: { target: [-5, 0, 0], yaw: 40, tilt: 6, distance: 115 }
+            refit: { target: refit_at, yaw: 40, tilt: 15, distance: 55 }
+            galaxy: { target: galaxy_at, yaw: 40, tilt: 15, distance: 105 }
+            below: { target: [0, 0, 0], yaw: 210, tilt: -25, distance: 140 }
+        backdrop: { stars: { count: 1500 } }
+        points:
+          - { id: refit_at, xyz: [-50, 0, 0] }
+          - { id: galaxy_at, xyz: [30, 0, 0] }
+          - { id: refit_name, at: refit_at, offset: [0, -16, 0], label: USS ENTERPRISE NCC-1701-A, style: minor }
+          - { id: galaxy_name, at: galaxy_at, offset: [0, -24, 0], label: USS ENTERPRISE NCC-1701-D, style: minor }
+          - { id: a_bridge, object: refit, part: bridge, label: BRIDGE, marker: dot, style: tiny }
+          - { id: a_deflector, object: refit, part: deflector, label: DEFLECTOR, marker: dot, style: tiny }
+          - { id: a_torpedo, object: refit, part: torpedo_launcher, label: TORPEDOES, marker: dot, style: tiny }
+          - { id: a_nacelle, object: refit, part: bussard_starboard, label: STARBOARD NACELLE, marker: dot, style: tiny }
+          - { id: d_bridge, object: galaxy, part: bridge, label: BRIDGE, marker: dot, style: tiny }
+          - { id: d_deflector, object: galaxy, part: deflector, label: DEFLECTOR, marker: dot, style: tiny }
+          - { id: d_shuttle, object: galaxy, part: shuttle_bay, label: SHUTTLE BAY, marker: dot, style: tiny }
+          - { id: d_nacelle, object: galaxy, part: bussard_starboard, label: STARBOARD NACELLE, marker: dot, style: tiny }
+        objects:
+          - { type: model, id: refit, src: builtin:constitution_class_refit, at: refit_at, size: 30.5, scan: { period: 6 }, animation: all }
+          - { type: model, id: galaxy, src: builtin:galaxy_class, at: galaxy_at, size: 64.25, scan: { period: 6 }, animation: all }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 600
+        grid_options: { columns: full }
+        camera: { view: turn, views: { turn: { target: [0, 0, 0], yaw: 35, tilt: 15, distance: 75 } } }
+        backdrop: { stars: { count: 800 } }
+        objects:
+          - { type: model, id: ship, src: builtin:constitution_class_refit, size: 60, material: original, spin: 6, animation: all }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 600
+        grid_options: { columns: full }
+        camera: { view: turn, views: { turn: { target: [0, 0, 0], yaw: 35, tilt: 15, distance: 75 } } }
+        backdrop: { stars: { count: 800 } }
+        objects:
+          - { type: model, id: ship, src: builtin:galaxy_class, size: 60, material: original, spin: 6, animation: all }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        height: 600
+        grid_options: { columns: full }
+        camera: { view: dock, views: { dock: { target: [0, 0, 0], yaw: 40, tilt: 20, distance: 80 } } }
+        backdrop: { stars: { count: 1500 } }
+        points:
+          - { id: name, xyz: [0, 22, 0], label: UTOPIA PLANITIA DRYDOCK, style: minor }
+        objects:
+          - { type: model, id: dock, src: builtin:utopia_planitia_drydock, size: 40, material: original }
+          # the ship at the drydock's scale (642.5 m in the 760 m drydock built for it)
+          - { type: model, id: ship, src: builtin:galaxy_class, size: 33.8, material: original, scan: { period: 6 } }

@@ -5,13 +5,13 @@ description: Build or revise a built-in astrometrics 3D model (builtin:<name>: a
 
 # LCARdS built-in models
 
-The built-in models (`builtin:constitution`, `deep_space_nine`, `earth_spacedock`, `utopia_planitia_drydock`, ...) are fan art made in code: a Node script builds three.js geometry and exports GLB to `src/assets/models/`. No third-party mesh, texture or traced artwork ships; reference stills are screen captures of copyrighted material, kept local in `reports/refs/` (not committed), used only to measure from.
+The built-in models (`builtin:constitution_class_refit`, `galaxy_class`, `deep_space_nine`, `earth_spacedock`, `utopia_planitia_drydock`, ...) are fan art made in code: a Node script builds three.js geometry and exports GLB to `src/assets/models/`. No third-party mesh, texture or traced artwork ships; reference stills are screen captures of copyrighted material, kept local in `reports/refs/` (not committed), used only to measure from.
 
 Never commit, stage or push unless the user asks. The user checks the result in Home Assistant.
 
 ## Where things are
 
-- Generators: `scripts/make-starbases.mjs` (stations), `scripts/make-demo-ship.mjs` (the Constitution). Shared geometry `scripts/lib/model-kit.mjs`: `latheY` (round profiles), `ringY` (closed rings), `latheZ` (hulls along z), `loft` (tubes through section rings, capped, auto-facing), `aerofoil`, `part`, `exportGlb`, `lean`. In `make-starbases.mjs`: `roundedRect` (a section; `power` 0.45 boxy, 1 ellipse/lens), `bezier` (centre lines), `frame` (radial/tangent axes at a bearing), `placed` (a named part with a meaningful origin), `hoop`, `beam`, `spire`.
+- Generators: `scripts/make-starbases.mjs` (stations), `scripts/make-ships.mjs` (ships; `--meshopt` also writes the test fixture). Shared geometry `scripts/lib/model-kit.mjs`: `latheY` (round profiles), `ringY` (closed rings), `latheZ` (hulls along z), `loft` (tubes through section rings, capped, auto-facing), `aerofoil`, `part`, `exportGlb`, `lean`, `roundedRect` (a section; `power` 0.45 boxy, 1 ellipse/lens), `bezier` (centre lines), `frame` (radial/tangent axes at a bearing), `placed` (a named part with a meaningful origin). In `make-starbases.mjs`: `hoop`, `beam`, `spire`. In `make-ships.mjs`: `tubeZ` (hulls and nacelles through rounded sections), `windowQuads` / `windowRing` / `windowRow` (lit windows as single quads: a box per window cost nine times the bytes).
 - Pack entry (url, label, description, `parts` list): `src/core/packs/lcards-images-pack.js` `model_assets`.
 - Docs table of models and parts: `doc/cards/astrometrics/objects.md` (Built-in models).
 - Size test: `tests/core/astro-model.test.js` (`SIZES`, within 5%; every pack part must exist). Browser: `tests/browser/astro-model.spec.js` + `fixtures/astro-starbases.yaml`.
@@ -67,5 +67,5 @@ The format is glTF 2.0 binary (GLB); the loader (`src/core/astrometrics/model/in
 
 - **Windows and lights**: emissive materials on thin bands or small boxes (as now). Cheap, and they read at a distance. Real light sources in the scene are costly; prefer emissive geometry.
 - **Textures**: possible in GLB (a window pattern or panel lines as an emissive or colour map). Made in code (a generated canvas or pixel buffer, e.g. a window grid) they stay our own work; they cost file size (a 1024 px PNG is 100 KB or more) and need UVs (`lean()` drops UVs today: keep them on parts that get a texture).
-- **Animation clips**: the Constitution's `bussards` clip; `animation:` plays them.
+- **Animation clips**: the ships' `bussards` clip (a pulse); `animation:` plays them.
 - **Hand-authored models**: a model made in Blender or similar and exported as GLB works the same way (`src:` a `/local/...` file for users; a built-in if it is our own work and the user agrees to ship it). Keep the conventions above: Y up, metres, origin in the middle, named nodes for parts, no Draco, a few hundred KB.

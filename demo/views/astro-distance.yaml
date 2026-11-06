@@ -117,5 +117,5 @@ sections:
           - { type: glow, at: star, size: 30, color: var(--lcars-yellow) }
           - { type: belt, radius: [ 90, 120 ], count: 3000, size: [ 0.3, 1.2 ], period: 120 }
           - { type: ring, id: patrol, radius: 60, spin: 10, width: 0.5, opacity: 0.2 }
-          - { type: model, src: builtin:constitution, at: ship, size: 16, max_distance: 400 }
+          - { type: model, src: builtin:constitution_class_refit, at: ship, size: 16, max_distance: 400 }
         grid_options: { columns: full }

@@ -66,7 +66,7 @@ sections:
         objects:
           # the Nexus: the preset, its waves running at the slider's speed
           - {type: nebula, id: nexus, at: [0, 0, 0], preset: nexus, ribbon: {speed: {entity: input_number.lcards_test_power, input: [0, 100], output: [0, 120]}}}
-          - {type: model, src: builtin:constitution, at: [150, -260, 160], size: 30}
+          - {type: model, src: builtin:constitution_class_refit, at: [150, -260, 160], size: 30}
           # travelling: on a wide orbit, face: motion turns its +z along the travel, rotation turns the wake behind
           - {type: ring, id: track, at: [0, 0, 12000], radius: 3000, spin: 3, width: 0.5, opacity: 0.15}
           - {type: nebula, id: rider_nexus, at: rider, preset: nexus, size: [1500, 400, 400], face: motion, rotation: [-90, 0, 0]}

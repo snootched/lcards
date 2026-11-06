@@ -62,7 +62,7 @@ test('a point on an animated part follows it', async ({ page }) => {
     await expect.poll(async () => {
         const b = await where();
         return Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
-    }, { timeout: 5_000 }).toBeGreaterThan(0.2);
+    }, { timeout: 5_000 }).toBeGreaterThan(0.03); // the bussards pulse (6%): a few hundredths at size 70
 });
 
 test('editor: a point on a model part (parts from the built-in list and from the preview), a pinned card', async ({ page }) => {
@@ -153,11 +153,11 @@ test('UX1 P6c real size: without size in a km scene the built-in models sit in p
     await expect.poll(async () => Object.values((await info()) ?? {}).every(Boolean), { timeout: 20_000 }).toBe(true);
     const m = await info();
     expect(m.ship.real).toBe(true);
-    expect(m.ship.size).toBeCloseTo(0.289, 2);
+    expect(m.ship.size).toBeCloseTo(0.305, 2);
     expect(m.station.size).toBeCloseTo(1.455, 2);
     // the station is five times the ship, as in canon
-    expect(m.station.size / m.ship.size).toBeCloseTo(1455 / 289, 1);
-    expect(m.feet.size).toBeCloseTo(0.289 * 0.3048, 2);
+    expect(m.station.size / m.ship.size).toBeCloseTo(1455 / 305, 1);
+    expect(m.feet.size).toBeCloseTo(0.305 * 0.3048, 2);
     expect(m.sized.real).toBe(false);
     expect(m.sized.size).toBeCloseTo(0.5, 3);
     // length: its real length whatever the file measures, and still real
@@ -185,7 +185,7 @@ test('a model that takes a moment to download shows the loading ring until it is
 test('UX1 P6c visible size: the size button, the V key and model_scale draw small real-size models larger; sized ones stay', async ({ page }) => {
     await mountCase(page, 'astro-real-size', { width: '800' });
     const card = '#mount > *';
-    // far out (40 km): the 289 m ship is a few px across
+    // far out (40 km): the 305 m ship is a few px across
     const config = await page.evaluate((sel) => /** @type {any} */ (document.querySelector(sel)).config, card);
     const far = { ...config, camera: { ...config.camera, buttons: { hide: 'never' }, views: { near: { target: [0, 0, 0], yaw: 30, tilt: 20, distance: 40 } } } };
     await page.evaluate((c) => window.__reconfigure(c), far);

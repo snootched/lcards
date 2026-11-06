@@ -292,6 +292,13 @@ releases:
         session: "M2b"
         docs: /cards/astrometrics/models
         public: true
+      - file: astro-ships
+        topic: astrometrics
+        summary: "Astrometrics ships: the NCC-1701-A and the NCC-1701-D"
+        description: "The two built-in starships made in code after the on-screen designs: the refit Constitution class (USS Enterprise NCC-1701-A, 305 m) and the Galaxy class (USS Enterprise NCC-1701-D, 642.5 m), side by side at the same scale as holograms with their parts labelled, each turning in its own materials, and the Galaxy class in its Utopia Planitia drydock. The buttons above the first scene fly its camera to each ship."
+        session: "M2b"
+        docs: /cards/astrometrics/objects#built-in-models
+        public: true
       - file: astro-starbases
         topic: astrometrics
         summary: "Astrometrics starbases: Deep Space 9, Earth Spacedock, Utopia Planitia"

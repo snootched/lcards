@@ -464,7 +464,7 @@ export function createAstroScene(host, config, options = {}) {
     loadModel: (src) => {
       const models = ctx.models;
       if (!models) return null;
-      // builtin:constitution (the LCARdS model library), media-source://... (My models), a path
+      // builtin:constitution_class_refit (the LCARdS model library), media-source://... (My models), a path
       const cacheKey = src;
       let p = modelFiles.get(cacheKey);
       if (!p) {

@@ -13,4 +13,4 @@ points:
   - { id: ship, polar: [60, 0], object: patrol, label: SHIP, style: minor }
 objects:
   - { type: ring, id: patrol, radius: 60, spin: 30, width: 0.5 }
-  - { type: model, src: builtin:constitution, at: ship, size: 24, face: motion }
+  - { type: model, src: builtin:constitution_class_refit, at: ship, size: 24, face: motion }

@@ -173,13 +173,13 @@ test('docs starters and gallery tiles pass the full checker (references included
 
 test('E4 models: part needs a model, combines with xyz only, names a part of a built-in model; built-in model names are checked', () => {
     const reg = /** @type {any} */ (registries);
-    assert.ok(reg.astrometrics.builtin_models['builtin:constitution'].includes('bridge'));
+    assert.ok(reg.astrometrics.builtin_models['builtin:constitution_class_refit'].includes('bridge'));
     assert.deepEqual(reg.astrometrics.model_materials, ['hologram', 'original']);
     const out = issues({
         objects: [
-            { type: 'model', id: 'ship', src: 'builtin:constitution', size: 40, material: 'hologram', animation: 'bussards' },
+            { type: 'model', id: 'ship', src: 'builtin:constitution_class_refit', size: 40, material: 'hologram', animation: 'bussards' },
             { type: 'model', id: 'mine', src: '/local/station.glb' },
-            { type: 'model', id: 'typo', src: 'builtin:constitutoin' },
+            { type: 'model', id: 'typo', src: 'builtin:constitution_class_refti' },
             { type: 'sphere', id: 'globe' },
         ],
         points: [
@@ -195,8 +195,8 @@ test('E4 models: part needs a model, combines with xyz only, names a part of a b
         'error reference points[3].part: part places the point on a model part (xyz is an offset from it); drop polar',
         'error reference points[4].part: part needs a model object; "globe" is a sphere',
         'error reference points[5]: part needs object: (the object it stands on)',
-        'warning registry objects[2].src: unknown built-in model "builtin:constitutoin" (did you mean "builtin:constitution"?)',
-        'warning registry points[2].part: unknown part of builtin:constitution "brige" (did you mean "bridge"?)',
+        'warning registry objects[2].src: unknown built-in model "builtin:constitution_class_refti" (did you mean "builtin:constitution_class_refit"?)',
+        'warning registry points[2].part: unknown part of builtin:constitution_class_refit "brige" (did you mean "bridge"?)',
     ]);
 });
 

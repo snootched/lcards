@@ -206,7 +206,7 @@ test('astrometrics: model src and textures are pickers (models from the model li
     await page.evaluate(() => {
         const form = document.createElement('lcards-astro-schema-form');
         form.schema = { src: { type: 'string', assetSource: 'model', description: 'The file.' }, image: { type: 'string', assetSource: 'image', description: 'A texture.' } };
-        form.value = { src: 'builtin:constitution' };
+        form.value = { src: 'builtin:constitution_class_refit' };
         window.__form = form;
         window.__changes = [];
         form.addEventListener('form-changed', (e) => window.__changes.push(e.detail.value));
@@ -216,9 +216,9 @@ test('astrometrics: model src and textures are pickers (models from the model li
     const M = 'window.__form.renderRoot.querySelector("lcards-asset-source-picker[data-key=src]")';
     const I = 'window.__form.renderRoot.querySelector("lcards-asset-source-picker[data-key=image]")';
     let st = await pickerState(page, M);
-    expect([st.mode, st.sel.asset.value]).toEqual(['asset', 'builtin:constitution']);
+    expect([st.mode, st.sel.asset.value]).toEqual(['asset', 'builtin:constitution_class_refit']);
     const models = st.sel.asset.selector.select.options.map((o) => o.value);
-    expect(models).toEqual(expect.arrayContaining(['builtin:constitution', 'builtin:deep_space_nine', 'builtin:earth_spacedock', 'builtin:utopia_planitia_drydock']));
+    expect(models).toEqual(expect.arrayContaining(['builtin:constitution_class_refit', 'builtin:deep_space_nine', 'builtin:earth_spacedock', 'builtin:utopia_planitia_drydock']));
     expect(models.every((v) => !/earth_blue_marble/.test(v))).toBe(true);
     expect(st.sel.asset.selector.select.options.find((o) => o.value === 'builtin:deep_space_nine').label).toMatch(/Deep Space 9/);
     await choose(page, M, 'mode', 'media');

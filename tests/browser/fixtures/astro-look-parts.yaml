@@ -11,4 +11,4 @@ camera:
     v: { target: [0, 0, 0], yaw: 0, tilt: 0, distance: 90 }
 objects:
   - { type: sphere, id: planet, radius: 25, image: builtin:mars_viking, color: '#00ff00', line_spacing_deg: 20, line_width: 2 }
-  - { type: model, id: ship, at: [60, 0, 0], src: builtin:constitution, size: 10, material: original }
+  - { type: model, id: ship, at: [60, 0, 0], src: builtin:constitution_class_refit, size: 10, material: original }

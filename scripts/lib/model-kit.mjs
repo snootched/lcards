@@ -1,6 +1,6 @@
 /**
  * model-kit.mjs: geometry helpers for the built-in astrometrics models made
- * in code (scripts/make-demo-ship.mjs, scripts/make-starbases.mjs): lathes,
+ * in code (scripts/make-ships.mjs, scripts/make-starbases.mjs): lathes,
  * lofted tubes, aerofoil sections, named parts, GLB export. Y up, metres.
  */
 import {
@@ -158,4 +158,55 @@ export function ringY(section, segments) {
   }
   const loop = area > 0 ? section : [...section].reverse();
   return lean(new LatheGeometry([...loop, loop[0]].map(([r, y]) => new Vector2(r, y)), segments));
+}
+
+/**
+ * A mesh whose geometry is built in model space, moved so the node's
+ * origin is `origin` (where `part:` points sit).
+ * @param {string} name
+ * @param {import('three').BufferGeometry} geo
+ * @param {import('three').Material} mat
+ * @param {number[]} origin
+ */
+export function placed(name, geo, mat, origin) {
+  geo.translate(-origin[0], -origin[1], -origin[2]);
+  return part(name, geo, mat, origin);
+}
+
+/** The unit vectors at angle `a` (degrees from +z, toward +x): out from the axis, and across */
+export function frame(a) {
+  const t = a * Math.PI / 180;
+  return { out: new Vector3(Math.sin(t), 0, Math.cos(t)), across: new Vector3(Math.cos(t), 0, -Math.sin(t)) };
+}
+
+/** A point on a cubic Bezier through four [r, y] pairs, and its direction */
+export function bezier(p, t) {
+  const u = 1 - t;
+  const w = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
+  const d = [-3 * u * u, 3 * u * u - 6 * u * t, 6 * u * t - 3 * t * t, 3 * t * t];
+  const at = [0, 1].map((k) => w.reduce((s, wi, i) => s + wi * p[i][k], 0));
+  const dir = [0, 1].map((k) => d.reduce((s, di, i) => s + di * p[i][k], 0));
+  return { at, dir };
+}
+
+/**
+ * A rounded-rectangle section (a superellipse), `n` points round `c`.
+ * @param {Vector3} c
+ * @param {Vector3} u - first axis (unit)
+ * @param {number} hu - half size along u
+ * @param {Vector3} v - second axis (unit)
+ * @param {number} hv - half size along v
+ * @param {number} [n] - points
+ * @param {number} [power] - 0.45 a rounded box, 1 an ellipse (a lens for a thin web)
+ */
+export function roundedRect(c, u, hu, v, hv, n = 16, power = 0.45) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const t = (i / n) * Math.PI * 2;
+    const cu = Math.cos(t), sv = Math.sin(t);
+    const x = Math.sign(cu) * Math.pow(Math.abs(cu), power);
+    const y = Math.sign(sv) * Math.pow(Math.abs(sv), power);
+    pts.push(new Vector3().copy(c).addScaledVector(u, hu * x).addScaledVector(v, hv * y));
+  }
+  return pts;
 }

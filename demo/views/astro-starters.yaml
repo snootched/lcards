@@ -318,7 +318,7 @@ sections:
         objects:
           - type: model
             id: ship
-            src: builtin:constitution
+            src: builtin:constitution_class_refit
             at: ship_centre
             size: 50
             rotation: [0, 180, 0]

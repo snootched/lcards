@@ -67,7 +67,7 @@ points:
   - { id: ship, polar: [40, 90], object: orbit, label: ENTERPRISE, style: tiny }
 objects:
   - { type: ring, id: orbit, radius: 40, spin: 12, width: 0.5, opacity: 0.4 }
-  - { type: model, at: ship, src: builtin:constitution, size: 8, face: motion }
+  - { type: model, at: ship, src: builtin:constitution_class_refit, size: 8, face: motion }
   - { type: trail, point: ship, length: 4, width: 2 }
 ```
 
@@ -643,7 +643,7 @@ The Crystalline Entity (Star Trek: The Next Generation, "Datalore" and "Silicon 
 
 Turn it slowly about its spine with `spin`; `face` and `rotation` turn it as any object. The pulse and the spin hold still under reduced motion. Far away, when it would be under about 10 px tall, it is drawn as a dot in the core colour; nearer, the finer forks draw only once it is large enough on screen to show them. `glow` and `opacity` can [follow an entity](./data#settings-from-entities) in place, and a new `color` crossfades in as every object's does. The entity is see-through, so it hides no labels.
 
-Next to it below is the Constitution-class ship at its real size (289 m), and a beam from the entity's core to the ship:
+Next to it below is the Constitution-class ship at its real size (305 m), and a beam from the entity's core to the ship:
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -657,7 +657,7 @@ points:
   - { id: ship_at, xyz: [-2.1, -0.1, 0.3], label: USS ENTERPRISE, style: minor }
 objects:
   - { type: crystalline, id: entity, at: entity_at, spin: 2 }
-  - { type: model, id: ship, src: builtin:constitution, at: ship_at }
+  - { type: model, id: ship, src: builtin:constitution_class_refit, at: ship_at }
   - { type: beam, from: entity_at, to: ship_at, width: 10, color: var(--lcards-moonlight), pulse: true }
 ```
 
@@ -680,7 +680,7 @@ A 3D model from a glTF file (`.glb` or `.gltf`): a starship, your house, a satel
 ```yaml
 - type: model
   id: ship
-  src: builtin:constitution     # or /local/models/ship.glb
+  src: builtin:constitution_class_refit     # or /local/models/ship.glb
   size: 70                      # its largest extent, scene units
   scan: { period: 5 }           # a scan band sweeps along it every 5 seconds
   animation: all                # loop the file's animation clips
@@ -705,7 +705,7 @@ A stand-in box shows while the file loads. Files compressed with meshopt load; D
 
 ### Real size
 
-A model without `size`, in a scene with `units` (or in a [star system](./scale#star-systems) with them), is drawn at its real size: the file's own measurements, converted from `file_units` (metres by default, as glTF files and the built-in models are) to the scene's units. Ships and stations then sit in proportion to each other and to the planets: the Constitution-class ship is 0.289 km long beside Deep Space 9's 1.45 km, round a planet 12,742 km across. Set `size` to draw one larger on purpose. A scene without `units` has no real size: a model without `size` is drawn 50 across.
+A model without `size`, in a scene with `units` (or in a [star system](./scale#star-systems) with them), is drawn at its real size: the file's own measurements, converted from `file_units` (metres by default, as glTF files and the built-in models are) to the scene's units. Ships and stations then sit in proportion to each other and to the planets: the Constitution-class ship is 0.305 km long beside Deep Space 9's 1.45 km, round a planet 12,742 km across. Set `size` to draw one larger on purpose. A scene without `units` has no real size: a model without `size` is drawn 50 across.
 
 Many downloaded models are not made at their true scale: a Star Trek Online Odyssey-class ship from Sketchfab measures 53 units long, so read as metres it would be drawn 53 m long. Give such a model its real `length` in metres (the Odyssey is 1,061 m) and it is drawn that long, whatever the file measures. `length` stays right in any scene units, where a `size` would need changing with them. `size`, when set, wins over both.
 
@@ -717,7 +717,7 @@ points:
   - { id: ship, xyz: [2, 0, 1] }
 objects:
   - { type: model, id: station, src: builtin:deep_space_nine, at: ds9, material: original }
-  - { type: model, id: ship, src: builtin:constitution, at: ship }
+  - { type: model, id: ship, src: builtin:constitution_class_refit, at: ship }
   # a download made in feet
   - { type: model, id: runabout, src: /local/models/runabout.glb, at: [1, 0, -1], file_units: ft }
   # a download at an odd scale: its real length in metres
@@ -744,7 +744,7 @@ points:
   - { id: starboard, object: ship, part: nacelle_starboard, label: STARBOARD NACELLE, marker: dot }
 objects:
   - { type: grid, shape: disc, radius: 70, pattern: polar, line_spacing: 10, spoke_count: 24, at: [0, -25, 0] }
-  - { type: model, id: ship, src: builtin:constitution, size: 70, scan: { period: 5 }, animation: all }
+  - { type: model, id: ship, src: builtin:constitution_class_refit, size: 70, scan: { period: 5 }, animation: all }
 ```
 
 Labels on the far side of the ship hide behind it: drag to turn the ship until the port nacelle is behind the hull, and its label goes. Models hide labels by their real shape (a small depth image of the scene, taken only when the camera or the model moves), not by a bounding sphere.
@@ -763,7 +763,7 @@ points:
   - { id: ds9, xyz: [0, 0, 0] }
 objects:
   - { type: model, id: station, src: builtin:deep_space_nine, at: ds9, material: original }
-  - { type: model, id: ship, src: builtin:constitution, at: [30, 0, 10] }
+  - { type: model, id: ship, src: builtin:constitution_class_refit, at: [30, 0, 10] }
 ```
 
 ### Built-in models
@@ -772,10 +772,13 @@ Fan art made in code for LCARdS (no third-party model), recreating the designs s
 
 | `src` | What it is | Parts (`part:`) |
 |---|---|---|
-| `builtin:constitution` | A Constitution-class starship (the original series), 289 m long, the bow toward +z. One animation clip, `bussards`. | `saucer`, `bridge`, `sensor_dome`, `impulse`, `neck`, `secondary_hull`, `deflector`, `shuttle_bay`, `pylon_port`, `pylon_starboard`, `nacelle_port`, `nacelle_starboard`, `bussard_port`, `bussard_starboard`, `grille_port`, `grille_starboard` |
+| `builtin:constitution_class_refit` | The refit Constitution-class starship of the films (USS Enterprise NCC-1701-A): 305 m long, 144.5 m across the saucer, the bow toward +z. One animation clip, `bussards` (the collectors pulse). | `saucer`, `bridge`, `sensor_dome`, `impulse`, `neck`, `torpedo_launcher`, `secondary_hull`, `deflector`, `shuttle_bay`, `pylon_port`, `pylon_starboard`, `nacelle_port`, `nacelle_starboard`, `bussard_port`, `bussard_starboard`, `grille_port`, `grille_starboard`, `windows` |
+| `builtin:galaxy_class` | The Galaxy-class starship of The Next Generation (USS Enterprise NCC-1701-D): 642.5 m long, about 470 m across the saucer, the bow toward +z. One animation clip, `bussards`. | the same names as the Constitution, without `sensor_dome` |
 | `builtin:deep_space_nine` | Deep Space 9 (Terok Nor), the Cardassian station of Deep Space Nine: 1452 m across, the docking pylons 969 m tip to tip. | `ops`, `upper_core`, `promenade`, `lower_core` (its bottom tip), `sail_towers`, `spokes` (three thin ones, between the bridges), `habitat_ring`, `docking_ring`, `crossover_bridges` (three), `docking_ports`, `windows`, `upper_pylon_1` to `upper_pylon_3` and `lower_pylon_1` to `lower_pylon_3` (their tips) |
 | `builtin:earth_spacedock` | Earth Spacedock, from Star Trek III: The Search for Spock onward: 3800 m across and about 5480 m tall. | `antennas` (the top), `cap`, `space_doors` (the front door), `underdish`, `neck`, `hull`, `stem`, `base` (the sphere), `towers` (their tips, the bottom), `panels`, `windows` |
 | `builtin:utopia_planitia_drydock` | A drydock of the Utopia Planitia Fleet Yards over Mars, sized for a Galaxy-class ship: about 760 m long, the bow end toward +z. Place several for the yards. | `frame` (ribs and rails), `deck`, `keel`, `lights`, `berth` (where a ship sits), `bow`, `stern` |
+
+Both ships use one set of part names, so a scene that labels `bridge` or `nacelle_port` works with either.
 
 Rings, rims and round hulls (`habitat_ring`, `docking_ring`, `cap`, `promenade`, `underdish`, `neck`, `hull`) put their part point on the front face (+z), so a label sits on the structure rather than in the middle of the station.
 

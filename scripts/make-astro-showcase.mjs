@@ -130,9 +130,9 @@ export async function showcaseCard() {
     { type: 'model', id: 'drydock_1', at: 'yards', src: 'builtin:utopia_planitia_drydock', size: 0.76, material: 'original' },
     { type: 'model', id: 'drydock_2', at: 'dock_2', src: 'builtin:utopia_planitia_drydock', size: 0.76, material: 'original' },
     { type: 'model', id: 'drydock_3', at: 'dock_3', src: 'builtin:utopia_planitia_drydock', size: 0.76, material: 'original' },
-    { type: 'model', id: 'ship_building', at: 'ship_in_dock', src: 'builtin:constitution', size: 0.289, material: 'original' },
+    { type: 'model', id: 'ship_building', at: 'ship_in_dock', src: 'builtin:galaxy_class', size: 0.6425, material: 'original' },
     { type: 'ring', id: 'patrol_orbit', at: 'earth', radius: 12000, inclination: 28, spin: 20, width: 1, opacity: 0.35, color: 'var(--lcars-blue)', tags: ['orbits'] },
-    { type: 'model', id: 'patrol_ship', at: 'patrol', src: 'builtin:constitution', size: 0.289, face: 'motion', material: 'original' },
+    { type: 'model', id: 'patrol_ship', at: 'patrol', src: 'builtin:constitution_class_refit', size: 0.305, face: 'motion', material: 'original' },
     { type: 'trail', point: 'patrol', length: 8, width: 2, color: 'var(--lcars-blue)' }
   );
 

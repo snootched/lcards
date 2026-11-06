@@ -4,7 +4,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   kind: 'scene',
   title: 'Borg encounter',
   summary: 'A Borg cube bearing down on a starship, tractor beam locked on',
-  description: 'A Borg cube with its green halo bearing down on the built-in Constitution-class starship, its tractor beam locked on. Tap a name to fly to it.',
+  description: 'A Borg cube with its green halo bearing down on the built-in Galaxy-class starship, its tractor beam locked on. Tap a name to fly to it.',
   icon: 'mdi:cube',
   params: [],
   build: () => ({
@@ -26,7 +26,7 @@ export default /** @type {import('./index.js').Starter} */ ({
     objects: [
       { type: 'glow', at: 'cube', size: 110, color: 'var(--lcards-green-medium)', opacity: 0.45 },
       { type: 'cube', id: 'borg', at: 'cube', size: 40, spin: 3, rotation: [8, 25, 0] },
-      { type: 'model', id: 'hull', src: 'builtin:constitution', at: 'ship', size: 20, rotation: [0, 160, 0], scan: { period: 5 } },
+      { type: 'model', id: 'hull', src: 'builtin:galaxy_class', at: 'ship', size: 22, rotation: [0, 160, 0], scan: { period: 5 } },
       { type: 'beam', from: 'emitter', to: 'ship', width: 10, color: 'var(--lcards-green-medium)', pulse: true }
     ]
   })

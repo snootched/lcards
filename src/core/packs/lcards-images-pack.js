@@ -57,11 +57,17 @@ export const LCARDS_IMAGES_PACK = {
      * (`src: builtin:<key>`). `parts` lists the named nodes points can sit on.
      */
     model_assets: {
-        constitution: {
-            url: '/lcards/models/constitution.glb',
-            label: 'Constitution-class starship',
-            description: 'A Constitution-class starship in TOS proportions (289 m long, the bow toward +z, Y up, metres): fan art made in code by scripts/make-demo-ship.mjs, no third-party mesh. One animation clip, bussards.',
-            parts: ['saucer', 'bridge', 'sensor_dome', 'impulse', 'neck', 'secondary_hull', 'deflector', 'shuttle_bay', 'pylon_port', 'pylon_starboard', 'nacelle_port', 'nacelle_starboard', 'bussard_port', 'bussard_starboard', 'grille_port', 'grille_starboard']
+        constitution_class_refit: {
+            url: '/lcards/models/constitution-class-refit.glb',
+            label: 'Constitution-class starship, refit (USS Enterprise NCC-1701-A)',
+            description: 'The refit Constitution-class starship of the films (305 m long, 144.5 m across the saucer, about 72 m tall; the bow toward +z, Y up, metres): fan art made in code by scripts/make-ships.mjs, no third-party mesh. One animation clip, bussards (the collectors pulse).',
+            parts: ['saucer', 'bridge', 'sensor_dome', 'impulse', 'neck', 'torpedo_launcher', 'secondary_hull', 'deflector', 'shuttle_bay', 'pylon_port', 'pylon_starboard', 'nacelle_port', 'nacelle_starboard', 'bussard_port', 'bussard_starboard', 'grille_port', 'grille_starboard', 'windows']
+        },
+        galaxy_class: {
+            url: '/lcards/models/galaxy-class.glb',
+            label: 'Galaxy-class starship (USS Enterprise NCC-1701-D)',
+            description: 'The Galaxy-class starship of The Next Generation (642.5 m long, about 470 m across the saucer, about 140 m tall; the bow toward +z, Y up, metres): fan art made in code by scripts/make-ships.mjs, no third-party mesh. One animation clip, bussards (the collectors pulse).',
+            parts: ['saucer', 'bridge', 'impulse', 'neck', 'torpedo_launcher', 'secondary_hull', 'deflector', 'shuttle_bay', 'pylon_port', 'pylon_starboard', 'nacelle_port', 'nacelle_starboard', 'bussard_port', 'bussard_starboard', 'grille_port', 'grille_starboard', 'windows']
         },
         deep_space_nine: {
             url: '/lcards/models/deep-space-nine.glb',

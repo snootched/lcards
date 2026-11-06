@@ -14,7 +14,7 @@ points:
   - { id: ship, xyz: [1.2, 0, 0] }
 objects:
   - { type: model, id: station, src: builtin:deep_space_nine, at: ds9, material: original }
-  - { type: model, id: ship, src: builtin:constitution, at: ship }
-  - { type: model, id: feet, src: builtin:constitution, at: [-1.2, 0, 0], file_units: ft }
-  - { type: model, id: sized, src: builtin:constitution, at: [0, 0, 1.5], size: 0.5 }
-  - { type: model, id: long, src: builtin:constitution, at: [0, 0, -1.5], length: 1061 }
+  - { type: model, id: ship, src: builtin:constitution_class_refit, at: ship }
+  - { type: model, id: feet, src: builtin:constitution_class_refit, at: [-1.2, 0, 0], file_units: ft }
+  - { type: model, id: sized, src: builtin:constitution_class_refit, at: [0, 0, 1.5], size: 0.5 }
+  - { type: model, id: long, src: builtin:constitution_class_refit, at: [0, 0, -1.5], length: 1061 }

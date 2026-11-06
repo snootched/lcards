@@ -1,7 +1,7 @@
 # A model on astrometrics (astro-model.spec.js): the built-in ship as a
 # hologram with edges and its bussards clip. Points on its parts: bridge (on
 # top), port and starboard nacelles (the side view looks at the starboard
-# side, so port is behind the ship), the collector (follows the turning
+# side, so port is behind the ship), the collector (follows the pulsing
 # bussard). port carries an always card: it hides with its point.
 type: custom:lcards-astrometrics-card
 height: 400
@@ -24,4 +24,4 @@ points:
       card: { type: custom:lcards-button, entity: light.demo, preset: lozenge }
   - { id: collector, object: ship, part: bussard_starboard, xyz: [0, 5, 0], label: COLLECTOR, marker: diamond }
 objects:
-  - { type: model, id: ship, src: builtin:constitution, size: 70, scan: { period: 5 }, animation: all }
+  - { type: model, id: ship, src: builtin:constitution_class_refit, size: 70, scan: { period: 5 }, animation: all }

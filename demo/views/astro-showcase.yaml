@@ -1311,7 +1311,7 @@ cards:
           - {id: melona_iv, xyz: [-9000, 7500, -40000], label: MELONA IV, style: minor, max_distance: 200000}
         objects:
           - {type: crystalline, id: entity_crystal, at: entity_core, size: 3, spin: 2, color: {entity: input_select.lcards_test_color, LAVENDER: 'var(--lcars-african-violet, var(--lcards-blue-light))', ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium)}}
-          - {type: model, id: entity_ship, src: builtin:constitution, at: entity_ship_at, size: 0.289}
+          - {type: model, id: entity_ship, src: builtin:galaxy_class, at: entity_ship_at, size: 0.642}
           - {type: beam, id: entity_beam, from: entity_core, to: entity_ship_at, width: 10, color: var(--lcards-moonlight), pulse: true}
           - {type: sphere, id: melona_body, at: melona_iv, radius: 5000, fill: {effect: {preset: rocky}}, spin: 3, line_spacing_deg: 30, line_width: 0.5, tags: [planets]}
       - type: system
@@ -1398,9 +1398,9 @@ cards:
           - {type: model, id: drydock_1, at: yards, src: builtin:utopia_planitia_drydock, size: 0.76, material: original}
           - {type: model, id: drydock_2, at: dock_2, src: builtin:utopia_planitia_drydock, size: 0.76, material: original}
           - {type: model, id: drydock_3, at: dock_3, src: builtin:utopia_planitia_drydock, size: 0.76, material: original}
-          - {type: model, id: ship_building, at: ship_in_dock, src: builtin:constitution, size: 0.289, material: original}
+          - {type: model, id: ship_building, at: ship_in_dock, src: builtin:galaxy_class, size: 0.6425, material: original}
           - {type: ring, id: patrol_orbit, at: earth, radius: 12000, inclination: 28, spin: 20, width: 1, opacity: 0.35, color: var(--lcars-blue), tags: [orbits]}
-          - {type: model, id: patrol_ship, at: patrol, src: builtin:constitution, size: 0.289, face: motion, material: original}
+          - {type: model, id: patrol_ship, at: patrol, src: builtin:constitution_class_refit, size: 0.305, face: motion, material: original}
           - {type: trail, point: patrol, length: 8, width: 2, color: var(--lcars-blue)}
       - type: system
         id: bajor_system

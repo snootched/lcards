@@ -72,10 +72,10 @@ sections:
           - {type: model, src: builtin:deep_space_nine, at: [40, 6, -30], size: 10}
           # Voyager's: mauve layers, held pink lightning columns, strikes lighting the gas
           - {type: nebula, id: voyager_badlands, at: [2000, 0, 0], preset: badlands_voyager}
-          - {type: model, src: builtin:constitution, at: [2030, 4, 40], size: 12}
+          - {type: model, src: builtin:constitution_class_refit, at: [2030, 4, 40], size: 12}
           # vortex columns: waist 0.4 joins the two funnels into one column
           - {type: nebula, id: vortex_gas, at: [4000, 0, 0], render: volume, shape: layers, size: [500, 160, 500], count: 6, colors: [var(--lcars-violet-creme), var(--lcars-violet), var(--lcars-blue)], seed: 8, drift: [3, 0], band: {brightness: 0.8, color: var(--lcars-violet-creme)}, columns: {count: 6, kind: vortex, waist: 0.4, width: 1.5, color: var(--lcars-violet-creme)}}
           # a storm: clouds lit from inside by forked strikes (a lightning object)
           - {type: nebula, id: storm_gas, at: [6000, 0, 0], render: volume, size: [500, 260, 500], count: 10, colors: [var(--lcars-orange), var(--lcars-amber), var(--lcars-red)], seed: 5, drift: [3, 1], turbulence: 0.6, density: 1.6, max_radius: 200}
           - {type: lightning, id: storm_strikes, at: [6000, 0, 0], size: [320, 200, 320], rate: 2.5, color: var(--lcars-space-white), glow: {color: var(--lcars-lavender)}, width: 2.2, branches: 4, seed: 4}
-          - {type: model, src: builtin:constitution, at: [6060, 20, 40], size: 12}
+          - {type: model, src: builtin:constitution_class_refit, at: [6060, 20, 40], size: 12}

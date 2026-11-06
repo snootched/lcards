@@ -4,7 +4,7 @@ description: "Your own 3D models on the LCARdS Astrometrics card: put a glTF fil
 
 # Your own models
 
-The [model](./objects#model) object draws a 3D model from a glTF file (`.glb` or `.gltf`). LCARdS ships a few [built-in models](./objects#built-in-models) (a Constitution-class starship, Deep Space 9, Earth Spacedock, a Utopia Planitia drydock). Any other ship, station or object can come from a file of your own.
+The [model](./objects#model) object draws a 3D model from a glTF file (`.glb` or `.gltf`). LCARdS ships a few [built-in models](./objects#built-in-models) (the Constitution-class and Galaxy-class starships, Deep Space 9, Earth Spacedock, a Utopia Planitia drydock). Any other ship, station or object can come from a file of your own.
 
 In short:
 

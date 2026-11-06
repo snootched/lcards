@@ -339,7 +339,7 @@ test('astrometrics Nexus: ribbon and wake only with shape: wake, crawl only alon
 
 test('astrometrics model file_units: needs units where the model is, and no size (UX1 P6c)', () => {
     const astro = (extra) => ({ type: 'custom:lcards-astrometrics-card', ...extra });
-    const ship = (extra = {}) => ({ type: 'model', id: 'ship', src: 'builtin:constitution', file_units: 'ft', ...extra });
+    const ship = (extra = {}) => ({ type: 'model', id: 'ship', src: 'builtin:constitution_class_refit', file_units: 'ft', ...extra });
     assert.deepEqual(messages(check(astro({ units: 'km', objects: [ship()] }))), []);
     assert.deepEqual(messages(check(astro({ objects: [ship()] }))), ['warning objects[0].file_units: file_units needs units for a real size: give the card units (km, au, ly); without them the model is drawn at 50']);
     assert.deepEqual(messages(check(astro({ units: 'km', objects: [ship({ size: 20 })] }))), ['warning objects[0].file_units: file_units sets the real size: size is set, so it does nothing (leave size out for the real size)']);
@@ -348,7 +348,7 @@ test('astrometrics model file_units: needs units where the model is, and no size
     assert.deepEqual(messages(check(astro({ units: 'km', objects: [{ type: 'system', id: 's', objects: [ship()] }] }))), []);
     assert.equal(messages(check(astro({ units: 'km', objects: [{ type: 'system', id: 's', scale: 0.5, objects: [ship()] }] }))).length, 1);
     // no file_units: a model without size is fine with or without units
-    assert.deepEqual(messages(check(astro({ objects: [{ type: 'model', id: 'ship', src: 'builtin:constitution' }] }))), []);
+    assert.deepEqual(messages(check(astro({ objects: [{ type: 'model', id: 'ship', src: 'builtin:constitution_class_refit' }] }))), []);
     // length: the same, and file_units beside it does nothing
     const odyssey = (extra = {}) => ({ type: 'model', id: 'ship', src: '/local/odyssey.glb', length: 1061, ...extra });
     assert.deepEqual(messages(check(astro({ units: 'km', objects: [odyssey()] }))), []);

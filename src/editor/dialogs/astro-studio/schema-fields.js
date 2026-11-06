@@ -649,7 +649,7 @@ export function newObject(type, objectIds, pointIds, place = {}) {
   if (at !== undefined && !UNPLACED.has(type)) obj.at = at;
   const [a, b] = pointIds;
   switch (type) {
-    case 'model': obj.src = 'builtin:constitution'; break;
+    case 'model': obj.src = 'builtin:constitution_class_refit'; break;
     case 'ring': obj.radius = round(50 * k); break;
     case 'path':
       if (a && b) obj.points = [a, b]; else obj.points = [end(-50), end(50)];

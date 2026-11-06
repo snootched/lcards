@@ -886,8 +886,8 @@ test('studio UX1 P6c: the model form says what the file measures and how it is d
     const obj = (i) => page.evaluate((k) => window.__studio._workingConfig.objects[k], i);
     await page.evaluate(async () => { const s = window.__studio; s._activeTab = 'objects'; s._selectObject(1); await s.updateComplete; });
     // the ship: real size in km, measured from the preview once it has loaded
-    await expect.poll(async () => (await panel(1))?.text, { timeout: 20_000 }).toContain('File: 127 x 67.9 x 289 m (largest 289 m).');
-    expect((await panel(1)).text).toContain('Drawn at its real size, as the file measures: 289 m = 0.289 km.');
+    await expect.poll(async () => (await panel(1))?.text, { timeout: 20_000 }).toContain('File: 145 x 71.6 x 305 m (largest 305 m).');
+    expect((await panel(1)).text).toContain('Drawn at its real size, as the file measures: 305 m = 0.305 km.');
     expect((await panel(1)).real).toBe(false);
     // Fit to view: a round size from the view (4 km out), then Real size clears it
     await click(1, 'fit-view');
@@ -898,7 +898,7 @@ test('studio UX1 P6c: the model form says what the file measures and how it is d
     await expect.poll(async () => 'size' in (await obj(1))).toBe(false);
     // File size: its largest extent as the size
     await click(1, 'file-size');
-    await expect.poll(async () => (await obj(1)).size).toBeCloseTo(289, 0);
+    await expect.poll(async () => (await obj(1)).size).toBeCloseTo(305, 0);
 });
 
 test('studio UX1 P6c: another file reads its own measurements and the preview flies to it; Show flies to a model', async ({ page }) => {
@@ -913,7 +913,7 @@ test('studio UX1 P6c: another file reads its own measurements and the preview fl
     }, i);
     const target = () => page.evaluate(async () => (await window.__studio._previewCard.studioScene()).viewNow().target);
     await page.evaluate(async () => { const s = window.__studio; s._activeTab = 'objects'; s._selectObject(1); await s.updateComplete; });
-    await expect.poll(() => text(1), { timeout: 20_000 }).toContain('largest 289 m');
+    await expect.poll(() => text(1), { timeout: 20_000 }).toContain('largest 305 m');
     // the ship becomes Deep Space 9: the panel waits for that file (not the ship's build), the preview flies to it
     await page.evaluate(() => {
         const s = window.__studio;

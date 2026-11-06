@@ -162,6 +162,6 @@ test('starter part: the entity, a ship at the same scale and the beam', async ()
   const types = (f.objects ?? []).map((o) => o.type);
   assert.deepEqual(types, ['crystalline', 'model', 'beam']);
   const ship = (f.objects ?? []).find((o) => o.type === 'model');
-  assert.ok(Math.abs(ship.size - 289) < 1, 'the Constitution class at 289 against 3000');
+  assert.ok(Math.abs(ship.size - 642.5) < 1, 'the Galaxy class at 642.5 against 3000');
   assert.deepEqual(part.build({ centre: [0, 0, 0], size: 3000, ship: 'none', label: 'CE' }, { units: null }).objects?.map((o) => o.type), ['crystalline']);
 });

@@ -196,10 +196,10 @@ test('every object type takes the distance keys, and the Studio shows them in Vi
 });
 
 test('a path ending on a model part draws once the model is in', async () => {
-  const b = readFileSync(new URL('../../src/assets/models/constitution.glb', import.meta.url));
+  const b = readFileSync(new URL('../../src/assets/models/constitution-class-refit.glb', import.meta.url));
   const ship = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
   const w = buildScene({
-    objects: [{ type: 'model', id: 'ship', src: 'x', size: 289 }, { type: 'path', id: 'route', from: 'home', to: 'bridge' }],
+    objects: [{ type: 'model', id: 'ship', src: 'x', size: 305 }, { type: 'path', id: 'route', from: 'home', to: 'bridge' }],
     points: [{ id: 'home', xyz: [0, 0, 400] }, { id: 'bridge', object: 'ship', part: 'bridge' }]
   }, /** @type {any} */ (ctx({ models, loadModel: () => models.parseModel(ship) })));
   const route = /** @type {any} */ (w.objects.get('route'));

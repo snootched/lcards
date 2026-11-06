@@ -1,5 +1,5 @@
 # Astrometrics Crystalline Entity (CE1): type: crystalline at its default 3 km (units: km), the
-# Constitution-class ship beside it at its real 289 m, and a second entity in the lavender of the show.
+# Galaxy-class ship beside it at its real 642.5 m, and a second entity in the lavender of the show.
 # The controls drive the entity from lcards_test_* helpers: CORE GLOW (glow, in place), FADE
 # (opacity, in place), SPIN (spin, in place), BRANCHES (fork levels from a template, rebuilds),
 # BLUE / LAVENDER / ORANGE (color from its own input_select; lcards_test_mode sets the alert mode), and FIRE (a rule shows the beam and
@@ -141,7 +141,7 @@ sections:
             opacity: { entity: input_number.lcards_test_shields, input: [0, 60], output: [0, 1], clamp: true }
             branches: "[[[ const n = Number(states['input_number.lcards_test_stage']?.state); return n >= 1 && n <= 5 ? n : 4 ]]]"
             color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium) }
-          - {type: model, id: ship, src: builtin:constitution, at: ship_at}
+          - {type: model, id: ship, src: builtin:galaxy_class, at: ship_at}
           # the beam fires while FIRE is on (the rule below)
           - {type: beam, id: beam, from: core, to: ship_at, width: 10, color: var(--lcards-moonlight), pulse: true, visible: false}
           # the lavender of the show (HA-LCARS african violet), another seed
