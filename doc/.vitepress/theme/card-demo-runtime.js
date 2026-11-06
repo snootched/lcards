@@ -32,14 +32,24 @@ export function sharedEnv() {
   globalThis.__lcardsDocsEnv ??= Promise.all([
     import('../../../tests/helpers/card-env.js'),
     import('../../../tests/helpers/demo-states.js'),
-  ]).then(([mod, { DEMO_STATES }]) => {
+    import('../../../tests/helpers/ha-jinja.js'),
+  ]).then(([mod, { DEMO_STATES }, { createHaJinja }]) => {
     mod.defineHaStubs()
-    return mod.createDemoEnv({
+    let render = null
+    let latest = {}
+    const env = mod.createDemoEnv({
       sample: { SAMPLE_ENTITIES, samplePoints, sampleStatistics },
       simulateServices: true,
       // the entities the live demo's views use (demo/views/, DemoBoard.vue)
       extraStates: DEMO_STATES,
+      // Jinja2 templates ({{ }}) rendered here, as Home Assistant would (no server on the docs)
+      renderTemplate: (template, variables, states) => {
+        latest = states
+        render ??= createHaJinja(() => latest)
+        return render(template, variables)
+      },
     })
+    return env
   })
   return globalThis.__lcardsDocsEnv
 }

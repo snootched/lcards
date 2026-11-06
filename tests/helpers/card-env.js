@@ -64,11 +64,12 @@ const ENTITY_ID = /^(light|switch|sensor|binary_sensor|input_boolean|input_numbe
  * @param {boolean} [opts.simulateServices] - toggle/turn_on/turn_off change the fake state; lcards.*_alert set the alert mode
  * @param {Record<string, object>} [opts.extraStates]
  * @param {Record<string, number>} [opts.historyDelay] - entity id -> ms before its history/stream answer
+ * @param {((template: string, variables: any, states: Record<string, any>) => string) | null} [opts.renderTemplate] - answers render_template subscriptions (Jinja2; the docs pass tests/helpers/ha-jinja.js); without it they get no answer
  */
 /** Domains whose history is their current value (nothing changes them but the reader) */
 const HELPER_DOMAINS = new Set(['input_number', 'input_boolean', 'input_select', 'number']);
 
-export function createDemoEnv({ sample, now = Date.now(), simulateServices = false, extraStates = {}, historyDelay = {} }) {
+export function createDemoEnv({ sample, now = Date.now(), simulateServices = false, extraStates = {}, historyDelay = {}, renderTemplate = null }) {
     const { SAMPLE_ENTITIES, samplePoints, sampleStatistics } = sample;
     // A helper (a slider, a toggle) holds the value it has until someone changes it:
     // its history is that value (sample sensor curves by name would put a 0 to 100
@@ -130,6 +131,16 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
             }
         },
         onSubscribe: (msg, push) => {
+            if (msg.type === 'render_template' && renderTemplate) {
+                let result;
+                try {
+                    result = renderTemplate(msg.template, msg.variables ?? {}, current.states);
+                } catch (error) {
+                    result = `(template: ${error.message})`;
+                }
+                push({ result, listeners: { all: false, entities: [], domains: [], time: false } });
+                return;
+            }
             if (msg.type === 'history/stream') {
                 const end = msg.end_time ? Date.parse(msg.end_time) : now;
                 const answer = () => push({ states: Object.fromEntries(msg.entity_ids.map(id => [id, historyRows(id, Date.parse(msg.start_time), end)])) });

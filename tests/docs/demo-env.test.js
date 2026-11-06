@@ -84,3 +84,35 @@ test('the package\'s scripts load (the showcase tour)', () => {
     env.addScripts(loadPackage().script);
     assert.equal(state('script.lcards_test_tour'), 'off');
 });
+
+test('Jinja2 templates render without Home Assistant (ha-jinja): states, filters, inline if, dicts, now()', async () => {
+    const { createHaJinja } = await import('../helpers/ha-jinja.js');
+    const states = {
+        'input_number.lcards_test_shields': { state: '20', attributes: { max: 100 } },
+        'input_select.lcards_test_mode': { state: 'beta', attributes: {} },
+    };
+    const render = createHaJinja(() => states);
+    assert.equal(render("{{ 'CRITICAL' if states('input_number.lcards_test_shields') | float(0) < 25 else 'Holding' }}"), 'CRITICAL');
+    assert.equal(render("{{ {'alpha': 'green_alert', 'beta': 'yellow_alert'}[states('input_select.lcards_test_mode')] | default('green_alert') }}"), 'yellow_alert');
+    assert.equal(render("{{ state_attr('input_number.lcards_test_shields', 'max') }}"), '100');
+    assert.equal(render("{{ states.input_number.lcards_test_shields.state | int + 1 }}"), '21');
+    assert.equal(render("{{ is_state('input_select.lcards_test_mode', 'beta') }}"), 'true');
+    assert.equal(render("{{ states('sensor.nothing') }}"), 'unknown');
+    assert.equal(render("{{ 'abc' | float(0) }}"), '0');
+    assert.match(render("{{ now().strftime('%H:%M') }}"), /^\d\d:\d\d$/);
+    assert.equal(render("{{ (7.456 | round(1)) }}"), '7.5');
+});
+
+test('the sample Home Assistant answers render_template subscriptions when given a renderer', async () => {
+    const { createHaJinja } = await import('../helpers/ha-jinja.js');
+    let latest = {};
+    const render = createHaJinja(() => latest);
+    const env = createDemoEnv({
+        sample: { SAMPLE_ENTITIES, samplePoints, sampleStatistics }, extraStates: DEMO_STATES,
+        renderTemplate: (t, v, states) => { latest = states; return render(t, v); },
+    });
+    const result = await new Promise((resolve) => {
+        env.hass.connection.subscribeMessage((r) => resolve(r.result), { type: 'render_template', template: "{{ states('input_number.lcards_test_power') }} %" });
+    });
+    assert.equal(result, '82 %');
+});

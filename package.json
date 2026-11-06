@@ -85,6 +85,7 @@
     "inquirer": "^13.1.0",
     "jsdom": "^29.0.1",
     "mermaid": "^11.13.0",
+    "nunjucks": "^3.2.4",
     "typescript": "^5.9.3",
     "vite": "^5.4.21",
     "vitepress": "^1.6.4",
