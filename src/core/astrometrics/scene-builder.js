@@ -28,7 +28,7 @@ import { pointCard } from './card-layer.js';
 import { buildGrid } from './objects/grid.js';
 import { buildVolume } from './objects/volume.js';
 import { buildSphere } from './objects/sphere.js';
-import { buildRing, buildPath, buildBeam, buildTrail } from './objects/lines.js';
+import { buildRing, buildPath, buildBeam, buildTrail, orbitLook } from './objects/lines.js';
 import { buildImage } from './objects/image.js';
 import { buildStars, buildDust } from './objects/stars.js';
 import { buildGlow } from './objects/glow.js';
@@ -318,8 +318,8 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   placeSystems();
 
   for (const cfg of cfgs) {
-    if (cfg.type === 'ring') add(cfg, (c, x = ctx) => buildRing(c, x));
-    else if (cfg.type === 'path') add(cfg, (c, x = ctx) => buildPath(c, x, objects));
+    if (cfg.type === 'ring') add(cfg, (c, x = ctx) => orbitLook(buildRing(c, x)));
+    else if (cfg.type === 'path') add(cfg, (c, x = ctx) => orbitLook(buildPath(c, x, objects)));
     else if (cfg.type === 'beam') add(cfg, (c, x = ctx) => buildBeam(c, x));
     else if (cfg.type === 'trail') add(cfg, (c, x = ctx) => buildTrail(c, x));
   }

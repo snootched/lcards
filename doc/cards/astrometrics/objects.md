@@ -40,7 +40,7 @@ description: "Astrometrics card objects: grid surfaces (plane, disc, dome, spher
 | `at` | Where it sits: a point id (it follows the point) or `[x, y, z]`. Default the origin. |
 | `rotation: [x, y, z]` | Turns it, degrees: y is a bearing, x tips it toward the camera, z rolls it. |
 | `spin` | Turns it round its own vertical axis, degrees per second. Points on it turn with it. |
-| `look` | `diagram` or `realistic`: shows only in that [look](./#looks-diagram-and-realistic) of the card (and in `mixed`). Left out, it shows in every look, and a mapped sphere, a filled grid or a model with its own materials switches its parts with the look. `all`: every look, as configured. |
+| `look` | `diagram` or `realistic`: shows only in that [look](./#looks-diagram-and-realistic) of the card (and in `mixed`). Left out, it shows in every look, and an object with a diagram form switches its parts with the look (a mapped sphere, a filled grid, a model with its own materials, a glow, cube, asteroid, belt, comet, galaxy, crystalline entity or volume nebula as its wireframe; a ring drawn as a line or a path hides in the realistic look). `all`: every look, as configured. |
 | `face` | `motion`: at a moving point, it turns to face where the point is going ([below](#facing-the-way-it-goes)). A point id: it turns toward that point ([facing a point](#facing-a-point)). |
 | `opacity`, `visible` | Opacity 0 to 1; `visible: false` hides it (its points still work). |
 | `max_distance`, `min_distance`, `fade` | Shown only within a camera distance, as on points: [below](#distance). |

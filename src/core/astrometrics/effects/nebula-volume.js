@@ -35,6 +35,8 @@ import { noiseTexture } from './noise3-texture.js';
 import { SOLID_DEPTH_GLSL, solidUniforms, solidDepth, useSolidDepth, disposeSolidDepth } from './solid-depth.js';
 import { built, num, pair, sub, isOn, DEFAULT_COLORS } from '../objects/common.js';
 import { buildLightning, MAX_LIGHTS } from '../objects/lightning.js';
+import { addDiagram } from '../objects/diagram.js';
+import { boxRuns } from './cube.js';
 import { FatLine } from '../lines.js';
 import { NEBULA_SHAPES } from '../names.js';
 
@@ -645,6 +647,26 @@ export function stepDrift(o, d) {
 }
 
 /**
+ * A ball region's outline for the diagram look: a ring round each axis
+ * (an ellipse when its half sizes differ).
+ * @param {number[]} half - half sizes x, y, z
+ * @returns {number[][]}
+ */
+export function ballRuns(half) {
+  const N = 96;
+  /** @type {number[][]} */
+  const runs = [[], [], []];
+  for (let i = 0; i <= N; i++) {
+    const t = (i / N) * Math.PI * 2;
+    const c = Math.cos(t), s = Math.sin(t);
+    runs[0].push(half[0] * c, 0, half[2] * s);
+    runs[1].push(half[0] * c, half[1] * s, 0);
+    runs[2].push(0, half[1] * c, half[2] * s);
+  }
+  return runs;
+}
+
+/**
  * @param {any} cfg
  * @param {import('../objects/common.js').BuildContext} ctx
  * @param {{ clouds: import('./nebula.js').NebulaCloud[] }} layout
@@ -852,6 +874,14 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
     node.add(b.node);
     out.lines.push(...b.lines);
   }
+  // the diagram look: the region's outline (a ball's three rings on its axes, a box's edges) in the
+  // gas's first colour; the gas and its lightning are the realistic part (the ribbon is a line: it
+  // shows in every look)
+  addDiagram(out, {
+    runs: ball ? ballRuns(half) : boxRuns(half[0], half[1], half[2], 1),
+    color: [...base],
+    body: [mesh, ...[bolts, struck].filter((b) => !!b).map((b) => /** @type {any} */ (b).node)]
+  });
   // the ribbon: a white-hot line along the curve (a lit tube), a glow round it
   /** @type {FatLine[]} */
   const ribLines = [];
@@ -874,6 +904,8 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
   let sceneOf = null;
   // before each render: where the solids are this frame, then the gas at their resolution
   out.prerender = (renderer, scene, camera, w, h, frame) => {
+    // the look hides the gas (the diagram look shows the outline): no march
+    if (!mesh.visible) return;
     sceneOf = scene;
     const img = solidDepth(renderer, scene, camera, w, h, frame);
     useSolidDepth(u, img);

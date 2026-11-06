@@ -225,6 +225,21 @@ export function flowTicker(cfg, lines) {
 }
 
 /**
+ * Orbits and routes draw in the diagram and mixed looks, not the realistic
+ * one (looks.js): a ring or path drawn as lines lists its lines as the
+ * `diagram` part. A ring with a band image (Saturn's rings) is part of the
+ * realistic picture and stays; `look: all` on the object keeps it in every
+ * look (switchesParts).
+ * @param {import('./common.js').BuiltObject} b
+ * @returns {import('./common.js').BuiltObject}
+ */
+export function orbitLook(b) {
+  if (b.lookParts || !b.lines.length || sub(b.config.band).image) return b;
+  b.lookParts = { diagram: b.lines.map((l) => l.object) };
+  return b;
+}
+
+/**
  * @param {any} cfg
  * @param {import('./common.js').BuildContext} ctx
  * @returns {import('./common.js').BuiltObject}

@@ -81,3 +81,37 @@ test('belt wireframe: the edge rings follow a live radius', () => {
   b.live('radius', before * 1.5);
   assert.ok(Math.abs(reach() - before * 1.5) < before * 0.01, 'the outer ring moved out');
 });
+
+test('volume nebula: its outline (a ball\'s three rings, a box\'s edges) for the diagram look, the gas for the others', async () => {
+  const { ballRuns } = await import('../../src/core/astrometrics/effects/nebula-volume.js');
+  const ball = /** @type {any} */ (buildScene({ objects: [{ type: 'nebula', id: 'n', render: 'volume', radius: 40, seed: 2 }] }, ctx()).objects.get('n'));
+  assert.equal(ball.lookParts.diagramOnly.length, 1);
+  assert.ok(ball.lookParts.realistic.some((/** @type {any} */ m) => m.name === 'nebula-volume'), 'the gas is the body');
+  assert.equal(segments(ball.lookParts.diagramOnly[0]), 3 * 96, 'three rings of 96 segments');
+  const rings = ballRuns([10, 5, 20]);
+  assert.equal(rings.length, 3);
+  const box = /** @type {any} */ (buildScene({ objects: [{ type: 'nebula', id: 'b', render: 'volume', size: [100, 40, 60], seed: 2 }] }, ctx()).objects.get('b'));
+  assert.equal(segments(box.lookParts.diagramOnly[0]), 12, 'a box\'s 12 edges');
+});
+
+test('orbits and routes: a plain ring or path shows in the diagram and mixed looks, not the realistic one; a banded ring and look: all stay', () => {
+  const w = buildScene({
+    points: [{ id: 'a', xyz: [0, 0, 0] }, { id: 'b', xyz: [50, 0, 0] }],
+    objects: [
+      { type: 'ring', id: 'orbit', radius: 40 },
+      { type: 'path', id: 'route', points: ['a', 'b'] },
+      { type: 'ring', id: 'rings', radius: 9.8, band: { image: 'builtin:saturn_rings', inner_radius: 4.66 } },
+      { type: 'ring', id: 'kept', radius: 30, look: 'all' }
+    ]
+  }, ctx());
+  const get = (/** @type {string} */ id) => /** @type {any} */ (w.objects.get(id));
+  for (const id of ['orbit', 'route']) {
+    const b = get(id);
+    assert.deepEqual(b.lookParts.diagram, b.lines.map((/** @type {any} */ l) => l.object), `${id}: its lines are the diagram part`);
+  }
+  assert.equal(get('rings').lookParts, undefined, 'a banded ring is part of the realistic picture');
+  const weights = (/** @type {'diagram' | 'realistic' | 'mixed'} */ look) => partWeights(lookTargets(look)).diagram;
+  assert.deepEqual([weights('diagram'), weights('mixed'), weights('realistic')], [1, 1, 0]);
+  // look: all keeps the object whole (switchesParts): the runtime skips its parts
+  return import('../../src/core/astrometrics/looks.js').then(({ switchesParts }) => assert.equal(switchesParts(get('kept').config), false));
+});

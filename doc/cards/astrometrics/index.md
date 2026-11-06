@@ -174,8 +174,17 @@ Anything without a `look` shows in every look, and an object that has a diagram 
 | `sphere` with an `image` or a `fill.effect` | Its lines over a plain body (its `fill.color`) | The bare map or painted surface |
 | `grid` with a `fill.effect` | Its lines | Its fill |
 | `model` with `material: original` | A hologram | Its own materials |
+| `glow` | A ring marker with four ticks, facing the camera | The glow |
+| `cube` | Its edges and a grid on each face | The Borg cube or shaded box |
+| `asteroid` | A wireframe of its rock | The lit rock |
+| `belt` | Its inner and outer edges | The rocks |
+| `comet` | Its nucleus as a wireframe, a ring round the coma, each tail as a line | Nucleus, coma and tails |
+| `galaxy` | Each arm's spiral, the rim, a ring round the bulge and the bar | Stars, glow and dust |
+| `crystalline` | Its spine and branches as lines, a ring round the core | The crystal and its core |
+| `nebula` with `render: volume` | Its outline: a ball's three rings, a box's edges | The gas (and its lightning) |
+| `ring` drawn as a line, `path` | The line | Hidden: orbits and routes are part of the diagram |
 
-`mixed` shows them as configured. So a mapped planet is a wire globe in the diagram look and a photograph in the realistic one, with nothing extra to write. `look: all` keeps an object as configured in every look. For what has no realistic form, such as a wormhole's wire funnel and its glowing vortex, give each its own `look`. Switching crossfades in place (no rebuild).
+`mixed` shows them as configured. So a mapped planet is a wire globe in the diagram look and a photograph in the realistic one, with nothing extra to write. The wireframes (from `glow` down) draw in the object's own colours and show in the diagram look only, so `mixed` draws those objects as it always has. Orbits and routes show in the diagram and mixed looks; a ring with a `band` image (a planet's rings) is part of the realistic picture and shows in every look. Far away, an asteroid, belt or crystalline entity is a dot in every look. `look: all` keeps an object as configured in every look. For what has no realistic form, such as a wormhole's wire funnel and its glowing vortex, give each its own `look`. Switching crossfades in place (no rebuild).
 
 ```yaml live
 type: custom:lcards-astrometrics-card

@@ -5,6 +5,9 @@
 # tumbling with it) and a belt (its inner and outer edges). Batch 2: a comet (its nucleus's
 # wireframe, a ring round the coma, each tail as a line), a galaxy (each arm's spiral, the rim, the
 # bulge ring and the bar) and the Crystalline Entity (its spine and branches, a ring round the core).
+# Batch 3: volume nebulae (a ball's three rings, a box's edges), and orbits and routes: a plain
+# ring or path shows in the diagram and mixed looks and hides in the realistic one; a banded ring
+# (the planet's rings, part of the realistic picture) stays in every look.
 # The colour select recolours them all, every colour each object shows.
 title: Astrometrics diagram forms
 path: astro-diagram-forms
@@ -32,7 +35,7 @@ sections:
         camera:
           view: overview
           views:
-            overview: { target: [0, 0, -20], yaw: 25, tilt: 30, distance: 380 }
+            overview: { target: [0, 0, -20], yaw: 25, tilt: 34, distance: 470 }
         points:
           - { id: star, xyz: [0, 0, 0], label: GLOW, style: minor }
           - { id: borg_at, xyz: [-95, 10, 40], label: BORG CUBE, style: minor }
@@ -41,6 +44,9 @@ sections:
           - { id: comet_at, xyz: [-40, 30, 110], label: COMET, style: minor }
           - { id: spiral_at, xyz: [0, -30, -170], label: GALAXY, style: minor }
           - { id: entity_at, xyz: [-150, 30, -90], label: CRYSTALLINE, style: minor }
+          - { id: ball_at, xyz: [170, 20, 80], label: VOLUME BALL, style: minor }
+          - { id: box_neb_at, xyz: [160, 15, -150], label: VOLUME BOX, style: minor }
+          - { id: planet, polar: [205, 300], object: orbit, marker: dot, label: ORBIT, style: minor }
         objects:
           - type: glow
             id: star_glow
@@ -99,4 +105,41 @@ sections:
             spin: 6
             color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium) }
             core: { color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet-creme, var(--lcards-moonlight))", ORANGE: var(--lcards-yellow-medium), default: var(--lcards-moonlight) } }
+          # batch 3: volume nebulae as their outlines; an orbit ring and a route, hidden in the realistic
+          # look; a banded ring (realistic picture) that stays in every look
+          - type: nebula
+            id: ball
+            at: ball_at
+            render: volume
+            shape: shell
+            radius: 35
+            seed: 5
+            colors: [{ entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-orange-light), default: var(--lcards-blue-light) }, { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet, var(--lcards-blue-medium-dark))", ORANGE: var(--lcards-orange-dark), default: var(--lcards-blue-medium-dark) }]
+          - type: nebula
+            id: slab
+            at: box_neb_at
+            render: volume
+            shape: layers
+            size: [70, 25, 50]
+            seed: 3
+            colors: [{ entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-orange-light), default: var(--lcards-blue-light) }, { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium) }, { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet, var(--lcards-blue-medium-dark))", ORANGE: var(--lcards-orange-dark), default: var(--lcards-blue-medium-dark) }]
+          - type: ring
+            id: orbit
+            radius: 205
+            spin: 3
+            width: 1.5
+            dash: [6, 4]
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium) }
+          - type: path
+            id: route
+            points: [star, comet_at, entity_at]
+            arc: 25
+            width: 2
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-orange-light), default: var(--lcards-blue-light) }
+          - type: ring
+            id: banded
+            at: planet
+            radius: 14
+            inclination: 20
+            band: { image: builtin:saturn_rings, inner_radius: 7 }
         grid_options: { columns: full }
