@@ -641,7 +641,7 @@ The Crystalline Entity (Star Trek: The Next Generation, "Datalore" and "Silicon 
 | `blend` | `add` (default): overlapping crystal glows. `normal`: drawn over what is behind it. |
 | `core` | The starburst: `color` (its rays and the light along the spine, default `var(--lcards-moonlight)`) and `period` (seconds per slow pulse, default 6; 0 holds it steady). |
 
-Turn it slowly about its spine with `spin`; `face` and `rotation` turn it as any object. The pulse and the spin hold still under reduced motion. Far away, when it would be under about 10 px tall, it is drawn as a dot in the core colour; nearer, the finer forks draw only once it is large enough on screen to show them. `glow`, `opacity` and `color` can [follow an entity](./data#settings-from-entities) in place; a new colour crossfades in over a moment. The entity is see-through, so it hides no labels.
+Turn it slowly about its spine with `spin`; `face` and `rotation` turn it as any object. The pulse and the spin hold still under reduced motion. Far away, when it would be under about 10 px tall, it is drawn as a dot in the core colour; nearer, the finer forks draw only once it is large enough on screen to show them. `glow` and `opacity` can [follow an entity](./data#settings-from-entities) in place, and a new `color` crossfades in as every object's does. The entity is see-through, so it hides no labels.
 
 Next to it below is the Constitution-class ship at its real size (289 m), and a beam from the entity's core to the ship:
 

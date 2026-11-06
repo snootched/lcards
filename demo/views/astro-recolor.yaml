@@ -1,0 +1,115 @@
+# Astrometrics colours in place: one scene of many object types, each colour following
+# input_select.lcards_test_color (BLUE / LAVENDER / ORANGE), and the alert mode (GREEN / YELLOW /
+# RED, input_select.lcards_test_mode through automation.lcards_test_alert). Either change
+# crossfades every object to its new colours over a moment, with nothing built again: the
+# spins, the drift and the pulse carry on through the change. (A shell nebula's clouds take its
+# second colour, so both follow the select; the cube's hull is its color, its lights its glow.color.)
+title: Astrometrics colours in place
+path: astro-recolor
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_color
+        preset: toggle-tab
+        grid: { columns: 3 }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_mode
+        preset: toggle-tab
+        grid: { columns: 3 }
+        options: { alpha: { label: GREEN }, beta: { label: YELLOW }, gamma: { label: RED } }
+        grid_options: { columns: 6, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_recolor
+        height: 620
+        backdrop: { stars: { count: 1500 } }
+        camera:
+          view: overview
+          views:
+            overview: { target: [0, 0, 0], yaw: 25, tilt: 32, distance: 340 }
+        points:
+          - { id: sun, xyz: [0, 0, 0], label: SUN, style: major }
+          - { id: world, polar: [70, 30], object: orbit, marker: dot, label: SPHERE, style: minor }
+          - { id: entity, xyz: [-120, 25, 60], label: CRYSTALLINE, style: minor }
+          - { id: cube, xyz: [120, 20, -60], label: CUBE, style: minor }
+          - { id: cloud_at, xyz: [-110, 10, -90], label: VOLUME NEBULA, style: minor }
+          - { id: puffs_at, xyz: [100, 15, 100], label: NEBULA, style: minor }
+          - { id: spiral_at, xyz: [0, -40, -150], label: GALAXY, style: minor }
+        objects:
+          - type: grid
+            id: deck
+            shape: plane
+            size: 300
+            line_spacing: 20
+            at: [0, -20, 0]
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium) }
+          - type: glow
+            id: sun_glow
+            at: sun
+            size: 50
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-yellow-medium), default: var(--lcards-blue-light) }
+          - type: ring
+            id: orbit
+            radius: 70
+            spin: 12
+            width: 2
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium) }
+          - type: sphere
+            id: world_body
+            at: world
+            radius: 9
+            fill: { color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-orange-light), default: var(--lcards-blue-light) } }
+            line_spacing_deg: 30
+            spin: 20
+          - type: belt
+            id: rocks
+            radius: [100, 125]
+            count: 600
+            seed: 4
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet-creme, var(--lcards-moonlight))", ORANGE: var(--lcards-orange-medium), default: var(--lcards-gray-light) }
+          - type: crystalline
+            id: crystal
+            at: entity
+            size: 40
+            spin: 6
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium) }
+          - type: cube
+            id: borg
+            at: cube
+            size: 30
+            spin: 8
+            # the hull and the Borg green lights follow the select
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet, var(--lcards-blue-medium-dark))", ORANGE: var(--lcards-orange-dark), default: var(--lcards-blue-medium-dark) }
+            glow: { color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-light) } }
+          - type: nebula
+            id: volume_cloud
+            at: cloud_at
+            render: volume
+            shape: shell
+            radius: 40
+            seed: 5
+            colors:
+              - { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-orange-light), default: var(--lcards-blue-light) }
+              # a shell's clouds take this one: it follows the select too
+              - { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet, var(--lcards-blue-medium-dark))", ORANGE: var(--lcards-orange-dark), default: var(--lcards-blue-medium-dark) }
+          - type: nebula
+            id: puffs
+            at: puffs_at
+            radius: 35
+            count: 10
+            seed: 9
+            colors:
+              - { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium) }
+              - var(--lcars-red, var(--lcards-orange-dark))
+          - type: galaxy
+            id: spiral
+            at: spiral_at
+            radius: 60
+            rotation: [70, 0, 0]
+            spin: 2
+            arms: { color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-orange-light), default: var(--lcards-blue-light) } }
+        grid_options: { columns: full }

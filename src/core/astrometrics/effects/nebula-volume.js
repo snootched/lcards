@@ -798,7 +798,8 @@ export function buildNebulaVolume(cfg, ctx, layout, colorOf) {
     u.uWorldScale.value = mesh.matrixWorld.getMaxScaleOnAxis();
   };
 
-  const out = built(cfg, node, { radius: Math.hypot(half[0], half[1], half[2]) });
+  // the gas renders in a pass of its own (off the node tree): its colours fade in place too (recolor.js)
+  const out = built(cfg, node, { radius: Math.hypot(half[0], half[1], half[2]), materials: [march] });
 
   // lights from lightning, by source; the brightest MAX_LIGHTS go to the march
   /** @type {Map<object, { at: number[], radius: number, color: number[], level: number }[]>} */

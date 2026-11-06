@@ -339,8 +339,8 @@ test('rules on points and objects: a colour and a hide without rebuilding the wo
     await expect.poll(async () => (await labelDom(page, 'base'))?.fields.label.text).toBe('BASE');
     const after = await dbg();
     expect(after.builds).toBe(before.builds);
-    // only the route (a colour change) is built again; the globe's hide is a toggle
-    expect(after.objectBuilds).toBe(before.objectBuilds + 1);
+    // nothing is built again: the route's colour crossfades in place (recolor.js), the globe's hide is a toggle
+    expect(after.objectBuilds).toBe(before.objectBuilds);
     await expectNoErrors(page);
 });
 
@@ -1689,7 +1689,7 @@ test('whole-number settings and type live keys: a belt\'s count and inner edge e
     await expectNoErrors(page);
 });
 
-test('NB2b colours from entities: a state map (state, active / inactive, above:N), a colours item and a template rebuild their object with the colour', async ({ page }) => {
+test('NB2b colours from entities: a state map (state, active / inactive, above:N), a colours item and a template crossfade their object to the colour, no rebuild', async ({ page }) => {
     await mountCase(page, 'astro-colours', { width: '800' });
     await sceneReady(page);
     const colors = () => page.evaluate(() => {
@@ -1705,6 +1705,7 @@ test('NB2b colours from entities: a state map (state, active / inactive, above:N
         for (let i = 0; i < data.length; i += 4) if (data[i] > 170 && data[i + 1] > 90 && data[i + 1] < 190 && data[i + 2] < 90) n++;
         return n;
     });
+    const start = (await colors()).builds;
     await page.evaluate(() => window.__setState('input_boolean.lcards_test_toggle', 'on'));
     await expect.poll(async () => (await colors()).deck, { timeout: 5000 }).toBe('#ff9900');
     await expect.poll(orange, { timeout: 5000 }).toBeGreaterThan(500);
@@ -1724,11 +1725,53 @@ test('NB2b colours from entities: a state map (state, active / inactive, above:N
     await page.evaluate(() => window.__setState('input_select.lcards_test_mode', 'delta'));
     await expect.poll(async () => (await colors()).cloud, { timeout: 5000 }).toBe('#ff0000');
     expect(await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world.objects.get('cloud').config.colors[0])).toBe('#3366ff');
-    // the same colour again does not rebuild
-    const before = (await colors()).builds;
+    // every change faded in place (recolor.js): nothing was built again
+    expect((await colors()).builds).toBe(start);
+    // the same colour again does nothing
     await page.evaluate(() => window.__setState('input_select.lcards_test_mode', 'gamma'));
     await page.waitForTimeout(600);
-    expect((await colors()).builds).toBe(before);
+    expect((await colors()).builds).toBe(start);
+    await expectNoErrors(page);
+});
+
+test('colours in place: an alert mode crossfades the scene to its colours, nothing is built again', async ({ page }) => {
+    await mountCase(page, 'astro-colours', { width: '800' });
+    await sceneReady(page);
+    await page.evaluate(() => window.__reconfigure({
+        type: 'custom:lcards-astrometrics-card', height: 360,
+        backdrop: { stars: { count: 200 } },
+        camera: { view: 'top', views: { top: { target: [0, 0, 0], tilt: 90, distance: 120 } } },
+        objects: [
+            { type: 'grid', id: 'deck', shape: 'plane', size: 100, line_spacing: 5, line_width: 2, color: 'var(--lcars-blue)' },
+            { type: 'glow', id: 'sun', size: 30, color: 'var(--lcars-blue)' },
+            { type: 'nebula', id: 'cloud', radius: 20, count: 4, seed: 3, colors: ['var(--lcars-blue)'] }
+        ]
+    }));
+    await sceneReady(page);
+    await expect.poll(() => litPixels(page)).toBeGreaterThan(500);
+    const state = () => page.evaluate(() => {
+        const d = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const deck = d.world.objects.get('deck').node;
+        /** @type {any[]} */
+        const u = [];
+        deck.traverse((/** @type {any} */ o) => { if (o.material?.uniforms?.uColor) u.push(Array.from(o.material.uniforms.uColor.value)); });
+        return { builds: d.builds, objectBuilds: d.objectBuilds, deck: deck.uuid, color: u[0] };
+    });
+    const green = await redSum(page);
+    const before = await state();
+    await page.evaluate(() => window.lcards.core.themeManager.setAlertMode('red_alert'));
+    await expect.poll(() => redSum(page), { timeout: 5000 }).not.toBe(green);
+    await expect.poll(async () => (await state()).color, { timeout: 5000 }).not.toEqual(before.color);
+    await page.waitForTimeout(1000);
+    const after = await state();
+    expect(after.builds, 'no scene build').toBe(before.builds);
+    expect(after.objectBuilds, 'no object build').toBe(before.objectBuilds);
+    expect(after.deck, 'the same deck, faded').toBe(before.deck);
+    expect(after.color).not.toEqual(before.color);
+    await page.evaluate(() => window.lcards.core.themeManager.setAlertMode('green_alert'));
+    await expect.poll(async () => (await state()).color, { timeout: 5000 }).toEqual(before.color);
+    await expect.poll(() => redSum(page), { timeout: 5000 }).toBe(green);
+    expect((await state()).builds).toBe(before.builds);
     await expectNoErrors(page);
 });
 

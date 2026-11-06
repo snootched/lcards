@@ -241,7 +241,7 @@ Scene units can be real ones: a solar system in km, a galaxy in light years with
 - **One WebGL context** for every astrometrics card and WebGL background on the page.
 - **Models:** measured on an Intel Arc laptop GPU at 1300 x 866 px, the scene with the built-in ship draws in about 1.5 ms a frame; the depth image that hides labels behind it adds about 0.2 ms, only while something moves. See [model](./objects#model).
 - **Reduced motion** (the system setting): spin, `auto_rotate`, [deformations](./objects#deformed-grids) and every [effect](./effects) (drift, scans, moving dashes, fills) stop, and fly-to jumps instead of flying (no warp streaks). The scene clock keeps running (it is data, like the sky) but moves things once a second.
-- **Alert modes** recolour the scene; labels follow the palette at once.
+- **Alert modes** recolour the scene in place: every object crossfades to the alert palette over a moment (at once under reduced motion), the camera and motion carry on, and labels follow the palette at once. A model is built again in its new colours.
 
 ## When the 3D view is unavailable
 

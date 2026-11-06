@@ -117,7 +117,7 @@ test('level of detail: a dot far away, fewer fork levels mid-way, all close up',
 });
 
 test('live keys: glow and opacity change in place, null puts them back', () => {
-  assert.deepEqual(LIVE_TYPE_KEYS.crystalline.keys, ['glow', 'opacity', 'color']);
+  assert.deepEqual(LIVE_TYPE_KEYS.crystalline.keys, ['glow', 'opacity']);
   const e = buildCrystalline({ type: 'crystalline', glow: 0.5 }, /** @type {any} */ (ctx()));
   const mat = /** @type {any} */ (e.node.getObjectByName('crystal')).material;
   assert.equal(e.live?.('glow', 0.9), true);
@@ -133,33 +133,6 @@ test('live keys: glow and opacity change in place, null puts them back', () => {
   e.live?.('opacity', 2);
   assert.equal(mat.uniforms.uOpacity.value, 1, 'clamped');
   assert.equal(e.live?.('seed', 3), false);
-});
-
-test('live colour: the first lands at once, the next crossfades (no rebuild), null puts the config\'s back', () => {
-  const colors = { 'var(--a)': [1, 0, 0, 1], 'var(--b)': [0, 0, 1, 1] };
-  const e = buildCrystalline({ type: 'crystalline' }, /** @type {any} */ (ctx({ color: (/** @type {any} */ v) => colors[v] ?? [0.2, 0.6, 0.8, 1] })));
-  const u = /** @type {any} */ (e.node.getObjectByName('crystal')).material.uniforms;
-  const node = e.node;
-  assert.equal(e.liveColor?.('color', 'var(--a)'), true);
-  assert.deepEqual(u.uColor.value.toArray().map((v) => Math.round(v * 100) / 100), [1, 0, 0], 'the first at once');
-  const realNow = performance.now;
-  let now = 1000;
-  performance.now = () => now;
-  try {
-    e.liveColor?.('color', 'var(--b)');
-    e.tick?.(16, 0);
-    assert.ok(u.uColor.value.r > 0.99 && u.uColor.value.b < 0.01, 'starts from where it was');
-    now += 400;
-    e.tick?.(16, 0);
-    assert.ok(u.uColor.value.r > 0.1 && u.uColor.value.b > 0.1, 'half-way: a mix');
-    now += 500;
-    assert.equal(e.tick?.(16, 0), true, 'the core still pulses');
-    assert.ok(u.uColor.value.b > 0.99 && u.uColor.value.r < 0.01, 'there after 800 ms');
-  } finally {
-    performance.now = realNow;
-  }
-  assert.equal(e.node, node, 'the same object, not rebuilt');
-  assert.equal(e.liveColor?.('glow', 'var(--a)'), false, 'only its colour');
 });
 
 test('registered: an object type with a guide entry and a Studio sample', () => {

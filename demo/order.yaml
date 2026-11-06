@@ -54,6 +54,13 @@ releases:
         session: "CE1"
         docs: /cards/astrometrics/objects#crystalline
         public: true
+      - file: astro-recolor
+        topic: astrometrics
+        summary: "Astrometrics colours in place: colours and alert modes crossfade, nothing rebuilds"
+        description: "Many object types in one scene (a grid, a glow, a ring, a sphere, a belt, the Crystalline Entity, a Borg cube, a volume nebula, a cloud nebula and a galaxy), each colour following the BLUE / LAVENDER / ORANGE select. A new colour, or GREEN / YELLOW / RED alert, crossfades every object to its new colours over a moment, with nothing built again: the spins, drift and pulse carry on through the change."
+        session: "Astro polish"
+        docs: /cards/astrometrics/data#colours-from-entities
+        public: true
       - file: astro-solar-orbits
         topic: astrometrics
         summary: "Astrometrics Solar system orbits: Pluto and every orbit at its real tilt"

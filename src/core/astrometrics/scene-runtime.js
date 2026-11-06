@@ -33,7 +33,9 @@ import { LabelLayer } from './label-layer.js';
 import { CardLayer, pointCard } from './card-layer.js';
 import { markerSvg } from './markers.js';
 import { DepthOcclusion } from './depth-occlusion.js';
-import { buildScene, makeLabelItem } from './scene-builder.js';
+import { buildScene, makeLabelItem, disposeBuilt, BACKDROP_STARS, BACKDROP_DUST } from './scene-builder.js';
+import { colorSlots, ColorFades } from './recolor.js';
+import { isColorValue } from '../themes/color-syntax.js';
 import { ObjectFader, ObjectBounds } from './distance-fade.js';
 import { depthSlices, drawPasses, starsBehind } from './depth-passes.js';
 import { BINDABLE_FORMS } from './placements.js';
@@ -182,7 +184,7 @@ const KEY_COMMANDS = {
  * @property {(on: boolean | null) => void} setFlightWarp - camera.warp from an entity: fly-tos streak (true) or not; null as configured
  * @property {(level: number, factor: number) => void} setCruise - at warp (warp-drive.js): the backdrop stars and dust stream along the view, `level` 0 to 1 of the way to the warp factor
  * @property {(look: any) => boolean} setLook - diagram, realistic or mixed (looks.js): crossfade to it; false when it names none
- * @property {(list: { id: string, key: string, value: number | string | null, smooth?: number }[]) => void} setLive - settings that follow
+ * @property {(list: { id: string, key: string, value: number | null, smooth?: number }[]) => void} setLive - settings that follow
  *   entities and change in place (opacity, radius, size, spin of an object; '' time_scale): ease to the value over smooth ms; null lets go
  * @property {() => void} requestFrame
  * @property {() => void} recolor - re-resolve theme colours (theme or alert change)
@@ -317,6 +319,8 @@ export function createAstroScene(host, config, options = {}) {
   let dpr = 1;
   let dragging = false;
   let reduced = prefersReducedMotion();
+  /** Colour changes crossfading in place (recolor.js) */
+  const fades = new ColorFades();
   /** @type {string | null} */
   let selected = null;
   /** @type {string | null} the object with the selection box (edit mode) */
@@ -1088,6 +1092,11 @@ export function createAstroScene(host, config, options = {}) {
       if (sceneClock.running) options.onClock?.(clockState());
     }
     if (live.size && stepLive(performance.now())) moving = true;
+    // colour changes crossfading in place (recolor.js); under reduced motion they land at once
+    if (fades.active) {
+      if (reduced) fades.finish();
+      else if (fades.step(performance.now())) moving = true;
+    }
     if (stepLook(lookW, lookTo, dt, reduced ? 0 : undefined)) moving = true;
     if (!reduced) {
       const sdt = dt * timeScale;
@@ -1825,6 +1834,11 @@ export function createAstroScene(host, config, options = {}) {
         const g = w.outer.get(b);
         if (g) g.visible = next.visible !== false;
         b.config = { ...next, id };
+      } else if (colorOnly(restOld, restNew) && recolorObject(id, next)) {
+        // only colours changed (a colour bound to an entity, a rule): it crossfades in place
+        b.config = { ...next, id };
+        const g = w.outer.get(b);
+        if (g) g.visible = next.visible !== false;
       } else if (w.rebuildObject(id, next)) {
         objectBuilds++;
         const nb = w.objects.get(id);
@@ -1838,24 +1852,102 @@ export function createAstroScene(host, config, options = {}) {
     requestFrame();
   }
 
+  /** @param {number[]} a @param {number[]} b */
+  const sameRgba = (a, b) => a.length === b.length && a.every((x, i) => Math.abs(x - b[i]) < 1e-6);
+
+  /**
+   * Whether two object configs differ only in colour values (each differing
+   * leaf a colour, or left out, on both sides): such a change can crossfade
+   * in place.
+   * @param {any} a @param {any} b
+   * @returns {boolean}
+   */
+  function colorOnly(a, b) {
+    if (a === b) return true;
+    // a colour left out is the key's default colour
+    const colorish = (/** @type {any} */ v) => v === undefined || isColorValue(v);
+    if (typeof a === 'string' || typeof b === 'string') return colorish(a) && colorish(b);
+    if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+    for (const k of keys) if (!colorOnly(a[k], b[k])) return false;
+    return true;
+  }
+
+  /**
+   * Crossfade one object (or BACKDROP_STARS / BACKDROP_DUST) to the colours
+   * of `next` (its own config when left out: the theme changed): built
+   * once apart, and the values a colour drives (where the fresh build
+   * differs from the live one as it was built) fade on the live object
+   * (recolor.js). False when it cannot (the builds do not line up): build
+   * it again instead.
+   * @param {string} id @param {any} [next]
+   * @returns {boolean}
+   */
+  function recolorObject(id, next) {
+    const w = world;
+    if (!w) return false;
+    const liveObj = id === BACKDROP_STARS ? w.stars : id === BACKDROP_DUST ? w.dust : w.objects.get(id);
+    if (!liveObj) return false;
+    // a theme change that resolves every colour it asked for the same: nothing to do
+    if (next === undefined && liveObj.colorInputs && liveObj.colorInputs.every(([v, f, c]) => sameRgba(ctx.color(v, f), c))) return true;
+    // a model loads its file after the build: nothing to compare yet
+    if (liveObj.type === 'model') return false;
+    const fresh = w.buildApart(id, next);
+    const slots = fresh ? colorSlots(liveObj, fresh) : null;
+    // what it asked for and looks like now, for the next change to compare with
+    if (slots && fresh) {
+      liveObj.colorInputs = fresh.colorInputs;
+      liveObj.colorBase = fresh.colorBase;
+    }
+    disposeBuilt(fresh);
+    if (!slots) {
+      lcardsLog.debug(`[Astrometrics] '${id}' cannot change its colours in place (${fresh ? 'a fresh build does not line up' : 'it did not build apart'}): built again`);
+      return false;
+    }
+    fades.start(slots, { now: reduced });
+    requestFrame();
+    return true;
+  }
+
+  /**
+   * A theme or alert mode change: every object crossfades to its new
+   * colours in place; one that cannot is built again on its own. False
+   * when the backdrop cannot (build the whole scene).
+   * @returns {boolean}
+   */
+  function recolorInPlace() {
+    const w = world;
+    if (!w || !ready) return false;
+    for (const id of [BACKDROP_STARS, BACKDROP_DUST]) {
+      const has = id === BACKDROP_STARS ? w.stars : w.dust;
+      if (has && !recolorObject(id)) return false;
+    }
+    for (const b of [...w.list]) {
+      if (recolorObject(b.id)) continue;
+      if (!w.rebuildObject(b.id, b.config)) return false;
+      objectBuilds++;
+      const nb = w.objects.get(b.id);
+      if (nb) sizeObject(nb);
+      for (const e of live.values()) if (e.id === b.id) applyLive(e);
+    }
+    showBox();
+    showMeasure();
+    requestFrame();
+    return true;
+  }
+
   /**
    * Settings that follow entities and change in place: each eases from where
    * it is to its new value over `smooth` ms (the first value lands at once).
    * `id` '' with `time_scale` is the card's. A null value lets go (the
-   * config's value again). A string (a live colour) goes to the object as
-   * it is: the object eases to it itself.
-   * @param {{ id: string, key: string, value: number | string | null, smooth?: number }[]} list
+   * config's value again).
+   * @param {{ id: string, key: string, value: number | null, smooth?: number }[]} list
    */
   function setLive(list) {
     const t = performance.now();
     for (const { id, key, value, smooth = 0 } of list ?? []) {
       const k = `${id}\u0000${key}`;
       const cur = live.get(k);
-      // a colour: the object takes (and eases to) it itself
-      if (typeof value === 'string') {
-        world?.objects.get(id)?.liveColor?.(key, value);
-        continue;
-      }
       if (value === null || !Number.isFinite(value)) {
         live.delete(k);
         resetLive(id, key);
@@ -1943,7 +2035,7 @@ export function createAstroScene(host, config, options = {}) {
     const b = world?.objects.get(id);
     if (key === 'opacity') liveAlpha.delete(id);
     if (!b) return;
-    if (b.live?.(key, null) || b.liveColor?.(key, null)) return;
+    if (b.live?.(key, null)) return;
     if (key === 'spin') b.spin = num(b.config.spin, 0);
     else if (key === 'radius' || key === 'size') b.node.scale.setScalar(1);
   }
@@ -2403,7 +2495,7 @@ export function createAstroScene(host, config, options = {}) {
     patch,
     sky: () => sky,
     recolor() {
-      build();
+      if (!recolorInPlace()) build();
     },
     dispose() {
       if (disposed) return;

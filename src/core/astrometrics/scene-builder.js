@@ -39,12 +39,56 @@ import { buildComet } from './objects/comet.js';
 import { buildGalaxy } from './objects/galaxy.js';
 import { buildLightning } from './objects/lightning.js';
 import { applyRotation, disposeNode, num } from './objects/common.js';
+import { colorBase } from './recolor.js';
 import { localBounds } from './distance-fade.js';
 import { Facing, spinTangent, axisFacing } from './facing.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export { OBJECT_TYPES };
 /** Builders of the objects points can stand on; line objects read points, so they come second */
+/**
+ * A builder that notes every colour its object asks for (`colorInputs`), so
+ * a theme change can tell which objects it changes (recolor.js) without
+ * building them, and what the object looks like as built (`colorBase`), for
+ * a colour change to fade from. The context is a child of the given one: what the scene
+ * puts on it later (its placements) still reaches the object.
+ * @param {(cfg: any, ctx?: import('./objects/common.js').BuildContext) => import('./objects/common.js').BuiltObject} build
+ * @param {import('./objects/common.js').BuildContext} ctx
+ * @returns {(cfg: any, ctx?: import('./objects/common.js').BuildContext) => import('./objects/common.js').BuiltObject}
+ */
+function recordingColors(build, ctx) {
+  return (cfg, x = ctx) => {
+    /** @type {[any, string, number[]][]} */
+    const seen = [];
+    const rx = Object.create(x);
+    rx.color = (/** @type {any} */ v, /** @type {string} */ f) => {
+      const c = x.color(v, f);
+      seen.push([v, f, c]);
+      return c;
+    };
+    const b = build(cfg, rx);
+    b.colorInputs = seen;
+    // what it looks like as built, before any motion: a colour change compares a fresh build with it
+    b.colorBase = colorBase(b);
+    return b;
+  };
+}
+
+/** buildApart's ids for the backdrop's stars and dust (no object can have them: ids are config strings, these have a space) */
+export const BACKDROP_STARS = 'backdrop stars';
+export const BACKDROP_DUST = 'backdrop dust';
+
+/**
+ * Free an object built apart (buildApart): its own dispose, its lines, its node.
+ * @param {import('./objects/common.js').BuiltObject | null | undefined} b
+ */
+export function disposeBuilt(b) {
+  if (!b) return;
+  b.dispose?.();
+  b.lines.forEach((l) => l.dispose());
+  disposeNode(b.node);
+}
+
 const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image: buildImage, glow: buildGlow, belt: buildBelt, asteroid: buildAsteroid, comet: buildComet, galaxy: buildGalaxy, lightning: buildLightning, crystalline: buildCrystalline };
 
 /**
@@ -63,6 +107,7 @@ const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image
  * @property {() => void} layout - one frame's placement pass: matrices, objects on points (`at`), then what reads moving points
  * @property {() => void} rebased - the current frame changed: placed again, and every line object drawn again from its points
  *   (a static one was drawn in the old frame's units, as precise as they were)
+ * @property {(id: string, cfg?: any, ctx?: import('./objects/common.js').BuildContext) => import('./objects/common.js').BuiltObject | null} buildApart - build one object (or BACKDROP_STARS / BACKDROP_DUST) again off the scene, from a config (its own by default) and a context (a colour probe's): nothing in the scene changes; free it with disposeBuilt. Null for an unknown id or a failed build
  * @property {(id: string, cfg: any) => boolean} rebuildObject - build one object again from a new config (a rule patch), in place; false for an unknown id
  * @property {() => void} dispose
  */
@@ -175,10 +220,11 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   const cfgs = Array.isArray(config?.objects) ? config.objects.filter((o) => o && typeof o === 'object') : [];
   const counts = /** @type {Record<string, number>} */ ({});
 
-  /** @type {Map<string, (cfg: any) => import('./objects/common.js').BuiltObject>} how each object was built, by id */
+  /** @type {Map<string, (cfg: any, ctx?: import('./objects/common.js').BuildContext) => import('./objects/common.js').BuiltObject>} how each object was built, by id */
   const builders = new Map();
-  /** @param {any} cfg @param {(cfg: any) => import('./objects/common.js').BuiltObject} build */
-  const add = (cfg, build) => {
+  /** @param {any} cfg @param {(cfg: any, ctx?: import('./objects/common.js').BuildContext) => import('./objects/common.js').BuiltObject} raw */
+  const add = (cfg, raw) => {
+    const build = recordingColors(raw, ctx);
     counts[cfg.type] = (counts[cfg.type] ?? 0) + 1;
     // An object without an id gets `type#n` (its generated points stand on it)
     if (cfg.id === undefined || cfg.id === null || cfg.id === '') cfg = { ...cfg, id: `${cfg.type}#${counts[cfg.type]}` };
@@ -205,18 +251,18 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
 
   for (const cfg of cfgs) {
     const fn = FIRST[/** @type {keyof typeof FIRST} */ (cfg.type)];
-    if (fn) add(cfg, (c) => fn(c, ctx));
+    if (fn) add(cfg, (c, x = ctx) => fn(c, x));
     else if (cfg.type === 'nebula') {
       const effects = ctx.effects;
-      if (effects) add(cfg, (c) => effects.buildNebula(c, ctx));
+      if (effects) add(cfg, (c, x = ctx) => effects.buildNebula(c, x));
       else lcardsLog.warn('[Astrometrics] nebula skipped: the effects chunk is not loaded');
     } else if (cfg.type === 'cube') {
       const effects = ctx.effects;
-      if (effects) add(cfg, (c) => effects.buildCube(c, ctx));
+      if (effects) add(cfg, (c, x = ctx) => effects.buildCube(c, x));
       else lcardsLog.warn('[Astrometrics] cube skipped: the effects chunk is not loaded');
     } else if (cfg.type === 'model') {
       const models = ctx.models;
-      if (models) add(cfg, (c) => models.buildModel(c, ctx));
+      if (models) add(cfg, (c, x = ctx) => models.buildModel(c, x));
       else lcardsLog.warn('[Astrometrics] model skipped: the model chunk is not loaded');
     } else if (cfg.type !== 'system' && !OBJECT_TYPES.includes(cfg.type)) lcardsLog.warn(`[Astrometrics] unknown object type '${cfg.type}'`);
   }
@@ -272,16 +318,18 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   placeSystems();
 
   for (const cfg of cfgs) {
-    if (cfg.type === 'ring') add(cfg, (c) => buildRing(c, ctx));
-    else if (cfg.type === 'path') add(cfg, (c) => buildPath(c, ctx, objects));
-    else if (cfg.type === 'beam') add(cfg, (c) => buildBeam(c, ctx));
-    else if (cfg.type === 'trail') add(cfg, (c) => buildTrail(c, ctx));
+    if (cfg.type === 'ring') add(cfg, (c, x = ctx) => buildRing(c, x));
+    else if (cfg.type === 'path') add(cfg, (c, x = ctx) => buildPath(c, x, objects));
+    else if (cfg.type === 'beam') add(cfg, (c, x = ctx) => buildBeam(c, x));
+    else if (cfg.type === 'trail') add(cfg, (c, x = ctx) => buildTrail(c, x));
   }
   // Line objects need the placements to draw, so they come second; points can
   // still stand on them (a planet on its spinning orbit ring)
   for (const [id, b] of objects) if (!hosts.has(id)) hosts.set(id, hostOf(b));
 
-  const stars = config?.backdrop?.stars ? buildStars(config.backdrop.stars === true ? {} : config.backdrop.stars, ctx) : null;
+  const starsCfg = config?.backdrop?.stars ? (config.backdrop.stars === true ? {} : config.backdrop.stars) : null;
+  const starsBuild = recordingColors((c, x = ctx) => buildStars(c, x), ctx);
+  const stars = starsCfg ? starsBuild(starsCfg) : null;
   if (stars) scene.add(stars.node);
 
   // Bounds before the first placement pass (a default view frames them)
@@ -291,9 +339,9 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   const bounds = box.isEmpty() ? new Sphere(new Vector3(), 100) : box.getBoundingSphere(new Sphere());
 
   // Dust round the scene (after the bounds: it fills them)
-  const dust = config?.backdrop?.dust
-    ? buildDust(config.backdrop.dust === true ? {} : config.backdrop.dust, ctx, { radius: bounds.radius })
-    : null;
+  const dustCfg = config?.backdrop?.dust ? (config.backdrop.dust === true ? {} : config.backdrop.dust) : null;
+  const dustBuild = recordingColors((c, x = ctx) => buildDust(c, x, { radius: bounds.radius }), ctx);
+  const dust = dustCfg ? dustBuild(dustCfg) : null;
   if (dust) frames.get(ROOT).node.add(dust.node);
 
   // Labels: the last definition of an id wins (the user's over generated ones)
@@ -458,6 +506,18 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
       layout();
       for (const b of list) if (!b.dynamic) b.update?.();
       scene.updateMatrixWorld();
+    },
+    buildApart(id, cfg, x = ctx) {
+      try {
+        if (id === BACKDROP_STARS) return starsCfg ? starsBuild(cfg ?? starsCfg, x) : null;
+        if (id === BACKDROP_DUST) return dustCfg ? dustBuild(cfg ?? dustCfg, x) : null;
+        const build = builders.get(id);
+        const old = objects.get(id);
+        return build ? build({ ...(cfg ?? old?.config), id }, x) : null;
+      } catch (error) {
+        lcardsLog.debug(`[Astrometrics] could not build '${id}' apart:`, error);
+        return null;
+      }
     },
     rebuildObject(id, cfg) {
       const old = objects.get(id);
