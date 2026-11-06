@@ -3677,7 +3677,8 @@ export class LCARdSCard extends LCARdSNativeCard {
             animations: this.config.animations,
             getAnimationSetup: () => this._getAnimationSetup(),
             shadowRoot: this.shadowRoot,
-            entity: this.config.entity, // Pass card's entity as default for actions
+            // the caller's entity (a data grid cell's) wins; the card's entity is the default
+            entity: /** @type {any} */ (options).entity ?? this.config.entity,
             getHass: () => this.hass,
             ...(Object.keys(soundOverride).length > 0 && { soundOverride })
         };

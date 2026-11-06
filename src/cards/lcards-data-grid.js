@@ -269,9 +269,28 @@ export class LCARdSDataGrid extends LCARdSCard {
     const rows = normalizeRows(this.config.rows);
     const cols = dataColumnCount(this.config.rows);
 
-    const next = await Promise.all(rows.map((row, r) =>
-      Promise.all(Array.from({ length: cols }, (_, c) => this._cellText(row.values[c], `rows[${r}][${c}]`)))
-    ));
+    // Every cell's text, started at once; each template cell shows as soon as it is
+    // ready (one slow Jinja2 round trip never holds the grid on "Loading..." or holds
+    // back the other cells)
+    const texts = rows.map((row, r) => Array.from({ length: cols }, (_, c) => this._cellText(row.values[c], `rows[${r}][${c}]`)));
+    if (!this._gridData.length) {
+      const run = (this._cellRun = (this._cellRun ?? 0) + 1);
+      const isTemplate = (/** @type {number} */ r, /** @type {number} */ c) => classifyCell(rows[r].values[c]).kind === 'template';
+      this._rows = rows;
+      this._cellConfigs = rows.map(r => r.values);
+      this._gridData = await Promise.all(texts.map((row, r) => Promise.all(row.map((t, c) => isTemplate(r, c) ? '' : t))));
+      texts.forEach((row, r) => row.forEach((t, c) => {
+        if (!isTemplate(r, c)) return;
+        t.then((text) => {
+          // a later pass has the whole grid already
+          if (run !== this._cellRun || this._gridData[r]?.[c] !== '') return;
+          this._gridData = this._gridData.map((cells, i) => (i === r ? cells.map((v, j) => (j === c ? text : v)) : cells));
+        });
+      }));
+    }
+
+    const next = await Promise.all(texts.map(row => Promise.all(row)));
+    this._cellRun = (this._cellRun ?? 0) + 1;
 
     if (this._gridData.length) this._previousGridData = this._gridData;
     this._rows = rows;

@@ -400,7 +400,7 @@ releases:
         public: true
       - file: warp-spectrum
         summary: "Doppler-shifted warp streaks"
-        description: "spectrum: true splits each streak into colour, a Doppler shift of the star's own colour (violet toward the tail). White stars show the whole rainbow, coloured stars a part of it; reverse puts violet at the head, and card 4 has the spectrum off. Card 5 warps on red alert and drops to dots when it clears: the colour fades in as the dots stretch. STREAK stretches cards 1 to 4 together, BANK turns the camera of card 6."
+        description: "spectrum: true splits each streak into colour, a Doppler shift of the star's own colour (violet toward the tail). White stars show the whole rainbow (card 1), coloured stars a part of it (card 2: orange, blue and violet stars); reverse puts violet at the head (card 3), and card 4 has the spectrum off. Card 5 warps on red alert and drops to dots when it clears: the colour fades in as the dots stretch. STREAK stretches cards 1 to 4 together, BANK turns the camera of card 6."
         session: "warp-starfield spectrum"
         docs: /core/effects/background-animations/preset-reference#warp-starfield
         public: true

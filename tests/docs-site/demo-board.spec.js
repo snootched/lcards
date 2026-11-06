@@ -125,6 +125,21 @@ test('the showcase\'s controls work without Home Assistant: NEXT and PREV step t
     await expect.poll(() => state('script.lcards_test_tour')).toBe('off');
 });
 
+test('data grid: the cells draw before a slow template, and tapping an entity cell toggles it', async ({ page }) => {
+    const grid = VIEWS.find(v => v.path === 'datagrid-data');
+    await page.goto(URL_PATH);
+    await expect(page.locator('.demo-board-topic').first()).toHaveAttribute('aria-expanded', 'true');
+    await pickView(page, grid);
+    // the view's data grid (the first data grid is the header's description)
+    const card = page.locator('.demo-board-stage lcards-data-grid').nth(1);
+    // well before the Jinja2 cell's render times out (no Home Assistant here): the entity cells are there
+    await expect(card.getByText('64 %')).toBeVisible({ timeout: 3000 });
+    const state = () => page.evaluate(async () => (await globalThis.__lcardsDocsEnv).hass.states['input_boolean.lcards_test_lights']?.state);
+    const before = await state();
+    await card.getByText(before, { exact: true }).first().click();
+    await expect.poll(state).not.toBe(before);
+});
+
 test('the New in filter: shown only when there are older views; then it keeps this release\'s', async ({ page }) => {
     await page.goto(URL_PATH);
     await expect(page.locator('.demo-board-topic').first()).toBeVisible();
