@@ -157,7 +157,7 @@ export async function showcaseCard() {
         id: 'ds9', at: 'bajor_wormhole', offset: [190, -60, 290], marker: 'starbase', label: 'DEEP SPACE 9', style: 'minor', max_distance: 60000,
         card: {
           show: 'always', position: 'top-right', width: 180,
-          card: { type: 'custom:lcards-button', preset: 'lozenge', entity: 'input_number.lcards_test_shields', text: { name: { content: 'SHIELDS {entity.state}%', show: true } } }
+          card: { type: 'custom:lcards-button', preset: 'lozenge', entity: 'input_number.lcards_test_shields', text: { name: { content: 'SHIELDS {entity.state}', show: true } } }
         }
       },
       // the cube lurks beyond the wormhole; an incursion (a rule) brings it to Deep Space 9
@@ -166,7 +166,11 @@ export async function showcaseCard() {
       { id: 'nebula', polar: [236000000, 52], label: 'CHIN\'TOKA NEBULA', style: 'minor', max_distance: 3000000 },
       { id: 'route_a', at: 'nebula', offset: [-90000, 2000, -30000] },
       { id: 'route_b', at: 'nebula', offset: [90000, -2000, 30000] },
-      { id: 'rock_at', at: 'ds9', offset: [-1, -0.35, 1] },
+      { id: 'rock_at', at: 'ds9', offset: [-1.35, -0.4, 1.3] },
+      // the Enterprise-D docked at upper pylon 1 as in the show (station metres): over the station inboard of the pylon,
+      // lying along the station's tangent (bow 18 degrees in from it), the pylon's tip at the side of the neck just
+      // above the drive section; the pose was searched so the two models do not cross
+      { id: 'enterprise_d_at', object: 'ds9_model', xyz: [12, 493, 374], label: 'USS ENTERPRISE NCC-1701-D', style: 'tiny', max_distance: 30 },
       ...comet.points,
       ...rock.points,
       ...bajorMouth.points
@@ -178,7 +182,8 @@ export async function showcaseCard() {
       { type: 'ring', id: 'bajor_orbit', radius: 150000000, width: 1, opacity: 0.5, tags: ['orbits'] },
       { type: 'belt', id: 'denorios_belt', at: 'bhavael', radius: [222000000, 242000000], thickness: 2000000, count: 1500, size: [0.5, 30], tumble: 0, seed: 21 },
       { type: 'model', id: 'ds9_model', at: 'ds9', src: 'builtin:deep_space_nine', size: 1.452, material: 'original' },
-      { type: 'sphere', id: 'ds9_shields', at: 'ds9', radius: 1.2, fill: { color: 'var(--lcars-blue)' }, color: 'var(--lcars-blue)', line_spacing_deg: 20, opacity: { entity: 'input_number.lcards_test_shields', output: [0, 0.45] } },
+      { type: 'model', id: 'enterprise_d', at: 'enterprise_d_at', src: 'builtin:galaxy_class', size: 0.6425, rotation: [0, 288, 0], material: 'original' },
+      { type: 'sphere', id: 'ds9_shields', at: 'ds9', radius: 1.4, fill: { color: 'var(--lcars-blue)' }, color: 'var(--lcars-blue)', line_spacing_deg: 20, opacity: { entity: 'input_number.lcards_test_shields', output: [0, 0.45] } },
       ...bajorMouth.objects,
       ...comet.objects,
       ...rock.objects,

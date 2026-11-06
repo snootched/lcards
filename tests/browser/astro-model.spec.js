@@ -62,7 +62,7 @@ test('a point on an animated part follows it', async ({ page }) => {
     await expect.poll(async () => {
         const b = await where();
         return Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
-    }, { timeout: 5_000 }).toBeGreaterThan(0.03); // the bussards pulse (6%): a few hundredths at size 70
+    }, { timeout: 5_000 }).toBeGreaterThan(0.01); // the bussards pulse (6%): a few hundredths at size 70, 0 when the part holds still
 });
 
 test('editor: a point on a model part (parts from the built-in list and from the preview), a pinned card', async ({ page }) => {
