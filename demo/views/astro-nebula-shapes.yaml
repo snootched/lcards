@@ -42,7 +42,7 @@ sections:
       - type: custom:lcards-button
         preset: lozenge
         text:
-          name: {content: DUST, show: true}
+          name: {content: BAND, show: true}
         tap_action: {action: fly-to, card: astro_nebula_shapes, view: dust}
         grid_options: {columns: 8, rows: 1}
       - type: custom:lcards-slider

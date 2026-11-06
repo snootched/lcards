@@ -48,6 +48,47 @@ sections:
           name: {content: SECOND, show: true}
         tap_action: {action: fly-to, card: astro_crystalline, view: second}
         grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-astrometrics-card
+        id: astro_crystalline
+        height: 700
+        units: km
+        grid_options: {columns: full}
+        camera:
+          view: side
+          views:
+            side: {target: [-0.8, 0, 0], yaw: 0, tilt: 5, distance: 5}
+            close: {target: [-0.6, 0.3, 0.2], yaw: 30, tilt: 10, distance: 1.4}
+            below: {target: [0, 0.6, 0], yaw: 30, tilt: -70, distance: 2.6}
+            ship: {target: [-2.1, -0.1, 0.3], yaw: 300, tilt: 12, distance: 0.9}
+            far: {target: [6, 0, 0], yaw: 0, tilt: 8, distance: 600}
+            second: {target: [12, 0, 0], yaw: 20, tilt: 6, distance: 5}
+        backdrop: {stars: {count: 3000}}
+        points:
+          - {id: core, xyz: [0, 0, 0]}
+          - {id: tag, xyz: [0, 1.7, 0], label: CRYSTALLINE ENTITY, style: major}
+          - {id: ship_at, xyz: [-2.1, -0.1, 0.3], label: USS ENTERPRISE, style: minor}
+          - {id: second, xyz: [12, 0, 0]}
+        objects:
+          # the entity: 3 km by default in km. CORE GLOW, FADE and SPIN change it in place; the colour and
+          # the fork levels rebuild it (BRANCHES picks 1, 3, 4 or 5; the stage helper's other values give the default 4)
+          - type: crystalline
+            id: entity
+            at: core
+            spin: { entity: input_number.lcards_test_value, input: [0, 100], output: [10, -10] }
+            glow: { entity: input_number.lcards_test_power, input: [0, 100], output: [0, 1] }
+            opacity: { entity: input_number.lcards_test_shields, input: [0, 60], output: [0, 1], clamp: true }
+            branches: "[[[ const n = Number(states['input_number.lcards_test_stage']?.state); return n >= 1 && n <= 5 ? n : 4 ]]]"
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium) }
+          - {type: model, id: ship, src: builtin:galaxy_class, at: ship_at}
+          # the beam fires while FIRE is on (the rule below)
+          - {type: beam, id: beam, from: core, to: ship_at, width: 10, color: var(--lcards-moonlight), pulse: true, visible: false}
+          # the lavender of the show (HA-LCARS african violet), another seed
+          - {type: crystalline, id: lavender, at: second, seed: 11, spin: -1.5, color: "var(--lcars-african-violet, var(--lcards-blue-light))"}
+        rules:
+          - id: ce1_fire
+            when: { entity: input_boolean.lcards_test_toggle, state: "on" }
+            apply:
+              overlays: { beam: { visible: true }, entity: { core: { period: 1.5 } } }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_power
         preset: shaped-horizontal
@@ -110,44 +151,3 @@ sections:
         text: { name: { content: "BRANCHES 5", show: true } }
         tap_action: { action: perform-action, perform_action: input_number.set_value, target: { entity_id: input_number.lcards_test_stage }, data: { value: 5 } }
         grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-astrometrics-card
-        id: astro_crystalline
-        height: 700
-        units: km
-        grid_options: {columns: full}
-        camera:
-          view: side
-          views:
-            side: {target: [-0.8, 0, 0], yaw: 0, tilt: 5, distance: 5}
-            close: {target: [-0.6, 0.3, 0.2], yaw: 30, tilt: 10, distance: 1.4}
-            below: {target: [0, 0.6, 0], yaw: 30, tilt: -70, distance: 2.6}
-            ship: {target: [-2.1, -0.1, 0.3], yaw: 300, tilt: 12, distance: 0.9}
-            far: {target: [6, 0, 0], yaw: 0, tilt: 8, distance: 600}
-            second: {target: [12, 0, 0], yaw: 20, tilt: 6, distance: 5}
-        backdrop: {stars: {count: 3000}}
-        points:
-          - {id: core, xyz: [0, 0, 0]}
-          - {id: tag, xyz: [0, 1.7, 0], label: CRYSTALLINE ENTITY, style: major}
-          - {id: ship_at, xyz: [-2.1, -0.1, 0.3], label: USS ENTERPRISE, style: minor}
-          - {id: second, xyz: [12, 0, 0]}
-        objects:
-          # the entity: 3 km by default in km. CORE GLOW, FADE and SPIN change it in place; the colour and
-          # the fork levels rebuild it (BRANCHES picks 1, 3, 4 or 5; the stage helper's other values give the default 4)
-          - type: crystalline
-            id: entity
-            at: core
-            spin: { entity: input_number.lcards_test_value, input: [0, 100], output: [10, -10] }
-            glow: { entity: input_number.lcards_test_power, input: [0, 100], output: [0, 1] }
-            opacity: { entity: input_number.lcards_test_shields, input: [0, 60], output: [0, 1], clamp: true }
-            branches: "[[[ const n = Number(states['input_number.lcards_test_stage']?.state); return n >= 1 && n <= 5 ? n : 4 ]]]"
-            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium) }
-          - {type: model, id: ship, src: builtin:galaxy_class, at: ship_at}
-          # the beam fires while FIRE is on (the rule below)
-          - {type: beam, id: beam, from: core, to: ship_at, width: 10, color: var(--lcards-moonlight), pulse: true, visible: false}
-          # the lavender of the show (HA-LCARS african violet), another seed
-          - {type: crystalline, id: lavender, at: second, seed: 11, spin: -1.5, color: "var(--lcars-african-violet, var(--lcards-blue-light))"}
-        rules:
-          - id: ce1_fire
-            when: { entity: input_boolean.lcards_test_toggle, state: "on" }
-            apply:
-              overlays: { beam: { visible: true }, entity: { core: { period: 1.5 } } }

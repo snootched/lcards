@@ -68,7 +68,7 @@ sections:
                 type: custom:lcards-button
                 entity: input_boolean.lcards_test_toggle
                 preset: lozenge
-                text: { name: { content: RED ALERT, show: true } }
+                text: { name: { content: BRIDGE ALERT, show: true } }
           - { id: deflector, object: ship, part: deflector, label: DEFLECTOR, marker: dot }
           - { id: collector, object: ship, part: bussard_starboard, xyz: [0, 5, 0], label: COLLECTOR, marker: diamond }
           - id: port

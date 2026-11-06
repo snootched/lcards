@@ -40,26 +40,7 @@ sections:
                 major_col_interval: 4
                 color_major: var(--lcards-moonlight)
                 line_width_major: 3
-        text: { label: { content: 1A GRID MAJORS (WEBGL), show: true, color: var(--lcards-blue) } }
-        grid_options: { columns: 6, rows: 4 }
-      - type: custom:lcards-elbow
-        elbow:
-          type: frame
-          segment: { color: theme:colors.card.topColor }
-          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
-        background_animation:
-          inset: auto
-          effects:
-            - preset: grid
-              renderer: canvas
-              config:
-                color: var(--lcards-orange)
-                line_spacing: 30
-                major_row_interval: 4
-                major_col_interval: 4
-                color_major: var(--lcards-moonlight)
-                line_width_major: 3
-        text: { label: { content: 1B SAME (CANVAS), show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 1 GRID MAJORS, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
         elbow:
@@ -70,18 +51,7 @@ sections:
           inset: auto
           effects:
             - { preset: grid-hexagonal, config: { hex_radius: 25 } }
-        text: { label: { content: 2A HEX (WEBGL), show: true, color: var(--lcards-blue) } }
-        grid_options: { columns: 6, rows: 4 }
-      - type: custom:lcards-elbow
-        elbow:
-          type: frame
-          segment: { color: theme:colors.card.topColor }
-          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
-        background_animation:
-          inset: auto
-          effects:
-            - { preset: grid-hexagonal, renderer: canvas, config: { hex_radius: 25 } }
-        text: { label: { content: 2B HEX (CANVAS), show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 2 HEX, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
         entity: input_number.lcards_test_value
@@ -176,7 +146,7 @@ sections:
           effects:
             - preset: grid-diagonal
               config: { camera_tilt: { map_range: { input: [ 0, 100 ], output: [ 5, 85 ] } }, view: floor, scan_period: 0, line_width: 2, color: var(--lcards-orange) }
-        text: { label: { content: "8 DIAGONAL FLOOR, NO SCAN · CAMERA TILT", show: true, color: var(--lcards-blue) } }
+        text: { label: { content: "8 DIAGONAL FLOOR, NO SCAN · CAMERA", show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
         elbow:
@@ -188,18 +158,7 @@ sections:
           effects:
             - { preset: holo-sphere, config: { line_width: 2.5 } }
         text:
-          label: { content: 9A SPHERE LINE WIDTH 2.5 (WEBGL), show: true, color: var(--lcards-blue) }
-        grid_options: { columns: 6, rows: 4 }
-      - type: custom:lcards-elbow
-        elbow:
-          type: frame
-          segment: { color: theme:colors.card.topColor }
-          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
-        background_animation:
-          inset: auto
-          effects:
-            - { preset: holo-sphere, renderer: canvas, config: { line_width: 2.5 } }
-        text: { label: { content: 9B SAME (CANVAS), show: true, color: var(--lcards-blue) } }
+          label: { content: 9 SPHERE LINE WIDTH 2.5, show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 4 }
       - type: custom:lcards-elbow
         entity: input_number.lcards_test_power

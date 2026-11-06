@@ -1,0 +1,199 @@
+# Renderer parity check (dev board only): the public grid-polar view minus the twins.
+# Polar grid (C5). Rescued from reports/c2-review/c5.yaml.
+title: Polar grid (renderer parity)
+path: grid-polar-parity
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: SPOKES } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: CAMERA TILT } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                spoke_count: { map_range: { input: [ 0, 100 ], output: [ 4, 36 ] } }
+                pattern: polar
+                color: var(--lcards-orange)
+                color_major: var(--lcards-moonlight)
+                major_row_interval: 3
+                major_col_interval: 3
+                line_width_major: 2
+        text: { label: { content: 1 POLAR FLAT · SPOKES, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                pattern: polar
+                view: floor
+                camera_tilt: { map_range: { input: [ 0, 100 ], output: [ 5, 85 ] } }
+                spoke_count: 24
+                major_row_interval: 4
+                major_col_interval: 6
+                color: var(--lcards-blue-light)
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: 2 POLAR FLOOR (GALAXY MAP) · CAMERA TILT, show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                pattern: polar
+                polar_x: 0.2
+                polar_y: 0.8
+                spoke_count: 16
+                scroll_speed_y: 20
+                scroll_speed_x: 10
+                major_row_interval: 3
+                color: var(--lcards-orange)
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: "3 POLAR OFF CENTRE, SONAR + SPIN", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - animations:
+          - trigger: on_load
+            target: background
+            effect: 0
+            preset: custom
+            params: { camera_yaw: [ 0, 360 ], duration: 40000, ease: linear, loop: true }
+        type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                pattern: polar
+                view: floor
+                camera_tilt: 25
+                spoke_count: 12
+                major_row_interval: 3
+                color: var(--lcards-blue-light)
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: "4 POLAR FLOOR, TURNING CAMERA", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                pattern: polar
+                surface: dome
+                surface_axis: horizontal
+                spoke_count: { map_range: { input: [ 0, 100 ], output: [ 4, 36 ] } }
+                major_row_interval: 3
+                color: var(--lcards-blue-light)
+                color_major: var(--lcards-moonlight)
+        text: { label: { content: 5 POLAR DOME FACING YOU · SPOKES, show: true, color: var(--lcards-blue) } }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_value
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                pattern: polar
+                surface: sphere
+                spoke_count: { map_range: { input: [ 0, 100 ], output: [ 4, 36 ] } }
+                major_col_interval: 6
+                scroll_speed_x: 15
+                color: var(--lcards-orange)
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: 6 POLAR SPHERE · SPOKES, show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              renderer: canvas
+              config:
+                pattern: polar
+                color: var(--lcards-orange)
+                color_major: var(--lcards-moonlight)
+                major_row_interval: 3
+                major_col_interval: 3
+                line_width_major: 2
+        text:
+          label: { content: "7 POLAR CANVAS2D (renderer: canvas)", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }
+      - type: custom:lcards-elbow
+        entity: input_number.lcards_test_power
+        elbow:
+          type: frame
+          segment: { color: theme:colors.card.topColor }
+          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
+        background_animation:
+          inset: auto
+          effects:
+            - preset: grid
+              config:
+                camera_tilt: { map_range: { input: [ 0, 100 ], output: [ 5, 85 ] } }
+                pattern: polar
+                spoke_count: 0
+                view: floor
+                scroll_speed_y: 15
+                color: var(--lcards-blue-light)
+                color_major: var(--lcards-moonlight)
+        text:
+          label: { content: "8 RINGS ONLY (spoke_count: 0) · CAMERA TILT", show: true, color: var(--lcards-blue) }
+        grid_options: { columns: 6, rows: 5 }

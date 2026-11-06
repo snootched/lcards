@@ -218,7 +218,7 @@ sections:
       - type: custom:lcards-button
         preset: lozenge
         entity: input_boolean.lcards_test_toggle
-        text: { name: { content: TOGGLE, show: true }, state: { show: true } }
+        text: { name: { content: SOL ALERT, show: true }, state: { show: true } }
         tap_action: { action: toggle }
         grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button

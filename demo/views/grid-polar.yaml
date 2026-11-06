@@ -156,26 +156,6 @@ sections:
           label: { content: 6 POLAR SPHERE · SPOKES, show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
-        elbow:
-          type: frame
-          segment: { color: theme:colors.card.topColor }
-          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
-        background_animation:
-          inset: auto
-          effects:
-            - preset: grid
-              renderer: canvas
-              config:
-                pattern: polar
-                color: var(--lcards-orange)
-                color_major: var(--lcards-moonlight)
-                major_row_interval: 3
-                major_col_interval: 3
-                line_width_major: 2
-        text:
-          label: { content: "7 POLAR CANVAS2D (renderer: canvas)", show: true, color: var(--lcards-blue) }
-        grid_options: { columns: 6, rows: 5 }
-      - type: custom:lcards-elbow
         entity: input_number.lcards_test_power
         elbow:
           type: frame
@@ -194,5 +174,5 @@ sections:
                 color: var(--lcards-blue-light)
                 color_major: var(--lcards-moonlight)
         text:
-          label: { content: "8 RINGS ONLY (spoke_count: 0) · CAMERA TILT", show: true, color: var(--lcards-blue) }
+          label: { content: "7 RINGS ONLY (spoke_count: 0) · CAMERA TILT", show: true, color: var(--lcards-blue) }
         grid_options: { columns: 6, rows: 5 }

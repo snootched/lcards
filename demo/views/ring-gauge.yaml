@@ -15,7 +15,7 @@ sections:
         entity: input_number.lcards_test_value
         preset: picard-ring
         grid_options: { columns: 12, rows: 4 }
-        text: { name: { content: Zone N } }
+        text: { name: { content: ZONE N } }
         style:
           ring:
             scale:
@@ -48,3 +48,40 @@ sections:
         text: { name: { content: TEST VALUE } }
         style: { shaped: { text_bands: { left: { size: 120 } } } }
         grid_options: { columns: full, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: ring
+        text: { name: { content: HALF } }
+        style: { ring: { start_angle: -90, end_angle: 90 } }
+        grid_options: { columns: 24, rows: 4 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: ring
+        text: { name: { content: QUARTER } }
+        style: { ring: { start_angle: 0, end_angle: 90, thickness: 18% } }
+        grid_options: { columns: 12, rows: 4 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: ring
+        text: { name: { content: DEFAULT } }
+        grid_options: { columns: 12, rows: 5 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: ring
+        text: { name: { content: WIDE DEFAULT } }
+        grid_options: { columns: 24, rows: 3 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: ring
+        text: { name: { content: FULL } }
+        style: { ring: { start_angle: 0, end_angle: 360 } }
+        grid_options: { columns: 12, rows: 5 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: picard-ring
+        text: { name: { content: PICARD HALF } }
+        style: { ring: { start_angle: -90, end_angle: 90 } }
+        grid_options: { columns: 36, rows: 5 }

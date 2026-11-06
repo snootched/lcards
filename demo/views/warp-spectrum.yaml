@@ -94,7 +94,7 @@ sections:
             - preset: warp-starfield
               transition: 1500
               config: { speed: 6, streak: { map_range: { input: [ 0, 100 ], output: [ 0, 4 ] } }, seed: 7, colors: [ "#ffffff" ] }
-        text: { label: { content: 4 NO SPECTRUM (BEFORE) · STREAK, show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 4 SPECTRUM OFF · STREAK, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 16, rows: 5 }
       - type: custom:lcards-elbow
         elbow:

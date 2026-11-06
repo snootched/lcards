@@ -28,6 +28,34 @@ sections:
           name: {content: PLANET, show: true}
         tap_action: {action: fly-to, card: astro_nebula_volume, view: planet}
         grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-astrometrics-card
+        id: astro_nebula_volume
+        height: 650
+        grid_options: {columns: full}
+        camera:
+          view: outside
+          views:
+            outside: {target: [0, 0, 0], yaw: 20, tilt: 20, distance: 320}
+            inside: {target: [40, 0, 10], yaw: 200, tilt: 6, distance: 30}
+            planet: {target: [30, 0, -20], yaw: 150, tilt: 10, distance: 80}
+          warp: true
+        backdrop: {stars: {count: 2500}}
+        points:
+          - {id: world, xyz: [30, 0, -20], label: KESSIK IV, style: minor}
+        objects:
+          - {type: grid, shape: disc, radius: 110, pattern: polar, line_spacing: 10, spoke_count: 36}
+          - { type: sphere, id: kessik, at: world, radius: 14, fill: { color: var(--lcars-orange) } }
+          - type: nebula
+            id: gas
+            render: volume
+            size: [240, 70, 240]
+            colors: [var(--lcars-violet), var(--lcars-blue), var(--lcars-red)]
+            density: {entity: input_number.lcards_test_power, input: [0, 100], output: [0.2, 3]}
+            turbulence: {entity: input_number.lcards_test_shields, input: [0, 100], output: [0, 1]}
+            noise_scale: {entity: input_number.lcards_test_humidity, input: [0, 100], output: [0.02, 0.3]}
+            drift: {entity: input_number.lcards_test_temperature, input: [10, 35], output: [0, 8]}
+            count: {entity: input_number.lcards_test_stage, input: [0, 20], output: [1, 10]}
+            seed: {entity: input_number.lcards_test_value, input: [0, 100], output: [1, 101]}
       - type: custom:lcards-slider
         entity: input_number.lcards_test_power
         preset: shaped-horizontal
@@ -82,34 +110,6 @@ sections:
         style:
           shaped: {text_bands: {left: {size: 140}}}
         grid_options: {columns: 18, rows: 1}
-      - type: custom:lcards-astrometrics-card
-        id: astro_nebula_volume
-        height: 650
-        grid_options: {columns: full}
-        camera:
-          view: outside
-          views:
-            outside: {target: [0, 0, 0], yaw: 20, tilt: 20, distance: 320}
-            inside: {target: [40, 0, 10], yaw: 200, tilt: 6, distance: 30}
-            planet: {target: [30, 0, -20], yaw: 150, tilt: 10, distance: 80}
-          warp: true
-        backdrop: {stars: {count: 2500}}
-        points:
-          - {id: world, xyz: [30, 0, -20], label: KESSIK IV, style: minor}
-        objects:
-          - {type: grid, shape: disc, radius: 110, pattern: polar, line_spacing: 10, spoke_count: 36}
-          - { type: sphere, id: kessik, at: world, radius: 14, fill: { color: var(--lcars-orange) } }
-          - type: nebula
-            id: gas
-            render: volume
-            size: [240, 70, 240]
-            colors: [var(--lcars-violet), var(--lcars-blue), var(--lcars-red)]
-            density: {entity: input_number.lcards_test_power, input: [0, 100], output: [0.2, 3]}
-            turbulence: {entity: input_number.lcards_test_shields, input: [0, 100], output: [0, 1]}
-            noise_scale: {entity: input_number.lcards_test_humidity, input: [0, 100], output: [0.02, 0.3]}
-            drift: {entity: input_number.lcards_test_temperature, input: [10, 35], output: [0, 8]}
-            count: {entity: input_number.lcards_test_stage, input: [0, 20], output: [1, 10]}
-            seed: {entity: input_number.lcards_test_value, input: [0, 100], output: [1, 101]}
   - type: grid
     column_span: 4
     cards:

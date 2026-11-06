@@ -22,26 +22,7 @@ sections:
                 color: var(--lcards-orange)
                 color_major: var(--lcards-moonlight)
               zoom: { layers: 4 }
-        text: { label: { content: 1 GRID + ZOOM (WEBGL), show: true, color: var(--lcards-blue) } }
-        grid_options: { columns: 6, rows: 5 }
-      - type: custom:lcards-elbow
-        elbow:
-          type: frame
-          segment: { color: theme:colors.card.topColor }
-          frame: { bar_width: 4, bar_height: 4, outer_curve: 10 }
-        background_animation:
-          inset: auto
-          effects:
-            - preset: grid
-              renderer: canvas
-              config:
-                major_row_interval: 3
-                major_col_interval: 3
-                color: var(--lcards-orange)
-                color_major: var(--lcards-moonlight)
-              zoom: { layers: 4 }
-        text:
-          label: { content: "2 GRID + ZOOM (renderer: canvas)", show: true, color: var(--lcards-blue) }
+        text: { label: { content: 1 GRID + ZOOM, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
         elbow:
@@ -57,7 +38,7 @@ sections:
                 color: var(--lcards-blue-light)
                 color_major: var(--lcards-moonlight)
               zoom: { layers: 3 }
-        text: { label: { content: 3 POLAR + ZOOM, show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 2 POLAR + ZOOM, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }
       - type: custom:lcards-elbow
         elbow:
@@ -68,5 +49,5 @@ sections:
           inset: auto
           effects:
             - { preset: grid-hexagonal, config: {}, zoom: { layers: 3 } }
-        text: { label: { content: 4 HEXAGONAL + ZOOM, show: true, color: var(--lcards-blue) } }
+        text: { label: { content: 3 HEXAGONAL + ZOOM, show: true, color: var(--lcards-blue) } }
         grid_options: { columns: 6, rows: 5 }

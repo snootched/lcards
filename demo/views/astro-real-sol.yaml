@@ -52,46 +52,6 @@ sections:
         text: { name: { content: "PLUTO", show: true } }
         tap_action: { action: fly-to, card: astro_real_sol_1, view: pluto }
         grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: "NOW", show: true } }
-        tap_action: { action: set-clock, card: astro_real_sol_1, date: now, rate: live }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: "PAUSE", show: true } }
-        tap_action: { action: set-clock, card: astro_real_sol_1, rate: 0 }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: "1 DAY/S", show: true } }
-        tap_action: { action: set-clock, card: astro_real_sol_1, rate: 1 }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: "30 DAYS/S", show: true } }
-        tap_action: { action: set-clock, card: astro_real_sol_1, rate: 30 }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: "1 YEAR/S", show: true } }
-        tap_action: { action: set-clock, card: astro_real_sol_1, rate: 365.25 }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: "REWIND", show: true } }
-        tap_action: { action: set-clock, card: astro_real_sol_1, rate: -365.25 }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: "1 HOUR/S", show: true } }
-        tap_action: { action: set-clock, card: astro_real_sol_1, rate: 0.0416667 }
-        grid_options: { columns: 8, rows: 1 }
-      - type: custom:lcards-button
-        preset: lozenge
-        text: { name: { content: "APOLLO 11", show: true } }
-        tap_action: { action: set-clock, card: astro_real_sol_1, date: '1969-07-20T20:17:00Z', rate: 0 }
-        grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-astrometrics-card
         id: astro_real_sol_1
         grid_options: { columns: full }
@@ -362,3 +322,43 @@ sections:
         backdrop: { stars: { count: 2000 } }
         units: km
         clock: { date: now, rate: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: "NOW", show: true } }
+        tap_action: { action: set-clock, card: astro_real_sol_1, date: now, rate: live }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: "PAUSE", show: true } }
+        tap_action: { action: set-clock, card: astro_real_sol_1, rate: 0 }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: "1 DAY/S", show: true } }
+        tap_action: { action: set-clock, card: astro_real_sol_1, rate: 1 }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: "30 DAYS/S", show: true } }
+        tap_action: { action: set-clock, card: astro_real_sol_1, rate: 30 }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: "1 YEAR/S", show: true } }
+        tap_action: { action: set-clock, card: astro_real_sol_1, rate: 365.25 }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: "REWIND", show: true } }
+        tap_action: { action: set-clock, card: astro_real_sol_1, rate: -365.25 }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: "1 HOUR/S", show: true } }
+        tap_action: { action: set-clock, card: astro_real_sol_1, rate: 0.0416667 }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: "APOLLO 11", show: true } }
+        tap_action: { action: set-clock, card: astro_real_sol_1, date: '1969-07-20T20:17:00Z', rate: 0 }
+        grid_options: { columns: 8, rows: 1 }

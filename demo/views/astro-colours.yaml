@@ -18,18 +18,18 @@ sections:
         grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
-        text: { name: { content: MODE ALPHA, show: true } }
-        tap_action: { action: perform-action, perform_action: input_select.select_option, target: { entity_id: input_select.lcards_test_mode }, data: { option: alpha } }
+        text: { name: { content: BLUE, show: true } }
+        tap_action: { action: perform-action, perform_action: input_select.select_option, target: { entity_id: input_select.lcards_test_color }, data: { option: BLUE } }
         grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
-        text: { name: { content: MODE BETA, show: true } }
-        tap_action: { action: perform-action, perform_action: input_select.select_option, target: { entity_id: input_select.lcards_test_mode }, data: { option: beta } }
+        text: { name: { content: LAVENDER, show: true } }
+        tap_action: { action: perform-action, perform_action: input_select.select_option, target: { entity_id: input_select.lcards_test_color }, data: { option: LAVENDER } }
         grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-button
         preset: lozenge
-        text: { name: { content: MODE GAMMA, show: true } }
-        tap_action: { action: perform-action, perform_action: input_select.select_option, target: { entity_id: input_select.lcards_test_mode }, data: { option: gamma } }
+        text: { name: { content: ORANGE, show: true } }
+        tap_action: { action: perform-action, perform_action: input_select.select_option, target: { entity_id: input_select.lcards_test_color }, data: { option: ORANGE } }
         grid_options: { columns: 8, rows: 1 }
       - type: custom:lcards-slider
         entity: input_number.lcards_test_power
@@ -69,9 +69,9 @@ sections:
             radius: 45
             colors:
               - var(--lcars-blue)
-              - { entity: input_select.lcards_test_mode, alpha: var(--lcars-violet), beta: var(--lcars-orange), default: var(--lcars-red) }
+              - { entity: input_select.lcards_test_color, BLUE: var(--lcars-blue), LAVENDER: var(--lcars-violet), ORANGE: var(--lcars-orange), default: var(--lcars-blue) }
           - type: comet
             id: comet
             at: [0, 60, 50]
             nucleus: { size: 3 }
-            ion_tail: { color: { entity: input_select.lcards_test_mode, alpha: var(--lcars-blue), beta: var(--lcars-yellow), default: var(--lcars-red) } }
+            ion_tail: { color: { entity: input_select.lcards_test_color, BLUE: var(--lcards-blue-light), LAVENDER: var(--lcars-african-violet), ORANGE: var(--lcars-yellow), default: var(--lcards-blue-light) } }
