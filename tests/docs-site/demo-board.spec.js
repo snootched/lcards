@@ -125,7 +125,7 @@ test('the showcase\'s controls work without Home Assistant: NEXT and PREV step t
     await expect.poll(() => state('script.lcards_test_tour')).toBe('off');
 });
 
-test('data grid: the cells draw at once, the Jinja2 note renders, and tapping an entity cell toggles it', async ({ page }) => {
+test('data grid: the cells draw at once, the Jinja2 note renders, and tapping an entity cell toggles it every time', async ({ page }) => {
     const grid = VIEWS.find(v => v.path === 'datagrid-data');
     await page.goto(URL_PATH);
     await expect(page.locator('.demo-board-topic').first()).toHaveAttribute('aria-expanded', 'true');
@@ -138,8 +138,14 @@ test('data grid: the cells draw at once, the Jinja2 note renders, and tapping an
     await expect(card.getByText('Holding', { exact: true })).toBeVisible();
     const state = () => page.evaluate(async () => (await globalThis.__lcardsDocsEnv).hass.states['input_boolean.lcards_test_lights']?.state);
     const before = await state();
+    const after = before === 'on' ? 'off' : 'on';
     await card.getByText(before, { exact: true }).first().click();
-    await expect.poll(state).not.toBe(before);
+    await expect.poll(state).toBe(after);
+    // again from the same cell (its handler is set up once: it must act on the state now)
+    await card.getByText(after, { exact: true }).first().click();
+    await expect.poll(state).toBe(before);
+    await card.getByText(before, { exact: true }).first().click();
+    await expect.poll(state).toBe(after);
 });
 
 test('the New in filter: shown only when there are older views; then it keeps this release\'s', async ({ page }) => {

@@ -124,6 +124,9 @@ export class LCARdSActionHandler {
         const animationManager = options.animationManager;
         const elementId = options.elementId || element.id || element.getAttribute('data-overlay-id');
         const defaultEntity = options.entity; // Fallback entity for actions
+        // The card's hass at action time: a handler set up once (a data grid cell) must not
+        // act on the states it was set up with (a toggle would keep sending the same service)
+        const liveHass = () => options.getHass?.() ?? hass;
 
         lcardsLog.debug(`[LCARdSActionHandler] Setting up actions:`, {
             elementId,
@@ -271,9 +274,9 @@ export class LCARdSActionHandler {
         const playToggleSound = (actionConfig, defaultEntityId) => {
             if (actionConfig?.action !== 'toggle') return false;
             const entityId = actionConfig.entity || defaultEntityId || options.entity;
-            const liveHass = options.getHass?.() ?? hass;
-            if (!entityId || !liveHass?.states?.[entityId]) return false;
-            const state = liveHass.states[entityId].state;
+            const now = liveHass();
+            if (!entityId || !now?.states?.[entityId]) return false;
+            const state = now.states[entityId].state;
             playSound(TOGGLE_OFF_STATES.includes(state) ? 'toggle_on' : 'toggle_off');
             return true;
         };
@@ -335,7 +338,7 @@ export class LCARdSActionHandler {
                                 }
 
                                 if (!playToggleSound(actions.tap_action, defaultEntity)) playSound('card_tap');
-                                this._executeAction(actions.tap_action, hass, element, defaultEntity);
+                                this._executeAction(actions.tap_action, liveHass(), element, defaultEntity);
                             }
                             tapCount = 0;
                         }, 300);
@@ -354,7 +357,7 @@ export class LCARdSActionHandler {
                         }
 
                         if (!playToggleSound(actions.double_tap_action, defaultEntity)) playSound('card_double_tap');
-                        this._executeAction(actions.double_tap_action, hass, element, defaultEntity);
+                        this._executeAction(actions.double_tap_action, liveHass(), element, defaultEntity);
                     }
                 } else {
                     // No double-tap action configured, execute immediately
@@ -370,7 +373,7 @@ export class LCARdSActionHandler {
                     }
 
                     if (!playToggleSound(actions.tap_action, defaultEntity)) playSound('card_tap');
-                    this._executeAction(actions.tap_action, hass, element, defaultEntity);
+                    this._executeAction(actions.tap_action, liveHass(), element, defaultEntity);
                 }
             };
 
@@ -403,7 +406,7 @@ export class LCARdSActionHandler {
                     }
 
                     if (!playToggleSound(actions.hold_action, defaultEntity)) playSound('card_hold');
-                    this._executeAction(actions.hold_action, hass, element, defaultEntity);
+                    this._executeAction(actions.hold_action, liveHass(), element, defaultEntity);
                 }, 500);
             };
 
