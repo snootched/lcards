@@ -1,0 +1,34 @@
+# Alert overlay in edit mode (backlog clean-up (2)): ownership, the editor preview, alerts held back while editing.
+title: Alert overlay edit mode
+path: alert-overlay-edit
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: RED ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.red_alert }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: YELLOW ALERT, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.yellow_alert }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLEAR, show: true } }
+        tap_action: { action: perform-action, perform_action: lcards.clear_alert }
+        grid_options: { columns: 12, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-alert-overlay
+        dismiss_mode: auto-reset
+        auto_dismiss_seconds: 15
+        width: 40%
+        grid_options: { columns: 24 }
+      - type: custom:lcards-alert-overlay
+        grid_options: { columns: 24 }

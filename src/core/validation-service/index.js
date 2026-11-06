@@ -19,6 +19,7 @@ import { TokenValidator } from './TokenValidator.js';
 import { DataSourceValidator } from './DataSourceValidator.js';
 import { ErrorFormatter } from './ErrorFormatter.js';
 import { isTemplateString } from '../../utils/template-string.js';
+import { CARD_PLUMBING_KEYS } from '../../cards/schemas/card-plumbing.js';
 
 /** Config keys whose value is an entity ID, or a list of them. */
 const ENTITY_KEYS = new Set(['entity', 'entity_id', 'entities']);
@@ -583,6 +584,9 @@ export class CoreValidationService {
       const allowedProps = Object.keys(schema.properties);
       const bucket = schema.additionalProperties === false ? result.errors : result.warnings;
       for (const prop of Object.keys(data)) {
+        // Home Assistant's layout keys (grid_options, visibility, ...) and card-mod / UIX
+        // styling are read by others, never by the card: accepted at a card's root.
+        if (!path && CARD_PLUMBING_KEYS.includes(prop)) continue;
         if (!allowedProps.includes(prop)) {
           bucket.push({
             type: 'invalid_property',

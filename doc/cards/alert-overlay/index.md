@@ -627,7 +627,8 @@ conditions:
 
 ## Limitations
 
-- **Single instance per dashboard**: only the first instance connected to the DOM becomes active. Any additional instances are automatically suppressed: they have no visual presence in normal mode and show a "DUPLICATE · INACTIVE" warning placeholder in edit mode. Remove duplicate instances to avoid confusion.
+- **Single instance per dashboard**: only the first instance connected to the DOM becomes active. Any additional instances are automatically suppressed: they have no visual presence in normal mode and show a "DUPLICATE · INACTIVE" warning placeholder in edit mode. Remove duplicate instances to avoid confusion. The preview in the card editor is not a duplicate: it shows a plain info box.
+- **Edit mode holds alerts back**: while the dashboard is in edit mode the overlay stays hidden. An alert raised meanwhile shows when you leave edit mode, and its auto-dismiss countdown starts then.
 - **Not targetable by the rules engine**: the overlay does not extend `LCARdSCard` and has no card ID or tags. Rules cannot target it. The content card *inside* the overlay does support rules if it is an `lcards-*` card type.
 - **Band phase needs the built-in symbol**: `band.phase` locks to the alert symbol's bar sweep. With `band.emblem: false` or a custom `content` card there is nothing to lock to, and the band runs on its own.
 

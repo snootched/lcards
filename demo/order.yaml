@@ -474,6 +474,13 @@ releases:
         session: "alert overlay display: band"
         docs: /cards/alert-overlay/#alert-band
         public: true
+      - file: alert-overlay-edit
+        topic: alerts
+        summary: "The alert overlay in edit mode"
+        description: "Two alert overlays: in edit mode the first says Active, the second Duplicate. Open the first in the card editor: its preview is a plain info box, not a duplicate. Raise an alert while editing (another tab, or the lcards.red_alert action): nothing shows until you leave edit mode, then the alert shows and resets to green 15 seconds later."
+        session: "Backlog clean-up"
+        docs: /cards/alert-overlay/#limitations
+        public: false
       - file: borg
         topic: alerts
         summary: "Borg assimilation: the detailed cube and Borg sounds"

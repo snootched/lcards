@@ -24,6 +24,7 @@ import { getMsdSchema }          from '../../src/cards/schemas/msd-schema.js';
 import { astrometricsSchema }    from '../../src/cards/schemas/astrometrics-schema.js';
 import { shellStrategySchema }   from '../../src/cards/schemas/shell-strategy-schema.js';
 import { TEXT_POSITIONS }        from '../../src/cards/schemas/schema-options.js';
+import { withCardPlumbing }      from '../../src/cards/schemas/card-plumbing.js';
 import { BUTTON_PRESETS }        from '../../src/core/packs/style-presets/buttons/index.js';
 import { SLIDER_PRESETS }        from '../../src/core/packs/style-presets/sliders/index.js';
 import { components }            from '../../src/core/packs/components/index.js';
@@ -47,7 +48,7 @@ export const BUILTIN_OPTIONS = Object.freeze({
 /** @returns {SchemaEntry[]} fresh schema objects on every call */
 export function getSchemaEntries() {
   const o = BUILTIN_OPTIONS;
-  return [
+  return /** @type {SchemaEntry[]} */ ([
     { kind: 'card',     tag: 'lcards-button',        schema: getButtonSchema({ availablePresets: o.buttonPresets, positionEnum: o.positionEnum }) },
     { kind: 'card',     tag: 'lcards-slider',        schema: getSliderSchema({ availablePresets: o.sliderPresets, availableComponents: o.sliderComponents, positionEnum: o.positionEnum }) },
     { kind: 'card',     tag: 'lcards-elbow',         schema: getElbowSchema({ availablePresets: o.buttonPresets, positionEnum: o.positionEnum }) },
@@ -60,5 +61,5 @@ export function getSchemaEntries() {
     { kind: 'card',     tag: 'lcards-astrometrics-card', schema: astrometricsSchema },
     { kind: 'view',     tag: 'lcards-layout-view',   schema: layoutViewSchema },
     { kind: 'strategy', tag: 'lcars-shell',          schema: shellStrategySchema },
-  ];
+  ]).map(e => (e.kind === 'card' ? { ...e, schema: withCardPlumbing(e.schema) } : e));
 }

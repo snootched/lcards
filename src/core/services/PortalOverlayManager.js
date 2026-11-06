@@ -219,17 +219,24 @@ export class PortalOverlayManager extends BaseService {
             alignItems:    'stretch',
         });
 
-        // ── Stylesheet: override inline aspect-ratio on mounted cards ─────────
-        // lcards-button re-applies aspect-ratio on every render; a <style> tag
-        // with !important beats inline styles without JS intervention per frame.
+        // ── Stylesheet: size the mounted card to the container ────────────────
+        // With a definite height the card fills the box, so the inline
+        // aspect-ratio lcards-button re-applies on every render is overridden (a
+        // <style> tag with !important beats inline styles without JS per frame).
+        // With `height: auto` there is no height to fill: the card keeps its
+        // aspect-ratio and takes its height from the width (the alert symbol with
+        // only a width set); `height: 100%` there collapsed it to its 40 px minimum.
         const attrName = `data-lcards-pom-content-${name}`;
+        const autoHeight = (options.height ?? 'auto') === 'auto';
         const portalStyleEl = document.createElement('style');
         portalStyleEl.dataset.lcardsPortalSlot = name;
         portalStyleEl.textContent = [
             `[${attrName}] {`,
-            '  aspect-ratio: unset !important;',
+            ...(autoHeight ? ['  height:       auto   !important;'] : [
+                '  aspect-ratio: unset !important;',
+                '  height:       100%   !important;',
+            ]),
             '  width:        100%   !important;',
-            '  height:       100%   !important;',
             '  min-height:   0      !important;',
             '}',
         ].join('\n');

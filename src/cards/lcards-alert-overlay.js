@@ -26,15 +26,18 @@ import './lcards-alert-band.js';
 // ─────────────────────────────────────────────────────────────────────────────
 // Module-level singleton guard
 //
-// HA can reconnect elements without a guaranteed disconnect→connect ordering
-// (e.g. when exiting dashboard edit mode).  A module-level variable provides
-// a synchronous, race-free claim that the DOM-based approach cannot guarantee.
+// HA can connect a new instance before disconnecting the old one (e.g. when
+// exiting dashboard edit mode), so the claim is deferred one microtask.
 //
 // Rules:
-//   - The first instance to call connectedCallback claims ownership.
-//   - If _activeOverlay is set to a DIFFERENT instance, the newcomer is suppressed.
-//   - If _activeOverlay is set to THIS instance (reconnect), ownership is re-confirmed.
-//   - disconnectedCallback releases ownership only when this instance owns it.
+//   - A connected instance outside the card editor / picker claims ownership.
+//   - If _activeOverlay is a DIFFERENT instance, the newcomer is suppressed and
+//     retries when the owner releases (`lcards-alert-overlay-released`).
+//   - If _activeOverlay is THIS instance (reconnect), ownership is re-confirmed.
+//   - Only the owner's disconnect hides the portal and releases ownership; an
+//     instance that left before its deferred claim ran never claims.
+//   - The card editor's preview and the card picker never claim: they render a
+//     placeholder, not the duplicate warning.
 // ─────────────────────────────────────────────────────────────────────────────
 let _activeOverlay = null;
 
@@ -89,6 +92,10 @@ export class LCARdSAlertOverlay extends LitElement {
             _activeCondition: { type: String,  state: true },
             _isDismissed:     { type: Boolean, state: true },
             _editMode:        { type: Boolean, state: true },
+            // Set by Home Assistant's hui-card on every card element: true while
+            // the dashboard is in edit mode and in the card editor's preview.
+            preview:          { type: Boolean },
+            editMode:         { type: Boolean },
         };
     }
 
@@ -105,7 +112,12 @@ export class LCARdSAlertOverlay extends LitElement {
         this._isDismissed      = false;
         this._isSuppressed     = false;
         this._editMode         = false;
-        this._editModePoller   = null;
+        this.preview           = false;
+        this.editMode          = false;
+        /** In the card editor's preview or the card picker: never owns the overlay. */
+        this._inEditor         = false;
+        /** @type {(() => void)|null} */
+        this._releaseListener  = null;
         this._autoDismissTimer = null;
         /** @type {(() => void)|null} */
         this._bandDismissHandler = null;
@@ -117,12 +129,6 @@ export class LCARdSAlertOverlay extends LitElement {
 
     set hass(value) {
         this._hass = value;
-        // Detect edit mode changes reactively via the hass setter — HA calls
-        // this on every state update so it catches enter/exit of edit mode.
-        const inEdit = this._isInEditMode();
-        if (inEdit !== this._editMode) {
-            this._editMode = inEdit;
-        }
     }
 
     get hass() {
@@ -152,29 +158,20 @@ export class LCARdSAlertOverlay extends LitElement {
 
     connectedCallback() {
         super.connectedCallback();
-
-        // ── Edit mode polling ─────────────────────────────────────────────────
-        // HA adds ?edit=1 to the URL when entering edit mode via history.pushState,
-        // which does not fire popstate/location-changed. Poll the URL so the
-        // placeholder appears/disappears immediately without waiting for a
-        // hass state update.
-        this._editModePoller = setInterval(() => {
-            const inEdit = this._isInEditMode();
-            if (inEdit !== this._editMode) this._editMode = inEdit;
-        }, 400);
+        this._inEditor = this._checkForAncestor(['hui-dialog-edit-card', 'hui-card-picker']);
+        this._editMode = this._isInEditMode();
 
         // ── Singleton guard (deferred) ────────────────────────────────────────
         // HA can call connectedCallback on a new instance BEFORE calling
         // disconnectedCallback on the old one (e.g. when exiting edit mode).
         // Defer the ownership check one microtask so that any in-flight
         // disconnectedCallback has a chance to clear _activeOverlay first.
-        // We save a reference to `this` so the closure always targets the right
-        // instance even if multiple elements queue microtasks simultaneously.
-        const self = this;
-        Promise.resolve().then(() => self._claimOwnership());
+        if (!this._inEditor) Promise.resolve().then(() => this._claimOwnership());
     }
 
     _claimOwnership() {
+        // Disconnected before the deferred claim ran: never own the overlay.
+        if (!this.isConnected) return;
         if (_activeOverlay !== null && _activeOverlay !== this) {
             // Another live instance already owns the overlay.
             lcardsLog.warn(
@@ -184,16 +181,14 @@ export class LCARdSAlertOverlay extends LitElement {
             );
             this._isSuppressed = true;
 
-            // Listen for the owner to release so we can retry.
-            // One-shot listener — either we claim next time or suppress again.
-            const onRelease = () => {
-                window.removeEventListener('lcards-alert-overlay-released', onRelease);
-                // Only retry if we are still connected to the DOM.
-                if (this.isConnected) {
-                    this._claimOwnership();
-                }
+            // Listen for the owner to release so we can retry (one-shot: either
+            // we claim next time or suppress again and listen again).
+            this._removeReleaseListener();
+            this._releaseListener = () => {
+                this._releaseListener = null;
+                this._claimOwnership();
             };
-            window.addEventListener('lcards-alert-overlay-released', onRelease, { once: true });
+            window.addEventListener('lcards-alert-overlay-released', this._releaseListener, { once: true });
             return;
         }
 
@@ -204,9 +199,8 @@ export class LCARdSAlertOverlay extends LitElement {
         this._subscribeToAlertMode();
 
         // Replay current mode in case alert was already active when we connected
-        const currentMode =
-            window.lcards?.core?.helperManager?.getHelperValue('alert_mode') ??
-            this._hass?.states?.['input_select.lcards_alert_mode']?.state;
+        // (the helper manager reads the entity's state until its cache fills).
+        const currentMode = window.lcards?.core?.helperManager?.getHelperValue('alert_mode');
 
         if (currentMode) {
             this._handleAlertModeChange(currentMode);
@@ -216,33 +210,33 @@ export class LCARdSAlertOverlay extends LitElement {
     disconnectedCallback() {
         super.disconnectedCallback();
 
-        clearInterval(this._editModePoller ?? undefined);
-        this._editModePoller = null;
-
         if (this._bandDismissHandler) {
             window.removeEventListener('lcards-alert-band-dismiss', this._bandDismissHandler);
             this._bandDismissHandler = null;
         }
+        this._removeReleaseListener();
+        this._isSuppressed = false;
 
-        if (this._isSuppressed) {
-            this._isSuppressed = false;
-            return;
-        }
+        // Only the owner tears down the shared portal: an instance that never
+        // claimed (suppressed, in the editor, or gone before its deferred claim
+        // ran) must not hide the live alert.
+        if (_activeOverlay !== this) return;
 
         this._alertUnsubscribe?.();
         this._alertUnsubscribe = null;
+        this._clearAutoDismissTimer();
         window.lcards?.core?.portalOverlayManager?.hide('alert-overlay');
 
-        // Release module-level ownership only if we hold it.
-        // After releasing, fire a synthetic event so any suppressed sibling
-        // instance that was created while we were still alive (race window)
-        // can retry claiming ownership.
-        this._clearAutoDismissTimer();
+        // Release, then tell any suppressed sibling (created while we were still
+        // alive) to retry its claim.
+        _activeOverlay = null;
+        window.dispatchEvent(new CustomEvent('lcards-alert-overlay-released'));
+    }
 
-        if (_activeOverlay === this) {
-            _activeOverlay = null;
-            window.dispatchEvent(new CustomEvent('lcards-alert-overlay-released'));
-        }
+    _removeReleaseListener() {
+        if (!this._releaseListener) return;
+        window.removeEventListener('lcards-alert-overlay-released', this._releaseListener);
+        this._releaseListener = null;
     }
 
     // -------------------------------------------------------------------------
@@ -269,12 +263,23 @@ export class LCARdSAlertOverlay extends LitElement {
     // Edit mode detection
     // -------------------------------------------------------------------------
 
+    /** Home Assistant sets `preview` (and the older `editMode`) on the card element. */
     _isInEditMode() {
-        const dashboardEl = this.closest?.('hui-root, ha-panel-lovelace') ??
-            document.querySelector('hui-root, ha-panel-lovelace');
-        if (/** @type {any} */ (dashboardEl)?.editMode) return true;
-        if (this.closest?.('hui-card-picker, hui-card-preview')) return true;
-        if (window.location.href.includes('edit=1')) return true;
+        return this._inEditor || this.preview === true || this.editMode === true;
+    }
+
+    /**
+     * Whether an ancestor (across shadow roots) has one of these tag names.
+     * @param {string[]} tags - Lower-case tag names
+     * @returns {boolean}
+     */
+    _checkForAncestor(tags) {
+        /** @type {any} */
+        let node = this;
+        for (let i = 0; i < 30 && node; i++) {
+            if (tags.includes(node.tagName?.toLowerCase())) return true;
+            node = node.parentElement || node.parentNode?.host || node.getRootNode?.()?.host;
+        }
         return false;
     }
 
@@ -284,11 +289,6 @@ export class LCARdSAlertOverlay extends LitElement {
 
     _handleAlertModeChange(newMode) {
         if (this._isSuppressed) return;
-
-        if (this._isInEditMode()) {
-            lcardsLog.debug('[LCARdSAlertOverlay] Edit mode active — overlay suppressed');
-            return;
-        }
 
         const isInactive = !newMode || newMode === 'green_alert' || newMode === 'default';
 
@@ -302,6 +302,12 @@ export class LCARdSAlertOverlay extends LitElement {
             this._activeCondition = newMode;
             this._isDismissed     = false;
             this._isActive        = true;
+            // In edit mode the alert is noted, not shown: it shows (and its
+            // auto-dismiss countdown starts) when edit mode ends.
+            if (this._isInEditMode()) {
+                lcardsLog.debug('[LCARdSAlertOverlay] Edit mode active: alert shows when it ends');
+                return;
+            }
             this._mountContentCard(newMode);
             this._startAutoDismissTimer(newMode);
         }
@@ -444,11 +450,6 @@ export class LCARdSAlertOverlay extends LitElement {
         }
 
         return { ...cardConfig, text: resolvedText };
-    }
-
-    _unmountContentCard() {
-        // No-op: card unmounting is now handled by PortalOverlayManager.hide().
-        // Kept for any external callers; will be removed in a future cleanup pass.
     }
 
     // -------------------------------------------------------------------------
@@ -627,10 +628,8 @@ export class LCARdSAlertOverlay extends LitElement {
         // calls pom.hide() explicitly after this method.
 
         if (this.config?.dismiss_mode === 'reset' || this.config?.dismiss_mode === 'auto-reset') {
-            this._hass?.callService('input_select', 'select_option', {
-                entity_id: 'input_select.lcards_alert_mode',
-                option:    'green_alert',
-            });
+            window.lcards?.core?.helperManager?.setHelperValue('alert_mode', 'green_alert')
+                .catch((/** @type {any} */ e) => lcardsLog.warn('[LCARdSAlertOverlay] Reset to green alert failed:', e));
         }
     }
 
@@ -692,6 +691,12 @@ export class LCARdSAlertOverlay extends LitElement {
     // Lifecycle — sync portal after every reactive-state change
     // -------------------------------------------------------------------------
 
+    willUpdate(changedProps) {
+        if (changedProps.has('preview') || changedProps.has('editMode')) {
+            this._editMode = this._isInEditMode();
+        }
+    }
+
     updated(changedProps) {
         super.updated?.(changedProps);
         // Toggle host attribute so CSS can switch display: contents → block
@@ -706,6 +711,8 @@ export class LCARdSAlertOverlay extends LitElement {
                 window.lcards?.core?.portalOverlayManager?.hide('alert-overlay');
             } else if (this._isActive && !this._isDismissed && this._activeCondition) {
                 this._mountContentCard(this._activeCondition);
+                // An alert raised during edit mode starts its countdown now.
+                if (this._autoDismissTimer === null) this._startAutoDismissTimer(this._activeCondition);
             }
         }
     }
@@ -715,26 +722,28 @@ export class LCARdSAlertOverlay extends LitElement {
     // -------------------------------------------------------------------------
 
     render() {
-        // Outside edit mode this element is invisible — the visible overlay
+        // Outside edit mode this element is invisible: the visible overlay
         // lives in a portal on document.body.
         if (!this._editMode) return html``;
 
-        const conditions = this.config?.conditions ?? {};
-        const conditionKeys = Object.keys(conditions);
+        const conditionKeys = Object.keys(this.config?.conditions ?? {});
         const isDuplicate = this._isSuppressed;
+        const badge = this._inEditor ? ''
+            : isDuplicate ? html`<span class="ep-badge ep-badge--duplicate">Duplicate · inactive</span>`
+            : html`<span class="ep-badge">Active</span>`;
 
         return html`
             <div class="edit-placeholder ${isDuplicate ? 'is-duplicate' : ''}">
                 <div class="ep-header">
-                    <span class="ep-icon">&#9888;</span>
-                    <span class="ep-title">Alert Overlay</span>
-                    ${isDuplicate ? html`<span class="ep-badge">DUPLICATE · INACTIVE</span>` : html`<span class="ep-badge ep-badge--active">ACTIVE</span>`}
+                    <ha-icon class="ep-icon" icon="mdi:alert-outline"></ha-icon>
+                    <span class="ep-title">Alert overlay</span>
+                    ${badge}
                 </div>
                 <div class="ep-body">
                     ${isDuplicate
                         ? html`<p class="ep-warn">This card is suppressed. Only one alert overlay can be active per dashboard. Remove this card.</p>`
                         : html`
-                            <p class="ep-info">Overlay is active. It will appear over the full dashboard when an alert mode is triggered.</p>
+                            <p class="ep-info">Shows over the whole dashboard while an alert mode is raised.</p>
                             ${conditionKeys.length > 0 ? html`
                                 <div class="ep-conditions">
                                     ${conditionKeys.map(k => html`<span class="ep-cond">${k}</span>`)}
@@ -754,40 +763,39 @@ export class LCARdSAlertOverlay extends LitElement {
                 display: block;
             }
             .edit-placeholder {
+                --ep-accent: var(--lcards-orange);
                 box-sizing: border-box;
                 width: 100%;
                 min-height: 64px;
-                border: 2px dashed var(--lcards-orange, #ff7700);
-                border-radius: 8px;
+                border: var(--ha-border-width-md) dashed var(--ep-accent);
+                border-radius: var(--ha-border-radius-md);
                 padding: 10px 14px;
-                background: rgba(0,0,0,0.45);
-                font-family: Antonio, sans-serif;
-                color: var(--lcards-moonlight, #dfe1e8);
+                background-color: color-mix(
+                    in srgb,
+                    var(--secondary-background-color) 50%,
+                    color-mix(in srgb, var(--primary-background-color) 25%, transparent)
+                );
+                font-family: var(--lcars-font, 'Antonio'), sans-serif;
+                color: var(--primary-text-color);
             }
             .is-duplicate {
-                border-color: var(--lcars-alert-red, var(--lcards-orange-dark));
-                background: rgba(80,0,0,0.45);
+                --ep-accent: var(--lcars-alert-red, var(--lcards-orange-dark));
             }
             .ep-header {
                 display: flex;
                 align-items: center;
-                gap: 8px;
+                gap: var(--ha-space-2);
                 margin-bottom: 6px;
             }
             .ep-icon {
-                font-size: 1.1em;
-                color: var(--lcards-orange, #ff7700);
-                line-height: 1;
-            }
-            .is-duplicate .ep-icon {
-                color: var(--lcars-alert-red, var(--lcards-orange-dark));
+                --mdc-icon-size: 1.2em;
+                color: var(--ep-accent);
             }
             .ep-title {
                 font-size: 0.85em;
                 font-weight: 600;
                 letter-spacing: 0.08em;
                 text-transform: uppercase;
-                opacity: 0.9;
             }
             .ep-badge {
                 margin-left: auto;
@@ -795,40 +803,34 @@ export class LCARdSAlertOverlay extends LitElement {
                 letter-spacing: 0.1em;
                 text-transform: uppercase;
                 padding: 2px 7px;
-                border-radius: 4px;
-                background: rgba(255,68,68,0.25);
-                color: var(--lcars-alert-red, var(--lcards-orange-dark));
-                border: 1px solid var(--lcars-alert-red, var(--lcards-orange-dark));
-            }
-            .ep-badge--active {
-                background: rgba(255,119,0,0.2);
-                color: var(--lcards-orange, #ff7700);
-                border-color: var(--lcards-orange, #ff7700);
+                border-radius: var(--ha-border-radius-sm);
+                color: var(--ep-accent);
+                border: var(--ha-border-width-sm) solid var(--ep-accent);
+                background: color-mix(in srgb, var(--ep-accent) 20%, transparent);
             }
             .ep-body {
                 font-size: 0.75em;
-                opacity: 0.75;
                 line-height: 1.4;
+                color: var(--secondary-text-color);
             }
             .ep-info, .ep-warn {
                 margin: 0 0 6px;
             }
             .ep-warn {
-                color: var(--lcars-alert-red, var(--lcards-orange-dark));
-                opacity: 1;
+                color: var(--ep-accent);
             }
             .ep-conditions {
                 display: flex;
                 flex-wrap: wrap;
-                gap: 4px;
-                margin-top: 4px;
+                gap: var(--ha-space-1);
+                margin-top: var(--ha-space-1);
             }
             .ep-cond {
                 font-size: 0.9em;
                 padding: 1px 6px;
-                border-radius: 3px;
-                background: rgba(255,119,0,0.15);
-                border: 1px solid rgba(255,119,0,0.4);
+                border-radius: var(--ha-border-radius-sm);
+                border: var(--ha-border-width-sm) solid color-mix(in srgb, var(--ep-accent) 40%, transparent);
+                background: color-mix(in srgb, var(--ep-accent) 15%, transparent);
                 letter-spacing: 0.05em;
             }
         `;

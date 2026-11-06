@@ -11,10 +11,11 @@
  *   5. 🖖       ┘ (utility tabs from base)
  */
 
-import { html } from 'lit';
+import { html, css } from 'lit';
 import { keyed } from 'lit/directives/keyed.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
+import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 import { editorComponentStyles } from '../base/editor-component-styles.js';
 import { configToYaml, yamlToConfig } from '../utils/yaml-utils.js';
 
@@ -174,7 +175,15 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
     }
 
     static get styles() {
-        return [super.styles, editorComponentStyles];
+        return [super.styles, editorComponentStyles, css`
+            .field-caption {
+                font-size: 12px;
+                font-weight: 500;
+                color: var(--secondary-text-color);
+                margin: var(--ha-space-2) 0 var(--ha-space-1);
+                padding: 0 2px;
+            }
+        `];
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -197,10 +206,6 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
     _renderConfigTab() {
         const dismissMode = this.config?.dismiss_mode ?? 'dismiss';
         const isAuto      = dismissMode === 'auto-dismiss' || dismissMode === 'auto-reset';
-        const autoDismissSeconds = this.config?.auto_dismiss_seconds ?? '';
-        const position    = this.config?.position    ?? 'center';
-        const width       = this.config?.width       ?? '';
-        const height      = this.config?.height      ?? '';
 
         return html`
             <div class="tab-content-container">
@@ -220,35 +225,27 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                     ?expanded=${true}
                     ?outlined=${true}>
 
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Dismiss Mode'}
-                        .helper=${{
+                    ${FormField.renderField(this, 'dismiss_mode', {
+                        label: 'Dismiss Mode',
+                        helper: {
                             'dismiss':      'Dismiss: hides the overlay only; the input_select is not changed',
                             'reset':        'Reset: hides the overlay AND sets input_select back to green_alert',
                             'auto-dismiss': 'Auto-Dismiss: overlay hides automatically after the configured timeout',
                             'auto-reset':   'Auto-Reset: overlay hides automatically AND resets alert_mode after the configured timeout',
-                        }[dismissMode] ?? ''}
-                        .selector=${{ select: { mode: 'dropdown', options: [
+                        }[dismissMode] ?? '',
+                        selectorOverride: { select: { mode: 'dropdown', options: [
                             { value: 'dismiss',      label: 'Dismiss (hide overlay only)' },
                             { value: 'reset',        label: 'Reset (hide + set alert_mode to green_alert)' },
                             { value: 'auto-dismiss', label: 'Auto-Dismiss (hide after timeout)' },
                             { value: 'auto-reset',   label: 'Auto-Reset (hide + reset alert_mode after timeout)' },
-                        ]}}}
-                        .value=${dismissMode}
-                        @value-changed=${(e) => this._setConfigValue('dismiss_mode', e.detail.value)}>
-                    </ha-selector>
+                        ]}},
+                    })}
 
-                    ${isAuto ? html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Auto-Dismiss After (seconds)'}
-                            .helper=${'Overlay will dismiss automatically after this many seconds. Individual conditions can override this value in the Conditions tab.'}
-                            .selector=${{ number: { min: 1, step: 1, mode: 'box' } }}
-                            .value=${autoDismissSeconds !== '' ? Number(autoDismissSeconds) : undefined}
-                            @value-changed=${(e) => this._setConfigValue('auto_dismiss_seconds', e.detail.value ? Number(e.detail.value) : undefined)}>
-                        </ha-selector>
-                    ` : ''}
+                    ${isAuto ? FormField.renderField(this, 'auto_dismiss_seconds', {
+                        label: 'Auto-Dismiss After (seconds)',
+                        helper: 'Overlay will dismiss automatically after this many seconds. Individual conditions can override this value in the Conditions tab.',
+                        selectorOverride: { number: { min: 1, step: 1, mode: 'box' } },
+                    }) : ''}
                 </lcards-form-section>
 
                 <!-- Global Position & Size (defaults, overridable per condition) -->
@@ -259,33 +256,22 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                     ?expanded=${true}
                     ?outlined=${true}>
 
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Position'}
-                        .helper=${'Anchor point for the content card within the overlay'}
-                        .selector=${{ select: { mode: 'dropdown', options: POSITION_OPTIONS }}}
-                        .value=${position}
-                        @value-changed=${(e) => this._setConfigValue('position', e.detail.value)}>
-                    </ha-selector>
+                    ${FormField.renderField(this, 'position', {
+                        label: 'Position',
+                        helper: 'Anchor point for the content card within the overlay',
+                    })}
 
                     <lcards-grid-layout>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Width'}
-                            .helper=${'CSS width for the content card, e.g. 400px or 50% (of the screen). Blank = 60%'}
-                            .selector=${{ text: {} }}
-                            .value=${width}
-                            @value-changed=${(e) => this._setConfigValue('width', e.detail.value || undefined)}>
-                        </ha-selector>
-
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Height'}
-                            .helper=${'CSS height for the content card, e.g. 300px or 40%. Blank = 50% for the alert symbol (auto when a width is set)'}
-                            .selector=${{ text: {} }}
-                            .value=${height}
-                            @value-changed=${(e) => this._setConfigValue('height', e.detail.value || undefined)}>
-                        </ha-selector>
+                        ${FormField.renderField(this, 'width', {
+                            label: 'Width',
+                            helper: 'CSS width for the content card, e.g. 400px or 50% (of the screen)',
+                            selectorOverride: { text: {} },
+                        })}
+                        ${FormField.renderField(this, 'height', {
+                            label: 'Height',
+                            helper: 'CSS height for the content card, e.g. 300px or 40%. Blank = 50% for the alert symbol (auto when a width is set)',
+                            selectorOverride: { text: {} },
+                        })}
                     </lcards-grid-layout>
                 </lcards-form-section>
 
@@ -310,99 +296,69 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                 ?expanded=${true}
                 ?outlined=${true}>
 
-                <ha-selector
-                    .hass=${this.hass}
-                    .label=${'Display'}
-                    .helper=${display === 'band'
+                ${FormField.renderField(this, 'display', {
+                    label: 'Display',
+                    helper: display === 'band'
                         ? 'Band: dashes in the alert colour across the screen with the alert symbol in the middle. Clicks reach the dashboard; click the symbol to dismiss.'
-                        : 'Overlay: a backdrop over the dashboard with the alert symbol (or your content card) in the middle.'}
-                    .selector=${{ select: { mode: 'dropdown', options: [
+                        : 'Overlay: a backdrop over the dashboard with the alert symbol (or your content card) in the middle.',
+                    selectorOverride: { select: { mode: 'dropdown', options: [
                         { value: 'overlay', label: 'Overlay (backdrop and symbol)' },
                         { value: 'band',    label: 'Band (dashes across the screen)' },
-                    ]}}}
-                    .value=${display}
-                    @value-changed=${(e) => this._setConfigValue('display', e.detail.value === 'overlay' ? undefined : e.detail.value)}>
-                </ha-selector>
+                    ]}},
+                })}
 
                 ${display === 'band' ? html`
                     <lcards-grid-layout>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Band position'}
-                            .helper=${'top, center, bottom, or a percentage of the screen height (e.g. 75%)'}
-                            .selector=${{ select: { mode: 'dropdown', custom_value: true, options: [
+                        ${FormField.renderField(this, 'band.position', {
+                            label: 'Band position',
+                            helper: 'top, center, bottom, or a percentage of the screen height (e.g. 75%)',
+                            selectorOverride: { select: { mode: 'dropdown', custom_value: true, options: [
                                 { value: 'top', label: 'Top' }, { value: 'center', label: 'Center' }, { value: 'bottom', label: 'Bottom' },
-                            ]}}}
-                            .value=${band.position ?? 'center'}
-                            @value-changed=${(e) => set('position', e.detail.value)}>
-                        </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Animation'}
-                            .selector=${{ select: { mode: 'dropdown', options: [
+                            ]}},
+                        })}
+                        ${FormField.renderField(this, 'band.animation', {
+                            label: 'Animation',
+                            selectorOverride: { select: { mode: 'dropdown', options: [
                                 { value: 'sweep', label: 'Sweep (outward from the symbol)' },
                                 { value: 'flash', label: 'Flash (all together)' },
                                 { value: 'none',  label: 'None' },
-                            ]}}}
-                            .value=${band.animation ?? 'sweep'}
-                            @value-changed=${(e) => set('animation', e.detail.value)}>
-                        </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Sweep direction'}
-                            .selector=${{ select: { mode: 'dropdown', options: [
+                            ]}},
+                        })}
+                        ${FormField.renderField(this, 'band.direction', {
+                            label: 'Sweep direction',
+                            selectorOverride: { select: { mode: 'dropdown', options: [
                                 { value: 'outward', label: 'Outward (from the symbol)' },
                                 { value: 'inward',  label: 'Inward (from the edges)' },
-                            ]}}}
-                            .value=${band.direction ?? 'outward'}
-                            @value-changed=${(e) => set('direction', e.detail.value === 'outward' ? undefined : e.detail.value)}>
-                        </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Speed'}
-                            .helper=${'Multiplier: 2 = twice as fast. The symbol bars follow it'}
-                            .selector=${{ number: { min: 0.25, max: 4, step: 0.25, mode: 'box' } }}
-                            .value=${band.speed ?? 1}
-                            @value-changed=${(e) => set('speed', Number(e.detail.value) && Number(e.detail.value) !== 1 ? Number(e.detail.value) : undefined)}>
-                        </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Phase (degrees)'}
-                            .helper=${'Lock the band to the symbol bar sweep, this many degrees later. 180 with an outward sweep: one sweep from the symbol out to the edges. Blank = not locked'}
-                            .selector=${{ number: { min: 0, max: 360, step: 15, mode: 'box' } }}
-                            .value=${band.phase}
-                            @value-changed=${(e) => set('phase', e.detail.value === '' || e.detail.value === null || e.detail.value === undefined ? undefined : Number(e.detail.value))}>
-                        </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Band height'}
-                            .helper=${'CSS length, e.g. 48px or 5vh. Blank = 4% of the screen height'}
-                            .selector=${{ text: {} }}
-                            .value=${band.height ?? ''}
-                            @value-changed=${(e) => set('height', e.detail.value)}>
-                        </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Symbol size'}
-                            .helper=${'Symbol height as a multiple of the band height'}
-                            .selector=${{ number: { min: 1, max: 10, step: 0.5, mode: 'box' } }}
-                            .value=${band.emblem_scale ?? 4}
-                            @value-changed=${(e) => set('emblem_scale', e.detail.value)}>
-                        </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Dash width (px)'}
-                            .selector=${{ number: { min: 1, max: 100, step: 1, mode: 'box' } }}
-                            .value=${band.dash_width ?? 8}
-                            @value-changed=${(e) => set('dash_width', e.detail.value)}>
-                        </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Dash gap (px)'}
-                            .selector=${{ number: { min: 0, max: 100, step: 1, mode: 'box' } }}
-                            .value=${band.dash_gap ?? 12}
-                            @value-changed=${(e) => set('dash_gap', e.detail.value)}>
-                        </ha-selector>
+                            ]}},
+                        })}
+                        ${FormField.renderField(this, 'band.speed', {
+                            label: 'Speed',
+                            helper: 'Multiplier: 2 = twice as fast. The symbol bars follow it',
+                            selectorOverride: { number: { min: 0.25, max: 4, step: 0.25, mode: 'box' } },
+                        })}
+                        ${FormField.renderField(this, 'band.phase', {
+                            label: 'Phase (degrees)',
+                            helper: 'Lock the band to the symbol bar sweep, this many degrees later. 180 with an outward sweep: one sweep from the symbol out to the edges. Blank = not locked',
+                            selectorOverride: { number: { min: 0, max: 360, step: 15, mode: 'box' } },
+                        })}
+                        ${FormField.renderField(this, 'band.height', {
+                            label: 'Band height',
+                            helper: 'CSS length, e.g. 48px or 5vh',
+                            selectorOverride: { text: {} },
+                        })}
+                        ${FormField.renderField(this, 'band.emblem_scale', {
+                            label: 'Symbol size',
+                            helper: 'Symbol height as a multiple of the band height',
+                            selectorOverride: { number: { min: 1, max: 10, step: 0.5, mode: 'box' } },
+                        })}
+                        ${FormField.renderField(this, 'band.dash_width', {
+                            label: 'Dash width (px)',
+                            selectorOverride: { number: { min: 1, max: 100, step: 1, mode: 'box' } },
+                        })}
+                        ${FormField.renderField(this, 'band.dash_gap', {
+                            label: 'Dash gap (px)',
+                            selectorOverride: { number: { min: 0, max: 100, step: 1, mode: 'box' } },
+                        })}
                         <ha-selector
                             .hass=${this.hass}
                             .label=${'Dash corner radius (px)'}
@@ -420,24 +376,18 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                             .value=${band.dash_radius === 'pill'}
                             @value-changed=${(e) => set('dash_radius', e.detail.value ? 'pill' : undefined)}>
                         </ha-selector>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Grow'}
-                            .helper=${'Peak dash height as a multiple of the band height, with the animation. 1 = no growth'}
-                            .selector=${{ number: { min: 1, max: 4, step: 0.1, mode: 'box' } }}
-                            .value=${band.grow ?? 1}
-                            @value-changed=${(e) => set('grow', Number(e.detail.value) > 1 ? Number(e.detail.value) : undefined)}>
-                        </ha-selector>
+                        ${FormField.renderField(this, 'band.grow', {
+                            label: 'Grow',
+                            helper: 'Peak dash height as a multiple of the band height, with the animation. 1 = no growth',
+                            selectorOverride: { number: { min: 1, max: 4, step: 0.1, mode: 'box' } },
+                        })}
                     </lcards-grid-layout>
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Show the alert symbol'}
-                        .helper=${'Without it, only auto-dismiss or the alert mode changing hides the band'}
-                        .selector=${{ boolean: {} }}
-                        .value=${band.emblem ?? true}
-                        @value-changed=${(e) => set('emblem', e.detail.value === true ? undefined : false)}>
-                    </ha-selector>
-                    <div style="font-size:12px;font-weight:500;color:var(--secondary-text-color);margin:8px 0 4px;padding:0 2px;">Dash colour (blank = the condition colour)</div>
+                    ${FormField.renderField(this, 'band.emblem', {
+                        label: 'Show the alert symbol',
+                        helper: 'Without it, only auto-dismiss or the alert mode changing hides the band',
+                        selectorOverride: { boolean: {} },
+                    })}
+                    <div class="field-caption">Dash colour (blank = the condition colour)</div>
                     <lcards-color-picker
                         .hass=${this.hass}
                         .value=${band.color ?? ''}
@@ -646,18 +596,16 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                     ?expanded=${!!(pos || width || height || condAutoSeconds || condCfg.display)}
                     ?outlined=${true}>
 
-                    <ha-selector
-                        .hass=${this.hass}
-                        .label=${'Display (override)'}
-                        .helper=${'Overlay or band for this condition only'}
-                        .selector=${{ select: { mode: 'dropdown', options: [
+                    ${FormField.renderField(this, `conditions.${condKey}.display`, {
+                        label: 'Display (override)',
+                        helper: 'Overlay or band for this condition only',
+                        value: condCfg.display ?? '',
+                        selectorOverride: { select: { mode: 'dropdown', options: [
                             { value: '', label: '(Use global default)' },
                             { value: 'overlay', label: 'Overlay (backdrop and symbol)' },
                             { value: 'band',    label: 'Band (dashes across the screen)' },
-                        ]}}}
-                        .value=${condCfg.display ?? ''}
-                        @value-changed=${(e) => this._setConditionProp(condKey, 'display', e.detail.value || undefined)}>
-                    </ha-selector>
+                        ]}},
+                    })}
 
                     <ha-selector
                         .hass=${this.hass}
@@ -672,35 +620,23 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                     </ha-selector>
 
                     <lcards-grid-layout>
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Width (override)'}
-                            .helper=${'CSS width override, e.g. 400px; blank = global default'}
-                            .selector=${{ text: {} }}
-                            .value=${width}
-                            @value-changed=${(e) => this._setConditionProp(condKey, 'width', e.detail.value || undefined)}>
-                        </ha-selector>
-
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Height (override)'}
-                            .helper=${'CSS height override, e.g. 300px; blank = global default'}
-                            .selector=${{ text: {} }}
-                            .value=${height}
-                            @value-changed=${(e) => this._setConditionProp(condKey, 'height', e.detail.value || undefined)}>
-                        </ha-selector>
+                        ${FormField.renderField(this, `conditions.${condKey}.width`, {
+                            label: 'Width (override)',
+                            helper: 'CSS width override, e.g. 400px; blank = global default',
+                            selectorOverride: { text: {} },
+                        })}
+                        ${FormField.renderField(this, `conditions.${condKey}.height`, {
+                            label: 'Height (override)',
+                            helper: 'CSS height override, e.g. 300px; blank = global default',
+                            selectorOverride: { text: {} },
+                        })}
                     </lcards-grid-layout>
 
-                    ${isAutoMode ? html`
-                        <ha-selector
-                            .hass=${this.hass}
-                            .label=${'Auto-Dismiss Override (seconds)'}
-                            .helper=${'Override the global auto-dismiss timeout for this condition only. Leave blank to use the global value.'}
-                            .selector=${{ number: { min: 1, step: 1, mode: 'box' } }}
-                            .value=${condAutoSeconds !== '' ? Number(condAutoSeconds) : undefined}
-                            @value-changed=${(e) => this._setConditionProp(condKey, 'auto_dismiss_seconds', e.detail.value ? Number(e.detail.value) : undefined)}>
-                        </ha-selector>
-                    ` : ''}
+                    ${isAutoMode ? FormField.renderField(this, `conditions.${condKey}.auto_dismiss_seconds`, {
+                        label: 'Auto-Dismiss Override (seconds)',
+                        helper: 'Override the global auto-dismiss timeout for this condition only. Leave blank to use the global value.',
+                        selectorOverride: { number: { min: 1, step: 1, mode: 'box' } },
+                    }) : ''}
                 </lcards-form-section>
 
             </lcards-form-section>
@@ -752,14 +688,11 @@ export class LCARdSAlertOverlayEditor extends LCARdSBaseEditor {
                 </lcards-message>
 
                 <!-- Bar sweep speed -->
-                <ha-selector
-                    .hass=${this.hass}
-                    .label=${'Symbol animation speed'}
-                    .helper=${'Multiplier for the symbol bar sweep: 2 = twice as fast. Blank = normal (in band mode: the band speed)'}
-                    .selector=${{ number: { min: 0.25, max: 4, step: 0.25, mode: 'box' } }}
-                    .value=${ab.speed}
-                    @value-changed=${(e) => this._setAlertButtonProp(condKey, 'speed', Number(e.detail.value) || undefined)}>
-                </ha-selector>
+                ${FormField.renderField(this, `conditions.${condKey}.alert_button.speed`, {
+                    label: 'Symbol animation speed',
+                    helper: 'Multiplier for the symbol bar sweep: 2 = twice as fast. Blank = normal (in band mode: the band speed)',
+                    selectorOverride: { number: { min: 0.25, max: 4, step: 0.25, mode: 'box' } },
+                })}
 
                 <!-- Alert label -->
                 <ha-selector

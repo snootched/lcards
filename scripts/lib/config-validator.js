@@ -23,14 +23,12 @@ import { isTemplateString } from '../../src/utils/template-string.js';
 import { migrateChartConfig } from '../../src/charts/chart-config-migration.js';
 import { migrateDataGridConfig } from '../../src/data-grid/data-grid-config-migration.js';
 import { classifyThemePath } from './theme-token-rules.js';
+import { CARD_PLUMBING_KEYS as PLUMBING_KEYS } from '../../src/cards/schemas/card-plumbing.js';
 import { PLACEMENT_FORMS, LABEL_STYLE_NAMES, UNIT_NAMES } from '../../src/core/astrometrics/names.js';
 import { withNebulaPreset } from '../../src/core/astrometrics/nebula-presets.js';
 
-/**
- * Keys every card accepts that card schemas don't list (HA / layout plumbing, and the
- * styling keys of UIX and its predecessor card-mod, which work on any card in a hui-card).
- */
-const CARD_PLUMBING_KEYS = new Set(['type', 'grid_options', 'view_layout', 'visibility', 'layout_options', 'card_mod', 'uix']);
+/** Keys every card accepts that card schemas don't list (src/cards/schemas/card-plumbing.js). */
+const CARD_PLUMBING_KEYS = new Set(PLUMBING_KEYS);
 
 // ── Schema preparation ─────────────────────────────────────────────────────────
 // Strip `additionalProperties: false` / 'warn' (partial examples would fail it;
