@@ -95,9 +95,10 @@ test('a galaxy builds: one star field and its blobs, a flat object of its radius
   assert.equal(b.radius, 100);
   assert.equal(b.flat, true);
   assert.ok(b.field, 'a star field');
-  assert.equal(b.node.children.length, 4, 'stars, arm glow, core glow, dust');
+  const body = /** @type {any} */ (b.node.getObjectByName('galaxy-body'));
+  assert.equal(body.children.length, 4, 'stars, arm glow, core glow, dust');
   const none = buildScene({ objects: [{ type: 'galaxy', id: 'g', stars: { count: 10 }, glow: 0, dust: { amount: 0 } }] }, ctx()).objects.get('g');
-  assert.equal(none.node.children.length, 1, 'no glow, no dust');
+  assert.equal(/** @type {any} */ (none.node.getObjectByName('galaxy-body')).children.length, 1, 'no glow, no dust');
 });
 
 test('prism: an outline of at least 3 [x, z] points; caps, a wall per side, its edges', () => {

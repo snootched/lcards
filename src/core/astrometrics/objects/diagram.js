@@ -60,14 +60,15 @@ export function addDiagram(out, { runs, color, body, parent = out.node, width = 
 }
 
 /**
- * New runs for a diagram line, keeping it hidden: the look shows it as it
- * draws (FatLine.setRuns would show it).
+ * New runs for a diagram line, keeping it shown or hidden as it was: the
+ * look decides that as it draws (FatLine.setRuns would show it).
  * @param {FatLine} line
  * @param {number[][]} runs
  */
 export function redrawDiagram(line, runs) {
+  const shown = line.object.visible;
   line.setRuns(runs);
-  line.object.visible = false;
+  line.object.visible = shown && runs.length > 0;
 }
 
 /**

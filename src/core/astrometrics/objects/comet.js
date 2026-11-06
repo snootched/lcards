@@ -27,6 +27,7 @@ import { built, num, pair, sub, isOn } from './common.js';
 import { buildAsteroid } from './asteroid.js';
 import { buildGlow } from './glow.js';
 import { pixelSize } from './belt.js';
+import { addDiagram, bodyGroup, circleXY, redrawDiagram } from './diagram.js';
 import { Facing } from '../facing.js';
 const NUCLEUS_COLOR = 'var(--lcards-gray-medium-dark)';
 const DUST_COLOR = 'var(--lcards-moonlight)';
@@ -143,10 +144,14 @@ export function buildComet(cfg, ctx) {
   const rock = /** @type {import('three').Mesh} */ (nucleus.node.getObjectByName('rock'));
   /** @type {import('three').Material} */ (rock.material).depthWrite = false;
   node.add(nucleus.node);
+  // the coma and tails are the realistic part: the diagram look draws them as lines (below); the
+  // nucleus brings its own (a rock and its wireframe)
+  const body = bodyGroup('comet-body');
+  node.add(body);
   // the coma: a soft glow round it (its size and opacity set per frame)
   const coma = buildGlow({ size: 1, color: parts.coma.color ?? cfg.color ?? DUST_COLOR, opacity: 1, falloff: 1.6 }, ctx);
   const comaSprite = /** @type {import('three').Sprite} */ (coma.node.children[0]);
-  node.add(coma.node);
+  body.add(coma.node);
 
   /**
    * @param {number} count @param {number} s @param {any} colorValue @param {string} fallback @param {number} spread @param {number} speed @param {number} size
@@ -179,13 +184,42 @@ export function buildComet(cfg, ctx) {
     // placed in the shader: no bound to cull by
     pts.frustumCulled = false;
     pts.renderOrder = 0.5;
-    node.add(pts);
-    return { pts, mat, alpha: c[3] ?? 1 };
+    body.add(pts);
+    return { pts, mat, alpha: c[3] ?? 1, color: c };
   };
   const tails = [];
   if (isOn(cfg.ion_tail, true)) tails.push({ kind: 'ion', ...tail(ION_COUNT, seed + 11, parts.ion.color, ION_COLOR, 0.025, 0.09, 0.08) });
   if (isOn(cfg.dust_tail, true)) tails.push({ kind: 'dust', ...tail(DUST_COUNT, seed + 23, parts.dust.color ?? cfg.color, DUST_COLOR, 0.1, 0.03, 0.14) });
   for (const t of tails) t.pts.name = `${t.kind}_tail`;
+
+  // the diagram look: the nucleus's wireframe, a ring round the coma (facing the camera) and each
+  // tail as a line, the dust tail curving as it bends
+  out.lines.push(...nucleus.lines);
+  const comaLine = addDiagram(out, {
+    runs: [circleXY(0.5)], color: ctx.color(parts.coma.color ?? cfg.color, DUST_COLOR), body: [body, ...(nucleus.lookParts?.realistic ?? [])], facing: true
+  });
+  out.lookParts = { ...out.lookParts, diagramOnly: [...(out.lookParts?.diagramOnly ?? []), ...(nucleus.lookParts?.diagramOnly ?? [])] };
+  const tailLines = tails.map((t) => ({ t, line: addDiagram(out, { runs: [], color: t.color, body: [] }) }));
+  const TAIL_STEPS = 16;
+  /** Each tail's line along where its particles stream (uDir, the dust tail's uBend) */
+  const drawTails = () => {
+    for (const { t, line } of tailLines) {
+      const un = t.mat.uniforms;
+      const L = un.uLength.value;
+      const start = un.uComa.value / 2;
+      /** @type {number[]} */
+      const run = [];
+      if (L > 0 && t.pts.visible) {
+        for (let i = 0; i <= TAIL_STEPS; i++) {
+          const s = i / TAIL_STEPS;
+          const along = start + (L - start) * s;
+          const d = un.uDir.value, b = un.uBend.value;
+          run.push(d.x * along + b.x * L * s * s, d.y * along + b.y * L * s * s, d.z * along + b.z * L * s * s);
+        }
+      }
+      redrawDiagram(line, run.length ? [run] : []);
+    }
+  };
 
   // the star, world (from the builder's light pass); the comet's motion for the dust tail's bend
   const lightWorld = new Vector3();
@@ -223,6 +257,8 @@ export function buildComet(cfg, ctx) {
       t.pts.visible = now.tail > 0 && level > 0 && now.glow > 0;
     }
     out.radius = Math.max(now.size, coma) / 2;
+    comaLine.object.scale.setScalar(Math.max(coma, 1e-9));
+    drawTails();
   };
 
   out.lod = (view) => {

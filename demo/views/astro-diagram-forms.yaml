@@ -2,7 +2,10 @@
 # DIAGRAM (the wireframes only), REALISTIC (the bodies) or MIXED (the bodies, as before: the new
 # wireframes show in the diagram look only). Batch 1: a glow (a ring marker facing the camera), a
 # Borg cube and a plain box (edges and a grid on each face), an asteroid (its rock's edges,
-# tumbling with it) and a belt (its inner and outer edges). The colour select recolours them all.
+# tumbling with it) and a belt (its inner and outer edges). Batch 2: a comet (its nucleus's
+# wireframe, a ring round the coma, each tail as a line), a galaxy (each arm's spiral, the rim, the
+# bulge ring and the bar) and the Crystalline Entity (its spine and branches, a ring round the core).
+# The colour select recolours them all, every colour each object shows.
 title: Astrometrics diagram forms
 path: astro-diagram-forms
 type: sections
@@ -29,12 +32,15 @@ sections:
         camera:
           view: overview
           views:
-            overview: { target: [0, 0, 0], yaw: 25, tilt: 30, distance: 300 }
+            overview: { target: [0, 0, -20], yaw: 25, tilt: 30, distance: 380 }
         points:
           - { id: star, xyz: [0, 0, 0], label: GLOW, style: minor }
           - { id: borg_at, xyz: [-95, 10, 40], label: BORG CUBE, style: minor }
           - { id: box_at, xyz: [95, 10, -40], label: BOX, style: minor }
           - { id: rock_at, xyz: [60, 25, 70], label: ASTEROID, style: minor }
+          - { id: comet_at, xyz: [-40, 30, 110], label: COMET, style: minor }
+          - { id: spiral_at, xyz: [0, -30, -170], label: GALAXY, style: minor }
+          - { id: entity_at, xyz: [-150, 30, -90], label: CRYSTALLINE, style: minor }
         objects:
           - type: glow
             id: star_glow
@@ -68,4 +74,29 @@ sections:
             count: 700
             seed: 4
             color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange-medium), default: var(--lcards-blue-medium) }
+          # batch 2: the comet (tails away from the glow), a galaxy and the Crystalline Entity
+          - type: comet
+            id: comet
+            at: comet_at
+            light: star
+            tail: { length: 70 }
+            nucleus: { size: 4 }
+            coma: { size: 16, color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet-creme, var(--lcards-moonlight))", ORANGE: var(--lcards-yellow-medium), default: var(--lcards-moonlight) } }
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet-creme, var(--lcards-moonlight))", ORANGE: var(--lcards-yellow-medium), default: var(--lcards-moonlight) }
+            ion_tail: { color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium) } }
+          - type: galaxy
+            id: spiral
+            at: spiral_at
+            radius: 70
+            rotation: [65, 0, 0]
+            spin: 2
+            arms: { count: 3, color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-lavender, var(--lcards-blue-light))", ORANGE: var(--lcards-orange-light), default: var(--lcards-blue-light) } }
+            core: { color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet-creme, var(--lcards-moonlight))", ORANGE: var(--lcards-yellow-medium), default: var(--lcards-moonlight) } }
+          - type: crystalline
+            id: crystal
+            at: entity_at
+            size: 50
+            spin: 6
+            color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-african-violet, var(--lcards-blue-light))", ORANGE: var(--lcards-orange), default: var(--lcards-blue-medium) }
+            core: { color: { entity: input_select.lcards_test_color, LAVENDER: "var(--lcars-violet-creme, var(--lcards-moonlight))", ORANGE: var(--lcards-yellow-medium), default: var(--lcards-moonlight) } }
         grid_options: { columns: full }

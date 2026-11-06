@@ -26,7 +26,7 @@ function sampleObject(type) {
 /** How many segments a FatLine object draws @param {any} obj */
 const segments = (obj) => obj.geometry.instanceCount ?? obj.geometry.attributes.instanceStart?.count ?? 0;
 
-for (const type of ['glow', 'cube', 'asteroid', 'belt']) {
+for (const type of ['glow', 'cube', 'asteroid', 'belt', 'comet', 'galaxy', 'crystalline']) {
   test(`${type}: a wireframe for the diagram look only, its body for the realistic and mixed looks`, () => {
     const b = /** @type {any} */ (sampleObject(type));
     const parts = b.lookParts;
@@ -34,11 +34,23 @@ for (const type of ['glow', 'cube', 'asteroid', 'belt']) {
     assert.ok(parts?.realistic?.length, 'the body as the realistic part');
     for (const d of parts.diagramOnly) {
       assert.equal(d.visible, false, 'hidden until the look shows it');
-      assert.ok(segments(d) > 0, 'the wireframe has lines');
       assert.ok(b.lines.some((/** @type {any} */ l) => l.object === d), 'a line the runtime sizes (out.lines)');
     }
+    // a comet's tails draw once the runtime has aimed them; every other line has segments from the build
+    assert.ok(parts.diagramOnly.some((/** @type {any} */ d) => segments(d) > 0), 'the wireframe has lines');
   });
 }
+
+test('galaxy wireframe: a spiral per arm, the rim, the bulge ring and the bar', async () => {
+  const { galaxyDiagram, galaxyModel } = await import('../../src/core/astrometrics/objects/galaxy.js');
+  const m = galaxyModel({ radius: 100, arms: { count: 3 } });
+  const d = galaxyDiagram(m);
+  assert.equal(d.arms.length, 3);
+  assert.equal(d.frame.length, 3, 'rim, bulge ring, bar');
+  const end = d.arms[0].slice(-3);
+  assert.ok(Math.abs(Math.hypot(end[0], end[2]) - 100) < 1e-6, 'an arm reaches the rim');
+  assert.equal(galaxyDiagram(galaxyModel({ radius: 100, bar: { length: 0 } })).frame.length, 2, 'no bar line without a bar');
+});
 
 test('the looks: the wireframe only in the diagram look, the body in realistic and mixed (mixed as before)', () => {
   const w = (/** @type {'diagram' | 'realistic' | 'mixed'} */ look) => partWeights(lookTargets(look));

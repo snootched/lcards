@@ -23,6 +23,7 @@ import {
   AdditiveBlending, NormalBlending
 } from 'three';
 import { seededRandom } from '../../packs/backgrounds/webgl/scenes/scene-helpers.js';
+import { addDiagram, bodyGroup } from './diagram.js';
 import { createStarField } from '../star-field.js';
 import { built, num, sub, DEFAULT_COLORS } from './common.js';
 
@@ -260,6 +261,47 @@ function blobField(blobs, color, opacity, additive) {
 }
 
 /**
+ * The diagram look's lines (flat, in the disc's plane): each arm's
+ * logarithmic spiral from where the arms start to where it ends (spurs
+ * too), and the frame: the disc's rim, the bar and a ring round the bulge.
+ * @param {GalaxyModel} m
+ * @returns {{ arms: number[][], frame: number[][] }}
+ */
+export function galaxyDiagram(m) {
+  const { R, bar, barAngle, pitch, arms } = m;
+  const r0 = Math.max(bar, 0.12 * R);
+  const STEPS = 96;
+  const spiral = arms.map((a) => {
+    const end = Math.max(r0, a.end * R);
+    // a spur starts part way out, where it branches
+    const from = a.spur ? Math.max(r0, end * 0.55) : r0;
+    /** @type {number[]} */
+    const run = [];
+    for (let i = 0; i <= STEPS; i++) {
+      const r = from + ((end - from) * i) / STEPS;
+      const [x, z] = xz(r, armBearing(a.start, r0, r, pitch));
+      run.push(x, 0, z);
+    }
+    return run;
+  });
+  /** @param {number} r @returns {number[]} */
+  const ring = (r) => {
+    const run = [];
+    for (let i = 0; i <= 128; i++) {
+      const [x, z] = xz(r, (i * 360) / 128);
+      run.push(x, 0, z);
+    }
+    return run;
+  };
+  const frame = [ring(R), ring(r0 * 0.5)];
+  if (bar > 0) {
+    const [x, z] = xz(bar, barAngle);
+    frame.push([x, 0, z, -x, 0, -z]);
+  }
+  return { arms: spiral, frame };
+}
+
+/**
  * @param {any} cfg
  * @param {import('./common.js').BuildContext} ctx
  * @returns {import('./common.js').BuiltObject}
@@ -288,7 +330,10 @@ export function buildGalaxy(cfg, ctx) {
     cols.set([c[0], c[1], c[2], 0.35 + rnd() * 0.65], i * 4);
   }
   const field = createStarField({ positions, sizes, colors: cols, opacity });
-  node.add(field.mesh);
+  // the stars, glow and dust are the realistic part; the diagram look draws the arms as lines
+  const body = bodyGroup('galaxy-body');
+  node.add(body);
+  body.add(field.mesh);
   out.field = field;
   // glow along the arms and at the core, dust on the arms' inner edges
   const glowOpacity = Math.max(0, num(cfg.glow, 0.6)) * opacity;
@@ -298,17 +343,22 @@ export function buildGalaxy(cfg, ctx) {
   if (glowOpacity > 0) {
     const g = blobField(blobs.glow, [arm[0], arm[1], arm[2], 0.18], glowOpacity, true);
     g.renderOrder = -0.5;
-    node.add(g);
+    body.add(g);
     const c = blobField([[0, 0, 0, 0.45 * m.R], [0, 0, 0, 0.2 * m.R]], [core[0], core[1], core[2], 0.5], glowOpacity, true);
     c.renderOrder = -0.5;
-    node.add(c);
+    body.add(c);
   }
   if (dustOpacity > 0) {
     const bg = ctx.color(dust.color, 'var(--primary-background-color, #000)');
     const d = blobField(blobs.dust, [bg[0], bg[1], bg[2], 0.6], dustOpacity, false);
     d.renderOrder = -0.4;
-    node.add(d);
+    body.add(d);
   }
+  // the diagram look: each arm as its spiral in the arm colour; the disc's rim, the bar and a ring
+  // round the bulge in the core colour
+  const lines = galaxyDiagram(m);
+  addDiagram(out, { runs: lines.arms, color: arm, body: [body] });
+  addDiagram(out, { runs: lines.frame, color: core, body: [] });
   // far away it is a few px across: fewer stars draw (they would merge anyway)
   out.lod = ({ camera, height }) => {
     const c = /** @type {any} */ (camera);

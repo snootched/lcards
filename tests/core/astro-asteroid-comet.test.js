@@ -140,7 +140,7 @@ test('comet: tails away from the light in its own space (face and rotation turn 
   assert.ok(dir.distanceTo(new Vector3(1, 0, 0)) < 1e-6, `tail along ${dir.toArray()}`);
   assert.equal(ion.material.uniforms.uLength.value, 50);
   assert.ok(dust, 'both by default');
-  const names = (/** @type {string} */ id) => /** @type {any} */ (w.objects.get(id)).node.children.map((/** @type {any} */ n) => n.name).filter((/** @type {string} */ n) => n.endsWith('_tail'));
+  const names = (/** @type {string} */ id) => /** @type {any} */ (w.objects.get(id)).node.getObjectByName('comet-body').children.map((/** @type {any} */ n) => n.name).filter((/** @type {string} */ n) => n.endsWith('_tail'));
   assert.deepEqual(names('ion'), ['ion_tail']);
   assert.deepEqual(names('none'), []);
   // live: the length, the coma, the glow, the nucleus (null: as built)

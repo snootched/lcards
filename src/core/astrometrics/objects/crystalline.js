@@ -22,6 +22,7 @@ import {
 } from 'three';
 import { seededRandom } from '../../packs/backgrounds/webgl/scenes/scene-helpers.js';
 import { built, num, sub } from './common.js';
+import { addDiagram, bodyGroup, circleXY } from './diagram.js';
 import { pixelSize } from './belt.js';
 
 const DEG = Math.PI / 180;
@@ -478,7 +479,14 @@ export function buildCrystalline(cfg, ctx) {
   const dot = new Points(dotGeo, dotMat);
   dot.name = 'dot';
   dot.visible = false;
-  node.add(crystal, burst, dot);
+  // the crystal and its core are the realistic part (a dot far away stands in, in every look); the
+  // diagram look draws the spine and branches (to the second fork) as lines and a ring round the core
+  const crystalBody = bodyGroup('crystal-body');
+  crystalBody.add(crystal, burst);
+  node.add(crystalBody, dot);
+  const drawn = shards.slice(0, levelEnds[Math.min(2, levelEnds.length - 1)]);
+  addDiagram(out, { runs: drawn.map((sh) => [...sh.a, ...sh.b]), color: [...body], body: [crystalBody], parent: crystalBody.parent ?? node });
+  addDiagram(out, { runs: [circleXY(m.H * 0.06)], color: [...coreC], body: [], facing: true });
 
   let dots = false;
   const here = new Vector3();
