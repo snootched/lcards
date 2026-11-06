@@ -54,6 +54,13 @@ releases:
         session: "CE1"
         docs: /cards/astrometrics/objects#crystalline
         public: true
+      - file: astro-solar-orbits
+        topic: astrometrics
+        summary: "Astrometrics Solar system orbits: Pluto and every orbit at its real tilt"
+        description: "The Solar system starter with Pluto added and each orbit ring tilted to its planet's real inclination about its ascending node, the planets going round in those planes. SYSTEM is the starter's view, TOP looks down, EDGE looks along the ecliptic so the tilts show (Pluto's 17 degrees most of all), PLUTO flies to Pluto."
+        session: "Astro polish"
+        docs: /cards/astrometrics/starters#solar-system
+        public: true
       - file: astro-units
         topic: astrometrics
         summary: "Astrometrics units: parts sized for the scene they go into"

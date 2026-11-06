@@ -133,7 +133,7 @@ camera:
 
 ### Solar system
 
-The Sun and eight planets on their orbits, each with its map or planet type, Saturn with its rings and the Moon going round the Earth. Tap a planet to fly to it.
+The Sun, eight planets and Pluto, each orbit tilted as the real one is and each planet with its map or planet type, Saturn with its rings and the Moon going round the Earth. Tap a planet to fly to it.
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -178,6 +178,7 @@ points:
     label: NEPTUNE
     style: minor
     tap_action: { action: fly-to }
+  - { id: pluto, polar: [184, 160], object: pluto_orbit, marker: dot, label: PLUTO, style: minor, tap_action: { action: fly-to } }
   - { id: moon, polar: [5, 0], object: moon_orbit, marker: dot, label: LUNA, style: tiny, max_distance: 80 }
 objects:
   - { type: glow, at: sun, size: 40, color: var(--lcars-yellow) }
@@ -188,7 +189,14 @@ objects:
     fill: { color: var(--lcars-yellow) }
     color: var(--lcars-orange)
     line_spacing_deg: 30
-  - { type: ring, id: mercury_orbit, radius: 20, spin: 24, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+  - type: ring
+    id: mercury_orbit
+    radius: 20
+    spin: 24
+    width: 1
+    color: theme:colors.ui.secondary
+    opacity: 0.6
+    rotation: [7, 48.3, 0]
   - type: sphere
     id: mercury_body
     at: mercury
@@ -197,7 +205,14 @@ objects:
     line_spacing_deg: 30
     line_width: 0.5
     spin: 15
-  - { type: ring, id: venus_orbit, radius: 30, spin: 16, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+  - type: ring
+    id: venus_orbit
+    radius: 30
+    spin: 16
+    width: 1
+    color: theme:colors.ui.secondary
+    opacity: 0.6
+    rotation: [3.39, 76.7, 0]
   - type: sphere
     id: venus_body
     at: venus
@@ -215,7 +230,14 @@ objects:
     line_spacing_deg: 30
     line_width: 0.5
     spin: 20
-  - { type: ring, id: mars_orbit, radius: 56, spin: 6, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+  - type: ring
+    id: mars_orbit
+    radius: 56
+    spin: 6
+    width: 1
+    color: theme:colors.ui.secondary
+    opacity: 0.6
+    rotation: [1.85, 49.6, 0]
   - type: sphere
     id: mars_body
     at: mars
@@ -224,7 +246,14 @@ objects:
     line_spacing_deg: 30
     line_width: 0.5
     spin: 15
-  - { type: ring, id: jupiter_orbit, radius: 82, spin: 2.5, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+  - type: ring
+    id: jupiter_orbit
+    radius: 82
+    spin: 2.5
+    width: 1
+    color: theme:colors.ui.secondary
+    opacity: 0.6
+    rotation: [1.3, 100.5, 0]
   - type: sphere
     id: jupiter_body
     at: jupiter
@@ -233,7 +262,14 @@ objects:
     line_spacing_deg: 30
     line_width: 0.5
     spin: 15
-  - { type: ring, id: saturn_orbit, radius: 112, spin: 1.6, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+  - type: ring
+    id: saturn_orbit
+    radius: 112
+    spin: 1.6
+    width: 1
+    color: theme:colors.ui.secondary
+    opacity: 0.6
+    rotation: [2.49, 113.7, 0]
   - type: sphere
     id: saturn_body
     at: saturn
@@ -242,7 +278,14 @@ objects:
     line_spacing_deg: 30
     line_width: 0.5
     spin: 15
-  - { type: ring, id: uranus_orbit, radius: 138, spin: 1.1, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+  - type: ring
+    id: uranus_orbit
+    radius: 138
+    spin: 1.1
+    width: 1
+    color: theme:colors.ui.secondary
+    opacity: 0.6
+    rotation: [0.77, 74, 0]
   - type: sphere
     id: uranus_body
     at: uranus
@@ -251,12 +294,35 @@ objects:
     line_spacing_deg: 30
     line_width: 0.5
     spin: 15
-  - { type: ring, id: neptune_orbit, radius: 160, spin: 0.8, width: 1, color: theme:colors.ui.secondary, opacity: 0.6 }
+  - type: ring
+    id: neptune_orbit
+    radius: 160
+    spin: 0.8
+    width: 1
+    color: theme:colors.ui.secondary
+    opacity: 0.6
+    rotation: [1.77, 131.8, 0]
   - type: sphere
     id: neptune_body
     at: neptune
     radius: 3
     fill: { effect: { preset: storm_giant } }
+    line_spacing_deg: 30
+    line_width: 0.5
+    spin: 15
+  - type: ring
+    id: pluto_orbit
+    radius: 184
+    spin: 0.55
+    width: 1
+    color: theme:colors.ui.secondary
+    opacity: 0.6
+    rotation: [17.16, 110.3, 0]
+  - type: sphere
+    id: pluto_body
+    at: pluto
+    radius: 0.9
+    image: builtin:pluto_new_horizons
     line_spacing_deg: 30
     line_width: 0.5
     spin: 15
@@ -278,8 +344,8 @@ objects:
 camera:
   view: system
   views:
-    system: { target: sun, yaw: 20, tilt: 40, distance: 380 }
-    top: { target: sun, tilt: 90, distance: 400 }
+    system: { target: sun, yaw: 20, tilt: 40, distance: 440 }
+    top: { target: sun, tilt: 90, distance: 460 }
     earth: { target: earth, yaw: 30, tilt: 20, distance: 22 }
 backdrop: { stars: { count: 2000 } }
 ```

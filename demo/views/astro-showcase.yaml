@@ -87,6 +87,7 @@ cards:
     cards:
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: GALAXY, show: true}
         tap_action:
@@ -95,6 +96,7 @@ cards:
           view: galaxy
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: FEDERATION, show: true}
         tap_action:
@@ -103,6 +105,7 @@ cards:
           view: federation
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: SOL SYSTEM, show: true}
         tap_action:
@@ -111,6 +114,7 @@ cards:
           view: sol
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: EARTH, show: true}
         tap_action:
@@ -119,6 +123,7 @@ cards:
           view: earth
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: MARS, show: true}
         tap_action:
@@ -127,6 +132,7 @@ cards:
           view: mars
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: JUPITER, show: true}
         tap_action:
@@ -135,6 +141,7 @@ cards:
           view: jupiter
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: SATURN, show: true}
         tap_action:
@@ -143,6 +150,7 @@ cards:
           view: saturn
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: PLUTO, show: true}
         tap_action:
@@ -151,6 +159,7 @@ cards:
           view: pluto
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: CRYSTALLINE ENTITY, show: true}
         tap_action:
@@ -159,6 +168,7 @@ cards:
           view: entity
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: NEXUS, show: true}
         tap_action:
@@ -167,6 +177,7 @@ cards:
           view: nexus
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: BAJOR SYSTEM, show: true}
         tap_action:
@@ -175,6 +186,7 @@ cards:
           view: bajor_system
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: DEEP SPACE 9, show: true}
         tap_action:
@@ -183,6 +195,7 @@ cards:
           view: ds9
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: WORMHOLE, show: true}
         tap_action:
@@ -191,6 +204,7 @@ cards:
           view: wormhole
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: NEBULA, show: true}
         tap_action:
@@ -199,6 +213,7 @@ cards:
           view: nebula
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: BADLANDS, show: true}
         tap_action:
@@ -207,6 +222,7 @@ cards:
           view: badlands
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: BORG CUBE, show: true}
         tap_action:
@@ -215,6 +231,7 @@ cards:
           view: cube
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: IDRAN, show: true}
         tap_action:
@@ -223,6 +240,7 @@ cards:
           view: gamma
       - type: custom:lcards-button
         preset: lozenge
+        height: 44
         text:
           name: {content: DELTA BADLANDS, show: true}
         tap_action:
@@ -1829,7 +1847,7 @@ cards:
         height: 26
         min_height: 0
         text:
-          label: {content: RED ALERT}
+          label: {content: ALERT}
         view_layout:
           grid-column: span 4
       - type: custom:lcards-button
@@ -1855,6 +1873,10 @@ cards:
         preset: toggle-tab
         grid:
           columns: 3
+        options:
+          alpha: {label: GREEN}
+          beta: {label: YELLOW}
+          gamma: {label: RED}
         min_height: 0
         view_layout:
           grid-column: span 4
@@ -1880,7 +1902,7 @@ cards:
         height: 26
         min_height: 0
         text:
-          label: {content: WARP}
+          label: {content: STARFIELD WARP}
         view_layout:
           grid-column: span 6
       - type: custom:lcards-button

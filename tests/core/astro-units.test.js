@@ -21,8 +21,8 @@ const LY_KM = 9.4607304725808e12;
 const near = (a, b, tol = 0.05) => Math.abs(a - b) <= tol * Math.abs(b);
 
 test('scene extent: from the config alone; aim-only points and systems\' insides do not count', () => {
-  // Neptune's orbit (160) plus its planet
-  assert.ok(near(sceneExtent(SOL), 163, 0.01), String(sceneExtent(SOL)));
+  // Pluto's orbit (184) plus its planet
+  assert.ok(near(sceneExtent(SOL), 184.9, 0.01), String(sceneExtent(SOL)));
   assert.equal(sceneExtent({}), 0);
   assert.equal(sceneExtent({ points: [{ id: 'aim', xyz: [1000, 0, 0] }], objects: [{ type: 'glow', at: [0, 0, 0], size: 10 }] }), 5, 'a point nothing uses is only aimed at');
   assert.equal(sceneExtent({ points: [{ id: 'p', xyz: [30, 40, 0], label: 'P' }] }), 50);

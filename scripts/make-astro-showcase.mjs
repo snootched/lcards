@@ -331,7 +331,8 @@ export async function showcaseCard() {
 export async function showcaseView() {
   const card = await showcaseCard();
   const stop = (/** @type {string} */ view, /** @type {string} */ label) => ({
-    type: 'custom:lcards-button', preset: 'lozenge', text: { name: { content: label, show: true } },
+    // 44 px: shorter than the theme's 56 px button floor, which overflowed the 18 rows into each other
+    type: 'custom:lcards-button', preset: 'lozenge', height: 44, text: { name: { content: label, show: true } },
     tap_action: { action: 'fly-to', card: CARD_ID, view }
   });
   const toggle = (/** @type {string} */ entity, /** @type {string} */ label) => ({
@@ -423,17 +424,21 @@ export async function showcaseView() {
           span(slider('input_number.lcards_test_power', 'WORMHOLE'), 4),
           // the date's rate: the time slider's stops
           span({ type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_rate', preset: 'toggle-tab', grid: { columns: 6 } }, 4),
-          heading('RED ALERT', 4),
+          heading('ALERT', 4),
           heading('LOOK', 4),
           heading('CRYSTAL', 4),
-          span({ type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_mode', preset: 'toggle-tab', grid: { columns: 3 } }, 4),
+          // the alert mode: automation.lcards_test_alert maps the shared helper's alpha / beta / gamma to green, yellow and red alert
+          span({
+            type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_mode', preset: 'toggle-tab', grid: { columns: 3 },
+            options: { alpha: { label: 'GREEN' }, beta: { label: 'YELLOW' }, gamma: { label: 'RED' } }
+          }, 4),
           // the look: the wormholes and planets as LCARS diagrams, realistic, or both
           span({ type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_look', preset: 'toggle-tab', grid: { columns: 3 } }, 4),
           // the Crystalline Entity's colour
           span({ type: 'custom:lcards-select-menu', entity: 'input_select.lcards_test_color', preset: 'toggle-tab', grid: { columns: 3 } }, 4),
-          heading('WARP', 6),
+          heading('STARFIELD WARP', 6),
           heading('SCENE CLOCK', 6),
-          // warp: engage, and the warp factor
+          // the backdrop stars' warp streaks: engage, and the warp factor
           span(toggle('input_boolean.lcards_test_warp', 'ENGAGE'), 2),
           span({ ...slider('input_number.lcards_test_warp_factor', 'FACTOR'), style: { shaped: { text_bands: { left: { size: 70 } } } } }, 4),
           span({
