@@ -247,6 +247,26 @@ test('layout card outside HA: LCARdS children are built directly (docs demos, th
     await expectNoErrors(page);
 });
 
+test('select menu without a preset: its option buttons draw (their style resolves on connect; a config property skips setConfig)', async ({ page }) => {
+    const card = await mountCase(page, 'select-menu', { width: '400', height: '300' });
+    await expect.poll(() => card.evaluate(el => [...el.shadowRoot.querySelectorAll('lcards-button')].filter(b => b.shadowRoot.querySelector('.button-bg')).length)).toBe(4);
+    await expectNoErrors(page);
+});
+
+test('select menu: a tap selects the option through the option button (select_option on the entity); card size follows the option rows', async ({ page }) => {
+    const card = await mountCase(page, 'select-menu-toggle-tab', { width: '600' });
+    await expect.poll(() => card.evaluate(el => el.shadowRoot.querySelectorAll('lcards-button').length)).toBe(4);
+    // 4 options in 4 columns: one row
+    expect(await card.evaluate(el => el.getCardSize())).toBe(1);
+    await page.locator('lcards-select-menu lcards-button').nth(2).locator('.button-bg').click();
+    await expect.poll(() => page.evaluate(() => window.__hass.serviceCalls))
+        .toEqual([{ domain: 'input_select', service: 'select_option', data: { option: 'Heat', entity_id: 'input_select.demo_mode' } }]);
+    // one column: a row each
+    await page.evaluate(() => window.__reconfigure({ type: 'custom:lcards-select-menu', entity: 'input_select.demo_mode', preset: 'toggle-tab', grid: { columns: 1 } }));
+    await expect.poll(() => card.evaluate(el => el.getCardSize())).toBe(4);
+    await expectNoErrors(page);
+});
+
 test('select menu with a preset that styles through style: (toggle-tab): options are styled on the first render, not after a click', async ({ page }) => {
     const card = await mountCase(page, 'select-menu-toggle-tab', { width: '600' });
     const backgrounds = () => card.evaluate(el => [...el.shadowRoot.querySelectorAll('lcards-button')]

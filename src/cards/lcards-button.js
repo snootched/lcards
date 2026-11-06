@@ -2315,6 +2315,11 @@ export class LCARdSButton extends LCARdSCard {
                 // StylePresetManager not available yet - wait for it
                 this._waitForStylePresetManager();
             }
+        } else if (!this._buttonStyle) {
+            // No preset, and the style was never resolved: a button given its config as a property
+            // (a select menu's option buttons, `.config=`) skips setConfig, where it is resolved first
+            this._resolveButtonStyleSync();
+            this.requestUpdate();
         }
 
         // CRITICAL: Re-resolve segment theme tokens now that ThemeManager is available

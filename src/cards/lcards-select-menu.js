@@ -29,7 +29,6 @@
 
 import { html, css, svg } from 'lit';
 import { LCARdSCard } from '../base/LCARdSCard.js';
-import { toggleService } from '../base/LCARdSActionHandler.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { deepMergeImmutable } from '../utils/deepMerge.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
@@ -140,21 +139,10 @@ export class LCARdSSelectMenu extends LCARdSCard {
     // LIFECYCLE
     // =========================================================================
 
-    connectedCallback() {
-        super.connectedCallback();
-        if (!this._containerRO) {
-            this._containerRO = new ResizeObserver(entries => {
-                const h = entries[0]?.contentRect?.height ?? 0;
-                if (h !== this._containerHeight) this._containerHeight = h;
-            });
-            this._containerRO.observe(this);
-        }
-    }
-
-    disconnectedCallback() {
-        super.disconnectedCallback();
+    _onDisconnected() {
         this._containerRO?.disconnect();
         this._containerRO = null;
+        super._onDisconnected();
     }
 
     _onConfigSet(config) {
@@ -213,6 +201,14 @@ export class LCARdSSelectMenu extends LCARdSCard {
 
     async _onConnected() {
         await super._onConnected();
+        // the container's height: bounded-fill mode sizes the rows to it
+        if (!this._containerRO) {
+            this._containerRO = new ResizeObserver(entries => {
+                const h = entries[0]?.contentRect?.height ?? 0;
+                if (h !== this._containerHeight) this._containerHeight = h;
+            });
+            this._containerRO.observe(this);
+        }
         // Re-resolve styles now that StylePresetManager is available
         this._resolveMenuStyle();
     }
@@ -449,103 +445,6 @@ export class LCARdSSelectMenu extends LCARdSCard {
         }
 
         return { bgColor, textColor, borderRadius, borderWidthPx, borderColor, opacity, fontSizePx, textTransform, letterSpacing, fontWeight };
-    }
-
-    // =========================================================================
-    // ACTION EXECUTION
-    // =========================================================================
-
-    /**
-     * Called when user taps an option button.
-     * By default calls input_select.select_option on the card entity.
-     * Respects per-option tap_action override, card-level tap_action override,
-     * and fires secondary_tap_action afterwards.
-     * @param {Object} opt - Normalized option { value, label, icon, style, tap_action }
-     * @private
-     */
-    async _onOptionTap(opt) {
-        const entityId     = this.config.entity;
-        const optTapAction = opt.tap_action ?? this.config.tap_action;
-
-        lcardsLog.debug(`[LCARdSSelectMenu] Option tapped: "${opt.value}"`, {
-            entityId,
-            hasCustomAction: !!optTapAction,
-        });
-
-        if (optTapAction) {
-            // User-defined custom action (overrides built-in select)
-            await this._executeAction(optTapAction, entityId, opt.value);
-        } else {
-            // Default: select the option
-            if (entityId && this.hass) {
-                // Handle both 'select' and 'input_select' domains
-                const domain = entityId.split('.')[0];
-                const svcDomain = domain === 'select' ? 'select' : 'input_select';
-                await this.hass.callService(
-                    svcDomain, 'select_option',
-                    { entity_id: entityId, option: opt.value }
-                );
-                lcardsLog.debug(`[LCARdSSelectMenu] Selected option "${opt.value}" on ${entityId}`);
-            }
-        }
-
-    }
-
-    /**
-     * Execute a standard HA action object.
-     * @param {Object}  action   - HA action config
-     * @param {string}  entityId - Default entity ID for the action
-     * @param {string}  [optionValue] - Current option value (for context)
-     * @private
-     */
-    async _executeAction(action, entityId, optionValue) {
-        if (!action || action.action === 'none') return;
-
-        switch (action.action) {
-            case 'call-service':
-            case 'perform-action': {
-                const raw       = action.service || action.perform_action || '';
-                const [dom, svc] = raw.split('.');
-                const svcData   = { ...(action.service_data || action.data || {}) };
-                const target    = action.target || (entityId ? { entity_id: entityId } : undefined);
-                if (dom && svc) {
-                    if (target) {
-                        await this.hass?.callService(dom, svc, svcData, target);
-                    } else {
-                        await this.hass?.callService(dom, svc, svcData);
-                    }
-                }
-                break;
-            }
-            case 'navigate':
-                if (action.navigation_path) {
-                    window.history.pushState(null, '', action.navigation_path);
-                    window.dispatchEvent(new CustomEvent('location-changed'));
-                }
-                break;
-            case 'url':
-                if (action.url_path) {
-                    window.open(action.url_path, action.url_target || '_blank');
-                }
-                break;
-            case 'more-info':
-                if (entityId) {
-                    this.dispatchEvent(new CustomEvent('hass-more-info', {
-                        detail: { entityId },
-                        bubbles: true,
-                        composed: true,
-                    }));
-                }
-                break;
-            case 'toggle':
-                if (entityId) {
-                    const { domain, service } = toggleService(entityId, this.hass?.states?.[entityId]?.state);
-                    await this.hass?.callService(domain, service, { entity_id: entityId });
-                }
-                break;
-            default:
-                lcardsLog.warn(`[LCARdSSelectMenu] Unknown action type: ${action.action}`);
-        }
     }
 
     // =========================================================================
@@ -885,6 +784,18 @@ export class LCARdSSelectMenu extends LCARdSCard {
     // =========================================================================
     // STATIC HELPERS
     // =========================================================================
+
+    /**
+     * Masonry height in 50 px units: the option rows (options over the grid's
+     * columns), about one unit each.
+     * @protected
+     */
+    _getCardSize() {
+        if (this._configPx(this.config?.height)) return Math.ceil(/** @type {number} */ (this._configPx(this.config.height)) / 50);
+        const cols = this.config?.grid?.columns;
+        const colCount = typeof cols === 'number' ? cols : typeof cols === 'string' ? cols.trim().split(/\s+/).length : 1;
+        return Math.max(1, Math.ceil(this._optionList.length / Math.max(1, colCount)));
+    }
 
     getGridOptions() {
         const go = this.config.grid_options || {};
