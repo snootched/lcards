@@ -48,6 +48,10 @@ async function openDashboard(page, path, dashboard = TEST_DASHBOARD) {
     }, null, { timeout: 30_000 });
     // The loader stub loads the main chunk asynchronously; cards are defined after core init.
     await page.evaluate(() => customElements.whenDefined('lcards-button'));
+    // The page subscribes to the lcards/subscribe push channel about a second
+    // later (after the lcards/info probe). An lcards.* service called before
+    // that is never seen by the page, so wait for it.
+    await page.waitForFunction(() => !!window.lcards?.core?.integrationService?._eventUnsubscribe, null, { timeout: 15_000 });
     return errors;
 }
 

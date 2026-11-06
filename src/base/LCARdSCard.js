@@ -4579,6 +4579,11 @@ export class LCARdSCard extends LCARdSNativeCard {
     _generateZoneDebugMarkup() {
         if (!this.config?.debug_zones || this._zones.size === 0) return '';
         const COLORS = ['#e8a838', '#4ecdc4', '#c45fce', '#52be80', '#5b9bd5', '#e06c75', '#f7c948'];
+        // Only rectangles: a component can carry layout data as a zone (the ring
+        // slider's `_ring` holds centre and radii), which has no x/y/width/height.
+        const isRect = (b) => ['x', 'y', 'width', 'height'].every(k => Number.isFinite(b?.[k]));
+        const zones = [...this._zones].filter(([, z]) => isRect(z.bounds));
+        if (zones.length === 0) return '';
 
         // First pass: derive the overall coordinate extent so font sizing scales
         // correctly regardless of whether zones are in pixel-space (e.g. 0–400)
@@ -4586,7 +4591,7 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Using a fixed 9–13 px clamp is correct for pixel space but proportionally
         // enormous when rendered inside a small viewBox (9 units out of 80 ≈ 11%).
         let maxExtent = 0;
-        for (const [, zoneData] of this._zones) {
+        for (const [, zoneData] of zones) {
             const { x, y, width, height } = zoneData.bounds;
             maxExtent = Math.max(maxExtent, x + width, y + height);
         }
@@ -4601,7 +4606,7 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         let inner = '';
         let ci = 0;
-        for (const [name, zoneData] of this._zones) {
+        for (const [name, zoneData] of zones) {
             const { x, y, width, height } = zoneData.bounds;
             const color = COLORS[ci++ % COLORS.length];
             // Zone-size heuristic: 16% of the shorter axis, clamped to extent-derived bounds.

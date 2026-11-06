@@ -131,3 +131,30 @@ test('ring: no focus outline by default; style.ring.focus_ring: true shows it on
     expect(await outline()).toBe('solid');
     await expectNoErrors(page);
 });
+
+test('ring: debug_zones outlines the rectangle zones only (the `_ring` layout zone has no box)', async ({ page }) => {
+    // Regression (2026-11-06): `_ring` holds the centre and radii, no x/y/width/height,
+    // and made every debug rect and label NaN ("Expected length" console errors).
+    const browserErrors = [];
+    page.on('console', (m) => { if (m.type() === 'error') browserErrors.push(m.text()); });
+    await mountCase(page, 'slider-ring', SIZE);
+    await page.evaluate(() => window.__reconfigure({
+        type: 'custom:lcards-slider', entity: 'light.demo', preset: 'ring',
+        control: { attribute: 'brightness' }, debug_zones: true,
+    }));
+    const card = page.locator('lcards-slider');
+    await expect.poll(() => card.evaluate(el => !!el.shadowRoot.querySelector('#lcards-zone-debug'))).toBe(true);
+    const overlay = await card.evaluate((el) => {
+        const g = el.shadowRoot.querySelector('#lcards-zone-debug');
+        if (!g) return null;
+        const nums = [...g.querySelectorAll('rect, text')].flatMap(n =>
+            ['x', 'y', 'width', 'height', 'font-size', 'stroke-width'].map(a => n.getAttribute(a)).filter(v => v !== null));
+        return { labels: [...g.querySelectorAll('text')].map(t => t.textContent), nums };
+    });
+    expect(overlay).not.toBeNull();
+    expect(overlay.labels).toEqual(expect.arrayContaining(['center', 'label', 'value', 'sublabel']));
+    expect(overlay.labels).not.toContain('_ring');
+    expect(overlay.nums.every(v => Number.isFinite(Number(v)))).toBe(true);
+    expect(browserErrors.filter(e => /Expected length/.test(e))).toEqual([]);
+    await expectNoErrors(page);
+});
