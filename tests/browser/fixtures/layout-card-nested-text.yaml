@@ -1,0 +1,14 @@
+# doc/cards/layout-card: a button inside a layout card follows its entity like a top-level one
+type: custom:lcards-layout-card
+layout:
+  height: 120px
+  grid-template-columns: 1fr
+  grid-template-rows: 1fr
+cards:
+  - type: custom:lcards-button
+    entity: input_number.demo_level
+    preset: panel-dark
+    interactive: false
+    text:
+      label: { content: "{entity.state}", position: bottom-right }
+      state: { content: "[[[ return Number(entity.state) > 80 ? 'HIGH' : 'LOW'; ]]]", show: true, position: center }

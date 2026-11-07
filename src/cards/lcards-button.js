@@ -3164,6 +3164,15 @@ export class LCARdSButton extends LCARdSCard {
         if (this.config.icon_style) {
             hasChanges = await this._preEvaluateStyleTemplates(this.config.icon_style, 'icon_style') || hasChanges;
         }
+        // Text field colours take templates too (a JS or Jinja2 colour string, or one
+        // inside a state map); the text content is processed separately below
+        if (this.config.text && typeof this.config.text === 'object') {
+            for (const [name, field] of Object.entries(this.config.text)) {
+                if (field && typeof field === 'object' && field.color != null) {
+                    hasChanges = await this._preEvaluateStyleTemplates({ color: field.color }, `text.${name}`) || hasChanges;
+                }
+            }
+        }
 
         // Initialize storage for processed templates (survives config replacement)
         if (!this._processedTemplates) {
@@ -5478,6 +5487,7 @@ export class LCARdSButton extends LCARdSCard {
                     colorConfig: field.color,
                     fallback: null
                 });
+                resolvedColor = this._resolveTemplateValue(resolvedColor);
             }
 
             // Use default text color if no field color specified
@@ -5873,6 +5883,7 @@ export class LCARdSButton extends LCARdSCard {
                     colorConfig:     field.color,
                     fallback:        null
                 });
+                resolvedColor = this._resolveTemplateValue(resolvedColor);
             }
             if (!resolvedColor) {
                 resolvedColor = this._resolveStateValue({

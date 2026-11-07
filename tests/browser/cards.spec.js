@@ -75,6 +75,37 @@ test('button: state change switches the state colour', async ({ page }) => {
     await expect.poll(() => bgFill(page)).toBe('rgb(51, 51, 102)');
 });
 
+test('button: a text field colour can be a JS template, and follows the entity', async ({ page }) => {
+    await mountCase(page, 'button-text-color-template');
+    const fill = () => page.locator('lcards-button').evaluate(el => {
+        const t = [...el.shadowRoot.querySelectorAll('text')].find(x => x.textContent.trim() === 'LEVEL');
+        return t ? getComputedStyle(t).fill : null;
+    });
+    await expect.poll(fill).toBe('rgb(0, 255, 0)'); // demo_level starts at 40
+    await page.evaluate(() => window.__setState('input_number.demo_level', '90'));
+    await expect.poll(fill).toBe('rgb(255, 0, 0)');
+    await expectNoErrors(page);
+});
+
+test('button: token and JS text follow the entity on a panel without an action', async ({ page }) => {
+    await mountCase(page, 'button-text-token-update');
+    const texts = () => page.locator('lcards-button').evaluate(el => [...el.shadowRoot.querySelectorAll('text')].map(t => t.textContent.trim()).filter(Boolean).join('/'));
+    await expect.poll(texts).toContain('LOW');
+    await page.evaluate(() => window.__setState('input_number.demo_level', '90'));
+    await expect.poll(texts).toContain('HIGH');
+    expect(await texts()).toContain('90');
+    await expectNoErrors(page);
+});
+
+test('layout card: a nested button\'s text follows its entity', async ({ page }) => {
+    await mountCase(page, 'layout-card-nested-text');
+    const texts = () => page.locator('lcards-button').evaluate(el => [...el.shadowRoot.querySelectorAll('text')].map(t => t.textContent.trim()).filter(Boolean).join('/'));
+    await expect.poll(texts).toContain('LOW');
+    await page.evaluate(() => window.__setState('input_number.demo_level', '90'));
+    await expect.poll(texts).toContain('HIGH');
+    await expectNoErrors(page);
+});
+
 test('button: tap toggle turns the entity off from on, as Home Assistant\'s toggle does', async ({ page }) => {
     await mountCase(page, 'button-lozenge');
     await page.locator('lcards-button path.button-bg').click();
