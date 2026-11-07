@@ -128,9 +128,12 @@ export class DataSourceManager extends BaseService {
 
       // Forward entity changes to global listeners AND update hass object
       source.subscribe((data) => {
-        // CRITICAL: Update our hass object with the new state from the DataSource
+        // Keep our own view of hass current with the new state. Copy, never write
+        // into the snapshot: it is the hass object cards hold as their previous
+        // state, and a card that finds the new state already there sees no change
+        // and keeps its old text.
         if (this.hass && this.hass.states && source._lastOriginalState) {
-          this.hass.states[enrichedConfig.entity] = source._lastOriginalState;
+          this.hass = { ...this.hass, states: { ...this.hass.states, [enrichedConfig.entity]: source._lastOriginalState } };
           lcardsLog.debug(`[DataSourceManager] 🔄 Updated hass.states['${enrichedConfig.entity}'] to: ${source._lastOriginalState.state}`);
         }
 
