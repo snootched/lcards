@@ -290,7 +290,7 @@ test('a view\'s description sits in a frame headed by the view\'s header bar', (
 });
 
 /** Views whose sliders are the feature itself (they drive nothing else) */
-const SLIDER_FEATURE_VIEWS = new Set(['ring-gauge']);
+const SLIDER_FEATURE_VIEWS = new Set(['ring-gauge', 'slider-presets', 'slider-drag-badge']);
 
 test('controls drive their own view: alert buttons only where something reacts to the alert mode; every slider bound to another card', () => {
     for (const v of views) {

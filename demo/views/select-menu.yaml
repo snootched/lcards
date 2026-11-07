@@ -1,0 +1,62 @@
+# Select menu (D1c): one button per option of an input_select, the selected one lit.
+# On the rate, look and colour helpers (never the mode select: it raises an alert).
+title: Select menu
+path: select-menu
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      # The six rates in a row of capped tiles
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_rate
+        preset: capped
+        grid: { columns: 6, gap: 4px }
+        grid_options: { columns: full, rows: 1 }
+      # Two columns of lozenges
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_look
+        preset: lozenge
+        grid: { columns: 1, gap: 6px }
+        grid_options: { columns: 12, rows: 3 }
+      # A bullet column
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_color
+        preset: bullet
+        grid: { columns: 1, gap: 6px }
+        grid_options: { columns: 12, rows: 3 }
+      # Outlines
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_look
+        preset: outline
+        grid: { columns: 1, gap: 6px }
+        grid_options: { columns: 12, rows: 3 }
+      # Toggle tabs: the state as a line along the top
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_color
+        preset: toggle-tab
+        grid: { columns: 1, gap: 6px }
+        grid_options: { columns: 12, rows: 3 }
+  - type: grid
+    column_span: 4
+    cards:
+      # Per-option labels and order: the colours named and listed in reverse
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_color
+        preset: lozenge
+        grid: { columns: 3, gap: 6px }
+        options:
+          - { value: ORANGE, label: AMBER }
+          - { value: LAVENDER, label: VIOLET }
+          - { value: BLUE, label: AZURE }
+        grid_options: { columns: 24, rows: 1 }
+      # A subset: only two of the six rates
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_rate
+        preset: lozenge
+        grid: { columns: 2, gap: 6px }
+        options:
+          - { value: PAUSED, label: HOLD }
+          - { value: LIVE, label: NOW }
+        grid_options: { columns: 24, rows: 1 }

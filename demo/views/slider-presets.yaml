@@ -1,0 +1,76 @@
+# Slider presets (D1c): every slider preset but the rings (they have their own view,
+# ring-gauge), on the power, shields, value and temperature helpers. Drag any slider.
+title: Slider presets
+path: slider-presets
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      # Pills and gauges, plain and with a left border
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: pills-basic
+        text: { name: { content: PILLS-BASIC } }
+        grid_options: { columns: 24, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: gauge-basic
+        text: { name: { content: GAUGE-BASIC } }
+        grid_options: { columns: 24, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: pills-left-border
+        text: { name: { content: PILLS-LEFT-BORDER, show: true } }
+        grid_options: { columns: 24, rows: 2 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: gauge-left-border
+        text: { name: { content: GAUGE-LEFT-BORDER, show: true } }
+        grid_options: { columns: 24, rows: 2 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: pills-left-border-rounded
+        text: { name: { content: PILLS ROUNDED, show: true } }
+        grid_options: { columns: 24, rows: 2 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: gauge-left-border-rounded
+        text: { name: { content: GAUGE ROUNDED, show: true } }
+        grid_options: { columns: 24, rows: 2 }
+  - type: grid
+    column_span: 4
+    cards:
+      # The shaped component: a fill inside an LCARS shape
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: SHAPED HORIZONTAL, show: true } }
+        style: { shaped: { text_bands: { left: { size: 160 } } } }
+        grid_options: { columns: 36, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: shaped-vertical
+        component: shaped
+        text: { name: { content: SHAPED, show: true } }
+        grid_options: { columns: 6, rows: 5 }
+      # The Picard component: a vertical gauge with its scale
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_temperature
+        preset: picard-gauge-vertical
+        component: picard
+        text: { name: { content: PICARD, show: true } }
+        grid_options: { columns: 6, rows: 5 }
+      # Coloured bands on a gauge: red under 20, green to 80, orange above
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: gauge-left-border
+        text: { name: { content: BANDS, show: true } }
+        style:
+          ranges:
+            - { min: 0, max: 20, color: var(--lcars-alert-red), opacity: 0.4 }
+            - { min: 20, max: 80, color: var(--lcards-green), opacity: 0.3 }
+            - { min: 80, max: 100, color: var(--lcards-orange), opacity: 0.4 }
+        grid_options: { columns: 36, rows: 2 }

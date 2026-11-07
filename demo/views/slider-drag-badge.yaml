@@ -1,0 +1,45 @@
+# Slider drag value badge (D1c): drag a slider and a badge shows the value it will set.
+title: Slider drag badge
+path: slider-drag-badge
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      # The default badge
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: gauge-left-border
+        text: { name: { content: DEFAULT, show: true } }
+        drag_badge: { enabled: true }
+        grid_options: { columns: 24, rows: 2 }
+      # A styled badge: one decimal, no unit, orange, gone at once on release
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_temperature
+        preset: pills-left-border
+        text: { name: { content: STYLED, show: true } }
+        drag_badge:
+          enabled: true
+          format: { decimals: 1, show_unit: false }
+          font_size: 18
+          color: { default: var(--lcards-gray-darkest) }
+          background: { color: { default: var(--lcards-orange) } }
+          border: { enabled: false }
+          release: { behavior: instant }
+        grid_options: { columns: 24, rows: 2 }
+      # Beside a vertical Picard gauge
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: picard-gauge-vertical
+        component: picard
+        text: { name: { content: PICARD, show: true } }
+        drag_badge: { enabled: true }
+        grid_options: { columns: 8, rows: 5 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-vertical
+        component: shaped
+        text: { name: { content: SHAPED, show: true } }
+        drag_badge: { enabled: true }
+        grid_options: { columns: 6, rows: 5 }

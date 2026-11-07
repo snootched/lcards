@@ -63,14 +63,18 @@ topics:
     title: Cards
     groups:
       - title: Slider
-        views: [ring-gauge, slider-ring-fit]
+        views: [slider-presets, slider-labels-tween, slider-drag-badge, ring-gauge, slider-ring-fit]
+      - title: Select menu
+        views: [select-menu]
+      - title: Layouts
+        views: [layouts]
       - title: Chart
         views: [chart-sources, chart-types, chart-styling]
       - title: Data grid
         views: [datagrid-data, datagrid-decorative]
   - id: alerts
     title: Alerts and animation
-    views: [alert-band, borg, anim-presets, alert-recolour, alert-overlay-edit]
+    views: [alert-modes, alert-band, borg, anim-presets, alert-recolour, alert-overlay-edit]
   - id: benchmarks
     title: Benchmarks
     views: [bench-12, bench-20, bench-stars-500-instances, bench-stars-500-shader, bench-stars-2000-instances, bench-stars-2000-shader, bench-stars-5000-instances, bench-stars-5000-shader]
@@ -627,6 +631,12 @@ releases:
         session: "D1c"
         docs: /cards/button/#component-mode-brackets-and-radar
         public: true
+      - file: slider-drag-badge
+        summary: "Slider drag badge: the value a drag will set, shown as you drag"
+        description: "drag_badge shows the value a drag will set while you drag, like Home Assistant's own sliders: drag any of these. DEFAULT is the plain badge, STYLED an orange one with one decimal and no unit that goes at once on release, and the Picard and shaped sliders show it beside the track."
+        session: "D1c"
+        docs: /cards/slider-card/#drag-value-badge
+        public: true
       - file: lcars-patterns-picard
         summary: "LCARS patterns, Picard: columns, tabs, sweeps, frames and bars"
         description: "The Picard-era patterns from the LCARS design guide, one per frame, every colour from a theme role: a code-block column, a toggle tab strip, facing sweeps with a title, a nested frame, utility pills in a bracket frame, a concentric sweep, controls inside a wide arm, a header bar with a title, slanted bars, flagged blocks and dot rows. The toggle tabs and the third code block follow LIGHTS and DOORS (tap them); RED ALERT raises one."
@@ -644,6 +654,14 @@ releases:
         description: "The TNG, DS9 and Voyager patterns from the design guide, one per frame: a sweep that continues as labelled segments, a pill grid led by big numbers, a bracket frame with a header, sidebar and footer, and the split header whose two blocks sweep into their bars."
         session: "D1c"
         docs: /getting-started/lcars-design#patterns
+        public: true
+  - version: "2026.09.0"
+    views:
+      - file: slider-labels-tween
+        summary: "Slider marker labels and value tween"
+        description: "The POWER buttons set the value at once, so the sliders ease to it instead of jumping (value_tween): the default 500 ms, a slow bounce, the pills sweeping, and one with the tween off for comparison. Dragging stays instant. At the bottom, value markers with labels: one follows SHIELDS (drag its slider at the top), one marks a fixed limit at 80."
+        session: "D1c"
+        docs: /cards/slider-card/#value-tween
         public: true
   - version: "2026.08.0"
     views:
@@ -678,6 +696,30 @@ releases:
         description: "Every elbow type, each named in its black space: the headers and footers (left, right, contained, open), the diagonal caps, the slanted bars and the frame. Then a simple elbow beside a segmented one (an outer sweep wrapped round a thinner inner one). Last, the outer curve modes: auto, from the arm's height, its larger or smaller side, filling the arm, and a fixed 12 px."
         session: "D1c"
         docs: /cards/elbow/#elbow-types
+        public: true
+      - file: slider-presets
+        summary: "Slider presets: pills, gauges, shaped and Picard"
+        description: "Every slider preset but the rings (they have their own view): pills and gauges plain (the top two, with no room for a name), with a left border and rounded; the shaped component across and upright; the Picard vertical gauge; and a gauge with coloured bands, red under 20, green to 80, orange above. Drag any of them: sliders on the same helper move together."
+        session: "D1c"
+        docs: /cards/slider-card/#presets
+        public: true
+      - file: select-menu
+        summary: "Select menu: one button per option, the selected one lit"
+        description: "The select menu shows an input_select's options as buttons and lights the selected one; tap one to select it. Top: the six rates in a row of capped tiles, then lozenge, bullet, outline and toggle-tab columns on the look and colour selects (menus on the same select change together). Below, the options list renaming and reordering the colours, and one showing only two of the six rates."
+        session: "D1c"
+        docs: /cards/select-menu/
+        public: true
+      - file: layouts
+        summary: "Layouts: a grid of cards in one card"
+        description: "The layout card places cards in a CSS grid by area name. Top left: three buttons beside a number wall. Top right: a layout card inside a frame elbow, holding a 2 by 2 grid of sliders and buttons. Bottom left: areas coloured on their own (layout.areas), even where no card sits. Bottom right: three columns on a wide window and one on a narrow one (mediaquery): resize the window. The Dashboards topic shows whole layout views."
+        session: "D1c"
+        docs: /cards/layout-card/
+        public: true
+      - file: alert-modes
+        summary: "Alert modes: the six levels recolour every card"
+        description: "The six alert levels, each a button on its lcards action: red, yellow, blue, gray, black and clear. Every card takes its colours from the theme, so the whole page recolours at once: the panel below (elbows, blocks, a button and two sliders on POWER), the header and the frames. On the Home Assistant boards this sets the alert for every screen."
+        session: "D1c"
+        docs: /core/alert-mode#alert-levels
         public: true
   - version: Benchmarks
     views:
