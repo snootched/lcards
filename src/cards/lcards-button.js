@@ -52,7 +52,6 @@
 import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSCard } from '../base/LCARdSCard.js';
-import { toggleService } from '../base/LCARdSActionHandler.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
@@ -2070,91 +2069,33 @@ export class LCARdSButton extends LCARdSCard {
         // Use segment's entity if specified, otherwise card's entity
         const entityId = segment.entity || this.config.entity;
 
-        // Build action context
-        const actionContext = {
-            entity: entityId,
-            segment: segment.id
-        };
-
         lcardsLog.debug(`[LCARdSButton] Executing segment action`, {
             action: action.action,
-            service: action.service,
-            target: action.target,
-            serviceData: action.service_data || action.data,
             entityId,
             segmentId: segment.id
         });
 
-        switch (action.action) {
-            case 'toggle':
-                if (entityId) {
-                    const { domain, service } = toggleService(entityId, this.hass?.states?.[entityId]?.state);
-                    await this.hass?.callService(domain, service, { entity_id: entityId });
-                }
-                break;
-
-            case 'call-service':
-                if (action.service) {
-                    const [domain, service] = action.service.split('.');
-
-                    // Build service data from multiple possible sources
-                    const serviceData = {
-                        ...(action.service_data || action.data || {}),
-                    };
-
-                    // Handle target parameter (new HA format)
-                    // target can contain: entity_id, device_id, area_id, label_id
-                    let target = action.target ? { ...action.target } : undefined;
-
-                    // If no target specified but entityId exists, add it to service data
-                    if (!target && entityId && !serviceData.entity_id) {
-                        serviceData.entity_id = entityId;
-                    }
-
-                    // Call service with target if provided, otherwise just service data
-                    if (target) {
-                        await this.hass?.callService(domain, service, serviceData, target);
-                    } else {
-                        await this.hass?.callService(domain, service, serviceData);
-                    }
-                }
-                break;
-
-            case 'navigate':
-                if (action.navigation_path) {
-                    window.history.pushState(null, '', action.navigation_path);
-                    window.dispatchEvent(new CustomEvent('location-changed'));
-                }
-                break;
-
-            case 'more-info':
-                if (entityId) {
-                    const event = new CustomEvent('hass-more-info', {
-                        detail: { entityId },
-                        bubbles: true,
-                        composed: true
-                    });
-                    this.dispatchEvent(event);
-                }
-                break;
-
-            case 'fire-dom-event':
-                // Custom event for advanced integrations
-                const customEvent = new CustomEvent(action.event_type || 'segment-action', {
-                    detail: {
-                        segment: segment.id,
-                        action: action,
-                        context: actionContext
-                    },
-                    bubbles: true,
-                    composed: true
-                });
-                this.dispatchEvent(customEvent);
-                break;
-
-            default:
-                lcardsLog.warn(`[LCARdSButton] Unknown segment action: ${action.action}`);
+        if (action.action === 'fire-dom-event') {
+            // Custom event for advanced integrations
+            this.dispatchEvent(new CustomEvent(action.event_type || 'segment-action', {
+                detail: { segment: segment.id, action, context: { entity: entityId, segment: segment.id } },
+                bubbles: true,
+                composed: true
+            }));
+            return;
         }
+
+        // A service call with no target acts on the segment's entity
+        let config = action;
+        const isService = action.action === 'call-service' || action.action === 'perform-action';
+        const data = action.service_data || action.data || {};
+        if (isService && !action.target && entityId && !data.entity_id) {
+            config = { ...action, data: { ...data, entity_id: entityId } };
+            delete config.service_data;
+        }
+
+        // The same action types as the card's own taps (perform-action, url, assist, ...)
+        this._actionHandler.runAction(config, this.hass, this, entityId);
     }
 
     /**
