@@ -279,6 +279,11 @@ export class AnimationManager extends BaseService {
    * elements survived the re-render keep running and move over; ones whose elements
    * were replaced are reverted and replayed on the new elements from where they
    * were. Everything else is reverted, as before.
+   *
+   * One animation can report several instances (stagger-flash: one per element), so
+   * the split is per animation: all its instances survived, or it is replayed once.
+   * Replaying per instance multiplied it on every re-render (6 handles became 6
+   * replays of 6 handles each, and so on), which hung the page.
    * @param {object} oldScope
    * @param {boolean} onLoadFired - the new scope's flag
    * @returns {{ keep: {trigger: string, instance: any, animDef: any}[], replay: {animDef: any, time: number}[] }}
@@ -289,19 +294,29 @@ export class AnimationManager extends BaseService {
     const keep = [];
     /** @type {{animDef: any, time: number}[]} */
     const replay = [];
+    /** @type {Map<any, {trigger: string, instances: any[]}>} live instances that may carry over, by animation */
+    const byDef = new Map();
     oldScope.runningInstances?.forEach((instances, trigger) => {
       instances.forEach((instance) => {
         if (!instance || instance.completed) return;
         const animDef = this._instanceDefs.get(instance);
-        if (this._carriesOver(trigger, animDef, onLoadFired)) {
-          if (this._targetsConnected(instance)) {
-            keep.push({ trigger, instance, animDef });
-            return;
-          }
-          replay.push({ animDef, time: Number(instance.currentTime) || 0 });
+        if (!this._carriesOver(trigger, animDef, onLoadFired)) {
+          this._revertInstance(instance);
+          return;
         }
-        this._revertInstance(instance);
+        // _carriesOver() only passes instances with their animation
+        const group = byDef.get(animDef) ?? { trigger, instances: /** @type {any[]} */ ([]) };
+        group.instances.push(instance);
+        byDef.set(animDef, group);
       });
+    });
+    byDef.forEach(({ trigger, instances }, animDef) => {
+      if (instances.every(i => this._targetsConnected(i))) {
+        instances.forEach(instance => keep.push({ trigger, instance, animDef }));
+        return;
+      }
+      replay.push({ animDef, time: Number(instances[0].currentTime) || 0 });
+      instances.forEach(instance => this._revertInstance(instance));
     });
     oldScope.runningInstances?.clear();
     return { keep, replay };
