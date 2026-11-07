@@ -40,7 +40,7 @@
       <div class="demo-board-main">
         <div v-if="active" class="demo-board-heading">
           <span class="demo-board-title">{{ active.title }}</span>
-          <span v-if="byRelease" class="demo-board-badge">{{ releaseName(active.release) }}</span>
+          <span v-if="byRelease" class="demo-board-badge demo-board-badge-heading">{{ releaseName(active.release) }}</span>
           <p class="demo-board-summary">{{ active.summary }}</p>
         </div>
         <p v-if="fatal" class="demo-board-error">{{ fatal }}</p>
@@ -380,9 +380,17 @@ onUnmounted(() => {
   background: var(--demo-menu);
   color: var(--demo-on-bar);
   font-family: Antonio, sans-serif;
-  font-size: 11px;
+  font-size: 13px;
+  line-height: 1.5;
   text-transform: uppercase;
   vertical-align: 1px;
+}
+/* the open view's release, beside its title */
+.demo-board-badge-heading {
+  margin-left: 12px;
+  padding: 2px 12px;
+  font-size: 17px;
+  vertical-align: 4px;
 }
 .demo-board-heading {
   margin-bottom: 12px;

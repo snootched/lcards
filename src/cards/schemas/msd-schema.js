@@ -354,6 +354,12 @@ export function getMsdSchema() {
               optional: true,
               description: 'Home Assistant card config embedded in this control overlay'
             },
+            obstacle: {
+              type: 'boolean',
+              optional: true,
+              default: false,
+              description: 'Control overlay, or shape overlay (kind: rect/circle): when true, lines routed auto, smart or grid go around its box (position + size), keeping the routing clearance. Default false: lines may cross it.'
+            },
             triggers_update: {
               oneOf: [
                 {

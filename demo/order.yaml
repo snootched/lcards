@@ -29,6 +29,9 @@ topics:
         views: [elbows]
       - title: LCARS patterns
         views: [lcars-patterns-picard, lcars-patterns-readouts, lcars-patterns-classic]
+  - id: msd
+    title: MSD
+    views: [msd-basics, msd-routing, msd-shapes]
   - id: astrometrics
     title: Astrometrics
     groups:
@@ -671,6 +674,18 @@ releases:
         session: "D1c"
         docs: /cards/button/#voyager-d-pad
         public: true
+      - file: msd-routing
+        summary: "MSD routing: bundled lines, channels, manual waypoints"
+        description: "How MSD lines find their way, on cards with no blueprint. Top: four lines from A to D run to four points close together on the right, round the obstacle in the middle: A, B and C bundle into one trunk over it (lanes 10 apart), D goes under it. Next: the orange line is forced through a channel (the orange band), the blue one routes freely. Below: one pair of points joined four ways: manual waypoints through the white point (orange), manhattan with one bend (dashed), direct (dotted) and auto with round corners (blue)."
+        session: "D1c"
+        docs: /cards/msd/routing
+        public: true
+      - file: msd-shapes
+        summary: "MSD shapes and the shield bubble"
+        description: "Shape overlays drawn on an MSD. Top: a shield bubble round the ship, four arcs that turn orange under 50 and red under 20 as you drag SHIELDS (MSD Studio's Suggest Shield Bubble draws them from the hull). Below: the three shape kinds, a room (rect) that lights with LIGHTS, a field (circle) that turns red with DOORS, a dashed conduit (polyline with bevelled corners), and a line from the room to the conduit's middle point."
+        session: "D1c"
+        docs: /cards/msd/shape-overlay
+        public: true
   - version: "Before 2026.08"
     views:
       - file: button-presets
@@ -714,6 +729,12 @@ releases:
         description: "The layout card places cards in a CSS grid by area name. Top left: three buttons beside a number wall. Top right: a layout card inside a frame elbow, holding a 2 by 2 grid of sliders and buttons. Bottom left: areas coloured on their own (layout.areas), even where no card sits. Bottom right: three columns on a wide window and one on a narrow one (mediaquery): resize the window. The Dashboards topic shows whole layout views."
         session: "D1c"
         docs: /cards/layout-card/
+        public: true
+      - file: msd-basics
+        summary: "MSD basics: a ship blueprint, cards on it, lines to the ship"
+        description: "A master systems display: a ship blueprint with cards placed on it, each joined to a point on the ship by a routed line. BRIDGE toggles the lights, WARP CORE the toggle helper, SHUTTLE BAY the doors. Below, the same ship faded and dimmed with base_svg filters, with dashed orange lines to two labels."
+        session: "D1c"
+        docs: /cards/msd/
         public: true
       - file: alert-modes
         summary: "Alert modes: the six levels recolour every card"

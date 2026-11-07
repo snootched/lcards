@@ -40,6 +40,7 @@ msd:
 | `size` | array | - | `[width, height]` in viewBox units |
 | `attachment` | string | `center` | Which point of the control aligns with its anchor or position (one of the 9 [attachment points](#attachment-points)) |
 | `position_side` | string | `center` | When `position` names another control's `id`: which point of that control to align to |
+| `obstacle` | boolean | `false` | Lines routed `auto`, `smart` or `grid` go around this control's box instead of crossing it (see [Obstacles](./routing#obstacles)) |
 | `triggers_update` | list / `all` | - | Extra entity IDs the embedded card depends on that LCARdS can't detect; `all` sends every Home Assistant update to this control (use only when its entities can't be listed) |
 | `visible` | boolean | `true` | Show or hide the overlay |
 | `z_index` | number | - | Stacking order (higher = in front) |

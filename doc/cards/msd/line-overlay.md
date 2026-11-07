@@ -138,7 +138,7 @@ For independent axis control use `anchor_gap_x` / `anchor_gap_y` (overrides `anc
 
 | Mode | Description |
 |------|-------------|
-| `auto` | Default: resolves to `manhattan` for simple layouts; upgrades to `smart` automatically when obstacles or channels are present |
+| `auto` | Default: always full pathfinding (obstacle avoidance, trace bundling, crossing avoidance); the same as `smart` |
 | `direct` | Straight line between endpoints: never pathfinds |
 | `manhattan` | L-shaped single bend |
 | `smart` | A* pathfinding + refinement: obstacle avoidance, trace bundling, crossing avoidance |

@@ -1,0 +1,82 @@
+# MSD routing (D1c): how lines find their way, on bare MSD cards (no blueprint):
+# bundling into trunks round an obstacle, a forced channel, and the fixed modes
+# (manual waypoints, manhattan, direct) beside an automatic line.
+title: MSD routing
+path: msd-routing
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      # Four lines from the left to four points close together on the right: they
+      # bundle into one trunk (lanes 10 apart) and go round the obstacle together
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg: { source: none }
+          view_box: [0, 0, 600, 300]
+          routing: { trunk_line_spacing: 10, clearance: 10 }
+          anchors:
+            t1: [570, 110]
+            t2: [570, 135]
+            t3: [570, 160]
+            t4: [570, 185]
+          overlays:
+            - { id: obstacle, type: control, position: [300, 150], size: [140, 70], obstacle: true, card: { type: custom:lcards-button, preset: panel-dark, interactive: false, text: { label: { content: OBSTACLE } } } }
+            - { id: s1, type: control, position: [60, 50], size: [90, 34], card: { type: custom:lcards-button, preset: lozenge, interactive: false, text: { name: { content: A, show: true } } } }
+            - { id: s2, type: control, position: [60, 115], size: [90, 34], card: { type: custom:lcards-button, preset: lozenge, interactive: false, text: { name: { content: B, show: true } } } }
+            - { id: s3, type: control, position: [60, 185], size: [90, 34], card: { type: custom:lcards-button, preset: lozenge, interactive: false, text: { name: { content: C, show: true } } } }
+            - { id: s4, type: control, position: [60, 250], size: [90, 34], card: { type: custom:lcards-button, preset: lozenge, interactive: false, text: { name: { content: D, show: true } } } }
+            - { id: d1, type: shape, kind: circle, position: [564, 104], size: [12, 12], style: { color: var(--lcards-orange), fill: var(--lcards-orange) } }
+            - { id: d2, type: shape, kind: circle, position: [564, 129], size: [12, 12], style: { color: var(--lcards-orange), fill: var(--lcards-orange) } }
+            - { id: d3, type: shape, kind: circle, position: [564, 154], size: [12, 12], style: { color: var(--lcards-orange), fill: var(--lcards-orange) } }
+            - { id: d4, type: shape, kind: circle, position: [564, 179], size: [12, 12], style: { color: var(--lcards-orange), fill: var(--lcards-orange) } }
+            - { id: l1, type: line, anchor: s1, attach_to: t1, route: auto, corner_style: round, style: { color: var(--lcards-blue), width: 3 } }
+            - { id: l2, type: line, anchor: s2, attach_to: t2, route: auto, corner_style: round, style: { color: var(--lcards-blue), width: 3 } }
+            - { id: l3, type: line, anchor: s3, attach_to: t3, route: auto, corner_style: round, style: { color: var(--lcards-blue), width: 3 } }
+            - { id: l4, type: line, anchor: s4, attach_to: t4, route: auto, corner_style: round, style: { color: var(--lcards-blue), width: 3 } }
+        grid_options: { columns: 24, rows: 6 }
+      # A channel the first line is forced through (the orange band); the second line
+      # routes freely
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg: { source: none }
+          view_box: [0, 0, 600, 300]
+          channels:
+            main_bus: { bounds: [250, 90, 300, 20], mode: force, direction: horizontal, line_spacing: 10 }
+          anchors:
+            a_start: [50, 100]
+            a_end: [550, 100]
+            b_start: [50, 250]
+            b_end: [550, 40]
+          overlays:
+            - { id: bus, type: shape, kind: rect, position: [250, 90], size: [300, 20], z_index: 10, style: { color: var(--lcards-orange), width: 1, fill: var(--lcards-orange), fill_opacity: 0.2 } }
+            - { id: line_a, type: line, anchor: a_start, attach_to: a_end, route_channels: [main_bus], route: auto, style: { color: var(--lcards-orange), width: 3 } }
+            - { id: line_b, type: line, anchor: b_start, attach_to: b_end, route: auto, style: { color: var(--lcards-blue), width: 3 } }
+        grid_options: { columns: 24, rows: 6 }
+  - type: grid
+    column_span: 4
+    cards:
+      # One pair of points, four ways: manual waypoints (through nav, orange), manhattan
+      # (one bend), direct (straight) and auto (blue, round corners)
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg: { source: none }
+          view_box: [0, 0, 600, 500]
+          anchors:
+            start_point: [40, 60]
+            nav_anchor: [200, 300]
+            end_point: [560, 440]
+          overlays:
+            - { id: nav, type: shape, kind: circle, position: [190, 290], size: [20, 20], style: { color: var(--lcards-moonlight), fill: var(--lcards-moonlight) } }
+            - id: manual_line
+              type: line
+              anchor: start_point
+              attach_to: end_point
+              route: manual
+              waypoints: [[100, 200], nav_anchor, [300, 400]]
+              style: { color: var(--lcards-orange), width: 4 }
+            - { id: manhattan_line, type: line, anchor: start_point, attach_to: end_point, route: manhattan, style: { color: var(--lcards-gray-medium-light), width: 3, dash_array: "10,6" } }
+            - { id: direct_line, type: line, anchor: start_point, attach_to: end_point, route: direct, style: { color: var(--lcards-gray-medium-light), width: 2, dash_array: "3,6" } }
+            - { id: auto_line, type: line, anchor: start_point, attach_to: end_point, route: auto, route_hint: yx, corner_style: round, corner_radius: 30, style: { color: var(--lcards-blue), width: 3 } }
+        grid_options: { columns: 24, rows: 8 }
