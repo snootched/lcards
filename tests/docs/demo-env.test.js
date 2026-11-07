@@ -31,6 +31,16 @@ test('increment and decrement step an input_number and hold inside min and max',
     assert.equal(state(id), '0', 'held at min');
 });
 
+test('toggle, turn_on and turn_off do nothing to a number or select helper (Home Assistant has no such services)', async () => {
+    const { call, state } = demoEnv();
+    const id = 'input_number.lcards_test_value';
+    const before = state(id);
+    for (const service of ['toggle', 'turn_off', 'turn_on']) await call('input_number', service, { entity_id: id });
+    assert.equal(state(id), before);
+    await call('input_boolean', 'toggle', { entity_id: 'input_boolean.lcards_test_lights' });
+    assert.equal(state('input_boolean.lcards_test_lights'), 'off', 'an input_boolean still toggles');
+});
+
 test('every demo/package.yaml automation has a function twin on the same trigger entity', () => {
     const { automation } = loadPackage();
     assert.deepEqual(DEMO_AUTOMATIONS.map(a => a.id).sort(), automation.map(a => a.id).sort());

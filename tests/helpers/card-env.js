@@ -68,6 +68,8 @@ const ENTITY_ID = /^(light|switch|sensor|binary_sensor|input_boolean|input_numbe
  */
 /** Domains whose history is their current value (nothing changes them but the reader) */
 const HELPER_DOMAINS = new Set(['input_number', 'input_boolean', 'input_select', 'number']);
+/** Domains Home Assistant gives no toggle, turn_on or turn_off service: a tap's default toggle does nothing there */
+const NO_ONOFF_DOMAINS = new Set(['input_number', 'number', 'input_select', 'select', 'input_text', 'text', 'sensor', 'binary_sensor', 'input_datetime']);
 
 export function createDemoEnv({ sample, now = Date.now(), simulateServices = false, extraStates = {}, historyDelay = {}, renderTemplate = null }) {
     const { SAMPLE_ENTITIES, samplePoints, sampleStatistics } = sample;
@@ -371,6 +373,8 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
                     if (Number.isFinite(v)) env.setState(id, String(Number(v.toFixed(6))));
                     continue;
                 }
+                // number, select and text helpers have no on/off services in Home Assistant
+                if (['toggle', 'turn_on', 'turn_off'].includes(service) && NO_ONOFF_DOMAINS.has(id.split('.')[0])) continue;
                 if (service === 'toggle') env.setState(id, flip(state));
                 else if (service === 'turn_off') env.setState(id, 'off');
                 else if (service === 'turn_on') {

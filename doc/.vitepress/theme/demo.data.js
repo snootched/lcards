@@ -50,6 +50,8 @@ export default {
     const isPublic = new Set(views.map(v => v.file))
     return {
       release,
+      // the releases with public views, newest first (the menu's release filter)
+      releases: boardReleases(demo, { board: 'public' }).map(r => r.version),
       helperStates: helperSeed(),
       // demo/package.yaml's scripts, run by the page's sample Home Assistant (card-env.js addScripts)
       scripts: loadPackage().script,

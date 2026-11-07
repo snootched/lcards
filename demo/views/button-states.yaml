@@ -1,0 +1,111 @@
+# Button state colours (D1c): colour maps by state (active/inactive), by numeric range
+# (zero, below:N, between:N:M, non_zero), on backgrounds, borders and text. LIGHTS and VALUE drive them.
+title: Button states
+path: button-states
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: lozenge
+        text: { name: { content: LIGHTS, show: true } }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_value
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: VALUE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 24, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      # On and off: the background, border and text follow the entity's state
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: lozenge
+        text:
+          name: { content: ON OR OFF, show: true }
+          state: { content: "{entity.state}", show: true, position: center-right }
+        style:
+          card:
+            color:
+              background:
+                active: var(--lcards-orange)
+                inactive: var(--lcards-gray)
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: outline
+        text: { name: { content: BORDER, show: true } }
+        style:
+          border:
+            color:
+              active: var(--lcards-orange)
+              inactive: var(--lcards-gray)
+            width: 3
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+      # The text colour by state: yellow while on, dark while off
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: outline
+        text:
+          name:
+            content: TEXT
+            show: true
+            color: { active: var(--lcars-yellow), inactive: var(--lcards-gray) }
+        tap_action: { action: toggle }
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      # Numeric ranges on VALUE: red at 0 and under 20, yellow under 50, green above
+      - type: custom:lcards-button
+        entity: input_number.lcards_test_value
+        tap_action: { action: none }
+        preset: lozenge
+        text:
+          name: { content: LEVEL, show: true }
+          state: { content: "{entity.state}", show: true, position: center-right }
+        style:
+          card:
+            color:
+              background:
+                zero: var(--lcars-alert-red)
+                below:20: var(--lcars-alert-red)
+                below:50: var(--lcars-alert-yellow)
+                non_zero: var(--lcards-green)
+                default: var(--lcards-gray)
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        entity: input_number.lcards_test_value
+        tap_action: { action: none }
+        preset: lozenge
+        text:
+          name: { content: 40 TO 60, show: true }
+          state: { content: "{entity.state}", show: true, position: center-right }
+        style:
+          card:
+            color:
+              background:
+                between:40:60: var(--lcards-orange)
+                default: var(--lcards-blue)
+        grid_options: { columns: 8, rows: 1 }
+      # The text colour by range: red under 20, yellow above 90
+      - type: custom:lcards-button
+        entity: input_number.lcards_test_value
+        tap_action: { action: none }
+        preset: outline
+        text:
+          name:
+            content: BY RANGE
+            show: true
+            color: { below:20: var(--lcars-alert-red), above:90: var(--lcars-yellow), default: var(--lcards-gray) }
+          state: { content: "{entity.state}", show: true, position: center-right }
+        grid_options: { columns: 8, rows: 1 }

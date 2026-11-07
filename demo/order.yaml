@@ -20,6 +20,15 @@ topics:
         views: [gallery/picard-console, gallery/picard-display, gallery/picard-split, gallery/picard-portrait]
       - title: Design guide, classic
         views: [gallery/tng-console, gallery/ds9-bracket, gallery/voyager-roster]
+  - id: buttons
+    title: Buttons and elbows
+    groups:
+      - title: Buttons
+        views: [button-presets, button-states, button-components, button-dpad-voyager, button-brackets-radar]
+      - title: Elbows
+        views: [elbows]
+      - title: LCARS patterns
+        views: [lcars-patterns-picard, lcars-patterns-readouts, lcars-patterns-classic]
   - id: astrometrics
     title: Astrometrics
     groups:
@@ -611,6 +620,64 @@ releases:
         description: "Voyager-style: a split header whose two bars continue as segments, a number cascade, a duty roster list, a column of big numbers and pill groups. In Home Assistant the view uses the LCARS Nemesis Blue theme."
         session: "S17 gallery"
         docs: /getting-started/dashboard-gallery#classic-list
+        public: true
+      - file: button-brackets-radar
+        summary: "Brackets and radar: the round button components"
+        description: "component: brackets frames a reading between two arcs, here TEMPERATURE's value (drag the slider); component: radar draws a scope with range rings, cross hairs and a sweep. Each part is a segment with its own style: the third card has an orange sweep and rim, the fourth blue brackets round a fixed number."
+        session: "D1c"
+        docs: /cards/button/#component-mode-brackets-and-radar
+        public: true
+      - file: lcars-patterns-picard
+        summary: "LCARS patterns, Picard: columns, tabs, sweeps, frames and bars"
+        description: "The Picard-era patterns from the LCARS design guide, one per frame, every colour from a theme role: a code-block column, a toggle tab strip, facing sweeps with a title, a nested frame, utility pills in a bracket frame, a concentric sweep, controls inside a wide arm, a header bar with a title, slanted bars, flagged blocks and dot rows. The toggle tabs and the third code block follow LIGHTS and DOORS (tap them); RED ALERT raises one."
+        session: "D1c"
+        docs: /getting-started/lcars-design#patterns
+        public: true
+      - file: lcars-patterns-readouts
+        summary: "LCARS patterns, readouts: status rows, gauges, lists and scopes"
+        description: "The design guide's patterns for readings, one per frame: status rows, readout rows and a gauge bank on the power, shields, value, temperature and humidity helpers (drag them), a selector strip on the colour select, a tile wall, a list, fleet tiles, brackets and scopes, and a number cascade to fill a spare area."
+        session: "D1c"
+        docs: /getting-started/lcars-design#patterns
+        public: true
+      - file: lcars-patterns-classic
+        summary: "LCARS patterns, classic: segmented bars, pill grids, bracket frames, split headers"
+        description: "The TNG, DS9 and Voyager patterns from the design guide, one per frame: a sweep that continues as labelled segments, a pill grid led by big numbers, a bracket frame with a header, sidebar and footer, and the split header whose two blocks sweep into their bars."
+        session: "D1c"
+        docs: /getting-started/lcars-design#patterns
+        public: true
+  - version: "2026.08.0"
+    views:
+      - file: button-dpad-voyager
+        summary: "Voyager D-pad: 56 segments, each its own button"
+        description: "component: dpad_voyager, the D-pad drawn as on Voyager's consoles, with every shape of it a segment of its own. The four arrows step VALUE up and down (watch the slider); the centre and the top two corners toggle the lights, doors and toggle helpers and light up while they are on."
+        session: "D1c"
+        docs: /cards/button/#voyager-d-pad
+        public: true
+  - version: "Before 2026.08"
+    views:
+      - file: button-presets
+        summary: "Button presets: every built-in button style"
+        description: "Every button preset. Top: the standard shapes (lozenge, bullet, capped, barrel, filled, outline, each also facing right, then icon and text-only), all on the lights helper, so a tap on any toggles it and they all change colour with it. Middle: the panels and toggle tab, which follow the lights too. Bottom: the bar labels, text bars in every end style."
+        session: "D1c"
+        docs: /cards/button/#standard-buttons
+        public: true
+      - file: button-states
+        summary: "Button states: colours, borders and text by state and range"
+        description: "Colour maps keyed by state. The first row follows LIGHTS (tap any of them): a background, a border and a text colour for on and off. The second follows VALUE (drag the slider): red at 0 and under 20, yellow under 50, green above; orange only between 40 and 60; the name red under 20 and yellow above 90."
+        session: "D1c"
+        docs: /core/colours#state-based-colour-maps
+        public: true
+      - file: button-components
+        summary: "Button components: the D-pad and the alert symbol"
+        description: "component: dpad gives each of its nine segments its own entity and action: up and down step VALUE, left and right toggle the lights and doors, the centre toggles the lights and lights up with them. component: alert draws the Starfleet alert symbol; its ranges switch it to yellow from 50 and red from 80 as you drag VALUE. Below, the other alert presets: blue, green, grey and black."
+        session: "D1c"
+        docs: /cards/button/#component-mode-d-pad
+        public: true
+      - file: elbows
+        summary: "Elbows: every type, both styles, the outer curve modes"
+        description: "Every elbow type, each named in its black space: the headers and footers (left, right, contained, open), the diagonal caps, the slanted bars and the frame. Then a simple elbow beside a segmented one (an outer sweep wrapped round a thinner inner one). Last, the outer curve modes: auto, from the arm's height, its larger or smaller side, filling the arm, and a fixed 12 px."
+        session: "D1c"
+        docs: /cards/elbow/#elbow-types
         public: true
   - version: Benchmarks
     views:

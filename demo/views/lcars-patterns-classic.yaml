@@ -1,0 +1,185 @@
+# LCARS patterns, classic: the patterns of doc/getting-started/lcars-design.md (D1c), its sample
+# entities swapped for lcards_test_* helpers. Each frame is one pattern.
+title: LCARS patterns, classic
+path: lcars-patterns-classic
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: SEGMENTED BAR
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 110px
+          grid-gap: 6px
+          grid-template-columns: 220px 3fr 1fr 4fr 2fr
+          grid-template-rows: 40px minmax(0, 1fr)
+          grid-template-areas: |
+            "corner s1 s2 s3 s4"
+            "corner .  .  .  ."
+        cards:
+          - type: custom:lcards-elbow
+            view_layout: {grid-area: corner}
+            elbow: {type: header-left, segment: {bar_width: 140, bar_height: 40, color: theme:colors.ui.primary}}
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 40
+            view_layout: {grid-area: s1}
+            text: {label: {content: COURSE SELECT, position: bottom-right}}
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 40
+            view_layout: {grid-area: s2}
+            text: {label: {content: '541', position: bottom-right}}
+            style: {card: {color: {background: {default: theme:colors.ui.tertiary}}}}
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 40
+            view_layout: {grid-area: s3}
+            text: {label: {content: NAV REF, position: bottom-right}}
+            style: {card: {color: {background: {default: theme:colors.ui.secondary}}}}
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 40
+            view_layout: {grid-area: s4}
+            text: {label: {content: FLIGHT, position: bottom-right}}
+        grid_options:
+          columns: full
+          rows: 2
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: PILL GRID
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 180px
+          grid-gap: 6px
+          grid-template-columns: 70px repeat(3, minmax(0, 1fr))
+          grid-template-rows: repeat(2, minmax(0, 1fr))
+        cards:
+          - type: custom:lcards-button
+            preset: text-only
+            text: {label: {content: '358', show: true, position: center-right, color: theme:colors.ui.tertiary}}
+          - type: custom:lcards-button
+            preset: lozenge
+            style: {card: {color: {background: {default: theme:colors.ui.primary}}}}
+          - type: custom:lcards-button
+            preset: lozenge
+            style: {card: {color: {background: {default: theme:colors.ui.primary}}}}
+          - type: custom:lcards-button
+            preset: lozenge
+            style: {card: {color: {background: {default: theme:colors.ui.secondary}}}}
+          - type: custom:lcards-button
+            preset: text-only
+            text: {label: {content: '451', show: true, position: center-right, color: theme:colors.ui.secondary}}
+          - type: custom:lcards-button
+            preset: lozenge
+            style: {card: {color: {background: {default: theme:colors.ui.secondary}}}}
+          - type: custom:lcards-button
+            preset: lozenge
+            style: {card: {color: {background: {default: theme:colors.ui.tertiary}}}}
+          - type: custom:lcards-button
+            preset: lozenge
+            style: {card: {color: {background: {default: theme:colors.ui.primary}}}}
+        grid_options:
+          columns: full
+          rows: 3
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: BRACKET FRAME
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 260px
+          grid-gap: 6px
+          grid-template-columns: 120px minmax(0, 1fr)
+          grid-template-rows: 70px minmax(0, 1fr) minmax(0, 1fr) 70px
+          grid-template-areas: |
+            "top    top"
+            "side1  main"
+            "side2  main"
+            "bottom bottom"
+        cards:
+          - type: custom:lcards-elbow
+            view_layout: {grid-area: top}
+            elbow: {type: header-left, segment: {bar_width: 120, bar_height: 24, color: theme:colors.ui.primary}}
+            text: {label: {content: STELLAR CARTOGRAPHY • 2387, position: top-right, color: theme:colors.ui.tertiary}}
+          - type: custom:lcards-button
+            preset: panel-dark
+            view_layout: {grid-area: side1}
+          - type: custom:lcards-button
+            preset: panel-light
+            view_layout: {grid-area: side2}
+          - type: custom:lcards-data-grid
+            data_mode: decorative
+            view_layout: {grid-area: main}
+          - type: custom:lcards-elbow
+            view_layout: {grid-area: bottom}
+            elbow: {type: footer-left, segment: {bar_width: 120, bar_height: 24, color: theme:colors.ui.primary}}
+        grid_options:
+          columns: full
+          rows: 5
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: SPLIT HEADER
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 200px
+          grid-gap: 8px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: minmax(0, 1fr) minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-elbow
+            elbow: {type: footer-left, segment: {bar_width: 140, bar_height: 18, color: theme:colors.ui.primary}}
+            text: {title: {content: PATIENT BIOMEDICAL STATUS, position: top-right, font_size: 26, color: theme:colors.ui.tertiary}}
+          - type: custom:lcards-elbow
+            elbow: {type: header-left, segment: {bar_width: 140, bar_height: 18, color: theme:colors.ui.secondary}}
+        grid_options:
+          columns: full
+          rows: 4

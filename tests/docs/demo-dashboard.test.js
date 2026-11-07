@@ -96,8 +96,9 @@ test('public board: no benchmarks or checks; the dev board has them', () => {
             assert.equal(headerNote(v, { board: 'dev', release: r.version }), `${r.version} · ${v.session}`, v.file);
         }
     }
-    const header = JSON.stringify(buildDashboard(demo, { board: 'public' }).views.find((v, i) => i > 0 && v.sections).sections[0]);
-    assert.ok(header.includes(`"${demo.releases[0].version}"`), 'the release is in the header bar');
+    const first = buildDashboard(demo, { board: 'public' }).views.find((v, i) => i > 0 && v.sections);
+    const release = demo.releases.find(r => r.views.some(v => v.path === first.path)).version;
+    assert.ok(JSON.stringify(first.sections[0]).includes(`"${release.toUpperCase()}"`), `the release (${release}) is in ${first.path}'s header bar`);
 });
 
 test('topics: every view sits in one group of the topic tree; the index has a block per topic in the tree\'s order', () => {

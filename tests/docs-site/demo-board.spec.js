@@ -1,8 +1,8 @@
 /**
  * The live demo page (getting-started/live-demo.md, <DemoBoard />): every release's
  * public demo views (demo/order.yaml) are listed in the topic tree's order in the side
- * menu, topics open and close, a heavy view waits for its Load button, the New in filter
- * keeps this release's (when there are older views), the page is wide, an astrometrics view and a WebGL
+ * menu, topics open and close, a heavy view waits for its Load button, the release filter
+ * keeps each release's views (when there is more than one release), the page is wide, an astrometrics view and a WebGL
  * background view mount their real cards with no errors, switching views replaces
  * the cards, the alert buttons change the page's alert mode, and the charts
  * follow their sliders.
@@ -143,26 +143,43 @@ test('data grid: the cells draw at once, the Jinja2 note renders, and tapping an
     const state = () => page.evaluate(async () => (await globalThis.__lcardsDocsEnv).hass.states['input_boolean.lcards_test_lights']?.state);
     const before = await state();
     const after = before === 'on' ? 'off' : 'on';
-    await card.getByText(before, { exact: true }).first().click();
-    await expect.poll(state).toBe(after);
+    // the Lights row's cell only: Doors shows on/off too, and a cell redraws a moment after its state changes
+    const row = await card.locator('.grid-cell').filter({ hasText: /^\s*Lights\s*$/ }).getAttribute('data-row');
+    const lights = card.locator(`.grid-cell[data-row="${row}"][data-col="1"]`);
+    const tapLights = async (from, to) => {
+        await expect(lights).toHaveText(from);
+        await lights.click();
+        await expect.poll(state).toBe(to);
+        await expect(lights).toHaveText(to);
+    };
+    await tapLights(before, after);
     // again from the same cell (its handler is set up once: it must act on the state now)
-    await card.getByText(after, { exact: true }).first().click();
-    await expect.poll(state).toBe(before);
-    await card.getByText(before, { exact: true }).first().click();
-    await expect.poll(state).toBe(after);
+    await tapLights(after, before);
+    await tapLights(before, after);
 });
 
-test('the New in filter: shown only when there are older views; then it keeps this release\'s', async ({ page }) => {
+test('the release filter: shown once there are views from more than one release; each release keeps its own', async ({ page }) => {
     await page.goto(URL_PATH);
-    await expect(page.locator('.demo-board-topic').first()).toBeVisible();
-    const fresh = VIEWS.filter(v => v.release === RELEASE);
-    if (fresh.length === VIEWS.length || !fresh.length) {
+    await expect(page.locator('.demo-board-topic').first()).toHaveAttribute('aria-expanded', 'true');
+    // newest first, as in demo/order.yaml
+    const releases = boardReleases(DEMO, { board: 'public' }).map(r => r.version);
+    if (releases.length < 2) {
         await expect(page.locator('.demo-board-filter')).toHaveCount(0);
         return;
     }
-    await page.locator('.demo-board-filter button', { hasText: `New in ${RELEASE}` }).click();
-    const counts = await page.locator('.demo-board-topic').evaluateAll(els => els.map(e => [e.dataset.topic, Number(e.querySelector('.count')?.textContent)]));
-    expect(counts).toEqual(TOPICS.map(t => [t.id, fresh.filter(v => v.topic === t.id).length]).filter(([, n]) => n));
+    const select = page.locator('.demo-board-filter select');
+    // newest first, each with its count, after All
+    expect((await select.locator('option').allTextContents()).map(t => t.replace(/\s+/g, ' ').trim())).toEqual([
+        `All releases (${VIEWS.length})`,
+        ...releases.map(r => `${r === RELEASE ? `New in ${r}` : r} (${VIEWS.filter(v => v.release === r).length})`),
+    ]);
+    for (const r of releases) {
+        await select.selectOption(r);
+        const counts = await page.locator('.demo-board-topic').evaluateAll(els => els.map(e => [e.dataset.topic, Number(e.querySelector('.count')?.textContent)]));
+        expect(counts, r).toEqual(TOPICS.map(t => [t.id, VIEWS.filter(v => v.release === r && v.topic === t.id).length]).filter(([, n]) => n));
+        // the open view is one of the release's, and its heading names the release
+        await expect(page.locator('.demo-board-heading .demo-board-badge')).toHaveText(r === RELEASE ? `New in ${r}` : r);
+    }
 });
 
 test('the page is wide on a desktop and stacks the menu on a phone', async ({ page }) => {
@@ -231,8 +248,48 @@ test('a gallery dashboard mounts every card in its layout, at the dashboard\'s o
     expect(errors).toEqual([]);
 });
 
+test('D-pad segments run perform-action: the Voyager arrows step VALUE, the centre toggles the lights', async ({ page }) => {
+    await openView(page, VIEWS.find(v => v.path === 'button-dpad-voyager'));
+    const state = (id) => page.evaluate(async (id) => (await globalThis.__lcardsDocsEnv).hass.states[id]?.state, id);
+    const card = page.locator('.demo-board-stage lcards-button[component="dpad_voyager"], .demo-board-stage lcards-button').last();
+    const tap = async (id) => {
+        const p = await card.evaluate((el, id) => { const r = el.shadowRoot.querySelector(`#${id}`).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, id);
+        await page.mouse.click(p.x, p.y);
+    };
+    const value = Number(await state('input_number.lcards_test_value'));
+    await tap('up_arrow');
+    await expect.poll(async () => Number(await state('input_number.lcards_test_value'))).toBe(value + 1);
+    await tap('left_arrow');
+    await expect.poll(async () => Number(await state('input_number.lcards_test_value'))).toBe(value);
+    const lights = await state('input_boolean.lcards_test_lights');
+    await tap('center');
+    await expect.poll(() => state('input_boolean.lcards_test_lights')).toBe(lights === 'on' ? 'off' : 'on');
+});
+
+test('the alert symbol switches preset by range again and again without piling up animations (it hung the page)', async ({ page }) => {
+    await openView(page, VIEWS.find(v => v.path === 'button-components'));
+    const set = (v) => page.evaluate(async (v) => (await globalThis.__lcardsDocsEnv).setState('input_number.lcards_test_value', String(v)), v);
+    // every running animation on the page, inside the cards' shadow roots too
+    const running = () => page.evaluate(() => {
+        let n = 0;
+        const walk = (root) => { for (const el of root.querySelectorAll('*')) { if (el.shadowRoot) { n += el.shadowRoot.getAnimations().length; walk(el.shadowRoot); } } };
+        walk(document);
+        return n;
+    });
+    await set(30);
+    await page.waitForTimeout(500);
+    const before = await running();
+    expect(before, 'the alert bars\' sweeps are running').toBeGreaterThan(0);
+    for (const v of [60, 90, 60, 30, 90, 10, 85, 55, 95, 30]) {
+        await set(v);
+        await page.waitForTimeout(250);
+    }
+    await page.waitForTimeout(500);
+    expect(await running()).toBeLessThanOrEqual(before);
+});
+
 test('the alert buttons switch the alert mode', async ({ page }) => {
-    const withAlerts = VIEWS.find(v => v.config.sections && v.text.includes('perform_action: lcards.red_alert'));
+    const withAlerts = VIEWS.find(v => v.config.sections?.[0]?.cards?.[0]?.tap_action?.perform_action === 'lcards.red_alert');
     expect(withAlerts, 'a view with alert buttons').toBeTruthy();
     await openView(page, withAlerts);
     // the alert buttons are the first cards after the generated header, in its frame's content grid

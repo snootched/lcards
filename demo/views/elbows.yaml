@@ -1,0 +1,39 @@
+# Elbows (D1c): every elbow type, simple and segmented styles, the outer curve modes.
+title: Elbows
+path: elbows
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - {type: custom:lcards-elbow, elbow: {type: header-left, segment: {bar_width: 90, bar_height: 20}}, text: {label: {content: HEADER-LEFT, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: header-right, segment: {bar_width: 90, bar_height: 20}}, text: {label: {content: HEADER-RIGHT, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: footer-left, segment: {bar_width: 90, bar_height: 20}}, text: {label: {content: FOOTER-LEFT, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: footer-right, segment: {bar_width: 90, bar_height: 20}}, text: {label: {content: FOOTER-RIGHT, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: header-contained, segment: {bar_width: 90, bar_height: 20}}, text: {label: {content: HEADER-CONTAINED, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: footer-contained, segment: {bar_width: 90, bar_height: 20}}, text: {label: {content: FOOTER-CONTAINED, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: header-open, segment: {bar_width: 90, bar_height: 20}}, text: {label: {content: HEADER-OPEN, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: footer-open, segment: {bar_width: 90, bar_height: 20}}, text: {label: {content: FOOTER-OPEN, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: diagonal-cap-left, segment: {bar_width: 90, bar_height: 20}}, text: {label: {content: DIAGONAL-CAP-LEFT, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: diagonal-cap-right, segment: {bar_width: 90, bar_height: 20}}, text: {label: {content: DIAGONAL-CAP-RIGHT, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: diagonal-cap-footer-left, segment: {bar_width: 90, bar_height: 20}}, text: {label: {content: DIAGONAL-CAP-FOOTER-LEFT, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: diagonal-cap-footer-right, segment: {bar_width: 90, bar_height: 20}}, text: {label: {content: DIAGONAL-CAP-FOOTER-RIGHT, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: bar-slant-right, segment: {bar_width: 90, bar_height: 20}}, text: {label: {content: BAR-SLANT-RIGHT, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: bar-slant-left, segment: {bar_width: 90, bar_height: 20}}, text: {label: {content: BAR-SLANT-LEFT, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: bar-parallelogram, segment: {bar_width: 90, bar_height: 20}}, text: {label: {content: BAR-PARALLELOGRAM, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 12, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: frame, frame: {bar_width: 30, bar_height: 14}}, text: {label: {content: FRAME, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 12, rows: 2}}
+  - type: grid
+    column_span: 4
+    cards:
+      - {type: custom:lcards-elbow, elbow: {type: header-left, segment: {bar_width: 90, bar_height: 20}}, text: {label: {content: SIMPLE, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 24, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: header-left, style: segmented, segments: {gap: 4, outer_segment: {bar_width: 90, bar_height: 20, color: var(--lcars-orange)}, inner_segment: {bar_width: 30, bar_height: 10, color: var(--lcards-moonlight)}}}, text: {label: {content: SEGMENTED, show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 24, rows: 2}}
+  - type: grid
+    column_span: 4
+    cards:
+      - {type: custom:lcards-elbow, elbow: {type: header-left, segment: {bar_width: 90, bar_height: 24, outer_curve: auto, outer_curve_clamp: none}}, text: {label: {content: 'OUTER CURVE: AUTO', show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 16, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: header-left, segment: {bar_width: 90, bar_height: 24, outer_curve: arm_height, outer_curve_clamp: none}}, text: {label: {content: 'OUTER CURVE: ARM_HEIGHT', show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 16, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: header-left, segment: {bar_width: 90, bar_height: 24, outer_curve: arm_max, outer_curve_clamp: none}}, text: {label: {content: 'OUTER CURVE: ARM_MAX', show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 16, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: header-left, segment: {bar_width: 90, bar_height: 24, outer_curve: arm_min, outer_curve_clamp: none}}, text: {label: {content: 'OUTER CURVE: ARM_MIN', show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 16, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: header-left, segment: {bar_width: 90, bar_height: 24, outer_curve: arm_fill, outer_curve_clamp: none}}, text: {label: {content: 'OUTER CURVE: ARM_FILL', show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 16, rows: 2}}
+      - {type: custom:lcards-elbow, elbow: {type: header-left, segment: {bar_width: 90, bar_height: 24, outer_curve: 12, outer_curve_clamp: none}}, text: {label: {content: 'OUTER CURVE: 12', show: true, position: center, color: theme:colors.ui.tertiary}}, grid_options: {columns: 16, rows: 2}}

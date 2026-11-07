@@ -237,7 +237,7 @@ Every bar label preset, rendered:
 | `type` | string | `custom:lcards-button` (required) |
 | `entity` | string | Entity to monitor and control |
 | `preset` | string | Button shape preset: see [Presets](#presets) |
-| `component` | string | Component type: `dpad` or `alert`; see [Component Mode: D-pad](#component-mode-d-pad) |
+| `component` | string | Component type: `dpad`, `dpad_voyager`, `alert`, `brackets` or `radar`; see [Component Mode: D-pad](#component-mode-d-pad) |
 | `svg` | object | Custom SVG config: see [Custom SVG Mode](#custom-svg-mode) |
 | `interactive` | boolean | `true` by default. Set `false` to suppress hover effects; see [Decorative Buttons](#decorative-non-interactive-buttons) |
 | `ranges_attribute` | string | Entity attribute for range conditions: see [Range Conditions](../../core/colours.md#range-conditions-on-non-numeric-entities-ranges-attribute) |
@@ -253,6 +253,7 @@ Every bar label preset, rendered:
 | `icon_style` | object | Advanced icon styling: see [`icon_style` Object](#icon-style-object) |
 | `divider` | object | Divider between icon area and content: see [`divider` Object](#divider-object) |
 | `dpad` | object | D-pad segment config: see [Component Mode: D-pad](#component-mode-d-pad) |
+| `dpad_voyager` | object | Voyager D-pad segment config, the same keys as `dpad`: see [Voyager D-pad](#voyager-d-pad) |
 | `alert` | object | Alert component config: see [Component Mode: Alert](#component-mode-alert) |
 | `style` | object | Visual styles: see [`style` Object](#style-object) |
 | `shape_texture` | object | Canvas2D texture drawn inside the button shape: see [Shape Texture](#shape-texture) |
@@ -478,6 +479,39 @@ dpad:
         target:
           entity_id: media_player.tv
     down:
+      tap_action:
+        action: call-service
+        service: media_player.volume_down
+        target:
+          entity_id: media_player.tv
+```
+
+### Voyager D-pad
+
+`component: dpad_voyager` draws the D-pad as on Voyager's consoles, with every shape of the artwork a segment of its own (56 of them). Configure them under `dpad_voyager.segments`, with the same keys as `dpad`. The main IDs are `center`, `up_arrow`, `down_arrow`, `left_arrow`, `right_arrow` and the corners `up_left`, `up_right`, `down_left`, `down_right`; the arms' other pieces are `<arm>_inner`, `_shaft`, `_seam`, `_outer` and `_ring`, and the decorative band round them `ring_<sector>_<n>`, `top_bar_1` to `top_bar_7` and `accent_1` to `accent_6`.
+
+```yaml live
+type: custom:lcards-button
+component: dpad_voyager
+grid_options:
+  rows: 6
+dpad_voyager:
+  segments:
+    center:
+      entity: light.demo
+      tap_action:
+        action: toggle
+      style:
+        fill:
+          active: "var(--lcards-orange)"
+          inactive: "var(--lcards-gray)"
+    up_arrow:
+      tap_action:
+        action: call-service
+        service: media_player.volume_up
+        target:
+          entity_id: media_player.tv
+    down_arrow:
       tap_action:
         action: call-service
         service: media_player.volume_down

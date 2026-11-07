@@ -1,0 +1,52 @@
+# Brackets and radar (D1c): the two round button components. The brackets frame a
+# reading of TEMPERATURE; the radar sweeps, recoloured part by part.
+title: Brackets and radar
+path: button-brackets-radar
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_temperature
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: TEMPERATURE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 24, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        component: brackets
+        entity: input_number.lcards_test_temperature
+        text:
+          label:
+            content: "{entity.state}"
+            show: true
+            position: center
+            font_size: 32
+            color: theme:colors.ui.tertiary
+        grid_options: { columns: 12, rows: 5 }
+      - type: custom:lcards-button
+        component: radar
+        grid_options: { columns: 12, rows: 5 }
+      # Per-part colours: an orange sweep and rim
+      - type: custom:lcards-button
+        component: radar
+        radar:
+          segments:
+            sweep: { style: { fill: var(--lcards-orange) } }
+            rim: { style: { stroke: var(--lcards-orange) } }
+        grid_options: { columns: 12, rows: 5 }
+      # Brackets in another colour round a fixed number
+      - type: custom:lcards-button
+        component: brackets
+        brackets:
+          segments:
+            left: { style: { fill: var(--lcards-blue) } }
+            right: { style: { fill: var(--lcards-blue) } }
+        text:
+          label: { content: "42", show: true, position: center, font_size: 48, color: theme:colors.ui.secondary }
+        grid_options: { columns: 12, rows: 5 }

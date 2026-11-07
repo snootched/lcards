@@ -1,0 +1,391 @@
+# LCARS patterns, Picard: the patterns of doc/getting-started/lcars-design.md (D1c), its sample
+# entities swapped for lcards_test_* helpers. Each frame is one pattern.
+title: LCARS patterns, Picard
+path: lcars-patterns-picard
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: CODE-BLOCK COLUMN
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 300px
+          grid-gap: 6px
+          grid-template-columns: 1fr 1fr
+          grid-auto-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 28
+            text: {label: {content: 63-934, position: center-right}}
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 28
+            text: {label: {content: 13-650, position: center-right}}
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 28
+            text: {label: {content: 19-638, position: center-right}}
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 28
+            entity: input_boolean.lcards_test_lights
+            text: {label: {content: 42-991, position: center-right}}
+            tap_action: {action: toggle}
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 28
+            text: {label: {content: 28-130, position: center-right}}
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 28
+            text: {label: {content: 50-957, position: center-right}}
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 28
+            text: {label: {content: 81-782, position: center-right}}
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 28
+            text: {label: {content: 85-334, position: center-right}}
+        grid_options:
+          columns: 16
+          rows: 5
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: TOGGLE TAB STRIP
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 56px
+          grid-gap: 6px
+          grid-template-columns: repeat(3, minmax(0, 1fr))
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: toggle-tab
+            entity: input_boolean.lcards_test_lights
+            text: {name: {content: LIGHTS}}
+            tap_action: {action: toggle}
+          - type: custom:lcards-button
+            preset: toggle-tab
+            entity: input_boolean.lcards_test_doors
+            text: {name: {content: DOORS}}
+            tap_action: {action: toggle}
+          - type: custom:lcards-button
+            preset: toggle-tab
+            text: {name: {content: AUDIO}}
+        grid_options:
+          columns: 24
+          rows: 1
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: FACING SWEEPS HEADER
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 120px
+          grid-gap: 6px
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-elbow
+            elbow: {type: header-left, segment: {bar_width: 120, bar_height: 20, color: theme:colors.ui.primary}}
+          - type: custom:lcards-elbow
+            elbow: {type: header-right, segment: {bar_width: 120, bar_height: 20, color: theme:colors.ui.secondary}}
+            text: {label: {content: ENGINEERING, position: center, color: theme:colors.ui.tertiary}}
+        grid_options:
+          columns: full
+          rows: 2
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: NESTED FRAME
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-elbow
+        grid_options:
+          columns: full
+          rows: 4
+        elbow:
+          type: frame
+          style: segmented
+          segment:
+            color: theme:colors.ui.primary
+          frame:
+            bar_width: 30
+            right: {enabled: false}
+            segments: {gap: 6, inner_frame: {bar_width: 10, color: theme:colors.card.topColor}}
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: UTILITY PILLS
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 300px
+          grid-template-columns: 150px
+          grid-template-rows: minmax(0, 1fr)
+          grid-template-areas: |
+            "col"
+        cards:
+          - type: custom:lcards-elbow
+            view_layout: {grid-area: col}
+            elbow: {type: frame, segment: {color: theme:colors.ui.secondary}, frame: {bar_width: 14, bar_height: 36, outer_curve: 36, left: {enabled: false}}}
+          - type: custom:lcards-layout-card
+            view_layout: {grid-area: col}
+            layout: {padding: 46px 22px 46px 4px, grid-gap: 8px, grid-template-columns: 'minmax(0, 1fr)', grid-template-rows: '26px 26px 26px minmax(0, 1fr) 26px'}
+            cards: [{type: custom:lcards-button, preset: lozenge, min_height: 26, text: {label: {content: ZOOM, show: true, position: center, color: theme:colors.ui.secondary}}, style: {card: {color: {background: {default: theme:colors.card.topColor}}}}}, {type: custom:lcards-button, preset: lozenge, min_height: 26, text: {label: {content: SETTINGS, show: true, position: center, color: theme:colors.ui.secondary}}, style: {card: {color: {background: {default: theme:colors.card.topColor}}}}}, {type: custom:lcards-button, preset: lozenge, min_height: 26, text: {label: {content: DIMMER, show: true, position: center, color: theme:colors.ui.secondary}}, style: {card: {color: {background: {default: theme:colors.card.topColor}}}}}, {type: custom:lcards-button, preset: text-only, min_height: 0}, {type: custom:lcards-button, preset: lozenge, min_height: 26, text: {label: {content: RED ALERT, show: true, position: center}}, style: {card: {color: {background: {default: 'var(--lcars-alert-color, var(--lcards-orange-dark))'}}}}, tap_action: {action: perform-action, perform_action: lcards.red_alert}}]
+        grid_options:
+          columns: 12
+          rows: 5
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: CONCENTRIC SWEEP
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-elbow
+        grid_options:
+          columns: 24
+          rows: 3
+        elbow:
+          type: header-left
+          style: segmented
+          segments:
+            gap: 6
+            outer_segment: {bar_width: 140, bar_height: 24, color: theme:colors.ui.secondary}
+            inner_segment: {bar_width: 6, bar_height: 4, inner_curve: 25, color: theme:colors.ui.primary}
+        text:
+          title:
+            content: COURSE SELECT
+            position: bottom-right
+            color: theme:colors.ui.tertiary
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: CONTROLS INSIDE A WIDE ARM
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 240px
+          grid-template-columns: 290px
+          grid-template-rows: minmax(0, 1fr)
+          grid-template-areas: |
+            "arm"
+        cards:
+          - type: custom:lcards-elbow
+            view_layout: {grid-area: arm}
+            elbow: {type: frame, segment: {color: theme:colors.ui.primary}, frame: {bar_width: 24, bar_height: 24, outer_curve: 0, inner_curve: 0}}
+          - type: custom:lcards-layout-card
+            view_layout: {grid-area: arm}
+            layout: {padding: 34px, grid-gap: 6px, grid-template-columns: 1fr 1fr, grid-template-rows: 'repeat(3, 34px)'}
+            cards: [{type: custom:lcards-button, preset: outline, min_height: 34, text: {label: {content: 6-3390, position: center-right, show: true}}}, {type: custom:lcards-button, preset: filled, min_height: 34, text: {label: {content: 60-1204, position: center-right, show: true}}}, {type: custom:lcards-button, preset: outline, min_height: 34, entity: input_boolean.lcards_test_lights, tap_action: {action: toggle}, text: {label: {content: 5-6549, position: center-right, show: true}}}, {type: custom:lcards-button, preset: panel-dark, min_height: 34, text: {label: {content: 34-3719, position: center-right}}}, {type: custom:lcards-button, preset: panel-dark, min_height: 34, text: {label: {content: 80-1932, position: center-right}}}, {type: custom:lcards-button, preset: panel-light, min_height: 34, text: {label: {content: 8-5300, position: center-right}}}]
+        grid_options:
+          columns: 16
+          rows: 4
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: HEADER BAR WITH A TITLE
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-button
+        preset: bar-label-left
+        min_height: 48
+        text:
+          label:
+            content: MISSION OPS
+            color: theme:colors.ui.tertiary
+        style:
+          card:
+            color: {background: {default: theme:colors.ui.tertiary}}
+        grid_options:
+          columns: 24
+          rows: 1
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: SLANTED BARS
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 96px
+          grid-gap: 8px
+          grid-template-columns: 200px 120px
+          grid-template-rows: 44px 44px
+        cards:
+          - type: custom:lcards-elbow
+            elbow: {type: bar-slant-right, segment: {color: theme:colors.ui.secondary}}
+            text: {label: {content: LCARS, position: center-left, font_size: 22, color: 'var(--lcars-text-dark, black)'}}
+          - type: custom:lcards-elbow
+            elbow: {type: bar-parallelogram, segment: {color: theme:colors.ui.tertiary, diagonal_angle: 60}}
+          - type: custom:lcards-elbow
+            elbow: {type: bar-slant-right, segment: {color: theme:colors.ui.primary}}
+            text: {label: {content: '47', position: center-left, font_size: 22, color: 'var(--lcars-text-dark, black)'}}
+        grid_options:
+          columns: 16
+          rows: 2
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: FLAGGED BLOCKS
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-layout-card
+        layout:
+          height: 150px
+          grid-gap: 6px
+          grid-template-columns: 140px
+          grid-template-rows: repeat(4, minmax(0, 1fr))
+        cards:
+          - type: custom:lcards-button
+            preset: panel-flagged
+            min_height: 0
+            text: {label: {content: '012'}}
+          - type: custom:lcards-button
+            preset: panel-flagged
+            min_height: 0
+            text: {label: {content: '330'}}
+          - type: custom:lcards-button
+            preset: panel-flagged
+            min_height: 0
+            entity: input_boolean.lcards_test_lights
+            tap_action: {action: toggle}
+            text: {label: {content: '436'}}
+          - type: custom:lcards-button
+            preset: panel-flagged
+            min_height: 0
+            text: {label: {content: '542'}}
+        grid_options:
+          columns: 12
+          rows: 3
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: DOT ROWS
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-button
+        preset: text-only
+        min_height: 24
+        text:
+          label:
+            content: •  •••  ••  •••••  •  ••  •••
+            show: true
+            position: center-right
+            color: theme:colors.ui.secondary
+            font_size: 44
+        grid_options:
+          columns: full
+          rows: 1

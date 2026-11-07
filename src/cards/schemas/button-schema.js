@@ -921,8 +921,8 @@ export function getButtonSchema(options = {}) {
                                     type: 'object',
                                     description: 'SVG styling for the segment',
                                     properties: {
-                                        fill: stateColorSchema,
-                                        stroke: stateColorSchema,
+                                        fill: { ...stateColorSchema, description: 'Segment fill colour: a colour, or a state map (default, active, inactive, ranges)' },
+                                        stroke: { ...stateColorSchema, description: 'Segment outline colour: a colour, or a state map (default, active, inactive, ranges)' },
                                         'stroke-width': {
                                             title: 'Stroke Width',
                                             description: 'SVG stroke width (number in pixels, CSS string, or state-based)',
@@ -946,6 +946,7 @@ export function getButtonSchema(options = {}) {
                                 },
                                 animations: {
                                     type: 'array',
+                                    description: 'Animations on this segment only (the same entries as the card\'s animations list)',
                                     items: animationSchema
                                 }
                             }
@@ -1035,9 +1036,13 @@ export function getButtonSchema(options = {}) {
             grid_options: gridOptionsSchema
         }
     };
-    // The bracket and radar components take the same per-segment config as the D-pad.
+    // The Voyager D-pad, bracket and radar components take the same per-segment config as the D-pad.
     const dpad = /** @type {any} */ (schema.properties).dpad;
-    for (const [key, ids] of [['brackets', 'left, right'], ['radar', 'sweep, rings, inner-ring, cross, rim']]) {
+    for (const [key, ids] of [
+        ['dpad_voyager', 'every shape of the artwork, e.g. center, up_arrow, down_arrow, left_arrow, right_arrow, up_left, up_right, down_left, down_right, up_ring, ring_up_1, top_bar_1, accent_1'],
+        ['brackets', 'left, right'],
+        ['radar', 'sweep, rings, inner-ring, cross, rim'],
+    ]) {
         /** @type {any} */ (schema.properties)[key] = {
             ...dpad,
             description: `${key} component configuration`,

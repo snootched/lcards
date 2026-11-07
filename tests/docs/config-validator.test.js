@@ -172,6 +172,11 @@ test('schema fixes found by checking real configs: CSS functions for sizes, 0 sp
     assert.ok(messages(check({ type: 'custom:lcards-layout-card', layout: { margin: 10 } })).length > 0, 'a bare number other than 0 is not CSS');
 });
 
+test('the Voyager D-pad\'s segments live under dpad_voyager, as the button reads them', () => {
+    assert.deepEqual(messages(check({ type: 'custom:lcards-button', component: 'dpad_voyager',
+        dpad_voyager: { segments: { center: { entity: 'light.demo', tap_action: { action: 'toggle' } }, up_arrow: { style: { fill: 'var(--lcards-orange)' } } } } })), []);
+});
+
 test('discriminatedBy: animation params and background config are checked by their preset or type, like the runtime', () => {
     const issues = messages(check({
         type: 'custom:lcards-button',

@@ -4,11 +4,13 @@
     <div v-else class="demo-board-frame">
       <!-- an LCARS side menu: the filter, then the topics; an open topic lists its views by group -->
       <nav class="demo-board-menu" aria-label="Demo views by topic">
-        <div v-if="badges" class="demo-board-filter" role="group" aria-label="Show">
+        <label v-if="byRelease" class="demo-board-filter">
           <span class="demo-board-filter-label">Show</span>
-          <button type="button" :aria-pressed="!newOnly" :class="{ active: !newOnly }" @click="setFilter(false)">All</button>
-          <button type="button" :aria-pressed="newOnly" :class="{ active: newOnly }" @click="setFilter(true)">New in {{ data.release }}</button>
-        </div>
+          <select v-model="release" @change="setFilter">
+            <option value="">All releases ({{ data.views.length }})</option>
+            <option v-for="r in data.releases" :key="r" :value="r">{{ releaseName(r) }} ({{ data.views.filter(v => v.release === r).length }})</option>
+          </select>
+        </label>
         <template v-for="t in topics" :key="t.id">
           <button
             type="button"
@@ -30,7 +32,7 @@
                 :aria-pressed="view.path === current"
                 :title="view.summary"
                 @click="current = view.path"
-              >{{ shortTitle(view, t, g) }}<span v-if="badges && view.isNew" class="demo-board-badge">New</span></button>
+              >{{ shortTitle(view, t, g) }}<span v-if="byRelease && view.isNew" class="demo-board-badge">New</span></button>
             </template>
           </div>
         </template>
@@ -38,7 +40,7 @@
       <div class="demo-board-main">
         <div v-if="active" class="demo-board-heading">
           <span class="demo-board-title">{{ active.title }}</span>
-          <span v-if="badges && active.isNew" class="demo-board-badge">New in {{ data.release }}</span>
+          <span v-if="byRelease" class="demo-board-badge">{{ releaseName(active.release) }}</span>
           <p class="demo-board-summary">{{ active.summary }}</p>
         </div>
         <p v-if="fatal" class="demo-board-error">{{ fatal }}</p>
@@ -71,14 +73,16 @@ import { data } from './demo.data.js'
 import { cardRuntime, sizeMount } from './card-demo-runtime.js'
 
 const byPath = new Map(data.views.map(v => [v.path, v]))
-const newOnly = ref(false)
-/** NEW badges and the filter only mean something once the board has older releases' views too. */
-const badges = data.views.some(v => !v.isNew) && data.views.some(v => v.isNew)
+/** The release filter ('' for all); it and the badges only mean something once there is more than one release. */
+const release = ref('')
+const byRelease = data.releases.length > 1
+/** "New in 2026.11.0" for this docs channel's release, the release's name for the others. */
+const releaseName = (r) => (r === data.release ? `New in ${r}` : r)
 /** The topic tree with the filter applied: topics > groups > views, with counts. */
 const topics = computed(() => data.topics
   .map((t) => {
     const groups = t.groups
-      .map(g => ({ title: g.title, views: g.views.map(p => byPath.get(p)).filter(v => v && (!newOnly.value || v.isNew)) }))
+      .map(g => ({ title: g.title, views: g.views.map(p => byPath.get(p)).filter(v => v && (!release.value || v.release === release.value)) }))
       .filter(g => g.views.length)
     return { id: t.id, title: t.title, groups, count: groups.reduce((n, g) => n + g.views.length, 0) }
   })
@@ -109,8 +113,7 @@ function shortTitle(view, t, g) {
 }
 
 /** The filter: a view it hides gives way to the first one left, its topic opened. */
-function setFilter(value) {
-  newOnly.value = value
+function setFilter() {
   const left = topics.value.flatMap(t => t.groups.flatMap(g => g.views))
   if (!left.some(v => v.path === current.value) && left[0]) {
     current.value = left[0].path
@@ -282,38 +285,30 @@ onUnmounted(() => {
   outline: 2px solid var(--demo-pick);
   outline-offset: -2px;
 }
-/* the filter: a labelled two-way switch above the topics */
+/* the filter: a labelled release picker above the topics */
 .demo-board-filter {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  gap: 2px;
   margin-bottom: 8px;
-  padding: 4px;
+  padding: 4px 8px 6px;
   border-radius: 20px 999px 999px 0;
   background: var(--vp-c-bg-mute);
 }
 .demo-board-filter-label {
-  flex-basis: 100%;
-  padding: 2px 8px 0;
   font-family: Antonio, sans-serif;
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--vp-c-text-2);
 }
-.demo-board-filter button {
-  flex: 1;
-  white-space: nowrap;
+.demo-board-filter select {
   padding: 3px 10px;
   border-radius: 999px;
-  color: var(--vp-c-text-1);
-  font-size: 13px;
-  text-align: center;
-}
-.demo-board-filter button.active {
   background: var(--demo-menu);
   color: var(--demo-on-bar);
+  font-size: 13px;
+  cursor: pointer;
 }
 .demo-board-topic {
   display: flex;
