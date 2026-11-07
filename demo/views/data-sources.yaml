@@ -1,0 +1,66 @@
+# Data sources (D1c): one data source on POWER and its processors, each a named
+# buffer read in templates as {datasource:<source>.<processor>}. The table shows
+# every buffer live; the chart plots the raw value against the smoothed one.
+title: Data sources
+path: data-sources
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: POWER } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 32, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-data-grid
+        data_mode: data
+        data_sources:
+          demo_ds_power:
+            entity: input_number.lcards_test_power
+            processing:
+              scaled: { type: scale, input_range: [0, 100], output_range: [0, 1] }
+              smoothed: { type: smooth, method: exponential, alpha: 0.2 }
+              rounded: { type: round, input_source: smoothed, precision: 0 }
+              clamped: { type: clamp, min: 20, max: 80 }
+              change: { type: delta }
+              trend: { type: trend, samples: 3, threshold: 0.5 }
+              level: { type: threshold, threshold: 50, above: 1, below: 0 }
+              megawatts: { type: expression, expression: "value * 12.5" }
+              stats: { type: statistics, window: session, stats: [min, max, mean] }
+        rows:
+          - values: [PROCESSOR, WHAT IT DOES, VALUE]
+            header: true
+          - [raw, the helper's state, "{datasource:demo_ds_power:.0f}"]
+          - [scale, 0 to 100 onto 0 to 1, "{datasource:demo_ds_power.scaled:.2f}"]
+          - [smooth, "exponential, alpha 0.2", "{datasource:demo_ds_power.smoothed:.1f}"]
+          - [round, "the smoothed value, whole", "{datasource:demo_ds_power.rounded:.0f}"]
+          - [clamp, held between 20 and 80, "{datasource:demo_ds_power.clamped:.0f}"]
+          - [delta, change from the last value, "{datasource:demo_ds_power.change:.0f}"]
+          - [trend, the last 3 values, "{datasource:demo_ds_power.trend}"]
+          - [threshold, "1 above 50, 0 below", "{datasource:demo_ds_power.level}"]
+          - [expression, value * 12.5, "{datasource:demo_ds_power.megawatts:.0f} MW"]
+          - [statistics, highest since the page opened, "{datasource:demo_ds_power.stats.max:.0f}"]
+        grid:
+          grid-template-columns: 1fr 2fr 1fr
+          gap: 6px
+        style: { font_size: 20px, color: var(--lcards-moonlight) }
+        grid_options: { columns: 24, rows: 7 }
+      # The same data source in a chart: the raw steps and the smoothed curve
+      - type: custom:lcards-chart
+        chart_type: line
+        graph_span: 10m
+        sources:
+          - { datasource: demo_ds_power, name: Raw, curve: stepline, stroke_width: 1 }
+          - { datasource: demo_ds_power, buffer: smoothed, name: Smoothed, stroke_width: 3 }
+        style:
+          colors: { series: [ "var(--lcars-blue)", "var(--lcars-orange)" ] }
+          legend: { show: true, position: top }
+          yaxis: { decimals: 0 }
+        grid_options: { columns: 24, rows: 7 }

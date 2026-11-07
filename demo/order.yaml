@@ -75,6 +75,9 @@ topics:
         views: [chart-sources, chart-types, chart-styling]
       - title: Data grid
         views: [datagrid-data, datagrid-decorative]
+  - id: data
+    title: Data and rules
+    views: [rules, templates, data-sources]
   - id: alerts
     title: Alerts and animation
     views: [alert-modes, alert-band, borg, anim-presets, alert-recolour, alert-overlay-edit]
@@ -735,6 +738,24 @@ releases:
         description: "A master systems display: a ship blueprint with cards placed on it, each joined to a point on the ship by a routed line. BRIDGE toggles the lights, WARP CORE the toggle helper, SHUTTLE BAY the doors. Below, the same ship faded and dimmed with base_svg filters, with dashed orange lines to two labels."
         session: "D1c"
         docs: /cards/msd/
+        public: true
+      - file: rules
+        summary: "Rules: cards recoloured and blinking while a condition holds"
+        description: "Rules watch entities and patch the cards they target while their condition holds. Drag POWER: above 80 the three panels tagged together turn red and blink, below 20 yellow, in between their usual colour. SHIELDS LOW turns red only while LIGHTS is on and SHIELDS is under 30 (two conditions)."
+        session: "D1c"
+        docs: /core/rules/
+        public: true
+      - file: templates
+        summary: "Templates: tokens, JavaScript, Jinja2 and data source values"
+        description: "The four kinds of template, each in a card's text and all reading POWER (drag it). TOKEN puts the state in with its unit; JAVASCRIPT turns it into a word and a colour (red when CRITICAL); JINJA2 is Home Assistant's own template language; DATA SOURCE shows a smoothed copy that lags behind. The bar at the bottom reads LIGHTS as well as POWER (tap LIGHTS)."
+        session: "D1c"
+        docs: /core/templates/
+        public: true
+      - file: data-sources
+        summary: "Data sources: one entity through a chain of processors"
+        description: "A data source follows POWER and runs it through processors, each kept under its own name. Drag POWER and watch the table: scaled to 0 to 1, smoothed, rounded, clamped between 20 and 80, the change from the last value, the trend, a threshold at 50, an expression in megawatts and the highest value since the page opened. The chart plots the raw steps against the smoothed curve."
+        session: "D1c"
+        docs: /core/datasources/
         public: true
       - file: alert-modes
         summary: "Alert modes: the six levels recolour every card"

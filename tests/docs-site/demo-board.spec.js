@@ -288,6 +288,20 @@ test('the alert symbol switches preset by range again and again without piling u
     expect(await running()).toBeLessThanOrEqual(before);
 });
 
+test('text templates follow their entity when it also feeds a data source (it stayed on the old value)', async ({ page }) => {
+    await openView(page, VIEWS.find(v => v.path === 'templates'));
+    const token = () => page.evaluate(() => {
+        let text = null;
+        const walk = (r) => { for (const el of r.querySelectorAll('*')) { if (el.tagName === 'LCARDS-BUTTON' && el.config?.text?.name?.content === 'TOKEN') text = [...el.shadowRoot.querySelectorAll('text')].map(t => t.textContent.trim()).join('/'); if (el.shadowRoot) walk(el.shadowRoot); } };
+        walk(document.querySelector('.demo-board-stage'));
+        return text;
+    });
+    for (const v of ['85', '30', '60']) {
+        await page.evaluate(async (v) => (await globalThis.__lcardsDocsEnv).setState('input_number.lcards_test_power', v), v);
+        await expect.poll(token).toContain(`${v} %`);
+    }
+});
+
 test('the alert buttons switch the alert mode', async ({ page }) => {
     const withAlerts = VIEWS.find(v => v.config.sections?.[0]?.cards?.[0]?.tap_action?.perform_action === 'lcards.red_alert');
     expect(withAlerts, 'a view with alert buttons').toBeTruthy();

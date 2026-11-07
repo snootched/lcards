@@ -1,0 +1,92 @@
+# Rules (D1c): rules watch entities and patch the cards they target (by id or
+# tag) while their condition holds. POWER, SHIELDS and LIGHTS drive them. Rule ids
+# are shared by every card on a page, so these are prefixed demo-rules-.
+title: Rules
+path: rules
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: POWER } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: SHIELDS } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 16, rows: 1 }
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: lozenge
+        tap_action: { action: toggle }
+        text: { name: { content: LIGHTS, show: true } }
+        grid_options: { columns: 8, rows: 1 }
+  - type: grid
+    column_span: 4
+    cards:
+      # Three panels tagged demo-rules-power: red above 80, yellow below 20 (the
+      # higher priority wins where both could), their usual colour between
+      - type: custom:lcards-button
+        id: demo-rules-panel-1
+        tags: [demo-rules-power]
+        preset: panel-light
+        interactive: false
+        text: { label: { content: REACTOR } }
+        grid_options: { columns: 12, rows: 2 }
+      - type: custom:lcards-button
+        id: demo-rules-panel-2
+        tags: [demo-rules-power]
+        preset: panel-light
+        interactive: false
+        text: { label: { content: INJECTORS } }
+        grid_options: { columns: 12, rows: 2 }
+      - type: custom:lcards-button
+        id: demo-rules-panel-3
+        tags: [demo-rules-power]
+        preset: panel-light
+        interactive: false
+        text: { label: { content: CONDUITS } }
+        rules:
+          - id: demo-rules-power-high
+            priority: 100
+            when: { entity: input_number.lcards_test_power, above: 80 }
+            apply:
+              overlays:
+                tag:demo-rules-power:
+                  style: { card: { color: { background: { default: var(--lcars-alert-red) } } } }
+              # and the three panels blink while it holds
+              animations:
+                - { tag: demo-rules-power, preset: blink, loop: true, duration: 1200 }
+          - id: demo-rules-power-low
+            priority: 50
+            when: { entity: input_number.lcards_test_power, below: 20 }
+            apply:
+              overlays:
+                tag:demo-rules-power:
+                  style: { card: { color: { background: { default: var(--lcars-alert-yellow) } } } }
+        grid_options: { columns: 12, rows: 2 }
+      # One card by its id, on two conditions at once: LIGHTS on and SHIELDS under 30
+      - type: custom:lcards-button
+        id: demo-rules-warning
+        preset: filled
+        interactive: false
+        text: { name: { content: SHIELDS LOW, show: true } }
+        rules:
+          - id: demo-rules-shields-low
+            when:
+              all:
+                - { entity: input_boolean.lcards_test_lights, state: "on" }
+                - { entity: input_number.lcards_test_shields, below: 30 }
+            apply:
+              overlays:
+                demo-rules-warning:
+                  style: { card: { color: { background: { default: var(--lcars-alert-red) } } } }
+        grid_options: { columns: 12, rows: 2 }
