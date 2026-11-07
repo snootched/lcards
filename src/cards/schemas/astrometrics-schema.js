@@ -763,7 +763,7 @@ const deformSchema = {
         drift: setting('noise: how fast the lumps drift through the grid, scene units per second; 0 holds them still.', { default: 0 }),
         bearing: setting('bend: direction the axis bends toward, degrees (0 north, clockwise from above).', { default: 0 }),
         motion: { type: 'string', enum: [...BEND_MOTIONS], default: 'sway', description: 'bend: sway (bends to and fro), circle (the bend turns round, a tornado) or none (a still bend).', enumDescriptions: { sway: 'Bends to and fro', circle: 'The bend turns round', none: 'Still bend' } },
-        angle: setting('twist: degrees turned at the far end (at the centre of a flat grid). With speed the twist swings between plus and minus this.', { default: 90 }),
+        angle: setting('twist: degrees turned at the far end (at the centre of a flat grid). With a period the twist swings between plus and minus this.', { default: 90 }),
         anchor: { type: 'string', enum: [...DEFORM_ANCHORS], default: 'bottom', description: 'bend, twist round an axis: the end that stays put (middle: both ends move).' },
         base_frequency: setting('noise: detail per scene unit, lower is larger lumps (as on fill.effect). Default about 3 lumps across the grid\'s size.', { exclusiveMinimum: 0 }),
         num_octaves: wholeSetting('noise: layers of finer detail (as on fill.effect).', { minimum: 1, maximum: 6, default: 2 }),
@@ -800,16 +800,16 @@ const gridObject = {
             color: objectColor('Fill colour. Default none.'),
             effect: fillEffectSchema
         }),
-        spoke_count: wholeSetting('pattern polar: spokes round the centre (meridians on a curved shape). line_spacing_deg wins on a disc.', { minimum: 0, default: 36 }),
+        spoke_count: wholeSetting('pattern polar: spokes round the centre (meridians on a curved shape). Default 36 on a disc (line_spacing_deg wins there), 12 on a plane; on a dome, sphere, cylinder or well one meridian every line_spacing_deg (15 degrees by default) when left out.', { minimum: 0 }),
         hex_radius: setting('pattern hexagonal: hexagon size, scene units. Default line_spacing.', { exclusiveMinimum: 0 }),
         dot_radius: setting('pattern dots: dot radius, scene units. Default 8% of line_spacing.', { exclusiveMinimum: 0 }),
         edges: part('Outline the open edges: the rim of a disc, dome or well, the ends of a cylinder, the frame of a plane. true (default), false, or { width, color }.', {
             width: setting('Edge width, px. Default the major line width.', { minimum: 0 }),
-            color: objectColor('Edge colour. Default the major line colour.')
+            color: objectColor('Edge colour. Default major.color, else the grid\'s color.')
         }, { toggle: true }),
         ring_labels: {
             type: 'object',
-            description: 'disc or dome: bearing labels round the edge (0, 10, 20, ...).',
+            description: 'disc, dome, sphere, cylinder, well: bearing labels round it (0, 10, 20, ...) in the object\'s level plane (alt raises them): the rim of a disc, dome or well, a sphere\'s equator, the middle of a cylinder.',
             properties: {
                 step: setting('A label every N degrees.', { exclusiveMinimum: 0, default: 10 }),
                 radius: setting('Distance of the labels from the centre, scene units. Default 1.06 x radius.', { minimum: 0 }),
@@ -953,7 +953,7 @@ const sphereObject = {
                 }
             }]
         },
-        occlude: { type: 'boolean', default: true, description: 'Hide labels behind the sphere.' },
+        occlude: { type: 'boolean', default: true, description: 'Hide labels and cards behind the sphere.' },
         deform: { type: 'array', items: deformSchema, description: 'Deformations of the planet, applied in order (as on a grid sphere): wobble, bend, twist, noise. The body, lines and points on it move with them.' },
         body: { type: 'string', enum: [...BODY_NAMES], description: 'Turn the sphere as this real body is turned at the scene clock\'s date (IAU rotation models): its north pole where the body\'s points, its day the real sidereal day, and longitude 0 of its map where the body\'s prime meridian is, so latlon points sit over the real places. spin and rotation do not apply. Pair it with a point that has the same body.' }
     }
@@ -1439,8 +1439,9 @@ const nebulaObject = {
         min_radius: setting('Smallest cloud radius, scene units. Default 0.15 of the region.', { exclusiveMinimum: 0 }),
         max_radius: setting('Largest cloud radius, scene units. Default 0.4 of the region.', { exclusiveMinimum: 0 }),
         brightness: brightness('Each cloud\'s opacity is picked at random between these [dimmest, brightest], 0 to 1 (a cloud\'s own opacity wins). Default [0.3, 0.8].', [0.3, 0.8], true),
+        color: objectColor('Cloud colour when colors is not set (a preset sets colors). Default var(--lcars-violet).'),
         colors: {
-            description: 'Cloud colour, or a list the seed picks from per cloud. Default var(--lcars-violet).',
+            description: 'Cloud colour, or a list the seed picks from per cloud (wins over color). Default var(--lcars-violet).',
             oneOf: [objectColor('A colour.'), { type: 'array', items: objectColor('A colour.'), minItems: 1 }]
         },
         turbulence: setting('How ragged the cloud edges are, 0 to 1.', { minimum: 0, maximum: 1, default: 0.5 }),
@@ -1459,7 +1460,7 @@ const modelObject = {
     description: 'A glTF / GLB model. Points stand on it with object: (and xyz or part).',
     properties: {
         type: { type: 'string', const: 'model', description: 'model: a glTF / GLB model.' },
-        src: { type: 'string', assetSource: 'model', description: 'The file: a model shipped with LCARdS (builtin:constitution_class_refit, a starship; builtin:deep_space_nine, builtin:earth_spacedock, builtin:utopia_planitia_drydock, starbases) or your own .glb / .gltf: from the My models folder (/config/www/lcards/models, media-source://lcards/my_models/<file>), or a path or URL. Meshopt compression works, Draco does not.' },
+        src: { type: 'string', assetSource: 'model', description: 'The file: a model shipped with LCARdS (builtin:constitution_class_refit, builtin:galaxy_class, starships; builtin:deep_space_nine, builtin:earth_spacedock, builtin:utopia_planitia_drydock, starbases) or your own .glb / .gltf: from the My models folder (/config/www/lcards/models, media-source://lcards/my_models/<file>), or a path or URL. Meshopt compression works, Draco does not.' },
         size: setting('Largest extent, scene units (the file is scaled and centred). Leave it out to draw the model at its real size (length, else what the file measures in file_units) in the scene\'s units (or its system\'s); a scene without units draws it at 50.', { exclusiveMinimum: 0 }),
         length: { type: 'number', exclusiveMinimum: 0, 'x-ui-hints': { label: 'Length (m)' }, description: 'The real length in metres (the model\'s largest extent), for a file not made at its true scale (many downloads): drawn that long, whatever the file measures, in the scene\'s units. size, when set, wins; a scene without units draws it at 50.' },
         file_units: { type: 'string', enum: [...FILE_UNIT_NAMES], default: 'm', description: 'The units the file was made in, for its real size (no size or length set): m (default; glTF files and the built-in models are in metres), cm, mm, km, ft or in.' },
@@ -1481,7 +1482,7 @@ const modelObject = {
             description: 'Clips to loop: all, a name or a list. None when left out.',
             oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' }, minItems: 1 }]
         },
-        occlude: { type: 'boolean', default: true, description: 'Hide labels behind it.' }
+        occlude: { type: 'boolean', default: true, description: 'Hide labels and cards behind it.' }
     }
 };
 

@@ -1,0 +1,6 @@
+# a sensor can't be set: locked: false still leaves it read-only
+type: custom:lcards-slider
+entity: sensor.demo_temperature
+preset: gauge-basic
+control:
+  locked: false

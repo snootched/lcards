@@ -1,0 +1,22 @@
+# doc/cards/slider-card/components.md: Picard with ranges on a 0-40 scale
+type: custom:lcards-slider
+entity: sensor.demo_temperature
+preset: picard-gauge-vertical
+style:
+  track:
+    display:
+      min: 0
+      max: 40
+  range:
+    border:
+      color: var(--lcards-orange)
+      gap: 4
+  ranges:
+    - min: 0
+      max: 20
+      color: var(--lcards-blue)
+      opacity: 1
+    - min: 20
+      max: 40
+      color: var(--lcars-orange)
+      opacity: 1

@@ -792,16 +792,63 @@ export class LCARdSSelectMenu extends LCARdSCard {
      */
     _getCardSize() {
         if (this._configPx(this.config?.height)) return Math.ceil(/** @type {number} */ (this._configPx(this.config.height)) / 50);
-        const cols = this.config?.grid?.columns;
-        const colCount = typeof cols === 'number' ? cols : typeof cols === 'string' ? cols.trim().split(/\s+/).length : 1;
-        return Math.max(1, Math.ceil(this._optionList.length / Math.max(1, colCount)));
+        return Math.max(1, Math.ceil(this._optionList.length / this._columnCount()));
     }
 
+    /**
+     * Columns in the option grid: grid-template-columns (repeat(N, ...) or one
+     * track per word), else grid.columns (a number, or a track list), else 1.
+     * @returns {number}
+     * @private
+     */
+    _columnCount() {
+        const g = this.config?.grid || {};
+        const tracks = g['grid-template-columns'] ?? g.columns;
+        if (typeof tracks === 'number') return Math.max(1, Math.floor(tracks));
+        if (typeof tracks !== 'string' || !tracks.trim()) return 1;
+        const rep = tracks.trim().match(/^repeat\(\s*(\d+)\s*,/i);
+        if (rep) return Math.max(1, parseInt(rep[1], 10));
+        // one track per top-level word: minmax(a, b) counts once
+        let depth = 0, count = 0, inWord = false;
+        for (const ch of tracks.trim()) {
+            if (ch === '(') depth++;
+            else if (ch === ')') depth--;
+            if (/\s/.test(ch) && depth === 0) inWord = false;
+            else if (!inWord) { inWord = true; count++; }
+        }
+        return Math.max(1, count);
+    }
+
+    /**
+     * Height of the option grid in px, from the config alone (never from the
+     * measured DOM, which would loop with the rows Home Assistant allocates):
+     * option rows x row height (grid-auto-rows px, or the max of
+     * minmax(Apx, Bpx), else 56px) plus the row gaps.
+     * @returns {number}
+     * @private
+     */
+    _naturalHeightPx() {
+        const g = this.config?.grid || {};
+        const autoRows = String(g['grid-auto-rows'] || '56px');
+        const mm = autoRows.match(/^minmax\(\s*[\d.]+px\s*,\s*([\d.]+)px\s*\)$/i);
+        const px = autoRows.match(/^([\d.]+)px$/);
+        const rowPx = mm ? parseFloat(mm[1]) : px ? parseFloat(px[1]) : 56;
+        const gapPx = parseFloat(g['row-gap'] || g.row_gap || g.gap || '4px') || 0;
+        const n = Math.max(1, Math.ceil(this._optionList.length / this._columnCount()));
+        return n * rowPx + (n - 1) * gapPx;
+    }
+
+    /**
+     * Sections-view size: enough 56 px rows (8 px gaps) to show every option,
+     * or a pixel config.height. A user's grid_options wins (Home Assistant
+     * also merges config grid_options over these).
+     */
     getGridOptions() {
         const go = this.config.grid_options || {};
+        const h = this._configPx(this.config?.height) ?? this._naturalHeightPx();
         return {
             columns: go.columns ?? 4,
-            rows: go.rows ?? 2,
+            rows: go.rows ?? Math.max(1, Math.ceil((h + 8) / 64)),
             min_columns: 2,
             min_rows: 1,
         };

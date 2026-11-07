@@ -12,12 +12,15 @@ test('explicit grid_options.rows wins', () => {
     assert.equal(sizeMount({ type: 'custom:lcards-slider', component: 'picard', grid_options: { rows: 3 } }, card(1)), '184px');
 });
 
-test('cards drawn to their cell height get rows even though they report 1 (or none)', () => {
+test('button components drawn to their cell height get rows even though they report 1', () => {
     assert.equal(sizeMount({ type: 'custom:lcards-button', component: 'dpad' }, card(1)), '312px');
     assert.equal(sizeMount({ type: 'custom:lcards-button', component: 'alert' }, card(1)), '248px');
-    assert.equal(sizeMount({ type: 'custom:lcards-slider', component: 'shaped' }, card(1)), '248px');
-    assert.equal(sizeMount({ type: 'custom:lcards-slider', component: 'picard', preset: 'picard-gauge-vertical' }, card(undefined)), '440px');
-    assert.equal(sizeMount({ type: 'custom:lcards-slider', preset: 'shaped-vertical' }, card(undefined)), '312px');
+});
+
+test('sliders take the rows they report (Picard 7, upright 4), as in Home Assistant', () => {
+    assert.equal(sizeMount({ type: 'custom:lcards-slider', preset: 'picard-gauge-vertical' }, card(7)), '440px');
+    assert.equal(sizeMount({ type: 'custom:lcards-slider', preset: 'shaped-vertical' }, card(4)), '248px');
+    assert.equal(sizeMount({ type: 'custom:lcards-slider', preset: 'shaped-horizontal' }, card(1)), '56px');
 });
 
 test('other cards take the rows they ask for; elbows at least 3', () => {

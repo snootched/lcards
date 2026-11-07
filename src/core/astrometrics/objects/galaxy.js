@@ -10,7 +10,7 @@
  * (Sagittarius and Norma) between them, and the Orion spur where the Sun
  * is. Everything scales with `radius` (default 50,000, light years):
  * the Sun's place is 0.52 of the radius toward bearing 180 (the default
- * camera), where a starter puts its Sol point. `arms: <n>` makes a generic
+ * camera), where a starter puts its Sol point. `arms.count: <n>` makes a generic
  * spiral of n equal arms instead.
  *
  * Frame: the disc lies in the object's xz plane, y is galactic north.

@@ -24,8 +24,8 @@ control:
 ```
 
 ::: details More about control
-- **`attribute` only changes what is read:** the slider shows the value of that attribute (or the state, when the entity has no such attribute), but a drag still calls the domain's own action, for example `light.turn_on` with a brightness. It takes a token or a `[[[JavaScript]]]` template that returns an attribute name.
-- **Unlocking other domains:** `locked: false` makes any slider draggable, but only the domains in the table below have an action to set; for a sensor or any other domain a drag changes nothing.
+- **Another attribute:** `attribute` picks what the slider shows and sets, such as a light's colour temperature or a cover's tilt. The attributes it can set are in [Automatic domain behaviour](#automatic-domain-behaviour); any other attribute is shown read-only. It also takes a token or a `[[[JavaScript]]]` template that returns an attribute name.
+- **Read-only sliders:** a slider with nothing to set (a sensor, or an attribute no action sets) stays read-only even with `locked: false`.
 :::
 
 | Key | Type | Default | Description |
@@ -33,8 +33,8 @@ control:
 | `min` | number | by domain | Lowest value the slider can set |
 | `max` | number | by domain | Highest value the slider can set |
 | `step` | number | by domain | Smallest change, at least 0.01 |
-| `attribute` | string | by domain | The attribute the slider reads its value from |
-| `locked` | boolean | by domain | `true`: read-only. `false`: draggable, for a domain that is read-only by default |
+| `attribute` | string | by domain | The attribute the slider shows and sets |
+| `locked` | boolean | `false` when it can set its attribute, else `true` | `true`: only show the value |
 | `invert_value` | boolean | `false` | Swap the ends: the minimum at the right (or top), so dragging right lowers the value. To only draw the fill from the other end, use [`style.track.invert_fill`](./styles#style-track) |
 
 ### Automatic domain behaviour
@@ -65,6 +65,23 @@ preset: pills-left-border-rounded
 | `sensor` | No | its state | 0–100, or the entity's `min` and `max` |
 
 Every other domain is read-only, like a sensor.
+
+**Other attributes it can set** with `control.attribute`:
+
+```yaml live
+type: custom:lcards-slider
+entity: light.living_room
+preset: pills-left-border
+control:
+  attribute: color_temp_kelvin # warm to cool, instead of brightness
+```
+
+| Domain | `attribute` | Range |
+|--------|-------------|-------|
+| `light` | `color_temp_kelvin` | the light's `min_color_temp_kelvin`–`max_color_temp_kelvin` (K), steps of 50 |
+| `cover` | `current_tilt_position` | 0–100 (%) |
+| `climate` | `target_temp_low`, `target_temp_high` | the entity's `min_temp`–`max_temp`; the other target is sent with it, so it works in heat/cool mode |
+| `climate` | `humidity` | the entity's `min_humidity`–`max_humidity` |
 
 ## Value tween
 

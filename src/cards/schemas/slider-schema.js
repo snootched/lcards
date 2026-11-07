@@ -8,6 +8,7 @@
  * Editor UI is defined separately in lcards-slider-editor.js config.
  */
 
+import { PICARD_OPTIONS, DEMO_OPTIONS } from '../../core/packs/components/sliders/component-options.js';
 import { dataSourcesSchema, simpleColorSchema, stateColorSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, actionSchema, animationSchema, backgroundAnimationSchema, soundsSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema, stateClassificationSchema, cardLevelProperties } from './common-schemas.js';
 
 // value_tween.ease options: every anime.js v4 named easing that takes no extra
@@ -72,6 +73,41 @@ const _valueTweenEaseOptions = [
  * @param {Array<string>} [options.positionEnum] - Available position values for text fields
  * @returns {Object} Complete slider schema
  */
+/**
+ * Top-level keys a slider component reads for itself (its `configurableOptions`
+ * with no dot in the key, e.g. Picard's show_animation): the editor's Component
+ * options tab writes them, so the schema must know them. A key several
+ * components share is listed once, naming every component that reads it.
+ * @returns {Record<string, any>}
+ */
+function componentOptionProperties() {
+    /** @type {Record<string, any>} */
+    const props = {};
+    for (const [name, options] of /** @type {[string, any[]][]} */ ([['picard', PICARD_OPTIONS], ['demo', DEMO_OPTIONS]])) {
+        for (const opt of options) {
+            if (!opt.key || opt.key.includes('.')) continue;
+            if (props[opt.key]) {
+                props[opt.key]['x-components'].push(name);
+                continue;
+            }
+            const num = opt.selector?.number ?? opt['x-ui-hints']?.selector?.number;
+            props[opt.key] = {
+                type: opt.type === 'color' ? 'string' : opt.type,
+                ...(opt.default !== undefined ? { default: opt.default } : {}),
+                ...(num?.min !== undefined ? { minimum: num.min } : {}),
+                ...(num?.max !== undefined ? { maximum: num.max } : {}),
+                description: opt.description,
+                'x-components': [name]
+            };
+        }
+    }
+    for (const prop of Object.values(props)) {
+        prop.description = `${prop.description}. Used by component: ${prop['x-components'].join(', ')}.`;
+        delete prop['x-components'];
+    }
+    return props;
+}
+
 export function getSliderSchema(options = {}) {
     const {
         availablePresets = [],
@@ -88,6 +124,8 @@ export function getSliderSchema(options = {}) {
         properties: {
             // rules, sounds, variables, zones, debug_zones (LCARdSCard base); card entries below win.
             ...cardLevelProperties,
+            // component options (Picard show_animation, animation_speed, ...)
+            ...componentOptionProperties(),
             // ============================================================================
             // HOME ASSISTANT REQUIRED PROPERTIES
             // ============================================================================
@@ -241,12 +279,12 @@ export function getSliderSchema(options = {}) {
                     },
                     attribute: {
                         type: 'string',
-                        description: 'Entity attribute to control (default varies by domain)',
-                        examples: ['brightness', 'temperature', 'position', 'percentage']
+                        description: 'Entity attribute the slider shows and sets. Default per domain: light brightness, cover current_position, fan percentage, climate and water_heater temperature, media_player volume_level, humidifier humidity, valve current_valve_position; input_number and number use their state. Also settable: light color_temp_kelvin, cover current_tilt_position, climate target_temp_low, target_temp_high and humidity. Any other attribute is shown read-only.',
+                        examples: ['brightness', 'color_temp_kelvin', 'current_tilt_position', 'target_temp_high']
                     },
                     locked: {
                         type: 'boolean',
-                        description: 'Whether slider is read-only (auto-determined by domain)',
+                        description: 'true: the slider only shows the value. Default false when the slider can set its attribute (see attribute), else true; a slider that can set nothing stays read-only even with false.',
                         examples: [true, false]
                     },
                     invert_value: {
@@ -402,8 +440,7 @@ export function getSliderSchema(options = {}) {
                                         type: 'number',
                                         minimum: 2,
                                         maximum: 200,
-                                        default: 15,
-                                        description: 'Number of pill segments (or "auto" to calculate based on size)'
+                                        description: 'Number of pills, stretched to fill the track. Unset: as many pills of size.width (or size.height upright) as fit.'
                                     },
                                     gap: {
                                         oneOf: [
@@ -435,8 +472,7 @@ export function getSliderSchema(options = {}) {
                                                         type: 'number',
                                                         minimum: 0,
                                                         maximum: 50,
-                                                        default: 4,
-                                                        description: 'Border radius in pixels'
+                                                        description: 'Pill corner radius in pixels (the pills presets use 0).'
                                                     },
                                                     {
                                                         type: 'string',
@@ -708,8 +744,8 @@ export function getSliderSchema(options = {}) {
                                                 examples: ['°C', '%', 'lux']
                                             },
                                             color: stateColorSchema,
-                                            font_size: { type: 'number' },
-                                            padding: { type: 'number' }
+                                            font_size: { type: 'number', minimum: 1, default: 14, description: 'Label size, px.' },
+                                            padding: { type: 'number', default: 3, description: 'Space between a tick and its label, px.' }
                                         }
                                     }
                                 }
@@ -811,8 +847,8 @@ export function getSliderSchema(options = {}) {
                                     align: {
                                         type: 'string',
                                         enum: ['start', 'center', 'end'],
-                                        default: 'center',
-                                        description: 'Cross-axis alignment within the track zone. start=left edge (vertical)/top (horizontal), center=middle, end=right/bottom. Use start on Picard to pin the marker to the tick column regardless of card width.',
+                                        default: 'start',
+                                        description: 'Cross-axis alignment within the track zone. start (default)=left edge (vertical)/top (horizontal), center=middle, end=right/bottom. On a ring each marker type has its own default (line start, triangle end, round center).',
                                         'x-ui-hints': {
                                             label: 'Cross-axis Align',
                                             helper: 'Where to pin the marker along the non-value axis (start = tick-edge on Picard)',
@@ -980,9 +1016,10 @@ export function getSliderSchema(options = {}) {
                         properties: {
                             border: {
                                 type: 'object',
-                                description: 'Range track border styling',
+                                description: 'Picard: the lines between the range bands in its range column.',
                                 properties: {
-                                    color: { ...stateColorSchema, description: 'Range border colour (default: theme:components.slider.range.border.color)' }
+                                    color: { ...stateColorSchema, description: 'Colour of the lines between the bands (default: theme:components.slider.range.border.color).' },
+                                    gap: { type: 'number', minimum: 0, default: 2, description: 'Width of those lines, px.' }
                                 }
                             },
                             frame: {
@@ -1056,12 +1093,11 @@ export function getSliderSchema(options = {}) {
                                     type: 'object',
                                     description: 'Per-marker indicator shape. Gauge mode: fallback chain this block → style.gauge.marker_indicator (preset default) → hardcoded defaults (triangle 20×20, rotation 180, no border). Ring (component: ring): type line (default, a radial line from the inner edge past the ring), triangle (outside the ring, pointing at it) or round (a dot on the band); align start/center/end anchors it at the inner edge, the band middle or the outer edge; size, color, border and offset.y (radial shift, positive outward) apply; rotation follows the ring.',
                                     properties: {
-                                        type: { type: 'string', enum: ['line', 'round', 'triangle'], description: 'Indicator shape type (default: triangle)' },
+                                        type: { type: 'string', enum: ['line', 'round', 'triangle'], description: 'Indicator shape type (default: triangle on a gauge, line on a ring)' },
                                         align: {
                                             type: 'string',
                                             enum: ['start', 'center', 'end'],
-                                            default: 'center',
-                                            description: 'Cross-axis alignment: start=left/top edge, center=middle, end=right/bottom. Overrides the preset marker_indicator.align for this range only.'
+                                            description: 'Cross-axis alignment: start=left/top edge, center=middle, end=right/bottom. Overrides the preset marker_indicator.align for this range only. Default: marker_indicator.align (start) on a gauge; on a ring per type (line start, triangle end, round center).'
                                         },
                                         color: { ...stateColorSchema, description: 'Indicator fill color (defaults to range color). Supports state-object syntax ({ active, inactive, above:N, … }) and theme:/var()/computed colour tokens.' },
                                         size: {
@@ -1544,7 +1580,7 @@ export function getSliderSchema(options = {}) {
                     },
                     offset: {
                         type: 'object',
-                        description: 'Pixel offset from the default anchor point (above the track in horizontal orientation, beside it in vertical).',
+                        description: 'Pixel offset from the default anchor point (below the track in horizontal orientation, beside it in vertical).',
                         properties: {
                             x: { type: 'number', description: 'Horizontal offset in pixels' },
                             y: { type: 'number', description: 'Vertical offset in pixels' }
@@ -1592,7 +1628,7 @@ export function getSliderSchema(options = {}) {
                                 type: 'string',
                                 enum: ['fade', 'instant'],
                                 default: 'fade',
-                                description: 'fade = linger briefly then fade out; instant = hide immediately on release. Automatically forced to instant when prefers-reduced-motion is active.',
+                                description: 'fade = fade out over release.duration; instant = hide immediately on release. Automatically forced to instant when prefers-reduced-motion is active.',
                                 'x-ui-hints': {
                                     label: 'Release Behaviour',
                                     selector: {

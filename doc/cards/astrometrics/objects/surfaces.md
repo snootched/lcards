@@ -72,7 +72,7 @@ objects:
 | `pattern` | string | `both`; `polar` on a disc | `both` (rows and columns), `horizontal`, `vertical`, `diagonal`, `hexagonal`, `dots` or `polar` (rings and spokes) |
 | `line_spacing` | number | plane `10`, disc radius / 10, curved 15 degrees of arc | Distance between lines, scene units |
 | `line_spacing_deg` | number | `15` on curved shapes | Curved shapes: rings and meridians every N degrees. Disc: a spoke every N degrees (wins over `spoke_count`) |
-| `spoke_count` | number | disc `36`, plane `12` | `pattern: polar`: spokes round the centre (meridians on a curved shape) |
+| `spoke_count` | number | disc `36`, plane `12`, curved one every `line_spacing_deg` | `pattern: polar`: spokes round the centre (meridians on a curved shape) |
 | `hex_radius` | number | `line_spacing` | `pattern: hexagonal`: hexagon size, scene units |
 | `dot_radius` | number | 8% of `line_spacing` | `pattern: dots`: dot radius, scene units |
 | `line_width` | number | `1` | Line width, px |
@@ -87,7 +87,7 @@ objects:
 | `edges` | boolean / object | `true` | Outline the open edges. `false` for none, or the keys below |
 | `edges.width` | number | `major.line_width` | Edge width, px |
 | `edges.color` | colour | `major.color`, else `color` | Edge colour |
-| `ring_labels.step` | number | `10` | Disc or dome: a bearing label every N degrees round the edge |
+| `ring_labels.step` | number | `10` | Every shape but `plane`: a bearing label every N degrees round it, in the object's level plane (the rim of a disc, dome or well, a sphere's equator, the middle of a cylinder) |
 | `ring_labels.radius` | number | 1.06 x `radius` | How far out the labels sit, scene units |
 | `ring_labels.start` | number | `0` | The first bearing labelled, degrees |
 | `ring_labels.alt` | number | `0` | Height of the labels above the plane, scene units |

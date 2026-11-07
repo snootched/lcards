@@ -1,3 +1,5 @@
+import { prefersReducedMotion } from '../../../../utils/reduced-motion.js';
+import { PICARD_OPTIONS } from './component-options.js';
 /**
  * Picard Slider Component
  *
@@ -69,61 +71,6 @@ export function calculateZones(width, height) {
 }
 
 /**
- * Render range segments with ] frame styling (extends left to cover background)
- * @param {Object} zoneSpec - Range zone dimensions
- * @param {Object} colors - Resolved colors
- * @param {Object} style - Resolved style
- * @param {Object} config - Card config
- * @returns {string} SVG markup for range segments
- */
-function renderRangeSegments(zoneSpec, colors, style, config) {
-    const ranges = style?.ranges || [];
-    if (ranges.length === 0) return '';
-
-    const displayMin = config.min ?? 0;
-    const displayMax = config.max ?? 100;
-    const displayRange = displayMax - displayMin;
-
-    const borderColor = colors?.rangeBorder || style?.range?.border?.color || 'black';
-    const borderGap = style?.range?.border?.gap ?? 2;
-
-    const height = zoneSpec.height;
-    const width = zoneSpec.width;
-
-    let svg = '';
-
-    ranges.forEach((range, index) => {
-        const rangeMin = range.min ?? displayMin;
-        const rangeMax = range.max ?? displayMax;
-        const rangeColor = range.color || 'var(--lcards-gray-medium, #cccccc)';
-
-        const startPercent = (rangeMin - displayMin) / displayRange;
-        const endPercent = (rangeMax - displayMin) / displayRange;
-        const sizePercent = endPercent - startPercent;
-
-        const isFirstRange = index === 0;
-        const isLastRange = index === ranges.length - 1;
-
-        // Vertical: ranges stack from bottom to top
-        const rangeHeight = height * sizePercent;
-        const rangeY = height * (1 - endPercent);
-
-        // Background rect: extend left beyond zone to cover frame background
-        svg += `<rect x="${-borderGap}" y="${rangeY}" width="${width + borderGap}" height="${rangeHeight}" fill="${borderColor}" />`;
-
-        // Color rect: ] frame - borders only on outer edges
-        const topInset = isFirstRange ? borderGap : 0;
-        const bottomInset = isLastRange ? borderGap : 0;
-        const innerWidth = width - borderGap;  // Right border only
-        const innerHeight = Math.max(1, rangeHeight - topInset - bottomInset);
-
-        svg += `<rect x="${-borderGap}" y="${rangeY + topInset}" width="${innerWidth}" height="${innerHeight}" fill="${rangeColor}" />`;
-    });
-
-    return svg;
-}
-
-/**
  * Render Picard component shell SVG
  * @param {Object} context - Full render context
  * @param {number} context.width - Container width in pixels
@@ -147,6 +94,9 @@ export function render(context) {
 
     // User-configurable options with defaults
     const showAnimation = config.show_animation !== false;
+    // SVG <animate> ignores prefers-reduced-motion: the lights then stand still
+    const pulse = (/** @type {number} */ begin) => prefersReducedMotion() ? ''
+        : `<animate attributeName="opacity" values="1;0.3;1" dur="${animationSpeed}s"${begin ? ` begin="${begin}s"` : ''} repeatCount="indefinite" />`;
     const animationSpeed = config.animation_speed || 2;
     const hasRanges = style?.ranges && style.ranges.length > 0;
 
@@ -182,13 +132,13 @@ export function render(context) {
   <!-- Animation indicators (3 squares with staggered timing) -->
   ${showAnimation ? `
   <rect x="${2*sx}" y="${28*sy}" width="${26*sx}" height="${24*sy}" fill="${colors.animationIndicator}">
-    <animate attributeName="opacity" values="1;0.3;1" dur="${animationSpeed}s" repeatCount="indefinite" />
+    ${pulse(0)}
   </rect>
   <rect x="${38*sx}" y="${28*sy}" width="${26*sx}" height="${24*sy}" fill="${colors.animationIndicator}">
-    <animate attributeName="opacity" values="1;0.3;1" dur="${animationSpeed}s" begin="${animationSpeed/3}s" repeatCount="indefinite" />
+    ${pulse(animationSpeed / 3)}
   </rect>
   <rect x="${74*sx}" y="${28*sy}" width="${26*sx}" height="${24*sy}" fill="${colors.animationIndicator}">
-    <animate attributeName="opacity" values="1;0.3;1" dur="${animationSpeed}s" begin="${(animationSpeed*2)/3}s" repeatCount="indefinite" />
+    ${pulse((animationSpeed * 2) / 3)}
   </rect>
   ` : ''}
 
@@ -196,7 +146,7 @@ export function render(context) {
   <g id="range-zone" data-zone="range"
      transform="translate(${zones.range.x}, ${zones.range.y})"
      data-bounds="${zones.range.x},${zones.range.y},${zones.range.width},${zones.range.height}">
-    ${hasRanges ? renderRangeSegments(zones.range, colors, style, config) : ''}
+    <!-- bands drawn by the card (lcards-slider _generateGaugeBandRanges) -->
   </g>
 
   <!-- Progress bar zone (leftmost, renders after ranges for proper z-order) -->
@@ -247,37 +197,7 @@ export const metadata = {
         width: 365,
         height: 601
     },
-    configurableOptions: [
-        {
-            key: 'show_animation',
-            type: 'boolean',
-            default: true,
-            description: 'Show pulsing animation indicators in top-left',
-            'x-ui-hints': {
-                label: 'Show Animation',
-                helper: 'Show 3 pulsing animation indicators in top-left (default: true)',
-                selector: { boolean: {} }
-            }
-        },
-        {
-            key: 'animation_speed',
-            type: 'number',
-            default: 2,
-            description: 'Animation pulse speed in seconds',
-            'x-ui-hints': {
-                label: 'Animation Speed',
-                helper: 'Animation pulse speed in seconds (default: 2)',
-                selector: {
-                    number: {
-                        mode: 'box',
-                        step: 0.1,
-                        min: 0.1,
-                        max: 10
-                    }
-                }
-            }
-        }
-    ],
+    configurableOptions: PICARD_OPTIONS,
     description: 'Star Trek LCARS-inspired vertical slider with state-aware borders and animated indicator'
 };
 

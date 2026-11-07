@@ -15,8 +15,6 @@ Each button is a full `lcards-button` under the hood, so every preset, style ove
 type: custom:lcards-select-menu
 entity: input_select.view_selector
 preset: lozenge
-grid_options:
-  rows: 4            # one row per option: the card asks for 2 by default
 ```
 
 ```yaml live
@@ -186,6 +184,8 @@ grid:
   gap: 6px
   grid-auto-rows: 48px
 ```
+
+On a sections view the card asks Home Assistant for enough grid rows to show every option, from the option count, `columns`, the row height (`grid-auto-rows`, `56px` by default) and the row gap. A pixel `height` sizes it instead, and your own `grid_options.rows` always wins.
 
 A few layouts and presets against a sample `input_select` (tap an option to select it):
 

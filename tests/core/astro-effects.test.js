@@ -36,6 +36,19 @@ test('stepObjects: spin turns, a tick runs with dt and the clock, and either kee
   assert.equal(stepObjects([settled], 16, 32), false);
 });
 
+test('nebula colours: color when colors is not set, colors (one colour or a list) wins, the default violet otherwise', () => {
+  /** @param {any} obj */
+  const asked = (obj) => {
+    const seen = [];
+    buildScene({ objects: [{ type: 'nebula', id: 'n', count: 2, seed: 2, ...obj }] }, /** @type {any} */ (ctx({ color: (c) => { seen.push(c); return [0.6, 0.3, 0.9, 1]; } })));
+    return seen;
+  };
+  assert.deepEqual(asked({ color: 'red' }), ['red']);
+  assert.deepEqual(asked({ color: 'red', colors: 'blue' }), ['blue'], 'one colour in colors');
+  assert.deepEqual(asked({ color: 'red', colors: ['blue', 'green'] }), ['blue', 'green']);
+  assert.deepEqual(asked({}), [undefined], 'no colour: ctx.color gives the default');
+});
+
 test('usesEffects: only configs with a nebula load the effects chunk', () => {
   assert.ok(OBJECT_TYPES.includes('nebula'));
   assert.equal(usesEffects({ objects: [{ type: 'grid' }, { type: 'glow' }] }), false);

@@ -319,7 +319,8 @@ export function buildNebula(cfg, ctx) {
   const node = new Group();
   node.name = `nebula:${cfg.id ?? ''}`;
   const { clouds, puffs, extent } = nebulaLayout(cfg);
-  const list = Array.isArray(cfg.colors) && cfg.colors.length ? cfg.colors : [cfg.color];
+  // colors: a list, or one colour (as the schema allows); else color
+  const list = Array.isArray(cfg.colors) && cfg.colors.length ? cfg.colors : [cfg.colors != null && !Array.isArray(cfg.colors) ? cfg.colors : cfg.color];
   const palette = list.map((/** @type {any} */ c) => ctx.color(c, DEFAULT_COLORS.nebula));
   /** @param {number} i - a palette index, or -1 - n for cloud n's own colour */
   const colorOf = (i) => (i >= 0 ? palette[i % palette.length] : ctx.color(cfg.clouds[-1 - i].color, DEFAULT_COLORS.nebula));

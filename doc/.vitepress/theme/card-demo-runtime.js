@@ -89,17 +89,11 @@ export async function cardRuntime() {
 const rowsHeight = (rows) => `${rows * 56 + (rows - 1) * 8}px`
 
 /**
- * Rows for cards that draw to the height of their grid cell and report only 1 row
- * (or none): in HA they need `grid_options.rows` too, so docs examples set it; this
- * covers playground configs that don't.
+ * Rows for button components that draw to the height of their grid cell but report
+ * only 1 row. (Sliders report their own rows, as Home Assistant reads them.)
  */
 function tallRows(config) {
   if (config.type === 'custom:lcards-button') return { dpad: 5, alert: 4, brackets: 5, radar: 5 }[config.component] ?? 0
-  if (config.type !== 'custom:lcards-slider') return 0
-  const vertical = config.style?.track?.orientation === 'vertical' || /vertical/.test(String(config.preset ?? ''))
-  if (config.component === 'picard') return 7
-  if (vertical) return 5
-  if (config.component === 'shaped') return 4
   return 0
 }
 

@@ -172,6 +172,13 @@ test('schema fixes found by checking real configs: CSS functions for sizes, 0 sp
     assert.ok(messages(check({ type: 'custom:lcards-layout-card', layout: { margin: 10 } })).length > 0, 'a bare number other than 0 is not CSS');
 });
 
+test('a nebula takes color (the runtime reads it when colors is not set), like a belt', () => {
+    assert.deepEqual(messages(check({ type: 'custom:lcards-astrometrics-card', objects: [
+        { type: 'nebula', color: 'var(--lcars-blue)' },
+        { type: 'nebula', colors: 'var(--lcars-blue)' },
+    ] })), []);
+});
+
 test('an MSD control or shape can be an obstacle (RouterCore reads overlay.obstacle)', () => {
     assert.deepEqual(messages(check({ type: 'custom:lcards-msd-card', msd: { base_svg: { source: 'none' }, view_box: [0, 0, 600, 300], overlays: [
         { id: 'box', type: 'control', position: [300, 150], size: [140, 70], obstacle: true, card: { type: 'custom:lcards-button' } },

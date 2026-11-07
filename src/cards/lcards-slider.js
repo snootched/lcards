@@ -98,6 +98,7 @@ import { haFormatStateParts, extractUnit, haFormatNumber } from '../utils/ha-ent
 
 // Import unified schema
 import { getSliderSchema } from './schemas/slider-schema.js';
+import { DEFAULT_CONTROL_ATTRIBUTE, controlSetter, controlServiceCall, controlValueFromEntity, controlRange } from './slider-control.js';
 import { TEXT_POSITIONS } from './schemas/schema-options.js';
 import {
     arcPath, fractionToAngle, pointToFraction, hitsRing, fractionToValue, snapValue, scaleValues,
@@ -980,18 +981,24 @@ export class LCARdSSlider extends LCARdSButton {
      * @private
      * @returns {string|null}
      */
-    _getDefaultAttribute() {
-        switch (this._domain) {
-            case 'light': return 'brightness';
-            case 'cover': return 'current_position';
-            case 'fan': return 'percentage';
-            case 'climate': return 'temperature';
-            case 'media_player': return 'volume_level';
-            case 'humidifier': return 'humidity';
-            case 'water_heater': return 'temperature';
-            case 'valve': return 'current_valve_position';
-            default: return null;
+    /**
+     * style.track.margin as { top, right, bottom, left } px: one number is all
+     * four sides, an object sets each side (missing sides 0).
+     * @returns {{ top: number, right: number, bottom: number, left: number }}
+     * @private
+     */
+    _trackMargins() {
+        const m = this._sliderStyle?.track?.margin;
+        if (typeof m === 'number' || (typeof m === 'string' && m.trim() !== '' && !isNaN(Number(m)))) {
+            const n = Number(m);
+            return { top: n, right: n, bottom: n, left: n };
         }
+        const side = (/** @type {any} */ v) => Number(v) || 0;
+        return { top: side(m?.top), right: side(m?.right), bottom: side(m?.bottom), left: side(m?.left) };
+    }
+
+        _getDefaultAttribute() {
+        return DEFAULT_CONTROL_ATTRIBUTE[this._domain] ?? null;
     }
 
     /**
@@ -1003,58 +1010,36 @@ export class LCARdSSlider extends LCARdSButton {
         const config = this.config;
         const entity = this._entity;
 
-        // Determine if entity is controllable based on domain
-        const controllableDomains = ['light', 'cover', 'fan', 'input_number', 'number', 'climate', 'media_player', 'humidifier', 'water_heater', 'valve'];
-        const isControllable = controllableDomains.includes(this._domain);
-
         // Value inversion (explicit only, no auto-detection)
         const invertValue = config.control?.invert_value ?? false;
 
-        // Domain-specific attribute min/max/step defaults
-        let defaultMin, defaultMax, defaultStep, defaultUnit;
-        if (this._domain === 'climate' || this._domain === 'water_heater') {
-            defaultMin = entity?.attributes?.min_temp ?? 15;
-            defaultMax = entity?.attributes?.max_temp ?? (this._domain === 'water_heater' ? 60 : 30);
-            defaultStep = entity?.attributes?.target_temp_step ?? 0.5;
-        } else if (this._domain === 'media_player') {
-            // volume_level is 0.0–1.0 internally; slider operates in 0–100 percentage space
-            defaultMin = 0;
-            defaultMax = 100;
-            defaultStep = 1;
-            defaultUnit = '%';
-        } else if (this._domain === 'humidifier') {
-            defaultMin = entity?.attributes?.min_humidity ?? 0;
-            defaultMax = entity?.attributes?.max_humidity ?? 100;
-            defaultStep = 1;
-            defaultUnit = '%';
-        } else if (this._domain === 'valve') {
-            defaultMin = 0;
-            defaultMax = 100;
-            defaultStep = 1;
-            defaultUnit = '%';
-        } else if (this._domain === 'light' || this._domain === 'cover' || this._domain === 'fan') {
-            // brightness/position/percentage attributes all operate the slider in
-            // 0–100 percentage space (brightness is converted to/from 0-255 in
-            // _setEntityValue/_getEntityValue) — no unit_of_measurement attribute
-            // exists on these entities to fall back to, so it must be assumed here.
-            defaultMin = entity?.attributes?.min ?? 0;
-            defaultMax = entity?.attributes?.max ?? 100;
-            defaultStep = entity?.attributes?.step ?? 1;
-            defaultUnit = '%';
-        } else {
-            defaultMin = entity?.attributes?.min ?? 0;
-            defaultMax = entity?.attributes?.max ?? 100;
-            defaultStep = entity?.attributes?.step ?? 1;
+        // What the slider reads and sets: the configured attribute (templates
+        // resolved) or the domain's default. Only attributes with a Home
+        // Assistant action that sets them (slider-control.js) can be dragged;
+        // anything else is shown read-only, whatever control.locked says.
+        const rawAttribute = config.control?.attribute ?? this._getDefaultAttribute();
+        const attribute = this._resolveControlAttribute(rawAttribute);
+        const settable = !!controlSetter(this._domain, attribute);
+        if (config.control?.locked === false && !settable) {
+            lcardsLog.warn(`[LCARdSSlider] ${config.entity}: ${attribute ? `attribute '${attribute}'` : 'the state'} of a ${this._domain} entity can't be set from a slider; it is shown read-only`);
         }
+
+        // Default range: the attribute's own (brightness 0-100 %, a climate's
+        // min_temp..max_temp, a light's colour temperature in K), else the
+        // entity's min/max/step (input_number, number, sensors).
+        const attrs = entity?.attributes ?? {};
+        const range = controlRange(this._domain, attribute, attrs)
+            ?? { min: attrs.min ?? 0, max: attrs.max ?? 100, step: attrs.step ?? 1, unit: undefined };
+        const defaultUnit = range.unit;
 
         // CONTROL CONFIG: What user can set via slider input
         this._controlConfig = {
-            min: config.control?.min ?? defaultMin,
-            max: config.control?.max ?? defaultMax,
-            step: config.control?.step ?? defaultStep,
-            attribute: config.control?.attribute ?? this._getDefaultAttribute(),
-            locked: config.control?.locked ?? !isControllable,
-            invertValue: !!invertValue  // NEW: Store inversion flag
+            min: config.control?.min ?? range.min,
+            max: config.control?.max ?? range.max,
+            step: config.control?.step ?? range.step,
+            attribute: rawAttribute,
+            locked: !settable || (config.control?.locked ?? false),
+            invertValue: !!invertValue
         };
 
         // DISPLAY CONFIG: What visual scale shows (from style.track.display)
@@ -1099,14 +1084,8 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Convert from entity's native range to slider value range
         // This is necessary for lights (brightness 0-255 → percentage 0-100)
-        if (this._domain === 'light' && attribute === 'brightness') {
-            // Convert brightness (0-255) to percentage (0-100)
-            // The slider operates in percentage space, regardless of control min/max
-            rawValue = (rawValue / 255) * 100;
-        } else if (this._domain === 'media_player' && attribute === 'volume_level') {
-            // Convert volume_level (0.0–1.0) to percentage (0–100)
-            rawValue = rawValue * 100;
-        }
+        // (a light's brightness 0-255 and a volume 0-1 become 0-100 %)
+        rawValue = controlValueFromEntity(this._domain, attribute, rawValue);
 
         // Apply value inversion if configured
         if (this._controlConfig.invertValue) {
@@ -1920,7 +1899,7 @@ export class LCARdSSlider extends LCARdSButton {
         if (bottomSize > 0) borderZones.bottom = { x: 0,                   y: height - bottomSize,  width: width,      height: bottomSize           };
 
         // Track zone: interior area inset by all enabled border sizes + track margins
-        const margins = this._sliderStyle?.track?.margin || { top: 0, right: 0, bottom: 0, left: 0 };
+        const margins = this._trackMargins();
         const trackZone = {
             x: leftSize   + (margins.left   || 0),
             y: topSize    + (margins.top    || 0),
@@ -2256,7 +2235,8 @@ export class LCARdSSlider extends LCARdSButton {
             if (resolvedValue === null || resolvedValue === undefined) return;
             const valuePercent = displayRange > 0 ? (resolvedValue - displayMin) / displayRange : 0;
             const pillStyle = range.pill_style || {};
-            const fillColor = this._resolveRangeColor(range.color || 'var(--lcars-text-light, #ffffff)');
+            // one colour rule for every look: indicator.color, then the range's color
+            const fillColor = this._resolveRangeColor(range.indicator?.color || range.color || 'var(--lcars-text-light, #ffffff)');
 
             const rawLabelText = range.label?.text;
             const label = rawLabelText ? {
@@ -2756,7 +2736,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         // Calculate label positioning
         // Labels need space at the bottom - use height minus label space
-        const labelFontSize = 14; // px
+        const labelFontSize = Number(labelConfig?.font_size) || 14; // px (scale.labels.font_size)
         const labelBottomMargin = 5; // px breathing room
         const labelY = trackHeight - labelBottomMargin; // Position labels near bottom with margin (horizontal)
         const labelX = trackWidth - labelBottomMargin; // Position labels near right edge with margin (vertical)
@@ -2810,7 +2790,7 @@ export class LCARdSSlider extends LCARdSButton {
                     if (labelsEnabled && !isFirstTick) {
                         // Estimate label width (rough approximation: ~8px per digit + unit)
                         const labelText = Math.round(displayValue) + labelUnit;
-                        const estimatedLabelWidth = labelText.length * 8;
+                        const estimatedLabelWidth = labelText.length * labelFontSize * 0.57;
 
                         // Check if label would extend beyond track bounds
                         // For text-anchor="end", text extends LEFT of x position
@@ -2934,10 +2914,10 @@ export class LCARdSSlider extends LCARdSButton {
                     // Draw label if enabled (to the right, below the line)
                     if (labelsEnabled && !isBottomTick) {
                         const labelText = `${displayValue}${labelUnit}`;
-                        const labelFontSizeVertical = labelConfig?.font_size || labelFontSize;
+                        const labelFontSizeVertical = labelFontSize;
 
                         // Estimate label width and check bounds
-                        const estimatedLabelWidth = labelText.length * 8;
+                        const estimatedLabelWidth = labelText.length * labelFontSize * 0.57;
                         const labelLeftEdge = labelX - estimatedLabelWidth;
 
                         // Ensure label doesn't extend past left edge
@@ -3926,7 +3906,6 @@ export class LCARdSSlider extends LCARdSButton {
 
         const domain = this._domain;
         const entityId = this.config.entity;
-        const attribute = this._controlConfig.attribute;
 
         // Reverse value inversion before sending to entity
         let entityValue = value;
@@ -3936,59 +3915,13 @@ export class LCARdSSlider extends LCARdSButton {
         }
 
         try {
-            if (domain === 'light') {
-                // Convert value to 0-255 brightness range
-                // The slider value represents a percentage (e.g., min=10, max=50 means 10%-50% brightness)
-                // Convert the percentage directly to 0-255 range
-                const brightness = Math.round((entityValue / 100) * 255);
-
-                await this.hass.callService('light', 'turn_on', {
-                    entity_id: entityId,
-                    brightness: brightness
-                });
-            } else if (domain === 'cover') {
-                await this.hass.callService('cover', 'set_cover_position', {
-                    entity_id: entityId,
-                    position: entityValue
-                });
-            } else if (domain === 'fan') {
-                await this.hass.callService('fan', 'set_percentage', {
-                    entity_id: entityId,
-                    percentage: entityValue
-                });
-            } else if (domain === 'input_number' || domain === 'number') {
-                await this.hass.callService(domain, 'set_value', {
-                    entity_id: entityId,
-                    value: entityValue
-                });
-            } else if (domain === 'climate') {
-                await this.hass.callService('climate', 'set_temperature', {
-                    entity_id: entityId,
-                    temperature: entityValue
-                });
-            } else if (domain === 'media_player') {
-                await this.hass.callService('media_player', 'volume_set', {
-                    entity_id: entityId,
-                    volume_level: entityValue / 100
-                });
-            } else if (domain === 'humidifier') {
-                await this.hass.callService('humidifier', 'set_humidity', {
-                    entity_id: entityId,
-                    humidity: Math.round(entityValue)
-                });
-            } else if (domain === 'water_heater') {
-                await this.hass.callService('water_heater', 'set_temperature', {
-                    entity_id: entityId,
-                    temperature: entityValue
-                });
-            } else if (domain === 'valve') {
-                await this.hass.callService('valve', 'set_valve_position', {
-                    entity_id: entityId,
-                    position: Math.round(entityValue)
-                });
-            } else {
-                lcardsLog.warn(`[LCARdSSlider] Unsupported domain for value setting: ${domain}`);
+            const attribute = this._resolveControlAttribute(this._controlConfig.attribute);
+            const call = controlServiceCall(entityId, attribute, entityValue, this._entity?.attributes);
+            if (!call) {
+                lcardsLog.warn(`[LCARdSSlider] Can't set ${attribute ? `'${attribute}' on` : 'the state of'} ${entityId} (${domain}) from a slider`);
+                return;
             }
+            await this.callService(call.domain, call.service, call.data);
 
             lcardsLog.debug(`[LCARdSSlider] Set ${entityId} to ${entityValue} (slider: ${value}, inverted: ${this._controlConfig.invertValue})`);
 
@@ -4034,7 +3967,7 @@ export class LCARdSSlider extends LCARdSButton {
         // border/margin insets on top of the text_band offset would double-shift the track.
         const borderConfig = this._sliderStyle?.border;
         // Track margins are under style.track.margin
-        const margins = this._sliderStyle?.track?.margin || { top: 0, right: 0, bottom: 0, left: 0 };
+        const margins = this._trackMargins();
 
         // Calculate total insets (borders + margins)
         const getBorderSize = (borderDef) => borderDef?.size ?? borderDef?.width ?? 0;
@@ -4216,10 +4149,13 @@ export class LCARdSSlider extends LCARdSButton {
         // both 'default' and 'picard' have one; unknown/future components get it too if they
         // declare the zone.  skipRanges=true was passed to _generateGaugeContent() above so
         // ranges are never also rendered inside the track-zone SVG.
-        if (effectiveMode === 'gauge' && rangeZone) {
+        // Picard's range column is its own strip beside the track, so its bands
+        // are drawn there in every mode (pills recolour the track only).
+        const ownRangeColumn = (this.config.component || this._sliderStyle?.component) === 'picard';
+        if ((effectiveMode === 'gauge' || ownRangeColumn) && rangeZone) {
             const rangeZoneEl = shellElement.querySelector('#range-zone');
             if (rangeZoneEl) {
-                rangeZoneEl.innerHTML = this._generateGaugeBandRanges(rangeZone.width, rangeZone.height);
+                rangeZoneEl.innerHTML = this._generateGaugeBandRanges(rangeZone.width, rangeZone.height, ownRangeColumn);
             }
         }
 
@@ -4391,7 +4327,7 @@ export class LCARdSSlider extends LCARdSButton {
      * @returns {string} SVG markup (rect elements)
      * @private
      */
-    _generateGaugeBandRanges(zoneWidth, zoneHeight) {
+    _generateGaugeBandRanges(zoneWidth, zoneHeight, separated = false) {
         const ranges = this._sliderStyle?.ranges || [];
         const orientation = this._sliderStyle?.track?.orientation || 'horizontal';
         const isVertical = orientation === 'vertical';
@@ -4412,7 +4348,22 @@ export class LCARdSSlider extends LCARdSButton {
             const startPercent = Math.max(0, (rangeMin - min) / displayRange);
             const endPercent   = Math.min(1, (rangeMax - min) / displayRange);
 
-            if (isVertical) {
+            if (isVertical && separated) {
+                // Picard: each band in a ] frame of style.range.border.color, a
+                // gap wide, so neighbouring bands are split by a line
+                const gap = Math.max(0, Number(this._sliderStyle?.range?.border?.gap ?? 2));
+                const border = this._resolveColorValue(String(this._resolveStateValue({
+                    actualState: this._entity?.state,
+                    classifiedState: this._classifyEntityState(),
+                    colorConfig: this._sliderStyle?.range?.border?.color,
+                    fallback: 'theme:components.slider.range.border.color'
+                }) ?? ''));
+                const yStart = zoneHeight * (1 - endPercent);
+                const yEnd   = zoneHeight * (1 - startPercent);
+                const h = Math.max(0, yEnd - yStart - gap);
+                svg += `<rect class="range-border" x="0" y="${yStart}" width="${zoneWidth}" height="${yEnd - yStart}" fill="${border}" />`;
+                svg += `<rect class="range-bg" x="0" y="${yStart + gap / 2}" width="${Math.max(0, zoneWidth - gap)}" height="${h}" fill="${rangeColor}" opacity="${rangeOpacity}" />`;
+            } else if (isVertical) {
                 const yStart = zoneHeight * (1 - endPercent);
                 const yEnd   = zoneHeight * (1 - startPercent);
                 svg += `<rect class="range-bg" x="0" y="${yStart}" width="${zoneWidth}" height="${yEnd - yStart}" fill="${rangeColor}" opacity="${rangeOpacity}" />`;
@@ -4828,7 +4779,7 @@ export class LCARdSSlider extends LCARdSButton {
         let labels = '';
         for (const m of markers) {
             const color = this._resolveRingColor(
-                m.range.indicator?.color ?? this._sliderStyle?.gauge?.marker_indicator?.color,
+                m.range.indicator?.color ?? m.range.color ?? this._sliderStyle?.gauge?.marker_indicator?.color,
                 'theme:components.slider.indicator.color'
             );
             const p = this._calculateValuePercent(m.value);
@@ -5397,12 +5348,12 @@ export class LCARdSSlider extends LCARdSButton {
             const riCfg = range.indicator || {};
             // Fallback chain: per-range indicator → style.gauge.marker_indicator (preset) → component-aware defaults
             const presetMarker = gaugeConfig?.marker_indicator || {};
-            // Color lives under indicator.color for value markers, not range.color
-            // (range.color is the band fill — a separate concept)
+            // indicator.color, then the range's own color (as on pills), then the
+            // preset's marker_indicator.color
             const markerColor = this._resolveColorValue(String(this._resolveStateValue({
                 actualState: this._entity?.state,
                 classifiedState: this._classifyEntityState(),
-                colorConfig: riCfg.color ?? presetMarker.color,
+                colorConfig: riCfg.color ?? range.color ?? presetMarker.color,
                 fallback: 'theme:components.slider.indicator.color'
             }) ?? ''));
             const markerIndicator = {
@@ -5499,7 +5450,7 @@ export class LCARdSSlider extends LCARdSButton {
                     markerIndicator.borderColor, markerIndicator.borderWidth, false,
                     markerTag
                 );
-                labelsMarkup += this._renderMarkerLabel(range, markerIndicator, mX + markerIndicator.offsetX, mY, false, posCoeffs);
+                labelsMarkup += this._renderMarkerLabel(range, markerIndicator, mX + markerIndicator.offsetX, mY, false, posCoeffs, zoneSpec.y ?? 0);
             }
         }
         return svg + labelsMarkup;
@@ -5527,10 +5478,11 @@ export class LCARdSSlider extends LCARdSButton {
      * @param {boolean} isVertical
      * @param {{index:number, axis:string, posBase:number, posScale:number, fixed:number}} posCoeffs
      *   - The marker's own linear-coefficient geometry (see _generateGaugeMarkers)
+     * @param {number} [zoneTop] - the track zone's top in the card's SVG, px (room above a flat marker)
      * @returns {string} SVG markup, or '' if no label configured
      * @private
      */
-    _renderMarkerLabel(range, markerIndicator, drawX, drawY, isVertical, posCoeffs) {
+    _renderMarkerLabel(range, markerIndicator, drawX, drawY, isVertical, posCoeffs, zoneTop = 0) {
         const rawText = range.label?.text;
         if (!rawText) return '';
 
@@ -5556,9 +5508,14 @@ export class LCARdSSlider extends LCARdSButton {
             labelPosBase = posCoeffs.posBase + alongOffset;
             labelFixed = posCoeffs.fixed + crossOffset;
         } else {
-            // Default: above the marker
+            // Default: above the marker, or below it when the card has no room
+            // above (a flat gauge's marker sits at the top of the track, so a
+            // caption above it would be drawn off the card).
             const alongOffset = range.label.offset?.x ?? 0;
-            const crossOffset = range.label.offset?.y ?? -(markerIndicator.height / 2 + 6);
+            const above = -(markerIndicator.height / 2 + 6);
+            const below = markerIndicator.height / 2 + 6 + labelFontSize * 0.8;
+            const roomAbove = zoneTop + drawY + above - labelFontSize * 0.8 >= 0;
+            const crossOffset = range.label.offset?.y ?? (roomAbove ? above : below);
             labelX = drawX + alongOffset;
             labelY = drawY + crossOffset;
             textAnchor = 'middle';
@@ -5968,11 +5925,16 @@ export class LCARdSSlider extends LCARdSButton {
         }
 
         if (isVertical) {
+            // An upright slider draws to its cell height, so it needs real rows:
+            // with none, Home Assistant sizes the cell to the content ("auto") and
+            // the card collapses to a strip. One of the section's 12 columns
+            // crushes it sideways. Picard is drawn for a tall, half-width cell.
+            const picard = (this.config.component || this._sliderStyle?.component) === 'picard';
             return {
-                columns:     go.columns     ?? 1,
-                rows:        go.rows,
-                min_columns: go.min_columns ?? 1,
-                min_rows:    go.min_rows    ?? 1,
+                columns:     go.columns     ?? (picard ? 6 : 3),
+                rows:        go.rows        ?? (picard ? 7 : 4),
+                min_columns: go.min_columns ?? 2,
+                min_rows:    go.min_rows    ?? 2,
             };
         } else {
             return {

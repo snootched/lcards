@@ -38,7 +38,6 @@ style:
 - **Upright pills:** with no `count`, an upright track fits as many pills of `segments.size.height` as the height allows, then stretches them a little so they fill it exactly. A flat track keeps the pill width you set and leaves any spare room at the end.
 - **Inverted fill:** with `invert_fill: true` the pill gradient swaps ends too, so the `start` colour stays where the fill starts.
 - **Border caps and margin:** the track starts inside any [border caps](#style-border); `margin` adds space inside them.
-- **One number for margin:** the card accepts `margin: 10` but ignores it at present. Set the sides you want instead.
 :::
 
 | Key | Type | Default | Description |
@@ -47,6 +46,7 @@ style:
 | `orientation` | string | `horizontal` | `horizontal` or `vertical` |
 | `height` | number / string | theme | Track height: px, a `px` or `rem` string, or a theme token |
 | `invert_fill` | boolean | `false` | Fill from the other end (right, or top when upright) |
+| `margin` | number | `0` | Space on every side of the track, px. Or set each side with the keys below |
 | `margin.top` | number | `0` (pills presets: `5`) | Space above the track, px |
 | `margin.right` | number | `0` | Space right of the track, px |
 | `margin.bottom` | number | `0` | Space below the track, px |
@@ -69,7 +69,7 @@ style:
 **The gauge's fill bar, its ruler of ticks and labels, the value indicator, and the defaults for value markers.** `progress_bar` is the fill, `scale` the ruler, `indicator` the mark at the current value.
 
 - The value indicator is off until you set `indicator.type`, `color` or `size`, or `enabled: true`. A triangle points down; `rotation: 180` points it up at the ruler.
-- [Value markers](./ranges#value-marker-fields) (ranges with a `value`) take their shape from `marker_indicator`, and a marker's own `indicator` keys win over it. A marker's colour comes from `indicator.color`, never from the range's `color`.
+- [Value markers](./ranges#value-marker-fields) (ranges with a `value`) take their shape from `marker_indicator`, and a marker's own `indicator` keys win over it. A marker's colour is its range's `color` (or its `indicator.color`); `marker_indicator.color` is the default when it sets neither.
 
 ```yaml live
 type: custom:lcards-slider
@@ -148,7 +148,7 @@ style:
 | `scale.labels.show_unit` | boolean | `true` | Add the unit to each label |
 | `scale.labels.unit` | string | entity unit | Unit on the labels |
 | `scale.labels.color` | colour | theme | Label colour |
-| `scale.labels.font_size` | number | `14` | Label size, px. Upright gauges only: a flat gauge's labels are always 14 px |
+| `scale.labels.font_size` | number | `14` | Label size, px |
 | `scale.labels.padding` | number | `3` | Space round the labels, px |
 | `indicator.enabled` | boolean / string | off | Show the value indicator. Setting `type`, `color` or `size` also turns it on |
 | `indicator.type` | string | `line` | `line`, `round` or `triangle` |

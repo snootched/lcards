@@ -307,6 +307,33 @@ test('select menu: a tap selects the option through the option button (select_op
     await expectNoErrors(page);
 });
 
+test('select menu: getGridOptions asks for enough sections-grid rows to show every option; grid_options.rows still wins', async ({ page }) => {
+    const card = await mountCase(page, 'select-menu', { width: '400' });
+    await expect.poll(() => card.evaluate(el => el.shadowRoot.querySelectorAll('lcards-button').length)).toBe(4);
+    const rows = () => card.evaluate(el => el.getGridOptions().rows);
+    // 4 options, one column, 56px rows, 4px gaps: 236px needs 4 rows of 56px + 8px gaps (248px)
+    expect(await rows()).toBe(4);
+    const gridHeight = await card.evaluate(el => el.shadowRoot.querySelector('.sm-grid').getBoundingClientRect().height);
+    expect(gridHeight).toBeGreaterThan(3 * 56 + 2 * 8);
+    expect(gridHeight).toBeLessThanOrEqual(4 * 56 + 3 * 8);
+    const base = { type: 'custom:lcards-select-menu', entity: 'input_select.demo_mode' };
+    // a horizontal strip stays one row
+    await page.evaluate((c) => window.__reconfigure({ ...c, grid: { columns: 4 } }), base);
+    await expect.poll(rows).toBe(1);
+    await page.evaluate((c) => window.__reconfigure({ ...c, grid: { 'grid-template-columns': 'repeat(2, 1fr)' } }), base);
+    await expect.poll(rows).toBe(2);
+    // shorter rows: 4 x 40px + 3 x 4px = 172px fits 3 rows
+    await page.evaluate((c) => window.__reconfigure({ ...c, grid: { columns: 1, 'grid-auto-rows': '40px' } }), base);
+    await expect.poll(rows).toBe(3);
+    // a pixel height sizes it instead
+    await page.evaluate((c) => window.__reconfigure({ ...c, height: 300 }), base);
+    await expect.poll(rows).toBe(5);
+    // the user's own rows win
+    await page.evaluate((c) => window.__reconfigure({ ...c, grid_options: { rows: 2 } }), base);
+    await expect.poll(rows).toBe(2);
+    await expectNoErrors(page);
+});
+
 test('select menu with a preset that styles through style: (toggle-tab): options are styled on the first render, not after a click', async ({ page }) => {
     const card = await mountCase(page, 'select-menu-toggle-tab', { width: '600' });
     const backgrounds = () => card.evaluate(el => [...el.shadowRoot.querySelectorAll('lcards-button')]

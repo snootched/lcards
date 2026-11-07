@@ -32,7 +32,7 @@ moved_anchors:
 **A slider you drag to set a light, cover, fan, thermostat or volume, or a read-only gauge for a sensor.** It comes in four looks: pill bars, ruler gauges, shaped fills and ring gauges.
 
 - Most sliders need only `entity` and `preset`. The card works out from the entity what to control and over what range.
-- The ring, shaped and Picard looks are taller than a pill bar, so in a sections view give them more rows with `grid_options.rows`.
+- In a sections view each look asks for a cell that fits it (a pill bar 1 row, a ring 4, Picard 7); `grid_options` changes it.
 
 ::: tip Try it
 - The card editor's tabs cover the options on these pages, with a live preview.

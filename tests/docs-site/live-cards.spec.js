@@ -197,7 +197,8 @@ test('cards drawn to their cell height render at a usable size', async ({ page }
         .map(el => Math.max(0, ...[...el.shadowRoot.querySelectorAll('svg')].map(s => s.getBoundingClientRect().height))), component);
     for (const [url, tag, checks] of [
         ['/cards/button/', 'lcards-button', [['dpad', 250], ['alert', 180]]],
-        ['/cards/slider-card/components', 'lcards-slider', [['shaped', 100], ['picard', 350]]],
+        // the flat shaped example is one row (56 px); a collapsed card is a few px
+        ['/cards/slider-card/components', 'lcards-slider', [['shaped', 50], ['picard', 350]]],
     ]) {
         await page.goto(url);
         await waitForDemos(page, PAGES.find(([u]) => u === url)[1].length);

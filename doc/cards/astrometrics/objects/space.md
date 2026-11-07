@@ -65,7 +65,8 @@ objects:
 | `count` | number | `4` | How many clouds the seed places, 1 to 10 |
 | `seed` | number | `1` | The same seed always places the same clouds |
 | `clouds` | list | - | Clouds placed by hand (up to 10), instead of `count` and the seed |
-| `colors` | colour / list | `var(--lcars-violet)` | One colour, or a list the seed picks from per cloud |
+| `color` | colour | `var(--lcars-violet)` | Cloud colour when `colors` is not set (a `preset` sets `colors`) |
+| `colors` | colour / list | `var(--lcars-violet)` | One colour, or a list the seed picks from per cloud. Wins over `color` |
 | `min_radius` | number | 0.15 of the region | Smallest cloud radius, scene units. 0.25 with `render: volume` |
 | `max_radius` | number | 0.4 of the region | Largest cloud radius, scene units. 0.55 with `render: volume` |
 | `brightness` | `[min, max]` | `[0.3, 0.8]` | Each cloud's opacity is picked between these. A cloud's own `opacity` wins |

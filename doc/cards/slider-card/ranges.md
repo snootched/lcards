@@ -34,13 +34,9 @@ style:
       opacity: 0.5
     # a marker at the room temperature, with a caption
     - value: "{entity.attributes.current_temperature}"
-      indicator:
-        color: var(--lcars-orange)
+      color: var(--lcars-orange)
       label:
         text: NOW
-        offset:
-          x: 26
-          "y": 30
 ```
 
 ## Range band fields
@@ -90,7 +86,7 @@ style:
 
 **A marker points at one value on the track and moves when that value changes.** On a gauge it is a triangle at the value; on pills the pill at the value is filled and outlined; on a [ring](./components#value-markers) it sits on the band. A [shaped](./components#shaped-component) slider draws bands only, no markers.
 
-- A gauge or ring marker takes its colour from `indicator.color`, not from the marker's `color`. Pills are the other way round: the marked pill uses the marker's `color`.
+- A marker's `color` colours it on every look: the marked pill, or the gauge or ring marker. `indicator.color` wins over it when both are set.
 - Defaults for every marker on the card go in [`style.gauge.marker_indicator`](./styles#style-gauge); a marker's own `indicator` keys win.
 
 ```yaml live
@@ -120,15 +116,15 @@ style:
   ranges:
     # gauge: a round marker at 20 and a line marker at 30
     - value: 20
+      color: var(--lcars-yellow)
       indicator:
         type: round
-        color: var(--lcars-yellow)
         size:
           width: 12
     - value: 30
+      color: theme:colors.status.error
       indicator:
         type: line
-        color: theme:colors.status.error
         size:
           width: 3
           height: 24
@@ -142,10 +138,10 @@ style:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `value` | number / string | required | Where the marker sits: a number or a quick [template](/core/templates/), as a band's `min` |
-| `color` | colour / object | `var(--lcars-text-light)` | Pills: the marked pill's colour. Not used on a gauge or ring: set `indicator.color` |
+| `color` | colour / object | pills: `var(--lcars-text-light)`, gauge and ring: `marker_indicator.color`, else the theme | The marker's colour; a [state map](/core/colours) works |
 | `indicator.type` | string | `triangle` (`line` on a ring) | `line`, `round` or `triangle` |
 | `indicator.align` | string | `start` | Where across the track: `start`, `center` or `end`. On a ring: `start` for `line`, `end` for `triangle`, `center` for `round` |
-| `indicator.color` | colour / object | theme | The marker's colour on a gauge or ring; a [state map](/core/colours) works |
+| `indicator.color` | colour / object | the marker's `color` | Wins over `color` |
 | `indicator.size.width` | number | `20` | Width, px |
 | `indicator.size.height` | number | `20` | Height, px |
 | `indicator.rotation` | number | `180` | Turn, degrees (not on a ring) |
@@ -162,8 +158,8 @@ style:
 
 **A label is a caption on a marker, such as NOW or TARGET, or the value itself.** It sits beside the marker on a gauge, beside the marked pill on pills, and outside the scale on a ring. Nothing shows unless `label.text` is set.
 
-- On a flat track the caption sits above the marker; on an upright track it sits beside it.
-- Captions on a gauge or pills don't move out of the way of tick labels, the value text or each other. A caption above the track of a flat gauge is cut off by the card's top edge, even on a taller card, so move it beside the marker with `offset`.
+- On a flat track the caption sits above the marker, or below it when the card has no room above (a flat gauge's marker is at the top of the track). On an upright track it sits beside the marker.
+- Captions don't move out of the way of tick labels, the value text or each other: use `offset` to place one exactly.
 
 ```yaml live
 type: custom:lcards-slider
@@ -177,8 +173,7 @@ style:
       unit: "°C"
   ranges:
     - value: 25
-      indicator:
-        color: var(--lcars-orange)
+      color: var(--lcars-orange)
       label:
         text: TARGET 25
         color: var(--lcars-orange)
@@ -199,4 +194,4 @@ style:
 | `label.color` | colour / object | theme | Caption colour; a [state map](/core/colours) works |
 | `label.font_size` | number | `14` (`12` on a ring) | Size, px |
 | `label.offset.x` | number | beside the marker | Nudge sideways, px |
-| `label.offset.y` | number | above the marker | Nudge down, px |
+| `label.offset.y` | number | above the marker (below when there is no room) | Nudge down, px |

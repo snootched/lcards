@@ -85,7 +85,7 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
     function sampleState(entityId) {
         const domain = entityId.split('.')[0];
         if (domain === 'light') {
-            return { state: 'on', attributes: { friendly_name: friendly(entityId), brightness: 200, rgb_color: [255, 153, 0] } };
+            return { state: 'on', attributes: { friendly_name: friendly(entityId), brightness: 200, rgb_color: [255, 153, 0], color_temp_kelvin: 3500, min_color_temp_kelvin: 2000, max_color_temp_kelvin: 6500 } };
         }
         if (ON_OFF_DOMAINS.has(domain)) return { state: 'on', attributes: { friendly_name: friendly(entityId) } };
         if (domain === 'input_select' || domain === 'select') {
@@ -256,7 +256,8 @@ export function createDemoEnv({ sample, now = Date.now(), simulateServices = fal
             set_cover_position: (d) => ({ state: d.position > 0 ? 'open' : 'closed', attributes: { current_position: d.position } }),
             set_valve_position: (d) => ({ state: d.position > 0 ? 'open' : 'closed', attributes: { current_position: d.position } }),
             set_percentage: (d) => ({ state: d.percentage > 0 ? 'on' : 'off', attributes: { percentage: d.percentage } }),
-            set_temperature: (d) => ({ attributes: { temperature: d.temperature } }),
+            set_cover_tilt_position: (d) => ({ attributes: { current_tilt_position: d.tilt_position } }),
+            set_temperature: (d) => ({ attributes: Object.fromEntries(['temperature', 'target_temp_low', 'target_temp_high'].filter((k) => d[k] !== undefined).map((k) => [k, d[k]])) }),
             set_humidity: (d) => ({ attributes: { humidity: d.humidity } }),
             volume_set: (d) => ({ attributes: { volume_level: d.volume_level } }),
             select_option: (d) => ({ state: String(d.option) }),

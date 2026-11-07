@@ -7,7 +7,7 @@ description: "Slider card ring gauge, shaped fills and Picard gauge: angles, thi
 **Three looks that draw their own shape instead of a [pill bar or ruler](./styles).** Use them when a plain bar is not the look you want: a round dial, a filled lozenge or a framed Picard-era gauge.
 
 - Pick one with a preset, or set `component` yourself to combine it with another preset.
-- They draw to the card's cell, so give them rows. In a sections view set `grid_options.rows` (4 or more for a ring).
+- They draw to the card's cell. In a sections view each asks for a cell that fits it: a ring 4 rows, Picard 7 rows by 6 columns, an upright slider 4 rows by 3 columns. `grid_options` changes it.
 
 | `component` | Presets | Looks like |
 |---|---|---|
@@ -29,8 +29,6 @@ description: "Slider card ring gauge, shaped fills and Picard gauge: angles, thi
 type: custom:lcards-slider
 entity: light.bedroom
 preset: ring
-grid_options:
-  rows: 4            # draws to its cell: give it rows in a sections view
 style:
   ring:
     thickness: 16%
@@ -68,8 +66,6 @@ style:
 type: custom:lcards-slider
 entity: input_number.target_level
 preset: picard-ring
-grid_options:
-  rows: 4
 text:
   name:
     content: Zone N
@@ -111,8 +107,6 @@ Ring variants (drag any of them):
 type: custom:lcards-slider
 entity: light.bedroom
 preset: ring
-grid_options:
-  rows: 4
 style:
   ring:
     start_angle: -120
@@ -153,7 +147,7 @@ style:
 
 **A [range](./ranges) with a `value` instead of `min` and `max` draws a marker at that value on the ring.** Use it to show a second number on the dial, such as the current temperature against the target.
 
-- A marker takes its colour from `indicator.color`, not from the range's `color`.
+- A marker takes its colour from the range's `color`, or `indicator.color` when set.
 - A marker and its label move with [value tweens](./control#value-tween).
 - The label sits outside the ring, past the marker and past the scale, so it never lands on a scale label.
 
@@ -165,8 +159,6 @@ control:
   min: 10
   max: 30
   step: 0.5
-grid_options:
-  rows: 4
 text:
   state:
     content: "{entity.attributes.temperature}°"
@@ -200,7 +192,7 @@ style:
 | `style.ranges[].value` | number / string | required | The value to mark: a number or a template such as `{entity.attributes.current_temperature}` |
 | `indicator.type` | string | `line` | `line`: a line across the band. `triangle`: outside the ring, pointing in. `round`: a dot on the band |
 | `indicator.align` | string | by type | `start`, `center` or `end`. A line starts at `start`, a triangle at `end`, a dot at `center` |
-| `indicator.color` | colour / state map | theme | Marker colour. Falls back to `style.gauge.marker_indicator.color`, then the theme |
+| `indicator.color` | colour / state map | the range's `color` | Marker colour. Without either, `style.gauge.marker_indicator.color`, then the theme |
 | `indicator.size.width` | number | by type | Size round the ring, px. Line: about a fifth of the band (at least 2). Triangle: `12`. Dot: half the band (at least 6) |
 | `indicator.size.height` | number | by type | Size along the radius, px. Line: the band plus 6. Triangle: `10`. Not used by a dot |
 | `indicator.offset.y` | number | `0` | Move the marker outward, px; negative moves it inward |
@@ -224,8 +216,6 @@ style:
 type: custom:lcards-slider
 entity: light.bedroom
 preset: ring
-grid_options:
-  rows: 4
 style:
   ring:
     start_angle: -90
@@ -257,8 +247,6 @@ text:
 type: custom:lcards-slider
 entity: light.bedroom
 preset: shaped-horizontal
-grid_options:
-  rows: 2
 style:
   shaped:
     type: hexagon
@@ -304,9 +292,6 @@ style:
 type: custom:lcards-slider
 entity: sensor.temperature
 preset: picard-gauge-vertical
-grid_options:
-  rows: 7            # draws to its cell height: give it rows in a sections view
-  columns: 6
 style:
   range:
     frame:
@@ -333,13 +318,16 @@ style:
 ```
 
 ::: details More about Picard
-- **Scanning lights:** the three lights at the top left always pulse with this component.
-- **Range opacity:** the ranges in the column use the gauge's band default of `0.3`, so set `opacity` on each range for stronger colour.
+- **Scanning lights:** the three lights at the top left pulse one after another, every `animation_speed` seconds. They stand still when the device asks for reduced motion, and `show_animation: false` removes them.
+- **Range opacity:** like any gauge band, a range in the column is drawn at `0.3` opacity unless it sets `opacity`.
 :::
 
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `style.range.frame.color` | colour / state map | `style.border.top.color` | The frame round the range column |
-| `style.range.border.color` | colour / state map | theme | Edge colour between ranges in the component's own range drawing. The preset's gauge track draws the ranges itself, so it shows no edge |
+| `style.range.border.color` | colour / state map | theme | The lines between the ranges in the column |
+| `style.range.border.gap` | number | `2` | Width of those lines, px |
 | `style.solid_bar.color` | colour / state map | `style.border.top.color` | The solid value bar |
 | `style.animation.indicator.color` | colour / state map | theme | The scanning lights |
+| `show_animation` | boolean | `true` | Show the scanning lights |
+| `animation_speed` | number | `2` | Seconds for one pulse of the lights, `0.1` to `10` |

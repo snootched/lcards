@@ -12,6 +12,7 @@ import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { deepMerge } from '../../utils/deepMerge.js';
 import { fireEvent } from 'custom-card-helpers';
 import { dropStrayRangeLabels } from '../utils/slider-config-cleanup.js';
+import { controlSetter, settableAttributes } from '../../cards/slider-control.js';
 
 // Import shared form components
 import '../components/editors/lcards-color-section-v2.js';
@@ -381,10 +382,16 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 @value-changed=${(e) => this._handleAttributeChange(e)}>
             </ha-selector>
 
-            ${!isValidAttribute && currentValue ? html`
+            ${!isValidAttribute && currentValue && !currentValue.includes('{') && !currentValue.includes('[[[') ? html`
                 <lcards-message
                     type="warning"
-                    message="Attribute '${currentValue}' does not exist on entity '${entityId}'. The slider will control the entity state instead.">
+                    message="Attribute '${currentValue}' does not exist on entity '${entityId}' right now. The slider reads the entity state until it does.">
+                </lcards-message>
+            ` : ''}
+            ${entityId && currentValue && !currentValue.includes('{') && !currentValue.includes('[[[') && !controlSetter(entityId.split('.')[0], currentValue) ? html`
+                <lcards-message
+                    type="info"
+                    message="The slider can show '${currentValue}' but no action sets it, so the slider is read-only. Attributes it can set here: ${settableAttributes(entityId.split('.')[0]).join(', ') || 'none'}.">
                 </lcards-message>
             ` : ''}
         `;
@@ -605,7 +612,7 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
                 <lcards-grid-layout columns="2">
                     ${FormField.renderField(this, 'control.locked', {
                         label: 'Display Only',
-                        helper: 'Disable interaction (auto-locked for sensors)'
+                        helper: 'Only show the value. Always on when nothing can be set (sensors, attributes no action sets)'
                     })}
 
                     ${FormField.renderField(this, 'control.step', {
