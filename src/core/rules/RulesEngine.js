@@ -20,6 +20,13 @@ export class RulesEngine extends BaseService {
     this.dependencyIndex = null;
     this.dirtyRules = new Set();
     this.lastEvaluation = new Map(); // ruleId -> evaluation result
+    // The latest result of every rule that matches now (ruleId -> result). Every
+    // evaluateDirty() returns the patches of all of these, not only of the rules it
+    // evaluated itself: each card calls it, and only the first call after a change
+    // finds the rules dirty.
+    this._matchedResults = new Map();
+    // evaluateDirty() calls run one at a time (each card's callback calls it at once)
+    this._evalQueue = Promise.resolve();
     this.traceBuffer = globalTraceBuffer;
     this.stopProcessing = new Map(); // overlayId -> Set of stopped rule priorities
 
@@ -307,7 +314,20 @@ export class RulesEngine extends BaseService {
    * @param {Object} context - Evaluation context
    * @returns {Promise<Object>} Aggregated rule results
    */
-  async evaluateDirty(context = {}) {
+  evaluateDirty(context = {}) {
+    const run = this._evalQueue.then(() => this._evaluateDirtyNow(context));
+    this._evalQueue = run.catch(() => {});
+    return run;
+  }
+
+  /**
+   * evaluateDirty's body: evaluate the dirty rules, then return the patches of every
+   * rule that matches now.
+   * @param {Object} context
+   * @returns {Promise<Object>}
+   * @private
+   */
+  async _evaluateDirtyNow(context = {}) {
     let { getEntity, overlays, entity } = context;  // ✨ CHANGED: Extract entity and overlays from context
 
       // ENHANCED: Always prioritize original HASS states for rule evaluation
@@ -435,6 +455,7 @@ export class RulesEngine extends BaseService {
 
         if (result.matched) {
           results.push(result);
+          this._matchedResults.set(rule.id, result);
           this.evalCounts.matched++;
 
           // ✨ NEW: Execute rule animations when rule transitions to matched state
@@ -442,7 +463,10 @@ export class RulesEngine extends BaseService {
             lcardsLog.debug(`[RulesEngine] Rule ${rule.id} matched - executing animations`);
             await this._executeRuleAnimations(result.animations, rule.id);
           }
-        } else if (wasMatched) {
+        } else {
+          this._matchedResults.delete(rule.id);
+        }
+        if (!isMatched && wasMatched) {
           // ✨ NEW: Stop animations when rule transitions from matched to unmatched
           lcardsLog.debug(`[RulesEngine] Rule ${rule.id} unmatched - stopping animations`);
           this._stopRuleAnimations(rule.id);
@@ -457,7 +481,12 @@ export class RulesEngine extends BaseService {
       this.evalCounts.dirty += totalDirty;
       this.evalCounts.skipped += (this.rules.length - totalDirty);
 
-      const aggregatedResult = this.aggregateResults(results);
+      // Every rule that matches now, not only this call's: the patches are the full
+      // current set for every caller (a rule removed since is dropped)
+      for (const id of this._matchedResults.keys()) {
+        if (!this.rulesById.has(id)) this._matchedResults.delete(id);
+      }
+      const aggregatedResult = this.aggregateResults([...this._matchedResults.values()]);
 
       // DEBUG: Log what we're returning from evaluateDirty
       lcardsLog.trace(`[RulesEngine] evaluateDirty returning:`, {
