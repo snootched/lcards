@@ -399,6 +399,22 @@ Animates a colour property from one value to another.
 | `loop` | `false` | Loop continuously |
 | `alternate` | `false` | Reverse on each loop |
 
+On a card, aim it at the shape with `target`: without one the animation runs on the card's outer element, where `fill` changes nothing. A button's shape is `path.button-bg`:
+
+```yaml
+animations:
+  - trigger: on_tap
+    preset: color-shift
+    target: path.button-bg
+    loop: 1
+    alternate: true
+    params:
+      property: fill
+      color_from: var(--lcards-orange)
+      color_to: var(--lcards-blue)
+      duration: 600
+```
+
 <AnimationPlayground preset="color-shift" />
 
 ### `cascade-color`

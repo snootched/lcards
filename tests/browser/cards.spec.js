@@ -106,6 +106,15 @@ test('layout card: a nested button\'s text follows its entity', async ({ page })
     await expectNoErrors(page);
 });
 
+test('button: color-shift aimed at the shape recolours it on tap', async ({ page }) => {
+    await mountCase(page, 'button-color-shift');
+    await page.locator('lcards-button path.button-bg').click();
+    // anime.js writes rgba() between the two colours (the hover tint is a color-mix(), not this)
+    const fill = () => page.locator('lcards-button path.button-bg').getAttribute('fill');
+    await expect.poll(fill, { timeout: 1500 }).toMatch(/^rgba\(/);
+    await expectNoErrors(page);
+});
+
 test('button: tap toggle turns the entity off from on, as Home Assistant\'s toggle does', async ({ page }) => {
     await mountCase(page, 'button-lozenge');
     await page.locator('lcards-button path.button-bg').click();

@@ -1,0 +1,9 @@
+# doc/core/animations/preset-reference.md#color-shift: on a button, aimed at its shape
+type: custom:lcards-button
+preset: lozenge
+tap_action: { action: none }
+animations:
+  - trigger: on_tap
+    preset: color-shift
+    target: path.button-bg
+    params: { property: fill, color_from: "#ff8800", color_to: "#0088ff", duration: 1500 }
