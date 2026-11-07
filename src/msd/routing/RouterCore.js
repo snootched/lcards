@@ -502,7 +502,10 @@ export class RouterCore {
         // wrong corner here registers the obstacle up to half the control's
         // width/height away from where it's actually drawn, which can steer
         // the pathfinder around empty space (or through the real control).
-        const offset = ATTACHMENT_OFFSET_FRAC[raw.attachment] || ATTACHMENT_OFFSET_FRAC['top-left'];
+        // A control with no attachment is centred on its position (MsdControlsRenderer's
+        // default); a shape's position is always its top-left corner.
+        const attachment = raw.attachment ?? (raw.type === 'shape' ? 'top-left' : 'center');
+        const offset = ATTACHMENT_OFFSET_FRAC[attachment] || ATTACHMENT_OFFSET_FRAC['top-left'];
         x = px + offset[0] * w;
         y = py + offset[1] * h;
       } else if (raw.anchor && this.anchors[raw.anchor]) {
