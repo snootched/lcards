@@ -1,0 +1,158 @@
+# Animation presets (D1c): one button per built-in preset; tap a button to play its
+# preset (on_tap). The newer presets (boot sequence, decode, sweep, ripple, morph)
+# are in the anim-presets view.
+title: Animation presets
+path: anim-classic
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text: {label: {content: MOTION, show: true, position: center-left, color: theme:colors.ui.tertiary}}
+        grid_options: {columns: full, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: PULSE, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: pulse, loop: 3}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: GLOW, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: glow, loop: 3}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: SHAKE, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: shake}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: BOUNCE, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: bounce}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: ROTATE, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: rotate}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: BLINK, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: blink, loop: 3}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: STROBE, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: strobe, loop: 3}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: SKEW, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: skew}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: FADE, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: fade, loop: 1, alternate: true}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: SLIDE, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: slide}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: SCALE, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: scale, loop: 1, alternate: true}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: PHYSICS-SPRING, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: physics-spring, params: {from: 0.8, to: 1, stiffness: 120, damping: 6}}]
+        grid_options: {columns: 8, rows: 1}
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text: {label: {content: EFFECTS AND COLOUR, show: true, position: center-left, color: theme:colors.ui.tertiary}}
+        grid_options: {columns: full, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: FLICKER, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: flicker, loop: 3}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: GLITCH, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: glitch}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: RIPPLE, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: ripple, loop: 1, alternate: true}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: SHIMMER, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: shimmer, loop: 3}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: COLOR-SHIFT, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: color-shift, target: path.button-bg, params: {property: fill, color_from: var(--lcards-orange), color_to: var(--lcards-blue), duration: 600}, loop: 1, alternate: true}]
+        grid_options: {columns: 8, rows: 1}
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text: {label: {content: TEXT, show: true, position: center-left, color: theme:colors.ui.tertiary}}
+        grid_options: {columns: full, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: TEXT-REVEAL, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: text-reveal}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: TEXT-SCRAMBLE, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: text-scramble}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: TEXT-GLITCH, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: text-glitch}]
+        grid_options: {columns: 8, rows: 1}
+      - type: custom:lcards-button
+        preset: lozenge
+        text: {name: {content: TEXT-TYPEWRITER, show: true}}
+        tap_action: {action: none}
+        animations: [{trigger: on_tap, preset: text-typewriter}]
+        grid_options: {columns: 8, rows: 1}

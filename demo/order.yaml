@@ -80,7 +80,11 @@ topics:
     views: [rules, templates, data-sources]
   - id: alerts
     title: Alerts and animation
-    views: [alert-modes, alert-band, borg, anim-presets, alert-recolour, alert-overlay-edit]
+    groups:
+      - title: Alerts
+        views: [alert-modes, alert-band, borg, alert-recolour, alert-overlay-edit]
+      - title: Animation
+        views: [anim-classic, anim-triggers, anim-presets]
   - id: benchmarks
     title: Benchmarks
     views: [bench-12, bench-20, bench-stars-500-instances, bench-stars-500-shader, bench-stars-2000-instances, bench-stars-2000-shader, bench-stars-5000-instances, bench-stars-5000-shader]
@@ -756,6 +760,18 @@ releases:
         description: "A data source follows POWER and runs it through processors, each kept under its own name. Drag POWER and watch the table: scaled to 0 to 1, smoothed, rounded, clamped between 20 and 80, the change from the last value, the trend, a threshold at 50, an expression in megawatts and the highest value since the page opened. The chart plots the raw steps against the smoothed curve."
         session: "D1c"
         docs: /core/datasources/
+        public: true
+      - file: anim-classic
+        summary: "Animation presets: tap a button to play its preset"
+        description: "One button per animation preset; tap one to play it (an on_tap animation). The presets that loop by default run three times here, the one-way ones go out and back, so each card ends as it started. Motion: pulse, glow, shake, bounce, rotate, blink, strobe, skew, fade, slide, scale and a spring. Effects and colour: flicker, glitch, ripple, shimmer and colour shift. Text: reveal, scramble, glitch and typewriter. The effect presets (boot sequence, decode, sensor sweep, tap ripple, morph) are in Animation effects."
+        session: "D1c"
+        docs: /core/animations/preset-reference
+        public: true
+      - file: anim-triggers
+        summary: "Animation triggers: hover, hold, double tap, entity changes, on show"
+        description: "What starts an animation. HOVER glows while the pointer is over it, HOLD shakes on a long press, DOUBLE TAP bounces, ON SHOW slides in each time the card appears (open the view again). Below, entity changes: a bounce each time LIGHTS turns on, a pulse that runs only while LIGHTS is on, and a strobe while POWER is above 80 (drag it)."
+        session: "D1c"
+        docs: /core/animations#triggers
         public: true
       - file: alert-modes
         summary: "Alert modes: the six levels recolour every card"
