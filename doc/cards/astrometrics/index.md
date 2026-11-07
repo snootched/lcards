@@ -86,7 +86,7 @@ camera:
 | Pan | Shift-drag, right-drag or middle-drag | Two-finger swipe | Two fingers | Arrows |
 | Zoom | Wheel, toward the pointer | Pinch, toward the pointer | Pinch | `+` / `-` |
 | Fly forward or back (camera and target together, so you travel through the scene; slower near a planet, model or cube, so you never fly into it) | | | | `W` / `S`, `Page Up` / `Page Down` |
-| Draw small models larger, or at their [real size](./objects#real-size) again | | | | `V` |
+| Draw small models larger, or at their [real size](./objects/ships#real-size) again | | | | `V` |
 | Fly in toward a spot | Double-click blank space (shift: out) | Double-tap blank space | Double-tap blank space | |
 | Fly to a point and follow it | Click the point or its label | Tap the point or its label | Tap the point or its label | |
 | Fly in close to what stands at a point (a station, a ship, a planet) | Double-click the point or its label | Double-tap it | Double-tap it | |
@@ -115,7 +115,7 @@ camera:
 - **Touchpad or mouse wheel:** both send the same wheel events, so the card tells them apart by the events (a wheel moves in whole steps, a two-finger swipe in small ones and sideways too). A swipe pans, a mouse wheel zooms, and a pinch always zooms. If your mouse has a smooth wheel that pans instead, set `wheel: zoom`; `wheel: pan` makes every wheel event pan.
 - **Target limit:** the point the camera looks at stays inside a sphere 1.5 times the size of the scene, so panning cannot lose it. Set your own sphere (`radius`, optional `center`) or box, or `false` for none.
 - **Buttons:** an LCARdS D-pad. The arms pan, the centre flies back to the start view, the left corners zoom in (top) and out (bottom), and the right corners fly forward (top) and back (bottom). It takes the D-pad colours of your theme (`components.dpad` theme tokens, as on a button with `component: dpad`), so it follows HA-LCARS and alert modes. `size` sets how big it is (px across, 64 to 320, default 180); `pan`, `zoom`, `travel` or `reset: false` dims those parts and turns them off.
-- **Size button:** under the pad while a model is drawn at its [real size](./objects#real-size): REAL SIZE keeps models in proportion, VISIBLE SIZE draws each small one at least 40 px across (the `V` key does the same). It changes the view only; `scale: false` hides it.
+- **Size button:** under the pad while a model is drawn at its [real size](./objects/ships#real-size): REAL SIZE keeps models in proportion, VISIBLE SIZE draws each small one at least 40 px across (the `V` key does the same). It changes the view only; `scale: false` hides it.
 - **Time slider:** under the buttons, it slows the scene's motion (orbits, spins, drift) down to a tenth, holds it, or speeds it up to four times, so a fast ship is easy to tap. It changes the view only; `time_scale` on the card sets the speed it starts at (`0.5` half speed, `0` still). `time: false` hides it.
 - **Date slider:** on a card with a [clock](./scale#the-scene-clock) the time slider also sets the scene date's rate: a year a second backward, a month, a day, paused, live, an hour, a day, a month or a year a second forward, with the date above it and NOW to go back to today. The clock button beside it switches between the two sliders. `time: date` shows only the date slider, `time: speed` only the speed one.
 - **Buttons** fade out after three seconds without input on the card and come back when the pointer moves over it, on a touch or a key (`hide: idle`). `hide: toggle` adds a small button that folds them away and back; `hide: never` keeps them shown.
@@ -221,7 +221,7 @@ The card is the scene only. For an LCARS frame round it (an "ALPHA QUADRANT" bar
 | `time_scale` | How fast the scene's motion runs (default 1; 0.5 half speed, 0 still). The sky, the scene clock and the camera are not affected ([Controls](#controls)) |
 | `warp`, `warp_factor` | Go to warp: the stars stream past behind the scene; `true` / `false` or an entity, and how fast (1 to 9.9) ([Going to warp](./effects#going-to-warp)) |
 | `look` | `diagram`, `realistic` or `mixed` (default), or `{ entity }` naming one: which objects and points show ([Looks](#looks-diagram-and-realistic)) |
-| `model_scale` | `real` (default) or `visible`: how models at their real size start ([Objects: visible size](./objects#visible-size)) |
+| `model_scale` | `real` (default) or `visible`: how models at their real size start ([Objects: visible size](./objects/ships#visible-size)) |
 | `clock` | The scene date (`date: now` or an ISO date) and how fast it runs (`rate: live` or days per second) for real Solar System bodies and the sky ([The scene clock](./scale#the-scene-clock)) |
 | Any number on a point or object | Can follow an entity: `opacity: { entity, output }` ([Settings from entities](./data#settings-from-entities)); `camera.view` can follow one as a [guided tour](./data#a-guided-tour) |
 | `units` | What one scene unit is: `m`, `km`, `au`, `ly` or `pc` (optional; a [star system](./scale#star-systems) needs it to give its own) |
@@ -242,14 +242,14 @@ The [config checker](/getting-started/config-checker) also checks what the schem
 
 ## True scale
 
-Scene units can be real ones: a solar system in km, a galaxy in light years with Sol in km inside it as a [`system`](./objects#system). The card holds the whole range, from a galaxy down to a station 1.5 km across. See [Scale](./scale).
+Scene units can be real ones: a solar system in km, a galaxy in light years with Sol in km inside it as a [`system`](./scale#the-system-object). The card holds the whole range, from a galaxy down to a station 1.5 km across. See [Scale](./scale).
 
 ## Performance and motion
 
 - **Render on demand:** the scene draws when the camera moves, a fly-to runs, an object spins or an [effect](./effects) moves, the sky timer ticks or the theme changes. A still scene draws nothing. Off screen and in a hidden tab nothing draws. A [scene clock](./scale#the-scene-clock) faster than a minute a second draws every frame; at live speed (or slower) it draws once a second.
 - **One WebGL context** for every astrometrics card and WebGL background on the page.
-- **Models:** measured on an Intel Arc laptop GPU at 1300 x 866 px, the scene with the built-in ship draws in about 1.5 ms a frame; the depth image that hides labels behind it adds about 0.2 ms, only while something moves. See [model](./objects#model).
-- **Reduced motion** (the system setting): spin, `auto_rotate`, [deformations](./objects#deformed-grids) and every [effect](./effects) (drift, scans, moving dashes, fills) stop, and fly-to jumps instead of flying (no warp streaks). The scene clock keeps running (it is data, like the sky) but moves things once a second.
+- **Models:** measured on an Intel Arc laptop GPU at 1300 x 866 px, the scene with the built-in ship draws in about 1.5 ms a frame; the depth image that hides labels behind it adds about 0.2 ms, only while something moves. See [model](./objects/ships#model).
+- **Reduced motion** (the system setting): spin, `auto_rotate`, [deformations](./objects/surfaces#deformed-grids) and every [effect](./effects) (drift, scans, moving dashes, fills) stop, and fly-to jumps instead of flying (no warp streaks). The scene clock keeps running (it is data, like the sky) but moves things once a second.
 - **Alert modes** recolour the scene in place: every object crossfades to the alert palette over a moment (at once under reduced motion), the camera and motion carry on, and labels follow the palette at once. A model is built again in its new colours.
 
 ## When the 3D view is unavailable

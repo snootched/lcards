@@ -54,11 +54,25 @@ export function sharedEnv() {
   return globalThis.__lcardsDocsEnv
 }
 
-/** The LCARS (HA-LCARS theme) colour variables a dashboard would have. */
+/**
+ * Home Assistant's own theme colours that examples may name (status colours from
+ * the frontend's color.globals.ts; cards sit on the demo's black panel), so they
+ * render as on a dashboard instead of falling back to grey.
+ */
+const HA_DEMO_VARS = {
+  '--error-color': '#db4437',
+  '--warning-color': '#ffa600',
+  '--success-color': '#43a047',
+  '--info-color': '#039be5',
+  '--ha-card-background': '#000000',
+  '--card-background-color': '#000000',
+}
+
+/** The LCARS (HA-LCARS theme) colour variables a dashboard would have, and Home Assistant's status colours. */
 export function applyDemoVars() {
   const root = document.documentElement
   const palette = Object.fromEntries(haLcars.palette.filter(p => p.name.startsWith('lcars-')).map(p => [`--${p.name}`, p.value]))
-  for (const [name, value] of Object.entries({ ...palette, ...LCARS_DEMO_VARS })) {
+  for (const [name, value] of Object.entries({ ...HA_DEMO_VARS, ...palette, ...LCARS_DEMO_VARS })) {
     if (!getComputedStyle(root).getPropertyValue(name).trim()) root.style.setProperty(name, value)
   }
 }
@@ -114,6 +128,20 @@ export function mountWidth(config) {
   const columns = Number(config.grid_options?.columns)
   if (!(columns > 0) || columns >= 12) return ''
   return `${Math.round(columns * 34 + (columns - 1) * 8)}px`
+}
+
+/**
+ * Room round the card for parts a card draws outside its own box, so the demo panel
+ * (overflow: hidden) doesn't clip them: a slider's drag badge sits below a flat track,
+ * beside an upright one (left of a Picard gauge) and inside a ring.
+ * @returns {{ marginBottom?: string, marginLeft?: string, marginRight?: string }}
+ */
+export function mountRoom(config) {
+  if (config.type !== 'custom:lcards-slider' || config.drag_badge?.enabled !== true) return {}
+  if (config.component === 'ring' || /ring/.test(String(config.preset ?? ''))) return {}
+  const vertical = config.style?.track?.orientation === 'vertical' || /vertical/.test(String(config.preset ?? ''))
+  if (!vertical) return { marginBottom: '32px' }
+  return config.component === 'picard' || /picard/.test(String(config.preset ?? '')) ? { marginLeft: '72px' } : { marginRight: '72px' }
 }
 
 const READ_ONLY_DOMAINS = new Set(['sensor', 'binary_sensor', 'weather', 'sun', 'zone', 'person', 'device_tracker'])

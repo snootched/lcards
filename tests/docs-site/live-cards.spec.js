@@ -30,6 +30,9 @@ function livePages() {
 
 const PAGES = livePages();
 
+/** The markdown source of a docs page path ('/cards/slider-card/' or '/core/colours'). */
+const mdSource = (url) => readFileSync(join('doc', url.endsWith('/') ? `${url}index.md` : `${url}.md`), 'utf8');
+
 test('the live-page scan finds the card pages', () => {
     const urls = PAGES.map(([u]) => u);
     for (const u of ['/cards/button/', '/cards/elbow/', '/cards/slider-card/', '/cards/select-menu/', '/cards/astrometrics/', '/core/colours']) expect(urls).toContain(u);
@@ -57,9 +60,71 @@ for (const [url, tags] of PAGES) {
         // MSD shows "Initializing MSD..." until its pipeline renders (it hung without base_svg).
         await expect.poll(() => page.locator('.card-demo-mount').evaluateAll(els =>
             els.some(el => /Initializing MSD/.test(el.firstElementChild?.shadowRoot?.textContent ?? ''))), { timeout: 15_000 }).toBe(false);
+        // Every colour variable an example's YAML names (without a fallback) exists here, so
+        // it renders as written (Home Assistant-only variables such as --success-color render grey).
+        const named = [...new Set([...mdSource(url).matchAll(/^```ya?ml[^\n]*\blive\b[^\n]*\n([\s\S]*?)^```/gm)]
+            .flatMap(m => [...m[1].matchAll(/var\((--[a-z0-9-]+)\s*\)/g)].map(v => v[1])))];
+        const missing = await page.locator('.card-demo-mount > *').first().evaluate((el, names) =>
+            names.filter(n => !getComputedStyle(el).getPropertyValue(n).trim()), named);
+        expect(missing, 'colour variables the docs site does not define').toEqual([]);
+        // No text is drawn outside its card (a caption above a one-row card is clipped).
+        // Astrometrics labels follow the camera and may leave the view by design.
+        const clipped = await page.locator('.card-demo-mount > *').evaluateAll(els => els.flatMap((el, i) => {
+            if (el.localName === 'lcards-astrometrics-card') return [];
+            const box = el.getBoundingClientRect();
+            const texts = [];
+            const walk = (root) => root.querySelectorAll('*').forEach(n => {
+                if (n.shadowRoot) walk(n.shadowRoot);
+                if (n.localName === 'text' && n.textContent.trim()) texts.push(n);
+            });
+            if (el.shadowRoot) walk(el.shadowRoot);
+            return texts.flatMap(t => {
+                const r = t.getBoundingClientRect();
+                if (!r.width || !r.height) return [];
+                // A text box includes the font's full ascent and descent, so a large label
+                // overshoots its card a little while looking fine: flag text mostly outside.
+                const w = Math.max(0, Math.min(r.right, box.right) - Math.max(r.left, box.left));
+                const h = Math.max(0, Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top));
+                const inside = (w * h) / (r.width * r.height);
+                return inside < 0.6 ? [`demo ${i + 1} (${el.localName}): "${t.textContent.trim().slice(0, 30)}" ${Math.round(inside * 100)}% inside`] : [];
+            });
+        }));
+        expect(clipped, 'text drawn outside its card').toEqual([]);
         expect(errors).toEqual([]);
     });
 }
+
+test('a slider drag badge stays inside the demo panel while dragging', async ({ page }) => {
+    const pages = PAGES.filter(([u]) => mdSource(u).includes('drag_badge'));
+    expect(pages.length).toBeGreaterThan(0);
+    for (const [url, tags] of pages) {
+        await page.goto(url);
+        await waitForDemos(page, tags.length);
+        const sliders = page.locator('.card-demo').filter({ has: page.locator('lcards-slider') });
+        for (let i = 0; i < await sliders.count(); i++) {
+            const demo = sliders.nth(i);
+            const slider = demo.locator('lcards-slider');
+            if (!(await slider.evaluate(el => el.config?.drag_badge?.enabled === true))) continue;
+            const input = slider.locator('input[type="range"]');
+            await input.scrollIntoViewIfNeeded();
+            const box = await input.boundingBox();
+            if (!box) continue;
+            const vertical = box.height > box.width;
+            const y = box.y + box.height / 2, x = box.x + box.width / 2;
+            await page.mouse.move(x, y);
+            await page.mouse.down();
+            await page.mouse.move(vertical ? x : box.x + box.width * 0.6, vertical ? box.y + box.height * 0.4 : y, { steps: 5 });
+            const [badge, panel] = await Promise.all([
+                slider.evaluate(el => { const r = el.shadowRoot.querySelector('.drag-badge')?.getBoundingClientRect(); return r && r.width ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right } : null; }),
+                demo.locator('.card-demo-panel').boundingBox(),
+            ]);
+            await page.mouse.up();
+            expect(badge, `${url} slider ${i + 1}: badge shows while dragging`).not.toBeNull();
+            const inside = badge.top >= panel.y && badge.bottom <= panel.y + panel.height && badge.left >= panel.x && badge.right <= panel.x + panel.width;
+            expect(inside, `${url} slider ${i + 1}: badge ${JSON.stringify(badge)} inside panel ${JSON.stringify(panel)}`).toBe(true);
+        }
+    }
+});
 
 test('a toggle tap switches the sample entity and the card follows', async ({ page }) => {
     await page.goto('/cards/button/');
@@ -103,7 +168,9 @@ test('a slider drag sets the sample light and the slider keeps the new value', a
 
     expect(before).toBeGreaterThan(60); // the sample light starts at ~78%
 
-    // Drag from the current value down to about 25% of the track.
+    // Drag from the current value down to about 25% of the track (scrolled into view:
+    // the overview's page map sits above the quick start).
+    await input.scrollIntoViewIfNeeded();
     const box = await input.boundingBox();
     const y = box.y + box.height / 2;
     await page.mouse.move(box.x + box.width * before / 100, y);
@@ -130,7 +197,7 @@ test('cards drawn to their cell height render at a usable size', async ({ page }
         .map(el => Math.max(0, ...[...el.shadowRoot.querySelectorAll('svg')].map(s => s.getBoundingClientRect().height))), component);
     for (const [url, tag, checks] of [
         ['/cards/button/', 'lcards-button', [['dpad', 250], ['alert', 180]]],
-        ['/cards/slider-card/', 'lcards-slider', [['shaped', 150], ['picard', 350]]],
+        ['/cards/slider-card/components', 'lcards-slider', [['shaped', 100], ['picard', 350]]],
     ]) {
         await page.goto(url);
         await waitForDemos(page, PAGES.find(([u]) => u === url)[1].length);

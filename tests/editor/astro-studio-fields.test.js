@@ -238,7 +238,7 @@ test('a new shape keeps the size: plane size to disc radius, sector radius to bo
 test('TYPE_GUIDE matches the objects page table and covers every type', () => {
   assert.deepEqual(TYPE_GUIDE.map((t) => t.type).sort(), [...OBJECT_TYPES].sort());
   const md = readFileSync(new URL('../../doc/cards/astrometrics/objects.md', import.meta.url), 'utf8');
-  const rows = [...md.matchAll(/^\| (.+?) \| \[`(\w+)`\]\(#\w+\) \|$/gm)].map((m) => ({ use: m[1], type: m[2] }));
+  const rows = [...md.matchAll(/^\| (.+?) \| \[`(\w+)`\]\([^)]+\) \|$/gm)].map((m) => ({ use: m[1], type: m[2] }));
   assert.deepEqual(rows, TYPE_GUIDE.map((t) => ({ use: t.use, type: t.type })));
 });
 

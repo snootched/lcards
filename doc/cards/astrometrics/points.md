@@ -20,7 +20,7 @@ points:
 
 The card editor opens the [Astrometrics Studio](./studio) (a full-screen editor with the live scene). Its **Points** tab lists the points: add, duplicate, reorder and remove them, and set each one's placement, the object it stands on, entity, label, style, marker, colour and the main label text keys. Other keys stay as they are; edit them in the YAML tab.
 
-**Pick on preview** (the crosshair on a row) places a point with a tap: the Studio's preview shows "TAP TO PLACE ..." and the next tap writes the point's numbers, in its own form. `xyz` and `polar` land on the ground (y = 0), or on the surface of the object in `object`; `latlon` lands on a sphere, `altaz` on a dome, `cell` on a plane grid's cell. Drag to turn the view first if you need to; Escape or Cancel stops picking. Points placed by `sky`, `at` or an entity are not picked. On a [model](./objects#model), `xyz` lands on the model's surface, in the model file's own coordinates.
+**Pick on preview** (the crosshair on a row) places a point with a tap: the Studio's preview shows "TAP TO PLACE ..." and the next tap writes the point's numbers, in its own form. `xyz` and `polar` land on the ground (y = 0), or on the surface of the object in `object`; `latlon` lands on a sphere, `altaz` on a dome, `cell` on a plane grid's cell. Drag to turn the view first if you need to; Escape or Cancel stops picking. Points placed by `sky`, `at` or an entity are not picked. On a [model](./objects/ships#model), `xyz` lands on the model's surface, in the model file's own coordinates.
 
 **On the scene:** tap a point to open its row, drag it to move it, or add one with **Place a point** in the toolbar. See [Astrometrics Studio: on the scene](./studio#on-the-scene).
 
@@ -42,7 +42,7 @@ Each point takes exactly one of these. `offset: [x, y, z]` moves any of them by 
 | `body: mars` | Where a real Sun, planet, dwarf planet or moon is at the scene date, in the scene's or system's units; `center: jupiter` measures from another body. See [The real Solar System](./scale#the-real-solar-system). |
 | `cell: AF3` + `object` | The centre of a cell of a sector map (a plane grid with `axis_labels`). |
 | `at: <point>` | At another point; add `offset` to move away from it. |
-| `part: <name>` + `object` | On a named part of a [model](./objects#model); it follows the part as it moves. `xyz` is then an offset in the part's coordinates. |
+| `part: <name>` + `object` | On a named part of a [model](./objects/ships#model); it follows the part as it moves. `xyz` is then an offset in the part's coordinates. |
 
 `object` names the object the point stands on. With `xyz` or `polar` it is optional: the point then moves and spins with that object. `alt` lifts a point off the surface (`latlon`, `altaz`, `sky`) or the plane (`polar`).
 
@@ -206,7 +206,7 @@ Labels behind a planet are hidden; the see-through volumes and grids hide nothin
 - `{ action: fly-to, view: map }`: fly to the named view instead.
 - A `fly-to` takes `duration` (ms) and `warp` (`true` streaks the stars on the way, `false` never), over the card's `camera.fly_duration` and `camera.warp` and the view's own `warp`.
 - `{ action: set-clock, date: now, rate: 30 }`: set the [scene date](./scale#the-scene-clock) and or its rate (`card: <id>` for another card; from any LCARdS card, `card` is needed).
-- `{ action: set-model-scale }`: switch the card's models between their real size and [visible size](./objects#visible-size) (`model_scale: real` or `visible` sets one; `card: <id>` for another card, needed from any LCARdS card).
+- `{ action: set-model-scale }`: switch the card's models between their real size and [visible size](./objects/ships#visible-size) (`model_scale: real` or `visible` sets one; `card: <id>` for another card, needed from any LCARdS card).
 - A point's own `view: { distance, tilt, yaw }` sets where the camera lands when it flies to that point.
 
 A drag never fires a tap (a press that moves more than 6 px is a drag), and a hold (half a second) fires `hold_action`, not `tap_action`.

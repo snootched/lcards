@@ -11,6 +11,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readdirSync } from 'node:fs';
+import yaml from 'js-yaml';
 import { listDocsLinks, docsUrl, docsBase, editorTabDocs } from '../../src/editor/utils/yaml-docs-links.js';
 import { ALL_BOXES, EXAMPLES, CONNECTIONS, connected } from '../../doc/.vitepress/theme/how-it-works-model.js';
 
@@ -104,6 +105,43 @@ test('every card editor tab has a docs link', () => {
 
 test('tab-specific docs links resolve on the built site', { skip: !built && 'docs site not built' }, () => {
     assert.deepEqual(brokenLinks(editorTabs().filter(t => t.docs).map(t => t.docs)), []);
+});
+
+// Pages a heading moved off keep a `moved_anchors: { old-id: /new/path#id }` frontmatter
+// map, which the docs theme follows (theme/index.ts) for old bookmarks and older editors.
+function movedAnchors() {
+    const out = [];
+    const walk = (dir) => {
+        for (const ent of readdirSync(dir, { withFileTypes: true })) {
+            const p = join(dir, ent.name);
+            if (ent.isDirectory()) { if (!['.vitepress', 'public', 'node_modules'].includes(ent.name)) walk(p); continue; }
+            if (!p.endsWith('.md')) continue;
+            const fm = /^---\n([\s\S]*?)\n---/.exec(readFileSync(p, 'utf8'))?.[1];
+            const moved = fm && yaml.load(fm)?.moved_anchors;
+            if (moved) for (const [from, to] of Object.entries(moved)) out.push({ page: p, from, to });
+        }
+    };
+    walk('doc');
+    return out;
+}
+
+test('moved_anchors maps point at absolute site paths, from ids the page no longer has', () => {
+    const moved = movedAnchors();
+    assert.ok(moved.length > 40, `found ${moved.length} moved anchors`);
+    for (const { page, from, to } of moved) {
+        assert.match(to, /^\/[a-z0-9/_-]*(#[a-z0-9-]+)?$/, `${page}: ${from} -> ${to}`);
+        assert.match(from, /^[a-z0-9-]+$/, `${page}: ${from}`);
+    }
+});
+
+test('every moved_anchors target resolves, and the old id is gone from its page', { skip: !built && 'docs site not built' }, () => {
+    const moved = movedAnchors();
+    assert.deepEqual(brokenLinks(moved.map(m => m.to)), []);
+    const shadowed = moved.filter(({ page, from }) => {
+        const file = pageFile('/' + page.replace(/^doc\//, '').replace(/(index)?\.md$/, ''));
+        return file && readFileSync(file, 'utf8').includes(`id="${from}"`);
+    }).map(m => `${m.page}#${m.from}`);
+    assert.deepEqual(shadowed, [], 'a heading with the old id is still on the page, so the redirect never fires');
 });
 
 test('no docs URL is written out by hand in src (use docsUrl and DOCS from utils/docs-url.js)', () => {

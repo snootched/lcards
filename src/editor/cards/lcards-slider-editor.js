@@ -429,9 +429,9 @@ export class LCARdSSliderEditor extends LCARdSBaseEditor {
             if (metadata?.configurableOptions?.length > 0) {
                 baseTabs.push({
                     label: 'Component Options',
-                    docs: componentName === 'picard' ? '/cards/slider-card/#picard-component'
-                        : componentName === 'ring' ? '/cards/slider-card/#ring-gauge'
-                        : '/cards/slider-card/#shaped-component',
+                    docs: componentName === 'picard' ? '/cards/slider-card/components#picard-component'
+                        : componentName === 'ring' ? '/cards/slider-card/components#ring-gauge'
+                        : '/cards/slider-card/components#shaped-component',
                     content: () => this._renderComponentOptionsTab()
                 });
             }

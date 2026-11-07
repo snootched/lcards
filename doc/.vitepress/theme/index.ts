@@ -1,6 +1,6 @@
 import DefaultTheme from 'vitepress/theme'
 import { enhanceAppWithTabs } from 'vitepress-plugin-tabs/client'
-import { onMounted, onUnmounted, h, watch, defineAsyncComponent } from 'vue'
+import { onMounted, onUnmounted, h, watch, nextTick, defineAsyncComponent } from 'vue'
 import { useData, useRouter, withBase } from 'vitepress'
 import HomeBadges from './HomeBadges.vue'
 import HomeShowcase from './HomeShowcase.vue'
@@ -136,6 +136,18 @@ export default {
       if (typeof window !== 'undefined' && typeof to === 'string') router.go(withBase(to))
     }, { immediate: true })
 
+    // Moved headings: frontmatter `moved_anchors: { old-id: /new/path#id }` on the page a
+    // heading left sends a reader who arrives at #old-id (an old bookmark, an editor link
+    // from an older release) on to its new home. Only when no element has that id here.
+    const followMovedAnchor = () => {
+      if (typeof window === 'undefined') return
+      const moved = frontmatter.value.moved_anchors
+      const id = decodeURIComponent(window.location.hash.slice(1))
+      const to = moved && id ? moved[id] : undefined
+      if (typeof to === 'string' && !document.getElementById(id)) router.go(withBase(to))
+    }
+    watch(() => [router.route.path, frontmatter.value.moved_anchors], () => nextTick(followMovedAnchor), { immediate: true })
+
     // Delegated click for mermaid diagrams: no timing issues
     const handleMermaidClick = (e: MouseEvent) => {
       const mermaidDiv = (e.target as Element).closest?.('.vp-doc .mermaid')
@@ -158,12 +170,14 @@ export default {
       document.addEventListener('click', handleMermaidClick)
       document.addEventListener('click', handleImageClick)
       document.addEventListener('load', markZoomable, true)
+      window.addEventListener('hashchange', followMovedAnchor)
       document.querySelectorAll<HTMLImageElement>('.vp-doc img').forEach(img => img.complete && markZoomable({ target: img } as unknown as Event))
     })
     onUnmounted(() => {
       document.removeEventListener('click', handleMermaidClick)
       document.removeEventListener('click', handleImageClick)
       document.removeEventListener('load', markZoomable, true)
+      window.removeEventListener('hashchange', followMovedAnchor)
     })
   },
 }

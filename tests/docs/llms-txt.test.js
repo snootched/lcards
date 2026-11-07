@@ -57,7 +57,9 @@ test('URLs carry the channel base; llms-full has the user docs only, cleaned', (
     // Star Trek galaxy starter with its parts took it to 1104 KB; the starters' full YAML is most of the growth)
     // 1200 KB until 2026-11-02 (AC1 asteroid and comet, W1 Bajoran wormhole took it to 1206.6 KB; the starters
     // page alone is 137 KB, the dashboard gallery 124 KB)
-    assert.ok(Buffer.byteLength(full) < 1250 * 1024, 'llms-full.txt stays loadable');
+    // 1250 KB until 2026-11-07 (D2: block-style YAML and full key tables on the slider and objects pages
+    // took it to 1303 KB)
+    assert.ok(Buffer.byteLength(full) < 1350 * 1024, 'llms-full.txt stays loadable');
 });
 
 test('page summaries: frontmatter description wins, callouts and bare type names are skipped', () => {

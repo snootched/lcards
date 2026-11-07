@@ -356,7 +356,7 @@ Both presets are `render: volume` with `shape: layers` in a `size: [500, 140, 50
 | `columns.waist` | `vortex`: how wide the middle is against the ends, 0.05 (two funnels meeting at a point) to 1 (one straight column). Default 0.2. |
 | `columns.speed` | `lightning`: how fast the bolts crawl and flicker: 1 (default) as drawn, 0.5 half as fast, 0 still. |
 | `columns.color` | The fire's white-hot heart (its edge takes the sheets' surface colour), the vortex, or the bolt. `columns.glow.color`: a lightning column's glow. |
-| `lightning` | Strikes inside the gas that light it: `true`, `false` (default), or the [lightning object's](./objects#lightning) `rate`, `flash`, `color`, `glow`, `width`, `jaggedness`, `branches`, `brightness` and `seed`. Any volume nebula takes it, not only `layers`. |
+| `lightning` | Strikes inside the gas that light it: `true`, `false` (default), or the [lightning object's](./objects/lines#lightning) `rate`, `flash`, `color`, `glow`, `width`, `jaggedness`, `branches`, `brightness` and `seed`. Any volume nebula takes it, not only `layers`. |
 
 A vortex field, with the funnels joined into columns:
 
@@ -381,7 +381,7 @@ objects:
     columns: { count: 6, kind: vortex, waist: 0.4, width: 1.5, color: var(--lcars-violet-creme) }
 ```
 
-A [lightning object](./objects#lightning) striking inside any volume nebula lights its gas too. Under reduced motion the columns stand still and no strike shows.
+A [lightning object](./objects/lines#lightning) striking inside any volume nebula lights its gas too. Under reduced motion the columns stand still and no strike shows.
 
 ### The Nexus: a ribbon and its wake
 

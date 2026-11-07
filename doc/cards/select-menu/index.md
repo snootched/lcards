@@ -15,6 +15,8 @@ Each button is a full `lcards-button` under the hood, so every preset, style ove
 type: custom:lcards-select-menu
 entity: input_select.view_selector
 preset: lozenge
+grid_options:
+  rows: 4            # one row per option: the card asks for 2 by default
 ```
 
 ```yaml live

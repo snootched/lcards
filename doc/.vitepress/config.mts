@@ -512,8 +512,12 @@ export default withMermaid(defineConfig({
               text: 'Slider',
               collapsed: true,
               items: [
-                { text: 'Overview',   link: '/cards/slider-card/' },
-                { text: 'Playground', link: '/cards/slider-card/playground' },
+                { text: 'Overview',                link: '/cards/slider-card/' },
+                { text: 'Pills and Gauges',        link: '/cards/slider-card/styles' },
+                { text: 'Ring, Shaped and Picard', link: '/cards/slider-card/components' },
+                { text: 'Ranges and Markers',      link: '/cards/slider-card/ranges' },
+                { text: 'Control and Motion',      link: '/cards/slider-card/control' },
+                { text: 'Playground',              link: '/cards/slider-card/playground' },
               ],
             },
             {
@@ -570,9 +574,19 @@ export default withMermaid(defineConfig({
               items: [
                 { text: 'Overview', link: '/cards/astrometrics/' },
                 { text: 'Points',   link: '/cards/astrometrics/points' },
-                { text: 'Live data', link: '/cards/astrometrics/data' },
-                { text: 'Objects',  link: '/cards/astrometrics/objects' },
-                { text: 'Your own models', link: '/cards/astrometrics/models' },
+                { text: 'Live Data', link: '/cards/astrometrics/data' },
+                {
+                  text: 'Objects',
+                  collapsed: true,
+                  items: [
+                    { text: 'Overview',                   link: '/cards/astrometrics/objects' },
+                    { text: 'Grids, Spheres and Volumes', link: '/cards/astrometrics/objects/surfaces' },
+                    { text: 'Lines and Light',            link: '/cards/astrometrics/objects/lines' },
+                    { text: 'Space Phenomena',            link: '/cards/astrometrics/objects/space' },
+                    { text: 'Ships and Stations',         link: '/cards/astrometrics/objects/ships' },
+                  ],
+                },
+                { text: 'Your Own Models', link: '/cards/astrometrics/models' },
                 { text: 'Effects',  link: '/cards/astrometrics/effects' },
                 { text: 'Scale',    link: '/cards/astrometrics/scale' },
                 { text: 'Studio',   link: '/cards/astrometrics/studio' },

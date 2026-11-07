@@ -240,34 +240,36 @@ export const CARD_GALLERIES = {
     hint: 'Drag to turn a tile, scroll or pinch to zoom.',
     minWidth: 260,
     tiles: [
-      astroTile('type: grid (disc)', `objects:
-  - { type: grid, shape: disc, radius: 50, pattern: polar, line_spacing: 10, spoke_count: 24 }
-`),
-      astroTile('type: grid (dome)', `objects:
-  - { type: grid, shape: dome, radius: 45, line_spacing_deg: 15 }
-`, '{ target: [0, 15, 0], yaw: 20, tilt: 25, distance: 150 }'),
-      astroTile('type: volume', `objects:
-${ASTRO_FLOOR}  - { type: volume, shape: sector, radius: [15, 50], angle: [300, 400], height: [0, 15], color: var(--lcars-blue) }
-`),
       astroTile('type: sphere', `objects:
-  - { type: sphere, radius: 22, spin: 15, color: var(--lcars-blue) }
-`, '{ target: [0, 0, 0], yaw: 0, tilt: 15, distance: 90 }'),
-      astroTile('type: ring', `objects:
-${ASTRO_FLOOR}  - { type: ring, radius: 40, inclination: 25, width: 2 }
-  - { type: ring, radius: [50, 30], dash: [4, 4] }
-`),
-      astroTile('type: path', `points:
-  - { id: a, polar: [45, 250], marker: dot }
-  - { id: b, polar: [45, 70], marker: dot }
+  - { type: sphere, at: [60, 0, 0], radius: 22, spin: 10, image: builtin:earth_blue_marble, line_width: 0 }
+`, '{ target: [60, 0, 0], yaw: -60, tilt: 15, distance: 80 }'),
+      astroTile('type: galaxy', `objects:
+  - { type: galaxy, radius: 50, stars: { count: 20000 } }
+`, '{ target: [0, 0, 0], yaw: 20, tilt: 45, distance: 120 }'),
+      astroTile('type: belt', `objects:
+  - { type: glow, size: 30, color: var(--lcars-yellow) }
+  - { type: belt, radius: [35, 50], count: 1200, size: [0.3, 1.5], period: 40 }
+`, '{ target: [0, 0, 0], yaw: 20, tilt: 25, distance: 120 }'),
+      astroTile('type: comet', `points:
+  - { id: sun, xyz: [-80, 0, 0] }
 objects:
-${ASTRO_FLOOR}  - { type: path, from: a, to: b, arc: 20, width: 2, dash: [6, 4], color: var(--lcars-orange) }
-`),
-      astroTile('type: beam', `objects:
-${ASTRO_FLOOR}  - { type: beam, from: [-60, 5, 0], to: [60, 5, 0] }
-`),
-      astroTile('type: glow', `objects:
-${ASTRO_FLOOR}  - { type: glow, at: [0, 5, 0], size: 50 }
-`),
+  - { type: comet, at: [0, 0, 0], light: sun, tail: { length: 50 }, coma: { size: 10 } }
+`, '{ target: [15, 0, 0], yaw: 0, tilt: 60, distance: 70 }'),
+      astroTile('type: model', `backdrop:
+  stars: { count: 800 }
+objects:
+  - { type: model, src: builtin:constitution_class_refit, size: 40, spin: 6 }
+`, '{ target: [0, 0, 0], yaw: 145, tilt: 20, distance: 70 }'),
+      astroTile('type: cube', `objects:
+  - { type: glow, size: 60, color: var(--lcards-green-medium), opacity: 0.5 }
+  - { type: cube, size: 20, spin: 5 }
+`, '{ target: [0, 0, 0], yaw: 35, tilt: 20, distance: 60 }'),
+      astroTile('type: crystalline', `objects:
+  - { type: crystalline, size: 40, spin: 4 }
+`, '{ target: [0, 0, 0], yaw: 0, tilt: 10, distance: 90 }'),
+      astroTile('type: grid (well)', `objects:
+  - { type: grid, shape: well, radius: 45, depth: 50, line_spacing_deg: 15 }
+`, '{ target: [0, -20, 0], yaw: 20, tilt: 25, distance: 150 }'),
     ],
   },
   'astro-effects': {

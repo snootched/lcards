@@ -13,7 +13,7 @@ Both are the same card with the same keys. The **Solar system at true scale** an
 
 ## Units
 
-Scene units are yours to pick, and positions, sizes and distances are all in them. For real data, name them with `units` on the card: `m`, `km`, `au`, `ly` or `pc`. In the [Studio](./studio) it is the **Units** section of the Scene tab. The name tells the card how a [star system](#star-systems) inside relates to the scene, draws a [model](./objects#real-size) at its real size, places bodies (`planet:`) at their real distances and gives a galaxy the Milky Way's radius in those units. It does not rescale what is already there: naming the units of a scene built in scene units only says what its numbers mean.
+Scene units are yours to pick, and positions, sizes and distances are all in them. For real data, name them with `units` on the card: `m`, `km`, `au`, `ly` or `pc`. In the [Studio](./studio) it is the **Units** section of the Scene tab. The name tells the card how a [star system](#star-systems) inside relates to the scene, draws a [model](./objects/ships#real-size) at its real size, places bodies (`planet:`) at their real distances and gives a galaxy the Milky Way's radius in those units. It does not rescale what is already there: naming the units of a scene built in scene units only says what its numbers mean.
 
 Screen sizes (line widths, label sizes, marker sizes) are in px whatever the units, and a model's `length` is in metres. Every other length is in the units of the frame it is in: the scene's, or its [system's](#star-systems). The Studio shows the unit beside each length field (`units` when the scene names none).
 
@@ -31,7 +31,7 @@ A part added to a scene (a planet, a belt, a comet, a nebula field, territories,
 - **Scene units, with something in the scene:** it is sized to fit: about a quarter of the scene's size (a belt about half, out among the planets). The Nexus added to the Solar system starter is about 80 long, where Neptune's orbit is 160.
 - **An empty scene:** it keeps its own sizes.
 
-A starbase and a single asteroid keep their sizes in scene units (a model is drawn larger when it would be too small to see, [`model_scale`](./objects#real-size)). What you type always wins.
+A starbase and a single asteroid keep their sizes in scene units (a model is drawn larger when it would be too small to see, [`model_scale`](./objects/ships#real-size)). What you type always wins.
 
 ## One scene in real units
 
@@ -65,7 +65,7 @@ objects:
 
 ## Star systems
 
-One set of units cannot hold a galaxy and a station: at 26,000 light years from the galactic core, numbers in light years are only good to about 30 km. A [`system`](./objects#system) object holds points and objects in units of their own, at a point of the scene: the galaxy in light years, Sol in km. Write each part with the numbers as published (star positions in ly or pc, orbits in AU or km, sizes in km).
+One set of units cannot hold a galaxy and a station: at 26,000 light years from the galactic core, numbers in light years are only good to about 30 km. A [`system`](./scale#the-system-object) object holds points and objects in units of their own, at a point of the scene: the galaxy in light years, Sol in km. Write each part with the numbers as published (star positions in ly or pc, orbits in AU or km, sizes in km).
 
 ```yaml
 type: custom:lcards-astrometrics-card
@@ -104,6 +104,20 @@ objects:
 - **Galaxy-scale things in the close-ups:** a region's walls or a quadrant line thousands of light years long would cross a close-up of a planet. `hide_in_systems: true` on a point or object hides it while the camera is inside any system (within a few times its size, where it works in the system's units); outside every system it shows as usual. A list of system ids (`hide_in_systems: [sol_system]`) hides it inside those systems only. The [Star Trek galaxy](./starters#star-trek-galaxy) starter sets it on its regions, lines and names.
 - **One level:** a system cannot hold another system (it reaches from a galaxy down to a station already). A system is not rotated: its axes are the scene's.
 
+### The system object
+
+`type: system` draws nothing itself: it holds `points` and `objects` written in its own units, at a point of the scene.
+
+| Key | What it does |
+|---|---|
+| `id` | Its name (default `system#n`). |
+| `at` | Where its origin sits: a point of the scene, or `[x, y, z]` in scene units. |
+| `units` | What one unit inside is: `m`, `km`, `au`, `ly` or `pc`. Needs the card's own `units`. |
+| `scale` | Scene units per unit inside, for units without a name (wins over `units`). |
+| `points` | Its points, in its units ([Points](./points)). |
+| `objects` | Its objects, in its units: any type but another `system`. |
+| `visible` | `false` hides everything in it. |
+
 ## The real Solar System
 
 A point with `body: mars` sits where Mars really is at the scene date, on its real tilted, elliptical orbit. A sphere with `body: mars` turns as Mars really does: its axis tilted where the real pole points, its real sidereal day, its map's longitude 0 where the prime meridian is. A ring with `orbit: mars` draws the real orbit. All three follow the [scene clock](#the-scene-clock).
@@ -141,7 +155,7 @@ objects:
 
 ### The scene clock
 
-`clock` on the card sets the scene date: where the real bodies are, how they are turned, and the [sky dome](./objects#grid) (`sky: sun | moon` points and paths) once it is set. It starts at `date` and runs on at `rate`:
+`clock` on the card sets the scene date: where the real bodies are, how they are turned, and the [sky dome](./objects/surfaces#grid) (`sky: sun | moon` points and paths) once it is set. It starts at `date` and runs on at `rate`:
 
 ```yaml
 clock:

@@ -4,7 +4,7 @@ description: "Your own 3D models on the LCARdS Astrometrics card: put a glTF fil
 
 # Your own models
 
-The [model](./objects#model) object draws a 3D model from a glTF file (`.glb` or `.gltf`). LCARdS ships a few [built-in models](./objects#built-in-models) (the Constitution-class and Galaxy-class starships, Deep Space 9, Earth Spacedock, a Utopia Planitia drydock). Any other ship, station or object can come from a file of your own.
+The [model](./objects/ships#model) object draws a 3D model from a glTF file (`.glb` or `.gltf`). LCARdS ships a few [built-in models](./objects/ships#built-in-models) (the Constitution-class and Galaxy-class starships, Deep Space 9, Earth Spacedock, a Utopia Planitia drydock). Any other ship, station or object can come from a file of your own.
 
 In short:
 
@@ -58,14 +58,14 @@ A model from elsewhere comes in its maker's units, facing their way, with their 
 
 | Key | Use |
 |---|---|
-| `size` | Its largest extent in scene units. Whatever units the file uses, `size` scales it to fit. To keep models in proportion, leave `size` out in a scene with `units`: each is drawn at its [real size](./objects#real-size). |
-| `length` | Its real length in metres, for a file not at its true scale (many downloads are not): drawn that long at its [real size](./objects#real-size), whatever the file measures. |
+| `size` | Its largest extent in scene units. Whatever units the file uses, `size` scales it to fit. To keep models in proportion, leave `size` out in a scene with `units`: each is drawn at its [real size](./objects/ships#real-size). |
+| `length` | Its real length in metres, for a file not at its true scale (many downloads are not): drawn that long at its [real size](./objects/ships#real-size), whatever the file measures. |
 | `file_units` | The units the file was made in (`m` default; `cm`, `mm`, `km`, `ft`, `in`), for its real size. glTF files are in metres unless their maker got it wrong: if a model comes out a hundred times too large, try `cm`; at an odd scale, give its `length` instead. |
 | `rotation` | `[x, y, z]` degrees. LCARdS models face +z (bow forward); a model that comes in sideways or nose-up needs a quarter turn, e.g. `rotation: [0, 90, 0]` or `[-90, 0, 0]`. |
 | `material` | `hologram` (default) works on any model: glow, rim, scanlines, edges. `original` shows the file's own colours and textures, lit. |
 | `face: motion` | On a moving point, the model turns to face where it is going. See [points](./points). |
 
-**Labels on its parts.** `part:` puts a point on a named part (a node in the file). Names in downloaded files are often like `Object_12`; in the Studio's Points tab the part list fills in from the file once it has loaded, so you can try them. See [points on a model](./objects#model).
+**Labels on its parts.** `part:` puts a point on a named part (a node in the file). Names in downloaded files are often like `Object_12`; in the Studio's Points tab the part list fills in from the file once it has loaded, so you can try them. See [points on a model](./objects/ships#model).
 
 ## Make it light
 

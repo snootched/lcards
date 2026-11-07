@@ -120,13 +120,13 @@ releases:
         summary: "Astrometrics Crystalline Entity: crystal branches round a starburst core"
         description: "The Crystalline Entity from Star Trek: The Next Generation (type: crystalline): a glowing spine, a pulsing starburst core and branches that fork down to thorns, 3 km tall, with the Galaxy-class Enterprise-D beside it at its real 642.5 m. SIDE, CLOSE, BELOW and SHIP fly round it, FAR shows it as a dot, SECOND a second one in the show's lavender. Under the scene, CORE GLOW, FADE and SPIN change it in place; BLUE, LAVENDER and ORANGE set its colour; BRANCHES sets how many times its branches fork; FIRE fires its beam on the ship."
         session: "CE1"
-        docs: /cards/astrometrics/objects#crystalline
+        docs: /cards/astrometrics/objects/space#crystalline
         public: true
       - file: slider-ring-fit
         summary: "Slider rings fit their arc: a half ring fills a wide cell"
         description: "A ring slider is as large as its arc lets it be in its cell: a half ring fills a wide cell with its value above the cut, a quarter ring sits in its corner, the default three-quarter ring is centred on its own shape, a full ring fills the smaller side. PICARD HALF: a Picard ring as a half ring across three quarters of a row. Each follows the same helper."
         session: "Backlog clean-up"
-        docs: /cards/slider-card/#ring-gauge
+        docs: /cards/slider-card/components#ring-gauge
         public: false
       - file: astro-diagram-forms
         summary: "Astrometrics diagram forms: each object type's LCARS wireframe for the diagram look"
@@ -162,7 +162,7 @@ releases:
         summary: "Astrometrics comet: tails away from its star"
         description: "type: comet: a dark nucleus, a glowing coma and two tails pointing away from its star (light): a straight blue ion tail and a pale dust tail that bends back along the comet's path. On an orbit centred off the star, with activity.mode: distance it grows and brightens as it swings in and fades as it swings out. COMET flies to it, SYSTEM back out. Second card: TAIL, COMA and GLOW follow sliders and ease in place."
         session: "AC1"
-        docs: /cards/astrometrics/objects#comet
+        docs: /cards/astrometrics/objects/space#comet
         public: true
       - file: astro-wormhole
         summary: "Astrometrics wormhole: its mouth and the regions inside it"
@@ -174,7 +174,7 @@ releases:
         summary: "Astrometrics asteroid: one rock up close"
         description: "type: asteroid: one rock with lumps and craters, tumbling, lit from its star (light: a point id). The star here goes round it, so day and night sweep across it. FAR shows it from thousands of units away, where it is a dot. Second card: three seeds and colours, all lit from one star."
         session: "AC1"
-        docs: /cards/astrometrics/objects#asteroid
+        docs: /cards/astrometrics/objects/space#asteroid
         public: true
       - file: astro-studio-forms
         summary: "Astrometrics Studio forms: a card to open in the Studio"
@@ -204,7 +204,7 @@ releases:
         summary: "Astrometrics real size: starbases and ships in proportion"
         description: "Five built-in models with no size in a scene in km, so each is drawn at its real size from its file: Deep Space 9 (1.45 km) with a refit Constitution-class ship (305 m) beside it, Earth Spacedock (5.5 km tall) and a Utopia Planitia drydock (760 m) with a ship in its berth. The buttons fly to each. From ALL the ships are specks: the REAL SIZE button under the camera pad (or the V key) switches to VISIBLE SIZE, which draws each small model at least 40 px across, and back."
         session: "UX1"
-        docs: /cards/astrometrics/objects#real-size
+        docs: /cards/astrometrics/objects/ships#real-size
         public: true
       - file: astro-prism-outline
         summary: "Astrometrics prism outlines: edit a territory's border on the preview"
@@ -264,7 +264,7 @@ releases:
         summary: "Astrometrics galaxy: a procedural Milky Way, and a prism territory"
         description: "The galaxy object: the Milky Way built from its real structure (the central bar, the Scutum-Centaurus and Perseus arms from its ends, Sagittarius and Norma between them, the Orion spur), each star at its own place, so flying in shows parallax. SOL sits 26,000 light years out with a prism territory round it, a border drawn as any outline. GALAXY, FROM ABOVE and SOL fly the camera. Below, a generic two-arm galaxy with no bar, turning."
         session: "R4c1"
-        docs: /cards/astrometrics/objects#galaxy
+        docs: /cards/astrometrics/objects/space#galaxy
         public: true
       - file: astro-bindings
         summary: "Astrometrics settings from entities: shields, power and a guided tour"
@@ -312,13 +312,13 @@ releases:
         summary: "Astrometrics Borg cube: the screen effect's cube in the scene"
         description: "type: cube: the Borg cube with carved machinery, its rail lattice and pulsing glow spots, closing on a starship with a tractor beam (the Borg encounter starter); below, the styles side by side: borg, detail off and plain. The buttons above a scene fly its camera to each of its named views."
         session: "E8"
-        docs: /cards/astrometrics/objects#cube
+        docs: /cards/astrometrics/objects/ships#cube
         public: true
       - file: astro-trail
         summary: "Astrometrics trails: where moving points have been"
         description: "type: trail: fading lines behind two planets and a comet marker on their orbits, built while the card is open, and a starship model riding an orbit with a dashed wake. The buttons above a scene fly its camera to each of its named views."
         session: "E8"
-        docs: /cards/astrometrics/objects#trail
+        docs: /cards/astrometrics/objects/lines#trail
         public: true
       - file: astro-own-models
         summary: "Astrometrics own models: one model file from the library, a path and the media browser"
@@ -330,25 +330,25 @@ releases:
         summary: "Astrometrics ships: the NCC-1701-A and the NCC-1701-D"
         description: "The two built-in starships made in code after the on-screen designs: the refit Constitution class (USS Enterprise NCC-1701-A, 305 m) and the Galaxy class (USS Enterprise NCC-1701-D, 642.5 m), side by side at the same scale as holograms with their parts labelled, each turning in its own materials, and the Galaxy class in its Utopia Planitia drydock. The buttons above the first scene fly its camera to each ship."
         session: "M2b"
-        docs: /cards/astrometrics/objects#built-in-models
+        docs: /cards/astrometrics/objects/ships#built-in-models
         public: true
       - file: astro-starbases
         summary: "Astrometrics starbases: Deep Space 9, Earth Spacedock, Utopia Planitia"
         description: "Three built-in starbase models made in code after the on-screen designs: Deep Space 9 by the wormhole with Ops and its pylons marked, the Utopia Planitia drydocks over Mars with a starship in one, a starship approaching Earth Spacedock's space doors, and all three as holograms. The buttons above a scene fly its camera to each of its named views."
         session: "E8"
-        docs: /cards/astrometrics/objects#built-in-models
+        docs: /cards/astrometrics/objects/ships#built-in-models
         public: true
       - file: astro-belt
         summary: "Astrometrics asteroid belt: rocks round a star"
         description: "type: belt: a band of low-poly rocks round the Sun, the inner ones going round faster (period) and each tumbling, lit from the Sun, grey and tan rocks from a colors list (each rock takes one). CLOSE flies in for a close look, SYSTEM back out. Second card: a ring of small rocks round a planet. Third card: the band follows sliders and eases in place round the same rocks (INNER EDGE and OUTER + ROCKS move each edge, the second also adds rocks; THICKNESS spreads them up and down). The buttons above a scene fly its camera to each of its named views."
         session: "E8"
-        docs: /cards/astrometrics/objects#belt
+        docs: /cards/astrometrics/objects/space#belt
         public: true
       - file: astro-planets
         summary: "Astrometrics planets: maps, planet types, Saturn's rings"
         description: "The built-in planet maps (NASA and USGS, public domain), eight fill.effect planet types (gas giant, ringed giant, ice giant, storm giant, clouds, lava, ice and terran), Saturn with its ring band, and a gas giant preset with its own keys on top (fewer belts, stormier, churning)."
         session: "E8"
-        docs: /cards/astrometrics/objects#built-in-planet-maps
+        docs: /cards/astrometrics/objects/surfaces#built-in-planet-maps
         public: true
       - file: astro-starters
         heavy: true
@@ -385,13 +385,13 @@ releases:
         summary: "Cards and 3D models in the scene"
         description: "The built-in starship as a hologram with points on its parts, LCARdS cards pinned to points (always shown, or opened with a tap on BRIDGE), labels hiding behind the hull, the ship with its own materials, and a see-through orange hologram. The buttons above a scene fly its camera to each of its named views. TOGGLE, LIGHTS and POWER drive the cards pinned on the ship (TOGGLE also lights BRIDGE ALERT)."
         session: "E4"
-        docs: /cards/astrometrics/objects#model
+        docs: /cards/astrometrics/objects/ships#model
         public: true
       - file: astro-deformed-grids
         summary: "Deformed grids, wells and a wormhole"
         description: "A jelly cylinder, a tornado (a twisted well whose bend circles), a wormhole with a ripple, a whirlpool disc, and a sector map on rolling noise with its cells and points riding the surface. The buttons above a scene fly its camera to each of its named views."
         session: "E5"
-        docs: /cards/astrometrics/objects#deformed-grids
+        docs: /cards/astrometrics/objects/surfaces#deformed-grids
         public: true
       - file: webgl-scenes
         summary: "WebGL background scenes, alone and stacked"
@@ -516,7 +516,7 @@ releases:
         summary: "The slider's ring gauge"
         description: "The slider's ring component: full and partial rings, value markers and centre text. The rings follow the test value; drag one, or the slider below, to change it. The set point ring is a thermostat on the test temperature, its NOW marker follows the test value. Below, rings sized to their cells: a half ring fills a wide cell with its value above the cut (HALF, PICARD HALF), a quarter ring sits in its corner, the default three-quarter ring is centred on its own shape, a full ring fills the smaller side; they follow the test power."
         session: "slider component: ring"
-        docs: /cards/slider-card/#ring-gauge
+        docs: /cards/slider-card/components#ring-gauge
         public: true
       - file: alert-band
         summary: "The alert band"
@@ -645,7 +645,7 @@ releases:
         summary: "Slider drag badge: the value a drag will set, shown as you drag"
         description: "drag_badge shows the value a drag will set while you drag, like Home Assistant's own sliders: drag any of these. DEFAULT is the plain badge, STYLED an orange one with one decimal and no unit that goes at once on release, and the Picard and shaped sliders show it beside the track."
         session: "D1c"
-        docs: /cards/slider-card/#drag-value-badge
+        docs: /cards/slider-card/control#drag-value-badge
         public: true
       - file: lcars-patterns-picard
         summary: "LCARS patterns, Picard: columns, tabs, sweeps, frames and bars"
@@ -671,7 +671,7 @@ releases:
         summary: "Slider marker labels and value tween"
         description: "The POWER buttons set the value at once, so the sliders ease to it instead of jumping (value_tween): the default 500 ms, a slow bounce, the pills sweeping, and one with the tween off for comparison. Dragging stays instant. At the bottom, value markers with labels: one follows SHIELDS (drag its slider at the top), one marks a fixed limit at 80."
         session: "D1c"
-        docs: /cards/slider-card/#value-tween
+        docs: /cards/slider-card/control#value-tween
         public: true
   - version: "2026.08.0"
     views:

@@ -41,7 +41,7 @@
 import PlaygroundAssist from './PlaygroundAssist.vue'
 import { ref, shallowRef, computed, watch, onMounted, onUnmounted, getCurrentInstance } from 'vue'
 import { SAMPLE_ENTITIES } from './chart-demo-data.js'
-import { cardRuntime, sizeMount, mountWidth, demoHint } from './card-demo-runtime.js'
+import { cardRuntime, sizeMount, mountWidth, mountRoom, demoHint } from './card-demo-runtime.js'
 import { CARD_STARTERS, DEMO_ENTITIES } from './card-demo-starters.js'
 
 const props = defineProps({
@@ -155,6 +155,7 @@ async function render() {
   env.ensureEntities(config)
   mountEl.value.style.height = sizeMount(config, null)
   mountEl.value.style.width = mountWidth(config)
+  Object.assign(mountEl.value.style, { marginBottom: '', marginLeft: '', marginRight: '' }, mountRoom(config))
   if (card) env.unmount(card)
   card = await env.mount(mountEl.value, config)
   mountEl.value.style.height = sizeMount(config, card)
