@@ -14,11 +14,44 @@
 import { createFakeHass, makeStates } from './fake-hass.js';
 import { ALERT_SERVICES } from './demo-states.js';
 
-/** Stub the HA elements cards use outside HA (they render nothing useful but must exist). */
-export function defineHaStubs() {
+/** 'mdi:lightbulb-outline' -> 'mdiLightbulbOutline' (the @mdi/js export name) */
+export const mdiExportName = (icon) => /^mdi:/.test(String(icon ?? ''))
+    ? 'mdi' + String(icon).slice(4).split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join('')
+    : null;
+
+/**
+ * Stub the HA elements cards use outside HA (they render nothing useful but must exist).
+ * `loadIcons` (the docs site passes `() => import('@mdi/js')`) lets ha-icon draw mdi:*
+ * icons as Home Assistant would; without it (the browser test harness) icons stay empty boxes.
+ * @param {{ loadIcons?: () => Promise<Record<string, string>> }} [options]
+ */
+export function defineHaStubs({ loadIcons } = {}) {
+    let icons = null;
     class StubIcon extends HTMLElement {
         static get observedAttributes() { return ['icon']; }
-        connectedCallback() { this.style.display = 'inline-block'; this.style.width ||= '24px'; this.style.height ||= '24px'; }
+        connectedCallback() {
+            this.style.display = 'inline-block'; this.style.width ||= '24px'; this.style.height ||= '24px';
+            this._draw();
+        }
+        attributeChangedCallback() { this._draw(); }
+        set icon(v) { this.setAttribute('icon', v ?? ''); }
+        get icon() { return this.getAttribute('icon'); }
+        async _draw() {
+            const name = mdiExportName(this.getAttribute('icon'));
+            if (!loadIcons || !name) { this.replaceChildren(); return; }
+            icons ??= loadIcons();
+            const d = (await icons)[name];
+            if (mdiExportName(this.getAttribute('icon')) !== name) return; // changed meanwhile
+            if (!d) { this.replaceChildren(); return; }
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', '0 0 24 24');
+            svg.setAttribute('style', 'width:100%;height:100%;display:block');
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', d);
+            path.setAttribute('fill', 'currentColor');
+            svg.append(path);
+            this.replaceChildren(svg);
+        }
     }
     for (const tag of ['ha-icon', 'ha-svg-icon', 'ha-state-icon']) {
         if (!customElements.get(tag)) customElements.define(tag, class extends StubIcon {});

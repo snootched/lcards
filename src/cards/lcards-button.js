@@ -73,6 +73,7 @@ import { CanvasTextureRenderer } from '../core/packs/textures/CanvasTextureRende
 // Import unified schema
 import { getButtonSchema } from './schemas/button-schema.js';
 import { TEXT_POSITIONS } from './schemas/schema-options.js';
+import { buttonGridOptions, mergeSegmentLayers, spreadBorderShorthands } from './button-config.js';
 
 
 /**
@@ -218,11 +219,15 @@ export class LCARdSButton extends LCARdSCard {
             const colorSegments   = {};
             if (colorShorthand.shape) colorSegments.shape = { style: { fill:   colorShorthand.shape } };
             if (colorShorthand.bars)  colorSegments.bars  = { style: { stroke: colorShorthand.bars  } };
+            // The bar sweep animates the bars' stroke to its trail colour, so the bars
+            // colour has to be the sweep's trail colour too or it never shows.
+            this._rawUserBarsColor = colorShorthand.bars;
             this._rawUserComponentSegments = Object.keys(colorSegments).length > 0
                 ? deepMergeImmutable(colorSegments, explicitSegments)
                 : explicitSegments;
         } else {
             this._rawUserComponentSegments = {};
+            this._rawUserBarsColor = undefined;
         }
 
         // Capture raw user animations BEFORE CoreConfigManager processing.
@@ -239,6 +244,9 @@ export class LCARdSButton extends LCARdSCard {
         // accumulates injected preset values) prevents stale preset content winning on preset
         // switches (e.g. range-driven condition_red → condition_green).
         this._rawUserComponentText = config?.text ? JSON.parse(JSON.stringify(config.text)) : {};
+        // The user's own style.text.default, for the same reason: a preset's text.default
+        // is merged into this.config.text and must not beat a colour the user set here.
+        this._rawUserStyleTextDefault = config?.style?.text?.default ? JSON.parse(JSON.stringify(config.style.text.default)) : {};
 
         super._onConfigSet(config);
 
@@ -458,39 +466,31 @@ export class LCARdSButton extends LCARdSCard {
         });
 
         // ── 3. Build effective segments ───────────────────────────────────────
-        // Start from component defaults (immutable — never mutate the registry).
-        let effectiveSegments = componentDef.segments
-            ? JSON.parse(JSON.stringify(componentDef.segments))  // deep clone
-            : {};
-
-        // Resolve the named preset with full extends-chain support, then apply its
-        // segment overrides on top of the component defaults.
+        // Layers, lowest first: component defaults (theme tokens), the named preset,
+        // the user's own segments (with the color: shorthand), and range colours.
+        // Resolve the named preset with full extends-chain support.
         // Use effectivePresets (merged) so custom preset extends chains resolve correctly.
         const rawPresetData = effectivePresets[resolvedPreset];
         const presetData = rawPresetData
             ? this._resolveComponentPreset(rawPresetData, effectivePresets)
             : null;
 
-        if (presetData?.segments) {
-            effectiveSegments = deepMergeImmutable(effectiveSegments, presetData.segments);
-        }
-
-        // Apply raw user overrides (includes color: shorthand expansion from _onConfigSet).
-        if (this._rawUserComponentSegments && Object.keys(this._rawUserComponentSegments).length > 0) {
-            effectiveSegments = deepMergeImmutable(effectiveSegments, this._rawUserComponentSegments);
-        }
-
-        // Apply range-specific color overrides — highest priority, only when a range is active.
-        // These override the static color: shorthand for the duration of the matched range.
+        // Range-specific color overrides: highest priority, only while a range is active.
+        // They override the static color: shorthand for the duration of the matched range.
+        let rangeColorSegments = null;
         if (this._activeRangeColorOverrides) {
             const rc = this._activeRangeColorOverrides;
-            const rangeColorSegments = {};
+            rangeColorSegments = /** @type {Record<string, any>} */ ({});
             if (rc.shape) rangeColorSegments.shape = { style: { fill:   rc.shape } };
             if (rc.bars)  rangeColorSegments.bars  = { style: { stroke: rc.bars  } };
-            if (Object.keys(rangeColorSegments).length > 0) {
-                effectiveSegments = deepMergeImmutable(effectiveSegments, rangeColorSegments);
-            }
         }
+
+        const effectiveSegments = mergeSegmentLayers([
+            componentDef.segments,
+            presetData?.segments,
+            this._rawUserComponentSegments,
+            rangeColorSegments,
+        ]);
 
         // Provenance: what the component and its preset supplied (the user's own
         // values are already in the config layers)
@@ -562,6 +562,16 @@ export class LCARdSButton extends LCARdSCard {
             }
         }
 
+        // alert.color.bars: the sweep settles the bars on its trail colour (the user's
+        // own animations below still win)
+        if (this._rawUserBarsColor) {
+            for (const anim of componentAnims) {
+                if (anim.id === 'bars-top-sweep' || anim.id === 'bars-bottom-sweep') {
+                    anim.params = { ...anim.params, trail_color: this._rawUserBarsColor };
+                }
+            }
+        }
+
         // Apply user overrides on top (by id), append user-only entries
         const mergedAnims = [...componentAnims];
         for (const userAnim of (this._rawUserAnimations || [])) {
@@ -601,14 +611,8 @@ export class LCARdSButton extends LCARdSCard {
         });
 
         // ── 6. Build segment array and hand off to the SVG pipeline ───────────
-        // The 'default' key is a fallback template (mirrors _convertSegmentsObjectToArray):
-        // its properties are merged into every real segment, but it never becomes a segment
-        // itself (there is no SVG element with id="default").
-        const defaultSegCfg = effectiveSegments.default || {};
-        const realSegmentEntries = Object.entries(effectiveSegments).filter(([id]) => id !== 'default');
-        const mergedSegmentEntries = Object.keys(defaultSegCfg).length > 0
-            ? realSegmentEntries.map(([id, segCfg]) => [id, deepMergeImmutable(defaultSegCfg, segCfg)])
-            : realSegmentEntries;
+        // mergeSegmentLayers already folded each layer's 'default' into its segments.
+        const mergedSegmentEntries = Object.entries(effectiveSegments);
 
         const svgConfig = {
             content: svgContent,
@@ -2580,8 +2584,9 @@ export class LCARdSButton extends LCARdSCard {
             const configStyleCopy = JSON.parse(JSON.stringify(this.config.style));
             // Then resolve ALL tokens recursively (theme: and computed)
             const configWithTokens = resolveThemeTokensRecursive(configStyleCopy, this._singletons?.themeManager);
-            // Then deep merge (handles nested objects)
-            style = deepMergeImmutable(style, configWithTokens);
+            // Then deep merge (handles nested objects). A per-side width or per-corner
+            // radius object keeps the preset's value on the sides it leaves out.
+            style = deepMergeImmutable(spreadBorderShorthands(style, configWithTokens), configWithTokens);
             lcardsLog.trace(`[LCARdSButton] Config styles merged`);
         }
 
@@ -2835,26 +2840,22 @@ export class LCARdSButton extends LCARdSCard {
         }
 
         // Resolve directional icon padding (for area-based positioning)
-        // Priority: iconStyle > preset > 0 (default)
-        let iconPaddingLeft = 0;
-        let iconPaddingRight = 0;
-        let iconPaddingTop = 0;
-        let iconPaddingBottom = 0;
-
-        // Extract from iconStyle first
-        if (iconStyle.padding && typeof iconStyle.padding === 'object') {
-            iconPaddingLeft = iconStyle.padding.left ?? 0;
-            iconPaddingRight = iconStyle.padding.right ?? 0;
-            iconPaddingTop = iconStyle.padding.top ?? 0;
-            iconPaddingBottom = iconStyle.padding.bottom ?? 0;
-        }
-        // Fall back to preset if not in config
-        else if (resolvedStyle.icon_style?.padding && typeof resolvedStyle.icon_style.padding === 'object') {
-            iconPaddingLeft = resolvedStyle.icon_style.padding.left ?? 0;
-            iconPaddingRight = resolvedStyle.icon_style.padding.right ?? 0;
-            iconPaddingTop = resolvedStyle.icon_style.padding.top ?? 0;
-            iconPaddingBottom = resolvedStyle.icon_style.padding.bottom ?? 0;
-        }
+        // Per side: icon_style.padding_<side> > icon_style.padding.<side> (the user's
+        // object replaces the preset's whole) > the preset's same two > 0.
+        /** @param {any} style @param {'left'|'right'|'top'|'bottom'} side */
+        const sidePadding = (style, side) => {
+            if (!style) return undefined;
+            if (style[`padding_${side}`] !== undefined) return style[`padding_${side}`];
+            const obj = style.padding;
+            return obj && typeof obj === 'object' ? (obj[side] ?? 0) : undefined;
+        };
+        /** @param {'left'|'right'|'top'|'bottom'} side */
+        const resolveSide = (side) =>
+            sidePadding(iconStyle, side) ?? sidePadding(resolvedStyle.icon_style, side) ?? 0;
+        const iconPaddingLeft = resolveSide('left');
+        const iconPaddingRight = resolveSide('right');
+        const iconPaddingTop = resolveSide('top');
+        const iconPaddingBottom = resolveSide('bottom');
 
         // Resolve icon rotation (same as text fields)
         // Priority: iconStyle > preset > 0 (default)
@@ -3473,11 +3474,22 @@ export class LCARdSButton extends LCARdSCard {
                 animations: this.config.animations,
                 // In non-interactive (decorative) mode, suppress pointer cursor and
                 // hover/leave animation triggers in the action handler.
-                disableHover: this.config.interactive === false
+                disableHover: this.config.interactive === false,
+                ...this._getButtonActionOptions()
             }
         );
 
         lcardsLog.trace(`[LCARdSButton] Actions attached to button element`);
+    }
+
+    /**
+     * Extra options for the card-level action handler (subclasses: the elbow lets
+     * segments with their own actions own their holds).
+     * @returns {Record<string, any>}
+     * @protected
+     */
+    _getButtonActionOptions() {
+        return {};
     }
 
     /**
@@ -3714,18 +3726,17 @@ export class LCARdSButton extends LCARdSCard {
         }
         // Priority 3: Named position
         else {
-            // Use text positioning system (icons positioned like text)
-            const textAreaBounds = {
-                left: 0,
-                width: buttonWidth,
-                height: buttonHeight
-            };
-            const position = this._calculateNamedPosition(iconConfig.position, textAreaBounds, padding);
-
-            // Icons are centered on their position point (unlike text which uses anchor/baseline)
-            // So we offset by half the icon size
-            iconX = position.x - (iconSize / 2);
-            iconY = position.y - (iconSize / 2);
+            // The icon's box sits inside the button, `padding` from the edges the
+            // position names (top-right: its top-right corner `padding` in), and
+            // centred on an axis the position doesn't name.
+            const pos = String(iconConfig.position || 'center');
+            const side = (/** @type {string} */ k) => Number(typeof padding === 'object' && padding ? padding[k] : padding) || 0;
+            iconX = /left/.test(pos) ? side('left')
+                : /right/.test(pos) ? buttonWidth - side('right') - iconSize
+                : (buttonWidth - iconSize) / 2;
+            iconY = /top/.test(pos) ? side('top')
+                : /bottom/.test(pos) ? buttonHeight - side('bottom') - iconSize
+                : (buttonHeight - iconSize) / 2;
         }
 
         // Generate icon name string
@@ -4248,10 +4259,11 @@ export class LCARdSButton extends LCARdSCard {
                     evaluatedConfig[key] = val;
                 }
             } else if (val && typeof val === 'object' && val.map_range !== undefined) {
-                // map_range descriptor: { map_range: { entity_id?, attribute?, input, output, clamp? } }
-                // entity_id defaults to config.entity (card-bound entity)
+                // map_range descriptor: { map_range: { entity?, attribute?, input, output, clamp? } }
+                // entity defaults to config.entity (card-bound entity); `entity_id` is the
+                // older name for it, still read.
                 const mrCfg = val.map_range;
-                const entityId = mrCfg.entity_id || this.config?.entity || null;
+                const entityId = mrCfg.entity || mrCfg.entity_id || this.config?.entity || null;
                 const entityObj = entityId ? (this.hass?.states?.[entityId] ?? null) : this._entity;
                 if (entityObj && Array.isArray(mrCfg.input) && mrCfg.input.length === 2 &&
                     Array.isArray(mrCfg.output) && mrCfg.output.length === 2) {
@@ -5125,7 +5137,10 @@ export class LCARdSButton extends LCARdSCard {
                 // value was user-driven (e.g. to suppress auto-scaling in component mode).
                 font_size: _resolvedFontSize,
                 _user_explicit_font_size: !!_userExplicitFontSize,
-                color: fieldConfig.color || userDefaults.color || presetFieldConfig.color || presetTextDefaults.color || null, // null means use default
+                // Anything the user wrote (the field, text.default, style.text.default) beats
+                // anything a preset filled in (merged into fieldConfig / userDefaults).
+                color: _rawUserField.color || _rawUserDefaults.color || this._rawUserStyleTextDefault?.color
+                    || fieldConfig.color || userDefaults.color || presetFieldConfig.color || presetTextDefaults.color || null, // null means use default
                 font_weight: fieldConfig.font_weight || userDefaults.font_weight || presetFieldConfig.font_weight || this._buttonStyle?.text?.default?.font_weight || 'normal',
                 font_family: fieldConfig.font_family || userDefaults.font_family || presetFieldConfig.font_family || this._buttonStyle?.text?.default?.font_family || "'LCARS', 'Antonio', sans-serif",
                 text_transform: fieldConfig.text_transform || userDefaults.text_transform || presetFieldConfig.text_transform || this._buttonStyle?.text?.default?.text_transform || 'none',
@@ -5561,6 +5576,8 @@ export class LCARdSButton extends LCARdSCard {
                 color: resolvedColor,
                 font_weight: field.font_weight,
                 font_family: field.font_family,
+                // _generateTextElements emits it (and counts it in width estimates)
+                letter_spacing: field.letter_spacing ?? null,
                 anchor: anchor,
                 baseline: baseline,
                 rotation: field.rotation,  // NEW: pass through rotation
@@ -6908,13 +6925,7 @@ export class LCARdSButton extends LCARdSCard {
      * @returns {Object} Layout configuration
      */
     getGridOptions() {
-        const gridOptions = this.config.grid_options || {};
-        return {
-            columns: gridOptions.columns || 4,
-            rows: gridOptions.rows || 1,
-            min_columns: 1,
-            min_rows: 1,
-        };
+        return buttonGridOptions(this.config);
     }
 
     /**

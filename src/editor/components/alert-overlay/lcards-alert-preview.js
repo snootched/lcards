@@ -33,6 +33,8 @@ export class LCARdSAlertPreview extends LitElement {
             config: { attribute: false },
             /** The condition shown, e.g. 'red_alert' */
             condition: { type: String },
+            /** A fixed screen to lay out on ({ width, height } px); unset, the real window (the studio) */
+            screenSize: { attribute: false },
             /** Hidden by a dismiss in the preview (a click on the backdrop or the band's symbol) */
             _dismissed: { state: true },
             _scale: { state: true },
@@ -47,6 +49,8 @@ export class LCARdSAlertPreview extends LitElement {
         /** @type {any} */
         this.config = null;
         this.condition = 'red_alert';
+        /** @type {{ width: number, height: number }|null} */
+        this.screenSize = null;
         this._dismissed = false;
         this._scale = 0.5;
         this._screen = { width: window.innerWidth || 1600, height: window.innerHeight || 900 };
@@ -60,7 +64,7 @@ export class LCARdSAlertPreview extends LitElement {
         /** @type {ResizeObserver|null} */
         this._resizeObserver = null;
         this._onWindowResize = () => {
-            this._screen = { width: window.innerWidth, height: window.innerHeight };
+            if (!this.screenSize) this._screen = { width: window.innerWidth, height: window.innerHeight };
             this._measure();
         };
     }
@@ -84,6 +88,14 @@ export class LCARdSAlertPreview extends LitElement {
         super.disconnectedCallback();
     }
 
+    /**
+     * The card API, so the preview mounts like a card (the docs site's live examples).
+     * @param {any} config - An alert overlay config
+     */
+    setConfig(config) {
+        this.config = config;
+    }
+
     /** Show the alert again (after a dismiss, or to restart its animations). */
     replay() {
         this._dismissed = false;
@@ -98,9 +110,11 @@ export class LCARdSAlertPreview extends LitElement {
 
     willUpdate(changed) {
         if (changed.has('condition')) this._dismissed = false;
+        if (changed.has('screenSize') && this.screenSize) this._screen = { ...this.screenSize };
     }
 
     updated(changed) {
+        if (changed.has('_screen')) this._measure();
         if (changed.has('config') || changed.has('condition') || changed.has('_dismissed')) {
             this._scheduleSync(changed.has('condition') ? 0 : 150);
         } else if (changed.has('hass') && this._contentEl && this.hass) {
@@ -124,7 +138,11 @@ export class LCARdSAlertPreview extends LitElement {
         this._contentEl = null;
         for (const slot of LAYER_SLOTS) {
             const el = /** @type {HTMLElement|null} */ (this.renderRoot.querySelector(`.layer-${slot}`));
-            if (el) { el.replaceChildren(); el.removeAttribute('style'); }
+            if (!el) continue;
+            el.replaceChildren();
+            el.removeAttribute('style');
+            // a canvas effect leaves its last frame in the buffer: resetting the size clears it
+            if (el instanceof HTMLCanvasElement) { el.width = 1; el.height = 1; }
         }
     }
 
@@ -205,7 +223,10 @@ export class LCARdSAlertPreview extends LitElement {
                     @lcards-alert-band-dismiss=${this._onBandDismiss}>
                     ${this._renderDashboard()}
                     <div class="dismiss-target" @click=${this._onBackdropClick}></div>
-                    ${LAYER_SLOTS.map((slot) => html`<div class="layer layer-${slot}"></div>`)}
+                    <div class="layer layer-backdrop"></div>
+                    <div class="layer layer-color"></div>
+                    <!-- the canvas presets draw into a <canvas>, as in the real overlay's canvas slot -->
+                    <canvas class="layer layer-canvas" width="1" height="1"></canvas>
                     <div class="wrap"><div class="content"></div></div>
                 </div>
                 ${this._dismissed ? html`
@@ -321,6 +342,11 @@ export class LCARdSAlertPreview extends LitElement {
                 inset: 0;
             }
             .layer { pointer-events: none; }
+            /* As the real slot: the buffer size changes, the box stays the whole screen */
+            canvas.layer {
+                width: 100%;
+                height: 100%;
+            }
             .wrap {
                 display: flex;
                 pointer-events: none;

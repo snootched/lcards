@@ -587,7 +587,7 @@ grid:
 
 ### Tile wall
 
-Small framed tiles, each with its own reading, as in the Picard signal-processing panels. Each frame holds its reading as an embedded card ([symbiont](../cards/elbow/#symbiont)): a chart, a camera, a data grid.
+Small framed tiles, each with its own reading, as in the Picard signal-processing panels. Each frame holds its reading as an embedded card ([symbiont](../cards/elbow/symbiont)): a chart, a camera, a data grid.
 
 ```yaml live
 type: custom:lcards-layout-card
@@ -788,7 +788,7 @@ cards:
 
 ### Brackets and scopes
 
-Round displays framed by bracket arcs, and radar scopes (meWho's Titan.DS and Protostar screens): the button's `brackets` and `radar` [components](../cards/button/#component-mode-brackets-and-radar). Both take their colours from the theme roles.
+Round displays framed by bracket arcs, and radar scopes (meWho's Titan.DS and Protostar screens): the button's `brackets` and `radar` [components](../cards/button/components#brackets-and-radar). Both take their colours from the theme roles.
 
 ```yaml live
 type: custom:lcards-layout-card

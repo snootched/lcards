@@ -105,3 +105,45 @@ test('closing the studio takes the preview layers down', async ({ page }) => {
     expect(layers.after).toBe('');
     expect(layers.content).toBe(0);
 });
+
+for (const preset of ['static', 'pixelate', 'glitch', 'scanlines']) {
+    test(`a ${preset} canvas layer draws on the mock screen`, async ({ page }) => {
+        await mountCase(page, 'button-lozenge');
+        await openStudio(page, { layers: { canvas: { preset, opacity: 0.8 } } });
+        await expect.poll(() => previewState(page), { timeout: 10_000 }).toMatchObject({ tag: 'lcards-button' });
+        // the canvas presets draw into a <canvas> (a <div> threw "getContext is not a function" every frame)
+        await expect.poll(() => page.evaluate(() => {
+            const canvas = window.__studio.renderRoot.querySelector('lcards-alert-preview').renderRoot.querySelector('.layer-canvas');
+            return { tag: canvas.localName, sized: canvas.width > 1 && canvas.height > 1 };
+        }), { timeout: 5_000 }).toEqual({ tag: 'canvas', sized: true });
+        await expectNoErrors(page);
+    });
+}
+
+test('the preview mounts like a card on a fixed screen (the docs live examples)', async ({ page }) => {
+    await mountCase(page, 'button-lozenge');
+    const state = await page.evaluate(async () => {
+        await window.lcards.loadAlertPreview();
+        const box = Object.assign(document.createElement('div'), { style: 'width: 640px; height: 360px' });
+        document.body.appendChild(box);
+        const preview = /** @type {any} */ (document.createElement('lcards-alert-preview'));
+        Object.assign(preview.style, { width: '100%', height: '100%' });
+        preview.setConfig({ type: 'custom:lcards-alert-overlay', width: '50%' });
+        preview.hass = window.__hass;
+        preview.screenSize = { width: 1280, height: 720 };
+        preview.condition = 'blue_alert';
+        box.appendChild(preview);
+        await new Promise((r) => setTimeout(r, 1500));
+        const root = preview.renderRoot;
+        return {
+            screen: [root.querySelector('.screen').offsetWidth, root.querySelector('.screen').offsetHeight],
+            content: root.querySelector('.content').offsetWidth,
+            frame: Math.round(root.querySelector('.frame').getBoundingClientRect().width),
+            tag: root.querySelector('.content').firstElementChild?.localName,
+        };
+    });
+    // laid out at 1280 x 720 whatever the window, scaled into the 640 px box; 50% is of that screen
+    expect(state).toEqual({ screen: [1280, 720], content: 640, frame: 640, tag: 'lcards-button' });
+    expect(await page.evaluate(() => window.__hass.serviceCalls)).toEqual([]);
+    await expectNoErrors(page);
+});

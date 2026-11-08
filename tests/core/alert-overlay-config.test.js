@@ -48,6 +48,31 @@ test('layers: condition slots over card slots over the default blur; a band only
     assert.equal(resolveLayers({ backdrop: { color: 'rgba(0,0,0,0.5)', opacity: 0.5 } }, 'red_alert').color.color, 'rgba(0,0,0,0.25)', 'legacy backdrop folds opacity into alpha');
 });
 
+// ── layers: null and the per-condition legacy backdrop (2026-11-07) ──
+// Before, `layers: null` fell through to the default 8px blur (the schema says it
+// turns every layer off), and conditions.<key>.backdrop was ignored.
+test('layers: null turns every layer off, on the overlay and the band', () => {
+    const off = { backdrop: null, color: null, canvas: null };
+    assert.deepEqual(resolveLayers({ layers: null }, 'red_alert'), off);
+    assert.deepEqual(resolveLayers({ layers: null, backdrop: { blur: '20px' } }, 'red_alert'), off, 'layers wins over the legacy backdrop');
+    const band = bandLayers({ layers: null, display: 'band' }, 'red_alert');
+    assert.ok(band === null || JSON.stringify(band) === JSON.stringify(off));
+    // A condition can still turn a slot back on.
+    assert.deepEqual(resolveLayers({ layers: null, conditions: { red_alert: { layers: { canvas: { preset: 'static' } } } } }, 'red_alert'),
+        { backdrop: null, color: null, canvas: { preset: 'static' } });
+});
+
+test('a per-condition legacy backdrop migrates to that condition\'s backdrop and color slots', () => {
+    const cfg = { layers: { canvas: { preset: 'scanlines' } }, conditions: { red_alert: { backdrop: { blur: '20px' } } } };
+    assert.deepEqual(resolveLayers(cfg, 'red_alert'), { backdrop: { preset: 'blur', amount: '20px' }, color: null, canvas: { preset: 'scanlines' } });
+    assert.deepEqual(resolveLayers(cfg, 'yellow_alert'), { backdrop: null, color: null, canvas: { preset: 'scanlines' } }, 'other conditions keep the card layers');
+    assert.equal(resolveLayers({ conditions: { red_alert: { backdrop: { color: 'rgba(0,0,0,0.5)', opacity: 0.5 } } } }, 'red_alert').color.color, 'rgba(0,0,0,0.25)');
+    assert.ok(bandLayers({ conditions: { red_alert: { backdrop: { blur: '20px' } } } }, 'red_alert'), 'a band shows a per-condition backdrop');
+    // The condition's layers win over its own legacy backdrop, slot by slot.
+    const both = { conditions: { red_alert: { backdrop: { blur: '20px' }, layers: { color: { preset: 'vignette' } } } } };
+    assert.deepEqual(resolveLayers(both, 'red_alert'), { backdrop: { preset: 'blur', amount: '20px' }, color: { preset: 'vignette' }, canvas: null });
+});
+
 test('position: the condition, then the card, then centre', () => {
     assert.equal(overlayPosition({}, 'red_alert'), 'center');
     assert.equal(overlayPosition({ position: 'top', conditions: { red_alert: { position: 'bottom' } } }, 'red_alert'), 'bottom');

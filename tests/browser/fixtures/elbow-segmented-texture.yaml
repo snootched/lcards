@@ -1,0 +1,21 @@
+# Shape texture on a segmented elbow is clipped to the two segments (a full level fill shows the clip)
+type: custom:lcards-elbow
+elbow:
+  type: header-left
+  style: segmented
+  segments:
+    gap: 4
+    outer_segment:
+      bar_width: 90
+      bar_height: 20
+      color: "#ff9900"
+    inner_segment:
+      bar_width: 30
+      bar_height: 10
+      color: "#3366cc"
+shape_texture:
+  preset: level
+  opacity: 1
+  config:
+    color: "#ffffff"
+    fill_pct: 100

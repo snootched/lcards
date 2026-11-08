@@ -34,7 +34,7 @@ const BLEND_MODE_OPTIONS = [
 ];
 
 // Presets that have a scrolling animation speed multiplier
-const ANIMATED_PRESETS = new Set(['grid', 'diagonal', 'hexagonal', 'dots', 'fluid', 'shimmer', 'plasma', 'flow', 'level', 'scanlines']);
+const ANIMATED_PRESETS = new Set(['grid', 'diagonal', 'hexagonal', 'dots', 'fluid', 'shimmer', 'plasma', 'flow', 'level', 'pulse', 'scanlines']);
 
 // Presets that use turbulence (their own speed param rather than scroll_speed_x/y)
 const TURBULENCE_PRESETS = new Set(['fluid', 'plasma', 'flow']);
@@ -209,7 +209,7 @@ export class LCARdSShapeTextureEditor extends LitElement {
                     ${preset === 'level' ? html`
                         <div class="row">
                             <lcards-color-picker .hass=${this.hass} .label=${'Fill Colour'}
-                                .value=${presetConfig.color_a ?? presetConfig.color ?? defaults.color_a ?? 'rgba(0,200,100,0.7)'}
+                                .value=${presetConfig.color_a ?? presetConfig.color ?? defaults.color ?? 'rgba(0,200,100,0.7)'}
                                 @value-changed=${(e) => this._updatePresetConfig('color_a', e.detail.value)}
                             ></lcards-color-picker>
                         </div>
@@ -443,6 +443,16 @@ export class LCARdSShapeTextureEditor extends LitElement {
                         .value=${cfg.speed ?? defaults.speed ?? 2.5}
                         .label=${'Sweep Speed (px/s)'}
                         .helper=${'How fast the highlight sweeps across'}
+                        @value-changed=${(e) => this._updatePresetConfig('speed', e.detail.value)}
+                    ></ha-selector></div>`;
+
+            case 'pulse':
+                return html`
+                    <div class="row"><ha-selector .hass=${this.hass}
+                        .selector=${{ number: { min: 0.1, max: 10, step: 0.1, mode: 'slider' } }}
+                        .value=${cfg.speed ?? defaults.speed ?? 1.2}
+                        .label=${'Pulses per second'}
+                        .helper=${'How fast the glow breathes in and out'}
                         @value-changed=${(e) => this._updatePresetConfig('speed', e.detail.value)}
                     ></ha-selector></div>`;
 
@@ -713,6 +723,23 @@ export class LCARdSShapeTextureEditor extends LitElement {
                             @value-changed=${(e) => this._updatePresetConfig('edge_glow_width', e.detail.value)}
                         ></ha-selector></div>
                     </lcards-form-section>`;
+
+            case 'pulse':
+                return html`
+                    <div class="row"><ha-selector .hass=${this.hass}
+                        .selector=${{ number: { min: 0.1, max: 1, step: 0.05, mode: 'slider' } }}
+                        .value=${cfg.radius ?? defaults.radius ?? 0.7}
+                        .label=${'Radius'}
+                        .helper=${'Largest glow, as a fraction of half the shape\'s diagonal'}
+                        @value-changed=${(e) => this._updatePresetConfig('radius', e.detail.value)}
+                    ></ha-selector></div>
+                    <div class="row"><ha-selector .hass=${this.hass}
+                        .selector=${{ number: { min: 0, max: 0.95, step: 0.05, mode: 'slider' } }}
+                        .value=${cfg.min_size ?? defaults.min_size ?? 0.15}
+                        .label=${'Smallest size'}
+                        .helper=${'How far the glow shrinks, as a fraction of its largest size'}
+                        @value-changed=${(e) => this._updatePresetConfig('min_size', e.detail.value)}
+                    ></ha-selector></div>`;
 
             case 'scanlines':
                 return html`

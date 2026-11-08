@@ -59,6 +59,8 @@ const LIVE_DEMOS: Record<string, string> = {
   'lcards-msd-card': 'CardDemo',
   'lcards-layout-card': 'CardDemo',
   'lcards-astrometrics-card': 'CardDemo',
+  // the Alert Studio's mock screen (CardDemo mounts lcards-alert-preview)
+  'lcards-alert-overlay': 'CardDemo',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -497,6 +499,11 @@ export default withMermaid(defineConfig({
               collapsed: true,
               items: [
                 { text: 'Overview',   link: '/cards/button/' },
+                { text: 'Style, Text and Hover', link: '/cards/button/styles' },
+                { text: 'Icons', link: '/cards/button/icons' },
+                { text: 'Textures and Backgrounds', link: '/cards/button/textures' },
+                { text: 'D-pads, Alerts and Scopes', link: '/cards/button/components' },
+                { text: 'Custom SVG', link: '/cards/button/custom-svg' },
                 { text: 'Playground', link: '/cards/button/playground' },
               ],
             },
@@ -505,6 +512,10 @@ export default withMermaid(defineConfig({
               collapsed: true,
               items: [
                 { text: 'Overview',   link: '/cards/elbow/' },
+                { text: 'Bars and Curves', link: '/cards/elbow/bars' },
+                { text: 'Frames', link: '/cards/elbow/frame' },
+                { text: 'Colour, Text and Effects', link: '/cards/elbow/appearance' },
+                { text: 'Symbiont', link: '/cards/elbow/symbiont' },
                 { text: 'Playground', link: '/cards/elbow/playground' },
               ],
             },
@@ -564,10 +575,24 @@ export default withMermaid(defineConfig({
               collapsed: true,
               items: [
                 { text: 'Overview',   link: '/cards/select-menu/' },
+                { text: 'Options and Actions', link: '/cards/select-menu/options' },
+                { text: 'Grid and Sizing', link: '/cards/select-menu/layout' },
+                { text: 'Styles', link: '/cards/select-menu/styles' },
                 { text: 'Playground', link: '/cards/select-menu/playground' },
               ],
             },
-            { text: 'Alert Overlay',  link: '/cards/alert-overlay/' },
+            {
+              text: 'Alert Overlay',
+              collapsed: true,
+              items: [
+                { text: 'Overview',   link: '/cards/alert-overlay/' },
+                { text: 'Position and Screen Effects', link: '/cards/alert-overlay/overlay' },
+                { text: 'Alert Band', link: '/cards/alert-overlay/band' },
+                { text: 'Symbol and Content', link: '/cards/alert-overlay/symbol' },
+                { text: 'Per-Condition Settings', link: '/cards/alert-overlay/conditions' },
+                { text: 'Raising and Dismissing', link: '/cards/alert-overlay/raising' },
+              ],
+            },
             {
               text: 'Astrometrics',
               collapsed: true,

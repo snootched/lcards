@@ -259,58 +259,6 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
     }
 
     /**
-     * Render attribute selector dropdown
-     * @returns {TemplateResult}
-     * @private
-     */
-    _renderAttributeSelector() {
-        const currentAttribute = this.config?.control?.attribute || '';
-        const entityId = this.config?.entity;
-
-        const isInvalidAttribute = currentAttribute &&
-            entityId &&
-            this.hass?.states?.[entityId] &&
-            !this.hass.states[entityId].attributes?.hasOwnProperty(currentAttribute);
-
-        const attrOpts = entityId && this.hass?.states?.[entityId]
-            ? Object.keys(this.hass.states[entityId].attributes || {}).sort()
-                  .map(attr => ({ value: attr, label: attr }))
-            : [];
-        const options = [{ value: '__none__', label: '(Control entity state)' }, ...attrOpts];
-        return html`
-            <ha-selector
-                .hass=${this.hass}
-                .label=${'Attribute'}
-                .helper=${'Entity attribute to control. Select "(Control entity state)" to clear.'}
-                .disabled=${!entityId}
-                .selector=${{ select: { mode: 'dropdown', options, custom_value: true } }}
-                .value=${currentAttribute || '__none__'}
-                @value-changed=${this._handleAttributeChange}>
-            </ha-selector>
-            ${isInvalidAttribute ? html`
-                <lcards-message
-                    type="warning"
-                    message="The specified attribute '${currentAttribute}' does not exist on this entity. The button will control entity state instead.">
-                </lcards-message>
-            ` : ''}
-        `;
-    }
-
-    /**
-     * Handle attribute selection change
-     * @param {CustomEvent} e
-     * @private
-     */
-    _handleAttributeChange(e) {
-        const value = (e.detail.value ?? '').trim();
-        if (value && value !== '__none__') {
-            this._setConfigValue('control.attribute', value);
-        } else {
-            this._removeConfigPath('control.attribute');
-        }
-    }
-
-    /**
      * Render a preset dropdown populated from the active component's preset list.
      * Reads available presets via ComponentManager so the options are always in sync
      * with the component definition — no hardcoded lists.
@@ -519,7 +467,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
         baseConfig.splice(2, 0, {
             type: 'section',
             header: 'Entity Configuration',
-            description: 'Entity to control and attributes',
+            description: 'Entity and the attributes that drive colours and ranges',
             icon: 'mdi:home-automation',
             expanded: false,
             outlined: true,
@@ -542,10 +490,6 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                             }}>
                         </ha-selector>
                     `
-                },
-                {
-                    type: 'custom',
-                    render: () => this._renderAttributeSelector()
                 },
                 {
                     type: 'custom',

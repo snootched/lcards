@@ -1,0 +1,13 @@
+# Segmented frame with no inner_frame.color: the inner ring takes the outer ring's colour
+type: custom:lcards-elbow
+elbow:
+  type: frame
+  style: segmented
+  segment:
+    color: "#ff9900"
+  frame:
+    bar_width: 30
+    segments:
+      gap: 6
+      inner_frame:
+        bar_width: 10

@@ -172,6 +172,17 @@ test('schema fixes found by checking real configs: CSS functions for sizes, 0 sp
     assert.ok(messages(check({ type: 'custom:lcards-layout-card', layout: { margin: 10 } })).length > 0, 'a bare number other than 0 is not CSS');
 });
 
+test('segmented elbow segments take what the card reads: entity_id, actions, outer_curve_clamp, diagonal_angle, theme bars; frame lengths take CSS', () => {
+    assert.deepEqual(messages(check([
+        { type: 'custom:lcards-elbow', elbow: { type: 'diagonal-cap-left', style: 'segmented', segments: {
+            outer_segment: { bar_width: 'theme', bar_height: 'theme', outer_curve_clamp: 'none', diagonal_angle: 30, entity_id: 'light.desk',
+                tap_action: { action: 'toggle' }, hold_action: { action: 'more-info' }, double_tap_action: { action: 'none' } },
+            inner_segment: { bar_width: 30, outer_curve_clamp: 80, diagonal_angle: 'theme', color: { active: 'var(--lcars-orange)' } },
+        } } },
+        { type: 'custom:lcards-elbow', elbow: { type: 'frame', frame: { bar_width: 'clamp(20px, 2vw, 40px)', corners: { top_left: { outer_curve: 'calc(10px + 1vw)' } } } } },
+    ])), []);
+});
+
 test('a nebula takes color (the runtime reads it when colors is not set), like a belt', () => {
     assert.deepEqual(messages(check({ type: 'custom:lcards-astrometrics-card', objects: [
         { type: 'nebula', color: 'var(--lcars-blue)' },

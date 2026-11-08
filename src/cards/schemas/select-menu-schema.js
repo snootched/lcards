@@ -93,7 +93,7 @@ export function getSelectMenuSchema(options = {}) {
             },
             rows: {
                 type: ['number', 'string'],
-                description: 'Number of rows or CSS grid-template-rows value'
+                description: 'Explicit rows: a number gives that many rows of the grid-auto-rows height, a string is a CSS grid-template-rows value. More options than rows add rows of the grid-auto-rows height (row flow).'
             },
             gap: {
                 type: 'string',
@@ -108,6 +108,16 @@ export function getSelectMenuSchema(options = {}) {
             'column-gap': {
                 type: 'string',
                 description: 'Override column gap',
+                examples: ['4px', '8px']
+            },
+            row_gap: {
+                type: 'string',
+                description: 'Alias of row-gap (row-gap wins when both are set)',
+                examples: ['4px', '8px']
+            },
+            column_gap: {
+                type: 'string',
+                description: 'Alias of column-gap (column-gap wins when both are set)',
                 examples: ['4px', '8px']
             },
             'grid-auto-flow': {
@@ -230,7 +240,7 @@ export function getSelectMenuSchema(options = {}) {
                 type: 'number',
                 minimum: 0,
                 maximum: 1,
-                description: 'Base opacity for unselected options (0-1). Defaults to 0.88 if not specified.'
+                description: 'Opacity of every option but the selected one (0-1). Default 1 (no dimming). Needs an entity: without one no option is selected.'
             }
         },
         additionalProperties: true

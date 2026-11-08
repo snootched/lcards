@@ -1,0 +1,11 @@
+# doc/cards/button/icons.md: a free icon (icon_area: none) in the top-right corner
+type: custom:lcards-button
+entity: light.demo
+preset: barrel
+show_icon: true
+icon: mdi:thermometer
+icon_area: none
+icon_style:
+  position: top-right
+  padding: 10
+  size: 32

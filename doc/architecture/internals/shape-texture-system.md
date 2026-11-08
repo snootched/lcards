@@ -183,7 +183,8 @@ Animated level-indicator fill bar that rises from the bottom (or fills from the 
 
 | Config key | Default | Description |
 |---|---|---|
-| `color` / `color_a` | `rgba(0,200,100,0.7)` | Primary fill colour (bottom/left). `color` is a backward-compatible alias for `color_a`. |
+| `color` | `rgba(0,200,100,0.7)` | Primary fill colour (bottom/left). |
+| `color_a` | - | Same as `color`, and wins over it when both are set. The preset gives it no default, so a user `color` is never overridden by a preset value. |
 | `color_b` | `null` | Secondary colour (top/right). When set, a gradient is drawn from `color_a` to `color_b`. |
 | `gradient_crossover` | `80` | 0–100: percentage of fill height that stays `color_a` before transitioning to `color_b`. |
 | `fill_pct` | `50` | Fill percentage 0–100; supports templates. |
@@ -201,6 +202,17 @@ Animated level-indicator fill bar that rises from the bottom (or fills from the 
 | `slosh_period` | `3` | Seconds per slosh cycle. |
 
 All four `direction` values render waves on the leading edge; `down`/`left` are mirror-reflections of `up`/`right`, so the same `wave_height`/`wave_speed`/`wave_count` parameters apply symmetrically.
+
+### `pulse`
+
+A radial glow centred on the shape that shrinks and fades, then grows back, in a loop (`PulseTextureEffect`): an attention or alert indicator. The size follows a cosine over each cycle, from `radius` down to `radius × min_size` and back, with the glow's alpha going from 1 to 0.3 and back.
+
+| Config key | Default | Description |
+|---|---|---|
+| `color` | `rgba(255,80,0,0.8)` | Glow colour at the centre (fades to transparent at the edge) |
+| `speed` | `1.2` | Pulses per second (the effect's time multiplier, so `shape_texture.speed` scales it too) |
+| `radius` | `0.7` | Largest radius as a fraction of half the shape's diagonal (0.1 to 1) |
+| `min_size` | `0.15` | Smallest radius as a fraction of the largest (0 to 0.99) |
 
 ### `scanlines`
 

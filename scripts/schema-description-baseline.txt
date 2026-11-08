@@ -159,8 +159,6 @@ lcards-data-grid: style.text_transform
 lcards-data-grid: type
 lcards-elbow: elbow.segment.inner_curve
 lcards-elbow: elbow.segment.outer_curve_clamp
-lcards-elbow: elbow.segments.inner_segment.color
-lcards-elbow: elbow.segments.outer_segment.color
 lcards-elbow: style
 lcards-elbow: symbiont.imprint.border_radius
 lcards-elbow: symbiont.imprint.enabled

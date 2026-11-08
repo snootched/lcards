@@ -12,9 +12,11 @@ test('explicit grid_options.rows wins', () => {
     assert.equal(sizeMount({ type: 'custom:lcards-slider', component: 'picard', grid_options: { rows: 3 } }, card(1)), '184px');
 });
 
-test('button components drawn to their cell height get rows even though they report 1', () => {
-    assert.equal(sizeMount({ type: 'custom:lcards-button', component: 'dpad' }, card(1)), '312px');
-    assert.equal(sizeMount({ type: 'custom:lcards-button', component: 'alert' }, card(1)), '248px');
+test('button components take the rows they report (dpad 5, alert 4), as in Home Assistant', () => {
+    assert.equal(sizeMount({ type: 'custom:lcards-button', component: 'dpad' }, card(5)), '312px');
+    assert.equal(sizeMount({ type: 'custom:lcards-button', component: 'alert' }, card(4)), '248px');
+    // the docs no longer add rows of their own: a component reporting 1 gets 1
+    assert.equal(sizeMount({ type: 'custom:lcards-button', component: 'dpad' }, card(1)), '56px');
 });
 
 test('sliders take the rows they report (Picard 7, upright 4), as in Home Assistant', () => {

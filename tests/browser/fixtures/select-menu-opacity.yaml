@@ -1,0 +1,8 @@
+# style.opacity dims the options that are not selected (doc/cards/select-menu/styles.md)
+type: custom:lcards-select-menu
+entity: input_select.demo_mode
+preset: lozenge
+grid:
+  columns: 4
+style:
+  opacity: 0.5

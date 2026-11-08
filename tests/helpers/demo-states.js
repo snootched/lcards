@@ -28,6 +28,8 @@ export const DEMO_STATES = {
         state: 'green_alert',
         attributes: { friendly_name: 'LCARdS Alert Mode', options: ['green_alert', 'red_alert', 'yellow_alert', 'blue_alert', 'gray_alert', 'black_alert'] },
     },
+    // the alert overlay docs' "message from a helper" example
+    'input_text.lcards_alert_message': { state: 'SECURITY LOCKDOWN IN PROGRESS', attributes: { friendly_name: 'LCARdS Alert Message', max: 255 } },
 };
 
 /** lcards.<service> alert actions -> the alert mode they set. */

@@ -1,0 +1,7 @@
+# alert.color.bars colours the bars, though the sweep animates them
+type: custom:lcards-button
+component: alert
+preset: condition_red
+alert:
+  color:
+    bars: rgb(0, 255, 0)

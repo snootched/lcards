@@ -21,6 +21,7 @@ import { FlowTextureEffect }     from '../effects/FlowTextureEffect.js';
 import { ScanlineTextureEffect } from '../effects/ScanlineTextureEffect.js';
 import { LevelTextureEffect }    from '../effects/LevelTextureEffect.js';
 import { ImageTextureEffect }    from '../effects/ImageTextureEffect.js';
+import { PulseTextureEffect }    from '../effects/PulseTextureEffect.js';
 
 /**
  * Built-in canvas texture presets
@@ -135,6 +136,18 @@ export const CANVAS_TEXTURE_PRESETS = {
         },
     },
 
+    'pulse': {
+        name:        'Pulse',
+        description: 'Breathing radial glow: attention / alert indicator',
+        effectClass: PulseTextureEffect,
+        defaults: {
+            color:    'rgba(255,80,0,0.8)',
+            speed:    1.2,
+            radius:   0.7,
+            min_size: 0.15,
+        },
+    },
+
     'scanlines': {
         name:        'Scanlines',
         description: 'CRT-style scanline overlay',
@@ -154,8 +167,9 @@ export const CANVAS_TEXTURE_PRESETS = {
         description: 'Animated fluid fill-bar with gradient, secondary wave, and sloshing physics',
         effectClass: LevelTextureEffect,
         defaults: {
+            // No color_a default: it would beat the user's `color` (color_a wins in the
+            // effect); `color` is the fill, an explicit `color_a` overrides it.
             color:             'rgba(0,200,100,0.7)',
-            color_a:           'rgba(0,200,100,0.7)',
             color_b:           null,
             gradient_crossover: 80,
             fill_pct:          50,

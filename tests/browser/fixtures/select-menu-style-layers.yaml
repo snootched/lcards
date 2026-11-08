@@ -1,0 +1,22 @@
+# style layers merge key by key: button_template.style < card style < option style
+type: custom:lcards-select-menu
+entity: input_select.demo_mode
+preset: lozenge
+grid:
+  columns: 4
+button_template:
+  style:
+    card:
+      color:
+        background:
+          inactive: "#3366cc"
+style:
+  card:
+    color:
+      background:
+        active: "#ff9900"
+options:
+  Cool:
+    style:
+      border:
+        width: 2

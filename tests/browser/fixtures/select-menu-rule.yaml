@@ -1,0 +1,23 @@
+# a rule targeting the menu's id recolours its option buttons (doc/cards/select-menu/styles.md, Rules Engine)
+type: custom:lcards-select-menu
+entity: input_select.demo_mode
+preset: lozenge
+id: deck-nav
+grid:
+  columns: 4
+style:
+  card:
+    color:
+      background: "#333366"
+rules:
+  - id: deck-nav-alert
+    when:
+      entity: switch.demo_switch
+      state: "on"
+    apply:
+      overlays:
+        deck-nav:
+          style:
+            card:
+              color:
+                background: "#cc0000"

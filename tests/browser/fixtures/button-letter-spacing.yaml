@@ -1,0 +1,11 @@
+# style.text.default letter_spacing reaches the button's text (doc/core/text-fields.md)
+type: custom:lcards-button
+preset: lozenge
+text:
+  label:
+    content: ENGAGE
+    show: true
+style:
+  text:
+    default:
+      letter_spacing: 6px

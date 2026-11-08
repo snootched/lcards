@@ -112,6 +112,7 @@ export class LCARdSActionHandler {
      * @param {Object} [options.soundOverride] - Per-event sound override config
      * @param {boolean} [options.disableHover] - When true, suppresses pointer cursor and hover/leave animation handlers
      * @param {Function} [options.getHass] - Returns the card's current hass at action time (falls back to `hass`)
+     * @param {boolean} [options.segmentsOwnHold] - A hold that starts inside a `[data-lcards-segment]` child is left to that segment's own handler (taps always are)
      * @returns {Function} Cleanup function
      */
     setupActions(element, actions = {}, hass, options = /** @type {any} */ ({})) {
@@ -384,7 +385,15 @@ export class LCARdSActionHandler {
 
         // Hold action handler
         if (actions.hold_action) {
+            /** Is the event target inside a segment with its own handler? */
+            const insideSegment = (target) => {
+                for (let n = target; n && n !== element; n = n.parentElement) {
+                    if (n.hasAttribute?.('data-lcards-segment')) return true;
+                }
+                return false;
+            };
             const holdStart = (event) => {
+                if (options.segmentsOwnHold && insideSegment(event.target)) return;
                 const holdContext = { pointer: pointerOf(event) };
                 event.stopPropagation();
                 event.preventDefault(); // Prevent click from firing

@@ -34,7 +34,7 @@ export function sharedEnv() {
     import('../../../tests/helpers/demo-states.js'),
     import('../../../tests/helpers/ha-jinja.js'),
   ]).then(([mod, { DEMO_STATES }, { createHaJinja }]) => {
-    mod.defineHaStubs()
+    mod.defineHaStubs({ loadIcons: () => import('@mdi/js') })
     let render = null
     let latest = {}
     const env = mod.createDemoEnv({
@@ -64,6 +64,7 @@ const HA_DEMO_VARS = {
   '--warning-color': '#ffa600',
   '--success-color': '#43a047',
   '--info-color': '#039be5',
+  '--primary-background-color': '#000000',
   '--ha-card-background': '#000000',
   '--card-background-color': '#000000',
 }
@@ -89,25 +90,14 @@ export async function cardRuntime() {
 const rowsHeight = (rows) => `${rows * 56 + (rows - 1) * 8}px`
 
 /**
- * Rows for button components that draw to the height of their grid cell but report
- * only 1 row. (Sliders report their own rows, as Home Assistant reads them.)
- */
-function tallRows(config) {
-  if (config.type === 'custom:lcards-button') return { dpad: 5, alert: 4, brackets: 5, radar: 5 }[config.component] ?? 0
-  return 0
-}
-
-/**
  * Give the card the height a dashboard's sections grid would: its grid_options.rows;
- * else a default for cards that need height (tallRows); else the rows the card asks
- * for itself (getGridOptions(), e.g. button 1), at least 3 for an elbow (its 2
- * default rows leave little open frame).
+ * else the rows the card asks for itself (getGridOptions(), as Home Assistant reads
+ * them: button 1, a button component 4 to 6, an upright slider 4), at least 3 for an
+ * elbow (its 2 default rows leave little open frame).
  */
 export function sizeMount(config, card) {
   const explicit = Number(config.grid_options?.rows)
   if (explicit > 0) return rowsHeight(explicit)
-  const tall = tallRows(config)
-  if (tall) return rowsHeight(tall)
   let rows = Number(card?.getGridOptions?.()?.rows)
   if (config.type === 'custom:lcards-elbow') rows = Math.max(rows || 0, 3)
   return rows > 0 ? rowsHeight(rows) : ''

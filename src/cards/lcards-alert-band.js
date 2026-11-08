@@ -28,6 +28,9 @@ const CONDITION_FALLBACKS = {
 };
 
 /** A finite number from config, else the default (0 is a valid value). */
+/** How many 250 ms tries band.phase waits for the symbol's bar sweep to start. */
+const PHASE_RETRY_LIMIT = 20;
+
 const num = (value, fallback) => (Number.isFinite(Number(value)) && value !== '' && value !== null ? Number(value) : fallback);
 
 
@@ -54,6 +57,9 @@ export class LCARdSAlertBand extends LitElement {
         this._emblemPending = false;
         /** @type {ReturnType<typeof setInterval>|null} */
         this._phaseTimer = null;
+        /** @type {ReturnType<typeof setTimeout>|null} */
+        this._phaseRetry = null;
+        this._phaseRetries = 0;
     }
 
     /**
@@ -84,8 +90,7 @@ export class LCARdSAlertBand extends LitElement {
     disconnectedCallback() {
         this._resizeObserver?.disconnect();
         this._resizeObserver = null;
-        clearInterval(this._phaseTimer ?? undefined);
-        this._phaseTimer = null;
+        this._stopPhaseSync();
         super.disconnectedCallback();
     }
 
@@ -145,6 +150,9 @@ export class LCARdSAlertBand extends LitElement {
         }
         if (this._hass) applyHassToCard(el, this._hass, 'alert-band');
         await applyCardConfig(el, emblem, 'alert-band-emblem');
+        // A new or changed symbol: band.phase may have something to lock to again.
+        this._phaseRetries = 0;
+        this._syncPhase();
     }
 
     _dismiss() {
@@ -214,24 +222,39 @@ export class LCARdSAlertBand extends LitElement {
      * sweep (same period). Re-checked every few seconds: the symbol re-creates its
      * bar animations when it re-renders (preset or config changes), and dashes
      * added on a resize start on their own.
+     *
+     * At most one retry chain waits for the symbol's sweep to start, and it gives
+     * up after PHASE_RETRY_LIMIT tries: with no symbol (`emblem: false`) or a
+     * custom content card without the alert bars there is nothing to lock to.
      */
     _syncPhase() {
         const band = this._band;
-        const wanted = band.phase !== null && band.phase !== undefined && band.animation !== 'none';
-        if (!wanted) {
-            clearInterval(this._phaseTimer ?? undefined);
-            this._phaseTimer = null;
+        const hasEmblem = band.emblem !== false && !!this._config?.emblem;
+        const wanted = hasEmblem && band.phase !== null && band.phase !== undefined && band.animation !== 'none';
+        if (!wanted || !this.isConnected) {
+            this._stopPhaseSync();
             return;
         }
-        if (!this._phaseTimer) this._phaseTimer = setInterval(() => this._syncPhase(), 3000);
 
         const bar = this._emblemEl?.shadowRoot?.querySelector('#bar-1');
         const reference = bar?.getAnimations?.().find(a => a.startTime !== null);
         if (!reference) {
             // The symbol starts its sweep after it renders: try again shortly.
-            setTimeout(() => this.isConnected && this._syncPhase(), 250);
+            if (!this._phaseRetry && this._phaseRetries < PHASE_RETRY_LIMIT) {
+                this._phaseRetries++;
+                this._phaseRetry = setTimeout(() => {
+                    this._phaseRetry = null;
+                    this._syncPhase();
+                }, 250);
+            } else if (!this._phaseRetry) {
+                // Nothing to lock to: stop until the symbol changes.
+                this._stopPhaseSync();
+            }
             return;
         }
+        this._phaseRetries = 0;
+        if (!this._phaseTimer) this._phaseTimer = setInterval(() => this._syncPhase(), 3000);
+
         const cycle = Math.round(BAND_CYCLE_MS / bandSpeed(band.speed));
         const animation = band.animation === 'flash' ? 'flash' : 'sweep';
         const start = phasedStartTime(Number(reference.startTime), band.phase, cycle, animation);
@@ -240,6 +263,14 @@ export class LCARdSAlertBand extends LitElement {
                 if (Math.abs(Number(anim.startTime) - start) > 1) anim.startTime = start;
             }
         }
+    }
+
+    /** Stop the phase interval and any pending retry. */
+    _stopPhaseSync() {
+        clearInterval(this._phaseTimer ?? undefined);
+        this._phaseTimer = null;
+        clearTimeout(this._phaseRetry ?? undefined);
+        this._phaseRetry = null;
     }
 
     static get styles() {

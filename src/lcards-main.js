@@ -528,6 +528,14 @@ if (!window.customStrategies.some(s => s.type === 'lcars-shell')) {
 // ============================================================================
 
 /**
+ * Load the Alert Studio's mock screen (`lcards-alert-preview`, a lazy chunk): it
+ * shows what an alert overlay config draws for one condition without raising an
+ * alert. The docs site's live alert overlay examples mount it.
+ * @returns {Promise<unknown>}
+ */
+window.lcards.loadAlertPreview = () => import('./editor/components/alert-overlay/lcards-alert-preview.js');
+
+/**
  * Set alert mode (console/testing API)
  * @param {string} mode - Alert mode name
  */
@@ -598,6 +606,8 @@ window.lcards.setAlertMode = async (mode, opts = {}) => {
     // No helper OR helper sync explicitly skipped — play sound directly since
     // the HelperManager subscription will not fire in this case.
     window.lcards.core.soundManager?.playAlertSound(mode);
+    // Same for the alert overlay: tell it the mode changed on this device only.
+    window.dispatchEvent(new CustomEvent('lcards-alert-mode-local', { detail: { mode } }));
   }
 };
 

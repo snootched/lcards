@@ -105,14 +105,8 @@ export function getButtonSchema(options = {}) {
 
             control: {
                 type: 'object',
-                description: 'Control behavior configuration',
-                properties: {
-                    attribute: {
-                        type: 'string',
-                        description: 'Entity attribute to control (leave blank to control entity state)',
-                        examples: ['brightness', 'temperature', 'position', 'percentage']
-                    }
-                },
+                description: 'No longer used: a button has no value to set, so this had no effect. Kept so older configs still validate.',
+                deprecated: true,
                 additionalProperties: true
             },
 
@@ -155,8 +149,7 @@ export function getButtonSchema(options = {}) {
 
             show_icon: {
                 type: 'boolean',
-                default: true,
-                description: 'Whether to show the icon'
+                description: 'Whether to show the icon. Default: the preset\'s setting (some presets show it), else false.'
             },
 
             icon_area: {
@@ -196,8 +189,7 @@ export function getButtonSchema(options = {}) {
                 type: 'number',
                 minimum: 20,
                 maximum: 500,
-                default: 60,
-                description: 'Fixed size for icon area in pixels (width for left/right, height for top/bottom, default: 60)',
+                description: 'Fixed size for icon area in pixels (width for left/right, height for top/bottom). Default: the preset\'s size, else sized to the icon (icon size plus spacing on both sides plus the divider).',
                 'x-ui-hints': {
                     label: 'Icon Area Size',
                     helper: 'Size in pixels',
@@ -225,8 +217,7 @@ export function getButtonSchema(options = {}) {
                         type: 'number',
                         minimum: 0,
                         maximum: 200,
-                        default: 0,
-                        description: 'Divider width in pixels (0 = no divider, default: 0)',
+                        description: 'Divider width in pixels (0 = no divider). Default: the preset\'s width, else the theme\'s, else 6.',
                         'x-ui-hints': {
                             label: 'Width',
                             helper: 'Divider line width',
@@ -254,7 +245,6 @@ export function getButtonSchema(options = {}) {
                 type: 'object',
                 description: 'Advanced icon styling configuration',
                 examples: [{
-                    type: 'mdi',
                     color: '#FF9900',
                     size: 32,
                     position: 'center'
@@ -262,14 +252,8 @@ export function getButtonSchema(options = {}) {
                 properties: {
                     type: {
                         type: 'string',
-                        enum: ['mdi', 'si', 'entity'],
-                        default: 'mdi',
-                        description: 'Icon type',
-                        enumDescriptions: [
-                            'Material Design Icons',
-                            'Simple Icons',
-                            'Entity state icon'
-                        ]
+                        deprecated: true,
+                        description: 'No longer used: the icon type comes from the icon\'s prefix (mdi:, si:) or entity. Kept so older configs still validate.'
                     },
                     color: stateColorSchema,
                     icon: {
@@ -373,25 +357,25 @@ export function getButtonSchema(options = {}) {
                         type: 'number',
                         minimum: 0,
                         maximum: 200,
-                        description: 'Left padding in pixels (overrides padding)'
+                        description: 'Left side of the per-side icon padding in pixels, for an icon placed in its icon area: a shorthand for padding.left, and wins over it. The other sides keep their own values.'
                     },
                     padding_right: {
                         type: 'number',
                         minimum: 0,
                         maximum: 200,
-                        description: 'Right padding in pixels (overrides padding)'
+                        description: 'Right side of the per-side icon padding in pixels, for an icon placed in its icon area: a shorthand for padding.right, and wins over it. The other sides keep their own values.'
                     },
                     padding_top: {
                         type: 'number',
                         minimum: 0,
                         maximum: 200,
-                        description: 'Top padding in pixels (overrides padding)'
+                        description: 'Top side of the per-side icon padding in pixels, for an icon placed in its icon area: a shorthand for padding.top, and wins over it. The other sides keep their own values.'
                     },
                     padding_bottom: {
                         type: 'number',
                         minimum: 0,
                         maximum: 200,
-                        description: 'Bottom padding in pixels (overrides padding)'
+                        description: 'Bottom side of the per-side icon padding in pixels, for an icon placed in its icon area: a shorthand for padding.bottom, and wins over it. The other sides keep their own values.'
                     }
                 }
             },
@@ -444,7 +428,7 @@ export function getButtonSchema(options = {}) {
                             color: stateColorSchema,
                             radius: {
                                 oneOf: [
-                                    { type: 'number', minimum: 0, maximum: 100, default: 12 },
+                                    { type: 'number', minimum: 0, maximum: 100, description: 'Corner radius in pixels. Default: the preset\'s radius, else 20.' },
                                     { type: 'string', pattern: '^(\\{theme:.*\\}|var\\(--.*\\))$', description: 'Theme token reference' },
                                     {
                                         type: 'object',

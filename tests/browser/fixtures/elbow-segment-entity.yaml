@@ -1,0 +1,27 @@
+# Segmented elbow: each segment's colour follows its own entity_id, and its taps run its own actions on that entity
+type: custom:lcards-elbow
+entity: light.demo
+tap_action:
+  action: toggle
+elbow:
+  type: header-left
+  style: segmented
+  segments:
+    gap: 4
+    outer_segment:
+      bar_width: 90
+      bar_height: 20
+      color:
+        active: "#ff9900"
+        inactive: "#3366cc"
+      double_tap_action:
+        action: more-info
+    inner_segment:
+      bar_width: 30
+      bar_height: 10
+      entity_id: switch.demo_switch
+      color:
+        active: "#ff9900"
+        inactive: "#3366cc"
+      hold_action:
+        action: more-info

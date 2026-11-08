@@ -522,7 +522,7 @@ releases:
         summary: "The alert band"
         description: "Press YELLOW ALERT: display: band shows a row of dashes across the screen with the alert symbol in the middle, and the dashboard stays usable. YELLOW ALERT shows the band (the symbol's bars sweep in, the dashes carry it out); RED ALERT keeps the full-screen overlay. Click the symbol to dismiss, or press CLEAR."
         session: "alert overlay display: band"
-        docs: /cards/alert-overlay/#alert-band
+        docs: /cards/alert-overlay/band
         public: true
       - file: alert-overlay-edit
         summary: "The alert overlay in edit mode"
@@ -639,7 +639,7 @@ releases:
         summary: "Brackets and radar: the round button components"
         description: "component: brackets frames a reading between two arcs, here TEMPERATURE's value (drag the slider); component: radar draws a scope with range rings, cross hairs and a sweep. Each part is a segment with its own style: the third card has an orange sweep and rim, the fourth blue brackets round a fixed number."
         session: "D1c"
-        docs: /cards/button/#component-mode-brackets-and-radar
+        docs: /cards/button/components#brackets-and-radar
         public: true
       - file: slider-drag-badge
         summary: "Slider drag badge: the value a drag will set, shown as you drag"
@@ -679,7 +679,7 @@ releases:
         summary: "Voyager D-pad: 56 segments, each its own button"
         description: "component: dpad_voyager, the D-pad drawn as on Voyager's consoles, with every shape of it a segment of its own. The four arrows step VALUE up and down (watch the slider); the centre and the top two corners toggle the lights, doors and toggle helpers and light up while they are on."
         session: "D1c"
-        docs: /cards/button/#voyager-d-pad
+        docs: /cards/button/components#dpad-voyager
         public: true
       - file: msd-routing
         summary: "MSD routing: bundled lines, channels, manual waypoints"
@@ -711,7 +711,7 @@ releases:
         summary: "Button components: the D-pad and the alert symbol"
         description: "component: dpad gives each of its nine segments its own entity and action: up and down step VALUE, left and right toggle the lights and doors, the centre toggles the lights and lights up with them. component: alert draws the Starfleet alert symbol; its ranges switch it to yellow from 50 and red from 80 as you drag VALUE. Below, the other alert presets: blue, green, grey and black."
         session: "D1c"
-        docs: /cards/button/#component-mode-d-pad
+        docs: /cards/button/components#dpad
         public: true
       - file: elbows
         summary: "Elbows: every type, both styles, the outer curve modes"

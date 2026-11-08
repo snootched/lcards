@@ -59,7 +59,9 @@ test('URLs carry the channel base; llms-full has the user docs only, cleaned', (
     // page alone is 137 KB, the dashboard gallery 124 KB)
     // 1250 KB until 2026-11-07 (D2: block-style YAML and full key tables on the slider and objects pages
     // took it to 1303 KB)
-    assert.ok(Buffer.byteLength(full) < 1350 * 1024, 'llms-full.txt stays loadable');
+    // 1350 KB until 2026-11-07 (D2 batch 1: button, elbow, select menu, alert overlay in the
+    // new format took it to 1362 KB); size policy for the rest of the rollout is open
+    assert.ok(Buffer.byteLength(full) < 1450 * 1024, 'llms-full.txt stays loadable');
 });
 
 test('page summaries: frontmatter description wins, callouts and bare type names are skipped', () => {

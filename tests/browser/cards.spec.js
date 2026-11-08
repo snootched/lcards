@@ -37,9 +37,10 @@ test('slider: templated text fields are evaluated on the first render (shaped pr
     await expectNoErrors(page);
 });
 
-test('select menu: its option buttons\' on/off view of the entity never reaches the shared core', async ({ page }) => {
-    // The options colour themselves from a synthetic hass (entity state rewritten to
-    // on/off); forwarded to the core it showed 'off' in every other card using it.
+test('select menu: its option buttons never change the shared core\'s view of the entity', async ({ page }) => {
+    // The options once coloured themselves from a synthetic hass (entity state rewritten
+    // to on/off); forwarded to the core it showed 'off' in every other card using it.
+    // They now see the real state and classify it with state_classification.
     await mountCase(page, 'select-menu');
     await expect.poll(() => page.locator('lcards-select-menu').evaluate(el => el.shadowRoot.querySelectorAll('lcards-button').length)).toBeGreaterThan(1);
     await page.waitForTimeout(500);
@@ -287,7 +288,7 @@ test('layout card outside HA: LCARdS children are built directly (docs demos, th
     await expectNoErrors(page);
 });
 
-test('select menu without a preset: its option buttons draw (their style resolves on connect; a config property skips setConfig)', async ({ page }) => {
+test('select menu without a preset: its option buttons draw (their style resolves on connect)', async ({ page }) => {
     const card = await mountCase(page, 'select-menu', { width: '400', height: '300' });
     await expect.poll(() => card.evaluate(el => [...el.shadowRoot.querySelectorAll('lcards-button')].filter(b => b.shadowRoot.querySelector('.button-bg')).length)).toBe(4);
     await expectNoErrors(page);

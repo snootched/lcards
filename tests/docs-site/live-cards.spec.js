@@ -6,8 +6,9 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { test, expect, watchErrors, waitForDemos, demoState, DOCS_BASE, gpuTag } from './support.js';
 
-// Card types rendered by CardDemo (chart and data grid have their own demos).
-const CARD_DEMO_TYPES = new Set(['lcards-button', 'lcards-elbow', 'lcards-slider', 'lcards-select-menu', 'lcards-msd-card', 'lcards-layout-card', 'lcards-astrometrics-card']);
+// Card types rendered by CardDemo (chart and data grid have their own demos; an alert
+// overlay shows on the Alert Studio's mock screen, lcards-alert-preview).
+const CARD_DEMO_TYPES = new Set(['lcards-button', 'lcards-elbow', 'lcards-slider', 'lcards-select-menu', 'lcards-msd-card', 'lcards-layout-card', 'lcards-astrometrics-card', 'lcards-alert-overlay']);
 
 /** Every docs page with ```yaml live blocks of CardDemo types, with the card tag of each block. */
 function livePages() {
@@ -35,7 +36,30 @@ const mdSource = (url) => readFileSync(join('doc', url.endsWith('/') ? `${url}in
 
 test('the live-page scan finds the card pages', () => {
     const urls = PAGES.map(([u]) => u);
-    for (const u of ['/cards/button/', '/cards/elbow/', '/cards/slider-card/', '/cards/select-menu/', '/cards/astrometrics/', '/core/colours']) expect(urls).toContain(u);
+    for (const u of ['/cards/button/', '/cards/elbow/', '/cards/slider-card/', '/cards/select-menu/', '/cards/astrometrics/', '/core/colours', '/cards/alert-overlay/band']) expect(urls).toContain(u);
+});
+
+test('an alert overlay example shows on a mock screen, and the condition buttons switch it', async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.goto('/cards/alert-overlay/band');
+    await waitForDemos(page, 5);
+    const demo = page.locator('.card-demo').nth(3);
+    const preview = demo.locator('lcards-alert-preview');
+    await expect(preview).toHaveCount(1);
+    // the band example keeps red alert as an overlay: the demo opens on yellow, shown as a band
+    await expect.poll(() => preview.evaluate(el => el.condition)).toBe('yellow_alert');
+    await expect(preview.locator('lcards-alert-band')).toHaveCount(1);
+    // red alert: the symbol over the screen, no band
+    await demo.getByRole('button', { name: 'red', exact: true }).click();
+    await expect(demo.getByRole('button', { name: 'red', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => preview.evaluate(el => el.condition)).toBe('red_alert');
+    await expect(preview.locator('lcards-alert-band')).toHaveCount(0);
+    await expect(preview.locator('.content lcards-button')).toHaveCount(1);
+    // the mock screen fills the panel's 16:9 box, never the real screen
+    const box = await preview.boundingBox();
+    expect(Math.round((box?.width ?? 0) / (box?.height ?? 1) * 9)).toBe(16);
+    expect(await page.evaluate(() => window.lcards?.core?.portalOverlayManager?.has('alert-overlay') ?? false)).toBe(false);
+    expect(errors).toEqual([]);
 });
 
 for (const [url, tags] of PAGES) {
@@ -50,7 +74,8 @@ for (const [url, tags] of PAGES) {
         expect(demos).toHaveLength(expected);
         for (const [i, d] of demos.entries()) {
             expect(d.fatal, `demo ${i + 1}`).toBeNull();
-            expect(d.card, `demo ${i + 1}`).toBe(tags[i]);
+            // an alert overlay example mounts the Alert Studio's mock screen
+            expect(d.card, `demo ${i + 1}`).toBe(tags[i] === 'lcards-alert-overlay' ? 'lcards-alert-preview' : tags[i]);
             // Docs examples are schema-clean: no warnings under the card.
             expect(d.messages, `demo ${i + 1}`).toEqual([]);
         }
@@ -196,7 +221,7 @@ test('cards drawn to their cell height render at a usable size', async ({ page }
         .filter(el => el.config?.component === component)
         .map(el => Math.max(0, ...[...el.shadowRoot.querySelectorAll('svg')].map(s => s.getBoundingClientRect().height))), component);
     for (const [url, tag, checks] of [
-        ['/cards/button/', 'lcards-button', [['dpad', 250], ['alert', 180]]],
+        ['/cards/button/components', 'lcards-button', [['dpad', 250], ['alert', 180]]],
         // the flat shaped example is one row (56 px); a collapsed card is a few px
         ['/cards/slider-card/components', 'lcards-slider', [['shaped', 50], ['picard', 350]]],
     ]) {

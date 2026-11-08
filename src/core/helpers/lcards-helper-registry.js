@@ -100,7 +100,7 @@ export const HELPER_REGISTRY = {
   lcards_alert_transition_style:
     name: LCARdS Alert Transition Style
     options:
-      - off
+      - "off"
       - blur_fade
       - fade_only
       - flash
@@ -108,7 +108,7 @@ export const HELPER_REGISTRY = {
       - flicker
       - static
       - wipe
-    initial: off
+    initial: "off"
     icon: mdi:transition`
   },
 

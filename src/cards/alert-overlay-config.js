@@ -209,20 +209,29 @@ export function buildContentConfig(config, condition) {
 /**
  * The screen effect layers for a condition: per-condition slots over the card's
  * `layers` (or the legacy `backdrop`), else an 8px blur. Each slot is
- * `{ preset, ...params }` or null (off).
+ * `{ preset, ...params }` or null (off). `layers: null` turns every slot off.
+ * A condition's legacy `backdrop` migrates to its backdrop and color slots; its
+ * `layers` slots win over that.
  * @param {any} config
  * @param {string} condition
  * @returns {{ backdrop: any, color: any, canvas: any }}
  */
 export function resolveLayers(config, condition) {
-    const globalLayers  = configuredLayers(config ?? {});
-    const condLayersRaw = config?.conditions?.[condition]?.layers ?? null;
-    if (!condLayersRaw) return globalLayers;
+    const globalLayers = configuredLayers(config ?? {});
+    const condCfg = config?.conditions?.[condition] ?? {};
+    /** @type {Record<string, any>} */
+    const overrides = {};
+    if (condCfg.backdrop) {
+        const legacy = promoteLegacyBackdrop(condCfg.backdrop);
+        overrides.backdrop = legacy.backdrop;
+        overrides.color    = legacy.color;
+    }
+    if (condCfg.layers) Object.assign(overrides, condCfg.layers);
     // Per-condition: only slots explicitly present (key exists) override.
     return {
-        backdrop: 'backdrop' in condLayersRaw ? condLayersRaw.backdrop : globalLayers.backdrop,
-        color:    'color'    in condLayersRaw ? condLayersRaw.color    : globalLayers.color,
-        canvas:   'canvas'   in condLayersRaw ? condLayersRaw.canvas   : globalLayers.canvas,
+        backdrop: 'backdrop' in overrides ? overrides.backdrop : globalLayers.backdrop,
+        color:    'color'    in overrides ? overrides.color    : globalLayers.color,
+        canvas:   'canvas'   in overrides ? overrides.canvas   : globalLayers.canvas,
     };
 }
 
@@ -233,20 +242,22 @@ export function resolveLayers(config, condition) {
  * @returns {{ backdrop: any, color: any, canvas: any }|null}
  */
 export function bandLayers(config, condition) {
-    const set = !!(config?.layers || config?.backdrop || config?.conditions?.[condition]?.layers);
+    const cond = config?.conditions?.[condition];
+    const set = !!(config?.layers || config?.backdrop || cond?.layers || cond?.backdrop);
     return set ? resolveLayers(config, condition) : null;
 }
 
 /**
  * { backdrop, color, canvas } from a config, migrating the legacy `backdrop`.
+ * `layers: null` is every slot off; no `layers` and no `backdrop` is the default blur.
  * @param {any} cfg
  */
 function configuredLayers(cfg) {
-    if (cfg.layers) {
+    if (cfg.layers !== undefined) {
         return {
-            backdrop: cfg.layers.backdrop ?? null,
-            color:    cfg.layers.color    ?? null,
-            canvas:   cfg.layers.canvas   ?? null,
+            backdrop: cfg.layers?.backdrop ?? null,
+            color:    cfg.layers?.color    ?? null,
+            canvas:   cfg.layers?.canvas   ?? null,
         };
     }
     if (cfg.backdrop) return promoteLegacyBackdrop(cfg.backdrop);
@@ -259,7 +270,7 @@ function configuredLayers(cfg) {
  * into the colour's alpha to keep the look.
  * @param {any} backdrop
  */
-function promoteLegacyBackdrop(backdrop) {
+export function promoteLegacyBackdrop(backdrop) {
     /** @type {{backdrop: any, color: any, canvas: any}} */
     const result = { backdrop: null, color: null, canvas: null };
     if (backdrop.blur) result.backdrop = { preset: 'blur', amount: backdrop.blur };

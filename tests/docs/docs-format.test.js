@@ -22,7 +22,28 @@ const FORMATTED = [
   'doc/cards/astrometrics/objects/surfaces.md',
   'doc/cards/astrometrics/objects/lines.md',
   'doc/cards/astrometrics/objects/space.md',
-  'doc/cards/astrometrics/objects/ships.md'
+  'doc/cards/astrometrics/objects/ships.md',
+  'doc/cards/button/index.md',
+  'doc/cards/button/styles.md',
+  'doc/cards/button/icons.md',
+  'doc/cards/button/textures.md',
+  'doc/cards/button/components.md',
+  'doc/cards/button/custom-svg.md',
+  'doc/cards/elbow/index.md',
+  'doc/cards/elbow/bars.md',
+  'doc/cards/elbow/frame.md',
+  'doc/cards/elbow/appearance.md',
+  'doc/cards/elbow/symbiont.md',
+  'doc/cards/select-menu/index.md',
+  'doc/cards/select-menu/options.md',
+  'doc/cards/select-menu/layout.md',
+  'doc/cards/select-menu/styles.md',
+  'doc/cards/alert-overlay/index.md',
+  'doc/cards/alert-overlay/overlay.md',
+  'doc/cards/alert-overlay/band.md',
+  'doc/cards/alert-overlay/symbol.md',
+  'doc/cards/alert-overlay/conditions.md',
+  'doc/cards/alert-overlay/raising.md'
 ];
 
 const KEY_TABLE = '| Key | Type | Default | Description |';

@@ -1,0 +1,12 @@
+# shape_texture preset pulse draws a breathing glow (doc/cards/button/textures.md)
+type: custom:lcards-button
+preset: lozenge
+text:
+  name:
+    content: ALERT
+    show: true
+shape_texture:
+  preset: pulse
+  opacity: 0.8
+  config:
+    color: "#cc4444"

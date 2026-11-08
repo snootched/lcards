@@ -79,6 +79,7 @@
     "release:commits": "node scripts/release-notes.mjs commits"
   },
   "devDependencies": {
+    "@mdi/js": "^7.4.47",
     "@playwright/test": "^1.64.0",
     "@types/three": "^0.186.0",
     "ajv": "^8.20.0",

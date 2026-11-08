@@ -16,6 +16,11 @@
         <div v-if="fatal" class="card-demo-overlay is-error">{{ fatal }}</div>
         <div ref="mountEl" class="card-demo-mount" :data-card="cardTag"></div>
       </div>
+      <div v-if="isAlert" class="card-demo-conditions" role="group" aria-label="Alert condition">
+        <button v-for="c in ALERT_CONDITIONS" :key="c" type="button" class="card-demo-btn"
+          :class="{ 'is-on': c === alertCondition }" :aria-pressed="c === alertCondition"
+          @click="showCondition(c)">{{ c.replace('_alert', '') }}</button>
+      </div>
     </div>
 
     <ul v-if="messages.length || lastAction" class="card-demo-messages">
@@ -23,7 +28,11 @@
       <li v-if="lastAction" class="is-info">{{ lastAction }}</li>
     </ul>
 
-    <p class="card-demo-caption">
+    <p v-if="isAlert" class="card-demo-caption">
+      The alert overlay as the Alert Studio previews it, on a 1280 × 720 screen with a stand-in dashboard behind it.
+      Pick a condition to see what it shows; a tap on the backdrop dismisses it.
+    </p>
+    <p v-else class="card-demo-caption">
       The real {{ cardName }} card with sample entities<span v-if="editable">: try the entities below, or any entity id (it gets a sample value)</span>.
       {{ hint }}
     </p>
@@ -60,6 +69,13 @@ const cardTag = computed(() => {
   const fromYaml = /^type:\s*["']?custom:([\w-]+)/m.exec(yamlText.value || initialYaml)?.[1]
   return fromYaml || props.type || 'lcards-button'
 })
+// An alert overlay draws over the whole screen: the demo shows the Alert Studio's
+// mock screen (lcards-alert-preview, the same layout code) for one condition instead.
+const ALERT_TAG = 'lcards-alert-overlay'
+const ALERT_CONDITIONS = ['red_alert', 'yellow_alert', 'blue_alert', 'black_alert', 'gray_alert']
+const ALERT_SCREEN = { width: 1280, height: 720 }
+const isAlert = computed(() => cardTag.value === ALERT_TAG)
+const alertCondition = ref('')
 const cardName = computed(() => cardTag.value.replace(/^lcards-/, '').replace(/-card$/, '').replace(/-/g, ' '))
 const starters = computed(() => CARD_STARTERS[cardTag.value] ?? [])
 const entityList = computed(() => [...SAMPLE_ENTITIES, ...DEMO_ENTITIES])
@@ -86,16 +102,36 @@ let savedUrl = ''
 
 // Card schemas, built with the real preset lists as the cards do (an empty list
 // would make `preset` an empty enum and every preset a warning).
-const buttonPresets = () => import('../../../src/core/packs/style-presets/buttons/index.js')
-  .then(m => ({ availablePresets: Object.keys(m.BUTTON_PRESETS) }))
+// The text position list too, as the cards pass it (an empty list makes every position a warning).
+const positionEnum = () => import('../../../src/cards/schemas/schema-options.js').then(m => [...m.TEXT_POSITIONS])
+const buttonPresets = () => Promise.all([import('../../../src/core/packs/style-presets/buttons/index.js'), positionEnum()])
+  .then(([m, positions]) => ({ availablePresets: Object.keys(m.BUTTON_PRESETS), positionEnum: positions }))
 const SCHEMAS = {
   'lcards-button': async () => (await import('../../../src/cards/schemas/button-schema.js')).getButtonSchema(await buttonPresets()),
   'lcards-slider': async () => {
     const presets = await import('../../../src/core/packs/style-presets/sliders/index.js')
-    return (await import('../../../src/cards/schemas/slider-schema.js')).getSliderSchema({ availablePresets: Object.keys(presets.SLIDER_PRESETS) })
+    return (await import('../../../src/cards/schemas/slider-schema.js')).getSliderSchema({ availablePresets: Object.keys(presets.SLIDER_PRESETS), positionEnum: await positionEnum() })
   },
   'lcards-elbow': async () => (await import('../../../src/cards/schemas/elbow-schema.js')).getElbowSchema(await buttonPresets()),
   'lcards-select-menu': async () => (await import('../../../src/cards/schemas/select-menu-schema.js')).getSelectMenuSchema(await buttonPresets()),
+  [ALERT_TAG]: async () => (await import('../../../src/cards/schemas/lcards-alert-overlay-schema.js')).getAlertOverlaySchema(),
+}
+
+/**
+ * The condition an alert example is about: for a band, the first one still shown as
+ * a band (examples often keep red alert as an overlay); else the first one it
+ * configures, else red alert.
+ */
+function firstCondition(config) {
+  if (config.display === 'band') {
+    return ALERT_CONDITIONS.find(c => (config.conditions?.[c]?.display ?? 'band') === 'band') ?? 'red_alert'
+  }
+  return Object.keys(config.conditions ?? {}).find(k => ALERT_CONDITIONS.includes(k)) ?? 'red_alert'
+}
+
+function showCondition(condition) {
+  alertCondition.value = condition
+  if (card && isAlert.value) card.condition = condition
 }
 
 function applyStarter() {
@@ -153,6 +189,19 @@ async function render() {
 
   hint.value = demoHint(config)
   env.ensureEntities(config)
+  if (tag === ALERT_TAG) {
+    await window.lcards.loadAlertPreview()
+    if (!alertCondition.value || !props.editable) alertCondition.value = firstCondition(config)
+    Object.assign(mountEl.value.style, { height: '', width: '', aspectRatio: `${ALERT_SCREEN.width} / ${ALERT_SCREEN.height}` })
+    if (card) env.unmount(card)
+    card = await env.mount(mountEl.value, { ...config, type: 'custom:lcards-alert-preview' })
+    Object.assign(card.style, { width: '100%', height: '100%' })
+    card.screenSize = ALERT_SCREEN
+    card.condition = alertCondition.value
+    ready.value = true
+    return
+  }
+  mountEl.value.style.aspectRatio = ''
   mountEl.value.style.height = sizeMount(config, null)
   mountEl.value.style.width = mountWidth(config)
   Object.assign(mountEl.value.style, { marginBottom: '', marginLeft: '', marginRight: '' }, mountRoom(config))
@@ -258,6 +307,20 @@ onUnmounted(() => {
   border-radius: 8px;
   background: #000;
   overflow: hidden;
+}
+.card-demo-conditions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: -4px;
+}
+.card-demo-conditions .card-demo-btn {
+  font-size: 13px;
+  text-transform: capitalize;
+}
+.card-demo-conditions .is-on {
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-1);
 }
 .card-demo-overlay {
   display: flex;

@@ -3637,6 +3637,27 @@ export class LCARdSCard extends LCARdSNativeCard {
     // ============================================================================
 
     /**
+     * Card-level sound overrides for the action handler, from config.sounds
+     * (`enabled: false` silences every card event).
+     * @returns {Record<string, any>}
+     * @protected
+     */
+    _cardSoundOverride() {
+        const sounds = this.config?.sounds ?? {};
+        const CARD_SOUND_EVENTS = ['card_tap', 'card_hold', 'card_double_tap', 'card_hover', 'toggle_on', 'toggle_off'];
+        /** @type {Record<string, any>} */
+        const soundOverride = {};
+        if (sounds.enabled === false) {
+            for (const evt of CARD_SOUND_EVENTS) soundOverride[evt] = null;
+        } else {
+            for (const evt of CARD_SOUND_EVENTS) {
+                if (evt in sounds) soundOverride[evt] = sounds[evt];
+            }
+        }
+        return soundOverride;
+    }
+
+    /**
      * Setup action handlers on element with full animation support
      *
      * Delegates to unified LCARdSActionHandler for consistent behavior
@@ -3659,17 +3680,7 @@ export class LCARdSCard extends LCARdSNativeCard {
             return () => {};
         }
 
-        // Build card-level sound overrides from config.sounds
-        const sounds = this.config?.sounds ?? {};
-        const CARD_SOUND_EVENTS = ['card_tap', 'card_hold', 'card_double_tap', 'card_hover', 'toggle_on', 'toggle_off'];
-        const soundOverride = {};
-        if (sounds.enabled === false) {
-            for (const evt of CARD_SOUND_EVENTS) soundOverride[evt] = null;
-        } else {
-            for (const evt of CARD_SOUND_EVENTS) {
-                if (evt in sounds) soundOverride[evt] = sounds[evt];
-            }
-        }
+        const soundOverride = this._cardSoundOverride();
 
         // Prepare options for unified action handler
         const actionOptions = {

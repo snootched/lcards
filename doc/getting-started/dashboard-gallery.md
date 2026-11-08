@@ -79,7 +79,7 @@ Segmented double elbows, filled buttons that light up with their state, a [selec
 
 ### Sciences
 
-Segmented [frames](../cards/elbow/#frame-type) around a history chart with a smoothed [data source](../core/datasources/) trend and a set of radial gauges, a sensor table and hourly averages.
+Segmented [frames](../cards/elbow/frame#elbow-frame) around a history chart with a smoothed [data source](../core/datasources/) trend and a set of radial gauges, a sensor table and hourly averages.
 
 <video class="doc-video" src="/gallery/sciences.webm" poster="/gallery/sciences.webp" title="Sciences dashboard: a framed temperature history with a smoothed trend line, framed radial gauges for power, shields and humidity, a sensor table and a column chart of hourly averages" autoplay loop muted playsinline></video>
 

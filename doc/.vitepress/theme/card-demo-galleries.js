@@ -469,15 +469,11 @@ grid:
 grid:
   columns: 4
   gap: 4px
-grid_options:
-  rows: 1
 `),
       selectTile('grid.columns: 1 (preset: bullet)', `preset: bullet
 grid:
   columns: 1
   gap: 4px
-grid_options:
-  rows: 4
 `),
       selectTile('preset: outline', `preset: outline
 grid:

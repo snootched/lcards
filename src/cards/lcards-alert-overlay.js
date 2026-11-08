@@ -8,7 +8,10 @@
  *
  * Dismisses and hides itself when the mode returns to `green_alert` or
  * `default`.  Uses the same `helperManager.subscribeToHelper('alert_mode', …)`
- * hook as SoundManager and ThemeManager — no new plumbing required.
+ * hook as SoundManager and ThemeManager, plus the `lcards-alert-mode-local`
+ * window event that `window.lcards.setAlertMode()` fires when the helper is not
+ * written (a targeted `lcards.*_alert` action, or no helper), so an alert raised
+ * on this device only shows here too.
  *
  * Only one instance may be active per dashboard; duplicate instances
  * suppress themselves and log a warning.
@@ -19,7 +22,7 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import { getAlertOverlaySchema } from './schemas/lcards-alert-overlay-schema.js';
 import { resolveBandConfig } from './alert-band-layout.js';
 import {
-    displayFor, overlayContentSize, overlayPosition, buildContentConfig, resolveLayers, bandLayers, resolveJinjaText,
+    displayFor, overlayContentSize, overlayPosition, buildContentConfig, resolveLayers, bandLayers, resolveJinjaText, ALERT_CONDITION_KEYS,
 } from './alert-overlay-config.js';
 
 export { overlayContentSize, DEFAULT_CONTENT_WIDTH, DEFAULT_SYMBOL_HEIGHT } from './alert-overlay-config.js';
@@ -73,6 +76,8 @@ export class LCARdSAlertOverlay extends LitElement {
         super();
         this._hass             = null;
         this._alertUnsubscribe = null;
+        /** @type {((e: Event) => void)|null} */
+        this._localModeHandler = null;
         this._isActive         = false;
         this._activeCondition  = null;
         this._isDismissed      = false;
@@ -166,7 +171,7 @@ export class LCARdSAlertOverlay extends LitElement {
 
         // Replay current mode in case alert was already active when we connected
         // (the helper manager reads the entity's state until its cache fills).
-        const currentMode = window.lcards?.core?.helperManager?.getHelperValue('alert_mode');
+        const currentMode = this._currentAlertMode();
 
         if (currentMode) {
             this._handleAlertModeChange(currentMode);
@@ -188,8 +193,7 @@ export class LCARdSAlertOverlay extends LitElement {
         // ran) must not hide the live alert.
         if (_activeOverlay !== this) return;
 
-        this._alertUnsubscribe?.();
-        this._alertUnsubscribe = null;
+        this._unsubscribeFromAlertMode();
         this._clearAutoDismissTimer();
         window.lcards?.core?.portalOverlayManager?.hide('alert-overlay');
 
@@ -210,8 +214,12 @@ export class LCARdSAlertOverlay extends LitElement {
     // -------------------------------------------------------------------------
 
     _subscribeToAlertMode() {
-        this._alertUnsubscribe?.();
-        this._alertUnsubscribe = null;
+        this._unsubscribeFromAlertMode();
+
+        // A mode set on this device only (targeted action, or no helper): the helper
+        // does not change, so its subscription below never fires for it.
+        this._localModeHandler = (/** @type {any} */ e) => this._handleAlertModeChange(e.detail?.mode);
+        window.addEventListener('lcards-alert-mode-local', this._localModeHandler);
 
         const helperManager = window.lcards?.core?.helperManager;
         if (helperManager) {
@@ -223,6 +231,25 @@ export class LCARdSAlertOverlay extends LitElement {
         } else {
             lcardsLog.warn('[LCARdSAlertOverlay] HelperManager not available — alert subscription skipped');
         }
+    }
+
+    _unsubscribeFromAlertMode() {
+        this._alertUnsubscribe?.();
+        this._alertUnsubscribe = null;
+        if (this._localModeHandler) window.removeEventListener('lcards-alert-mode-local', this._localModeHandler);
+        this._localModeHandler = null;
+    }
+
+    /**
+     * The alert mode to replay on connect: the helper's, unless it is inactive
+     * while this device shows an alert of its own (a targeted action, or no helper).
+     * @returns {string|null|undefined}
+     */
+    _currentAlertMode() {
+        const helperMode = window.lcards?.core?.helperManager?.getHelperValue('alert_mode');
+        const localMode  = window.lcards?.core?.themeManager?.getAlertMode?.();
+        const inactive = (/** @type {any} */ m) => !m || m === 'green_alert' || m === 'default';
+        return inactive(helperMode) && ALERT_CONDITION_KEYS.includes(localMode) ? localMode : helperMode;
     }
 
     // -------------------------------------------------------------------------
@@ -382,8 +409,15 @@ export class LCARdSAlertOverlay extends LitElement {
         // calls pom.hide() explicitly after this method.
 
         if (this.config?.dismiss_mode === 'reset' || this.config?.dismiss_mode === 'auto-reset') {
-            window.lcards?.core?.helperManager?.setHelperValue('alert_mode', 'green_alert')
-                .catch((/** @type {any} */ e) => lcardsLog.warn('[LCARdSAlertOverlay] Reset to green alert failed:', e));
+            const helperManager = window.lcards?.core?.helperManager;
+            if (helperManager?.getHelperValue('alert_mode') === this._activeCondition) {
+                helperManager.setHelperValue('alert_mode', 'green_alert')
+                    .catch((/** @type {any} */ e) => lcardsLog.warn('[LCARdSAlertOverlay] Reset to green alert failed:', e));
+            } else {
+                // An alert on this device only (targeted, or no helper): reset it here.
+                window.lcards?.setAlertMode?.('green_alert', { skipHelperSync: true })
+                    ?.catch?.((/** @type {any} */ e) => lcardsLog.warn('[LCARdSAlertOverlay] Reset to green alert failed:', e));
+            }
         }
     }
 

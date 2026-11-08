@@ -14,7 +14,7 @@ import { keyed } from 'lit/directives/keyed.js';
 import { LCARdSFormFieldHelper as FormField } from '../../components/shared/lcards-form-field.js';
 import { renderInfoGuide } from '../../components/shared/info-guide.js';
 import { parseColor } from '../../../core/themes/color-syntax.js';
-import { displayFor, builtInSymbol, symbolPatch, mergePatch, patchDiff, ALERT_BUTTON_FIXED_KEYS } from '../../../cards/alert-overlay-config.js';
+import { displayFor, builtInSymbol, promoteLegacyBackdrop, symbolPatch, mergePatch, patchDiff, ALERT_BUTTON_FIXED_KEYS } from '../../../cards/alert-overlay-config.js';
 import { mountDialogNearHomeAssistant } from '../../../utils/lcards-shared-helpers.js';
 import { showInfoDialog, showConfirmDeleteDialog } from '../../../views/layout-edit-dialogs.js';
 import '../../components/shared/lcards-message.js';
@@ -327,7 +327,7 @@ export const AlertStudioForms = (Base) => class extends Base {
 
     _renderBackdropTab() {
         const globalLayers = this.config?.layers ?? {};
-        const hasLegacyBackdrop = !!(this.config?.backdrop && !this.config?.layers);
+        const hasLegacyBackdrop = !!(this.config?.backdrop && this.config?.layers === undefined);
 
         return html`
             <div class="tab-content-container">
@@ -404,7 +404,12 @@ export const AlertStudioForms = (Base) => class extends Base {
 
 
         // Per-condition layer overrides
-        const condLayers = condCfg.layers;  // undefined = no condition override at all
+        // undefined = no condition override at all; a legacy per-condition backdrop
+        // shows as the backdrop and color slots it migrates to (the layers slots win).
+        const legacyLayers = condCfg.backdrop ? promoteLegacyBackdrop(condCfg.backdrop) : null;
+        const condLayers = legacyLayers
+            ? { backdrop: legacyLayers.backdrop, color: legacyLayers.color, ...(condCfg.layers ?? {}) }
+            : condCfg.layers;
 
         // Per-condition layout overrides
         const pos    = condCfg.position ?? '';
@@ -953,6 +958,8 @@ export const AlertStudioForms = (Base) => class extends Base {
      */
     _getMigratedLayers() {
         if (this.config?.layers) return JSON.parse(JSON.stringify(this.config.layers));
+        // layers: null is every slot off: start from nothing, not the default blur.
+        if (this.config?.layers === null) return {};
         const cfg = this.config ?? {};
         if (cfg.backdrop) {
             const bd = cfg.backdrop;
@@ -972,8 +979,9 @@ export const AlertStudioForms = (Base) => class extends Base {
     _setConditionLayerPreset(condKey, slot, presetOrSpecial) {
         const conditions = JSON.parse(JSON.stringify(this.config?.conditions ?? {}));
         conditions[condKey] = conditions[condKey] ?? {};
-        // Remove any stale per-condition backdrop keys.
-        delete conditions[condKey].backdrop;
+        // Migrate a legacy per-condition backdrop into its layer slots, then drop
+        // the other legacy keys.
+        this._migrateConditionBackdrop(conditions[condKey]);
         delete conditions[condKey].backdrop_effect;
         delete conditions[condKey].backdrop_params;
 
@@ -994,9 +1002,24 @@ export const AlertStudioForms = (Base) => class extends Base {
         this._updateConfig({ conditions: Object.keys(conditions).length ? conditions : undefined });
     }
 
+    /**
+     * Move a condition's legacy `backdrop` into its `layers` backdrop and color
+     * slots (slots already in `layers` win), in place.
+     * @param {any} condCfg - A copy of conditions.<key>
+     * @private
+     */
+    _migrateConditionBackdrop(condCfg) {
+        if (condCfg.backdrop) {
+            const legacy = promoteLegacyBackdrop(condCfg.backdrop);
+            condCfg.layers = { backdrop: legacy.backdrop, color: legacy.color, ...(condCfg.layers ?? {}) };
+        }
+        delete condCfg.backdrop;
+    }
+
     _setConditionLayerParam(condKey, slot, key, value) {
         const conditions = JSON.parse(JSON.stringify(this.config?.conditions ?? {}));
         conditions[condKey] = conditions[condKey] ?? {};
+        this._migrateConditionBackdrop(conditions[condKey]);
         conditions[condKey].layers = conditions[condKey].layers ?? {};
         conditions[condKey].layers[slot] = conditions[condKey].layers[slot] ?? {};
         if (value !== undefined && value !== '') {

@@ -1,44 +1,80 @@
+---
+description: "Select menu card: an input_select or select entity as a grid of LCARS option buttons, or a manual menu of buttons with their own actions."
+moved_anchors:
+  common-properties: /cards/select-menu/#card-options
+  config-structure: /cards/select-menu/#card-options
+  grid-object: /cards/select-menu/layout#grid
+  height-modes: /cards/select-menu/layout#height-modes
+  options: /cards/select-menu/options#options
+  object-form-entity-order-per-option-overrides: /cards/select-menu/options#object-form
+  array-form-explicit-order-and-filtering: /cards/select-menu/options#array-form
+  per-option-fields: /cards/select-menu/options#per-option-fields
+  actions: /cards/select-menu/options#actions
+  style-object: /cards/select-menu/styles#style
+  text-layer-visibility: /cards/select-menu/styles#text-layer-visibility
+  button-template: /cards/select-menu/styles#button-template
+  rules-engine: /cards/select-menu/styles#rules-engine
+  full-example: /cards/select-menu/styles#full-example
+---
+
 # Select Menu Card
 
 `custom:lcards-select-menu`
 
-Renders an `input_select` or `select` entity as a grid of LCARS-styled option buttons. Tapping a button calls `select_option` on the entity and the card updates immediately to reflect the new active option.
+**A grid of LCARS buttons, one per option of an `input_select` or `select` entity: tap one to select it.** The selected option lights up, and the card follows the entity when something else changes it.
 
-Each button is a full `lcards-button` under the hood, so every preset, style override, and action type the button card supports is available here.
+- Each option is a real [button card](../button/) underneath, so every button preset and the button's `style` keys work here.
+- Without an entity, the card is a manual menu: list the buttons in `options` and give each one its own action.
+
+::: tip Try it
+- The card editor has tabs for the config, the grid, the style, the options and the actions, with a live preview.
+- The [Playground](./playground) lets you edit select menu YAML here in the docs and see the result.
+:::
+
+| Page | Covers |
+|------|--------|
+| [Options and Actions](./options) | Which options show, their labels and icons, and what a tap does |
+| [Grid and Sizing](./layout) | Columns, gaps and row height, and how the card sizes itself in a dashboard |
+| [Styles](./styles) | Colours, text and borders for every option, the button template, rules |
+| [Playground](./playground) | Edit YAML and see the select menu live |
 
 ---
 
 ## Quick Start
 
+**Three menus to start from: an entity's options as they are, the same options with your own labels, and a manual menu of navigation buttons.** Tap an option in the first two to select it.
+
+- `grid.columns` sets how many buttons sit side by side; the card adds rows for the rest.
+- Keys under `options` must match the entity's option values exactly, including case.
+
 ```yaml live
-# Minimal - entity options auto-enumerated, single column, lozenge preset
+# The entity's options, one column
 type: custom:lcards-select-menu
-entity: input_select.view_selector
+entity: input_select.demo_mode
 preset: lozenge
 ```
 
 ```yaml live
-# 3-column grid with custom labels and icons
+# Four columns with your own labels
 type: custom:lcards-select-menu
-entity: input_select.room_scene
-preset: lozenge
+entity: input_select.demo_mode
+preset: capped
 grid:
-  columns: 3
+  columns: 4
   gap: 6px
 options:
-  Relax:
-    label: RELAX
-    icon: mdi:sofa
-  Movie:
-    label: MOVIE
-    icon: mdi:television-play
-  Work:
-    label: WORK
-    icon: mdi:desk-lamp
+  Auto:
+    label: AUTO
+  Cool:
+    label: CHILL
+  Heat:
+    label: WARM
+  "Off":
+    label: STANDBY
 ```
 
 ```yaml live
-# Manual options list (no entity required)
+# A manual menu: no entity, each option navigates
 type: custom:lcards-select-menu
 preset: lozenge
 grid:
@@ -47,7 +83,6 @@ grid:
 options:
   - value: bridge
     label: BRIDGE
-    icon: mdi:bridge
     tap_action:
       action: navigate
       navigation_path: /lovelace/bridge
@@ -58,409 +93,44 @@ options:
       navigation_path: /lovelace/engineering
 ```
 
----
+## Layouts and Presets
 
-## Common Properties
-
-The following properties are shared across all LCARdS cards. See [Common Card Properties](../common.md) for full details.
-
-| Category | Config keys | Reference |
-|----------|-------------|-----------|
-| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min-height-min-width-max-height-max-width) |
-| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow-x-overflow-y) |
-| Stacking | `z_index` | [Stacking](../common.md#stacking-z-index) |
-| Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
-| Home Assistant Grid | `grid_options` | [Home Assistant Grid Sizing](../common.md#home-assistant-grid-sizing-grid-options) |
-| Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
-| Actions | `tap_action`, `hold_action`, `double_tap_action` | [Actions](../../core/actions.md) |
-| Rules | via `id` / `tags` | [Rules Engine](../../core/rules/) |
-
----
-
-## Config Structure
-
-Annotated map of all top-level keys.
-
-```yaml
-type: custom:lcards-select-menu
-
-# ── Entity ─────────────────────────────────────────────────────────────────────
-entity: input_select.view_selector
-
-# ── Preset ─────────────────────────────────────────────────────────────────────
-preset: lozenge              # button shape preset - see Presets
-
-# ── Grid layout ────────────────────────────────────────────────────────────────
-grid:
-  columns: 3
-  gap: 6px
-  grid-auto-rows: 48px
-
-# ── Options ────────────────────────────────────────────────────────────────────
-options:                     # object or array form - see Options
-  Bridge:
-    label: BRIDGE
-    icon: mdi:bridge
-  Engineering:
-    label: ENGINEERING
-    icon: mdi:engine
-
-# ── Style (applied to all option buttons) ──────────────────────────────────────
-style:
-  card:
-    color:
-      background:            # string or state-based object (active = selected)
-        default: "transparent"
-        active: "var(--lcars-orange)"
-  text:
-    default:
-      color:                 # string or state-based object
-        default: "var(--lcards-moonlight)"
-        active: "var(--lcars-black)"
-      font_size: 11
-      text_transform: uppercase
-  border:
-    radius: 14
-    width: 0
-    color:                   # string or state-based object
-      default: "var(--lcars-orange)"
-  opacity: 0.9               # base opacity for unselected options
-
-# ── Advanced button template ─────────────────────────────────────────────────
-button_template:
-  min_height: 40
-
-# ── Layout ─────────────────────────────────────────────────────────────────────
-height: 200
-width: 400
-min_height: 100
-max_height: 400
-overflow: hidden
-z_index: 0
-grid_options:
-  columns: 6
-  rows: 4
-id: my-select
-tags: [nav]
-```
-
----
-
-## Card Options
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `type` | string | `custom:lcards-select-menu` (required) |
-| `entity` | string | `input_select.*` or `select.*` entity to monitor and control |
-| `preset` | string | Button shape preset applied to every option button (e.g. `lozenge`, `bullet`) |
-| `grid` | object | Layout grid: see [`grid`](#grid-object) below |
-| `options` | object / list | Option overrides: see [`options`](#options) below |
-| `style` | object | Visual style overrides for all buttons: see [`style`](#style-object) below |
-| `button_template` | object | Advanced base `lcards-button` config applied to every option; see [`button_template`](#button-template) below |
-
----
-
-## `grid` Object
-
-Controls how the option buttons are arranged.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `columns` | number / string | `1` | Number of equal-width columns, or any valid CSS `grid-template-columns` string |
-| `rows` | number / string | - | Number of rows or CSS `grid-template-rows` value |
-| `grid-template-columns` | string | - | Raw CSS value: overrides `columns` when set |
-| `gap` | string | `4px` | Gap applied to both rows and columns |
-| `row-gap` | string | - | Row gap override |
-| `column-gap` | string | - | Column gap override |
-| `grid-auto-rows` | string | - | CSS `grid-auto-rows` for implicit row height (e.g. `56px`, `auto`) |
-| `grid-auto-flow` | string | `row` | CSS `grid-auto-flow` value: `row`, `column`, `dense`, `row dense`, `column dense` |
-| `justify-items` | string | - | CSS `justify-items` for cell alignment: `stretch`, `start`, `end`, `center` |
-| `align-items` | string | - | CSS `align-items` for cell alignment: `stretch`, `start`, `end`, `center` |
-| `height` | string | - | Sizing mode: `fit`, `100%`, or any CSS height; see [Height modes](#height-modes) below |
-
-```yaml
-grid:
-  columns: 3
-  gap: 6px
-  grid-auto-rows: 48px
-```
-
-On a sections view the card asks Home Assistant for enough grid rows to show every option, from the option count, `columns`, the row height (`grid-auto-rows`, `56px` by default) and the row gap. A pixel `height` sizes it instead, and your own `grid_options.rows` always wins.
-
-A few layouts and presets against a sample `input_select` (tap an option to select it):
+**`preset` picks the button look for every option, and `grid` arranges them.** A few layouts and presets against a sample `input_select` (tap an option to select it):
 
 <CardGallery set="select-menu-layouts" />
 
-### Height modes
+## Card Options
 
-`grid.height` controls how the card sizes itself against its container. Three modes:
+**The select menu's own top-level keys.** Each block has its own page; this table links to it.
 
-| Value | Behavior |
-|-------|----------|
-| _(unset)_ | **Natural**: the option grid is as tall as its rows; the card flows like normal content. |
-| `fit` | **Content-driven, published**: the card computes its exact natural height from config (`rows × row-height max + gaps`, using the pixel max of `grid-auto-rows`) and sets it as a definite pixel height on the card element. Use this when a *parent* grid track must size itself to the menu (an `auto` or `minmax(0, max-content)` track): measuring the menu through Home Assistant's `hui-card` wrapper via intrinsic CSS sizing is unreliable, while a definite pixel height always works. Requires a pixel-bounded `grid-auto-rows` (`minmax(Apx, Bpx)` or `Npx`). |
-| `100%` | **Bounded fill**: the option grid fills whatever height its container provides. With a pixel-bounded `grid-auto-rows`, a `ResizeObserver` measures the container and computes a concrete per-button height within the bounds; if even the minimum row height cannot fit, buttons stay at the minimum and the grid scrolls internally instead of overflowing. With a flexible max (e.g. `minmax(40px, 1fr)`), CSS distributes the height directly. |
-
-Example: a sidebar where the menu's row hugs its content and a filler panel absorbs the leftover (the pattern used by the shell strategy):
-
-```yaml
-type: custom:lcards-layout-card
-layout:
-  grid-template-columns: 1fr
-  grid-template-rows: minmax(0, max-content)
-  grid-auto-rows: minmax(40px, 1fr)
-  grid-gap: 5px
-cards:
-  - type: custom:lcards-select-menu
-    entity: input_select.page
-    grid:
-      columns: 1
-      gap: 5px
-      grid-auto-rows: minmax(40px, 56px)
-      height: fit
-    view_layout:
-      overflow-y: auto      # scrolls inside the menu if the container is too short
-  - type: custom:lcards-button
-    preset: panel-dark
-    min_height: 1           # lets the filler shrink with its row
-```
-
-The `minmax(0, max-content)` row tracks the menu's published height exactly, capped by the container; the filler row takes the rest. Buttons placed in rows that can shrink should set a small `min_height`; without one, the theme minimum (`--lcars-button-min-height`, typically 56px) keeps them painting at full size even in a collapsed row.
-
----
-
-## `options`
-
-Defines which options appear and how each one looks. Two forms are accepted:
-
-### Object form: entity order, per-option overrides
-
-Keys match the entity's option values (case-sensitive). The order of the entity attribute is preserved. Any option not listed in the object still appears with its defaults.
-
-```yaml
-options:
-  Bridge:
-    label: BRIDGE
-    icon: mdi:bridge
-  Engineering:
-    label: ENGINEERING
-    icon: mdi:engine
-```
-
-### Array form: explicit order and filtering
-
-Provides full control over order, and options not listed are hidden. A `value` field is required for each entry. Use this form for manual menus that don't need an entity.
-
-```yaml
-options:
-  - value: bridge
-    label: BRIDGE
-    icon: mdi:bridge
-    tap_action:
-      action: navigate
-      navigation_path: /lovelace/bridge
-  - value: engineering
-    label: ENGINEERING
-```
-
-### Per-option fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `value` | string | Entity option value (required in array form; the key in object form) |
-| `label` | string | Display text. Defaults to `value` |
-| `icon` | string | MDI icon (e.g. `mdi:home`). Sets `show_icon: true` automatically |
-| `style` | object | Per-option style overrides: same structure as card-level [`style`](#style-object) |
-| `tap_action` | object | Per-option tap action: see [Actions](../../core/actions.md) |
-| `hold_action` | object | Per-option hold action: see [Actions](../../core/actions.md) |
-| `double_tap_action` | object | Per-option double-tap action: see [Actions](../../core/actions.md) |
-
----
-
-## `style` Object
-
-Applies to every option button. Same structure as the button card's [`style`](../button/#style-object).
-
-The style resolves in this order (last wins): preset defaults → `button_template.style` → card-level `style` → per-option `style`.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `style.card.color.background` | string / object | theme | Button background: [state map](../../core/colours.md) supported (`active` = selected, `inactive` = unselected) |
-| `style.text.default.color` | string / object | theme | Text colour: [state map](../../core/colours.md) supported |
-| `style.text.default.font_size` | number / string | theme | Font size in px or CSS value |
-| `style.text.default.font_weight` | number / string | theme | CSS font-weight |
-| `style.text.default.text_transform` | string | theme | `uppercase`, `lowercase`, `capitalize`, or `none` |
-| `style.text.default.letter_spacing` | string | - | CSS letter-spacing value |
-| `style.border.radius` | number / string / object | theme | Corner radius in px, CSS string, or `{ top_left, top_right, bottom_right, bottom_left }` |
-| `style.border.width` | number / string | theme | Border width in px |
-| `style.border.color` | string / object | theme | Border colour: [state map](../../core/colours.md) supported |
-| `style.opacity` | number | `0.88` | Base opacity for unselected options (0–1) |
-
-```yaml
-style:
-  card:
-    color:
-      background:
-        default: "#223355"
-        active: "#FF9900"
-  border:
-    radius: 14
-    width: 0
-  text:
-    default:
-      font_size: 11
-      letter_spacing: "0.08em"
-      text_transform: uppercase
-```
-
-### Text layer visibility
-
-The card manages text layer visibility automatically:
-
-| Layer | Default | Notes |
-|-------|---------|-------|
-| `text.label` | `show: true` | **Primary display text**: always shows the option label |
-| `text.name` | `show: false` | Hidden by default (would show LCARS top-left tag) |
-| `text.state` | `show: false` | Hidden by default |
-
-To restore `name` or `state` visibility, add them to `button_template.text`:
-
-```yaml
-button_template:
-  text:
-    state:
-      show: true
-```
-
----
-
-## `button_template`
-
-Advanced config that is spread into every option's `lcards-button` config before card-level and per-option values are applied. Use this to set button properties that are not directly exposed by the select-menu (e.g. `min_height`, `padding`, background animations, sounds).
-
-The following fields are **always stripped** from `button_template` because the card manages them directly: `type`, `entity`, `icon`, `show_icon`, `preset`, `tap_action`, `hold_action`, `double_tap_action`, `id`, `tags`, `text.label.content`.
-
-```yaml
-button_template:
-  min_height: 40
-  text:
-    label:
-      font_size: 10
-      letter_spacing: "0.1em"
-  background_animation:
-    - preset: scanlines
-      opacity: 0.05
-```
-
-The **Style tab** in the visual editor opens a full `lcards-button` sub-editor to configure the template interactively.
-
----
-
-## Actions
-
-Actions follow a waterfall priority: the first value found in this chain wins (independently for each action type):
-
-```
-per-option action → card-level action → button_template action → built-in default
-```
-
-**Default tap action** calls `input_select.select_option` (or `select.select_option` for `select.*` entities) with the option's value.
-
-**Hold and double-tap** default to `{ action: none }` so they do not fall through to the tap action unintentionally. All three action types (`tap_action`, `hold_action`, `double_tap_action`) can be overridden both at the card level and per option.
-
-```yaml
-# Card-level hold opens more-info for all options
-hold_action:
-  action: more-info
-
-# Per-option tap_action override for one specific option
-options:
-  - value: settings
-    label: SETTINGS
-    tap_action:
-      action: navigate
-      navigation_path: /config
-```
-
----
-
-## Supported Entity Domains
-
-| Domain | Notes |
-|--------|-------|
-| `input_select.*` | Full read/write: calls `input_select.select_option` |
-| `select.*` | Full read/write: calls `select.select_option` |
-
-The `entity` field is optional. Omitting it disables automatic option enumeration and active-state detection; use with array-form `options` for fully manual menus.
-
----
-
-## Rules Engine
-
-The card registers with the rules engine as type `select-menu`. Use `id` and `tags` to target it from rules.
-
-```yaml
-rules:
-  - conditions:
-      - entity: binary_sensor.away_mode
-        state: "on"
-    targets:
-      - tags: [nav]
-    patches:
-      style:
-        card:
-          color:
-            background:
-              default: "#1a1a2e"
-```
-
----
-
-## Full Example
+- The card also takes the keys every LCARdS card takes (`height`, `width`, `overflow`, `z_index`, `grid_options`, `id`, `tags`, `data_sources` ...): see [Common card properties](../common).
+- In a sections view the card asks for enough rows to show every option ([Grid and Sizing](./layout#sizing-in-a-dashboard)).
 
 ```yaml live
 type: custom:lcards-select-menu
-entity: input_select.deck_view
-preset: lozenge
-id: deck-nav
-tags: [nav]
-
+entity: input_select.lcards_test_mode
+preset: bullet
 grid:
   columns: 3
-  gap: 6px
-  grid-auto-rows: 52px
-
-style:
-  border:
-    radius: 14
-  text:
-    default:
-      font_size: 10
-      letter_spacing: "0.08em"
-      text_transform: uppercase
-
-button_template:
-  text:
-    label:
-      font_size: 10
-
-options:
-  - value: bridge
-    label: BRIDGE
-    icon: mdi:bridge
-  - value: engineering
-    label: ENGINEERING
-    icon: mdi:engine
-  - value: sickbay
-    label: SICKBAY
-    icon: mdi:medical-bag
-  - value: tactical
-    label: TACTICAL
-    icon: mdi:radar
-  - value: holodecks
-    label: HOLODECKS
-    icon: mdi:virtual-reality
-  - value: science
-    label: SCIENCE
-    icon: mdi:flask
+hold_action:
+  action: more-info
 ```
+
+::: details More about the entity
+- **Domains:** `input_select.*` options are set with `input_select.select_option`, and `select.*` options with `select.select_option`.
+- **Loading:** while the configured entity is not in Home Assistant, the card shows "Loading…" instead of buttons.
+- **No entity:** the card cannot list options or show which one is selected, so it needs array-form `options`, and a tap does nothing unless the option or the card sets a `tap_action`.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `type` | string | required | `custom:lcards-select-menu` |
+| `entity` | string | - | The `input_select` or `select` entity whose options become buttons and whose state marks the selected one |
+| `preset` | string | - | The [button preset](../button/#presets) every option button uses (`lozenge`, `bullet`, `capped`, `outline`, `toggle-tab` ...) |
+| `grid` | object | one column | How the buttons are arranged: see [grid](./layout#grid) |
+| `options` | object / list | the entity's options | Labels, icons, styles and actions per option, and which options show: see [options](./options#options) |
+| `style` | object | from the preset | Colours, text and borders for every option: see [style](./styles#style) |
+| `button_template` | object | - | Any other button card keys for every option: see [button_template](./styles#button-template) |
+| `tap_action` | object | select the option | Replaces the tap of every option: see [Actions](./options#actions) |
+| `hold_action` | object | `action: none` | Hold action for every option |
+| `double_tap_action` | object | `action: none` | Double-tap action for every option |

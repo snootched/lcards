@@ -84,7 +84,7 @@ The built-in button presets define three standard fields:
 
 | Field | Default `content` | Default visibility | Notes |
 |-------|-------------------|--------------------|-------|
-| `label` | `"LCARdS"` | `show: false` | General-purpose label; most bar/lozenge presets show this by default |
+| `label` | a random code such as `3f-a2c` | `show: false` | General-purpose label: two hex digits, a dash and three more, picked at random by a template. Most bar/lozenge presets show it by default |
 | `name` | `"{entity.attributes.friendly_name}"` | `show: false` | Entity friendly name |
 | `state` | `"{entity.state}"` | `show: false` | Raw entity state value |
 

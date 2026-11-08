@@ -17,9 +17,10 @@ import { getElbowTypeNames } from '../../core/packs/components/elbows/index.js';
 
 // ── Frame type (elbow.type: frame) ─────────────────────────────────────────────
 // A 2 to 4 sided rectangular border. Mirrors lcards-elbow.js _validateElbowConfig
-// (type === 'frame'): shorthand sizes for every side/corner, per-side and per-corner
-// overrides, and an inner ring for style: segmented. Lengths go through _parseUnit:
-// a number is px, a string a CSS length.
+// (type === 'frame', parsed by parseFrameConfig in elbow-config.js): shorthand sizes
+// for every side/corner, per-side and per-corner overrides, and an inner ring for
+// style: segmented. A length is a number (px) or a CSS length string (clamp(), vw,
+// calc(), ...), measured at render time.
 const frameLength = (description) => ({ type: ['number', 'string'], description });
 const frameSideSchema = (side, defaultFrom) => ({
     type: 'object',
@@ -59,7 +60,7 @@ const frameSchema = {
     // Colour: the outer ring is painted with elbow.segment.color like every elbow;
     // the inner ring has its own colour (inner_frame.color). There is no frame-level
     // or per-side colour.
-    description: 'Frame elbow (elbow.type: frame): a 2 to 4 sided rectangular border with per-side thickness and per-corner curves. Its colour is elbow.segment.color.',
+    description: 'Frame elbow (elbow.type: frame): a 2 to 4 sided rectangular border with per-side thickness and per-corner curves. Every length is px (a number) or a CSS length (a string such as clamp(20px, 3vw, 40px)). Its colour is elbow.segment.color.',
     properties: {
         ...frameRingProperties(90),
         segments: {
@@ -266,8 +267,7 @@ export function getElbowSchema(options = {}) {
                         type: 'object',
                         description: 'Configuration for simple style (single elbow)',
                         default: {
-                            bar_width: 120,
-                            bar_height: 20,
+                            bar_width: 90,
                             outer_curve: 'auto'
                         },
                         examples: [
@@ -349,7 +349,6 @@ export function getElbowSchema(options = {}) {
                                         type: 'number',
                                         minimum: 10,
                                         maximum: 500,
-                                        default: 20,
                                         description: 'Height of horizontal bar (pixels)',
                                         examples: [20, 30, 90]
                                     },
@@ -561,15 +560,15 @@ export function getElbowSchema(options = {}) {
                                         type: 'string',
                                         format: 'entity',
                                         pattern: '^[a-z_]+\\.[a-z0-9_]+$',
-                                        description: 'Entity ID for state-based colour (format: domain.object_id)',
+                                        description: "Entity this segment follows: its colour state map matches this entity's state, and its taps act on it (default: the card's entity).",
                                         examples: ['light.outer_frame', 'switch.outer_power']
                                     },
                                     bar_width: {
                                         oneOf: [
                                             { type: 'number', minimum: 1, maximum: 500 },
-                                            { type: 'string', description: 'CSS length expression (e.g. \'clamp(60px, 8vw, 120px)\')' }
+                                            { type: 'string', description: "'theme' (binds to input_number.lcars_vertical) or a CSS length expression (e.g. 'clamp(60px, 8vw, 120px)')" }
                                         ],
-                                        description: 'Vertical bar thickness (pixels or CSS length) - REQUIRED',
+                                        description: "Vertical bar thickness (pixels, CSS length, or 'theme' for input_number.lcars_vertical, 90 until it exists). Required.",
                                         examples: [90, 120, 150, 'clamp(60px, 8vw, 120px)']
                                     },
                                     bar_height: {
@@ -578,7 +577,7 @@ export function getElbowSchema(options = {}) {
                                             { type: 'number', exclusiveMinimum: 0, maximum: 500 },
                                             { type: 'string', description: 'CSS length expression (e.g. \'clamp(20px, 4vh, 60px)\')' }
                                         ],
-                                        description: 'Horizontal bar thickness (pixels or CSS length, defaults to bar_width). A value near 0 (e.g. 0.01) leaves the horizontal bar out.',
+                                        description: "Horizontal bar thickness (pixels, CSS length, or 'theme' for input_number.lcars_horizontal; defaults to bar_width). A value near 0 (e.g. 0.01) leaves the horizontal bar out.",
                                         examples: [20, 90, 150, 'clamp(20px, 4vh, 60px)']
                                     },
                                     outer_curve: {
@@ -597,7 +596,22 @@ export function getElbowSchema(options = {}) {
                                         description: 'Inner corner radius (pixels or CSS length, defaults to outer_curve / 2)',
                                         examples: [22.5, 30, 37.5, 'clamp(15px, 2vw, 30px)']
                                     },
-                                    color: stateColorSchema,
+                                    outer_curve_clamp: {
+                                        oneOf: [
+                                            { type: 'string', enum: ['card', 'none'] },
+                                            { type: 'number', minimum: 0, maximum: 500 }
+                                        ],
+                                        default: 'card',
+                                        description: "Cap on this segment's outer_curve: 'card' (default) = min(card width, card height), 'none' = no cap, a number = that many px.",
+                                    },
+                                    diagonal_angle: {
+                                        oneOf: [
+                                            { type: 'number', minimum: 0, maximum: 90 },
+                                            { type: 'string', enum: ['theme', 'input_number.lcars_elbow_angle'] }
+                                        ],
+                                        description: "Cut angle in degrees for the diagonal-cap types (default 45; 90 = square). 'theme' binds to input_number.lcars_elbow_angle."
+                                    },
+                                    color: { ...stateColorSchema, description: "Segment colour: a colour, or a state map matched against entity_id (else the card's entity)." },
                                     tap_action: actionSchema,
                                     hold_action: actionSchema,
                                     double_tap_action: actionSchema
@@ -623,15 +637,15 @@ export function getElbowSchema(options = {}) {
                                         type: 'string',
                                         format: 'entity',
                                         pattern: '^[a-z_]+\\.[a-z0-9_]+$',
-                                        description: 'Entity ID for state-based colour (format: domain.object_id)',
+                                        description: "Entity this segment follows: its colour state map matches this entity's state, and its taps act on it (default: the card's entity).",
                                         examples: ['light.inner_zone', 'switch.inner_power']
                                     },
                                     bar_width: {
                                         oneOf: [
                                             { type: 'number', minimum: 1, maximum: 500 },
-                                            { type: 'string', description: 'CSS length expression (e.g. \'clamp(40px, 6vw, 80px)\')' }
+                                            { type: 'string', description: "'theme' (binds to input_number.lcars_vertical) or a CSS length expression (e.g. 'clamp(40px, 6vw, 80px)')" }
                                         ],
-                                        description: 'Vertical bar thickness (pixels or CSS length) - REQUIRED',
+                                        description: "Vertical bar thickness (pixels, CSS length, or 'theme' for input_number.lcars_vertical, 90 until it exists). Required.",
                                         examples: [60, 80, 100, 'clamp(40px, 6vw, 80px)']
                                     },
                                     bar_height: {
@@ -640,7 +654,7 @@ export function getElbowSchema(options = {}) {
                                             { type: 'number', exclusiveMinimum: 0, maximum: 500 },
                                             { type: 'string', description: 'CSS length expression (e.g. \'clamp(20px, 4vh, 60px)\')' }
                                         ],
-                                        description: 'Horizontal bar thickness (pixels or CSS length, defaults to bar_width). A value near 0 (e.g. 0.01) leaves the horizontal bar out.',
+                                        description: "Horizontal bar thickness (pixels, CSS length, or 'theme' for input_number.lcars_horizontal; defaults to bar_width). A value near 0 (e.g. 0.01) leaves the horizontal bar out.",
                                         examples: [20, 60, 100, 'clamp(20px, 4vh, 60px)']
                                     },
                                     outer_curve: {
@@ -660,7 +674,22 @@ export function getElbowSchema(options = {}) {
                                         description: 'Inner corner radius (pixels or CSS length, defaults to outer_curve / 2)',
                                         examples: [9, 15, 20]
                                     },
-                                    color: stateColorSchema,
+                                    outer_curve_clamp: {
+                                        oneOf: [
+                                            { type: 'string', enum: ['card', 'none'] },
+                                            { type: 'number', minimum: 0, maximum: 500 }
+                                        ],
+                                        default: 'card',
+                                        description: "Cap on this segment's outer_curve when it sets one (a concentric inner segment follows the outer segment's clamp): 'card' (default) = min(card width, card height), 'none' = no cap, a number = that many px.",
+                                    },
+                                    diagonal_angle: {
+                                        oneOf: [
+                                            { type: 'number', minimum: 0, maximum: 90 },
+                                            { type: 'string', enum: ['theme', 'input_number.lcars_elbow_angle'] }
+                                        ],
+                                        description: "Cut angle in degrees for the diagonal-cap types (default: the outer segment's angle; 90 = square). 'theme' binds to input_number.lcars_elbow_angle."
+                                    },
+                                    color: { ...stateColorSchema, description: "Segment colour: a colour, or a state map matched against entity_id (else the card's entity)." },
                                     tap_action: actionSchema,
                                     hold_action: actionSchema,
                                     double_tap_action: actionSchema
@@ -832,9 +861,9 @@ export function getElbowSchema(options = {}) {
                         type: 'object',
                         description: 'Padding within the elbow content area (px)',
                         properties: {
-                            top: { type: 'number', default: 10 },
-                            left: { type: 'number', default: 10 },
-                            right: { type: 'number', default: 10 },
+                            top: { type: 'number', default: 0 },
+                            left: { type: 'number', default: 0 },
+                            right: { type: 'number', default: 0 },
                             bottom: { type: 'number', default: 0 }
                         }
                     },

@@ -1468,12 +1468,14 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 ?expanded=${true}
                 ?outlined=${true}>
 
+                ${this._renderSegmentEntityAndActions('outer_segment', outerSegment)}
+
                 <lcards-color-section-v2
                     .editor=${this}
-                    .entityId=${this.config?.entity || ''}
+                    .entityId=${outerSegment.entity_id || this.config?.entity || ''}
                     basePath="elbow.segments.outer_segment.color"
                     header="Colour"
-                    description="Colour states for outer frame segment"
+                    description="Colour states for outer frame segment (matched against its entity)"
                     .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero', 'hover', 'pressed']}
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
@@ -1578,12 +1580,14 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 ?expanded=${true}
                 ?outlined=${true}>
 
+                ${this._renderSegmentEntityAndActions('inner_segment', innerSegment)}
+
                 <lcards-color-section-v2
                     .editor=${this}
-                    .entityId=${this.config?.entity || ''}
+                    .entityId=${innerSegment.entity_id || this.config?.entity || ''}
                     basePath="elbow.segments.inner_segment.color"
                     header="Colour"
-                    description="Colour states for inner content segment"
+                    description="Colour states for inner content segment (matched against its entity)"
                     .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero', 'hover', 'pressed']}
                     ?allowCustomStates=${true}
                     ?expanded=${false}>
@@ -3238,6 +3242,63 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
         // Concentric calculation: outer segment's outer curve - gap - inner segment's bar width
         return Math.max(0, outerCurve - gap - innerBarWidth);
+    }
+
+    /**
+     * A segmented elbow segment's own entity and actions: its colour state map
+     * follows the entity, and its taps run its actions (the card's where it sets
+     * none) on that entity.
+     * @param {'outer_segment'|'inner_segment'} key
+     * @param {any} segment - the segment's config
+     * @returns {import('lit').TemplateResult}
+     * @private
+     */
+    _renderSegmentEntityAndActions(key, segment) {
+        const base = `elbow.segments.${key}`;
+        return html`
+            <lcards-form-section
+                header="Entity and actions"
+                description="This segment's own entity and tap actions (default: the card's)"
+                icon="mdi:gesture-tap"
+                ?expanded=${false}
+                ?outlined=${false}>
+                <ha-selector
+                    .hass=${this.hass}
+                    .label=${'Entity'}
+                    .helper=${"Its colour state map and actions follow this entity (default: the card's entity)"}
+                    .selector=${{ entity: {} }}
+                    .value=${segment.entity_id || ''}
+                    @value-changed=${(e) => e.detail.value
+                        ? this._setConfigValue(`${base}.entity_id`, e.detail.value)
+                        : this._removeConfigPath(`${base}.entity_id`)}>
+                </ha-selector>
+                <lcards-multi-action-editor
+                    .hass=${this.hass}
+                    .actions=${{
+                        tap_action: segment.tap_action,
+                        hold_action: segment.hold_action,
+                        double_tap_action: segment.double_tap_action
+                    }}
+                    @value-changed=${(e) => this._handleSegmentActionsChange(base, e)}>
+                </lcards-multi-action-editor>
+            </lcards-form-section>
+        `;
+    }
+
+    /**
+     * Commit a segment's actions from the multi-action editor (unset ones removed).
+     * @param {string} base - e.g. elbow.segments.outer_segment
+     * @param {CustomEvent} event
+     * @private
+     */
+    _handleSegmentActionsChange(base, event) {
+        event.stopPropagation();
+        const actions = event.detail.value || {};
+        const segment = base.split('.').reduce((o, k) => o?.[k], /** @type {any} */ (this.config)) || {};
+        for (const k of ['tap_action', 'hold_action', 'double_tap_action']) {
+            if (actions[k]) this._setConfigValue(`${base}.${k}`, actions[k]);
+            else if (segment[k]) this._removeConfigPath(`${base}.${k}`);
+        }
     }
 
     /**
