@@ -15,7 +15,7 @@ The easiest way is the **Config Panel** → **Helpers** tab → **Create All Hel
 | Helper | Type | Purpose |
 |--------|------|---------|
 | `input_select.lcards_alert_mode` | `input_select` | Active alert level: `green_alert`, `red_alert`, `yellow_alert`, `blue_alert`, `gray_alert`, `black_alert` |
-| `input_boolean.lcards_alert_mode_auto_switch` | `input_boolean` | Automatically activates alert mode when the `input_select` changes |
+| `input_boolean.lcards_alert_mode_auto_switch` | `input_boolean` | When on, a dashboard that opens during an alert shows it from the start. Changes to the alert mode always apply |
 | `input_text.lcards_alert_message` | `input_text` | Custom message displayed in the alert overlay content card |
 | `input_select.lcards_alert_transition_style` | `input_select` | Screen-transition effect when alert mode switches: `off`, `blur_fade`, `fade_only`, `flash`, `color_bleed`, `flicker`, `static`, `wipe` |
 

@@ -429,7 +429,7 @@ export function getButtonSchema(options = {}) {
                             radius: {
                                 oneOf: [
                                     { type: 'number', minimum: 0, maximum: 100, description: 'Corner radius in pixels. Default: the preset\'s radius, else 20.' },
-                                    { type: 'string', pattern: '^(\\{theme:.*\\}|var\\(--.*\\))$', description: 'Theme token reference' },
+                                    { type: 'string', pattern: '^(theme:.+|var\\(--.*\\)|\\d+(\\.\\d+)?(px)?)$', description: 'A theme token (theme: and its path), a CSS variable or a px value' },
                                     {
                                         type: 'object',
                                         properties: {

@@ -78,3 +78,16 @@ test('a URL plays as is; playSource respects the category switch', () => {
         globalThis.Audio = OrigAudio;
     }
 });
+
+test('lcards.play_sound offers every sound event the page knows (the Borg events were missing)', async () => {
+    const fs = await import('node:fs');
+    const py = fs.readFileSync(new URL('../../custom_components/lcards/services.py', import.meta.url), 'utf8');
+    const yaml = fs.readFileSync(new URL('../../custom_components/lcards/services.yaml', import.meta.url), 'utf8');
+    const block = /_SOUND_EVENT_TYPES = \[([\s\S]*?)\]/.exec(py)?.[1] ?? '';
+    const pyEvents = [...block.matchAll(/"([a-z_]+)"/g)].map((m) => m[1]).sort();
+    const sm = new SoundManager();
+    const pageEvents = sm.getEventTypes().map((e) => e.key).sort();
+    assert.deepEqual(pyEvents, pageEvents);
+    const playSound = yaml.slice(yaml.indexOf('\nplay_sound:'), yaml.indexOf('\n', yaml.indexOf('asset_key:', yaml.indexOf('\nplay_sound:'))));
+    for (const e of pageEvents) assert.match(playSound, new RegExp(`value: ${e}\\b`), `services.yaml play_sound offers ${e}`);
+});

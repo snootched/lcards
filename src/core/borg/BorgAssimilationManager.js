@@ -18,6 +18,7 @@
 import { BaseService      } from '../BaseService.js';
 import { lcardsLog        } from '../../utils/lcards-logging.js';
 import { injectBorgFont, revertBorgFont } from '../themes/borgFontAssimilation.js';
+import { borgIntroSupported } from '../screen-effects/effects/BorgAssimilationEffect.js';
 import {
     setAlertModeTransformParameter,
     getAlertModeTransform,
@@ -127,7 +128,7 @@ export class BorgAssimilationManager extends BaseService {
      * @param {Object}  [opts]
      * @param {number}  [opts.duration=0]                       Auto-dismiss timeout in ms.
      *                                                          0 (default) = click-to-dismiss only.
-     * @param {string}  [opts.transitionStyle='flash']          Palette transition style.
+     * @param {string}  [opts.transitionStyle='blur_fade']      Palette transition style.
      *                                                          One of: 'flash', 'fade_only', 'blur_fade', 'off'.
      * @param {Object}  [opts.intro]                            Intro layers. Merged per-slot with DEFAULTS.intro.
      *                                                          e.g. { canvas: { siteCount: 12 },
@@ -188,7 +189,11 @@ export class BorgAssimilationManager extends BaseService {
         const fontPromise = fontSwap ? injectBorgFont() : Promise.resolve();
 
         // ── Step 3: intro layers (persistent — awaited until click or timeout) ─
-        if (sem) {
+        // Skipped where the intro cannot draw: its invisible canvas would
+        // otherwise take every click until the first one dismissed it.
+        if (sem && !borgIntroSupported()) {
+            lcardsLog.debug('[BorgAssimilationManager] Intro skipped: OffscreenCanvas or Worker not available');
+        } else if (sem) {
             // Merge caller intro per-slot over defaults.
             const introLayers = {
                 ...DEFAULTS.intro,

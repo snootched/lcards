@@ -169,7 +169,7 @@ export const dataSourcesSchema = {
             },
             power: {
                 entity: 'sensor.power',
-                update_interval: 1000,
+                min_emit_ms: 1000,
                 processing: {
                     kilowatts: { type: 'scale', input_range: [0, 1000], output_range: [0, 1] }
                 }
@@ -195,14 +195,19 @@ export const dataSourcesSchema = {
                 type: 'object',
                 description: 'Map non-numeric states to numbers so they can be plotted or processed (on/off map to 1/0 automatically)',
                 additionalProperties: { type: 'number' },
-                examples: [{ heat: 2, cool: 1, off: 0 }]
+                examples: [{ heat: 2, cool: 1, idle: 0 }]
             },
             update_interval: {
                 type: 'number',
-                minimum: 0,
-                maximum: 10000,
-                description: 'Minimum milliseconds between updates (throttling, default: 100)',
-                examples: [100, 1000, 5000]
+                deprecated: true,
+                'x-replacement': 'min_emit_ms',
+                description: 'Never had an effect: min_emit_ms limits how often cards update.'
+            },
+            periodic_update_interval: {
+                type: 'number',
+                minimum: 100,
+                default: 1000,
+                description: 'With a duration processor, ms between the refreshes that keep the elapsed time counting.'
             },
             history: {
                 type: 'object',
@@ -250,12 +255,12 @@ export const dataSourcesSchema = {
             coalesce_ms: {
                 type: 'number',
                 minimum: 0,
-                description: 'Window in ms for merging rapid changes into one update (default: 40% of min_emit_ms, at least 20)'
+                description: 'Window in ms for merging rapid changes into one update (default: 40% of min_emit_ms; below 20 counts as 20)'
             },
             max_delay_ms: {
                 type: 'number',
                 minimum: 0,
-                description: 'Longest ms an update may be held back while merging (default: 3 x coalesce_ms)'
+                description: 'Longest ms an update may be held back while merging (default: 3 x coalesce_ms; never less than min_emit_ms)'
             },
             emit_on_same_value: {
                 type: 'boolean',
@@ -306,15 +311,30 @@ export const actionSchema = {
         action: {
             type: 'string',
             enum: ['toggle', 'call-service', 'perform-action', 'navigate', 'url', 'more-info', 'assist', 'fly-to', 'set-clock', 'set-model-scale', 'none'],
-            default: 'toggle',
-            description: 'Type of action to perform. fly-to: fly the camera of the astrometrics card named in card to its view or point. set-clock: set the scene date and or rate of the astrometrics card named in card. set-model-scale: draw its models at their real size, or larger to stay visible (model_scale).',
+            description: 'Type of action to perform (no default: an action without it does nothing). fly-to: fly the camera of the astrometrics card named in card to its view or point. set-clock: set the scene date and or rate of the astrometrics card named in card. set-model-scale: draw its models at their real size, or larger to stay visible (model_scale).',
             enumDescriptions: [
                 'Toggle entity on/off',
-                'Call a Home Assistant service',
+                'Call a Home Assistant service (older name of perform-action)',
+                'Perform a Home Assistant action',
                 'Navigate to another view/dashboard',
+                'Open a URL',
                 'Show entity more-info dialog',
+                'Open the Assist dialog',
+                'Fly an astrometrics card\'s camera',
+                'Set an astrometrics card\'s scene date and rate',
+                'Change an astrometrics card\'s model scale',
                 'No action (disabled)'
             ]
+        },
+        pipeline_id: {
+            type: 'string',
+            default: 'preferred',
+            description: 'assist: the Assist pipeline to open (its id, or preferred)'
+        },
+        start_listening: {
+            type: 'boolean',
+            default: true,
+            description: 'assist: start listening for speech when the dialog opens'
         },
         service: {
             type: 'string',
@@ -417,7 +437,7 @@ export const animationSchema = {
         },
         {
             trigger: 'on_entity_change',
-            preset: 'flash',
+            preset: 'blink',
             loop: true
         }
     ],
@@ -442,31 +462,38 @@ export const animationSchema = {
         preset: {
             type: 'string',
             description: 'Animation preset name',
-            examples: ['pulse', 'flash', 'bounce', 'shake', 'glow']
+            examples: ['pulse', 'blink', 'bounce', 'shake', 'glow']
         },
         duration: {
             type: ['number', 'object'],
             minimum: 0,
-            default: 500,
-            description: 'Animation duration in milliseconds (no upper limit: a slow looping background motion can take 20000 or more). Also accepts a map_range descriptor for entity-driven, live-adjusting duration on looping animations.'
+            description: 'Animation duration in milliseconds; left out, the preset\'s own duration applies (no upper limit: a slow looping background motion can take 20000 or more). Also accepts a map_range descriptor for entity-driven, live-adjusting duration on looping animations.'
         },
         ease: {
             type: ['string', 'object'],
             description: 'Easing function (string name or object with type and params)',
             examples: ['inOutQuad', 'outElastic', 'linear', { type: 'spring', params: { stiffness: 150 } }]
         },
+        easing: {
+            type: ['string', 'object'],
+            deprecated: true,
+            'x-replacement': 'ease',
+            description: 'Old name for ease (read when ease is not set).'
+        },
+        datasource: {
+            type: 'string',
+            description: 'The DataSource whose changes fire an on_datasource_change animation (required for that trigger).'
+        },
         loop: {
             oneOf: [
                 { type: 'boolean', description: 'true = loop infinitely, false = play once' },
                 { type: 'integer', minimum: 1, description: 'Number of additional times to loop (1 = play twice total)' },
             ],
-            default: false,
-            description: 'Loop the animation. true = infinite, false = play once, N = loop N times',
+            description: 'Loop the animation. true = infinite, false = play once, N = loop N times. Left out, the preset decides (pulse and glow loop, most play once).',
         },
         alternate: {
             type: 'boolean',
-            default: false,
-            description: 'Whether animation should alternate direction on each loop'
+            description: 'Whether animation should alternate direction on each loop. Left out, the preset decides.'
         },
         delay: {
             type: ['number', 'object'],
@@ -550,10 +577,10 @@ export const animationSchema = {
             type: 'object',
             discriminatedBy: {
                 field: 'preset',
-                schemas: ANIMATION_PRESET_PARAMS_SCHEMAS,
+                schemas: ANIMATION_PRESET_PARAMS_SCHEMAS_MAPRANGE_AWARE,
                 default: { type: 'object', additionalProperties: true }
             },
-            description: 'Preset-specific parameters. Shape depends on the sibling `preset` field.'
+            description: 'Preset-specific parameters. Shape depends on the sibling `preset` field. Values may be static or a map_range descriptor that follows an entity.'
         },
         essential_motion: {
             type: 'boolean',
@@ -893,13 +920,13 @@ export const rulesSchema = {
             },
             when: {
                 type: 'object',
-                description: 'Condition(s) that must be met for rule to apply. Supports 20+ condition types including entity state, time, performance, DataSources, and logical composition (all/any/not). Numeric comparisons accept above/below (strict) and at_least/at_most (inclusive).',
+                description: 'Condition(s) that must be met for rule to apply: entity state and attributes, map_range_cond, time_between, weekday_in, sun_elevation, JavaScript and Jinja2 conditions, and logical composition (all/any/not). Numeric comparisons accept above/below (strict) and at_least/at_most (inclusive).',
                 additionalProperties: true,
                 examples: [
                     { entity: 'sensor.temperature', above: 25 },
                     { entity: 'sensor.temperature', at_least: 25 },
-                    { all: [{ entity: 'light.bedroom', state: 'on' }, { time: { after: '22:00' } }] },
-                    { datasource: 'cpu_usage', above: 80 }
+                    { all: [{ entity: 'light.bedroom', state: 'on' }, { time_between: '22:00-06:00' }] },
+                    { sun_elevation: { below: 0 } }
                 ]
             },
             apply: {
@@ -970,7 +997,7 @@ export const rulesSchema = {
                                 preset: {
                                     type: 'string',
                                     description: 'Animation preset name',
-                                    examples: ['pulse', 'flash', 'glow', 'alert_pulse']
+                                    examples: ['pulse', 'blink', 'glow', 'strobe']
                                 },
                                 duration: {
                                     type: ['number', 'object'],
@@ -991,10 +1018,19 @@ export const rulesSchema = {
                                     description: 'Delay before animation starts (milliseconds). Also accepts a map_range descriptor for entity-driven dynamic delay.'
                                 },
                                 ease: {
-                                    type: 'string',
-                                    description: 'Animation easing function (anime.js v4 name). Simple strings like \'inOutQuad\', \'outBounce\', \'inElastic\' or parametric types via ease_params.',
+                                    type: ['string', 'object'],
+                                    description: 'Animation easing function (anime.js v4 name, or an object with type and params). Simple strings like \'inOutQuad\', \'outBounce\', \'inElastic\'.',
                                     examples: ['inOutQuad', 'linear', 'outElastic', 'inOutBounce']
                                 },
+                                // Every rule animation entry goes to playAnimation() whole
+                                // (RulesEngine), so it takes the card animation keys too.
+                                alternate:        animationSchema.properties.alternate,
+                                target:           animationSchema.properties.target,
+                                targets:          animationSchema.properties.targets,
+                                effect:           animationSchema.properties.effect,
+                                essential_motion: animationSchema.properties.essential_motion,
+                                id:               animationSchema.properties.id,
+                                enabled:          animationSchema.properties.enabled,
                                 params: {
                                     type: 'object',
                                     discriminatedBy: {
@@ -1015,31 +1051,31 @@ export const rulesSchema = {
                             },
                             required: ['preset'],
                             examples: [
-                                { tag: 'temp_widgets', preset: 'alert_pulse', loop: true },
+                                { tag: 'temp_widgets', preset: 'strobe', loop: true },
                                 { overlay: 'cpu_gauge', preset: 'glow', duration: 500 },
                                 { type: 'gauge', preset: 'pulse', duration: 800 }
                             ]
                         },
                         examples: [
-                            [{ tag: 'alert_targets', preset: 'flash', loop: true }],
+                            [{ tag: 'alert_targets', preset: 'blink', loop: true }],
                             [{ overlay: 'temp_display', preset: 'glow', duration: 600 }],
                             [
                                 { tag: 'temperature', preset: 'pulse', loop: true },
-                                { tag: 'status_icon', preset: 'flash', duration: 300 }
+                                { tag: 'status_icon', preset: 'blink', duration: 300 }
                             ]
                         ]
                     }
                 },
                 examples: [
                     { overlays: { temp_display: { style: { color: 'var(--lcars-red)' } } } },
-                    { overlays: { 'tag:warning': { style: { opacity: 1 } } }, animations: ['pulse'] },
+                    { overlays: { 'tag:warning': { style: { opacity: 1 } } }, animations: [{ tag: 'warning', preset: 'pulse' }] },
                     { base_svg: { filters: [{ mode: 'svg', type: 'tint', value: { color: 'rgba(180,0,0,0.35)' } }], transition: 500 } }
                 ]
             },
             stop: {
                 type: 'boolean',
                 default: false,
-                description: 'Stop evaluation after this rule if it matches (rule priority control)'
+                description: 'When this rule matches, lower-priority rules no longer patch the same overlays (they are still evaluated)'
             },
             priority: {
                 type: 'number',
@@ -1063,7 +1099,7 @@ export const rulesSchema = {
                 when: { entity: 'binary_sensor.critical', state: 'on' },
                 apply: {
                     overlays: { 'tag:critical': { style: { color: 'var(--lcars-alert-red)' } } },
-                    animations: ['pulse_alert']
+                    animations: [{ tag: 'critical', preset: 'pulse', loop: true }]
                 },
                 priority: 100,
                 stop: true
@@ -1129,13 +1165,13 @@ export function textFieldProperties(options = {}) {
             type: 'number',
             minimum: 0,
             maximum: 100,
-            description: 'X position as percentage of card width (0-100)'
+            description: 'X position as a percentage of the text zone width (0-100); use with y_percent'
         },
         y_percent: {
             type: 'number',
             minimum: 0,
             maximum: 100,
-            description: 'Y position as percentage of card height (0-100)'
+            description: 'Y position as a percentage of the text zone height (0-100); use with x_percent'
         },
         rotation: {
             type: 'number',
@@ -1216,8 +1252,7 @@ export function textFieldProperties(options = {}) {
         anchor: {
             type: 'string',
             enum: ['start', 'middle', 'end'],
-            default: 'middle',
-            description: 'Horizontal text alignment',
+            description: 'Horizontal text alignment. Left out, it follows position (start at x/y)',
             enumDescriptions: [
                 'Left-aligned',
                 'Center-aligned',
@@ -1227,8 +1262,7 @@ export function textFieldProperties(options = {}) {
         baseline: {
             type: 'string',
             enum: ['hanging', 'middle', 'central', 'alphabetic'],
-            default: 'middle',
-            description: 'Vertical text alignment',
+            description: 'Vertical text alignment. Left out, it follows position (auto at x/y)',
             enumDescriptions: [
                 'Top of text box',
                 'Center of text box',
@@ -1483,8 +1517,7 @@ export function getTextSchema(options = {}) {
                     anchor: {
                         type: 'string',
                         enum: ['start', 'middle', 'end'],
-                        default: 'middle',
-                        description: 'Horizontal text alignment',
+                        description: 'Horizontal text alignment. Left out, it follows position (start at x/y)',
                         enumDescriptions: [
                             'Left-aligned',
                             'Center-aligned',
@@ -1494,8 +1527,7 @@ export function getTextSchema(options = {}) {
                     baseline: {
                         type: 'string',
                         enum: ['hanging', 'middle', 'central', 'alphabetic'],
-                        default: 'middle',
-                        description: 'Vertical text alignment',
+                        description: 'Vertical text alignment. Left out, it follows position (auto at x/y)',
                         enumDescriptions: [
                             'Top of text box',
                             'Center of text box',
@@ -1558,7 +1590,7 @@ export function getTextSchema(options = {}) {
                         type: 'number',
                         minimum: 1,
                         maximum: 100,
-                        description: 'Default font size as a percentage of the card height. All fields inherit this unless they set an explicit font_size. Useful for bar-label style presets that should auto-scale with the configured card height.',
+                        description: 'Default font size as a percentage of the text zone height. All fields inherit this unless they set an explicit font_size. Useful for bar-label style presets that should auto-scale with the configured card height.',
                         'x-ui-hints': {
                             label: 'Font Size (% of height)',
                             helper: 'Sets the default font size relative to the card height for all fields. 100 = full-height glyphs.',
@@ -1808,6 +1840,12 @@ export const backgroundAnimationSchema = {
             required: ['effects'],
             properties: {
                 inset: backgroundAnimationInsetSchema,
+                fps: {
+                    type: 'number',
+                    minimum: 0,
+                    default: 30,
+                    description: 'Frame rate cap for the background canvas. 0 removes the cap.'
+                },
                 effects: {
                     type: 'array',
                     description: 'Stack of background effects rendered in order (bottom → top)',

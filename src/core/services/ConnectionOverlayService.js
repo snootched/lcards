@@ -155,6 +155,22 @@ const DEFAULT_CONFIG = {
 // ConnectionOverlayService
 // ---------------------------------------------------------------------------
 
+/**
+ * Turn the overlay's `message.borgLayers` setting into assimilate() options.
+ * Shared by a real disconnect and the connectivity tab's Test button, so both
+ * honour the same settings (fontSwap was dropped on a real disconnect).
+ * @param {Record<string, any>|null|undefined} borgLayers
+ * @returns {Record<string, any>}
+ */
+export function borgOptsFromLayers(borgLayers) {
+    const { paletteHue = null, fontSwap = true, ...introLayers } = borgLayers ?? {};
+    return {
+        ...(Object.keys(introLayers).length ? { intro: introLayers } : {}),
+        ...(paletteHue != null ? { paletteHue } : {}),
+        fontSwap,
+    };
+}
+
 export class ConnectionOverlayService extends BaseService {
 
     constructor() {
@@ -710,12 +726,7 @@ export class ConnectionOverlayService extends BaseService {
         if (this._config.message?.mode === 'borg') {
             lcardsLog.info('[ConnectionOverlayService] Connection lost — activating Borg assimilation');
             this._isActive = true;
-            const borgLayers = this._config.message?.borgLayers ?? null;
-            const { paletteHue = null, ...introLayers } = borgLayers ?? {};
-            const borgOpts = {
-                ...(Object.keys(introLayers).length ? { intro: introLayers } : {}),
-                ...(paletteHue != null ? { paletteHue } : {}),
-            };
+            const borgOpts = borgOptsFromLayers(this._config.message?.borgLayers);
             window.lcards?.core?.borgAssimilationManager?.assimilate(borgOpts);
             return;
         }

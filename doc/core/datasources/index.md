@@ -1,12 +1,24 @@
-# Data Sources
-
-Data Sources give cards access to entity history, real-time updates, and processed values, beyond the plain current state that Home Assistant cards normally see.
-
+---
+description: "LCARdS data sources: follow an entity in the browser, preload its history, and run its values through named processors (smooth, scale, convert_unit ...); read them as {ds:name} in templates and as chart series."
+moved_anchors:
+  what-they-do: /core/datasources#how-a-data-source-works
 ---
 
-## What They Do
+# Data Sources
 
-A data source subscribes to an entity, optionally preloads history, and runs values through a processing pipeline. Results are available in templates as `{ds:name}` or as chart series.
+**A data source follows one entity in your browser, keeps its recent values, and runs them through processors that smooth, convert or otherwise work on them.** Cards show the results in [templates](../templates/#data-source-templates) as `{ds:name}` and plot them as [chart series](#data-sources-in-charts).
+
+- Declare data sources under `data_sources` on any LCARdS card. Each key is a name you choose, and the name is how templates and charts find it.
+- Names are shared by the whole dashboard: the first card to create a name sets it up, and a later card using the same name gets that data source, settings and all. Give each data source its own name.
+- Data sources are created when the dashboard loads, preload some history, then follow live changes. They keep a limited number of recent points (see [`window_seconds`](#top-level-fields)), so for long spans of plain history, plot the entity on a [chart](../../cards/chart/series#where-the-data-comes-from) instead.
+
+::: tip Try it
+A card editor's **Main Engineering > Data Sources** tab creates and edits data sources without YAML, with a preview of each processor ([In the card editor](#in-the-card-editor)). The [Processor Reference](./processor-reference) has a live lab for every processor.
+:::
+
+## How a Data Source Works
+
+**Each change of the entity goes into a rolling buffer of recent values, then through the processing pipeline, and each processor keeps its own result.** Templates and charts read the raw value or any processor's result.
 
 ```mermaid
 flowchart LR
@@ -16,139 +28,160 @@ flowchart LR
     P --> B1[Processor: smooth]
     B1 --> B2[Processor: scale]
     B2 --> OUT[Template / Chart]
-
-    style E fill:#37a6d1,stroke:#93e1ff,color:#fff
-    style OUT fill:#ffb399,stroke:#e7442a,color:#000
-    style H fill:#2f3749,stroke:#52596e,color:#fff
-    style P fill:#2f3749,stroke:#52596e,color:#fff
 ```
-
----
 
 ## Basic Usage
 
-Define `data_sources` on any card. Each key is a name you choose:
+**Name a data source under `data_sources`, give it an `entity`, and read it in a template with `{ds:name}`.** Without a format the value shows as Home Assistant shows numbers, with the entity's unit; with one, such as `:.1f`, you write your own unit.
 
-```yaml
+```yaml live
+type: custom:lcards-button
+preset: lozenge
 data_sources:
-  temp:
-    entity: sensor.temperature
+  room_temp:
+    entity: sensor.demo_temperature
     history:
       hours: 6
-```
-
-Use in a text template:
-
-```yaml
 text:
-  value:
-    content: "{ds:temp}"         # Home Assistant native: locale-formatted + unit → "4,7 °C"
-    # content: "{ds:temp:.1f} °C"  # explicit precision + unit suffix
+  default:
+    color: var(--lcars-black)
+  native:
+    content: "{ds:room_temp}" # Home Assistant's number format, with the unit
+    position: top-left
+  precise:
+    content: "{ds:room_temp:.1f} °C" # your precision, your unit
+    position: bottom-left
+grid_options:
+  rows: 2
 ```
-
-Use as a chart series:
-
-```yaml
-type: custom:lcards-chart
-data_sources:
-  temp:
-    entity: sensor.temperature
-sources:
-  - datasource: temp
-chart_type: area
-```
-
----
 
 ## Configuration Options
 
-```yaml
+**A data source needs only an `entity`; the other keys set how much it keeps, how often it updates cards, and how much history it preloads.** The defaults suit most cards.
+
+- History is preloaded when the card loads: every recorded change over `history.hours`, or Home Assistant's hourly statistics when the recorder has none (for the entity state, not an attribute).
+- The buffer holds a number of points, not a span of time: a sensor that reports once a minute keeps ten hours of values in the default 600 points, and a preload longer than that keeps only its newest points.
+- Rapid changes are merged before cards hear of them: at most one update every `min_emit_ms`, gathered over `coalesce_ms`, and never held back longer than `max_delay_ms`.
+
+### Top-Level Fields
+
+**Every key a data source takes, besides its processors.** Processors are under [Processors](#processors).
+
+```yaml live
+type: custom:lcards-button
+preset: lozenge
 data_sources:
-  my_source:
-    entity: sensor.power_usage      # Required - entity to track
-    attribute: current              # Optional - track attribute instead of state
-    window_seconds: 120             # Rolling buffer window size in seconds (default: 60)
-    min_emit_ms: 500                # Min ms between updates emitted downstream (default: 100)
+  house_power:
+    entity: sensor.demo_power # required: the entity to follow
+    window_seconds: 120 # keep about 1,200 points
+    min_emit_ms: 500 # update cards at most twice a second
     history:
-      hours: 24                     # Preload history (1–168 hours)
+      hours: 24
     processing:
-      # Named processors - each stores results in its own buffer
+      # each processor keeps its result under its own name
       kilowatts:
         type: scale
         input_range: [0, 1000]
         output_range: [0, 1]
       smoothed:
         type: smooth
-        input_source: kilowatts     # Chain from previous processor
+        input_source: kilowatts # works on the kilowatts result
         method: exponential
         alpha: 0.3
-      rounded:
-        type: round
-        input_source: smoothed
-        precision: 2
+text:
+  default:
+    color: var(--lcars-black)
+  power:
+    content: "{ds:house_power.smoothed:.2f} kW"
+    position: top-left
+grid_options:
+  rows: 2
 ```
 
-### Top-Level Fields
+::: details More about the fields
+- **Older names:** older configs may use camelCase (`windowSeconds`, `minEmitMs`, `coalesceMs`, `maxDelayMs`, `emitOnSameValue`) and `history.preload` for `history.enabled`. They still work, and the editor marks them as old names. If both spellings are set, the snake_case one wins.
+- **States that are not numbers:** the states `on`, `true`, `active` and `open` count as 1, and `off`, `false`, `inactive` and `closed` as 0. Other words need `enum_mapping`; without it they are skipped, as are `unavailable` and `unknown`.
+- **Home Assistant's code editor:** it reads unquoted `on`, `off`, `yes` and `no` as true or false, so quote them as `enum_mapping` keys: `"off": 0`.
+:::
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `entity` | string | Entity ID to subscribe to |
-| `attribute` | string | Attribute to track instead of state |
-| `enum_mapping` | object | Numbers for non-numeric states, e.g. `{ heat: 2, cool: 1, off: 0 }` (`on`/`off` already map to 1/0) |
-| `window_seconds` | number / string | Sets the buffer size: about 10 points per second of window, at most 1,000 points (default: 60, so 600 points). Also takes a duration such as `"5m"` |
-| `min_emit_ms` | number | Min ms between downstream updates (throttle, default: 100) |
-| `coalesce_ms` | number | Window in ms for merging rapid changes into one update (default: 40% of `min_emit_ms`, at least 20) |
-| `max_delay_ms` | number | Longest ms an update may be held back while merging (default: 3 x `coalesce_ms`) |
-| `emit_on_same_value` | boolean | Send updates even when the value didn't change (default: `true`) |
-| `history.enabled` | boolean | Preload history when the dashboard loads (default: `true`) |
-| `history.hours` | number | Hours of history to preload (1–168, default 6): every recorded change, or Home Assistant's hourly statistics when none are recorded |
-| `history.days` | number | Days of history to preload (1–7), instead of `hours` |
-| `processing` | object | Named processing pipeline steps |
-
-Older configs may use camelCase (`windowSeconds`, `minEmitMs`, `coalesceMs`, `maxDelayMs`, `emitOnSameValue`). Those still work; the editor marks them as old names. If both spellings are set, the snake_case one wins.
-
----
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `entity` | string | required | The entity to follow |
+| `attribute` | string | the state | An attribute to follow instead of the state. `state` means the state |
+| `enum_mapping` | object | - | Numbers for states that are not numbers, such as `heat: 2` and `cool: 1` |
+| `window_seconds` | number / string | `60` | How many points the buffer keeps: about 10 per second of window, at least 60 and at most 1,000 (`60` keeps 600). Also takes a duration such as `"5m"` |
+| `min_emit_ms` | number | `100` | The least time between updates sent to cards, ms (at least 10) |
+| `coalesce_ms` | number | 40% of `min_emit_ms`, at least `20` | How long rapid changes are gathered into one update, ms (at least 20) |
+| `max_delay_ms` | number | 3 x `coalesce_ms` | The longest an update may be held back while gathering, ms (at least `min_emit_ms`) |
+| `emit_on_same_value` | boolean | `true` | Send an update even when the value didn't change |
+| `history.enabled` | boolean | `true` | Preload history when the card loads |
+| `history.hours` | number | `6` | Hours of history to preload, 1 to 168 |
+| `history.days` | number | - | Days of history to preload, 1 to 7, instead of `hours`. `hours` wins when both are set |
+| `processing` | object | - | Named processors: see [Processors](#processors) |
 
 ## Processors
 
-Each processor transforms data and stores results under its name. Processors can be chained with `input_source`.
+**A processor works on the data source's values and keeps its result under its own name; `input_source` chains it after another processor.** Without `input_source` a processor reads the raw value.
 
-| Processor | Purpose | Key params |
-|-----------|---------|------------|
-| `convert_unit` | Convert between unit types | `from`, `to` (e.g. `c`/`f`) |
+- Read a processor's result in a template with `{ds:name.processor}`, and plot it with a chart series' `buffer`.
+- A processor's result has no unit: give it a format and your own unit, such as `{ds:temp.fahrenheit:.0f} °F`.
+- The [Processor Reference](./processor-reference) covers every option, with a live lab for each processor.
+
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+data_sources:
+  room_temp_f:
+    entity: sensor.demo_temperature
+    processing:
+      # Celsius to Fahrenheit
+      fahrenheit:
+        type: convert_unit
+        from: c
+        to: f
+      # then smooth the converted value
+      smooth_f:
+        type: smooth
+        input_source: fahrenheit
+        method: exponential
+        alpha: 0.2
+text:
+  default:
+    color: var(--lcars-black)
+  raw:
+    content: "{ds:room_temp_f:.1f} °C"
+    position: top-left
+  converted:
+    content: "{ds:room_temp_f.smooth_f:.1f} °F"
+    position: bottom-left
+grid_options:
+  rows: 2
+```
+
+| Processor | Purpose | Main settings |
+|-----------|---------|---------------|
+| `convert_unit` | Convert between units | `from`, `to` (such as `c` and `f`) |
 | `scale` | Map from one range to another | `input_range`, `output_range`, `curve` |
 | `smooth` | Smooth noisy values | `method` (`exponential`, `moving_average`, `gaussian`), `alpha`, `window` |
 | `round` | Round to decimal places | `precision`, `method` |
-| `expression` | Custom JS expression | `expression` (uses `value`, `sources`, `Math`), `sources` |
-| `clamp` | Clamp to min/max | `min`, `max` |
-| `rate` | Rate of change per unit time | `unit` (`per_second`, `per_minute`, `per_hour`), `smoothing` |
+| `expression` | A JavaScript expression of your own | `expression` (uses `value`, `sources`, `Math`), `sources` |
+| `clamp` | Keep within a minimum and maximum | `min`, `max` |
+| `rate` | Rate of change per unit of time | `unit` (`per_second`, `per_minute`, `per_hour`), `smoothing` |
 | `trend` | Increasing, decreasing or stable | `samples`, `threshold` |
-| `delta` | Difference from previous value | `absolute` |
+| `delta` | Difference from the previous value | `absolute` |
 | `duration` | Time spent meeting a condition | `condition`, `reset_on` |
-| `statistics` | Min/max/mean and more over a window | `window`, `stats` |
+| `statistics` | Min, max, mean and more over a window | `window`, `stats` |
 | `threshold` | Two outputs either side of a threshold | `threshold`, `above`, `below`, `hysteresis` |
 
-The [Processor Reference](./processor-reference) covers every option, with a live lab for each processor.
-
-```yaml
-processing:
-  # Convert Celsius to Fahrenheit
-  fahrenheit:
-    type: convert_unit
-    from: c
-    to: f
-
-  # Smooth the converted value
-  smooth_f:
-    type: smooth
-    input_source: fahrenheit
-    method: exponential
-    alpha: 0.2
-```
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `type` | string | required | The processor, from the list above |
+| `input_source` | string | the raw value | The name of another processor in this data source whose result this one works on |
+| `enabled` | boolean | `true` | `false` passes values through unchanged |
 
 ### In the card editor
 
-A card editor's **Data Sources** tab (under Main Engineering) creates and edits data sources without YAML. In the data source dialog, the **Processing** tab shows:
+**A card editor's Data Sources tab (under Main Engineering) creates and edits data sources without YAML.** In the data source dialog, the **Processing** tab shows:
 
 - **A preview**: the processors run over the entity's own recent history (the span set under Timing & History, the way the data source preloads it), charted against the raw values. It updates as you edit; the selected processor's line is drawn heavier.
 - **The pipeline**: each processor under its input, numbered in the order they run. Errors such as a missing input or a loop show above it.
@@ -156,36 +189,48 @@ A card editor's **Data Sources** tab (under Main Engineering) creates and edits 
 
 The preview runs the same processor code as the dashboard. Live-only behaviour, such as a duration ticking between state changes, isn't shown.
 
----
-
 ## Accessing Values in Templates
 
+**`{ds:name}` (or `{datasource:name}`) shows a data source's value in any text that takes [templates](../templates/#where-templates-work).** The rule: no format, and Home Assistant formats it with the unit; with a format, you control the output. The [Templates](../templates/#data-source-templates) page lists every format.
+
 ```yaml alternatives
-# No format spec - Home Assistant native: locale-formatted number + unit from entity metadata
-"{ds:temp}"                          # → "4,73 °C"  (locale + unit)
+# No format: Home Assistant's number format, with the entity's unit
+"{ds:temp}"                            # → "21.4 °C"
 
-# With format spec - you own the output: number only, no auto-unit
-"{ds:temp:.1f}"                      # → "4,7"  (1 decimal, no unit)
-"{ds:temp:.0f}"                      # → "5"    (integer, no unit)
-"{ds:temp:.1f} °C"                   # → "4,7 °C"  (explicit unit suffix)
+# With a format: the number only, no unit
+"{ds:temp:.1f}"                        # → "21.4"
+"{ds:temp:.0f}"                        # → "21"
+"{ds:temp:.1f} °C"                     # → "21.4 °C" (your own unit)
 
-# From a specific processor buffer
-"{datasource:temp.fahrenheit:.0f} °F"  # → "87 °F"
+# A processor's result: a dot and its name, with either prefix
+"{ds:temp.fahrenheit:.0f} °F"          # → "71 °F"
+"{datasource:temp.fahrenheit:.0f} °F"  # the same
 ```
 
-> **Rule:** no format spec → Home Assistant displays it (locale + unit). With a spec → you control the output.
-
----
+::: details More about values in templates
+- **Data sources from other cards:** a card updates when the data sources in its own `data_sources` change. To show one another card defines, declare it in this card's `data_sources` too, with the same name.
+- **One statistic:** a `statistics` processor holds several values; pick one with another dot. For a processor named `stats`: `{ds:temp.stats.max:.1f}`.
+:::
 
 ## Data Sources in Charts
 
-A chart series can plot a data source's values, or one of its processor buffers:
+**A chart series can plot a data source's values, or one of its processors' results with `buffer`.** See the [Chart card](../../cards/chart/series#data-sources) for the series keys.
 
-```yaml
+```yaml live
+type: custom:lcards-chart
+chart_type: line
+data_sources:
+  chart_temp:
+    entity: sensor.demo_temperature
+    processing:
+      smoothed:
+        type: smooth
+        method: exponential
+        alpha: 0.3
 sources:
-  - datasource: temp       # raw values
-  - datasource: temp
-    buffer: smoothed       # values from the 'smoothed' processor
+  - datasource: chart_temp
+    name: Raw
+  - datasource: chart_temp
+    buffer: smoothed
+    name: Smoothed
 ```
-
-Data sources live in your browser: they are created when the dashboard loads, preload some history, then follow live changes. They keep a limited number of recent points (see `window_seconds`), so for plain entity history or long spans, plot the entity directly instead. The [Chart card](../../cards/chart/series#where-the-data-comes-from) compares the options.

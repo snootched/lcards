@@ -92,7 +92,7 @@ export const CANVAS_TEXTURE_PRESETS = {
         defaults: {
             color:           'rgba(255,255,255,0.55)',
             highlight_width: 0.35,
-            speed:           2.5,
+            speed:           6,
             angle:           30,
         },
     },

@@ -128,6 +128,27 @@ test('lcards.red_alert / clear_alert services switch the alert mode on the page'
     await expect.poll(mode, { timeout: 15_000 }).toBe('green_alert');
 });
 
+test('a target that matches no device fails the call instead of broadcasting', async () => {
+    // A typo in target_device_names used to fall back to a broadcast: the
+    // alert services then wrote the global helper and every dashboard went red.
+    await expect(client.callService('lcards', 'red_alert', { target_device_names: ['lcards_test_no_such_device'] }))
+        .rejects.toThrow(/no device or user matches/);
+    expect((await client.getState('input_select.lcards_alert_mode'))?.state).toBe('green_alert');
+});
+
+test('lcards.trigger_effect and clear_effect run on the page, "All slots" included', async ({ page }) => {
+    const errors = await openDashboard(page, 'cards');
+    const active = () => page.evaluate(() => ['backdrop', 'color', 'canvas']
+        .filter(s => window.lcards.core.screenEffectManager._slots.get(s)?.active));
+    await client.callService('lcards', 'trigger_effect', { layers: { backdrop: { preset: 'blur' } } });
+    await client.callService('lcards', 'trigger_effect', { layers: { color: { preset: 'color-tint', color: 'red' } } });
+    await expect.poll(active, { timeout: 15_000 }).toEqual(['backdrop', 'color']);
+    // The action form's "All slots" option sends slot: "" (was rejected by the schema)
+    await client.callService('lcards', 'clear_effect', { slot: '' });
+    await expect.poll(active, { timeout: 15_000 }).toEqual([]);
+    expect(errors).toEqual([]);
+});
+
 test('lcards.fly_to flies the astrometrics card on the page', async ({ page }) => {
     const errors = await openDashboard(page, 'astrometrics');
     const keys = () => page.evaluate(() => window.lcards.cards.astrometrics.get('lcards_test_astro')?._scene?.debug().keys ?? null);

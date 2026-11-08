@@ -71,3 +71,35 @@ function toConcrete(color, element) {
     if (c.a < 1) return `rgba(${c.r}, ${c.g}, ${c.b}, ${c.a})`;
     return ColorUtils.rgbToHex(c.r, c.g, c.b);
 }
+
+/**
+ * Blend two configured colours (map_range colour outputs): both ends resolve
+ * through resolveColor() to concrete colours, so every form LCARdS accepts
+ * works (var(), theme: tokens, computed functions, named, rgb()/hsl(), any
+ * hex length), then mix in RGBA with premultiplied alpha, as CSS does.
+ *
+ * @param {*} from - Colour at t = 0
+ * @param {*} to - Colour at t = 1
+ * @param {number} t - Position 0-1 (held to that range)
+ * @param {Object} [options]
+ * @param {Element|null} [options.element=null] - Element whose CSS variables apply
+ * @returns {string|null} `#rrggbb` or `rgba(r, g, b, a)`; null when an end is not a colour
+ */
+export function interpolateColor(from, to, t, { element = null } = {}) {
+    const a = parseColor(resolveColor(from, { concrete: true, element, fallback: null }));
+    const b = parseColor(resolveColor(to, { concrete: true, element, fallback: null }));
+    if (!a || !b) return null;
+    const k = Number.isFinite(t) ? Math.min(1, Math.max(0, t)) : 0;
+    const alpha = a.a + (b.a - a.a) * k;
+    // Premultiplied: a transparent end fades without dragging its RGB in
+    const channel = (/** @type {'r'|'g'|'b'} */ c) => {
+        const v = alpha > 0
+            ? (a[c] * a.a + (b[c] * b.a - a[c] * a.a) * k) / alpha
+            : a[c] + (b[c] - a[c]) * k;
+        return Math.min(255, Math.max(0, Math.round(v)));
+    };
+    const [r, g, bl] = [channel('r'), channel('g'), channel('b')];
+    const outAlpha = Math.round(alpha * 1000) / 1000;
+    if (outAlpha < 1) return `rgba(${r}, ${g}, ${bl}, ${outAlpha})`;
+    return ColorUtils.rgbToHex(r, g, bl);
+}

@@ -233,7 +233,10 @@ export class LCARdSConditionGroupEditor extends LitElement {
         if (cond.random_chance !== undefined) return { _type: 'random_chance', probability: cond.random_chance };
         if (cond.map_range_cond !== undefined) {
             const m = cond.map_range_cond || {};
-            return { _type: 'map_range_cond', entity: m.entity || '', input_min: m.input?.[0] ?? 0, input_max: m.input?.[1] ?? 100, output_min: m.output?.[0] ?? 0, output_max: m.output?.[1] ?? 100 };
+            // The comparison (above, equals, ...) and clamp have no fields here: keep them
+            // so a save writes them back (they were dropped, and the rule matched differently)
+            const { entity, input, output, ...kept } = m;
+            return { _type: 'map_range_cond', entity: entity || '', input_min: input?.[0] ?? 0, input_max: input?.[1] ?? 100, output_min: output?.[0] ?? 0, output_max: output?.[1] ?? 100, _kept: kept };
         }
 
         // Already has _type (editor format coming back from nested group)
@@ -323,6 +326,7 @@ export class LCARdSConditionGroupEditor extends LitElement {
                 return { random_chance: cond.probability !== undefined ? Number(cond.probability) : 0.5 };
             case 'map_range_cond': {
                 const m = {
+                    ...(cond._kept || {}),
                     entity: cond.entity || '',
                     input: [cond.input_min ?? 0, cond.input_max ?? 100],
                     output: [cond.output_min ?? 0, cond.output_max ?? 100]

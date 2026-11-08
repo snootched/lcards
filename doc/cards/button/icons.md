@@ -103,10 +103,10 @@ grid_options:
 
 **`icon_style.icon` as a state map swaps the icon by state, including value ranges.** Use it for a bulb that changes with brightness or a lock that shows open and closed.
 
-- The icon is picked in the same order as [state colours](/core/colours#resolution-order): the exact state, `zero`, ranges, `non_zero`, active or inactive, `default`, and last the top-level `icon`.
-- [`ranges_attribute`](/core/colours#range-conditions-on-non-numeric-entities-ranges-attribute) makes the range keys compare an attribute; `brightness_pct` is a light's brightness as 0 to 100.
+- The icon is picked in the same order as [state colours](/core/colours/state-maps#resolution-order): the exact state, `zero`, ranges, `non_zero`, active or inactive, `default`, and last the top-level `icon`.
+- [`ranges_attribute`](/core/colours/attributes#ranges-attribute) makes the range keys compare an attribute; `brightness_pct` is a light's brightness as 0 to 100.
 
-```yaml live
+```yaml live controls
 type: custom:lcards-button
 entity: light.tv
 preset: lozenge

@@ -516,7 +516,7 @@ export class MsdCardCoordinator extends BaseService {
                                  (!Array.isArray(filters) && Object.keys(filters).length === 0)
                                );
 
-      const transition = baseSvgConfig.transition || 1000; // Default 1s transition
+      const transition = baseSvgConfig.transition ?? 1000; // Default 1s; 0 switches at once
 
       if (isClearOperation || !filters) {
         // Clear filters (remove all filtering)

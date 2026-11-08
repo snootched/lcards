@@ -1,0 +1,20 @@
+# Text field fixes from the D2 batch 5 audit: a field at x/y with no anchor
+# (text-anchor="null" was written), and a background box sized with the
+# field's own font and a CSS-string font size (14pxpx made it invalid).
+type: custom:lcards-button
+entity: light.demo
+preset: lozenge
+text:
+  name:
+    content: WIDE BOLD NAME
+    show: true
+    font_size: 20px
+    font_weight: bold
+    font_family: Arial
+    background:
+      default: "#3366cc"
+  label:
+    content: XY
+    show: true
+    x: 20
+    "y": 20

@@ -297,6 +297,29 @@ export class ScreenEffectManager extends BaseService {
     }
 
     /**
+     * Apply a preset to a slot and clear that slot alone after `duration` ms.
+     * Applying or clearing the slot again cancels the timer, so a later
+     * effect on the slot (or on another slot) is never cut short by it.
+     *
+     * @param {string} slot
+     * @param {string} presetName
+     * @param {Object} params
+     * @param {number} duration - ms before the slot clears.
+     * @returns {boolean} `true` if activated successfully.
+     */
+    applySlotFor(slot, presetName, params, duration) {
+        const ok = this._applySlot(slot, presetName, params);
+        const state = ok ? this._slots.get(slot) : null;
+        if (state) {
+            state.timer = setTimeout(() => {
+                state.timer = null;
+                this.clearSlot(slot);
+            }, duration);
+        }
+        return ok;
+    }
+
+    /**
      * Retrieve the full definition of a registered preset.
      * Useful for the visual editor to read label, params_schema, etc.
      *

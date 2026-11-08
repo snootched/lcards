@@ -166,8 +166,10 @@ class CoreErrorFormatter {
     const template = this.templates[error.type] || 'Validation error: {message}';
     const suggestionTemplate = this.suggestions[error.type] || 'Check your configuration';
 
-    const message = this._interpolateTemplate(template, error.context || {});
-    const suggestion = this._interpolateTemplate(suggestionTemplate, error.context || {});
+    // the fallback template names {message}, which lives on the error, not its context
+    const vars = { message: error.message, ...(error.context || {}) };
+    const message = this._interpolateTemplate(template, vars);
+    const suggestion = this._interpolateTemplate(suggestionTemplate, vars);
 
     return {
       ...error,

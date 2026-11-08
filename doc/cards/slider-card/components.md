@@ -210,7 +210,7 @@ style:
 **Four text zones inside the ring hold the name, the value and anything else you add.** Use them to move a field, for example to put the name under a half ring.
 
 - The zones are `label` (above the value), `value` (the middle), `sublabel` (below) and `center` (the whole inner area).
-- The presets put `name` in `label` and `state` in `value`. Size text with `font_size_percent` (see [zones](/core/text-fields#zones)), so it grows and shrinks with the ring.
+- The presets put `name` in `label` and `state` in `value`. Size text with `font_size_percent` (see [zones](/core/text-fields-style#filling-a-zone)), so it grows and shrinks with the ring.
 
 ```yaml live
 type: custom:lcards-slider

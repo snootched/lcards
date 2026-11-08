@@ -28,16 +28,17 @@ export class ShimmerTextureEffect extends BaseTextureEffect {
      * @param {object} config
      * @param {string} [config.color='rgba(255,255,255,0.55)'] - Highlight colour
      * @param {number} [config.highlight_width=0.35] - Width of highlight as fraction of diagonal
-     * @param {number} [config.speed=2.5]            - Sweep speed (px/s along diagonal)
+     * @param {number} [config.speed=6]              - Sweep speed (px/s along diagonal)
      * @param {number} [config.opacity=1] - Opacity (0-1)
      * @param {number} [config.angle=30]             - Sweep angle in degrees (0=horiz, 90=vert)
      */
     constructor(config = {}) {
-        super(/** @type {any} */ (config));
+        // speed is the base class's time multiplier, applied once (it was also the
+        // sweep rate, so a speed of 2.5 ran at 6.25); 6 keeps the old default look
+        super(/** @type {any} */ ({ ...config, speed: config.speed ?? 6 }));
         const _resolve = (c) => resolveColor(c, { concrete: true });
         this._color          = _resolve(config.color ?? 'rgba(255,255,255,0.55)');
         this._highlightWidth = config.highlight_width ?? 0.35;
-        this._sweepSpeed     = config.speed           ?? 2.5;
         this._angle          = config.angle           ?? 30;
         this._sweepOffset    = 0;
     }
@@ -45,7 +46,7 @@ export class ShimmerTextureEffect extends BaseTextureEffect {
     update(dt, w, h) {
         super.update(dt, w, h);
         // Let _draw() handle totalRange wrapping — just accumulate offset here
-        this._sweepOffset += this._sweepSpeed * this.speed * (dt / 1000);
+        this._sweepOffset += this.speed * (dt / 1000);
     }
 
     _draw(ctx, w, h) {
@@ -87,7 +88,6 @@ export class ShimmerTextureEffect extends BaseTextureEffect {
         const _resolve = (c) => resolveColor(c, { concrete: true });
         if (cfg.color           !== undefined) this._color          = _resolve(cfg.color);
         if (cfg.highlight_width !== undefined) this._highlightWidth = cfg.highlight_width;
-        if (cfg.speed           !== undefined) this._sweepSpeed     = cfg.speed;
         if (cfg.angle           !== undefined) this._angle          = cfg.angle;
     }
 }

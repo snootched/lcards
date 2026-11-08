@@ -776,18 +776,6 @@ export class LCARdSElbow extends LCARdSButton {
     }
 
     /**
-     * Override animation setup to specify 'elbow' type
-     * @protected
-     */
-    _getAnimationSetup() {
-        return {
-            overlayId: `elbow-${this._cardGuid}`,
-            type: 'elbow',
-            elementSelector: '[data-overlay-id="button"]'
-        };
-    }
-
-    /**
      * Lit lifecycle - called after every render when DOM updates
      * Setup interactivity on the rendered elbow element
      * @public
@@ -817,6 +805,11 @@ export class LCARdSElbow extends LCARdSButton {
      * HASS update lifecycle hook - update theme dimensions if entities changed
      * @protected
      */
+    /** Elbows have no style presets: their shape comes from elbow.type. @protected */
+    _usesStylePresets() {
+        return false;
+    }
+
     _handleHassUpdate(newHass, oldHass) {
         super._handleHassUpdate?.(newHass, oldHass);
 

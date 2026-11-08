@@ -1,0 +1,16 @@
+# A rule animating a slider by its id and by a tag (D2 batch 5: rules never
+# reached a slider's animation scope, and the slider ignored its id and tags).
+type: custom:lcards-slider
+id: rule_slider
+entity: light.demo
+tags: [deck]
+rules:
+  - id: slider_pulse
+    when:
+      entity: light.demo
+      state: "on"
+    apply:
+      animations:
+        - tag: deck
+          preset: pulse
+          loop: true

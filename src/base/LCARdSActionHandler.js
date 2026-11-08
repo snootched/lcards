@@ -24,6 +24,21 @@ import { TriggerManager } from '../core/animation/TriggerManager.js';
 export const TOGGLE_OFF_STATES = ['closed', 'locked', 'off'];
 
 /**
+ * The sound event for a gesture's action: toggle_on / toggle_off for a toggle
+ * (by the entity's state, as the toggle itself decides), the gesture's own
+ * event otherwise, and null for an action that does nothing.
+ * @param {any} actionConfig
+ * @param {string|undefined|null} state - the toggled entity's state
+ * @param {string} fallback - e.g. card_tap
+ * @returns {string|null}
+ */
+export function actionSoundEvent(actionConfig, state, fallback) {
+    if (!actionConfig?.action || actionConfig.action === 'none') return null;
+    if (actionConfig.action === 'toggle' && state != null) return TOGGLE_OFF_STATES.includes(state) ? 'toggle_on' : 'toggle_off';
+    return fallback;
+}
+
+/**
  * Domains whose toggle is not turn_on / turn_off: Home Assistant's
  * SPECIAL_TOGGLE_ACTIONS (src/common/entity/get_toggle_action.ts in the
  * frontend). A domain with only `on` calls it both ways.
@@ -282,6 +297,13 @@ export class LCARdSActionHandler {
             return true;
         };
 
+        // The sound for a gesture: its toggle sound, else the generic one. Nothing
+        // for an action that does nothing (action: none, or none set).
+        const playActionSound = (actionConfig, defaultEntityId, eventType) => {
+            if (!actionConfig?.action || actionConfig.action === 'none') return;
+            if (!playToggleSound(actionConfig, defaultEntityId)) playSound(eventType);
+        };
+
         // Track action state to prevent conflicts
         let holdTimer = null;
         let lastTapTime = 0;
@@ -338,7 +360,7 @@ export class LCARdSActionHandler {
                                     currentAnimationManager.triggerAnimations(elementId, 'on_tap', tapContext);
                                 }
 
-                                if (!playToggleSound(actions.tap_action, defaultEntity)) playSound('card_tap');
+                                playActionSound(actions.tap_action, defaultEntity, 'card_tap');
                                 this._executeAction(actions.tap_action, liveHass(), element, defaultEntity);
                             }
                             tapCount = 0;
@@ -357,7 +379,7 @@ export class LCARdSActionHandler {
                             dtAnimationManager.triggerAnimations(elementId, 'on_double_tap', tapContext);
                         }
 
-                        if (!playToggleSound(actions.double_tap_action, defaultEntity)) playSound('card_double_tap');
+                        playActionSound(actions.double_tap_action, defaultEntity, 'card_double_tap');
                         this._executeAction(actions.double_tap_action, liveHass(), element, defaultEntity);
                     }
                 } else {
@@ -373,7 +395,7 @@ export class LCARdSActionHandler {
                         currentAnimationManager.triggerAnimations(elementId, 'on_tap', tapContext);
                     }
 
-                    if (!playToggleSound(actions.tap_action, defaultEntity)) playSound('card_tap');
+                    playActionSound(actions.tap_action, defaultEntity, 'card_tap');
                     this._executeAction(actions.tap_action, liveHass(), element, defaultEntity);
                 }
             };
@@ -414,7 +436,7 @@ export class LCARdSActionHandler {
                         currentAnimationManager.triggerAnimations(elementId, 'on_hold', holdContext);
                     }
 
-                    if (!playToggleSound(actions.hold_action, defaultEntity)) playSound('card_hold');
+                    playActionSound(actions.hold_action, defaultEntity, 'card_hold');
                     this._executeAction(actions.hold_action, liveHass(), element, defaultEntity);
                 }, 500);
             };

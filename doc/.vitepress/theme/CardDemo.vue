@@ -36,6 +36,19 @@
         <select v-else-if="c.kind === 'select'" :value="c.state" :aria-label="c.id" @change="setEntity(c.id, $event.target.value)">
           <option v-for="o in c.options" :key="o" :value="o">{{ o }}</option>
         </select>
+        <template v-else-if="c.kind === 'light'">
+          <button type="button" class="card-demo-btn" :class="{ 'is-on': c.state === 'on' }"
+            :aria-pressed="c.state === 'on'" @click="setEntity(c.id, c.state === 'on' ? 'off' : 'on')">{{ c.state }}</button>
+          <label class="card-demo-sub">brightness
+            <input type="range" min="0" max="100" step="1" :value="c.pct" :aria-label="`${c.id} brightness`"
+              @input="setLight(c.id, { pct: Number($event.target.value) })" />
+            <span class="card-demo-value">{{ c.pct }}%</span>
+          </label>
+          <label class="card-demo-sub">colour
+            <input type="range" min="0" max="359" step="1" :value="c.hue" :aria-label="`${c.id} colour`"
+              @input="setLight(c.id, { hue: Number($event.target.value) })" />
+          </label>
+        </template>
       </div>
     </div>
 
@@ -259,9 +272,31 @@ const ENTITY_RE = new RegExp(`\\b(?:${CONTROL_DOMAINS})\\.[a-z0-9_]+\\b`, 'g')
 const entityControls = ref([])
 let controlTimer = null
 
+/** Hue (0-359) of an [r, g, b] colour. */
+function hueOf(rgb) {
+  const [r, g, b] = rgb.map(v => v / 255)
+  const max = Math.max(r, g, b), d = max - Math.min(r, g, b)
+  if (!d) return 0
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4
+  return Math.round((h * 60 + 360) % 360)
+}
+
+/** [r, g, b] of a fully saturated hue, at the light's own saturation. */
+function rgbOf(hue, sat = 100) {
+  const s = sat / 100, c = s, x = c * (1 - Math.abs(((hue / 60) % 2) - 1)), m = 1 - c
+  const [r, g, b] = hue < 60 ? [c, x, 0] : hue < 120 ? [x, c, 0] : hue < 180 ? [0, c, x] : hue < 240 ? [0, x, c] : hue < 300 ? [x, 0, c] : [c, 0, x]
+  return [r, g, b].map(v => Math.round((v + m) * 255))
+}
+
 function controlFor(id, st) {
   if (!st) return null
   const a = st.attributes ?? {}
+  // A light: on/off, brightness and colour, so examples that follow them can be tried
+  if (id.startsWith('light.')) {
+    const pct = st.state === 'on' ? Math.round(((a.brightness ?? 255) / 255) * 100) : 0
+    const hue = Array.isArray(a.hs_color) ? Math.round(a.hs_color[0]) : Array.isArray(a.rgb_color) ? hueOf(a.rgb_color) : 30
+    return { id, kind: 'light', state: st.state, pct, hue }
+  }
   if (st.state === 'on' || st.state === 'off') return { id, kind: 'toggle', state: st.state }
   if (Array.isArray(a.options)) return { id, kind: 'select', state: st.state, options: a.options }
   const v = Number(st.state)
@@ -280,6 +315,20 @@ function refreshControls() {
 
 function setEntity(id, value) {
   env?.setState(id, String(value))
+  refreshControls()
+}
+
+/** Set a light's brightness (percent; 0 turns it off) or its colour (hue). */
+function setLight(id, { pct, hue }) {
+  const a = env?.hass.states[id]?.attributes ?? {}
+  if (pct !== undefined) {
+    env?.setState(id, pct > 0
+      ? { state: 'on', attributes: { brightness: Math.round((pct / 100) * 255) } }
+      : { state: 'off' })
+  } else if (hue !== undefined) {
+    const sat = Array.isArray(a.hs_color) ? a.hs_color[1] : 100
+    env?.setState(id, { state: 'on', attributes: { hs_color: [hue, sat], rgb_color: rgbOf(hue, sat), color_mode: 'hs' } })
+  }
   refreshControls()
 }
 
@@ -324,6 +373,12 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.card-demo-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85em;
+}
 .card-demo-controls {
   display: flex;
   flex-wrap: wrap;

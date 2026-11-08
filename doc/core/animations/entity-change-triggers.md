@@ -1,206 +1,254 @@
+---
+description: "on_entity_change animations: play when an entity changes, gate on from_state and to_state, loop while a condition holds (while), check on load, watch an attribute such as brightness_pct, and follow a value with map_range."
+moved_anchors:
+  basic-usage: /core/animations/entity-change-triggers#watching-an-entity
+  while-condition-keys: /core/animations/entity-change-triggers#lifecycle-conditions-while
+  examples: /core/animations/entity-change-triggers
+  alert-strobe-while-above-threshold: /core/animations/entity-change-triggers#lifecycle-conditions-while
+  entrance-on-state-change-fade-on-return: /core/animations/entity-change-triggers#state-gates-from-state-to-state
+  brightness-driven-speed: /core/animations/entity-change-triggers#map-range-with-on-entity-change
+  see-also: /core/animations/entity-change-triggers
+---
+
 # Entity Change Triggers
 
-The `on_entity_change` trigger fires an animation whenever a watched entity's state (or attribute) changes. This page covers the full set of options available for entity-based triggering.
+`trigger: on_entity_change` plays an animation when an entity changes: once on a change, or for as long as a condition holds. The keys every animation takes are on the [Card Animations](/core/animations#animation-options) page.
 
----
+## Watching an entity
 
-## Basic Usage
+**`entity` names the entity to watch; the animation plays each time it changes.** Use it for a flash when a door opens, or a bounce when a light switches.
 
-```yaml
+- Any change counts: the state, or only an attribute (a light's brightness while it stays on). Use [state gates](#state-gates-from-state-to-state) or [`while`](#lifecycle-conditions-while) to play on some changes only.
+- An entry without gates also plays once when the card loads: see [check_on_load](#check-on-load).
+- Without `entity`, a button plays on its own entity's state changes (not its attributes), and `while`, `attribute` and `check_on_load` are not used. Other cards need `entity`.
+
+```yaml live
+type: custom:lcards-button
+entity: light.workbench
+preset: lozenge
+text:
+  name:
+    show: true
+tap_action:
+  action: toggle
 animations:
+  # bounces each time the light changes
   - trigger: on_entity_change
-    entity: binary_sensor.motion
-    preset: pulse
+    entity: light.workbench
+    preset: bounce
+    check_on_load: false
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `trigger` | string | `on_load` | `on_entity_change` |
+| `entity` | string | - | The entity to watch. Needed for `while`, `attribute` and `check_on_load`; without it a button watches its own entity's state |
+
+## State gates (`from_state` / `to_state`)
+
+**`from_state` and `to_state` play the animation only on one transition: to on, from off, or exactly from off to on.** They decide when it starts; a looping animation they start keeps running.
+
+- Use `to_state` alone when only the new value matters, `from_state` alone when only the old one does, and both for one exact transition.
+- An update that keeps the value (an attribute change, a re-sent state) is not a transition, so a gated animation doesn't play again on it.
+- Values are compared as text: write `"on"`, `"off"` and numbers in quotes.
+- To stop a loop when the value changes back, use [`while`](#lifecycle-conditions-while) instead.
+
+```yaml live
+type: custom:lcards-button
+entity: light.workbench
+preset: lozenge
+text:
+  name:
+    show: true
+tap_action:
+  action: toggle
+animations:
+  # slides in from the left when the light turns on
+  - trigger: on_entity_change
+    entity: light.workbench
     to_state: "on"
+    preset: slide
+    params:
+      from: left
+      duration: 400
+  # dims and comes back when it turns off
+  - trigger: on_entity_change
+    entity: light.workbench
+    to_state: "off"
+    preset: fade
+    duration: 300
+    loop: 1
+    alternate: true
+    params:
+      from: 1
+      to: 0.6
 ```
 
-If `entity` is omitted, the card's own entity is watched.
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `from_state` | string | - | Play only when the value changes from this. Never plays on load, which has no previous value |
+| `to_state` | string | - | Play only when the value changes to this, or on load when it is already this (see [check_on_load](#check-on-load)) |
 
----
+## Lifecycle conditions (`while`)
 
-## State Gates (`from_state` / `to_state`)
+**`while` plays the animation for as long as a condition holds and stops it when it no longer does.** Use it with `loop: true`: a pulse while a light is on, a strobe while a temperature is too high.
 
-These are **fire-and-forget gates**: they filter *when* the animation starts but do not stop a looping animation once it has begun.
+- When the condition becomes true the animation starts; when it becomes false it stops, and the card goes back to how it looked before.
+- Without `loop: true` it plays once each time the condition becomes true.
+- `state` and `not_state` compare text and are used alone: with `state` set, the other keys are not read. The four number bounds combine, so `at_least: 20` with `at_most: 80` is an inclusive range and `above: 20` with `below: 80` an exclusive one. A value that isn't a number (`unavailable`) fails every bound.
+- `from_state` and `to_state` on the same entry still gate the start.
 
-```yaml
-# Only fires when transitioning from "off" → "on"
-- trigger: on_entity_change
-  entity: light.kitchen
-  from_state: "off"
-  to_state: "on"
-  preset: bounce
+```yaml live
+type: custom:lcards-button
+entity: light.workbench
+preset: lozenge
+text:
+  name:
+    show: true
+tap_action:
+  action: toggle
+animations:
+  # pulses while the light is on
+  - trigger: on_entity_change
+    entity: light.workbench
+    preset: pulse
+    loop: true
+    while:
+      state: "on"
 ```
 
-Use `to_state` alone when you only care about the destination. Use `from_state` alone when you only care about the origin. Combine both for exact transition matching.
-
-> To stop a loop when the entity state changes, use `while` instead.
-
----
-
-## Lifecycle Conditions (`while`)
-
-`while` turns an animation into a **lifecycle-managed loop**: it starts when the condition becomes true and stops automatically when it becomes false. Requires `loop: true`.
-
-```yaml
-# Pulse while the light is on; stop when it turns off
-- trigger: on_entity_change
-  entity: light.kitchen
-  preset: pulse
-  loop: true
-  while:
-    state: 'on'
-  check_on_load: true
-```
-
-### `while` condition keys
-
-`state`/`not_state` are used alone. The 4 numeric bound keys AND-combine
-when more than one is present, so a range condition is expressed by
-combining two of them:
-
-| Key | Meaning |
-|-----|---------|
-| `state` | entity value equals this string |
-| `not_state` | entity value does NOT equal this string |
-| `above` | numeric value strictly greater than threshold |
-| `at_least` | numeric value greater than or equal to threshold |
-| `below` | numeric value strictly less than threshold |
-| `at_most` | numeric value less than or equal to threshold |
+The other conditions, one per block:
 
 ```yaml alternatives
-# Inclusive range: play while 20 <= value <= 80
+# strobe while the temperature is above 80
+while:
+  above: 80
+
+# while the value is anything but unavailable
+while:
+  not_state: unavailable
+
+# inclusive range: 20 <= value <= 80
 while:
   at_least: 20
   at_most: 80
 
-# Exclusive range: play while 20 < value < 80
+# exclusive range: 20 < value < 80
 while:
   above: 20
   below: 80
 ```
 
-The animation editor's "Play while..." dropdown offers these as ready-made
-"Between (inclusive)" / "Between (exclusive)" options.
+::: details More about while
+- **In the editor:** the animation editor's **Play while...** list has each key, plus **Between (inclusive)** and **Between (exclusive)** for the two ranges.
+- **Re-renders:** a card that re-renders while the condition holds (its colour follows the state, say) restarts the animation on the new card, so it keeps running.
+- **Rules:** for a condition on several entities, or to animate other cards, use a [rule](/core/animations/rule-based-animations).
+:::
 
-### `check_on_load`
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `while` | object | - | The condition the animation plays while. Needs `entity` |
+| `while.state` | string | - | Play while the value is this |
+| `while.not_state` | string | - | Play while the value is not this |
+| `while.above` | number | - | Play while the value is more than this |
+| `while.at_least` | number | - | Play while the value is this or more |
+| `while.below` | number | - | Play while the value is less than this |
+| `while.at_most` | number | - | Play while the value is this or less |
+| `loop` | boolean / number | the preset's | `true` to keep playing while the condition holds |
 
-| Value | Behaviour |
-|-------|-----------|
-| `true` (default) | Evaluate the condition immediately when the card loads. If already met, start the animation straight away. |
-| `false` | Only react to state transitions that occur *after* load. |
+## `check_on_load`
 
-Set `check_on_load: false` when you want the animation to appear reactive (responding to changes) rather than presenting its current state on page load.
+**`check_on_load` decides whether the animation looks at the entity when the card loads, or waits for a change.** It is on by default, so the card shows the current state straight away.
 
----
+- On load, a `while` animation starts if its condition already holds, a `to_state` animation plays if the entity is already in that state, and an entry with no gates plays once. A `from_state` animation never plays on load.
+- Set `check_on_load: false` for an animation that should only answer a change: a flash when the light switches, not every time the page opens.
+- A re-render of the card is not a load: it doesn't replay the animation.
+
+```yaml live
+type: custom:lcards-button
+entity: light.workbench
+preset: lozenge
+text:
+  name:
+    show: true
+tap_action:
+  action: toggle
+animations:
+  # the light is already on, but this waits for the next time it turns on
+  - trigger: on_entity_change
+    entity: light.workbench
+    to_state: "on"
+    preset: glow
+    loop: 2
+    check_on_load: false
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `check_on_load` | boolean | `true` | Look at the entity when the card loads. `false` waits for the next change |
 
 ## Attributes
 
-Use `attribute` to watch a specific entity attribute instead of the main state:
+**`attribute` watches one attribute of the entity instead of its state: a light's brightness, a cover's position, a thermostat's action.** It applies to `from_state`, `to_state` and `while` alike.
 
-```yaml
-- trigger: on_entity_change
-  entity: light.living_room
-  attribute: brightness_pct   # 0–100, computed from raw 0–255 brightness
-  while:
-    above: 50
-  preset: glow
-  loop: true
+- `brightness_pct` is a light's brightness as 0–100, worked out from Home Assistant's 0–255 `brightness`. A light that is off has no brightness, so it fails every number bound.
+- The animation editor's **Attribute** field lists the chosen entity's attributes, with `brightness_pct` after `brightness`; pick the entity first.
+
+```yaml live controls
+type: custom:lcards-button
+entity: light.workbench
+preset: lozenge
+text:
+  name:
+    show: true
+tap_action:
+  action: toggle
+animations:
+  # glows while the light is more than half bright
+  - trigger: on_entity_change
+    entity: light.workbench
+    attribute: brightness_pct
+    preset: glow
+    loop: true
+    while:
+      above: 50
 ```
 
-`brightness_pct` is a special computed attribute that converts the raw Home Assistant brightness value (0–255) to a 0–100 percentage for easier threshold comparisons.
-
-The animation editor's Attribute field is a searchable dropdown listing the
-selected `entity`'s actual attributes (with `brightness_pct` injected right
-after `brightness`), not just a free-text box; pick an entity first to
-populate it.
-
-`attribute` applies to `from_state`, `to_state`, and `while` alike.
-
----
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `attribute` | string | the state | The attribute to compare. `brightness_pct` gives a light's brightness as 0–100 |
 
 ## `map_range` with `on_entity_change`
 
-Entity values can be mapped to animation parameters dynamically:
+**An entity can set an animation's numbers as well as start it: the brighter the light, the faster it pulses.** Write a [`map_range`](/core/animations/timing-and-easing#map-range-descriptors) in place of `duration`, `delay` or a `params` value.
 
-```yaml
-- trigger: on_entity_change
-  entity: sensor.wind_speed
-  preset: rotate
-  loop: true
-  params:
-    speed:
+- On a looping animation, a `map_range` in `duration` keeps following the entity while it plays. Other values are read when the animation starts.
+
+```yaml live controls
+type: custom:lcards-button
+entity: light.workbench
+preset: lozenge
+text:
+  name:
+    show: true
+tap_action:
+  action: toggle
+animations:
+  # pulses while the light is on: 2 s at its dimmest, 0.4 s at full brightness
+  - trigger: on_entity_change
+    entity: light.workbench
+    preset: pulse
+    loop: true
+    while:
+      state: "on"
+    duration:
       map_range:
-        entity: sensor.wind_speed
-        input: [0, 50]
-        output: [2000, 200]   # faster rotation when windier
-        clamp: true
-```
-
-See the [Animations overview](../animations.md#map-range-descriptors) for the full `map_range` reference.
-
----
-
-## Examples
-
-### Alert strobe while above threshold
-
-```yaml
-- trigger: on_entity_change
-  entity: sensor.cpu_temp
-  while:
-    above: 80
-  preset: strobe
-  loop: true
-  check_on_load: true
-```
-
-### Entrance on state change, fade on return
-
-```yaml
-- trigger: on_entity_change
-  entity: binary_sensor.front_door
-  to_state: "on"
-  preset: slide
-  params:
-    from: left
-    duration: 400
-
-- trigger: on_entity_change
-  entity: binary_sensor.front_door
-  to_state: "off"
-  preset: fade
-  params:
-    from: 1
-    to: 0.6
-  duration: 300
-  loop: 1
-  alternate: true
-```
-
-### Brightness-driven speed
-
-```yaml
-- trigger: on_entity_change
-  entity: light.desk
-  attribute: brightness_pct
-  preset: pulse
-  loop: true
-  while:
-    above: 0
-  params:
-    max_scale:
-      map_range:
-        entity: light.desk
+        entity: light.workbench
         attribute: brightness_pct
         input: [0, 100]
-        output: [1.02, 1.2]
-        clamp: true
+        output: [2000, 400]
 ```
 
----
-
-## See Also
-
-- [Animations overview](../animations.md): structure, options, easing
-- [Preset Reference](preset-reference.md): all available presets
-- [Rule-based Animations](rule-based-animations.md): entity conditions across multiple cards via the Rules Engine
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| [map_range keys](/core/animations/timing-and-easing#map-range-descriptors) | | | `entity`, `attribute`, `input`, `output`, `clamp` |

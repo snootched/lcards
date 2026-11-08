@@ -518,7 +518,7 @@ trigger_effect:
     duration:
       name: Duration (ms)
       description: >
-        Auto-clear all effects after this many milliseconds. Omit for a
+        Clear the slots this action sets after this many milliseconds. Omit for a
         persistent effect that must be cleared manually via lcards.clear_effect.
       required: false
       example: 5000
@@ -669,6 +669,8 @@ play_sound:
             - { label: "System Ready", value: system_ready }
             - { label: "System Error", value: error }
             - { label: "Notification", value: notification }
+            - { label: "Borg Assimilation", value: borg_assimilate }
+            - { label: "Borg Deassimilation", value: borg_deassimilate }
     asset_key:
       name: Asset Key (advanced)
       description: >
@@ -1042,9 +1044,9 @@ borg_assimilate:
       description: >
         Number of Borg injection points that appear on screen during the intro.
         Each site pulses with a breathing glow and sprouts Bézier tendrils
-        spreading across the viewport. Default: 7.
+        spreading across the viewport. Default: 8.
       required: false
-      default: 7
+      default: 8
       selector:
         number:
           min: 1
@@ -1054,9 +1056,9 @@ borg_assimilate:
       name: Tendrils Per Site
       description: >
         Number of Bézier tendrils grown from each injection site.
-        Higher values create a denser lattice. Default: 8.
+        Higher values create a denser lattice. Default: 5.
       required: false
-      default: 8
+      default: 5
       selector:
         number:
           min: 1
@@ -1202,18 +1204,18 @@ borg_assimilate:
         missing keys fall back to the flat values.
 
         canvas  — always the borg-assimilation effect, params:
-          siteCount:       7       # injection sites (1–20)
-          tendrilsPerSite: 8       # Bézier tendrils per site (1–24)
+          siteCount:       8       # injection sites (1–20)
+          tendrilsPerSite: 5       # Bézier tendrils per site (1–24)
           tendrilLength:   600     # max tendril reach in px (100–1200)
           particleCount:   2       # nano-probe particles per tendril (0–6)
-          color:    "#00cc44"      # tendril / site colour
-          glowColor: "#00ff66"     # inner glow colour at each site
+          color:    var(--lcars-martian)   # tendril / site colour (default)
+          glowColor: var(--lcards-yellow)  # inner glow colour at each site (default)
 
-        backdrop  — optional layer behind the canvas (e.g. blur):
+        backdrop  — optional layer behind the canvas (default: saturate 200%):
           preset: blur
           amount: "8px"            # CSS blur value
 
-        color  — optional colour overlay over the canvas:
+        color  — optional colour overlay over the canvas (default: a 25% green tint):
           preset: color-tint
           color: "rgba(0,40,0,0.2)"
 
@@ -1242,6 +1244,11 @@ borg_assimilate:
         until deassimilation. When provided, overrides the Suppress Persistent
         Effects toggle above.
         Omit entirely to use the defaults; pass an empty object to suppress all.
+        The defaults: a light glitch on the canvas (intensity 0.08), a 10% green
+        colour tint and a 200% saturate backdrop. Any slot set here replaces the
+        defaults as a whole.
+
+        Example, scanlines instead:
 
         canvas  — scanlines (CRT effect):
           preset: scanlines

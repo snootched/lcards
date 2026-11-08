@@ -225,6 +225,7 @@ export class CoreSystemsManager {
    * @param {string} metadata.id - Overlay ID
    * @param {Array<string>} metadata.tags - Tags for targeting
    * @param {string} metadata.sourceCardId - Card that owns this overlay
+   * @param {string} [metadata.animationScope] - The card's own AnimationManager scope id
    * @param {HTMLElement} [metadata.element] - Optional reference to overlay element
    */
   registerOverlay(overlayId, metadata) {
@@ -238,6 +239,7 @@ export class CoreSystemsManager {
       type: metadata.type || 'unknown',
       tags: metadata.tags || [],
       sourceCardId: metadata.sourceCardId || 'unknown',
+      animationScope: metadata.animationScope || null,
       element: metadata.element || null,
       registeredAt: Date.now()
     };

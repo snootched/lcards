@@ -75,9 +75,9 @@ conditions:
 
 ## layers
 
-**`layers` sets the screen effects drawn over the dashboard behind the symbol: a filter on the dashboard, a colour over it, and an animated canvas on top.** Without `layers` the overlay shows an 8px blur and nothing else.
+**`layers` sets the screen effects drawn over the dashboard behind the symbol: a filter on the dashboard, an animated canvas over it, and a colour on top.** Without `layers` the overlay shows an 8px blur and nothing else.
 
-- There are three slots, each with its own presets: [`backdrop`](#layers-backdrop) filters the dashboard behind the overlay, [`color`](#layers-color) lays a colour over it, and [`canvas`](#layers-canvas) draws an animation above the colour.
+- There are three slots, each with its own presets: [`backdrop`](#layers-backdrop) filters the dashboard behind the overlay, [`color`](#layers-color) lays a colour over it, and [`canvas`](#layers-canvas) draws an animation between the two (the colour lies over it).
 - Set only the slots you want. Once `layers` is set, a slot you leave out stays off, so `layers` with only `color` has no blur.
 - `layers: null` turns every layer off: the symbol shows over the dashboard as it is.
 - A condition can change one slot and keep the others, or turn a slot off with `null`; see [Per-Condition Settings](./conditions#condition-keys).
@@ -94,7 +94,7 @@ layers:
   color:
     preset: color-tint
     color: alpha(theme:colors.alert.red, 0.35)
-  # TV static on top
+  # TV static, under the tint
   canvas:
     preset: static
     opacity: 0.3
@@ -141,7 +141,7 @@ layers:
 
 ### layers.color
 
-**The colour slot lays a colour over the dashboard, above the backdrop filter: a flat tint, or a vignette that darkens the edges.**
+**The colour slot lays a colour over the dashboard, on top of the backdrop filter and the canvas: a flat tint, or a vignette that darkens the edges.**
 
 ```yaml live
 type: custom:lcards-alert-overlay
@@ -164,7 +164,7 @@ layers:
 
 ### layers.canvas
 
-**The canvas slot draws an animation over the dashboard, above the colour layer: TV static, a mosaic, glitch bands or scanlines.**
+**The canvas slot draws an animation over the dashboard, between the backdrop filter and the colour layer: TV static, a mosaic, glitch bands or scanlines.**
 
 ```yaml live
 type: custom:lcards-alert-overlay

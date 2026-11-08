@@ -34,7 +34,7 @@ A scheme maps every event to an audio file. Select your scheme from the **Sound 
 
 Covers all event types with LCARS-style beeps and tones. Additional schemes become available when sound packs are installed.
 
-Set to **none** to use the default built-in scheme. To disable all sounds, turn off the master **Sound Effects Enabled** toggle.
+Set to **none** for an empty scheme: no event plays a sound unless you give it one as an override. To disable all sounds, turn off the master **Sound Effects Enabled** toggle.
 
 ---
 
@@ -186,6 +186,6 @@ If you don't use the System Ready sound, no browser changes are needed; all othe
 - Volume is shared across all events: there's no per-event volume.
 - Global overrides apply to all users and devices. User-scoped and device-scoped overrides apply only to that user or device respectively; device-scope wins over user-scope on a per-event basis.
 - The sound scheme helper's option list updates automatically as you install sound packs, no manual YAML edits needed.
-- Setting the scheme to **none** uses the default built-in scheme. To disable all sounds, use the master **Sound Effects Enabled** toggle.
+- Setting the scheme to **none** leaves every event silent except the ones you override. To disable all sounds, use the master **Sound Effects Enabled** toggle.
 
 ---

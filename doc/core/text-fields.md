@@ -1,414 +1,178 @@
+---
+description: "Text fields on the button, elbow and slider cards: any number of named labels, each placed in a zone and styled on its own, with shared defaults in text.default."
+moved_anchors:
+  how-it-works: /core/text-fields#inheritance
+  position-values: /core/text-fields-placement#position
+  example: /core/text-fields#quick-start
+  text-background: /core/text-fields-style#text-background
+  aligning-stacked-cards: /core/text-fields-style#aligning-stacked-cards
+  colour-in-text-fields: /core/text-fields-style#color
+  template-content: /core/text-fields-content#content
+  zones: /core/text-fields-zones
+  auto-calculated-zones-per-card-type: /core/text-fields-zones#zones-per-card
+  routing-a-field-to-a-zone: /core/text-fields-zones#zone
+  custom-zones-config-zones: /core/text-fields-zones#zones
+  debug-overlay: /core/text-fields-zones#debug-zones
+  font-size-percent-and-cap-height-ratio: /core/text-fields-style#filling-a-zone
+  display-format: /core/text-fields-content#display-format
+  yaml-examples: /core/text-fields-content#display-format
+  notes: /core/text-fields-content#display-format
+---
+
 # Text Fields
 
-Most LCARdS cards support a `text` object that lets you place any number of labelled text fields anywhere on the card. Fields inherit from a shared `default` block so you only need to set what differs per field.
+**`text` puts any number of labels on a button, elbow or slider, each one placed and styled on its own.** You name each field (`label`, `value`, `unit` ...), give it `content`, and say where it goes.
 
----
+- Every key under `text` except `default` is a field that is drawn. `text.default` holds the style every field starts from, so a field only sets what differs.
+- Fields go into **zones**: named areas of the card such as a slider's `track` or an elbow's `horizontal_bar`. `position` then places the text within its zone.
+- `content` takes [templates](/core/templates/), so a field can show an entity's state, a sum or a server-side Jinja2 value.
+- The [astrometrics card](/cards/astrometrics/points#labels) uses the same keys for its point labels, placed round the point instead of in zones.
 
-## How it works
+::: tip Try it
+The card editor's **Text** tab (**Text Fields** on the slider) adds and styles fields with a live preview; the **Zones** tab shows and adds zones.
+:::
 
-```
-text:
-  default:              ← Shared styles - never rendered itself
-  │  font_size: 12
-  │  color: "var(--lcards-moonlight)"
-  │
-  label:                ← Named field (name is arbitrary) - rendered as text
-  │  content: "Temperature"
-  │  position: top-left     ← inherits font_size, color from default
-  │
-  value:                ← Another field - only set what differs
-     content: "{entity.state}°C"
-     zone: body         ← which card zone to render inside
-     font_size: 28      ← overrides default
-     font_weight: bold
-```
+| Page | Covers |
+|------|--------|
+| [Placing Text](./text-fields-placement) | `position`, `padding`, exact coordinates, alignment and rotation |
+| [Zones](./text-fields-zones) | The zones each card has, your own zones, and the zone outlines |
+| [Fonts, Colour and Backgrounds](./text-fields-style) | Font keys, sizing text to its zone, colour by state, the box behind a label |
+| [Content and Formats](./text-fields-content) | Templates in `content`, and how entity states are formatted |
 
-Every named key except `default` is rendered as an SVG `<text>` element. Fields go into **zones**: named rectangular regions on the card's SVG surface (e.g. `body`, `track`, `horizontal_bar`). Without a `zone:` key a field goes to the card's primary zone.
+## Quick start
 
-All options in the per-field table below are also valid in `text.default` as shared defaults.
-
-The [astrometrics card](/cards/astrometrics/points#labels) puts the same fields on its point labels, placed round the point instead of in zones.
-
----
-
-## Per-Field Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `content` | string | - | Text content; supports all [template syntaxes](templates/) |
-| `show` | boolean | `true` | Show or hide this field |
-| `position` | string | from `default` | Grid position: see Position Values below |
-| `x` | number | - | Absolute X in pixels (overrides `position`) |
-| `y` | number | - | Absolute Y in pixels (overrides `position`). Write the key quoted, `"y": 20`, in Home Assistant's code editor, which reads a bare `y` as `true` |
-| `x_percent` | number | - | X as percentage of the **zone width** (0–100); `0` = left edge, `100` = right edge of the zone |
-| `y_percent` | number | - | Y as percentage of the **zone height** (0–100); `0` = top edge, `100` = bottom edge of the zone |
-| `font_size` | number / string | from `default` | Size in px, or CSS value (`14px`, `1.2rem`, `var(--lcars-text-size)`) |
-| `font_size_percent` | number | - | Font size as a percentage of the **zone height** (1–100); overrides `font_size` when set. 100 = full zone height. See [Zones](#zones). |
-| `font_weight` | string / number | `"normal"` | CSS font-weight keyword (`normal`, `bold`) or numeric (100–900) |
-| `font_family` | string | from `default` | CSS font-family or variable, e.g. `"Antonio, sans-serif"` or `var(--lcars-font)` |
-| `text_transform` | string | `"none"` | `none`, `uppercase`, `lowercase`, `capitalize` |
-| `letter_spacing` | number / string | `normal` | Space between letters: px as a number (`2`), or a CSS value (`0.1em`, `2px`) |
-| `color` | string / object | from `default` | Colour string or [state-based colour map](colours.md) |
-| `anchor` | string | `"middle"` | SVG horizontal alignment: `start` (left), `middle` (centre), `end` (right) |
-| `baseline` | string | `"middle"` | SVG vertical alignment: `hanging` (top), `middle`, `central`, `alphabetic` (bottom) |
-| `rotation` | number | `0` | Rotation in degrees (−360 to 360) |
-| `padding` | number / object | - | Offset in px: single number (all sides) or `{ top, right, bottom, left }` |
-| `stretch` | boolean / number | - | Stretch/compress glyph spacing to fill a fraction of the **zone width** using SVG `textLength`. `true` = 100%, `0.8` = 80%. Pairs naturally with `font_size_percent` to fill both axes independently. |
-| `zone` | string | auto | Named zone to render this field inside. Defaults to the card's primary zone (`body`, `track`, first border, etc.). See [Zones](#zones). |
-| `template` | boolean | `true` | Templates in `content` are evaluated by default. Set to `false` to render `{...}` / `[[[...]]]` text literally instead of evaluating it |
-| `display_format` | string | `"friendly"` | How to format entity state/attribute tokens; see [Display Format](#display-format) below |
-
-### Position Values
-
-```
-┌──────────────┬──────────────┬──────────────┐
-│   top-left   │  top-center  │   top-right  │
-├──────────────┼──────────────┼──────────────┤
-│  center-left │    center    │ center-right │
-├──────────────┼──────────────┼──────────────┤
-│ bottom-left  │bottom-center │ bottom-right │
-└──────────────┴──────────────┴──────────────┘
-```
-
-Shorthand aliases: `top` → `top-center`, `bottom` → `bottom-center`, `left` → `center-left`, `right` → `center-right`. The legacy values `left-center` and `right-center` are also accepted and normalized automatically.
-
-Absolute positioning with `x`/`y` or `x_percent`/`y_percent` overrides `position`.
-
----
-
-## Preset-Defined Fields
-
-Many card presets pre-define a set of named text fields as part of the preset's styling. These fields have sensible defaults so they work out of the box, but you can override any property in your card config.
-
-The built-in button presets define three standard fields:
-
-| Field | Default `content` | Default visibility | Notes |
-|-------|-------------------|--------------------|-------|
-| `label` | a random code such as `3f-a2c` | `show: false` | General-purpose label: two hex digits, a dash and three more, picked at random by a template. Most bar/lozenge presets show it by default |
-| `name` | `"{entity.attributes.friendly_name}"` | `show: false` | Entity friendly name |
-| `state` | `"{entity.state}"` | `show: false` | Raw entity state value |
-
-These originate from the cb-lcars / custom-button-card heritage. To use them, just add the field to your `text:` config; the preset's positioning and styling are already in place:
-
-```yaml
-text:
-  label:
-    content: "Bedroom"   # override the default placeholder text
-    show: true            # override the preset's show: false
-  name:
-    show: true            # switch on with preset defaults intact
-```
-
-You can always define completely new field names (e.g. `value`, `subtitle`, `unit`); these are entirely independent of the preset-defined fields.
-
----
-
-## Inheritance
-
-Fields inherit every property from `text.default`. Only set what differs:
-
-```yaml
-text:
-  default:
-    font_size: 12
-    font_family: "Antonio, sans-serif"
-    color: "var(--lcards-moonlight)"
-
-  label:
-    content: "Brightness"
-    position: top-left
-    # inherits font_size, font_family, color from default
-
-  value:
-    content: "[[[return Math.round(entity.attributes.brightness / 255 * 100) + '%']]]"
-    position: center
-    font_size: 28          # overrides default
-    font_weight: bold
-    color:                 # state-reactive colour overrides default plain string
-      default: "var(--lcards-moonlight)"
-      active: "var(--lcars-orange)"
-```
-
----
-
-## Example
+**A small label and a large reading on one button.** Both fields share the font and colour in `text.default`.
 
 ```yaml live
 type: custom:lcards-button
 entity: sensor.outdoor_temperature
 preset: lozenge
-
 text:
   default:
     font_family: "Antonio, sans-serif"
-    color: "var(--lcards-moonlight)"
-
+    color: var(--lcards-moonlight)
   label:
-    content: "Outdoor"
+    content: Outdoor
+    show: true
     position: top-left
     font_size: 11
     text_transform: uppercase
-
   value:
-    content: "[[[return parseFloat(entity.state).toFixed(1) + '\u00b0C']]]"
+    content: "[[[return parseFloat(entity.state).toFixed(1) + '°C']]]"
     position: center
     font_size: 32
     font_weight: bold
     color:
-      default: "var(--lcards-moonlight)"
-      unavailable: "var(--lcars-alert-red)"
+      default: var(--lcards-moonlight)
+      unavailable: var(--lcars-alert-red)
+grid_options:
+  rows: 2
 ```
 
----
+## Inheritance
 
-## Text Background
+**`text.default` is the style every field on the card starts from; it is never drawn itself.** Set the font, size and colour once, and only what differs on each field.
 
-Adding a `background` color to a text field draws an opaque rectangle behind the glyphs, creating the classic LCARS bar-break effect where the label floats inside a colored bar.
+- A field's own key wins over `text.default`, and `text.default` wins over the preset's defaults.
+- Padding is merged side by side: a field that sets only `padding.top` keeps the left and right padding from `text.default`.
+- What a field inherits is its style and alignment: the font keys, `color`, `position`, `padding`, `anchor`, `baseline`, `rotation`, `stretch`, `display_format` and the background keys. `content`, `show`, `zone`, `x` and `y` are set per field.
 
-`background` accepts the same state-map object as text `color`: a plain string is **not** supported; always use object form:
-
-```yaml alternatives
-# Single colour (all states)
-background:
-  default: black
-
-# State-reactive colour
-background:
-  default: black
-  active: var(--lcars-ui-red)
-  inactive: transparent
-```
-
-| Property | Type | Default | Description |
-|---|---|---|---|
-| `background` | state-map | - | Background rect colour: must be a state-map object (`{ default: 'black' }`). Supports all states used by text `color`. |
-| `background_padding` | number (px) | `8` | Horizontal space between glyphs and box edges |
-| `background_radius` | number (px) | `4` | Corner radius of the background rect: `0` = sharp, higher values round the corners |
-| `background_width` | number (px) | auto | **Fixed** explicit width. Overrides auto-sizing; text overflows if content is wider |
-| `background_min_width` | number (px) | - | **Minimum** width. Auto-sizes from text but never shrinks below this value |
-
-### Aligning stacked cards
-
-When stacking several `bar-label-*` cards, each value field naturally auto-sizes to its text content, resulting in misaligned box edges. Use `background_min_width` (safe for dynamic content) or `background_width` (exact pin) to make all boxes the same width:
-
-```yaml
+```yaml live controls
+type: custom:lcards-button
+entity: light.kitchen
+preset: lozenge
 text:
-  value:
-    content: "[[[return entity.state + ' W']]]"
-    anchor: end
-    background:
-      default: black
-    background_min_width: 120   # all stacked cards share this minimum box width
-```
-
-> **Note on `background_width` + `anchor`:** when a fixed width is set, `background_padding` no longer controls box _width_; it still controls the anchor offset so the text sits `background_padding` px from the box's anchored edge. Extra space accumulates on the opposite side. With `anchor: end` this means the right edge stays pinned and extra space grows leftward, which is usually the desired alignment behaviour.
-
----
-
-## Colour in Text Fields
-
-The `color` field accepts both a plain colour string and a [state-based colour map](colours.md):
-
-```yaml
-text:
-  status:
-    content: "{entity.state}"
-    color:
-      default: "var(--lcards-moonlight)"
-      active: "var(--lcars-orange)"
-      inactive: "var(--lcars-gray)"
-      unavailable: "var(--lcars-alert-red)"
-```
-
----
-
-## Template Content
-
-The `content` field supports all four template syntaxes:
-
-```yaml alternatives
-# Token substitution
-content: "{entity.state}"
-content: "{entity.attributes.brightness}"
-content: "{theme:colors.text.onDark}"
-
-# JavaScript
-content: "[[[return Math.round(entity.attributes.brightness / 255 * 100) + '%']]]"
-
-# Jinja2 (server-evaluated)
-content: "{{ states('sensor.temperature') }}°C"
-
-# DataSource - Home Assistant native (locale-formatted + unit)
-content: "{ds:temp}"
-# DataSource - explicit precision (no auto-unit, you control the suffix)
-content: "{ds:temp:.1f} °C"
-```
-
-See [Templates](templates/) for full details.
-
----
-
-## Zones
-
-Every card automatically divides its SVG surface into named **zones**: rectangular areas that text fields can be targeted to via the `zone:` key.  The 9-point positioning system, padding, and `font_size_percent` all operate within the zone bounds, not the full card.
-
-### Auto-calculated zones per card type
-
-| Card | Auto zones |
-|------|------------|
-| **Button** (preset mode, no icon) | `body` = full card area · `full` = full card area (always)<br/> ![Button zones](../public/img/zones-button.png) |
-| **Button** (preset mode, area icon) | `body` = card area excluding icon strip · `full` = full card area · `icon` = icon strip only <br/> ![Button zones with icon](../public/img/zones-button-icon.png)|
-| **Button** (component mode) | Named zones sourced from the SVG component's internal `zones` definition; these are declared by the component pack, not by your card config.  You can add additional custom zones if desired. <br/><br/> ![Button component DPAD](../public/img/zones-button-dpad.png) ![Button component ALERT](../public/img/zones-button-alert.png) |
-| **Slider** | `track` (inner track bounds) + one zone per enabled border: `left`, `right`, `top`, `bottom` <br/> ![Slider zones](../public/img/zones-slider.png)|
-| **Elbow** (simple, L-corner left) | `vertical_bar` · `left_bar` *(alias for `vertical_bar`)* · `horizontal_bar` · `body` · `full` <br/> ![Elbow Left](../public/img/zones-elbow-left.png)|
-| **Elbow** (simple, L-corner right) | `vertical_bar` · `right_bar` *(alias for `vertical_bar`)* · `horizontal_bar` · `body` · `full` <br/> ![Elbow Right](../public/img/zones-elbow-right.png)|
-| **Elbow** (simple, open) | `horizontal_bar` · `body` · `full`: no vertical bar zone <br/> ![Elbow Open](../public/img/zones-elbow-open.png)|
-| **Elbow** (simple, contained) | `left_bar` · `right_bar` · `horizontal_bar` · `body` · `full` <br/> ![Elbow Contained](../public/img/zones-elbow-contained.png)|
-| **Elbow** (segmented) | `outer_vertical_bar` · `inner_vertical_bar` · `outer_horizontal_bar` · `inner_horizontal_bar` · `body` · `full` <br/> ![Elbow Segmented](../public/img/zones-elbow-segmented.png)|
-| **Elbow** (frame) | `top` · `bottom` · `left` · `right` · `body` · `full` <br/> ![Elbow Frame](../public/img/zones-elbow-frame.png) |
-
-### Routing a field to a zone
-
-```yaml
-text:
+  default:
+    font_size: 12
+    font_family: "Antonio, sans-serif"
+    color: var(--lcards-moonlight)
   label:
-    content: "Brightness"
-    zone: horizontal_bar     # render inside the elbow's horizontal bar
+    content: Brightness
+    show: true
+    position: top-left
+    # font_size, font_family and color come from default
+  value:
+    content: "[[[return Math.round((entity.attributes.brightness || 0) / 255 * 100) + '%']]]"
     position: center
-    font_size_percent: 60    # 60% of the horizontal_bar height
+    font_size: 28
+    font_weight: bold
+    color:
+      default: var(--lcards-moonlight)
+      active: var(--lcars-orange)
+grid_options:
+  rows: 2
 ```
 
-Fields without a `zone:` key fall back to the card's primary zone (`body`, `track`, or the first enabled border).
+::: details More about inheritance
+- **Preset fields:** what you write in `text.default` wins over what a preset sets on one of its own fields (such as the bar-label presets' `padding` and `font_size_percent` on `label`), and a key on the field itself wins over both.
+- **`style.text.default`:** on the button, this sets the same style at a lower priority than `text.default`.
+:::
 
-### Custom zones (config.zones)
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `text` | object | from the preset | The fields, keyed by any name you choose |
+| `text.default` | object | from the preset | Style every field inherits. It is not drawn |
+| `text.<name>` | object | - | One field: the keys in [Per-field options](#per-field-options) |
 
-You can define additional zones or override auto-calculated ones with `config.zones`.  Values accept pixels, percent, or a mix per axis:
+## Preset-defined fields
 
-![Elbow Frame](../public/img/zones-custom.png)
+**The button presets already hold three fields, `name`, `state` and `label`, positioned and styled for the preset.** Turn one on with `show: true`, or change its `content`.
 
-```yaml
-zones:
-  sidebar:
-    x: 0
-    "y": 0                  # quoted: Home Assistant's editor reads a bare y as true
-    width: 80
-    height_percent: 100     # full card height, fixed 80 px wide
-
-  value_area:
-    x_percent: 30
-    y_percent: 0
-    width_percent: 70
-    height_percent: 100
-```
-
-| Key | Type | Description |
-|-----|------|-------------|
-| `x` | number (px) | Left edge in pixels |
-| `y` | number (px) | Top edge in pixels (quote the key, `"y": 0`, in Home Assistant's code editor) |
-| `width` | number (px) | Width in pixels |
-| `height` | number (px) | Height in pixels |
-| `x_percent` | number (0–100) | Left edge as % of card width |
-| `y_percent` | number (0–100) | Top edge as % of card height |
-| `width_percent` | number (0–100) | Width as % of card width |
-| `height_percent` | number (0–100) | Height as % of card height |
-
-`px` dimensinos takes precedence over `percent` when both are present on the same axis.  Percent values are resolved against the card's actual rendered pixel dimensions at rebuild time, so they are responsive to card size changes.
-
-Custom zone names that match an auto-calculated zone (e.g. `body`) **replace** the auto-calculated bounds entirely.
-
-Zones can be managed visually using the **Zones** tab in the card editor.
-
-### Debug overlay
-
-Set `debug_zones: true` on any card to render a coloured, dashed overlay showing every zone's bounds and name on top of the card. Useful when designing text layouts or diagnosing zone placement.
+- Most presets hide all three. The bar-label and panel presets show `label`; the filled and toggle-tab presets show `name`.
+- A field with any other name (`value`, `subtitle` ...) is yours alone and shows by default.
 
 ```yaml live
 type: custom:lcards-button
 entity: light.kitchen
 preset: lozenge
-debug_zones: true
-zones:
-  sidebar:
-    x: 0
-    "y": 0
-    width: 60
-    height_percent: 100
-```
-
-The toggle is also available in the **Zones → Developer Tools** section of the card editor. Remove or set to `false` before committing your dashboard config.
-
-### font_size_percent and cap_height_ratio
-
-`font_size_percent: 100` makes cap-height letters fill the full zone height.  The SVG `font-size` attribute is set to `zone_height / cap_height_ratio` so the visible cap-tops span the entire zone; `font_size_percent: 50` makes them fill half the zone height, and so on.  The text is optically centred at the target position via a matching y-shift.
-
-The default `cap_height_ratio` is `0.86` (measured for the Antonio font used in LCARS themes; at this value `font_size_percent: 100` causes caps to fill the zone exactly).  Set a custom value on any text field to calibrate for other fonts; `cap_height_ratio: 1.0` means caps equal the full em-square with no correction.
-
-`font_size_percent` controls the **vertical** fill; add `stretch: true` to also fill the **horizontal** axis.  The two are independent: SVG scales glyph spacing via `textLength` without affecting font size:
-
-```yaml
 text:
+  name:
+    show: true # the entity's name, where the preset puts it
+  state:
+    show: true # the entity's state, where the preset puts it
   label:
-    content: LCARDS
-    zone: zone_1
-    font_size_percent: 100   # caps fill zone height
-    stretch: true            # glyph spacing fills zone width
+    content: DECK 7
+    show: true
+grid_options:
+  rows: 2
 ```
 
----
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `text.name.content` | string | `"{entity.attributes.friendly_name}"` | The entity's name |
+| `text.name.show` | boolean | `false` | Show the name. The base preset puts it bottom right |
+| `text.state.content` | string | `"{entity.state}"` | The entity's state |
+| `text.state.show` | boolean | `false` | Show the state. The base preset puts it top right |
+| `text.label.content` | string | a random code such as `3f-a2c` | A general-purpose label: two hex digits, a dash and three more, picked at random by a template |
+| `text.label.show` | boolean | `false` | Show the label. The base preset puts it in the centre |
 
-## Display Format
+## Per-field options
 
-The `display_format` option controls how entity state and attribute token values are rendered. It is valid on any individual text field or as a card-wide default in `text.default`.
+**Every key a field takes, with the page that explains it.** All of them also work in `text.default` except those listed under [Inheritance](#inheritance) as set per field.
 
-| Value | Description | Example (door sensor) |
-|-------|-------------|----------------------|
-| `friendly` | Home Assistant's translated display string: matches native Home Assistant cards (**default**) | `"Open"` |
-| `raw` | Unmodified state/attribute value from `hass.states` | `"on"` |
-| `parts` | Value and unit joined from Home Assistant's ToParts API | `"23.5 °C"` |
-| `unit` | Unit portion only from Home Assistant's ToParts API | `"°C"` |
-
-### YAML Examples
-
-**Door sensor, show friendly state:**
-```yaml
+```yaml live
+type: custom:lcards-button
+entity: sensor.outdoor_temperature
+preset: lozenge
 text:
-  status:
+  reading:
     content: "{entity.state}"
-    display_format: friendly   # "Open" or "Closed" instead of "on"/"off"
+    display_format: parts
+    position: center-right
+    font_size: 20
+    letter_spacing: 2
+    color: var(--lcars-orange)
 ```
 
-**Temperature sensor, show just the unit:**
-```yaml
-text:
-  unit_label:
-    content: "{entity.state}"
-    display_format: unit       # "°C"
-```
-
-**Raw value for logic in JS template (display_format not needed here):**
-```yaml
-text:
-  raw_debug:
-    content: "[[[return entity.state]]]"   # JS templates always receive raw values
-```
-
-**Card-wide default, all text fields use friendly display:**
-```yaml
-text:
-  default:
-    display_format: friendly
-  label:
-    content: "{entity.state}"     # inherits friendly from default
-  value:
-    content: "{entity.attributes.battery_level}"
-    display_format: parts         # overrides default for this field: "80 %"
-```
-
-### Notes
-
-- `display_format` only affects display strings. State classification logic (active/inactive/unavailable) always operates on raw state values.
-- `[[[JavaScript]]]` templates are **unaffected**: they always receive the raw entity object. Call `hass.formatEntityState(entity)` directly if needed.
-- Jinja2 templates (`{{ ... }}`) are server-evaluated and unaffected.
-- When `show_unit: true` is set on a slider or text field, the unit is derived from Home Assistant's ToParts API to ensure it matches Home Assistant's own display exactly.
-
----
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `content` | string | from the preset, else - | The text. [Templates](./text-fields-content#content) work |
+| `show` | boolean | `true` | Show or hide the field |
+| `template` | boolean | `true` | `false` shows `{...}` and `[[[...]]]` literally: see [content](./text-fields-content#content) |
+| `display_format` | string | `friendly` | How entity values in `content` are written: see [display_format](./text-fields-content#display-format) |
+| `zone` | string | the card's main zone | The zone the field goes in: see [Zones](./text-fields-zones#zone) |
+| [Placement keys](./text-fields-placement) | | | `position`, `padding`, `x`, `y`, `x_percent`, `y_percent`, `anchor`, `baseline`, `rotation` |
+| [Font keys](./text-fields-style#fonts) | | | `font_size`, `font_family`, `font_weight`, `text_transform`, `letter_spacing` |
+| [Zone-filling keys](./text-fields-style#filling-a-zone) | | | `font_size_percent`, `cap_height_ratio`, `stretch` |
+| [`color`](./text-fields-style#color) | colour / state map | the theme's text colour | Text colour, by state if you like |
+| [Background keys](./text-fields-style#text-background) | | | `background`, `background_padding`, `background_radius`, `background_width`, `background_min_width` |

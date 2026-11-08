@@ -29,6 +29,12 @@ const demos = await page.locator('.card-demo-panel, .chart-demo-panel, .grid-dem
 for (let i = 0; i < demos.length; i++) {
   await demos[i].scrollIntoViewIfNeeded();
   await page.waitForTimeout(2500);
+  // the first card waits for the bundle to load: wait until the demo no longer says so
+  await demos[i].evaluate((el) => new Promise((done) => {
+    const t0 = Date.now();
+    const check = () => (!el.textContent?.includes('Loading card') || Date.now() - t0 > 10000) ? done(undefined) : setTimeout(check, 200);
+    check();
+  }));
   const heading = await demos[i].evaluate((el) => {
     let n = el;
     while (n && !/^H[234]$/.test(n.tagName)) n = n.previousElementSibling || n.parentElement;

@@ -52,6 +52,7 @@
 import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSCard } from '../base/LCARdSCard.js';
+import { actionSoundEvent } from '../base/LCARdSActionHandler.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
@@ -66,7 +67,7 @@ import { sanitizeSvg, extractViewBox, extractDataUriContent, escapeXmlAttribute 
 import { applyBaseSvgFilters } from '../msd/utils/BaseSvgFilters.js';
 import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/BackgroundAnimationRenderer.js';
 import { CANVAS_TEXTURE_PRESETS } from '../core/packs/textures/presets/index.js';
-import { linearMap } from '../utils/linearMap.js';
+import { mapRangeOutput } from '../utils/linearMap.js';
 import { compareThreshold } from '../utils/comparison-utils.js';
 import { CanvasTextureRenderer } from '../core/packs/textures/CanvasTextureRenderer.js';
 
@@ -326,7 +327,8 @@ export class LCARdSButton extends LCARdSCard {
                 if (this.config.animations) {
                     requestAnimationFrame(() => {
                         const animationManager = window.lcards?.core?.getAnimationManager?.();
-                        const elementId = `button-${this._cardGuid}`;
+                        // The card's own scope: an elbow animates under elbow-{guid}
+                        const elementId = this._getAnimationSetup().overlayId;
                         if (animationManager && elementId) {
                             animationManager.triggerAnimations(elementId, 'on_entity_change', { fromState: oldState, toState: newState });
                             lcardsLog.debug(`[LCARdSButton] Card-level on_entity_change animations triggered`);
@@ -1860,10 +1862,8 @@ export class LCARdSButton extends LCARdSCard {
 
                     const _holdEntityId = segment.entity || this.config.entity;
                     const _holdState = _holdEntityId && this.hass?.states?.[_holdEntityId]?.state;
-                    const _holdSoundEvent = segment.hold_action?.action === 'toggle' && _holdState !== undefined
-                        ? (_holdState === 'on' ? 'toggle_off' : 'toggle_on')
-                        : 'card_hold';
-                    this._playSound(_holdSoundEvent);
+                    const _holdSoundEvent = actionSoundEvent(segment.hold_action, _holdState, 'card_hold');
+                    if (_holdSoundEvent) this._playSound(_holdSoundEvent);
                     this._executeSegmentAction(segment.hold_action, segment);
                     holdTimer = null;
                 }, 500); // 500ms hold threshold
@@ -1916,10 +1916,8 @@ export class LCARdSButton extends LCARdSCard {
 
             const _tapEntityId = segment.entity || this.config.entity;
             const _tapState = _tapEntityId && this.hass?.states?.[_tapEntityId]?.state;
-            const _tapSoundEvent = segment.tap_action?.action === 'toggle' && _tapState !== undefined
-                ? (_tapState === 'on' ? 'toggle_off' : 'toggle_on')
-                : 'card_tap';
-            this._playSound(_tapSoundEvent);
+            const _tapSoundEvent = actionSoundEvent(segment.tap_action, _tapState, 'card_tap');
+            if (_tapSoundEvent) this._playSound(_tapSoundEvent);
             if (segment.tap_action) {
                 this._executeSegmentAction(segment.tap_action, segment);
             }
@@ -2114,6 +2112,16 @@ export class LCARdSButton extends LCARdSCard {
      */
     _getOverlayType() {
         return 'button';
+    }
+
+    /**
+     * Whether `preset` names a button style preset. The elbow says no: elbows are
+     * shaped by elbow.type, and their old `preset` key is ignored.
+     * @returns {boolean}
+     * @protected
+     */
+    _usesStylePresets() {
+        return true;
     }
 
     /**
@@ -2538,7 +2546,7 @@ export class LCARdSButton extends LCARdSCard {
             source: this._singletons?.stylePresetManager ? 'singletons' : (stylePresetManager ? 'core' : 'none')
         });
 
-        if (this.config.preset) {
+        if (this.config.preset && this._usesStylePresets()) {
             // Check if StylePresetManager is available (either via singletons or core)
             if (!stylePresetManager) {
                 lcardsLog.warn(`[LCARdSButton] StylePresetManager not available yet, preset '${this.config.preset}' will be deferred`);
@@ -3088,7 +3096,8 @@ export class LCARdSButton extends LCARdSCard {
                 });
             }
             if (iconAreaBackground) {
-                iconAreaBackground = this._resolveMatchLightColor(iconAreaBackground);
+                // a JS or Jinja2 template, pre-evaluated like the card colours
+                iconAreaBackground = this._resolveMatchLightColor(this._resolveTemplateValue(iconAreaBackground));
             }
 
             this._processedIcon = {
@@ -3167,6 +3176,9 @@ export class LCARdSButton extends LCARdSCard {
         }
         if (this.config.icon_style) {
             hasChanges = await this._preEvaluateStyleTemplates(this.config.icon_style, 'icon_style') || hasChanges;
+        }
+        if (this.config.icon_area_background) {
+            hasChanges = await this._preEvaluateStyleTemplates(this.config.icon_area_background, 'icon_area_background') || hasChanges;
         }
         // Text field colours take templates too (a JS or Jinja2 colour string, or one
         // inside a state map); the text content is processed separately below
@@ -4268,6 +4280,18 @@ export class LCARdSButton extends LCARdSCard {
                     lcardsLog.warn(`[LCARdSButton] Template evaluation failed for config.${key}:`, e);
                     evaluatedConfig[key] = val;
                 }
+            } else if (val && typeof val === 'object' && typeof val.template === 'string' && key !== 'fill_pct') {
+                // (fill_pct has its own handling below, falling back to 50)
+                // { template, default } form (numeric params such as fill_pct), as on backgrounds:
+                // the template's number, or default when it gives none.
+                let out = val.default ?? 0;
+                try {
+                    const num = parseFloat(templateEvaluator.evaluate(val.template));
+                    if (Number.isFinite(num)) out = num;
+                } catch (e) {
+                    lcardsLog.warn(`[LCARdSButton] Template evaluation failed for config.${key}:`, e);
+                }
+                evaluatedConfig[key] = out;
             } else if (val && typeof val === 'object' && val.map_range !== undefined) {
                 // map_range descriptor: { map_range: { entity?, attribute?, input, output, clamp? } }
                 // entity defaults to config.entity (card-bound entity); `entity_id` is the
@@ -4280,10 +4304,13 @@ export class LCARdSButton extends LCARdSCard {
                     const rawValue = mrCfg.attribute ? entityObj.attributes?.[mrCfg.attribute] : entityObj.state;
                     const numVal = Number(rawValue);
                     const [inMin, inMax] = mrCfg.input.map(Number);
-                    const [outMin, outMax] = mrCfg.output;
                     const doClamp = mrCfg.clamp !== false;
-                    if (Number.isFinite(numVal) && typeof outMin === 'number' && typeof outMax === 'number') {
-                        evaluatedConfig[key] = linearMap(numVal, inMin, inMax, outMin, outMax, doClamp);
+                    // Two numbers map linearly; two colours (any form) blend
+                    const mapped = Number.isFinite(numVal)
+                        ? mapRangeOutput(numVal, inMin, inMax, mrCfg.output, doClamp, { element: this })
+                        : undefined;
+                    if (mapped !== undefined) {
+                        evaluatedConfig[key] = mapped;
                     } else {
                         lcardsLog.warn(`[LCARdSButton] map_range for config.${key}: non-numeric value or output`, { rawValue, mrCfg });
                         evaluatedConfig[key] = val;
@@ -5051,7 +5078,9 @@ export class LCARdSButton extends LCARdSCard {
             const _rawUserDefaults = this._rawUserComponentText?.default   || {};
             const _userExplicitFontSize = _rawUserField.font_size || _rawUserField.size
                 || _rawUserDefaults.font_size || null;
-            const _rawFsp = fieldConfig.font_size_percent !== undefined ? fieldConfig.font_size_percent
+            const _rawFsp = _rawUserField.font_size_percent != null ? _rawUserField.font_size_percent
+                : _rawUserDefaults.font_size_percent != null ? _rawUserDefaults.font_size_percent
+                : fieldConfig.font_size_percent !== undefined ? fieldConfig.font_size_percent
                 : (presetFieldConfig.font_size_percent !== undefined ? presetFieldConfig.font_size_percent
                 : (userDefaults.font_size_percent !== undefined ? userDefaults.font_size_percent
                 : (presetTextDefaults.font_size_percent !== undefined ? presetTextDefaults.font_size_percent : null)));
@@ -5107,13 +5136,25 @@ export class LCARdSButton extends LCARdSCard {
                 ? this._processedTemplates[fieldId]  // Use processed template value (may be empty string)
                 : (fieldConfig.content || presetFieldConfig.content || '');  // Fall back to raw config
 
+            // What the user wrote (the field, then their text.default) beats anything a
+            // preset filled in; fieldConfig / userDefaults are post-merge and hold preset
+            // values too. Then: merged field, merged text.default, preset field, preset
+            // text.default. First value that is set wins (0 and false count).
+            const _set = (/** @type {any} */ v) => v !== undefined && v !== null && v !== '';
+            const pick = (/** @type {string} */ key, /** @type {any} */ fallback) => {
+                for (const src of [_rawUserField, _rawUserDefaults, fieldConfig, userDefaults, presetFieldConfig, presetTextDefaults]) {
+                    if (_set(src?.[key])) return src[key];
+                }
+                return fallback;
+            };
+
             // Resolve field configuration with defaults
-            // Priority: config field-specific > preset field-specific > text.default > theme default > hardcoded fallback
+            // Priority: what the user wrote (field, text.default) > merged config > preset field > preset text.default > fallback
             resolvedFields[fieldId] = {
                 id: fieldId,
                 content: content,
                 // Priority: field config → preset field → user text.default → preset text.default → hardcoded named fallback
-                position: fieldConfig.position || presetFieldConfig.position || userDefaults.position || presetTextDefaults.position || presetDefault.position || null,
+                position: pick('position', presetDefault.position || null),
                 x: fieldConfig.x !== undefined ? fieldConfig.x : (presetFieldConfig.x !== undefined ? presetFieldConfig.x : null),
                 y: fieldConfig.y !== undefined ? fieldConfig.y : (presetFieldConfig.y !== undefined ? presetFieldConfig.y : null),
                 x_percent: fieldConfig.x_percent !== undefined ? fieldConfig.x_percent : (presetFieldConfig.x_percent !== undefined ? presetFieldConfig.x_percent : null),
@@ -5133,7 +5174,10 @@ export class LCARdSButton extends LCARdSCard {
                         normPad(presetTextDefaults.padding),
                         normPad(presetFieldConfig.padding),
                         normPad(userDefaults.padding),
-                        normPad(fieldConfig.padding)
+                        normPad(fieldConfig.padding),
+                        // what the user wrote wins over a preset's field padding
+                        normPad(_rawUserDefaults.padding),
+                        normPad(_rawUserField.padding)
                     ].filter(Boolean);
                     if (sources.length === 0) return 8; // hardcoded fallback
                     // Strip undefined keys so they don't clobber lower-priority values
@@ -5151,13 +5195,13 @@ export class LCARdSButton extends LCARdSCard {
                 // anything a preset filled in (merged into fieldConfig / userDefaults).
                 color: _rawUserField.color || _rawUserDefaults.color || this._rawUserStyleTextDefault?.color
                     || fieldConfig.color || userDefaults.color || presetFieldConfig.color || presetTextDefaults.color || null, // null means use default
-                font_weight: fieldConfig.font_weight || userDefaults.font_weight || presetFieldConfig.font_weight || this._buttonStyle?.text?.default?.font_weight || 'normal',
-                font_family: fieldConfig.font_family || userDefaults.font_family || presetFieldConfig.font_family || this._buttonStyle?.text?.default?.font_family || "'LCARS', 'Antonio', sans-serif",
-                text_transform: fieldConfig.text_transform || userDefaults.text_transform || presetFieldConfig.text_transform || this._buttonStyle?.text?.default?.text_transform || 'none',
-                letter_spacing: fieldConfig.letter_spacing ?? userDefaults.letter_spacing ?? presetFieldConfig.letter_spacing ?? this._buttonStyle?.text?.default?.letter_spacing ?? null,
-                anchor: fieldConfig.anchor || presetFieldConfig.anchor || presetDefault.anchor || null,
-                baseline: fieldConfig.baseline || presetFieldConfig.baseline || presetDefault.baseline || null,
-                rotation: fieldConfig.rotation !== undefined ? fieldConfig.rotation : (presetFieldConfig.rotation !== undefined ? presetFieldConfig.rotation : 0),
+                font_weight: pick('font_weight', this._buttonStyle?.text?.default?.font_weight || 'normal'),
+                font_family: pick('font_family', this._buttonStyle?.text?.default?.font_family || "'LCARS', 'Antonio', sans-serif"),
+                text_transform: pick('text_transform', this._buttonStyle?.text?.default?.text_transform || 'none'),
+                letter_spacing: pick('letter_spacing', this._buttonStyle?.text?.default?.letter_spacing ?? null),
+                anchor: pick('anchor', presetDefault.anchor || null),
+                baseline: pick('baseline', presetDefault.baseline || null),
+                rotation: pick('rotation', 0),
                 show: fieldConfig.show !== undefined ? fieldConfig.show : (presetFieldConfig.show !== undefined ? presetFieldConfig.show : true),
                 template: fieldConfig.template !== undefined ? fieldConfig.template : (presetFieldConfig.template !== undefined ? presetFieldConfig.template : true),
 
@@ -5177,37 +5221,19 @@ export class LCARdSButton extends LCARdSCard {
                 // stretch: true → fill 100% of available width; number (0–1) → fill that fraction.
                 // In component mode uses the text_area width; in standard mode uses container width.
                 // Renders via SVG textLength + lengthAdjust="spacingAndGlyphs".
-                stretch: fieldConfig.stretch !== undefined ? fieldConfig.stretch
-                    : (userDefaults.stretch !== undefined ? userDefaults.stretch
-                    : (presetFieldConfig.stretch !== undefined ? presetFieldConfig.stretch
-                    : (presetTextDefaults.stretch !== undefined ? presetTextDefaults.stretch : null))),
+                stretch: pick('stretch', null),
 
                 // Text background properties for "bar label" effect
                 // Priority: field-specific config > text.default (config) > preset field config > text.default (preset) > null
                 // background must be a stateColorSchema object e.g. { default: 'black' }.
                 // Preset definitions use object form; user YAML should use the same.
-                background: fieldConfig.background !== undefined ? fieldConfig.background :
-                           (userDefaults.background !== undefined ? userDefaults.background :
-                           (presetFieldConfig.background !== undefined ? presetFieldConfig.background :
-                           (presetTextDefaults.background !== undefined ? presetTextDefaults.background : null))),
-                background_padding: fieldConfig.background_padding !== undefined ? fieldConfig.background_padding :
-                                   (userDefaults.background_padding !== undefined ? userDefaults.background_padding :
-                                   (presetFieldConfig.background_padding !== undefined ? presetFieldConfig.background_padding :
-                                   (presetTextDefaults.background_padding !== undefined ? presetTextDefaults.background_padding : 8))),
-                background_radius: fieldConfig.background_radius !== undefined ? fieldConfig.background_radius :
-                                  (userDefaults.background_radius !== undefined ? userDefaults.background_radius :
-                                  (presetFieldConfig.background_radius !== undefined ? presetFieldConfig.background_radius :
-                                  (presetTextDefaults.background_radius !== undefined ? presetTextDefaults.background_radius : 4))),
+                background: pick('background', null),
+                background_padding: pick('background_padding', 8),
+                background_radius: pick('background_radius', 4),
                 // null = auto-size from text metrics (default behaviour)
-                background_width: fieldConfig.background_width !== undefined ? fieldConfig.background_width :
-                                 (userDefaults.background_width !== undefined ? userDefaults.background_width :
-                                 (presetFieldConfig.background_width !== undefined ? presetFieldConfig.background_width :
-                                 (presetTextDefaults.background_width !== undefined ? presetTextDefaults.background_width : null))),
+                background_width: pick('background_width', null),
                 // null = no minimum (default behaviour)
-                background_min_width: fieldConfig.background_min_width !== undefined ? fieldConfig.background_min_width :
-                                     (userDefaults.background_min_width !== undefined ? userDefaults.background_min_width :
-                                     (presetFieldConfig.background_min_width !== undefined ? presetFieldConfig.background_min_width :
-                                     (presetTextDefaults.background_min_width !== undefined ? presetTextDefaults.background_min_width : null)))
+                background_min_width: pick('background_min_width', null)
             };
         }
 
@@ -5451,16 +5477,17 @@ export class LCARdSButton extends LCARdSCard {
             if (field.x !== null && field.y !== null) {
                 x = field.x;
                 y = field.y;
-                anchor = field.anchor;
-                baseline = field.baseline;
+                // SVG's own defaults when none is set (text-anchor="null" was written)
+                anchor = field.anchor ?? 'start';
+                baseline = field.baseline ?? 'auto';
             }
             // Priority 2: Relative percentages (Phase 2 feature, placeholder for now)
             else if (field.x_percent !== null && field.y_percent !== null) {
                 const top = textAreaBounds.top || 0;
                 x = textAreaBounds.left + (textAreaBounds.width * field.x_percent / 100);
                 y = top + (textAreaBounds.height * field.y_percent / 100);
-                anchor = field.anchor;
-                baseline = field.baseline;
+                anchor = field.anchor ?? 'start';
+                baseline = field.baseline ?? 'auto';
             }
             // Priority 3: Named position
             else if (field.position) {
@@ -5632,13 +5659,20 @@ export class LCARdSButton extends LCARdSCard {
                 const bgRadius = field.background_radius ?? 4;
 
                 // Use actual text measurement for accurate sizing
-                const fontFamily = field.fontFamily || 'Antonio, Helvetica Neue, sans-serif';
-                const fontWeight = field.weight || 100;
-                const fontString = `${fontWeight} ${field.font_size}px ${fontFamily}`;
+                // Measure with the field's own font (fontFamily/weight were never set, so
+                // every box was sized for a thin Antonio); a size may be a CSS string
+                // canvas measuring can't read var(): resolve it (an LCARS font is usually one)
+                let fontFamily = field.font_family || 'Antonio, Helvetica Neue, sans-serif';
+                if (fontFamily.includes('var(')) fontFamily = ColorUtils.resolveCssVariable(fontFamily);
+                if (!fontFamily || fontFamily.includes('var(') || fontFamily.startsWith('#')) fontFamily = 'Antonio, Helvetica Neue, sans-serif';
+                const fontWeight = field.font_weight || 'normal';
+                const sizePx = parseFloat(String(field.font_size)) || 0;
+                const fontSizeCss = typeof field.font_size === 'number' ? `${field.font_size}px` : String(field.font_size);
+                const fontString = `${fontWeight} ${fontSizeCss} ${fontFamily}`;
 
                 const metrics = RendererUtils.measureText(field.content, fontString);
                 // letter-spacing adds after every glyph (SVG and canvas alike)
-                const textWidth = metrics.width + letterSpacingPx(field.letter_spacing, Number(field.font_size) || 0) * String(field.content ?? '').length;
+                const textWidth = metrics.width + letterSpacingPx(field.letter_spacing, sizePx) * String(field.content ?? '').length;
 
                 const bgFixedWidth = field.background_width ?? null;
                 const bgMinWidth   = field.background_min_width ?? null;

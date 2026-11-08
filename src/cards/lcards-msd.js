@@ -14,6 +14,7 @@ import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSCard } from '../base/LCARdSCard.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { mergeOverlayPatches } from '../core/rules/merge-patches.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { initMsdPipeline } from '../msd/index.js';
 import { getMsdSchema } from './schemas/msd-schema.js';
@@ -661,13 +662,10 @@ export class LCARdSMSDCard extends LCARdSCard {
             return;
         }
 
-        // Convert array of patches to map: { overlayId: patch }
-        const patchMap = {};
-        for (const patch of overlayPatches) {
-            if (patch.id) {
-                patchMap[patch.id] = patch;
-            }
-        }
+        // { overlayId: patch }: the highest-priority rule wins, rules patching
+        // different keys combine (as on other cards; the lowest-priority patch
+        // used to replace the rest)
+        const patchMap = mergeOverlayPatches(overlayPatches);
 
         // Check if patches changed
         const patchesChanged = JSON.stringify(this._lastRulePatches) !== JSON.stringify(patchMap);

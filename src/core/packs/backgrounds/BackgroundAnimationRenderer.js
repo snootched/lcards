@@ -18,7 +18,7 @@ import { isComputedColor } from '../../themes/color-syntax.js';
 import { isTemplateString } from '../../../utils/template-string.js';
 import { LCARdSCardTemplateEvaluator } from '../../templates/LCARdSCardTemplateEvaluator.js';
 import { TemplateDetector } from '../../templates/TemplateDetector.js';
-import { linearMap } from '../../../utils/linearMap.js';
+import { mapRangeOutput } from '../../../utils/linearMap.js';
 import { prefersReducedMotion } from '../../../utils/reduced-motion.js';
 import { animate, utils } from 'animejs';
 import { EffectHandle } from './effect-handle.js';
@@ -256,7 +256,7 @@ export class BackgroundAnimationRenderer {
    *     entity: light.tv         # optional, defaults to card's config.entity (entity_id: the older name, still read)
    *     attribute: brightness    # optional — defaults to entity state
    *     input:  [0, 255]         # input range
-   *     output: [-200, 200]      # output range (numbers or hex color strings)
+   *     output: [-200, 200]      # output range (two numbers or two colours, any colour form)
    *     clamp: true              # optional, default true
    *
    * @private
@@ -305,16 +305,14 @@ export class BackgroundAnimationRenderer {
     }
 
     const [inMin, inMax]   = cfg.input.map(Number);
-    const [outMin, outMax] = cfg.output;
     const clamp = cfg.clamp !== false; // default true
+    const element = this.cardInstance instanceof Element ? this.cardInstance : null;
 
-    if (typeof outMin === 'number' && typeof outMax === 'number') {
-      return linearMap(numVal, inMin, inMax, outMin, outMax, clamp);
+    const result = mapRangeOutput(numVal, inMin, inMax, cfg.output, clamp, { element });
+    if (result === undefined) {
+      lcardsLog.warn('[BackgroundAnimation] map_range: "output" must be two numbers or two colours', cfg);
     }
-
-    // Color string interpolation not needed for animation params but keep consistent
-    lcardsLog.warn('[BackgroundAnimation] map_range: "output" must be [number, number]', cfg);
-    return undefined;
+    return result;
   }
 
   /**
@@ -531,6 +529,10 @@ export class BackgroundAnimationRenderer {
       baseEffects = applySpeed(create(config, this.cardInstance));
       // Standard zoom: single instance, multiple renders
       drawn = zoom ? baseEffects.map((baseEffect) => new ZoomEffect(zoomConfig(baseEffect))) : baseEffects;
+    }
+    // A fixed `speed` runs the zoom cycle faster too, as an animated one does (effect-handle.js)
+    if (zoom && typeof config.speed === 'number') {
+      for (const d of drawn) if (d.baseEffect) d.speed = Math.max(0, config.speed);
     }
     // three.js scenes: redraw when ready (held reduced-motion frame), fall back on failure
     for (const effect of baseEffects) {

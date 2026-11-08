@@ -153,6 +153,9 @@ function collectDeps(node, deps) {
     case 'map_range_cond':
       if (node.c?.entity) deps.entities.add(node.c.entity);
       break;
+    case 'sun_elevation':
+      deps.entities.add('sun.sun');
+      break;
     case 'perf_metric':
       if (node.c?.key) deps.perf.add(node.c.key);
       break;
@@ -516,7 +519,8 @@ function evalMapRangeCond(c, ctx) {
   const [inA, inB] = c.input || [];
   const [outA, outB] = c.output || [];
   if (![inA,inB,outA,outB].every(Number.isFinite)) return false;
-  const mapped = linearMap(val, inA, inB, outA, outB, c.clamp);
+  // clamp is on unless set false, as for map_range everywhere else
+  const mapped = linearMap(val, inA, inB, outA, outB, c.clamp !== false);
   return compareValue(mapped, c);
 }
 

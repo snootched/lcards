@@ -609,7 +609,11 @@ export const tapRippleParamsSchema = {
       description: 'Random extra delay per target (ms, or a [start, end] ramp) for a less even wave.',
       'x-ui-hints': { widget: 'json', label: 'Jitter (ms)' }
     },
-    seed: { type: 'number', description: 'Any number: the same jitter on every load.' }
+    seed: { type: 'number', description: 'Any number: the same jitter on every load.' },
+    grid: {
+      type: 'array', minItems: 2, maxItems: 2, items: { type: 'number', minimum: 1 },
+      description: '[columns, rows] of the targets, passed to the stagger as its grid.'
+    }
   },
   additionalProperties: 'warn'
 };
@@ -782,7 +786,8 @@ export const textGlitchParamsSchema = {
     duration: { type: 'number', minimum: 0, default: 300, description: 'ms per glitch cycle.' },
     stagger: { type: 'number', minimum: 0, default: 50, description: 'ms offset between characters. Canonical `delay` is unused here.' },
     color_shift: { type: 'boolean', default: false, description: 'HTML target path only: silently ignored for SVG elements.' },
-    loop: { type: 'boolean', default: false }
+    loop: { ..._CANONICAL_REDECLARED.loop, default: false },
+    seed: { type: 'number', description: 'Any number: the same glitch offsets on every run.' }
   },
   additionalProperties: 'warn'
 };
@@ -792,7 +797,7 @@ export const textTypewriterParamsSchema = {
   description: "Params for the \"text-typewriter\" preset. `duration` (canonical) is hardcoded to 1, ignored. `ease` hardcoded 'linear'. `alternate`/`delay` (canonical) never read.",
   properties: {
     speed: { type: 'number', minimum: 0, default: 100, description: 'ms per character.' },
-    loop: { type: 'boolean', default: false }
+    loop: { ..._CANONICAL_REDECLARED.loop, default: false }
   },
   additionalProperties: 'warn'
 };
@@ -850,7 +855,7 @@ export const timelineCascadeParamsSchema = {
   type: 'object',
   description: 'Params for the "timeline-cascade" preset: multi-step timeline. Timing/easing for each step lives in that step\'s own config; the top-level canonical `duration`/`ease` are genuinely inert (confirmed against anime.js\'s own source: Timeline recomputes its own duration from its children regardless, and `ease` isn\'t read by the underlying Timer class at all; only a separate `playbackEase` is). `loop`/`alternate`/`delay`, however, do still apply: they govern the whole timeline\'s repeat/reverse/start-delay behavior, since Timeline extends Timer and inherits those from the same top-level params.',
   properties: {
-    loop: { type: 'boolean', default: false },
+    loop: { ..._CANONICAL_REDECLARED.loop, default: false },
     steps: {
       type: 'array', minItems: 1,
       items: {
@@ -876,7 +881,7 @@ export const timelineAttentionParamsSchema = {
   type: 'object',
   description: 'Params for the "timeline-attention" preset: 3-phase scale/shake/settle sequence. The top-level canonical `duration`/`ease` are genuinely inert (durations are hardcoded to the duration_* fields below, and each phase\'s easing is hardcoded in source with no override; confirmed via anime.js\'s own source that Timeline discards a top-level duration and never reads `ease` at all). Of the remaining canonical fields, only `loop` is actually forwarded by the preset factory (repeats the whole 3-phase sequence); `alternate`/`delay` are never read by this preset\'s code despite being generically available on the Timeline class, so they were deliberately left out of this schema.',
   properties: {
-    loop: { type: 'boolean', default: false, description: 'Repeats the whole 3-phase sequence.' },
+    loop: { ..._CANONICAL_REDECLARED.loop, default: false, description: 'Repeats the whole 3-phase sequence.' },
     scale_max: { type: 'number', minimum: 1, default: 1.15 },
     shake_intensity: { type: 'number', minimum: 0, default: 5, description: 'Used to build a fixed 5-point translateX keyframe array.' },
     duration_scale: { type: 'number', minimum: 0, default: 200, description: 'Duration of phase 1 (scale up).' },

@@ -677,11 +677,30 @@ export default withMermaid(defineConfig({
           text: 'On Every Card',
           items: [
             { text: 'Actions',     link: '/core/actions' },
-            { text: 'Colours',     link: '/core/colours' },
+            {
+              text: 'Colours',
+              collapsed: true,
+              items: [
+                { text: 'Overview',               link: '/core/colours' },
+                { text: 'Colour Values',          link: '/core/colours/values' },
+                { text: 'State Maps',             link: '/core/colours/state-maps' },
+                { text: 'Attributes and Buckets', link: '/core/colours/attributes' },
+              ],
+            },
             { text: 'Presets',     link: '/core/presets' },
             { text: 'Card Sounds',      link: '/core/sounds' },
             { text: 'Styles',      link: '/core/styles' },
-            { text: 'Text Fields', link: '/core/text-fields' },
+            {
+              text: 'Text Fields',
+              collapsed: true,
+              items: [
+                { text: 'Overview',                      link: '/core/text-fields' },
+                { text: 'Placing Text',                  link: '/core/text-fields-placement' },
+                { text: 'Zones',                         link: '/core/text-fields-zones' },
+                { text: 'Fonts, Colour and Backgrounds', link: '/core/text-fields-style' },
+                { text: 'Content and Formats',           link: '/core/text-fields-content' },
+              ],
+            },
           ],
         },
         {
@@ -702,6 +721,9 @@ export default withMermaid(defineConfig({
               items: [
                 { text: 'Overview',   link: '/core/rules/' },
                 { text: 'Conditions', link: '/core/rules/conditions' },
+                { text: 'Targets and Changes',    link: '/core/rules/changes' },
+                { text: 'Priority and Debugging', link: '/core/rules/priority' },
+                { text: 'Examples',               link: '/core/rules/examples' },
               ],
             },
             {
@@ -731,6 +753,8 @@ export default withMermaid(defineConfig({
               collapsed: true,
               items: [
                 { text: 'Overview',               link: '/core/animations' },
+                { text: 'Triggers',               link: '/core/animations/triggers' },
+                { text: 'Timing and Easing',      link: '/core/animations/timing-and-easing' },
                 { text: 'Preset Reference',        link: '/core/animations/preset-reference' },
                 { text: 'Entity Change Triggers', link: '/core/animations/entity-change-triggers' },
                 { text: 'Rule-based Animations',  link: '/core/animations/rule-based-animations' },
@@ -741,10 +765,19 @@ export default withMermaid(defineConfig({
               collapsed: true,
               items: [
                 { text: 'Overview',          link: '/core/effects/background-animations' },
+                { text: 'Stacking and Zoom', link: '/core/effects/background-animations/stacking-and-zoom' },
+                { text: 'Binding and Animation', link: '/core/effects/background-animations/binding-and-animation' },
                 { text: 'Preset Reference',  link: '/core/effects/background-animations/preset-reference' },
               ],
             },
-            { text: 'Borg Assimilation',  link: '/core/borg' },
+            {
+              text: 'Borg Assimilation',
+              collapsed: true,
+              items: [
+                { text: 'Overview',     link: '/core/borg' },
+                { text: 'Borg Actions', link: '/core/borg-actions' },
+              ],
+            },
             { text: 'Filters',            link: '/core/effects/filters' },
             { text: 'Screen Effects',     link: '/core/effects/screen-effects' },
           ],

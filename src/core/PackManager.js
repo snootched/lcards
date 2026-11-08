@@ -97,6 +97,8 @@ export class PackManager {
 
       if (pack.rules.length > 0) {
         this.core.rulesManager.buildDependencyIndex();
+        // Compile them, as cards do for their rules: an uncompiled rule never matched
+        this.core.rulesManager._compileRules();
         this.core.rulesManager.markAllDirty();
         lcardsLog.debug(`[PackManager] Registered ${pack.rules.length} rules from pack: ${pack.id}`);
       }

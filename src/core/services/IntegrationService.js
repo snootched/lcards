@@ -469,30 +469,25 @@ export class IntegrationService extends BaseService {
 
             case 'trigger_effect': {
                 // Fire screen effects on this device.
-                //
-                // New API (Option A): payload.layers — explicit per-slot config:
-                //   { backdrop: { preset, ...params }, color: { preset, ...params }, canvas: { preset, ...params } }
-                //   Absent slot = not touched. null value = clear that slot.
-                //
-                // Legacy API removed — only layers is accepted.
-                //   payload.params.duration — auto-clear after N ms.
-                //
-                // Backward compat: both APIs can coexist; layers takes precedence when present.
+                //   payload.layers: { backdrop|color|canvas: { preset, ...params } | null }
+                //   A slot left out is not touched; null clears that slot.
+                //   payload.duration: ms before the slots this call set clear
+                //   (each slot keeps its own timer, so a later call is never
+                //   cut short by an earlier one).
                 const sem = window.lcards?.core?.screenEffectManager;
 
-                if (sem && payload.layers) {
+                if (sem && payload.layers && typeof payload.layers === 'object') {
                     lcardsLog.info('[IntegrationService] Screen effect (layers) triggered by backend');
-                    sem.clearSlot('backdrop');
-                    sem.clearSlot('color');
-                    sem.clearSlot('canvas');
                     for (const [slot, layerCfg] of Object.entries(payload.layers)) {
-                        if (layerCfg?.preset) {
+                        if (!['backdrop', 'color', 'canvas'].includes(slot)) {
+                            lcardsLog.warn(`[IntegrationService] trigger_effect: unknown slot '${slot}'`);
+                        } else if (layerCfg === null) {
+                            sem.clearSlot(slot);
+                        } else if (layerCfg?.preset) {
                             const { preset, ...params } = layerCfg;
-                            sem.applySlot(slot, preset, params);
+                            if (payload.duration) sem.applySlotFor(slot, preset, params, payload.duration);
+                            else sem.applySlot(slot, preset, params);
                         }
-                    }
-                    if (payload.duration) {
-                        setTimeout(() => { sem.clear(); }, payload.duration);
                     }
                 } else {
                     lcardsLog.warn('[IntegrationService] trigger_effect: missing layers or screenEffectManager unavailable');

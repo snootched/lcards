@@ -59,10 +59,17 @@ function colorFloats(value, fallback) {
  * @param {number}  [params.seed]                 - WebGL: the same layout every time.
  * @returns {() => void} Cleanup function — stops the worker and removes the sibling canvas.
  */
+/** True when this browser can draw the intro (OffscreenCanvas and Worker). */
+export function borgIntroSupported() {
+    return typeof HTMLCanvasElement !== 'undefined'
+        && typeof HTMLCanvasElement.prototype.transferControlToOffscreen === 'function'
+        && typeof Worker !== 'undefined';
+}
+
 export function BorgAssimilationEffect(canvas, params = {}) {
     const parent = canvas.parentElement;
     if (!parent) return () => {}; // effect canvas not mounted: nothing to attach a sibling to
-    if (typeof HTMLCanvasElement.prototype.transferControlToOffscreen !== 'function' || typeof Worker === 'undefined') {
+    if (!borgIntroSupported()) {
         lcardsLog.debug('[BorgAssimilationEffect] OffscreenCanvas or Worker not available: effect skipped');
         return () => {};
     }

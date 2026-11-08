@@ -400,6 +400,10 @@ export class LCARdSSelectMenu extends LCARdSCard {
             },
             ...(opt.icon ? { icon: opt.icon, show_icon: true } : {}),
         };
+        // The card's sounds reach every option button; the template's and the option's win
+        if (this.config.sounds && typeof this.config.sounds === 'object') {
+            btnConfig.sounds = { ...this.config.sounds, ...(btnConfig.sounds || {}) };
+        }
 
         // justify-items / align-items place only a button with its own size (an unsized one would vanish)
         const placement = (/** @type {any} */ b) => { const p = optionPlacement(b); return { 'justify-self': p.justifySelf, 'align-self': p.alignSelf }; };

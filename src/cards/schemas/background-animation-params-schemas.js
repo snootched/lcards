@@ -215,6 +215,7 @@ export const nebulaParamsSchema = {
       description: 'Cloud color(s); also accepts a single color via the legacy `color` field.',
       'x-ui-hints': { widget: 'json', label: 'Colors' }
     },
+    color: { ...simpleColorSchema, description: 'One color for every cloud, in place of colors (colors wins when both are set).' },
     turbulence: { type: 'number', minimum: 0, maximum: 1, default: 0.5, description: 'How ragged/organic the cloud edges are. Clamped in code to 0-1.', 'x-ui-hints': { selector: { number: { min: 0, max: 1, step: 0.05, mode: 'slider' } } } },
     noise_scale: { type: 'number', minimum: 0.0001, default: 0.003, description: 'Noise detail: lower = larger, smoother features.', 'x-ui-hints': { selector: { number: { min: 0.0005, max: 0.02, step: 0.0005, mode: 'slider' } } } },
     scroll_speed_x: { type: 'number', default: 5, description: 'Horizontal scroll speed in px/s.', 'x-ui-hints': { selector: { number: { min: -50, max: 50, step: 1, mode: 'slider' } } } },
@@ -244,6 +245,7 @@ export const contourFieldParamsSchema = {
       description: 'One color, or several stops spread across the full contour range. Default shown here is the exact shipped default (5 alpha-graded stops of the same base hue).',
       'x-ui-hints': { widget: 'json', label: 'Colors' }
     },
+    color: { ...simpleColorSchema, description: 'One color for every contour band, in place of colors (colors wins when both are set).' },
     scroll_speed_x: { type: 'number', default: -3, description: 'Horizontal scroll speed in px/s.', 'x-ui-hints': { selector: { number: { min: -20, max: 20, step: 0.5, mode: 'slider' } } } },
     scroll_speed_y: { type: 'number', default: 0.45, description: 'Vertical scroll speed in px/s.', 'x-ui-hints': { selector: { number: { min: -20, max: 20, step: 0.5, mode: 'slider' } } } },
     opacity: _opacitySchema
@@ -284,7 +286,20 @@ export const cascadeParamsSchema = {
     },
     font_size: { type: 'number', minimum: 1, default: 10, description: 'Character font size in px. Unclamped: 0 combined with gap:0 throws a RangeError, hence the minimum.', 'x-ui-hints': { selector: { number: { min: 4, max: 40, step: 1, mode: 'slider' } } } },
     gap: { type: 'number', minimum: 0, default: 4, description: 'Spacing between cells in px.', 'x-ui-hints': { selector: { number: { min: 0, max: 20, step: 1, mode: 'slider' } } } },
-    refresh_interval: { type: 'integer', minimum: 0, default: 0, description: 'How often cells re-randomize, in ms (0 = continuous).', 'x-ui-hints': { selector: { number: { min: 0, max: 5000, step: 100, mode: 'slider' } } } },
+    font_family: { type: 'string', description: 'Character font. Default: the theme\'s cascade font (Antonio).' },
+    timing: {
+      type: 'array',
+      description: 'With pattern: custom, the timing of each row in turn (repeating): duration in ms, delay in seconds.',
+      items: {
+        type: 'object',
+        properties: {
+          duration: { type: 'number', minimum: 1, description: 'One cycle of the row, ms (at least 100).' },
+          delay: { type: 'number', minimum: 0, description: 'How far into its cycle the row starts, seconds.' }
+        },
+        additionalProperties: false
+      }
+    },
+    refresh_interval: { type: 'integer', minimum: 0, default: 0, description: 'How often cells re-randomize, in ms (0 = never: the characters stay put).', 'x-ui-hints': { selector: { number: { min: 0, max: 5000, step: 100, mode: 'slider' } } } },
     duration: { type: 'integer', minimum: 1, description: 'Explicit cycle duration override in ms.' },
     opacity: _opacitySchema
   },
@@ -302,6 +317,7 @@ export const levelParamsSchema = {
     speed: _speedSchema,
     color_a: { ...simpleColorSchema, default: 'rgba(0,200,100,0.7)', description: 'Primary fill color (or gradient start).' },
     color_b: { ...simpleColorSchema, description: 'Gradient end color: omit for a flat fill.' },
+    color: { ...simpleColorSchema, description: 'Fill color: the older name for color_a (color_a wins when both are set).' },
     gradient_crossover: { type: 'number', minimum: 0, maximum: 100, default: 80, description: 'Percent of fill height where the gradient crosses over. Clamped in code to 0-100.', 'x-ui-hints': { selector: { number: { min: 0, max: 100, step: 1, mode: 'slider' } } } },
     fill_pct: { type: 'number', minimum: 0, maximum: 100, default: 50, description: 'Fill level, 0-100. Clamped in code.', 'x-ui-hints': { selector: { number: { min: 0, max: 100, step: 1, mode: 'slider' } } } },
     direction: {
@@ -380,7 +396,7 @@ export const shimmerParamsSchema = {
   properties: {
     color: { ...simpleColorSchema, default: 'rgba(255,255,255,0.55)', description: 'Highlight color.' },
     highlight_width: { type: 'number', minimum: 0, default: 0.35, description: 'Band width as a fraction of canvas size.', 'x-ui-hints': { selector: { number: { min: 0, max: 1, step: 0.05, mode: 'slider' } } } },
-    speed: { type: 'number', default: 2.5, description: 'Sweep speed.', 'x-ui-hints': { selector: { number: { min: 0, max: 10, step: 0.1, mode: 'slider' } } } },
+    speed: { type: 'number', default: 6, description: 'Sweep speed, px per second along the diagonal.', 'x-ui-hints': { selector: { number: { min: 0, max: 20, step: 0.5, mode: 'slider' } } } },
     angle: { type: 'number', minimum: 0, maximum: 360, default: 30, description: 'Sweep angle in degrees. Unbounded in code (raw sin/cos of the angle) but periodic, so 0-360 is the sensible UI range.', 'x-ui-hints': { selector: { number: { min: 0, max: 360, step: 1, mode: 'slider' } } } },
     opacity: _opacitySchema
   },
@@ -523,16 +539,25 @@ export const BACKGROUND_ANIMATION_PARAMS_SCHEMAS = {
  * for its own system and not reused here).
  * @private
  */
+/**
+ * The strings BackgroundAnimationRenderer evaluates (TemplateDetector.hasJavaScript or
+ * hasTokens): any other string in place of a number or a colour reaches the effect as is,
+ * so the template branch only takes these.
+ * @private
+ */
+const BACKGROUND_TEMPLATE_PATTERN = '\\[\\[\\[[\\s\\S]*\\]\\]\\]|\\{[a-zA-Z_][\\w.:-]*\\}';
+
 function _reactiveAware(fieldSchema) {
   return {
     oneOf: [
       fieldSchema,
-      { type: 'string', description: 'Template string, evaluated on every HASS update.' },
+      { type: 'string', pattern: BACKGROUND_TEMPLATE_PATTERN, description: 'Template string ([[[ JavaScript ]]] or a {token}), evaluated on every Home Assistant update.' },
       {
         type: 'object',
         properties: {
           template: { type: 'string', required: true },
-          default: {}
+          // the value while the template gives none (a number, a colour, ...)
+          default: { type: ['number', 'string', 'boolean'] }
         },
         additionalProperties: false
       },

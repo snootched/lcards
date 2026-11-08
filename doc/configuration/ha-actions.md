@@ -14,7 +14,7 @@ LCARdS registers a set of Home Assistant **actions** under the `lcards` domain. 
 ## Targeting {#targeting}
 
 Several `lcards.*` actions support targeting specific browsers/devices and/or users.  Set any combination of the below fields for supported services.
-If these options are omitted, then the action is global and every connected browser will pick it up.
+If these options are omitted, then the action is global and every connected browser will pick it up. If they are set but match no device or user (a typo in a name, say), the action fails with an error instead of reaching every browser.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -77,7 +77,7 @@ Play one or more layered screen effects.
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `layers` | object | ✅ | Per-slot effect config: see below |
-| `duration` | number | | Auto-clear all effects after this many ms (100–300000). Omit for a persistent effect that must be cleared manually. |
+| `duration` | number | | Clear the slots this action sets after this many ms (100–300000). Omit for a persistent effect that must be cleared manually. |
 | `target_device_ids` | list | | → [Targeting](#targeting) |
 | `target_device_names` | list | | → [Targeting](#targeting) |
 | `target_user_ids` | list | | → [Targeting](#targeting) |
@@ -389,14 +389,15 @@ Trigger the Borg assimilation on one or all connected browsers.
 |-------|----------|---------|-------------|
 | `intro_duration` | No | - | Auto-dismiss the intro after this many ms (1000–60000). Omit for click-to-dismiss. |
 | `site_count` | No | `8` | Number of injection sites on screen (1–20) |
-| `tendrils_per_site` | No | `5` | Bézier tendrils per injection site (1–24) |
+| `tendrils_per_site` | No | `5` | Bézier tendrils per injection site (1–20) |
 | `tendril_length` | No | `600` | Maximum tendril reach in pixels (100–1200) |
 | `particle_count` | No | `2` | Nano-probe particles per tendril (0–6); `0` disables particles |
 | `renderer` | No | `auto` | `auto` or `webgl`: the WebGL intro where the browser supports it; `canvas`: the [classic intro](/core/borg#classic-intro) |
-| `cube` | No | `true` | WebGL intro: show the Borg cube |
+| `cube` | No | `detailed` | WebGL intro: `detailed` (solid cube with machinery), `classic` (wireframe) or `none` (no cube) |
 | `corruption` | No | `0.5` | WebGL intro: signal corruption strength (0–1); `0` turns it off |
 | `overrun` | No | `0.65` | WebGL intro: darkness behind the assimilation front (0–1) |
 | `transition_style` | No | `blur_fade` | Palette transition: `blur_fade`, `flash`, `fade_only`, `off` |
+| `sound` | No | - | Sound as the assimilation starts: a file URL (`/local/sounds/borg.mp3`), a `media-source://` id or a sound asset key; `none` is silent. Left empty, the `borg_assimilate` sound event plays (silent unless your sound scheme assigns it). |
 | `font_swap` | No | `true` | Set to `false` to skip the Borg font injection; all other effects (palette, canvas intro, persistent layers) still run. |
 | `suppress_persistent` | No | `false` | Suppress all persistent effects after intro. Ignored if `persistent_layers` is also set. |
 | `intro_layers` | No | - | **Advanced.** Full per-slot layers dict. Canvas param keys accept either snake_case or camelCase; both are normalised. Values override the corresponding flat shortcuts. |
@@ -473,6 +474,7 @@ Reverse the Borg assimilation and restore all browsers to normal.
 | `with_outro` | No | `true` | Play outro layers before reverting. `false` = immediate silent revert. |
 | `outro_layers` | No | - | Layers dict for the outro. Longest `duration` param determines wait time. Omit for defaults (glitch on canvas, 1200 ms). |
 | `revert_transition_style` | No | `fade_only` | Palette transition back to normal: `flash`, `fade_only`, `blur_fade`, `off` |
+| `sound` | No | - | Sound as the deassimilation starts: a file URL, a `media-source://` id or a sound asset key; `none` is silent. Left empty, the `borg_deassimilate` sound event plays (silent unless your sound scheme assigns it). |
 | `target_device_ids` | No | - | → [Targeting](#targeting) |
 | `target_device_names` | No | - | → [Targeting](#targeting) |
 | `target_user_ids` | No | - | → [Targeting](#targeting) |

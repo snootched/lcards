@@ -122,5 +122,5 @@ drag_badge:
 | `component` | string | from the preset | `shaped`, `ring` or `picard` without a preset that sets it |
 | `value_tween` | object | on | Eases the fill and markers to a new value when the entity changes: see [Value tween](./control#value-tween). Off when the device asks for reduced motion |
 | `drag_badge` | object | off | A badge with the live value while you drag: see [Drag value badge](./control#drag-value-badge) |
-| `ranges_attribute` | string | - | The attribute that [range colours](/core/colours#range-conditions-on-non-numeric-entities-ranges-attribute) compare, for entities whose state is not a number |
-| `state_attribute` | string | - | The attribute whose value picks [exact-match colours](/core/colours#exact-match-keys-from-an-attribute-state-attribute) |
+| `ranges_attribute` | string | - | The attribute that [range colours](/core/colours/attributes#ranges-attribute) compare, for entities whose state is not a number |
+| `state_attribute` | string | - | The attribute whose value picks [exact-match colours](/core/colours/attributes#state-attribute) |

@@ -72,3 +72,13 @@ test('map_range takes entity, as animations and astrometrics do (entity_id, the 
     assert.equal(base(effects[0]).scrollSpeedX, 100, key);
   }
 });
+
+test('a fixed speed runs the zoom cycle too, as an animated speed does (D2 batch 5)', () => {
+  const { effects } = load([{ preset: 'grid', transition: 0, zoom: { layers: 2 }, config: { speed: 3 } }]);
+  assert.ok(effects.length >= 1);
+  for (const e of effects) {
+    assert.ok(e.baseEffect, 'zoomed');
+    assert.equal(e.speed, 3, 'the zoom wrapper');
+    assert.equal(e.baseEffect.speed, 3, 'the effect');
+  }
+});

@@ -55,7 +55,7 @@ export class RulesEngine extends BaseService {
 
     // ✨ NEW: Rule-based animation tracking
     // Maps ruleId to Set of overlayIds that have active rule animations
-    this.activeRuleAnimations = new Map(); // ruleId -> Set<overlayId>
+    this.activeRuleAnimations = new Map(); // ruleId -> Map<overlayId, animDef[]> (the looping defs it started)
 
     this.buildRulesIndex();
     this.buildDependencyIndex();
@@ -586,6 +586,10 @@ export class RulesEngine extends BaseService {
     const startTime = performance.now();
 
     try {
+      // A disabled rule (enabled: false, what the Rules tab's Disable writes) never
+      // matches, so its patches and animations are removed like any unmatched rule's
+      if (rule.enabled === false) return this.createUnmatchedResult(rule);
+
       // Get compiled rule
       const compiled = this.compiledRules.get(rule.id);
       if (!compiled) {
@@ -609,7 +613,8 @@ export class RulesEngine extends BaseService {
         now: Date.now(),
 
         // Additional context
-        sun: this.systemsManager?.getSunInfo?.(),
+        // sun_elevation reads sun.sun (there is no getSunInfo on the systems manager)
+        sun: { elevation: Number(getEntity?.('sun.sun')?.attributes?.elevation ?? this.systemsManager?.getHass?.()?.states?.['sun.sun']?.attributes?.elevation) },
         getPerf: (key) => /** @type {any} */ (this).perfMetrics?.[key],
         flags: /** @type {any} */ (this).debugFlags || {},
 
@@ -1228,7 +1233,7 @@ export class RulesEngine extends BaseService {
 
     // Track which overlays have animations started by this rule
     if (!this.activeRuleAnimations.has(ruleId)) {
-      this.activeRuleAnimations.set(ruleId, new Set());
+      this.activeRuleAnimations.set(ruleId, new Map());
     }
     const activeOverlays = this.activeRuleAnimations.get(ruleId);
 
@@ -1280,7 +1285,9 @@ export class RulesEngine extends BaseService {
           const ruleAnimDef = { ...animCmd, trigger: 'on_rule' };
           await animationManager.playAnimation(overlayId, ruleAnimDef);
           if (animCmd.loop) {
-            activeOverlays.add(overlayId);
+            // Remember the exact definition: stopping it leaves other rules' loops on the overlay running
+            if (!activeOverlays.has(overlayId)) activeOverlays.set(overlayId, []);
+            activeOverlays.get(overlayId).push(ruleAnimDef);
           }
         }
 
@@ -1363,9 +1370,10 @@ export class RulesEngine extends BaseService {
 
     // Stop animations on each overlay that has rule-triggered animations
     // ✅ FIX: Only stop rule-triggered animations by passing trigger type
-    activeOverlays.forEach(overlayId => {
+    activeOverlays.forEach((defs, overlayId) => {
       try {
-        animationManager.stopAnimations(overlayId, 'on_rule');
+        // Only this rule's animations: another rule's loop on the same overlay keeps running
+        for (const def of defs) animationManager.stopAnimations(overlayId, 'on_rule', def);
       } catch (error) {
         lcardsLog.error(`[RulesEngine] Failed to stop animation for overlay ${overlayId}:`, error);
       }

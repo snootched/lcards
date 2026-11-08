@@ -189,7 +189,7 @@ objects:
 | `content` | string | - | A field's text. [Templates](/core/templates/) are evaluated |
 | `template` | boolean | `true` | `false` shows `content` as written |
 | `show` | boolean | `true` | `false` hides the field |
-| `display_format` | string | - | As on every card: see [Display format](/core/text-fields#display-format) |
+| `display_format` | string | - | As on every card: see [Display format](/core/text-fields-content#display-format) |
 | `position` | string | `center-right` with a marker, else `center` | Where the field sits round the point: `center`, `center-right`, `top-left`, `bottom-center` and the other six. `right`, `left`, `top` and `bottom` are short for the middle ones |
 | `font_size` | number / string | by style | px (a number) or a CSS size |
 | `font_weight` | string / number | - | As on every card |
@@ -197,7 +197,7 @@ objects:
 | `text_transform` | string | - | `uppercase`, `lowercase`, `capitalize` |
 | `letter_spacing` | number / string | - | px (a number) or a CSS length |
 | `color` | colour / state map | by style | A colour, or a [state map](/core/colours) by the point's entity; a `selected` key colours it while the point is selected |
-| `background` | colour / state map | - | A box behind the text, as on the [bar-label buttons](/core/text-fields#text-background) |
+| `background` | colour / state map | - | A box behind the text, as on the [bar-label buttons](/core/text-fields-style#text-background) |
 | `background_padding` | number | `8` | Space between the text and the sides of its box, px |
 | `background_radius` | number | `4` | Corner radius of the box, px |
 | `background_width` | number | - | A fixed box width, px |

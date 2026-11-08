@@ -18,7 +18,7 @@
 | `AnimationRegistry` | `core/animation/AnimationRegistry.js` | Caches compiled anime.js instances; avoids re-parsing |
 | `TriggerManager` | `core/animation/TriggerManager.js` | Manages trigger subscriptions (entity_change, datasource) |
 | `AnimationPerformanceMonitor` | `core/animation/PerformanceMonitor.js` | Tracks active animation count and frame budget |
-| `resolveAnimParams` | `core/animation/resolveAnimParams.js` | Resolves `map_range` descriptors (entity-driven duration, delay, params) to numbers |
+| `resolveAnimParams` | `core/animation/resolveAnimParams.js` | Resolves `map_range` descriptors (entity-driven duration, delay, params) to numbers or blended colours (`mapRangeOutput()` in `utils/linearMap.js`) |
 
 ---
 

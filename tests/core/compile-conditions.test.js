@@ -156,13 +156,14 @@ test('entity_attr: documented form and editor form both compare the attribute', 
     assert.equal(await run({ entity_attr: 'light.gone', attribute: 'brightness', above: 0 }, c), false);
 });
 
-test('map_range_cond: maps the state then compares; clamp optional', async () => {
+test('map_range_cond: maps the state then compares; clamped unless clamp: false (as map_range everywhere)', async () => {
     const c = ctx();
     // 21.5 in [0,100] -> 0.215 in [0,1]
     assert.equal(await run({ map_range_cond: { entity: 'sensor.temp', input: [0, 100], output: [0, 1], above: 0.2, below: 0.3 } }, c), true);
-    // 21.5 in [0,10] -> 2.15 unclamped, 1 clamped
-    assert.equal(await run({ map_range_cond: { entity: 'sensor.temp', input: [0, 10], output: [0, 1], above: 1 } }, c), true);
+    // 21.5 in [0,10] -> 1 clamped (the default, D2 batch 5), 2.15 with clamp: false
+    assert.equal(await run({ map_range_cond: { entity: 'sensor.temp', input: [0, 10], output: [0, 1], above: 1 } }, c), false);
     assert.equal(await run({ map_range_cond: { entity: 'sensor.temp', input: [0, 10], output: [0, 1], clamp: true, above: 1 } }, c), false);
+    assert.equal(await run({ map_range_cond: { entity: 'sensor.temp', input: [0, 10], output: [0, 1], clamp: false, above: 1 } }, c), true);
     assert.equal(await run({ map_range_cond: { entity: 'sensor.temp', input: [0], output: [0, 1], above: 0 } }, c), false);
     assert.equal(await run({ map_range_cond: { entity: 'sensor.bad', input: [0, 1], output: [0, 1], above: 0 } }, c), false);
 });
@@ -283,4 +284,8 @@ test('RulesEngine: JS conditions see the state from the triggering event, not th
     assert.equal(await evalCompiled(tree, { hass: view }), true);
     engine._freshStateCache.clear();
     assert.equal(engine._hassWithFreshStates(staleHass), staleHass);
+});
+
+test('deps: sun_elevation depends on sun.sun (D2 batch 5: it never re-evaluated)', () => {
+    assert.deepEqual([...compile({ sun_elevation: { above: 0 } }).deps.entities], ['sun.sun']);
 });

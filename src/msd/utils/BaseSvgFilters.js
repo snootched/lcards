@@ -165,7 +165,10 @@ export function generateFilterString(filters, normalize = false) {
     return filters
       .filter(f => f.mode === 'css' || !f.mode) // Only CSS filters for now (SVG filters come later)
       .map(filter => {
-        const { type, value } = filter;
+        const { type } = filter;
+        // No value: the CSS function's own default (brightness() is 1, blur() is 0).
+        // Writing `undefined` made the whole filter list invalid, dropping every filter in it.
+        const value = filter.value ?? '';
 
         // Convert filter to CSS function string
         if (type === 'blur') {
@@ -177,7 +180,7 @@ export function generateFilterString(filters, normalize = false) {
         } else if (type === 'saturate') {
           return `saturate(${value})`;
         } else if (type === 'hue-rotate') {
-          const hueValue = String(value).endsWith('deg') ? value : `${value}deg`;
+          const hueValue = value === '' || String(value).endsWith('deg') ? value : `${value}deg`;
           return `hue-rotate(${hueValue})`;
         } else if (type === 'grayscale') {
           return `grayscale(${value})`;

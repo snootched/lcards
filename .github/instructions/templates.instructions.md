@@ -58,7 +58,7 @@ Per-phase error/fallback behaviour differs — none of them throw up to the call
 |-------|-----------|
 | JavaScript | Original `[[[...]]]` text returned unevaluated |
 | Token | Empty string |
-| DataSource | Empty string (unresolved source) |
+| DataSource | The `{ds:...}` text left in place (unresolved source); a value of 0 shows as 0 |
 | Jinja2 | Original content string returned unchanged (also on the 5s HA round-trip timeout) |
 
 `evaluateAsync()`'s outer try/catch is a last-resort safety net on top of the above — check for the error sentinel only if you need to distinguish failure from a template that legitimately produces the word "error".

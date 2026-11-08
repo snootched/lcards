@@ -124,9 +124,9 @@ const DETAILED = {
     tap_action: '/core/actions',
     hold_action: '/core/actions',
     double_tap_action: '/core/actions',
-    state_attribute: '/core/colours#exact-match-keys-from-an-attribute-state-attribute',
-    ranges_attribute: '/core/colours#range-conditions-on-non-numeric-entities-ranges-attribute',
-    state_classification: '/core/colours#custom-state-classification-state-classification'
+    state_attribute: '/core/colours/attributes#state-attribute',
+    ranges_attribute: '/core/colours/attributes#ranges-attribute',
+    state_classification: '/core/colours/attributes#state-classification'
   },
   slider: {
     '': '/cards/slider-card/#card-options',
@@ -144,8 +144,8 @@ const DETAILED = {
     drag_badge: '/cards/slider-card/control#drag-value-badge',
     text: '/cards/slider-card/styles#text-labels',
     tap_action: '/core/actions',
-    state_attribute: '/core/colours#exact-match-keys-from-an-attribute-state-attribute',
-    ranges_attribute: '/core/colours#range-conditions-on-non-numeric-entities-ranges-attribute'
+    state_attribute: '/core/colours/attributes#state-attribute',
+    ranges_attribute: '/core/colours/attributes#ranges-attribute'
   },
   elbow: {
     '': '/cards/elbow/#card-options',
@@ -159,8 +159,8 @@ const DETAILED = {
     symbiont: '/cards/elbow/symbiont',
     background_animation: '/cards/elbow/appearance#background-animation-inset',
     tap_action: '/core/actions',
-    state_attribute: '/core/colours#exact-match-keys-from-an-attribute-state-attribute',
-    ranges_attribute: '/core/colours#range-conditions-on-non-numeric-entities-ranges-attribute'
+    state_attribute: '/core/colours/attributes#state-attribute',
+    ranges_attribute: '/core/colours/attributes#ranges-attribute'
   },
   'select-menu': {
     '': '/cards/select-menu/#card-options',
@@ -327,7 +327,7 @@ const EDITOR_TABS = {
 
 /** Tabs most card editors share. */
 const EDITOR_TABS_COMMON = {
-  Zones: '/core/text-fields#zones',
+  Zones: '/core/text-fields-zones',
   Text: '/core/text-fields',
   'Text Fields': '/core/text-fields',
   Actions: '/core/actions',

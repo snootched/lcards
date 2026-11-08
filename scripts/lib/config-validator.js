@@ -107,6 +107,20 @@ function schemaForKey(schema, key) {
   return declaresProperties ? false : undefined;
 }
 
+/**
+ * A `discriminatedBy` property's schema for this value, picked by the sibling field in
+ * `parent` (e.g. a background effect's `config` by its `preset`), so its keys are checked
+ * too. An unknown name gets the spec's open `default` (registryIssues reports the name).
+ * Other schemas come back unchanged.
+ */
+function discriminatedSchema(sub, parent) {
+  const spec = sub?.discriminatedBy;
+  if (!spec) return sub;
+  const name = parent?.[spec.field];
+  if (typeof name === 'string' && Object.prototype.hasOwnProperty.call(spec.schemas ?? {}, name)) return spec.schemas[name];
+  return spec.default;
+}
+
 /** Keys a schema node declares by name (all branches), for "did you mean" hints. */
 function declaredKeys(schema, out = new Set()) {
   if (!schema || typeof schema !== 'object') return out;
@@ -134,7 +148,7 @@ export function unknownKeys(value, schema, pathPrefix = '', out = [], isCardRoot
   }
   for (const [key, v] of Object.entries(value)) {
     if (isCardRoot && CARD_PLUMBING_KEYS.has(key)) continue;
-    const sub = schemaForKey(schema, key);
+    const sub = discriminatedSchema(schemaForKey(schema, key), value);
     const p = pathPrefix ? `${pathPrefix}.${key}` : key;
     if (sub === false) {
       out.push(p);
@@ -263,7 +277,8 @@ export function registryIssues(node, tag, reg) {
     if (inList && key === 'filters') check(`${path}.type`, value.type, reg.filters, 'filter');
     if (key === 'sounds' && !inList) {
       for (const [event, asset] of Object.entries(value)) {
-        if (event === 'enabled' || (typeof asset === 'string' && asset.startsWith('media-source://'))) continue;
+        // a media library id or a file URL plays as is (SoundManager.playSource)
+        if (event === 'enabled' || (typeof asset === 'string' && /^(media-source:\/\/|\/|https?:\/\/)/.test(asset))) continue;
         check(`${path}.${event}`, asset, reg.sound_assets, 'sound asset');
       }
     }
@@ -302,6 +317,39 @@ const YAML11_VALUE_HINT = 'Home Assistant\'s code editor reads a bare N, no, off
  * @param {any} node
  * @param {string} path
  */
+/**
+ * A value that may also be given reactively: anyOf the plain field (branch 0) and only
+ * the reactive forms (a template string, { template, default }, { map_range }), as
+ * background effect configs (_reactiveAware) and rule animation params (_mapRangeAware) wrap it.
+ */
+function isReactiveWrapper(schema) {
+  const alts = schema?.anyOf;
+  return Array.isArray(alts) && alts.length > 1
+    && alts.slice(1).every(b => b?.properties?.map_range || b?.properties?.template || (b?.type === 'string' && b?.pattern))
+    && alts.slice(1).some(b => b?.properties?.map_range);
+}
+
+/**
+ * One error per wrong reactive-aware value: only the plain field's errors (the messages
+ * the docs checker's friendlyIssues words), not one per reactive form plus the anyOf.
+ * @param {any[]} errors - ajv errors (verbose: they carry parentSchema)
+ */
+export function pruneReactiveErrors(errors) {
+  const drop = new Set();
+  for (const err of errors) {
+    if (err.keyword !== 'anyOf' || !isReactiveWrapper(err.parentSchema)) continue;
+    drop.add(err);
+    // Inside a discriminatedBy schema, match on the path inside that schema
+    const at = err.subSchemaPath ?? err.schemaPath;
+    for (const e of errors) {
+      const path = err.subSchemaPath ? e.subSchemaPath : e.schemaPath;
+      if (e === err || e.instancePath !== err.instancePath || !path?.startsWith(`${at}/`)) continue;
+      if (path.slice(at.length + 1).split('/')[0] !== '0') drop.add(e);
+    }
+  }
+  return errors.filter(e => !drop.has(e));
+}
+
 function valueAt(node, path) {
   let v = node;
   for (const part of path.split('/').slice(1)) v = v?.[part.replace(/~1/g, '/').replace(/~0/g, '~')];
@@ -601,7 +649,8 @@ export function createConfigValidator({ entries, registries = null }) {
       // The runtime's oneOf passes when any branch matches (_validateOneOf): the same here
       if (!check) bySchema.set(sub, check = ajv.compile(oneOfAsAnyOf(sub)));
       if (check(data)) return true;
-      discriminated.errors = check.errors.map(e => ({ ...e, instancePath: `${cxt.instancePath}${e.instancePath}` }));
+      // ajv points schemaPath at this keyword: keep the path inside `sub` (pruneReactiveErrors)
+      discriminated.errors = check.errors.map(e => ({ ...e, instancePath: `${cxt.instancePath}${e.instancePath}`, subSchemaPath: `${cxt.instancePath}:${e.schemaPath}` }));
       return false;
     },
   });
@@ -649,7 +698,7 @@ export function createConfigValidator({ entries, registries = null }) {
       // A bindable number (a number, { entity, ... } or a template: astrometrics settings) that is
       // none of them: one message instead of one per branch
       const settingPaths = new Set((validate.errors ?? []).filter(e => e.keyword === 'anyOf' && isSettingSchema(e.parentSchema)).map(e => e.instancePath));
-      for (const err of validate.errors ?? []) {
+      for (const err of pruneReactiveErrors(validate.errors ?? [])) {
         const p = err.instancePath.replace(/^\//, '').replace(/\/(\d+)(?=\/|$)/g, '[$1]').replace(/\//g, '.');
         if (settingPaths.has(err.instancePath)) {
           if (err.keyword === 'anyOf') add('error', 'schema', p, 'must be a number, { entity, ... } to follow an entity, or a template');

@@ -30,7 +30,9 @@ All services accept four optional targeting fields (all may be combined):
                          server-side.  Case-insensitive.
 
 When none of these fields are provided the service behaves as a broadcast
-(existing default behaviour — fully backward-compatible).
+(existing default behaviour — fully backward-compatible).  When they are
+provided but match no device or user (a typo), the call fails with a
+ServiceValidationError instead of falling back to a broadcast.
 
 Alert mode services — no targeting
   Call input_select.select_option on input_select.lcards_alert_mode, the
@@ -51,6 +53,7 @@ import logging
 import probatio as vol
 
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ServiceValidationError
 
 from .const import DOMAIN, LOG_LEVEL_OPTIONS, _LOG_LEVEL_MAP
 
@@ -81,6 +84,7 @@ _SOUND_EVENT_TYPES = [
     "dashboard_edit_start", "dashboard_edit_save",
     "alert_red", "alert_yellow", "alert_blue", "alert_gray", "alert_black",
     "alert_clear", "system_ready", "error", "notification",
+    "borg_assimilate", "borg_deassimilate",
 ]
 
 # HA event name for the Python → JS push channel.
@@ -95,6 +99,7 @@ _TARGET_FIELDS = {
     vol.Optional("target_user_ids"):     [vol.All(str, vol.Length(min=1))],
     vol.Optional("target_user_names"):   [vol.All(str, vol.Length(min=1))],
 }
+_TARGET_FIELDS_KEYS = ("target_device_ids", "target_device_names", "target_user_ids", "target_user_names")
 
 
 async def _async_resolve_targets(
@@ -114,7 +119,8 @@ async def _async_resolve_targets(
     * ``target_user_names``   — matched case-insensitively against the HA
                                 user ``name`` / display name.
 
-    Returns ``([], [])`` when no targeting fields are present (→ broadcast).
+    Returns ``([], [])`` when no targeting fields are present (→ broadcast);
+    raises ServiceValidationError when they are present but match nothing.
     """
     device_ids: list[str] = list(call.data.get("target_device_ids") or [])
     user_ids:   list[str] = list(call.data.get("target_user_ids")   or [])
@@ -148,6 +154,16 @@ async def _async_resolve_targets(
                 _LOGGER.debug(
                     "LCARdS targeting: resolved user name %r → %s", uname, user.id
                 )
+
+    if not device_ids and not user_ids and any(
+        call.data.get(key) for key in _TARGET_FIELDS_KEYS
+    ):
+        # Targeting was asked for but matched nobody: never fall back to a
+        # broadcast (a typo in a name would hit every dashboard).
+        raise ServiceValidationError(
+            "LCARdS: no device or user matches the target "
+            f"(names: {device_names + user_names})"
+        )
 
     return device_ids, user_ids
 
@@ -315,7 +331,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         ``layers`` — per-slot effect config dict (required):
           { backdrop: { preset, ...params }, color: { preset, ...params }, canvas: { preset, ...params } }
 
-        ``duration`` (optional int ms) auto-clears all effects after that delay.
+        ``duration`` (optional int ms) clears the slots this call sets after that delay.
         """
         layers   = call.data.get("layers") or {}
         duration = call.data.get("duration") or None
@@ -565,7 +581,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     hass.services.async_register(
         DOMAIN, SERVICE_CLEAR_EFFECT, handle_clear_effect,
         schema=vol.Schema({
-            vol.Optional("slot"): vol.In(["backdrop", "canvas", "color"]),
+            # "" is the action form's "All slots" choice
+            vol.Optional("slot"): vol.In(["", "backdrop", "canvas", "color"]),
             **_TARGET_FIELDS,
         }),
     )

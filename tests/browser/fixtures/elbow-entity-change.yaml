@@ -1,0 +1,22 @@
+# Elbow animations (D2 batch 5): on_entity_change without its own entity watches
+# the elbow's entity, and a rule reaches the elbow (rules looked its animation
+# scope up as elbow-{guid}, which never existed).
+type: custom:lcards-elbow
+id: rule_elbow
+entity: light.demo
+elbow:
+  type: header-left
+animations:
+  - trigger: on_entity_change
+    preset: pulse
+    loop: true
+rules:
+  - id: elbow_glow
+    when:
+      entity: light.demo
+      state: "on"
+    apply:
+      animations:
+        - overlay: rule_elbow
+          preset: glow
+          loop: true

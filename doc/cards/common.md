@@ -31,7 +31,7 @@ moved_anchors:
 
 **`id` names one card and `tags` put it in groups, so [rules](/core/rules/) can restyle that card or every card in a group.** Neither changes how the card looks on its own; they also label the card in debug logs.
 
-- A rule targets one card by id (`#kitchen-light-btn`) and a group by tag (`.lights`).
+- Under a rule's `apply.overlays`, a card's id is the key that targets it (`kitchen-light-btn:`) and `tag:<name>` targets a group (`tag:lights:`).
 
 ```yaml live
 # A rule on this card turns it blue while the kitchen light is on (tap to toggle)
@@ -62,8 +62,8 @@ rules:
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `id` | string | - | This card's name for rules (`#id`) and logs |
-| `tags` | list | - | Group names for rules (`.tag`), such as `[nav, lights]` |
+| `id` | string | - | This card's name for rules (the key under `apply.overlays`) and logs |
+| `tags` | list | - | Group names for rules (`tag:<name>`), such as `[nav, lights]` |
 
 ## variables
 
@@ -277,6 +277,6 @@ card_mod:
 | [`sounds`](/core/sounds) | Per-card sound overrides, or `enabled: false` |
 | [`data_sources`](/core/datasources/) | Named entity subscriptions with history and processing |
 | [`triggers_update`](/core/templates/#manual-tracking-with-triggers-update) | Extra entities that re-evaluate templates |
-| [`zones`, `debug_zones`](/core/text-fields) | Your own named text zones, and outlines for every zone |
+| [`zones`, `debug_zones`](/core/text-fields-zones) | Your own named text zones, and outlines for every zone |
 | [`state_attribute`, `ranges_attribute`, `state_classification`](/core/colours) | State colours from an attribute or your own state buckets |
 | [Themes](/core/themes/) | The design tokens cards read (colours, fonts, sizes) |

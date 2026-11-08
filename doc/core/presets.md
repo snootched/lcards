@@ -1,52 +1,74 @@
+---
+description: "LCARdS style presets: apply a whole button or slider look with one preset key, every built-in preset with pictures, how presets layer under your own config, and where they come from."
+---
+
 # Presets
 
-Presets are named collections of style properties. Applying a preset to a card sets its shape, colours, typography, border, and state appearances in one step, instead of writing all those properties manually.
+**A preset is a named look for a card: one `preset:` key sets its shape, colours, text, border and how it shows each state.** Pick the nearest preset, then override only what you want to change.
 
----
+- Buttons, elbows and select menus take the [button presets](#button-lcards-button); sliders take the [slider presets](#slider-lcards-slider).
+- Your own config always wins over the preset, and [rules](rules/) win over both while the dashboard runs.
 
 ## Applying a Preset
 
+**Set `preset:` to a preset's name, then add your own keys on top.** Anything you set replaces the preset's value for that key; everything else stays as the preset has it.
+
+- Many button presets hide the entity's name; `text.name.show: true` brings it back.
+- A preset can set more than `style:`: the button presets also set `min_height` and the icon and text layout, and `icon` and the `bar-label-*` presets set a fixed `height`.
+
 ```yaml live
+# The lozenge preset as it is (tap to toggle the light)
 type: custom:lcards-button
 entity: light.living_room
 preset: lozenge
+text:
+  name:
+    show: true
+tap_action:
+  action: toggle
 ```
 
-That's it. The preset fills in every visual detail. You can then override any individual property on top:
-
 ```yaml live
+# The same preset with a grey fill while the light is off
 type: custom:lcards-button
 entity: light.living_room
 preset: lozenge
+text:
+  name:
+    show: true
 style:
   card:
     color:
       background:
         inactive: var(--lcards-gray-dark)
+tap_action:
+  action: toggle
 ```
 
-Card-level config values always win; they are layered on top of the preset.
-
----
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `preset` | string | - | The preset's name. A button, elbow or select menu takes a button preset; a slider takes a slider preset. Without one a slider draws pills or a gauge, by the entity's domain |
 
 ## Built-in Presets
 
-These tables list every preset in the built-in packs (`src/core/packs/style-presets/`). A `-right` variant mirrors its preset (rounded or capped end on the other side). A test (`tests/core/presets-doc.test.js`) keeps these tables in sync with the packs.
+**Every preset in the built-in packs, with a picture of each.** A `-right` variant mirrors its preset (rounded or capped end on the other side). A test (`tests/core/presets-doc.test.js`) keeps these tables in sync with the packs.
 
 ### Button (`lcards-button`)
+
+`base` is the foundation the others build on; the editor's preset list leaves it out.
 
 | Preset | Description |
 |--------|-------------|
 | `base` | Foundation every other button preset builds on: minimal styles only |
 | `lozenge` | Classic LCARS lozenge: rounded ends, primary colour fill |
-| `lozenge-right` | Lozenge mirrored |
-| `bullet` | Lozenge rounded on one side only, flat on the other: navigation bullets |
-| `bullet-right` | Bullet mirrored |
-| `capped` | Lozenge with one capped end: row labels |
-| `capped-right` | Capped mirrored |
+| `lozenge-right` | Lozenge mirrored, with the icon shown on the right |
+| `bullet` | Lozenge rounded on the right only, flat on the left: navigation bullets |
+| `bullet-right` | Bullet mirrored: rounded on the left |
+| `capped` | Lozenge with one capped end, rounded on the left: row labels |
+| `capped-right` | Capped mirrored: rounded on the right |
 | `barrel` | Square-cornered block |
 | `barrel-right` | Barrel mirrored |
-| `filled` | Solid filled button |
+| `filled` | Solid filled button with its name shown |
 | `filled-right` | Filled mirrored |
 | `outline` | Transparent fill with a border outline |
 | `outline-right` | Outline mirrored |
@@ -62,10 +84,10 @@ These tables list every preset in the built-in packs (`src/core/packs/style-pres
 | `bar-label-bullet-right` | Bar label flat on the right, rounded on the left |
 | `bar-label-capped-left` | Bar label rounded on the left, flat on the right |
 | `bar-label-capped-right` | Bar label rounded on the right, flat on the left |
-| `panel-light` | Square-cornered panel with a random LCARS label (light); with an entity, the theme accent when on and the dark structure tone when off |
+| `panel-light` | Square-cornered panel with a random LCARS label (light); with an entity, the theme accent when on and the dark structure tone when off. No hover effects |
 | `toggle-tab` | Dark square tab with a centred name; a coloured line along the top shows the state |
-| `panel-flagged` | Dark code panel with a thin accent flag on its left edge |
-| `panel-dark` | Square-cornered panel with a random LCARS label (dark); with an entity, the theme accent when on and the dark structure tone when off |
+| `panel-flagged` | Dark code panel with a thin accent flag on its left edge. No hover effects |
+| `panel-dark` | Square-cornered panel with a random LCARS label (dark); with an entity, the theme accent when on and the dark structure tone when off. No hover effects |
 
 Rendered:
 
@@ -76,6 +98,8 @@ Rendered:
 <CardGallery set="button-panels" />
 
 ### Slider (`lcards-slider`)
+
+`base` is the foundation the others build on; the editor's preset list leaves it out.
 
 | Preset | Description |
 |--------|-------------|
@@ -98,17 +122,14 @@ Rendered:
 
 ### Elbow and select menu
 
-The elbow accepts the **button** presets above (`preset:` styles its segments the way it styles a button). Its geometry is chosen separately with `elbow.type` (`header-left`, `header-right`, `footer-left`, `footer-right`, and more: see [Elbow](../cards/elbow/index.md)).
+**The select menu takes the button presets above; the elbow has no presets.** An elbow's shape comes from `elbow.type` (`header-left`, `footer-right`, `frame` and more: see [Elbow](../cards/elbow/index.md)) and its look from `style`.
 
-The select menu's `preset:` is a button preset applied to every option button.
-
-Charts and data grids have no style presets (their `preset` keys are animation presets).
-
----
+- The select menu's `preset:` is a button preset applied to every option button. Its `button_template.style`, its `style` and each option's own `style` go on top, in that order.
+- Charts and data grids have no style presets (their `preset` keys are animation presets).
 
 ## How Presets Compose
 
-When a card loads, preset resolution works in layers:
+**When a card loads, its config is built in layers, and each layer wins over the one before it.**
 
 ```
 System defaults
@@ -120,26 +141,26 @@ Card config (your YAML)  ← wins on conflict
 Rule patches (runtime)   ← wins over everything
 ```
 
-You only need to specify what differs from the preset. Anything you don't set falls through to the preset, and anything the preset doesn't set falls through to the system default.
-
----
+- You only need to specify what differs from the preset. Anything you don't set falls through to the preset, and anything the preset doesn't set falls through to the system default.
+- Objects merge key by key: a `style.border.radius` with only `top_left` keeps the preset's other three corners.
+- On a button with a `component`, `preset` names one of the component's own presets instead (see [Button components](/cards/button/components)).
+- The card editor's [Main Engineering](../cards/main-engineering.md#provenance) tab shows which layer set each value.
 
 ## Browsing Available Presets
 
-The card editor surfaces presets in two ways:
+**The card editor and the LCARdS config panel both list the presets you can use.**
 
-- **Config tab** → the "Preset" dropdown: shows all presets for the current card type
-- **Config Panel** → Pack Explorer: lists all presets from every installed pack, grouped by card type
-
----
+- **Config tab** → the preset dropdown: shows the presets for the current card type.
+- **Config panel** → **Pack Explorer**: lists every preset from every loaded pack, grouped by card type. The Theme panel of the card editor's [Main Engineering](../cards/main-engineering.md#theme) tab has a button that opens it.
 
 ## Packs and Custom Presets
 
-Presets come from content packs. The built-in `lcards_buttons` and `lcards_sliders` packs provide the presets listed above. Additional packs (including community packs) can add their own presets; these appear in the editor's preset list automatically once the pack is installed.
+**Presets come from content packs.** The built-in `lcards_buttons` and `lcards_sliders` packs provide the presets listed above, and LCARdS loads them when it starts.
+
+- A pack registered with `window.lcards.core.packManager.registerPack()` adds its presets to the editor's lists. There is no way yet to install a pack from YAML or the editor.
+- A preset can build on another with `extends` (`extends: button.lozenge`): it starts from that preset and changes only what it sets.
 
 See [Pack System](../architecture/subsystems/pack-system.md) for how to create packs with custom presets.
-
----
 
 ## Related
 

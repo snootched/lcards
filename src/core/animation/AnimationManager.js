@@ -1118,6 +1118,11 @@ export class AnimationManager extends BaseService {
       const overlayRegistry = this.systemsManager.getOverlayRegistry?.() || this.systemsManager._overlayRegistry;
       const overlayMetadata = overlayRegistry?.get(overlayId);
 
+      if (overlayMetadata?.animationScope && this.scopes.has(overlayMetadata.animationScope)) {
+        const scopeId = overlayMetadata.animationScope;
+        return { scopeId, scopeData: this.scopes.get(scopeId) };
+      }
+
       if (overlayMetadata) {
         // Use stored type field from overlay metadata
         const cardType = overlayMetadata.type;

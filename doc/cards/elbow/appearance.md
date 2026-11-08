@@ -86,7 +86,7 @@ text:
 - **Segmented:** `outer_vertical_bar`, `inner_vertical_bar`, `outer_horizontal_bar`, `inner_horizontal_bar`, `body` and `full`.
 - **Bar types:** `body` and `full` are both the whole bar.
 - **Frames:** `top`, `bottom`, `left`, `right` (for the sides it draws), `body` and `full`.
-- **Unknown zones:** a field whose `zone` the elbow doesn't have goes in `body`. The [Zones](/core/text-fields#zones) section has pictures of each layout.
+- **Unknown zones:** a field whose `zone` the elbow doesn't have goes in `body`. The [Zones](/core/text-fields-zones#zones-per-card) section has pictures of each layout.
 :::
 
 | Key | Type | Default | Description |

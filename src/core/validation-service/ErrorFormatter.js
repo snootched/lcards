@@ -253,8 +253,9 @@ export class ErrorFormatter {
     const template = this.templates.get(error.type) || 'Validation error: {message}';
     const suggestionTemplate = this.suggestions.get(error.type) || 'Check your configuration';
 
-    const message = this._interpolateTemplate(template, error.context || error);
-    const suggestion = this._interpolateTemplate(suggestionTemplate, error.context || error);
+    const vars = { message: error.message, ...(error.context || error) };
+    const message = this._interpolateTemplate(template, vars);
+    const suggestion = this._interpolateTemplate(suggestionTemplate, vars);
 
     return {
       ...error,

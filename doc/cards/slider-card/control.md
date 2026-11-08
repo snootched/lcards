@@ -68,7 +68,7 @@ Every other domain is read-only, like a sensor.
 
 **Other attributes it can set** with `control.attribute`:
 
-```yaml live
+```yaml live controls
 type: custom:lcards-slider
 entity: light.living_room
 preset: pills-left-border

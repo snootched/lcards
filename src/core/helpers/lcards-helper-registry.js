@@ -55,7 +55,7 @@ export const HELPER_REGISTRY = {
     entity_id: 'input_boolean.lcards_alert_mode_auto_switch',
     domain: 'input_boolean',
     name: 'LCARdS Auto Alert Switch',
-    description: 'Automatically activate alert mode when input_select changes',
+    description: 'When on, a dashboard that opens during an alert shows it from the start (alert mode changes always apply)',
     icon: 'mdi:auto-mode',
     category: 'alert_system',
     ws_create_params: {},

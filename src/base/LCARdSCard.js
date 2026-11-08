@@ -1546,7 +1546,10 @@ export class LCARdSCard extends LCARdSNativeCard {
             id: this._overlayId,
             type: type,
             tags: this._overlayTags,
-            sourceCardId: this._cardGuid
+            sourceCardId: this._cardGuid,
+            // The card's own animation scope, so rule animations reach it whatever
+            // the card names its scope (slider, chart, MSD don't use {type}-{guid})
+            animationScope: this._getAnimationSetup().overlayId
         });
 
         // Register callback with RulesEngine (SINGLE callback per card)

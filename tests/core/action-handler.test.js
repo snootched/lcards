@@ -3,7 +3,7 @@
  */
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { LCARdSActionHandler, toggleService } from '../../src/base/LCARdSActionHandler.js';
+import { LCARdSActionHandler, toggleService, actionSoundEvent } from '../../src/base/LCARdSActionHandler.js';
 import { createFakeHass } from '../helpers/fake-hass.js';
 
 /** EventTarget standing in for the card element; records dispatched events. */
@@ -144,4 +144,38 @@ test('none, unknown actions, and missing hass do nothing', () => {
     handler._executeAction(null, hass, el);
     assert.equal(hass.serviceCalls.length, 0);
     assert.equal(el.events.length, 0);
+});
+
+test('no tap sound for action: none; a real action still plays card_tap (D2 batch 5)', async () => {
+    const { installJsdom } = await import('../helpers/jsdom-env.js');
+    const env = installJsdom();
+    const played = [];
+    const prev = window.lcards;
+    window.lcards = { core: { soundManager: { play: (e) => played.push(e) } } };
+    try {
+        for (const [tap, expected] of [[{ action: 'none' }, []], [{ action: 'more-info' }, ['card_tap']]]) {
+            played.length = 0;
+            const el = document.createElement('div');
+            document.body.appendChild(el);
+            const cleanup = handler.setupActions(el, { tap_action: tap }, hass, { entity: 'light.desk' });
+            el.dispatchEvent(new window.Event('click'));
+            await new Promise((r) => setTimeout(r, 20));
+            assert.deepEqual(played, expected, JSON.stringify(tap));
+            cleanup?.();
+        }
+    } finally {
+        window.lcards = prev;
+        env.restore();
+    }
+});
+
+test('segment sounds: a toggle sounds by the off states (an open cover closes: toggle_off), none is silent', () => {
+    const toggle = { action: 'toggle' };
+    assert.equal(actionSoundEvent(toggle, 'open', 'card_tap'), 'toggle_off');
+    assert.equal(actionSoundEvent(toggle, 'closed', 'card_tap'), 'toggle_on');
+    assert.equal(actionSoundEvent(toggle, 'on', 'card_tap'), 'toggle_off');
+    assert.equal(actionSoundEvent(toggle, undefined, 'card_tap'), 'card_tap');
+    assert.equal(actionSoundEvent({ action: 'more-info' }, 'on', 'card_hold'), 'card_hold');
+    assert.equal(actionSoundEvent({ action: 'none' }, 'on', 'card_tap'), null);
+    assert.equal(actionSoundEvent(undefined, 'on', 'card_tap'), null);
 });

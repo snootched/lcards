@@ -1,373 +1,285 @@
+---
+description: "Borg assimilation: an LCARdS Easter egg that turns every dashboard Borg green, swaps the font, plays a full-screen assimilation intro and keeps screen effects until you restore it."
+moved_anchors:
+  home-assistant-services: /core/borg-actions
+  lcards-borg-assimilate: /core/borg-actions#lcards-borg-assimilate
+  lcards-borg-deassimilate: /core/borg-actions#lcards-borg-deassimilate
+  targeting: /core/borg-actions#targeting
+  intro-canvas-params-borg-assimilation-effect: /core/borg#intro-canvas
+  performance: /core/borg#intro-canvas
+  notes: /core/borg#sequence-of-events
+---
+
 # Borg Assimilation
 
-The Borg Assimilation mode uses LCARdS core systems to tranform the entire dashboard interface into a Borg-assimilated state:
+**Borg assimilation is an LCARdS Easter egg that takes over the whole dashboard: Borg colours, a Borg font, a full-screen assimilation and lingering screen effects, until you restore it.** Start it from an automation, a dashboard button or the browser console.
 
-- **Palette shift**: the UI colour palette is pushed toward Borg yellow-green (HSL ~110°) system-wide. The hue is configurable via the `paletteHue` option (or the Palette Hue control in the Config Panel).
-- **Font swap**: all LCARS text switches to the `lcards_borg` typeface
-- **Canvas intro**: a full-screen assimilation plays. Injection sites appear with a breathing glow and grow tendrils; an assimilation front spreads out from them and overruns the screen with Borg circuitry; a Borg cube emerges at the centre while bursts of signal corruption tear the picture. It runs on WebGL in a dedicated Web Worker on an `OffscreenCanvas`, so the main thread (and the LCARS UI) stays fully responsive. The classic intro (tendrils and injection sites only, drawn with Canvas2D) is still there: set `renderer: canvas` (see [Classic intro](#classic-intro)). Browsers without WebGL2 play the classic intro.
-- **Click-to-dismiss**: the intro stays on screen until the user clicks anywhere on the canvas (or until an optional timeout expires). After dismissal, persistent layers activate.
-- **Persistent layers**: after the intro is dismissed, zero or more SEM presets remain active per slot (default: glitch on `canvas` + subtle green colour tint on `color` + saturation boost on `backdrop`)
+- **Colours:** the palette shifts toward Borg yellow-green (hue 110°), slightly desaturated and darker. `paletteHue` picks another hue.
+- **Font:** LCARS text switches to the `lcards_borg` typeface.
+- **Intro:** injection sites appear with a breathing glow and grow tendrils, an assimilation front spreads out and overruns the screen with Borg circuitry, a Borg cube emerges at the centre and bursts of signal corruption tear the picture. It stays until someone clicks the screen, or until a timeout.
+- **After the intro:** screen effects stay on (by default a light glitch, a green tint and a saturation boost) until the dashboard is restored. Restoring plays a short glitch, then puts the colours, font and screen back.
 
-Calling `deassimilate()` plays a brief glitch outro, then cleanly reverts palette, font, and all screen effects.
-
----
-
-## Layers format
-
-All three stages (`intro`, `persistentLayers`, and `outroLayers`) accept the same **layers dict** that `lcards.trigger_effect` uses:
-
-```js
-{
-  canvas:   { preset: 'scanlines', opacity: 0.2 },   // SEM canvas slot
-  backdrop: { preset: 'blur', amount: '8px' },        // SEM backdrop slot
-  color:    { preset: 'color-tint', color: 'rgba(0,40,0,0.1)' }, // SEM color slot
-}
-```
-
-Each key is an SEM slot name; the value is `{ preset, ...params }`. Unknown slots are ignored.
-
-> **`intro.canvas` is special**: the canvas slot during the intro is always hardcoded to the `borg-assimilation` preset. Any `preset` key you include in `intro.canvas` is silently stripped. All other keys are forwarded as effect params.
->
-> **Naming convention:** the JavaScript console API uses camelCase (`siteCount`, `tendrilsPerSite`, `glowColor`). The Home Assistant service YAML layer (`intro_layers.canvas`) accepts **either** snake_case (`site_count`, `tendrils_per_site`, `glow_color`) or camelCase; both are normalised before being sent to the browser.
-
-::: tip SEM preset reference
-All available presets for the `backdrop`, `color`, and `canvas` slots (and every parameter each accepts) are documented in **[Screen Effects → Preset Reference](effects/screen-effects.md#preset-reference)**.
-For the Borg assimilation feature, the most relevant presets are:
-- **`canvas`**: `borg-assimilation` (intro), `scanlines`, `glitch`, `static`
-- **`color`**: `color-tint`, `vignette`
-- **`backdrop`**: `blur`
+::: tip Try it
+The buttons in the [Quick start](#quick-start) assimilate this page and restore it. In the LCARdS Config Panel, the **Connectivity** tab's **Resistance is Futile** display style runs the assimilation when the connection to Home Assistant is lost; **Simulate Disconnect** shows it.
 :::
 
----
+| Page | Covers |
+|------|--------|
+| [Borg Actions](/core/borg-actions) | `lcards.borg_assimilate` and `lcards.borg_deassimilate`: every field, examples and targeting |
+| [Screen Effects](/core/effects/screen-effects#preset-reference) | The presets the intro, persistent and outro layers can use |
 
-## Console API
+## Quick start
 
-Open the browser developer tools (`F12`) on any LCARdS dashboard and use the browser console:
+**The `lcards.borg_assimilate` action assimilates every connected browser, and `lcards.borg_deassimilate` restores them.** On this page the two buttons below run it here only.
+
+- Clicking anywhere on the screen ends the intro; the screen effects after it stay until you restore.
+- The assimilation is not stored: a page reload, or a browser opened later, shows the normal dashboard.
+
+```yaml live
+# Assimilates this page; the intro ends after 10 seconds or on a click
+type: custom:lcards-button
+preset: lozenge
+text:
+  name:
+    content: ASSIMILATE
+    show: true
+style:
+  card:
+    color:
+      background:
+        default: var(--lcars-green)
+tap_action:
+  action: perform-action
+  perform_action: lcards.borg_assimilate
+  data:
+    intro_duration: 10000
+```
+
+```yaml live
+# Restores this page
+type: custom:lcards-button
+preset: lozenge
+text:
+  name:
+    content: RESTORE
+    show: true
+tap_action:
+  action: perform-action
+  perform_action: lcards.borg_deassimilate
+```
+
+From an automation or a script (not live here):
+
+```yaml
+action: lcards.borg_assimilate
+```
+
+From the browser console:
 
 ```js
-// Begin assimilation - intro stays until clicked (all defaults)
-window.lcards.borg.assimilate()
-
-// Auto-dismiss the intro after 10 seconds (user can still click to dismiss early)
-window.lcards.borg.assimilate({ duration: 10000 })
-
-// Full custom call
-window.lcards.borg.assimilate({
-  duration: 10000,              // ms - auto-dismiss timeout; 0 = click-to-dismiss only
-  transitionStyle: 'blur_fade', // palette transition: 'flash'|'fade_only'|'blur_fade'|'off'
-
-  // Intro layers - shown during the canvas animation, cleared on dismiss
-  intro: {
-    canvas:   { siteCount: 12, tendrilsPerSite: 10, tendrilLength: 800, particleCount: 3 }, // params for the borg-assimilation effect
-    backdrop: { preset: 'blur', amount: '6px' },       // optional extra layer behind the canvas
-    color:    { preset: 'color-tint', color: 'rgba(0,60,0,0.15)' }, // optional colour overlay
-  },
-
-  // Persistent layers - applied after intro is dismissed, held until deassimilation
-  persistentLayers: {
-    canvas: { preset: 'scanlines', lineHeight: 3, opacity: 0.20, scroll: 2 },
-    color:  { preset: 'color-tint', color: 'rgba(0, 60, 0, 0.12)' },
-  },
-})
-
-// Shift the palette to blue instead of Borg green
-window.lcards.borg.assimilate({ paletteHue: 240 })
-
-// Suppress all persistent layers - just palette + font change, no lingering effects
-window.lcards.borg.assimilate({ persistentLayers: {} })
-
-// Check current state
-window.lcards.borg.status   // → true while assimilated
-
-// Revert everything (with default glitch outro)
+window.lcards.borg.assimilate()     // window.lcards.alert.borg() does the same
+window.lcards.borg.status           // true while assimilated
 window.lcards.borg.deassimilate()
-
-// Immediate silent revert (no outro)
-window.lcards.borg.deassimilate({ withOutro: false })
-
-// Custom outro layers + transition
-window.lcards.borg.deassimilate({
-  outroLayers: {
-    canvas: { preset: 'glitch', duration: 800, intensity: 0.6 },
-    color:  { preset: 'color-tint', color: 'rgba(0,255,80,0.4)', duration: 800 },
-  },
-  revertTransitionStyle: 'fade_only',
-})
-
-// Shortcut alias on the alert namespace
-window.lcards.alert.borg()
 ```
 
-### `assimilate(opts?)` options
+## Sequence of events
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `duration` | `number` (ms) | `0` | Auto-dismiss the intro after this many ms. `0` (default) = click-to-dismiss only. |
-| `transitionStyle` | `string` | `'blur_fade'` | Palette transition style: `'blur_fade'`, `'flash'`, `'fade_only'`, or `'off'` |
-| `intro` | `Object` (layers dict) | `{ canvas: { siteCount: 8, tendrilsPerSite: 5, tendrilLength: 600, particleCount: 2, color: 'var(--lcars-martian)', glowColor: 'var(--lcards-yellow)' }, backdrop: { preset: 'saturate', amount: '200%' }, color: { preset: 'color-tint', color: 'rgba(0,60,0,0.25)' } }` | Layers shown during the intro. Per-slot merged with defaults. `intro.canvas` params override the `borg-assimilation` effect (see [`intro.canvas` params](#intro-canvas-params-borg-assimilation-effect) below); `intro.backdrop` and `intro.color` are optional extra layers applied alongside the canvas and cleared on dismiss. See [Preset Reference](effects/screen-effects.md#preset-reference) for all available presets and params. |
-| `persistentLayers` | `Object` (layers dict) | glitch on `canvas` + color-tint on `color` + saturate on `backdrop` | Layers applied after the intro is dismissed and held until `deassimilate()`. Omit to use defaults; pass `{}` to suppress all persistent effects. See [Preset Reference](effects/screen-effects.md#preset-reference) for all available presets and params. |
-| `paletteHue` | `number` (0–359) | `110` | HSL hue the UI palette is shifted toward during assimilation. `110` = Borg yellow-green (default). `240` = blue, `0` or `360` = red. Applied before the palette swap fires. Automatically reset to the built-in default on `deassimilate()`. |
-| `fontSwap` | `boolean` | `true` | Whether to inject the Borg typeface across all dashboard text. Set to `false` to keep the existing font while all other assimilation effects (palette, canvas intro, persistent layers) still run. |
-| `sound` | `string` | - | A sound to play as the assimilation starts: a file URL (`'/local/sounds/borg.mp3'`), a media library id (`'media-source://…'`) or a sound asset key. `'none'` plays nothing. Omitted: the `borg_assimilate` [sound event](#sounds). |
+**Assimilation changes the colours and the font first, plays the intro until it is dismissed, then applies the persistent layers.** Restoring plays the outro, then reverts everything.
 
-#### `intro.canvas` params (`borg-assimilation` effect)
+When assimilation starts:
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `siteCount` | `8` | Number of Borg injection sites on screen (1–20) |
-| `tendrilsPerSite` | `5` | Bézier tendrils grown from each injection site (1–24) |
-| `tendrilLength` | `600` | Maximum tendril reach in pixels: longer tendrils span more of the screen (100–1200) |
-| `particleCount` | `2` | Nano-probe particles travelling each tendril and branch continuously. Set to `0` to disable (0–6) |
-| `color` | `'var(--lcars-martian)'` | Tendril and injection site colour (any CSS colour string, supports CSS variables and token expressions) |
-| `glowColor` | `'var(--lcards-yellow)'` | Inner glow colour at each injection site and nano-probe particle halos |
-| `renderer` | `'auto'` | `'auto'` and `'webgl'` play the WebGL intro where the browser supports WebGL2; `'canvas'` plays the [classic intro](#classic-intro). Without WebGL2 every value plays the classic one |
-| `cube` | `true` | WebGL intro: a rotating Borg cube emerges at the centre of the screen. `false` leaves it out |
-| `cubeStyle` | `'detailed'` | WebGL intro: `'detailed'` draws a solid cube coming in corner first, covered in machinery that rises and sinks at several scales, with a thin rail lattice among the blocks, slowly pulsing green glows deep inside and a soft halo. `'classic'` draws the lighter glowing wireframe cube |
-| `corruption` | `0.5` | WebGL intro: strength of the signal corruption bursts (block displacement, scanline tearing, colour fringing), 0 to 1. `0` turns them off |
-| `overrun` | `0.65` | WebGL intro: how dark the screen gets behind the assimilation front, 0 to 1. `0` draws only the circuitry over your dashboard |
-| `seed` | - | WebGL intro: a number gives the same layout every time |
+1. The `borg_assimilate` sound plays (or the `sound` option's sound), and the palette starts shifting to Borg colours with the `transitionStyle` transition.
+2. The `lcards_borg` font loads and replaces the LCARS font, at the same time (skipped with `fontSwap: false`).
+3. The intro layers show: the `borg-assimilation` effect on the canvas slot, with the intro's `backdrop` and `color` layers behind and over it.
+4. The intro stays until someone clicks anywhere on the screen, or until `duration` ms have passed.
+5. All intro layers are cleared, and the persistent layers are applied. They stay until the dashboard is restored.
 
-With the WebGL intro, `particleCount` sets the light pulses travelling along each tendril.
+When it is restored:
 
-#### Classic intro
+1. If the intro is still showing, it ends at once, without a click.
+2. The `borg_deassimilate` sound plays (or the `sound` option's sound), and the outro layers show (skipped with `withOutro: false`).
+3. After the longest `duration` in the outro layers, and at least 1200 ms, the palette goes back to `green_alert` with the `revertTransitionStyle` transition.
+4. The Borg font is removed (if it was swapped in) and every screen effect is cleared.
 
-The original Canvas2D intro (signal flicker, injection sites, Bézier tendrils with nano-probe particles, bridges between them) stays available with all of its params. Set `renderer: canvas` to keep it:
+::: details More about the sequence
+- **Twice in a row:** starting an assimilation while one is running, or restoring when nothing is assimilated, does nothing (a warning is logged).
+- **The alert mode afterwards:** restoring always returns the colours to `green_alert`, whatever alert mode was active before. The `input_select.lcards_alert_mode` helper is never changed by the Borg.
+- **Clicks during the intro:** the intro takes every click until it is dismissed; after it, the dashboard works normally under the persistent layers.
+- **All screen effects:** restoring clears every screen effect, including one started separately with `lcards.trigger_effect`.
+- **The font:** the Borg typeface replaces `--lcars-font` and `--lcars-fallback-font`, so text in another font keeps it.
+- **Palette hue:** a custom `paletteHue` lasts for that assimilation only; restoring resets it.
+:::
+
+## intro.canvas
+
+**`intro.canvas` sets up the assimilation intro itself: how many injection sites, how many tendrils, their colours, the cube and the signal corruption.** The canvas slot always plays the `borg-assimilation` effect during the intro; a `preset` given here is ignored.
+
+- The WebGL intro (the default) runs on the graphics card in a worker, so the dashboard stays responsive. Browsers without WebGL2 play the [classic intro](#classic-intro).
+- With the WebGL intro, `particleCount` sets the light pulses travelling along each tendril.
+- In the [actions](/core/borg-actions#lcards-borg-assimilate) these keys are flat fields in snake_case (`site_count`, `tendrils_per_site`, ...), or go under `intro_layers.canvas` in either spelling.
+- On a slow wall tablet, lower `corruption`, use the classic cube or none, or play the classic intro.
+
+```yaml
+# From an automation: a denser intro, no cube
+action: lcards.borg_assimilate
+data:
+  intro_layers:
+    canvas:
+      siteCount: 12
+      tendrilsPerSite: 10
+      tendrilLength: 800
+      particleCount: 3
+      cube: false
+      seed: 7
+```
 
 ```js
-window.lcards.borg.assimilate({ intro: { canvas: { renderer: 'canvas' } } })
+// The same from the browser console
+window.lcards.borg.assimilate({
+  intro: {
+    canvas: {
+      siteCount: 12,
+      tendrilsPerSite: 10,
+      tendrilLength: 800,
+      particleCount: 3,
+      cube: false,
+      seed: 7,
+    },
+  },
+})
 ```
 
-From an automation, add `renderer: canvas` to the `lcards.borg_assimilate` action. In the Config Panel, pick **Classic (Canvas2D)** under Renderer in the Borg canvas effect.
+::: details More about the intro
+- **Reduced motion:** with reduced motion set on the device, the intro draws its finished picture once, with no flicker, tearing or movement.
+- **No OffscreenCanvas:** in a browser without OffscreenCanvas and Web Workers the intro canvas draws nothing; the intro's backdrop and colour layers still show and the screen still waits for a click or the `duration`.
+- **On its own:** the `borg-assimilation` effect can also run without the rest of the assimilation, through `lcards.trigger_effect`; see [Screen Effects](/core/effects/screen-effects#borg-assimilation). Played that way it starts from its own defaults (7 sites, 8 tendrils per site, green colours).
+- **Frame rate:** with the console at debug level (`window.lcards.setGlobalLogLevel('debug')`) the WebGL intro logs its frame rate.
+:::
 
-#### Performance
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `siteCount` | number | `8` | Injection sites on the screen, 1 to 20 |
+| `tendrilsPerSite` | number | `5` | Tendrils grown from each injection site, 1 to 24 (1 to 20 as the actions' flat `tendrils_per_site`) |
+| `tendrilLength` | number | `600` | Longest tendril reach in pixels, 100 to 1200 |
+| `particleCount` | number | `2` | Nano-probe particles (WebGL: light pulses) travelling each tendril, 0 to 6; `0` turns them off |
+| `color` | string | `var(--lcars-martian)` | Tendril and injection site colour: any CSS colour, variable or LCARdS colour expression |
+| `glowColor` | string | `var(--lcards-yellow)` | Glow at each injection site and around the particles |
+| `renderer` | string | `auto` | `auto` and `webgl` play the WebGL intro where the browser supports WebGL2; `canvas` plays the classic intro |
+| `cube` | boolean | `true` | WebGL intro: a rotating Borg cube emerges at the centre; `false` leaves it out |
+| `cubeStyle` | string | `detailed` | WebGL intro: `detailed` is a solid cube, corner first, covered in machinery with a rail lattice, pulsing glows and a soft halo; `classic` is the lighter glowing wireframe cube |
+| `corruption` | number | `0.5` | WebGL intro: strength of the signal corruption bursts (block displacement, scanline tearing, colour fringing), 0 to 1; `0` turns them off |
+| `overrun` | number | `0.65` | WebGL intro: how dark the screen gets behind the assimilation front, 0 to 1; `0` draws only the circuitry over the dashboard |
+| `seed` | number | - | WebGL intro: a number gives the same layout every time |
 
-The WebGL intro draws the whole screen every frame on the graphics card while it shows. On a slow wall tablet, lower `corruption`, use `cubeStyle: 'classic'` or turn off the `cube`, or use the classic intro. With the browser console at debug level (`window.lcards.setGlobalLogLevel('debug')`) the frame rate is logged every 5 seconds.
+### Classic intro
 
-### `deassimilate(opts?)` options
+**The classic intro is the original Canvas2D animation: signal flicker, injection sites, Bézier tendrils with nano-probe particles and bridges between them.** Set `renderer: canvas` to play it; every `intro.canvas` key above except the WebGL ones applies.
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `withOutro` | `boolean` | `true` | Play outro layers before reverting. Set to `false` for an immediate silent revert. |
-| `outroLayers` | `Object` (layers dict) | `{ canvas: { preset: 'glitch', duration: 1200, intensity: 0.4, opacity: 0.7 } }` | Layers applied as the outro. The longest `duration` value found in any layer's params determines how long to wait before reverting. Falls back to 1200 ms if none are specified. Omit to use defaults. See [glitch params](effects/screen-effects.md#glitch) for all available options. |
-| `revertTransitionStyle` | `string` | `'fade_only'` | Palette transition back to normal: `'flash'`, `'fade_only'`, `'blur_fade'`, or `'off'` |
-| `sound` | `string` | - | A sound to play as the deassimilation starts, as for `assimilate()`. Omitted: the `borg_deassimilate` [sound event](#sounds). |
-
-### Sounds
-
-Assimilation and deassimilation each fire a sound event, **Borg assimilation** (`borg_assimilate`) and **Borg deassimilation** (`borg_deassimilate`), in the Alerts category. LCARdS ships no Borg audio, so both are silent until you give them a sound. Three ways:
-
-- **Config Panel:** in the sound overrides, pick a file for the two Borg rows from the Home Assistant media library.
-- **A sound scheme of your own** (saved from the Config Panel, or a pack's `sound_schemes`): map the events to a file. A scheme value can be a sound asset key, a media library id or a URL; a file in the `www` folder of your Home Assistant configuration is served under `/local/`:
-
-  ```yaml
-  borg_assimilate: /local/sounds/borg.mp3
-  borg_deassimilate: /local/sounds/borg-restore.mp3
-  ```
-
-- **One call:** the `sound` option (console) or the `sound` field (Home Assistant action) plays a file for that call only; `none` keeps it silent.
-
-The Alerts sound switch and the master sound switch apply to all three.
-
-### Sequence of events
-
-When `assimilate()` is called:
-
-1. The `borg_assimilate` sound plays (or the `sound` option's file); the `borg_alert` palette is applied immediately (HSL hue-shift to ~110°, slightly desaturated and darkened)
-2. `lcards_borg` font is loaded and injected as a `:root` CSS override; both fire in parallel (skipped if `fontSwap: false`)
-3. Intro layers are applied:
-   - `intro.canvas` → `borg-assimilation` effect (signal flicker → injection sites → growing tendrils → assimilation front and Borg cube on WebGL)
-   - `intro.backdrop` and `intro.color` (if specified) → applied to their SEM slots alongside the canvas
-4. The intro stays visible until the user **clicks anywhere on the canvas**, or until `duration` ms elapses (if positive)
-5. All intro layers are cleared (canvas, backdrop, color slots)
-6. `persistentLayers` are applied to their respective SEM slots and held until `deassimilate()`
-
-When `deassimilate()` is called:
-
-1. `_assimilated` is set to `false` immediately: if the intro is still showing, it is cancelled (no click required)
-2. The `borg_deassimilate` sound plays (or the `sound` option's file); `outroLayers` are applied to their SEM slots (unless `withOutro: false`)
-3. The manager waits for the longest `duration` param across all outro layers (minimum 1200 ms)
-4. Palette is transitioned back to `green_alert` using `revertTransitionStyle`
-5. The Borg font override `<style>` tag is removed from `document.head` (only if font was injected during assimilation; skipped when `fontSwap: false` was passed)
-6. All active screen effects are cleared
-
----
-
-## Home Assistant Services
-
-The LCARdS integration exposes two services in the `lcards.*` namespace that can trigger and clear the Easter egg from automations, scripts, or the Developer Tools → Actions panel.
-
-### `lcards.borg_assimilate`
-
-Trigger the Borg assimilation on one or all connected browsers.
-
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `intro_duration` | No | - | Auto-dismiss the intro after this many ms (1000–60000). **Omit** to use click-to-dismiss. |
-| `site_count` | No | `8` | Number of injection sites on screen (1–20) |
-| `tendrils_per_site` | No | `5` | Bézier tendrils per injection site (1–24) |
-| `tendril_length` | No | `600` | Maximum tendril reach in pixels (100–1200) |
-| `particle_count` | No | `2` | Nano-probe particles per tendril (0–6); `0` disables particles |
-| `renderer` | No | `auto` | `auto` or `webgl`: the WebGL intro where the browser supports it; `canvas`: the [classic intro](#classic-intro) |
-| `cube` | No | `detailed` | WebGL intro: the Borg cube, `detailed` (solid cube with machinery, lattice, glows and halo), `classic` (wireframe) or `none` (no cube) |
-| `corruption` | No | `0.5` | WebGL intro: signal corruption strength (0–1); `0` turns it off |
-| `overrun` | No | `0.65` | WebGL intro: darkness behind the assimilation front (0–1) |
-| `transition_style` | No | `blur_fade` | Palette transition: `blur_fade`, `flash`, `fade_only`, `off` |
-| `font_swap` | No | `true` | Set to `false` to skip the Borg font injection; all other effects (palette, canvas intro, persistent layers) still run. |
-| `sound` | No | - | A sound for this call: a file URL (`/local/sounds/borg.mp3`), a media library id or a sound asset key; `none` for silence. Empty: the `borg_assimilate` [sound event](#sounds). |
-| `suppress_persistent` | No | `false` | Suppress all persistent effects after intro. Ignored if `persistent_layers` is also set. |
-| `intro_layers` | No | - | **Advanced.** Full per-slot layers dict. `intro_layers.canvas` canvas param keys can use either snake_case (`site_count`, `tendrils_per_site`, `glow_color`) or camelCase; both are normalised server-side. Values override the corresponding flat shortcuts; missing keys fall back to the flat values. See [Preset Reference](effects/screen-effects.md#preset-reference) for all available presets and params per slot. |
-| `persistent_layers` | No | - | **Advanced.** Full per-slot layers dict. Overrides `suppress_persistent` when set. Pass `{}` to suppress all. See [Preset Reference](effects/screen-effects.md#preset-reference) for all available presets and params per slot. |
-| `target_device_ids` | No | - | List of browser device UUIDs: leave empty for all |
-| `target_device_names` | No | - | List of device display names (resolved server-side) |
-| `target_user_ids` | No | - | List of Home Assistant user IDs: leave empty for all |
-| `target_user_names` | No | - | List of Home Assistant user display names (case-insensitive) |
-
-**Broadcast, click-to-dismiss (intro stays until user interacts):**
+- In the Config Panel, pick **Classic (Canvas2D)** under Renderer in the Borg canvas effect.
 
 ```yaml
-action: lcards.borg_assimilate
-```
-
-**Auto-dismiss after 12 seconds with a gentle fade:**
-
-```yaml
-action: lcards.borg_assimilate
-data:
-  intro_duration: 12000
-  transition_style: fade_only
-```
-
-**More injection sites, denser tendrils, longer reach:**
-
-```yaml
-action: lcards.borg_assimilate
-data:
-  site_count: 12
-  tendrils_per_site: 14
-  tendril_length: 900
-  particle_count: 3
-```
-
-**Keep the classic intro:**
-
-```yaml
+# From an automation
 action: lcards.borg_assimilate
 data:
   renderer: canvas
 ```
 
-**WebGL intro without the cube, gentler corruption, dashboard still visible behind the front:**
-
-```yaml
-action: lcards.borg_assimilate
-data:
-  cube: none
-  corruption: 0.2
-  overrun: 0.3
+```js
+// From the browser console
+window.lcards.borg.assimilate({ intro: { canvas: { renderer: 'canvas' } } })
 ```
 
-**Custom intro, flat shortcuts + blur backdrop via advanced object:**
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `renderer` | string | `auto` | `canvas` plays the classic intro; `auto` and `webgl` play the WebGL intro where the browser supports WebGL2 |
+
+## Layers format
+
+**The intro, the persistent layers and the outro each take a layers map: one entry per screen effect slot, each with a `preset` and that preset's settings.** It is the same format as `lcards.trigger_effect`.
+
+- The slots are `canvas`, `backdrop` and `color`; other names are ignored, and so is a slot without a `preset` (except `intro.canvas`, which never takes one).
+- `intro` is merged with the defaults slot by slot: give `backdrop` and you replace the default intro backdrop, while the default `color` layer stays. A slot with no `preset` (for example `backdrop: {}`) turns that default layer off.
+- `persistentLayers` and `outroLayers` replace their defaults entirely. An empty map (`persistentLayers: {}`) leaves no effects after the intro.
+- [Screen Effects](/core/effects/screen-effects#preset-reference) lists every preset and its settings. The ones most used here are `scanlines`, `glitch` and `static` (canvas), `color-tint` and `vignette` (color) and `blur` and `saturate` (backdrop).
 
 ```yaml
+# From an automation: blurred intro, then scanlines and a green tint
 action: lcards.borg_assimilate
 data:
-  intro_duration: 10000
-  transition_style: blur_fade
-  site_count: 12
   intro_layers:
     backdrop:
       preset: blur
-      amount: "6px"
-```
-
-**Suppress all persistent effects (palette + font change only):**
-
-```yaml
-action: lcards.borg_assimilate
-data:
-  suppress_persistent: true
-```
-
-**Custom persistent layers via advanced object, colour tint only, no scanlines:**
-
-```yaml
-action: lcards.borg_assimilate
-data:
+      amount: 6px
   persistent_layers:
+    canvas:
+      preset: scanlines
+      lineHeight: 3
+      opacity: 0.2
+      scroll: 2
     color:
       preset: color-tint
-      color: "rgba(0, 60, 0, 0.2)"
+      color: alpha(var(--lcars-green), 0.12)
 ```
 
-**Suppress all persistent effects (palette + font change only):**
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `intro.canvas` | map | see [intro.canvas](#intro-canvas) | The `borg-assimilation` effect's settings; no `preset` |
+| `intro.backdrop` | map | `saturate`, `amount: 200%` | A layer behind the intro; cleared when the intro ends |
+| `intro.color` | map | `color-tint`, `color: rgba(0,60,0,0.25)` | A colour layer over the intro; cleared when the intro ends |
+| `persistentLayers.canvas` | map | `glitch`, `intensity: 0.08`, `maxShift: 400`, `bandHeight: 3`, `fps: 20` | Canvas layer kept after the intro |
+| `persistentLayers.color` | map | `color-tint`, `color: rgba(0, 60, 0, 0.10)` | Colour layer kept after the intro |
+| `persistentLayers.backdrop` | map | `saturate`, `amount: 200%` | Backdrop layer kept after the intro |
+| `outroLayers.canvas` | map | `glitch`, `duration: 1200`, `intensity: 0.4`, `opacity: 0.7` | The outro; any outro layer's `duration` sets how long the outro plays, at least 1200 ms |
 
-```yaml
-action: lcards.borg_assimilate
-data:
-  persistent_layers: {}
+## Console API
+
+**`window.lcards.borg.assimilate(opts)` and `window.lcards.borg.deassimilate(opts)` run the Borg from the browser console, with the same options as the actions in camelCase.** Open the developer tools (F12) on any LCARdS dashboard.
+
+- `window.lcards.borg.status` is `true` while assimilated.
+- The console calls affect this browser only.
+
+```js
+// Blue instead of Borg green, auto-dismiss after 10 seconds, keep the font
+window.lcards.borg.assimilate({
+  duration: 10000,
+  paletteHue: 240,
+  fontSwap: false,
+  transitionStyle: 'fade_only',
+})
+
+// Restore at once, with no outro
+window.lcards.borg.deassimilate({ withOutro: false })
 ```
 
-**Target a specific device:**
+### assimilate(opts?) options
+
+**The options of `assimilate()`: the intro's timeout and transition, the layers, the hue, the font and the sound.** As an action, the same options have snake_case names; [Borg Actions](/core/borg-actions#lcards-borg-assimilate) has them all.
 
 ```yaml
+# The action equivalent of the console call above
 action: lcards.borg_assimilate
 data:
   intro_duration: 10000
-  target_device_names:
-    - Living Room TV
+  font_swap: false
+  transition_style: fade_only
 ```
 
-**In an automation, assimilate all browsers for Halloween, auto-revert after 30 minutes:**
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `duration` | number | `0` | Ends the intro after this many ms; `0` waits for a click. A click still ends it earlier |
+| `transitionStyle` | string | `blur_fade` | Palette transition: `blur_fade`, `flash`, `fade_only` or `off` |
+| `intro` | map | see [Layers format](#layers-format) | Intro layers, merged slot by slot with the defaults |
+| `persistentLayers` | map | see [Layers format](#layers-format) | Layers kept after the intro; `{}` for none |
+| `paletteHue` | number | `110` | The hue (0 to 359) the palette shifts toward: `110` is Borg yellow-green, `240` blue, `0` red. Console and Config Panel only |
+| `fontSwap` | boolean | `true` | `false` keeps the dashboard font; everything else still runs |
+| `sound` | string | the `borg_assimilate` [sound event](#sounds) | A sound for this call: a file URL (`/local/sounds/borg.mp3`), a media library id (`media-source://...`) or a sound asset key; `none` plays nothing |
+
+### deassimilate(opts?) options
+
+**The options of `deassimilate()`: whether to play the outro, its layers, the transition back and the sound.**
 
 ```yaml
-automation:
-  - alias: "Halloween Borg Mode"
-    trigger:
-      - platform: time
-        at: "20:00:00"
-    action:
-      - action: lcards.borg_assimilate
-        data:
-          intro_duration: 10000
-      - delay:
-          minutes: 30
-      - action: lcards.borg_deassimilate
-```
-
----
-
-### `lcards.borg_deassimilate`
-
-Reverse the Borg assimilation and restore all browsers to normal.
-
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `with_outro` | No | `true` | Play outro layers before reverting. Set to `false` for an immediate silent revert. |
-| `outro_layers` | No | - | Layers dict for the outro. The longest `duration` param across all layers determines the wait time. Omit for defaults (glitch on canvas, 1200 ms). See [glitch params](effects/screen-effects.md#glitch) for all available options. |
-| `revert_transition_style` | No | `fade_only` | Palette transition back to normal: `flash`, `fade_only`, `blur_fade`, `off` |
-| `sound` | No | - | A sound for this call, as for `lcards.borg_assimilate`. Empty: the `borg_deassimilate` [sound event](#sounds). |
-| `target_device_ids` | No | - | List of browser device UUIDs: leave empty for all |
-| `target_device_names` | No | - | List of device display names (resolved server-side) |
-| `target_user_ids` | No | - | List of Home Assistant user IDs: leave empty for all |
-| `target_user_names` | No | - | List of Home Assistant user display names (case-insensitive) |
-
-**Broadcast (restore all connected browsers, default glitch outro):**
-
-```yaml
-action: lcards.borg_deassimilate
-```
-
-**Immediate silent revert (no outro):**
-
-```yaml
-action: lcards.borg_deassimilate
-data:
-  with_outro: false
-```
-
-**Custom outro layers:**
-
-```yaml
+# From an automation: a shorter, stronger outro
 action: lcards.borg_deassimilate
 data:
   outro_layers:
@@ -378,30 +290,29 @@ data:
   revert_transition_style: fade_only
 ```
 
----
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `withOutro` | boolean | `true` | `false` restores at once, with no outro and no wait |
+| `outroLayers` | map | see [Layers format](#layers-format) | Outro layers, replacing the default glitch; the longest `duration` in them sets the wait, at least 1200 ms. See [glitch](/core/effects/screen-effects#glitch) |
+| `revertTransitionStyle` | string | `fade_only` | Palette transition back to normal: `fade_only`, `flash`, `blur_fade` or `off` |
+| `sound` | string | the `borg_deassimilate` [sound event](#sounds) | A sound for this call, as for `assimilate()` |
 
-## Targeting
+## Sounds
 
-All four standard targeting fields work the same as other `lcards.*` services:
+**Assimilation and restoring each fire a sound event, Borg assimilation (`borg_assimilate`) and Borg deassimilation (`borg_deassimilate`), in the Alerts category.** LCARdS ships no Borg audio, so both are silent until you give them a sound.
 
-- **No targeting fields** → broadcast to all connected browsers
-- **`target_device_ids`** → list of UUIDs from `localStorage.getItem('lcards_device_id')` in each browser
-- **`target_device_names`** → display names set in the LCARdS Config Panel or via `?lcards_device=` URL param; non-unique names match all devices sharing that name
-- **`target_user_ids`** → Home Assistant user IDs
-- **`target_user_names`** → Home Assistant user display names (case-insensitive)
+- **Config Panel:** in the **Sounds** tab's overrides, pick a file for the two Borg rows from the Home Assistant media library.
+- **Your own sound scheme** (saved from the Config Panel, or a pack's `sound_schemes`): map the events to a sound asset key, a media library id or a URL. A file in the `www` folder of your Home Assistant configuration is served under `/local/`.
+- **One call:** the `sound` option (console) or field (action) plays a sound for that call only; `none` keeps it silent.
+- The Alerts switch and the master sound switch apply to all three.
 
-When targeting is used, the global `input_select.lcards_alert_mode` is **not** written; the Borg palette change is applied locally on matching devices only and does not persist across reloads.
+```yaml
+# In a sound scheme
+borg_assimilate: /local/sounds/borg.mp3
+borg_deassimilate: /local/sounds/borg-restore.mp3
+```
 
----
-
-## Notes
-
-- The `borg_alert` palette uses pure HSL math starting from the `green_alert` baseline; no static palette file is required
-- Calling `assimilate()` while already assimilated is a no-op (a warning is logged)
-- Calling `deassimilate()` while not assimilated is a no-op (a warning is logged)
-- Calling `deassimilate()` during the canvas intro immediately cancels the click-dismiss Promise; the `deassimilate` sequence proceeds without waiting for user interaction
-- The canvas intro uses `pointer-events: auto` while visible; all intro SEM slots (canvas, backdrop, color) are cleared on dismiss so Home Assistant UI interaction works normally
-- The font override injects a `<style id="lcards-borg-font-override">` tag on `document.head`; `deassimilate()` removes it cleanly, only when `fontSwap` was `true` (the default) during the corresponding `assimilate()` call
-- `window.lcards.alert.borg()` is a convenience alias for `window.lcards.borg.assimilate()`
-- `intro_layers`/`persistent_layers`/`outro_layers` are object selectors in the Home Assistant service; pass them as a YAML mapping, not as a list
-- When no `duration` key appears in any outro layer, the manager falls back to 1200 ms before reverting the palette
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `borg_assimilate` | sound | silent | Plays as assimilation starts |
+| `borg_deassimilate` | sound | silent | Plays as restoring starts |

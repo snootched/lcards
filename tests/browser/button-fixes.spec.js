@@ -127,6 +127,21 @@ test('shape_texture map_range takes entity (as everywhere else); entity_id, the 
     await expectNoErrors(page);
 });
 
+test('shape_texture { template, default } on any numeric key: the template\'s number, or default when it gives none (D2 batch 5)', async ({ page }) => {
+    // fill_pct always had its own handling; other keys got the object as is
+    const config = (template) => ({
+        type: 'custom:lcards-button', preset: 'capped',
+        shape_texture: { preset: 'level', config: { color: '#3366cc', fill_pct: 50, wave_height: { template, default: 3 } } },
+    });
+    const wave = () => card(page).evaluate(el => /** @type {any} */ (el)._canvasTextureRenderer?._effect?._waveHeight);
+    await mountCase(page, 'button-texture-level-color');
+    await page.evaluate((c) => window.__reconfigure(c), config('[[[ return 9 ]]]'));
+    await expect.poll(wave).toBe(9);
+    await page.evaluate((c) => window.__reconfigure(c), config('[[[ return "n/a" ]]]'));
+    await expect.poll(wave).toBe(3);
+    await expectNoErrors(page);
+});
+
 test('a free icon at a named position sits inside the button, padding from its edges', async ({ page }) => {
     const card = await mountCase(page, 'button-icon-free-position', { width: '300', height: '120' });
     const box = await card.evaluate(el => {

@@ -1,445 +1,166 @@
-# Rules Engine
-
-Rules let you apply style changes to groups of cards based on entity state, without touching each card individually. A single rule can update dozens of overlays at once.
-
+---
+description: "Rules engine: restyle any LCARdS card, or a group of them, while a condition on entities, time or a template holds; play animations and tint an MSD blueprint."
+moved_anchors:
+  concept: /core/rules/
+  conditions-when: /core/rules/conditions
+  apply-block-apply: /core/rules/changes
+  overlay-patches: /core/rules/changes#apply-overlays
+  base-svg-filters-msd-cards: /core/rules/changes#apply-base-svg
+  animations: /core/rules/changes#apply-animations
+  tagging-overlays: /core/rules/changes#targets
+  priority: /core/rules/priority#priority
+  viewing-active-rules: /core/rules/priority#viewing-active-rules
+  examples: /core/rules/examples
+  temperature-alert: /core/rules/examples#temperature-alert
+  day-night-mode-time-based: /core/rules/examples#day-and-night-mode
+  multi-condition-with-animations: /core/rules/examples#multi-condition-with-animations
+  see-also: /core/rules/
 ---
 
-## Concept
+# Rules Engine
 
-A rule watches one or more entities. When a condition matches, it pushes a **patch** to all targeted overlays. When the condition no longer matches, the patch is removed.
+**A rule changes cards while a condition holds: when an entity, the time or a template says so, it patches the cards it targets, and takes the patch off again when the condition stops holding.** One rule can restyle a single card, every card with a tag, or the lines on an MSD.
+
+- A rule has three parts: `when` (the condition), `apply` (what changes) and an `id`. It can sit in any card's `rules` list and still change other cards on the page.
+- A patch is a piece of card config (`style`, `text` ...) merged over the card's own while the rule matches. Rules can also start animations and tint an MSD's blueprint.
 
 ```mermaid
 flowchart LR
-    E[Entity state changes] --> R[Rule evaluates condition]
+    E[Entity state changes] --> R[Rule evaluates its condition]
     R -- matches --> P[Patch applied to targets]
-    R -- no match --> C[Patch cleared from targets]
-    P --> T1[Overlay tagged 'nav']
-    P --> T2[Overlay tagged 'nav']
-    P --> T3[Overlay id: header]
-
-    style E fill:#37a6d1,stroke:#93e1ff,color:#fff
-    style R fill:#2f3749,stroke:#52596e,color:#fff
-    style P fill:#ffb399,stroke:#e7442a,color:#000
-    style C fill:#6d748c,stroke:#d2d5df,color:#fff
+    R -- no longer matches --> C[Patch taken off the targets]
+    P --> T1[Card tagged 'nav']
+    P --> T2[Card tagged 'nav']
+    P --> T3[Card with id 'header']
 ```
 
----
-
-## Where Rules Live
-
-Rules are defined in the `rules` array of any card config, or in content packs. You manage them from the **Rules** tab in any card editor.
-
-::: tip Refresh after changing an existing rule
-Rules from all cards share one engine, keyed by rule `id`. A **new** rule takes effect as soon as you save the card. Changes to an **existing** rule (same `id`), or removing one, take effect after a page refresh.
+::: tip Try it
+- Every card editor has a **Rules** tab: it lists the rules on the page, adds and edits them with a condition builder, and turns them on and off.
+- The Rules view of the [Live Demo](/getting-started/live-demo) shows rules recolouring and blinking cards as you drag sliders.
 :::
 
+| Page | Covers |
+|------|--------|
+| [Conditions](./conditions) | `when`: entity states and attributes, numbers, time, sun, chance, `all`/`any`/`not`, JavaScript and Jinja2 |
+| [Targets and Changes](./changes) | `apply`: naming cards with `id` and `tags`, selectors, patches, animations, MSD blueprint filters |
+| [Priority and Debugging](./priority) | Which rule wins, `stop`, `enabled`, and seeing which rules apply now |
+| [Examples](./examples) | Whole rule sets to copy: a temperature alert, day and night, a multi-condition alert |
+
 ---
 
-## Rule Structure
+## Quick start
 
-Every rule requires `id`, `when`, and `apply`. All other fields are optional.
+**A rule on one card can restyle a group of others: here the toggle turns the three panels red.** The panels carry the tag `docs-rules-deck`, and the rule's `tag:docs-rules-deck` selector finds them.
 
-```yaml
+- Tap TOGGLE (or use the control under the card) to switch `input_boolean.lcards_test_toggle`; the rule matches while it is `"on"`.
+- The rule lives on the toggle button, but it would work from any card on the page: rules are not tied to the card that holds them.
+
+```yaml live controls
+type: custom:lcards-layout-card
+layout:
+  height: 150px
+  grid-gap: 6px
+  grid-template-columns: 1fr 1fr 1fr
+  grid-template-rows: 1fr 1fr
+cards:
+  - type: custom:lcards-button
+    preset: lozenge
+    entity: input_boolean.lcards_test_toggle
+    tap_action:
+      action: toggle
+    text:
+      name:
+        content: TOGGLE
+        show: true
+    view_layout:
+      grid-column: 1 / 4
+    rules:
+      - id: docs-rules-quick-start
+        when:
+          entity: input_boolean.lcards_test_toggle
+          state: "on"
+        apply:
+          overlays:
+            tag:docs-rules-deck:
+              style:
+                card:
+                  color:
+                    background: var(--lcars-alert-red)
+  # three panels in one group
+  - type: custom:lcards-button
+    preset: filled
+    tags:
+      - docs-rules-deck
+    text:
+      name:
+        content: REACTOR
+        show: true
+  - type: custom:lcards-button
+    preset: filled
+    tags:
+      - docs-rules-deck
+    text:
+      name:
+        content: INJECTORS
+        show: true
+  - type: custom:lcards-button
+    preset: filled
+    tags:
+      - docs-rules-deck
+    text:
+      name:
+        content: CONDUITS
+        show: true
+```
+
+## Where rules live
+
+**Rules go in the `rules` list of any LCARdS card, or in a content pack.** All of them run in one engine for the whole page, keyed by rule `id`.
+
+- Give every rule an `id` no other card on the page uses: a second rule with an `id` already loaded is skipped.
+- A rule with no `id` is skipped too, with a warning in the browser console.
+
+::: tip Refresh after changing an existing rule
+A **new** rule takes effect as soon as you save the card. Changes to an **existing** rule (same `id`), or removing one, take effect after a page refresh.
+:::
+
+## Rule structure
+
+**Every rule needs `id`, `when` and `apply`; the other keys are optional.** This rule recolours its own card while the power level is above 80.
+
+- Drag the power control under the card above or below 80 to see the rule match and let go.
+- `priority`, `stop` and `enabled` decide what happens when several rules patch the same card: see [Priority and Debugging](./priority).
+
+```yaml live controls
+type: custom:lcards-button
+id: docs-rules-structure-btn
+preset: lozenge
+text:
+  name:
+    content: POWER
+    show: true
 rules:
-  - id: my-rule               # Required: unique identifier
-    priority: 10              # Optional: higher wins (default 0)
-    enabled: true             # Optional: disable without deleting (default true)
-    stop: false               # Optional: stop evaluating lower-priority rules (default false)
-    when:                     # Required: condition(s) to evaluate
-      entity: binary_sensor.motion_hallway
-      state: "on"
-    apply:                    # Required: what to change when condition matches
+  - id: docs-rules-structure
+    name: Power high
+    priority: 10
+    when:
+      entity: input_number.lcards_test_power
+      above: 80
+    apply:
       overlays:
-        tag:nav:              # Selector: all overlays tagged 'nav'
-          style:
-            color: "{theme:colors.ui.primary}"
-        header-card:          # Selector: overlay with this exact ID
+        docs-rules-structure-btn:
           style:
             card:
               color:
-                background: "#1a1a2e"
+                background: var(--lcars-alert-red)
 ```
 
----
-
-## Conditions (`when`)
-
-A `when` block evaluates to `true` or `false`. When it matches, the `apply` block fires; when it stops matching, the patch is removed.
-
-**Quick reference: all condition types** (see [Conditions Reference](conditions.md) for full details):
-
-| Type | Key | Example |
-|------|-----|---------|
-| Entity state | `entity` | `entity: light.x` + `state: "on"` |
-| Entity attribute | `entity_attr` | `entity_attr: light.x` + `attribute: brightness` + `above: 128` |
-| Numeric range | `above` / `below` (also `at_least`/`at_most` for inclusive bounds) | `above: 18` (or combined: `above: 18` + `below: 26`) |
-| Not equal / in list | `not_equals`, `in`, `not_in` | `not_in: ["off", "unavailable"]` |
-| Regex | `regex` | `regex: "^heat"` |
-| Map range | `map_range_cond` | Map raw sensor value to a new scale, then compare |
-| Time range | `time_between` | `time_between: "22:00-06:00"` |
-| Day of week | `weekday_in` | `weekday_in: [mon, tue, wed, thu, fri]` |
-| Sun elevation | `sun_elevation` | `sun_elevation: { below: 0 }` |
-| Random chance | `random_chance` | `random_chance: 0.25` |
-| JavaScript | `condition` / `javascript` | `condition: "[[[return ...]]]"` |
-| Jinja2 | `condition` / `jinja2` | `condition: "{{ ... }}"` |
-| AND | `all` | `all: [...]` |
-| OR | `any` | `any: [...]` |
-| NOT | `not` | `not: { entity: ... }` |
-
-**Simple examples:**
-
-```yaml alternatives
-# Entity state check
-when:
-  entity: light.bedroom
-  state: "on"
-
-# Numeric range
-when:
-  entity: sensor.temperature
-  above: 18
-  below: 26
-
-# AND logic
-when:
-  all:
-    - entity: binary_sensor.motion
-      state: "on"
-    - time_between: "08:00-23:00"
-
-# Template (JavaScript)
-when:
-  condition: "[[[return states['sensor.temperature'].state > 25]]]"
-```
-
-> For the full condition reference (all operators, `map_range_cond`, `random_chance`, nested logic, template variables) see **[Conditions Reference](conditions.md)**.
-
----
-
-## Apply Block (`apply`)
-
-### Overlay Patches
-
-The `apply.overlays` object maps **selectors** to patch objects. Selectors are the keys; the value is any overlay config fragment to merge.
-
-```yaml
-apply:
-  overlays:
-    my-overlay-id:          # Direct ID - exact match
-      style:
-        color: var(--lcars-red)
-
-    tag:alert:              # Tag selector - all overlays tagged 'alert'
-      style:
-        color: var(--lcars-alert-red)
-
-    type:gauge:             # Type selector - all overlays of type 'gauge'
-      style:
-        opacity: 1
-
-    pattern:^temp_.*:       # Regex pattern - overlays whose ID matches
-      style:
-        color: var(--lcars-yellow)
-
-    all:                    # Wildcard - every registered overlay
-      style:
-        opacity: 0.5
-    exclude: [header, nav]  # Exclude specific IDs from 'all' or tag/type/pattern selectors
-```
-
-Multiple selectors in one rule are applied in order; later selectors' style keys override earlier ones for the same overlay.
-
-Patch values support all template types (`{entity.state}`, `[[[JS]]]`, `{{jinja}}`):
-
-```yaml
-apply:
-  overlays:
-    temp-display:
-      style:
-        color: "[[[return parseFloat(states['sensor.temperature'].state) > 30 ? 'var(--lcars-red)' : 'var(--lcars-blue)']]]"
-```
-
-### Base SVG Filters (MSD cards)
-
-```yaml
-apply:
-  base_svg:
-    filters:
-      opacity: 0.3
-      brightness: 0.7
-      blur: "2px"
-      grayscale: 0.5
-      hue_rotate: "90deg"
-      sepia: 0.3
-      saturate: 0.8
-      contrast: 1.2
-      invert: 0.1
-    transition: 1500             # Transition duration in ms (default 300)
-```
-
-Or a stackable array, which also supports a color `tint`:
-
-```yaml
-apply:
-  base_svg:
-    filters:
-      - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }
-    transition: 1500
-```
-
-See [Base SVG Filters](../../cards/msd/base-svg-filters.md) for the full
-type reference and copy-paste recipes (dimmed, subtle, backdrop, faded, red
-wash, monochrome).
-
-Use `filters: []` or `filters: {}` to clear all filters.
-
-### Animations
-
-Target by **direct ID** using `overlay:` (matches the card's `id:` field):
-
-```yaml
-apply:
-  animations:
-    - overlay: my-button-id    # Target a specific card by its id: value
-      preset: blink
-      loop: true               # Loop until rule unmatches
-      duration: 1000           # ms
-      params:                  # Preset-specific parameters
-        max_scale: 1.1
-```
-
-Target by **tag** to affect multiple cards at once:
-
-```yaml
-apply:
-  animations:
-    - tag: alert-buttons       # All overlays tagged 'alert-buttons'
-      preset: pulse
-      loop: true
-      duration: 800            # ms
-      delay: 0                 # ms before start
-      ease: inOutQuad
-      params:
-        speed: 2
-        color: "#ff4400"
-```
-
-Animation selectors (mutually exclusive, evaluated in order): `overlay` (direct ID), `tag`, `type`, `pattern` (regex).
-
-Animations started by a rule are **automatically stopped** when the rule unmatches.
-
----
-
-## Priority
-
-Higher `priority` wins when multiple rules would patch the same overlay property. Default is `0`. Rules are evaluated in descending priority order.
-
-```yaml
-rules:
-  - id: normal-style
-    priority: 0
-    when:
-      entity: sensor.temperature
-      below: 25
-    apply:
-      overlays:
-        temp-display:
-          style:
-            color: var(--lcars-blue)
-
-  - id: alert-override
-    priority: 100              # This wins when active
-    when:
-      entity: sensor.temperature
-      above: 30
-    apply:
-      overlays:
-        temp-display:
-          style:
-            color: var(--lcars-red)
-```
-
-Use `stop: true` to prevent lower-priority rules from being evaluated at all once a rule matches:
-
-```yaml
-rules:
-  - id: critical-alert
-    priority: 100
-    stop: true                 # No lower-priority rules run if this matches
-    when:
-      entity: binary_sensor.emergency
-      state: "on"
-    apply:
-      overlays:
-        all:
-          style:
-            color: var(--lcars-alert-red)
-```
-
----
-
-## Tagging Overlays
-
-Add `tags` to any overlay so rules can target it with `tag:` selectors:
-
-```yaml live
-# A card
-type: custom:lcards-button
-id: nav-button-1
-tags: [nav, main-panel]
-```
-
-```yaml
-# An MSD overlay (here a control overlay hosting a card)
-overlays:
-  - id: nav-button-1
-    type: control
-    tags: [nav, main-panel]
-    card:
-      type: custom:lcards-button
-      preset: lozenge
-```
-
----
-
-## Examples
-
-### Temperature Alert
-
-```yaml
-rules:
-  - id: temp-critical
-    priority: 100
-    stop: true
-    when:
-      entity: sensor.temperature
-      above: 30
-    apply:
-      overlays:
-        temp-display:
-          style:
-            color: var(--lcars-red)
-      base_svg:
-        filters:
-          - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }
-        transition: 500
-
-  - id: temp-warning
-    priority: 50
-    when:
-      entity: sensor.temperature
-      above: 25
-    apply:
-      overlays:
-        temp-display:
-          style:
-            color: var(--lcars-yellow)
-
-  - id: temp-normal
-    priority: 10
-    when:
-      entity: sensor.temperature
-      below: 25
-    apply:
-      overlays:
-        temp-display:
-          style:
-            color: var(--lcars-blue)
-```
-
-### Day/Night Mode (time-based)
-
-```yaml
-rules:
-  - id: night-mode
-    priority: 100
-    when:
-      all:
-        - entity: sensor.time       # retriggers every minute
-        - time_between: "22:00-06:00"
-    apply:
-      base_svg:
-        filters:
-          opacity: 0.5
-          brightness: 0.8
-        transition: 2000
-      overlays:
-        tag:nav:
-          style:
-            opacity: 0.5
-
-  - id: day-mode
-    priority: 90
-    when:
-      all:
-        - entity: sensor.time
-        - time_between: "06:00-22:00"
-    apply:
-      base_svg:
-        filters: []
-        transition: 2000
-      overlays:
-        tag:nav:
-          style:
-            opacity: 1
-```
-
-### Multi-condition with Animations
-
-```yaml
-rules:
-  - id: climate-critical
-    priority: 100
-    stop: true
-    when:
-      all:
-        - entity: sensor.temperature
-          above: 28
-        - entity: sensor.humidity
-          above: 70
-        - not:
-            entity: climate.ac
-            state: "on"
-    apply:
-      overlays:
-        tag:status:
-          style:
-            color: var(--lcars-red)
-      animations:
-        - tag: status
-          preset: pulse
-          loop: true
-      base_svg:
-        filters:
-          - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }
-        transition: 500
-```
-
----
-
-## Viewing Active Rules
-
-In any card editor, the **Rules** tab shows:
-- All rules currently in the system
-- Which rules are currently active (condition matched)
-- Which patches are being applied to this overlay
-
-From the browser console:
-
-```javascript
-const rm = window.lcards.core.rulesManager;
-rm.getAllRules()                     // all registered rules
-rm.getTrace()                        // detailed evaluation trace
-rm.getRecentMatches(30000)           // matches in the last 30 s
-rm.getRuleTrace('my-rule-id', 20)    // history for one rule
-```
-
----
-
-## See Also
-
-- [Conditions Reference](conditions.md): all condition types, operators, `map_range_cond`, `random_chance`, template conditions
-- [Rule-Based Animations](../animations/rule-based-animations.md): triggering animations across cards from rules
-- [Architecture: Rules Engine](../../architecture/subsystems/rules-engine.md)
-
----
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `id` | string | required | The rule's name, unique on the page. Shown in the Rules tab and in traces |
+| `name` | string | - | A readable label for the editor |
+| `when` | object / list | required | The condition: see [Conditions](./conditions). A list means all of its items |
+| `apply` | object | required | What changes while the rule matches: see [Targets and Changes](./changes) |
+| `priority` | number | `0` | Higher runs first and wins where two rules patch the same key: see [priority](./priority#priority) |
+| `stop` | boolean | `false` | While this rule matches, lower-priority rules' patches on the same cards are dropped: see [stop](./priority#stop) |
+| `enabled` | boolean | `true` | `false` turns the rule off without deleting it: see [enabled](./priority#enabled) |

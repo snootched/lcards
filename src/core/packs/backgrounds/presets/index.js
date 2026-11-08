@@ -602,7 +602,7 @@ export const BACKGROUND_PRESETS = {
         { key: 'colors.end', default: 'var(--lcards-moonlight)', description: 'Color a cell ends at.' },
         { key: 'font_size', default: 10, description: 'Character font size in px.' },
         { key: 'gap', default: 4, description: 'Spacing between cells in px.' },
-        { key: 'refresh_interval', default: 0, description: 'How often cells re-randomize (0 = continuous).' },
+        { key: 'refresh_interval', default: 0, description: 'How often cells re-randomize, ms (0 = never).' },
         { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
       ],
       example: "background_animation:\n  - preset: cascade\n    config:\n      format: hex\n      speed_multiplier: 1.5"
@@ -805,17 +805,17 @@ export const BACKGROUND_PRESETS = {
       params: [
         { key: 'color', default: 'rgba(255,255,255,0.55)', description: 'Highlight color.' },
         { key: 'highlight_width', default: 0.35, description: 'Band width as a fraction of canvas size.' },
-        { key: 'speed', default: 2.5, description: 'Sweep speed.' },
+        { key: 'speed', default: 6, description: 'Sweep speed, px per second along the diagonal.' },
         { key: 'angle', default: 30, description: 'Sweep angle in degrees.' },
         { key: 'opacity', default: 1, description: 'Overall effect opacity.' }
       ],
-      example: "background_animation:\n  - preset: shimmer\n    config:\n      color: 'rgba(255,255,255,0.55)'\n      speed: 2.5"
+      example: "background_animation:\n  - preset: shimmer\n    config:\n      color: 'rgba(255,255,255,0.55)'\n      speed: 6"
     },
     createEffects(config) {
       return [new ShimmerTextureEffect({
         color:           config.color           ?? 'rgba(255,255,255,0.55)',
         highlight_width: config.highlight_width ?? 0.35,
-        speed:           config.speed           ?? 2.5,
+        speed:           config.speed           ?? 6,
         angle:           config.angle           ?? 30,
         opacity:         config.opacity         ?? 1,
       })];

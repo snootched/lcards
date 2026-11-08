@@ -262,3 +262,19 @@ test('a read-only sensor slider says so instead of offering toggles', async ({ p
         expect(c.caption).not.toContain('toggle');
     }
 });
+
+test('a light\'s controls set its colour and brightness, and a match-light card follows', async ({ page }) => {
+    await page.goto('/core/colours/values');
+    await waitForDemos(page, PAGES.find(([u]) => u === '/core/colours/values')[1].length);
+    const demo = page.locator('.card-demo').filter({ has: page.locator('[aria-label="light.tv colour"]') }).first();
+    const fill = () => demo.locator('lcards-button').evaluate((el) => {
+        const bg = /** @type {any} */ (el).shadowRoot.querySelector('.button-bg, path.button-bg, rect.button-bg');
+        return bg ? getComputedStyle(bg).fill : null;
+    });
+    const before = await fill();
+    await demo.locator('[aria-label="light.tv colour"]').fill('200'); // a blue
+    await expect.poll(fill).not.toBe(before);
+    const blue = await fill();
+    await demo.locator('[aria-label="light.tv brightness"]').fill('20');
+    await expect.poll(fill).not.toBe(blue);
+});

@@ -49,3 +49,16 @@ test('a rule marked dirty again while it is evaluated stays dirty (an MSD regist
     assert.equal(calls, 2);
     assert.equal(engine.dirtyRules.size, 0);
 });
+
+test('sun_elevation reads sun.sun; a rule with enabled: false never matches (D2 batch 5)', async () => {
+    const engine = new RulesEngine([
+        { id: 'day', when: { sun_elevation: { above: 0 } }, apply: {} },
+        { id: 'off', enabled: false, when: { entity: 'input_boolean.x', state: 'on' }, apply: {} },
+    ], null);
+    const states = { 'sun.sun': { state: 'above_horizon', attributes: { elevation: 23 } }, 'input_boolean.x': { state: 'on', attributes: {} } };
+    const getEntity = (id) => states[id];
+    assert.equal((await engine.evaluateRule(engine.rulesById.get('day'), getEntity)).matched, true);
+    states['sun.sun'].attributes.elevation = -4;
+    assert.equal((await engine.evaluateRule(engine.rulesById.get('day'), getEntity)).matched, false);
+    assert.equal((await engine.evaluateRule(engine.rulesById.get('off'), getEntity)).matched, false);
+});

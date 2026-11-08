@@ -26,7 +26,7 @@ test('every builtin pack loads with an id and version; unknown names are dropped
 
 test('PackManager.registerPack routes each section to its manager', async () => {
     const calls = [];
-    const rulesManager = { rules: [], rulesById: new Map(), buildDependencyIndex: () => calls.push('deps'), markAllDirty: () => calls.push('dirty') };
+    const rulesManager = { rules: [], rulesById: new Map(), buildDependencyIndex: () => calls.push('deps'), _compileRules: () => calls.push('compile'), markAllDirty: () => calls.push('dirty') };
     const core = {
         themeManager: { registerThemesFromPack: (p) => calls.push(`themes:${p.id}`) },
         stylePresetManager: { registerPresetsFromPack: (p) => calls.push(`presets:${p.id}`) },
@@ -41,10 +41,19 @@ test('PackManager.registerPack routes each section to its manager', async () => 
         svg_assets: {}, sound_schemes: {}, components: {},
     });
     await pm.registerPack({ version: 1 }); // no id: ignored
-    assert.deepEqual(calls, ['themes:p', 'presets:p', 'deps', 'dirty', 'assets:p', 'sounds', 'components:p']);
+    assert.deepEqual(calls, ['themes:p', 'presets:p', 'deps', 'compile', 'dirty', 'assets:p', 'sounds', 'components:p']);
     assert.deepEqual(rulesManager.rules, [{ id: 'r' }]);
     assert.deepEqual(pm.getLoadedPackIds(), ['p']);
     assert.equal(pm.getPack('p').version, 2);
+});
+
+test('a pack\'s rules are compiled and match (D2 batch 5: they were never compiled, so never matched)', async () => {
+    const { RulesEngine } = await import('../../src/core/rules/RulesEngine.js');
+    const rulesManager = new RulesEngine([], null);
+    const pm = new PackManager({ rulesManager });
+    await pm.registerPack({ id: 'rp', version: 1, rules: [{ id: 'pack_rule', when: { entity: 'light.a', state: 'on' }, apply: {} }] });
+    const result = await rulesManager.evaluateRule(rulesManager.rulesById.get('pack_rule'), () => ({ state: 'on', attributes: {} }));
+    assert.equal(result.matched, true);
 });
 
 test('PackManager.loadBuiltinPacks: defaults plus infrastructure packs; unknown lcars_fx skipped', async () => {

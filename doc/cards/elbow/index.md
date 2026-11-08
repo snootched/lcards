@@ -139,7 +139,6 @@ tap_action:
 | `elbow.segments` | object | - | The two elbows of the segmented style: see [elbow.segments](./bars#elbow-segments) |
 | `elbow.frame` | object | - | Sides and corners of `type: frame`: see [Frames](./frame) |
 | `entity` | string | - | The entity whose state picks the [fill colour](./appearance#colours) and the actions act on |
-| `preset` | string | - | A button style preset to start from (`lozenge`, `pill` ...) |
 | `text` | object | - | Text on the bars or in the open area: see [Text labels](./appearance#text-labels) |
 | `tap_action` | object | `none` | What a tap does; `hold_action` and `double_tap_action` too. See [Actions](/core/actions) |
 | `interactive` | boolean | `true` | `false` turns off the hover and pressed colours; actions still run. See [interactive](/core/actions#interactive) |
@@ -148,6 +147,6 @@ tap_action:
 | `background_animation` | list / object | - | An animated background in the open area: see [Background animation inset](./appearance#background-animation-inset) |
 | `filters` | list | - | CSS and SVG filters on the whole elbow: see [Filters](/core/effects/filters) |
 | `symbiont` | object | - | Another card inside the elbow: see [Symbiont](./symbiont) |
-| `ranges_attribute` | string | - | The attribute that [range colours](/core/colours#range-conditions-on-non-numeric-entities-ranges-attribute) compare, for entities whose state is not a number |
-| `state_attribute` | string | - | The attribute whose value picks [exact-match colours](/core/colours#exact-match-keys-from-an-attribute-state-attribute) |
-| `state_classification` | object | - | Your own mapping of states to active, inactive and more: see [Custom state classification](/core/colours#custom-state-classification-state-classification) |
+| `ranges_attribute` | string | - | The attribute that [range colours](/core/colours/attributes#ranges-attribute) compare, for entities whose state is not a number |
+| `state_attribute` | string | - | The attribute whose value picks [exact-match colours](/core/colours/attributes#state-attribute) |
+| `state_classification` | object | - | Your own mapping of states to active, inactive and more: see [Custom state classification](/core/colours/attributes#state-classification) |

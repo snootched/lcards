@@ -223,9 +223,9 @@ export function getElbowSchema(options = {}) {
 
             preset: {
                 type: 'string',
-                enum: availablePresets,
-                description: 'Style preset name (inherits from button presets)',
-                examples: ['lozenge', 'bullet', 'outline', 'pill']
+                deprecated: true,
+                'x-replacement': 'elbow.type',
+                description: 'Ignored: elbows have no style presets. Their shape comes from elbow.type, their look from style.'
             },
 
             // ============================================================================
@@ -240,13 +240,7 @@ export function getElbowSchema(options = {}) {
                     type: {
                         type: 'string',
                         enum: availableElbowTypes,  // Dynamically generated from component registry
-                        description: 'Position of the elbow corner on the card',
-                        enumDescriptions: [
-                            'Top-left corner: vertical bar on left, horizontal bar on top',
-                            'Top-right corner: vertical bar on right, horizontal bar on top',
-                            'Bottom-left corner: vertical bar on left, horizontal bar on bottom',
-                            'Bottom-right corner: vertical bar on right, horizontal bar on bottom'
-                        ],
+                        description: 'Elbow or bar shape: header-left/right and footer-left/right put the corner at that side; the other types are bars and shaped ends',
                         examples: ['header-left', 'footer-right']
                     },
 

@@ -1,0 +1,29 @@
+# Two rules looping on one button: the first one stopping must leave the
+# second one's loop running (D2 batch 5).
+type: custom:lcards-button
+id: two_rules
+entity: light.demo
+preset: lozenge
+text:
+  name:
+    content: TWO RULES
+    show: true
+rules:
+  - id: rule_light
+    when:
+      entity: light.demo
+      state: "on"
+    apply:
+      animations:
+        - overlay: two_rules
+          preset: pulse
+          loop: true
+  - id: rule_toggle
+    when:
+      entity: input_boolean.demo_toggle
+      state: "on"
+    apply:
+      animations:
+        - overlay: two_rules
+          preset: glow
+          loop: true

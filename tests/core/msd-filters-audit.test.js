@@ -45,3 +45,9 @@ test('the one-map form applies its CSS filters', () => {
   assert.match(g.style.filter, /opacity\(0\.5\)/);
   assert.match(g.style.filter, /blur\(2px\)/);
 });
+
+test('a CSS filter without a value uses its default instead of dropping the whole list (D2 batch 5)', () => {
+  const s = generateFilterString([{ type: 'brightness' }, { type: 'hue-rotate' }, { type: 'opacity', value: 0.5 }]);
+  assert.equal(s, 'brightness() hue-rotate() opacity(0.5)');
+  assert.ok(!s.includes('undefined'));
+});

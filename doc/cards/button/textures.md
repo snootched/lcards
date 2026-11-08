@@ -11,7 +11,7 @@ Movement and pattern on a button: a texture drawn inside the button's own shape,
 **`shape_texture` draws a pattern or a moving effect inside the button's fill, clipped to its shape.** Use it for a grid on a panel, a shimmer across a lozenge, or a level that rises with a sensor.
 
 - It works on preset buttons (and on [elbows](../elbow/)), not with a `component` or your own `svg`.
-- `opacity`, `speed` and every colour in `config` can follow the entity's state with a state map. Numbers in `config` can also follow a value with `map_range` or a template.
+- `opacity`, `speed` and every colour in `config` can follow the entity's state with a state map. Numbers and colours in `config` can also follow a value with `map_range` or a template.
 
 ```yaml live
 type: custom:lcards-button
@@ -34,7 +34,7 @@ shape_texture:
 
 ::: details More about shape_texture
 - **Speed:** `speed` multiplies the preset's own scroll or sweep speed; `0` holds it still.
-- **Following a number:** any number in `config` can be `{ map_range: { entity, attribute, input, output, clamp } }`, the same keys as `map_range` in [animations](/core/animations). `entity` defaults to the card's entity, `attribute` to its state, and `clamp` is on unless set to `false` (`entity_id`, the older name for `entity`, still works).
+- **Following a value:** any number or colour in `config` can be `{ map_range: { entity, attribute, input, output, clamp } }`, the same keys as `map_range` in [animations](/core/animations). With two colours as `output` the colour is blended between them; each can be any colour LCARdS accepts (a hex of any length, a named colour, `rgb()` or `hsl()`, a CSS variable, a `theme:` token or a computed colour such as `alpha()`). `entity` defaults to the card's entity, `attribute` to its state, and `clamp` is on unless set to `false` (`entity_id`, the older name for `entity`, still works).
 - **Full parameter reference:** every preset's keys and defaults are in [Shape Texture System](/architecture/internals/shape-texture-system).
 :::
 
@@ -106,6 +106,6 @@ background_animation:
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `background_animation` | list / object | - | A list of effects (bottom layer first), or `inset` plus `effects`: see [Background Animations](/core/effects/background-animations#schema-structure) |
+| `background_animation` | list / object | - | A list of effects (bottom layer first), or `inset` plus `effects`: see [Background Animations](/core/effects/background-animations#canvas-options) |
 | `background_animation[].preset` | string | required | The effect: see [Available Presets](/core/effects/background-animations#available-presets) |
 | `background_animation[].config` | object | the preset's defaults | The effect's own keys |

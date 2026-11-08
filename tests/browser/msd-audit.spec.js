@@ -63,6 +63,8 @@ test('MSD audit fixes: base_svg rule filters, tag selector on the visible line o
     await expect.poll(() => attr(page, '#line_gap .line-path', 'stroke'), { timeout: 5000 }).toMatch(/#ff0000|rgb\(255, 0, 0\)/i);
     expect(await attr(page, '#line_gap .line-hit-area', 'stroke')).toBe(hitBefore);
     await expect.poll(() => attr(page, '#__msd-base-content', 'filter'), { timeout: 5000 }).toMatch(/opacity\(0\.3\)/);
+    // transition: 0 switches at once (D2 batch 5: `|| 1000` turned it into a 1 s fade)
+    expect(await page.evaluate(() => /** @type {any} */ (document.querySelector('#mount > *')).renderRoot.querySelector('#__msd-base-content').style.transition)).not.toMatch(/1000ms/);
 
     // off again: the blueprint goes back to its own (no) filters, the line to its own colour
     await page.evaluate(() => window.__setState('input_boolean.lcards_test_toggle', 'off'));
@@ -108,5 +110,12 @@ test('a rule that matches as the card loads colours the line from the start, and
     await expect.poll(() => attr(page, '#line_a .line-path', 'stroke'), { timeout: 10000 }).toMatch(/#ff0000|rgb\(255, 0, 0\)/i);
     await page.evaluate(() => window.__setState('light.demo', 'off'));
     await expect.poll(() => attr(page, '#line_a .line-path', 'stroke'), { timeout: 5000 }).toMatch(/#ff9900|rgb\(255, 153, 0\)/i);
+    await expectNoErrors(page);
+});
+
+test('two rules on one MSD line: the higher priority colour wins, the other rule\'s width still applies (D2 batch 5)', async ({ page }) => {
+    await mountCase(page, 'msd-two-rules', { width: '800' });
+    await expect.poll(() => attr(page, '#line_a .line-path', 'stroke'), { timeout: 10000 }).toMatch(/#ff0000|rgb\(255, 0, 0\)/i);
+    expect(await attr(page, '#line_a .line-path', 'stroke-width')).toBe('9');
     await expectNoErrors(page);
 });

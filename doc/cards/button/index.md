@@ -192,6 +192,6 @@ hold_action:
 | `radar` | object | - | Radar segments: see [Brackets and Radar](./components#brackets-and-radar) |
 | `alert` | object | - | Alert colours and presets: see [alert](./components#alert) |
 | `ranges` | list | - | Switch the component's preset by value: see [ranges](./components#ranges) |
-| `ranges_attribute` | string | the state | The attribute that [range colours](/core/colours#range-conditions-on-non-numeric-entities-ranges-attribute) and `ranges` compare |
-| `state_attribute` | string | - | The attribute whose value picks [exact-match colours](/core/colours#exact-match-keys-from-an-attribute-state-attribute) |
-| `state_classification` | object | - | Which states count as active or inactive: see [state_classification](/core/colours#custom-state-classification-state-classification) |
+| `ranges_attribute` | string | the state | The attribute that [range colours](/core/colours/attributes#ranges-attribute) and `ranges` compare |
+| `state_attribute` | string | - | The attribute whose value picks [exact-match colours](/core/colours/attributes#state-attribute) |
+| `state_classification` | object | - | Which states count as active or inactive: see [state_classification](/core/colours/attributes#state-classification) |

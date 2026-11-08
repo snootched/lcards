@@ -1,622 +1,287 @@
+---
+description: "Background animations: animated layers (grids, starfields, nebulae, a data cascade, a warp field) drawn behind button, elbow, slider, MSD and astrometrics cards, with stacking, zoom, entity binding and animation."
+moved_anchors:
+  schema-structure: /core/effects/background-animations#effect-options
+  effect-level-properties: /core/effects/background-animations#effect-options
+  canvas-settings: /core/effects/background-animations#canvas-options
+  elbow-auto-framing: /core/effects/background-animations#canvas-options
+  basic-grid-animation: /core/effects/background-animations#quick-start
+  grid-with-zoom-effect: /core/effects/background-animations/stacking-and-zoom#zoom-wrapper
+  stacked-effects: /core/effects/background-animations/stacking-and-zoom#effect-stacking
+  zoom-wrapper: /core/effects/background-animations/stacking-and-zoom#zoom-wrapper
+  how-it-works: /core/effects/background-animations/stacking-and-zoom#zoom-wrapper
+  configuration: /core/effects/background-animations/stacking-and-zoom#zoom-wrapper
+  parameters: /core/effects/background-animations/stacking-and-zoom#zoom-wrapper
+  opacity-fade-logic: /core/effects/background-animations/stacking-and-zoom#zoom-wrapper
+  examples: /core/effects/background-animations/stacking-and-zoom#examples
+  examples-1: /core/effects/background-animations/stacking-and-zoom#examples
+  effect-stacking: /core/effects/background-animations/stacking-and-zoom#effect-stacking
+  stacking-rules: /core/effects/background-animations/stacking-and-zoom#effect-stacking
+  example-layered-grid-hexagons: /core/effects/background-animations/stacking-and-zoom#effect-stacking
+  performance-tips: /core/effects/background-animations/stacking-and-zoom#effect-stacking
+  lcars-grid-background: /core/effects/background-animations/stacking-and-zoom#examples
+  honeycomb-zoom: /core/effects/background-animations/stacking-and-zoom#examples
+  diagonal-stripes: /core/effects/background-animations/stacking-and-zoom#examples
+  complex-layered-effect: /core/effects/background-animations/stacking-and-zoom#examples
+  entity-binding: /core/effects/background-animations/binding-and-animation#entity-binding
+  map-range-recommended: /core/effects/background-animations/binding-and-animation#map-range
+  template-string-advanced: /core/effects/background-animations/binding-and-animation#templates
+  which-keys-follow-an-entity: /core/effects/background-animations/binding-and-animation#which-keys-follow-an-entity
+  animating-the-background: /core/effects/background-animations/binding-and-animation#animating-the-background
+  example-warp-speed-on-red-alert: /core/effects/background-animations/binding-and-animation#animating-the-background
+  animatable-keys: /core/effects/background-animations/binding-and-animation#animatable-keys
+  animation-not-visible: /core/effects/background-animations#troubleshooting
+  poor-performance: /core/effects/background-animations#troubleshooting
+  pattern-misalignment: /core/effects/background-animations#troubleshooting
+  colours-not-resolving: /core/effects/background-animations#troubleshooting
+  performance-considerations: /core/effects/background-animations#troubleshooting
+  canvas-rendering-optimization: /core/effects/background-animations#troubleshooting
+  browser-compatibility: /core/effects/background-animations#troubleshooting
+  resource-usage: /core/effects/background-animations#troubleshooting
+  see-also: /core/effects/background-animations
+---
+
 # Background Animations
 
-> **Animated canvas-based backgrounds for LCARdS cards**
+**`background_animation` draws moving layers behind a card's content: grids, starfields, nebulae, an LCARS data cascade, a warp field, a rotating planet.** It works on the button, elbow, slider, MSD and astrometrics cards.
 
-Background animations provide dynamic visual effects rendered on HTML5 Canvas behind card content. The system supports effect stacking, optional zoom transformations, and preset-based configuration.
+- The value is a list of effects. Each entry names a `preset` and gives that preset's keys in `config`; the first entry is the bottom layer.
+- The background sits behind the card's own fill, so it shows best on a card with a transparent fill, such as the button's `outline` preset, or inside an elbow's arms.
+- On the MSD card it goes under `msd:` (`msd.background_animation`); on every other card it is a top-level key.
+
+::: tip Try it
+- The button and elbow editors have a Background Animation section on the Effects tab, with every preset's keys and a live preview. The MSD and Astrometrics Studios have one too.
+:::
+
+| Page | Covers |
+|------|--------|
+| [Preset Reference](./background-animations/preset-reference) | Every preset and its `config` keys |
+| [Stacking and Zoom](./background-animations/stacking-and-zoom) | Layering several effects, the zoom wrapper, example backgrounds |
+| [Binding and Animation](./background-animations/binding-and-animation) | Keys that follow an entity, animating the background from triggers and rules, the animatable keys |
 
 ---
 
-## Quick Start
+## Quick start
 
-### Basic Grid Animation
+**Two backgrounds to start from: a scrolling grid behind a button, and a data cascade inside an elbow's arms.**
+
+- Give the card some height (`grid_options.rows` in a sections view) so there is room to see the effect.
+- On an elbow, `inset: auto` keeps the background inside the bars; see [Canvas options](#canvas-options).
 
 ```yaml live
 type: custom:lcards-button
-entity: light.living_room
+preset: outline
 text:
-  label:
-    content: "Animated Button"
-width: 400
-height: 300
+  name:
+    content: SENSOR GRID
+    show: true
+grid_options:
+  rows: 3
 background_animation:
   - preset: grid
     config:
-      line_spacing: 50
-      color: "rgba(255, 153, 102, 0.4)"
+      line_spacing: 30
+      color: alpha(var(--lcars-orange), 0.4)
+      scroll_speed_x: 15
+      scroll_speed_y: 15
 ```
-
-### Grid with Zoom Effect
-
-```yaml
-background_animation:
-  - preset: grid
-    config:
-      line_spacing: 60
-      color: "rgba(102, 204, 255, 0.6)"
-    zoom:
-      layers: 5
-      scale_from: 0.5
-      scale_to: 2.0
-      duration: 15
-```
-
-### Stacked Effects
-
-```yaml
-background_animation:
-  - preset: grid-diagonal
-    config:
-      line_spacing: 80
-      color: "rgba(255, 153, 102, 0.2)"
-      scroll_speed_x: 30
-  - preset: grid-hexagonal
-    config:
-      hex_radius: 40
-      color: "rgba(102, 204, 255, 0.3)"
-    zoom:
-      layers: 3
-      duration: 20
-```
-
----
-
-## Schema Structure
-
-Effects are rendered in order: first effect is the bottom layer. Combine with `inset` to constrain the animation canvas to a sub-area of the card.
-
-```yaml
-background_animation:
-  fps: 30           # Max render FPS (default: 30). Use 60 for high-refresh/desktop displays.
-  inset:            # Canvas-level inset (optional) - all sides default to 0
-    top: 0
-    right: 0
-    bottom: 40      # e.g. leave space for a footer bar
-    left: 90        # e.g. leave space for a left sidebar
-  effects:
-    - preset: grid
-      config:
-        line_spacing: 40
-    - preset: starfield
-      config:
-        count: 150
-```
-
-### Elbow auto-framing
-
-On elbow cards, set `inset: auto` to let the card compute the correct inset from its bar geometry automatically:
 
 ```yaml live
 type: custom:lcards-elbow
+grid_options:
+  rows: 4
 elbow:
   type: header-left
   segment:
     bar_width: 90
     bar_height: 20
+    color: var(--lcars-orange)
 background_animation:
-  inset: auto       # canvas inset auto-derived from elbow bar geometry
+  inset: auto # inside the bars
   effects:
     - preset: cascade
-      config: {}
 ```
 
-### Canvas Settings
+## Available presets
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `fps` | number | Maximum frames per second for the animation render loop. Default `30`, half the native browser rate, sufficient for ambient animations and conserves CPU on low-end devices (Android tablets etc). Set to `60` for smoother feel on desktop or high-refresh displays. |
-| `inset` | object \| `'auto'` | Canvas-level offset applied to all effects. `'auto'` is only meaningful on elbow cards; on other card types it resolves to all-zero. |
-| `inset.top` | number | Pixels to inset from top (default: 0) |
-| `inset.right` | number | Pixels to inset from right (default: 0) |
-| `inset.bottom` | number | Pixels to inset from bottom (default: 0) |
-| `inset.left` | number | Pixels to inset from left (default: 0) |
+**`preset` picks the effect; the [Preset Reference](./background-animations/preset-reference) lists each one's `config` keys.** There are seventeen.
 
-The canvas minimum dimension is clamped to 1 px.
+- `config` is optional for most presets: a key you leave out takes the preset's default. `image` needs a `source`.
+- The presets marked WebGL draw on the GPU where the browser has WebGL and fall back to a Canvas2D version where it does not; see [WebGL presets](#webgl-presets).
 
-### Effect-level Properties
+| Preset | Draws |
+|--------|-------|
+| [`grid`](./background-animations/preset-reference#grid) | A grid with optional major and minor lines; polar rings and spokes (`pattern: polar`); on WebGL also a perspective floor (`view: floor`) or a cylinder, dome, sphere or funnel (`surface`) |
+| [`grid-diagonal`](./background-animations/preset-reference#grid-diagonal) | Diagonal hatching (WebGL) |
+| [`grid-hexagonal`](./background-animations/preset-reference#grid-hexagonal) | A honeycomb (WebGL) |
+| [`starfield`](./background-animations/preset-reference#starfield) | Scrolling stars in parallax depth layers |
+| [`nebula`](./background-animations/preset-reference#nebula) | Soft nebula clouds; `volumetric: true` shades them with noise on WebGL |
+| [`contour-field`](./background-animations/preset-reference#contour-field) | Banded contours like a star chart (WebGL) |
+| [`cascade`](./background-animations/preset-reference#cascade) | The LCARS data waterfall: rows of numbers cycling colour |
+| [`level`](./background-animations/preset-reference#level) | A fill bar with waves and sloshing, for a tank or gauge |
+| [`fluid`](./background-animations/preset-reference#fluid) | A swirling colour wash (WebGL) |
+| [`plasma`](./background-animations/preset-reference#plasma) | Two-colour plasma bands (WebGL) |
+| [`flow`](./background-animations/preset-reference#flow) | Streaks streaming in one direction |
+| [`shimmer`](./background-animations/preset-reference#shimmer) | A highlight band sweeping across |
+| [`scanlines`](./background-animations/preset-reference#scanlines) | CRT-style scanlines |
+| [`image`](./background-animations/preset-reference#image) | An image, fixed or from an entity |
+| [`solid`](./background-animations/preset-reference#solid) | A flat colour |
+| [`warp-starfield`](./background-animations/preset-reference#warp-starfield) | Stars flying at you in 3D, streaking at speed (WebGL; `starfield` without it) |
+| [`holo-sphere`](./background-animations/preset-reference#holo-sphere) | A rotating wireframe planet with a scan band (WebGL; the same look on Canvas2D) |
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `preset` | string | ✅ | Preset name (see [Available Presets](#available-presets)) |
-| `config` | object | ✅ | Preset-specific configuration |
-| `zoom` | object | ❌ | Optional zoom wrapper configuration |
-| `enabled` | boolean | ❌ | `false` keeps the entry (and its index) but draws nothing |
-| `transition` | number | ❌ | How long, in ms, an [entity-bound](#entity-binding) value glides to its new value. Default `500`, `0` snaps. |
-| `renderer` | string | ❌ | For presets with a WebGL version: `auto` (default) uses WebGL when the browser has it, `canvas` always draws the Canvas2D version (no GPU use), `webgl` prefers WebGL. Without WebGL every value draws the Canvas2D version, so the background never goes blank. See [WebGL presets](#webgl-presets). |
+## WebGL presets
 
-Every preset that moves (all but `image` and `solid`) also takes `config.speed`: a time multiplier for the whole effect (`2` is twice as fast, `0` freezes it; a zoom wrapper cycles faster too). On `shimmer`, `speed` is its sweep speed.
+**Some presets draw on the GPU with three.js where the browser has WebGL, and fall back to Canvas2D where it does not, so the background never goes blank.** `renderer` on the entry chooses.
 
-Colour parameters in `config` accept all standard LCARdS colour formats: CSS variables, theme tokens, hex, rgba, and computed expressions (`darken()`, `alpha()`, etc.). See [Colours](../colours.md).
-
----
-
-## Available Presets
-
-Seven built-in presets are available. See the **[Preset Reference](background-animations/preset-reference.md)** for full configuration tables and examples for each.
-
-| Preset | Description |
-|--------|-------------|
-| [`grid`](background-animations/preset-reference.md#grid) | Orthogonal grid with optional major/minor divisions; polar rings and spokes (`pattern: polar`); on WebGL also a perspective floor (`view: floor`) or a cylinder, dome, sphere or funnel (`surface`) |
-| [`grid-diagonal`](background-animations/preset-reference.md#grid-diagonal) | Diagonal hatch pattern at 45° |
-| [`grid-hexagonal`](background-animations/preset-reference.md#grid-hexagonal) | Honeycomb hexagonal pattern |
-| [`starfield`](background-animations/preset-reference.md#starfield) | Scrolling starfield with parallax depth layers |
-| [`nebula`](background-animations/preset-reference.md#nebula) | Organic Perlin-noise nebula clouds (`volumetric: true`: noise-shaded on WebGL) |
-| [`cascade`](background-animations/preset-reference.md#cascade) | LCARS data-waterfall colour-cycling background |
-| [`image`](background-animations/preset-reference.md#image) | Static or entity-driven image background |
-| [`warp-starfield`](background-animations/preset-reference.md#warp-starfield) | Stars flying toward you in 3D, streaking at speed (WebGL) |
-| [`holo-sphere`](background-animations/preset-reference.md#holo-sphere) | Rotating wireframe planet with a scan band (WebGL, Canvas2D without it) |
-
-### WebGL presets
-
-`warp-starfield` is drawn with three.js. Like every WebGL preset it loads only when a card uses it, shares one WebGL context across the whole dashboard, sits in the stack like any other entry, and falls back to Canvas2D (here `starfield`) where WebGL is not available.
-
-`grid`, `grid-diagonal` and `grid-hexagonal` draw on the GPU too: the same pixels as their Canvas2D versions in the flat view, any line width, a perspective floor view with an animatable camera ([grid views](background-animations/preset-reference.md#grid-views-and-camera)), curved surfaces: cylinders, domes and spheres, seen from outside or inside ([grid surfaces](background-animations/preset-reference.md#grid-surfaces)), and wells: funnels of any profile that can morph and ripple ([grid wells](background-animations/preset-reference.md#grid-wells)). With `camera_tilt`, `camera_yaw`, `camera_roll` and the `surface_rotate_*` keys a surface can face any way and be seen from any direction.
-
-`holo-sphere` is drawn with three.js too, and on Canvas2D with the same look where WebGL is not available. `nebula` with `volumetric: true` shades its clouds with noise on the GPU (opt-in, because it changes the look); without WebGL it draws the plain clouds.
-
-`contour-field`, `plasma` and `fluid` are drawn on the GPU too where WebGL is available, with the same keys and the same field as their Canvas2D versions. On the CPU these effects pause the page each time they first draw, resize or change alert colours (up to half a second on a full-screen background); on the GPU they don't, and their noise keys become [animatable](#animatable-keys).
+- `warp-starfield` and `holo-sphere` are three.js scenes. Without WebGL, `warp-starfield` draws a `starfield` and `holo-sphere` the same sphere on Canvas2D.
+- `grid`, `grid-diagonal` and `grid-hexagonal` draw the same pixels as their Canvas2D versions in the flat view. On WebGL they also do a perspective floor with a camera ([grid views](./background-animations/preset-reference#grid-views-and-camera)), cylinders, domes and spheres seen from outside or inside ([grid surfaces](./background-animations/preset-reference#grid-surfaces)), and funnels that can morph and ripple ([grid wells](./background-animations/preset-reference#grid-wells)).
+- `contour-field`, `plasma` and `fluid` draw the same field on the GPU, with the same keys. On WebGL their noise keys become [animatable](./background-animations/binding-and-animation#animatable-keys).
+- `nebula` uses WebGL only with `volumetric: true` (opt-in, because it changes the look); without WebGL it draws the plain clouds.
 
 <CardGallery set="background-webgl" />
 
-Set `renderer: canvas` on the entry to always draw the Canvas2D version:
-
-```yaml
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: WARP
+    show: true
+grid_options:
+  rows: 3
 background_animation:
+  - preset: warp-starfield
+    config:
+      count: 400
+```
+
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: CANVAS2D
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  # always the Canvas2D version: for warp-starfield, a starfield
   - preset: warp-starfield
     renderer: canvas
     config:
       count: 400
 ```
 
----
-## Zoom Wrapper
-
-The zoom wrapper applies a **layered scaling effect** with opacity fades to any preset, creating a pseudo-3D depth illusion. It works over the WebGL presets too (the effect draws once per frame and the layers are scaled copies). For real depth, use the grid's [floor view](background-animations/preset-reference.md#grid-views-and-camera), [surfaces](background-animations/preset-reference.md#grid-surfaces) or [`warp-starfield`](background-animations/preset-reference.md#warp-starfield).
-
-### How It Works
-
-The zoom wrapper:
-1. Takes any base effect (grid, diagonal, hexagonal, etc.)
-2. Renders multiple scaled layers from `scale_from` to `scale_to`
-3. Applies opacity fade-in and fade-out over the zoom cycle
-4. Animates continuously over `duration` seconds
-
-### Configuration
-
-```yaml
-zoom:
-  layers: 5                 # Number of scaled layers (more = smoother but slower)
-  scale_from: 0.5          # Starting scale (0.5 = 50% size)
-  scale_to: 2.0            # Ending scale (2.0 = 200% size)
-  duration: 15             # Animation duration in seconds
-  opacity_fade_in: 15      # Fade-in threshold (% of duration)
-  opacity_fade_out: 75     # Fade-out threshold (% of duration)
-```
-
-### Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `layers` | number | 4 | Number of scaled instances to render. More layers = smoother effect but higher CPU usage. Range: 2-10. |
-| `scale_from` | number | 0.5 | Starting scale factor. 0.5 = half size, 1.0 = actual size. Range: 0.1-1.0. |
-| `scale_to` | number | 2.0 | Ending scale factor. 2.0 = double size. Range: 1.0-5.0. |
-| `duration` | number | 15 | Full zoom cycle duration in seconds. Range: 5-60. |
-| `opacity_fade_in` | number | 15 | Percentage of duration where opacity fades in from 0 to 1. Range: 0-100. |
-| `opacity_fade_out` | number | 75 | Percentage of duration where opacity starts fading out to 0. Range: 0-100. |
-
-### Opacity Fade Logic
-
-```
-Progress 0% ──────► opacity_fade_in ──────► opacity_fade_out ──────► 100%
-         fade in from 0 to 1           full opacity           fade out to 0
-```
-
-### Examples
-
-**Subtle Zoom:**
-
-```yaml
-- preset: grid
-  config:
-    line_spacing: 50
-    color: "rgba(255, 153, 102, 0.4)"
-  zoom:
-    layers: 3
-    scale_from: 0.8
-    scale_to: 1.5
-    duration: 20
-    opacity_fade_in: 10
-    opacity_fade_out: 80
-```
-
-**Dramatic Zoom:**
-
-```yaml
-- preset: grid-diagonal
-  config:
-    line_spacing: 80
-    color: "rgba(102, 204, 255, 0.6)"
-  zoom:
-    layers: 6
-    scale_from: 0.3
-    scale_to: 3.0
-    duration: 10
-    opacity_fade_in: 20
-    opacity_fade_out: 70
-```
-
----
-
-## Effect Stacking
-
-Multiple effects can be stacked by providing an array. Effects render in order (first = bottom layer, last = top layer).
-
-::: warning Changed in 2026.10
-Earlier versions drew the stack upside down (the last entry at the bottom), against this page. If you tuned a stacked background to that order, reverse the list.
+::: details More about WebGL presets
+- **One context:** a WebGL preset loads only when a card uses it, and all of them share one WebGL context across the dashboard. Each sits in the stack like any other entry.
+- **Why the GPU helps the noise presets:** on the CPU, `contour-field`, `plasma` and `fluid` work out their whole field when they first draw, resize or change alert colours, which can pause the page for a moment on a large background. On the GPU they don't.
+- **A lost context:** if a three.js scene fails to start or loses its context, that entry switches to its Canvas2D version for good.
+- **Off-screen:** a three.js scene gives the shared context back while its card is off the page.
 :::
 
-### Stacking Rules
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `renderer` | string | `auto` | `auto`: WebGL when the browser has it, Canvas2D otherwise. `webgl`: the same, stated outright. `canvas`: always the Canvas2D version (no GPU use). Presets that are Canvas2D only ignore it |
 
-1. **Order matters**: First effect in array renders first (bottom)
-2. **Independent configuration**: Each effect has its own config and optional zoom
-3. **Alpha blending**: Use RGBA colours with alpha < 1.0 for transparency
-4. **Performance**: More effects = higher CPU usage, test on target hardware
+## Effect options
 
-### Example: Layered Grid + Hexagons
+**The keys of one entry in the list: which preset, its settings, and how it is drawn.** Any number of entries can be stacked; see [Stacking and Zoom](./background-animations/stacking-and-zoom).
 
-```yaml
+- Colours in `config` take every LCARdS colour form: CSS variables, `theme:` tokens, `alpha()` and the other computed colours, rgba and hex. See [Colours](../colours).
+- Any `config` value can follow an entity with `map_range` or a template; see [Binding and Animation](./background-animations/binding-and-animation).
+
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: DEFLECTOR
+    show: true
+grid_options:
+  rows: 3
 background_animation:
-  # Layer 1 (bottom): Fast scrolling diagonal grid
-  - preset: grid-diagonal
+  - preset: starfield
     config:
-      line_spacing: 100
-      color: "rgba(255, 153, 102, 0.15)"
-      scroll_speed_x: 50
-      scroll_speed_y: 0
-
-  # Layer 2 (middle): Slow scrolling grid
+      count: 150
+      speed: 0.5 # half speed
+  # kept in the list, drawn only once enabled
   - preset: grid
+    enabled: false
     config:
-      line_spacing: 50
-      color: "rgba(255, 153, 102, 0.2)"
-      scroll_speed_x: 10
-      scroll_speed_y: 10
-
-  # Layer 3 (top): Zooming hexagons
-  - preset: grid-hexagonal
-    config:
-      hex_radius: 40
-      color: "rgba(102, 204, 255, 0.3)"
-      scroll_speed_x: 0
-      scroll_speed_y: 0
-    zoom:
-      layers: 4
-      scale_from: 0.5
-      scale_to: 2.0
-      duration: 18
+      color: alpha(var(--lcars-orange), 0.3)
 ```
 
-### Performance Tips
+::: details More about effect options
+- **`speed` and the zoom wrapper:** `speed` also runs the [zoom](./background-animations/stacking-and-zoom#zoom-wrapper) cycle faster, whether it is fixed in `config`, bound to an entity or animated.
+- **Disabled entries keep their place:** an entry with `enabled: false` still counts when an animation picks an entry by number (`effect:`).
+:::
 
-- **FPS cap**: Default is 30fps, suitable for most devices. Set `fps: 60` only on desktop/high-refresh displays where the extra smoothness is noticeable.
-- **Limit layers**: 2-3 effects is usually sufficient
-- **Use opacity**: Lower alpha values reduce visual noise
-- **Disable scroll on zoom**: Set `scroll_speed_x: 0` and `scroll_speed_y: 0` when using zoom
-- **Reduce zoom layers**: Use 3-4 layers instead of 6-8 for better performance
-- **Test on device**: Performance varies by browser and hardware
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `preset` | string | required | The effect: see [Available presets](#available-presets) |
+| `config` | object | the preset's defaults | The preset's own keys: see the [Preset Reference](./background-animations/preset-reference) |
+| `config.speed` | number | `1` | Time multiplier for every preset that moves (all but `image` and `solid`): `2` is twice as fast, `0` freezes it. On `shimmer` it is the sweep speed in px per second (default `6`) |
+| `enabled` | boolean | `true` | `false` keeps the entry in the list but draws nothing |
+| `renderer` | string | `auto` | For presets with a WebGL version: see [WebGL presets](#webgl-presets) |
+| `transition` | number | `500` | Milliseconds an [entity-bound](./background-animations/binding-and-animation#entity-binding) value takes to glide to a new value. `0` snaps |
+| `zoom` | object | - | Draws the effect as layers zooming outward: see [Zoom wrapper](./background-animations/stacking-and-zoom#zoom-wrapper) |
 
----
+## Canvas options
 
-## Entity Binding
+**To set where the background is drawn, or its frame rate, write `background_animation` as an object with the list under `effects`.** `inset` keeps the canvas off the card's edges, for a sidebar or footer bar that should stay clear.
 
-Effect config parameters can react to live Home Assistant entity state or attributes. Works identically in both `background_animation` and `shape_texture`.
+- `inset: auto` works on elbow cards: it fits the canvas inside the elbow's arms and follows the bars when they change. The [elbow's appearance page](/cards/elbow/appearance#background-animation-inset) covers how it treats each elbow type. On every other card `auto` means no inset.
+- A side you leave out of an `inset` object is `0`.
+- `fps` caps how often the background redraws. It is read only in the object form.
 
-### `map_range`: Recommended
-
-Linearly maps an entity attribute (or state) from one numeric range to another. No template knowledge required.
-
-```yaml
-config:
-  scroll_speed_x:
-    map_range:
-      attribute: brightness   # entity attribute to read (omit to use entity.state)
-      input:  [0, 255]        # input range (raw entity value)
-      output: [-200, 200]     # output range (effect param value)
-      # entity: light.other     # optional - defaults to the card's config.entity
-      # clamp: true             # optional, default true - clamp output to range
-```
-
-**Full example, plasma speed tracks light brightness:**
-
-```yaml
-entity: light.tv
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: CANVAS INSET
+    show: true
+grid_options:
+  rows: 3
 background_animation:
-  inset: auto
+  inset:
+    left: 60 # keep the left 60 px clear
+    bottom: 20
   effects:
-    - preset: plasma
+    - preset: grid-hexagonal
       config:
-        scroll_speed_x:
-          map_range:
-            attribute: brightness
-            input:  [0, 255]
-            output: [-200, 200]
-        scroll_speed_y:
-          map_range:
-            attribute: brightness
-            input:  [0, 255]
-            output: [5, 60]
+        hex_radius: 20
+        color: alpha(var(--lcars-ice), 0.4)
 ```
 
-**`map_range` parameters:**
+::: details More about canvas options
+- **Frame rate:** the default cap of 30 frames per second is plenty for ambient motion and spares low-end devices such as wall tablets. Set `60` for a smoother look on a desktop or high-refresh screen; `0` removes the cap. The editor's Canvas Settings section sets it.
+- **Size:** the canvas follows the card's size as it changes (a sections grid settling, the sidebar opening), less the inset, and is never smaller than 1 px.
+:::
 
-| Key | Type | Required | Description |
-|-----|------|----------|-------------|
-| `attribute` | string | ❌ | Entity attribute to read. Omit to use `entity.state`. |
-| `input` | `[min, max]` | ✅ | Expected range of the raw entity value. |
-| `output` | `[min, max]` | ✅ | Desired output range for the effect param. |
-| `entity` | string | ❌ | Override entity. Defaults to card-bound `entity`. The same key as `map_range` in [animations](../animations) and astrometrics settings (`entity_id`, the older name, still works). |
-| `clamp` | boolean | ❌ | Clamp output to range (default: `true`). |
-
-### Template string: Advanced
-
-Evaluated on every hass update. Full JavaScript template access.
-
-```yaml
-config:
-  # Direct string template (evaluates to a number)
-  fill_pct: "[[[return entity.attributes.brightness / 2.55]]]"
-
-  # Object form with fallback default
-  wave_speed:
-    template: "[[[return entity.attributes.color_temp / 5]]]"
-    default: 20
-```
-
-**Supported template types:** `[[[JavaScript]]]`, `{token.path}`.
-
-### Which keys follow an entity
-
-A bound value is applied in one of three ways, depending on the key:
-
-- **Glides** (the [animatable keys](#animatable-keys)): the effect moves to the new value over `transition` ms (default 500) instead of jumping. The first value after the card loads, `transition: 0` and reduced motion snap.
-- **Snaps**: other keys of the `level`, `fluid`, `plasma`, `flow`, `shimmer`, `scanlines`, `image` and `contour-field` presets are applied at once (a noise re-bake, a new image source).
-- **Fixed**: other keys of `grid`, `grid-diagonal`, `grid-hexagonal`, `starfield`, `nebula`, `cascade` and `solid` (star `count`, grid `pattern`, ...) are set when the effect is created. A binding on one is logged once in the browser console and has no effect.
-
-```yaml
-# Grid scroll speed follows a light's brightness, gliding over 1.5 s
-entity: light.tv
-background_animation:
-  - preset: grid
-    transition: 1500
-    config:
-      scroll_speed_x:
-        map_range:
-          attribute: brightness
-          input: [0, 255]
-          output: [0, 120]
-```
-
-> **Note:** Both forms are available in `shape_texture.config` and `background_animation` effect `config`. The UI editor does not expose entity binding; use YAML mode to configure it.
-
----
-
-## Animating the background
-
-An animation can target the card's background effects instead of an element: set `target: background`, and optionally `effect:` to the index of one `background_animation` entry (`0` is the first, the bottom layer; without it, every entry). Use `preset: custom` and put the effect's keys in `params`, written like any anime.js property (`[from, to]`, a single end value, keyframes). Triggers, `while`, rules (`apply.animations`), easing, `loop`/`alternate` and reduced motion all work as for element animations; stopping a running animation puts the values back.
-
-The animation keeps running when an alert mode recolours the background (the effects are rebuilt with the new palette, and pick up the animated values).
-
-### Example: warp speed on red alert
-
-```yaml
-type: custom:lcards-button
-entity: input_select.lcards_alert_mode
-background_animation:
-  - preset: starfield
-    zoom:
-      layers: 4
-      duration: 12
-    config:
-      scroll_speed_x: 0
-animations:
-  # Ramp the stars (and the zoom cycle) to 8x over 2 s when red alert starts
-  - trigger: on_entity_change
-    entity: input_select.lcards_alert_mode
-    to_state: red_alert
-    target: background
-    effect: 0
-    preset: custom
-    params:
-      speed: [1, 8]
-      duration: 2000
-      ease: inOutQuad
-  # And back down when it ends
-  - trigger: on_entity_change
-    entity: input_select.lcards_alert_mode
-    from_state: red_alert
-    target: background
-    effect: 0
-    preset: custom
-    params:
-      speed: 1
-      duration: 3000
-      ease: outQuad
-```
-
-The same result with an [entity binding](#entity-binding) and no animations: the template picks the speed, `transition` sets the glide.
-
-```yaml
-type: custom:lcards-button
-entity: input_select.lcards_alert_mode
-background_animation:
-  - preset: starfield
-    transition: 2000
-    zoom:
-      layers: 4
-      duration: 12
-    config:
-      scroll_speed_x: 0
-      speed: "[[[ return entity.state === 'red_alert' ? 8 : 1 ]]]"
-```
-
-### Animatable keys
-
-Every effect: `opacity`, and the transform keys `x`, `y` (offset in px), `rotate` (degrees) and `scale` (about the centre). Every effect that moves: `speed`. Colour keys accept every LCARdS colour format.
-
-| Preset | Keys |
-|---|---|
-| `grid`, `grid-diagonal`, `grid-hexagonal` | `scroll_speed_x`, `scroll_speed_y`, `line_spacing`, `line_width`, `line_width_minor`, `line_width_major`, `color`, `color_major`, `fill_color` (those the preset takes); `grid` also `spoke_count`, `polar_x`, `polar_y`; on WebGL also `camera_tilt`, `camera_yaw`, `camera_roll`, `camera_distance`, `fov`, `scan_color`, `surface_size`, `surface_length`, `back_opacity`, `surface_rotate_x`, `surface_rotate_y`, `surface_rotate_z`, `well_throat`, `well_morph`, `well_ripple`, `well_ripple_waves`, `well_ripple_speed` |
-| `starfield` | `scroll_speed_x`, `scroll_speed_y`, `color` (one colour for every star) |
-| `nebula` | `scroll_speed_x`, `scroll_speed_y`, `turbulence` |
-| `contour-field` | `scroll_speed_x`, `scroll_speed_y`; on WebGL also `noise_scale`, `num_bands`, `fill_level` |
-| `cascade` | (the common keys) |
-| `level` | `fill_pct`, `wave_height`, `wave_speed`, `wave2_height`, `wave2_speed`, `slosh_amount` |
-| `fluid` | `scroll_speed_x`, `scroll_speed_y`; on WebGL also `base_frequency`, `color` |
-| `plasma` | `scroll_speed_x`, `scroll_speed_y`; on WebGL also `base_frequency`, `color_a`, `color_b` |
-| `flow` | `scroll_speed_x`, `scroll_speed_y`, `wave_scale` |
-| `scanlines` | `scroll_speed_x`, `scroll_speed_y`, `line_spacing`, `line_width` |
-| `shimmer` | `highlight_width`, `angle` |
-| `image` | `opacity` only |
-| `solid` | `opacity`, `color` |
-| `warp-starfield` | `streak`, `camera_tilt`, `camera_yaw`, `camera_roll`, `fov`, `color` |
-| `holo-sphere` | `rotate_speed`, `tilt`, `size`, `position_x`, `position_y`, `back_opacity`, `line_width`, `color`, `scan_color` |
-
-Other keys are left out on purpose: changing them means rebuilding the effect (a new star layout, a noise re-bake), too slow to do every frame. The WebGL versions of the noise presets have no bake, so their noise keys are animatable there; under `renderer: canvas` or without WebGL they keep the Canvas2D list. A key that isn't animatable is logged once in the browser console.
-
----
-
-## Examples
-
-### LCARS Grid Background
-
-```yaml
-background_animation:
-  - preset: grid
-    config:
-      line_spacing: 50
-      color: "rgba(255, 153, 102, 0.3)"
-      scroll_speed_x: 15
-      scroll_speed_y: 15
-```
-
-### Honeycomb + Zoom
-
-```yaml
-background_animation:
-  - preset: grid-hexagonal
-    config:
-      hex_radius: 35
-      color: "rgba(102, 204, 255, 0.4)"
-      major_row_interval: 0
-      major_col_interval: 0
-    zoom:
-      layers: 5
-      scale_from: 0.5
-      scale_to: 2.0
-      duration: 15
-```
-
-### Diagonal Stripes
-
-```yaml
-background_animation:
-  - preset: grid-diagonal
-    config:
-      line_spacing: 60
-      line_width: 2
-      color: "rgba(255, 153, 102, 0.5)"
-      scroll_speed_x: 40
-      scroll_speed_y: 0
-```
-
-### Complex Layered Effect
-
-```yaml
-background_animation:
-  # Base layer: grid with fill
-  - preset: grid
-    config:
-      line_spacing: 80
-      color: "rgba(255, 153, 102, 0.3)"
-      fill_color: "rgba(255, 153, 102, 0.05)"
-      scroll_speed_x: 10
-      scroll_speed_y: 10
-
-  # Mid layer: diagonal lines
-  - preset: grid-diagonal
-    config:
-      line_spacing: 100
-      color: "rgba(255, 153, 102, 0.2)"
-      scroll_speed_x: 30
-
-  # Top layer: zooming hexagons
-  - preset: grid-hexagonal
-    config:
-      hex_radius: 40
-      color: "rgba(102, 204, 255, 0.25)"
-    zoom:
-      layers: 4
-      duration: 20
-```
-
----
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `background_animation` | list / object | - | A list of effects, or an object with `effects`, `inset` and `fps` |
+| `effects` | list | required in the object form | The effects, bottom layer first: see [Effect options](#effect-options) |
+| `inset` | string / object | none | `auto`: inside an elbow's arms (no inset on other cards). An object: px per side |
+| `inset.top` | number | `0` | Space kept clear at the top, px |
+| `inset.right` | number | `0` | Space kept clear on the right, px |
+| `inset.bottom` | number | `0` | Space kept clear at the bottom, px |
+| `inset.left` | number | `0` | Space kept clear on the left, px |
+| `fps` | number | `30` | Most frames per second the background draws. `0`: no cap |
 
 ## Troubleshooting
 
-### Animation Not Visible
+**When a background doesn't show, looks wrong or slows a device down, check these first.**
 
-- **Check opacity**: Colour alpha channel must be > 0 (e.g., `rgba(255, 153, 102, 0.4)` or `alpha(var(--lcars-orange), 0.4)`)
-- **Check z-index**: Background renders behind card content
-- **Check canvas size**: Animation respects card `width` and `height` in style
+- **Nothing shows:** the card's own fill may cover it (try the button's `outline` preset), the colour may be fully transparent, or the card may have no height to draw in. A preset name the card doesn't know is logged in the browser console and that entry is skipped.
+- **A colour doesn't resolve:** check that a `theme:` token path exists in the active theme ([Themes](../themes/)). Quote hex colours (`"#ff9966"`): unquoted, YAML reads everything after `#` as a comment.
+- **A device slows down:** use fewer stacked effects and fewer zoom layers, wider `line_spacing`, and set scroll speeds to `0` where you don't need the motion.
 
-### Poor Performance
-
-- **Reduce layers**: Use fewer effects in stack
-- **Lower zoom layers**: Use 3-4 instead of 6-8
-- **Increase line spacing**: Fewer lines = better performance
-- **Disable unnecessary scroll**: Set speeds to 0 when not needed
-
-### Pattern Misalignment
-
-- **Hexagonal patterns**: Use `hex_radius` multiples for smooth tiling
-- **Grid spacing**: Use consistent `line_spacing` across effects
-- **Major line intervals**: Use values that divide evenly into canvas dimensions
-
-### Colours Not Resolving
-
-- **Theme tokens**: Verify token path exists in the active theme; see [Themes](../themes/)
-- **Quotes**: RGBA and computed expressions must be quoted in YAML
-- **Hex colours**: Include the `#` prefix
-
----
-
-## Performance Considerations
-
-### Canvas Rendering Optimization
-
-- Background animations use **offscreen canvas with pattern caching**
-- Patterns tile infinitely with no seams
-- Major/minor line calculations use modulo arithmetic for efficiency
-
-### Browser Compatibility
-
-- Requires HTML5 Canvas support
-- Tested on Chrome, Firefox, Safari, Edge
-- Performance varies by hardware acceleration support
-
-### Resource Usage
-
-| Configuration | CPU Usage | Recommendation |
-|--------------|-----------|----------------|
-| Single effect, no zoom | Low | ✅ Use freely |
-| Single effect + zoom (3-4 layers) | Medium | ✅ Good for most cards |
-| 2-3 stacked effects | Medium-High | ⚠️ Test on target device |
-| 3+ stacked effects + zoom | High | ❌ Avoid unless necessary |
-
----
-
-## See Also
-
-- [Preset Reference](background-animations/preset-reference.md): full config tables and examples for all 7 presets
-- [Animations](../animations.md): anime.js-powered card animations (different system)
-- [Filters](filters.md): SVG filter effects
-
+::: details More about how a background runs
+- **Pauses on its own:** the background stops drawing while its card is scrolled off the page or the browser tab is hidden, and carries on where it left off.
+- **Reduced motion:** when the device asks for reduced motion, the background draws one frame and holds it.
+- **A struggling device:** if the frame rate falls very low, the background pauses itself and tries again later.
+- **Patterns that line up:** stacked grids line up best with the same `line_spacing` (or multiples of it), and major line intervals that divide the card's size evenly.
+- **A different system:** [Animations](../animations) animate a card's own parts; background animations are drawn on a canvas behind them. An animation can still [target the background](./background-animations/binding-and-animation#animating-the-background). [Filters](./filters) are SVG filter effects on the card.
+:::

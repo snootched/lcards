@@ -230,7 +230,7 @@ style:
 - The presets already hold a `name` field (the entity's name) and a `state` field (the value) that are hidden. Turn one on with `show: true`; the ring and shaped presets already show both.
 - Every [text field](/core/text-fields) key works here, including templates in `content`.
 
-```yaml live
+```yaml live controls
 type: custom:lcards-slider
 entity: light.bedroom
 preset: pills-left-border
@@ -259,7 +259,7 @@ text:
 | `text.<name>` | object | - | A text field of your own; any name except `default` |
 | `text.<name>.content` | string | - | The text; [templates](/core/templates/) work |
 | `text.<name>.zone` | string | first cap | `left`, `right`, `top` or `bottom` (a cap that is on), or `track`. With no cap on, `track` |
-| `text.<name>.position` | string | from `default` | Where in the zone: `top-left`, `center`, `bottom-right` ... (see [Text fields](/core/text-fields)) |
+| `text.<name>.position` | string | from `default` | Where in the zone: `top-left`, `center`, `bottom-right` ... (see [Placing text](/core/text-fields-placement#position)) |
 | `text.<name>.show` | boolean | `true` | Show or hide the field |
 | `text.default` | object | theme font, upper case | Style every field inherits. It is not drawn itself |
 | `text.name.show` | boolean | `false` | Show the entity's name |

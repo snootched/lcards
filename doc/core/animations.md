@@ -1,227 +1,136 @@
+---
+description: "Card animations: presets that pulse, glow, slide and draw a card or parts of it, played on a tap, when a view opens, when an entity changes or from a rule."
+moved_anchors:
+  basic-structure: /core/animations#quick-start
+  triggers: /core/animations/triggers
+  entrance-animations-with-on-show: /core/animations/triggers#entrance-animations-with-on-show
+  map-range-descriptors: /core/animations/timing-and-easing#map-range-descriptors
+  easing-functions: /core/animations/timing-and-easing#easing-functions
+  reduced-motion: /core/animations/timing-and-easing#reduced-motion
+  animating-svg-elements-that-have-their-own-transform: /core/animations#targets
+  comprehensive-example: /core/animations#putting-it-together
+  see-also: /core/animations
+---
+
 # Card Animations
 
-LCARdS cards support anime.js-powered animations triggered by user interactions or entity state changes. Each card can have multiple animations with different triggers.
+**Animations make a card move: a pulse when you tap it, a glow while a light is on, a slide-in when a view opens.** Every LCARdS card takes an `animations` list. Each entry names a `preset` (what moves) and a `trigger` (when it plays).
 
-::: info anime.js v4
-LCARdS uses **anime.js v4**, which has a different API from v3. Key differences users should know:
-- The `ease` property uses v4 naming convention: `inOutQuad`, `outElastic`, `inOutSine` (no `ease` prefix). v3-style names like `easeInOutQuad` are passed through as-is and may work, but v4 names are preferred.
-- The `easing` property from v3 is not supported: always use `ease`.
-- Spring physics: `{ type: 'spring', params: { stiffness: 150, damping: 20 } }` syntax is the same.
+- A card can have as many entries as you like, each with its own trigger. An entry without `trigger` plays when the card loads.
+- Each preset has its own duration, easing and looping; set `duration`, `loop` or `ease` on the entry to change them.
+- When the device asks for less motion, animations jump to their end or stay still: see [Reduced motion](/core/animations/timing-and-easing#reduced-motion).
+
+::: tip Try it
+- The button and elbow editors have an animation editor on the **Effects** tab, with a field for every option on these pages; the data grid and MSD studios have one too.
+- Every example here is live: tap the cards.
 :::
+
+| Page | Covers |
+|------|--------|
+| [Triggers](/core/animations/triggers) | Taps, holds, hover, on load, entrances with `on_show`, data source changes |
+| [Entity Change Triggers](/core/animations/entity-change-triggers) | Play on a state change, loop while a condition holds, follow an attribute |
+| [Timing and Easing](/core/animations/timing-and-easing) | Duration, delay, loops, numbers that follow an entity (`map_range`), easing, reduced motion |
+| [Rule-based Animations](/core/animations/rule-based-animations) | Animate many cards at once from a rule |
+| [Preset Reference](/core/animations/preset-reference) | Every built-in preset and its `params` |
 
 ---
 
-## Available Presets
+## Quick start
 
-See the **[Preset Reference](animations/preset-reference.md)** for full parameter tables and examples for all built-in presets.
+**Two entries to start from: a bounce on every tap, and a pulse that runs while the light is on.** Tap the card to switch the light and watch the pulse start and stop.
+
+- `params` holds the preset's own settings, here how far the pulse grows. The [Preset Reference](/core/animations/preset-reference) lists them for each preset.
+
+```yaml live
+type: custom:lcards-button
+entity: light.workbench
+preset: lozenge
+text:
+  name:
+    show: true
+tap_action:
+  action: toggle
+animations:
+  # a quick bounce on every tap
+  - trigger: on_tap
+    preset: bounce
+    duration: 400
+    params:
+      scale_max: 1.08
+      bounces: 2
+  # a pulse while the light is on
+  - trigger: on_entity_change
+    entity: light.workbench
+    preset: pulse
+    loop: true
+    while:
+      state: "on"
+    params:
+      max_scale: 1.05
+```
+
+## Available presets
+
+**`preset` picks what the animation does.** Each name links to its parameters and defaults in the [Preset Reference](/core/animations/preset-reference).
 
 | Category | Presets |
 |----------|---------|
-| Motion | [`bounce`](animations/preset-reference.md#bounce), [`blink`](animations/preset-reference.md#blink), [`fade`](animations/preset-reference.md#fade), [`glow`](animations/preset-reference.md#glow), [`pulse`](animations/preset-reference.md#pulse), [`rotate`](animations/preset-reference.md#rotate), [`scale`](animations/preset-reference.md#scale), [`scale-reset`](animations/preset-reference.md#scale-reset), [`shake`](animations/preset-reference.md#shake), [`skew`](animations/preset-reference.md#skew), [`slide`](animations/preset-reference.md#slide), [`strobe`](animations/preset-reference.md#strobe) |
-| Color | [`cascade-color`](animations/preset-reference.md#cascade-color), [`color-shift`](animations/preset-reference.md#color-shift), [`shimmer`](animations/preset-reference.md#shimmer) |
-| Text | [`text-glitch`](animations/preset-reference.md#text-glitch), [`text-reveal`](animations/preset-reference.md#text-reveal), [`text-decode`](animations/preset-reference.md#text-decode), [`text-scramble`](animations/preset-reference.md#text-scramble), [`text-typewriter`](animations/preset-reference.md#text-typewriter) |
-| Visual Effects | [`cascade`](animations/preset-reference.md#cascade), [`flicker`](animations/preset-reference.md#flicker), [`glitch`](animations/preset-reference.md#glitch), [`ripple`](animations/preset-reference.md#ripple) |
-| SVG | [`draw`](animations/preset-reference.md#draw), [`march`](animations/preset-reference.md#march), [`morph`](animations/preset-reference.md#morph) |
-| Stagger | [`stagger-grid`](animations/preset-reference.md#stagger-grid), [`stagger-wave`](animations/preset-reference.md#stagger-wave), [`stagger-radial`](animations/preset-reference.md#stagger-radial), [`stagger-flash`](animations/preset-reference.md#stagger-flash), [`tap-ripple`](animations/preset-reference.md#tap-ripple) |
-| Effects | [`boot-sequence`](animations/preset-reference.md#boot-sequence), [`sensor-sweep`](animations/preset-reference.md#sensor-sweep) |
-| Timeline | [`timeline-cascade`](animations/preset-reference.md#timeline-cascade), [`timeline-attention`](animations/preset-reference.md#timeline-attention), [`sequence`](animations/preset-reference.md#sequence) |
-| Advanced | [`chaos`](animations/preset-reference.md#chaos), [`physics-spring`](animations/preset-reference.md#physics-spring) |
-| Utility | [`motionpath`](animations/preset-reference.md#motionpath), [`set`](animations/preset-reference.md#set), [`custom`](animations/preset-reference.md#custom) |
+| Motion | [`bounce`](/core/animations/preset-reference#bounce), [`blink`](/core/animations/preset-reference#blink), [`fade`](/core/animations/preset-reference#fade), [`glow`](/core/animations/preset-reference#glow), [`pulse`](/core/animations/preset-reference#pulse), [`rotate`](/core/animations/preset-reference#rotate), [`scale`](/core/animations/preset-reference#scale), [`scale-reset`](/core/animations/preset-reference#scale-reset), [`shake`](/core/animations/preset-reference#shake), [`skew`](/core/animations/preset-reference#skew), [`slide`](/core/animations/preset-reference#slide), [`strobe`](/core/animations/preset-reference#strobe) |
+| Colour | [`cascade-color`](/core/animations/preset-reference#cascade-color), [`color-shift`](/core/animations/preset-reference#color-shift), [`shimmer`](/core/animations/preset-reference#shimmer) |
+| Text | [`text-glitch`](/core/animations/preset-reference#text-glitch), [`text-reveal`](/core/animations/preset-reference#text-reveal), [`text-decode`](/core/animations/preset-reference#text-decode), [`text-scramble`](/core/animations/preset-reference#text-scramble), [`text-typewriter`](/core/animations/preset-reference#text-typewriter) |
+| Visual effects | [`cascade`](/core/animations/preset-reference#cascade), [`flicker`](/core/animations/preset-reference#flicker), [`glitch`](/core/animations/preset-reference#glitch), [`ripple`](/core/animations/preset-reference#ripple) |
+| SVG | [`draw`](/core/animations/preset-reference#draw), [`march`](/core/animations/preset-reference#march), [`morph`](/core/animations/preset-reference#morph) |
+| Stagger | [`stagger-grid`](/core/animations/preset-reference#stagger-grid), [`stagger-wave`](/core/animations/preset-reference#stagger-wave), [`stagger-radial`](/core/animations/preset-reference#stagger-radial), [`stagger-flash`](/core/animations/preset-reference#stagger-flash), [`tap-ripple`](/core/animations/preset-reference#tap-ripple) |
+| Effects | [`boot-sequence`](/core/animations/preset-reference#boot-sequence), [`sensor-sweep`](/core/animations/preset-reference#sensor-sweep) |
+| Timeline | [`timeline-cascade`](/core/animations/preset-reference#timeline-cascade), [`timeline-attention`](/core/animations/preset-reference#timeline-attention), [`sequence`](/core/animations/preset-reference#sequence) |
+| Advanced | [`chaos`](/core/animations/preset-reference#chaos), [`physics-spring`](/core/animations/preset-reference#physics-spring) |
+| Utility | [`motionpath`](/core/animations/preset-reference#motionpath), [`set`](/core/animations/preset-reference#set), [`custom`](/core/animations/preset-reference#custom) |
 
----
+## Targets
 
-## Basic Structure
+**Without a target an animation moves the whole card; `target` or `targets` picks parts of it, such as one text field.** Use it to scramble just the label, or blink just the state.
 
-Animations are defined in a card's `animations` array:
+- The selector is a CSS selector looked for inside the card. Text fields carry `data-field-id` with their name, so `[data-field-id='name']` is the name text.
+- `target` animates every element the selector matches; `targets` takes a list of selectors and animates the first match of each.
+- `target: background` animates the card's [background animations](/core/effects/background-animations/binding-and-animation#animating-the-background) instead of its elements; `effect` picks one of them.
 
-```yaml
-animations:
-  - id: tap-pulse           # Optional identifier
-    trigger: on_tap
-    preset: pulse
-  - trigger: on_entity_change
-    preset: glow
-    entity: binary_sensor.motion
-    to_state: "on"
-    params:
-      color: "{theme:colors.alert.red}"
-```
-
----
-
-## Triggers
-
-| Trigger | When it fires |
-|---------|--------------|
-| `on_tap` | Card is tapped or clicked |
-| `on_double_tap` | Card is double-tapped |
-| `on_hold` | Long-press on the card |
-| `on_hover` | Mouse enters the card |
-| `on_leave` | Mouse leaves the card |
-| `on_load` | Once, when the card first renders |
-| `on_show` | Every time the card appears: when its view opens, when a [visibility condition](#entrance-animations-with-on-show) shows it, or when you come back from another view |
-| `on_entity_change` | A watched entity changes state |
-| `on_datasource_change` | A configured [DataSource](../architecture/internals/datasource-buffers.md) value changes; requires a `datasource` property alongside the trigger |
-
-`on_state_change`, `on_redraw` and `on_exit` are accepted in configs but not implemented yet: they never fire. Use `on_entity_change` for state changes.
-
-### Entrance animations with `on_show`
-
-`on_load` plays once per card. Home Assistant keeps a card hidden by a `visibility` condition and attaches it when the condition is met, so an `on_load` animation has already run (out of sight) by the time it appears. Use `on_show` for entrance animations: it plays each time the card is attached to the page, and not again while it stays there (state changes and re-renders don't replay it).
-
-This button slides and fades in whenever the alarm is armed:
-
-```yaml
+```yaml live
 type: custom:lcards-button
-entity: alarm_control_panel.home
-preset: filled
+entity: light.workbench
+preset: lozenge
 text:
   name:
-    content: Perimeter Armed
-visibility:
-  - condition: state
-    entity: alarm_control_panel.home
-    state: armed_away
+    show: true
+  state:
+    show: true
+    content: "{entity.state}"
+    position: center
+tap_action:
+  action: toggle
 animations:
-  - trigger: on_show
-    preset: slide
-    params:
-      from: left
-      distance: 120
-      duration: 600
-  - trigger: on_show
-    preset: fade
-    params:
-      from: 0
-      to: 1
-      duration: 600
-```
-
-Give several cards the same `on_show` animation with increasing `delay` values to build a view up piece by piece when it opens.
-
----
-
-## Animation Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `trigger` | string | - | When to run (required) |
-| `preset` | string | - | Animation preset name (required) |
-| `id` | string | - | Optional identifier: alphanumeric, hyphens, and underscores only |
-| `enabled` | boolean | `true` | Set to `false` to disable without removing |
-| `duration` | number | preset default | Duration in ms (0–10 000). Accepts a `map_range` descriptor. |
-| `delay` | number | `0` | Delay before starting (ms). Accepts a `map_range` descriptor. |
-| `loop` | boolean / number | preset default | `true` = infinite loop, `false` = once, number = iteration count |
-| `alternate` | boolean | preset default | Reverse direction on each loop |
-| `ease` | string / object | preset default | Easing function: see below |
-| `params` | object | - | Preset-specific parameters. Each value may be a `map_range` descriptor. |
-| `target` | string | - | CSS selector or `data-field-id` to restrict which element animates. Leave unset to animate the overlay/card the animation is declared on. |
-| `targets` | string / array | - | Same as `target`, but for multiple selectors/elements at once |
-| `entity` | string | card entity | Entity to watch (for `on_entity_change`) |
-| `attribute` | string | - | Attribute to read instead of entity state. Applies to `from_state`, `to_state`, and `while`. Use `brightness_pct` for a 0–100 light brightness percentage. |
-| `from_state` | string | - | **Fire-and-forget gate:** only trigger when transitioning FROM this value |
-| `to_state` | string | - | **Fire-and-forget gate:** only trigger when transitioning TO this value |
-| `while` | object | - | **Lifecycle condition** (`loop: true` required): plays while true, stops when false; see [Entity Change Triggers](animations/entity-change-triggers.md) |
-| `check_on_load` | boolean | `true` | Evaluate condition on card load. Starts a looping animation immediately if the `while` condition is already met, or fires once if already in `to_state`. Set to `false` to react only to state transitions after load. |
-
-> **`to_state` / `from_state` vs `while`:** `to_state` and `from_state` are fire-and-forget gates: they control when an animation *starts* but will not stop a looping animation. Use `while` to auto-stop a loop when the condition clears.
-
-> **Unrecognized fields warn, they don't block.** An animation field, or a `params` key, that isn't recognized (e.g. a leftover from switching `preset` values) produces a console warning but never fails validation or prevents the card from loading; only a *wrong type* on a field that *is* recognized (e.g. `duration: "fast"`) is a hard error. It's still worth cleaning up unrecognized leftovers, since some presets read `params` differently depending on what else is present.
-
----
-
-## `map_range` descriptors
-
-Parameters that accept a number (`duration`, `delay`, any `params` field) can instead be a `map_range` descriptor that maps a live entity value linearly into the parameter range:
-
-```yaml
-- trigger: on_entity_change
-  entity: sensor.wind_speed
-  preset: rotate
-  loop: true
-  params:
-    speed:
-      map_range:
-        entity: sensor.wind_speed
-        input: [0, 50]           # entity value range
-        output: [2000, 200]      # animation duration - faster when windier
-        clamp: true
-```
-
-`map_range` works in both inline `config.animations` and rule-based `apply.animations`.
-
-| Field | Required | Description |
-|---|---|---|
-| `entity` | ✅ | Home Assistant entity to read |
-| `attribute` | - | Attribute instead of state (supports `brightness_pct`) |
-| `input` | ✅ | `[min, max]` input range |
-| `output` | ✅ | `[min, max]` numeric, or `['#hex', '#hex']` for colour interpolation |
-| `clamp` | - | Clamp input to range (default `true`) |
-
----
-
-## Easing Functions
-
-LCARdS uses **anime.js v4** easing names (without the `ease` prefix used in v3):
-
-```yaml alternatives
-ease: "inOutQuad"       # Standard in-out (v4) - was easeInOutQuad in v3
-ease: "outElastic"      # Elastic bounce out
-ease: "inOutSine"       # Smooth sine curve
-ease: "linear"          # Constant speed
-ease: "steps(4)"        # Four jumps instead of a smooth curve
-ease: "cubicBezier(0.4, 0, 0.2, 1)"   # Custom curve, as in CSS
-ease:                    # Spring physics
-  type: spring
-  params:
-    stiffness: 150
-    damping: 20
-```
-
-**Common easing names (v4):**
-
-| Category | Names |
-|----------|-------|
-| Quad | `inQuad`, `outQuad`, `inOutQuad` |
-| Cubic | `inCubic`, `outCubic`, `inOutCubic` |
-| Sine | `inSine`, `outSine`, `inOutSine` |
-| Expo | `inExpo`, `outExpo`, `inOutExpo` |
-| Elastic | `inElastic`, `outElastic`, `inOutElastic` |
-| Back | `inBack`, `outBack`, `inOutBack` |
-| Bounce | `inBounce`, `outBounce`, `inOutBounce` |
-| Other | `linear`, `steps(N)`, `cubicBezier(x1, y1, x2, y2)`, `irregular(steps, randomness)`, `spring({ bounce, duration })` |
-
-The function-style names take their numbers in brackets, written as a string. You can paste the output of the [anime.js easing editor](https://animejs.com/easing-editor) straight in, such as `spring({ bounce: 0.4, duration: 500 })`. The animation editor offers these too, with a field for each number.
-
-### Reduced motion
-
-When the device asks for less motion (the **Reduce motion** accessibility setting, `prefers-reduced-motion: reduce`), LCARdS does not play animations. An animation that runs once jumps straight to where it would end, so entrance and `on_show` animations still leave the card visible. A looping one (pulse, glow, blink, cascades) does not run, and canvas background and screen effects show a still frame. Turning the setting back off lets the next trigger play.
-
-Some motion carries meaning: an alert flash that should catch the eye even when everything else stays still. Mark that animation with `essential_motion: true` and it plays regardless. Use it sparingly; people turn the setting on because motion bothers them.
-
-```yaml
-animations:
-  - trigger: on_entity_change
-    entity: binary_sensor.front_door
-    to_state: "on"
+  # only the state text blinks when you tap
+  - trigger: on_tap
     preset: blink
-    essential_motion: true
-    params:
-      duration: 400
-      loop: 6
+    target: "[data-field-id='state']"
+    loop: 3
+    duration: 200
 ```
 
-The animation editor has the same switch (**Essential motion**).
+::: details More about targets
+- **A selector that matches nothing:** the animation still plays, on the whole card, with a warning in the browser console.
+- **SVG elements with their own transform:** an element with its own `transform` (common in SVGs exported from Inkscape, such as MSD base images) keeps it, so it stays exactly where it was drawn. A `scale`, `rotate` or `pulse` animation on a rotated or scaled group then turns about a point slightly off the group's centre. Colour, opacity, stroke and draw animations are not affected.
+- **MSD overlays:** on an MSD, a line or shape picks its drawn part by itself; see [MSD Animations and Rules](/cards/msd/animations).
+:::
 
-### Animating SVG elements that have their own transform
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `target` | string | the whole card | CSS selector for the elements to animate, or `background` for the card's background animations |
+| `targets` | string / list | - | One or more CSS selectors; the first element each one matches is animated |
+| `effect` | number | every effect | With `target: background`: the index of the `background_animation` entry to animate (`0` is the first, the bottom layer) |
 
-When an animation runs on an element that has its own `transform` (common in SVGs exported from Inkscape, such as MSD base images), LCARdS keeps that transform, so the element stays exactly where it was drawn. A `scale`, `rotate` or `pulse` animation on a rotated or scaled group turns about a point slightly off the group's centre. Colour, opacity, stroke and draw animations are not affected.
+## Putting it together
 
----
-
-## Comprehensive Example
-
-A button showing: load animation, tap feedback, hover glow, entity change with state filter, and a text scramble targeted to a specific field.
+**One button with an entrance, tap feedback, a hover glow and two entity animations.** Hover over it with a mouse, tap it, and watch the light switch on and off.
 
 ```yaml live
 type: custom:lcards-button
@@ -229,67 +138,108 @@ entity: light.workbench
 preset: lozenge
 text:
   label:
+    show: true
     content: Workbench
     position: top-left
   state:
+    show: true
     content: "{entity.state}"
     position: center
-
+tap_action:
+  action: toggle
 animations:
-  # Entrance animation - runs once on load
+  # entrance: fades in once when the card loads
   - trigger: on_load
     preset: fade
+    duration: 800
     params:
       from: 0
       to: 1
-    duration: 800
-
-  # Tap feedback - quick bounce
+  # tap feedback: a quick bounce
   - trigger: on_tap
     preset: bounce
+    duration: 400
     params:
       scale_max: 1.08
       bounces: 2
-    duration: 400
-
-  # Hover glow - looping while mouse is over
+  # hover: glows while the mouse is over the card
   - trigger: on_hover
     preset: glow
     params:
-      color: "var(--lcars-orange)"
+      color: var(--lcars-orange)
       blur_max: 12
-
-  # Entity turns on - pulse while on
+  # pulses while the light is on
   - trigger: on_entity_change
     entity: light.workbench
     preset: pulse
     loop: true
     while:
-      state: 'on'
-    check_on_load: true
+      state: "on"
     params:
       max_scale: 1.05
-
-  # Entity turns off - brief fade-down
+  # dims and comes back once when the light turns off
   - trigger: on_entity_change
     entity: light.workbench
     to_state: "off"
     preset: fade
-    params:
-      from: 1
-      to: 0.7
     duration: 300
     loop: 1
     alternate: true
+    params:
+      from: 1
+      to: 0.7
 ```
 
----
+## Animation options
 
-## See Also
+**Every key an animation entry takes, on every LCARdS card.** The same entries go in an MSD's `animations` lists; a rule's `apply.animations` takes a smaller set ([Rule-based Animations](/core/animations/rule-based-animations#animation-parameters)).
 
-- [Preset Reference](animations/preset-reference.md): all built-in presets: motion, text effects, visual effects, SVG, utility
-- [Entity Change Triggers](animations/entity-change-triggers.md): `on_entity_change` deep-dive: `while` lifecycle, gates, `attribute`, `check_on_load`
-- [Rule-based Animations](animations/rule-based-animations.md): trigger animations across multiple cards via the Rules Engine
-- [Rules Engine](rules/): conditions and multi-card coordination
-- [MSD Overlay Group Animations](../cards/msd/animations.md#msd-animations): bulk-target a group of MSD overlays by CSS selector, in one declaration
-- [Animation Architecture](../architecture/animations/): developer reference: component diagram, trigger type comparison
+- `duration`, `delay`, `loop`, `alternate` and `ease` can also sit inside `params`; the entry's own key wins when both are set.
+
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+text:
+  name:
+    content: Options
+    show: true
+animations:
+  - id: tap-glow
+    trigger: on_tap
+    preset: glow
+    duration: 600
+    delay: 100
+    loop: 2
+    alternate: true
+    ease: inOutSine
+    params:
+      color: var(--lcars-yellow)
+```
+
+::: details More about animation options
+- **Unrecognised keys warn, they don't block.** A key the animation or its `params` doesn't know (a leftover from switching `preset`, say) gives a console warning but never stops the card loading. Only a wrong type on a key it does know (`duration: fast`) is an error. Clear leftovers anyway: some presets read `params` differently depending on what else is there.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `preset` | string | required | What the animation does: see [Available presets](#available-presets) |
+| `trigger` | string | `on_load` | When it plays: see [Triggers](/core/animations/triggers) |
+| `params` | object | the preset's defaults | The preset's own settings: see the [Preset Reference](/core/animations/preset-reference). Each value may be a [`map_range`](/core/animations/timing-and-easing#map-range-descriptors) |
+| `id` | string | - | A name for the entry, for debugging: letters, digits, `-` and `_` |
+| `enabled` | boolean | `true` | `false` keeps the entry but never plays it |
+| `duration` | number / object | the preset's | Length of one play, ms, or a `map_range`: see [Timing](/core/animations/timing-and-easing#timing) |
+| `delay` | number / object | `0` | Wait before it starts, ms, or a `map_range` |
+| `loop` | boolean / number | the preset's | `true` repeats for ever, `false` plays once, a number repeats that many more times |
+| `alternate` | boolean | the preset's | Play every other repeat backwards |
+| `ease` | string / object | the preset's | The easing curve: see [Easing](/core/animations/timing-and-easing#easing-functions) |
+| `essential_motion` | boolean | `false` | Keep playing when the device asks for reduced motion: see [Reduced motion](/core/animations/timing-and-easing#reduced-motion) |
+| `target` | string | the whole card | What to animate: see [Targets](#targets) |
+| `targets` | string / list | - | Several things to animate: see [Targets](#targets) |
+| `effect` | number | every effect | With `target: background`: which background animation |
+| `entity` | string | - | `on_entity_change`: the entity to watch: see [Entity Change Triggers](/core/animations/entity-change-triggers#watching-an-entity) |
+| `attribute` | string | the state | `on_entity_change`: an attribute to watch instead of the state; `brightness_pct` gives a light's brightness as 0–100 |
+| `from_state` | string | - | `on_entity_change`: play only when the value changes from this |
+| `to_state` | string | - | `on_entity_change`: play only when the value changes to this |
+| `while` | object | - | `on_entity_change`: play while this holds and stop when it no longer does: see [while](/core/animations/entity-change-triggers#lifecycle-conditions-while) |
+| `check_on_load` | boolean | `true` | `on_entity_change`: also check the entity when the card loads |
+| `datasource` | string | - | `on_datasource_change`: the data source to watch: see [on_datasource_change](/core/animations/triggers#on-datasource-change) |

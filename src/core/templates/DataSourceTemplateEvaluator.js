@@ -198,7 +198,7 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
 
     // No path - return base value
     if (!path || path.length === 0) {
-      return currentData.v || currentData.value;
+      return currentData.v ?? currentData.value;
     }
 
     // REFACTORED: Handle new unified processing field

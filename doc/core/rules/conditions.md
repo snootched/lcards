@@ -1,360 +1,509 @@
+---
+description: "Rule conditions (when): entity states and attributes, numeric comparisons, map_range_cond, time of day, weekday, sun elevation, random chance, all/any/not, JavaScript and Jinja2 templates."
+moved_anchors:
+  logical-operators: /core/rules/conditions#all-any-and-not
+  all-and: /core/rules/conditions#all-any-and-not
+  any-or: /core/rules/conditions#all-any-and-not
+  not-not: /core/rules/conditions#all-any-and-not
+  nested-logic: /core/rules/conditions#all-any-and-not
+  combining-conditions-full-example: /core/rules/conditions#all-any-and-not
+  entity-conditions: /core/rules/conditions#entity
+  state-check: /core/rules/conditions#entity
+  attribute-check: /core/rules/conditions#entity-attr
+  examples: /core/rules/conditions#comparison-operators
+  time-conditions: /core/rules/conditions#time-between
+  time-range: /core/rules/conditions#time-between
+  day-of-week: /core/rules/conditions#weekday-in
+  map-range-condition: /core/rules/conditions#map-range-cond
+  see-also: /core/rules/
+---
+
 # Rule Conditions
 
-The `when` block of a rule evaluates to `true` or `false`. When it matches, the rule's `apply` block fires. When it stops matching, the patch is removed.
+**A rule's `when` block is its condition: while it is true the rule's `apply` block holds, and when it turns false the patch comes off.** It can test an entity, the time, the sun, a template, or several of these combined. The rest of a rule is on the [Rules Engine](./) page.
 
----
+- A rule is checked again when an entity it names changes: the `entity` of a condition, or an entity a template reads. A rule that names no entity (only the time, say) is checked when the page loads; add `entity: sensor.time` to check it every minute (see [time_between](#time-between)).
+- The examples on this page each hold one rule on one button. Use the controls under a card to change the entity and watch the rule match.
 
-## All Conditions at a Glance
+## All conditions at a glance
 
-| Condition type | Key | What it checks |
-|---------------|-----|----------------|
-| **Entity state** | `entity` | Entity state against a comparison |
-| **Entity attribute** | `entity_attr` | Named entity attribute against a comparison |
-| **Map range** | `map_range_cond` | Entity state linearly mapped to a new scale, then compared |
-| **Time range** | `time_between` | Current time falls within a `"HH:MM-HH:MM"` window |
-| **Day of week** | `weekday_in` | Current day is in a list |
-| **Sun elevation** | `sun_elevation` | Sun is `above`/`below` a degree threshold |
-| **Random chance** | `random_chance` | Evaluates true with a given probability (0.0–1.0) |
-| **JavaScript** | `condition` / `javascript` / `js` | Arbitrary JS expression: returns truthy |
-| **Jinja2** | `condition` / `jinja2` | Arbitrary Home Assistant Jinja2 template: returns truthy |
-| **All of (AND)** | `all` | Every sub-condition must be true |
-| **Any of (OR)** | `any` | At least one sub-condition must be true |
-| **Not (NOT)** | `not` | Inverts a single sub-condition |
+**One key picks the kind of condition; the table links to each.**
 
----
+| Condition | Key | What it checks |
+|-----------|-----|----------------|
+| [Entity state](#entity) | `entity` | The entity's state against a [comparison](#comparison-operators) |
+| [Entity attribute](#entity-attr) | `entity_attr` | One attribute of an entity against a comparison |
+| [Map range](#map-range-cond) | `map_range_cond` | The state mapped onto a new scale, then compared |
+| [All, any, not](#all-any-and-not) | `all`, `any`, `not` | Every, at least one, or none of the conditions inside |
+| [Time range](#time-between) | `time_between` | The time is inside a `"HH:MM-HH:MM"` window |
+| [Day of week](#weekday-in) | `weekday_in` | Today is in a list of days |
+| [Sun elevation](#sun-elevation) | `sun_elevation` | The sun is above or below an angle |
+| [Random chance](#random-chance) | `random_chance` | True with a probability from `0` to `1` |
+| [JavaScript](#javascript) | `condition`, `javascript`, `js` | A JavaScript expression returns a truthy value |
+| [Jinja2](#jinja2) | `condition`, `jinja2` | A Home Assistant Jinja2 template renders true |
 
-## Logical Operators
+## entity
 
-Combine any conditions with `all`, `any`, and `not`. They nest arbitrarily.
+**`entity` tests an entity's state: on its own, or with a comparison such as `state: "on"` or `above: 25`.** This is the condition most rules use.
 
-### `all`: AND
+- `state` means exactly the same as `equals`. Quote `"on"` and `"off"`, or YAML may read them as true and false.
+- With no comparison at all, the condition is true while the entity has a state; `entity: sensor.time` in an `all` list uses this to re-check a rule every minute.
 
-```yaml
-when:
-  all:
-    - entity: binary_sensor.motion
+```yaml live controls
+type: custom:lcards-button
+id: docs-cond-entity-btn
+preset: lozenge
+entity: input_boolean.lcards_test_toggle
+tap_action:
+  action: toggle
+text:
+  name:
+    content: TOGGLE
+    show: true
+rules:
+  - id: docs-cond-entity
+    when:
+      entity: input_boolean.lcards_test_toggle
       state: "on"
-    - entity: input_boolean.night_mode
-      state: "on"
+    apply:
+      overlays:
+        docs-cond-entity-btn:
+          style:
+            card:
+              color:
+                background: var(--lcars-alert-red)
 ```
 
-Shorthand: a bare list at the top level is treated as `all`:
+::: details More about entity
+- **Missing entities:** a condition on an entity that does not exist (a typo, a deleted helper) is false.
+:::
 
-```yaml
-when:
-  - entity: binary_sensor.motion
-    state: "on"
-  - entity: input_boolean.night_mode
-    state: "on"
-```
-
-### `any`: OR
-
-```yaml
-when:
-  any:
-    - entity: binary_sensor.door_front
-      state: "on"
-    - entity: binary_sensor.door_back
-      state: "on"
-```
-
-### `not`: NOT
-
-```yaml
-when:
-  not:
-    entity: input_boolean.away_mode
-    state: "on"
-```
-
-### Nested logic
-
-```yaml
-when:
-  all:
-    - entity: binary_sensor.motion
-      state: "on"
-    - any:
-        - time_between: "08:00-12:00"
-        - time_between: "14:00-20:00"
-    - not:
-        entity: input_boolean.guest_mode
-        state: "on"
-```
-
----
-
-## Entity Conditions
-
-### State check
-
-```yaml
-when:
-  entity: light.living_room
-  state: "on"           # alias for 'equals'
-```
-
-### Attribute check
-
-```yaml
-when:
-  entity_attr: light.living_room
-  attribute: brightness
-  above: 128
-```
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `entity` | string | required | The entity whose state is tested |
+| [Comparison operators](#comparison-operators) | | | `state`, `equals`, `not_equals`, `above`, `at_least`, `below`, `at_most`, `in`, `not_in`, `regex` |
 
 ### Comparison operators
 
-All operators work on both `entity` state and `entity_attr` values.
+**The comparison keys test a value: an entity's state, an attribute or a mapped value.** They work the same in `entity`, `entity_attr` and `map_range_cond` conditions.
 
-| Operator | Type | Example | Description |
-|----------|------|---------|-------------|
-| `state` | string | `state: "on"` | Exact match (alias for `equals`) |
-| `equals` | string / number | `equals: "on"` | Exact equality (`==`) |
-| `not_equals` | string / number | `not_equals: "off"` | Not equal (`!=`) |
-| `above` | number | `above: 25` | Numeric greater-than (`>`) |
-| `at_least` | number | `at_least: 25` | Numeric greater-than-or-equal (`>=`) |
-| `below` | number | `below: 90` | Numeric less-than (`<`) |
-| `at_most` | number | `at_most: 90` | Numeric less-than-or-equal (`<=`) |
-| `in` | list | `in: ["on", "idle"]` | State is in list |
-| `not_in` | list | `not_in: ["off", "unavailable"]` | State is not in list |
-| `regex` | string | `regex: "^heat"` | State matches regular expression |
+- The four numeric operators combine: every one you give must hold, so `above: 18` with `below: 26` is a range. `at_least` and `at_most` include the bound itself.
+- A condition uses one of the other operators at most, the first it finds in the order of the table, and then ignores any numeric ones next to it. Write a second condition in an `all` list to test two things.
+- The editor's operator list also offers "between" (`at_least` plus `at_most`) and "between (exclusive)" (`above` plus `below`), and fills in both bounds.
 
-The 4 numeric operators AND-combine when more than one is present on the
-same condition, so a range is expressed by combining two of them:
-
-```yaml alternatives
-# Exclusive range: 18 < value < 26
-when:
-  entity: sensor.temperature
-  above: 18
-  below: 26
-
-# Inclusive range: 18 <= value <= 26
-when:
-  entity: sensor.temperature
-  at_least: 18
-  at_most: 26
+```yaml live controls
+type: custom:lcards-button
+id: docs-cond-range-btn
+preset: lozenge
+text:
+  name:
+    content: POWER 40 TO 80
+    show: true
+rules:
+  # an inclusive range: 40 <= power <= 80
+  - id: docs-cond-range
+    when:
+      entity: input_number.lcards_test_power
+      at_least: 40
+      at_most: 80
+    apply:
+      overlays:
+        docs-cond-range-btn:
+          style:
+            card:
+              color:
+                background: var(--lcars-alert-yellow)
 ```
 
-The condition-group editor's operator dropdown offers these as ready-made
-"between" / "between (exclusive)" options; pick one and it fills in both
-bound fields for you.
-
-### Examples
-
-```yaml alternatives
-# Exact state match
-when:
-  entity: input_select.mode
-  equals: "night"
-
-# Not off or unavailable
-when:
-  entity: light.desk
-  not_in: ["off", "unavailable"]
-
-# Attribute threshold
-when:
-  entity_attr: light.living_room
-  attribute: brightness
-  above: 200
-
-# Regex - match any "heating*" state
-when:
-  entity: climate.lounge
-  regex: "^heat"
-```
-
----
-
-## Time Conditions
-
-### Time range
-
-```yaml
-when:
-  time_between: "22:00-06:00"   # wraps past midnight automatically
-```
-
-::: info Reactivity
-The Rules Engine is reactive: it only re-evaluates when a watched entity changes. Add `entity: sensor.time` to purely time-based rules so they re-evaluate every minute.
+::: details More about comparison operators
+- **Numbers and text:** `equals` and `not_equals` compare loosely, so `equals: 25` matches the state `"25"`. `in` and `not_in` compare exactly, and states are text: write `in: ["1", "2"]`, not `in: [1, 2]`.
+- **Not a number:** a numeric operator on a state that is not a number (`unavailable`, `unknown`) is false.
+- **Regular expressions:** `regex` is a JavaScript regular expression tested against the state; one that does not compile is false.
 :::
 
-```yaml
-when:
-  all:
-    - entity: sensor.time      # triggers re-evaluation every minute
-    - time_between: "22:00-06:00"
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `state` | string / number | - | Equal to this. The same as `equals` |
+| `equals` | string / number | - | Equal to this (`==`) |
+| `not_equals` | string / number | - | Not equal to this (`!=`) |
+| `above` | number | - | Greater than this (`>`) |
+| `at_least` | number | - | Greater than or equal to this (`>=`) |
+| `below` | number | - | Less than this (`<`) |
+| `at_most` | number | - | Less than or equal to this (`<=`) |
+| `in` | list | - | One of these values, such as `["on", "idle"]` |
+| `not_in` | list | - | None of these values, such as `["off", "unavailable"]` |
+| `regex` | string | - | Matches this regular expression, such as `"^heat"` |
+
+## entity_attr
+
+**`entity_attr` tests one attribute of an entity instead of its state, such as a light's `brightness`.** Name the entity in `entity_attr` and the attribute in `attribute`, then add a [comparison](#comparison-operators).
+
+- The condition editor writes the same test as `entity` plus `attribute`; both forms work.
+- The sample light here has a brightness of 200, so the rule matches.
+
+```yaml live controls
+type: custom:lcards-button
+id: docs-cond-attr-btn
+preset: lozenge
+entity: light.demo
+text:
+  name:
+    content: BRIGHT
+    show: true
+rules:
+  - id: docs-cond-attr
+    when:
+      entity_attr: light.demo
+      attribute: brightness
+      above: 128
+    apply:
+      overlays:
+        docs-cond-attr-btn:
+          style:
+            card:
+              color:
+                background: var(--lcars-alert-yellow)
 ```
 
-### Day of week
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `entity_attr` | string | required | The entity whose attribute is tested |
+| `attribute` | string | required | The attribute's name. Without it the condition is false |
+| [Comparison operators](#comparison-operators) | | | Applied to the attribute's value |
 
-```yaml
-when:
-  weekday_in: [mon, tue, wed, thu, fri]
+## map_range_cond
+
+**`map_range_cond` maps an entity's numeric state from one scale onto another, then compares the mapped value.** Use it when the threshold you think in is on a different scale from the raw value: a percentage of a power range, say.
+
+- `input` is the range the raw value moves over, `output` the range it is mapped onto, and the comparison keys sit inside `map_range_cond` next to them.
+- Here power (0 to 100) is mapped onto 0 to 5000 W, and the rule matches above 4000 W.
+
+```yaml live controls
+type: custom:lcards-button
+id: docs-cond-map-btn
+preset: lozenge
+text:
+  name:
+    content: OVER 4000 W
+    show: true
+rules:
+  - id: docs-cond-map
+    when:
+      map_range_cond:
+        entity: input_number.lcards_test_power
+        input: [0, 100]
+        output: [0, 5000]
+        above: 4000
+    apply:
+      overlays:
+        docs-cond-map-btn:
+          style:
+            card:
+              color:
+                background: var(--lcars-alert-red)
 ```
 
-Valid values: `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun`.
+::: details More about map_range_cond
+- **Not a number:** a state that is not a number, or an `input` or `output` that is not two numbers, makes the condition false.
+- **`state` is not an alias here:** write `equals` to test for one mapped value.
+:::
 
-### Sun elevation
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `entity` | string | required | The entity whose state is mapped |
+| `input` | `[min, max]` | required | The range of the raw value |
+| `output` | `[min, max]` | required | The range it is mapped onto |
+| `clamp` | boolean | `true` | Keep the mapped value inside `output` when the raw value leaves `input` |
+| [Comparison operators](#comparison-operators) | | | Applied to the **mapped** value; give at least one |
 
-```yaml alternatives
-# Night - sun below horizon
-when:
-  sun_elevation:
-    below: 0
+## all, any and not
 
-# Golden hour - sun low but above horizon
-when:
-  sun_elevation:
-    above: 0
-    below: 8
+**`all`, `any` and `not` combine conditions: every one, at least one, or the opposite.** They nest to any depth, so a rule can say "this, and one of those, but not that".
+
+- A bare list under `when` means `all`.
+- `not` takes one condition. Given a list, it is true unless every item in the list is true.
+- Here the button turns red while power is above 50, the doors are not open, and the lights are on or the mode is `gamma`.
+
+```yaml live controls
+type: custom:lcards-button
+id: docs-cond-logic-btn
+preset: lozenge
+text:
+  name:
+    content: COMBINED
+    show: true
+rules:
+  - id: docs-cond-logic
+    when:
+      all:
+        # power above 50
+        - entity: input_number.lcards_test_power
+          above: 50
+        # doors not open
+        - not:
+            entity: input_boolean.lcards_test_doors
+            state: "on"
+        # lights on, or the mode is gamma
+        - any:
+            - entity: input_boolean.lcards_test_lights
+              state: "on"
+            - entity: input_select.lcards_test_mode
+              state: gamma
+    apply:
+      overlays:
+        docs-cond-logic-btn:
+          style:
+            card:
+              color:
+                background: var(--lcars-alert-red)
 ```
 
----
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `all` | list | - | True when every condition in the list is true (AND) |
+| `any` | list | - | True when at least one condition in the list is true (OR) |
+| `not` | condition | - | True when the condition inside is false (NOT) |
 
-## Map Range Condition
+## time_between
 
-Linearly maps an entity's numeric state from one scale to another, then applies a comparison against the mapped value. Useful when the raw entity value is in a different unit than the threshold you want to test.
+**`time_between` is true inside a time window each day, such as `"22:00-06:00"` for the night.** A window that ends before it starts runs past midnight.
 
-```yaml
-when:
-  map_range_cond:
-    entity: sensor.brightness_raw   # numeric state to read
-    input:  [0, 1000]               # raw value range
-    output: [0, 100]                # mapped value range
-    above: 70                       # compare mapped value - here: > 70%
+- The rule is only checked when an entity it names changes. Add `entity: sensor.time` to an `all` list with it (with no comparison, it is true while the sensor has a state), and the rule is checked every minute. `sensor.time` comes from Home Assistant's Time & Date integration; without it, that condition is false.
+
+```yaml live
+type: custom:lcards-button
+id: docs-cond-time-btn
+preset: lozenge
+text:
+  name:
+    content: DAY SHIFT
+    show: true
+rules:
+  - id: docs-cond-time
+    when:
+      all:
+        # checked again every minute
+        - entity: sensor.time
+        - time_between: "08:00-20:00"
+    apply:
+      overlays:
+        docs-cond-time-btn:
+          style:
+            card:
+              color:
+                background: var(--lcars-blue)
 ```
 
-| Property | Required | Description |
-|----------|----------|-------------|
-| `entity` | ✅ | Entity whose `state` is mapped |
-| `input` | ✅ | `[min, max]`: expected range of the raw entity value |
-| `output` | ✅ | `[min, max]`: range the value is mapped into |
-| `clamp` | ❌ | Clamp input to range before mapping (default `true`) |
-| `above` / `below` / `equals` … | ✅ (one) | Comparison applied to the **mapped** value |
+::: details More about time_between
+- **Format:** two-digit hours and minutes, 24-hour (`"08:00-20:00"`, not `"8:00-20:00"`); any other text is false.
+- **Edges:** both ends count, to the minute: `"08:00-20:00"` is true from 08:00 through 20:00. The time is the browser's local time.
+:::
 
----
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `time_between` | string | - | `"HH:MM-HH:MM"`, start then end. Wraps past midnight when the end is earlier |
 
-## Random Chance
+## weekday_in
 
-Evaluates to `true` with the given probability each time the rule re-evaluates. Value is a float `0.0`–`1.0`.
+**`weekday_in` is true on the days you list, such as weekdays only.** Pair it with `time_between` in an `all` list for "weekday mornings".
 
-```yaml
-when:
-  random_chance: 0.25    # true roughly 25% of the time
+- Like `time_between`, it names no entity, so add `entity: sensor.time` to an `all` list with it to have the rule checked as the day changes.
+
+```yaml live
+type: custom:lcards-button
+id: docs-cond-weekday-btn
+preset: lozenge
+text:
+  name:
+    content: WEEKDAY
+    show: true
+rules:
+  - id: docs-cond-weekday
+    when:
+      weekday_in: [mon, tue, wed, thu, fri]
+    apply:
+      overlays:
+        docs-cond-weekday-btn:
+          style:
+            card:
+              color:
+                background: var(--lcars-blue)
 ```
 
-Useful for stochastic alert animations or randomised accent cycling. Because rules re-evaluate on entity changes, pair with a frequently-changing entity (e.g. `sensor.time`) to get periodic random evaluations.
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `weekday_in` | list | - | Days from `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun` (any case). The browser's local day |
 
----
+## sun_elevation
 
-## Template Conditions
+**`sun_elevation` compares the sun's height above the horizon, in degrees, for rules that follow daylight.** Below `0` the sun has set; a few degrees above it is the golden hour.
 
-For logic that doesn't fit a built-in condition, write JavaScript or Jinja2 directly.
+- It takes the four numeric operators, which combine as on an entity: `above: 0` with `below: 8` is a band.
+- The elevation comes from Home Assistant's `sun.sun` entity (its `elevation` attribute).
+
+```yaml live
+type: custom:lcards-button
+id: docs-cond-sun-btn
+preset: lozenge
+text:
+  name:
+    content: DAYLIGHT
+    show: true
+rules:
+  - id: docs-cond-sun
+    when:
+      sun_elevation:
+        above: 0
+    apply:
+      overlays:
+        docs-cond-sun-btn:
+          style:
+            card:
+              color:
+                background: var(--lcars-yellow)
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `sun_elevation.above` | number | - | The sun is higher than this, degrees |
+| `sun_elevation.at_least` | number | - | The sun is at this height or higher, degrees |
+| `sun_elevation.below` | number | - | The sun is lower than this, degrees (`0` is the horizon) |
+| `sun_elevation.at_most` | number | - | The sun is at this height or lower, degrees |
+
+## random_chance
+
+**`random_chance` is true with the probability you give, drawn again each time the rule is checked.** Use it for alerts or accents that come and go at random.
+
+- `0.25` is true about one time in four; `0` is never and `1` is always.
+- The rule is only checked when an entity it names changes, so pair it with one that changes often (`sensor.time`, every minute) in an `all` list to get a new draw each time.
+
+```yaml live
+type: custom:lcards-button
+id: docs-cond-chance-btn
+preset: lozenge
+text:
+  name:
+    content: ONE IN TWO
+    show: true
+rules:
+  - id: docs-cond-chance
+    when:
+      all:
+        - entity: sensor.time
+        - random_chance: 0.5
+    apply:
+      overlays:
+        docs-cond-chance-btn:
+          style:
+            card:
+              color:
+                background: var(--lcars-alert-red)
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `random_chance` | number | - | The probability of being true, `0.0` to `1.0` |
+
+## Template conditions
+
+**For logic no built-in condition covers, write the condition as JavaScript or a Jinja2 template.** `condition` tells the two apart by their brackets: `[[[ ]]]` is JavaScript, `{{ }}` is Jinja2.
+
+- A `condition` with neither (`condition: light.desk is on`) never matches, and a warning is logged in the browser console.
+- [Templates](/core/templates/) covers the template syntax used elsewhere in LCARdS.
 
 ### JavaScript
 
-Use `[[[ ]]]` syntax. Return any truthy value to match. The variables `entity`, `hass`, and `states` are available. The rule re-evaluates whenever an entity read as `states['domain.object']` changes; entities read any other way (a computed id, for example) don't trigger it.
+**`condition: "[[[ ... ]]]"` runs JavaScript in the browser; the rule matches when it returns a truthy value.** The code must `return` its result.
 
-```yaml
-when:
-  condition: "[[[return states['sensor.temperature'].state > 25]]]"
+- The rule is checked again when an entity read as `states['domain.object']` (or `hass.states['domain.object']`) changes. Entities read any other way, such as a computed id, do not trigger it.
+- A YAML block (`condition: |`) holds longer code. `javascript:` (or `js:`) takes the same code without the brackets.
+
+```yaml live controls
+type: custom:lcards-button
+id: docs-cond-js-btn
+preset: lozenge
+text:
+  name:
+    content: POWER ABOVE 80
+    show: true
+rules:
+  - id: docs-cond-js
+    when:
+      condition: |
+        [[[
+          const power = Number(states['input_number.lcards_test_power'].state);
+          return power > 80;
+        ]]]
+    apply:
+      overlays:
+        docs-cond-js-btn:
+          style:
+            card:
+              color:
+                background: var(--lcars-alert-red)
 ```
 
-Multi-line (YAML block scalar):
+::: details More about JavaScript conditions
+- **Errors:** code that throws makes the condition false; the error is logged in the browser console.
+- **`entity`:** rules are shared by every card on the page, and `entity` is the entity of the card that happens to check the rule, which may not be the card holding it. Read `states['...']` by id instead.
+:::
 
-```yaml
-when:
-  condition: |
-    [[[
-      const temp = parseFloat(states['sensor.temperature'].state);
-      const humid = parseFloat(states['sensor.humidity'].state);
-      return temp > 24 && humid > 60;
-    ]]]
-```
-
-Explicit form (equivalent):
-
-```yaml
-when:
-  javascript: "return states['light.bedroom'].state === 'on'"
-```
-
-**Available variables:**
-
-| Variable | Description |
-|----------|-------------|
-| `entity` | The card's bound entity object (if any) |
-| `hass` | Full Home Assistant object |
-| `states` | `hass.states`: shorthand for all entity states |
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `condition` | string | - | JavaScript inside `[[[ ]]]` |
+| `javascript` | string | - | The same code without `[[[ ]]]`. `js` is a short name for it |
+| `entity` (in the code) | object | - | The bound entity of a card on the page, or `null` |
+| `hass` (in the code) | object | - | The full Home Assistant object |
+| `states` (in the code) | object | - | `hass.states`: every entity's state object by id |
 
 ### Jinja2
 
-Use `{{ }}` syntax. The template is evaluated by Home Assistant's engine. Return any truthy value.
+**`condition: "{{ ... }}"` is a Home Assistant template, rendered by Home Assistant; the rule matches when it renders true.** It can use Home Assistant's own functions and filters (`is_state`, `state_attr`, `float` ...).
 
-```yaml
-when:
-  condition: "{{ states('sensor.temperature') | float > 25 }}"
+- The rule is checked again when an entity the template reads (`states('...')`, `is_state('...')`) changes.
+- `True`, `true`, `1`, `yes` and `on` count as true; `False`, `false`, `0`, `no`, `off`, `none` and an empty result as false. Any other number is true unless it is `0`, and any other text is true.
+
+```yaml live controls
+type: custom:lcards-button
+id: docs-cond-jinja-btn
+preset: lozenge
+text:
+  name:
+    content: MODE GAMMA
+    show: true
+rules:
+  - id: docs-cond-jinja
+    when:
+      condition: "{{ is_state('input_select.lcards_test_mode', 'gamma') }}"
+    apply:
+      overlays:
+        docs-cond-jinja-btn:
+          style:
+            card:
+              color:
+                background: var(--lcars-alert-red)
 ```
 
-Explicit form:
-
-```yaml
-when:
-  jinja2: "{{ states('climate.lounge') == 'heat' }}"
-```
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `condition` | string | - | A template inside `{{ }}` |
+| `jinja2` | string | - | A template, named as Jinja2 explicitly |
 
 ### Choosing between JS and Jinja2
+
+**JavaScript is instant and runs in the browser; Jinja2 runs on Home Assistant and has its functions.**
 
 | | JavaScript | Jinja2 |
 |---|---|---|
 | Evaluated by | Browser | Home Assistant server |
 | Latency | Synchronous, instant | Async round-trip |
-| Access to Home Assistant functions | ❌ (use `states` directly) | ✅ (`is_state`, `state_attr`, filters…) |
+| Access to Home Assistant functions | No (use `states` directly) | Yes (`is_state`, `state_attr`, filters ...) |
 | Best for | Fast logic, math, multi-entity | Home Assistant native functions, formatted values |
 
----
+## Invalid and reserved conditions
 
-## Invalid and Reserved Conditions
+**A condition LCARdS does not recognise never matches, so a typo turns the rule off rather than on everywhere.**
 
 - **Unknown key** (a typo such as `entitty:`): the condition never matches.
-- **Plain-string `condition:`** (no `[[[ ]]]` or `{{ }}`, e.g. `condition: light.desk is on`): a warning is logged in the browser console and the condition never matches. Wrap it as JavaScript or Jinja2 instead.
+- **Plain-string `condition:`** (no `[[[ ]]]` or `{{ }}`, such as `condition: light.desk is on`): a warning is logged in the browser console and the condition never matches. Wrap it as JavaScript or Jinja2 instead.
 - **`flag`** and **`perf_metric`** are reserved for development tooling. Nothing provides their values today, so they never match (a `flag` with `is: false` always matches). Don't use them in dashboards.
-
----
-
-## Combining Conditions: Full Example
-
-```yaml
-rules:
-  - id: comfort-alert
-    when:
-      all:
-        # Temperature out of range
-        - entity: sensor.temperature
-          above: 26
-        # Not already in alert mode
-        - not:
-            entity: input_boolean.alert_active
-            state: "on"
-        # Only during occupied hours
-        - any:
-            - time_between: "07:00-23:00"
-            - entity: binary_sensor.presence
-              state: "on"
-    apply:
-      overlays:
-        tag:status:
-          style:
-            color: "{theme:colors.alert.yellow}"
-```
-
----
-
-## See Also
-
-- [Rules Engine](index.md): rule structure, apply block, priority, examples
-- [Templates](../templates/): template syntax used outside of rules

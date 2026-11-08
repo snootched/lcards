@@ -63,7 +63,9 @@ test('URLs carry the channel base; llms-full has the user docs only, cleaned', (
     // new format took it to 1362 KB); size policy for the rest of the rollout is open
     // 1450 KB until 2026-11-08 (D2 batch 3: the astrometrics pages, camera and scene topic pages
     // took it to 1454 KB); the user, 2026-11-07: let it grow until the rollout ends, then revisit
-    assert.ok(Buffer.byteLength(full) < 1550 * 1024, 'llms-full.txt stays loadable');
+    // 1550 KB until 2026-11-08 (D2 batch 5: the core pages, now with live examples and key tables,
+    // took it to 1631 KB); still growing until the rollout ends (the user, 2026-11-07)
+    assert.ok(Buffer.byteLength(full) < 1750 * 1024, 'llms-full.txt stays loadable');
 });
 
 test('page summaries: frontmatter description wins, callouts and bare type names are skipped', () => {

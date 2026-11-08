@@ -1,130 +1,143 @@
 # Background Animation Preset Reference
 
-All built-in background animation presets with full configuration options and examples. Pass preset-specific parameters via the `config` block in each effect entry.
+**Every built-in background animation preset, with its keys and an example.** Each effect in `background_animation` names a `preset` and passes that preset's own settings in its `config` block; the [Background Animations](../background-animations.md) page covers the list itself, zoom, stacking and entity binding.
+
+- Every example here is a full card you can copy. The outline button preset has a transparent fill, so the background shows through it.
+- Keys marked "from the theme" take their default from the LCARdS Default theme's tokens, so they follow your Home Assistant theme's colours.
+- Every preset takes `opacity`, and every preset that moves takes `speed`, a time multiplier for the whole effect (`2` runs it twice as fast, `0` freezes it).
 
 ---
 
 ## `grid`
 
-Orthogonal grid with optional major/minor line divisions and scrolling. Drawn on the GPU where WebGL is available ([WebGL presets](../background-animations.md#webgl-presets)), the same pixels as the Canvas2D version in the flat view, which draws it without WebGL or with `renderer: canvas`. On WebGL the grid can also be seen [as a floor](#grid-views-and-camera) or drawn [on a cylinder, dome, sphere](#grid-surfaces) or [funnel](#grid-wells); `pattern: polar` draws [rings and spokes](#polar-pattern).
+**`grid` draws a scrolling grid of lines, with brighter major lines every few rows and columns.** It is the base of every grid look: plain lines, a dot field, a honeycomb, polar rings, a perspective floor or a wireframe surface.
 
-**Configuration:**
+- Size the grid with `line_spacing` for even squares, or with `num_rows` and `num_cols` (both) for an exact cell count.
+- With the LCARdS Default theme every third line is major; set both intervals to `0` for a plain grid.
+- Where WebGL is available the grid is drawn on the GPU ([WebGL presets](../background-animations.md#webgl-presets)), the same pixels as the Canvas2D version in the flat view. On WebGL it can also be seen [as a floor](#grid-views-and-camera) or drawn [on a cylinder, dome, sphere](#grid-surfaces) or [funnel](#grid-wells); `pattern: polar` draws [rings and spokes](#polar-pattern).
 
-```yaml
-preset: grid
-config:
-  # Sizing (choose one approach)
-  line_spacing: 40           # Spacing-based: pixels between lines
-  num_rows: 10               # Cell-based: number of rows
-  num_cols: 10               # Cell-based: number of columns
-
-  # Line styling
-  line_width: 1              # Minor line width (default: 1)
-  line_width_minor: 1        # Explicit minor line width
-  line_width_major: 2        # Major line width (default: 2)
-  color: "rgba(255, 153, 102, 0.3)"        # Minor line colour
-  color_major: "rgba(255, 153, 102, 0.6)"  # Major line colour (defaults to color)
-
-  # Major line divisions (0 = disabled)
-  major_row_interval: 5      # Major line every N rows (0 = no major lines)
-  major_col_interval: 5      # Major line every N columns (0 = no major lines)
-
-  # Scrolling
-  scroll_speed_x: 20         # Horizontal scroll speed (px/sec)
-  scroll_speed_y: 20         # Vertical scroll speed (px/sec)
-
-  # Pattern
-  pattern: "both"            # "both" | "horizontal" | "vertical" | "diagonal" | "hexagonal" | "dots" | "polar"
-  dot_radius: 2              # Dot radius in px - only used when pattern is "dots"
-  hex_radius: 40             # Hexagon size in px - only used when pattern is "hexagonal"
-  spoke_count: 12            # Spokes round the centre - only used when pattern is "polar"
-  polar_x: 0.5               # Polar centre across the card (0 left, 1 right)
-  polar_y: 0.5               # Polar centre down the card (0 top, 1 bottom)
-  show_border_lines: true    # Draw lines at canvas edges
-  fill_color: ""             # Optional cell background fill (empty = transparent)
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: SENSOR GRID
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  - preset: grid
+    config:
+      line_spacing: 30
+      color: alpha(var(--lcars-orange), 0.3)
+      color_major: alpha(var(--lcars-orange), 0.8)
+      major_row_interval: 4
+      major_col_interval: 4
+      line_width_major: 2
 ```
 
-**Modes:**
+A field of dots instead of lines (`pattern: dots`, sized by `dot_radius`, one dot every `line_spacing` px):
 
-- **Simple**: Set `major_row_interval: 0` and `major_col_interval: 0`: basic uniform grid
-- **Enhanced**: Set intervals > 0: adds emphasised major lines at regular intervals
-- **Spacing-based**: Use `line_spacing` for a uniform grid
-- **Cell-based**: Use `num_rows` / `num_cols` for an exact cell count
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: DOT FIELD
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  - preset: grid
+    config:
+      pattern: dots
+      line_spacing: 24
+      dot_radius: 2
+      color: alpha(var(--lcars-orange), 0.5)
+```
 
-`pattern: diagonal` and `pattern: hexagonal` (sized by `hex_radius`) produce the same line pattern as the dedicated [`grid-diagonal`](#grid-diagonal)/[`grid-hexagonal`](#grid-hexagonal) presets below, but combined with `grid`'s other options (`num_rows`/`num_cols`, major/minor intervals); the dedicated presets remain as convenience shorthands with their own tuned defaults, so either works. `pattern: dots` is a separate mode: a field of dots instead of lines, sized by `dot_radius`.
+<EffectPlayground preset="grid" />
 
-**Examples:**
+::: details More about grid
+- **Patterns:** `pattern: diagonal` and `pattern: hexagonal` (sized by `hex_radius`) draw the same lines as the [`grid-diagonal`](#grid-diagonal) and [`grid-hexagonal`](#grid-hexagonal) presets, but with `grid`'s other options (`num_rows`/`num_cols`, major and minor intervals). The dedicated presets are shorthands with their own defaults, so either works.
+- **Line widths:** `line_width` is another name for `line_width_minor`; when both are set, `line_width_minor` wins.
+- **Major colour:** `color_major` falls back to `color` when you set only `color`, so the major lines then differ only in width.
+- **Border lines:** `show_border_lines` acts on the horizontal and vertical lines; the diagonal, hexagonal, dot and polar patterns have none to drop.
+- **Without the theme:** where no theme is loaded the fallbacks are `rgba(255, 153, 102, 0.3)` for `color` and `0` for the intervals.
+- **Other grid looks:**
 
 ```yaml
-# Simple grid
+# Plain grid: no major lines
 - preset: grid
   config:
     line_spacing: 50
-    color: "rgba(255, 153, 102, 0.3)"
     major_row_interval: 0
     major_col_interval: 0
 
-# Enhanced grid with major divisions
-- preset: grid
-  config:
-    line_spacing: 40
-    color: "rgba(255, 153, 102, 0.3)"
-    color_major: "rgba(255, 153, 102, 0.8)"
-    major_row_interval: 5
-    major_col_interval: 5
-    line_width: 1
-    line_width_major: 2
-
-# Filled grid
+# Filled cells
 - preset: grid
   config:
     line_spacing: 60
-    color: "rgba(102, 204, 255, 0.5)"
-    fill_color: "rgba(102, 204, 255, 0.08)"
     line_width: 2
+    color: alpha(var(--lcars-ice), 0.5)
+    fill_color: alpha(var(--lcars-ice), 0.08)
 
-# Dot field
-- preset: grid
-  config:
-    pattern: dots
-    line_spacing: 30
-    dot_radius: 2
-    color: "rgba(255, 153, 102, 0.4)"
-
-# Honeycomb, sized via the base grid preset
+# Honeycomb, sized through the base grid preset
 - preset: grid
   config:
     pattern: hexagonal
     hex_radius: 25
     major_row_interval: 3
     major_col_interval: 3
-    color: "rgba(255, 153, 102, 0.3)"
-    color_major: "rgba(255, 153, 102, 0.6)"
+    color: alpha(var(--lcars-orange), 0.3)
+    color_major: alpha(var(--lcars-orange), 0.6)
 ```
+:::
 
-<EffectPlayground preset="grid" />
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `line_spacing` | number | `40` | px between lines (between dots, or between rings on `polar`) |
+| `num_rows` | integer | - | Exact number of rows, 1 to 100; with `num_cols` it replaces `line_spacing` |
+| `num_cols` | integer | - | Exact number of columns, 1 to 100 |
+| `line_width` | number | `1` | Minor line width in px (another name for `line_width_minor`) |
+| `line_width_minor` | number | `1` | Minor line width in px |
+| `line_width_major` | number | `2` | Major line width in px |
+| `color` | colour | 30% of the theme's primary UI colour | Minor line colour |
+| `color_major` | colour | `color`, else 60% of the theme's primary UI colour | Major line colour |
+| `major_row_interval` | integer | `3` (from the theme) | A major line every N rows; `0` for none |
+| `major_col_interval` | integer | `3` (from the theme) | A major line every N columns; `0` for none |
+| `scroll_speed_x` | number | `20` | Horizontal scroll in px per second; `0` on a floor, a polar chart or a surface unless set (see the sections below) |
+| `scroll_speed_y` | number | `20` | Vertical scroll in px per second; `40` on a floor, `0` on a polar chart or a surface unless set |
+| `pattern` | string | `both` | `both`, `horizontal`, `vertical`, `diagonal`, `hexagonal`, `dots` or `polar` |
+| `dot_radius` | number | `2` | Dot radius in px, for `pattern: dots` |
+| `hex_radius` | number | `40` | Hexagon size in px, for `pattern: hexagonal` |
+| [Polar keys](#polar-pattern) | | | `spoke_count`, `polar_x`, `polar_y`, for `pattern: polar` |
+| [View and camera keys](#grid-views-and-camera) | | | `view`, `camera_tilt`, `camera_yaw`, `camera_roll`, `camera_distance`, `fov`, `scan_period`, `scan_color` |
+| [Surface keys](#grid-surfaces) | | | `surface`, `surface_size`, `surface_length`, `surface_axis`, `surface_side`, `back_opacity`, `surface_rotate_x`, `surface_rotate_y`, `surface_rotate_z` |
+| [Well keys](#grid-wells) | | | `well_shape`, `well_throat`, `well_profile`, `well_profile_to`, `well_morph`, `well_ripple`, `well_ripple_waves`, `well_ripple_speed` |
+| `show_border_lines` | boolean | `true` | Draw the lines at the canvas edges |
+| `fill_color` | colour | `transparent` | Fill behind each cell |
+| `speed` | number | `1` | Time multiplier for the whole effect |
+| `opacity` | number | `1` | Effect opacity, 0 to 1 |
 
 ### Polar pattern
 
-`pattern: polar` draws rings round a centre and spokes out from it, the charts of the Voyager astrometrics lab. It draws on both tiers (the Canvas2D grid draws it too), flat, as a floor (`view: floor` gives the tilted galaxy map) and on [curved surfaces](#grid-surfaces).
+**`pattern: polar` draws rings round a centre and spokes out from it, the charts of the Voyager astrometrics lab.** It draws on both tiers (the Canvas2D grid draws it too): flat, as a floor (`view: floor` gives the tilted galaxy map) and on [curved surfaces](#grid-surfaces).
 
-<CardGallery set="grid-polar" />
+- A polar chart holds still unless a scroll speed is set: `scroll_speed_y` sends rings outward like a sonar pulse, `scroll_speed_x` turns the spokes.
+- Spokes crowd toward the centre and fade to their average there; `show_border_lines` has no tiles to act on.
+- On a curved surface, polar draws rings along the axis every `line_spacing` px and exactly `spoke_count` meridians round it: a dome facing you (`surface_axis: horizontal`) becomes a polar disc, a well the classic gravity well picture.
+- `polar_x`, `polar_y`, `spoke_count` and the scroll speeds are [animatable](./binding-and-animation#animatable-keys).
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `line_spacing` | 40 | px between rings |
-| `spoke_count` | 12 | Spokes round the centre; 0 draws rings only |
-| `polar_x`, `polar_y` | 0.5 | The centre, as fractions of the card's width and height (values outside 0 to 1 move it off the card) |
-| `major_row_interval` | 0 | Every Nth ring is major |
-| `major_col_interval` | 0 | Every Nth spoke is major |
-| `scroll_speed_y` | 0 | Rings move outward at this many px per second (negative: inward), a sonar pulse |
-| `scroll_speed_x` | 0 | Turns the spokes: `line_spacing` px of scroll turns them by one spoke |
-
-A polar chart holds still unless a scroll speed is set. Spokes crowd toward the centre and fade to their average there; `show_border_lines` has no tiles to act on. `polar_x`, `polar_y`, `spoke_count` and the scroll speeds are [animatable](../background-animations.md#animatable-keys).
-
-On a curved surface, polar draws rings along the axis every `line_spacing` px and exactly `spoke_count` meridians round it: a dome facing you (`surface_axis: horizontal`) becomes a polar disc, a well the classic gravity well picture.
-
-```yaml
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: GALACTIC MAP
+    show: true
+grid_options:
+  rows: 4
 background_animation:
   - preset: grid
     config:
@@ -134,28 +147,40 @@ background_animation:
       spoke_count: 24
       major_row_interval: 4
       major_col_interval: 6
-      color: "var(--lcards-blue-light)"
-      color_major: "var(--lcards-moonlight)"
+      color: var(--lcards-blue-light)
+      color_major: var(--lcards-moonlight)
 ```
+
+<CardGallery set="grid-polar" />
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `line_spacing` | number | `40` | px between rings |
+| `spoke_count` | integer | `12` | Spokes round the centre, 0 to 360; `0` draws rings only |
+| `polar_x` | number | `0.5` | The centre across the card, as a fraction of its width (values outside 0 to 1 move it off the card) |
+| `polar_y` | number | `0.5` | The centre down the card, as a fraction of its height |
+| `major_row_interval` | integer | `3` (from the theme) | Every Nth ring is major |
+| `major_col_interval` | integer | `3` (from the theme) | Every Nth spoke is major |
+| `scroll_speed_y` | number | `0` | Rings move outward at this many px per second (negative: inward) |
+| `scroll_speed_x` | number | `0` | Turns the spokes: `line_spacing` px of scroll turns them by one spoke |
 
 ### Grid views and camera
 
-On WebGL the grid lies on a plane seen through a camera, so the same grid can be face-on or a perspective floor running to a horizon. These keys apply to `grid`, `grid-diagonal` and `grid-hexagonal`; without WebGL (or with `renderer: canvas`) the flat grid is drawn.
+**On WebGL the grid lies on a plane seen through a camera, so the same grid can be face-on or a perspective floor running to a horizon.** These keys apply to `grid`, `grid-diagonal` and `grid-hexagonal`; without WebGL (or with `renderer: canvas`) the flat grid is drawn.
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `view` | `flat` | `flat`: face-on. `floor`: a perspective floor streaming toward you (scroll defaults `scroll_speed_x: 0`, `scroll_speed_y: 40`) |
-| `camera_tilt` | 90 flat, 10 floor | How far the camera looks down, in degrees: 90 is straight down |
-| `camera_yaw` | 0 | Turns the camera around the grid, in degrees |
-| `camera_roll` | 0 | Turns the camera round its line of sight, in degrees (positive: the picture turns clockwise). With tilt and yaw the camera can look from any direction |
-| `camera_distance` | 1 | Zoom: at 1, `line_spacing` is true px at the middle of the card |
-| `fov` | 60 | Field of view in degrees: wider exaggerates the floor perspective |
-| `scan_period` | 0 flat, 7 floor | Seconds per scan line sweep from the far side to the near side; 0 is off |
-| `scan_color` | `var(--lcards-moonlight)` | Scan line colour |
+- `view: floor` streams the grid toward you (`scroll_speed_y` defaults to `40`, `scroll_speed_x` to `0`) and sweeps a scan line every 7 seconds.
+- Line widths are px in every view (`line_width`, `line_width_major`), and lines fade out toward the horizon where they crowd, so the distance stays calm.
+- The camera keys are [animatable](./binding-and-animation#animatable-keys): a flat grid tips into a floor when `camera_tilt` animates from 90 to 10.
 
-Line widths are px in every view (`line_width`, `line_width_major`), and lines fade out toward the horizon where they crowd, so the distance stays calm. The camera keys are [animatable](../background-animations.md#animatable-keys): a flat grid tips into a floor when `camera_tilt` animates from 90 to 10.
-
-```yaml
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: FLOOR GRID
+    show: true
+grid_options:
+  rows: 4
 background_animation:
   - preset: grid
     config:
@@ -164,40 +189,39 @@ background_animation:
       line_width: 2
       major_row_interval: 4
       major_col_interval: 4
-      color: "var(--lcards-orange)"
-      color_major: "var(--lcards-moonlight)"
+      color: var(--lcards-orange)
+      color_major: var(--lcards-moonlight)
       scan_period: 5
 ```
 
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `view` | string | `flat` | `flat`: face-on. `floor`: a perspective floor streaming toward you |
+| `camera_tilt` | number | `90` flat, `10` floor | How far the camera looks down, 0 to 90 degrees: 90 is straight down. On a surface see [Grid surfaces](#grid-surfaces) |
+| `camera_yaw` | number | `0` | Turns the camera around the grid, in degrees |
+| `camera_roll` | number | `0` | Turns the camera round its line of sight, in degrees (positive: the picture turns clockwise). With tilt and yaw the camera can look from any direction |
+| `camera_distance` | number | `1` | Zoom: at 1, `line_spacing` is true px at the middle of the card; 2 is twice as far away |
+| `fov` | number | `60` | Field of view, 5 to 150 degrees: wider exaggerates the floor perspective |
+| `scan_period` | number | `0` flat, `7` floor | Seconds per scan line sweep from the far side to the near side; `0` is off |
+| `scan_color` | colour | `var(--lcards-moonlight)` | Scan line colour |
+
 ### Grid surfaces
 
-On WebGL the grid can also be drawn on a curved surface: a cylinder, a dome (a half sphere), a sphere or a [well](#grid-wells) (a funnel of any profile), the wireframes of LCARS astrometrics displays. The same keys apply to `grid`, `grid-diagonal` and `grid-hexagonal`; without WebGL (or with `renderer: canvas`) the flat grid is drawn.
+**On WebGL the grid can also be drawn on a curved surface: a cylinder, a dome (a half sphere), a sphere or a [well](#grid-wells), the wireframes of LCARS astrometrics displays.** The same keys apply to `grid`, `grid-diagonal` and `grid-hexagonal`; without WebGL (or with `renderer: canvas`) the flat grid is drawn.
 
-<CardGallery set="grid-surfaces" />
+- The scroll that runs round the surface spins it: `scroll_speed_x` on an upright cylinder, a dome or a sphere, `scroll_speed_y` on a horizontal cylinder. By default a surface spins and does not slide along its axis, and a whole number of cells goes round, so there is no seam.
+- From outside the camera circles the surface: `camera_tilt` is its height above the equator (default 15; 35 on a well). From inside, `camera_tilt` looks up (default 0) and `camera_distance` above 1 steps back along the view.
+- `surface_rotate_x`, `_y` and `_z` turn the surface itself (applied in that order), so it can face any way while the camera keys still circle it; all of them are animatable.
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `surface` | `plane` | `plane`: the flat grid or floor (`view`). `cylinder`, `dome`, `sphere`, `well`: the grid on that surface |
-| `surface_size` | 0.8 | Diameter, as a fraction of the card's shorter side (a well's rim) |
-| `surface_length` | 1 | Cylinder length or well depth, as a fraction of the card's size along its axis; 0 runs a cylinder off the card and into the distance |
-| `surface_axis` | `vertical` | `vertical`: an upright cylinder, a dome over the floor, a well opening upward. `horizontal`: a cylinder lying across the card, a dome or well facing you |
-| `surface_side` | `outside` | `outside`: look at the surface. `inside`: look out from its centre (a tunnel down a horizontal cylinder, a planetarium inside a dome); a well is always seen from outside |
-| `back_opacity` | 0.25 | Opacity of the far side seen from outside; 0 hides it |
-| `surface_rotate_x` | 0 | Turns the surface itself, in degrees: positive tips its top toward you |
-| `surface_rotate_y` | 0 | Positive turns its front to the right |
-| `surface_rotate_z` | 0 | Positive leans its top to the left (counter-clockwise) |
-
-How the keys you already know behave on a surface:
-
-- **Spacing and widths:** `line_spacing` is true px at the front of the surface, and line widths are px everywhere. Lines fade where they crowd (toward the edges, the poles and into the distance).
-- **Scroll is spin:** the scroll that runs round the surface turns it: `scroll_speed_x` on an upright cylinder, a dome or a sphere; `scroll_speed_y` rolls a horizontal cylinder. By default a surface spins and does not slide along its axis. A whole number of cells goes round, so there is no seam.
-- **Camera:** from outside the camera circles the surface: `camera_tilt` is its height above the equator (default 15; 35 on a well), `camera_yaw` turns round it, `camera_distance` zooms, `camera_roll` turns the picture. From inside, `camera_tilt` looks up (default 0) and `camera_yaw` turns; `camera_distance` above 1 steps back along the view.
-- **Orientation:** `surface_rotate_x`, `_y` and `_z` turn the surface itself (applied in that order), so it can face any way while the camera keys still circle it. All of them are animatable: a tumbling or leaning surface is one animation.
-- **Edges:** the open ends of a cylinder and the base of a dome get a rim line (`line_width_major`, `color_major`) while `show_border_lines` is on.
-- **Patterns:** a cylinder and a well take every pattern. On a dome or sphere, `diagonal` and `hexagonal` draw rows and columns. [`polar`](#polar-pattern) draws rings along the axis and `spoke_count` meridians.
-- **Scan line:** `scan_period` sweeps along the axis, from the top (or the pole) down.
-
-```yaml
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: WARP TUNNEL
+    show: true
+grid_options:
+  rows: 4
 background_animation:
   - preset: grid
     config:
@@ -208,32 +232,49 @@ background_animation:
       line_spacing: 30
       scroll_speed_x: 60
       major_col_interval: 4
-      color: "var(--lcards-orange)"
-      color_major: "var(--lcards-moonlight)"
+      color: var(--lcards-orange)
+      color_major: var(--lcards-moonlight)
 ```
+
+<CardGallery set="grid-surfaces" />
+
+::: details More about surfaces
+- **Spacing and widths:** `line_spacing` is true px at the front of the surface, and line widths are px everywhere. Lines fade where they crowd (toward the edges, the poles and into the distance).
+- **Camera:** `camera_yaw` turns round the surface, `camera_distance` zooms and `camera_roll` turns the picture, from outside and inside alike.
+- **Edges:** the open ends of a cylinder and the base of a dome get a rim line (`line_width_major`, `color_major`) while `show_border_lines` is on.
+- **Patterns:** a cylinder and a well take every pattern. On a dome or sphere, `diagonal` and `hexagonal` draw rows and columns. [`polar`](#polar-pattern) draws rings along the axis and `spoke_count` meridians.
+- **Scan line:** `scan_period` sweeps along the axis, from the top (or the pole) down.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `surface` | string | `plane` | `plane`: the flat grid or floor (`view`). `cylinder`, `dome`, `sphere`, `well`: the grid on that surface |
+| `surface_size` | number | `0.8` | Diameter, as a fraction of the card's shorter side (a well's rim), 0.05 to 4 |
+| `surface_length` | number | `1` | Cylinder length or well depth, as a fraction of the card's size along its axis; `0` runs a cylinder off the card and into the distance |
+| `surface_axis` | string | `vertical` | `vertical`: an upright cylinder, a dome over the floor, a well opening upward. `horizontal`: a cylinder lying across the card, a dome or well facing you |
+| `surface_side` | string | `outside` | `outside`: look at the surface. `inside`: look out from its centre (a tunnel down a horizontal cylinder, a planetarium inside a dome); a well is always seen from outside |
+| `back_opacity` | number | `0.25` | Opacity of the far side seen from outside, 0 to 1; `0` hides it |
+| `surface_rotate_x` | number | `0` | Turns the surface itself, in degrees: positive tips its top toward you |
+| `surface_rotate_y` | number | `0` | Positive turns its front to the right |
+| `surface_rotate_z` | number | `0` | Positive leans its top to the left (counter-clockwise) |
 
 ### Grid wells
 
-`surface: well` is a funnel: a surface of revolution from its rim down to its bottom, of any profile. The gravity well and the wormhole of the Voyager astrometrics displays are wells. It takes every [surface key](#grid-surfaces): `surface_size` is the rim's diameter, `surface_length` the depth.
+**`surface: well` is a funnel: a surface of revolution from its rim down to its bottom, of any profile.** The gravity well and the wormhole of the Voyager astrometrics displays are wells. It takes every [surface key](#grid-surfaces): `surface_size` is the rim's diameter, `surface_length` the depth.
 
-<CardGallery set="grid-wells" />
+- `well_profile` gives any shape as a list of diameters from the rim down: `[1, 0.4, 0.2, 0.15]` is a trumpet, `[1, 0.25, 1]` an hourglass (a wormhole), `[1, 0.9, 0.5, 0]` a closed bowl, `[1, 1]` a straight tube (with a ripple, a pulsing conduit).
+- The rings are evenly spaced along the surface (`line_spacing` px apart, however steep it is); a ripple passes through them, so they ride the swell.
+- `well_throat`, `well_morph` and the ripple keys are [animatable](./binding-and-animation#animatable-keys): animate `well_morph` from 0 to 1 to reshape the funnel, or `well_throat` to let it breathe.
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `well_shape` | `trumpet` | `trumpet`: the gravity well, nearly flat at the rim and plunging to the throat. `cone`: straight sides. `bowl`: rounded toward the bottom. `wormhole`: two trumpets throat to throat (an hourglass, the throat halfway down) |
-| `well_throat` | 0.15 | The throat of a `well_shape`, as a fraction of the rim (1 is a cylinder) |
-| `well_profile` | | Any shape: diameters as fractions of `surface_size`, from the rim down to the bottom, evenly spaced along the depth. A smooth curve passes through every one. Replaces `well_shape` and `well_throat` |
-| `well_profile_to` | | A second profile in the same form, for `well_morph` |
-| `well_morph` | 0 | Blends from the well's shape (0) to `well_profile_to` (1) |
-| `well_ripple` | 0 | Ripples running along the well: their height, as a fraction of the local radius (0.1 is a gentle swell) |
-| `well_ripple_waves` | 3 | Ripple wavelengths along the depth |
-| `well_ripple_speed` | 0.5 | Waves per second: positive runs down toward the bottom, negative up toward the rim |
-
-Some profiles: `[1, 0.4, 0.2, 0.15]` is a trumpet, `[1, 0.25, 1]` an hourglass (a wormhole), `[1, 0.9, 0.5, 0]` a closed bowl, `[1, 1]` a straight tube (with a ripple, a pulsing conduit). The rings are evenly spaced along the surface (`line_spacing` px apart, however steep it is); a ripple passes through them, so they ride the swell.
-
-`well_throat`, `well_morph` and the ripple keys are [animatable](../background-animations.md#animatable-keys): animate `well_morph` from 0 to 1 to reshape the funnel, or `well_throat` to let it breathe.
-
-```yaml
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: GRAVITY WELL
+    show: true
+grid_options:
+  rows: 4
 background_animation:
   - preset: grid
     config:
@@ -245,15 +286,20 @@ background_animation:
       spoke_count: 24
       line_spacing: 20
       camera_tilt: 40
-      color: "var(--lcards-orange)"
+      color: var(--lcards-orange)
 ```
 
-A morph from a trumpet to an hourglass and back:
+A morph from a trumpet to an hourglass and back, with a card animation on `well_morph`:
 
-```yaml
-type: custom:lcards-elbow
-elbow:
-  type: frame
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: MORPH
+    show: true
+grid_options:
+  rows: 3
 background_animation:
   inset: auto
   effects:
@@ -276,947 +322,878 @@ animations:
       alternate: true
 ```
 
-The well is drawn as 64 stacked slices, each an exact hit, so its edges stay sharp at any shape. A wobble that is not round about the axis (a bulge on one side, a bending axis) is not something a well can do.
+<CardGallery set="grid-wells" />
+
+::: details More about wells
+- **Sharp edges:** the well is drawn as 64 stacked slices, each an exact hit, so its edges stay sharp at any shape.
+- **Round only:** a wobble that is not round about the axis (a bulge on one side, a bending axis) is not something a well can do.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `well_shape` | string | `trumpet` | `trumpet`: the gravity well, nearly flat at the rim and plunging to the throat. `cone`: straight sides. `bowl`: rounded toward the bottom. `wormhole`: two trumpets throat to throat (an hourglass, the throat halfway down) |
+| `well_throat` | number | `0.15` | The throat of a `well_shape`, as a fraction of the rim, 0.02 to 1 (1 is a cylinder) |
+| `well_profile` | list | - | Any shape: diameters as fractions of `surface_size`, from the rim down to the bottom, evenly spaced along the depth. A smooth curve passes through every one. Replaces `well_shape` and `well_throat` |
+| `well_profile_to` | list | - | A second profile in the same form, for `well_morph` |
+| `well_morph` | number | `0` | Blends from the well's shape (0) to `well_profile_to` (1) |
+| `well_ripple` | number | `0` | Ripples running along the well: their height, as a fraction of the local radius, 0 to 0.9 (0.1 is a gentle swell) |
+| `well_ripple_waves` | number | `3` | Ripple wavelengths along the depth, 0 to 12 |
+| `well_ripple_speed` | number | `0.5` | Waves per second: positive runs down toward the bottom, negative up toward the rim |
 
 ---
 
 ## `grid-diagonal`
 
-Diagonal hatch pattern at 45°.
+**`grid-diagonal` draws a 45° hatch of scrolling lines.** It is the `grid` preset fixed to `pattern: diagonal`, with tighter spacing and a slower scroll by default.
 
-**Configuration:**
+- It takes the [view and camera](#grid-views-and-camera), [surface](#grid-surfaces) and [well](#grid-wells) keys on WebGL.
 
-```yaml
-preset: grid-diagonal
-config:
-  line_spacing: 60           # Spacing between diagonal lines
-  line_width: 1              # Line width
-  color: "rgba(255, 153, 102, 0.4)"
-  scroll_speed_x: 30         # Horizontal scroll speed (px/sec)
-  scroll_speed_y: 0          # Vertical scroll speed (px/sec)
-  show_border_lines: true
-  fill_color: ""             # Optional background fill (empty = transparent)
-```
-
-**Examples:**
-
-```yaml
-# Basic diagonal
-- preset: grid-diagonal
-  config:
-    line_spacing: 80
-    line_width: 2
-    color: "rgba(255, 153, 102, 0.5)"
-    scroll_speed_x: 40
-
-# Diagonal with fill
-- preset: grid-diagonal
-  config:
-    line_spacing: 60
-    color: "rgba(255, 153, 102, 0.4)"
-    fill_color: "rgba(255, 153, 102, 0.06)"
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: HATCHED
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  - preset: grid-diagonal
+    config:
+      line_spacing: 40
+      line_width: 2
+      color: alpha(var(--lcars-orange), 0.5)
+      fill_color: alpha(var(--lcars-orange), 0.06)
+      scroll_speed_x: 40
+      scroll_speed_y: 0
 ```
 
 <EffectPlayground preset="grid-diagonal" />
+
+::: details More about grid-diagonal
+- **Fixed pattern:** `pattern`, the major line keys and `show_border_lines` are not read by this preset; use [`grid`](#grid) with `pattern: diagonal` for those.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `line_spacing` | number | `30` | px between lines |
+| `line_width` | number | `1` | Line width in px |
+| `color` | colour | 30% of the theme's primary UI colour | Line colour |
+| `scroll_speed_x` | number | `15` | Horizontal scroll in px per second |
+| `scroll_speed_y` | number | `15` | Vertical scroll in px per second |
+| `fill_color` | colour | `transparent` | Fill behind each cell |
+| [View, surface and well keys](#grid-views-and-camera) | | | As on `grid` |
+| `speed` | number | `1` | Time multiplier for the whole effect |
+| `opacity` | number | `1` | Effect opacity, 0 to 1 |
 
 ---
 
 ## `grid-hexagonal`
 
-Honeycomb hexagonal pattern with major/minor hex support.
+**`grid-hexagonal` draws a scrolling honeycomb, with brighter major hexagons at regular intervals.** It is the `grid` preset fixed to `pattern: hexagonal`, sized by `hex_radius`.
 
-**Configuration:**
+- Major hexagons are picked by their row and column in the endless scrolling pattern (modulo the interval), so they keep a regular pattern as the honeycomb moves.
+- `color_major` does not follow `color`: set both when you change the colour.
+- It takes the [view and camera](#grid-views-and-camera), [surface](#grid-surfaces) and [well](#grid-wells) keys on WebGL.
 
-```yaml
-preset: grid-hexagonal
-config:
-  hex_radius: 30             # Radius of hexagons
-  line_width_minor: 1        # Minor hex line width
-  line_width_major: 2        # Major hex line width
-  color: "rgba(255, 153, 102, 0.3)"        # Minor hex colour
-  color_major: "rgba(255, 153, 102, 0.6)"  # Major hex colour
-  major_row_interval: 3      # Major hex every N rows (0 = disabled)
-  major_col_interval: 3      # Major hex every N columns (0 = disabled)
-  scroll_speed_x: 10         # Horizontal scroll speed (px/sec)
-  scroll_speed_y: 10         # Vertical scroll speed (px/sec)
-  show_border_lines: true
-  fill_color: ""             # Optional cell background fill (empty = transparent)
-```
-
-Major hexagons are determined by global tile position (row, column) modulo the interval, producing a regular pattern of emphasised hexagons across the infinite scrolling canvas.
-
-**Examples:**
-
-```yaml
-# Simple honeycomb
-- preset: grid-hexagonal
-  config:
-    hex_radius: 40
-    color: "rgba(102, 204, 255, 0.4)"
-    major_row_interval: 0
-    major_col_interval: 0
-
-# Honeycomb with major hexes
-- preset: grid-hexagonal
-  config:
-    hex_radius: 35
-    color: "rgba(255, 153, 102, 0.3)"
-    color_major: "rgba(255, 153, 102, 0.8)"
-    major_row_interval: 4
-    major_col_interval: 4
-    line_width_minor: 1
-    line_width_major: 3
-
-# Filled honeycomb
-- preset: grid-hexagonal
-  config:
-    hex_radius: 40
-    color: "rgba(102, 204, 255, 0.4)"
-    fill_color: "rgba(102, 204, 255, 0.07)"
-    major_row_interval: 0
-    major_col_interval: 0
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: HONEYCOMB
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  - preset: grid-hexagonal
+    config:
+      hex_radius: 30
+      color: alpha(var(--lcars-orange), 0.3)
+      color_major: alpha(var(--lcars-orange), 0.8)
+      major_row_interval: 4
+      major_col_interval: 4
+      line_width_major: 3
 ```
 
 <EffectPlayground preset="grid-hexagonal" />
+
+::: details More about grid-hexagonal
+- **Plain honeycomb:** set `major_row_interval: 0` and `major_col_interval: 0`.
+- **Filled cells:** `fill_color` paints behind every hexagon, for example `alpha(var(--lcars-ice), 0.07)`.
+- **Border lines:** `show_border_lines` is not read by this preset.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `hex_radius` | number | `40` | Hexagon size in px |
+| `line_width_minor` | number | `1` | Minor hexagon line width in px |
+| `line_width_major` | number | `2` | Major hexagon line width in px |
+| `color` | colour | 30% of the theme's primary UI colour | Minor hexagon colour |
+| `color_major` | colour | 60% of the theme's primary UI colour | Major hexagon colour |
+| `major_row_interval` | integer | `3` | A major hexagon every N rows; `0` for none |
+| `major_col_interval` | integer | `3` | A major hexagon every N columns; `0` for none |
+| `scroll_speed_x` | number | `20` | Horizontal scroll in px per second |
+| `scroll_speed_y` | number | `20` | Vertical scroll in px per second |
+| `fill_color` | colour | `transparent` | Fill behind each hexagon |
+| [View, surface and well keys](#grid-views-and-camera) | | | As on `grid` |
+| `speed` | number | `1` | Time multiplier for the whole effect |
+| `opacity` | number | `1` | Effect opacity, 0 to 1 |
 
 ---
 
 ## `starfield`
 
-Scrolling starfield with parallax depth layers and multi-colour support.
+**`starfield` scrolls a field of stars in parallax layers, the farther layers slower, for a sense of depth.** Each star takes one of the `colors` at random.
 
-**Configuration:**
+- For a "flying through space" look, stop the scroll and add a [zoom wrapper](./stacking-and-zoom#zoom-wrapper): each zoom layer gets its own seed (the base seed plus the layer number), so every zoom level shows different stars.
 
-```yaml
-preset: starfield
-config:
-  count: 150                 # Number of stars
-  min_radius: 0.5            # Minimum star radius (px)
-  max_radius: 2              # Maximum star radius (px)
-  min_opacity: 0.3           # Minimum star opacity (0–1)
-  max_opacity: 1.0           # Maximum star opacity (0–1)
-  colors:                    # Single colour or array - each star picks one randomly
-    - "var(--lcards-blue-lightest)"
-    - "#4455ff"
-  scroll_speed_x: 30         # Horizontal scroll speed (px/sec)
-  scroll_speed_y: 0          # Vertical scroll speed (px/sec)
-  parallax_layers: 3         # Number of depth layers (1–5)
-  depth_factor: 0.5          # Speed variance between layers (0 = uniform, 1 = max)
-  seed: 1                    # Random seed for reproducible star patterns
-```
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `count` | 150 | Total stars to generate |
-| `min_radius` | 0.5 | Minimum star size in pixels |
-| `max_radius` | 2 | Maximum star size in pixels |
-| `min_opacity` | 0.3 | Minimum opacity (0–1) |
-| `max_opacity` | 1.0 | Maximum opacity (0–1) |
-| `colors` | `"#ffffff"` | Single colour or array. Supports CSS variables. |
-| `scroll_speed_x` | 30 | Horizontal speed (px/sec) |
-| `scroll_speed_y` | 0 | Vertical speed (px/sec) |
-| `parallax_layers` | 3 | Depth layers (1–5). More layers = more depth. |
-| `depth_factor` | 0.5 | Speed multiplier between layers |
-| `seed` | 1 | Random seed. Each zoom layer gets an incremented seed automatically. |
-
-Stars are distributed across depth layers with farther layers moving slower. When using the zoom wrapper, each layer receives a unique seed, producing distinct star patterns per zoom level for a convincing "flying through space" effect.
-
-**Examples:**
-
-```yaml
-# Simple starfield
-- preset: starfield
-  config:
-    count: 200
-    colors: "var(--lcards-blue-lightest)"
-    scroll_speed_x: 40
-
-# Multi-colour with parallax
-- preset: starfield
-  config:
-    count: 250
-    min_radius: 0.8
-    max_radius: 2.5
-    colors:
-      - "var(--lcards-blue-lightest)"
-      - "var(--lcards-moonlight)"
-      - "#ffffff"
-    parallax_layers: 4
-    scroll_speed_x: 50
-
-# Stationary starfield + zoom (recommended combination)
-- preset: starfield
-  config:
-    count: 200
-    min_radius: 0.5
-    max_radius: 2
-    colors:
-      - "var(--lcards-blue-lightest)"
-      - "#4455ff"
-    scroll_speed_x: 0
-    scroll_speed_y: 0
-    parallax_layers: 4
-  zoom:
-    layers: 6
-    scale_from: 0.5
-    scale_to: 2.5
-    duration: 15
-    opacity_fade_in: 15
-    opacity_fade_out: 75
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: DEEP SPACE
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  # A stationary starfield inside a zoom wrapper
+  - preset: starfield
+    config:
+      count: 200
+      colors:
+        - var(--lcards-blue-lightest)
+        - var(--lcards-moonlight)
+        - var(--lcars-blue)
+      scroll_speed_x: 0
+      scroll_speed_y: 0
+      parallax_layers: 4
+    zoom:
+      layers: 6
+      scale_from: 0.5
+      scale_to: 2.5
+      duration: 15
+      opacity_fade_in: 15
+      opacity_fade_out: 75
 ```
 
 <EffectPlayground preset="starfield" />
+
+::: details More about starfield
+- **Scrolling field:** leave out the zoom and set `scroll_speed_x` (for example `50`) for stars drifting past in layers.
+- **One colour:** `color` sets one colour for every star; it is the key to animate.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `count` | integer | `150` | Number of stars |
+| `min_radius` | number | `0.5` | Smallest star radius in px |
+| `max_radius` | number | `2` | Largest star radius in px |
+| `min_opacity` | number | `0.3` | Dimmest star, 0 to 1 |
+| `max_opacity` | number | `1` | Brightest star, 0 to 1 |
+| `colors` | colour / list | `var(--lcars-text-light, var(--lcards-moonlight))` (from the theme) | One colour or a list; each star picks one |
+| `color` | colour | - | One colour for every star |
+| `scroll_speed_x` | number | `30` | Horizontal scroll in px per second |
+| `scroll_speed_y` | number | `0` | Vertical scroll in px per second |
+| `parallax_layers` | integer | `3` | Depth layers, 1 to 5: more layers, more depth |
+| `depth_factor` | number | `0.5` | Speed difference between layers, 0 (uniform) to 1 |
+| `seed` | integer | random | The same seed gives the same stars |
+| `speed` | number | `1` | Time multiplier for the whole effect |
+| `opacity` | number | `1` | Effect opacity, 0 to 1 |
 
 ---
 
 ## `nebula`
 
-Layered nebula clouds with Perlin noise turbulence and organic drifting movement.
+**`nebula` draws soft, drifting clouds whose edges are pushed around by Perlin noise, for an organic nebula.** Each cloud takes one of the `colors` at random.
 
-**Configuration:**
+- `turbulence` sets how far the noise pushes the cloud edges and `noise_scale` the size of its features (smaller: larger features).
+- `volumetric: true` keeps the same clouds (seed, positions, colours and drift) and shades each one with noise on the GPU ([WebGL presets](../background-animations.md#webgl-presets)): wisps that slowly evolve inside, and an edge that `turbulence` makes ragged. Without WebGL, or with `renderer: canvas`, the plain clouds are drawn.
+- Slow scroll speeds (3 to 10 px per second) suit a nebula; a zoom wrapper adds depth.
 
-```yaml
-preset: nebula
-config:
-  cloud_count: 4             # Number of nebula clouds (1–10)
-  min_radius: 0.15           # Minimum cloud radius (0–1, fraction of canvas)
-  max_radius: 0.4            # Maximum cloud radius (0–1, fraction of canvas)
-  min_opacity: 0.3           # Minimum cloud opacity (0–1)
-  max_opacity: 0.8           # Maximum cloud opacity (0–1)
-  colors:                    # Single colour or array - each cloud picks one randomly
-    - "var(--lcards-blue-medium)"
-    - "var(--lcards-orange)"
-    - "var(--lcards-blue-light)"
-  turbulence: 0.5            # Displacement intensity (0 = none, 1 = maximum)
-  noise_scale: 0.003         # Perlin noise scale (0.001–0.01; smaller = larger features)
-  scroll_speed_x: 5          # Horizontal scroll speed (px/sec)
-  scroll_speed_y: 5          # Vertical scroll speed (px/sec)
-  seed: 1                    # Random seed for reproducible cloud patterns
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: NEBULA
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  - preset: nebula
+    config:
+      cloud_count: 6
+      min_radius: 0.2
+      max_radius: 0.5
+      colors:
+        - var(--lcards-blue-medium)
+        - var(--lcards-orange)
+        - var(--lcars-violet)
+      turbulence: 0.7
+      scroll_speed_x: 3
+      scroll_speed_y: 3
+      volumetric: true
 ```
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `cloud_count` | 4 | Number of clouds (1–10) |
-| `min_radius` | 0.15 | Minimum radius as fraction of canvas size |
-| `max_radius` | 0.4 | Maximum radius as fraction of canvas size |
-| `min_opacity` | 0.3 | Minimum cloud opacity |
-| `max_opacity` | 0.8 | Maximum cloud opacity |
-| `colors` | `["#FF00FF"]` | Single colour or array. Supports CSS variables. |
-| `turbulence` | 0.5 | Perlin noise displacement magnitude |
-| `noise_scale` | 0.003 | Noise scale factor. Smaller values create larger features. |
-| `scroll_speed_x` | 5 | Horizontal speed (px/sec) |
-| `scroll_speed_y` | 5 | Vertical speed (px/sec) |
-| `seed` | 1 | Random seed for reproducible placement |
-| `volumetric` | `false` | Shade the clouds with drifting noise on the GPU: wisps inside and a turbulent edge, instead of smooth gradients. Needs WebGL |
-
-Each cloud's pixel positions are displaced via 2D Perlin noise (`turbulence` controls the magnitude, `noise_scale` controls feature size) producing realistic organic cloud shapes.
-
-**Volumetric clouds:** `volumetric: true` keeps the same clouds (same `seed`, positions, colours and drift) and shades each one with noise on the GPU ([WebGL presets](../background-animations.md#webgl-presets)): wisps that slowly evolve inside the cloud, and an edge that `turbulence` makes ragged. `noise_scale` sets the wisp size. Without WebGL, or with `renderer: canvas`, the plain clouds are drawn. It is opt-in because it changes how a nebula looks.
-
-```yaml
-- preset: nebula
-  config:
-    cloud_count: 5
-    colors: ["var(--lcards-purple)", "var(--lcards-blue-medium)"]
-    turbulence: 0.7
-    volumetric: true
-```
-
-**Examples:**
-
-```yaml
-# Simple nebula
-- preset: nebula
-  config:
-    cloud_count: 3
-    colors: "var(--lcards-purple)"
-    scroll_speed_x: 10
-    scroll_speed_y: 10
-
-# Multi-colour cosmic nebula
-- preset: nebula
-  config:
-    cloud_count: 6
-    min_radius: 0.2
-    max_radius: 0.5
-    min_opacity: 0.4
-    max_opacity: 0.9
-    colors:
-      - "var(--lcards-blue-medium)"
-      - "var(--lcards-orange)"
-      - "var(--lcards-purple)"
-      - "var(--lcards-blue-light)"
-    turbulence: 0.7
-    noise_scale: 0.002
-    scroll_speed_x: 3
-    scroll_speed_y: 3
-
-# Nebula + zoom
-- preset: nebula
-  config:
-    cloud_count: 5
-    colors:
-      - "var(--lcards-blue-medium)"
-      - "var(--lcards-orange)"
-    turbulence: 0.6
-    scroll_speed_x: 0
-    scroll_speed_y: 0
-  zoom:
-    layers: 4
-    scale_from: 0.6
-    scale_to: 2.0
-    duration: 20
-    opacity_fade_in: 20
-    opacity_fade_out: 70
-```
-
-> Nebula works well with slow scroll speeds (3–10 px/sec). Combine with zoom for deep cosmic depth.
 
 <EffectPlayground preset="nebula" />
+
+::: details More about nebula
+- **Nebula and zoom:** set both scroll speeds to `0` and add a `zoom` block (for example `layers: 4`, `scale_from: 0.6`, `scale_to: 2.0`, `duration: 20`) for clouds that rush toward you.
+- **Volumetric is opt-in** because it changes how a nebula looks; `noise_scale` then sets the wisp size.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `cloud_count` | integer | `4` | Number of clouds, 1 to 10 |
+| `min_radius` | number | `0.15` | Smallest cloud radius, as a fraction of the canvas size |
+| `max_radius` | number | `0.4` | Largest cloud radius, as a fraction of the canvas size |
+| `min_opacity` | number | `0.3` | Dimmest cloud, 0 to 1 |
+| `max_opacity` | number | `0.8` | Brightest cloud, 0 to 1 |
+| `colors` | colour / list | `var(--lcards-blue-medium)`, `var(--lcards-orange)`, `var(--lcards-blue-light)` (from the theme) | One colour or a list; each cloud picks one |
+| `turbulence` | number | `0.5` | How far the noise pushes the cloud edges, 0 to 1 |
+| `noise_scale` | number | `0.003` | Noise feature size: smaller values make larger features |
+| `scroll_speed_x` | number | `5` | Horizontal scroll in px per second |
+| `scroll_speed_y` | number | `5` | Vertical scroll in px per second |
+| `seed` | integer | random | The same seed gives the same clouds |
+| `volumetric` | boolean | `false` | Shade the clouds with drifting noise on the GPU; needs WebGL |
+| `speed` | number | `1` | Time multiplier for the whole effect |
+| `opacity` | number | `1` | Effect opacity, 0 to 1 |
 
 ---
 
 ## `contour-field`
 
-Topographic-style banded noise field: an LCARS star-chart contour look. Paints a drifting noise field, then slices it into colour bands like a topographic map.
+**`contour-field` slices a drifting noise field into colour bands like a topographic map, the LCARS star-chart contour look.** Noise shapes the terrain, `num_bands` slices it into rings across its full range, `fill_level` floods the lowest rings with a waterline, and `colors` fills the rest.
 
-Drawn on the GPU where WebGL is available ([WebGL presets](../background-animations.md#webgl-presets)): the same field, pixel for pixel, with no pause when the card first draws, resizes or changes alert colours, and `noise_scale`, `num_bands` and `fill_level` become animatable. Without WebGL, or with `renderer: canvas`, the Canvas2D version draws it.
+- Lower `num_bands` with a larger `cell_size` gives a blocky, retro-LCARS look; raise them for a smooth, photographic nebula look.
+- Where WebGL is available it is drawn on the GPU ([WebGL presets](../background-animations.md#webgl-presets)): the same field, pixel for pixel, with no pause when the card first draws, resizes or changes alert colours, and `noise_scale`, `num_bands` and `fill_level` become animatable. Without WebGL, or with `renderer: canvas`, the Canvas2D version draws it.
 
-**Configuration:**
-
-```yaml
-preset: contour-field
-config:
-  # Noise - shapes the raw terrain
-  seed: 1                    # Random seed for a reproducible field
-  noise_scale: 0.005         # Smaller = a few large blobs; larger = many small ripples
-  num_octaves: 2             # Layers of fine detail (1 = smooth, 8 = rough/cloud-like)
-
-  # Contour Bands - always sliced across the full peaks-and-valleys range
-  num_bands: 5               # Low = bold stepped rings; high = near-continuous gradient
-  cell_size: 1                # Sample resolution - larger is blockier/cheaper
-
-  # Fill - floods/drains a waterline over the terrain, doesn't change it
-  fill_level: 0.45            # 0 = no water, full terrain visible
-  fill_color: ""              # Colour for flooded rings (empty = transparent "space")
-
-  # Colour - what fills each ring above the waterline
-  blend_colors: true          # true = smooth fades; false = flat, hard-edged rings
-  colors:                     # One colour, or several stops across the contour range
-    - "alpha(#130b81, 0.08)"
-    - "alpha(#130b81, 0.25)"
-    - "alpha(#130b81, 0.42)"
-    - "alpha(#130b81, 0.62)"
-    - "alpha(#130b81, 0.80)"
-
-  scroll_speed_x: -3          # Horizontal scroll speed (px/sec)
-  scroll_speed_y: 0.45        # Vertical scroll speed (px/sec)
-  opacity: 1                  # Overall effect opacity
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: STAR CHART
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  # Retro blocky contours, flat rings
+  - preset: contour-field
+    config:
+      num_bands: 6
+      cell_size: 4
+      colors:
+        - alpha(var(--lcars-blue), 0.15)
+        - alpha(var(--lcars-blue), 0.55)
+      blend_colors: false
 ```
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `seed` | random | Random seed: same seed + settings always produce the same field |
-| `noise_scale` | 0.005 | Noise detail: lower = larger, smoother features |
-| `num_octaves` | 2 | Layers of noise detail |
-| `num_bands` | 5 | Number of contour rings |
-| `cell_size` | 1 | Sample resolution in px |
-| `fill_level` | 0.45 | Waterline height, 0–1 |
-| `fill_color` | - | Colour painted over flooded rings |
-| `blend_colors` | true | Smooth band transitions vs. hard edges |
-| `colors` | - | Colour stop(s) across the contour range |
-| `scroll_speed_x` | -3 | Horizontal drift speed (px/sec) |
-| `scroll_speed_y` | 0.45 | Vertical drift speed (px/sec) |
-| `opacity` | 1 | Overall effect opacity |
-
-**Examples:**
-
-```yaml
-# Retro-LCARS blocky contours
-- preset: contour-field
-  config:
-    num_bands: 6
-    cell_size: 4
-    colors: ["#130b81"]
-    blend_colors: false
-
-# Smooth photographic nebula look
-- preset: contour-field
-  config:
-    num_bands: 32
-    cell_size: 1
-    colors:
-      - "alpha(var(--lcars-blue), 0.15)"
-      - "alpha(var(--lcars-blue), 0.55)"
-    blend_colors: true
-```
-
-::: tip
-Lower `num_bands` + `cell_size` for a blocky, retro-LCARS look; raise them for a smooth, photographic nebula look.
-:::
 
 <EffectPlayground preset="contour-field" />
+
+::: details More about contour-field
+- **Smooth look:** `num_bands: 32`, `cell_size: 1` and `blend_colors: true` give a near-continuous gradient.
+- **Fill:** the waterline floods and drains over the terrain without changing it. Flooded rings take `fill_color` composited over their own colour; an empty `fill_color` (`""`) leaves them transparent, empty space between the blobs.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `seed` | integer | random | The same seed and settings always give the same field |
+| `noise_scale` | number | `0.005` | Smaller: a few large blobs; larger: many small ripples |
+| `num_octaves` | integer | `2` | Layers of fine detail, 1 (smooth) to 8 (rough, cloud-like) |
+| `num_bands` | integer | `5` | Contour rings, 2 to 64: low gives bold stepped rings, high a near-continuous gradient |
+| `cell_size` | integer | `1` | Sample size in px, 1 to 16: larger is blockier |
+| `fill_level` | number | `0.45` | Waterline height, 0 (no water) to 0.95 |
+| `fill_color` | colour | `alpha(var(--lcars-midnight-blue, var(--lcards-blue-darkest)), 0.30)` | Colour over the flooded rings; `""` for transparent |
+| `blend_colors` | boolean | `true` | `true`: smooth fades between rings. `false`: flat, hard-edged rings |
+| `colors` | colour / list | five stops of `alpha(#130b81, …)` from 0.08 to 0.80 | One colour, or several stops across the contour range |
+| `scroll_speed_x` | number | `-3` | Horizontal drift in px per second |
+| `scroll_speed_y` | number | `0.45` | Vertical drift in px per second |
+| `speed` | number | `1` | Time multiplier for the whole effect |
+| `opacity` | number | `1` | Effect opacity, 0 to 1 |
 
 ---
 
 ## `cascade`
 
-LCARS data-waterfall background. Renders cascading rows of random data cells cycling through three configurable colour stops. Replicates the classic CB-LCARS `cb-lcars-animation-cascade` decorative background.
+**`cascade` is the LCARS data waterfall: rows of random data cells that cycle through three colours, each row on its own rhythm.** It replicates the classic CB-LCARS `cb-lcars-animation-cascade` background; the characters are decorative, not real data.
 
-**Configuration:**
+- Each cell holds `colors.start` for most of the cycle, snaps to `colors.text`, then fades to `colors.end` and loops (the keyframes are in the table below).
+- `pattern` picks the row rhythm; `speed_multiplier` scales it, and `duration` replaces every row's duration.
+- Use `opacity` 0.4 to 0.7 so card content stays readable, and combine it with `grid` or `starfield` for layered depth.
 
-```yaml
-preset: cascade
-config:
-  # Grid sizing (null = auto from canvas dimensions + font metrics)
-  num_rows: null             # Rows (null = auto)
-  num_cols: null             # Columns (null = auto)
-  gap: 4                     # Cell gap in pixels
-
-  # Data format
-  format: hex                # hex | digit | float | alpha | mixed
-  refresh_interval: 0        # ms between cell refreshes (0 = static data)
-
-  # Typography
-  font_size: 10              # Font size in pixels
-  font_family: "'Antonio', monospace"
-
-  # Colour cycling (start → text hold → end)
-  colors:
-    start: "var(--lcars-blue, #2266ff)"           # Bright dominant hold (0–75%)
-    text:  "var(--lcards-blue-darkest, #112244)"  # Dark navy snap (75–90%)
-    end:   "var(--lcards-moonlight, #e7f3f7)"      # Pale fade-out (90–100%)
-
-  # Timing
-  pattern: default           # default | niagara | fast | custom
-  speed_multiplier: 1.0      # 2.0 = twice as fast, 0.5 = half speed
-  duration: null             # ms - overrides pattern when set
-
-  opacity: 1.0               # Overall opacity (0–1)
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: DATA CASCADE
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  # Cascade behind a faint grid
+  - preset: cascade
+    config:
+      format: hex
+      pattern: niagara
+      speed_multiplier: 1.2
+      colors:
+        start: var(--lcards-blue-lightest)
+        text: var(--lcars-dark-blue)
+        end: var(--lcards-moonlight)
+      opacity: 0.7
+  - preset: grid
+    config:
+      line_spacing: 40
+      color: alpha(var(--lcars-ice), 0.15)
+      scroll_speed_x: 5
+      scroll_speed_y: 5
+      opacity: 0.4
 ```
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `num_rows` | null | Rows. `null` = auto from canvas height and font size |
-| `num_cols` | null | Columns. `null` = auto from canvas width and font size |
-| `gap` | 4 | Pixel gap between cells |
-| `format` | `'hex'` | Cell data: `hex`, `digit`, `float`, `alpha`, `mixed` |
-| `refresh_interval` | 0 | Ms between data regeneration (0 = static) |
-| `font_size` | 10 | Font size in pixels |
-| `font_family` | `"'Antonio', monospace"` | CSS font-family |
-| `colors.start` | `var(--lcars-blue)` | Colour at cycle start (hold 0–75%) |
-| `colors.text` | `var(--lcards-blue-darkest)` | Colour at mid-cycle snap (75–90%) |
-| `colors.end` | `var(--lcards-moonlight)` | Colour at cycle end (90–100%) |
-| `pattern` | `'default'` | `default` (authentic LCARS rhythm), `niagara` (uniform waterfall), `fast`, `custom` |
-| `timing` | - | Custom array of `{ duration, delay }`, one per row (applied round-robin if there are more rows than entries), used when `pattern: custom`. **`duration` is milliseconds, `delay` is seconds**, easy to mix up since only one of the two is ms. |
-| `speed_multiplier` | 1.0 | Multiplier applied to all row durations |
-| `duration` | null | Override all row durations in ms (takes precedence over pattern) |
-| `opacity` | 1 | Overall effect opacity |
+Custom per-row timing (`pattern: custom`) takes a `timing` list, one entry per row and used round-robin when there are more rows than entries. Its `duration` is milliseconds and its `delay` is seconds:
 
-**Colour cycle keyframes:**
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: CUSTOM TIMING
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  - preset: cascade
+    config:
+      format: digit
+      pattern: custom
+      timing:
+        - duration: 1500
+          delay: 0.1
+        - duration: 2200
+          delay: 0.3
+        - duration: 900
+          delay: 0.05
+      opacity: 0.6
+```
+
+<EffectPlayground preset="cascade" />
+
+::: details More about cascade
+- **Colour cycle keyframes:**
 
 | Cycle position | Colour | Phase |
 |----------------|--------|-------|
-| 0%–75% | `colors.start` | Hold |
-| 75%–80% | `colors.start` → `colors.text` | Fast transition |
-| 80%–90% | `colors.text` | Hold |
-| 90%–100% | `colors.text` → `colors.end` | Fade out (loops) |
+| 0% to 75% | `colors.start` | Hold |
+| 75% to 80% | `colors.start` to `colors.text` | Fast transition |
+| 80% to 90% | `colors.text` | Hold |
+| 90% to 100% | `colors.text` to `colors.end` | Fade out (loops) |
 
-**Timing patterns:**
+- **Timing patterns:**
 
 | Pattern | Duration | Delay | Description |
 |---------|----------|-------|-------------|
-| `default` | 2–4 s (varies per row) | 0.1–0.8 s | Authentic LCARS rhythm |
-| `niagara` | 2 s (uniform) | 0.1–0.8 s | Smooth waterfall |
-| `fast` | 1 s (uniform) | 0–0.35 s | Rapid cycling |
-| `custom` | user-defined | user-defined | Supply `timing` array |
+| `default` | 2 to 4 s (varies per row) | 0.1 to 0.8 s | Authentic LCARS rhythm |
+| `niagara` | 2 s (uniform) | 0.1 to 0.8 s | Smooth waterfall |
+| `fast` | 1 s (uniform) | 0 to 0.35 s | Rapid cycling |
+| `custom` | from `timing` | from `timing` | Your own list; without `timing` it uses `default` |
 
-**Examples:**
+- **Live data:** `refresh_interval` above 0 re-randomises the cells every that many ms, for example `format: mixed` with `refresh_interval: 2000`.
+- **Shortest row:** a row's cycle is never shorter than 100 ms.
+:::
 
-```yaml
-# Basic cascade
-- preset: cascade
-  config:
-    format: hex
-    pattern: niagara
-    speed_multiplier: 1.2
-    colors:
-      start: "var(--lcars-blue-lightest)"
-      text: "var(--lcars-dark-blue)"
-      end: "var(--lcards-moonlight)"
-    opacity: 0.7
-
-# Cascade behind a grid overlay
-- preset: cascade
-  config:
-    format: hex
-    pattern: default
-    colors:
-      start: "var(--lcars-blue, #2266ff)"
-      text: "var(--lcards-blue-darkest, #112244)"
-      end: "var(--lcards-moonlight, #e7f3f7)"
-    opacity: 0.5
-- preset: grid
-  config:
-    line_spacing: 40
-    color: "rgba(102, 204, 255, 0.15)"
-    scroll_speed_x: 5
-    scroll_speed_y: 5
-    opacity: 0.4
-
-# Fast cascade with live data refresh
-- preset: cascade
-  config:
-    format: mixed
-    pattern: fast
-    speed_multiplier: 2.0
-    refresh_interval: 2000
-    font_size: 8
-    opacity: 0.6
-
-# Custom per-row timing - duration is ms, delay is seconds
-- preset: cascade
-  config:
-    format: digit
-    pattern: custom
-    timing:
-      - { duration: 1500, delay: 0.1 }
-      - { duration: 2200, delay: 0.3 }
-      - { duration: 900,  delay: 0.05 }
-    colors:
-      start: "var(--lcars-blue)"
-      text: "var(--lcards-blue-darkest)"
-      end: "var(--lcards-moonlight)"
-    opacity: 0.6
-```
-
-> Use `opacity: 0.4–0.7` so card content remains readable. Combine with `grid` or `starfield` for layered depth.
-
-<EffectPlayground preset="cascade" />
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `num_rows` | integer | from the canvas height and font size | Rows |
+| `num_cols` | integer | from the canvas width and font size | Columns |
+| `gap` | number | `4` | px between cells |
+| `format` | string | `hex` | Cell data: `hex`, `digit`, `float`, `alpha` or `mixed` |
+| `refresh_interval` | integer | `0` | ms between new cell data; `0` keeps the data fixed |
+| `font_size` | number | `10` | Font size in px |
+| `font_family` | string | `'Antonio', monospace` | CSS font family |
+| `colors.start` | colour | `var(--lcards-blue-light)` | Colour held for the first 75% of the cycle |
+| `colors.text` | colour | `var(--lcards-blue-darkest)` | Colour of the mid-cycle snap (75% to 90%) |
+| `colors.end` | colour | `var(--lcards-moonlight)` | Colour the cycle fades to (90% to 100%) |
+| `pattern` | string | `default` | Row rhythm: `default`, `niagara`, `fast` or `custom` |
+| `timing` | list | - | For `pattern: custom`: one entry per row |
+| `timing[].duration` | number | - | The row's cycle, in ms |
+| `timing[].delay` | number | - | The row's start offset, in seconds |
+| `speed_multiplier` | number | `1` | Divides every row's duration: `2` is twice as fast |
+| `duration` | integer | - | Every row's cycle in ms; wins over `pattern` and `speed_multiplier` |
+| `speed` | number | `1` | Time multiplier for the whole effect |
+| `opacity` | number | `1` | Effect opacity, 0 to 1 |
 
 ---
 
 ## `level`
 
-Animated tank/gauge-style fill bar: colour gradient, dual overlapping waves, sloshing physics, and an edge glow.
+**`level` is an animated tank or gauge fill: a fill level with a wavy top edge, an optional gradient, sloshing and an edge glow.** Bind `fill_pct` to an entity to show a real level.
 
-**Configuration:**
+- Two waves can overlap on the edge: the second is off until `wave2_height` is above 0.
+- `slosh_amount` rocks the fluid from side to side, scaled by `wave_height`.
 
-```yaml
-preset: level
-config:
-  color_a: "rgba(0,200,100,0.7)"    # Primary fill colour (or gradient start)
-  color_b: ""                       # Gradient end colour (empty = flat fill)
-  gradient_crossover: 80            # % of fill height where the gradient crosses over
-  fill_pct: 50                      # Fill level, 0-100
-
-  direction: up                     # up | down | left | right
-
-  edge_glow: true
-  edge_glow_color: "rgba(255,255,255,0.7)"
-  edge_glow_width: 6
-
-  wave_height: 4                    # Primary wave amplitude (px)
-  wave_speed: 20
-  wave_count: 4
-
-  wave2_height: 0                   # Secondary wave amplitude (0 = disabled)
-  wave2_count: 5
-  wave2_speed: -15
-
-  slosh_amount: 0                   # Sloshing displacement (0 = disabled)
-  slosh_period: 3
-
-  opacity: 1
-```
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `color_a` | `rgba(0,200,100,0.7)` | Primary fill colour / gradient start |
-| `color_b` | - | Gradient end colour |
-| `fill_pct` | 50 | Fill level, 0–100 |
-| `direction` | `up` | Fill direction |
-| `edge_glow` | true | Glow along the fill edge |
-| `wave_height` / `wave_speed` / `wave_count` | 4 / 20 / 4 | Primary wave shape |
-| `wave2_height` / `wave2_count` / `wave2_speed` | 0 / 5 / -15 | Secondary overlapping wave |
-| `slosh_amount` / `slosh_period` | 0 / 3 | Sloshing physics |
-| `opacity` | 1 | Overall effect opacity |
-
-**Examples:**
-
-```yaml
-# Simple gauge
-- preset: level
-  config:
-    fill_pct: 65
-    color_a: "var(--lcars-blue)"
-
-# Sloshing tank with dual waves
-- preset: level
-  config:
-    fill_pct: 40
-    color_a: "rgba(0,200,100,0.7)"
-    color_b: "rgba(0,120,60,0.9)"
-    wave_height: 6
-    wave2_height: 3
-    slosh_amount: 8
-    slosh_period: 2.5
+```yaml live controls
+type: custom:lcards-button
+preset: outline
+entity: input_number.lcards_test_value
+text:
+  name:
+    content: TANK LEVEL
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  - preset: level
+    config:
+      # The fill follows the entity's 0 to 100 value
+      fill_pct:
+        map_range:
+          entity: input_number.lcards_test_value
+          input: [0, 100]
+          output: [0, 100]
+      color_a: alpha(var(--lcars-green), 0.7)
+      color_b: alpha(var(--lcars-dark-blue), 0.9)
+      wave_height: 6
+      wave2_height: 3
+      slosh_amount: 0.5
+      slosh_period: 2.5
 ```
 
 <EffectPlayground preset="level" />
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `fill_pct` | number | `50` | Fill level, 0 to 100 |
+| `direction` | string | `up` | Fill direction: `up`, `down`, `left` or `right` |
+| `color_a` | colour | `rgba(0,200,100,0.7)` | Fill colour, or the gradient's start |
+| `color_b` | colour | - | Gradient end colour; leave it out for a flat fill |
+| `gradient_crossover` | number | `80` | Percent of the fill height that stays `color_a`, 0 to 100 |
+| `edge_glow` | boolean | `true` | Glow along the fill edge |
+| `edge_glow_color` | colour | `rgba(255,255,255,0.7)` | Glow colour |
+| `edge_glow_width` | number | `6` | Glow spread in px |
+| `wave_height` | number | `4` | Main wave height in px |
+| `wave_speed` | number | `20` | Main wave speed in degrees of phase per second; negative reverses it |
+| `wave_count` | integer | `4` | Main wave cycles across the width |
+| `wave2_height` | number | `0` | Second wave height in px; `0` turns it off |
+| `wave2_count` | integer | `5` | Second wave cycles across the width |
+| `wave2_speed` | number | `-15` | Second wave speed |
+| `slosh_amount` | number | `0` | Sloshing strength, 0 (off) to 1 |
+| `slosh_period` | number | `3` | Seconds per slosh, at least 0.5 |
+| `speed` | number | `1` | Time multiplier for the whole effect |
+| `opacity` | number | `1` | Effect opacity, 0 to 1 |
 
 ---
 
 ## Texture Presets
 
-`fluid`, `plasma`, `flow`, `shimmer`, and `scanlines` are texture generators sharing a small, near-identical config shape: a colour (or two), a couple of shape parameters, and `opacity`. Documented together here rather than as five separate essays.
+**`fluid`, `plasma`, `flow`, `shimmer` and `scanlines` are texture generators with a small shared shape: a colour (or two), a couple of shape keys and `opacity`.** They are documented together here.
 
-`fluid` and `plasma` are drawn on the GPU where WebGL is available ([WebGL presets](../background-animations.md#webgl-presets)): the same field as the Canvas2D version, without its pause on first draw, resize and alert colour changes, and with `base_frequency` and the colours animatable. Without WebGL, or with `renderer: canvas`, the Canvas2D version draws them.
+- `fluid` and `plasma` are drawn on the GPU where WebGL is available ([WebGL presets](../background-animations.md#webgl-presets)): the same field as the Canvas2D version, without its pause on first draw, resize and alert colour changes, and with `base_frequency` and the colours animatable. Without WebGL, or with `renderer: canvas`, the Canvas2D version draws them.
 
 ### `fluid`
 
-Swirling noise field: organic, continuously morphing colour wash.
+**`fluid` is a swirling noise field: an organic, continuously morphing wash of one colour.**
 
-```yaml
-preset: fluid
-config:
-  color: "rgba(100,180,255,0.8)"
-  base_frequency: 0.010    # Noise detail - lower = larger features
-  num_octaves: 4           # Layers of noise detail
-  scroll_speed_x: 7
-  scroll_speed_y: 10
-  opacity: 1
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: FLUID
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  - preset: fluid
+    config:
+      color: alpha(var(--lcars-ice), 0.8)
+      base_frequency: 0.01
+      num_octaves: 4
 ```
 
 <EffectPlayground preset="fluid" />
 
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `color` | colour | `rgba(100,180,255,0.8)` | Wash colour |
+| `base_frequency` | number | `0.010` | Noise detail: lower makes larger features |
+| `num_octaves` | integer | `4` | Layers of noise detail, 1 to 8 |
+| `scroll_speed_x` | number | `7` | Horizontal drift |
+| `scroll_speed_y` | number | `10` | Vertical drift |
+| `speed` | number | `1` | Time multiplier for the whole effect |
+| `opacity` | number | `1` | Effect opacity, 0 to 1 |
+
 ### `plasma`
 
-Two-colour plasma bands: a vivid, classic alternating colour field.
+**`plasma` is a two-colour plasma field: vivid bands that alternate between `color_a` and `color_b` as they drift.**
 
-```yaml
-preset: plasma
-config:
-  color_a: "rgba(80,0,255,0.9)"
-  color_b: "rgba(255,40,120,0.9)"
-  base_frequency: 0.012
-  scroll_speed_x: 8
-  scroll_speed_y: 5
-  opacity: 1
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: PLASMA
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  - preset: plasma
+    config:
+      color_a: alpha(var(--lcars-violet), 0.9)
+      color_b: alpha(var(--lcars-red), 0.9)
+      base_frequency: 0.012
 ```
 
 <EffectPlayground preset="plasma" />
 
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `color_a` | colour | `rgba(80,0,255,0.9)` | First colour |
+| `color_b` | colour | `rgba(255,40,120,0.9)` | Second colour |
+| `base_frequency` | number | `0.012` | Noise detail: lower makes larger features |
+| `scroll_speed_x` | number | `8` | Horizontal drift |
+| `scroll_speed_y` | number | `5` | Vertical drift |
+| `speed` | number | `1` | Time multiplier for the whole effect |
+| `opacity` | number | `1` | Effect opacity, 0 to 1 |
+
 ### `flow`
 
-Directional streaming streaks: energy conduits / data-stream look.
+**`flow` streams streaks in one direction, for energy conduits or a data stream.**
 
-```yaml
-preset: flow
-config:
-  color: "rgba(0,200,255,0.7)"
-  base_frequency: 0.012
-  wave_scale: 8             # Streak waviness
-  scroll_speed_x: 50
-  scroll_speed_y: 0
-  opacity: 1
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: EPS CONDUIT
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  - preset: flow
+    config:
+      color: alpha(var(--lcars-ice), 0.7)
+      wave_scale: 8
+      scroll_speed_x: 50
 ```
 
 <EffectPlayground preset="flow" />
 
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `color` | colour | `rgba(0,200,255,0.7)` | Streak colour |
+| `base_frequency` | number | `0.012` | Noise detail: lower makes larger features |
+| `wave_scale` | number | `8` | Streak waviness |
+| `scroll_speed_x` | number | `50` | Horizontal stream speed |
+| `scroll_speed_y` | number | `0` | Vertical stream speed |
+| `speed` | number | `1` | Time multiplier for the whole effect |
+| `opacity` | number | `1` | Effect opacity, 0 to 1 |
+
 ### `shimmer`
 
-A single highlight band that periodically sweeps across the canvas at an angle.
+**`shimmer` sweeps a single highlight band across the card at an angle, like light catching metal.** The band leaves one side and comes back in on the other.
 
-```yaml
-preset: shimmer
-config:
-  color: "rgba(255,255,255,0.55)"
-  highlight_width: 0.35     # Band width, fraction of canvas size
-  speed: 2.5
-  angle: 30                 # Sweep angle in degrees
-  opacity: 1
+- On `shimmer`, `speed` is the sweep speed in px per second rather than the usual time multiplier, so `12` sweeps twice as fast as the default `6`.
+
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: SHIMMER
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  - preset: shimmer
+    config:
+      color: alpha(var(--lcards-moonlight), 0.55)
+      highlight_width: 0.35
+      angle: 30
 ```
 
 <EffectPlayground preset="shimmer" />
 
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `color` | colour | `rgba(255,255,255,0.55)` | Highlight colour |
+| `highlight_width` | number | `0.35` | Band width, as a fraction of the card's diagonal |
+| `speed` | number | `6` | Sweep speed, px per second along the sweep |
+| `angle` | number | `30` | Sweep angle in degrees, 0 to 360 |
+| `opacity` | number | `1` | Effect opacity, 0 to 1 |
+
 ### `scanlines`
 
-Static CRT-style scanline overlay.
+**`scanlines` lays CRT-style scanlines over the card, still unless you give them a scroll speed.** It works well on top of another texture.
 
-```yaml
-preset: scanlines
-config:
-  color: "rgba(0,0,0,0.25)"
-  line_spacing: 4
-  line_width: 1.5
-  direction: horizontal      # horizontal | vertical
-  opacity: 1
-```
-
-**Example, layered texture stack:**
-
-```yaml
-- preset: fluid
-  config:
-    color: "rgba(100,180,255,0.6)"
-- preset: scanlines
-  config:
-    color: "rgba(0,0,0,0.15)"
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: VIEWSCREEN
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  # A fluid wash with scanlines over it
+  - preset: fluid
+    config:
+      color: alpha(var(--lcars-ice), 0.6)
+  - preset: scanlines
+    config:
+      color: alpha(var(--lcars-black), 0.3)
+      line_spacing: 4
+      line_width: 1.5
 ```
 
 <EffectPlayground preset="scanlines" />
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `color` | colour | `rgba(0,0,0,0.25)` | Line colour |
+| `line_spacing` | number | `4` | px between lines |
+| `line_width` | number | `1.5` | Line width in px |
+| `direction` | string | `horizontal` | `horizontal` or `vertical` lines |
+| `scroll_speed_x` | number | `0` | Horizontal scroll in px per second |
+| `scroll_speed_y` | number | `0` | Vertical scroll in px per second |
+| `speed` | number | `1` | Time multiplier for the whole effect |
+| `opacity` | number | `1` | Effect opacity, 0 to 1 |
 
 ---
 
 ## `image`
 
-User-supplied image rendered as a full-bleed canvas background behind the card SVG. Drawn at `z-index: -1` and composited with any other effects in the stack.
+**`image` draws your own image as a full-bleed background behind the card's artwork, stacked with any other effects.** `source` takes a `/local/` path, an `https://` URL, a `builtin:` asset, a Home Assistant media library item or a template.
 
-> **Correction:** every example on this page previously used `url:` as the config key; that never worked. `ImageEffect` (and the real editor UI) only ever read/write `source:`. Fixed below.
-
-The `source` field supports all LCARdS template syntaxes: `{entity.attributes.entity_picture}`, `[[[JS]]]`, etc. Templates are evaluated on every HASS update, so the image automatically follows entity attribute changes.
-
-**Configuration:**
+- `source` supports every LCARdS template syntax (`{entity.attributes.entity_picture}`, `[[[JS]]]`, and so on). Templates are evaluated on every Home Assistant update, so the image follows entity attribute changes.
+- The editor's "Image Source" field has a **Browse Home Assistant Media** mode that opens Home Assistant's media browser (browse or upload) and stores the picked item's `media_content_id` as `source`.
+- These examples are plain YAML, not live cards: they need an image file in your own Home Assistant.
 
 ```yaml
-preset: image
-config:
-  source: '/local/images/bedroom.jpg'  # Required
-  size: 'cover'                      # 'cover' | 'contain' | 'fill' | '<n>px'
-  position: 'center'                 # CSS background-position string
-  opacity: 1                         # Composite opacity (0–1)
-  repeat: false                      # Tile the image instead of fitting it
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: BEDROOM
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  # Your room picture with a grid over it
+  - preset: image
+    config:
+      source: /local/images/Areas/Bedroom.jpg
+      size: cover
+      opacity: 0.85
+  - preset: grid
+    config:
+      color: alpha(var(--lcars-orange), 0.25)
+      line_spacing: 40
 ```
 
-| Config key | Default | Description |
-|---|---|---|
-| `source` | `''` | `/local/` path, `https://` URL, `builtin:<key>`, `media-source://…` content ID (Home Assistant media library item), or a template string |
-| `size` | `'cover'` | `cover`: fill (may crop) · `contain`: fit (may letterbox) · `fill`: stretch · `<n>px`: explicit width in px, height scales to match the image's aspect ratio |
-| `position` | `'center'` | CSS `background-position`: keywords (`top left`) or percentages (`50% 0%`) |
-| `opacity` | `1` | Layer opacity. Use with other stacked effects for blending. |
-| `repeat` | `false` | Tile the image: useful for textures or patterns |
+Other sources, as fragments for a `background_animation` list:
 
-**Examples:**
+```yaml
+# Live entity thumbnail (camera or media player)
+- preset: image
+  config:
+    source: "{entity.attributes.entity_picture}"
+    size: cover
 
-```yaml alternatives
-# Room area card
-background_animation:
-  effects:
-    - preset: image
-      config:
-        source: '/local/images/Areas/Bedroom.jpg'
-        size: cover
-        opacity: 0.85
+# Named image from the asset library
+- preset: image
+  config:
+    source: builtin:bedroom
+    size: cover
+    opacity: 0.8
 
-# Live entity thumbnail (camera / media player)
-background_animation:
-  effects:
-    - preset: image
-      config:
-        source: '{entity.attributes.entity_picture}'
-        size: cover
-
-# Image + grid overlay
-background_animation:
-  effects:
-    - preset: image
-      config:
-        source: '/local/backgrounds/lcars-panel.jpg'
-        size: cover
-        opacity: 0.6
-    - preset: grid
-      config:
-        color: 'rgba(255,153,102,0.25)'
-        line_spacing: 40
-
-# Named image from Asset Library
-background_animation:
-  effects:
-    - preset: image
-      config:
-        source: 'builtin:bedroom'
-        size: cover
-        opacity: 0.8
-
-# Image picked from the Home Assistant Media Library
-background_animation:
-  effects:
-    - preset: image
-      config:
-        source: 'media-source://media_source/local/bedroom.jpg'
-        size: cover
-        opacity: 0.8
+# Image picked from the Home Assistant media library
+- preset: image
+  config:
+    source: media-source://media_source/local/bedroom.jpg
+    size: cover
+    opacity: 0.8
 ```
 
-::: info SVG files
-`.svg` files work as image sources; they load via an `<img>` element and paint into Canvas2D. SVG files must be self-contained (no external resource references). Files without explicit `width`/`height` attributes are rendered at canvas size automatically.
+::: details More about image
+- **`source`, not `url`:** the key is `source`; `url` is not read (earlier versions of this page used `url`, which never worked).
+- **SVG files:** `.svg` files work as sources; they load through an `<img>` element and paint into the canvas. They must be self-contained (no external resource references), and files without `width`/`height` attributes are drawn at the canvas size.
+- **Media library:** a `media-source://` ID is turned into a real URL when the card draws, and that URL is cached for 15 minutes since it may carry an expiring signed token. See [Asset Manager](../../../architecture/subsystems/asset-manager.md).
+- **HTTP URLs:** an `http://` URL on an HTTPS dashboard is blocked by the browser's mixed-content policy; use `/local/` paths or `https://` URLs. The editor warns when it sees an HTTP URL.
+- **Tiling:** with `repeat: true` the image tiles at its own size, and `size` and `position` are not used.
 :::
 
-::: info Home Assistant Media Library
-The editor's "Image Source" field offers a **Browse Home Assistant Media** mode that opens Home Assistant's native media browser (browse or upload) and stores the picked item's `media_content_id` as `source`. This is resolved to a real URL at render time via `AssetManager.resolveMediaSourceUrl()`, cached for 15 minutes since resolved URLs may carry an expiring signed token. See [Asset Manager](../../../architecture/subsystems/asset-manager.md).
-:::
-
-No live demo here: a meaningful preview needs a real image, and there's no built-in asset that resolves outside a full Home Assistant + LCARdS runtime (the demos on this page only load the renderer itself, not the full asset-manager pack system `builtin:`/media-library references depend on).
-
-::: warning HTTP URLs
-Using an `http://` URL on an HTTPS dashboard is blocked by the browser's mixed-content policy. Use `/local/` paths or `https://` URLs instead. The editor shows a warning when an HTTP URL is detected.
-:::
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `source` | string | `""` | `/local/` path, `https://` URL, `builtin:<key>`, `media-source://` content ID or a template string |
+| `size` | string | `cover` | `cover`: fill (may crop). `contain`: fit (may letterbox). `fill`: stretch. `<n>px`: that width in px, the height following the image's aspect ratio. Anything else draws as `cover` |
+| `position` | string | `center` | CSS `background-position`: keywords (`top left`) or percentages (`50% 0%`) |
+| `repeat` | boolean | `false` | Tile the image, for textures or patterns |
+| `opacity` | number | `1` | Effect opacity, 0 to 1; blend it with the effects above |
 
 ---
 
 ## `solid`
 
-A single flat colour, filling the whole background canvas. Renders behind `base_svg`: the tint shows through any transparent regions of the SVG artwork on top, without touching the artwork itself. The cheapest, simplest preset: a single fill per frame, no procedural noise.
+**`solid` fills the whole background with one flat colour.** It sits behind `base_svg`, so the tint shows through any transparent parts of the artwork on top without touching the artwork itself.
 
-**Configuration:**
+- It is the simplest preset: one fill per frame and no noise. Put it first in the list to tint under a procedural layer (the list draws bottom to top).
 
-```yaml
-preset: solid
-config:
-  color: "rgba(0, 0, 0, 0.4)"   # Fill colour - alpha controls how much shows through base_svg
-  opacity: 1                    # Multiplies with any alpha already in color
-```
-
-**Examples:**
-
-```yaml
-# Tint behind base_svg, base_svg's own artwork untouched
-- preset: solid
-  config:
-    color: "rgba(180, 0, 0, 0.35)"
-
-# Stacked under a procedural layer (array order = bottom → top)
-- preset: solid
-  config:
-    color: "var(--lcars-blue)"
-- preset: grid
-  config:
-    color: "rgba(255,255,255,0.15)"
+```yaml live
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: TINTED GRID
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  # A tint under a grid
+  - preset: solid
+    config:
+      color: alpha(var(--lcars-dark-blue), 0.6)
+  - preset: grid
+    config:
+      color: alpha(var(--lcards-moonlight), 0.15)
 ```
 
 <EffectPlayground preset="solid" />
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `color` | colour | `rgba(0, 0, 0, 0.4)` | Fill colour; its alpha sets how much shows through `base_svg` |
+| `opacity` | number | `1` | Multiplies with any alpha already in `color` |
 
 ---
 
 ## `warp-starfield`
 
-Stars flying toward you in 3D, drawn with three.js (WebGL). Above `speed: 1` the stars stretch into streaks, so animating `speed` reads as going to warp. Without WebGL (or if the browser drops the WebGL context) the plain [`starfield`](#starfield) is drawn with the same config.
+**`warp-starfield` flies stars toward you in 3D with three.js (WebGL); above `speed: 1` they stretch into streaks, so animating `speed` reads as going to warp.** Without WebGL (or if the browser drops the WebGL context) the plain [`starfield`](#starfield) is drawn with the same config.
 
-**Configuration:**
+- `spectrum: true` splits each streak into colour along its length, as in some TNG warp shots (details below).
+- The camera keys mean the same as on the [grid](#grid-views-and-camera), so either can follow an entity.
+- Animatable: `speed`, `streak`, `camera_tilt`, `camera_yaw`, `camera_roll`, `fov`, `color`, `opacity` and the transform keys.
 
-```yaml
-preset: warp-starfield
-config:
-  count: 600                 # Number of stars
-  min_radius: 0.5            # Smallest star size
-  max_radius: 2              # Largest star size
-  colors:                    # Each star takes one of them
-    - "var(--lcards-moonlight)"
-    - "var(--lcards-blue-lightest)"
-  streak: 1                  # Streak length per unit of speed above 1 (0 = dots)
-  spectrum: false            # Streaks split into colour (a Doppler shift)
-  spectrum_direction: doppler # doppler (violet toward the tail) or reverse
-  speed: 1                   # How fast the stars fly
-  seed: 1                    # Same seed, same layout
+```yaml live controls
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: WARP DRIVE
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  # Warp while the alert mode is red, with the warp spectrum
+  - preset: warp-starfield
+    transition: 2000
+    config:
+      count: 1200
+      streak: 1.5
+      spectrum: true
+      speed: "[[[ return states['input_select.lcards_alert_mode']?.state === 'red_alert' ? 8 : 1 ]]]"
 ```
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `count` | 600 | Number of stars |
-| `min_radius` / `max_radius` | 0.5 / 2 | Star size range |
-| `colors` / `color` | `var(--lcards-moonlight)` | Star colours; `color` sets one colour for every star (the key to animate). The default follows the alert palette; a fixed colour such as `#ffffff` does not |
-| `streak` | 1 | How long the streaks grow per unit of speed above 1. `0` keeps dots at any speed |
-| `spectrum` | `false` | Each streak splits into colour along its length, as in some TNG warp shots: a Doppler shift of the star's own colour, violet toward the tail (nearer the direction of travel) and red toward the head. White stars show the whole rainbow; a blue star streaks green to violet, its tail fading as it shifts past violet. It fades in as the dots stretch, so stars at `speed: 1` keep their colour |
-| `spectrum_direction` | `doppler` | `reverse` puts violet toward the head instead |
-| `speed` | 1 | Time multiplier |
-| `seed` | random | Star layout |
-| `camera_tilt` | 0 | Looks down (positive) or up from the direction of travel, in degrees (-40 to 40): the stars stream from a point higher or lower on the card |
-| `camera_yaw` | 0 | Looks right (positive) or left of the direction of travel, in degrees (-40 to 40), as when turning at warp |
-| `camera_roll` | 0 | Banks the view round its line of sight, in degrees (positive: clockwise) |
-| `fov` | 70 | Field of view in degrees: wider makes a deeper tunnel of streaks |
+Banking: the stars stream from left or right as a value moves.
 
-Animatable: `speed`, `streak`, `camera_tilt`, `camera_yaw`, `camera_roll`, `fov`, `color`, `opacity` and the transform keys. The camera keys mean the same as on the [grid](#grid-views-and-camera), so either can follow an entity.
-
-**Examples:**
-
-```yaml
-# Dense warp field, warping while the alert mode is red (with the warp spectrum)
-- preset: warp-starfield
-  transition: 2000
-  config:
-    count: 1200
-    streak: 1.5
-    spectrum: true
-    speed: "[[[ return states['input_select.lcards_alert_mode']?.state === 'red_alert' ? 8 : 1 ]]]"
-
-# Banking: the stars stream from left or right as a value moves
-- preset: warp-starfield
-  transition: 1500
-  config:
-    speed: 4
-    camera_yaw:
-      map_range:
-        entity: input_number.lcards_test_value
-        input: [0, 100]
-        output: [-30, 30]
+```yaml live controls
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: BANKING
+    show: true
+grid_options:
+  rows: 3
+background_animation:
+  - preset: warp-starfield
+    transition: 1500
+    config:
+      speed: 4
+      camera_yaw:
+        map_range:
+          entity: input_number.lcards_test_value
+          input: [0, 100]
+          output: [-30, 30]
 ```
+
+::: details More about warp-starfield
+- **Spectrum:** a Doppler shift of the star's own colour, violet toward the tail (nearer the direction of travel) and red toward the head. White stars show the whole rainbow; a blue star streaks green to violet, its tail fading as it shifts past violet. It fades in as the dots stretch, so stars at `speed: 1` keep their colour.
+- **Colours and alerts:** the default star colour follows the alert palette; a fixed colour such as `#ffffff` does not.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `count` | integer | `600` | Number of stars, 1 to 20000 |
+| `min_radius` | number | `0.5` | Smallest star size |
+| `max_radius` | number | `2` | Largest star size |
+| `colors` | colour / list | `var(--lcards-moonlight)` | Star colours; each star takes one |
+| `color` | colour | - | One colour for every star (the key to animate) |
+| `streak` | number | `1` | How long the streaks grow per unit of speed above 1; `0` keeps dots at any speed |
+| `spectrum` | boolean | `false` | Split each streak into colour along its length |
+| `spectrum_direction` | string | `doppler` | `doppler`: violet toward the tail. `reverse`: violet toward the head |
+| `speed` | number | `1` | How fast the stars fly (a time multiplier) |
+| `seed` | integer | random | The same seed gives the same stars |
+| `camera_tilt` | number | `0` | Looks down (positive) or up from the direction of travel, -40 to 40 degrees: the stars stream from a point higher or lower on the card |
+| `camera_yaw` | number | `0` | Looks right (positive) or left of the direction of travel, -40 to 40 degrees, as when turning at warp |
+| `camera_roll` | number | `0` | Banks the view round its line of sight, in degrees (positive: clockwise) |
+| `fov` | number | `70` | Field of view, 20 to 120 degrees: wider makes a deeper tunnel of streaks |
+| `opacity` | number | `1` | Effect opacity, 0 to 1 |
 
 ---
 
 ## `holo-sphere`
 
-An LCARS planetary display: a wireframe sphere of latitude rings and meridians turning slowly on a tilted axis, its far side dimmed, with a scan band sweeping up it. Drawn with three.js where WebGL is available and on Canvas2D otherwise, with the same look (`renderer: canvas` forces the Canvas2D version).
+**`holo-sphere` is an LCARS planetary display: a wireframe sphere of latitude rings and meridians turning slowly on a tilted axis, its far side dimmed, with a scan band sweeping up it.** It is drawn with three.js where WebGL is available and on Canvas2D otherwise, with the same look (`renderer: canvas` forces the Canvas2D version).
 
-**Configuration:**
+- `size`, `position_x` and `position_y` place the sphere anywhere on the card, even partly off it.
+- Animatable: `rotate_speed`, `tilt`, `size`, `position_x`, `position_y`, `back_opacity`, `line_width`, `color`, `scan_color`, `speed`, `opacity` and the transform keys. A `rotate_speed` change never jumps the rotation.
 
-```yaml
-preset: holo-sphere
-config:
-  color: "var(--lcards-blue-light)"     # Wireframe
-  scan_color: "var(--lcards-moonlight)" # Scan band
-  rotate_speed: 1                       # Revolutions per minute
-  tilt: 20                              # Degrees, north pole toward you
-  latitude_lines: 7
-  longitude_lines: 12
-  size: 0.8                             # Diameter, fraction of the card's shorter side
-  position_x: 0.5                       # 0 left, 1 right
-  position_y: 0.5                       # 0 top, 1 bottom
-  back_opacity: 0.2                     # Far side brightness
-  line_width: 1                         # px
-  scan_period: 6                        # Seconds per sweep, 0 = no band
+```yaml live controls
+type: custom:lcards-button
+preset: outline
+text:
+  name:
+    content: PLANET SCAN
+    show: true
+grid_options:
+  rows: 4
+background_animation:
+  # A planet off to one side, spinning faster as the value rises
+  - preset: holo-sphere
+    transition: 1500
+    config:
+      size: 1.4
+      position_x: 0.85
+      tilt: 15
+      rotate_speed:
+        map_range:
+          entity: input_number.lcards_test_value
+          input: [0, 100]
+          output: [0.5, 6]
 ```
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `color` | `var(--lcards-blue-light)` | Wireframe colour (follows the alert palette) |
-| `scan_color` | `var(--lcards-moonlight)` | Scan band colour (follows the alert palette) |
-| `rotate_speed` | 1 | Revolutions per minute; negative turns the other way |
-| `tilt` | 20 | Axis tilt in degrees; positive leans the north pole toward you |
-| `latitude_lines` | 7 | Rings between the poles |
-| `longitude_lines` | 12 | Meridians around the sphere |
-| `size` | 0.8 | Diameter as a fraction of the card's shorter side (above 1 overflows the card) |
-| `position_x`, `position_y` | 0.5 | Centre on the card, 0 to 1 |
-| `back_opacity` | 0.2 | Brightness of the far side: 0 hides it |
-| `line_width` | 1 | Wireframe line width in px |
-| `scan_period` | 6 | Seconds per scan sweep, including a short rest; 0 turns the band off |
-| `speed` | 1 | Time multiplier for the rotation and the scan |
-
-Animatable: `rotate_speed`, `tilt`, `size`, `position_x`, `position_y`, `back_opacity`, `line_width`, `color`, `scan_color`, `speed`, `opacity` and the transform keys. A `rotate_speed` change never jumps the rotation. A planet off to one side, spinning faster while a light is on:
-
-```yaml
-- preset: holo-sphere
-  transition: 1500
-  config:
-    size: 1.4
-    position_x: 0.85
-    tilt: 15
-    rotate_speed:
-      map_range:
-        entity: input_number.lcards_test_value
-        input: [0, 100]
-        output: [0.5, 6]
-```
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `color` | colour | `var(--lcards-blue-light)` | Wireframe colour (follows the alert palette) |
+| `scan_color` | colour | `var(--lcards-moonlight)` | Scan band colour (follows the alert palette) |
+| `rotate_speed` | number | `1` | Revolutions per minute; negative turns the other way |
+| `tilt` | number | `20` | Axis tilt, -90 to 90 degrees; positive leans the north pole toward you |
+| `latitude_lines` | integer | `7` | Rings between the poles, 0 to 64 |
+| `longitude_lines` | integer | `12` | Meridians around the sphere, 0 to 128 |
+| `size` | number | `0.8` | Diameter as a fraction of the card's shorter side (above 1 overflows the card) |
+| `position_x` | number | `0.5` | Centre across the card, 0 (left) to 1 (right) |
+| `position_y` | number | `0.5` | Centre down the card, 0 (top) to 1 (bottom) |
+| `back_opacity` | number | `0.2` | Brightness of the far side, 0 to 1; `0` hides it |
+| `line_width` | number | `1` | Wireframe line width in px, at least 0.1 |
+| `scan_period` | number | `6` | Seconds per scan sweep, including a short rest; `0` turns the band off |
+| `speed` | number | `1` | Time multiplier for the rotation and the scan |
+| `opacity` | number | `1` | Effect opacity, 0 to 1 |
 
 ---
 

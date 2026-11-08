@@ -1,133 +1,273 @@
 # Animation Preset Reference
 
-All built-in animation presets, their parameters, and defaults. Pass preset-specific parameters via the `params` block in your animation config.
+**Every built-in animation preset, with the keys it takes and their defaults.** Pick a preset with `preset:` on an entry in a card's `animations` list ([Animations](../animations.md)), and give its own keys under `params`.
+
+- The timing keys `duration`, `ease`, `loop`, `alternate` and `delay` can go at the top of the entry or under `params`; when both are set, the top-level value wins. The defaults in the tables below are each preset's own, used when you set neither.
+- On a preset that runs one anime.js animation, a timing key the preset doesn't set itself still reaches anime.js: a `loop`, `alternate` or `delay` on the entry applies even when the preset's table doesn't list it.
+- Without `target`, a preset animates the whole card. Aim it at one part with `target`: `.button-bg` is a button's shape and `[data-field-id='name']` one of its text fields.
+- Most presets have a playground under their table: change the keys and watch the result.
 
 ---
 
 ## Motion Presets
 
+**Presets that move, scale, turn or fade the whole target.** They suit a button's feedback on tap, an attention loop while something is on, or an entrance on load.
+
 ### `pulse`
 
-Scale and brightness breathing effect.
+**A breathing effect: the target grows a little and brightens, then settles back, over and over.** Use it to draw the eye to a card while something needs attention.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `max_scale` | `1.15` | Peak scale factor (alias: `scale`) |
-| `max_brightness` | `1.4` | Peak brightness (1.0 = normal) |
-| `duration` | `1200` | ms per cycle |
-| `ease` | `inOutSine` | Easing function |
-| `loop` | `true` | Loop continuously |
-| `alternate` | `true` | Reverse on each loop |
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: PULSE
+    show: true
+animations:
+  - trigger: on_load
+    preset: pulse
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `max_scale` | number | `1.15` | Peak scale (alias `scale`) |
+| `max_brightness` | number | `1.4` | Peak brightness; `1` is normal |
+| `duration` | number | `1200` | ms each way (out, then back with `alternate`) |
+| `ease` | string | `inOutSine` | Easing |
+| `loop` | boolean / number | `true` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `true` | Play back the other way on each loop |
 
 <AnimationPlayground preset="pulse" />
 
 ### `glow`
 
-Animated drop-shadow bloom.
+**An animated drop-shadow bloom round the target.** The shadow grows from `blur_min` to `blur_max` and back.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `color` | `var(--lcars-blue)` | Glow colour (alias: `glow_color`) |
-| `blur_min` | `0` | Minimum shadow blur (px) |
-| `blur_max` | `10` | Maximum shadow blur (px) |
-| `duration` | `1500` | ms per cycle |
-| `ease` | `inOutSine` | Easing function |
-| `loop` | `true` | Loop continuously |
-| `alternate` | `true` | Reverse on each loop |
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: GLOW
+    show: true
+animations:
+  - trigger: on_load
+    preset: glow
+    params:
+      color: var(--lcars-orange)
+      blur_max: 14
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `color` | colour | `var(--lcars-blue)` | Glow colour (alias `glow_color`) |
+| `blur_min` | number | `0` | Smallest shadow blur, px |
+| `blur_max` | number | `10` | Largest shadow blur, px |
+| `duration` | number | `1500` | ms each way |
+| `ease` | string | `inOutSine` | Easing |
+| `loop` | boolean / number | `true` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `true` | Play back the other way on each loop |
 
 <AnimationPlayground preset="glow" />
 
 ### `shake`
 
-Horizontal vibrate effect.
+**A quick side-to-side vibration that ends where it started.** Good on tap, or on an entity change that means "no".
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `intensity` | `10` | Max displacement in px |
-| `duration` | `500` | Total duration (ms) |
-| `frequency` | `4` | Number of side-to-side shakes |
-| `ease` | `inOutSine` | Easing function |
-| `loop` | `false` | Loop continuously |
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: TAP TO SHAKE
+    show: true
+animations:
+  - trigger: on_tap
+    preset: shake
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `intensity` | number | `10` | Largest displacement, px |
+| `frequency` | number | `4` | Number of side-to-side shakes |
+| `duration` | number | `500` | Whole shake, ms |
+| `ease` | string | `inOutSine` | Easing |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
 
 <AnimationPlayground preset="shake" />
 
 ### `bounce`
 
-Elastic scale bounce.
+**An elastic scale bounce: the target pops up and settles, a few times.**
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `scale_max` | `1.2` | Peak scale factor |
-| `duration` | `800` | Duration (ms) |
-| `bounces` | `3` | Number of bounces |
-| `ease` | `outElastic` | Easing function |
-| `loop` | `false` | Loop continuously |
-| `alternate` | `false` | Reverse on each loop |
+- With more than one bounce (the default is 3), the preset sets the easing to `outQuad` and multiplies `duration` by `bounces`, so the default bounce takes 2400 ms. Your own `ease` is not used then; set `bounces: 1` for one bounce with your own easing and duration.
 
-> **`ease`/`duration` are only used as documented when `bounces` is `1` or less.** With the default `bounces: 3`, the code force-overrides `ease` to `outQuad` and multiplies `duration` by `bounces` (2400ms by default); your own `ease`/`duration` values are silently discarded in that case. Set `bounces: 1` if you need your own easing/duration to actually take effect.
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: TAP TO BOUNCE
+    show: true
+animations:
+  - trigger: on_tap
+    preset: bounce
+    params:
+      scale_max: 1.1
+      bounces: 2
+      duration: 300
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `scale_max` | number | `1.2` | Peak scale of the first bounce; later bounces are a little lower |
+| `bounces` | number | `3` | Number of bounces |
+| `duration` | number | `800` | ms per bounce |
+| `ease` | string | `outElastic` | Easing, used only when `bounces` is `1` or less |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `false` | Play back the other way on each loop |
 
 <AnimationPlayground preset="bounce" />
 
 ### `rotate`
 
-Rotation animation.
+**Turns the target round its centre.** Set `from` and `to` for any angle, or `direction` for a full turn.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `from` | `0` | Starting angle (degrees) |
-| `to` | `360` | Ending angle (degrees) |
-| `direction` | - | Shorthand: `clockwise` (0→360) or `counterclockwise` (0→−360) |
-| `duration` | `1000` | Duration (ms) |
-| `ease` | `linear` | Easing function |
-| `loop` | `false` | Loop continuously |
-| `alternate` | `false` | Reverse on each loop |
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: TAP TO TURN
+    show: true
+animations:
+  - trigger: on_tap
+    preset: rotate
+    params:
+      direction: counterclockwise
+```
+
+::: details More about rotate
+- **`direction` wins:** when `direction` is set, `from` and `to` are ignored. A value other than `clockwise` or `counterclockwise` logs a warning and turns clockwise.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `from` | number | `0` | Start angle, degrees |
+| `to` | number | `360` | End angle, degrees |
+| `direction` | string | - | `clockwise` (0 to 360) or `counterclockwise` (0 to -360) |
+| `duration` | number | `1000` | ms |
+| `ease` | string | `linear` | Easing |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `false` | Play back the other way on each loop |
 
 <AnimationPlayground preset="rotate" />
 
 ### `blink`
 
-Slow opacity blink.
+**A slow opacity blink between full and dim.**
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `max_opacity` | `1.0` | Peak opacity |
-| `min_opacity` | `0.3` | Trough opacity |
-| `duration` | `1200` | ms per half-cycle |
-| `ease` | `linear` | Easing function |
-| `loop` | `true` | Loop continuously |
-| `alternate` | `true` | Reverse on each loop |
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: BLINK
+    show: true
+animations:
+  - trigger: on_load
+    preset: blink
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `max_opacity` | number | `1` | Brightest opacity |
+| `min_opacity` | number | `0.3` | Dimmest opacity |
+| `duration` | number | `1200` | ms each way |
+| `ease` | string | `linear` | Easing |
+| `loop` | boolean / number | `true` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `true` | Play back the other way on each loop |
 
 <AnimationPlayground preset="blink" />
 
 ### `strobe`
 
-Rapid opacity flicker.
+**A rapid opacity flicker between full and off.** The same as `blink` with a short cycle and a full fade.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `max_opacity` | `1.0` | Peak opacity |
-| `min_opacity` | `0` | Trough opacity |
-| `duration` | `100` | ms per half-cycle |
-| `ease` | `linear` | Easing function |
-| `loop` | `true` | Loop continuously |
-| `alternate` | `true` | Reverse on each loop |
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: STROBE
+    show: true
+animations:
+  - trigger: on_load
+    preset: strobe
+    params:
+      min_opacity: 0.2
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `max_opacity` | number | `1` | Brightest opacity |
+| `min_opacity` | number | `0` | Dimmest opacity |
+| `duration` | number | `100` | ms each way |
+| `ease` | string | `linear` | Easing |
+| `loop` | boolean / number | `true` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `true` | Play back the other way on each loop |
 
 <AnimationPlayground preset="strobe" />
 
 ### `skew`
 
-Skew/slant transformation.
+**Slants the target horizontally, vertically or both.**
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `skewX` | `0` | Target horizontal skew (degrees) |
-| `skewY` | `0` | Target vertical skew (degrees) |
-| `from_skewX` | `0` | Starting horizontal skew |
-| `from_skewY` | `0` | Starting vertical skew |
-| `duration` | `600` | Duration (ms) |
-| `ease` | `inOutQuad` | Easing function |
-| `loop` | `false` | Loop continuously |
-| `alternate` | `false` | Reverse on each loop |
+- Without `from_skewX` or `from_skewY` the skew starts at `0`; set either to start from another slant.
+
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: TAP TO SKEW
+    show: true
+animations:
+  - trigger: on_tap
+    preset: skew
+    loop: 1
+    alternate: true
+    params:
+      skewX: -15
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `skewX` | number | `0` | End horizontal skew, degrees |
+| `skewY` | number | `0` | End vertical skew, degrees |
+| `from_skewX` | number | `0` | Start horizontal skew, degrees |
+| `from_skewY` | number | `0` | Start vertical skew, degrees |
+| `duration` | number | `600` | ms |
+| `ease` | string | `inOutQuad` | Easing |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `false` | Play back the other way on each loop |
 
 <AnimationPlayground preset="skew" />
 
@@ -135,70 +275,137 @@ Skew/slant transformation.
 
 ### `fade`
 
-Simple opacity transition.
+**A plain opacity change from one value to another.** From `0` to `1` it is a fade-in entrance; the default dims the target to `0.3`.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `from` | `1` | Starting opacity |
-| `to` | `0.3` | Target opacity |
-| `duration` | `1000` | Duration (ms) |
-| `ease` | `linear` | Easing function |
-| `loop` | `false` | Loop continuously |
-| `alternate` | `false` | Reverse on each loop |
+- With `alternate`, the target is set back to its `from` opacity when the animation ends.
+
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: FADE IN
+    show: true
+animations:
+  - trigger: on_load
+    preset: fade
+    params:
+      from: 0
+      to: 1
+      duration: 1500
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `from` | number | `1` | Start opacity |
+| `to` | number | `0.3` | End opacity |
+| `duration` | number | `1000` | ms |
+| `ease` | string | `linear` | Easing |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `false` | Play back the other way on each loop |
 
 <AnimationPlayground preset="fade" />
 
 ### `slide`
 
-Slide in from a direction.
+**Slides the target in from one side to its place.** Use it for an entrance on load or on show.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `from` | `right` | Entry side: `left`, `right`, `top`, `bottom` (alias: `direction`); prefer these four |
-| `distance` | `100` | Distance in px (or `%` string) |
-| `duration` | `600` | Duration (ms) |
-| `ease` | `outQuad` | Easing function |
-| `loop` | `false` | Loop continuously |
-| `alternate` | `false` | Reverse on each loop |
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: SLIDE IN
+    show: true
+animations:
+  - trigger: on_load
+    preset: slide
+    params:
+      from: left
+      distance: 60
+```
 
-> A legacy `up`/`down` pair is also accepted, but confusingly maps the *opposite* way you'd expect versus `top`/`bottom` (`up` behaves like `bottom`, `down` behaves like `top`); use `left`/`right`/`top`/`bottom` instead to avoid the mix-up.
+::: details More about slide
+- **`up` and `down`:** an older pair, also accepted, maps the opposite way to what the names suggest: `up` behaves like `bottom` and `down` like `top`. Use `left`, `right`, `top` and `bottom`.
+- **An unknown side** logs a warning and slides in from the right.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `from` | string | `right` | The side it comes from: `left`, `right`, `top` or `bottom` (alias `direction`) |
+| `distance` | number / string | `100` | How far it travels: px, or a string with `%` |
+| `duration` | number | `600` | ms |
+| `ease` | string | `outQuad` | Easing |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `false` | Play back the other way on each loop |
 
 <AnimationPlayground preset="slide" />
 
 ### `scale`
 
-Simple scale transform animation. Ideal for button feedback.
+**Scales the target from one size to another.** Short and quick by default, for button feedback.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `scale` | `1.1` | Target scale factor |
-| `from` | `1` | Starting scale |
-| `duration` | `200` | Duration (ms) |
-| `ease` | `outQuad` | Easing function |
-| `loop` | `false` | Loop continuously |
-| `alternate` | `false` | Reverse on each loop |
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: TAP TO SCALE
+    show: true
+animations:
+  - trigger: on_tap
+    preset: scale
+    loop: 1
+    alternate: true
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `scale` | number | `1.1` | End scale |
+| `from` | number | `1` | Start scale |
+| `duration` | number | `200` | ms |
+| `ease` | string | `outQuad` | Easing |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `false` | Play back the other way on each loop |
 
 <AnimationPlayground preset="scale" />
 
 ### `scale-reset`
 
-Returns an element to its original scale (1.0). Pair with `on_leave` to reset hover effects.
+**Returns the target to its normal size from wherever it is.** Pair it with `on_leave` to undo a `scale` on `on_hover`.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `duration` | `200` | Duration (ms) |
-| `ease` | `outQuad` | Easing function |
+- It never loops or alternates, whatever `loop` and `alternate` say.
 
-```yaml
-# Typical hover + reset pair
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: HOVER ME
+    show: true
 animations:
-  - preset: scale
-    trigger: on_hover
+  # grow on hover
+  - trigger: on_hover
+    preset: scale
     params:
       scale: 1.1
-  - preset: scale-reset
-    trigger: on_leave
+  # back to normal when the pointer leaves
+  - trigger: on_leave
+    preset: scale-reset
 ```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `duration` | number | `200` | ms |
+| `ease` | string | `outQuad` | Easing |
 
 <AnimationPlayground preset="scale-reset" />
 
@@ -206,46 +413,65 @@ animations:
 
 ## Text Animation Presets
 
-Target individual text elements with `target: "[data-field-id='my-field']"` to restrict the animation to a specific text field.
+**Presets that animate a card's text character by character, word by word or line by line.** Without `target` they animate every text field of the card; `target: "[data-field-id='name']"` limits one to a single field.
 
 ### `text-reveal`
 
-Characters, words, or lines appear in sequence with a stagger effect.
+**Characters, words or lines fade and rise into place one after another.**
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `split` | `chars` | Split unit: `chars`, `words`, or `lines` |
-| `direction` | `first` | Stagger origin: `first`, `last`, `center`, `random`, or a numeric index |
-| `stagger` | `50` | Delay between units (ms) |
-| `duration` | `800` | Duration per unit (ms) |
-| `ease` | `outQuad` | Easing function |
-| `from_opacity` | `0` | Starting opacity of each unit |
-| `from_y` | `20` | Starting Y offset (px) |
-| `loop` | `false` | Loop continuously |
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: SENSOR ARRAY ONLINE
+    show: true
+animations:
+  - trigger: on_load
+    preset: text-reveal
+    target: "[data-field-id='name']"
+  - trigger: on_tap
+    preset: text-reveal
+    target: "[data-field-id='name']"
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `split` | string | `chars` | The unit: `chars`, `words` or `lines` |
+| `direction` | string / number | `first` | Where the stagger starts: `first`, `last`, `center`, `random`, or a unit's index |
+| `stagger` | number | `50` | ms between one unit and the next |
+| `duration` | number | `800` | ms per unit |
+| `ease` | string | `outQuad` | Easing |
+| `from_opacity` | number | `0` | Start opacity of each unit |
+| `from_y` | number | `20` | Start offset below its place, px |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
 
 <AnimationPlayground preset="text-reveal" />
 
 ### `text-decode`
 
-An LCARS readout decode: each text line starts as glyph noise and resolves character by character, built on anime.js's [`scrambleText`](https://animejs.com/documentation/text/scrambletext). Good on `on_show`, and on `on_entity_change` for a value that re-decodes when it changes. Stopping it restores the text; under reduced motion it shows the text at once.
+**An LCARS readout decode: each text line starts as glyph noise and resolves character by character.** It is built on anime.js's [`scrambleText`](https://animejs.com/documentation/text/scrambletext). Good on `on_show`, and on `on_entity_change` for a value that decodes again when it changes.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `duration` | `1000` | ms for the whole decode of a line |
-| `chars` | `A-Z0-9` | Scramble glyphs: a named set (`uppercase`, `lowercase`, `numbers`, `symbols`, `blocks`, `shades`, `braille`) or characters and ranges such as `A-F0-9` (put a literal `-` first or last) |
-| `from` | `left` | Where the reveal starts: `left`, `right`, `center`, `random` |
-| `reversed` | `false` | Reveal in the opposite order (`from: center` then reveals the edges first) |
-| `cursor` | `false` | Characters at the reveal edge: `true` for `_`, or a string. Best seen on a slower decode (a longer `duration`) |
-| `perturbation` | - | `0` to `1`: random timing per character, for a less even reveal |
-| `reveal_rate` | - | Characters per second entering the reveal (anime.js default `60`) |
-| `seed` | - | Any number: the same scramble on every load |
-| `delay` | `0` | ms before it starts |
-| `loop` | `false` | Decode again on every loop |
+- Stopping it puts the real text back; under reduced motion the text shows at once.
 
-```yaml
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+entity: sensor.desk_sensor_temperature
+tap_action:
+  action: none
+text:
+  name:
+    content: DESK SENSOR
+    show: true
+  state:
+    show: true
 animations:
   - trigger: on_show
     preset: text-decode
+  # the reading decodes again when it changes
   - trigger: on_entity_change
     entity: sensor.desk_sensor_temperature
     preset: text-decode
@@ -256,45 +482,116 @@ animations:
 
 <CardGallery set="text-decode" />
 
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `duration` | number | `1000` | ms for the whole decode of a line |
+| `chars` | string | `A-Z0-9` | Scramble glyphs: a named set (`uppercase`, `lowercase`, `numbers`, `symbols`, `blocks`, `shades`, `braille`) or characters and ranges such as `A-F0-9` (put a literal `-` first or last) |
+| `from` | string | `left` | Where the reveal starts: `left`, `right`, `center` or `random` |
+| `reversed` | boolean | `false` | Reveal in the opposite order (`from: center` then reveals the edges first) |
+| `cursor` | boolean / string | `false` | Characters at the reveal edge: `true` for `_`, or a string. Best seen on a slower decode |
+| `perturbation` | number | - | `0` to `1`: random timing per character, for a less even reveal |
+| `reveal_rate` | number | - | Characters per second entering the reveal (anime.js default `60`) |
+| `seed` | number | - | The same scramble on every load |
+| `delay` | number | `0` | ms before it starts |
+| `loop` | boolean / number | `false` | Decode again on every loop |
+
 <AnimationPlayground preset="text-decode" />
 
 ### `text-scramble`
 
-The same decode as [`text-decode`](#text-decode) under its original name, with its original timing params: each character scrambles for `duration`, and characters start `stagger` ms apart, so a line takes `duration` + (characters - 1) × `stagger` ms. Every `text-decode` param works here too.
+**The same decode as [`text-decode`](#text-decode) under its original name, with its original timing keys.** Each character scrambles for `duration`, and characters start `stagger` ms apart, so a line takes `duration` + (characters - 1) × `stagger` ms.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `duration` | `800` | ms each character spends scrambling |
-| `stagger` | `40` | Delay between characters starting (ms) |
-| `delay` | `0` | Initial delay before animation starts (ms) |
-| `characters` | `A-Z0-9!@#$%^&*` | Scramble glyphs, as `text-decode`'s `chars` (`chars` works too) |
-| `loop` | `false` | Loop continuously |
-| `settle_at` | - | Deprecated: no longer used (the decode settles each character itself) |
+- Every `text-decode` key works here too (`from`, `cursor`, `perturbation`, `reveal_rate`, `seed`, ...).
+
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: TAP TO SCRAMBLE
+    show: true
+animations:
+  - trigger: on_tap
+    preset: text-scramble
+    params:
+      stagger: 30
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `duration` | number | `800` | ms each character spends scrambling |
+| `stagger` | number | `40` | ms between characters starting |
+| `characters` | string | `A-Z0-9!@#$%^&*` | Scramble glyphs, as `text-decode`'s `chars` (`chars` works too) |
+| `delay` | number | `0` | ms before it starts |
+| `loop` | boolean / number | `false` | Scramble again on every loop |
+| `settle_at` | number | - | Deprecated and no longer used: the decode settles each character itself |
 
 <AnimationPlayground preset="text-scramble" />
 
 ### `text-glitch`
 
-Rapid position and opacity jitter for a glitch/malfunction effect.
+**Characters jitter out of place for a glitch or malfunction effect.**
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `intensity` | `5` | Max displacement in px / SVG units |
-| `duration` | `300` | ms per glitch cycle |
-| `stagger` | `50` | Delay between characters (ms) |
-| `color_shift` | `false` | Also jitters colour: HTML text targets only, silently ignored on SVG text |
-| `loop` | `false` | Loop continuously |
+- The easing is always `inOutQuad`; an `ease` you set is not used.
+- `color_shift` works on HTML text only (a data grid's cells); a card's SVG text ignores it.
+
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: SUBSPACE INTERFERENCE
+    show: true
+animations:
+  - trigger: on_load
+    preset: text-glitch
+    target: "[data-field-id='name']"
+    loop: true
+    params:
+      intensity: 3
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `intensity` | number | `5` | Largest displacement, px or SVG units |
+| `duration` | number | `300` | ms per glitch |
+| `stagger` | number | `50` | ms between characters |
+| `color_shift` | boolean | `false` | Also shift each character's hue (HTML text only) |
+| `seed` | number | - | The same jitter on every load |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
 
 <AnimationPlayground preset="text-glitch" />
 
 ### `text-typewriter`
 
-Characters appear one at a time at a fixed speed.
+**Characters appear one at a time at a steady speed, like a typed message.**
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `speed` | `100` | ms per character |
-| `loop` | `false` | Loop continuously |
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: INCOMING TRANSMISSION
+    show: true
+animations:
+  - trigger: on_load
+    preset: text-typewriter
+    target: "[data-field-id='name']"
+  - trigger: on_tap
+    preset: text-typewriter
+    target: "[data-field-id='name']"
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `speed` | number | `100` | ms per character |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
 
 <AnimationPlayground preset="text-typewriter" />
 
@@ -302,82 +599,167 @@ Characters appear one at a time at a fixed speed.
 
 ## Visual Effect Presets
 
+**Presets for shimmer, flicker, ripple and glitch effects.**
+
 ### `shimmer`
 
-Fill colour and opacity animation for shimmering effects.
+**Fades the target's opacity and, optionally, its colour, back and forth.**
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `color_from` | - | Starting colour. If either `color_from` or `color_to` is omitted, colour animation is skipped entirely; opacity still animates |
-| `color_to` | - | Target colour (alias: `shimmer_color`); see `color_from` |
-| `opacity_from` | `1` | Starting opacity |
-| `opacity_to` | `0.5` | Ending opacity |
-| `duration` | `1500` | Duration (ms) |
-| `ease` | `inOutSine` | Easing function |
-| `loop` | `true` | Loop continuously |
-| `alternate` | `true` | Reverse on each loop |
+- The colour animates only when both `color_from` and `color_to` are set; otherwise only the opacity moves.
+- It animates the CSS `color`, which shows on HTML text (a data grid's cells), not on a card's SVG shapes.
+
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: SHIMMER
+    show: true
+animations:
+  - trigger: on_load
+    preset: shimmer
+    params:
+      opacity_to: 0.6
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `color_from` | colour | - | Start colour |
+| `color_to` | colour | - | End colour (alias `shimmer_color`) |
+| `opacity_from` | number | `1` | Start opacity |
+| `opacity_to` | number | `0.5` | End opacity |
+| `duration` | number | `1500` | ms each way |
+| `ease` | string | `inOutSine` | Easing |
+| `loop` | boolean / number | `true` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `true` | Play back the other way on each loop |
 
 <AnimationPlayground preset="shimmer" />
 
 ### `flicker`
 
-Randomised opacity animation for flickering effects.
+**A random opacity flicker, like a failing panel light.**
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `max_opacity` | `1` | Maximum opacity |
-| `min_opacity` | `0.3` | Minimum opacity |
-| `duration` | `1000` | Duration (ms) |
-| `ease` | `linear` | Easing function |
-| `loop` | `true` | Loop continuously: each loop draws a new random pattern |
-| `seed` | - | Any number: the same random pattern on every load (unset: a new one each time). Targets with the same seed share it |
+- Each loop draws a new random pattern, unless `seed` fixes it. Targets with the same seed flicker the same way.
+
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: FLICKER
+    show: true
+animations:
+  - trigger: on_load
+    preset: flicker
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `max_opacity` | number | `1` | Brightest opacity, and where it ends |
+| `min_opacity` | number | `0.3` | Dimmest opacity |
+| `duration` | number | `1000` | ms per flicker pattern |
+| `ease` | string | `linear` | Easing |
+| `loop` | boolean / number | `true` | Loop forever, or a number of extra plays |
+| `seed` | number | - | The same random pattern on every load |
 
 <AnimationPlayground preset="flicker" />
 
 ### `cascade`
 
-Staggered animation across multiple target elements.
+**One property animated across several targets, each starting a little after the last.** Aim it at a group with `target`, such as a data grid's cells.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `stagger` | `100` | Delay between elements (ms) |
-| `property` | `opacity` | CSS property to animate |
-| `from` | `0` | Starting value |
-| `to` | `1` | Ending value |
-| `duration` | `1000` | Duration (ms) |
-| `ease` | `outExpo` | Easing function |
-| `loop` | `false` | Loop continuously |
+```yaml live
+type: custom:lcards-data-grid
+data_mode: decorative
+grid:
+  grid-template-columns: repeat(8, 1fr)
+  grid-template-rows: repeat(4, auto)
+animations:
+  - trigger: on_load
+    preset: cascade
+    target: .grid-cell
+    params:
+      stagger: 40
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `stagger` | number | `100` | ms between one target and the next |
+| `property` | string | `opacity` | The property to animate |
+| `from` | number | `0` | Start value |
+| `to` | number | `1` | End value |
+| `duration` | number | `1000` | ms per target |
+| `ease` | string | `outExpo` | Easing |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
 
 <AnimationPlayground preset="cascade" />
 
 ### `ripple`
 
-Expanding scale with opacity fade.
+**The target grows and fades out, like a ripple spreading.**
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `scale_max` | `1.5` | Maximum scale |
-| `opacity_min` | `0` | Minimum opacity at peak |
-| `duration` | `1000` | Duration (ms) |
-| `ease` | `outExpo` | Easing function |
-| `loop` | `false` | Loop continuously |
-| `alternate` | `false` | Reverse on each loop |
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: TAP TO RIPPLE
+    show: true
+animations:
+  - trigger: on_tap
+    preset: ripple
+    loop: 1
+    alternate: true
+    params:
+      scale_max: 1.2
+      opacity_min: 0.3
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `scale_max` | number | `1.5` | End scale |
+| `opacity_min` | number | `0` | End opacity |
+| `duration` | number | `1000` | ms |
+| `ease` | string | `outExpo` | Easing |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `false` | Play back the other way on each loop |
 
 <AnimationPlayground preset="ripple" />
 
 ### `glitch`
 
-Random position and colour shifts for a malfunction effect.
+**Random jumps in position and hue for a malfunction effect.**
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `intensity` | `5` | Max pixel displacement |
-| `frequency` | `10` | Number of glitch steps |
-| `duration` | `1000` | Duration (ms) |
-| `loop` | `false` | Loop continuously: each loop draws a new random pattern |
-| `seed` | - | Any number: the same random pattern on every load (unset: a new one each time). Targets with the same seed share it |
+- The easing is always `linear`; an `ease` you set is not used.
+- Each loop draws a new random pattern, unless `seed` fixes it. Targets with the same seed glitch the same way.
 
-> `ease` is hardcoded to `linear` and `alternate` has no effect; both are ignored if set.
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: TAP TO GLITCH
+    show: true
+animations:
+  - trigger: on_tap
+    preset: glitch
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `intensity` | number | `5` | Largest displacement, px |
+| `frequency` | number | `10` | Number of glitch steps |
+| `duration` | number | `1000` | ms |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
+| `seed` | number | - | The same random pattern on every load |
 
 <AnimationPlayground preset="glitch" />
 
@@ -385,60 +767,89 @@ Random position and colour shifts for a malfunction effect.
 
 ## Color Animation Presets
 
+**Presets that animate a colour.** On a card's SVG shapes animate `fill` or `stroke`; the CSS `color` shows only on HTML text such as a data grid's cells.
+
 ### `color-shift`
 
-Animates a colour property from one value to another.
+**Animates one colour property from one colour to another.**
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `color_from` | - | Starting colour (required) |
-| `color_to` | - | Target colour (required) |
-| `property` | `color` | `fill`/`stroke` for SVG shapes (LCARdS's own button/elbow/slider/MSD cards, which draw their shapes as SVG paths; the CSS `color` property has no effect on them). `color`/`background-color` only work on plain HTML/CSS-rendered targets. |
-| `duration` | `1000` | Duration (ms) |
-| `ease` | `inOutQuad` | Easing function |
-| `loop` | `false` | Loop continuously |
-| `alternate` | `false` | Reverse on each loop |
+- On a card, aim it at the shape with `target`: without one it runs on the card's outer element, where `fill` changes nothing. A button's shape is `.button-bg` (a `rect`, or a `path` when the corners differ).
 
-On a card, aim it at the shape with `target`: without one the animation runs on the card's outer element, where `fill` changes nothing. A button's shape is `path.button-bg`:
-
-```yaml
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: TAP TO SHIFT
+    show: true
 animations:
   - trigger: on_tap
     preset: color-shift
-    target: path.button-bg
+    target: .button-bg
     loop: 1
     alternate: true
     params:
       property: fill
-      color_from: var(--lcards-orange)
-      color_to: var(--lcards-blue)
+      color_from: var(--lcars-orange)
+      color_to: var(--lcars-blue)
       duration: 600
 ```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `color_from` | colour | required | Start colour; without it (or `color_to`) nothing animates |
+| `color_to` | colour | required | End colour |
+| `property` | string | `color` | `fill` or `stroke` for a card's SVG shapes; `color` or `background-color` for HTML targets |
+| `duration` | number | `1000` | ms |
+| `ease` | string | `inOutQuad` | Easing |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `false` | Play back the other way on each loop |
 
 <AnimationPlayground preset="color-shift" />
 
 ### `cascade-color`
 
-LCARS-style colour cascade through three keyframe colours. Uses theme tokens for default colours.
+**The LCARS colour cascade: the target holds one colour, snaps to a second and flashes a third, then repeats.** It is made for a data grid's cells, where the card runs it row by row ([data grid cascade](../../cards/data-grid/styling.md#the-cascade)), with `params.pattern` for the row timing.
 
-> The default `property` ("color") is correct for this preset's primary intended use (data-grid cells, which are plain HTML/CSS-rendered) but won't visibly work if targeted at an SVG shape (LCARdS's own button/elbow/slider/MSD cards). Set `property` to `fill` or `stroke` for those.
+- The default `property` is `color`, which suits a data grid's HTML cells; on a card's SVG shapes set `fill` or `stroke`.
+- One `cascade-color` on a whole set of targets changes them all together. The row-by-row waterfall comes from one animation per row, each with its own `delay` and `duration`, which the data grid sets up for you.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `colors` | theme cascade colours | Array of 3 colours: `[start, mid, end]`; only the first 3 entries are used |
-| `property` | `color` | CSS property to animate: see note above |
-| `mode` | auto-computed | `css` or `animejs`: despite the naming, both actually run through anime.js; `animejs` mode just adds per-cell stagger/hover-pause on top of the base cascade. Auto-computed from `interactive`/`stagger_from`/`axis` when unset, and force-upgraded to `animejs` whenever any of those are set, even if `mode` was also given explicitly (those fields have no effect at all in `css` mode). Not currently exposed in the GUI editor for this preset. Colors/timing only; set it via YAML if you need it. |
-| `duration` | `5000` | ms per full cycle |
-| `ease` | `linear` | Easing function |
-| `loop` | `true` | Loop continuously |
-| `alternate` | `true` | Reverse on each loop |
-| `delay` | `0` | Start delay before the whole cascade begins (ms); unlike the stagger-* presets, this is the canonical single start-offset, not a per-element step |
-| `stagger_delay` | `100` | Delay between elements: only applies in `animejs` mode |
-| `stagger_from` | - | Stagger origin: `first`, `last`, `center`, or `random` |
-| `axis` | `row` | With `stagger_from`: `row` follows the order of the targets; `column` staggers by layout position, row by row downward |
-| `interactive` | `false` | Pause on hover, resume on leave; only wired up in `animejs` mode. With `stagger_from`, hovering any target pauses the whole cascade |
+```yaml live
+type: custom:lcards-data-grid
+data_mode: decorative
+grid:
+  grid-template-columns: repeat(8, 1fr)
+  grid-template-rows: repeat(4, auto)
+animations:
+  - trigger: on_load
+    preset: cascade-color
+```
 
-> A single `cascade-color` instance targeting a whole grid changes every matched cell **in sync**: that's correct, expected behavior for one instance (`mode: css`'s `delay` is one flat value, not a per-element stagger). The row-by-row "waterfall" look (including the `niagara` timing pattern) comes from declaring **multiple separate instances**, one per row, each with its own `delay`/`duration`; see the `@example User Config (data-grid)` above, or the [data grid's cascade](../../cards/data-grid/styling.md#the-cascade) (`params.pattern` on its `cascade-color` animation), which automates exactly that. The demo below forces `stagger_from` to show real per-cell staggering (`animejs` mode) so the effect is visible from a single instance; that's a demo-only override, not this preset's real default.
+::: details More about cascade-color
+- **The cycle:** the first colour holds for 75% of `duration`, the second for about 15%, and the third shows for the last 10%.
+- **`mode`:** both modes run on anime.js; `animejs` adds the per-target stagger (`stagger_from`, `stagger_delay`, `axis`) and the hover pause (`interactive`). Setting `interactive`, `stagger_from` or an `axis` other than `row` switches to `animejs` even when `mode` says `css`. The animation editor doesn't show `mode`; set it in YAML.
+- **`delay`:** one start offset for the whole cascade, not a step between targets (that is `stagger_delay`).
+- **`axis` without `stagger_from`** has no effect.
+- **The data grid's keys:** `pattern`, `speed_multiplier` and `timing` are read by the data grid card, not by this preset; see the [data grid cascade](../../cards/data-grid/styling.md#the-cascade).
+- **The playground** below sets `stagger_from` so a single animation shows a stagger; that isn't the preset's default.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `colors` | list | the theme's cascade colours | Three colours: `[start, mid, end]`; extra entries are ignored |
+| `property` | string | `color` | The property to animate |
+| `mode` | string | `css` | `css` or `animejs`; see the details above |
+| `duration` | number | `5000` | ms per full cycle |
+| `ease` | string | `linear` | Easing |
+| `loop` | boolean / number | `true` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `true` | Play back the other way on each loop |
+| `delay` | number | `0` | ms before the whole cascade starts |
+| `stagger_delay` | number | `100` | ms between targets, `animejs` mode only |
+| `stagger_from` | string | - | Where the stagger starts: `first`, `last`, `center` or `random` |
+| `axis` | string | `row` | With `stagger_from`: `row` follows the order of the targets; `column` staggers by layout position, row by row downward |
+| `interactive` | boolean | `false` | Pause on hover and resume on leave; with `stagger_from`, hovering any target pauses the whole cascade |
 
 <AnimationPlayground preset="cascade-color" />
 
@@ -446,48 +857,85 @@ LCARS-style colour cascade through three keyframe colours. Uses theme tokens for
 
 ## SVG-Specific Presets
 
+**Presets that need an SVG shape or line: drawing it in, marching its dashes, morphing it or moving along it.** An [MSD card](../../cards/msd/animations.md)'s lines and shapes are the natural place, so the examples here use one.
+
 ### `draw`
 
-SVG path drawing animation using `strokeDashoffset`. Apply to `<path>` elements.
+**Draws a line or outline in from one end, as if a pen traced it.** Put it on an MSD line or shape, or aim it at an SVG `path`.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `reverse` | `false` | Draw in reverse direction |
-| `duration` | `2000` | Duration (ms) |
-| `ease` | `inOutSine` | Easing function |
-| `loop` | `false` | Loop continuously |
-| `alternate` | `false` | Reverse on each loop |
+- It animates the stroke only; a filled shape keeps its fill.
+
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 400, 160]
+  overlays:
+    - id: conduit
+      type: line
+      anchor: [40, 40]
+      attach_to: [360, 120]
+      style:
+        color: var(--lcars-orange)
+        width: 6
+      animations:
+        - trigger: on_load
+          preset: draw
+          loop: true
+          alternate: true
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `reverse` | boolean | `false` | Draw from the other end |
+| `draw` | list | `['0 0', '0 1']` | anime.js draw values `[start, end]`, each the visible start and end as fractions of the length; wins over `reverse` |
+| `duration` | number | `2000` | ms |
+| `ease` | string | `inOutSine` | Easing |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `false` | Play back the other way on each loop |
 
 <AnimationPlayground preset="draw" />
 
 ### `march`
 
-CSS-based marching dashed line animation. More performant than JS for continuous use.
+**Dashes march along a line, like power flowing through a conduit.** It runs as a CSS animation rather than anime.js, so it costs little to leave running.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `dash_length` | `10` | Length of each dash (auto-detected from the element's existing `stroke-dasharray` if present) |
-| `gap_length` | `5` | Gap between dashes (auto-detected from the element's existing `stroke-dasharray` if present) |
-| `speed` | `2` | Seconds per cycle. If `speed` is unset but `duration` (ms) is set, `duration` is converted to seconds instead; `speed` wins if both are given |
-| `direction` | `forward` | `forward` or `reverse` |
-| `loop` | `true` | `true` = infinite marching (the default), `false`/`0` = play once, a number = that many iterations |
+- A line with its own `dash_array` keeps its dashes, and the march follows the whole pattern.
+
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 400, 160]
+  overlays:
+    - id: power_feed
+      type: line
+      anchor: [40, 40]
+      attach_to: [360, 120]
+      style:
+        color: var(--lcars-blue)
+        width: 6
+        dash_array: [14, 8]
+      animations:
+        - trigger: on_load
+          preset: march
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `dash_length` | number | `10` | Dash length; read from the line's own dashes when it has them |
+| `gap_length` | number | `5` | Gap length; read from the line's own dashes when it has them |
+| `speed` | number | `2` | Seconds per cycle. Without it, `duration` (ms) sets the cycle; `speed` wins when both are set |
+| `direction` | string | `forward` | `forward` or `reverse` |
+| `loop` | boolean / number | `true` | `true` marches forever, `false` plays once, a number plays that many times |
 
 <AnimationPlayground preset="march" />
 
 ### `morph`
 
-One SVG shape becomes another, with anime.js's [`morphTo`](https://animejs.com/documentation/svg/morphto). The animated shape is the target, or the first path inside it (so an MSD shape or line overlay works); `to` names the shape it becomes, anywhere in the same card. Stopping puts the original shape back, and `loop` with `alternate` flips between the two, e.g. a status indicator that turns into a warning sign while an alert is on.
+**One SVG shape becomes another, with anime.js's [`morphTo`](https://animejs.com/documentation/svg/morphto).** For example, a status indicator that turns into a warning sign while an alert is on.
 
-Both shapes must be a `<path>`, `<polygon>` or `<polyline>`: on an MSD that is a `kind: polyline` shape or a line; `rect` and `circle` shapes draw native rectangles and ellipses, which don't morph.
-
-| Param | Default | Description |
-|-------|---------|-------------|
-| `to` | (required) | CSS selector of the shape to become, e.g. `[data-overlay-id="warn_shape"]`. It can be hidden |
-| `precision` | `0.33` | Points sampled per SVG unit of path length; higher is smoother. `0` interpolates the raw geometry, which only works when both shapes use the same path commands |
-| `duration` | `800` | Duration (ms) |
-| `ease` | `inOutQuad` | Easing function |
-| `loop` | `false` | Loop continuously |
-| `alternate` | `false` | Morph back on each loop |
+- The animated shape is the target, or the first path inside it, so an MSD shape or line overlay works. `to` names the shape it becomes, anywhere in the same card; that shape can be hidden.
+- Both shapes must be a `<path>`, `<polygon>` or `<polyline>`: on an MSD that is a `kind: polyline` shape or a line. `rect` and `circle` shapes draw native rectangles and ellipses, which don't morph.
+- Stopping puts the original shape back, and `loop` with `alternate` flips between the two.
 
 ```yaml live
 type: custom:lcards-msd-card
@@ -500,7 +948,11 @@ msd:
       type: shape
       kind: polyline
       closed: true
-      points: [[150, 40], [250, 40], [250, 140], [150, 140]]
+      points:
+        - [150, 40]
+        - [250, 40]
+        - [250, 140]
+        - [150, 140]
       corner_style: miter
       style:
         color: var(--lcars-orange)
@@ -517,145 +969,182 @@ msd:
       type: shape
       kind: polyline
       closed: true
-      points: [[200, 40], [250, 140], [150, 140]]
+      points:
+        - [200, 40]
+        - [250, 140]
+        - [150, 140]
       corner_style: miter
       style:
         color: transparent
         fill: transparent
 ```
 
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `to` | string | required | CSS selector of the shape to become, e.g. `[data-overlay-id="warn_shape"]` (older name `morph_to_selector`) |
+| `precision` | number | `0.33` | Points sampled per SVG unit of length; higher is smoother. `0` interpolates the raw geometry, which works only when both shapes use the same path commands |
+| `duration` | number | `800` | ms |
+| `ease` | string | `inOutQuad` | Easing |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `false` | Morph back on each loop |
+
 ---
 
 ## Stagger Presets
 
-Animate multiple target elements at once with anime.js's `stagger()` helper: each target starts a fixed step later than the previous one. Requires multiple elements matched by `target`/`targets` (a single-element animation just plays with no visible stagger).
+**Presets that animate a group of targets, each one starting a step later than the one before.** They use anime.js's `stagger()`, so they need several elements matched by `target` or `targets`; on a single element there is no visible stagger.
 
-> Naming note: `stagger-grid` here is unrelated to the similarly-named `grid-stagger`, which was [removed in 2026.07.x](#grid-stagger-removed-in-2026-07-x); if you're migrating an old `grid-stagger` config, see that section for the field mapping.
+- In these presets `delay` is the step between targets, not one start offset for the animation.
+- `stagger-grid` is not the removed `grid-stagger`; to move an old `grid-stagger` config across, see [`grid-stagger` (removed)](#grid-stagger-removed-in-2026-07-x).
 
 ### `stagger-grid`
 
-Stagger across a `[cols, rows]` grid of targets, with a configurable wave origin.
+**A wave across a grid of targets, from a corner, the centre, the edges or a cell you pick.** Give the grid's size in `grid` as `[cols, rows]`.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `grid` | `[1, 1]` | Grid dimensions `[cols, rows]`, validated; warns and no-ops on the wrong shape |
-| `from` | `first` | Wave origin: `first` (top-left), `last`, `center` (outward), `edges` (inward), `random`, `pointer` (where the card was tapped, see [`tap-ripple`](#tap-ripple)), or a `[col, row]` cell (0-indexed). `start` and `end` are aliases of `first` and `last` |
-| `axis` | - | Stagger along one axis only: `x` (or `row`) delays by column, `y` (or `column`) by row |
-| `delay` | `100` | Per-element stagger step (ms): not the canonical single start-offset |
-| `reversed` | `false` | Run the stagger in the opposite order |
-| `jitter` | - | Random offset (ms) added to each target's delay, plus or minus; `[start, end]` ramps it along the stagger order |
-| `seed` | - | Any number: the same jitter and `random` order on every load |
-| `property` | `scale` | CSS property to animate |
-| `from_value` | `0.8` | Starting value |
-| `to_value` | `1` | Ending value |
-| `duration` | `600` | Duration per element (ms) |
-| `ease` | `outQuad` | Easing function |
-| `loop` | `false` | Loop continuously |
-| `alternate` | `false` | Reverse on each loop |
-
-```yaml
-- preset: stagger-grid
-  trigger: on_load
-  targets: "[id^='cell-']"
-  params:
-    grid: [6, 2]
-    from: center
-    delay: 50
+```yaml live
+type: custom:lcards-data-grid
+data_mode: decorative
+grid:
+  grid-template-columns: repeat(8, 1fr)
+  grid-template-rows: repeat(4, auto)
+animations:
+  - trigger: on_tap
+    preset: stagger-grid
+    target: .grid-cell
+    params:
+      grid: [8, 4]
+      from: center
+      delay: 50
 ```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `grid` | list | `[1, 1]` | Grid size `[cols, rows]`; a value of another shape logs a warning and nothing animates |
+| `from` | string / list | `first` | Wave origin: `first` (top-left), `last`, `center` (outward), `edges` (inward), `random`, `pointer` (where the card was tapped, see [`tap-ripple`](#tap-ripple)), or a `[col, row]` cell counted from `0`. `start` and `end` are aliases of `first` and `last` |
+| `axis` | string | - | Stagger along one axis only: `x` (or `row`) delays by column, `y` (or `column`) by row |
+| `delay` | number | `100` | ms between one target and the next |
+| `reversed` | boolean | `false` | Run the stagger in the opposite order |
+| `jitter` | number / list | - | Random ms added to or taken from each target's delay; `[start, end]` ramps it along the stagger order |
+| `seed` | number | - | The same jitter and `random` order on every load |
+| `property` | string | `scale` | The property to animate |
+| `from_value` | number | `0.8` | Start value |
+| `to_value` | number | `1` | End value |
+| `duration` | number | `600` | ms per target |
+| `ease` | string | `outQuad` | Easing |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `false` | Play back the other way on each loop |
 
 <AnimationPlayground preset="stagger-grid" />
 
 ### `stagger-wave`
 
-A wave ripples through a linear sequence of targets.
+**A wave rolls through a row of targets: each one lifts and drops back in turn.**
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `delay` | `100` | Per-element stagger step (ms): not the canonical single start-offset |
-| `direction` | `normal` | `reverse` runs the wave from the last target (the same as `reversed: true`) |
-| `reversed` | `false` | Run the wave from the last target |
-| `jitter` | - | Random offset (ms) added to each target's delay, plus or minus; `[start, end]` ramps it along the stagger order |
-| `seed` | - | Any number: the same jitter and `random` order on every load |
-| `property` | `translateY` | CSS property to animate |
-| `amplitude` | `-20` | Peak displacement, used in a 3-point `[0, amplitude, 0]` path |
-| `duration` | `800` | Duration per element (ms) |
-| `ease` | `outElastic` | Easing function |
-| `loop` | `false` | Loop continuously |
-| `alternate` | `false` | Reverse on each loop |
-
-```yaml
-- preset: stagger-wave
-  trigger: on_load
-  targets: ".list-item"
-  params:
-    delay: 80
-    amplitude: -30
+```yaml live
+type: custom:lcards-data-grid
+data_mode: decorative
+grid:
+  grid-template-columns: repeat(10, 1fr)
+  grid-template-rows: repeat(2, auto)
+animations:
+  - trigger: on_tap
+    preset: stagger-wave
+    target: .grid-cell
+    params:
+      delay: 60
+      amplitude: -12
 ```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `delay` | number | `100` | ms between one target and the next |
+| `reversed` | boolean | `false` | Run the wave from the last target |
+| `direction` | string | `normal` | `reverse` is the same as `reversed: true` |
+| `jitter` | number / list | - | Random ms added to or taken from each target's delay; `[start, end]` ramps it along the stagger order |
+| `seed` | number | - | The same jitter on every load |
+| `property` | string | `translateY` | The property to animate |
+| `amplitude` | number | `-20` | Peak displacement: each target goes `0`, then `amplitude`, then back to `0` |
+| `duration` | number | `800` | ms per target |
+| `ease` | string | `outElastic` | Easing |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `false` | Play back the other way on each loop |
 
 <AnimationPlayground preset="stagger-wave" />
 
 ### `stagger-radial`
 
-Stagger radiating outward from a point.
+**A stagger that spreads outward from a point, measured on where the targets really are.** Use it for a ripple across a group, from the centre, a corner or the tap.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `from` | `center` | Where the ripple starts, measured on the targets' real positions: `center`, `first`, `last`, `random`, `pointer` (where the card was tapped, see [`tap-ripple`](#tap-ripple)), or an `[x, y]` point as fractions of the group (`0` to `1`, `[0, 0]` is top-left) |
-| `reversed` | `false` | Run the stagger in the opposite order |
-| `jitter` | - | Random offset (ms) added to each target's delay, plus or minus; `[start, end]` ramps it along the stagger order |
-| `seed` | - | Any number: the same jitter and `random` order on every load |
-| `delay` | `50` | Per-element stagger step (ms): not the canonical single start-offset |
-| `property` | `scale` | CSS property to animate |
-| `from_value` | `0` | Starting value |
-| `to_value` | `1` | Ending value |
-| `duration` | `800` | Duration per element (ms) |
-| `ease` | `outExpo` | Easing function |
-| `loop` | `false` | Loop continuously |
-
-> `alternate` isn't read by this preset; setting it has no effect.
-
-```yaml
-- preset: stagger-radial
-  trigger: on_load
-  targets: ".dot"
-  params:
-    from: center
-    delay: 40
-    property: opacity
+```yaml live
+type: custom:lcards-data-grid
+data_mode: decorative
+grid:
+  grid-template-columns: repeat(8, 1fr)
+  grid-template-rows: repeat(4, auto)
+animations:
+  # from the top-left corner, with a little random spread that is the same on every load
+  - trigger: on_tap
+    preset: stagger-radial
+    target: .grid-cell
+    params:
+      from: [0, 0]
+      delay: 40
+      jitter: 25
+      seed: 7
+      property: opacity
 ```
 
-Start from a corner, with a little random spread that is the same on every load:
-
-```yaml
-- preset: stagger-radial
-  trigger: on_tap
-  targets: ".dot"
-  params:
-    from: [0, 0]
-    delay: 40
-    jitter: 25
-    seed: 7
-```
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `from` | string / list | `center` | Where the ripple starts: `center`, `first`, `last`, `random`, `pointer` (where the card was tapped, see [`tap-ripple`](#tap-ripple)), or an `[x, y]` point as fractions of the group (`0` to `1`, `[0, 0]` is top-left) |
+| `reversed` | boolean | `false` | Run the stagger in the opposite order |
+| `jitter` | number / list | - | Random ms added to or taken from each target's delay; `[start, end]` ramps it along the stagger order |
+| `seed` | number | - | The same jitter and `random` order on every load |
+| `delay` | number | `50` | ms between one ring of targets and the next |
+| `property` | string | `scale` | The property to animate |
+| `from_value` | number | `0` | Start value |
+| `to_value` | number | `1` | End value |
+| `duration` | number | `800` | ms per target |
+| `ease` | string | `outExpo` | Easing |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
 
 <AnimationPlayground preset="stagger-radial" />
 
 ### `stagger-flash`
 
-A lead/trail colour sweep across targets, driven by the Web Animations API directly rather than anime.js, used for a fast, cheap "scanning highlight" effect.
+**A bright colour sweeps across the targets and leaves a dim one behind, like an LCARS alert bar.** It runs on the browser's own animations rather than anime.js, and each target loops on its own.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `lead_color` | `var(--primary-color)` | Colour of the sweep's leading edge |
-| `trail_color` | `#444444` | Colour left behind after the sweep passes |
-| `lead_pct` | `20` | Width of the lead band, as a percent of the total sweep (clamped to 1–50) |
-| `duration` | `2000` | Total sweep duration (ms) |
-| `delay` | `duration / 12` | Per-element stagger step (ms): not the canonical single start-offset |
-| `grid` | - | `[cols, rows]`: only forwarded into an otherwise-inert internal config, not meaningfully used |
-| `from` | `first` | `first`, `last`, or `center` |
-| `property` | `stroke` | Must be a WAAPI-animatable CSS property |
-| `with_opacity` | `true` | Also fade opacity as part of the sweep |
-| `trail_opacity` | `0.25` | Opacity left behind after the sweep passes (only if `with_opacity`) |
-| `loop` | `true` | Maps to the WAAPI `iterations` option (`Infinity` vs `1`), not the generic anime.js loop mechanism |
+- The default `property` is `stroke`, for SVG lines and outlines; for HTML text such as a data grid's cells, set `color`.
+
+```yaml live
+type: custom:lcards-data-grid
+data_mode: decorative
+grid:
+  grid-template-columns: repeat(10, 1fr)
+  grid-template-rows: repeat(1, auto)
+animations:
+  - trigger: on_load
+    preset: stagger-flash
+    target: .grid-cell
+    params:
+      property: color
+      lead_color: var(--lcars-orange)
+      trail_color: var(--lcars-blue)
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `lead_color` | colour | `var(--primary-color)` | Colour at the front of the sweep |
+| `trail_color` | colour | `#444444` | Colour left behind |
+| `lead_pct` | number | `20` | Share of each cycle spent going from the lead colour to the trail colour, percent (`1` to `50`) |
+| `duration` | number | `2000` | ms per cycle |
+| `delay` | number | `duration / 12` | ms between one target and the next |
+| `from` | string | `first` | `first`, `last` or `center` |
+| `property` | string | `stroke` | The property to animate |
+| `with_opacity` | boolean | `true` | Also dim the opacity as the sweep passes |
+| `trail_opacity` | number | `0.25` | Opacity left behind, with `with_opacity` |
+| `loop` | boolean | `true` | `true` (or any number) sweeps forever; `false` sweeps once |
+| `grid` | list | - | `[cols, rows]`; accepted but has no effect on the sweep order |
 
 <AnimationPlayground preset="stagger-flash" />
 
@@ -663,23 +1152,13 @@ A lead/trail colour sweep across targets, driven by the Web Animations API direc
 
 ### `tap-ripple`
 
-A pulse that spreads across a group of targets from where the card was tapped: each target scales up, dims (and optionally flashes a colour) and settles back, later the further it is from the tap. Target positions are read from the layout, so it works on data-grid cells without giving a grid size. Use it on `on_tap` (also `on_hold`, `on_double_tap`); any other trigger starts it from the centre. On a data grid a tap anywhere on the grid fires the card's `on_tap` animations, alongside any cell actions.
+**A pulse spreads across a group of targets from where the card was tapped.** Each target scales up, dims (and optionally flashes a colour) and settles back, later the further it is from the tap.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `spread` | `400` | ms for the wave to travel from the tap point to the farthest target, whatever the layout |
-| `scale` | `1.08` | Peak scale of each target |
-| `opacity_min` | `0.4` | Lowest opacity of each target during its pulse |
-| `color` | - | Flash colour at the peak of each pulse (theme token, CSS variable or colour) |
-| `property` | `color` | What `color` sets: `color` for HTML text such as data-grid cells, `fill` or `stroke` for SVG shapes |
-| `from` | `pointer` | Where the wave starts: `pointer`, `center`, `first`, `last`, `random` |
-| `reversed` | `false` | Run the wave inward, ending at the tap point |
-| `jitter` | - | Random extra delay per target (ms, or a `[start, end]` ramp) for a less even wave |
-| `seed` | - | Any number: the same jitter on every load |
-| `duration` | `500` | One target's pulse, ms |
-| `ease` | `outQuad` | Easing function |
+- Positions are read from the layout, so it works on data grid cells without a grid size.
+- Use it on `on_tap` (also `on_hold` or `on_double_tap`); any other trigger starts it from the centre. On a data grid, a tap anywhere on the grid fires the card's `on_tap` animations, alongside any cell actions.
+- `from: pointer` works on `stagger-grid` and `stagger-radial` too, for any stagger that should start at the tap.
 
-```yaml
+```yaml live
 type: custom:lcards-data-grid
 data_mode: decorative
 grid:
@@ -696,49 +1175,96 @@ animations:
 
 <CardGallery set="tap-ripple" />
 
-`from: pointer` works on the other stagger presets too (`stagger-grid`, `stagger-radial`), for any stagger that should start at the tap.
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `spread` | number | `400` | ms for the wave to reach the farthest target, whatever the layout |
+| `scale` | number | `1.08` | Peak scale of each target |
+| `opacity_min` | number | `0.4` | Lowest opacity of each target during its pulse |
+| `color` | colour | - | Flash colour at the peak of each pulse (theme token, CSS variable or colour) |
+| `property` | string | `color` | What `color` sets: `color` for HTML text such as data grid cells, `fill` or `stroke` for SVG shapes |
+| `from` | string | `pointer` | Where the wave starts: `pointer`, `center`, `first`, `last` or `random` |
+| `reversed` | boolean | `false` | Run the wave inward, ending at the tap point |
+| `jitter` | number / list | - | Random extra delay per target (ms, or a `[start, end]` ramp) for a less even wave |
+| `seed` | number | - | The same jitter on every load |
+| `grid` | list | - | `[cols, rows]` to measure by grid cell instead of by layout position |
+| `duration` | number | `500` | ms of one target's pulse |
+| `ease` | string | `outQuad` | Easing |
 
 ---
 
 ## Timeline Presets
 
-Multi-phase animations built with anime.js's `createTimeline()`. The canonical top-level `duration`/`ease` are inert; timing/easing for each phase lives in that phase's own config instead. `loop`, `alternate`, and `delay`, however, still apply at the whole-timeline level (repeat, reverse, and start-delay for the entire sequence), since a Timeline inherits that behavior from the same underlying mechanism a single animation uses.
+**Animations of several steps on one anime.js timeline.** Each step sets its own timing and easing, so the top-level `duration` and `ease` do nothing here. `loop`, `alternate` and `delay` apply to the whole timeline: repeat it, play it back, or wait before it starts.
 
 ### `timeline-cascade`
 
-A generic multi-step timeline you fully define yourself.
+**A timeline of steps you write yourself, each animating any part of the card.**
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `steps` | - | Required, at least 1. Array of step objects, each with: `targets` (a CSS selector inside the card; without it the step animates the animation's own target), `params` (arbitrary anime.js tween properties, e.g. `scale`/`opacity`), `duration`, and `offset` (see [step positions](#sequence)) |
-| `loop` | `false` | Loop the full timeline |
+- A step without `targets` animates the animation's own target.
 
-```yaml
-- preset: timeline-cascade
-  trigger: on_load
-  params:
-    steps:
-      - params: { opacity: [0, 1] }
-        duration: 400
-      - params: { scale: [1, 1.1] }
-        duration: 300
-        offset: "<"
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: TAP TO RUN
+    show: true
+animations:
+  - trigger: on_tap
+    preset: timeline-cascade
+    params:
+      steps:
+        # the shape dims and comes back
+        - targets: .button-bg
+          params:
+            opacity: [1, 0.3, 1]
+          duration: 600
+        # then the label grows and settles
+        - targets: "[data-field-id='name']"
+          params:
+            scale: [1, 1.2, 1]
+          duration: 400
 ```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `steps` | list | required | The steps, at least one |
+| `steps[].targets` | string | the animation's target | CSS selector inside the card |
+| `steps[].params` | object | - | anime.js properties for the step, such as `scale` or `opacity` with `[from, to]` values |
+| `steps[].duration` | number | - | ms |
+| `steps[].offset` | number / string | after the previous step | When the step starts; see [step positions](#sequence) |
+| `loop` | boolean / number | `false` | Loop the whole timeline |
 
 <AnimationPlayground preset="timeline-cascade" />
 
 ### `timeline-attention`
 
-A fixed 3-phase "look at me" sequence: scale up, shake, settle back.
+**A fixed three-part "look at me": the target grows, shakes, then settles back.**
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `scale_max` | `1.15` | Peak scale during phase 1 |
-| `shake_intensity` | `5` | Peak horizontal displacement during phase 2 (px) |
-| `duration_scale` | `200` | Duration of phase 1: scale up (ms) |
-| `duration_shake` | `300` | Duration of phase 2: shake (ms) |
-| `duration_settle` | `400` | Duration of phase 3: settle back (ms) |
-| `loop` | `false` | Loop the full sequence |
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: TAP FOR ATTENTION
+    show: true
+animations:
+  - trigger: on_tap
+    preset: timeline-attention
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `scale_max` | number | `1.15` | Peak scale in the first part |
+| `shake_intensity` | number | `5` | Largest sideways displacement in the shake, px |
+| `duration_scale` | number | `200` | ms to grow |
+| `duration_shake` | number | `300` | ms to shake |
+| `duration_settle` | number | `400` | ms to settle back |
+| `loop` | boolean / number | `false` | Loop the whole sequence |
 
 <AnimationPlayground preset="timeline-attention" />
 
@@ -746,27 +1272,29 @@ A fixed 3-phase "look at me" sequence: scale up, shake, settle back.
 
 ## Effect Presets
 
-Effects with several parts on one timeline. Each is one tracked animation: stopping it, or reduced motion, leaves the card as it was.
+**Effects with several parts on one timeline.** Each is one tracked animation: stopping it, or reduced motion, leaves the card as it was.
 
 ### `boot-sequence`
 
-The card powers up: stroked shapes (borders, lines, radar rings) draw in, filled shapes come on, then the text decodes from glyph noise ([`text-decode`](#text-decode)). It works on whatever the target has, so a lozenge without a border skips the draw and an elbow without text skips the decode. Best on `on_show` (each time the card appears) or `on_load`.
+**The card powers up: stroked shapes draw in, filled shapes come on, then the text decodes from glyph noise ([`text-decode`](#text-decode)).** Best on `on_show` (each time the card appears) or `on_load`.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `duration` | `1200` | ms for the whole sequence |
-| `fill` | `flicker` | How filled shapes come on: `flicker` (a panel powering up), `sweep` (wipes in from the `from` side) or `fade` |
-| `from` | `left` | The side a sweep starts from: `left`, `right`, `top`, `bottom` |
-| `draw` | `true` | Draw stroked shapes in |
-| `decode` | `true` | Decode the text; off, the text just appears |
-| `chars` | `A-Z0-9` | Decode glyphs, as in [`text-decode`](#text-decode) |
-| `stagger` | `60` | ms between one shape coming on and the next |
-| `seed` | - | Any number: the same decode on every load |
-| `delay` | `0` | ms before it starts |
+- It works on whatever the target has, so a lozenge without a border skips the draw and an elbow without text skips the decode.
 
-```yaml
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: WARP CORE
+    show: true
 animations:
   - trigger: on_show
+    preset: boot-sequence
+    params:
+      fill: sweep
+  - trigger: on_tap
     preset: boot-sequence
     params:
       fill: sweep
@@ -774,23 +1302,23 @@ animations:
 
 <CardGallery set="boot-sequence" />
 
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `duration` | number | `1200` | ms for the whole sequence |
+| `fill` | string | `flicker` | How filled shapes come on: `flicker` (a panel powering up), `sweep` (wipes in from the `from` side) or `fade` |
+| `from` | string | `left` | The side a sweep starts from: `left`, `right`, `top` or `bottom` |
+| `draw` | boolean | `true` | Draw stroked shapes in |
+| `decode` | boolean | `true` | Decode the text; with `false` the text just appears |
+| `chars` | string | `A-Z0-9` | Decode glyphs, as in [`text-decode`](#text-decode) |
+| `stagger` | number | `60` | ms between one shape coming on and the next |
+| `seed` | number | - | The same decode on every load |
+| `delay` | number | `0` | ms before it starts |
+
 ### `sensor-sweep`
 
-A rotating scanner wedge with a ring that pings outward on each turn. It draws its own shapes, centred on the target (or on `center`), and removes them when it stops; nothing in the card changes. On an elbow or an MSD, set `center` and `radius` to put it on a corner or a spot of the ship.
+**A rotating scanner wedge with a ring that pings outward on each turn.** It draws its own shapes, centred on the target (or on `center`), and removes them when it stops; nothing in the card changes.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `duration` | `3000` | ms per revolution (and per ping) |
-| `radius` | half the shorter side | SVG units |
-| `center` | the target's centre | `[x, y]` in the target's SVG units |
-| `angle` | `40` | Wedge width, degrees |
-| `direction` | `cw` | `cw` or `ccw` |
-| `color` | `theme:colors.ui.primary` | Wedge colour |
-| `ring_color` | `color` | Ping ring colour |
-| `opacity` | `0.35` | Wedge opacity; the ring starts at 2.5 times this (at most 1) and fades out |
-| `ring` | `true` | Show the ping ring |
-| `ring_width` | `2` | Ring stroke width, SVG units |
-| `loop` | `true` | Keep sweeping |
+- On an elbow or an MSD, set `center` and `radius` to put it on a corner or a spot of the ship.
 
 ```yaml live
 type: custom:lcards-msd-card
@@ -816,45 +1344,76 @@ msd:
 
 <CardGallery set="sensor-sweep" />
 
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `duration` | number | `3000` | ms per turn (and per ping) |
+| `radius` | number | half the shorter side | SVG units |
+| `center` | list | the target's centre | `[x, y]` in the target's SVG units |
+| `angle` | number | `40` | Wedge width, degrees (`1` to `359`) |
+| `direction` | string | `cw` | `cw` or `ccw` |
+| `color` | colour | `theme:colors.ui.primary` | Wedge colour |
+| `ring_color` | colour | `color` | Ping ring colour |
+| `opacity` | number | `0.35` | Wedge opacity; the ring starts at 2.5 times this (at most `1`) and fades out |
+| `ring` | boolean | `true` | Show the ping ring |
+| `ring_width` | number | `2` | Ring stroke width, SVG units |
+| `delay` | number | `0` | ms before it starts |
+| `loop` | boolean / number | `true` | Keep sweeping |
+
 ---
 
 ## Utility Presets
 
+**Presets for setting values at once, writing raw anime.js, and moving along a path.**
+
 ### `set`
 
-Immediately sets properties without animation. Useful for establishing initial state before other animations run.
+**Sets properties at once, without animating.** Use it to put a target in its starting state before other animations run.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `properties` | - | Object with CSS properties to set immediately |
+- `duration` is always `0`, so `ease` does nothing. A `delay` still waits before the properties are set.
 
-> `duration`/`ease`/`loop`/`alternate`/`delay` are all ignored; `duration` is hardcoded to `0` since this preset applies its properties immediately rather than tweening.
-
-```yaml
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: DIMMED
+    show: true
 animations:
-  - preset: set
-    trigger: on_load
+  - trigger: on_load
+    preset: set
+    target: .button-bg
     params:
       properties:
         opacity: 0.5
-        fill: red
+        fill: var(--lcars-red)
 ```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `properties` | object | `{}` | The properties to set, such as `opacity` or `fill` |
 
 <AnimationPlayground preset="set" />
 
 ### `custom`
 
-Raw anime.js v4 animation properties, passed straight to `animate()`: anything a preset doesn't cover. `params` holds the properties; the element comes from the animation's own `target`/`targets` (a `targets` key inside `params` is ignored). Colours (theme tokens, CSS variables) are resolved and the [reduced-motion gate](../animations.md#reduced-motion) applies, as for every preset. The animation editor's **Use custom anime.js code** switch writes this shape.
+**Raw anime.js v4 animation properties, passed straight to `animate()`: anything a preset doesn't cover.** `params` holds the properties; the element comes from the animation's own `target` or `targets` (a `targets` key inside `params` is ignored).
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| any anime.js v4 property | - | `opacity`, `scale`, `translateX`, `rotate`, `fill`, `keyframes`, ... with anime.js v4 values (`[from, to]`, keyframe arrays, `'+=10'`) |
-| `duration`, `ease`, `loop`, `alternate`, `delay` | - | As in anime.js; `ease` takes the same names as every preset (`outQuad`, `inOutSine`, ...) |
+- Colours (theme tokens, CSS variables) are resolved and the [reduced-motion gate](./timing-and-easing#reduced-motion) applies, as for every preset. The animation editor's **Use custom anime.js code** switch writes this shape.
 
-```yaml
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: TAP TO WOBBLE
+    show: true
 animations:
-  - preset: custom
-    trigger: on_tap
+  - trigger: on_tap
+    preset: custom
     params:
       scale: [1, 1.08, 1]
       rotate: [0, 3, -3, 0]
@@ -862,67 +1421,76 @@ animations:
       ease: outQuad
 ```
 
-> Function values and callbacks can't be written in YAML, so stagger, `onComplete` and the like aren't available here; use a [stagger preset](#stagger-presets) or [`sequence`](#sequence) for those. Configs from older editors (`type: custom` with an `animejs:` block) still run, but the config checker reports them (they have no `preset`); the editor rewrites them to `preset: custom` when you edit them, or change them by hand.
+::: details More about custom
+- **What YAML can't do:** function values and callbacks can't be written in YAML, so stagger, `onComplete` and the like aren't available here; use a [stagger preset](#stagger-presets) or [`sequence`](#sequence) for those.
+- **Older configs:** configs from older editors (`type: custom` with an `animejs:` block) still run, but the config checker reports them (they have no `preset`). The editor rewrites them to `preset: custom` when you edit them, or change them by hand.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| any anime.js v4 property | - | - | `opacity`, `scale`, `translateX`, `rotate`, `fill`, `keyframes`, ... with anime.js v4 values (`[from, to]`, keyframe lists, `'+=10'`) |
+| `duration` | number | `1000` | ms (anime.js's default) |
+| `ease` | string | `out(2)` | Easing (anime.js's default), with the same names as every preset (`outQuad`, `inOutSine`, ...) |
+| `loop` | boolean / number | `false` | As in anime.js |
+| `alternate` | boolean | `false` | As in anime.js |
+| `delay` | number | `0` | As in anime.js |
 
 ### `motionpath`
 
-Animates an element along an SVG path's route, using anime.js v4's `createMotionPath()`. Works in two modes:
+**Moves something along the route of an SVG line or shape, with anime.js v4's `createMotionPath()`.** It works in two ways:
 
-- **Move an existing element**: set `target`/`targets` to the element you want to travel, and `params.path` to a *different* element defining the route (e.g. a line's id). `target`/`targets` and `params.path` must be two different elements; pointing `path` at the same element being animated has no sane interpretation and is rejected with a console warning.
-- **Self-contained tracer**: set `params.shape` and skip `target`/`targets` entirely. motionpath creates and animates its own shape (a small dot/rect/diamond) traveling along `params.path`, useful for a "energy flowing along a line" effect without needing a separate control or element. If `shape` and an explicit `target`/`targets` are both set, `shape` wins (with a console warning).
+- **Move an element:** set `target` or `targets` to the element that travels, and `params.path` to a different element that is the route (a line's id, for example). Pointing `path` at the element being animated logs a warning and does nothing.
+- **A tracer:** set `params.shape` and leave out `target`; the preset makes a small dot, square or diamond and moves it along `path`, for energy flowing along a line. It can sit on the line's own `animations`, with `path` naming that line. If `shape` and a `target` are both set, `shape` wins (with a warning).
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `path` | - | Required. CSS selector (`#id` or `.class`) for the route element. Can be any real SVG geometry element (`path`/`circle`/`rect`/`ellipse`/`line`/`polyline`/`polygon`); if the selector resolves to a wrapper group instead (e.g. an MSD line overlay's own `<g id="...">`), the actual drawable geometry inside it is found automatically. |
-| `duration` | `4000` | Duration (ms) for one full pass along the path |
-| `ease` | `linear` | Easing function |
-| `loop` | `false` | Loop continuously |
-| `alternate` | `false` | Reverse on each loop |
-| `rotate` | `true` | Auto-rotate the element/shape to face its direction of travel as it moves. A sibling of `shape` below (applies either way this preset is used), not a field inside `shape`. |
-| `anchor` | `'50% 50%'` | CSS `transform-origin`: the pivot point rotation happens around. A sibling of `shape`, not a field inside it. |
-| `shape` | - | Opt-in self-contained tracer shape, see below. |
-
-**`shape` object** (only used in tracer mode):
-
-| Field | Default | Description |
-|-------|---------|-------------|
-| `type` | `circle` | `circle`, `rect`, or `diamond` |
-| `size` | `10` | Diameter (circle/diamond) or width/height fallback (rect), in px |
-| `width` | `size` | `rect` only: overrides `size` for width |
-| `height` | `size` | `rect` only: overrides `size` for height |
-| `fill` | `currentColor` | Fill colour: theme tokens/CSS vars work like everywhere else |
-| `stroke` | `none` | Stroke colour |
-| `stroke_width` | `0` | Stroke width (px) |
-
-Field names deliberately mirror line markers' (`marker_start`/`marker_end`) styling options.
-
-```yaml
-# Move an existing control along a line named "line_2"
-- trigger: on_load
-  preset: motionpath
-  target: "#my-control-id"
-  duration: 3000
-  loop: true
-  alternate: true
-  params:
-    path: "#line_2"
-
-# Self-contained tracer - no separate target needed. Can be declared directly
-# on the line's own `animations:` block, with `path` pointing at itself - that's
-# the expected, common case in this mode (there's nothing to move but the tracer).
-- trigger: on_load
-  preset: motionpath
-  duration: 3000
-  loop: true
-  alternate: true
-  params:
-    path: "#line_2"
-    rotate: true
-    shape:
-      type: circle
-      size: 10
-      fill: "var(--lcards-orange)"
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 400, 160]
+  overlays:
+    - id: route
+      type: line
+      anchor: [40, 40]
+      attach_to: [360, 120]
+      style:
+        color: var(--lcars-blue)
+        width: 4
+      animations:
+        # a dot travels the line and back
+        - trigger: on_load
+          preset: motionpath
+          duration: 3000
+          loop: true
+          alternate: true
+          params:
+            path: "#route"
+            shape:
+              type: circle
+              size: 14
+              fill: var(--lcars-orange)
 ```
+
+::: details More about motionpath
+- **The route:** `path` is looked up inside the card when it starts with `#` or `.`. It can be any SVG geometry (`path`, `circle`, `rect`, `ellipse`, `line`, `polyline`, `polygon`); when it names a wrapper group instead (such as an MSD line's `<g id="...">`), the drawn geometry inside it is used.
+- **Moving a control along a line:** `target: "#my-control-id"` with `params.path: "#line_2"` moves the control and leaves the line as it is.
+- **The shape keys** mirror line markers' (`marker_start`, `marker_end`) styling.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `path` | string | required | CSS selector (`#id` or `.class`) of the route |
+| `duration` | number | `4000` | ms for one pass along the path |
+| `ease` | string | `linear` | Easing |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
+| `alternate` | boolean | `false` | Travel back on each loop |
+| `rotate` | boolean | `true` | Turn the element or shape to face the way it travels |
+| `anchor` | string | `50% 50%` | CSS `transform-origin`: the point it turns round |
+| `shape.type` | string | `circle` | Tracer shape: `circle`, `rect` or `diamond` |
+| `shape.size` | number | `10` | Diameter (circle, diamond), or width and height (rect), px |
+| `shape.width` | number | `shape.size` | `rect` only: width |
+| `shape.height` | number | `shape.size` | `rect` only: height |
+| `shape.fill` | colour | `currentColor` | Fill colour |
+| `shape.stroke` | colour | `none` | Stroke colour |
+| `shape.stroke_width` | number | `0` | Stroke width, px |
 
 <AnimationPlayground preset="motionpath" />
 
@@ -930,32 +1498,49 @@ Field names deliberately mirror line markers' (`marker_start`/`marker_end`) styl
 
 ## Advanced Presets
 
+**Timelines of raw steps, random motion and spring physics.**
+
 ### `sequence`
 
-Timeline-based animation with multiple steps at specified offsets. Uses `anime.js` `createTimeline()` internally.
+**A timeline of steps, each with its own anime.js properties, target and start time.** One sequence can move between parts of a card: draw a line, then light a control, then fade in a label.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `steps` | - | Array of step objects (required, at least 1); each has the same fields as a normal anime.js animate call plus an optional `target` and `offset` (below) |
-| `duration` | `2000` | Default duration per step (used when a step doesn't set its own) |
-| `ease` | `outQuad` | Default easing per step (used when a step doesn't set its own) |
-| `loop` | `false` | Loop the full sequence |
+- Each step can name its own `target`, a CSS selector resolved inside the card; without one, a step animates the animation's own target. In an MSD card the selector reaches every overlay of the card, for example `[data-overlay-id="line_1"]`.
+- The whole sequence is one timeline, however many elements it animates.
 
-```yaml
-- preset: sequence
-  trigger: on_tap
-  params:
-    steps:
-      - opacity: [0, 1]
-        duration: 500
-      - scale: [1, 1.2]
-        duration: 300
-        offset: 500
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: TAP TO REPLAY
+    show: true
+animations:
+  # the fill fades in, then the label
+  - trigger: on_show
+    preset: sequence
+    params:
+      steps:
+        - target: .button-bg
+          opacity: [0, 1]
+          duration: 400
+        - target: "[data-field-id='name']"
+          opacity: [0, 1]
+          duration: 300
+          offset: "-=150"
+  - trigger: on_tap
+    preset: sequence
+    params:
+      steps:
+        - target: .button-bg
+          opacity: [0, 1]
+          duration: 400
+        - target: "[data-field-id='name']"
+          opacity: [0, 1]
+          duration: 300
+          offset: "-=150"
 ```
-
-> Prefer `offset`: the older `at` name is also accepted as a fallback (translated internally), but `offset` wins if a step sets both.
-
-The whole sequence is one timeline, however many elements it animates. Each step can name its own `target`: a CSS selector resolved inside the card, so one sequence can move between parts of a card. Without `target`, a step animates the animation's own target(s). In an MSD card the selector reaches every overlay of that card, for example `[data-overlay-id="line_1"]`, so a sequence can draw a line, then light a control, then fade in a label.
 
 Step positions (`offset`):
 
@@ -967,80 +1552,117 @@ Step positions (`offset`):
 | `'<'` | When the previous step ends |
 | `'<<'` | Together with the previous step |
 
-A button that fades its fill in, then its label:
+::: details More about sequence
+- **`at`:** an older name for `offset`, still accepted; `offset` wins when a step sets both.
+:::
 
-```yaml
-- preset: sequence
-  trigger: on_show
-  params:
-    steps:
-      - target: .button-bg
-        opacity: [0, 1]
-        duration: 400
-      - target: "[data-field-id='name']"
-        opacity: [0, 1]
-        duration: 300
-        offset: "-=150"
-```
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `steps` | list | required | The steps, at least one; each takes the properties of an anime.js `animate()` call |
+| `steps[].target` | string | the animation's target | CSS selector inside the card |
+| `steps[].offset` | number / string | after the previous step | When the step starts; see the step positions above |
+| `steps[].duration` | number | the sequence's `duration` | ms |
+| `steps[].ease` | string | the sequence's `ease` | Easing |
+| `duration` | number | `2000` | ms of a step that doesn't set its own |
+| `ease` | string | `outQuad` | Easing of a step that doesn't set its own |
+| `loop` | boolean / number | `false` | Loop the whole sequence |
 
 <AnimationPlayground preset="sequence" />
 
 ### `grid-stagger` (removed in 2026.07.x)
 
+**`grid-stagger` was removed in 2026.07.x; use [`stagger-grid`](#stagger-grid) instead.** It never staggered: every element got the same timing whatever the config. `preset: grid-stagger` in an existing config no longer runs.
+
+- The move to `stagger-grid` is not a plain rename; the table below maps the keys. See the 2026.07.x release notes for the full entry.
+
 ::: danger Removed: migrate to `stagger-grid`
-`grid-stagger` never staggered multiple elements correctly: a confirmed bug in how it built its per-element delay internally, every element got identical (non-staggered) timing regardless of config. It had already been pulled from the editor's preset picker; as of 2026.07.x it's removed from the registry entirely, so `preset: grid-stagger` in an existing config no longer resolves.
-
-Migrate to [`stagger-grid`](#stagger-grid); same general idea, but **not** a drop-in rename:
-
-| `grid-stagger` field | `stagger-grid` equivalent | Notes |
+| `grid-stagger` key | `stagger-grid` equivalent | Notes |
 |---|---|---|
-| `stagger_duration` | `delay` | Renamed: `stagger-grid` repurposes the canonical `delay` field for the per-element step |
-| `wave_duration` | `duration` | Renamed: and unlike `grid-stagger`, `stagger-grid` **does** read the canonical `duration` field |
+| `stagger_duration` | `delay` | Renamed: `stagger-grid` uses `delay` for the step between elements |
+| `wave_duration` | `duration` | Renamed: `stagger-grid` does read `duration` |
 | `from: center` | `from: center` | Same |
 | `from: first` | `from: start` | Renamed value |
 | `from: last` | `from: end` | Renamed value |
 | `from: random` | - | No equivalent |
-| - | `from: edges` | `stagger-grid`-only, no `grid-stagger` equivalent |
-| `grid`, `property`, `from_value`, `to_value`, `loop`, `alternate` | same names | Field names match, but check defaults: they differ from `grid-stagger`'s |
-
-See the 2026.07.x release notes for the full breaking-change entry.
+| - | `from: edges` | `stagger-grid` only |
+| `grid`, `property`, `from_value`, `to_value`, `loop`, `alternate` | same names | The names match, but the defaults differ |
 :::
 
 ### `chaos`
 
-Randomised multi-property animation for glitch and malfunction effects.
+**Random motion on several properties at once, for error states and malfunction effects.** Each loop moves to new random values.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `properties` | `['x', 'y', 'rotate']` | Properties to randomise (`x`/`y` map to `translateX`/`translateY`) |
-| `range` | `{x: [-50,50], y: [-50,50], rotate: [-15,15]}` | Min/max `[min, max]` per property; keys should match `properties` |
-| `duration_min` | `200` | Minimum animation duration (ms) |
-| `duration_max` | `800` | Maximum animation duration (ms) |
-| `composition` | `blend` | `blend` or `replace` |
-| `ease` | `inOutQuad` | Easing function |
-| `loop` | `true` | Loop continuously: each loop moves to new random values |
-| `seed` | - | Any number: the same random pattern on every load (unset: a new one each time). Targets with the same seed share it |
+- The top-level `duration` isn't used: each move takes a random time between `duration_min` and `duration_max`.
 
-> The canonical top-level `duration` field isn't used at all here; `duration_min`/`duration_max` replace it entirely.
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: CONTAINMENT FAILING
+    show: true
+animations:
+  - trigger: on_load
+    preset: chaos
+    params:
+      range:
+        x: [-6, 6]
+        "y": [-3, 3]
+        rotate: [-2, 2]
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `properties` | list | `['x', 'y', 'rotate']` | Properties to randomise; `x` and `y` are `translateX` and `translateY` |
+| `range` | object | - | `[min, max]` per property; keys you leave out keep their defaults |
+| `range.x` | list | `[-50, 50]` | px |
+| `range.y` | list | `[-50, 50]` | px |
+| `range.rotate` | list | `[-15, 15]` | Degrees |
+| `duration_min` | number | `200` | Shortest move, ms |
+| `duration_max` | number | `800` | Longest move, ms |
+| `composition` | string | `blend` | `blend` or `replace` |
+| `ease` | string | `inOutQuad` | Easing |
+| `loop` | boolean / number | `true` | Loop forever, or a number of extra plays |
+| `seed` | number | - | The same random motion on every load; targets with the same seed move the same way |
 
 <AnimationPlayground preset="chaos" />
 
 ### `physics-spring`
 
-Spring-physics animation using anime.js v4 spring easing. Produces natural, organic motion.
+**A spring-physics animation: the value overshoots and settles like a real spring.** It gives more natural motion than an easing curve.
 
-| Param | Default | Description |
-|-------|---------|-------------|
-| `property` | `scale` | CSS property to animate |
-| `from` | - | Starting value (required: typically a number, but a colour string is also valid for colour-like properties) |
-| `to` | - | Target value (required, see `from`) |
-| `stiffness` | `100` | Spring stiffness (higher = snappier) |
-| `damping` | `10` | Spring damping (higher = less bounce) |
-| `mass` | `1` | Spring mass (higher = slower) |
-| `velocity` | `0` | Initial velocity |
-| `loop` | `false` | Loop continuously: this one canonical field genuinely is respected |
+- The spring sets the easing and the length of the animation, so `ease` and `duration` aren't used.
 
-> The canonical `ease`/`duration`/`alternate` fields are entirely bypassed here; spring dynamics determine the effective duration/motion internally.
+```yaml live
+type: custom:lcards-button
+preset: lozenge
+tap_action:
+  action: none
+text:
+  name:
+    content: TAP TO SPRING
+    show: true
+animations:
+  - trigger: on_tap
+    preset: physics-spring
+    params:
+      from: 0.9
+      to: 1
+      damping: 6
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `property` | string | `scale` | The property to animate |
+| `from` | number / string | required | Start value (a colour string works for a colour property) |
+| `to` | number / string | required | End value |
+| `stiffness` | number | `100` | Higher is snappier |
+| `damping` | number | `10` | Higher bounces less |
+| `mass` | number | `1` | Higher is slower |
+| `velocity` | number | `0` | Starting velocity |
+| `loop` | boolean / number | `false` | Loop forever, or a number of extra plays |
 
 <AnimationPlayground preset="physics-spring" />
 
@@ -1051,4 +1673,3 @@ Spring-physics animation using anime.js v4 spring easing. Produces natural, orga
 - [Animations overview](../animations.md): structure, triggers, options, easing reference
 - [Entity Change Triggers](entity-change-triggers.md): `on_entity_change` deep-dive
 - [Rule-based Animations](rule-based-animations.md): triggering presets via the Rules Engine
-

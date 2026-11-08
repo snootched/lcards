@@ -4,7 +4,7 @@ description: "Button card style: background and border colours by state, corner 
 
 # Style, Text and Hover
 
-How a button looks and reacts: its background and border, the text on it, what happens when the pointer is over it, and filters. Colours take a plain colour or a [state map](/core/colours#state-based-colour-maps) (`default`, `active`, `inactive`, `unavailable`, `hover`, `pressed`, exact states and ranges).
+How a button looks and reacts: its background and border, the text on it, what happens when the pointer is over it, and filters. Colours take a plain colour or a [state map](/core/colours/state-maps) (`default`, `active`, `inactive`, `unavailable`, `hover`, `pressed`, exact states and ranges).
 
 ## style.card
 
@@ -173,7 +173,7 @@ style:
 
 **`filters` runs CSS or SVG filters over the whole button: blur, brightness, colour shifts, glows.** They apply in order, the first innermost. The [Filters](/core/effects/filters) page lists every type and its value.
 
-```yaml live
+```yaml live controls
 type: custom:lcards-button
 entity: light.living_room
 preset: lozenge
@@ -199,7 +199,7 @@ filters:
 
 **A lozenge with state colours, a templated value, an icon, actions and two animations.** Each part is labelled.
 
-```yaml live
+```yaml live controls
 type: custom:lcards-button
 entity: light.workbench
 preset: lozenge

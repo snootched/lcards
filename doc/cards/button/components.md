@@ -7,7 +7,7 @@ description: "Button card components: the D-pad and Voyager D-pad with an action
 `component` swaps the button's shape for a ready-made drawing whose parts (segments) each take their own colours and actions: a D-pad, the Voyager D-pad, the alert symbol, bracket arcs and a radar scope.
 
 - A component draws to the height of its grid cell and keeps its proportions. In a sections view it asks for 6 columns and 5 rows (`alert` 4 rows, `dpad_voyager` 6); `grid_options` in your config changes that.
-- Text fields go into the component's zones with `zone` (such as `center`); every component also has a `full` zone covering the whole drawing. See [Zones](/core/text-fields#zones).
+- Text fields go into the component's zones with `zone` (such as `center`); every component also has a `full` zone covering the whole drawing. See [Zones](/core/text-fields-zones).
 
 ## dpad
 

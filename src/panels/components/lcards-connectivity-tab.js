@@ -20,6 +20,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { keyed } from 'lit/directives/keyed.js';
 import yaml from 'js-yaml';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { borgOptsFromLayers } from '../../core/services/ConnectionOverlayService.js';
 import {
     CONN_OVERLAY_ENABLED,
     CONN_OVERLAY_DISMISS,
@@ -587,13 +588,7 @@ export class LCARdSConnectivityTab extends LitElement {
     _handleTestShow() {
         const mode = this._editConfig?.message?.mode ?? 'text';
         if (mode === 'borg') {
-            const borgLayers = this._editConfig?.message?.borgLayers ?? null;
-            const { paletteHue = null, fontSwap = true, ...introLayers } = borgLayers ?? {};
-            const borgOpts = {
-                ...(Object.keys(introLayers).length ? { intro: introLayers } : {}),
-                ...(paletteHue != null ? { paletteHue } : {}),
-                fontSwap,
-            };
+            const borgOpts = borgOptsFromLayers(this._editConfig?.message?.borgLayers);
             window.lcards?.core?.borgAssimilationManager?.assimilate(borgOpts);
             this._testActive = true;
             return;

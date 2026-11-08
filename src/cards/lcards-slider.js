@@ -885,11 +885,9 @@ export class LCARdSSlider extends LCARdSButton {
         }
 
         // Register for rules
-        if (this.config.id) {
-            this._registerOverlayForRules(`slider-${this.config.id}`, 'slider', ['slider']);
-        } else {
-            this._registerOverlayForRules(`slider-${this._cardGuid}`, 'slider', ['slider']);
-        }
+        // Rules target the card by its own id (as on a button) and by its tags
+        const tags = ['slider', ...(Array.isArray(this.config.tags) ? this.config.tags : [])];
+        this._registerOverlayForRules(this.config.id || `slider-${this._cardGuid}`, 'slider', tags);
     }
 
     /**

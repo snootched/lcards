@@ -30,7 +30,7 @@ topics:
       - title: LCARS patterns
         views: [lcars-patterns-picard, lcars-patterns-readouts, lcars-patterns-classic]
       - title: Docs audit fixes
-        views: [d2-batch1-fixes, d2-batch4-msd-fixes]
+        views: [d2-batch1-fixes, d2-batch4-msd-fixes, d2-batch5-core-fixes]
   - id: msd
     title: MSD
     views: [msd-basics, msd-routing, msd-shapes]
@@ -141,6 +141,12 @@ releases:
         description: "ALERT SWITCH drives a rule that dims the blueprint with apply.base_svg filters (with a red drop-shadow, now valid CSS) and turns the line tagged power red (tag: selectors reach MSD overlays; the colour stays on the visible line). The line starts 16 units off the BRIDGE control (anchor_gap) and ends in an arrow (marker_end as a string). Below: anchors as percentages of the view box, a control placed by anchor name with no size as an obstacle, and two lines through a channel with line_spacing 20."
         session: "D2 batch 4"
         docs: /cards/msd/
+        public: false
+      - file: d2-batch5-core-fixes
+        summary: "D2 batch 5 fixes: rules, animations and backgrounds the core docs audit fixed"
+        description: "ALERT SWITCH starts rule animations on a slider (by its tags), an elbow and a button; the button also glows from a LIGHTS rule, and switching ALERT SWITCH off stops only its own pulse. The DISABLED RULE card stays grey (enabled: false). The icon area colour comes from a template, and the zoomed grid runs faster with a fixed speed."
+        session: "D2 batch 5"
+        docs: /core/rules/
         public: false
       - file: astro-diagram-forms
         summary: "Astrometrics diagram forms: each object type's LCARS wireframe for the diagram look"
@@ -507,7 +513,7 @@ releases:
         summary: "The zoom wrapper over WebGL"
         description: "The zoom wrapper over three WebGL grids: a square grid, a polar grid and a hexagonal grid, each zooming through its layers."
         session: "C5"
-        docs: /core/effects/background-animations#zoom-wrapper
+        docs: /core/effects/background-animations/stacking-and-zoom#zoom-wrapper
         public: true
       - file: zoom-webgl-parity
         summary: "Zoom wrapper, WebGL against Canvas2D"
@@ -719,7 +725,7 @@ releases:
         summary: "Button states: colours, borders and text by state and range"
         description: "Colour maps keyed by state. The first row follows LIGHTS (tap any of them): a background, a border and a text colour for on and off. The second follows VALUE (drag the slider): red at 0 and under 20, yellow under 50, green above; orange only between 40 and 60; the name red under 20 and yellow above 90."
         session: "D1c"
-        docs: /core/colours#state-based-colour-maps
+        docs: /core/colours/state-maps
         public: true
       - file: button-components
         summary: "Button components: the D-pad and the alert symbol"
@@ -785,7 +791,7 @@ releases:
         summary: "Animation triggers: hover, hold, double tap, entity changes, on show"
         description: "What starts an animation. HOVER glows while the pointer is over it, HOLD shakes on a long press, DOUBLE TAP bounces, ON SHOW slides in each time the card appears (open the view again). Below, entity changes: a bounce each time LIGHTS turns on, a pulse that runs only while LIGHTS is on, and a strobe while POWER is above 80 (drag it)."
         session: "D1c"
-        docs: /core/animations#triggers
+        docs: /core/animations/triggers
         public: true
       - file: alert-modes
         summary: "Alert modes: the six levels recolour every card"

@@ -12,7 +12,7 @@
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { linearMap } from '../../utils/linearMap.js';
+import { mapRangeOutput } from '../../utils/linearMap.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Entity value resolution
@@ -52,39 +52,6 @@ export function resolveEntityValue(entityId, hass, attribute) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Interpolate between two 6-digit hex color strings.
- *
- * @param {string} hexA - Start color e.g. '#00ff88'
- * @param {string} hexB - End color e.g. '#ff4400'
- * @param {number} t    - Interpolation factor 0–1
- * @returns {string} Interpolated hex color string
- */
-function interpolateHexColor(hexA, hexB, t) {
-  const parse = (hex) => {
-    const h = hex.replace('#', '');
-    if (h.length !== 6 || !/^[0-9a-fA-F]{6}$/.test(h)) {
-      throw new Error(`Invalid 6-digit hex color: "${hex}"`);
-    }
-    return [
-      parseInt(h.substring(0, 2), 16),
-      parseInt(h.substring(2, 4), 16),
-      parseInt(h.substring(4, 6), 16)
-    ];
-  };
-  try {
-    const [r1, g1, b1] = parse(hexA);
-    const [r2, g2, b2] = parse(hexB);
-    const r = Math.round(r1 + (r2 - r1) * t);
-    const g = Math.round(g1 + (g2 - g1) * t);
-    const b = Math.round(b1 + (b2 - b1) * t);
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-  } catch (e) {
-    lcardsLog.warn(`[resolveAnimParams] interpolateHexColor failed "${hexA}" → "${hexB}":`, e);
-    return hexA;
-  }
-}
-
-/**
  * Resolve a single animation parameter value.
  *
  * If the value is a map_range descriptor, linearly interpolates the entity's
@@ -92,7 +59,7 @@ function interpolateHexColor(hexA, hexB, t) {
  *
  * Supports:
  * - Numeric output ranges:     output: [0, 1000]
- * - Hex color interpolation:   output: ['#00ff88', '#ff4400']
+ * - Colour interpolation:      output: ['#00ff88', 'var(--lcars-red)'] (any colour form LCARdS accepts)
  * - Virtual attribute:         attribute: 'brightness_pct'  (0-100, computed from brightness/2.55)
  *
  * map_range descriptor shape:
@@ -101,7 +68,7 @@ function interpolateHexColor(hexA, hexB, t) {
  *     entity:    'sensor.grid_power',   // Required
  *     attribute: 'brightness_pct',      // Optional — defaults to entity.state
  *     input:     [0, 5000],             // Required [inMin, inMax]
- *     output:    [8, 0.5],              // Required [outMin, outMax] or ['#hex', '#hex']
+ *     output:    [8, 0.5],              // Required [outMin, outMax]: two numbers or two colours
  *     clamp:     true                   // Optional, default true
  *   }
  * }
@@ -147,24 +114,13 @@ export function resolveAnimParam(paramValue, hass) {
     return undefined;
   }
 
-  const [outMin, outMax] = cfg.output;
-
-  if (typeof outMin === 'number' && typeof outMax === 'number' &&
-      Number.isFinite(outMin) && Number.isFinite(outMax)) {
-    const result = linearMap(numVal, Number(inMin), Number(inMax), outMin, outMax, clamp);
-    lcardsLog.debug(`[resolveAnimParams] map_range: ${entityId}=${numVal} → ${result}`);
-    return result;
+  const result = mapRangeOutput(numVal, Number(inMin), Number(inMax), cfg.output, clamp);
+  if (result === undefined) {
+    lcardsLog.warn('[resolveAnimParams] map_range: "output" must be two numbers or two colours:', cfg.output);
+    return undefined;
   }
-
-  if (typeof outMin === 'string' && typeof outMax === 'string') {
-    const t = linearMap(numVal, Number(inMin), Number(inMax), 0, 1, clamp);
-    const colorResult = interpolateHexColor(outMin, outMax, t);
-    lcardsLog.debug(`[resolveAnimParams] map_range color: ${entityId}=${numVal} → t=${t.toFixed(3)} → ${colorResult}`);
-    return colorResult;
-  }
-
-  lcardsLog.warn('[resolveAnimParams] map_range: "output" must be [number,number] or ["#hex","#hex"]:', cfg.output);
-  return undefined;
+  lcardsLog.debug(`[resolveAnimParams] map_range: ${entityId}=${numVal} → ${result}`);
+  return result;
 }
 
 /**

@@ -848,7 +848,7 @@ export class MsdControlsRenderer {
         // hui-card evaluates `config.visibility` itself (core-pushed for most
         // conditions, client-side for the rest) and hides/shows itself;
         // cards never need to implement visibility themselves.
-        const config = this._buildCardConfig(cardDef, overlay.id);
+        const config = this._buildCardConfig(cardDef, overlay.id, overlay.tags);
         cardElement = createHuiCardWrapper(config, this.hass, { editMode: this._editMode });
 
         // hui-card ships no layout CSS of its own (unstyled custom elements
@@ -937,7 +937,7 @@ export class MsdControlsRenderer {
    */
   async _configureCard(cardElement, cardDef, overlay) {
     // Build the final configuration
-    const config = this._buildCardConfig(cardDef, overlay.id);
+    const config = this._buildCardConfig(cardDef, overlay.id, overlay.tags);
 
     lcardsLog.debug('[MsdControls] Configuring card:', {
       overlayId: overlay.id,
@@ -1033,8 +1033,11 @@ export class MsdControlsRenderer {
 
   /**
    * Build card configuration from card definition
+   * @param {any} cardDef
+   * @param {string} overlayId
+   * @param {string[]|null} [overlayTags] - the control overlay's tags, passed to an LCARdS card
    */
-  _buildCardConfig(cardDef, overlayId) {
+  _buildCardConfig(cardDef, overlayId, overlayTags = null) {
     if (!cardDef) return null;
 
     lcardsLog.debug('[MsdControls] Building card config from cardDef:', {
@@ -1080,6 +1083,12 @@ export class MsdControlsRenderer {
     if (isLCARdSCard && overlayId && !finalConfig.id) {
       finalConfig.id = overlayId;
       lcardsLog.debug(`[MsdControls] Injected overlay ID as card ID: ${overlayId}`);
+    }
+
+    // The control overlay's tags reach the hosted card, so rules targeting
+    // tag:<name> find it (the card registers with the rules engine itself)
+    if (isLCARdSCard && Array.isArray(overlayTags) && overlayTags.length) {
+      finalConfig.tags = [...new Set([...(Array.isArray(finalConfig.tags) ? finalConfig.tags : []), ...overlayTags])];
     }
 
     // Mark as MSD-generated
