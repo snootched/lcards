@@ -93,3 +93,12 @@ test('button schema: no-effect keys deprecated, defaults match the runtime', () 
         assert.match(p.icon_style.properties[`padding_${side}`].description, new RegExp(`padding\\.${side}`));
     }
 });
+
+test('the schema knows every style.text.default key the button reads (letter_spacing and text_transform were missing)', async () => {
+    const fs = await import('node:fs');
+    const src = fs.readFileSync(new URL('../../src/cards/lcards-button.js', import.meta.url), 'utf8');
+    const read = [...new Set([...src.matchAll(/_buttonStyle\?\.text\?\.default\?\.(\w+)/g)].map((m) => m[1]))].sort();
+    assert.ok(read.includes('letter_spacing') && read.includes('text_transform'), read.join());
+    const props = getButtonSchema({ availablePresets: [] }).properties.style.properties.text.properties.default.properties;
+    assert.deepEqual(read.filter((k) => !props[k]), []);
+});

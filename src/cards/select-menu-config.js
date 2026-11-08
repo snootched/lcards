@@ -257,3 +257,38 @@ export function optionCardKeys(template = {}, option = {}) {
     }
     return out;
 }
+
+/**
+ * Where an option button sits in its grid cell. A button has no size of its own
+ * (it draws to its box), so `grid.justify-items` / `align-items` other than
+ * `stretch` would shrink it to nothing: a button without its own `width` keeps
+ * filling its cell across, one without its own `height` down. A button with a
+ * size (button_template or the option) is placed by the grid's setting.
+ * @param {{ width?: unknown, height?: unknown }} button - The option's button config
+ * @returns {{ justifySelf?: string, alignSelf?: string }}
+ */
+export function optionPlacement(button) {
+    const set = (/** @type {unknown} */ v) => v !== undefined && v !== null && v !== '';
+    return {
+        ...(set(button.width) ? {} : { justifySelf: 'stretch' }),
+        ...(set(button.height) ? {} : { alignSelf: 'stretch' }),
+    };
+}
+
+/**
+ * The option button's min_height: 0 when the grid gives its rows a definite height
+ * (px rows, the default 56px, fr tracks, or `height: 100%`), so the button follows
+ * its row instead of the button preset's floor (the theme's 56px, which spilled out
+ * of shorter rows). Undefined when the rows size to their content (`auto`), or when
+ * button_template sets its own min_height.
+ * @param {Record<string, any>} [grid]
+ * @param {Record<string, any>} [template] - button_template
+ * @returns {0 | undefined}
+ */
+export function optionMinHeight(grid = {}, template = {}) {
+    if (template.min_height !== undefined && template.min_height !== null && template.min_height !== '') return undefined;
+    if (grid.height === '100%') return 0;
+    const definite = (/** @type {string} */ t) => !!trackPx(t) || /^[\d.]+fr$/.test(String(t).trim());
+    const { tracks } = explicitRows(grid);
+    return trackPx(autoRowsOf(grid)) && tracks.every(definite) ? 0 : undefined;
+}

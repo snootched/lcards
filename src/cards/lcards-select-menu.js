@@ -37,6 +37,7 @@ import { getSelectMenuSchema } from './schemas/select-menu-schema.js';
 import {
     gridLayout, mergeStyleLayers, naturalHeightPx, optionCardKeys,
     optionOpacity, rowCount, OPTION_CARD_KEYS,
+    optionPlacement, optionMinHeight,
 } from './select-menu-config.js';
 
 /**
@@ -367,6 +368,8 @@ export class LCARdSSelectMenu extends LCARdSCard {
             ...template,
             // the option's rules, sounds, variables, zones, debug_zones over the template's
             ...optionCardKeys(template, opt.cardKeys),
+            // rows of a definite height: the button follows its row, not the preset's min_height
+            ...(optionMinHeight(this.config.grid, template) === 0 ? { min_height: 0 } : {}),
             // Override template with card-level and option-specific values
             ...(entityId ? {
                 entity: entityId,
@@ -398,10 +401,12 @@ export class LCARdSSelectMenu extends LCARdSCard {
             ...(opt.icon ? { icon: opt.icon, show_icon: true } : {}),
         };
 
+        // justify-items / align-items place only a button with its own size (an unsized one would vanish)
+        const placement = (/** @type {any} */ b) => { const p = optionPlacement(b); return { 'justify-self': p.justifySelf, 'align-self': p.alignSelf }; };
         return html`<lcards-button
             ${buttonConfig(btnConfig)}
             .hass=${this.hass}
-            style=${styleMap({ opacity: opacity < 1 ? String(opacity) : undefined })}></lcards-button>`;
+            style=${styleMap({ opacity: opacity < 1 ? String(opacity) : undefined, ...placement(btnConfig) })}></lcards-button>`;
     }
 
     // =========================================================================

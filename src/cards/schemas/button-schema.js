@@ -9,7 +9,7 @@
  */
 
 import { COLOR_VALUE_PATTERN } from '../../core/themes/color-syntax.js';
-import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, stateIconSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema, stateClassificationSchema, cardLevelProperties } from './common-schemas.js';
+import { dataSourcesSchema, actionSchema, animationSchema, filterSchema, stateColorSchema, stateIconSchema, paddingSchema, getTextSchema, gridOptionsSchema, entitySchema, cardIdSchema, tagsSchema, backgroundAnimationSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, triggersUpdateSchema, stateClassificationSchema, cardLevelProperties, letterSpacingSchema } from './common-schemas.js';
 
 /**
  * Get complete button card schema
@@ -510,7 +510,13 @@ export function getButtonSchema(options = {}) {
                                         ]
                                     },
                                     font_weight: { type: ['string', 'number'] },
-                                    font_family: { type: 'string', format: 'font-family' }
+                                    font_family: { type: 'string', format: 'font-family' },
+                                    letter_spacing: letterSpacingSchema,
+                                    text_transform: {
+                                        type: 'string',
+                                        enum: ['none', 'uppercase', 'lowercase', 'capitalize'],
+                                        description: 'Case for every text field that sets none of its own: none, uppercase, lowercase or capitalize.'
+                                    }
                                 }
                             }
                         }

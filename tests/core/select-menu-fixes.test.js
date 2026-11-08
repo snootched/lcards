@@ -101,3 +101,25 @@ test('schema: row_gap and column_gap are declared aliases; opacity says default 
     assert.match(grid.row_gap.description, /Alias of row-gap/);
     assert.match(getSelectMenuSchema().properties.style.properties.opacity.description, /Default 1/);
 });
+
+test('an option button without its own size fills its cell (justify-items / align-items would shrink it to nothing)', async () => {
+    const { optionPlacement } = await import('../../src/cards/select-menu-config.js');
+    assert.deepEqual(optionPlacement({}), { justifySelf: 'stretch', alignSelf: 'stretch' });
+    assert.deepEqual(optionPlacement({ width: '100px' }), { alignSelf: 'stretch' });
+    assert.deepEqual(optionPlacement({ width: '100px', height: 30 }), {});
+    assert.deepEqual(optionPlacement({ width: '' }), { justifySelf: 'stretch', alignSelf: 'stretch' });
+});
+
+test('option buttons follow rows of a definite height, not the button preset\'s 56px floor', async () => {
+    const { optionMinHeight } = await import('../../src/cards/select-menu-config.js');
+    assert.equal(optionMinHeight({}), 0);                                        // the default 56px rows
+    assert.equal(optionMinHeight({ 'grid-auto-rows': '40px' }), 0);
+    assert.equal(optionMinHeight({ 'grid-auto-rows': 'minmax(40px, 120px)' }), 0);
+    assert.equal(optionMinHeight({ rows: '30px 1fr 30px' }), 0);
+    assert.equal(optionMinHeight({ 'grid-auto-rows': 'auto', height: '100%' }), 0);
+    // rows that size to their content keep the floor (an unsized button would collapse)
+    assert.equal(optionMinHeight({ 'grid-auto-rows': 'auto' }), undefined);
+    assert.equal(optionMinHeight({ rows: 'auto 40px' }), undefined);
+    // the user's own min_height wins
+    assert.equal(optionMinHeight({ 'grid-auto-rows': '40px' }, { min_height: 50 }), undefined);
+});

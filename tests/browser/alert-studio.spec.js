@@ -128,7 +128,7 @@ test('the preview mounts like a card on a fixed screen (the docs live examples)'
         document.body.appendChild(box);
         const preview = /** @type {any} */ (document.createElement('lcards-alert-preview'));
         Object.assign(preview.style, { width: '100%', height: '100%' });
-        preview.setConfig({ type: 'custom:lcards-alert-overlay', width: '50%' });
+        preview.setConfig({ type: 'custom:lcards-alert-overlay', width: '50%', layers: { canvas: { preset: 'scanlines', lineHeight: 3 } } });
         preview.hass = window.__hass;
         preview.screenSize = { width: 1280, height: 720 };
         preview.condition = 'blue_alert';
@@ -140,10 +140,13 @@ test('the preview mounts like a card on a fixed screen (the docs live examples)'
             content: root.querySelector('.content').offsetWidth,
             frame: Math.round(root.querySelector('.frame').getBoundingClientRect().width),
             tag: root.querySelector('.content').firstElementChild?.localName,
+            canvas: [root.querySelector('.layer-canvas').width, Math.round(root.querySelector('.layer-canvas').getBoundingClientRect().width)],
         };
     });
-    // laid out at 1280 x 720 whatever the window, scaled into the 640 px box; 50% is of that screen
-    expect(state).toEqual({ screen: [1280, 720], content: 640, frame: 640, tag: 'lcards-button' });
+    // laid out at 1280 x 720 whatever the window, scaled into the 640 px box; 50% is of that screen.
+    // The canvas layer draws at the 640 px shown, so its pixel sizes (3 px scanlines) stay real
+    // instead of blurring at half size.
+    expect(state).toEqual({ screen: [1280, 720], content: 640, frame: 640, tag: 'lcards-button', canvas: [640, 640] });
     expect(await page.evaluate(() => window.__hass.serviceCalls)).toEqual([]);
     await expectNoErrors(page);
 });

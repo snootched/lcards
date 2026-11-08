@@ -225,8 +225,13 @@ export class LCARdSAlertPreview extends LitElement {
                     <div class="dismiss-target" @click=${this._onBackdropClick}></div>
                     <div class="layer layer-backdrop"></div>
                     <div class="layer layer-color"></div>
-                    <!-- the canvas presets draw into a <canvas>, as in the real overlay's canvas slot -->
-                    <canvas class="layer layer-canvas" width="1" height="1"></canvas>
+                    <!-- The canvas presets draw into a <canvas>, as in the real overlay's canvas slot.
+                         Their sizes are screen pixels (line height, grain, block size), so the canvas
+                         is drawn at the size shown, not shrunk with the screen (3 px scanlines would
+                         blur into grey): a box the frame's size, scaled back up inside the screen. -->
+                    <div class="canvas-box" style="width: ${width * this._scale}px; height: ${height * this._scale}px; transform: scale(${1 / this._scale})">
+                        <canvas class="layer layer-canvas" width="1" height="1"></canvas>
+                    </div>
                     <div class="wrap"><div class="content"></div></div>
                 </div>
                 ${this._dismissed ? html`
@@ -337,6 +342,13 @@ export class LCARdSAlertPreview extends LitElement {
             .h0 { background: var(--lcards-orange); }
             .h1 { background: var(--lcards-blue); }
             .h2 { background: var(--lcards-gray); }
+            .canvas-box {
+                position: absolute;
+                top: 0;
+                left: 0;
+                transform-origin: 0 0;
+                pointer-events: none;
+            }
             .dismiss-target, .layer, .wrap {
                 position: absolute;
                 inset: 0;

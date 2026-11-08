@@ -56,6 +56,25 @@ test('grid.rows, grid.justify-items and grid.align-items reach the option grid; 
     // 3 rows of 40px + 2 gaps of 4px = 128px: 3 sections rows (2 are 56px + 8px + 56px = 120px)
     expect(await menu(page).evaluate(el => el.getGridOptions().rows)).toBe(3);
     expect(await menu(page).evaluate(el => el.getCardSize())).toBe(3);
+    // the buttons show: with no width of their own they still fill their cells across (centring an
+    // unsized button shrank it to nothing), and align-items: start keeps them their row's height
+    const widths = () => menu(page).evaluate(el => [...el.shadowRoot.querySelectorAll('lcards-button')].map(b => {
+        const r = b.getBoundingClientRect(), cell = b.parentElement.getBoundingClientRect();
+        return [Math.round(r.width), Math.round(r.height), Math.round(r.left - cell.left)];
+    }));
+    await expect.poll(async () => (await widths()).every(([w, h]) => w > 150 && h === 40)).toBe(true);
+    // a button_template width: the buttons keep it and sit centred in their columns
+    await page.evaluate(() => window.__reconfigure({ type: 'custom:lcards-select-menu', entity: 'input_select.demo_mode', preset: 'lozenge', button_template: { width: '100px' },
+        grid: { columns: 2, gap: '4px', 'grid-auto-rows': '40px', 'justify-items': 'center' } }));
+    await expect.poll(async () => (await widths()).map(([w]) => w)).toEqual([100, 100, 100, 100]);
+    const gap = await menu(page).evaluate(el => {
+        const g = el.shadowRoot.querySelector('.sm-grid').getBoundingClientRect(), b = el.shadowRoot.querySelector('lcards-button').getBoundingClientRect();
+        return Math.round(b.left - g.left);
+    });
+    expect(gap).toBe(Math.round((400 - 4) / 2 / 2 - 50));
+    // the drawing fits the 40px row (the button preset's min_height, 56px on a real theme, spilled out)
+    expect(await menu(page).evaluate(el => [...el.shadowRoot.querySelectorAll('lcards-button')].map(b =>
+        [b.config.min_height, Math.round(b.shadowRoot.querySelector('svg').getBoundingClientRect().height)]))).toEqual([[0, 40], [0, 40], [0, 40], [0, 40]]);
     // a track list
     await page.evaluate(() => window.__reconfigure({ type: 'custom:lcards-select-menu', entity: 'input_select.demo_mode', grid: { columns: 1, rows: '30px 50px 30px 50px' } }));
     await expect.poll(async () => (await grid()).rows).toBe('30px 50px 30px 50px');

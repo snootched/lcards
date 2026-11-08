@@ -1081,7 +1081,7 @@ export const rulesSchema = {
  * Spacing between letters: px (a number) or any CSS letter-spacing.
  * Shared by the text-field default block and every field.
  */
-const letterSpacingSchema = {
+export const letterSpacingSchema = {
     type: ['number', 'string'],
     description: 'Space between letters: px (a number) or a CSS letter-spacing such as 0.1em or 2px. Default normal.',
     examples: [1, '0.1em', '2px']

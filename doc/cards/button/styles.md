@@ -120,6 +120,8 @@ grid_options:
 | `style.text.default.font_size` | number / string | from the preset | Font size for every field |
 | `style.text.default.font_weight` | string / number | from the preset | Font weight for every field |
 | `style.text.default.font_family` | string | from the preset | Font for every field |
+| `style.text.default.letter_spacing` | number / string | `normal` | Space between letters for every field: px as a number, or a CSS value (`0.1em`) |
+| `style.text.default.text_transform` | string | from the preset | Case for every field: `none`, `uppercase`, `lowercase` or `capitalize` |
 
 ## interactive
 

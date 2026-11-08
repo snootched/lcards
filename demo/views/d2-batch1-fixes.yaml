@@ -1,0 +1,391 @@
+# D2 batch 1: the button, elbow and select menu fixes the docs audit found, one card each.
+# ALERT SWITCH (lcards_test_toggle) drives the rules, the inner elbow segment and the OFFLINE text.
+title: D2 batch 1 fixes
+path: d2-batch1-fixes
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          name:
+            content: ALERT SWITCH
+            show: true
+        tap_action:
+          action: toggle
+        grid_options:
+          columns: 8
+          rows: 1
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: lozenge
+        text:
+          name:
+            content: LIGHTS
+            show: true
+        tap_action:
+          action: toggle
+        grid_options:
+          columns: 8
+          rows: 1
+
+  # Buttons
+  - type: grid
+    column_span: 4
+    cards:
+      # A d-pad keeps its 5 rows in a sections view; segments.default colours every segment, up its own
+      - type: custom:lcards-button
+        component: dpad
+        dpad:
+          segments:
+            default:
+              style:
+                fill: var(--lcards-orange)
+            up:
+              style:
+                fill: var(--lcards-blue)
+        grid_options:
+          columns: 12
+          rows: 5
+      # The alert symbol: bars in their own colour while they sweep
+      - type: custom:lcards-button
+        component: alert
+        preset: condition_red
+        alert:
+          color:
+            bars: var(--lcards-blue-light)
+        grid_options:
+          columns: 12
+          rows: 4
+      # A wide left border and one rounded corner; the other sides keep the preset's
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: outline
+        text:
+          name:
+            content: PARTIAL BORDER
+            show: true
+        style:
+          border:
+            width:
+              left: 6
+            radius:
+              top_left: 24
+        grid_options:
+          columns: 8
+      # A free icon in the top-right corner, inside the card
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: barrel
+        text:
+          name:
+            content: FREE ICON
+            show: true
+        show_icon: true
+        icon: mdi:thermometer
+        icon_area: none
+        icon_style:
+          position: top-right
+          padding: 10
+          size: 32
+        grid_options:
+          rows: 2
+          columns: 8
+      # icon_style.padding_left: 20 px from the left edge
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_lights
+        preset: lozenge
+        show_icon: true
+        icon: mdi:sofa
+        icon_style:
+          padding_left: 20
+        text:
+          name:
+            content: ICON PADDING
+            show: true
+        grid_options:
+          columns: 8
+      # style.text colour beats the preset's: OFFLINE in orange while ALERT SWITCH is off
+      - type: custom:lcards-button
+        entity: input_boolean.lcards_test_toggle
+        preset: lozenge
+        text:
+          label:
+            content: OFFLINE
+            show: true
+        style:
+          text:
+            default:
+              letter_spacing: 6px
+              color:
+                inactive: var(--lcards-orange)
+        grid_options:
+          columns: 8
+      # The level texture in its own colour, filled to the humidity
+      - type: custom:lcards-button
+        preset: capped
+        text:
+          name:
+            content: HUMIDITY LEVEL
+            show: true
+        shape_texture:
+          preset: level
+          opacity: 0.8
+          config:
+            color: var(--lcards-blue)
+            fill_pct:
+              map_range:
+                entity: input_number.lcards_test_humidity
+                input: [ 0, 100 ]
+                output: [ 0, 100 ]
+        grid_options:
+          columns: 8
+      # The pulse texture is back
+      - type: custom:lcards-button
+        preset: lozenge
+        text:
+          name:
+            content: PULSE
+            show: true
+        shape_texture:
+          preset: pulse
+          opacity: 0.8
+          config:
+            color: var(--lcards-orange-dark)
+        grid_options:
+          columns: 8
+
+  # Elbows
+  - type: grid
+    column_span: 4
+    cards:
+      # Each segment follows its own entity: outer LIGHTS (tap toggles, double-tap more info), inner ALERT SWITCH (hold for more info)
+      - type: custom:lcards-elbow
+        entity: input_boolean.lcards_test_lights
+        tap_action:
+          action: toggle
+        elbow:
+          type: header-left
+          style: segmented
+          segments:
+            gap: 4
+            outer_segment:
+              bar_width: 90
+              bar_height: 20
+              color:
+                active: var(--lcards-orange)
+                inactive: var(--lcards-gray)
+              double_tap_action:
+                action: more-info
+            inner_segment:
+              bar_width: 30
+              bar_height: 10
+              entity_id: input_boolean.lcards_test_toggle
+              color:
+                active: var(--lcards-orange-dark)
+                inactive: var(--lcards-blue)
+              hold_action:
+                action: more-info
+        grid_options:
+          rows: 3
+          columns: 12
+      # A segmented frame with no inner colour: the inner ring takes the outer ring's
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          style: segmented
+          segment:
+            color: var(--lcards-orange)
+          frame:
+            bar_width: 30
+            segments:
+              gap: 6
+              inner_frame:
+                bar_width: 10
+        grid_options:
+          rows: 3
+          columns: 12
+      # Frame bars in CSS lengths
+      - type: custom:lcards-elbow
+        elbow:
+          type: frame
+          segment:
+            color: var(--lcards-blue)
+          frame:
+            bar_width: clamp(16px, 2vw, 24px)
+            bar_height: calc(10px + 6px)
+        grid_options:
+          rows: 3
+          columns: 12
+      # An open header with its symbiont inside the arms
+      - type: custom:lcards-elbow
+        elbow:
+          type: header-open
+          segment:
+            bar_width: 90
+            bar_height: 20
+            color: var(--lcards-moonlight)
+        symbiont:
+          enabled: true
+          card:
+            type: custom:lcards-button
+            preset: lozenge
+            text:
+              name:
+                content: SYMBIONT
+                show: true
+        grid_options:
+          rows: 3
+          columns: 12
+      # A texture clipped to the two segments
+      - type: custom:lcards-elbow
+        elbow:
+          type: header-left
+          style: segmented
+          segments:
+            gap: 4
+            outer_segment:
+              bar_width: 90
+              bar_height: 20
+              color: var(--lcards-orange)
+            inner_segment:
+              bar_width: 30
+              bar_height: 10
+              color: var(--lcards-blue)
+        shape_texture:
+          preset: level
+          opacity: 0.6
+          config:
+            color: var(--lcards-moonlight)
+            fill_pct: 60
+        grid_options:
+          rows: 3
+          columns: 12
+      # Segments sized by the theme (bar_width and bar_height: theme)
+      - type: custom:lcards-elbow
+        elbow:
+          type: header-left
+          style: segmented
+          segments:
+            gap: 4
+            outer_segment:
+              bar_width: theme
+              bar_height: theme
+              color: var(--lcards-orange)
+            inner_segment:
+              bar_width: 30
+              bar_height: 10
+              color: var(--lcards-blue)
+        grid_options:
+          rows: 3
+          columns: 12
+
+  # Select menus
+  - type: grid
+    column_span: 4
+    cards:
+      # A rule on the menu's id: the options turn red while ALERT SWITCH is on
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_look
+        preset: lozenge
+        id: batch1-rule-menu
+        grid:
+          columns: 3
+        style:
+          card:
+            color:
+              background: var(--lcards-blue-medium)
+        rules:
+          - id: batch1-rule-menu-alert
+            when:
+              entity: input_boolean.lcards_test_toggle
+              state: "on"
+            apply:
+              overlays:
+                batch1-rule-menu:
+                  style:
+                    card:
+                      color:
+                        background: var(--lcards-orange-dark)
+        grid_options:
+          columns: 16
+      # Options that are not selected are dimmed (style.opacity)
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_rate
+        preset: lozenge
+        grid:
+          columns: 3
+        style:
+          opacity: 0.5
+        grid_options:
+          columns: 16
+      # Text settings reach the labels: wide letter spacing and a larger size
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_look
+        preset: lozenge
+        grid:
+          columns: 3
+        style:
+          text:
+            default:
+              letter_spacing: 4px
+              font_size: 18
+        grid_options:
+          columns: 16
+      # The grid's rows and alignment: 2 columns of 3 rows, 120 px buttons centred in their cells
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_rate
+        preset: lozenge
+        grid:
+          columns: 2
+          rows: 3
+          gap: 4px
+          grid-auto-rows: 40px
+          justify-items: center
+        button_template:
+          width: 120px
+        grid_options:
+          rows: 3
+          columns: 16
+      # Styles merge key by key: template blue when off, card orange when selected, MIXED with a border
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_look
+        preset: lozenge
+        grid:
+          columns: 3
+        button_template:
+          style:
+            card:
+              color:
+                background:
+                  inactive: var(--lcards-blue)
+        style:
+          card:
+            color:
+              background:
+                active: var(--lcards-orange)
+        options:
+          MIXED:
+            style:
+              border:
+                width: 2
+                color: var(--lcards-moonlight)
+        grid_options:
+          columns: 16
+      # An option's own variables: DIAGRAM is labelled from its variable
+      - type: custom:lcards-select-menu
+        entity: input_select.lcards_test_look
+        preset: lozenge
+        grid:
+          columns: 3
+        options:
+          DIAGRAM:
+            label: "{variables.deck}"
+            variables:
+              deck: BRIDGE
+        grid_options:
+          columns: 16

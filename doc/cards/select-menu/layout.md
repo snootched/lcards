@@ -11,7 +11,7 @@ How the option buttons are arranged, and how tall the card is in a dashboard or 
 **`grid` arranges the option buttons as a CSS grid: how many columns, the gaps between buttons and the height of each row.** Most menus need only `columns` and `gap`.
 
 - `columns` takes a number for equal columns, or any CSS `grid-template-columns` value for columns of different widths (`100px 1fr 2fr`).
-- Each row is `56px` high unless you set `grid-auto-rows`; the buttons fill their cells unless `justify-items` or `align-items` say otherwise.
+- Each row is `56px` high unless you set `grid-auto-rows`, and the buttons fill their cells. To place smaller buttons in their cells, give them a size in `button_template` (`width`, `height`) and set `justify-items` or `align-items`.
 - `rows` sets a number of rows (each `grid-auto-rows` high) or a CSS `grid-template-rows` track list. With the default row flow, options beyond those rows add more.
 
 ```yaml live
@@ -40,8 +40,8 @@ grid:
 | `grid.grid-auto-rows` | string | `56px` | Row height, such as `48px`, `minmax(40px, 56px)` or `auto` |
 | `grid.grid-auto-flow` | string | `row` | `row`, `column`, `dense`, `row dense` or `column dense` |
 | `grid.rows` | number / string | - | A number of rows, each `grid-auto-rows` high, or a CSS `grid-template-rows` value |
-| `grid.justify-items` | string | `stretch` | Each button's place across its cell: `stretch`, `start`, `end` or `center` |
-| `grid.align-items` | string | `stretch` | Each button's place down its cell: `stretch`, `start`, `end` or `center` |
+| `grid.justify-items` | string | `stretch` | Each button's place across its cell: `stretch`, `start`, `end` or `center`. Places buttons with a `button_template.width`; without one they fill the cell across |
+| `grid.align-items` | string | `stretch` | Each button's place down its cell: `stretch`, `start`, `end` or `center`. Places buttons with a `button_template.height`; without one they fill the cell down |
 | `grid.height` | string | natural | `fit` or `100%`: see [Height modes](#height-modes) |
 
 ## Sizing in a Dashboard
