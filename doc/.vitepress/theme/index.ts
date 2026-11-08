@@ -18,6 +18,8 @@ import ReleaseMeta from './ReleaseMeta.vue'
 import VersionSwitcher from './VersionSwitcher.vue'
 import VersionBanner from './VersionBanner.vue'
 import HowItWorks from './HowItWorks.vue'
+import AstroScaleDiagram from './AstroScaleDiagram.vue'
+import AstroStarterTiles from './AstroStarterTiles.vue'
 import './style.css'
 
 // ── Mermaid SVG lightbox ───────────────────────────────────────────────────
@@ -111,6 +113,9 @@ export default {
     app.component('ReleaseMeta', ReleaseMeta)
     // "How LCARdS works": the layers and examples (What is LCARdS, the home page).
     app.component('HowItWorks', HowItWorks)
+    // Astrometrics overview: the scale diagram, and starter picture tiles (the Studio's pictures).
+    app.component('AstroScaleDiagram', AstroScaleDiagram)
+    app.component('AstroStarterTiles', AstroStarterTiles)
     // The Check Your Config page (ajv, the schemas): its own chunk, loaded on that page only.
     app.component('ConfigChecker', defineAsyncComponent(() => import('./ConfigChecker.vue')))
   },

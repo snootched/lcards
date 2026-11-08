@@ -36,7 +36,7 @@ const mdSource = (url) => readFileSync(join('doc', url.endsWith('/') ? `${url}in
 
 test('the live-page scan finds the card pages', () => {
     const urls = PAGES.map(([u]) => u);
-    for (const u of ['/cards/button/', '/cards/elbow/', '/cards/slider-card/', '/cards/select-menu/', '/cards/astrometrics/', '/core/colours', '/cards/alert-overlay/band']) expect(urls).toContain(u);
+    for (const u of ['/cards/button/', '/cards/elbow/', '/cards/slider-card/', '/cards/select-menu/', '/cards/astrometrics/start', '/core/colours', '/cards/alert-overlay/band']) expect(urls).toContain(u);
 });
 
 test('an alert overlay example shows on a mock screen, and the condition buttons switch it', async ({ page }) => {

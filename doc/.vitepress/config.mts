@@ -44,10 +44,12 @@ function releaseMetaRule(md: any) {
  * Needed because LCARdS docs show Jinja2 / HA template syntax in prose.
  */
 /**
- * ```yaml live  code blocks render as usual, followed by a live demo built
- * from the same YAML (one source of truth; the doc-example validator still
- * checks the block). The card `type:` picks the demo component; anything
- * that isn't a data grid gets <ChartDemo>.
+ * ```yaml live  code blocks render a live demo built from the same YAML, then
+ * the YAML itself (the card first: the user, 2026-11-08; one source of truth,
+ * the doc-example validator still checks the block). ```yaml live collapsed
+ * folds the YAML into a details block (long pages such as the starters);
+ * ```yaml live controls adds a control for each entity the YAML names (CardDemo).
+ * The card `type:` picks the demo component.
  */
 const LIVE_DEMOS: Record<string, string> = {
   'lcards-chart': 'ChartDemo',
@@ -86,7 +88,11 @@ function liveDemoFence(md: any) {
       console.warn(`[docs] \`yaml live\` block with no demo for type "${type || '(none)'}" in ${env?.relativePath ?? '?'}`)
       return html
     }
-    return `${html}<ClientOnly><${component} src="${encodeURIComponent(content)}" /></ClientOnly>`
+    const yaml = info.includes('collapsed')
+      ? `<details class="details custom-block live-yaml"><summary>YAML</summary>${html}</details>`
+      : html
+    const controls = info.includes('controls') ? ' controls' : ''
+    return `<ClientOnly><${component} src="${encodeURIComponent(content)}"${controls} /></ClientOnly>${yaml}`
   }
 }
 
@@ -603,8 +609,9 @@ export default withMermaid(defineConfig({
               collapsed: true,
               items: [
                 { text: 'Overview', link: '/cards/astrometrics/' },
+                { text: 'Getting Started', link: '/cards/astrometrics/start' },
+                { text: 'Starters', link: '/cards/astrometrics/starters' },
                 { text: 'Points',   link: '/cards/astrometrics/points' },
-                { text: 'Live Data', link: '/cards/astrometrics/data' },
                 {
                   text: 'Objects',
                   collapsed: true,
@@ -616,11 +623,12 @@ export default withMermaid(defineConfig({
                     { text: 'Ships and Stations',         link: '/cards/astrometrics/objects/ships' },
                   ],
                 },
-                { text: 'Your Own Models', link: '/cards/astrometrics/models' },
+                { text: 'Camera and Views', link: '/cards/astrometrics/camera' },
+                { text: 'Scene and Looks',  link: '/cards/astrometrics/scene' },
+                { text: 'Live Data', link: '/cards/astrometrics/data' },
                 { text: 'Effects',  link: '/cards/astrometrics/effects' },
                 { text: 'Scale',    link: '/cards/astrometrics/scale' },
-                { text: 'Studio',   link: '/cards/astrometrics/studio' },
-                { text: 'Starters', link: '/cards/astrometrics/starters' },
+                { text: 'Your Own Models', link: '/cards/astrometrics/models' },
               ],
             },
           ],

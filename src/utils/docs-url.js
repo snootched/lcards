@@ -66,7 +66,7 @@ export const DOCS = Object.freeze({
   slider: '/cards/slider-card/',
   dataGrid: '/cards/data-grid/',
   astrometrics: '/cards/astrometrics/',
-  astrometricsStudio: '/cards/astrometrics/studio',
+  astrometricsStudio: '/cards/astrometrics/start#the-studio',
   selectMenu: '/cards/select-menu/',
   alertOverlay: '/cards/alert-overlay/',
   layoutCard: '/cards/layout-card/',

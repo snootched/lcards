@@ -4,7 +4,7 @@ description: "Astrometrics card space phenomena: nebulae, asteroid belts, single
 
 # Space Phenomena
 
-Things space is full of: gas clouds, asteroid belts and single rocks, comets, galaxies and the Crystalline Entity. The keys every object takes (`id`, `at`, `rotation`, `spin`, `opacity` ...) are on the [Objects](../objects#keys-every-object-takes) page. In the diagram [look](../index#looks-diagram-and-realistic), a belt, an asteroid, a comet, a galaxy, the Crystalline Entity and a volume nebula are drawn as wireframes.
+Things space is full of: gas clouds, asteroid belts and single rocks, comets, galaxies and the Crystalline Entity. The keys every object takes (`id`, `at`, `rotation`, `spin`, `opacity` ...) are on the [Objects](../objects#keys-every-object-takes) page. In the diagram [look](../scene#looks-diagram-and-realistic), a belt, an asteroid, a comet, a galaxy, the Crystalline Entity and a volume nebula are drawn as wireframes.
 
 ## nebula
 
@@ -64,7 +64,7 @@ objects:
 | `size` | number / `[w, h, d]` | - | Or a box, scene units (one number for a cube). Wins over `radius` |
 | `count` | number | `4` | How many clouds the seed places, 1 to 10 |
 | `seed` | number | `1` | The same seed always places the same clouds |
-| `clouds` | list | - | Clouds placed by hand (up to 10), instead of `count` and the seed |
+| `clouds` | list | - | Clouds placed by hand (up to 10 gas and 4 dust clouds), instead of `count` and the seed |
 | `color` | colour | `var(--lcars-violet)` | Cloud colour when `colors` is not set (a `preset` sets `colors`) |
 | `colors` | colour / list | `var(--lcars-violet)` | One colour, or a list the seed picks from per cloud. Wins over `color` |
 | `min_radius` | number | 0.15 of the region | Smallest cloud radius, scene units. 0.25 with `render: volume` |

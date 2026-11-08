@@ -140,7 +140,7 @@ releases:
         summary: "Astrometrics diagram forms: each object type's LCARS wireframe for the diagram look"
         description: "LOOK switches the scene between DIAGRAM (each object as an LCARS wireframe in its own colour), REALISTIC and MIXED (the bodies as configured). A glow becomes a ring marker facing the camera, a Borg cube and a box their edges and a grid on each face, an asteroid its rock's edges, tumbling with it, a belt its inner and outer edges. A comet shows its nucleus, a ring round the coma and each tail as a line; a galaxy its spiral arms, rim, bulge ring and bar; the Crystalline Entity its spine and branches with a ring round the core; the volume nebulae a ball's three rings and a box's edges. Orbits and routes show in the diagram and mixed looks only; the planet's banded ring stays in every look. The colour select recolours the wireframes too."
         session: "Astro polish"
-        docs: /cards/astrometrics/#looks-diagram-and-realistic
+        docs: /cards/astrometrics/scene#looks-diagram-and-realistic
         public: true
       - file: astro-recolor
         summary: "Astrometrics colours in place: colours and alert modes crossfade, nothing rebuilds"
@@ -188,25 +188,25 @@ releases:
         summary: "Astrometrics Studio forms: a card to open in the Studio"
         description: "Open this card's editor, then its Studio. The scene is in light years with a star system in astronomical units, and number fields say so. The look is a switch, the stars sit behind a switch, the nebula's colours are a colour list and the labels pick a font. The route hides inside the system, the shield's opacity follows SHIELDS, and the camera's first view is a guided tour on STAGE."
         session: "UX1"
-        docs: /cards/astrometrics/studio
+        docs: /cards/astrometrics/start#the-studio
         public: false
       - file: astro-studio-starters
         summary: "Astrometrics Studio starters: try a scene, keep it or undo it"
         description: "A new card with no scene. Open its editor, then its Studio: it opens on the Starters gallery. Open a starter to see what it adds and change its settings, try it in the preview, keep or discard it, and undo with Ctrl+Z or the toolbar."
         session: "UX1"
-        docs: /cards/astrometrics/studio
+        docs: /cards/astrometrics/start#the-studio
         public: false
       - file: astro-studio-objects
         summary: "Astrometrics Studio objects: add by picture, parts into a system"
         description: "A galaxy in light years with Sol as a system in km. In the Studio: Add object is a gallery by group, shapes are picked by picture, the system row has Open, and with the system open Starters adds parts into it at real sizes."
         session: "UX1"
-        docs: /cards/astrometrics/studio
+        docs: /cards/astrometrics/start#the-studio
         public: false
       - file: astro-studio-move
         summary: "Astrometrics Studio: drag objects by their point, measure, quick views, hold, isolate"
         description: "Open this card's editor, then its Studio. Drag the planet and its point moves with it; select the ring or the relay pad first, then drag it. The survey grid is placed by coordinates and does not drag. Select anything and press F to fly to it. The toolbar also measures between two taps, steps through flat top, front and side views, and (preview only) switches the look, holds all motion and shows the selected object alone."
         session: "ST1"
-        docs: /cards/astrometrics/studio
+        docs: /cards/astrometrics/start#the-studio
         public: false
       - file: astro-real-size
         summary: "Astrometrics real size: starbases and ships in proportion"
@@ -218,7 +218,7 @@ releases:
         summary: "Astrometrics prism outlines: edit a territory's border on the preview"
         description: "Two territories as prism volumes over a map. In the card's Studio, Objects, open a territory: its outline is a row per corner, and Edit on preview puts the corners on the map to drag (snapped to the map's 5, Shift for free), a + between corners adds one, Delete removes the selected one; Draw new outline taps a new border, closing on its first corner. Each change is one undo step."
         session: "UX1"
-        docs: /cards/astrometrics/studio#objects
+        docs: /cards/astrometrics/start#the-studio
         public: false
       - file: chart-sources
         summary: "Charts: entity history, long-term statistics and data sources"
@@ -254,7 +254,7 @@ releases:
         summary: "Astrometrics navigation: follow a moving ship, touchpad pan, a time slider, buttons that fade"
         description: "Tap ENTERPRISE, SHUTTLE or PROBE (the name or its marker): the camera flies to it and stays on it round its orbit, and the wheel or a pinch zooms straight in on it; a tap on blank space lets go (a pan or a fly forward keeps following, offset). On a touchpad a two-finger swipe pans and a pinch zooms; with a mouse the wheel zooms and a middle-drag pans. The on-card D-pad pans (arms), zooms (left corners), flies forward and back (right corners) and resets (centre); the slider under it slows the motion down, holds it or speeds it up. The on-card buttons fade after a few seconds and come back when the pointer moves. The buttons above the card fly to the system views (SYSTEM, TOP), or to a ship and follow it. Click the scene and press W or S (Page Up, Page Down) to fly forward and back through it: camera and target move together."
         session: "N1"
-        docs: /cards/astrometrics/#following-a-point
+        docs: /cards/astrometrics/camera#following-a-point
         public: true
       - file: astro-face
         summary: "Astrometrics face motion: ships nose first along their orbits"
@@ -381,7 +381,7 @@ releases:
         summary: "Camera controls and fly-to from other cards"
         description: "Drag to orbit, shift-drag, middle-drag, two fingers or a touchpad swipe to pan, wheel or pinch to zoom to the pointer, double-tap blank space to fly in (shift: out), the on-card buttons, and fly-to from other cards (the buttons above it name the card by its id). The second card is a map: a one-finger drag pans."
         session: "E3b"
-        docs: /cards/astrometrics/#controls
+        docs: /cards/astrometrics/camera#controls
         public: true
       - file: astro-effects
         summary: "Nebula, scans, flows, fills, warp and dust in 3D"

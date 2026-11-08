@@ -8,7 +8,7 @@ import { test, expect } from './support.js';
 for (const [from, to] of [
     ['/cards/slider-card/#ring-gauge', /\/cards\/slider-card\/components(\.html)?#ring-gauge$/],
     ['/cards/slider-card/#drag-value-badge', /\/cards\/slider-card\/control(\.html)?#drag-value-badge$/],
-    ['/cards/astrometrics/objects#comet', /\/cards\/astrometrics\/objects\/space(\.html)?#comet$/],
+    ['/cards/button/#style-card', /\/cards\/button\/styles(\.html)?#style-card$/],
 ]) {
     test(`${from} lands on the heading's new page`, async ({ page }) => {
         await page.goto(from);

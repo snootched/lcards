@@ -402,7 +402,7 @@ objects:
 
 - `shape: sector` is a slice of a disc round the object's place: between two radii, two bearings and two heights. A sector's second bearing may pass 360, so it can cross north.
 - `shape: box` is a box of `size` centred on `at`. `shape: prism` is any border you draw (`outline`) between two heights, for territories that are not pie slices.
-- In the Astrometrics Studio you can [draw and drag a prism's outline on the preview](../studio#objects).
+- In the Astrometrics Studio you can [draw and drag a prism's outline on the preview](../start#the-studio).
 
 ```yaml live
 type: custom:lcards-astrometrics-card
@@ -707,7 +707,7 @@ objects:
 ::: details More about ring
 - **Orbits:** an `orbit` is an ellipse with its parent at a focus, tilted and turned as it really is, in the frame's units. Leave `at` out for a planet (the Sun sits at the origin) and put a moon's at its planet (`orbit: io`, `at: jupiter`). `radius`, `inclination`, `node`, `arc` and `band` do not apply then.
 - **In a body's equator:** `body: saturn` lays the ring in that body's equator at the scene date; `inclination` and `node` tilt it from there, and `rotation` does not apply.
-- **Looks:** a ring drawn as a line is part of the diagram look; the realistic [look](../index#looks-diagram-and-realistic) hides it. A ring with a band picture stays.
+- **Looks:** a ring drawn as a line is part of the diagram look; the realistic [look](../scene#looks-diagram-and-realistic) hides it. A ring with a band picture stays.
 :::
 
 | Key | Type | Default | Description |

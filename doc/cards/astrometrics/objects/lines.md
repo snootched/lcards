@@ -66,7 +66,7 @@ objects:
 ::: details More about path
 - **Ids and offsets together:** with `at`, a point id in `points` still means that point, wherever it is; only the `[x, y, z]` entries are measured from `at`.
 - **The track of the sun or moon:** `sky: sun` (or `moon`) with `object: <dome grid id>` draws today's track across the sky on that dome, split where it goes under the horizon. `points`, `from` and `to` are not used then.
-- **Looks:** a path is part of the diagram look; the realistic [look](../index#looks-diagram-and-realistic) hides it unless the path sets `look: all`.
+- **Looks:** a path is part of the diagram look; the realistic [look](../scene#looks-diagram-and-realistic) hides it unless the path sets `look: all`.
 :::
 
 | Key | Type | Default | Description |
@@ -328,7 +328,7 @@ objects:
 | `branches` | number | `3` strike, `1` column | Forks off the bolt; each may fork once more |
 | `brightness` | number | `1` | How strongly a bolt lights the gas, `0` to `2`. Can follow an entity |
 | `lights` | boolean | `true` | Light the gas of a volume nebula the bolt is in |
-| `seed` | number | - | Where the strikes fall and how the bolts are shaped; the same seed gives the same storm |
+| `seed` | number | `1` | Where the strikes fall and how the bolts are shaped; the same seed gives the same storm |
 
 ## glow
 

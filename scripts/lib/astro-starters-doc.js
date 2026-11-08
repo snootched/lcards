@@ -31,7 +31,7 @@ function section(s) {
     for (const p of params) lines.push(`| ${p.label} | \`${shown(p.default)}\` | ${p.helper ?? ''} |`);
     lines.push('');
   }
-  lines.push('```yaml live', starterYaml(out.config).trimEnd(), '```', '');
+  lines.push('```yaml live collapsed', starterYaml(out.config).trimEnd(), '```', '');
   return lines.join('\n');
 }
 

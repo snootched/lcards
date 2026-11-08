@@ -20,11 +20,15 @@ const FORMATTED = [
   'doc/cards/slider-card/components.md',
   'doc/cards/slider-card/ranges.md',
   'doc/cards/slider-card/control.md',
+  'doc/cards/astrometrics/start.md',
   'doc/cards/astrometrics/objects.md',
   'doc/cards/astrometrics/objects/surfaces.md',
   'doc/cards/astrometrics/objects/lines.md',
   'doc/cards/astrometrics/objects/space.md',
   'doc/cards/astrometrics/objects/ships.md',
+  'doc/cards/astrometrics/points.md',
+  'doc/cards/astrometrics/data.md',
+  'doc/cards/astrometrics/effects.md',
   'doc/cards/button/index.md',
   'doc/cards/button/styles.md',
   'doc/cards/button/icons.md',
@@ -56,7 +60,12 @@ const FORMATTED = [
   'doc/cards/chart/styling.md',
   'doc/cards/chart/labels.md',
   'doc/cards/chart/examples.md',
-  'doc/cards/chart/upgrading.md'
+  'doc/cards/chart/upgrading.md',
+  'doc/cards/astrometrics/index.md',
+  'doc/cards/astrometrics/camera.md',
+  'doc/cards/astrometrics/scene.md',
+  'doc/cards/astrometrics/models.md',
+  'doc/cards/astrometrics/scale.md'
 ];
 
 const KEY_TABLE = '| Key | Type | Default | Description |';

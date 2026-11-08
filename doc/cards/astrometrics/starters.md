@@ -6,7 +6,7 @@ description: "Starters for the LCARdS Astrometrics card: whole scenes (galaxy, s
 
 Ready-made scenes and parts for the [Astrometrics card](./). Copy one into your card and change anything: nothing refers back to the starter.
 
-- In the [Astrometrics Studio](./studio#starters), the **Starters** tab adds them with a few settings (a part's name, its centre, its size) and shows the YAML first. A scene replaces the card's scene or merges into it; a part adds itself next to what is there.
+- In the [Astrometrics Studio](./start#the-studio), the **Starters** tab adds them with a few settings (a part's name, its centre, its size) and shows the YAML first. A scene replaces the card's scene or merges into it; a part adds itself next to what is there.
 - Here, each one is a live card with its default settings. Copy its YAML into a card, or into the YAML tab of the Studio.
 
 A part is sized for where it goes: at its real size when the scene names its units (km, au, ly), sized to fit the scene when it is in scene units ([Scale: Units](./scale#units)). The live cards here show each part on its own, at its own sizes.
@@ -21,7 +21,7 @@ A part's ids start with its name and an underscore (`planet_body`, `planet_orbit
 
 A galaxy disc with its core, Federation and Borg space as see-through volumes, crossing beams, a planet with an away team (it appears as you fly in) and a route between two stars.
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -80,7 +80,7 @@ backdrop: { stars: { count: 2500 } }
 
 A flat lettered grid seen from straight above, territories filled cell by cell; the tilt is locked, so a drag pans the map.
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -109,7 +109,7 @@ camera:
 
 A dome over your home with the sun and moon where they are now and today's tracks across the sky, from your Home Assistant location.
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -135,7 +135,7 @@ camera:
 
 The Sun, eight planets and Pluto, each orbit tilted as the real one is and each planet with its map or planet type, Saturn with its rings and the Moon going round the Earth. Tap a planet to fly to it.
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -354,7 +354,7 @@ backdrop: { stars: { count: 2000 } }
 
 The Alpha and Beta Quadrant powers as territories on a disc, their capitals, the Romulan Neutral Zone and a route from Earth to Qo'noS.
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -426,7 +426,7 @@ backdrop: { stars: { count: 1500 } }
 
 The built-in refit Constitution-class starship on its way into Earth Spacedock through the space doors, with its bridge and nacelles marked and the approach lane drawn. To scale: the ship is 305 m long, Spacedock about 5.5 km tall and its doors 700 m wide.
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -466,7 +466,7 @@ backdrop: { stars: { count: 2000 } }
 
 The built-in Deep Space 9 station with Ops, the Promenade and its docking pylons marked, the Bajoran wormhole off its bow and Bajor below. Tap a name to fly to it.
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -517,7 +517,7 @@ The Bajoran wormhole as the station displays draw it: the mouth (a swirl of gas 
 |---|---|---|
 | Power entity (optional) | `` | A number from 0 to 100: the mouth opens with it. |
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -1402,7 +1402,7 @@ backdrop: { stars: { count: 2500 } }
 
 Three drydocks of the Utopia Planitia Fleet Yards in orbit over Mars (its USGS Viking map), a Galaxy-class starship in the first. Tap a drydock to fly to it.
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -1460,7 +1460,7 @@ backdrop: { stars: { count: 2000 } }
 
 A Borg cube with its green halo bearing down on the built-in Galaxy-class starship, its tractor beam locked on. Tap a name to fly to it.
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -1492,7 +1492,7 @@ backdrop: { stars: { count: 2500 } }
 
 The Sun, the planets, Pluto, Ceres and the major moons in km, where they really are today and moving a day a second: real orbits, sizes, tilts and spins, Saturn's rings, the asteroid and Kuiper belts. Tap a planet to fly to it; the time slider runs the date faster, slower or back.
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -1768,7 +1768,7 @@ clock: { date: now, rate: 1 h/s }
 
 A galaxy in light years with the Sol system in km inside it, 26,000 light years from the core: tap SOL and dive from the galaxy to the planets, Earth and Deep Space 9, all at their real sizes and distances, with the planets where they are today.
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -2077,7 +2077,7 @@ clock: { date: now, rate: 1 h/s }
 
 The Milky Way in light years cut into the four quadrants (the Alpha/Beta line runs from Sol to the core), with the Federation, the Klingon, Romulan and Cardassian empires, the Dominion and the Borg, the Bajoran wormhole to the Gamma Quadrant, Voyager's route home from Ocampa and the Great Barrier. Fly in to Sol for Federation space: Vulcan, Andoria and Tellar at their real stars (40 Eridani, Procyon, 61 Cygni), the Klingon, Romulan and Cardassian capitals at the distances the reference charts give. The galaxy view sizes the empires to be seen, so the two scales do not overlay exactly.
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -3039,7 +3039,7 @@ Its ids start with its name (default `planet_`).
 | Moons (0 to 4) | `2` |  |
 | Surface | `rocky` | A planet type (gas_giant, ringed_giant, ice_giant, storm_giant, clouds, lava, ice, rocky, terran), a map (builtin:mars_viking) or your own picture (/local/planet.jpg). |
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -3104,7 +3104,7 @@ Its ids start with its name (default `belt_`).
 | Radius | `65` |  |
 | Width | `8` |  |
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -3135,7 +3135,7 @@ Its ids start with its name (default `asteroid_`).
 | Size | `8` |  |
 | Shape (any whole number) | `4` |  |
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -3158,7 +3158,7 @@ Its ids start with its name (default `comet_`).
 | Farthest from the star | `175` |  |
 | Seconds per orbit | `36` |  |
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -3195,7 +3195,7 @@ Its ids start with its name (default `nebula_`).
 | Centre | `0, 10, 0` | A point id or x, y, z. |
 | Radius | `40` |  |
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points: [{ id: nebula_centre, xyz: [0, 10, 0] }, { id: nebula_heart, at: nebula_centre, label: NEBULA, style: major }]
@@ -3234,7 +3234,7 @@ Its ids start with its name (default `badlands_`).
 | Centre | `0, 0, 0` | A point id or x, y, z. |
 | Width | `500` |  |
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points: [{ id: badlands_centre, xyz: [0, 0, 0] }, { id: badlands_heart, at: badlands_centre, label: BADLANDS, style: major }]
@@ -3253,7 +3253,7 @@ Its ids start with its name (default `badlands_`).
 | Centre | `0, 0, 0` | A point id or x, y, z. |
 | Width | `500` |  |
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points: [{ id: badlands_centre, xyz: [0, 0, 0] }, { id: badlands_heart, at: badlands_centre, label: BADLANDS, style: major }]
@@ -3273,7 +3273,7 @@ Its ids start with its name (default `nexus_`).
 | Length | `2000` |  |
 | Travel | `still` |  |
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points: [{ id: nexus_centre, xyz: [0, 0, 0] }, { id: nexus_heart, at: nexus_centre, label: NEXUS, style: major }]
@@ -3293,7 +3293,7 @@ Its ids start with its name (default `entity_`).
 | Height | `3000` |  |
 | Ship for scale | `beam` |  |
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -3319,7 +3319,7 @@ Its ids start with its name (default `bajoran_`).
 | Length | `70` |  |
 | Power entity (optional) | `` | A number from 0 to 100: the mouth opens with it. |
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -4203,7 +4203,7 @@ Its ids start with its name (default `zone_`).
 | Inner radius | `30` |  |
 | Outer radius | `80` |  |
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -4257,7 +4257,7 @@ Its ids start with its name (default `starbase_`).
 | At | `0, 0, 0` | A point id or x, y, z. |
 | Size (its largest extent) | `60` |  |
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -4305,7 +4305,7 @@ For the Star Trek galaxy: the Ferengi, Breen, Tzenkethi, Tholian and Gorn homewo
 
 Its ids start with its name (default `_`).
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -4409,7 +4409,7 @@ For the Star Trek galaxy: Kazon, Vidiian and Hirogen space along Voyager's route
 
 Its ids start with its name (default `_`).
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:
@@ -4468,7 +4468,7 @@ For the Star Trek galaxy: a Borg transwarp hub in the Delta Quadrant with flowin
 
 Its ids start with its name (default `_`).
 
-```yaml live
+```yaml live collapsed
 type: custom:lcards-astrometrics-card
 height: 400
 points:

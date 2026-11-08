@@ -1,6 +1,7 @@
 # Astrometrics nebula render: volume: the gas raymarched as one body you can fly into, a planet inside
 # it hiding the gas behind it. Every tunable setting on a slider: density and drift change in place;
-# turbulence, detail (noise_scale), clouds (count) and seed rebuild the nebula. Then the same
+# turbulence, detail (noise_scale) and clouds (count) rebuild the nebula (a seed is a plain number
+# since 2026-11-08: a new pattern would jump). Then the same
 # seeded clouds as puffs and as a volume, side by side.
 title: Astrometrics nebula volume
 path: astro-nebula-volume
@@ -55,7 +56,7 @@ sections:
             noise_scale: {entity: input_number.lcards_test_humidity, input: [0, 100], output: [0.02, 0.3]}
             drift: {entity: input_number.lcards_test_temperature, input: [10, 35], output: [0, 8]}
             count: {entity: input_number.lcards_test_stage, input: [0, 20], output: [1, 10]}
-            seed: {entity: input_number.lcards_test_value, input: [0, 100], output: [1, 101]}
+            seed: 1
       - type: custom:lcards-slider
         entity: input_number.lcards_test_power
         preset: shaped-horizontal
@@ -98,15 +99,6 @@ sections:
         component: shaped
         text:
           name: {content: CLOUDS}
-        style:
-          shaped: {text_bands: {left: {size: 140}}}
-        grid_options: {columns: 18, rows: 1}
-      - type: custom:lcards-slider
-        entity: input_number.lcards_test_value
-        preset: shaped-horizontal
-        component: shaped
-        text:
-          name: {content: SEED}
         style:
           shaped: {text_bands: {left: {size: 140}}}
         grid_options: {columns: 18, rows: 1}

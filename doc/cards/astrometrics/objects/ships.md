@@ -229,7 +229,7 @@ objects:
 
 - Each model is drawn at least 40 px across, scaled about its centre, and at its real size again once you are close enough for that to be larger.
 - Only real-size models grow: a model with its own `size` is left as it is. Points on a model grow with it.
-- You can switch it on screen with the size button under the [camera buttons](../#controls), the `V` key, a `set-model-scale` action or the Astrometrics Studio's toolbar. That is not saved.
+- You can switch it on screen with the size button under the [camera buttons](../camera#camera-buttons), the `V` key, a `set-model-scale` action or the Astrometrics Studio's toolbar. That is not saved.
 
 ```yaml live
 type: custom:lcards-astrometrics-card

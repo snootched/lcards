@@ -349,7 +349,7 @@
   settle: 9000
   viewport: [1400, 900]
 
-# The Astrometrics Studio (doc/cards/astrometrics/studio.md): the galaxy starter, the
+# The Astrometrics Studio (doc/cards/astrometrics/start.md, The Studio): the galaxy starter, the
 # Objects tab with the planet open, so the scene shows its selection box.
 - name: astrometrics-studio
   card:

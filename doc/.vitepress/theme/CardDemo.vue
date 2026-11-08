@@ -23,6 +23,22 @@
       </div>
     </div>
 
+    <div v-if="controls && entityControls.length" class="card-demo-controls" role="group" aria-label="Sample entities: change them to see the card follow">
+      <div v-for="c in entityControls" :key="c.id" class="card-demo-control">
+        <code>{{ c.id }}</code>
+        <button v-if="c.kind === 'toggle'" type="button" class="card-demo-btn" :class="{ 'is-on': c.state === 'on' }"
+          :aria-pressed="c.state === 'on'" @click="setEntity(c.id, c.state === 'on' ? 'off' : 'on')">{{ c.state }}</button>
+        <template v-else-if="c.kind === 'number'">
+          <input type="range" :min="c.min" :max="c.max" :step="c.step" :value="c.state" :aria-label="c.id"
+            @input="setEntity(c.id, $event.target.value)" />
+          <span class="card-demo-value">{{ c.state }}{{ c.unit }}</span>
+        </template>
+        <select v-else-if="c.kind === 'select'" :value="c.state" :aria-label="c.id" @change="setEntity(c.id, $event.target.value)">
+          <option v-for="o in c.options" :key="o" :value="o">{{ o }}</option>
+        </select>
+      </div>
+    </div>
+
     <ul v-if="messages.length || lastAction" class="card-demo-messages">
       <li v-for="(m, i) in messages" :key="i" :class="`is-${m.level}`">{{ m.text }}</li>
       <li v-if="lastAction" class="is-info">{{ lastAction }}</li>
@@ -62,7 +78,9 @@ const props = defineProps({
   /** Show the YAML editor, quick settings and starter examples */
   editable: { type: Boolean, default: false },
   /** Card element for playground pages without `src`, e.g. "lcards-button" */
-  type: { type: String, default: '' }
+  type: { type: String, default: '' },
+  /** Controls under the card for the entities its YAML names (```yaml live controls) */
+  controls: { type: Boolean, default: false }
 })
 
 const uid = getCurrentInstance()?.uid ?? Math.random().toString(36).slice(2)
@@ -232,6 +250,37 @@ async function render() {
   ready.value = true
 }
 
+// Entity controls (```yaml live controls): a toggle, a slider or a list for each
+// entity the YAML names, so a reader can change it and see the card follow.
+const CONTROL_DOMAINS = 'input_number|input_boolean|input_select|switch|light|fan|sensor|number|select|binary_sensor'
+const ENTITY_RE = new RegExp(`\\b(?:${CONTROL_DOMAINS})\\.[a-z0-9_]+\\b`, 'g')
+const entityControls = ref([])
+let controlTimer = null
+
+function controlFor(id, st) {
+  if (!st) return null
+  const a = st.attributes ?? {}
+  if (st.state === 'on' || st.state === 'off') return { id, kind: 'toggle', state: st.state }
+  if (Array.isArray(a.options)) return { id, kind: 'select', state: st.state, options: a.options }
+  const v = Number(st.state)
+  if (st.state === '' || !Number.isFinite(v)) return null
+  const step = a.step ?? (Number.isInteger(v) ? 1 : 0.1)
+  return { id, kind: 'number', state: st.state, min: a.min ?? Math.min(0, v), max: a.max ?? Math.max(100, Math.ceil(v * 2)), step, unit: a.unit_of_measurement ? ` ${a.unit_of_measurement}` : '' }
+}
+
+function refreshControls() {
+  if (!props.controls || !env) return
+  // entities only: a service name after action: or service: is not one
+  const lines = (yamlText.value || initialYaml).split('\n').filter(l => !/^\s*(-\s*)?(action|service|perform_action):/.test(l))
+  const ids = [...new Set(lines.join('\n').match(ENTITY_RE) ?? [])]
+  entityControls.value = ids.map(id => controlFor(id, env.hass.states[id])).filter(Boolean)
+}
+
+function setEntity(id, value) {
+  env?.setState(id, String(value))
+  refreshControls()
+}
+
 watch(yamlText, () => {
   if (!props.editable) return
   clearTimeout(renderTimer)
@@ -254,6 +303,11 @@ onMounted(async () => {
       window.addEventListener(type, describeEvent)
     }
     await render()
+    if (props.controls) {
+      refreshControls()
+      // a tap on the card can change an entity too (a toggle action)
+      controlTimer = setInterval(refreshControls, 500)
+    }
   } catch (error) {
     fatal.value = `The card could not load: ${error.message}`
   }
@@ -261,12 +315,35 @@ onMounted(async () => {
 
 onUnmounted(() => {
   clearTimeout(renderTimer)
+  clearInterval(controlTimer)
   for (const type of ['hass-more-info', 'location-changed', 'show-dialog']) window.removeEventListener(type, describeEvent)
   if (card && env) env.unmount(card)
 })
 </script>
 
 <style scoped>
+.card-demo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+.card-demo-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-demo-control input[type='range'] { width: 140px; accent-color: var(--vp-c-brand-1); }
+.card-demo-control select {
+  padding: 2px 6px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+}
+.card-demo-control .is-on { border-color: var(--vp-c-brand-1); color: var(--vp-c-brand-1); }
+.card-demo-value { min-width: 4em; color: var(--vp-c-text-2); font-variant-numeric: tabular-nums; }
 /* grid_options.columns narrows the card (mountWidth); never past the panel */
 .card-demo-mount {
   max-width: 100%;

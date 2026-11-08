@@ -1734,6 +1734,24 @@ test('NB2b colours from entities: a state map (state, active / inactive, above:N
     await expectNoErrors(page);
 });
 
+test('bound colours apply from the first build, with no state change (the first patch waits for the chunks)', async ({ page }) => {
+    // a slow lazy chunk (the docs site, a slow connection): the scene effects arrive after the card's
+    // first patch of bound values (250 ms after the scene starts), as on the docs site
+    await page.route(/\/chunks\/(?!lcards-main)[^/]+\.js$/, async (route) => {
+        await new Promise((r) => setTimeout(r, 700));
+        await route.continue();
+    });
+    await mountCase(page, 'astro-colours-first', { width: '800' });
+    await sceneReady(page);
+    const colors = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        return { deck: s.world.objects.get('deck')?.config.color, cloud: s.world.objects.get('cloud')?.config.colors?.[1] };
+    });
+    await expect.poll(async () => (await colors()).deck, { timeout: 5000 }).toBe('#ff9900');
+    await expect.poll(async () => (await colors()).cloud, { timeout: 5000 }).toBe('#ff0000');
+    await expectNoErrors(page);
+});
+
 test('colours in place: an alert mode crossfades the scene to its colours, nothing is built again', async ({ page }) => {
     await mountCase(page, 'astro-colours', { width: '800' });
     await sceneReady(page);

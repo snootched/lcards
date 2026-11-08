@@ -1,32 +1,5 @@
 ---
 description: "Astrometrics card objects: which object type to use for a planet, grid, territory, route, nebula, ship or galaxy, and the keys every object takes (placement, facing, distance)."
-moved_anchors:
-  grid: /cards/astrometrics/objects/surfaces#grid
-  wells-and-wormholes: /cards/astrometrics/objects/surfaces#wells-and-wormholes
-  deformed-grids: /cards/astrometrics/objects/surfaces#deformed-grids
-  sector-maps: /cards/astrometrics/objects/surfaces#sector-maps
-  volume: /cards/astrometrics/objects/surfaces#volume
-  sphere: /cards/astrometrics/objects/surfaces#sphere
-  built-in-planet-maps: /cards/astrometrics/objects/surfaces#built-in-planet-maps
-  ring: /cards/astrometrics/objects/surfaces#ring
-  path: /cards/astrometrics/objects/lines#path
-  beam: /cards/astrometrics/objects/lines#beam
-  trail: /cards/astrometrics/objects/lines#trail
-  lightning: /cards/astrometrics/objects/lines#lightning
-  glow: /cards/astrometrics/objects/lines#glow
-  nebula: /cards/astrometrics/objects/space#nebula
-  belt: /cards/astrometrics/objects/space#belt
-  asteroid: /cards/astrometrics/objects/space#asteroid
-  comet: /cards/astrometrics/objects/space#comet
-  galaxy: /cards/astrometrics/objects/space#galaxy
-  crystalline: /cards/astrometrics/objects/space#crystalline
-  model: /cards/astrometrics/objects/ships#model
-  real-size: /cards/astrometrics/objects/ships#real-size
-  visible-size: /cards/astrometrics/objects/ships#visible-size
-  built-in-models: /cards/astrometrics/objects/ships#built-in-models
-  cube: /cards/astrometrics/objects/ships#cube
-  image: /cards/astrometrics/objects/surfaces#image
-  system: /cards/astrometrics/scale#the-system-object
 ---
 
 # Objects
@@ -125,7 +98,7 @@ objects:
 | `rotation` | `[x, y, z]` | `[0, 0, 0]` | Turns it, degrees: y is a bearing, x tips it toward the camera, z rolls it |
 | `spin` | number | `0` | Turns it round its own vertical axis, degrees per second. Points on it turn with it |
 | `face` | string | - | `motion`: [face the way it goes](#facing-the-way-it-goes). A point id: [face that point](#facing-a-point) |
-| `look` | string | every look | `diagram`, `realistic` or `all`: which [look](./#looks-diagram-and-realistic) of the card shows it (`mixed` shows both) |
+| `look` | string | every look | `diagram`, `realistic` or `all`: which [look](./scene#looks-diagram-and-realistic) of the card shows it (`mixed` shows both) |
 | `opacity` | number | `1` | `0` to `1`. Some types start lower (a model `0.85`, a glow `0.9`) |
 | `visible` | boolean | `true` | `false` hides it; its points still work |
 | `max_distance`, `min_distance`, `fade` | | | Shown only within a camera distance: see [Distance](#distance) |

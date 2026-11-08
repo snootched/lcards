@@ -232,7 +232,7 @@ const landingViewSchema = {
     properties: {
         distance: number('Camera distance from the point, scene units.', { minimum: 0 }),
         tilt: number('Camera height angle, degrees: 0 level, 90 straight down.'),
-        yaw: number('Bearing the camera looks from, degrees (0: looking north).'),
+        yaw: number('The way the camera faces, degrees (0: facing north).'),
         warp: { type: 'boolean', description: 'Stars and dust streak while the camera flies here (warp). Default camera.warp.' }
     }
 };
@@ -258,10 +258,10 @@ const viewSchema = {
     description: 'A named camera view. The camera orbits a target: yaw turns round it, tilt raises it, distance moves away.',
     properties: {
         target: pointRef('What the camera looks at: a point id or [x, y, z]. Default: where the camera looked before.'),
-        yaw: number('Bearing the camera looks from, degrees: 0 looks north (the default camera), 90 looks east. Default 0.'),
+        yaw: number('The way the camera faces, degrees: 0 faces north (the default camera), 90 faces east. Default 0 when the card opens on the view; flown to, a view without yaw keeps the current one.'),
         tilt: number('Camera height angle, degrees: 0 level with the target, 90 straight down. Default 35.', { minimum: -90, maximum: 90 }),
         distance: number('Distance from the target, scene units.', { minimum: 0 }),
-        fov: number('Vertical field of view, degrees (perspective only). Default 40. On a card wider than 2:1 it narrows so the view is never wider than on a 2:1 card (no wide-angle stretching at the sides).', { minimum: 1, maximum: 170 }),
+        fov: number('Vertical field of view, degrees (perspective only). Default 40. On a card wider than 2:1 it narrows so the view is never wider than on a 2:1 card (no wide-angle stretching at the sides).', { minimum: 5, maximum: 150 }),
         projection: {
             type: 'string', enum: ['perspective', 'orthographic'], default: 'perspective',
             description: 'perspective: far things look smaller. orthographic: no perspective (a flat map); distance then sets the zoom.'
@@ -767,7 +767,7 @@ const deformSchema = {
         anchor: { type: 'string', enum: [...DEFORM_ANCHORS], default: 'bottom', description: 'bend, twist round an axis: the end that stays put (middle: both ends move).' },
         base_frequency: setting('noise: detail per scene unit, lower is larger lumps (as on fill.effect). Default about 3 lumps across the grid\'s size.', { exclusiveMinimum: 0 }),
         num_octaves: wholeSetting('noise: layers of finer detail (as on fill.effect).', { minimum: 1, maximum: 6, default: 2 }),
-        seed: setting('noise: changes the pattern.', { default: 0 })
+        seed: number('noise: changes the pattern.', { default: 0 })
     }
 };
 
@@ -849,7 +849,7 @@ const gridObject = {
                     color: objectColor('Fill colour. Default var(--lcars-blue).'),
                     opacity: setting('Fill opacity, 0 to 1.', { minimum: 0, maximum: 1, default: 0.25 }),
                     shade: setting('Per-cell brightness variation, 0 to 1 (a printed sector map look); the same cell always gets the same shade.', { minimum: 0, maximum: 1, default: 0 }),
-                    seed: setting('Changes which cells are lighter and darker with shade.', { default: 0 }),
+                    seed: number('Changes which cells are lighter and darker with shade.', { default: 0 }),
                     edges: {
                         description: 'An outline round the range: true, or { width, color, opacity }.',
                         oneOf: [
@@ -1420,8 +1420,8 @@ const nebulaObject = {
         count: wholeSetting('How many clouds the seed places (the background preset\'s key).', { minimum: 1, maximum: 10, default: 4 }),
         clouds: {
             type: 'array',
-            maxItems: 10,
-            description: 'Clouds placed by hand, instead of count and the seed.',
+            maxItems: 14,
+            description: 'Clouds placed by hand, instead of count and the seed: up to 10 gas clouds and 4 dust clouds (dust: true).',
             items: {
                 type: 'object',
                 additionalProperties: false,
@@ -1429,7 +1429,7 @@ const nebulaObject = {
                     xyz: tuple(3, 'Where the cloud sits [x, y, z], scene units from the object.'),
                     radius: setting('Cloud radius, scene units. Default between min_radius and max_radius.', { exclusiveMinimum: 0 }),
                     color: objectColor('This cloud\'s colour. Default from colors.'),
-                    opacity: setting('Opacity, 0 to 1. Default random within brightness.', { minimum: 0, maximum: 1 }),
+                    opacity: setting('Opacity, 0 to 1. Default the middle of brightness.', { minimum: 0, maximum: 1 }),
                     size: tuple(3, 'Or an ellipsoid [width, height, depth], scene units (replaces radius).'),
                     rotation: tuple(3, 'Turn the ellipsoid [x, y, z] in degrees, as an object\'s rotation.'),
                     dust: { type: 'boolean', default: false, description: 'render: volume only: a dark dust cloud that hides the gas behind it (dust.amount, dust.color) instead of glowing.' }
@@ -1447,7 +1447,7 @@ const nebulaObject = {
         turbulence: setting('How ragged the cloud edges are, 0 to 1.', { minimum: 0, maximum: 1, default: 0.5 }),
         noise_scale: setting('Detail of the gas per scene unit: lower is larger, smoother wisps. Default about 1.5 noise cells across a cloud.', { minimum: 0 }),
         drift: settingOrPair('How fast the gas churns, scene units per second: one number, or [x, y] across the clouds. Default 0 (still). Off under reduced motion.'),
-        seed: setting('Random seed: the same seed places the same clouds.', { default: 1 }),
+        seed: number('Random seed: the same seed places the same clouds.', { default: 1 }),
         blend: { type: 'string', enum: ['add', 'normal'], default: 'add', description: 'add (default): light adds up, no sorting needed. normal: drawn over what is behind.' }
     }
 };
@@ -1577,7 +1577,7 @@ export const astrometricsSchema = {
                 snap: { type: 'boolean', default: false, description: 'Round label positions to whole px (crisper text on weak devices; fast motion looks steppier). Default: sub-pixel.' }
             }
         },
-        units: unitsSchema('What one scene unit is (m, km, au, ly or pc): positions, sizes and distances are in it. Optional: a scene can use any units of its own (scene units); naming them lets a system (type: system) give its own, models and starter parts start at their real size, and bodies (planet:) sit at real distances. Naming them does not rescale what is already there.', '(Scene units)'),
+        units: unitsSchema('What one scene unit is (m, km, au, ly or pc): positions, sizes and distances are in it. Optional: a scene can use any units of its own (scene units); naming them lets a system (type: system) give its own, models and starter parts start at their real size, and bodies (body: points) sit at real distances. Naming them does not rescale what is already there.', '(Scene units)'),
         model_scale: {
             type: 'string',
             enum: ['real', 'visible'],
@@ -1620,8 +1620,8 @@ export const astrometricsSchema = {
                 }
             ]
         },
-        warp_factor: setting('How fast the stars stream at warp, 1 to 9.9 (default 6). Can follow an entity ({ entity, to }), such as a slider, or a template.', { minimum: 1, maximum: 9.9, default: 6 }),
-        time_scale: setting('Speed of the scene\'s motion (orbits, spins, drift, scans, trails): 1 as configured, 0.5 half speed, 2 twice as fast, 0 holds it still. Faster than 4 can be typed. The sky, the scene clock (clock) and the camera are not affected. The time slider (camera.buttons.time) changes it on screen. Can follow an entity ({ entity, to }) or a template.', {
+        warp_factor: setting('How fast the stars stream at warp, 1 to 9.9 (default 6). Can follow an entity ({ entity, output }), such as a slider, or a template.', { minimum: 1, maximum: 9.9, default: 6 }),
+        time_scale: setting('Speed of the scene\'s motion (orbits, spins, drift, scans, trails): 1 as configured, 0.5 half speed, 2 twice as fast, 0 holds it still. Faster than 4 can be typed. The sky, the scene clock (clock) and the camera are not affected. The time slider (camera.buttons.time) changes it on screen. Can follow an entity ({ entity, output }) or a template.', {
             minimum: 0, default: 1, 'x-ui-hints': { selector: { number: { mode: 'slider', min: 0, max: 4, step: 0.05 } } }
         }),
         clock: {
@@ -1638,7 +1638,7 @@ export const astrometricsSchema = {
                 },
                 rate: {
                     'x-ui-hints': { widget: 'rate' },
-                    description: 'How fast the date runs: live (real time, the default), paused (0), or an amount of time per second. In YAML days per second (1 is a day a second, 30 a month, 365.25 a year; 0 holds it; negative runs back), or with a unit as the time slider shows it: 1 h/s (an hour a second), 30 d/s, 1 y/s, -1 d/s (units s, min, h, d, w, mo, y). Or { entity, to } to follow an entity, or a template.',
+                    description: 'How fast the date runs: live (real time, the default), paused (0), or an amount of time per second. In YAML days per second (1 is a day a second, 30 a month, 365.25 a year; 0 holds it; negative runs back), or with a unit as the time slider shows it: 1 h/s (an hour a second), 30 d/s, 1 y/s, -1 d/s (units s, min, h, d, w, mo, y). Or { entity, output } to follow an entity, or a template.',
                     anyOf: [{ type: 'number' }, { type: 'string', enum: ['live'] }, { type: 'string', pattern: RATE_PATTERN }, settingBinding, settingTemplate],
                     default: 'live'
                 }

@@ -17,8 +17,8 @@ export { DOCS_SITE, docsBase, docsUrl, DOCS, PANEL_TAB_DOCS } from '../../utils/
 /** The Astrometrics Studio's info guides (editor/dialogs/astro-studio/studio-guides.js) */
 export const ASTRO_STUDIO_DOCS = Object.freeze({
   card: '/cards/astrometrics/',
-  studio: '/cards/astrometrics/studio',
-  camera: '/cards/astrometrics/#camera-and-views',
+  studio: '/cards/astrometrics/start#the-studio',
+  camera: '/cards/astrometrics/camera',
   scale: '/cards/astrometrics/scale',
   systems: '/cards/astrometrics/scale#star-systems',
   objectTypes: '/cards/astrometrics/objects#which-type-for-what',
@@ -175,11 +175,16 @@ const DETAILED = {
     '': '/core/datasources/'
   },
   astrometrics: {
-    '': '/cards/astrometrics/#options',
-    camera: '/cards/astrometrics/#camera-and-views',
-    backdrop: '/cards/astrometrics/#backdrop',
-    background_animation: '/cards/astrometrics/#backdrop',
-    labels: '/cards/astrometrics/#labels',
+    '': '/cards/astrometrics/start#card-options',
+    camera: '/cards/astrometrics/camera',
+    'camera.views': '/cards/astrometrics/camera#camera-views',
+    'camera.buttons': '/cards/astrometrics/camera#camera-buttons',
+    'camera.limits': '/cards/astrometrics/camera#camera-limits',
+    backdrop: '/cards/astrometrics/scene#backdrop',
+    background_animation: '/cards/astrometrics/scene#background-animation',
+    labels: '/cards/astrometrics/scene#labels',
+    look: '/cards/astrometrics/scene#looks-diagram-and-realistic',
+    time_scale: '/cards/astrometrics/scene#units-and-motion',
     clock: '/cards/astrometrics/scale#the-scene-clock',
     units: '/cards/astrometrics/scale#units',
     'labels.default': '/cards/astrometrics/points#styles-and-defaults',

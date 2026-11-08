@@ -63,7 +63,9 @@ export const SKIP = new Set([
   'id', 'type', 'tags', 'label', 'text', 'tap_action', 'hold_action', 'card', 'entity', 'src', 'image', 'at', 'object',
   'part', 'cell', 'sky', 'body', 'center', 'orbit', 'points', 'from', 'to', 'point', 'color', 'colors',
   // fill.effect's colour keys (the background presets' names)
-  'fill_color', 'color_a', 'color_b', 'light', 'marker', 'style', 'shape', 'pattern', 'preset', 'axis_labels', 'material'
+  'fill_color', 'color_a', 'color_b', 'light', 'marker', 'style', 'shape', 'pattern', 'preset', 'axis_labels', 'material',
+  // a seed picks a random pattern: a new one would rebuild the object with a jump (the user, 2026-11-08)
+  'seed'
 ]);
 
 /** An object's colour keys (fill.effect's take the background presets' names); `colors` holds a list of them */

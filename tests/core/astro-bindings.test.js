@@ -278,3 +278,15 @@ test('object colours in the schema: every object colour takes the entity form (o
   visit(astrometricsSchema.properties.backdrop, 'backdrop');
   assert.deepEqual(found, [], 'backdrop colours stay plain');
 });
+
+test('seeds never follow an entity or a template: a new seed would rebuild the object with a jump (2026-11-08)', () => {
+  const config = {
+    objects: [
+      { type: 'nebula', seed: { entity: 'input_number.x' }, opacity: { entity: 'input_number.y' } },
+      { type: 'grid', noise: { seed: "[[[ return 3 ]]]" } }
+    ]
+  };
+  const keys = collectBindings(config).map((b) => JSON.stringify(b.path ?? b));
+  assert.ok(!keys.some((k) => k.includes('seed')), keys.join(' '));
+  assert.ok(keys.some((k) => k.includes('opacity')));
+});

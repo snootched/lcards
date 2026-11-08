@@ -1791,14 +1791,16 @@ export function createAstroScene(host, config, options = {}) {
    * @param {{ points?: Record<string, any>, objects?: Record<string, any> }} patches
    */
   function patch({ points = {}, objects = {} } = {}) {
-    if (!world) return;
-    const w = world;
-    // Keep the config in step, so a rebuild (alert mode) keeps the rule effects
+    // Keep the config in step, so a rebuild (alert mode) keeps the rule effects. Before the
+    // first build (waiting for the effects or model chunk) this is all there is to do: the
+    // build reads cfg. Returning before it lost the first values of bound settings (2026-11-08).
     cfg = {
       ...cfg,
       points: Array.isArray(cfg.points) ? cfg.points.map((p) => (p && points[String(p.id)] !== undefined ? points[String(p.id)] : p)) : cfg.points,
       objects: Array.isArray(cfg.objects) ? cfg.objects.map((o) => (o && o.id !== undefined && objects[String(o.id)] !== undefined ? objects[String(o.id)] : o)) : cfg.objects
     };
+    if (!world) return;
+    const w = world;
     for (const [id, def] of Object.entries(points)) {
       const old = w.places.configs.get(id);
       if (!old || !def) continue;
