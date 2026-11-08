@@ -1,10 +1,33 @@
+---
+description: "MSD manual routing: draw a line through waypoints you choose, coordinates or anchor names, with a corner radius per waypoint."
+moved_anchors:
+  overview: /cards/msd/manual-routing#waypoints
+  configuration: /cards/msd/manual-routing#waypoints
+  waypoint-syntax: /cards/msd/manual-routing#waypoints
+  coordinate-waypoints: /cards/msd/manual-routing#waypoints
+  example-order-impact: /cards/msd/manual-routing#waypoint-order-matters
+  best-practices: /cards/msd/manual-routing#waypoint-order-matters
+  planning-routes: /cards/msd/manual-routing#waypoint-order-matters
+  avoiding-double-back: /cards/msd/manual-routing#waypoint-order-matters
+  line-not-routing-through-waypoints: /cards/msd/manual-routing#troubleshooting
+  line-doubles-back-unexpectedly: /cards/msd/manual-routing#troubleshooting
+  waypoints-not-visible-in-editor: /cards/msd/manual-routing#waypoints-in-msd-studio
+---
+
 # Manual Routing
 
-## Overview
+**`route: manual` draws a line exactly where you say: from its start, through each waypoint in order, to its end.** Use it when a line must follow a set path on the blueprint, or for a decorative line.
 
-Manual routing allows you to explicitly define the path a line takes by specifying waypoints. The line will travel through each waypoint **in the order they appear in the array**.
+- A manual line doesn't pathfind, bundle or avoid crossings. Other lines still see it: they avoid crossing it and can bundle beside it.
+- For lines that should adapt when the layout changes, the automatic modes and [channels](./routing#channels) are usually the better tool; see [When to Use Manual Routing](#when-to-use-manual-routing).
 
-## Configuration
+## waypoints
+
+**`waypoints` lists the points the line passes through, between `anchor` and `attach_to`.** A waypoint is `[x, y]` in viewBox units or the name of an anchor.
+
+- The line runs `anchor`, then each waypoint in turn, then `attach_to`, with a straight run between each pair. A waypoint that isn't level with the one before gives a diagonal run.
+- Each bend is rounded with the line's `corner_radius` (or cut with `corner_style: bevel`), shrinking to fit between short runs.
+- `waypoints` only work with `route: manual`; on any other route they are ignored.
 
 ```yaml live
 type: custom:lcards-msd-card
@@ -19,162 +42,175 @@ msd:
       id: my_line
       anchor: start_point
       attach_to: end_point
-      route: manual           # Enables manual routing
-      waypoints:              # Array processed in order
-        - [100, 200]          # Waypoint 1: coordinate waypoint (line goes here first)
-        - "nav_anchor"        # Waypoint 2: named anchor (follows anchor position)
-        - [300, 400]          # Waypoint 3: coordinate waypoint (then here)
-        # Finally connects to attach_to endpoint
+      route: manual
+      waypoints:
+        # first a coordinate
+        - [100, 200]
+        # then a named anchor
+        - nav_anchor
+        # then another coordinate, then on to attach_to
+        - [300, 400]
       style:
         color: var(--lcars-blue)
-        width: 2
+        width: 3
 ```
 
-## Waypoint Syntax
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `route` | string | `auto` | `manual` to draw through `waypoints` |
+| `waypoints` | list | - | The points to pass through, in order: `[x, y]`, `[x, y, radius]` or an anchor name |
+| [Corner keys](./line-overlay#corners) | | | `corner_style`, `corner_radius`, `corner_angle`, `smoothing_mode`, `smoothing_iterations`, as on any line |
 
-Waypoints support two formats:
+## Named Anchor Waypoints
 
-### Coordinate Waypoints
+**A waypoint can be an anchor's name instead of a coordinate, so the line passes through wherever that anchor is.** Move the anchor and every line through it follows.
 
-Fixed coordinates in the viewBox coordinate system:
+- The name is looked up when the card draws. A name that matches no anchor is skipped, and the line goes straight to the next point.
+- Named waypoints keep the layout readable and easy to change: `engineering_junction` says more than `[412, 318]`.
 
-```yaml
-waypoints:
-  - [150, 200]  # Fixed position at x=150, y=200
-  - [300, 200]  # Fixed position at x=300, y=200
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 240]
+  anchors:
+    start: [40, 200]
+    junction: [300, 40]
+    finish: [560, 200]
+  overlays:
+    - id: junction_mark
+      type: shape
+      kind: circle
+      position: [290, 30]
+      size: [20, 20]
+      style:
+        color: var(--lcards-moonlight)
+        fill: var(--lcards-moonlight)
+    - id: via_junction
+      type: line
+      anchor: start
+      attach_to: finish
+      route: manual
+      waypoints:
+        - [40, 40]
+        - junction
+        - [560, 40]
+      style:
+        color: var(--lcars-orange)
+        width: 4
 ```
 
-#### Per-Waypoint Corner Radius
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `waypoints` | list | - | An entry that is a string is an anchor name |
 
-A coordinate waypoint can carry an optional 3rd number to override just that corner's rounding radius (`corner_style: round`) or chamfer size (`corner_style: bevel`), instead of every corner sharing the line's single `corner_radius`:
+## Per-Waypoint Corner Radius
 
-```yaml
-route: manual
-corner_style: round
-corner_radius: 34       # line-wide default
-waypoints:
-  - [150, 200, 8]        # this corner rounds tighter (radius 8)
-  - [300, 200]            # no override - uses the line default (34)
-  - [300, 400, 60]        # this corner rounds wider (radius 60)
+**A coordinate waypoint can carry a third number, the radius of its own corner: `[x, y, radius]`.** Other corners keep the line's `corner_radius`.
+
+- With `corner_style: bevel` the third number is the size of that corner's cut.
+- Like `corner_radius`, it is a target: a corner between short runs still gets a smaller one so it fits.
+- An anchor-name waypoint is a string and can't carry a radius; its corner always uses the line's `corner_radius`.
+
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 300]
+  anchors:
+    a: [40, 40]
+    b: [560, 260]
+  overlays:
+    - id: mixed_corners
+      type: line
+      anchor: a
+      attach_to: b
+      route: manual
+      corner_style: round
+      corner_radius: 34
+      waypoints:
+        # tighter corner
+        - [200, 40, 8]
+        # the line's 34
+        - [200, 260]
+        # wider corner
+        - [400, 260, 60]
+        - [400, 40]
+        - [560, 40]
+      style:
+        color: var(--lcars-blue)
+        width: 4
 ```
 
-Omit the 3rd number to inherit the line's `corner_radius`. Like the line-wide value, a per-waypoint radius is a *target*, not a guarantee; it still shrinks if the waypoint's adjacent legs are too short to fit it, exactly the same room-adaptive clamping `corner_radius` already gets. Named-anchor waypoints (below) can't carry a radius, since they're a string, not a coordinate; an anchor waypoint's corner always uses the line default.
-
-### Named Anchor Waypoints
-
-Reference anchor names to create dynamic waypoints that follow anchors:
-
-```yaml
-waypoints:
-  - "my_anchor"        # Routes through anchor at runtime
-  - [300, 200]         # Then to fixed coordinate
-  - "other_anchor"     # Then through another anchor
-```
-
-**Benefits of Named Anchors:**
-- ✅ Waypoints automatically update when anchors move
-- ✅ Cleaner configuration for routing through specific controls
-- ✅ Easier to maintain when layout changes
-- ✅ Reduces coupling to specific coordinates
-
-**How It Works:**
-The router resolves anchor names to their current coordinates at render time. If an anchor moves, all lines using it as a waypoint automatically adjust.
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `waypoints` | list | - | `[x, y, radius]`: this corner's radius (or bevel size), viewBox units |
+| `corner_radius` | number | `34` | The radius of every other corner |
 
 ## Waypoint Order Matters
 
-⚠️ **CRITICAL**: Waypoints are processed **sequentially** in array order. The line path will be:
+**Waypoints are used strictly in the order you list them: `anchor`, then the first, the second ..., then `attach_to`.** Swap two and the line doubles back on itself.
 
-```
-anchor → waypoint[0] → waypoint[1] → waypoint[2] → ... → attach_to
-```
+- Sketch the path first (start, waypoint 1, waypoint 2, end), and list points so the line keeps moving one way: left to right, or top to bottom.
+- Many waypoints to steer a line round things is a sign a [channel](./routing#channels) or an [obstacle](./routing#obstacles) would do the job with less upkeep.
 
-### Example: Order Impact
-
-**Config A** (horizontal then vertical):
-```yaml
-waypoints:
-  - [300, 100]  # Move right first
-  - [300, 400]  # Then down
-```
-Creates an L-shaped path going **right → down**.
-
-**Config B** (vertical then horizontal):
-```yaml
-waypoints:
-  - [300, 400]  # Move down first
-  - [300, 100]  # Then up (doubles back!)
-```
-Creates a path going **down → up** - the line appears to "double back" on itself.
-
-## Best Practices
-
-### Planning Routes
-
-1. **Sketch the path** on paper showing anchor → WP1 → WP2 → target
-2. **Work left-to-right or top-to-bottom** to avoid doubling back
-3. **Use channels** for complex routing instead of many waypoints
-
-### Avoiding Double-Back
-
-❌ **Bad** (doubles back):
-```yaml
-waypoints:
-  - [100, 200]  # Go left
-  - [400, 200]  # Go right (crosses previous path)
-  - [400, 400]  # Go down
-```
-
-✅ **Good** (progressive path):
-```yaml
-waypoints:
-  - [200, 200]  # Gradual right
-  - [300, 300]  # Down-right diagonal
-  - [400, 400]  # Continue to target
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 300]
+  anchors:
+    a1: [40, 60]
+    b1: [280, 260]
+    a2: [320, 60]
+    b2: [560, 260]
+  overlays:
+    # right, then down: a clean L
+    - id: in_order
+      type: line
+      anchor: a1
+      attach_to: b1
+      route: manual
+      waypoints:
+        - [280, 60]
+      style:
+        color: var(--lcars-blue)
+        width: 4
+    # down past the end, then back up: it doubles back
+    - id: doubles_back
+      type: line
+      anchor: a2
+      attach_to: b2
+      route: manual
+      corner_style: miter
+      waypoints:
+        - [320, 290]
+        - [560, 290]
+      style:
+        color: var(--lcars-orange)
+        width: 4
 ```
 
-### When to Use Manual Routing
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `waypoints` | list | - | Used in list order, first to last |
 
-**Use manual routing when**:
-- Path must follow specific design constraints
-- Avoiding channels/obstacles in custom ways
-- Creating decorative curved paths
-- Debugging smart routing behavior
+## Waypoints in MSD Studio
 
-**Use smart/grid routing when**:
-- Path needs to adapt to layout changes
-- Many lines share similar routing patterns
-- Channels define clear routing zones
-- Config maintenance is a priority
+**In MSD Studio, select a line and use the Add Waypoint tool to place waypoints on the canvas.**
+
+- Click the canvas to add a coordinate waypoint at the end of the list; click an anchor's marker to add it by name. Adding a waypoint switches the line to `route: manual`.
+- Each waypoint shows as a numbered marker. Drag a marker to move it, and drag a corner's radius handle to set that corner's own radius.
+- Click empty canvas to leave the tool.
+
+## When to Use Manual Routing
+
+**Manual routing suits a path that must be exact; the automatic modes suit a layout that will change.**
+
+- **Use `manual`** when the path must follow the blueprint or a design rule, to steer round channels or obstacles in a way the router won't, for decorative paths, or to check what an automatic line ought to look like.
+- **Use `auto`** (or `smart`, `grid`) when the path should adapt as controls move, when many lines share similar routes, when [channels](./routing#channels) mark clear routing zones, or when you want less to maintain.
 
 ## Troubleshooting
 
-### Line Not Routing Through Waypoints
+**Most manual-line problems are a missing `route: manual` or waypoints in the wrong order.**
 
-**Symptom**: Line ignores waypoints, routes directly to target.
-
-**Cause**: `route` field not set to `'manual'`.
-
-**Fix**:
-```yaml
-route: manual  # REQUIRED for waypoints to work
-waypoints:
-  - [100, 200]
-```
-
-### Line Doubles Back Unexpectedly
-
-**Symptom**: Line crosses itself or zigzags.
-
-**Cause**: Waypoint order creates backtracking path.
-
-**Fix**: Reorder waypoints to follow a progressive path. Check numbered markers in editor.
-
-### Waypoints Not Visible in Editor
-
-**Symptom**: Click line but no numbered circles appear.
-
-**Cause 1**: Line not selected (no blue glow).
-**Fix**: Click the line path itself, not empty space.
-
-**Cause 2**: Waypoints array empty.
-**Fix**: Add waypoints by clicking canvas in ADD_WAYPOINT mode.
+- **The line ignores its waypoints and goes straight to the end:** `route` isn't `manual`. Waypoints are only used on a manual line.
+- **The line crosses itself or zigzags:** the waypoint order makes it go back. Reorder them so the path keeps moving one way; the Studio's numbered markers show the order.
+- **No numbered markers in the Studio:** select the line first (click the line itself, not the empty canvas next to it). A line with no waypoints yet has no markers; add some with the Add Waypoint tool.

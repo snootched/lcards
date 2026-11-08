@@ -438,6 +438,11 @@ export class RulesEngine extends BaseService {
       for (const rule of dirtyRulesArray) {
         if (processedRules.has(rule.id)) continue;
 
+        // Clear the dirty flag before evaluating, not after: a rule marked dirty again while it
+        // is evaluated (an MSD's overlays registering during the await, then markAllDirty())
+        // stays dirty and is evaluated again. Deleting it afterwards lost that mark: the rule
+        // kept the patches it resolved before the overlays existed.
+        this.dirtyRules.delete(rule.id);
         const result = await this.evaluateRule(rule, getEntity, overlays, entity);  // ✨ CHANGED: Pass entity
         processedRules.add(rule.id);
 
@@ -472,8 +477,6 @@ export class RulesEngine extends BaseService {
           this._stopRuleAnimations(rule.id);
         }
 
-        // Remove from dirty set
-        this.dirtyRules.delete(rule.id);
       }
 
       // Performance tracking
@@ -667,6 +670,8 @@ export class RulesEngine extends BaseService {
 
         result.animations = rule.apply.animations || [];
         result.baseSvgUpdate = rule.apply.base_svg || null;
+        // the card whose rules: block holds the rule (an MSD applies only its own base_svg changes)
+        result.sourceCardId = rule._sourceCardId ?? null;
         result.stopAfter = rule.stop === true;
 
         // DEBUG: Log what we found
@@ -1082,7 +1087,9 @@ export class RulesEngine extends BaseService {
     const aggregated = {
       overlayPatches: [],
       animations: /** @type {any[]} */ ([]),
-      baseSvgUpdate: null  // ✅ NEW: Aggregate base_svg updates
+      baseSvgUpdate: null,  // the highest-priority base_svg update of any card
+      /** @type {Record<string, any>} base_svg updates by source card id ('*' for a rule of no card) */
+      baseSvgUpdates: {}
     };
 
     // Group results by target overlays for stop semantics
@@ -1117,6 +1124,10 @@ export class RulesEngine extends BaseService {
         // ✅ NEW: Take the first (highest priority) base_svg update
         if (result.baseSvgUpdate && !aggregated.baseSvgUpdate) {
           aggregated.baseSvgUpdate = result.baseSvgUpdate;
+        }
+        if (result.baseSvgUpdate) {
+          const owner = result.sourceCardId ?? '*';
+          if (!(owner in aggregated.baseSvgUpdates)) aggregated.baseSvgUpdates[owner] = result.baseSvgUpdate;
         }
       });
 
@@ -1188,7 +1199,8 @@ export class RulesEngine extends BaseService {
     return {
       overlayPatches: [],
       animations: [],
-      baseSvgUpdate: null  // ✅ NEW: Include base_svg in empty result
+      baseSvgUpdate: null,
+      baseSvgUpdates: {}
     };
   }
 

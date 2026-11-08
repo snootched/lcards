@@ -1,111 +1,219 @@
-# MSD Quick Start
-
-MSD (Master Systems Display) is the most involved card in LCARdS: it's less a single card and more a small canvas editor of its own. This is a quick **UI-only walkthrough** showing the buttons and panels to use in order to get a first working MSD on screen. Once you're comfortable, the other pages in this section ([Control Overlay](./control-overlay.md), [Line Overlay](./line-overlay.md), [Routing & Channels](./routing.md), [Shape Overlay](./shape-overlay.md)) cover every option in full, including the config format underneath.
-
+---
+description: "Build a first MSD card in the MSD Studio without writing YAML: add the card, pick a blueprint, place a control and connect it to the ship with a line. Then a complete example to copy."
 ---
 
-## What You're Building
+# Getting Started
 
-An MSD is four things layered on top of each other:
+**Build a first Master Systems Display in the MSD Studio, the card's full-screen editor, without writing any YAML.** The MSD is more a small canvas editor than a single card, so this page shows which buttons and panels to use, in order.
+
+- The other pages cover every option and the YAML underneath: [Background and Anchors](./background), [Control Overlay](./control-overlay), [Line Overlay](./line-overlay), [Shape Overlay](./shape-overlay) and [Line Routing](./routing).
+- [Putting it together](#putting-it-together) at the end is a complete display to copy.
+
+## What you're building
+
+**An MSD is four layers on top of each other, all arranged in the MSD Studio.**
 
 | Layer | What it is |
 |-------|------------|
-| **Base SVG** | A background blueprint/schematic image: a starship deck plan, a floor plan, or nothing at all (just an empty viewbox)|
-| **Controls** | Any existing Home Assistant or LCARdS card (a button, a slider, a sensor), positioned on the canvas |
-| **Lines** | Routed connections between controls: drawn automatically, like circuit traces |
-| **Shapes** | Decorative or structural geometry: rooms, zones, conduits |
+| **Base SVG** | The drawing underneath: a starship blueprint, a deck plan, a floor plan, or nothing at all (an empty view box) |
+| **Controls** | Any Home Assistant or LCARdS card (a button, a slider, a sensor), placed on the drawing |
+| **Lines** | Connections between controls and points on the drawing, routed automatically like circuit traces |
+| **Shapes** | Rooms, zones and conduits drawn on top |
 
-Everything is built and arranged visually in **MSD Studio**, the card's full-screen editor. You'll rarely need to hand-write config for a first MSD.
+## Step 1: Add the card
 
----
-
-## Step 1: Add the Card
-
-From a dashboard in edit mode, click **Add Card** and search for **LCARdS MSD**.
+**In a dashboard in edit mode, click Add Card and search for LCARdS MSD.**
 
 ![Screenshot: Home Assistant "Add Card" dialog with "LCARdS MSD" typed in the search box](/img/msd-quickstart-01-add-card.png)
 
-The card editor that opens has a single **Configuration** tab with one button. Click **Open Configuration Studio**.
+**On the card editor's Configuration tab, click Open Configuration Studio.**
 
 ![Screenshot: MSD card editor's Configuration tab, showing the "Open Configuration Studio" button](/img/msd-quickstart-02-open-studio.png)
 
-This launches **MSD Studio**: a full-screen dialog with a canvas on one side, a config panel on the other, and a row of tabs across the top: **Base SVG**, **Anchors**, **Controls**, **Lines**, **Shapes**, **Routing**, **YAML**. You'll only need the first four for a first MSD.
+**The MSD Studio opens full screen: the canvas on one side, the settings on the other, and tabs across the top.** The tabs are Base SVG, Anchors, Controls, Lines, Shapes, Routing and YAML; a first display needs only the first four.
 
 ![Screenshot: MSD Studio full-screen dialog, empty canvas, tab bar visible across the top](/img/msd-quickstart-03-studio-overview.png)
 
----
+## Step 2: Choose a background
 
-## Step 2: Choose a Background
+**On the Base SVG tab, pick where the drawing comes from.** For a first display, pick a ship from the Asset library.
 
-On the **Base SVG** tab, pick a source:
-
-- **Asset Library**: built-in ship blueprints that ship with LCARdS (the easiest starting point)
-- **Browse Home Assistant Media**: an SVG you've uploaded to Home Assistant's media library
-- **Custom Path**: a `/local/…` path or URL to your own SVG
-- **None**: a blank canvas with no background image at all
-
-For your first MSD, pick an **Asset Library** ship.
+- **Asset library:** the ship blueprints built into LCARdS, the easiest start.
+- **Browse Home Assistant media:** an SVG you uploaded to the Home Assistant media library.
+- **Custom path:** a `/local/...` path to your own SVG.
+- **None (ViewBox Only):** a blank canvas with no drawing.
 
 ::: tip Free anchors
-Built-in ships (and most SVGs) come with automatically-detected anchor points (`hull_center`, `extremity_bow`, `extremity_stern`, and similar) computed straight from the image's own silhouette. You can position your first controls against these without placing a single anchor by hand.
+Built-in ships, and most SVGs, come with anchor points worked out from the drawing's own outline (`hull_center`, `extremity_top` and others), so your first lines can attach to the ship before you place a single anchor yourself: see [Automatic anchors](./background#automatic-anchors).
 :::
 
 ![Screenshot: Base SVG tab, Asset Library source mode, a ship selected and visible on the canvas](/img/msd-quickstart-04-base-svg.png)
 
----
+## Step 3: Place your first control
 
-## Step 3: Place Your First Control
-
-Switch to the **Controls** tab and click **Place on Canvas** and then draw a box for the control on the canvas.  When you release the mouse button, the **Add Control** dialog will open.
-Note: you can also do all placement and sizing in the **Add Control** dialog input fields.
+**On the Controls tab, click Place on Canvas and draw a box for the control on the canvas.** When you let go, the Add Control form opens. You can also click **Add Control** and type the position and size into the form.
 
 ![Screenshot: Controls tab, empty state, "Add Control" button highlighted](/img/msd-quickstart-05-add-control.png)
 
-In the form that opens:
+**In the form, give the control an ID, pick its card on the Card tab, and save.**
 
-1. Give your control an **ID**.
-2. On the **Card** tab, pick the Home Assistant/LCARdS card you actually want displayed here - a button, a slider, a sensor tile, anything.  You can configure it exactly like you would anywhere else in Lovelace.
-3. Save the control.
+- The card is any Home Assistant or LCARdS card (a button, a slider, a sensor tile), set up exactly as anywhere else on a dashboard.
+- The control then appears on the canvas, on top of the background.
 
 ![Screenshot: Add Control form, Card tab, a button card configured inside it](/img/msd-quickstart-06-control-card-tab.png)
 
-Your control now appears positioned on the canvas, on top of the background.
+## Step 4: Connect the control to the ship with a line
 
----
+**On the Lines tab, draw a line from your control to a point on the ship.** There are two ways.
 
-## Step 4: Connect The Control To The Ship With a Line
-
-Switch to the **Lines** tab. There are two ways to draw a connection:
-
-- **Add Line** button: opens a form where you pick a source (**Anchor**) and destination (**Attach To**) from a dropdown of every control/anchor on the canvas, plus which side of each to depart/arrive from.
-- **Connect Line** canvas tool (in the toolbar above the canvas): click it, then click on any connection point (orange dot) your control followed by any other control's connection point (orange dot) or Anchor (blue dot) directly on the canvas.
+- **Add Line** opens a form where you pick the start (**Anchor**) and the end (**Attach To**) from every control and anchor on the canvas, and which side of each the line leaves and arrives at.
+- The **Connect Line** tool in the toolbar above the canvas: click a connection point of your control (an orange dot), then another control's connection point or an anchor (a blue dot).
 
 ![Screenshot: canvas toolbar with "Connect Line" mode active, a line being drawn between two controls](/img/msd-quickstart-07-connect-line.png)
 
-The **Add Line** dialog will open.  Give your line an ID, or just accecpt the generated default.  For now, leave all other options as is, and click **Save**.
-The line will find the currently best route automatically and be drawn on the canvas.
+**The Add Line form opens: give the line an ID or keep the one it suggests, leave the rest as it is, and click Save.** The line finds the best route by itself and appears on the canvas.
 
 ![Screenshot: two controls connected by a routed line on the canvas](/img/msd-quickstart-08-line-routed.png)
 
----
-
 ## Step 5: Save
 
-Skip **Shapes** and **Routing** for now; they're both optional. Shapes add decorative geometry (rooms, zones, conduit runs) once you want the canvas to feel more like a real schematic; Routing exposes global tuning knobs that are only worth touching once you've noticed something you specifically want to change (curious how lines find their own path? see [Routing Concepts](./routing-concepts.md); full config reference: [Routing & Channels](./routing.md)).
+**Click Save in the Studio's footer, then save the card and the dashboard as usual.** That is a complete display: a background, a live control, and a line from the control to the ship.
 
-Click **Save** in the Studio's footer, then save the card/dashboard as you normally would in Lovelace.
+- Shapes and Routing are optional. Shapes add rooms, zones and conduits when you want the drawing to feel like a real schematic; Routing holds card-wide settings worth changing only once you notice something you want different ([Line Routing](./routing) explains how lines find their way).
 
 ![Screenshot: finished MSD card rendered on a dashboard, background + two controls + connecting line](/img/msd-quickstart-09-final-result.png)
 
-That's a complete minimal MSD: a background, a live control, and a line connecting control to the ship, all placed and drawn without writing any YAML.
+## Where to go next
 
----
+| Page | Covers |
+|------|--------|
+| [Background and Anchors](./background) | Blueprints, the view box, your own anchors and the ones found in the drawing |
+| [Control Overlay](./control-overlay) | Every way to place and size a control |
+| [Line Overlay](./line-overlay) | Sides, gaps, colours that follow an entity, markers |
+| [Line Routing](./routing) | How lines find their way, bundle together and avoid crossing, and how to guide them |
+| [Shape Overlay](./shape-overlay) | Rooms, zones and freeform shapes |
+| [Animations and Rules](./animations) | Animations and rules on the display |
+| [MSD Card](./) | Every card option, once you write the YAML yourself |
 
-## Where to Go Next
+## Putting it together
 
-- [Control Overlay](./control-overlay.md): every control placement/sizing option
-- [Line Overlay](./line-overlay.md): routing modes, styling, markers, state-based color
-- [Routing Concepts](./routing-concepts.md): the short version of how lines find their own path
-- [Routing & Channels](./routing.md): how automatic bundling works, and how to guide it
-- [Shape Overlay](./shape-overlay.md): rooms, zones, and freeform geometry
-- [MSD Card](./index.md): full config reference, once you're ready to read/write the YAML directly
+**A complete display to copy: a dimmed blueprint, three controls joined to its markers, a room drawn as a shape, and a rule that turns the warp core line red.** Tap the controls, or change the entities under the card.
+
+- The blueprint's filters fade it so the controls stand out ([Base SVG Filters](./base-svg-filters)); `br`, `wc` and `sb` are markers in the blueprint itself ([Automatic anchors](./background#automatic-anchors)).
+- The rule recolours the line and blinks it while the toggle helper is on ([Rules](./animations#rules)).
+
+```yaml live controls
+type: custom:lcards-msd-card
+grid_options:
+  columns: full
+  rows: 6
+msd:
+  # the blueprint, dimmed, and the part of it to show
+  base_svg:
+    source: builtin:ncc-1701-a-blue
+    filters:
+      - mode: css
+        type: opacity
+        value: 0.5
+      - mode: css
+        type: brightness
+        value: 0.8
+  view_box: [180, 270, 1600, 720]
+  overlays:
+    # three controls, each joined to a marker on the ship
+    - id: bridge-ctl
+      type: control
+      attachment: top-left
+      position: [190, 278]
+      size: [340, 96]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_lights
+        text:
+          name:
+            content: BRIDGE
+            show: true
+            font_size: 30
+    - id: core-ctl
+      type: control
+      attachment: top-left
+      position: [190, 886]
+      size: [340, 96]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        entity: input_boolean.lcards_test_toggle
+        text:
+          name:
+            content: WARP CORE
+            show: true
+            font_size: 30
+    - id: shuttle-ctl
+      type: control
+      attachment: top-left
+      position: [1430, 886]
+      size: [340, 96]
+      card:
+        type: custom:lcards-button
+        preset: filled
+        entity: input_boolean.lcards_test_doors
+        text:
+          name:
+            content: SHUTTLE BAY
+            show: true
+            font_size: 30
+    - id: bridge-line
+      type: line
+      anchor: bridge-ctl
+      attach_to: br
+      route: auto
+      corner_style: round
+      style:
+        color: var(--lcards-gray-medium-light)
+        width: 3
+    - id: core-line
+      type: line
+      anchor: core-ctl
+      attach_to: wc
+      route: auto
+      corner_style: round
+      style:
+        color: var(--lcards-gray-medium-light)
+        width: 3
+    - id: shuttle-line
+      type: line
+      anchor: shuttle-ctl
+      attach_to: sb
+      route: auto
+      corner_style: round
+      style:
+        color: var(--lcards-gray-medium-light)
+        width: 3
+    # a room drawn over the top right corner
+    - id: ops-room
+      type: shape
+      kind: rect
+      position: [1430, 290]
+      size: [340, 160]
+      corner_style: round
+      corner_radius: 20
+      style:
+        color: var(--lcars-orange)
+        width: 3
+        fill: alpha(var(--lcars-orange), 0.12)
+rules:
+  - id: msd-warp-core-alert
+    when:
+      entity: input_boolean.lcards_test_toggle
+      state: "on"
+    apply:
+      overlays:
+        core-line:
+          style:
+            color: var(--lcars-alert-red)
+      animations:
+        - overlay: core-line
+          preset: blink
+          loop: true
+```

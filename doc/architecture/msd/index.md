@@ -106,7 +106,7 @@ All pathfinding lives in **`RouterCore`** (one instance per MSD card, shared by 
 
 The engine provides: A* grid routing with obstacle avoidance, cardinal `anchor_side`/`attach_side` guarantees, trunk-and-branch bundling (parallel lines share evenly-spaced lanes; channels are pre-seeded trunks), crossing avoidance, and corner rounding/beveling/smoothing.
 
-Full internals: registries, derived lane assignment, convergence discipline, caching: [Routing Engine (RouterCore)](./routing.md). User-facing configuration: [Line Routing & Channels](../../cards/msd/routing.md). Manual waypoints: [Manual Routing](../../cards/msd/manual-routing.md).
+Full internals: registries, derived lane assignment, convergence discipline, caching: [Routing Engine (RouterCore)](./routing.md). User-facing configuration: [Line Routing](../../cards/msd/routing.md). Manual waypoints: [Manual Routing](../../cards/msd/manual-routing.md).
 
 ---
 

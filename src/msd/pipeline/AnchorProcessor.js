@@ -97,7 +97,6 @@ export class AnchorProcessor {
    * @param {Object} anchors - Anchors with possibly percentage coordinates
    * @param {Array} viewBox - SVG viewBox [minX, minY, width, height]
    * @returns {Object} Anchors with resolved absolute coordinates
-   * @private
    */
   static _resolvePercentages(anchors, viewBox) {
     if (!anchors || Object.keys(anchors).length === 0) {

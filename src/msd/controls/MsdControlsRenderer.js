@@ -1601,7 +1601,8 @@ export class MsdControlsRenderer {
    */
   static computeAttachmentPoints(overlay, anchors, container) {
     // Set default size for control overlays if not specified
-    if (!overlay.size) overlay.size = [100, 80];
+    // the size a control without one is drawn at (resolveSize): lines attached to it end on its edges
+    if (!overlay.size) overlay.size = [100, 100];
 
     const attachmentPoints = OverlayUtils.computeAttachmentPoints(overlay, anchors);
 

@@ -652,7 +652,8 @@ export class AssetManager extends BaseService {
     if (source.startsWith('builtin:')) {
       // Builtin SVGs are pre-registered by packs
       key = source.replace('builtin:', '');
-    } else if (source.startsWith('/local/') || source.startsWith('http')) {
+    } else if (source.startsWith('/') || /^https?:\/\//.test(source)) {
+      // a path Home Assistant serves (/local/ is the www folder) or a full URL
       // External/user SVGs: derive key from filename
       key = /** @type {string} */ (source.split('/').pop()).replace('.svg', '');
       url = source;
@@ -661,7 +662,7 @@ export class AssetManager extends BaseService {
       if (!this.getRegistry('svg').has(key)) {
         this.register('svg', key, null, {
           url,
-          source: source.startsWith('http') ? 'external' : 'user'
+          source: source.startsWith('/') ? 'user' : 'external'
         });
         lcardsLog.debug(`[AssetManager] Auto-registered SVG: ${key} from ${url}`);
       }

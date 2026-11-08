@@ -135,7 +135,7 @@ export const feColorMatrixParamsSchema = {
         { type: 'string', description: 'Space-separated 4x5 matrix: 20 numbers (type: matrix).' },
         { type: 'array', items: { type: 'number' }, description: '4x5 matrix as an array: 20 numbers (type: matrix).' }
       ],
-      description: 'Meaning depends on `type`. Not used when type is luminanceToAlpha.'
+      description: 'Meaning depends on `type`. Not used when type is luminanceToAlpha. Left out: 1 for saturate (unchanged), 0 for hueRotate (no turn).'
     }
   },
   additionalProperties: false
@@ -160,7 +160,8 @@ export const feBlendParamsSchema = {
       enum: ['normal', 'multiply', 'screen', 'darken', 'lighten', 'overlay', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'],
       description: 'Blend mode: try screen/lighten after a blur for glow effects.',
       'x-ui-hints': { label: 'Blend Mode' }
-    }
+    },
+    in2: { type: 'string', description: 'The second input: SourceGraphic (the blueprint, the default), SourceAlpha, or the result of an earlier primitive.' }
   },
   additionalProperties: false
 };
@@ -178,7 +179,8 @@ export const feCompositeParamsSchema = {
     k1: { type: 'number', default: 0, description: 'Arithmetic coefficient: only used when operator is arithmetic. result = k1*i1*i2 + k2*i1 + k3*i2 + k4.', 'x-ui-hints': { label: 'k1', selector: { number: { min: -2, max: 2, step: 0.1, mode: 'slider' } } } },
     k2: { type: 'number', default: 0, description: 'Arithmetic coefficient: only used when operator is arithmetic.', 'x-ui-hints': { label: 'k2', selector: { number: { min: -2, max: 2, step: 0.1, mode: 'slider' } } } },
     k3: { type: 'number', default: 0, description: 'Arithmetic coefficient: only used when operator is arithmetic.', 'x-ui-hints': { label: 'k3', selector: { number: { min: -2, max: 2, step: 0.1, mode: 'slider' } } } },
-    k4: { type: 'number', default: 0, description: 'Arithmetic coefficient: only used when operator is arithmetic.', 'x-ui-hints': { label: 'k4', selector: { number: { min: -2, max: 2, step: 0.1, mode: 'slider' } } } }
+    k4: { type: 'number', default: 0, description: 'Arithmetic coefficient: only used when operator is arithmetic.', 'x-ui-hints': { label: 'k4', selector: { number: { min: -2, max: 2, step: 0.1, mode: 'slider' } } } },
+    in2: { type: 'string', description: 'The second input: SourceGraphic (the blueprint, the default), SourceAlpha, or the result of an earlier primitive.' }
   },
   additionalProperties: false
 };
@@ -221,7 +223,9 @@ export const feDisplacementMapParamsSchema = {
   properties: {
     scale: { type: 'number', minimum: 0, default: 10, description: 'Displacement strength: higher = more distortion.', 'x-ui-hints': { label: 'Displacement Scale', selector: { number: { min: 0, max: 200, step: 5, mode: 'slider' } } } },
     xChannelSelector: { type: 'string', default: 'R', enum: ['R', 'G', 'B', 'A'], description: 'Color channel driving horizontal displacement.', 'x-ui-hints': { label: 'X Channel' } },
-    yChannelSelector: { type: 'string', default: 'G', enum: ['R', 'G', 'B', 'A'], description: 'Color channel driving vertical displacement.', 'x-ui-hints': { label: 'Y Channel' } }
+    yChannelSelector: { type: 'string', default: 'G', enum: ['R', 'G', 'B', 'A'], description: 'Color channel driving vertical displacement.', 'x-ui-hints': { label: 'Y Channel' } },
+    in: { type: 'string', description: 'The image it warps: SourceGraphic (the blueprint, the default), SourceAlpha, or the result of an earlier primitive.' },
+    in2: { type: 'string', description: 'The map that warps it: the previous primitive (the default, such as feTurbulence), SourceGraphic or SourceAlpha.' }
   },
   additionalProperties: false
 };
@@ -231,7 +235,7 @@ export const tintParamsSchema = {
   description: 'Composites a flat color wash over the content: a cheap alert/status tint. Requires an SVG root (not supported on data-grid).',
   properties: {
     color: {
-      type: 'string', default: 'rgba(0,0,0,0.4)',
+      type: 'string', default: 'rgba(0,0,0,0.5)',
       pattern: COLOR_VALUE_PATTERN,
       description: 'Tint color: the alpha channel controls how much content shows through.',
       'x-ui-hints': { widget: 'lcards-color-picker', label: 'Tint Color' }

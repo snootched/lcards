@@ -9,6 +9,8 @@ for (const [from, to] of [
     ['/cards/slider-card/#ring-gauge', /\/cards\/slider-card\/components(\.html)?#ring-gauge$/],
     ['/cards/slider-card/#drag-value-badge', /\/cards\/slider-card\/control(\.html)?#drag-value-badge$/],
     ['/cards/button/#style-card', /\/cards\/button\/styles(\.html)?#style-card$/],
+    // a moved page (redirect stub) keeps the old section: its own moved_anchors entry
+    ['/cards/msd/routing-concepts#obstacles', /\/cards\/msd\/routing(\.html)?#obstacles$/],
 ]) {
     test(`${from} lands on the heading's new page`, async ({ page }) => {
         await page.goto(from);

@@ -568,9 +568,12 @@ export class LCARdSMSDCard extends LCARdSCard {
                         // Register non-card overlays (lines, labels, etc.) or non-LCARdS controls
                         // LCARdS cards will register themselves when created
                         // Register directly with SystemsManager (can't use _registerOverlayForRules - already used!)
+                        // the overlay's own tags and its type, so rule selectors tag:<name> and
+                        // type:<line|shape|control> reach it (they matched nothing before)
                         this._singletons?.systemsManager?.registerOverlay(overlay.id, {
                             id: overlay.id,
-                            tags: ['msd-overlay', overlay.type],
+                            type: overlay.type,
+                            tags: ['msd-overlay', overlay.type, ...(Array.isArray(overlay.tags) ? overlay.tags : [])],
                             sourceCardId: this._cardGuid
                         });
                         lcardsLog.trace(`[LCARdSMSDCard] ✅ Registered overlay: ${overlay.id} (${overlay.type})`);
@@ -588,18 +591,52 @@ export class LCARdSMSDCard extends LCARdSCard {
 
         lcardsLog.trace('[LCARdSMSDCard] ✅ MSD card and overlays registered with core rulesManager');
 
-        // NOW trigger rule evaluation with all overlays registered
-        if (this.hass && this._singletons?.rulesEngine) {
-            lcardsLog.trace('[LCARdSMSDCard] Triggering initial rule evaluation with all overlays registered');
-            this._singletons.rulesEngine.markAllDirty();
+        // NOW trigger rule evaluation with all overlays registered. Selectors (tag:, type:, ids)
+        // resolve when a rule is evaluated, and a matched rule keeps its patches until it is
+        // evaluated again: mark every rule dirty so the next evaluation sees these overlays.
+        // With hass here, run this card's callback now; without, the first hass update runs the
+        // callbacks of a rules engine with dirty rules (RulesEngine.ingestHass). Before, it was
+        // gated on hass and looked the callback up by an index that is never set: a rule that
+        // matched as the card loaded kept the empty patch list it got before the overlays existed.
+        this._singletons?.rulesEngine?.markAllDirty();
+        if (this.hass) this._rulesCallback?.();
+    }
 
-            // Trigger the callback for this card (which evaluates rules for all registered overlays)
-            if (this._rulesCallbackIndex >= 0) {
-                const callbacks = this._singletons.rulesEngine._reEvaluationCallbacks || [];
-                if (callbacks[this._rulesCallbackIndex]) {
-                    callbacks[this._rulesCallbackIndex]();
-                }
-            }
+    /**
+     * After every render of the overlays (PipelineCore): style-only rule patches go onto the
+     * freshly drawn elements. A rule that matches as the card loads is evaluated before the
+     * overlays are drawn, so its patch found nothing, and later evaluations of the same patch
+     * are skipped as unchanged: the line kept its own colour until the entity changed.
+     * @protected
+     */
+    _onMsdRendered() {
+        if (this._lastRulePatches && this._isStyleOnlyPatch(this._lastRulePatches)) {
+            this._applyStylePatchesToDOM(this._lastRulePatches);
+        }
+    }
+
+    /**
+     * A rule's `apply.base_svg` (filters on the blueprint): the highest-priority
+     * matched rule of this card wins; when none matches any more, the blueprint
+     * goes back to its configured filters. (Unwired since the move to the core
+     * rules engine; found by the D2 docs audit, 2026-11-08.)
+     * @param {any} ruleResults
+     * @protected
+     */
+    _applyRuleResults(ruleResults) {
+        const updates = ruleResults?.baseSvgUpdates ?? {};
+        const own = updates[this.config?.id || this._cardGuid] ?? updates['*'] ?? null;
+        const key = own ? JSON.stringify(own) : null;
+        if (key === (this._baseSvgRuleKey ?? null)) return;
+        // before the pipeline is up nothing is drawn yet: the next evaluation applies it
+        const coordinator = /** @type {any} */ (this._msdPipeline?.coordinator);
+        if (!coordinator?._applyBaseSvgUpdate) return;
+        const previous = this._baseSvgRule;
+        this._baseSvgRuleKey = key;
+        this._baseSvgRule = own;
+        if (own) coordinator._applyBaseSvgUpdate(own);
+        else if (previous) {
+            coordinator._applyBaseSvgUpdate({ filters: this._msdConfig?.base_svg?.filters ?? [], transition: previous.transition });
         }
     }
 
@@ -1466,8 +1503,10 @@ export class LCARdSMSDCard extends LCARdSCard {
      */
     _getGridOptions() {
         const go = this.config.grid_options || {};
+        // full width by default (the old 4 columns was a third of a sections view: a leftover of
+        // the 4-column layout_options; the user, 2026-11-08)
         return {
-            columns: go.columns ?? 4,
+            columns: go.columns ?? 'full',
             rows: go.rows ?? 8,
             min_columns: 2,
             min_rows: 4,
@@ -1864,14 +1903,16 @@ export class LCARdSMSDCard extends LCARdSCard {
 
         if (source.startsWith('builtin:')) {
             svgKey = source.replace('builtin:', '');
-        } else if (source.startsWith('/local/')) {
+        } else if (source.startsWith('/') || /^https?:\/\//.test(source)) {
+            // A path Home Assistant serves (/local/ is the www folder) or a full URL, as
+            // AssetManager.loadSvg takes them (an https:// source drew nothing: only /local/ was read here)
             svgKey = source.split('/').pop().replace('.svg', '');
 
             // Register external SVG if not already registered
             if (!assetManager.getRegistry('svg').has(svgKey)) {
                 assetManager.register('svg', svgKey, null, {
                     url: source,
-                    source: 'user'
+                    source: source.startsWith('/') ? 'user' : 'external'
                 });
             }
         } else if (source.startsWith('media-source://')) {
@@ -2024,14 +2065,16 @@ export class LCARdSMSDCard extends LCARdSCard {
      * Apply style patches directly to DOM elements without full re-render
      * This preserves animation state and avoids expensive pipeline reinit
      * @param {Object} patches - Rule patches by overlay ID
+     * @returns {boolean} false when an overlay is not drawn yet (or there is no mount)
      * @private
      */
     _applyStylePatchesToDOM(patches) {
         const mountEl = this.getMountElement();
         if (!mountEl) {
-            lcardsLog.warn('[LCARdSMSDCard] Cannot apply DOM patches - no mount element');
-            return;
+            lcardsLog.debug('[LCARdSMSDCard] No mount element for DOM patches yet');
+            return false;
         }
+        let allFound = true;
 
         let patchCount = 0;
 
@@ -2043,6 +2086,7 @@ export class LCARdSMSDCard extends LCARdSCard {
             const overlayEl = mountEl.querySelector(`#${overlayId}`);
             if (!overlayEl) {
                 lcardsLog.debug(`[LCARdSMSDCard] Overlay element not found: ${overlayId}`);
+                allFound = false;
                 continue;
             }
 
@@ -2063,7 +2107,9 @@ export class LCARdSMSDCard extends LCARdSCard {
             patchCount++;
         }
 
-        lcardsLog.debug(`[LCARdSMSDCard] ✅ Applied ${patchCount} style patches directly to DOM (animations preserved)`);    }
+        lcardsLog.debug(`[LCARdSMSDCard] ✅ Applied ${patchCount} style patches directly to DOM (animations preserved)`);
+        return allFound;
+    }
 
     /**
      * Apply line style patch to SVG path element
@@ -2075,7 +2121,11 @@ export class LCARdSMSDCard extends LCARdSCard {
         // If element is a group, find child path/line elements
         let targetElements = /** @type {SVGElement[]} */ ([lineEl]);
         if (lineEl.tagName.toLowerCase() === 'g') {
-            const children = lineEl.querySelectorAll('path, line, polyline, polygon');
+            // the visible line only: not its 12-wide transparent hit area, the selection
+            // outline or the marker shapes in its defs (a rule colour made a line look 12 wide)
+            const own = lineEl.querySelectorAll('.line-path');
+            const children = own.length ? own
+                : lineEl.querySelectorAll(':is(path, line, polyline, polygon):not(.line-hit-area):not(.line-selection-indicator):not(defs *):not(marker *)');
             if (children.length > 0) {
                 targetElements = /** @type {SVGElement[]} */ (Array.from(children));
             }

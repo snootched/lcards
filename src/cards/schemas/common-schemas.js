@@ -928,7 +928,7 @@ export const rulesSchema = {
                                 type: 'number',
                                 minimum: 0,
                                 description: 'Transition duration in milliseconds',
-                                default: 300
+                                default: 1000
                             }
                         }
                     },

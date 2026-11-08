@@ -1,0 +1,29 @@
+# A rule that already matches when the card loads (light.demo starts on):
+# the line drew in its own colour until the state changed (msd-audit.spec.js).
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: none
+  view_box: [0, 0, 600, 300]
+  anchors:
+    a_start: [50, 150]
+    a_end: [550, 150]
+  overlays:
+    - id: line_a
+      type: line
+      anchor: a_start
+      attach_to: a_end
+      tags: [power]
+      style:
+        color: "#ff9900"
+        width: 4
+rules:
+  - id: msd_rule_at_load
+    when:
+      entity: light.demo
+      state: "on"
+    apply:
+      overlays:
+        tag:power:
+          style:
+            color: "#ff0000"

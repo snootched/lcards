@@ -1,102 +1,270 @@
-# Line Routing & Channels
-
-MSD lines are routed like **cable raceways** on a circuit board: lines that travel in the same direction bundle together into evenly-spaced parallel lanes, branch apart where their destinations diverge, and avoid cutting across each other unless a crossing is genuinely the best option. This page covers how routing decides a line's path, how automatic bundling works, and how to guide it with channels.
-
-Per-line properties (`route`, `route_hint`, `anchor_side`, `waypoints`, …) are documented in [Line Overlay](./line-overlay.md); this page covers the routing *system* and its global configuration.
-
-::: tip Just want the mental model?
-This page is the full config reference. For a short, diagram-driven overview of how the router decides a path, see [Routing Concepts](./routing-concepts.md).
-:::
-
+---
+description: "How MSD lines find their path: obstacles, automatic bundling, channels, crossing avoidance, routing modes, corner size, the card-wide routing settings and debugging."
+moved_anchors:
+  trace-bundling-trunk-and-branch: /cards/msd/routing#bundling
+  global-routing-configuration: /cards/msd/routing#routing
+  common: /cards/msd/routing#routing
+  advanced: /cards/msd/routing#advanced-routing-settings
+  see-also: /cards/msd/routing#how-a-line-finds-its-path
 ---
 
-## Routing Modes
+# Line Routing
 
-Set per line with `route:`:
+**MSD lines route themselves like cables in a raceway: they find their way round obstacles, bundle with lines going the same way, and avoid cutting across each other when a small detour is cheap.** This page explains how the router decides a path, then lists every routing setting.
 
-| Mode | Description |
-|------|-------------|
-| `auto` | Default. Always full pathfinding (obstacle avoidance, trunk bundling, crossing avoidance) whether or not obstacles or channels are present. This is what `smart` means; `auto` just picks it automatically. |
-| `direct` | Literal straight line between endpoints: never pathfinds, never detours |
-| `manhattan` | Simple L-shaped single bend: no pathfinding, no bundling, no crossing avoidance. The explicit opt-out for the cheap, non-participating alternative to `auto` |
-| `smart` | A* pathfinding plus refinement: obstacle avoidance, bundling, crossing avoidance. What `auto` resolves to |
-| `grid` | Same participation as `smart` (pathfinding, bundling, crossing avoidance) without the extra local-search refinement pass, a lighter-weight opt-out for when `smart`'s refinement isn't wanted |
-| `manual` | Explicit `waypoints` list: see [Manual Routing](./manual-routing.md) |
+- The settings on each line (`route`, `route_hint`, sides, `waypoints`) are on [Line Overlay](./line-overlay#routing-modes). This page covers the router and the card-wide `routing` and `channels` settings.
+- The order you list lines in never changes the result: the router routes every line until the arrangement settles, before anything is drawn.
 
-`direct`/`manhattan`/`manual` lines never move and never react to other lines, but their geometry **is still registered**: other lines will still avoid crossing them and can bundle alongside them. This makes `route: direct` (or a deliberate `route: manhattan`) useful for "wall" or backbone lines that must stay exactly where you drew them, and never get pulled into a bundle themselves.
+## How a Line Finds Its Path
 
----
+**For every line, every time the card draws, the router works through the same steps.**
 
-## Trace Bundling (Trunk-and-Branch)
+```mermaid
+flowchart TD
+    A[Line needs a route] --> B{route mode?}
+    B -->|direct / manhattan / manual| C[Fixed shape<br/>no pathfinding]
+    B -->|auto, smart, or grid| D{Obstacle<br/>in the way?}
+    D -->|yes| E[Detour around it]
+    D -->|no| F{Force channel<br/>referenced?}
+    E --> F
+    F -->|yes| G[Must route through it]
+    F -->|no| H{Nearby trunk or channel<br/>worth joining?}
+    H -->|yes, cheaper overall| I[Bundle into a shared lane]
+    H -->|no, or not worth it| J[Route independently]
+    G --> K{Would this cross<br/>another line's path?}
+    I --> K
+    J --> K
+    K -->|yes, small detour avoids it| L[Step around the crossing]
+    K -->|no, or detour too costly| M[Final path]
+    L --> M
+    C --> M
+    M --> N[Registered<br/>other lines can now discover and bundle with this one]
+```
 
-Lines whose paths run close and parallel automatically bundle, no configuration needed:
+- Bundling and crossing avoidance are cost comparisons, never hard rules: a line joins a bundle or takes a detour only when that is cheaper than the alternative.
+- `direct`, `manhattan` and `manual` lines keep their shape, but they are still registered: other lines avoid crossing them and can bundle beside them. That makes a `direct` line a good fixed backbone or wall.
 
-- The **first line's path becomes the trunk centerline** and never moves.
-- Lines routing nearby **discover** the trunk and join it, riding evenly-spaced lanes alternating on either side of the centerline (`±line_spacing`, `±2×line_spacing`, …).
-- Each line **branches away** where its own destination diverges from the trunk.
-- The outcome **never depends on YAML declaration order**: the router pre-routes every line to a stable arrangement before rendering.
-- Which side of the centerline each line lands on follows its own real geometry, never line/entity ID, including for a line chained through **multiple** channels/trunks in sequence, where the side chosen stays consistent across the whole chain instead of each corridor deciding independently.
+## Obstacles
 
-Bundling applies to any `auto` (the default), `smart`, or `grid` line; `manhattan`/`direct`/`manual` lines never join a bundle themselves (they can still be bundled *around*, since their geometry is still registered). Common tunables, set in the [`routing` object](#global-routing-configuration) or the Studio Routing tab's **Trace Bundling & Crossings** section:
+**An obstacle is a control or shape that routed lines go round instead of through.** Set `obstacle: true` on it; no setting is needed on the lines.
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `trunk_bundling_enabled` | `true` | Master switch for spontaneous bundling |
-| `trunk_line_spacing` | `8` | Lane gap between bundled lines (viewBox units). Also sets how rounded lines' lane-separation corners can get, independent of `corner_radius`; see [Corner Size: Target vs. Forced](#corner-size-target-vs-forced) |
-| `trunk_proximity` | `32` | How close a line must run to a trunk to bundle with it (viewBox units) |
-| `trunk_bundle_weight` | `0.5` | How strongly joining a bundle is rewarded; higher pulls lines in from further detours |
+- Lines routed `auto` (the default), `smart` or `grid` avoid obstacles. `clearance` keeps them a set distance from the box: card-wide in [`routing`](#routing), or on one line.
+- A `rect` or `circle` shape can be an obstacle as well as a control; see [Control Overlay](./control-overlay#obstacle).
 
-A line only joins a trunk when doing so is actually cheaper overall than routing independently: bundling is a preference, never forced.
+![A line detouring around an obstacle box](/img/msd-routing-obstacle-avoidance.svg)
 
----
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 240]
+  routing:
+    clearance: 10
+  overlays:
+    - id: reactor
+      type: control
+      position: [300, 120]
+      size: [120, 100]
+      obstacle: true
+      card:
+        type: custom:lcards-button
+        preset: panel-dark
+        interactive: false
+        text:
+          label:
+            content: REACTOR
+    - id: sensors
+      type: control
+      position: [70, 120]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: SENSORS
+            show: true
+    - id: core
+      type: control
+      position: [530, 120]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: CORE
+            show: true
+    - id: coolant_line
+      type: line
+      anchor: sensors
+      attach_to: core
+      style:
+        color: var(--lcars-blue)
+        width: 4
+```
 
-## Crossing Avoidance
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `obstacle` | boolean | `false` | On a control or a `rect`/`circle` shape: routed lines go round its box |
+| `clearance` | number | `routing.clearance` (`0`) | On a line: space kept round obstacles, viewBox units |
 
-A line's path is penalized for cutting orthogonally across another line's already-routed segment: *"traces never cross, unless we really really need to."* The penalty is a deterrent, not a hard block: if the only alternative is a long detour, the line crosses cleanly.
+## Bundling
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `crossing_avoid_enabled` | `true` | Master switch |
-| `crossing_avoid_bias` | `4` | Penalty per crossing. Higher values accept longer detours to avoid a crossing; the default deters casual crossings but yields when a detour would be substantial |
+**Lines that run close and side by side merge into one corridor, on evenly spaced lanes, and branch apart where their ends differ.** It happens on its own: no channel, no setting, just lines going the same way.
 
-Parallel travel is never penalized: bundle-mates riding adjacent lanes don't repel each other, and a line crossing *into* a bundle to reach an outer lane crosses the inner lanes freely (that's how a real raceway works).
+- The first line's path becomes the trunk's centre line and stays put. Lines that join take lanes either side of it, `trunk_line_spacing` apart.
+- A line joins only when that is cheaper than going its own way. Which side of the centre a line rides follows where it comes from, never its id, and stays the same along a chain of trunks.
+- Only `auto`, `smart` and `grid` lines join a bundle; `direct`, `manhattan` and `manual` lines can still have others bundle beside them.
 
----
+![Three lines merging into a shared lane-separated corridor, then branching apart at their destinations](/img/msd-routing-trunk-bundling.svg)
 
-## Corner Size: Target vs. Forced
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 300]
+  routing:
+    trunk_line_spacing: 12
+    clearance: 8
+  overlays:
+    # two bulkheads with a gap between them
+    - id: bulkhead_top
+      type: control
+      position: [300, 55]
+      size: [100, 110]
+      obstacle: true
+      card:
+        type: custom:lcards-button
+        preset: panel-dark
+        interactive: false
+        text:
+          label:
+            content: DECK 4
+    - id: bulkhead_bottom
+      type: control
+      position: [300, 245]
+      size: [100, 110]
+      obstacle: true
+      card:
+        type: custom:lcards-button
+        preset: panel-dark
+        interactive: false
+        text:
+          label:
+            content: DECK 6
+    - id: a
+      type: control
+      position: [70, 40]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: A
+            show: true
+    - id: b
+      type: control
+      position: [70, 150]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: B
+            show: true
+    - id: c
+      type: control
+      position: [70, 260]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: C
+            show: true
+    - id: d
+      type: control
+      position: [530, 40]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: D
+            show: true
+    - id: e
+      type: control
+      position: [530, 150]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: E
+            show: true
+    - id: f
+      type: control
+      position: [530, 260]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: F
+            show: true
+    - id: a_d
+      type: line
+      anchor: a
+      attach_to: d
+      style:
+        color: var(--lcars-blue)
+        width: 3
+    - id: b_e
+      type: line
+      anchor: b
+      attach_to: e
+      style:
+        color: var(--lcars-blue)
+        width: 3
+    - id: c_f
+      type: line
+      anchor: c
+      attach_to: f
+      style:
+        color: var(--lcars-blue)
+        width: 3
+```
 
-A line's `corner_radius` (round/bevel corners) needs *room* to render at full size: enough straight leg on either side of the bend. Where that room comes from depends on `corner_radius_mode`, a per-line overlay property:
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `routing.trunk_bundling_enabled` | boolean | `true` | Lines bundle on their own. `false` turns it off for the card |
+| `routing.trunk_line_spacing` | number | `8` | Gap between lanes, viewBox units. It also limits how round the small bends are where lines step onto their lanes; see [Corner Size](#corner-size-target-vs-forced) |
+| `routing.trunk_proximity` | number | `32` | How close a line must run to a trunk to join it, viewBox units |
+| `routing.trunk_bundle_weight` | number | `0.5` | How strongly joining is rewarded: higher pulls lines in from further away |
+| [Advanced bundling settings](#advanced-routing-settings) | | | `trunk_min_length`, `trunk_min_overlap`, `trunk_max_join_candidates`, `trunk_bundle_discount_cap`, `trunk_discovery_max_passes` |
 
-| Value | Behavior |
-|-------|----------|
-| `auto` (default) | `corner_radius` is a **target**. The router stays free to pick whatever departure/arrival shape crossing avoidance and bundling prefer; the rendered corner uses the full configured radius wherever the chosen path leaves room for it, and shrinks gracefully where it doesn't. |
-| `forced` | `corner_radius` is a **hard requirement**. The line always reserves a straight lead-out/lead-in run of `2 × corner_radius` (floored at `min_stub_length_factor × grid_resolution`) before routing runs, guaranteeing the full radius renders everywhere, at the cost of removing that stretch from crossing avoidance's consideration entirely. Can force routing detours or unavoidable line crossings near tight geometry. |
+## channels
 
-If lines with a large `corner_radius` and an `anchor_side`/`attach_side` hint are crossing each other in places that look avoidable, that's this tradeoff in `forced`-equivalent form: `auto` (the default) is the fix. Use `forced` only where a specific line's corner must render at an exact size regardless of what else is nearby.
+**A channel is a corridor you draw: lines are rewarded for running through it, kept out of it, or made to use it.** Where bundling only happens between lines already close together, a channel can pull a line off the path it would take.
 
-**Stroke width is factored into corner clearance**: a corner's rounding radius is clamped by how close the *nearest edge* of a neighboring line's stroke is, not just its centerline, so a thick line (`style.width`) gets a more conservative (smaller) effective radius near other lines than a thin one at the same spacing. This is why increasing `style.width` can visibly tighten a corner that looked fine at the default width; that's the fix for an older, worse problem (a wide stroke's inner edge rendering squared-off because the radius math ignored width entirely); if you want the original wider corner back, increase line spacing (`trunk_line_spacing` / channel `line_spacing`) rather than reducing `style.width`.
+- `channels` sits directly under `msd:`, not under `msd.routing:`.
+- A line opts in with `route_channels: [main_bus]`. A `force` channel must be used, in the order the line lists them; `prefer` is taken when it is cheaper overall; `avoid` costs extra to enter.
+- A channel is also a ready-made trunk: lines bundle through it on lanes, as in [Bundling](#bundling). Any `auto`, `smart` or `grid` line passing near it may join, even one that doesn't list it; `discoverable: false` keeps it to the lines that do.
 
-**Overriding the mandatory stub**: every routed line reserves a short, unsearched straight run right at departure/arrival (`stub_length` on the line overlay, viewBox units) before pathfinding starts. Leave it unset to use the router's own resolved default (grid-resolution-floored in `auto` corner mode, `2 × corner_radius` in `forced` mode; see above). Setting it below about one grid cell risks re-triggering an internal same-cell short-circuit for very short lines; check the router's own resolved value first via `window.lcards.debug.msd.routing.inspect(id).meta.debug` (see [Debugging](#debugging)) before tuning it down.
-
-The floor underneath both of those auto-computed defaults (historically a flat 24 viewBox units, regardless of canvas size) is itself `min_stub_length_factor × grid_resolution` (card-wide, `msd.routing.min_stub_length_factor`, default `1`). A flat floor doesn't scale down with a small `view_box` the way `grid_resolution`'s own auto-scaling already does, so on a small canvas it can dominate disproportionately (e.g. force a longer lead-out than the corner_radius itself would need). Lower the factor there instead of fighting it per-line.
-
-**Bundled lines get a shorter lead-in than `2 × corner_radius` would suggest, automatically.** When several lines separate onto their own parallel lanes before entering a shared channel/trunk, the little S-curve that does the separating has its own two corners, and those are constrained by how far apart the lanes are (`line_spacing`), not by `corner_radius`. The router accounts for this: it only reserves as much lead-in room as that S-curve can actually use, capped at whatever `2 × corner_radius` would have reserved. A large `corner_radius` (for the bigger bends elsewhere in the route) no longer forces every bundled line's lane-separation jog to travel further than it needs to just to "earn" a radius those particular corners were never going to render at anyway.
-
-**Bundle-entry corners target the full configured `corner_radius`, automatically, no config needed.** If a bundle's members start on unevenly-spaced rows but converge onto much more tightly-packed lanes (e.g. four controls 50px apart entering a channel whose lanes are 8px apart), a plain rounded corner on that short lane-separation jog can only ever reach a radius proportional to how far *that specific member* has to travel; left alone, the group renders at visibly different, undersized radii. The router instead renders this jog as a genuine curve: the classic road/rail "S-curve lane change," two tangent arcs of one shared radius, so a member with less distance to cover just sweeps a smaller *portion* of the same-size curve instead of being stuck with a smaller circle. Every member independently targets the full `corner_radius` and reaches it whenever there's room; if room is genuinely tight, the achieved radius shrinks gracefully rather than rendering a sharp corner.
-
-Members also start bending at (nearly) the same point along the channel's flow axis, instead of a per-lane staircase, unless a member's own path would genuinely cut through a sibling's still-straight approach row first, in which case it starts a little further out, only as much as avoiding that real conflict requires.
-
-**Recovering corner room automatically** (`corner_room_weight`, `smart`/`auto` lines only): a third lever, independent of `corner_radius_mode`. A tight detour (two bends close enough together that `corner_radius` has to shrink to fit) is exactly the shape `corner_room_weight` targets: the router's own local refinement pass (the same one that nudges elbows away from obstacles under `smart_proximity`) also tries nudging elbows to recover a squashed corner's radius, accepting the nudge only when it's cheap enough to be worth it. Unlike `forced` mode's blind stub reservation, this is a real cost comparison: a route that leaves more room for the configured corner is preferred over the plain-cheapest route only when the difference in distance/bends is small, never at the cost of a much longer detour. **On by default** (`corner_room_weight: 4`, both card-wide in `msd.routing` and per-line); the LCARS rounded-corner look is the intended out-of-the-box result. Set to `0` (card-wide or per-line) to opt out.
-
----
-
-## Channels
-
-Channels are **authored corridors**: rectangular regions with a flow direction that lines are rewarded for traveling through, penalized for entering, or forced to route through. A channel is simply a pre-seeded trunk: lines bundle through it with the same lane mechanics as spontaneous bundling.
-
-::: warning Config location
-`channels` lives directly under `msd:`, **not** under `msd.routing:`.
-:::
+![A line bending off its natural path to ride through an authored prefer channel](/img/msd-routing-channel-prefer.svg)
 
 ```yaml live
 type: custom:lcards-msd-card
@@ -104,129 +272,627 @@ msd:
   view_box: [0, 0, 600, 300]
   channels:
     main_bus:
-      bounds: [250, 90, 300, 20]   # [x, y, width, height]
-      mode: force                  # prefer | avoid | force
-      direction: horizontal        # horizontal | vertical | auto (infer from shape)
-      weight: 1                    # influence strength
-      line_spacing: 10             # lane gap for bundled lines
-      discoverable: true           # default; false = only route_channels users may ever use this channel
-  anchors:
-    a_start: [50, 100]
-    a_end: [550, 100]
+      bounds: [200, 130, 200, 40]
+      mode: force
+      direction: horizontal
+      line_spacing: 16
   overlays:
-    - id: line_a
+    # the channel drawn as a shape, so you can see it
+    - id: bus
+      type: shape
+      kind: rect
+      position: [200, 130]
+      size: [200, 40]
+      style:
+        color: var(--lcars-orange)
+        width: 1
+        fill: var(--lcars-orange)
+        fill_opacity: 0.2
+    - id: a
+      type: control
+      position: [70, 50]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: A
+            show: true
+    - id: b
+      type: control
+      position: [70, 250]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: B
+            show: true
+    - id: c
+      type: control
+      position: [530, 50]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: C
+            show: true
+    - id: d
+      type: control
+      position: [530, 250]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: D
+            show: true
+    - id: a_c
       type: line
-      anchor: a_start
-      attach_to: a_end
-      route_channels: [main_bus]   # opt this line into the channel
-      route: auto                  # default - always does full pathfinding
+      anchor: a
+      attach_to: c
+      route_channels: [main_bus]
+      style:
+        color: var(--lcars-blue)
+        width: 3
+    - id: b_d
+      type: line
+      anchor: b
+      attach_to: d
+      route_channels: [main_bus]
+      style:
+        color: var(--lcars-blue)
+        width: 3
 ```
 
-| Mode | Behavior |
-|------|----------|
-| `prefer` | The line compares "through the channel" against its plain route and takes the channel when it's cheaper overall |
-| `avoid` | Entering the channel costs extra: lines route around it when reasonable |
-| `force` | Lines referencing the channel **must** route through it, in the order listed in `route_channels` |
+::: details More about channels
+- **Lanes:** lines through one channel get their own lanes, centred: one line rides the middle, two ride `line_spacing / 2` either side, three ride `-line_spacing`, `0` and `+line_spacing`, and so on. Lanes stay inside `bounds`, so make the channel at least `line_spacing` times the number of lines across.
+- **Invisible:** a channel guides lines but draws nothing. Draw a shape on the same box (as above) if you want to see it; the Studio's Channels toggle shows them while you edit.
+- **Older name:** `type` (`bundling`, `avoiding`, `waypoint`) is the old name for `mode` (`prefer`, `avoid`, `force`).
+:::
 
-Lines opt in explicitly with `route_channels: [id, ...]`, and, separately, *any* `auto`/`smart`/`grid` line routing near a channel can also discover and bundle with it automatically, exactly like a discovered trunk, **whether or not it lists that channel in `route_channels`**. This is what makes zero-config bundling work, but it also means a channel is never scoped to only the line(s) it was authored for by default; a nearby, unrelated line can still spontaneously join it. Set `discoverable: false` on a channel to opt it out of that automatic pass entirely; it then only ever affects lines that explicitly reference it via `route_channels` (default is `true`, matching existing behavior).
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `channels.<id>.bounds` | `[x, y, width, height]` | required | The channel's box, viewBox units |
+| `channels.<id>.mode` | string | `prefer` | `prefer`, `avoid` or `force` |
+| `channels.<id>.direction` | string | `auto` | `horizontal`, `vertical`, or `auto`: wide boxes run horizontal, tall ones vertical |
+| `channels.<id>.weight` | number | `0.5` | How strongly it pulls (`prefer`) or pushes (`avoid`), `0` to `1` |
+| `channels.<id>.line_spacing` | number | `8` | Gap between lanes inside it, viewBox units, `0` to `100` |
+| `channels.<id>.discoverable` | boolean | `true` | `false`: only lines that list it in `route_channels` use it |
+| `route_channels` | list | - | On a line: the channel ids it routes through, in order |
 
-**Lanes**: multiple lines through one channel get distinct, centered lanes: one line rides the channel's reference line, two ride `±line_spacing/2`, three ride `-spacing / 0 / +spacing`, and so on. Lanes are clamped to the channel's authored bounds, so make the channel at least `line_spacing × line_count` tall/wide for full separation.
+## Crossing Avoidance
 
----
+**A line is steered away from cutting across another line, unless the detour would be long.** It is a deterrent, not a wall: when stepping round is cheap the router steps round; otherwise the line crosses cleanly.
 
-## Obstacles
+- Running side by side is never penalised: lines in a bundle don't push each other apart, and a line crossing the inner lanes of a bundle to reach its own outer lane does so freely, as in a real raceway.
+- Raise `crossing_avoid_bias` to accept longer detours rather than cross.
 
-Any control overlay with `obstacle: true` is avoided by `auto`/`smart`/`grid` routing. `clearance` (global or per-line) adds padding around obstacles.
+![A line stepping around another line's path instead of crossing straight through it](/img/msd-routing-crossing-avoidance.svg)
 
----
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 260]
+  routing:
+    crossing_avoid_bias: 8
+  overlays:
+    - id: port
+      type: control
+      position: [70, 130]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: PORT
+            show: true
+    - id: aft
+      type: control
+      position: [330, 130]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: AFT
+            show: true
+    - id: helm
+      type: control
+      position: [200, 30]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: HELM
+            show: true
+    - id: sickbay
+      type: control
+      position: [530, 230]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: SICKBAY
+            show: true
+    # a fixed power bus: the blue line goes round its end rather than across it
+    - id: power_bus
+      type: line
+      anchor: port
+      attach_to: aft
+      route: direct
+      style:
+        color: var(--lcars-orange)
+        width: 4
+    - id: helm_line
+      type: line
+      anchor: helm
+      attach_to: sickbay
+      style:
+        color: var(--lcars-blue)
+        width: 3
+```
 
-## Global Routing Configuration
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `routing.crossing_avoid_enabled` | boolean | `true` | Lines avoid crossing each other. `false` turns it off for the card |
+| `routing.crossing_avoid_bias` | number | `4` | The cost of a crossing: higher accepts longer detours to avoid one |
+| `routing.crossing_min_length` | number | `12` | The shortest straight run other lines still avoid crossing, viewBox units |
 
-Global defaults live in `msd.routing` (per-line properties override where applicable):
+## Routing Modes
+
+**Each line's `route` picks whether the router finds its path or draws a fixed shape.** Leave it out for `auto`.
+
+- `auto` always means full pathfinding, with or without obstacles or channels on the card. `routing.default_mode` changes what `auto` means for the whole card; a line's own `route` still wins.
+- For a line that should not bundle or avoid crossings, choose `manhattan` (fixed shape) or `grid` (pathfinding without the refinement pass) on purpose.
+
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 380]
+  overlays:
+    - id: direct_from
+      type: control
+      position: [70, 40]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: DIRECT
+            show: true
+    - id: direct_to
+      type: control
+      position: [530, 80]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: END
+            show: true
+    - id: direct_line
+      type: line
+      anchor: direct_from
+      attach_to: direct_to
+      route: direct
+      style:
+        color: var(--lcars-blue)
+        width: 3
+    - id: manhattan_from
+      type: control
+      position: [70, 130]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: MANHATTAN
+            show: true
+    - id: manhattan_to
+      type: control
+      position: [530, 170]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: END
+            show: true
+    - id: manhattan_line
+      type: line
+      anchor: manhattan_from
+      attach_to: manhattan_to
+      route: manhattan
+      style:
+        color: var(--lcars-blue)
+        width: 3
+    - id: auto_from
+      type: control
+      position: [70, 220]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: AUTO
+            show: true
+    - id: auto_to
+      type: control
+      position: [530, 260]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: END
+            show: true
+    - id: auto_line
+      type: line
+      anchor: auto_from
+      attach_to: auto_to
+      route: auto
+      style:
+        color: var(--lcars-blue)
+        width: 3
+    - id: manual_from
+      type: control
+      position: [70, 310]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: MANUAL
+            show: true
+    - id: manual_to
+      type: control
+      position: [530, 350]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: END
+            show: true
+    - id: manual_line
+      type: line
+      anchor: manual_from
+      attach_to: manual_to
+      route: manual
+      waypoints:
+        - [250, 310]
+        - [350, 330]
+      style:
+        color: var(--lcars-blue)
+        width: 3
+```
+
+| Mode | What it does |
+|---|---|
+| `auto` | The default: full pathfinding with obstacle avoidance, bundling and crossing avoidance. Resolves to `smart`, or to `routing.default_mode` |
+| `direct` | A straight line. Never pathfinds or detours |
+| `manhattan` | One bend (more only to leave and arrive on the sides set). No pathfinding, no bundling, no crossing avoidance |
+| `smart` | Pathfinding plus a refinement pass that nudges bends for clearance and corner room |
+| `grid` | Like `smart` (pathfinding, bundling, crossing avoidance) without the refinement pass |
+| `manual` | Straight runs through `waypoints`; see [Manual Routing](./manual-routing) |
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `route` | string | `auto` | On a line: the mode, from the table above |
+| `routing.default_mode` | string | `auto` | What `auto` means on this card: `auto` or `smart` (the same), `grid` or `manhattan`. A line's own `route` wins |
+
+## Corner Size: Target vs. Forced
+
+**A rounded corner needs room: a straight run either side of the bend.** `corner_radius_mode`, on each line, says where that room comes from.
+
+- `auto` (the default): `corner_radius` is a target. The router picks the path it prefers for crossings and bundling, and each corner gets the full radius where the path leaves room, a smaller one where it doesn't.
+- `forced`: `corner_radius` is a requirement. The line keeps a straight run of twice the radius at each end before routing, so the full radius always fits, but the router can't steer that stretch round crossings. It can cause detours or crossings near tight geometry; use it only where one line's corners must be exact.
+- Lines with a large `corner_radius` and sides set that cross where they needn't are the `forced` trade-off in action: `auto` is the fix.
 
 ```yaml live
 type: custom:lcards-msd-card
 msd:
   view_box: [0, 0, 600, 300]
-  routing:
-    trunk_line_spacing: 10
-    crossing_avoid_bias: 6
-  overlays: []
+  overlays:
+    - id: auto_from
+      type: control
+      position: [60, 50]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: AUTO
+            show: true
+    - id: auto_to
+      type: control
+      position: [240, 250]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: END
+            show: true
+    - id: forced_from
+      type: control
+      position: [360, 50]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: FORCED
+            show: true
+    - id: forced_to
+      type: control
+      position: [540, 250]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: END
+            show: true
+    # auto: the corners shrink to fit
+    - id: target_line
+      type: line
+      anchor: auto_from
+      attach_to: auto_to
+      anchor_side: right
+      attach_side: left
+      corner_radius: 60
+      style:
+        color: var(--lcars-blue)
+        width: 4
+    # forced: the full radius, with the room it needs
+    - id: forced_line
+      type: line
+      anchor: forced_from
+      attach_to: forced_to
+      anchor_side: right
+      attach_side: left
+      corner_radius: 60
+      corner_radius_mode: forced
+      style:
+        color: var(--lcars-orange)
+        width: 4
 ```
 
-### Common
+::: details More about corner size
+- **Stroke width counts:** a corner's radius is limited by how close the nearest edge of a neighbouring line is, not its centre line, so a thick line gets a smaller radius next to others than a thin one. To get the wider corner back, increase the lane spacing (`trunk_line_spacing` or a channel's `line_spacing`) rather than thinning the line.
+- **The straight run at each end:** every routed line keeps a short straight run at each end before it turns. Unset, it is one grid cell (`grid_resolution` times `min_stub_length_factor`, and never less than one cell in `auto` mode), or twice `corner_radius` in `forced` mode. A line's `stub_length` overrides it; going below about one grid cell can make very short lines misbehave, so check what the router chose first with the [debugger](#debugging).
+- **Bundled lines turn sooner:** where lines step onto their lanes before a channel or trunk, that small S-bend is limited by the lane spacing, not by `corner_radius`, so the router keeps only as much lead-in as it can use (never more than twice `corner_radius`). A large `corner_radius` for the big bends elsewhere doesn't push every lane change further out.
+- **Lane changes keep the full radius:** when bundle members start far apart and converge on tight lanes, each one's lane change is drawn as a real S-curve of two arcs with the full `corner_radius`; a member with less distance to cover sweeps less of the same curve. Members start bending at about the same point, unless one would cut through a neighbour's approach, in which case it starts only as far out as it must.
+- **Recovering squeezed corners:** `corner_room_weight` (on by default, `4`) lets the refinement pass of `smart` and `auto` lines move a bend a little to give a squeezed corner its full radius, when the extra distance is small. Unlike `forced`, it is a real cost comparison and never forces a long detour. Set `0` card-wide or on one line to turn it off.
+:::
 
-| Field | Default | Description |
-|-------|---------|-------------|
-| `default_mode` | `auto` | Card-wide override for lines that don't set `route` (per-line `route:` still wins). Set to `manhattan`/`grid` to downgrade the whole card |
-| `grid_resolution` | auto-scaled | Pathfinding cell size (viewBox units). Unset by default; scales to ~1/12th of the view_box's shorter dimension, clamped to `[16, 64]`; values below 5 are coerced to 32 |
-| `min_stub_length_factor` | `1` | Multiplier on the resolved `grid_resolution` for the minimum mandatory lead-out/lead-in stub every line reserves before routing runs (see [Corner Size: Target vs. Forced](#corner-size-target-vs-forced)). `1` reserves at least one grid cell. Lower it on a small `view_box`, where a flat minimum would otherwise force every line to travel disproportionately far before its first turn |
-| `turn_penalty` | `2` | Cost per direction change: higher = straighter paths |
-| `clearance` | `0` | Padding around obstacles (viewBox units) |
-| `corner_room_weight` | `4` | How strongly the refinement pass tries to recover a squashed corner's `corner_radius` (0 disables this trigger). On by default; see [Corner Size: Target vs. Forced](#corner-size-target-vs-forced). Also settable per-line. One of the two primary levers for corner appearance (the other, `corner_radius`, is per-line) |
-| `trunk_bundling_enabled` | `true` | Spontaneous bundling master switch |
-| `trunk_line_spacing` | `8` | Bundled lane gap (viewBox units). Also sets how rounded lines' lane-separation corners can get, independent of `corner_radius`; see [Corner Size: Target vs. Forced](#corner-size-target-vs-forced) |
-| `trunk_proximity` | `32` | Bundling capture distance (viewBox units) |
-| `trunk_bundle_weight` | `0.5` | Bundling reward strength |
-| `crossing_avoid_enabled` | `true` | Crossing avoidance master switch |
-| `crossing_avoid_bias` | `4` | Penalty per crossing |
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `corner_radius_mode` | string | `auto` | On a line: `auto` (the radius is a target) or `forced` (room for it is reserved) |
+| `stub_length` | number | the router's | On a line: the straight run at each end, viewBox units |
+| `corner_room_weight` | number | `4` | On a line or in `routing`: how hard the refinement pass works to give a squeezed corner its full radius. `0` turns it off |
+| `routing.min_stub_length_factor` | number | `1` | Multiplier on `grid_resolution` for the shortest straight run at each end |
 
-### Advanced
+## routing
 
-Deep internals: rarely needed. Exposed in the Studio Routing tab under **Advanced Routing Configuration**.
+**`msd.routing` holds the card-wide routing settings; a line's own setting wins where both exist.** Most cards need none of them.
 
-| Field | Default | Description |
-|-------|---------|-------------|
-| `route_hint_penalty` | `6` | Cost for a first/last move disagreeing with `route_hint` |
-| `smoothing_mode` / `smoothing_iterations` / `smoothing_max_points` | `none` / `1` / `160` | Chaikin path smoothing |
-| `smart_proximity` | `0` | Obstacle proximity band for the refinement pass (0 disables this trigger; the *other* trigger, `corner_room_weight`, is a Common option; see above) |
-| `smart_detour_span` / `smart_max_extra_bends` / `smart_min_improvement` / `smart_max_detours_per_elbow` | `48` / `3` / `4` / `4` | Refinement pass limits |
-| `channel_force_penalty` | `800` | Cost for a route that misses a forced channel |
-| `channel_avoid_multiplier` | `1.0` | Global multiplier on avoid-channel penalties |
-| `channel_prefer_bias` / `channel_avoid_bias` | `0.9` / `3` | Per-cell A* discount/penalty inside prefer/avoid channels |
-| `trunk_min_length` | `60` | Straight run needed to become a joinable trunk (viewBox units) |
-| `trunk_min_overlap` | `60` | Shared travel needed for joining to be worthwhile (viewBox units) |
-| `trunk_max_join_candidates` | `2` | Trunks one line will consider chaining through |
-| `trunk_bundle_discount_cap` | `2000` | Ceiling on the distance credited toward a *discovered* trunk's cost discount (viewBox units). A generous safety bound, not a practical tuning knob; only engages on unrealistically long shared runs, and never applies to a channel you authored yourself (`mode: force`/`prefer`) |
-| `trunk_discovery_max_passes` | `4` | Pre-render routing pass cap (order-independence safety limit) |
-| `crossing_min_length` | `12` | Shortest segment other lines still avoid crossing (viewBox units) |
-| `cost_defaults.bend` / `cost_defaults.proximity` | `10` / `4` | Route cost weights |
+- The settings people change most are in [Bundling](#bundling), [Crossing Avoidance](#crossing-avoidance) and [Corner Size](#corner-size-target-vs-forced). The table below has the rest, and [Advanced Routing Settings](#advanced-routing-settings) the deep internals.
+- In MSD Studio the same settings are on the Routing tab: Common Routing Options, Trace Bundling & Crossings, and Advanced Routing Configuration.
 
----
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 240]
+  routing:
+    turn_penalty: 6
+    clearance: 12
+  overlays:
+    - id: cargo
+      type: control
+      position: [300, 120]
+      size: [120, 100]
+      obstacle: true
+      card:
+        type: custom:lcards-button
+        preset: panel-dark
+        interactive: false
+        text:
+          label:
+            content: CARGO
+    - id: bridge
+      type: control
+      position: [70, 40]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: BRIDGE
+            show: true
+    - id: engineering
+      type: control
+      position: [530, 200]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: ENGINEERING
+            show: true
+    - id: route_line
+      type: line
+      anchor: bridge
+      attach_to: engineering
+      style:
+        color: var(--lcars-blue)
+        width: 4
+```
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `routing.default_mode` | string | `auto` | What `auto` means on this card; see [Routing Modes](#routing-modes) |
+| `routing.clearance` | number | `0` | Space kept round obstacles, viewBox units |
+| `routing.grid_resolution` | number | scaled to the card | The pathfinding grid's cell size, viewBox units. Unset, it is the shorter side of `view_box` divided by 12, kept between `16` and `64`. Values below 5 become `32` |
+| `routing.turn_penalty` | number | `2` | The cost of each change of direction: higher gives straighter paths |
+| `routing.corner_room_weight` | number | `4` | See [Corner Size](#corner-size-target-vs-forced) |
+| `routing.min_stub_length_factor` | number | `1` | See [Corner Size](#corner-size-target-vs-forced) |
+| [Bundling](#bundling), [crossing](#crossing-avoidance) settings | | | `trunk_*` and `crossing_*` |
+
+### Advanced Routing Settings
+
+**Deep internals of the router, rarely needed.** They are under Advanced Routing Configuration on the Studio's Routing tab.
+
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 240]
+  routing:
+    smoothing_mode: chaikin
+    smoothing_iterations: 3
+    clearance: 12
+  overlays:
+    - id: cargo
+      type: control
+      position: [300, 120]
+      size: [120, 100]
+      obstacle: true
+      card:
+        type: custom:lcards-button
+        preset: panel-dark
+        interactive: false
+        text:
+          label:
+            content: CARGO
+    - id: bridge
+      type: control
+      position: [70, 40]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: BRIDGE
+            show: true
+    - id: engineering
+      type: control
+      position: [530, 200]
+      size: [100, 34]
+      card:
+        type: custom:lcards-button
+        preset: lozenge
+        interactive: false
+        text:
+          name:
+            content: ENGINEERING
+            show: true
+    - id: smooth_line
+      type: line
+      anchor: bridge
+      attach_to: engineering
+      style:
+        color: var(--lcars-blue)
+        width: 4
+```
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `routing.route_hint_penalty` | number | `6` | The cost of a first or last step that goes against `route_hint` |
+| `routing.smoothing_mode` | string | `none` | `chaikin` softens every line into curves (a line's own setting wins) |
+| `routing.smoothing_iterations` | number | `0` | Smoothing passes, `1` to `5`; `chaikin` does nothing without at least `1` |
+| `routing.smoothing_max_points` | number | `160` | Most points a smoothed path keeps |
+| `routing.smart_proximity` | number | `0` | How close to an obstacle a bend must be for the refinement pass to move it, viewBox units. `0` turns this off (`corner_room_weight` still runs) |
+| `routing.smart_detour_span` | number | `48` | Refinement pass: how far a bend may move, viewBox units |
+| `routing.smart_max_extra_bends` | number | `3` | Refinement pass: most bends it may add |
+| `routing.smart_min_improvement` | number | `4` | Refinement pass: how much better a change must be to keep it |
+| `routing.smart_max_detours_per_elbow` | number | `4` | Refinement pass: tries per bend |
+| `routing.channel_force_penalty` | number | `800` | The cost of a route that misses a `force` channel |
+| `routing.channel_avoid_multiplier` | number | `1` | Multiplier on every `avoid` channel's cost |
+| `routing.channel_prefer_bias` | number | `0.9` | Per-cell discount inside a `prefer` channel, scaled by its `weight` |
+| `routing.channel_avoid_bias` | number | `3` | Per-cell cost inside an `avoid` channel, scaled by its `weight` |
+| `routing.trunk_min_length` | number | `60` | Shortest straight run that becomes a trunk others can join, viewBox units |
+| `routing.trunk_min_overlap` | number | `60` | Shortest shared stretch that makes joining worthwhile, viewBox units |
+| `routing.trunk_max_join_candidates` | number | `2` | Most trunks one line considers chaining through |
+| `routing.trunk_bundle_discount_cap` | number | `150` | The most distance credited when a line rides a trunk another line made, viewBox units, so a long ride can't pay for extra bends elsewhere. Never applies to your own channels |
+| `routing.trunk_discovery_max_passes` | number | `4` | Most routing passes before drawing (a safety limit for the order-independence) |
+| `routing.cost_defaults.bend` | number | `10` | Route cost of each bend |
+| `routing.cost_defaults.proximity` | number | `4` | Route cost of running close to an obstacle |
 
 ## Debugging
 
-In the browser console:
+**The browser console and MSD Studio both show what the router decided.**
+
+- In MSD Studio's canvas toolbar, **Routing Grid** (amber) draws the router's own pathfinding grid, which differs from the drag-snap grid, and **Discovered Trunks** (cyan) draws every bundle in effect with its member count. Both are off by default.
+- For the internals (how bundling, lanes and the pre-render passes work) see [Routing Engine Architecture](../../architecture/msd/routing).
 
 ```js
-// The line's actual routed points, straight from the route cache (read-only)
-window.lcards.debug.msd.routing.inspect('line_id')
-// .meta.debug tells you what the router actually resolved for this line:
+// the line's routed points, straight from the route cache (read-only);
+// .meta.debug shows what the router resolved for it:
 // { stubLength, gridResolution, cornerRadiusMode, cornerRadius }
+window.lcards.debug.msd.routing.inspect('line_id')
 
-// Router state: cache size, obstacle count, trunk/crossing registry counts
+// router state: cache size, obstacle count, trunk and crossing registry counts
 window.lcards.debug.msd.routing.stats()
 
-// Every discovered/configured trunk on this card: id, direction, creator,
-// member lines, and bounds - the same data the Studio "Discovered Trunks"
-// overlay (below) renders graphically
+// every trunk on this card: id, direction, creator, member lines and bounds,
+// the data the Studio's Discovered Trunks overlay draws
 window.lcards.debug.msd.routing.trunks('card_id')
 ```
 
-In the **MSD Studio** editor's canvas toolbar, two debug overlays make this visible without the console: **Routing Grid** (amber lines: the router's own resolved pathfinding grid, distinct from the drag-snap grid) and **Discovered Trunks** (cyan bands: every spontaneously-bundled corridor currently in effect, with member counts). Both are off by default; toggle them from the overlay-toggle button group.
-
-For the internals (how bundling, lane assignment, and the pre-render discovery loop actually work) see [Routing Engine Architecture](../../architecture/msd/routing.md).
-
 ## Known Limitations
 
-A few rough edges are tracked and deliberately not yet fixed: not oversights, but tradeoffs where the only attempted fix caused a worse regression, or the fix is architecturally deep relative to how rarely the case comes up:
+**Two rough edges are known and left as they are on purpose: each fix that was tried made other, correct layouts worse.**
 
-- **`trunk_proximity` is a hard cutoff, not a graduated cost.** A line either qualifies to join a nearby trunk or it doesn't: right at the boundary, a 1-unit change in geometry can flip bundling on or off abruptly rather than trading off gradually. Widening the gate to soften this was tried and reverted: it fixed the cliff in isolation but changed bundling decisions in unrelated, already-correct configs. If bundling snaps on/off unexpectedly near `trunk_proximity`'s edge, that's this; adjust `trunk_proximity` itself rather than expecting a graduated response.
-- **A line with several mixed-direction trunk hops chained together** (e.g. joins a horizontal trunk, then a vertical one, then another) can occasionally pick a chain order that isn't the visually shortest one, showing up as a brief unnecessary backtrack at a chain boundary. Rare in practice; it needs several trunks chained in a row with mixed flow axes, which realistic small-to-medium diagrams don't usually produce (seen so far only in synthetic many-line stress tests).
-
-## See Also
-
-- [Routing Concepts](./routing-concepts.md): the short, diagram-driven version of this page
-- [Line Overlay](./line-overlay.md): per-line properties, styling, markers
-- [Manual Routing](./manual-routing.md): explicit waypoints
-- [MSD Card](./index.md): card-level configuration
+- **Joining a trunk is all or nothing.** A line within `trunk_proximity` of a trunk can join it; one just outside can't. Right at that distance, a move of one unit can switch bundling on or off. Widening the distance to soften this changed bundling in layouts that were already right, so it was undone. If a line snaps in and out of a bundle, change `trunk_proximity` itself.
+- **A line through several trunks that alternate horizontal and vertical** can now and then pick an order that isn't the shortest, which shows as a small backtrack where two trunks meet. It needs several such trunks in a row, which ordinary diagrams rarely have; so far it has only shown up in stress tests with many lines.

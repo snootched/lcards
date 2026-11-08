@@ -247,7 +247,7 @@ export class LineOverlay extends OverlayBase {
 
       // Build SVG group with all features
       const svgParts = [
-        this._buildDefinitions(lineStyle, overlay.id),
+        this._buildDefinitions(lineStyle, overlay.id, cardInstance, pathResult.pts),
         this._buildMainPath(pathResult.d, lineStyle, overlay.id, animationAttributes, isSelected),
         this._buildMarkers(pathResult, lineStyle, overlay.id)
       ].filter(Boolean);
@@ -422,7 +422,7 @@ export class LineOverlay extends OverlayBase {
         scalingContext,
         'defaultFillColor'
       ), 'none', cardInstance),
-      fillOpacity: Number(style.fill_opacity || 1),
+      fillOpacity: Number(style.fill_opacity ?? 1),  // 0 is transparent (it became 1)
 
       // Gradient and pattern support
       gradient: this._parseGradientConfig(style.gradient),
@@ -688,29 +688,38 @@ export class LineOverlay extends OverlayBase {
   /**
    * Build SVG definitions (gradients, patterns, markers)
    *
+   * @param {any} lineStyle
+   * @param {string} overlayId
+   * @param {any} [cardInstance]
+   * @param {Array<[number, number]>|null} [pts] - the routed points (the gradient runs from the first to the last)
    * @private
    */
-  _buildDefinitions(lineStyle, overlayId) {
+  _buildDefinitions(lineStyle, overlayId, cardInstance = null, pts = null) {
     const defs = [];
 
     // Gradient definitions
     if (lineStyle.gradient) {
       const gradientId = `gradient-${overlayId}`;
-      if (!this.gradientCache.has(gradientId)) {
-        const gradientDef = this._createGradientDefinition(lineStyle.gradient, gradientId);
-        this.gradientCache.set(gradientId, gradientDef);
-      }
-      defs.push(this.gradientCache.get(gradientId));
+      // stop colours resolved for the SVG attribute (theme:, var()); cached by what they resolve to,
+      // so a theme or alert colour change makes a new definition
+      // runs from the line's start to its end in user space: a bounding-box gradient
+      // draws nothing on a straight horizontal or vertical line (its box has no height or width)
+      const first = Array.isArray(pts) ? pts[0] : null;
+      const last = Array.isArray(pts) ? pts[pts.length - 1] : null;
+      const span = first && last && (first[0] !== last[0] || first[1] !== last[1]) ? [first[0], first[1], last[0], last[1]] : null;
+      const gradient = { ...lineStyle.gradient, span, stops: (lineStyle.gradient.stops ?? []).map((/** @type {any} */ st) => ({ ...st, color: this._materializeColor(st.color, '#000000', cardInstance) })) };
+      const key = `${gradientId}|${JSON.stringify(gradient)}`;
+      if (!this.gradientCache.has(key)) this.gradientCache.set(key, this._createGradientDefinition(gradient, gradientId));
+      defs.push(this.gradientCache.get(key));
     }
 
     // Pattern definitions
     if (lineStyle.pattern) {
       const patternId = `pattern-${overlayId}`;
-      if (!this.patternCache.has(patternId)) {
-        const patternDef = this._createPatternDefinition(lineStyle.pattern, patternId);
-        this.patternCache.set(patternId, patternDef);
-      }
-      defs.push(this.patternCache.get(patternId));
+      const pattern = { ...lineStyle.pattern, color: this._materializeColor(lineStyle.pattern.color, '#000000', cardInstance) };
+      const key = `${patternId}|${JSON.stringify(pattern)}`;
+      if (!this.patternCache.has(key)) this.patternCache.set(key, this._createPatternDefinition(pattern, patternId));
+      defs.push(this.patternCache.get(key));
     }
 
     // Marker definitions. A marker with no explicit fill/color falls back to
@@ -914,16 +923,21 @@ export class LineOverlay extends OverlayBase {
 
   _parseMarkerConfig(markerConfig) {
     if (!markerConfig) return null;
-    return markerConfig; // Simplified
+    // the string form the schema allows (marker_end: arrow) is the type alone
+    if (typeof markerConfig === 'string') return { type: markerConfig };
+    return markerConfig;
   }
 
   _createGradientDefinition(gradient, gradientId) {
-    // Simplified gradient definition
     const stops = gradient.stops.map(stop =>
       `<stop offset="${stop.offset}" stop-color="${stop.color}" />`
     ).join('');
 
-    return `<linearGradient id="${gradientId}">${stops}</linearGradient>`;
+    const span = gradient.span;
+    const units = span
+      ? ` gradientUnits="userSpaceOnUse" x1="${span[0]}" y1="${span[1]}" x2="${span[2]}" y2="${span[3]}"`
+      : '';
+    return `<linearGradient id="${gradientId}"${units}>${stops}</linearGradient>`;
   }
 
   _createPatternDefinition(pattern, patternId) {

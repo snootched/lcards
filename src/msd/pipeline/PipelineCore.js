@@ -250,6 +250,9 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
       try {
         renderResult = await coordinator.renderer.render(resolvedModel);
         lcardsLog.trace('[PipelineCore] AdvancedRenderer.render() completed successfully:', renderResult);
+        // the overlays are drawn: the card puts its rule style patches back on them (a patch
+        // that came while they were not drawn yet found nothing)
+        coordinator.cardInstance?._onMsdRendered?.();
       } catch (renderError) {
         lcardsLog.error('[PipelineCore] ❌ AdvancedRenderer.render() FAILED:', renderError);
         lcardsLog.error('[PipelineCore] ❌ Render error stack:', renderError.stack);

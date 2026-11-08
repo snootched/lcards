@@ -1,0 +1,24 @@
+# A line with no anchor_side / attach_side leaves from the side nearest the other end
+# (it ran to the overlay's centre); a position in percentages of the view box; a
+# blueprint from a path Home Assistant serves (msd-audit.spec.js).
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: /lcards/msd/ncc-1701-a-blue.svg
+  view_box: [0, 0, 800, 300]
+  overlays:
+    - id: left_box
+      type: shape
+      kind: rect
+      position: [50, 100]
+      size: [100, 100]
+    - id: right_box
+      type: shape
+      kind: rect
+      position: ["75%", "33.3%"]
+      size: [100, 100]
+    - id: link
+      type: line
+      anchor: left_box
+      attach_to: right_box
+      route: auto

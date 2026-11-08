@@ -17,6 +17,39 @@ import { LineOverlay } from '../overlays/LineOverlay.js';
 import { ShapeOverlay } from '../overlays/ShapeOverlay.js';
 import { resolveColor } from '../../core/themes/resolve-color.js';
 
+/**
+ * A line with no anchor_side / attach_side on an overlay end leaves from the side
+ * nearest the other end (2026-11-08; it used to run to the overlay's centre: the
+ * nearest side was worked out and never used). The side is written onto the line
+ * as it is rendered, so LineOverlay finds its `<id>.<side>` point and the router
+ * its direction hint. Never onto the config itself.
+ * @param {any} line - the line overlay being rendered
+ * @param {'anchor_side' | 'attach_side'} key
+ * @param {string | null} side
+ */
+function setAutoSide(line, key, side) {
+  if (!side || side === 'center') return;
+  line[key] = side;
+  if (line._raw) line._raw = { ...line._raw, [key]: side };
+  else if (line.raw) line.raw = { ...line.raw, [key]: side };
+}
+
+/**
+ * One end's gaps in the shape _applyAttachGap reads.
+ * @param {any} raw - the line's config
+ */
+const anchorGaps = (raw) => ({
+  attach_gap: raw.anchor_gap ?? raw.anchorGap,
+  attach_gap_x: raw.anchor_gap_x ?? raw.anchorGapX,
+  attach_gap_y: raw.anchor_gap_y ?? raw.anchorGapY
+});
+/** @param {any} raw - the line's config */
+const attachGaps = (raw) => ({
+  attach_gap: raw.attach_gap ?? raw.attachGap,
+  attach_gap_x: raw.attach_gap_x ?? raw.attachGapX,
+  attach_gap_y: raw.attach_gap_y ?? raw.attachGapY
+});
+
 export class AdvancedRenderer {
   /**
    * @param {Element} mountEl
@@ -511,7 +544,30 @@ export class AdvancedRenderer {
     overlays.filter(o => o.type === 'line').forEach(line => {
       const raw = line._raw || line.raw || {};
       const dest = raw.attach_to || raw.attachTo;
-      if (!dest) return;
+      // No overlay at the far end: the start still gets its side and gap (anchor_gap was
+      // applied only when attach_to was an overlay)
+      const destPoints = dest ? this.attachmentManager.getAttachmentPoints(dest) : null;
+      if (!destPoints?.points) {
+        const startPoints = this.attachmentManager.getAttachmentPoints(raw.anchor);
+        const startSide = (raw.anchor_side || raw.anchorSide || '').toLowerCase();
+        // the far end: [x, y] or a named anchor (no overlay there)
+        const target = Array.isArray(dest) ? dest
+          : dest ? (this.attachmentManager.getAnchor(dest) || this._staticAnchors?.[dest] || null) : null;
+        if (startPoints?.points && startSide !== 'center' && (startSide || target)) {
+          const { point, side } = this._resolveOverlayAttachmentPoint(startPoints.points, startSide, target);
+          if (!startSide) setAutoSide(line, 'anchor_side', side);
+          if (point && side) {
+            const id = `${raw.anchor}.${side}`;
+            const gapPt = this._applyAttachGap(point, side, anchorGaps(raw), startPoints.bbox);
+            this.attachmentManager.setAnchor(id, gapPt);
+            if (this.routerCore?.anchors) {
+              this.routerCore.anchors[id] = gapPt;
+              this.routerCore.invalidate(line.id);
+            }
+          }
+        }
+        if (!dest) return;
+      }
 
       // Read from attachment manager
       const attachmentPointData = this.attachmentManager.getAttachmentPoints(dest);
@@ -547,12 +603,13 @@ export class AdvancedRenderer {
         lcardsLog.debug(`  resolved sourceEffectiveSide: "${sourceEffectiveSide}"`);
 
         lineAnchor = sourcePt;
+        if (!anchorSide) setAutoSide(line, 'anchor_side', sourceEffectiveSide);
 
         // Store the source virtual anchor if it's not center
         if (sourcePt && sourceEffectiveSide && sourceEffectiveSide !== 'center') {
           const sourceVirtualAnchorId = `${raw.anchor}.${sourceEffectiveSide}`;
           const sourceGapPt = this._applyAttachGap(sourcePt, sourceEffectiveSide,
-            { anchor_gap: raw.anchor_gap || raw.anchorGap }, sourceAttachmentPoints.bbox);
+            anchorGaps(raw), sourceAttachmentPoints.bbox);
           this.attachmentManager.setAnchor(sourceVirtualAnchorId, sourceGapPt);
           if (this.routerCore?.anchors) {
             this.routerCore.anchors[sourceVirtualAnchorId] = sourceGapPt;
@@ -593,7 +650,8 @@ export class AdvancedRenderer {
         lcardsLog.warn(`[AdvancedRenderer] ⚠️ No base point resolved for ${line.id}`);
         return;
       }
-      const gapPt = this._applyAttachGap(basePt, effectiveSide, raw, attachmentPointData.bbox);
+      if (!configSide) setAutoSide(line, 'attach_side', effectiveSide);
+      const gapPt = this._applyAttachGap(basePt, effectiveSide, attachGaps(raw), attachmentPointData.bbox);
 
       // Construct the proper virtual anchor ID based on effective side (which may be auto-determined)
       const virtualAnchorId = effectiveSide && effectiveSide !== 'center' ? `${dest}.${effectiveSide}` : dest;
@@ -666,7 +724,7 @@ export class AdvancedRenderer {
           lineAnchor
         );
         if (!basePt) return;
-        const gapPt = this._applyAttachGap(basePt, effectiveSide, raw, tap.bbox);
+        const gapPt = this._applyAttachGap(basePt, effectiveSide, attachGaps(raw), tap.bbox);
 
         // Construct the proper virtual anchor ID based on effective side (which may be auto-determined)
         const virtualAnchorId = effectiveSide && effectiveSide !== 'center' ? `${id}.${effectiveSide}` : id;
@@ -698,9 +756,11 @@ export class AdvancedRenderer {
 
   // NEW: apply attach_gap offsets
   _applyAttachGap(point, side, raw, bbox) {
-    const gap = Number(raw.attach_gap || raw.attachGap || raw.anchor_gap || raw.anchorGap || 0);
-    const gapX = Number(raw.attach_gap_x || raw.attachGapX || raw.anchor_gap_x || raw.anchorGapX || gap || 0);
-    const gapY = Number(raw.attach_gap_y || raw.attachGapY || raw.anchor_gap_y || raw.anchorGapY || gap || 0);
+    // raw: the gaps of one end as attach_gap / attach_gap_x / attach_gap_y (anchorGaps()
+    // or attachGaps()); the far end used to fall back to the start's anchor_gap
+    const gap = Number(raw.attach_gap || 0);
+    const gapX = Number(raw.attach_gap_x ?? gap) || 0;
+    const gapY = Number(raw.attach_gap_y ?? gap) || 0;
 
     lcardsLog.trace(`[AdvancedRenderer] 🔧 _applyAttachGap:`, {
       point,

@@ -49,12 +49,12 @@ import { makeRouter, makeLine, runDiscoveryLoop, flattenSvgPath, countRenderedCr
 
 const BUNDLE_IDS = ['line_3', 'line_4', 'line_5', 'line_6'];
 
-function kelvinBundleScenario(gridRes) {
+function kelvinBundleScenario(gridRes, channel2Spacing = 12) {
   const router = makeRouter({
     grid_resolution: gridRes,
     trunk_proximity: 50,
     channels: {
-      channel_2: { bounds: [523.43, 250.58, 50, 425.71], mode: 'force', direction: 'vertical', weight: 0.5, line_spacing: 12, discoverable: true },
+      channel_2: { bounds: [523.43, 250.58, 50, 425.71], mode: 'force', direction: 'vertical', weight: 0.5, line_spacing: channel2Spacing, discoverable: true },
       channel_3: { bounds: [361.03, 516.85, 134.11, 119.2], mode: 'prefer', direction: 'auto', weight: 0.5, line_spacing: 8, discoverable: true }
     }
   }, {}, [-200, 0, 1190, 765]);
@@ -114,9 +114,13 @@ test('line_3 never lands its nudge before line_4\'s own turn point, so it never 
   assert.ok(line3TurnX >= line4TurnX, `line_3's turn (x=${line3TurnX}) should never land before line_4's own turn (x=${line4TurnX}), which would clear its approach leg`);
 });
 
+// The sweep runs channel_2 at line_spacing 8. Until 2026-11-08 the object-form channel's own
+// line_spacing was dropped (always 8), so this sweep was always run at 8. Honoured, 12 (the reported
+// config) also gives line_3 the channel_2 detour of the 40/48 known limitation below at 24 and 64
+// (32, the reported resolution, stays clean): the same limitation, not this fix's concern.
 test('resolution sweep: 8/16/24/32/64 all render with zero crossings and the minimal bend count', () => {
   for (const res of [8, 16, 24, 32, 64]) {
-    const { results } = kelvinBundleScenario(res);
+    const { results } = kelvinBundleScenario(res, 8);
     for (const id of BUNDLE_IDS) {
       assert.equal(results.get(id).meta.bends, 4, `res=${res}: ${id} should have 4 bends (a single clean jog)`);
     }

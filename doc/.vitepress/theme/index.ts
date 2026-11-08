@@ -137,8 +137,13 @@ export default {
     // (the stub still shows a link, for builds without JavaScript).
     const { frontmatter } = useData()
     const router = useRouter()
+    // An old #id goes along: to the stub's own moved_anchors entry for it when it has one, else
+    // onto the new page as it is (it used to be dropped, so every old section link landed at the top).
     watch(() => frontmatter.value.redirect, (to) => {
-      if (typeof window !== 'undefined' && typeof to === 'string') router.go(withBase(to))
+      if (typeof window === 'undefined' || typeof to !== 'string') return
+      const id = decodeURIComponent(window.location.hash.slice(1))
+      const moved = id ? frontmatter.value.moved_anchors?.[id] : undefined
+      router.go(withBase(typeof moved === 'string' ? moved : id && !to.includes('#') ? `${to}#${id}` : to))
     }, { immediate: true })
 
     // Moved headings: frontmatter `moved_anchors: { old-id: /new/path#id }` on the page a

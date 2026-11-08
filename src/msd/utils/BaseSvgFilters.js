@@ -133,9 +133,11 @@ function generateSvgFilterPrimitive(filter, inputSource, resultName, contextElem
       element.setAttribute('scale', v.scale ?? 10);
       element.setAttribute('xChannelSelector', v.xChannelSelector || 'R');
       element.setAttribute('yChannelSelector', v.yChannelSelector || 'G');
-      // feDisplacementMap needs two inputs
-      element.setAttribute('in', v.in || inputSource);
-      element.setAttribute('in2', v.in2 || 'SourceGraphic');
+      // feDisplacementMap needs two inputs: `in` is the image it warps (the blueprint),
+      // `in2` the map that warps it (the previous primitive, such as feTurbulence noise).
+      // They were the other way round: the noise was warped by the blueprint.
+      element.setAttribute('in', v.in || 'SourceGraphic');
+      element.setAttribute('in2', v.in2 || inputSource);
       if (resultName) element.setAttribute('result', resultName);
       break;
 
@@ -188,7 +190,9 @@ export function generateFilterString(filters, normalize = false) {
         } else if (type === 'drop-shadow') {
           // value is object: {x, y, blur, color}
           if (typeof value === 'object' && value !== null) {
-            return `drop-shadow(${value.x || '0px'} ${value.y || '0px'} ${value.blur || '0px'} ${value.color || '#000'})`;
+            // numbers are px: a bare number makes the whole filter value invalid (every other CSS filter in it was lost)
+            const len = (/** @type {any} */ v) => (typeof v === 'number' ? `${v}px` : (v || '0px'));
+            return `drop-shadow(${len(value.x)} ${len(value.y)} ${len(value.blur)} ${value.color || '#000'})`;
           }
           return `drop-shadow(${value || '0px 0px 0px #000'})`;
         }
@@ -314,7 +318,11 @@ export function applyBaseSvgFilters(svgElement, filters, transition) {
 
   // Generate CSS filter string
   const useNormalized = !!(transition && transition > 0);
-  const cssFilterString = cssFilters.length > 0 ? generateFilterString(cssFilters, useNormalized) : '';
+  // the one-map form ({ opacity: 0.5, blur: 2px }) is read by generateFilterString as a map:
+  // wrapped in a list it had no type and gave nothing
+  const cssFilterString = !Array.isArray(filters) && filters && typeof filters === 'object'
+    ? generateFilterString(filters, useNormalized)
+    : cssFilters.length > 0 ? generateFilterString(cssFilters, useNormalized) : '';
 
   // Handle SVG filters
   let svgFilterId = null;

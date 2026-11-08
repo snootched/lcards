@@ -157,7 +157,7 @@ Two independent mechanisms, don't conflate them:
 - **`base_svg.render_visual: false`** — stops the base SVG from being *painted* (it's still parsed for anchors as normal) — use when you want a plain image/animated background instead of the SVG blueprint itself as the visual.
 - **`background_animation`** — the same layered canvas background system used by buttons/elbows (`BackgroundAnimationRenderer`, `BACKGROUND_PRESETS`), including the `image` preset for a plain static image background. Lives in its own DOM subtree behind the SVG.
 
-Typical pairing: `render_visual: false` + `background_animation: { layers: [{ preset: image, ... }] }` for "just use a photo/jpg with manually-placed anchors, no complex SVG blueprint."
+Typical pairing: `render_visual: false` + `background_animation: [{ preset: image, config: { ... } }]` (a list of effects, or `{ inset, effects: [...] }`) for "just use a photo/jpg with manually-placed anchors, no complex SVG blueprint."
 
 ---
 

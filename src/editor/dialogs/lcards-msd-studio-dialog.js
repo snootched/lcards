@@ -1972,8 +1972,8 @@ export class LCARdSMSDStudioDialog extends LitElement {
         // Show general helper for custom SVG paths
         return html`
             <lcards-message type="info">
-                A URL or local path to your SVG: <code>/local/my-ship.svg</code> (from the www folder),
-                <code>/lcards/ships/custom.svg</code> or <code>https://…/my-ship.svg</code>.
+                A path Home Assistant serves, usually <code>/local/my-ship.svg</code> for a file in your
+                <code>www</code> folder, or a full URL (<code>https://…/my-ship.svg</code>; the site must allow it).
             </lcards-message>
         `;
     }
@@ -2287,7 +2287,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <ha-selector
                         .hass=${this.hass}
                         .label=${'Render base SVG as visible background'}
-                        .helper=${'Turn off to use a Background Layer (below) as the visual background instead — the SVG is still parsed for anchors either way.'}
+                        .helper=${'Turn off to use a Background Layer (below) as the visual background instead; the SVG is still parsed for anchors either way.'}
                         .selector=${{ boolean: {} }}
                         .value=${baseSvg.render_visual !== false}
                         @value-changed=${(e) => {
@@ -2299,7 +2299,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         style="margin-top: 12px; display: block;"
                         .hass=${this.hass}
                         .label=${'Dim base SVG in this preview (not saved)'}
-                        .helper=${'Editor convenience only — makes lines/controls easier to see while working here. Never affects the saved config or the live card.'}
+                        .helper=${'Editor convenience only: makes lines/controls easier to see while working here. Never affects the saved config or the live card.'}
                         .selector=${{ boolean: {} }}
                         .value=${this._baseSvgPreviewDimmed === true}
                         @value-changed=${(e) => {
@@ -2379,7 +2379,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <!-- Animations Section -->
                 <lcards-form-section
                     header="Animations (base_svg)"
-                    description="Animate elements inside the base SVG by id/class — separate from the whole-group filter crossfades above"
+                    description="Animate elements inside the base SVG by id/class, separate from the whole-group filter crossfades above"
                     icon="mdi:play-box-outline"
                     ?expanded=${false}>
 
@@ -2399,7 +2399,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <!-- Overlay Group Animations Section -->
                 <lcards-form-section
                     header="Animations (Overlay Groups)"
-                    description="Bulk-target overlays by CSS selector — e.g. animate every overlay whose id starts with 'shield_' with one declaration"
+                    description="Bulk-target overlays by CSS selector, e.g. animate every overlay whose id starts with 'shield_' with one declaration"
                     icon="mdi:play-box-multiple-outline"
                     ?expanded=${false}>
 
@@ -2419,7 +2419,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 <!-- Background Layers Section -->
                 <lcards-form-section
                     header="Background Effects (MSD Background)"
-                    description="Animated or static-image backgrounds (grids, starfields, images, etc.) — same layer system used by buttons/elbows"
+                    description="Animated or static-image backgrounds (grids, starfields, images, etc.), the same layer system used by buttons/elbows"
                     icon="mdi:layers-triple-outline"
                     ?expanded=${false}>
 
@@ -12594,7 +12594,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
     /**
      * Collapsible "Quick Tips: common routing goals" cheat sheet — plain
      * goal-to-setting tips (not a diagram; the Routing Modes Reference
-     * accordion above already has inline SVGs, and routing-concepts.md has
+     * accordion above already has inline SVGs, and doc/cards/msd/routing.md has
      * the Mermaid decision-flow, so this deliberately doesn't add a third
      * visual representation). An info guide (renderInfoGuide).
      * @returns {import('lit').TemplateResult}
@@ -12620,7 +12620,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </ul>
                         <p>
                             For the full mental model (a decision-flow diagram of how routing modes interact), see the
-                            <a href="${ROUTING_CONCEPTS_DOCS_URL}" target="_blank" rel="noopener">Routing Concepts</a> guide.
+                            <a href="${ROUTING_CONCEPTS_DOCS_URL}" target="_blank" rel="noopener">Line Routing</a> guide.
                         </p>
             `,
         });

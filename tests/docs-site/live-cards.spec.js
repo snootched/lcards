@@ -104,8 +104,20 @@ for (const [url, tags] of PAGES) {
             });
             if (el.shadowRoot) walk(el.shadowRoot);
             return texts.flatMap(t => {
-                const r = t.getBoundingClientRect();
+                let r = t.getBoundingClientRect();
                 if (!r.width || !r.height) return [];
+                // Text outside its SVG's viewport is clipped, not drawn (an MSD blueprint's own
+                // labels where a view_box crops it): only text the viewport shows counts.
+                let svg = t.ownerSVGElement;
+                while (svg?.ownerSVGElement) svg = svg.ownerSVGElement;
+                if (svg && getComputedStyle(svg).overflow !== 'visible') {
+                    const v = svg.getBoundingClientRect();
+                    const left = Math.max(r.left, v.left), right = Math.min(r.right, v.right);
+                    const top = Math.max(r.top, v.top), bottom = Math.min(r.bottom, v.bottom);
+                    if (right <= left || bottom <= top) return [];
+                    // measure only the part the viewport shows
+                    r = { left, right, top, bottom, width: right - left, height: bottom - top };
+                }
                 // A text box includes the font's full ascent and descent, so a large label
                 // overshoots its card a little while looking fine: flag text mostly outside.
                 const w = Math.max(0, Math.min(r.right, box.right) - Math.max(r.left, box.left));

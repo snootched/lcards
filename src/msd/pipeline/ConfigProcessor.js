@@ -125,14 +125,31 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
   // but user-defined anchors are at fullConfig.msd.anchors (nested).
   // User anchors override extracted anchors with the same name.
   if (fullConfig.anchors && Object.keys(fullConfig.anchors).length > 0) {
+    // The user layer is the config as written: resolve its percentages again ("80%" of the
+    // view box), or they override the resolved ones and a control gets x="80%-100" (2026-11-08)
     mergedConfig.anchors = {
       ...fullConfig.anchors,           // Extracted anchors (base layer)
-      ...(mergedConfig.anchors || {})  // User anchors (override layer)
+      ...AnchorProcessor._resolvePercentages(mergedConfig.anchors || {}, mergedConfig.view_box || viewBox || [0, 0, 1920, 1080])  // User anchors (override layer)
     };
     lcardsLog.trace('[ConfigProcessor] Merged anchors after CoreConfigManager:', {
       extractedCount: Object.keys(fullConfig.anchors).length,
       userCount: Object.keys(mergedConfig.anchors || {}).length - Object.keys(fullConfig.anchors).length,
       totalCount: Object.keys(mergedConfig.anchors).length
+    });
+  }
+
+  // Percentages of the view box in an overlay's own coordinates (position: ["50%", "30%"],
+  // anchor / attach_to as [x, y]), as anchors take them: they became NaN and drew at 0, 0
+  if (Array.isArray(mergedConfig.overlays)) {
+    const vb = mergedConfig.view_box || viewBox || [0, 0, 1920, 1080];
+    const pct = (/** @type {any} */ v) => Array.isArray(v) && v.length === 2 && v.some((n) => typeof n === 'string' && n.endsWith('%'));
+    mergedConfig.overlays = mergedConfig.overlays.map((/** @type {any} */ o) => {
+      if (!o || typeof o !== 'object' || !['position', 'anchor', 'attach_to'].some((k) => pct(o[k]))) return o;
+      const out = { ...o };
+      for (const k of ['position', 'anchor', 'attach_to']) {
+        if (pct(o[k])) out[k] = /** @type {any} */ (AnchorProcessor._resolvePercentages({ p: o[k] }, vb)).p;
+      }
+      return out;
     });
   }
 

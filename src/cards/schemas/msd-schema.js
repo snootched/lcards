@@ -149,7 +149,7 @@ export function getMsdSchema() {
           items: {
             oneOf: [
               { type: 'number' },
-              { type: 'string', pattern: '^\\d+%$' }
+              { type: 'string', pattern: '^\\d+(\\.\\d+)?%$' }
             ]
           }
         },
@@ -328,7 +328,7 @@ export function getMsdSchema() {
             position: {
               type: ['string', 'array'],
               optional: true,
-              description: 'Control overlay, or shape overlay (kind: rect/circle): named anchor (e.g. "hub") or absolute coordinates [x, y]. The anchor is the center of the card/shape by default.'
+              description: 'Control overlay, or shape overlay (kind: rect/circle): named anchor (e.g. "hub") or coordinates [x, y] (each a number, or a percentage of the view box such as "50%"). The anchor is the center of the card/shape by default.'
             },
             size: {
               type: 'array',
@@ -400,7 +400,7 @@ export function getMsdSchema() {
             anchor_side: {
               type: 'string',
               optional: true,
-              description: 'Line overlays: which side of the anchor overlay the line departs from (top, bottom, left, right, center)'
+              description: 'Line overlays: which side of the anchor overlay the line departs from (top, bottom, left, right, center). Left out: the side nearest the other end'
             },
             anchor_gap: {
               type: 'number',
@@ -416,7 +416,7 @@ export function getMsdSchema() {
             attach_side: {
               type: 'string',
               optional: true,
-              description: 'Line overlays: which side of the attach_to overlay the line arrives at (top, bottom, left, right, center)'
+              description: 'Line overlays: which side of the attach_to overlay the line arrives at (top, bottom, left, right, center). Left out: the side nearest the other end'
             },
             attach_gap: {
               type: 'number',
@@ -520,8 +520,8 @@ export function getMsdSchema() {
               min: 0,
               max: 5,
               optional: true,
-              default: 0,
-              description: 'Line overlays, or shape overlays (kind: polyline) only: number of smoothing iterations to apply'
+              default: 1,
+              description: 'Line overlays, or shape overlays (kind: polyline) only: number of smoothing iterations to apply (1 when a smoothing mode is set and this is left out)'
             }
           }
         },
@@ -613,7 +613,7 @@ export function getMsdSchema() {
             max: 5,
             optional: true,
             default: 1,
-            description: 'Number of smoothing iterations'
+            description: 'Number of smoothing iterations (1 when a smoothing mode is set and this is left out)'
           },
           smoothing_max_points: {
             type: 'number',
@@ -762,6 +762,13 @@ export function getMsdSchema() {
             optional: true,
             default: 2,
             description: 'Maximum number of discovered trunks a single line will try to chain through'
+          },
+          trunk_bundle_discount_cap: {
+            type: 'number',
+            min: 0,
+            optional: true,
+            default: 150,
+            description: 'Longest stretch (viewBox units) of a trunk or discoverable channel a line joined on its own that earns the bundling reward: a long detour along one never pays for itself. Channels a line lists in route_channels are not capped'
           },
           trunk_bundle_weight: {
             type: 'number',
@@ -934,7 +941,7 @@ export function getMsdSchema() {
     properties: {
       type: {
         type: 'string',
-        enum: ['custom:lcards-msd', 'custom:lcards-msd-card', 'custom:cb-lcars-card'],
+        enum: ['custom:lcards-msd-card'],
         description: 'Card type identifier',
         'x-ui': {
           control: 'select',

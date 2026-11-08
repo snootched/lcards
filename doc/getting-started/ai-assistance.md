@@ -110,7 +110,7 @@ If your assistant supports Agent Skills, use the skill above. Otherwise:
 
 **MSD**
 
-The MSD schema (`custom:lcards-msd-card`) is large and deeply nested. Attach [`lcards-msd-card.json`](/schema/cards/lcards-msd-card.json) with the shared files it uses, plus the [MSD Quick Start](../cards/msd/quick-start) or [Routing Concepts](../cards/msd/routing-concepts) page, and expect a few more rounds than for a single button.
+The MSD schema (`custom:lcards-msd-card`) is large and deeply nested. Attach [`lcards-msd-card.json`](/schema/cards/lcards-msd-card.json) with the shared files it uses, plus the [MSD Getting Started](../cards/msd/quick-start) or [Line Routing](../cards/msd/routing) page, and expect a few more rounds than for a single button.
 
 **Longer prompt template**
 

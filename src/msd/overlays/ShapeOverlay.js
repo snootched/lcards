@@ -110,7 +110,7 @@ export class ShapeOverlay extends OverlayBase {
       }
 
       const svgParts = [
-        this._buildDefinitions(shapeStyle, overlay.id),
+        this._buildDefinitions(shapeStyle, overlay.id, cardInstance),
         geometry.markup
       ].filter(Boolean);
 
@@ -424,7 +424,7 @@ export class ShapeOverlay extends OverlayBase {
         scalingContext,
         'defaultFillColor'
       ), 'none', cardInstance),
-      fillOpacity: Number(style.fill_opacity || 1),
+      fillOpacity: Number(style.fill_opacity ?? 1),  // 0 is transparent (it became 1)
 
       gradient: this._parseGradientConfig(style.gradient),
       pattern: this._parsePatternConfig(style.pattern),
@@ -545,23 +545,24 @@ export class ShapeOverlay extends OverlayBase {
    * LineOverlay._buildDefinitions.
    * @private
    */
-  _buildDefinitions(shapeStyle, overlayId) {
+  _buildDefinitions(shapeStyle, overlayId, cardInstance = null) {
     const defs = [];
 
     if (shapeStyle.gradient) {
       const gradientId = `gradient-${overlayId}`;
-      if (!this.gradientCache.has(gradientId)) {
-        this.gradientCache.set(gradientId, this._createGradientDefinition(shapeStyle.gradient, gradientId));
-      }
-      defs.push(this.gradientCache.get(gradientId));
+      // stop colours resolved for the SVG attribute (theme:, var()), cached by what they resolve to
+      const gradient = { ...shapeStyle.gradient, stops: (shapeStyle.gradient.stops ?? []).map((/** @type {any} */ st) => ({ ...st, color: this._materializeColor(st.color, '#000000', cardInstance) })) };
+      const key = `${gradientId}|${JSON.stringify(gradient)}`;
+      if (!this.gradientCache.has(key)) this.gradientCache.set(key, this._createGradientDefinition(gradient, gradientId));
+      defs.push(this.gradientCache.get(key));
     }
 
     if (shapeStyle.pattern) {
       const patternId = `pattern-${overlayId}`;
-      if (!this.patternCache.has(patternId)) {
-        this.patternCache.set(patternId, this._createPatternDefinition(shapeStyle.pattern, patternId));
-      }
-      defs.push(this.patternCache.get(patternId));
+      const pattern = { ...shapeStyle.pattern, color: this._materializeColor(shapeStyle.pattern.color, '#000000', cardInstance) };
+      const key = `${patternId}|${JSON.stringify(pattern)}`;
+      if (!this.patternCache.has(key)) this.patternCache.set(key, this._createPatternDefinition(pattern, patternId));
+      defs.push(this.patternCache.get(key));
     }
 
     // Markers only render on <path> (polyline kind) — harmless to compute for
@@ -754,7 +755,9 @@ export class ShapeOverlay extends OverlayBase {
 
   _parseMarkerConfig(markerConfig) {
     if (!markerConfig) return null;
-    return markerConfig; // Simplified, matches LineOverlay's own simplification
+    // the string form the schema allows (marker_end: arrow) is the type alone
+    if (typeof markerConfig === 'string') return { type: markerConfig };
+    return markerConfig;
   }
 
   _createGradientDefinition(gradient, gradientId) {

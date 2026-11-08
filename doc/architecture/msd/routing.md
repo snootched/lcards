@@ -2,7 +2,7 @@
 
 `src/msd/routing/RouterCore.js` is the pathfinding engine behind every MSD line: one instance per MSD card, shared by all line overlays on that card. It decides each line's viewBox-space geometry: where it bends, how it avoids obstacles, and how multiple lines coordinate into bundles ("cable raceway" behavior).
 
-User-facing behavior and configuration: [Line Routing & Channels](../../cards/msd/routing.md). This page covers the internals.
+User-facing behavior and configuration: [Line Routing](../../cards/msd/routing.md). This page covers the internals.
 
 RouterCore has **zero DOM dependencies**: it's pure geometry and graph search, which is what makes it unit-testable: `tests/routing/*.test.js` (`npm run test:routing`, Node's built-in test runner) exercises it directly through a small harness (`tests/routing/helpers/router-harness.js`).
 
@@ -184,6 +184,6 @@ Each was investigated with a concrete attempted fix, not just noticed and left:
 
 ## See Also
 
-- [Line Routing & Channels](../../cards/msd/routing.md): user-facing configuration
+- [Line Routing](../../cards/msd/routing.md): user-facing configuration
 - [MSD Pipeline](./index.md): the rendering pipeline RouterCore plugs into
 - `tests/routing/`: the executable specification

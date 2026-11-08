@@ -494,9 +494,15 @@ export class RouterCore {
       if (!isObstacle) continue;
       // Determine bounds. Prefer size+position (raw.position / raw.size) else anchor if available.
       let x = 0, y = 0, w = 0, h = 0;
-      if (Array.isArray(raw.position) && Array.isArray(raw.size)) {
-        const [px, py] = raw.position;
-        [w,h] = raw.size;
+      // position: [x, y] or an anchor name (`anchor` is its older name); a control with no
+      // size is drawn 100 x 100 (MsdControlsRenderer.resolveSize). Before, only an [x, y]
+      // position with a size made an obstacle: a control placed by anchor name never did.
+      const posRef = raw.position ?? (raw.type === 'control' ? raw.anchor : undefined);
+      const pos = Array.isArray(posRef) ? posRef : (typeof posRef === 'string' ? this.anchors[posRef] : null);
+      const size = Array.isArray(raw.size) ? raw.size : (raw.type === 'control' ? [100, 100] : null);
+      if (Array.isArray(pos) && Array.isArray(size)) {
+        const [px, py] = pos;
+        [w,h] = size;
         // raw.position is the point named by attachment, not necessarily the
         // box's top-left corner (see ATTACHMENT_OFFSET_FRAC) — applying the
         // wrong corner here registers the obstacle up to half the control's
@@ -896,7 +902,8 @@ export class RouterCore {
       fs.smoothing_iterations ||
       this.config.smoothing_iterations ||
       (this.config.smoothing && this.config.smoothing.iterations) ||
-      0
+      // a smoothing mode with no iterations set smooths once (the schema's default): 0 made it do nothing
+      (smoothingMode !== 'none' ? 1 : 0)
     );
     const smoothingMaxPoints = Number(
       raw.smoothing_max_points ||
@@ -941,7 +948,8 @@ export class RouterCore {
       _hintSourceLast: hintSourceLast,
       avoidIds: Array.isArray(raw.avoid) ? raw.avoid.slice() : [],
       channels: this._getChannelArray(raw),
-      cornerRadius: Number(raw.corner_radius || raw.cornerRadius || fs.corner_radius || 34),
+      // ?? not ||: corner_radius 0 means square corners (it became 34)
+      cornerRadius: Number(raw.corner_radius ?? raw.cornerRadius ?? fs.corner_radius ?? 34),
       cornerStyle: (raw.corner_style || raw.cornerStyle || fs.corner_style || 'round').toLowerCase(),
       cornerRadiusMode: (raw.corner_radius_mode || raw.cornerRadiusMode || fs.corner_radius_mode || 'auto').toLowerCase(),
       // Explicit override for the mandatory cardinal stub length (vb
@@ -5233,6 +5241,38 @@ export class RouterCore {
    * @returns {object} `legResult`, or a straightened replacement
    * @private
    */
+  /**
+   * The run along a corridor's lane (entry to exit, one axis) is a straight
+   * line by definition. Grid search can't always follow it: a lane offset off
+   * the grid can sit in a cell that touches an obstacle's clearance band even
+   * though the lane itself is clear, and A* then detours round the cell and
+   * lands on another line's centre line (two lines drawn on one lane, the
+   * bundle-through-a-gap docs example, 2026-11-08). Only when the search
+   * result bent, the straight lane crosses no obstacle (exact geometry, not
+   * cells) and the detour runs along another line's track where the lane
+   * doesn't; any other ride is untouched, so cost comparisons that worked
+   * before don't move (see
+   * _maybeStraightenPureCrossAxisLeg on why a general channel_axis version
+   * was reverted).
+   * @param {object} legReq
+   * @param {object} legResult
+   * @returns {object} `legResult`, or the straight lane
+   * @private
+   */
+  _straightenLaneRide(legReq, legResult) {
+    if (!legReq._laneRide || !legResult || legResult.pts.length <= 2) return legResult;
+    const a = legReq.a, b = legReq.b;
+    if (a[0] !== b[0] && a[1] !== b[1]) return legResult;
+    if (a[0] === b[0] && a[1] === b[1]) return legResult;
+    if (this._segmentCrossesObstacle(a, b)) return legResult;
+    // only to undo a detour that ran along another line's track (a crossing
+    // detour is left alone: straightening it changed which candidate wins,
+    // trunk-mate-overlap.test.js)
+    const overlapOnly = { overlapOnly: true };
+    if (this._segmentCrossingPenalty([a, b], legReq.id, overlapOnly) >= this._segmentCrossingPenalty(legResult.pts, legReq.id, overlapOnly)) return legResult;
+    return { ...legResult, pts: [a, b] };
+  }
+
   _maybeStraightenPureCrossAxisLeg(legReq, legResult) {
     if (!legResult) return legResult;
     // Deliberately scoped to fully-soft hints only ('geometry'/
@@ -5507,9 +5547,12 @@ export class RouterCore {
             ? (prevChannelDir !== 0 ? { source: 'continuation', continuationDir: prevChannelDir, horizontal: prevChannelHorizontal } : { source: 'geometry' })
             : { source: 'channel_axis', horizontal: chainChannels[k - 1].direction === 'horizontal', continuationDir: prevChannelDir }),
         entryHint, chan, bundleEntryHints);
-      legs.push(this._buildLegRequest(legBase, entry, exit,
+      const rideLeg = this._buildLegRequest(legBase, entry, exit,
         { source: 'channel_axis', horizontal },
-        { source: 'channel_axis', horizontal }));
+        { source: 'channel_axis', horizontal });
+      // the run along the lane itself: see _straightenLaneRide
+      rideLeg._laneRide = true;
+      legs.push(rideLeg);
       const approachFrom = cursor;
       cursor = exit;
       prevExitAlreadyInside = exitAlreadyInside;
@@ -5575,6 +5618,7 @@ export class RouterCore {
       legResult = this._computeGrid(legReq);
       if (smart && legResult) legResult = this._refineSmart(legReq, legResult);
       legResult = this._maybeStraightenPureCrossAxisLeg(legReq, legResult);
+      legResult = this._straightenLaneRide(legReq, legResult);
       // A null result for a leg carrying 'anchor_stub'/'attach_stub' means
       // the hard reversal-block correctly rejected the ONLY direction A*
       // was willing to consider first/last — but this leg's start/end is
@@ -6012,10 +6056,11 @@ export class RouterCore {
    * independent of grid_resolution.
    * @param {number[][]} pts
    * @param {string} askingLineId - never penalize a line for crossing its own registered segments
+   * @param {{ overlapOnly?: boolean }} [opts] - overlapOnly: count only runs along another line's track, not crossings
    * @returns {number} pre-weighted penalty, added directly to a cost total (not multiplied further)
    * @private
    */
-  _segmentCrossingPenalty(pts, askingLineId) {
+  _segmentCrossingPenalty(pts, askingLineId, { overlapOnly = false } = {}) {
     if (!this._crossingAvoidEnabled || !this._crossings.length) return 0;
     const weight = Number(this.config?.cost_defaults?.crossing ?? 50);
     // Two different lines' segments running along the exact same coordinate
@@ -6057,6 +6102,7 @@ export class RouterCore {
         if (seg.lineId === askingLineId) continue;
         const segVertical = seg.direction === 'vertical';
         if (segVertical !== vertical) {
+          if (overlapOnly) continue;
           // Perpendicular — the pre-existing crossing check.
           const segLo = segVertical ? seg.y1 : seg.x1;
           const segHi = segVertical ? seg.y2 : seg.x2;
@@ -6292,6 +6338,8 @@ export class RouterCore {
         direction: config.direction,  // 'horizontal', 'vertical', or 'auto'
         weight: config.weight,
         w: config.w,
+        // gap between the lines bundled in it (was dropped here: always 8)
+        line_spacing: config.line_spacing,
         discoverable: config.discoverable
       }));
     }

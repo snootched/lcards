@@ -65,7 +65,17 @@ const FORMATTED = [
   'doc/cards/astrometrics/camera.md',
   'doc/cards/astrometrics/scene.md',
   'doc/cards/astrometrics/models.md',
-  'doc/cards/astrometrics/scale.md'
+  'doc/cards/astrometrics/scale.md',
+  'doc/cards/msd/control-overlay.md',
+  'doc/cards/msd/line-overlay.md',
+  'doc/cards/msd/shape-overlay.md',
+  'doc/cards/msd/routing.md',
+  'doc/cards/msd/manual-routing.md',
+  'doc/cards/msd/index.md',
+  'doc/cards/msd/quick-start.md',
+  'doc/cards/msd/background.md',
+  'doc/cards/msd/animations.md',
+  'doc/cards/msd/base-svg-filters.md'
 ];
 
 const KEY_TABLE = '| Key | Type | Default | Description |';

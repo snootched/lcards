@@ -1,0 +1,61 @@
+# MSD card bugs found by the D2 docs audit (msd-audit.spec.js): a rule's base_svg
+# filters, tag:/type: rule selectors, a rule colour on the visible line only, the
+# start gap of a line that ends on a point, a string marker, fill_opacity 0 and
+# var() colours in a gradient.
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: builtin:ncc-1701-a-blue
+  view_box: [0, 0, 1000, 500]
+  anchors:
+    far: [900, 100]
+    b_end: [900, 400]
+  overlays:
+    - id: hub
+      type: shape
+      kind: rect
+      position: [100, 50]
+      size: [200, 100]
+      style:
+        fill: var(--lcars-blue)
+        fill_opacity: 0
+    - id: line_gap
+      type: line
+      anchor: hub
+      anchor_side: right
+      anchor_gap: 20
+      attach_to: far
+      route: direct
+      tags: [power]
+      style:
+        color: var(--lcars-orange)
+        width: 4
+        marker_end: arrow
+    - id: line_grad
+      type: line
+      anchor: [100, 400]
+      attach_to: b_end
+      route: direct
+      style:
+        width: 6
+        gradient:
+          stops:
+            - offset: "0%"
+              color: var(--lcars-red)
+            - offset: "100%"
+              color: var(--lcars-blue)
+rules:
+  - id: msd_audit_tag
+    when:
+      entity: input_boolean.lcards_test_toggle
+      state: "on"
+    apply:
+      overlays:
+        tag:power:
+          style:
+            color: "#ff0000"
+      base_svg:
+        filters:
+          - type: opacity
+            value: 0.3
+        transition: 0

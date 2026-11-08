@@ -30,7 +30,7 @@ topics:
       - title: LCARS patterns
         views: [lcars-patterns-picard, lcars-patterns-readouts, lcars-patterns-classic]
       - title: Docs audit fixes
-        views: [d2-batch1-fixes]
+        views: [d2-batch1-fixes, d2-batch4-msd-fixes]
   - id: msd
     title: MSD
     views: [msd-basics, msd-routing, msd-shapes]
@@ -135,6 +135,12 @@ releases:
         description: "One card per fix from the docs audit of the button, elbow and select menu pages. ALERT SWITCH drives the rules, the inner elbow segment and the OFFLINE text; LIGHTS the outer segment. Buttons: a d-pad with segments.default (orange) and its own up (blue), alert bars in their own colour, a partial border, a free icon in the top-right corner, icon padding_left, OFFLINE in orange from style.text, the level texture filled to the humidity, the pulse texture. Elbows: per-segment entities and actions (tap the outer to toggle LIGHTS, hold the inner for more info), a segmented frame's inner ring in the outer ring's colour, frame bars in CSS lengths, an open header's symbiont inside its arms, a texture clipped to the segments, segments sized by the theme. Select menus: a rule turning the options red, dimmed unselected options, letter spacing and size, grid rows and centring, styles merged key by key, an option labelled from its own variable."
         session: "D2 batch 1"
         docs: /cards/button/
+        public: false
+      - file: d2-batch4-msd-fixes
+        summary: "D2 batch 4 fixes: MSD rules, filters, anchors and routing the docs audit fixed"
+        description: "ALERT SWITCH drives a rule that dims the blueprint with apply.base_svg filters (with a red drop-shadow, now valid CSS) and turns the line tagged power red (tag: selectors reach MSD overlays; the colour stays on the visible line). The line starts 16 units off the BRIDGE control (anchor_gap) and ends in an arrow (marker_end as a string). Below: anchors as percentages of the view box, a control placed by anchor name with no size as an obstacle, and two lines through a channel with line_spacing 20."
+        session: "D2 batch 4"
+        docs: /cards/msd/
         public: false
       - file: astro-diagram-forms
         summary: "Astrometrics diagram forms: each object type's LCARS wireframe for the diagram look"

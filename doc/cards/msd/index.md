@@ -1,22 +1,58 @@
+---
+description: "The LCARdS MSD card (custom:lcards-msd-card): a Master Systems Display. Home Assistant cards placed on a ship blueprint or floor plan, joined by routed lines, with shapes, animations and rules."
+moved_anchors:
+  minimal-example: /cards/msd/#quick-start
+  top-level-options: /cards/msd/#card-options
+  msd-object: /cards/msd/background#msd
+  base-svg-object: /cards/msd/background#base-svg
+  filters: /cards/msd/base-svg-filters
+  anchors-object: /cards/msd/background#anchors
+  automatic-anchors: /cards/msd/background#automatic-anchors
+  control-overlay: /cards/msd/control-overlay
+  line-overlay: /cards/msd/line-overlay
+  routing-algorithms: /cards/msd/routing
+  shape-overlay: /cards/msd/shape-overlay
+  routing-object: /cards/msd/routing#routing
+  channels-object: /cards/msd/routing#channels
+  animations-overlay-group-object: /cards/msd/animations#msd-animations
+  rules-engine-integration: /cards/msd/animations#rules
+  annotated-example: /cards/msd/quick-start#putting-it-together
+---
+
 # MSD Card
 
 `custom:lcards-msd-card`
 
 <video class="doc-video" src="/img/cards/msd-motion.webm" poster="/img/cards/msd.webp" title="MSD card: a starship blueprint inside shield arcs that turn orange, then red, as shield strength drops, with three controls joined to the ship by routed lines" autoplay loop muted playsinline></video>
 
-Master Systems Display: a zoomable SVG canvas on which you position any Home Assistant card as an overlay. Lines (routes) connect anchors across the canvas, and shapes (polylines, rectangles, circles) add freeform decorative or structural geometry: rooms, zones, conduits. Supports rules-based automation of overlay styles and base SVG filters.
+**A Master Systems Display: a ship blueprint, deck plan or floor plan with live Home Assistant cards placed on it, joined to the drawing by lines that find their own way round it.** Shapes add rooms, zones and conduits, and rules and animations bring the whole display to life.
 
-::: tip New to MSD?
-This page is the config reference. For a UI-only walkthrough of building your first MSD (no YAML) using MSD Studio, see [Quick Start](./quick-start.md).
+- The drawing is an SVG: one of the built-in blueprints, your own file, or a blank canvas. Every position on the card is measured in the drawing's own units, so the display scales as one.
+- **Overlays** sit on the drawing: controls (any card), lines and shapes. A line runs between two named points (anchors), and routes round the controls and the ship by itself.
+- Lines and shapes can follow entities: colours by state, animations, and rules that restyle several overlays at once.
+
+::: tip Try it
+- The card editor's **Open Configuration Studio** opens the MSD Studio: a full-screen editor where you pick the blueprint, draw controls and shapes on the canvas and connect lines with a click.
+- [Getting Started](./quick-start) builds a first display in the Studio, step by step.
 :::
 
----
+| Page | Covers |
+|------|--------|
+| [Getting Started](./quick-start) | A first display in the MSD Studio, and a complete example to copy |
+| [Background and Anchors](./background) | The `msd` block, the blueprint, the view box, anchors and an animated background |
+| [Control Overlay](./control-overlay) | Any card placed on the drawing |
+| [Line Overlay](./line-overlay) | Lines between anchors and overlays: sides, gaps, colours, markers |
+| [Shape Overlay](./shape-overlay) | Rooms, zones and conduits: rectangles, circles and polylines |
+| [Line Routing](./routing) | How lines find their way, bundling, crossings, channels and the routing settings |
+| [Manual Routing](./manual-routing) | Lines through waypoints you place |
+| [Animations and Rules](./animations) | Animations on the blueprint and on groups of overlays, and rules that restyle overlays |
+| [Base SVG Filters](./base-svg-filters) | Dim, blur or tint the blueprint so the overlays stand out |
 
-## Minimal Example
+## Quick start
 
-A blueprint, two controls in its empty corners, and a line from each to a point on the ship:
+**A blueprint, two controls in its empty corners, and a line from each control to a point on the ship.**
 
-- `br` and `wc` are markers built into the blueprint (its bridge and warp core): see [Automatic Anchors](#automatic-anchors).
+- `br` and `wc` are markers built into this blueprint (its bridge and warp core): see [Automatic anchors](./background#automatic-anchors).
 - `attachment: top-left` makes `position` the control's top-left corner. Without it, `position` is the control's centre.
 - `route: auto` draws each line around the ship, not through it.
 
@@ -66,399 +102,56 @@ msd:
       route: auto
 ```
 
----
+## Overlay types
 
-## Top-Level Options
+**Everything on the drawing is one of three overlay types, listed under `msd.overlays`.** Each has an `id` (required, and what lines and rules use to find it) and a `type`.
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `type` | string | `custom:lcards-msd-card` (required) |
-| `msd` | object | Full MSD configuration (required) |
-| `id` | string | Card ID for rule targeting |
-| `tags` | list | Tags for rule targeting |
-| `rules` | list | Rules for dynamic overlay styling: see [Rules Engine](../../core/rules/) |
-| `data_sources` | object | data source definitions: see [Data Sources](../../core/datasources/) |
+- Overlays paint in `z_index` order, higher in front. Unset, controls paint over lines and lines over shapes.
+- A button, chart or slider on the drawing is a normal card inside a control overlay; the MSD has no widgets of its own.
 
----
+| Type | Draws | Placed with | `z_index` default | Page |
+|------|-------|-------------|-------------------|------|
+| `control` | Any Home Assistant or LCARdS card | `position`, `size`, `attachment` | `200` | [Control Overlay](./control-overlay) |
+| `line` | A line from one anchor or overlay to another | `anchor`, `attach_to`, `route` | `100` | [Line Overlay](./line-overlay) |
+| `shape` | A rectangle, circle or polyline | `kind`, then `position` and `size`, or `points` | `50` | [Shape Overlay](./shape-overlay) |
 
-## `msd` Object
+## Card options
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `base_svg` | object | SVG source and filters (required) |
-| `view_box` | string / array | `"auto"` or `[minX, minY, width, height]` |
-| `anchors` | object | Named `[x, y]` anchor points for overlay placement |
-| `overlays` | list | Control, line, and shape overlays; see below |
-| `routing` | object | Global line routing settings: see below |
-| `channels` | object | Named routing corridors for guiding/bundling lines; see below |
-| `animations` | list | Bulk-target a group of overlays with one animation, by CSS selector; see below |
+**The card's own top-level keys: the `msd` block holds the display, the rest are the keys every LCARdS card takes.** Each links to its page.
 
----
-
-## `base_svg` Object
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `source` | string | SVG source: `builtin:<name>`, `/local/path.svg`, a `media-source://…` content ID picked via the Home Assistant media library, or `none` |
-| `filters` | list | CSS/SVG filters (opacity, blur, brightness, tint, etc.); see [Base SVG Filters](./base-svg-filters.md) |
-| `render_visual` | boolean | Default `true`. Set `false` to hide the SVG as the visible background (e.g. to use `background_animation` instead) while still parsing it for anchors. |
-| `harvest_landmarks` | boolean | Default `true`. Computes geometric landmark anchors (`hull_center`, `extremity_bow`/`extremity_stern`/`extremity_top`/`extremity_bottom`, `lateral_a`/`lateral_b`) from the SVG's own silhouette; see [Automatic Anchors](#automatic-anchors) below. |
-| `harvest_svg_elements` | boolean | Default `true`. Harvests anchors from any named `<circle>`/`<text>`/`<g>` element already present in the SVG markup; see [Automatic Anchors](#automatic-anchors) below. |
-| `animations` | list | Animations targeting elements *inside* the base SVG, by id/class; same `target`/`targets` selector syntax as [Card Animations](../../core/animations.md). Not to be confused with `msd.animations` (below), which targets *overlays*, not base-SVG internals. |
-
-In MSD Studio's Base SVG tab, the "Browse Home Assistant Media" source mode lets you pick an SVG uploaded to Home Assistant's media library, filtered to SVG's actual MIME type (`image/svg+xml`) so only SVG files show up, alongside the existing Asset Library (built-in ships) and Custom Path (typed `/local/…` or URL) modes.
-
-### Filters
-
-Filters shift the visual weight of the base SVG so overlays stand out, or
-apply a color tint. See [Base SVG Filters](./base-svg-filters.md) for the
-full type reference and a set of copy-paste recipes (dimmed, subtle,
-backdrop, faded, red wash, monochrome).
-
-```yaml
-base_svg:
-  source: builtin:ncc-1701-a-blue
-  filters:
-    opacity: 0.5
-    brightness: 0.8
-```
-
-Rules can change `filters` dynamically; see the rules example below.
-
----
-
-## `anchors` Object
-
-Named points used for overlay placement and line routing. Values are `[x, y]` in SVG user units (matching the SVG `viewBox`). Percentages are also accepted.
-
-```yaml
-anchors:
-  bridge: [520, 380]
-  engineering: [620, 520]
-  sickbay: ["40%", "55%"]   # Percentage of viewBox dimensions
-```
-
-### Automatic Anchors
-
-Anchors listed under `anchors:` aren't the only ones available: every `base_svg` also contributes two automatically-derived sources, both on by default:
-
-* **Computed landmarks** (`base_svg.harvest_landmarks`): a fixed set of geometric anchors derived from the SVG's own silhouette: `hull_center`, `extremity_bow`, `extremity_stern`, `extremity_top`, `extremity_bottom`, and (on twin-hull shapes, e.g. nacelles) `lateral_a`/`lateral_b`. Useful for attaching overlays to a blueprint that has no hand-placed anchors at all.
-* **Harvested SVG elements** (`base_svg.harvest_svg_elements`): any named `<circle id="...">`, `<ellipse id="...">`, `<text id="...">`, `<rect id="...">`, or `<g id="...">` element already present in the SVG markup is exposed as an anchor under that element's own `id` (`rect` uses its bounding-box center; the others use their native position). Since these ids often come straight from the design tool that exported the SVG, they can be arbitrary/auto-numbered (e.g. `g293`) rather than meaningful names.
-
-All three sources merge into one anchor set with this precedence, later wins on a name collision:
-
-```
-computed landmarks  <  harvested SVG elements  <  anchors: (this section)
-```
-
-So defining `bridge: [520, 380]` under `anchors:` always overrides a same-named computed or harvested anchor. Set `base_svg.harvest_landmarks: false` and/or `base_svg.harvest_svg_elements: false` to disable either automatic source entirely (e.g. to silence a noisy harvested-element list).
-
-In MSD Studio's Anchors tab, the two automatic sources are shown in their own read-only **"Base SVG: Computed"** and **"Base SVG: Harvested"** sections (search/filter both by name), alongside the toggle switches above. Each entry has a **Promote to User Anchor** action that opens the Add Anchor form pre-filled with its current position, useful for renaming a harvested `g293` into something meaningful before it becomes a real, editable entry under `anchors:`. A **Promote All** action does the same in bulk for everything currently matching the active filter.
-
----
-
-## Overlay Types
-
-### Control Overlay
-
-Embeds any Home Assistant card at a position on the canvas.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Overlay ID: required; used for rule targeting |
-| `type` | string | `control` |
-| `anchor` | string | Anchor name to centre on |
-| `position` | array | Explicit `[x, y]` position (overrides `anchor`) |
-| `size` | array | `[width, height]` in viewBox units |
-| `card` | object | Any Home Assistant card config |
-| `z_index` | number | Stacking order (higher = in front) |
-| `locked` | boolean | Editor-only: disables drag/resize in MSD Studio |
-| `tags` | list | Tags for rule targeting |
-
-```yaml
-- id: engine-status
-  type: control
-  anchor: engineering
-  size: [200, 90]
-  z_index: 10
-  card:
-    type: custom:lcards-button
-    entity: sensor.warp_core_status
-    preset: lozenge
-```
-
-Full reference: [Control Overlay](./control-overlay.md): attachment points, `card:` examples, rules integration.
-
-### Line Overlay
-
-Routes a line between two anchors on the canvas.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Line ID (required) |
-| `type` | string | `line` |
-| `anchor` | string | Source anchor name |
-| `attach_to` | string | Target anchor name |
-| `route` | string | Routing algorithm: see table below |
-| `waypoints` | list | Intermediate `[x, y]` points or anchor names |
-| `route_hint` | string | Initial segment direction: `xy` (horizontal first) or `yx` |
-| `corner_style` | string | `miter`, `round`, or `bevel` |
-| `corner_radius` | number | Radius for `round` corners in viewBox units |
-| `route_channels` | list | Channel IDs this line routes through |
-| `clearance` | number | Min clearance around obstacles in viewBox units |
-
-#### Routing Algorithms
-
-| `route` value | Description |
-|--------------|-------------|
-| `auto` | Recommended default: always full pathfinding: obstacle avoidance, trunk bundling, crossing avoidance |
-| `direct` | Straight line |
-| `manhattan` | L-shaped (single bend): advanced opt-out, no bundling/crossing avoidance |
-| `smart` | What `auto` resolves to: A* pathfinding plus a refinement pass |
-| `grid` | Same as `smart` without the refinement pass, advanced opt-out |
-| `manual` | Explicit `waypoints` list |
-
-```yaml
-- id: power-line
-  type: line
-  anchor: engineering
-  attach_to: bridge
-  route: manhattan
-  route_hint: yx
-  corner_style: round
-  corner_radius: 6
-```
-
-Full reference: [Line Overlay](./line-overlay.md): attachment sides, gaps, dynamic/state-based color, gradients, patterns, markers, animations.
-
-### Shape Overlay
-
-Freeform geometry (polylines, rectangles, circles) for rooms, zones, conduits, and other decorative or structural shapes. Shares its complete styling system with the line overlay (dashed strokes, state-based color/fill, animations), and lines can attach to a shape's corners or vertices the same way they attach to controls.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Shape ID (required) |
-| `type` | string | `shape` |
-| `kind` | string | `polyline`, `rect`, or `circle` |
-| `points` | list | `polyline` only: ordered `[x, y]`/anchor-name vertices |
-| `position` / `size` | array | `rect`/`circle` only: same convention as control overlays |
-| `locked` | boolean | Editor-only: disables drag/resize/vertex-editing in MSD Studio |
-
-```yaml
-- id: engineering-bay
-  type: shape
-  kind: rect
-  position: [560, 460]
-  size: [200, 140]
-  corner_style: round
-  corner_radius: 12
-  style:
-    color: var(--lcars-orange)
-    width: 2
-    fill: alpha(var(--lcars-orange), 0.12)
-```
-
-Full reference: [Shape Overlay](./shape-overlay.md): all three kinds, attachment points, drawing/editing in MSD Studio.
-
----
-
-## `routing` Object
-
-Global routing defaults that apply to all lines unless overridden per-line. The most commonly tuned:
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `default_mode` | string | `auto` | Card-wide routing mode override for lines that don't set `route` |
-| `clearance` | number | `0` | Global obstacle clearance in viewBox units |
-| `trunk_bundling_enabled` | boolean | `true` | Nearby parallel lines bundle into shared trunks |
-| `trunk_line_spacing` | number | `8` | Lane gap between bundled lines (viewBox units) |
-| `trunk_proximity` | number | `32` | How close lines must run to bundle (viewBox units) |
-| `crossing_avoid_enabled` | boolean | `true` | Lines avoid crossing each other when a small detour suffices |
-| `crossing_avoid_bias` | number | `4` | Crossing penalty: higher accepts longer detours |
-
-New to routing? [Routing Concepts](./routing-concepts.md) covers the mental model first. Full reference, including channels, bundling behavior, and every advanced knob: [Line Routing & Channels](./routing.md).
-
----
-
-## `channels` Object
-
-Named routing corridors that guide/force lines through authored regions, with automatic lane separation. Defined **directly under `msd:`** (not under `routing:`):
+- Rules restyle overlays through their ids and the card's `id` and `tags`: see [Rules](./animations#rules).
+- In a sections view the card takes the full width and 8 rows unless `grid_options` says otherwise, and can't be made smaller than 2 by 4.
 
 ```yaml live
 type: custom:lcards-msd-card
-msd:
-  view_box: [0, 0, 600, 300]
-  channels:
-    main_bus:
-      bounds: [250, 90, 300, 20]
-      mode: force                # prefer | avoid | force
-      direction: horizontal
-      line_spacing: 10
-  overlays: []
-```
-
-Lines opt in with `route_channels: [main_bus]`. See [Line Routing & Channels](./routing.md#channels).
-
----
-
-## `animations` (Overlay Group) Object
-
-Bulk-target a *group* of overlays with one animation declaration, by CSS selector
-against `data-overlay-id` (or any other attribute/class), instead of repeating the
-same `animations:` entry on every overlay in the group. Defined **directly under
-`msd:`**, sibling to `overlays`/`base_svg`:
-
-```yaml
-msd:
-  animations:
-    - trigger: on_load
-      preset: draw
-      target: '[data-overlay-id^="shield_"] [data-animatable="true"]'
-      duration: 800
-```
-
-This matches shape, line, and control overlays uniformly; the selector runs against
-the shared overlay container, so it doesn't care what kind of overlay it lands on.
-For control overlays embedding a non-LCARdS Home Assistant card, this animates the control's own
-positioned wrapper (opacity/transform/glow-style effects), not the embedded card's
-internals; LCARdS has no access to an arbitrary Home Assistant card's own DOM.
-
-Each entry uses the exact same field set as `base_svg.animations` and per-overlay
-`animations:`; see [Card Animations](../../core/animations.md) for the full
-`trigger`/`preset`/`duration`/`ease`/`loop`/`target`/`targets`/etc. reference.
-
-**Target the animatable element, not the overlay's `<g>` wrapper.** Every shape/line
-overlay renders as `<g data-overlay-id="...">` wrapping its actual visible geometry
-(a `<path>`, `<rect>`, or `<ellipse>` marked `data-animatable="true"`). A selector
-matching only the wrapper (`[data-overlay-id^="shield_"]` alone) still animates
-*something*: `opacity`/`transform`-based presets look correct, since those
-composite across the whole subtree regardless of which element they're set on, but
-color-based presets (`stroke`/`fill`, e.g. `stagger-flash`'s `trail_color`) silently
-do nothing visible: `stroke`/`fill` are inherited SVG properties, and the inner
-geometry element already carries its own explicit `stroke`/`fill` (from the
-overlay's own `style.color`/`style.fill`), which always wins over an inherited value
-from an animated ancestor. Append `[data-animatable="true"]` to reach the real
-element (as in the example above) to avoid this; control overlays are the
-exception: the `<foreignObject>` itself is the correct target, with no descendant
-equivalent.
-
-The MSD Studio editor's target/targets picker builds this correctly for you: pick
-**"All Shapes overlays"**, **"All Lines overlays"**, or **"All Controls overlays"**
-to bulk-target by overlay type, or **"All `"<prefix>_*"` overlays"** for any group
-of overlays sharing an id prefix before their first underscore, e.g. Shield
-Bubble's `shield_fore`/`shield_starboard`/`shield_aft`/`shield_port` (or
-`shield_section_N`) convention automatically offers an **"All `"shield_*"`
-overlays"** option once 2+ segments exist. These options are pre-aimed at the
-correct element (the animatable descendant for shape/line, the wrapper itself for
-controls), so picking one sidesteps the wrapper-vs-animatable-element pitfall above
-entirely; prefer them over hand-writing the selector.
-
-This does not play in MSD Studio's live preview while editing, matching
-`base_svg.animations` and per-overlay animations; check the effect in the actual
-Lovelace dashboard.
-
----
-
-## Rules Engine Integration
-
-The MSD card integrates with the global Rules Engine to dynamically restyle overlays and change the base SVG filter:
-
-```yaml
-rules:
-  - id: warp-alert
-    when:
-      entity: sensor.warp_core_temp
-      above: 95
-    apply:
-      base_svg:
-        filters:
-          - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }
-        transition: 500          # Crossfade in ms
-      overlays:
-        engine-status:
-          style:
-            color: "var(--lcars-alert-red)"
-      animations:
-        - overlay: engine-status
-          preset: pulse
-          loop: true
-```
-
-See [Rules Engine](../../core/rules/) for the full condition and apply reference.
-
-`apply.animations` can also bulk-target overlays, via `tag:`/`type:`/`pattern:`
-matching against the rule's own overlay registry. Prefer top-level
-[`msd.animations`](#animations-overlay-group-object) for a simple whole-group
-animation with no conditional logic (e.g. "these all draw on load"); reach for
-`apply.animations` when the animation needs to start/stop with a rule's
-match/unmatch lifecycle (e.g. "pulse red while this sensor is above threshold").
-
----
-
-## Annotated Example
-
-An MSD card with three anchors, a control overlay, a line, and a rule that changes the base SVG filter on alert:
-
-```yaml live
-type: custom:lcards-msd-card
+id: bridge-display
+tags:
+  - ship-displays
+grid_options:
+  columns: full
+  rows: 5
 msd:
   base_svg:
     source: builtin:ncc-1701-a-blue
-    filters:
-      - { mode: css, type: opacity, value: 0.5 }
-      - { mode: css, type: brightness, value: 0.8 }
-
-  anchors:
-    bridge: [520, 380]
-    engineering: [620, 520]
-    sickbay: [410, 460]
-
-  overlays:
-    - id: bridge-card
-      type: control
-      anchor: bridge
-      size: [180, 80]
-      tags: [status-displays]
-      card:
-        type: custom:lcards-button
-        entity: sensor.bridge_status
-        preset: lozenge
-        text:
-          name:
-            content: Bridge
-        tap_action:
-          action: more-info
-
-    - id: power-line
-      type: line
-      anchor: engineering
-      attach_to: bridge
-      route: auto
-      route_hint: yx
-      corner_style: round
-      corner_radius: 6
-
-  routing:
-    clearance: 10
-
-rules:
-  - id: reactor-alert
-    when:
-      entity: sensor.reactor_temp
-      above: 90
-    apply:
-      base_svg:
-        filters:
-          - { mode: svg, type: tint, value: { color: 'rgba(180,0,0,0.35)' } }
-        transition: 500
-      overlays:
-        bridge-card:
-          style:
-            color: "var(--lcars-alert-red)"
-      animations:
-        - tag: status-displays
-          preset: pulse
-          loop: true
+  view_box: [180, 270, 1600, 720]
 ```
 
----
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `type` | string | required | `custom:lcards-msd-card` |
+| `msd` | object | required | The display: blueprint, view box, anchors, overlays, routing, animations. See [msd](./background#msd) |
+| `id` | string | - | This card's name for rules and logs: see [id and tags](../common#id-and-tags) |
+| `tags` | list | - | Group names for rules: see [id and tags](../common#id-and-tags) |
+| `rules` | list | - | Rules that restyle overlays and play animations: see [Rules](./animations#rules) and the [Rules Engine](../../core/rules/) |
+| `data_sources` | object | - | Named entity subscriptions with history and processing: see [Data Sources](../../core/datasources/) |
+| `height` | number / string | the cell's height | Card height: see [Sizing](../common#sizing) |
+| `width` | number / string | the cell's width | Card width: see [Sizing](../common#sizing) |
+| `min_height` | number / string | - | Smallest height: see [Minimum and maximum size](../common#minimum-and-maximum-size) |
+| `min_width` | number / string | - | Smallest width: see [Minimum and maximum size](../common#minimum-and-maximum-size) |
+| `max_height` | number / string | - | Largest height: see [Minimum and maximum size](../common#minimum-and-maximum-size) |
+| `max_width` | number / string | - | Largest width: see [Minimum and maximum size](../common#minimum-and-maximum-size) |
+| `overflow` | string | - | What happens to content outside the card: see [overflow](../common#overflow) |
+| `overflow_x` | string | - | Left to right only, over `overflow` |
+| `overflow_y` | string | - | Top to bottom only, over `overflow` |
+| `z_index` | integer | - | The card's stacking order on the dashboard: see [z_index](../common#z-index) |
+| `grid_options` | object | full width, 8 rows | Home Assistant's cell size in a sections view: see [grid_options](../common#grid-options) |

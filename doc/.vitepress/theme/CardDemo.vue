@@ -52,7 +52,7 @@
       The view's grid as the Layout Card draws it (the same layout code), in a {{ LAYOUT_VIEW_HEIGHT }} px tall box.
     </p>
     <p v-else class="card-demo-caption">
-      The real {{ cardName }} card with sample entities<span v-if="editable">: try the entities below, or any entity id (it gets a sample value)</span>.
+      The real {{ cardName }} card<template v-if="usesEntities"> with sample entities</template><span v-if="editable">: try the entities below, or any entity id (it gets a sample value)</span>.
       {{ hint }}
     </p>
     <p v-if="editable" class="card-demo-entities">
@@ -102,9 +102,11 @@ const LAYOUT_VIEW_TAG = 'lcards-layout-view'
 const LAYOUT_VIEW_HEIGHT = 320
 const isLayoutView = computed(() => cardTag.value === LAYOUT_VIEW_TAG)
 const alertCondition = ref('')
-const cardName = computed(() => cardTag.value.replace(/^lcards-/, '').replace(/-card$/, '').replace(/-/g, ' '))
+const cardName = computed(() => cardTag.value.replace(/^lcards-/, '').replace(/-card$/, '').replace(/-/g, ' ').replace(/^msd$/, 'MSD'))
 const starters = computed(() => CARD_STARTERS[cardTag.value] ?? [])
 const entityList = computed(() => [...SAMPLE_ENTITIES, ...DEMO_ENTITIES])
+// Mention sample entities only when the YAML names one (an entity id, a template or a data source).
+const usesEntities = computed(() => props.editable || /\b(entity|entity_id|entities|source|sources|data_sources)\s*:|\{\{|\[\[\[/.test(yamlText.value || initialYaml))
 
 const starterKey = ref('')
 const yamlText = ref(initialYaml || (CARD_STARTERS[props.type]?.[0]?.yaml ?? ''))

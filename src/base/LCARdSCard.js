@@ -1571,6 +1571,8 @@ export class LCARdSCard extends LCARdSNativeCard {
                 if (ruleResults && ruleResults.overlayPatches) {
                     this._applyRulePatches(ruleResults.overlayPatches);
                 }
+                // Results that are not overlay patches (an MSD's base_svg filters)
+                if (ruleResults) this._applyRuleResults(ruleResults);
             } catch (error) {
                 lcardsLog.error(`[LCARdSCard] Error in rules callback for ${this._overlayId}:`, error);
             }
@@ -1625,6 +1627,14 @@ export class LCARdSCard extends LCARdSNativeCard {
         this._lastRulePatches = null;
         this._overlayRegistered = false;
     }
+
+    /**
+     * The rule results that are not overlay patches. Nothing on most cards;
+     * the MSD applies its base_svg filters here.
+     * @param {any} _ruleResults - aggregated results of evaluateDirty()
+     * @protected
+     */
+    _applyRuleResults(_ruleResults) {}
 
     /**
      * Apply rule patches to this card's overlay

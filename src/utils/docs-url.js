@@ -46,7 +46,7 @@ export const DOCS = Object.freeze({
   filterTypes: '/cards/msd/base-svg-filters',
   msd: '/cards/msd/',
   msdRouting: '/cards/msd/routing',
-  msdRoutingConcepts: '/cards/msd/routing-concepts',
+  msdRoutingConcepts: '/cards/msd/routing#how-a-line-finds-its-path',
   soundAutoplay: '/configuration/sounds#browser-audio-policy',
   buildingAnEditor: '/development/building-an-editor',
   // Card picker (lcards-main.js): one page per card.

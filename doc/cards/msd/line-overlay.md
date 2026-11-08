@@ -1,437 +1,682 @@
+---
+description: "MSD line overlay: join controls, shapes and anchors with routed lines; sides, gaps, routing modes, corners, stroke, dashes, markers and colours that follow entities."
+moved_anchors:
+  quick-start: /cards/msd/line-overlay#anchor-and-attach-to
+  properties: /cards/msd/line-overlay#anchor-and-attach-to
+  with-specific-sides: /cards/msd/line-overlay#attachment-points
+  stroke: /cards/msd/line-overlay#styling
+  fill-self-intersecting-closed-paths: /cards/msd/line-overlay#fill
+  markers-arrows: /cards/msd/line-overlay#markers
+  gradients: /cards/msd/line-overlay#gradients-and-patterns
+  patterns: /cards/msd/line-overlay#gradients-and-patterns
+  state-based-color-and-fill: /cards/msd/line-overlay#dynamic-styling
+  templated-values: /cards/msd/line-overlay#dynamic-styling
+  animations: /cards/msd/animations
+  complete-property-reference: /cards/msd/line-overlay#anchor-and-attach-to
+  see-also: /cards/msd/line-overlay#anchor-and-attach-to
+---
+
 # Line Overlay
 
 `type: line`
 
-Connects two overlays (controls, other lines' anchors, or [shapes](./shape-overlay.md)) with a routed SVG line. Supports automatic or manual routing, attachment side control, gap offsets, state-based color, and rich SVG styling including gradients, patterns, arrows, and dash patterns.
+**A line joins two places on the MSD canvas: a control to a point on the ship, one control to another, a shape's corner to an anchor.** You give the two ends; the router draws the path between them, round obstacles and alongside other lines.
 
----
+- Ends can be a control, a [shape](./shape-overlay), an anchor name or `[x, y]`. A line to a control or shape follows it when it moves.
+- How the router picks a path, bundles lines and avoids crossings is on [Line Routing](./routing). [Manual Routing](./manual-routing) draws a line through points you choose.
 
-## Quick Start
+## anchor and attach_to
 
-```yaml
-overlays:
-  - id: control1
-    type: control
-    position: [100, 100]
-    size: [120, 40]
-    card:
-      type: custom:lcards-button
-      entity: light.living_room
+**`anchor` is where the line starts and `attach_to` is where it ends.** Each takes an overlay `id`, the name of an anchor, or `[x, y]` in viewBox units.
 
-  - id: control2
-    type: control
-    position: [300, 200]
-    size: [120, 40]
-    card:
-      type: custom:lcards-button
-      entity: light.kitchen
+- Both ends are needed. Point at a control or shape, and pick the point on it with a [side](#attachment-points).
+- Lines are drawn under controls and over shapes (`z_index` `100`), and the background is always behind them.
 
-  - id: line1
-    type: line
-    anchor: control1
-    attach_to: control2
-    style:
-      color: var(--lcars-orange)
-      width: 2
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 240]
+  anchors:
+    hull: [520, 200]
+  overlays:
+    - id: bridge_ctl
+      type: control
+      position: [130, 60]
+      size: [200, 60]
+      card:
+        type: custom:lcards-button
+        entity: light.bridge
+        preset: lozenge
+        text:
+          label:
+            content: BRIDGE
+            show: true
+    # from the control's right edge to a named anchor
+    - id: bridge_line
+      type: line
+      anchor: bridge_ctl
+      anchor_side: right
+      attach_to: hull
+      style:
+        color: var(--lcars-orange)
+        width: 4
+    # between two coordinates
+    - id: plain_line
+      type: line
+      anchor: [40, 200]
+      attach_to: [300, 200]
+      style:
+        color: var(--lcars-blue)
+        width: 4
 ```
 
----
-
-## Properties
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `id` | string | - | Unique identifier (required) |
-| `type` | string | - | Must be `line` |
-| `anchor` | string | - | Source overlay ID, anchor name, or `[x, y]` (required) |
-| `attach_to` | string | - | Destination overlay ID, anchor name, or `[x, y]` (required) |
-| `anchor_side` | string | auto | Attachment side on source: see [Attachment Points](#attachment-points) |
-| `attach_side` | string | auto | Attachment side on destination |
-| `anchor_gap` | number | `0` | Offset in viewBox units from source edge |
-| `attach_gap` | number | `0` | Offset in viewBox units from destination edge |
-| `anchor_gap_x` | number | - | Horizontal-only offset from source (overrides `anchor_gap` on X) |
-| `anchor_gap_y` | number | - | Vertical-only offset from source (overrides `anchor_gap` on Y) |
-| `attach_gap_x` | number | - | Horizontal-only offset from destination |
-| `attach_gap_y` | number | - | Vertical-only offset from destination |
-| `route` | string | `auto` | Routing mode: see [Routing Modes](#routing-modes) |
-| `waypoints` | array | - | Explicit coordinate/anchor-name list for `manual` routing; a coordinate entry may add a 3rd number, `[x, y, radius]`, to override just that corner's `corner_radius` (see [Manual Routing](./manual-routing.md#per-waypoint-corner-radius)) |
-| `route_hint` | string | auto | Initial segment direction: `xy` (horizontal first) or `yx` |
-| `route_hint_last` | string | auto | Final segment direction (same values as `route_hint`) |
-| `route_channels` | list | - | Channel IDs this line routes through: see [Line Routing & Channels](./routing.md#channels) |
-| `clearance` | number | - | Min clearance around obstacles in viewBox units (overrides global default) |
-| `corner_style` | string | `round` | `miter`, `round`, or `bevel`, for routed corners |
-| `corner_radius` | number | `34` | Arc radius (round) or chamfer size (bevel), in viewBox units. `manual` routing: overridable per corner via `waypoints`' optional 3rd number |
-| `corner_radius_mode` | string | `auto` | `auto` or `forced`: `round`/`bevel` only; see [Corner Size: Target vs. Forced](./routing.md#corner-size-target-vs-forced) |
-| `corner_angle` | number | `45` | `bevel` only: diagonal cut angle, 0–90° |
-| `stub_length` | number | - | Overrides the mandatory cardinal departure/arrival stub length (viewBox units); see [Corner Size: Target vs. Forced](./routing.md#corner-size-target-vs-forced) |
-| `smoothing_mode` | string | `none` | `none` or `chaikin` |
-| `smoothing_iterations` | number | `0` | Smoothing pass count (0–5) |
-| `entity` | string | - | Entity to bind `style.color` / `style.fill` to (state-color object), independent of any control's own entity |
-| `state_attribute` | string | - | Attribute whose value is matched against state-color keys instead of the raw entity state (mirrors the button card's `state_attribute`) |
-| `ranges_attribute` | string | - | Attribute value compared against `above:`/`below:`/`between:` keys (mirrors the button card's `ranges_attribute`) |
-| `z_index` | number | `100` | Stacking order: default paints below controls (200), above `base_svg` |
-| `tags` | list | - | Tags for rule targeting |
-| `style` | object | - | SVG style: see [Styling](#styling) |
-| `animations` | array | - | anime.js animations; see [Animations in MSD](../../architecture/msd/index.md) |
-
----
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `id` | string | required | Unique id, for rules and the Studio |
+| `style.marker_end.type` | string | required | `line` |
+| `anchor` | string / `[x, y]` | required | Start: an overlay `id`, an anchor name or `[x, y]` |
+| `attach_to` | string / `[x, y]` | required | End: an overlay `id`, an anchor name or `[x, y]` |
+| `tags` | list | - | Tags for rules: the selector `tag:<name>` matches every overlay with that tag |
+| `z_index` | number | `100` | Stacking order among overlays; higher is in front. Controls default to `200`, shapes to `50` |
+| `animations` | list | - | Animations on the line (draw it in, march its dashes); see [Animations and Rules](./animations) |
 
 ## Attachment Points
 
-Lines connect to any of 9 named sides on an overlay (control, or [shape](./shape-overlay.md) of kind `rect`/`circle`), or to a specific vertex (`vertex0`, `vertex1`, ...) of a `polyline` shape. Omit the side fields and the system picks the closest pair automatically.
+**`anchor_side` and `attach_side` pick the point of a control or shape where the line starts or ends.** There are nine on a control or a `rect`/`circle` shape, and one per corner point on a `polyline` shape.
 
-| Side | Description |
-|------|-------------|
-| `top` | Top edge centre |
-| `bottom` | Bottom edge centre |
-| `left` | Left edge centre |
-| `right` | Right edge centre |
-| `center` | Exact centre |
-| `top-left` | Top-left corner |
-| `top-right` | Top-right corner |
-| `bottom-left` | Bottom-left corner |
-| `bottom-right` | Bottom-right corner |
+- On an end that is a control or shape, a side you leave out is the one nearest the other end, and the line starts out at right angles to it. Set `center` to run to the middle.
+- A side also sets the direction the line leaves or arrives in: `left` and `right` make that end horizontal, `top` and `bottom` vertical. This works on an anchor or `[x, y]` end too, which has no edge to sit on.
+- In MSD Studio's Connect mode these points show as dots on every control (orange), shape (green) and anchor (cyan): click a start and an end to draw a line with the sides filled in. Dragging a line's end near a point snaps it on.
 
-### With specific sides
-
-```yaml
-- id: h_connection
-  type: line
-  anchor: card_a
-  anchor_side: right
-  attach_to: card_b
-  attach_side: left
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 260]
+  overlays:
+    - id: card_a
+      type: control
+      position: [130, 70]
+      size: [180, 60]
+      card:
+        type: custom:lcards-button
+        entity: light.port
+        preset: lozenge
+        text:
+          label:
+            content: PORT
+            show: true
+    - id: card_b
+      type: control
+      position: [470, 190]
+      size: [180, 60]
+      card:
+        type: custom:lcards-button
+        entity: light.starboard
+        preset: lozenge
+        text:
+          label:
+            content: STARBOARD
+            show: true
+    # right edge to left edge
+    - id: h_connection
+      type: line
+      anchor: card_a
+      anchor_side: right
+      attach_to: card_b
+      attach_side: left
+      style:
+        color: var(--lcars-orange)
+        width: 4
+    # bottom edge to bottom edge
+    - id: v_connection
+      type: line
+      anchor: card_a
+      anchor_side: bottom
+      attach_to: card_b
+      attach_side: bottom
+      style:
+        color: var(--lcars-blue)
+        width: 4
 ```
 
-In the MSD Studio editor, entering Connect Mode shows these as clickable dots on every control/shape/anchor: click a source point then a target point to create a line prefilled with the correct `anchor`/`attach_to`/`*_side`. Dragging an existing line's endpoint near a valid point snaps onto it the same way.
-
----
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `anchor_side` | string | nearest side | Where on the start overlay the line begins: `top`, `bottom`, `left`, `right`, `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`, or `vertex0`, `vertex1` ... on a polyline shape |
+| `attach_side` | string | nearest side | Where on the end overlay the line arrives; same values |
 
 ## Gap System
 
-Gaps offset the line endpoint away from the overlay edge.
+**A gap leaves a space between the overlay's edge and the end of the line.** Use it so a line stops short of a card instead of touching it.
 
-| Side | Gap direction |
-|------|---------------|
-| `left` | Leftward (−X) |
-| `right` | Rightward (+X) |
-| `top` | Upward (−Y) |
-| `bottom` | Downward (+Y) |
-| corners | Diagonally outward |
+- The gap moves the end straight out from the side: left from `left`, up from `top`, and out on both axes from a corner.
+- A gap needs a side on an overlay end. An anchor or `[x, y]` end has no edge to step out from.
+- `attach_gap_x` and `attach_gap_y` set the two directions of the end's gap separately, for a corner.
 
-```yaml
-- id: gap_line
-  type: line
-  anchor: card_a
-  anchor_side: right
-  anchor_gap: 20          # 20px out from right edge of card_a
-  attach_to: card_b
-  attach_side: left
-  attach_gap: 20          # 20px out from left edge of card_b
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 160]
+  overlays:
+    - id: card_a
+      type: control
+      position: [130, 80]
+      size: [180, 60]
+      card:
+        type: custom:lcards-button
+        entity: light.port
+        preset: lozenge
+        text:
+          label:
+            content: PORT
+            show: true
+    - id: card_b
+      type: control
+      position: [470, 80]
+      size: [180, 60]
+      card:
+        type: custom:lcards-button
+        entity: light.starboard
+        preset: lozenge
+        text:
+          label:
+            content: STARBOARD
+            show: true
+    - id: gap_line
+      type: line
+      anchor: card_a
+      anchor_side: right
+      # 20 out from card_a's right edge
+      anchor_gap: 20
+      attach_to: card_b
+      attach_side: left
+      # 20 out from card_b's left edge
+      attach_gap: 20
+      style:
+        color: var(--lcars-orange)
+        width: 4
 ```
 
-For independent axis control use `anchor_gap_x` / `anchor_gap_y` (overrides `anchor_gap` on that axis).
-
----
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `anchor_gap` | number | `0` | Space between the start overlay's side and the line, viewBox units |
+| `attach_gap` | number | `0` | Space between the end overlay's side and the line, viewBox units |
+| `attach_gap_x` | number | `attach_gap` | The end's gap across, for a corner or `left`/`right` side |
+| `attach_gap_y` | number | `attach_gap` | The end's gap up or down, for a corner or `top`/`bottom` side |
 
 ## Routing Modes
 
-| Mode | Description |
-|------|-------------|
-| `auto` | Default: always full pathfinding (obstacle avoidance, trace bundling, crossing avoidance); the same as `smart` |
-| `direct` | Straight line between endpoints: never pathfinds |
-| `manhattan` | L-shaped single bend |
-| `smart` | A* pathfinding + refinement: obstacle avoidance, trace bundling, crossing avoidance |
-| `grid` | A* pathfinding without the refinement pass |
-| `manual` | Explicit `waypoints` list |
+**`route` picks how the path is drawn: found round obstacles and other lines (`auto`), straight, one bend, or through your own points.** Leave it out for `auto`, which suits almost every line.
 
-Routed lines automatically **bundle** with nearby parallel lines and **avoid crossing** other lines; see [Line Routing & Channels](./routing.md) for how that works, how to tune it, and how to guide lines with channels. Note that only `smart`/`grid` (or upgraded `auto`) lines participate: plain `manhattan` lines never bundle or avoid crossings.
+- `auto`, `smart` and `grid` lines bundle with nearby lines and avoid crossing them; see [Line Routing](./routing). `direct`, `manhattan` and `manual` lines keep their shape, though other lines still bundle beside them and avoid crossing them.
+- `route_hint` and `route_hint_last` set which way the first and last stretch run, for every mode except `direct` and `manual`. A side (`anchor_side`, `attach_side`) sets them for you when you leave them out.
 
-`route_hint`/`route_hint_last` steer the first/last segment direction for every pathfinding mode (`manhattan`, `smart`, `grid`, and `auto` once it upgrades to one of those), not just `manhattan`. If you don't set them explicitly, `anchor_side`/`attach_side` set to `left`/`right`/`top`/`bottom` auto-derive the equivalent hint (`left`/`right` → horizontal, `top`/`bottom` → vertical), even when `anchor`/`attach_to` is a plain coordinate or named point anchor with no attachment-point geometry of its own; the side still expresses "leave/arrive from this direction." Corner sides (`top-left`, etc.) and `center` are ambiguous for a single axis and fall back to an automatic direction based on which axis has the larger distance between the two endpoints.
-
-```yaml
-# Straight line
-- id: direct_line
-  type: line
-  anchor: card_a
-  attach_to: card_b
-  route: direct
-  style:
-    color: var(--lcars-blue)
-    width: 2
-
-# L-shaped (good for flowchart-style diagrams)
-- id: manhattan_line
-  type: line
-  anchor: card_a
-  anchor_side: bottom
-  attach_to: card_b
-  attach_side: top
-  route: manhattan
-  style:
-    color: var(--lcars-orange)
-    width: 2
-
-# Manual with waypoints
-- id: manual_line
-  type: line
-  anchor: card_a
-  attach_to: card_b
-  route: manual
-  waypoints:
-    - [200, 100]
-    - [200, 300]
-  style:
-    color: var(--lcars-green)
-    width: 2
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 300]
+  anchors:
+    a1: [40, 40]
+    b1: [560, 120]
+    a2: [40, 160]
+    b2: [560, 280]
+  overlays:
+    # straight
+    - id: direct_line
+      type: line
+      anchor: a1
+      attach_to: b1
+      route: direct
+      style:
+        color: var(--lcars-blue)
+        width: 3
+    # one bend, vertical first
+    - id: manhattan_line
+      type: line
+      anchor: a1
+      attach_to: b1
+      route: manhattan
+      route_hint: yx
+      style:
+        color: var(--lcars-orange)
+        width: 3
+    # through two points of your own
+    - id: manual_line
+      type: line
+      anchor: a2
+      attach_to: b2
+      route: manual
+      waypoints:
+        - [300, 160]
+        - [300, 280]
+      style:
+        color: var(--lcars-green)
+        width: 3
 ```
 
-See [Manual Routing](./manual-routing.md) for the full waypoints syntax.
+| Mode | What it draws |
+|---|---|
+| `auto` | The default: full pathfinding with obstacle avoidance, bundling and crossing avoidance. The same as `smart` |
+| `direct` | A straight line between the ends. Never pathfinds |
+| `manhattan` | One bend (or a few, to leave and arrive on the sides you set). No pathfinding, bundling or crossing avoidance |
+| `smart` | Pathfinding plus a refinement pass that nudges bends for room and clearance |
+| `grid` | Pathfinding, bundling and crossing avoidance, without the refinement pass |
+| `manual` | Straight runs through your `waypoints`; see [Manual Routing](./manual-routing) |
 
----
+::: details More about route hints
+- **Values:** `xy` and `yx` name the order of the two directions. On `route_hint`, `xy` starts horizontal and `yx` starts vertical. On `route_hint_last`, `xy` ends vertical and `yx` ends horizontal.
+- **From sides:** with no hint set, `anchor_side: left` or `right` starts the line horizontal and `top` or `bottom` vertical; `attach_side` does the same for the end. A corner or `center` side doesn't set a direction.
+- **Neither:** the line starts along whichever axis is longer between the two ends, and ends the same way it started.
+- **Order:** a hint you set wins over a side, and a side wins over the distance rule.
+:::
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `route` | string | `auto` | `auto`, `direct`, `manhattan`, `smart`, `grid` or `manual` |
+| `route_hint` | string | from `anchor_side` | First stretch: `xy` horizontal, `yx` vertical |
+| `route_hint_last` | string | from `attach_side` | Last stretch: `xy` vertical, `yx` horizontal |
+| `waypoints` | list | - | `manual` only: the points to pass through, in order: `[x, y]`, `[x, y, radius]` or an anchor name. See [Manual Routing](./manual-routing#per-waypoint-corner-radius) |
+| `route_channels` | list | - | Channel ids this line routes through; see [channels](./routing#channels) |
+| `clearance` | number | `routing.clearance` | Space kept round obstacles for this line, viewBox units |
+
+## Corners
+
+**`corner_style` and `corner_radius` shape every bend: rounded (the default), square, or cut off diagonally.** The radius is a target; a bend between two short runs gets a smaller one so it fits.
+
+- `bevel` cuts the corner off; `corner_angle` tilts the cut toward the run going in (`0`) or coming out (`90`).
+- `corner_radius_mode: forced` keeps room for the full radius at every bend, at the cost of more detours and crossings; [Corner Size](./routing#corner-size-target-vs-forced) explains when that helps.
+- `smoothing_mode: chaikin` softens the whole path into curves. Set `smoothing_iterations` too: with `0` nothing changes.
+
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 240]
+  anchors:
+    s1: [40, 40]
+    end_1: [200, 200]
+    s2: [220, 40]
+    end_2: [380, 200]
+    s3: [400, 40]
+    end_3: [560, 200]
+  overlays:
+    # rounded, radius 34 (the default)
+    - id: round_line
+      type: line
+      anchor: s1
+      attach_to: end_1
+      route: manhattan
+      style:
+        color: var(--lcars-orange)
+        width: 6
+    # square
+    - id: miter_line
+      type: line
+      anchor: s2
+      attach_to: end_2
+      route: manhattan
+      corner_style: miter
+      style:
+        color: var(--lcars-blue)
+        width: 6
+    # cut diagonally
+    - id: bevel_line
+      type: line
+      anchor: s3
+      attach_to: end_3
+      route: manhattan
+      corner_style: bevel
+      corner_radius: 40
+      style:
+        color: var(--lcars-green)
+        width: 6
+```
+
+::: details More about corners
+- **Fitting:** a bend's radius is at most half the shorter run either side of it, and shrinks near another line so the two strokes don't touch. A wider stroke gets a slightly smaller radius for the same reason.
+- **The first run:** routed lines keep a short straight run at each end before turning. `stub_length` sets it for one line; leave it unset unless a line turns later than it should, and check what the router chose first in the [debugger](./routing#debugging).
+- **Corner room:** `corner_room_weight` (on `smart` and `auto` lines) lets the router move a bend a little to give a squeezed corner its full radius. `0` turns it off for this line.
+:::
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `corner_style` | string | `round` | `round`, `miter` (square) or `bevel` (cut off) |
+| `corner_radius` | number | `34` | Arc radius (`round`) or size of the cut (`bevel`), viewBox units. On a `manual` line one corner can differ: `[x, y, radius]` |
+| `corner_radius_mode` | string | `auto` | `auto`: the radius shrinks where room is short. `forced`: room for the full radius is kept at every bend |
+| `corner_angle` | number | `45` | `bevel` only: angle of the cut, `0` to `90` degrees |
+| `stub_length` | number | the router's | Straight run at each end before the first turn, viewBox units |
+| `corner_room_weight` | number | `routing.corner_room_weight` (`4`) | How hard the router works to give a squeezed corner its full radius. `0` turns it off |
+| `smoothing_mode` | string | `none` | `none` or `chaikin` |
+| `smoothing_iterations` | number | `0` | Smoothing passes, `0` to `5` |
 
 ## Styling
 
-### Stroke
+**`style` sets how the line is drawn: colour, width, opacity and the shape of its ends.** The same `style` works on [shapes](./shape-overlay#styling).
 
-```yaml
-style:
-  color: var(--lcars-orange)    # Color - CSS variable, hex, rgb/rgba, theme: token, or a state-color object (see Dynamic Styling)
-  width: 2                      # Thickness in viewBox units
-  opacity: 0.8                  # 0–1
+- `width` is in viewBox units, so a line gets thicker as the card is drawn bigger, like everything else on the canvas.
+- `color` takes a colour or a map of states; see [Dynamic Styling](#dynamic-styling).
+
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 160]
+  anchors:
+    a: [40, 50]
+    b: [560, 50]
+    c: [40, 110]
+    d: [560, 110]
+  overlays:
+    - id: thick_line
+      type: line
+      anchor: a
+      attach_to: b
+      style:
+        color: var(--lcars-orange)
+        width: 10
+        line_cap: round
+    - id: faint_line
+      type: line
+      anchor: c
+      attach_to: d
+      style:
+        color: var(--lcars-blue)
+        width: 4
+        opacity: 0.5
 ```
 
-`stroke` / `stroke_width` (underscore) are accepted as legacy aliases for `color` / `width`; new configs should use `color`/`width`.
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `style.color` | colour / state map | `theme:colors.ui.tertiary` | Line colour. `style.stroke` is an older name |
+| `style.width` | number | `2` | Width, viewBox units. `style.stroke_width` is an older name |
+| `style.opacity` | number | `1` | `0` to `1`. Markers fade with the line |
+| `style.line_cap` | string | `butt` | `butt`, `round` or `square`: the ends of the line and of every dash |
+| `style.line_join` | string | the line's `corner_style`, else `miter` | `miter`, `round` or `bevel`: how the stroke turns at a sharp corner |
+| `style.miter_limit` | number | `4` | With `line_join: miter`: how far a sharp join may stick out |
+| `style.animatable` | boolean | `true` | `false`: animations skip this line |
+| [Dashes](#dash-patterns), [fill](#fill), [gradients and patterns](#gradients-and-patterns), [markers](#markers) | | | The other `style` keys |
 
-### Dash patterns
+### Dash Patterns
 
-```yaml
-style:
-  dash_array: "5,5"       # 5px dash, 5px gap - string "5,5" or array [5, 5]
-  dash_offset: 0           # Starting offset
-  line_cap: round           # round | square | butt - shapes the ends of every dash segment
-  line_join: miter          # miter | round | bevel - at path corners
-  miter_limit: 4             # Used when line_join: miter
+**`style.dash_array` breaks the line into dashes or dots.** Give dash and gap lengths, as `"5,5"` or `[5, 5]`.
+
+- `line_cap: round` rounds every dash. For round dots use a dash of length `0`: `dash_array: "0,8"` with `line_cap: round` draws circles as wide as the line.
+- A short dash with round caps (`"2,2"`) draws pills, not dots. MSD Studio's Dotted and Dash-Dot patterns use zero-length dashes for you; for other spacing pick Custom with a dash length of `0`.
+
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 160]
+  anchors:
+    a: [40, 50]
+    b: [560, 50]
+    c: [40, 110]
+    d: [560, 110]
+  overlays:
+    # dashes
+    - id: dashed_line
+      type: line
+      anchor: a
+      attach_to: b
+      style:
+        color: var(--lcars-orange)
+        width: 4
+        dash_array: "20,10"
+    # round dots
+    - id: dotted_line
+      type: line
+      anchor: c
+      attach_to: d
+      style:
+        color: var(--lcars-blue)
+        width: 8
+        dash_array: "0,16"
+        line_cap: round
 ```
 
-`line_cap` has no visible effect on a *solid* stroke's closed shapes (a filled rect/circle border with no `dash_array` has no open dash ends to cap). But once a `dash_array` is set, `line_cap` shapes every individual dash segment, including on closed or curved paths, like a circle's border.
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `style.dash_array` | string / list | solid | Dash and gap lengths, `"5,5"` or `[5, 5]` |
+| `style.dash_offset` | number | `0` | Where along the pattern the line starts |
 
-**Round dots, not squares:** a "dot" made from a non-zero-length dash (e.g. `"2,2"`) with `line_cap: round` renders as an elongated pill/stadium shape, not a circle; rounding just softens the ends of an already-sized rectangle. For a true circle, use a **zero-length dash**: `dash_array: "0,4"` with `line_cap: round`. A zero-length dash's two round end-caps coincide into a perfect circle whose diameter equals `width`, so it scales correctly with stroke width, and you get true dots. The Studio dialog's "Dotted" and "Dash-Dot" presets already do this automatically. For widely-spaced circles, use the "Custom" pattern option: set Dash Length to `0`, Gap Length to whatever spacing you want, and Line Cap to `round`.
+### Fill
 
-### Fill (self-intersecting/closed paths)
+**`style.fill` fills the area a path encloses.** It matters most on [shapes](./shape-overlay) (rooms, zones); a line only encloses an area where its path crosses itself.
 
-```yaml
-style:
-  fill: var(--lcars-blue)     # literal/token/CSS value, or a state-color object (see Dynamic Styling)
-  fill_opacity: 0.3           # 0–1
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 220]
+  anchors:
+    a: [100, 40]
+    b: [500, 40]
+  overlays:
+    # an open U: the fill closes it from end to start
+    - id: loop_line
+      type: line
+      anchor: a
+      attach_to: b
+      route: manual
+      corner_style: miter
+      waypoints:
+        - [100, 180]
+        - [500, 180]
+      style:
+        color: var(--lcars-blue)
+        width: 3
+        fill: var(--lcars-blue)
+        fill_opacity: 0.3
 ```
 
-`fill` defaults to `none`. It matters most on [shape overlays](./shape-overlay.md) (`rect`/`circle`/closed `polyline`), where it's the primary way to shade a room/zone, but it applies to any line style resolution the same way.
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `style.fill` | colour / state map | `none` | Fill colour |
+| `style.fill_opacity` | number | `1` | `0` to `1` |
 
-### Gradients
+### Gradients and Patterns
 
-```yaml
-style:
-  gradient:
-    stops:
-      - { offset: '0%', color: var(--lcars-blue) }
-      - { offset: '100%', color: var(--lcars-orange) }
+**`style.gradient` fades the line from one colour to another; `style.pattern` draws it in dots.** Either one replaces `color`.
+
+- A gradient always runs left to right. `type` and `direction` are accepted but not used yet.
+- A pattern is always dots: small circles `size` apart. Other pattern types are accepted but drawn as dots.
+- The short form `gradient: "var(--lcars-blue)-to-var(--lcars-orange)"` is two stops.
+
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 160]
+  anchors:
+    a: [40, 50]
+    b: [560, 50]
+    c: [40, 110]
+    d: [560, 110]
+  overlays:
+    - id: gradient_line
+      type: line
+      anchor: a
+      attach_to: b
+      style:
+        width: 10
+        gradient:
+          stops:
+            - offset: 0%
+              color: var(--lcars-blue)
+            - offset: 100%
+              color: var(--lcars-orange)
+    - id: pattern_line
+      type: line
+      anchor: c
+      attach_to: d
+      style:
+        width: 10
+        pattern:
+          color: var(--lcars-orange)
+          size: 8
+          opacity: 0.8
 ```
 
-Renders as a standard left-to-right SVG `linearGradient` built from `stops`. A shorthand string form is also accepted: `gradient: "var(--lcars-blue)-to-var(--lcars-orange)"`. `type`/`direction` fields are accepted in config but not yet applied to the render (always a horizontal linear gradient regardless of value); don't rely on `type: radial` or a non-horizontal `direction` doing anything yet.
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `style.gradient` | object / string | - | A left-to-right gradient |
+| `style.gradient.stops` | list | - | Each stop has `offset` (`0%` to `100%`) and `color` |
+| `style.pattern` | object | - | A dot pattern along the line |
+| `style.pattern.color` | colour | the text colour | Dot colour |
+| `style.pattern.size` | number | `8` | Spacing of the dots, viewBox units |
+| `style.pattern.opacity` | number | `0.5` | Dot opacity |
 
-### Patterns
+### Markers
 
-```yaml
-style:
-  pattern:
-    color: var(--lcars-orange)
-    size: 8
-    opacity: 0.5
+**Markers put a shape on the ends of a line or on each bend: arrows, dots, diamonds, ticks.** `marker_end` is the end at `attach_to`, `marker_start` the end at `anchor`, `marker_mid` every bend.
+
+- A start marker points away from the line, so `arrow` at both ends gives a two-headed arrow.
+- `align: edge` puts the back of an arrow or diamond on the end instead of its middle, so the tip is the outermost point and a thick line can't poke past it.
+- `fill: match_line` (or `stroke: match_line`) keeps the marker the line's colour as it changes with an entity. Without a `fill` the marker takes the line's colour when drawn.
+
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 200]
+  anchors:
+    a: [60, 50]
+    b: [540, 50]
+    c: [60, 150]
+    d: [540, 150]
+  overlays:
+    - id: arrow_line
+      type: line
+      anchor: a
+      attach_to: b
+      style:
+        color: var(--lcars-orange)
+        width: 4
+        marker_start:
+          type: dot
+          size: 16
+        marker_end:
+          type: arrow
+          size: 20
+          align: edge
+    - id: diamond_line
+      type: line
+      anchor: c
+      attach_to: d
+      style:
+        color: var(--lcars-blue)
+        width: 4
+        marker_end:
+          type: diamond
+          size: 24
+          fill: var(--lcars-yellow)
 ```
 
-Currently always renders as a repeating dot pattern (a 1-viewBox-unit-radius circle tiled at `size` spacing) regardless of `pattern.type`; `type: lines`/`diagonal`/`grid`/custom SVG are accepted in config but not yet implemented differently from `dots`.
-
-### Markers (arrows)
-
-```yaml
-style:
-  marker_end:
-    type: arrow            # arrow (alias: triangle) | dot | diamond | line | rect (alias: square)
-    size: 10                # viewBox units - a plain numeric size, default 10 (not a small/medium/large preset)
-    fill: var(--lcars-orange)   # defaults to line color
-    stroke: none                # optional outline
-    stroke_width: 0
-    align: center                # center (default) | edge - 'edge' pins the shape's back edge (not tip) to the endpoint, so a thick line's cap never pokes past a pointed marker
-
-  marker_start:
-    type: dot
-    size: 6
-```
-
-Both `fill` and `stroke` accept the literal string `"match_line"` to inherit the line's own resolved color, staying in sync as it changes live (entity-bound or templated). Markers always inherit the line's opacity (not opt-in). `marker_mid` places the same shape at every interior waypoint/corner.
-
----
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `style.marker_start` | object | - | Marker at the `anchor` end; the same keys as `marker_end` |
+| `style.marker_mid` | object | - | Marker on every bend; the same keys as `marker_end` |
+| `style.marker_end` | object | - | Marker at the `attach_to` end; keys below |
+| `style.marker_end.type` | string | required | `arrow`, `dot`, `diamond`, `line` (a tick across the line) or `rect`. `triangle` and `square` are older names; an unknown type draws a dot |
+| `style.marker_end.size` | number | `10` | Size in viewBox units; it doesn't change with the line's width |
+| `style.marker_end.fill` | colour | the line's colour | Fill, or `match_line` |
+| `style.marker_end.stroke` | colour | `none` | Outline, or `match_line` |
+| `style.marker_end.stroke_width` | number | `0` | Outline width |
+| `style.marker_end.align` | string | `center` | `center` or `edge` (see above) |
+| `style.marker_end.width` | number | `size` | `rect` only: its width |
+| `style.marker_end.height` | number | `size` | `rect` only: its height |
+| `style.marker_end.filled` | boolean | `false` (`true` for `square`) | `rect` only: filled, or drawn as an outline |
 
 ## Dynamic Styling
 
-### State-based color and fill
+**A line can take its colour from an entity: green while a link is up, red when it drops.** Give the line its own `entity` and make `style.color` (or `style.fill`) a map of states.
 
-`style.color` and `style.fill` accept a state-color object, resolved against the line's own `entity`, the same pipeline used by buttons and sliders:
+- The keys are the same as on a button: `active`, `inactive`, `unavailable`, `default`, a state name, or a range such as `above:90`. `state_attribute` matches an attribute instead of the state, and `ranges_attribute` compares an attribute against the range keys.
+- `style.color` also takes a Jinja2 (`{{ }}`) or JavaScript (`[[[ ]]]`) template, which can read any entity.
+- Change the toggles under the card to see both lines follow.
 
-```yaml
-overlays:
-  - id: status_line
-    type: line
-    anchor: card_a
-    attach_to: card_b
-    entity: binary_sensor.link_active
-    style:
-      color:
-        active: var(--lcars-green)
-        inactive: var(--lcars-red)
-      width: 2
-      marker_end:
-        type: arrow
-        size: 10
+```yaml live controls
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 160]
+  anchors:
+    a: [40, 50]
+    b: [560, 50]
+    c: [40, 110]
+    d: [560, 110]
+  overlays:
+    # a map of states, on the line's own entity
+    - id: status_line
+      type: line
+      anchor: a
+      attach_to: b
+      entity: input_boolean.lcards_test_toggle
+      style:
+        width: 6
+        color:
+          active: var(--lcars-green)
+          inactive: var(--lcars-red)
+        marker_end:
+          type: arrow
+          size: 20
+          fill: match_line
+    # a template
+    - id: template_line
+      type: line
+      anchor: c
+      attach_to: d
+      style:
+        width: 6
+        color: "{{ 'var(--lcars-blue)' if is_state('input_boolean.lcards_test_doors', 'on') else 'var(--lcars-orange)' }}"
 ```
 
-`state_attribute` matches an attribute's value against the state-color keys instead of the raw entity state; `ranges_attribute` compares an attribute against `above:`/`below:`/`between:` keys, both scoped per-line, independent of any control's own entity.
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `entity` | string | - | The entity a state map in `style.color` or `style.fill` follows |
+| `state_attribute` | string | - | Match this attribute's value against the state keys instead of the state |
+| `ranges_attribute` | string | - | Compare this attribute against `above:`, `below:` and `between:` keys |
 
-### Templated values
+## Rules Engine Integration
 
-Style fields also accept Jinja2/JS template expressions, evaluated against data sources:
+**Rules restyle lines while a condition holds, across many lines at once.** Name a line by `id`, or every line with a tag (`tag:<name>`), under a rule's `apply.overlays`.
 
-```yaml
-data_sources:
-  link_status:
-    type: entity
-    entity: binary_sensor.link_active
+- A rule's `style` changes the line in place, without redrawing the card, so running animations carry on. The keys it can change this way are `color`, `width`, `opacity`, `dash_array`, `line_cap` and `fill`.
+- Change the toggle under the card to see the rule apply. [Animations and Rules](./animations#rules) has the full story.
 
-overlays:
-  - id: status_line
-    type: line
-    anchor: card_a
-    attach_to: card_b
-    style:
-      color: >
-        {link_status == 'on' ? 'var(--lcars-green)' : 'var(--lcars-red)'}
-      dash_array: >
-        {link_status == 'on' ? 'none' : '5,5'}
-      width: 2
+```yaml live controls
+type: custom:lcards-msd-card
+msd:
+  view_box: [0, 0, 600, 160]
+  anchors:
+    a: [40, 50]
+    b: [560, 50]
+    c: [40, 110]
+    d: [560, 110]
+  overlays:
+    - id: power_a
+      type: line
+      anchor: a
+      attach_to: b
+      tags: [power]
+      style:
+        color: var(--lcars-blue)
+        width: 6
+    - id: power_b
+      type: line
+      anchor: c
+      attach_to: d
+      tags: [power]
+      style:
+        color: var(--lcars-blue)
+        width: 6
+rules:
+  - id: power-alert
+    when:
+      entity: input_boolean.lcards_test_toggle
+      state: "on"
+    apply:
+      overlays:
+        tag:power:
+          style:
+            color: var(--lcars-alert-red)
+            dash_array: "12,6"
 ```
 
----
-
-## Animations
-
-Lines accept an `animations:` array: anime.js triggers/presets, same syntax as control overlays and `base_svg.animations`:
-
-```yaml
-- id: power_line
-  type: line
-  anchor: reactor
-  attach_to: bridge
-  style:
-    color: var(--lcars-blue)
-  animations:
-    - trigger: on_load
-      preset: march
-      duration: 1500
-      loop: true
-```
-
-See the Animation Preset Reference (docs site → Core → Animations) for the full list of presets and parameters.
-
----
-
-## Complete Property Reference
-
-```yaml
-overlays:
-  - id: string                    # Required: Unique identifier
-    type: line                    # Required: Must be "line"
-    anchor: string                # Required: Source overlay ID, anchor name, or [x, y]
-    attach_to: string             # Required: Destination overlay ID, anchor name, or [x, y]
-
-    # Attachment Configuration
-    anchor_side: string           # Optional: Source side (default: auto)
-    attach_side: string           # Optional: Destination side (default: auto)
-
-    # Gap System
-    anchor_gap: number            # Optional: Source offset in viewBox units (default: 0)
-    attach_gap: number            # Optional: Destination offset in viewBox units (default: 0)
-    anchor_gap_x: number          # Optional: Source horizontal offset
-    anchor_gap_y: number          # Optional: Source vertical offset
-    attach_gap_x: number          # Optional: Destination horizontal offset
-    attach_gap_y: number          # Optional: Destination vertical offset
-
-    # Routing
-    route: string                 # Optional: Routing mode (default: "auto")
-                                  # Options: auto, direct, manhattan, smart, grid, manual
-    waypoints:                    # For route: manual
-      - [120, 80]                 # [x, y], or [x, y, radius] to override this corner's corner_radius
-    route_hint: string            # Optional: xy | yx (default: auto)
-    route_hint_last: string       # Optional: xy | yx (default: auto)
-    route_channels: [string]      # Optional: channel IDs to route through
-    clearance: number             # Optional: obstacle clearance in viewBox units
-
-    # Corner rendering / smoothing (routed corners, and manual waypoint paths)
-    corner_style: string          # miter | round | bevel (default: round)
-    corner_radius: number         # viewBox units (default: 34)
-    corner_radius_mode: string    # auto | forced (default: auto) - round/bevel only
-    corner_angle: number          # bevel only, 0-90 (default: 45)
-    stub_length: number           # Optional: overrides mandatory cardinal stub length (viewBox units)
-    smoothing_mode: string        # none | chaikin (default: none)
-    smoothing_iterations: number  # 0-5 (default: 0)
-
-    # State-color binding
-    entity: string                 # entity for style.color / style.fill state keys
-    state_attribute: string        # match an attribute instead of raw state
-    ranges_attribute: string       # attribute for above:/below:/between: keys
-
-    # Visibility & targeting
-    z_index: number               # Optional: Stacking order (default: 100)
-    tags: [string]                # Optional: Rule targeting tags
-
-    # Styling
-    style:                        # Optional styling
-      color: string | object      # Line color - literal/token, or state-color object (default: var(--lcars-white))
-      width: number                # Line thickness (default: 2)
-      opacity: number               # Transparency 0-1 (default: 1.0)
-      line_cap: string               # round | square | butt (default: butt)
-      line_join: string              # round | miter | bevel (default: miter)
-      miter_limit: number            # Miter limit (default: 4)
-      dash_array: string | array     # Dash pattern (e.g. "5,5" or [5, 5])
-      dash_offset: number            # Dash offset (default: 0)
-      fill: string | object          # Fill color - literal/token, or state-color object (default: none)
-      fill_opacity: number           # Fill opacity 0-1 (default: 1)
-      gradient: object                # { stops: [{offset, color}, ...] } - always linear
-      pattern: object                 # { color, size, opacity } - always dots
-      animatable: boolean             # Eligible as an animation target (default: true)
-
-      # Markers
-      marker_start:               # Start marker
-        type: string              # arrow | dot | diamond | line | rect (aliases: triangle, square)
-        size: number               # viewBox units (default: 10)
-        fill: string               # Marker fill color, or "match_line"
-        stroke: string              # Marker outline color, or "match_line"
-        stroke_width: number         # Outline thickness
-        align: string                 # center (default) | edge
-      marker_mid:                 # Mid-point markers (same shape/fields)
-      marker_end:                 # End marker (same shape/fields)
-
-    # Animations
-    animations:
-      - trigger: string             # on_load | on_show | on_tap | on_double_tap | on_hold | on_hover | on_leave | on_entity_change | on_datasource_change
-        preset: string
-```
-
----
-
-## See Also
-
-- [Line Routing & Channels](./routing.md): bundling, crossing avoidance, channels, global routing config
-- [Shape Overlay](./shape-overlay.md): polylines/rects/circles sharing this exact style system
-- [Control Overlay](./control-overlay.md)
-- [Manual Routing](./manual-routing.md)
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `rules` | list | - | Card-level rules; each `apply.overlays` entry names a line by `id` or `tag:<name>`. See [Rules Engine](../../core/rules/) |
+| [`id` and `tags`](#anchor-and-attach-to) | | | How a rule finds the line |
