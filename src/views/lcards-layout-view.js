@@ -56,6 +56,7 @@ import {
     pruneAreaSettings,
     resolveVisibilityRowTracks,
     EDIT_BAR_HEIGHT,
+    cellHeightDefinite, gridHeightIsDefinite,
 } from './layout-grid-utils.js';
 import {
     buildGridStyle,
@@ -736,6 +737,9 @@ export class LCARdSLayoutView extends LitElement {
             // native Visibility conditions), so we always place the element.
 
             const areaSettings = layout.areas?.[viewLayout['grid-area']] ?? {};
+            // The view's own height (default: the screen below the header) makes fr rows definite
+            const cellFits = cellHeightDefinite(this._rows, this._areas, viewLayout,
+                gridHeightIsDefinite(layout.height ?? 'calc(100dvh - var(--header-height, 56px))'));
 
             // In edit mode the card is inert (HA does the same): a click selects or
             // edits it and never runs its tap action. Restored outside edit mode.
@@ -747,7 +751,7 @@ export class LCARdSLayoutView extends LitElement {
                 // z-index) is applied to the wrapper; overflow stays on the card.
                 const wrap = document.createElement('div');
                 wrap.className = 'card-edit-wrap';
-                applyCardPlacement(wrap, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings);
+                applyCardPlacement(wrap, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings, { cellFits });
                 applyGridItemHeight(wrap, cardEl.config);
                 wrap.appendChild(cardEl);
                 const controls = document.createElement('div');
@@ -769,7 +773,7 @@ export class LCARdSLayoutView extends LitElement {
                 grid.appendChild(wrap);
             } else {
                 // Outside card mode the card element itself is the grid item.
-                applyCardPlacement(cardEl, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings);
+                applyCardPlacement(cardEl, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings, { cellFits });
                 applyGridItemHeight(cardEl, cardEl.config);
                 grid.appendChild(cardEl);
             }

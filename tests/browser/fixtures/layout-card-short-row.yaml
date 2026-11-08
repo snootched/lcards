@@ -1,0 +1,26 @@
+# A button in a 40px row follows the cell; in an auto row it keeps its preset's floor
+type: custom:lcards-layout-card
+layout:
+  height: 200px
+  grid-template-columns: 1fr 1fr
+  grid-template-rows: 40px auto
+  grid-template-areas: |
+    "short short"
+    "auto auto"
+cards:
+  - type: custom:lcards-button
+    preset: lozenge
+    text:
+      name:
+        content: SHORT
+        show: true
+    view_layout:
+      grid-area: short
+  - type: custom:lcards-button
+    preset: lozenge
+    text:
+      name:
+        content: AUTO
+        show: true
+    view_layout:
+      grid-area: auto

@@ -1,49 +1,87 @@
+---
+description: "Options every LCARdS card takes: id and tags for rules, variables for templates, height and width overrides, overflow, z_index and grid_options."
+moved_anchors:
+  common-properties: /cards/common#more-options-on-every-card
+  variables-variables: /cards/common#variables
+  card-identification-id-and-tags: /cards/common#id-and-tags
+  sizing-height-width-min-height-min-width-max-height-max-width: /cards/common#sizing
+  default-behaviour: /cards/common#sizing
+  override-formats: /cards/common#sizing
+  height-and-width: /cards/common#sizing
+  min-height-and-min-width: /cards/common#minimum-and-maximum-size
+  max-height-and-max-width: /cards/common#minimum-and-maximum-size
+  when-to-use-sizing-overrides: /cards/common#sizing
+  overflow-overflow-overflow-x-overflow-y: /cards/common#overflow
+  stacking-z-index: /cards/common#z-index
+  home-assistant-grid-sizing-grid-options: /cards/common#grid-options
+  height-width-min-height-min-width-vs-grid-options: /cards/common#grid-options
+  sizing-inside-custom-layout-card: /cards/common#inside-custom-layout-card
+  card-features: /cards/common#more-options-on-every-card
+---
+
 # Common Card Properties
 
-LCARdS share a set of common top-level configuration properties regardless of card type.  This page documents them alongside how sizing interacts with the Home Assistant grid system.
+**Every LCARdS card takes the same set of card-level options: an `id` and `tags` for the rules engine, `variables` for templates, size overrides and `grid_options`.** They sit at the top level of the card's YAML, next to `type`.
 
-## Common Properties
+- Most cards need none of them: a card fills the cell Home Assistant gives it, and `grid_options` sets how big that cell is.
+- The size overrides (`height`, `width` and their minimum and maximum) change how big the card draws inside its cell, for a card outside a sections grid or one that must keep a fixed size.
+- The alert overlay is the exception: it takes none of these, see its [card options](/cards/alert-overlay/#card-options).
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `id` | string | Custom card ID for [Rules Engine](../core/rules/) targeting (e.g. `my-light-btn`) |
-| `tags` | list | One or more string tags for Rules Engine group targeting (e.g. `[nav, lights]`) |
-| `height` | number / string | CSS height override applied to the card host element (see below) |
-| `width` | number / string | CSS width override applied to the card host element (see below) |
-| `min_height` | number / string | Minimum height floor: card will not shrink below this value (see below) |
-| `min_width` | number / string | Minimum width floor: card will not shrink below this value (see below) |
-| `max_height` | number / string | Maximum height ceiling: card will not grow beyond this value (see below) |
-| `max_width` | number / string | Maximum width ceiling: card will not grow beyond this value (see below) |
-| `overflow` | string | CSS overflow shorthand for both axes: `visible`, `hidden`, `clip`, `scroll`, or `auto` |
-| `overflow_x` | string | Horizontal axis overflow: same values as `overflow`; overrides the shorthand |
-| `overflow_y` | string | Vertical axis overflow: same values as `overflow`; overrides the shorthand |
-| `z_index` | integer | CSS z-index on the card host element (range: -999 to 9999) |
-| `grid_options` | object | Home Assistant grid sizing: `rows` and `columns` for the Lovelace grid (see below) |
-| `data_sources` | object | Named data source definitions: see [Data Sources](../core/datasources/) |
-| `triggers_update` | list | Extra entity IDs that trigger template re-evaluation; see [Templates](../core/templates/#manual-tracking-with-triggers-update) |
-| `preset` | string | Style preset (button, slider, elbow; select menu option buttons): see [Presets](../core/presets.md) |
-| `rules` | list | Rules that restyle this or other cards when conditions match: see [Rules Engine](../core/rules/) |
-| `animations` | list | Trigger-based animations (on load, on tap, on state change, ...): see [Animations](../core/animations.md) |
-| `background_animation` | list | Canvas background effects (button, elbow, slider): see [Background Animations](../core/effects/background-animations.md) |
-| `filters` | list | CSS / SVG filters applied to the card: see [Filters](../core/effects/filters.md) |
-| `sounds` | object | Per-card sound overrides or `enabled: false`: see [Card Sounds](../core/sounds.md) |
-| `variables` | object | Your own named values for templates (see [Variables](#variables-variables) below) |
-| `zones` / `debug_zones` | object / boolean | Extra named text zones, and outlines for every zone: see [Text Fields](../core/text-fields.md) |
-| `state_attribute` / `ranges_attribute` / `state_classification` | string / string / object | Drive state colours from an attribute or custom buckets: see [Colours](../core/colours.md) |
+## id and tags
 
-## Variables (`variables`)
+**`id` names one card and `tags` put it in groups, so [rules](/core/rules/) can restyle that card or every card in a group.** Neither changes how the card looks on its own; they also label the card in debug logs.
 
-`variables` holds your own named values. Reference them in templates so a value used in several places is set once:
+- A rule targets one card by id (`#kitchen-light-btn`) and a group by tag (`.lights`).
+
+```yaml live
+# A rule on this card turns it blue while the kitchen light is on (tap to toggle)
+type: custom:lcards-button
+entity: light.kitchen
+preset: lozenge
+id: kitchen-light-btn
+tags:
+  - kitchen
+  - lights
+text:
+  name:
+    content: KITCHEN
+    show: true
+rules:
+  - id: kitchen-on
+    when:
+      entity: light.kitchen
+      state: "on"
+    apply:
+      overlays:
+        kitchen-light-btn:
+          style:
+            card:
+              color:
+                background: var(--lcards-blue)
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `id` | string | - | This card's name for rules (`#id`) and logs |
+| `tags` | list | - | Group names for rules (`.tag`), such as `[nav, lights]` |
+
+## variables
+
+**`variables` holds your own named values, so a value used in several places on a card is set once.** Templates read them: `{variables.<name>}` in a token template and `variables.<name>` inside a `[[[ JavaScript ]]]` template.
+
+- A variable can hold anything YAML can: text, a number, a colour, a list. See [Templates](/core/templates/) for where templates work.
 
 ```yaml live
 type: custom:lcards-button
 entity: light.kitchen
+preset: lozenge
 variables:
-  accent: "var(--lcars-orange)"
+  accent: var(--lcards-orange)
   room: Kitchen
 text:
   label:
     content: "{variables.room}"
+    show: true
 style:
   card:
     color:
@@ -51,187 +89,166 @@ style:
         active: "[[[ return variables.accent ]]]"
 ```
 
-Use `{variables.<name>}` in token templates and `variables.<name>` inside `[[[ JavaScript ]]]` templates. See [Templates](../core/templates/).
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `variables` | object | - | Your own named values: `variables.<name>` in JavaScript templates, `{variables.<name>}` in token templates |
 
-## Card Identification (`id` and `tags`)
+## Sizing
 
-`id` and `tags` are used by the [Rules Engine](../core/rules/) to target cards for conditional style patches.
+**`height` and `width` set the card's own size, overriding the cell it sits in.** By default a card is as big as its cell and its drawing scales to fit, so you only need these for a fixed size or for a card outside a sections grid.
 
-```yaml live
-type: custom:lcards-button
-id: kitchen-light-btn        # unique identifier - target with rules selector `#kitchen-light-btn`
-tags:
-  - kitchen
-  - lights
-  - nav
-```
-
-- `id` targets a single specific card (`#kitchen-light-btn`)
-- `tags` target groups of cards (`.lights`, `.nav`)
-- Neither field affects visual appearance directly: they exist solely for rules targeting and can be helpful with debug logging.
-
----
-
-## Sizing (`height`, `width`, `min_height`, `min_width`, `max_height`, `max_width`)
-
-### Default behaviour
-
-By default you don't need to set any of these. LCARdS cards are `width: 100%; height: 100%`; they fill whatever grid slot Home Assistant allocates. The card's SVG content automatically scales to fit the available space using a ResizeObserver that measures the rendered container size on every layout change. Use `grid_options` (below) to control how large that slot is.
-
-The four sizing properties are **overrides** for situations where automatic slot-filling isn't sufficient.
-
-### Override formats
-
-All four properties accept the same value formats:
-
-| Value | Result | Example |
-|-------|--------|---------|
-| Bare integer | Treated as pixels | `200` → `200px` |
-| `px` value | Exact pixels | `200px` |
-| `vh` / `vw` | Viewport-relative | `50vh` |
-| `%` | Percentage of container | `100%` |
-| `em` / `rem` | Font-relative | `10em` |
-
-### `height` and `width`
-
-Set an explicit CSS size on the card's host element, overriding whatever the container would normally assign.
+- A number is pixels (`200` is `200px`); a string takes any CSS length: `px`, `%`, `vh` and `vw`, `em` and `rem`, or `calc()`.
+- In a sections view Home Assistant still sizes the cell from `grid_options` (or the card's own row count), so a card taller than its cell overlaps the cards below it. Set `grid_options.rows` to match.
+- A pixel `height` also sets the rows the card reports in a masonry view: the height divided by 50, rounded up.
 
 ```yaml live
+# A fixed 120 px tall button, half the width of its cell (two rows, so it fits)
 type: custom:lcards-button
-height: 200          # 200px
-width: 500px
-```
-
-```yaml live
-type: custom:lcards-button
-height: 50vh         # half viewport height
-width: 100%          # fill container
-```
-
-### `min_height` and `min_width`
-
-Set a minimum size floor. The card can grow beyond this value but will not shrink below it. Useful when content length is dynamic and you want to prevent the card from collapsing while still allowing it to expand naturally.
-
-```yaml live
-type: custom:lcards-button
-min_height: 40       # never shorter than 40px
-min_width: 80        # never narrower than 80px
-```
-
-These override the CSS token defaults (`--lcars-button-min-height` and `--lcars-button-min-width`). When `height` is also set, it takes precedence and the `min-height` floor is cleared (`min-height: 0`) so the fixed height is respected exactly. `min_height` and `min_width` do not affect `getCardSize()`.
-
-### `max_height` and `max_width`
-
-Set a maximum size ceiling. The card can shrink below this value but will not grow beyond it. Useful for preventing a card from expanding too far in a flexible or dynamic layout.
-
-```yaml live
-type: custom:lcards-button
-max_height: 200      # never taller than 200px
-max_width: 400px     # never wider than 400px
-```
-
-Accepts the same formats as `height` and `width` (bare integer = px, or any CSS unit). `max_height` and `max_width` do not affect `getCardSize()`.
-
-### When to use sizing overrides
-
-- **Alert overlays**: explicit size because the overlay container uses `height: auto`
-- **Horizontal stacks**: fill remaining space with `width: 100%`
-- **Fixed-size panels**: embed a chart or MSD at an exact pixel height
-- **Aspect-ratio layouts**: pair `height` with `width` to keep proportions consistent
-- **Dynamic content**: use `min_height`/`min_width` to prevent collapse when content length varies
-
-> **Note on `getCardSize()`**: Home Assistant uses `getCardSize()` to pre-allocate grid space before the card renders. When `height` is set in pixels, LCARdS uses that value to report grid rows (`px ÷ 56`, rounded up). For non-px units (`vh`, `%`, etc.) the card falls back to its default row count since the pixel value cannot be determined at configuration time.
-
----
-
-## Overflow (`overflow`, `overflow_x`, `overflow_y`)
-
-Controls what happens when a card's content exceeds its rendered size. Accepts the standard CSS overflow values.
-
-| Value | Behaviour |
-|-------|-----------|
-| `visible` | Content is not clipped: overflows the card box |
-| `hidden` | Content is clipped without a scrollbar |
-| `clip` | Like `hidden` but also disallows programmatic scrolling |
-| `scroll` | Always shows a scrollbar |
-| `auto` | Adds a scrollbar only when content overflows |
-
-```yaml live
-type: custom:lcards-button
-overflow: hidden        # clip any content that exceeds the card bounds
-```
-
-`overflow_x` and `overflow_y` set the horizontal and vertical axes independently and override `overflow` when both are present.
-
-```yaml live
-type: custom:lcards-button
-overflow_x: hidden
-overflow_y: auto        # vertical scrollbar only when needed
-```
-
----
-
-## Stacking (`z_index`)
-
-Sets the CSS `z-index` on the card's host element, controlling its stacking order relative to adjacent cards in the same grid container. Useful when cards overlap: for example, an alert overlay, a floating panel, or an MSD embed.
-
-```yaml live
-type: custom:lcards-button
-z_index: 10     # render above neighbouring cards (range: -999 to 9999)
-```
-
----
-
-## Home Assistant Grid Sizing (`grid_options`)
-
-`grid_options` controls how the card occupies the Lovelace grid. This is the standard Home Assistant mechanism and is independent of `height`/`width`.
-
-```yaml live
-type: custom:lcards-button
+entity: light.kitchen
+preset: lozenge
+height: 120
+width: 50%
 grid_options:
-  columns: 6    # span 6 grid columns (out of 12)
-  rows: 2       # request 2 grid rows of height
+  rows: 2
+text:
+  name:
+    content: FIXED SIZE
+    show: true
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `columns` | number | Grid columns to span (Home Assistant grid is 12 columns wide) |
-| `rows` | number | Grid rows to request |
+::: details More about sizing
+- **Where it helps:** a card in a horizontal stack or another container that doesn't use the sections grid, a chart or MSD at an exact pixel height, or a pair of `height` and `width` that keeps proportions.
+- **Relative units:** `vh`, `%` and other relative heights can't be turned into rows before the card draws, so the card reports its usual row count for them.
+:::
 
-### `height`/`width`/`min_height`/`min_width` vs `grid_options`
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `height` | number / string | the cell's height | Card height: a number is px, or any CSS length (`200px`, `50vh`, `calc(100% - 8px)`) |
+| `width` | number / string | the cell's width | Card width: a number is px, or any CSS length (`300px`, `100%`) |
 
-These two systems operate independently and serve different purposes:
+### Minimum and maximum size
 
-| | `height` / `width` / `min_height` / `min_width` | `grid_options` |
-|---|---|---|
-| **What it sets** | CSS size of the card host element | Home Assistant grid slot allocation |
-| **Effect on layout** | How large the card *renders* inside its slot | How large a *slot* Home Assistant reserves in the grid |
-| **Typical use** | Overlays, stacks, fixed-px sizing, dynamic-content floors | Standard dashboard grid layout |
-| **Units** | Any CSS unit or bare integer (= px) | Whole numbers only |
+**`min_height`, `min_width`, `max_height` and `max_width` keep a card that sizes itself between a floor and a ceiling.** The card still fills its cell, but never shrinks below the minimum or grows past the maximum.
 
-In most dashboard layouts you only need `grid_options`. Use the sizing properties when you need to override the rendered size independently of the grid slot, for example when a card is inside a fixed-size container that doesn't use the Home Assistant grid.
+- A `height` or `width` wins over the minimum on the same side: the card is exactly that size.
+- A button (and an elbow or slider) has a floor already: its presets set `min_height` to the theme's button height (56 px with the LCARdS theme), and without one it keeps `--lcards-button-min-height` (40 px unless your theme sets it). In a [Layout Card](/cards/layout-card/) or [layout view](/cards/layout-view/) cell of a fixed height it follows the cell instead; elsewhere set `min_height: 0` to let it follow a shorter cell.
 
----
+```yaml live
+# A two-row cell, but never taller than 80 px or wider than 300 px
+type: custom:lcards-button
+entity: light.kitchen
+preset: lozenge
+max_height: 80
+max_width: 300
+grid_options:
+  rows: 2
+text:
+  name:
+    content: CEILING
+    show: true
+```
 
-## Sizing inside `custom:layout-card`
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `min_height` | number / string | the button's preset: the theme's button height; others none | Smallest height (a number is px). Cleared when `height` is set; the preset's gives way in a layout cell of a fixed height |
+| `min_width` | number / string | - | Smallest width (a number is px). Cleared when `width` is set |
+| `max_height` | number / string | - | Largest height (a number is px, or any CSS length) |
+| `max_width` | number / string | - | Largest width (a number is px, or any CSS length) |
 
-Use LCARdS's own [Layout Card](layout-card/) (`custom:lcards-layout-card`) instead of [`custom:layout-card`](https://github.com/thomasloven/lovelace-layout-card). Inside `custom:layout-card`'s grid, LCARdS cards shrink to their minimum height (its grid rows default to `auto` height) and `card_margin` is ignored (the margins are hard-coded). The LCARdS Layout Card has neither problem, and adds the Layout Studio visual editor.
+## overflow
 
-Moving over is a one-line change: set `type: custom:lcards-layout-card` and remove `layout_type`. The `layout` keys and each card's `view_layout` stay the same.
+**`overflow` sets what happens to content that doesn't fit inside the card: it can spill out, be cut off, or scroll.** `overflow_x` and `overflow_y` set one direction each and win over `overflow` for that direction.
 
-```yaml
+- The values are CSS's: `visible` (spills out), `hidden` (cut off), `clip` (cut off, and no scrolling from code either), `scroll` (always a scrollbar) and `auto` (a scrollbar only when needed).
+
+```yaml live
+# Cut off anything drawn outside the card, such as a glow
+type: custom:lcards-button
+entity: light.kitchen
+preset: lozenge
+overflow: hidden
+text:
+  name:
+    content: CLIPPED
+    show: true
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `overflow` | string | - | Both directions: `visible`, `hidden`, `clip`, `scroll` or `auto` |
+| `overflow_x` | string | - | Left to right only, over `overflow` |
+| `overflow_y` | string | - | Top to bottom only, over `overflow` |
+
+## z_index
+
+**`z_index` sets which card is drawn on top where cards overlap.** A higher number is in front of a lower one; cards that set none share the default stacking order.
+
+- It only orders cards that overlap in the same container, such as cards placed over each other in a [Layout Card](/cards/layout-card/).
+
+```yaml live
+type: custom:lcards-button
+entity: light.kitchen
+preset: lozenge
+z_index: 10
+text:
+  name:
+    content: IN FRONT
+    show: true
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `z_index` | integer | - | Stacking order, higher in front. The card editor offers -999 to 9999 |
+
+## grid_options
+
+**`grid_options` is Home Assistant's own setting for how many columns and rows of a sections view the card takes.** It sizes the cell; the card then fills it.
+
+- A section is 12 columns wide, and each row is 56 px with an 8 px gap. Without `grid_options` each card asks for its own size: a button is one row, a d-pad five.
+- `grid_options` sizes the cell and `height` / `width` size the card in it; in a sections view `grid_options` is usually all you need.
+
+```yaml live
+# Half the section's width, two rows tall
+type: custom:lcards-button
+entity: light.kitchen
+preset: lozenge
+grid_options:
+  columns: 6
+  rows: 2
+text:
+  name:
+    content: TWO ROWS
+    show: true
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `grid_options.columns` | number / string | the card's own | Columns of 12 to span, or `full` |
+| `grid_options.rows` | number / string | the card's own | Rows to take, or `auto` |
+
+## Inside custom:layout-card
+
+**Use the LCARdS [Layout Card](/cards/layout-card/) rather than `custom:layout-card` to arrange LCARdS cards in a grid.** Inside `custom:layout-card`'s grid, LCARdS cards shrink to their minimum height (its rows are `auto` high) and `card_margin` is ignored; the LCARdS Layout Card has neither problem and adds the Layout Studio.
+
+- Moving over is one line: set `type: custom:lcards-layout-card` and remove `layout_type`. The `layout` keys and each card's `view_layout` stay the same.
+
+```yaml live
 type: custom:lcards-layout-card
 layout:
   grid-template-columns: repeat(3, 1fr)
   grid-template-rows: 1fr
-  height: 300px
+  height: 120px
 cards:
+  - type: custom:lcards-button
+    preset: lozenge
+  - type: custom:lcards-button
+    preset: lozenge
   - type: custom:lcards-button
     preset: lozenge
 ```
 
 ::: details Staying on custom:layout-card?
-Add this to the **layout-card itself** (not the LCARdS card) so its rows fill their height:
+Add this to the layout card itself (not the LCARdS card) so its rows fill their height. `card_margin` stays ignored there; the LCARdS Layout Card is the fix.
 
 ```yaml
 type: custom:layout-card
@@ -242,28 +259,24 @@ card_mod:
       --layout-height: 100% !important;
     }
 ```
-
-`card_margin` stays broken there; the LCARdS Layout Card is the fix.
 :::
 
----
+## More options on every card
 
-## Card Features
+**Most cards also take these options, each with its own page.**
 
-All LCARdS cards support the following cross-cutting features in addition to the common properties above. Each links to the full reference page.
-
-| Feature | Description |
-|---------|-------------|
-| [Text Labels](../core/text-fields.md) | Multiple positioned text fields with template support, per-field styling, and zone targeting |
-| [Actions](../core/actions.md) | `tap_action`, `hold_action`, and `double_tap_action`, any Home Assistant action type |
-| [Animations](../core/animations.md) | Trigger-based card animations (on load, on state change, etc.) |
-| [Background Animations](../core/effects/background-animations.md) | Canvas-rendered animated backgrounds (grid, starfield, fluid, etc.) |
-| [Card Sounds](../core/sounds.md) | Per-card audio playback tied to state changes or actions |
-| [Rules Engine](../core/rules/) | Conditional style patches driven by entity state, time, or tags |
-| [Data Sources](../core/datasources/) | Named entity subscriptions with history buffering and processing |
-| [Templates](../core/templates/) | JS, token, DataSource, and Jinja2 template evaluation in any string field |
-| [Themes](../core/themes/) | Design token system: colours, typography, borders, and component defaults |
-
-::: tip Not every card supports every feature
-Some features are card-specific; for example, `background_animation` is only available on cards that render a canvas layer (Button, Elbow, Slider). Check the individual card page for which features apply.
-:::
+| Option | Covers |
+|--------|--------|
+| [`text`](/core/text-fields) | Text fields with templates, per-field styling and zones |
+| [`tap_action`, `hold_action`, `double_tap_action`](/core/actions) | Any Home Assistant action |
+| [`preset`](/core/presets) | Style presets (button, elbow, slider; select menu options) |
+| [`rules`](/core/rules/) | Restyle this or other cards when conditions match |
+| [`animations`](/core/animations) | Animations on load, tap, state change and more |
+| [`background_animation`](/core/effects/background-animations) | Animated canvas backgrounds (button, elbow, slider) |
+| [`filters`](/core/effects/filters) | CSS and SVG filters on the card |
+| [`sounds`](/core/sounds) | Per-card sound overrides, or `enabled: false` |
+| [`data_sources`](/core/datasources/) | Named entity subscriptions with history and processing |
+| [`triggers_update`](/core/templates/#manual-tracking-with-triggers-update) | Extra entities that re-evaluate templates |
+| [`zones`, `debug_zones`](/core/text-fields) | Your own named text zones, and outlines for every zone |
+| [`state_attribute`, `ranges_attribute`, `state_classification`](/core/colours) | State colours from an attribute or your own state buckets |
+| [Themes](/core/themes/) | The design tokens cards read (colours, fonts, sizes) |

@@ -14,7 +14,7 @@ import {
     gridOptionsSchema, triggersUpdateSchema, cardIdSchema, tagsSchema,
     cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema,
     cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema,
-    cardOverflowYSchema, cardZIndexSchema, cardLevelProperties
+    cardOverflowYSchema, cardZIndexSchema, cardLevelProperties, stateClassificationSchema
 } from './common-schemas.js';
 
 const lengthSchema = (description, examples) => ({
@@ -33,9 +33,9 @@ const FORMAT_ENUM = ['digit', 'float', 'alpha', 'hex', 'mixed'];
 export const dataGridCellStyleSchema = {
     type: 'object',
     description: 'Cell style. Keys are CSS properties in snake_case (font_size, border_bottom_color, ...). Numbers become px.',
+    // Any CSS property works (styleToCSS passes every key through): the ones below are documented.
+    additionalProperties: { type: ['string', 'number'], description: 'Any other CSS property in snake_case (letter_spacing, text_shadow, ...); numbers become px' },
     properties: {
-        // rules, sounds, variables, zones, debug_zones (LCARdSCard base); card entries below win.
-        ...cardLevelProperties,
         color: { ...stateColorSchema, description: 'Text colour, or a state map (default, active, above:80, ...) resolved against the cell entity' },
         background: { ...stateColorSchema, description: 'Background colour, or a state map resolved against the cell entity' },
         font_size: lengthSchema('Font size: number (px) or CSS length', [18, '1.2rem']),
@@ -94,6 +94,8 @@ export const dataGridSchema = {
             const: 'custom:lcards-data-grid',
             'x-ui-hints': { hidden: true }
         },
+        // rules, sounds, variables, zones, debug_zones: card-level, as on every card (LCARdSCard base)
+        ...cardLevelProperties,
 
         // ── Mode ────────────────────────────────────────────────────────────
         data_mode: {
@@ -159,6 +161,7 @@ export const dataGridSchema = {
                 ]
             }
         },
+        state_classification: stateClassificationSchema,
         cell_tap_action: {
             ...actionSchema,
             description: 'Tap action for every entity cell that has no tap_action of its own (e.g. { action: more-info })'
@@ -184,6 +187,12 @@ export const dataGridSchema = {
                 'grid-auto-columns': { type: 'string' },
                 'grid-auto-rows': { type: 'string' },
                 'grid-template-areas': { type: 'string' },
+                'grid-template': { type: 'string', description: 'CSS grid-template shorthand (rows / columns)' },
+                'place-items': { type: 'string', description: 'CSS place-items: align-items and justify-items in one' },
+                'place-content': { type: 'string', description: 'CSS place-content: align-content and justify-content in one' },
+                'grid-gap': lengthSchema('Gap between cells (the older name of gap)'),
+                'grid-row-gap': lengthSchema('Gap between rows (the older name of row-gap)'),
+                'grid-column-gap': lengthSchema('Gap between columns (the older name of column-gap)'),
                 rows: { type: 'number', deprecated: true, 'x-replacement': "grid-template-rows: 'repeat(N, auto)'" },
                 columns: { type: 'number', deprecated: true, 'x-replacement': "grid-template-columns: 'repeat(N, 1fr)'" },
                 cell_width: { type: ['number', 'string'], deprecated: true, 'x-replacement': 'grid-template-columns' }

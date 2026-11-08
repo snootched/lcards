@@ -26,7 +26,7 @@ For some design principles (also used by the [AI Skill](ai-assistance)) see [Des
 ::: info Using `custom:layout-card`?
 LCARdS has its own advanced [Layout Card](../cards/layout-card/) and [Layout View](../cards/layout-view/) which provides a similar functionaly but with many enhancements including a visual editor.
 
-Moving over is a one-line change: see [Sizing inside `custom:layout-card`](../cards/common#sizing-inside-custom-layout-card).
+Moving over is a one-line change: see [Sizing inside `custom:layout-card`](../cards/common#inside-custom-layout-card).
 
 When LCARdS is used inside `custom:layout-card` you may encounter known sizing and margin problems.
 :::

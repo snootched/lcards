@@ -81,7 +81,7 @@ options:
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `height` | number / string | - | A fixed card height; a pixel value also sets the rows the card asks for. See [Sizing](../common#sizing-height-width-min-height-min-width-max-height-max-width) |
+| `height` | number / string | - | A fixed card height; a pixel value also sets the rows the card asks for. See [Sizing](../common#sizing) |
 | `grid_options.rows` | number | enough for every option | Rows in a sections view; wins over the card's own count |
 | `grid_options.columns` | number | `4` | Columns in a sections view; the card can't be resized below 2 |
 

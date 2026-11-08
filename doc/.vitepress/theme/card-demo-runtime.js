@@ -65,6 +65,8 @@ const HA_DEMO_VARS = {
   '--success-color': '#43a047',
   '--info-color': '#039be5',
   '--primary-background-color': '#000000',
+  // Home Assistant's radius scale (layout area examples)
+  '--ha-border-radius-lg': '12px',
   '--ha-card-background': '#000000',
   '--card-background-color': '#000000',
 }

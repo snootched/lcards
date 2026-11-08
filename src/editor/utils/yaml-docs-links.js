@@ -29,7 +29,7 @@ export const ASTRO_STUDIO_DOCS = Object.freeze({
   starters: '/cards/astrometrics/starters'
 });
 
-const SIZING = '/cards/common#sizing-height-width-min-height-min-width-max-height-max-width';
+const SIZING = '/cards/common#sizing';
 
 // A data source's processing pipeline: processor names are free-form map keys, so
 // any path through `processing` links to the processor reference (cards' data_sources,
@@ -54,34 +54,34 @@ const DETAILED = {
     yaxis: '/cards/chart/series#y-axes',
     data_sources: '/core/datasources/',
     style: '/cards/chart/styling',
-    'style.thresholds': '/cards/chart/styling#reference-lines',
+    'style.thresholds': '/cards/chart/labels#reference-lines',
     'style.colors': '/cards/chart/styling#colours',
     'style.stroke': '/cards/chart/styling#style-stroke',
     'style.fill': '/cards/chart/styling#style-fill',
     'style.markers': '/cards/chart/styling#style-markers',
     'style.grid': '/cards/chart/styling#style-grid',
-    'style.legend': '/cards/chart/styling#style-legend',
-    'style.data_labels': '/cards/chart/styling#style-data-labels',
-    'style.xaxis': '/cards/chart/styling#style-xaxis-and-style-yaxis',
-    'style.yaxis': '/cards/chart/styling#style-xaxis-and-style-yaxis',
-    'style.display': '/cards/chart/styling#style-display',
+    'style.legend': '/cards/chart/labels#style-legend',
+    'style.data_labels': '/cards/chart/labels#style-data-labels',
+    'style.xaxis': '/cards/chart/labels#style-xaxis-and-style-yaxis',
+    'style.yaxis': '/cards/chart/labels#style-xaxis-and-style-yaxis',
+    'style.display': '/cards/chart/labels#style-display',
     'style.typography': '/cards/chart/styling#style-typography',
     'style.theme': '/cards/chart/styling#style-theme',
-    'style.formatters': '/cards/chart/styling#formatters',
+    'style.formatters': '/cards/chart/labels#formatters',
     'style.animation': '/cards/chart/styling#animation',
     'style.chart_options': '/cards/chart/styling#raw-apexcharts-options',
     animations: '/core/animations',
     height: SIZING
   },
   'data-grid': {
-    '': '/cards/data-grid/#configuration-at-a-glance',
+    '': '/cards/data-grid/#card-options',
     data_mode: '/cards/data-grid/#which-mode-should-i-use',
-    format: '/cards/data-grid/#decorative-mode',
-    refresh_interval: '/cards/data-grid/#decorative-mode',
-    refresh_cells: '/cards/data-grid/#decorative-mode',
+    format: '/cards/data-grid/data#decorative-mode',
+    refresh_interval: '/cards/data-grid/data#decorative-mode',
+    refresh_cells: '/cards/data-grid/data#decorative-mode',
     rows: '/cards/data-grid/data#what-a-cell-can-be',
     'rows.header': '/cards/data-grid/data#header-rows',
-    'rows.values': '/cards/data-grid/data#showing-an-attribute',
+    'rows.values': '/cards/data-grid/data#cell-objects',
     'rows.style': '/cards/data-grid/styling#style-layers',
     'rows.values.style': '/cards/data-grid/data#conditional-colours',
     'rows.values.tap_action': '/cards/data-grid/data#tap-actions',
@@ -235,7 +235,7 @@ const COMMON = {
   filters: '/core/effects/filters',
   height: SIZING,
   width: SIZING,
-  grid_options: '/cards/common#home-assistant-grid-sizing-grid-options'
+  grid_options: '/cards/common#grid-options'
 };
 
 /**

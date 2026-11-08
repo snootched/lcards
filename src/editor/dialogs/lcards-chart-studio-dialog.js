@@ -912,12 +912,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 desc: 'Hierarchical data', docs: 'chartGallery',
                 infoText: `${latest} rectangle, its area sized by the value). Good for breakdowns like power or cost by room.`
             },
-            {
-                value: 'rangeBar', label: 'Range Bar', icon: 'mdi:chart-gantt', minSeries: 1,
-                desc: 'Timelines / Gantt', docs: 'chartRawOptions',
-                needs: 'data through raw options',
-                infoText: 'Gantt-style bars spanning a start and end time. The chart can not build this data from entities yet; supply the series data yourself in Advanced, Raw ApexCharts options (style.chart_options).'
-            },
+            // rangeBar is not offered: the card can't build its interval data yet (see chart-sources.js arrayChartProblem)
             {
                 value: 'rangeArea', label: 'Range Area', icon: 'mdi:chart-bell-curve', minSeries: 1,
                 desc: 'Confidence bands', docs: 'chartRangeCharts',
@@ -1696,23 +1691,7 @@ export class LCARdSChartStudioDialog extends LitElement {
                 })}
             </lcards-form-section>
 
-            <!-- Theme Palette -->
-            <lcards-form-section
-                header="Color Palette"
-                description="Predefined color scheme"
-                icon="mdi:palette"
-                ?expanded=${true}>
 
-                ${FormField.renderField(this, 'style.theme.palette', {
-                    label: 'Palette',
-                    helper: 'Leave blank to use custom series colors'
-                })}
-
-                <lcards-message type="info">
-                    <strong>Note:</strong> Palette colors override series colors defined in the Colors tab.
-                    Leave blank to use custom series colors.
-                </lcards-message>
-            </lcards-form-section>
 
             <!-- Monochrome Mode -->
             <lcards-form-section

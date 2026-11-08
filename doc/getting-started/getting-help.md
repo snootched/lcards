@@ -28,7 +28,7 @@ Resource and `extra_module_url` checks need an **admin** user.
 
 ## 3. Common problems
 
-- **Cards collapse or margins look wrong inside `custom:layout-card`:** use LCARdS's own [Layout Card](../cards/layout-card/) instead. Change the `type` to `custom:lcards-layout-card` and remove `layout_type`; the rest of the config stays the same. See [Sizing inside `custom:layout-card`](../cards/common#sizing-inside-custom-layout-card).
+- **Cards collapse or margins look wrong inside `custom:layout-card`:** use LCARdS's own [Layout Card](../cards/layout-card/) instead. Change the `type` to `custom:lcards-layout-card` and remove `layout_type`; the rest of the config stays the same. See [Sizing inside `custom:layout-card`](../cards/common#inside-custom-layout-card).
 - **Cards look out of date after an update:** hard-refresh the page (Ctrl+Shift+R / Cmd+Shift+R) or clear the companion app's frontend cache.
 - **Styling from card-mod stops working:** card-mod no longer works with current Home Assistant; HA-LCARS uses [UIX](https://github.com/Lint-Free-Technology/uix) instead. Remove card-mod.
 - **Moving over from CB-LCARS?** See [Coming from CB-LCARS](cb-lcars-migration) for the equivalent of each card.

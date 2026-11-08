@@ -1,24 +1,40 @@
+---
+description: "Chart card: plot Home Assistant sensors over time as lines, areas, columns, gauges, range bands and more, from entity history, long-term statistics or LCARdS data sources."
+moved_anchors:
+  where-the-data-comes-from: /cards/chart/series#where-the-data-comes-from
+  gallery: /cards/chart/types
+  full-examples: /cards/chart/examples
+  weather-panel: /cards/chart/examples#weather-panel
+  energy-fortnight: /cards/chart/examples#energy-fortnight
+  power-monitor: /cards/chart/examples#power-monitor
+  common-properties: /cards/common
+---
+
 # Chart Card
 
 `custom:lcards-chart`
 
 ![Chart card: a 24-hour temperature history as an orange area with a gradient fill, a blue smoothed line from a data source, and a dashed comfort threshold](/img/cards/chart.webp)
 
-Plots your Home Assistant sensors over time: lines, areas, columns, gauges, range bands, candlesticks and more. Charts pick up your LCARS theme colours and fonts automatically, so most charts need nothing more than a list of entities.
+**A chart of your Home Assistant sensors over time: lines, areas, columns, gauges, range bands, candlesticks and more.** It picks up your LCARS theme's colours and fonts, so most charts need nothing more than a list of entities.
 
-The card is built on [ApexCharts](https://apexcharts.com/), a very capable charting library. You don't need to know ApexCharts to use it: these pages cover everything LCARdS sets up for you.
+- Each entry under `sources` is one series: an entity's history, Home Assistant's long-term statistics, or an LCARdS data source.
+- The card is built on [ApexCharts](https://apexcharts.com/). You don't need to know ApexCharts to use it: these pages cover everything LCARdS sets up for you.
 
 ::: tip Try it
 - In the card editor, **Open Configuration Studio** gives you a live preview while you add series, pick a chart type and adjust colours.
-- The [Playground](./playground) lets you edit chart YAML right here in the docs and see the result.
+- The [Playground](./playground) lets you edit chart YAML here in the docs and see the result.
 :::
 
-The charts on these pages are live previews drawn by the card's own code, using generated sample data.
+The charts on these pages are drawn by the card's own code from generated sample data.
 
 | Page | Covers |
 |------|--------|
-| [Series & Time](./series) | Series options, time window, grouping, range charts, mixed charts, Y axes |
-| [Styling](./styling) | Colours, lines, legend, axes, reference lines, formatters, animation |
+| [Series and Time](./series) | Where the data comes from, series options, the time window, grouping, Y axes |
+| [Chart Types](./types) | Every chart type with an example, gauges, range charts, mixing types in one chart |
+| [Styling](./styling) | Colours, lines, fills, markers, grid, fonts, theme, animation, raw ApexCharts options |
+| [Axes and Labels](./labels) | Reference lines, legend, value labels, axes, formatters, tooltip and toolbar |
+| [Examples](./examples) | Complete charts to copy |
 | [Playground](./playground) | Edit YAML and see the chart live |
 | [Upgrading](./upgrading) | Older chart configs, and coming from apexcharts-card |
 
@@ -26,15 +42,16 @@ The charts on these pages are live previews drawn by the card's own code, using 
 
 ## Quick start
 
-One sensor, last 24 hours:
+**Three charts to start from: one sensor, two sensors as areas, and a week of daily energy from long-term statistics.**
+
+- Without `graph_span` a chart shows the last 24 hours, and it moves along as time passes.
+- Statistics suit long spans: see [Long-term statistics](./series#long-term-statistics).
 
 ```yaml live
 type: custom:lcards-chart
 sources:
   - entity: sensor.living_room_temperature
 ```
-
-Two sensors as filled areas, with names in the legend:
 
 ```yaml live
 type: custom:lcards-chart
@@ -49,8 +66,6 @@ style:
     show: true
 ```
 
-A week of daily energy use, from Home Assistant's long-term statistics:
-
 ```yaml live
 type: custom:lcards-chart
 chart_type: column
@@ -63,128 +78,12 @@ sources:
       period: day
 ```
 
----
-
-## Where the data comes from
-
-Each entry under `sources` is one **series** (one line, area or set of columns). A series gets its data from one of three places:
-
-| | Entity history | Long-term statistics | LCARdS data source |
-|---|---|---|---|
-| **Write it as** | `entity: sensor.x` | `entity: sensor.x` plus `statistics:` | `datasource: name` |
-| **What it is** | Every state change Home Assistant recorded | Home Assistant's own 5-minute and hourly summaries (mean, min, max, sum) | A live buffer LCARdS keeps in your browser, with optional processing |
-| **Stored by** | Home Assistant's recorder database | Home Assistant's recorder database | Your browser, while the dashboard is open |
-| **How far back** | As long as the recorder keeps history (10 days by default) | Hourly summaries are kept indefinitely | What was preloaded (6 hours by default, up to 7 days) plus what arrived since the page loaded |
-| **Live updates** | Yes | Refreshed every 5 minutes (hourly for daily and longer periods) | Yes |
-| **Works for** | Any entity with numeric (or on/off) values | Sensors with a `state_class` (most energy, power and climate sensors) | Any entity |
-| **Best for** | Hours to days of detail | Weeks, months, years | Processed values: smoothing, rates, unit conversion, statistics |
-
-**Which should I use?**
-
-- Start with **entity history**. It is the simplest and shows exactly what Home Assistant recorded.
-- Switch to **long-term statistics** when the chart spans more than a few days, or the sensor changes so often that history gets slow. Statistics also last beyond the recorder's history limit.
-- Use an **LCARdS data source** when you want to plot a *processed* value (a smoothed line, a rate of change, a converted unit), or share one live value between several cards. Data sources are created when the dashboard loads and keep a limited number of recent points (up to 1,000), so they suit short windows. See [Data Sources](../../core/datasources/).
-
-```yaml
-type: custom:lcards-chart
-sources:
-  # Entity history
-  - entity: sensor.living_room_temperature
-
-  # An attribute instead of the state
-  - entity: climate.living_room
-    attribute: current_temperature
-
-  # Long-term statistics
-  - entity: sensor.energy_consumption
-    statistics:
-      type: sum        # mean | min | max | sum | state | change
-      period: day      # 5minute | hour | day | week | month
-
-  # An LCARdS data source, plotting its smoothed values
-  - datasource: living_room
-    buffer: smoothed
-data_sources:
-  living_room:
-    entity: sensor.living_room_temperature
-    processing:
-      smoothed:
-        type: smooth
-        method: exponential
-        alpha: 0.3
-```
-
-::: tip Non-numeric entities
-Charts plot numbers. States like `on`/`off`, `open`/`closed` and `true`/`false` are plotted as 1 and 0 automatically; use `curve: stepline` to draw them as steps. Other states (`heat`, `home`, `docked`, ...) don't plot on their own: pick a numeric attribute instead, or use a data source with `enum_mapping` to turn each state into a number. Chart Studio warns you when a series won't plot.
-:::
-
-```yaml live
-type: custom:lcards-chart
-sources:
-  - entity: light.living_room
-    name: Living room light
-    curve: stepline
-    type: area
-    opacity: 0.4
-```
-
----
-
 ## Chart types
 
-Set the chart type with `chart_type` (default `line`).
+**`chart_type` picks how the series are drawn.** Time charts plot each series over the time window; the round charts, the radar and the treemap show each series' latest value.
 
-| Type | Shows | Data |
-|------|-------|------|
-| `line` | Values over time as lines | Any series |
-| `area` | Lines with the area below filled | Any series |
-| `column` | Vertical bars | Any series; works well with [grouping](./series#grouping) |
-| `bar` | Horizontal bars | Any series |
-| `scatter` | Individual points | Any series |
-| `heatmap` | One row per series, colour by value | Any series; works well with grouping |
-| `radialBar` | Circular gauges, one per series | The latest value of each series (0 to 100 works best) |
-| `pie`, `donut` | Slices of a whole | The latest value of each series (use two or more) |
-| `polarArea` | Slices sized by value | The latest value of each series |
-| `radar` | Values around a polygon | The latest value of each series |
-| `treemap` | Rectangles sized by value | The latest value of each series |
-| `rangeArea` | A shaded band from low to high | See [Range charts](./series#range-charts) |
-| `boxPlot` | Spread of values per time bucket | See [Range charts](./series#range-charts) |
-| `candlestick` | Open, high, low and close per time bucket | See [Range charts](./series#range-charts) |
-| `rangeBar` | Timeline bars from a start to an end time | Not built from entities yet; supply data through [raw options](./styling#raw-apexcharts-options) |
-
-### Gallery
-
-Columns of hourly averages:
-
-```yaml live
-type: custom:lcards-chart
-chart_type: column
-sources:
-  - entity: sensor.house_power
-    name: Power
-    group_by:
-      func: avg
-      duration: 1h
-```
-
-A heatmap of several sensors, one row each:
-
-```yaml live
-type: custom:lcards-chart
-chart_type: heatmap
-sources:
-  - entity: sensor.kitchen_temperature
-    name: Kitchen
-    group_by: { func: avg, duration: 2h }
-  - entity: sensor.bedroom_temperature
-    name: Bedroom
-    group_by: { func: avg, duration: 2h }
-  - entity: sensor.outdoor_temperature
-    name: Outside
-    group_by: { func: avg, duration: 2h }
-```
-
-Gauges showing each sensor's current value:
+- A series can override the chart type with its own `type`, so one chart can show columns and a line together: see [Mixing chart types](./types#mixing-chart-types).
+- Every type is shown with an example on [Chart Types](./types).
 
 ```yaml live
 type: custom:lcards-chart
@@ -196,261 +95,54 @@ sources:
     name: Humidity
 ```
 
-A donut of current values:
+| Type | Shows | Data |
+|------|-------|------|
+| `line` | Values over time as lines | Any series |
+| `area` | Lines with the area below filled | Any series |
+| `column` | Vertical bars | Any series; works well with [grouping](./series#grouping) |
+| `bar` | Horizontal bars, one per point, labelled with its time | Any series; group it so there are only a few bars |
+| `scatter` | Individual points | Any series |
+| `heatmap` | One row per series, colour by value | Any series; works well with grouping |
+| `radialBar` | Circular gauges, one per series | The latest value of each series (0 to 100 works best) |
+| `pie`, `donut` | Slices of a whole | The latest value of each series (use two or more) |
+| `polarArea` | Slices sized by value | The latest value of each series |
+| `radar` | Values around a polygon | The latest value of each series |
+| `treemap` | Rectangles sized by value | The latest value of each series |
+| `rangeArea` | A shaded band from low to high | See [Range charts](./types#range-charts) |
+| `boxPlot` | Spread of values per time bucket | See [Range charts](./types#range-charts) |
+| `candlestick` | Open, high, low and close per time bucket | See [Range charts](./types#range-charts) |
+| `rangeBar` | Timeline bars from a start to an end time | Not offered in the Chart Studio: the card can't build its data yet; see [Range charts](./types#range-charts) |
 
-```yaml live
-type: custom:lcards-chart
-chart_type: donut
-sources:
-  - entity: sensor.kitchen_power
-    name: Kitchen
-  - entity: sensor.office_power
-    name: Office
-  - entity: sensor.garage_power
-    name: Garage
-style:
-  legend:
-    show: true
-```
+## Card options
 
-Individual readings as points:
+**The chart's own top-level keys.** Each block has its own page; this table links to it.
 
-```yaml live
-type: custom:lcards-chart
-chart_type: scatter
-graph_span: 6h
-sources:
-  - entity: sensor.house_power
-    name: Power readings
-```
-
-Room temperatures compared on a radar:
-
-```yaml live
-type: custom:lcards-chart
-chart_type: radar
-sources:
-  - entity: sensor.kitchen_temperature
-    name: Kitchen
-  - entity: sensor.bedroom_temperature
-    name: Bedroom
-  - entity: sensor.office_temperature
-    name: Office
-  - entity: sensor.outdoor_temperature
-    name: Outside
-  - entity: sensor.garage_temperature
-    name: Garage
-```
-
-Where the power is going right now, as a treemap and as polar areas:
-
-```yaml live
-type: custom:lcards-chart
-chart_type: treemap
-sources:
-  - entity: sensor.kitchen_power
-    name: Kitchen
-  - entity: sensor.office_power
-    name: Office
-  - entity: sensor.garage_power
-    name: Garage
-  - entity: sensor.laundry_power
-    name: Laundry
-```
-
-```yaml live
-type: custom:lcards-chart
-chart_type: polarArea
-sources:
-  - entity: sensor.kitchen_power
-    name: Kitchen
-  - entity: sensor.office_power
-    name: Office
-  - entity: sensor.garage_power
-    name: Garage
-  - entity: sensor.laundry_power
-    name: Laundry
-style:
-  legend:
-    show: true
-```
-
-A range band (the daily low to high):
-
-```yaml live
-type: custom:lcards-chart
-chart_type: rangeArea
-graph_span: 3d
-sources:
-  - entity: sensor.outdoor_temperature
-    name: Outside
-    group_by:
-      func: minmax
-      duration: 3h
-```
-
----
-
-## Full examples
-
-### Weather panel
-
-Outdoor temperature as a filled area with humidity on its own axis, frost and heat lines, and a tooltip that reads naturally:
+- The chart also takes the keys every LCARdS card takes (`height`, `width`, `id`, `tags`, `grid_options`, `data_sources` ...): see [Common card properties](../common). Rules can restyle a chart through its `id` and `tags`: see the [Rules Engine](../../core/rules/).
+- In a sections view the chart takes 6 columns and 4 rows unless `grid_options` says otherwise, and can't be made smaller than 4 by 2.
 
 ```yaml live
 type: custom:lcards-chart
 chart_type: area
-graph_span: 48h
+graph_span: 12h
 yaxis:
   - id: temperature
-  - id: humidity
-    opposite: true
-    min: 0
-    max: 100
-    decimals: 0
+    min: -10
+    max: 30
 sources:
   - entity: sensor.outdoor_temperature
-    name: Temperature
-    unit: °C
-    float_precision: 1
-    group_by:
-      func: avg
-      duration: 30min
-  - entity: sensor.outdoor_humidity
-    name: Humidity
-    type: line
-    yaxis_id: humidity
-    stroke_dash: 4
-    group_by:
-      func: avg
-      duration: 30min
-style:
-  colors:
-    series:
-      - "var(--lcars-orange)"
-      - "var(--lcars-blue)"
-  fill:
-    type: gradient
-    gradient:
-      opacityFrom: 0.6
-      opacityTo: 0.05
-  thresholds:
-    - value: 0
-      label: Frost
-      color: var(--lcars-blue)
-      dash: true
-    - value: 20
-      label: Warm
-      color: var(--lcars-red)
-  legend:
-    show: true
-    position: top
-  formatters:
-    xaxis_label: "ddd HH:mm"
-    tooltip: "{seriesName}, {x|ddd [at] HH:mm}: {y}"
+    name: Outside
 ```
 
-### Energy fortnight
-
-Daily energy use from long-term statistics, with each bar labelled and a line for the daily target:
-
-```yaml live
-type: custom:lcards-chart
-chart_type: column
-graph_span: 14d
-span:
-  end: day
-sources:
-  - entity: sensor.energy_consumption
-    name: Energy per day
-    unit: kWh
-    float_precision: 1
-    statistics:
-      type: change
-      period: day
-style:
-  colors:
-    series:
-      - "var(--lcars-yellow)"
-  data_labels:
-    show: true
-    font_size: 10
-  yaxis:
-    decimals: 0
-  thresholds:
-    - value: 5
-      label: Target
-      color: var(--lcars-green)
-  chart_options:
-    plotOptions:
-      bar:
-        borderRadius: 4
-```
-
-### Power monitor
-
-The last six hours of a busy power sensor: the 10-minute average as an area, and the 10-minute peak as a thin line above it:
-
-```yaml live
-type: custom:lcards-chart
-graph_span: 6h
-sources:
-  - entity: sensor.house_power
-    name: Average
-    type: area
-    opacity: 0.35
-    group_by:
-      func: avg
-      duration: 10min
-  - entity: sensor.house_power
-    name: Peak
-    stroke_width: 1
-    curve: stepline
-    group_by:
-      func: max
-      duration: 10min
-style:
-  legend:
-    show: true
-  thresholds:
-    - value: 2000
-      label: High load
-      color: var(--lcars-red)
-      dash: true
-  display:
-    toolbar: true
-```
-
-A longer example with an LCARdS data source is at the end of [Styling](./styling#a-complete-example).
-
----
-
-## Card options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `type` | string | - | `custom:lcards-chart` (required) |
-| `sources` | list | - | The series: see [Where the data comes from](#where-the-data-comes-from) and [Series options](./series#series-options) |
-| `chart_type` | string | `line` | See [Chart types](#chart-types) |
-| `graph_span` | string | `24h` | See [Time window](./series#time-window) |
-| `span` | object | - | See [Time window](./series#time-window) |
-| `yaxis` | list | - | See [Y axes](./series#y-axes) |
-| `xaxis_type` | string | `datetime` | `datetime`, `category` or `numeric` |
-| `data_sources` | object | - | LCARdS data sources: see [Data Sources](../../core/datasources/) |
-| `style` | object | - | See [Styling](./styling) |
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `type` | string | required | `custom:lcards-chart` |
+| `sources` | list | - | The series: see [Series and Time](./series#where-the-data-comes-from) and [Series options](./series#series-options) |
+| `chart_type` | string | `line` | How the series are drawn: see [Chart types](#chart-types) |
+| `graph_span` | string | `24h` | How much time the chart shows: see [Time window](./series#time-window) |
+| `span` | object | - | Line the window up with the calendar, or move it back: see [Time window](./series#time-window) |
+| `yaxis` | list | one shared axis | Several Y axes: see [Y axes](./series#y-axes) |
+| `xaxis_type` | string | `category` for `bar`, else `datetime` | `datetime`, `category` or `numeric` |
+| `data_sources` | object | - | LCARdS data sources the series can plot: see [Data Sources](../../core/datasources/) |
+| `style` | object | your theme's chart style | Colours, lines, labels and more: see [Styling](./styling) and [Axes and Labels](./labels) |
 
 Older options (`source`, `series_names`, `history_hours`, ...) still work: see [Upgrading](./upgrading).
-
-### Common properties
-
-Shared by all LCARdS cards. See [Common Card Properties](../common.md) for details.
-
-| Category | Config keys | Reference |
-|----------|-------------|-----------|
-| Sizing | `height`, `width`, `min_height`, `min_width`, `max_height`, `max_width` | [Sizing](../common.md#sizing-height-width-min-height-min-width-max-height-max-width) |
-| Overflow | `overflow`, `overflow_x`, `overflow_y` | [Overflow](../common.md#overflow-overflow-overflow-x-overflow-y) |
-| Stacking | `z_index` | [Stacking](../common.md#stacking-z-index) |
-| Identity | `id`, `tags` | [ID & Tags](../common.md#card-identification-id-and-tags) |
-| Home Assistant Grid | `grid_options` | [Home Assistant Grid Sizing](../common.md#home-assistant-grid-sizing-grid-options) |
-| Data | `data_sources`, `triggers_update` | [Data Sources](../../core/datasources/) |
-| Rules | via `id` / `tags` | [Rules Engine](../../core/rules/) |

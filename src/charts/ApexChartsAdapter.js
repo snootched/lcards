@@ -235,13 +235,6 @@ export class ApexChartsAdapter {
 
     // Theme settings
     const themeMode = style.theme?.mode ?? 'dark';
-    let themePalette = style.theme?.palette ?? null;
-
-    // Filter out unresolved theme token paths (e.g., "colors.chart.themePalette")
-    if (themePalette && typeof themePalette === 'string' && themePalette.includes('colors.')) {
-      lcardsLog.trace(`[ApexChartsAdapter] Filtered unresolved themePalette token: ${themePalette}`);
-      themePalette = null;
-    }
 
     // Monochrome settings
     const monochrome = style.theme?.monochrome ?? {};
@@ -376,9 +369,9 @@ export class ApexChartsAdapter {
         fontSize: `${style.legend?.font_size ?? fontSize + 2}px`,
         fontFamily: fontFamily,
         labels: {
-          // Use explicit color array if provided, otherwise fall back to
-          // foregroundColor as a string so ApexCharts always has a concrete value
-          colors: legendColors?.length ? legendColors : foregroundColor
+          // Per-item colours if given, else colors.legend.default (which falls
+          // back to the foreground colour), so ApexCharts always has a value
+          colors: legendColors?.length ? legendColors : legendColor
         }
       },
 
@@ -420,7 +413,6 @@ export class ApexChartsAdapter {
       // Theme
       theme: {
         mode: themeMode,
-        palette: themePalette,
         ...(monochromeEnabled && {
           monochrome: {
             enabled: true,
@@ -490,7 +482,6 @@ export class ApexChartsAdapter {
       foregroundColor,
       gridColor,
       themeMode,
-      themePalette,
       monochromeEnabled,
       cssVariablesResolved: true
     });
@@ -511,9 +502,10 @@ export class ApexChartsAdapter {
     // Apply Y-Axis Label Formatter
     if (style.formatters?.yaxis_label) {
       const formatter = this._createLabelFormatter(style.formatters.yaxis_label, 'yaxis', context.hass);
+      // yaxis: [...] in the card config makes this a list (one entry per axis)
       if (!optionsWithTypeDefaults.yaxis) optionsWithTypeDefaults.yaxis = {};
-      if (!optionsWithTypeDefaults.yaxis.labels) optionsWithTypeDefaults.yaxis.labels = {};
-      optionsWithTypeDefaults.yaxis.labels.formatter = formatter;
+      const axes = Array.isArray(optionsWithTypeDefaults.yaxis) ? optionsWithTypeDefaults.yaxis : [optionsWithTypeDefaults.yaxis];
+      for (const axis of axes) axis.labels = { ...axis.labels, formatter };
       lcardsLog.debug('[ApexChartsAdapter] Applied yaxis_label formatter:', style.formatters.yaxis_label);
     }
 
@@ -689,6 +681,25 @@ export class ApexChartsAdapter {
       }
     };
 
+    // Type defaults are deep-merged over the base options (built from style),
+    // so a type default must step aside wherever the style sets the key: each
+    // helper below returns the type's value only when the style leaves it unset.
+    const fontFamily = style.typography?.font_family ?? resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif');
+    const userLegendColors = style.colors?.legend?.items ?? style.colors?.legend?.default;
+    /** Legend font size and colours, unless style.legend.font_size / style.colors.legend set them. */
+    const legendDefaults = () => ({
+      ...(style.legend?.font_size === undefined && { fontSize: resolveToken('typography.fontSize.sm', '12px') }),
+      fontFamily,
+      ...(userLegendColors === undefined && {
+        labels: { colors: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))') }
+      })
+    });
+    /** Stroke width and colours, unless style.stroke.width / style.colors.stroke set them. */
+    const strokeDefaults = (width, color) => ({
+      ...(style.stroke?.width === undefined && { width }),
+      ...(style.colors?.stroke === undefined && { colors: [color] })
+    });
+
     switch (chartType) {
       // 'column' = vertical bar: apply horizontal: false to distinguish from 'bar' (horizontal)
       case 'column':
@@ -752,14 +763,14 @@ export class ApexChartsAdapter {
                 name: {
                   show: true,
                   fontSize: resolveToken('typography.fontSize.sm', '12px'),
-                  fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif'),
+                  fontFamily,
                   color: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))'),
                   offsetY: -10
                 },
                 value: {
                   show: true,
                   fontSize: resolveToken('typography.fontSize.3xl', '24px'),
-                  fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif'),
+                  fontFamily,
                   color: resolveToken('colors.accent.primary', 'var(--lcars-orange, #FF9900)'),
                   offsetY: 5,
                   formatter: (val) => {
@@ -772,7 +783,7 @@ export class ApexChartsAdapter {
                   show: style.gauge_total === true,
                   label: 'TOTAL',
                   fontSize: resolveToken('typography.fontSize.sm', '12px'),
-                  fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif'),
+                  fontFamily,
                   color: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))'),
                   formatter: (w) => {
                     const total = w.globals.seriesTotals.reduce((a, b) => a + b, 0);
@@ -780,8 +791,8 @@ export class ApexChartsAdapter {
                   }
                 }
               },
-              startAngle: style.gauge_start_angle || -90,
-              endAngle: style.gauge_end_angle || 90
+              startAngle: style.gauge_start_angle ?? -90,
+              endAngle: style.gauge_end_angle ?? 90
             }
           }
         };
@@ -807,7 +818,7 @@ export class ApexChartsAdapter {
             enabled: style.show_labels !== false,
             style: {
               fontSize: resolveToken('typography.fontSize.xs', '10px'),
-              fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif')
+              fontFamily
             }
           }
         };
@@ -828,23 +839,16 @@ export class ApexChartsAdapter {
               }
             }
           },
-          stroke: {
-            width: 2,
-            colors: [resolveToken('colors.chart.background', '#000000')]
-          },
+          stroke: strokeDefaults(2, resolveToken('colors.chart.background', '#000000')),
           fill: {
-            opacity: 0.8
+            opacity: style.fill?.opacity ?? 0.8
           },
           // Segments need names: the legend is on unless the config turns it off.
           legend: {
             show: style.legend?.show ?? true,
             showForSingleSeries: style.legend?.show ?? true,
             position: style.legend?.position ?? 'bottom',
-            fontSize: resolveToken('typography.fontSize.sm', '12px'),
-            fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif'),
-            labels: {
-              colors: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))')
-            }
+            ...legendDefaults()
           }
         };
 
@@ -882,10 +886,10 @@ export class ApexChartsAdapter {
             }
           },
           dataLabels: {
-            enabled: true,
+            enabled: style.data_labels?.show ?? true,
             style: {
               fontSize: resolveToken('typography.fontSize.sm', '12px'),
-              fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif'),
+              fontFamily,
               fontWeight: 'bold'
             },
             offsetY: -4
@@ -893,8 +897,6 @@ export class ApexChartsAdapter {
         };
 
       case 'rangeArea':
-        // Type defaults are merged over the base options, so fall back to the
-        // user's style rather than overriding it.
         return {
           stroke: {
             curve: style.stroke?.curve ?? 'straight',
@@ -913,14 +915,14 @@ export class ApexChartsAdapter {
         return {
           markers: {
             size: style.markers?.size ?? 6,
-            strokeWidth: 0,
+            strokeWidth: style.markers?.stroke?.width ?? 0,
             hover: {
               sizeOffset: 3
             }
           },
           grid: {
-            borderColor: resolveToken('colors.chart.grid', 'var(--lcars-gray, #999999)'),
-            strokeDashArray: 4,
+            borderColor: style.colors?.grid ?? resolveToken('colors.chart.grid', 'var(--lcars-gray, #999999)'),
+            strokeDashArray: style.grid?.stroke_dash_array ?? 4,
             xaxis: {
               lines: { show: style.grid?.show !== false }
             },
@@ -929,15 +931,11 @@ export class ApexChartsAdapter {
             }
           },
           dataLabels: {
-            enabled: false // Usually too cluttered for scatter
+            enabled: style.data_labels?.show ?? false // Usually too cluttered for scatter
           },
           legend: {
             position: style.legend?.position ?? 'top',
-            fontSize: resolveToken('typography.fontSize.sm', '12px'),
-            fontFamily: resolveToken('typography.fontFamily.primary', 'Antonio, Helvetica Neue, sans-serif'),
-            labels: {
-              colors: resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))')
-            }
+            ...legendDefaults()
           }
         };
 
@@ -968,15 +966,12 @@ export class ApexChartsAdapter {
           plotOptions: {
             boxPlot: {
               colors: {
-                upper: style.color || resolveToken('colors.accent.primary', 'var(--lcars-blue, #9999FF)'),
-                lower: style.color || resolveToken('colors.accent.primary', 'var(--lcars-blue, #9999FF)')
+                upper: style.color ?? resolveToken('colors.accent.primary', 'var(--lcars-blue, #9999FF)'),
+                lower: style.color ?? resolveToken('colors.accent.primary', 'var(--lcars-blue, #9999FF)')
               }
             }
           },
-          stroke: {
-            width: 2,
-            colors: [resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))')]
-          }
+          stroke: strokeDefaults(2, resolveToken('colors.chart.axis', 'var(--lcars-text-gray, var(--lcards-moonlight))'))
         };
 
       default:
@@ -1027,8 +1022,8 @@ export class ApexChartsAdapter {
    */
   static _fitHalfGauge({ size, fontSize = 12 }, style) {
     const [width, height] = size ?? [];
-    const start = style.gauge_start_angle || -90;
-    const end = style.gauge_end_angle || 90;
+    const start = style.gauge_start_angle ?? -90;
+    const end = style.gauge_end_angle ?? 90;
     if (!(width > 0) || !(height > 0) || Math.abs(end - start) > 180 || start < -90 || end > 90) return {};
     const legend = (style.legend?.show ?? true) && ['bottom', undefined].includes(style.legend?.position);
     const plotHeight = height - (legend ? fontSize * 3 + 16 : 0);
@@ -1226,8 +1221,8 @@ export class ApexChartsAdapter {
           y: threshold.value,
           borderColor: threshold.color || 'var(--lcars-red, var(--lcards-orange-dark, #dd4444))',
           strokeDashArray: threshold.dash ? 4 : 0,
-          opacity: threshold.opacity || 0.7,
-          borderWidth: threshold.width || 2,
+          opacity: threshold.opacity ?? 0.7,
+          borderWidth: threshold.width ?? 2,
           label: threshold.label ? {
             text: threshold.label,
             style: {

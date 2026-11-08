@@ -758,3 +758,41 @@ export function resolveVisibilityRowTracks(baseRows, entries, editMode) {
     for (const [rowIndex, track] of rowTracks) rows[rowIndex] = track;
     return rows;
 }
+
+/**
+ * Whether a card placed by `view_layout.grid-area` sits in rows of a definite
+ * height, so a card that fills its cell can follow it (a button then drops its
+ * preset's minimum height, which spilled out of short rows). Fixed lengths
+ * (px, vh, rem, ...) always are; fr and % only in a grid whose own height is
+ * set (not `auto`, not a %); `auto`, `min-content` and the like never are.
+ * A card placed by grid lines, or in no area, is treated as not definite.
+ * @param {string[]} rows - the grid's row tracks
+ * @param {string[][]} areas - the area matrix
+ * @param {Record<string, any>} viewLayout - the card's view_layout
+ * @param {boolean} gridHeightDefinite - the grid has a definite height
+ * @returns {boolean}
+ */
+export function cellHeightDefinite(rows, areas, viewLayout, gridHeightDefinite) {
+    const name = viewLayout?.['grid-area'];
+    if (!name || !Array.isArray(rows) || !Array.isArray(areas)) return false;
+    const spanned = areas.map((row, r) => (row.includes(name) ? r : -1)).filter(r => r >= 0);
+    if (!spanned.length) return false;
+    const definite = (/** @type {string} */ track) => {
+        const t = String(track ?? '').trim();
+        if (/^[\d.]+(px|vh|vw|svh|dvh|lvh|vmin|vmax|rem|em|cm|mm|in|pt)$/.test(t)) return true;
+        if (/^[\d.]+(fr|%)$/.test(t)) return gridHeightDefinite;
+        return false;
+    };
+    return spanned.every(r => definite(rows[r]));
+}
+
+/**
+ * Whether a grid with this `height` is definite for its fr / % rows: an explicit
+ * length, not `auto` and not a percentage of a parent that may size to content.
+ * @param {unknown} height
+ * @returns {boolean}
+ */
+export function gridHeightIsDefinite(height) {
+    const h = String(height ?? '').trim();
+    return !!h && h !== 'auto' && !h.endsWith('%');
+}

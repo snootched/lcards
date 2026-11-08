@@ -13,7 +13,7 @@
  * @see doc/user/configuration/cards/chart.md
  */
 
-import { simpleColorSchema, cardIdSchema, tagsSchema, dataSourcesSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, cardLevelProperties } from './common-schemas.js';
+import { simpleColorSchema, cardIdSchema, tagsSchema, dataSourcesSchema, cardHeightSchema, cardWidthSchema, cardMinHeightSchema, cardMinWidthSchema, cardMaxHeightSchema, cardMaxWidthSchema, cardOverflowSchema, cardOverflowXSchema, cardOverflowYSchema, cardZIndexSchema, cardLevelProperties, triggersUpdateSchema } from './common-schemas.js';
 
 /**
  * Get complete chart card schema with nested structure
@@ -92,8 +92,6 @@ export function getChartSchema(options = {}) {
             type: 'object',
             description: 'Bucket points into fixed time intervals. minmax, box and ohlc produce the data rangeArea, boxPlot and candlestick charts need.',
             properties: {
-                // rules, sounds, variables, zones, debug_zones (LCARdSCard base); card entries below win.
-                ...cardLevelProperties,
                 func: {
                     type: 'string',
                     enum: ['avg', 'min', 'max', 'first', 'last', 'sum', 'median', 'delta', 'diff', 'minmax', 'box', 'ohlc'],
@@ -217,6 +215,9 @@ export function getChartSchema(options = {}) {
                     hidden: true
                 }
             },
+            // rules, sounds, variables, zones, debug_zones: card-level, as on every card (LCARdSCard base)
+            ...cardLevelProperties,
+            triggers_update: triggersUpdateSchema,
 
             // ====================================================================
             // CORE PROPERTIES
@@ -429,8 +430,7 @@ export function getChartSchema(options = {}) {
             xaxis_type: {
                 type: 'string',
                 enum: ['datetime', 'category', 'numeric'],
-                default: 'datetime',
-                description: 'X-axis type',
+                description: 'X-axis type. Default: category for horizontal bar charts (one time label per bar), datetime for the other time charts',
                 'x-ui-hints': {
                     label: 'X-Axis Type',
                     helper: 'Type of data on the x-axis',
@@ -780,8 +780,8 @@ export function getChartSchema(options = {}) {
                                 type: 'number',
                                 minimum: 0,
                                 maximum: 20,
-                                default: 4,
-                                description: 'Marker size in pixels',
+                                default: 0,
+                                description: 'Marker size in pixels (0 hides the markers). Default: 0, or 6 for scatter charts',
                                 'x-ui-hints': {
                                     label: 'Size',
                                     selector: {
@@ -962,8 +962,7 @@ export function getChartSchema(options = {}) {
                                 type: 'number',
                                 minimum: 8,
                                 maximum: 24,
-                                default: 14,
-                                description: 'Legend font size',
+                                description: 'Legend font size in pixels. Default: the base font size (style.typography.font_size) plus 2; 12 for scatter and polarArea',
                                 'x-ui-hints': {
                                     label: 'Font Size',
                                     selector: {
@@ -1229,8 +1228,7 @@ export function getChartSchema(options = {}) {
                         properties: {
                             font_family: {
                                 type: 'string',
-                                default: 'Antonio, Helvetica Neue, sans-serif',
-                                description: 'Font family',
+                                description: 'Font family. Default: the theme\'s chart font (the components.chart.fontFamily token, the LCARS font)',
                                 'x-ui-hints': {
                                     label: 'Font Family',
                                     selector: {
@@ -1384,15 +1382,12 @@ export function getChartSchema(options = {}) {
                                     }
                                 }
                             },
+                            // Never took effect (the theme's series colours always won); ignored since 2026.11.
                             palette: {
                                 type: 'string',
-                                description: 'Theme palette name',
-                                'x-ui-hints': {
-                                    label: 'Palette',
-                                    selector: {
-                                        text: {}
-                                    }
-                                }
+                                deprecated: true,
+                                'x-replacement': 'style.colors.series',
+                                description: 'No longer used: set series colours with style.colors.series.'
                             },
                             monochrome: {
                                 type: 'object',
@@ -1543,6 +1538,10 @@ export function getChartSchema(options = {}) {
                             additionalProperties: false
                         },
                         examples: [[{ value: 25, label: 'High', color: 'var(--lcars-red)' }]]
+                    },
+                    color: {
+                        ...simpleColorSchema,
+                        description: 'boxPlot: colour of the boxes (upper and lower quartile). Default: the theme accent colour'
                     },
                     value_format: {
                         type: 'string',

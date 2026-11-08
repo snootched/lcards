@@ -24,7 +24,8 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 1300, height: 1000 } });
 await page.goto(base + path);
 await page.waitForTimeout(3000);
-const demos = await page.locator('.card-demo-panel').all();
+// CardDemo, ChartDemo and DataGridDemo panels
+const demos = await page.locator('.card-demo-panel, .chart-demo-panel, .grid-demo-panel').all();
 for (let i = 0; i < demos.length; i++) {
   await demos[i].scrollIntoViewIfNeeded();
   await page.waitForTimeout(2500);

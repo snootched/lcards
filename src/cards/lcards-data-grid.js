@@ -24,7 +24,7 @@ import { html, css } from 'lit';
 import { LCARdSCard } from '../base/LCARdSCard.js';
 import { pointerOf } from '../base/LCARdSActionHandler.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
-import { prefersReducedMotion } from '../utils/reduced-motion.js';
+import { prefersReducedMotion, onReducedMotionChange } from '../utils/reduced-motion.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { dataGridSchema } from './schemas/data-grid-schema.js';
 import { generateFilterString } from '../msd/utils/BaseSvgFilters.js';
@@ -35,11 +35,10 @@ import {
   normalizeRows, classifyCell, dataColumnCount, countTracks,
   generateDecorativeGrid, refreshDecorativeCells,
   mergeStyleLayers, styleToCSS, gridContainerStyle, toPx, defaultCellStyle, defaultHeaderStyle,
-  buildCascadeRowTimings, cascadeColorList
+  buildCascadeRowTimings, cascadeColorList, cellActions
 } from '../data-grid/data-grid-model.js';
 
 
-const ACTION_KEYS = ['tap_action', 'hold_action', 'double_tap_action'];
 
 export class LCARdSDataGrid extends LCARdSCard {
   /** Card type identifier for CoreConfigManager */
@@ -451,6 +450,33 @@ export class LCARdSDataGrid extends LCARdSCard {
   }
 
   /**
+   * Whether the cascade plays: configured, and not stopped by reduced motion
+   * (the AnimationManager settles a looping animation unless essential_motion).
+   * @private
+   */
+  _cascadeRuns() {
+    const cascade = this._findCascade();
+    return !!cascade && (cascade.essential_motion === true || !prefersReducedMotion());
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    // Reduced motion turned on or off while the dashboard is open: the cells take or
+    // give back their colours, and the cascade stops or starts again.
+    this._reducedMotionOff = onReducedMotionChange(() => {
+      if (!this._findCascade()) return;
+      this.requestUpdate();
+      this._restartEffects();
+    });
+  }
+
+  disconnectedCallback() {
+    this._reducedMotionOff?.();
+    this._reducedMotionOff = null;
+    super.disconnectedCallback();
+  }
+
+  /**
    * A tap anywhere on the grid fires the card's on_tap animations with the tap point,
    * for stagger `from: pointer` (tap-ripple). Capture phase: a cell with its own tap
    * action stops the click before it bubbles, and its action must still run, so this
@@ -494,7 +520,9 @@ export class LCARdSDataGrid extends LCARdSCard {
     const cascade = this._findCascade();
     const animationManager = this._singletons?.animationManager;
     const numRows = this._gridData.length;
-    if (!cascade || !animationManager || numRows === 0 || this._inCardPicker()) return;
+    // Under reduced motion it isn't started at all: settling it would revert the
+    // cells' inline colours along with the tween.
+    if (!cascade || !this._cascadeRuns() || !animationManager || numRows === 0 || this._inCardPicker()) return;
 
     const { overlayId } = this._getAnimationSetup();
     const scopeData = animationManager.scopes.get(overlayId);
@@ -646,16 +674,7 @@ export class LCARdSDataGrid extends LCARdSCard {
    * @private
    */
   _cellActions(cell) {
-    const info = classifyCell(cell);
-    const own = {};
-    if (cell && typeof cell === 'object') {
-      for (const key of ACTION_KEYS) if (cell[key]) own[key] = cell[key];
-    }
-    if (Object.keys(own).length) return { actions: own, entity: info.entity };
-    if (info.entity && this.config.cell_tap_action) {
-      return { actions: { tap_action: this.config.cell_tap_action }, entity: info.entity };
-    }
-    return null;
+    return cellActions(cell, this.config.cell_tap_action);
   }
 
   /**
@@ -772,8 +791,9 @@ export class LCARdSDataGrid extends LCARdSCard {
 
     const cols = this._gridData[0]?.length || 12;
     const gridCss = gridContainerStyle(this.config.grid, cols, this._gridStyle());
-    // Inline colours would block the cascade's anime.js colour tween.
-    const exclude = this._findCascade() ? ['color'] : [];
+    // Inline colours would block the cascade's anime.js colour tween; when the
+    // cascade can't run (reduced motion) the cells keep their own colour.
+    const exclude = this._cascadeRuns() ? ['color'] : [];
 
     return html`
       <div class="lcards-card-container">

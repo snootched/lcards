@@ -61,6 +61,8 @@ const LIVE_DEMOS: Record<string, string> = {
   'lcards-astrometrics-card': 'CardDemo',
   // the Alert Studio's mock screen (CardDemo mounts lcards-alert-preview)
   'lcards-alert-overlay': 'CardDemo',
+  // a whole view: CardDemo draws its grid with the Layout Card (same layout code)
+  'lcards-layout-view': 'CardDemo',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -535,10 +537,13 @@ export default withMermaid(defineConfig({
               text: 'Chart',
               collapsed: true,
               items: [
-                { text: 'Overview',      link: '/cards/chart/' },
-                { text: 'Series & Time', link: '/cards/chart/series' },
-                { text: 'Styling',       link: '/cards/chart/styling' },
-                { text: 'Playground',    link: '/cards/chart/playground' },
+                { text: 'Overview',        link: '/cards/chart/' },
+                { text: 'Series and Time', link: '/cards/chart/series' },
+                { text: 'Chart Types',     link: '/cards/chart/types' },
+                { text: 'Styling',         link: '/cards/chart/styling' },
+                { text: 'Axes and Labels', link: '/cards/chart/labels' },
+                { text: 'Examples',        link: '/cards/chart/examples' },
+                { text: 'Playground',      link: '/cards/chart/playground' },
                 { text: 'Upgrading',     link: '/cards/chart/upgrading' },
               ],
             },
@@ -547,8 +552,8 @@ export default withMermaid(defineConfig({
               collapsed: true,
               items: [
                 { text: 'Overview',            link: '/cards/data-grid/' },
-                { text: 'Data & Cells',        link: '/cards/data-grid/data' },
-                { text: 'Styling & Animation', link: '/cards/data-grid/styling' },
+                { text: 'Data and Cells',      link: '/cards/data-grid/data' },
+                { text: 'Styling and Animation', link: '/cards/data-grid/styling' },
                 { text: 'Playground',          link: '/cards/data-grid/playground' },
                 { text: 'Upgrading',           link: '/cards/data-grid/upgrading' },
               ],

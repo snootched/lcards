@@ -8,7 +8,7 @@ import { test, expect, watchErrors, waitForDemos, demoState, DOCS_BASE, gpuTag }
 
 // Card types rendered by CardDemo (chart and data grid have their own demos; an alert
 // overlay shows on the Alert Studio's mock screen, lcards-alert-preview).
-const CARD_DEMO_TYPES = new Set(['lcards-button', 'lcards-elbow', 'lcards-slider', 'lcards-select-menu', 'lcards-msd-card', 'lcards-layout-card', 'lcards-astrometrics-card', 'lcards-alert-overlay']);
+const CARD_DEMO_TYPES = new Set(['lcards-button', 'lcards-elbow', 'lcards-slider', 'lcards-select-menu', 'lcards-msd-card', 'lcards-layout-card', 'lcards-astrometrics-card', 'lcards-alert-overlay', 'lcards-layout-view']);
 
 /** Every docs page with ```yaml live blocks of CardDemo types, with the card tag of each block. */
 function livePages() {
@@ -74,8 +74,8 @@ for (const [url, tags] of PAGES) {
         expect(demos).toHaveLength(expected);
         for (const [i, d] of demos.entries()) {
             expect(d.fatal, `demo ${i + 1}`).toBeNull();
-            // an alert overlay example mounts the Alert Studio's mock screen
-            expect(d.card, `demo ${i + 1}`).toBe(tags[i] === 'lcards-alert-overlay' ? 'lcards-alert-preview' : tags[i]);
+            // an alert overlay example mounts the Alert Studio's mock screen, a layout view the Layout Card
+            expect(d.card, `demo ${i + 1}`).toBe({ 'lcards-alert-overlay': 'lcards-alert-preview', 'lcards-layout-view': 'lcards-layout-card' }[tags[i]] ?? tags[i]);
             // Docs examples are schema-clean: no warnings under the card.
             expect(d.messages, `demo ${i + 1}`).toEqual([]);
         }

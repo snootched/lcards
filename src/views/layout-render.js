@@ -123,8 +123,12 @@ export function measureGridFrame(grid, overlay) {
  * @param {string|null} cardMargin
  * @param {string} cardOverflow
  * @param {object} [areaSettings]
+ * @param {{ cellFits?: boolean }} [opts] - cellFits: the cell has a definite height
  */
-export function applyCardPlacement(gridItem, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings = {}) {
+export function applyCardPlacement(gridItem, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings = {}, { cellFits = false } = {}) {
+    // A cell of a definite height (cellHeightDefinite): an LCARdS card directly in it
+    // follows the cell instead of its preset's minimum height (LCARdSButton._inFittedCell).
+    gridItem.toggleAttribute('data-lcards-cell-fits', cellFits);
     // Clear previously-applied item styles so removed keys don't persist on a
     // reused element.
     for (const k of ['grid-area', 'grid-column', 'grid-row',

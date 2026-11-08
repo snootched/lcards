@@ -5863,12 +5863,21 @@ export class LCARdSSlider extends LCARdSButton {
         const toCssVal = val => { const n = Number(val); return Number.isFinite(n) ? `${n}px` : String(val); };
         const cssHeight    = this.config.height     ? toCssVal(this.config.height)     : '';
         const cssMinHeight = this.config.min_height ? toCssVal(this.config.min_height) : '';
+        // The host already has the configured size: a % here would apply twice (as on the button)
+        const own = (/** @type {string} */ v) => (v && !v.includes('%') ? v : '');
+        // In a layout cell of a definite height the slider follows the cell (its 56px floor
+        // would spill out of shorter rows); a min_height you set still applies.
+        const fitted = !cssMinHeight && !cssHeight && this._inFittedCell();
+        if (fitted) this.style.minHeight = '0px';
+        else if (!this.config.min_height && !this.config.height) this.style.removeProperty('min-height');
         const containerStyleParts = [];
         if (cssHeight) {
-            containerStyleParts.push(`height: ${cssHeight}`);
+            if (own(cssHeight)) containerStyleParts.push(`height: ${cssHeight}`);
             containerStyleParts.push('min-height: 0px');
-        } else if (cssMinHeight) {
+        } else if (own(cssMinHeight)) {
             containerStyleParts.push(`min-height: ${cssMinHeight}`);
+        } else if (fitted) {
+            containerStyleParts.push('min-height: 0px');
         }
         const containerStyle = containerStyleParts.join('; ');
 

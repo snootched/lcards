@@ -11,6 +11,17 @@
 import { ApexChartsAdapter } from './ApexChartsAdapter.js';
 import { deepMerge } from '../utils/deepMerge.js';
 
+/**
+ * Behaviour defaults the chart card registers with CoreConfigManager, which
+ * merges them under the user config. No xaxis_type: a merged default would
+ * look like the user's choice, and buildChartOptions picks the axis per chart
+ * type when it is unset (category for horizontal bars, datetime for time charts).
+ */
+export const CHART_CARD_DEFAULTS = Object.freeze({
+  chart_type: 'line',
+  height: 300
+});
+
 /** Chart types that show one (latest) value per series instead of a time series. */
 export const LATEST_VALUE_CHART_TYPES = new Set(['pie', 'donut', 'radialBar', 'polarArea']);
 

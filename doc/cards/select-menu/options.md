@@ -144,7 +144,7 @@ options:
 | `tap_action` | object | the card's | Tap action for this button: see [Actions](#actions) |
 | `hold_action` | object | the card's | Hold action for this button |
 | `double_tap_action` | object | the card's | Double-tap action for this button |
-| `variables` | object | - | Your own values for this button's templates (`{variables.<name>}`): see [Variables](../common#variables-variables) |
+| `variables` | object | - | Your own values for this button's templates (`{variables.<name>}`): see [Variables](../common#variables) |
 | `rules` | list | - | Rules this button loads: see [Rules Engine](../../core/rules/) |
 | `sounds` | object | - | Sound overrides for this button: see [Card Sounds](../../core/sounds.md) |
 | `zones` | object | - | Named areas on this button that text fields and animations can target |

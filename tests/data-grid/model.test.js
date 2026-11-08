@@ -119,3 +119,16 @@ test('cascade colour list from both forms', () => {
     assert.deepEqual(cascadeColorList({ start: 'a', end: 'c' }), ['a', undefined, 'c']);
     assert.deepEqual(cascadeColorList(undefined), [undefined, undefined, undefined]);
 });
+
+test('a cell with only a hold or double-tap action still taps with cell_tap_action', async () => {
+    const { cellActions } = await import('../../src/data-grid/data-grid-model.js');
+    const more = { action: 'more-info' };
+    const toggle = { action: 'toggle' };
+    assert.deepEqual(cellActions({ value: 'sensor.x', hold_action: toggle }, more), { actions: { hold_action: toggle, tap_action: more }, entity: 'sensor.x' });
+    // the cell's own tap_action wins
+    assert.deepEqual(cellActions({ value: 'sensor.x', tap_action: toggle }, more)?.actions, { tap_action: toggle });
+    // a plain entity cell, a text cell, no card action
+    assert.deepEqual(cellActions('sensor.x', more)?.actions, { tap_action: more });
+    assert.equal(cellActions('STATIC', more), null);
+    assert.equal(cellActions('sensor.x', undefined), null);
+});

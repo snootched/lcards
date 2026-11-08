@@ -1,26 +1,163 @@
-# Series & Time
-
-What each series plots, how much time the chart shows, and how to combine points, mix chart types and add Y axes. For where series data comes from (entity history, long-term statistics or an LCARdS data source), see the [Overview](./#where-the-data-comes-from).
-
 ---
+description: "Chart card series: where the data comes from (entity history, long-term statistics, LCARdS data sources), series options, the time window, grouping into time buckets, and several Y axes."
+moved_anchors:
+  range-charts: /cards/chart/types#range-charts
+  mixing-chart-types: /cards/chart/types#mixing-chart-types
+---
+
+# Series and Time
+
+What each series plots and where its data comes from, how much time the chart shows, how to combine points into time buckets, and how to give series their own Y axes. Chart types and mixing them are on [Chart Types](./types).
+
+## Where the data comes from
+
+**Each entry under `sources` is one series (one line, area or set of columns), and it gets its data from one of three places.** Start with entity history; the table below helps you pick.
+
+- **Entity history** is the simplest and shows exactly what Home Assistant recorded.
+- **Long-term statistics** suit charts that span more than a few days, or sensors that change so often that history gets slow. They also last beyond the recorder's history limit.
+- **An LCARdS data source** plots a processed value (a smoothed line, a rate of change, a converted unit), or shares one live value between several cards. Data sources keep a limited number of recent points (up to 1,000), so they suit short windows.
+
+| | Entity history | Long-term statistics | LCARdS data source |
+|---|---|---|---|
+| **Write it as** | `entity: sensor.x` | `entity: sensor.x` plus `statistics:` | `datasource: name` |
+| **What it is** | Every state change Home Assistant recorded | Home Assistant's own 5-minute and hourly summaries (mean, min, max, sum) | A live buffer LCARdS keeps in your browser, with optional processing |
+| **Stored by** | Home Assistant's recorder database | Home Assistant's recorder database | Your browser, while the dashboard is open |
+| **How far back** | As long as the recorder keeps history (10 days by default) | Hourly summaries are kept indefinitely | What was preloaded (6 hours by default, up to 7 days) plus what arrived since the page loaded |
+| **Live updates** | Yes | Refreshed every 5 minutes (hourly for daily and longer periods) | Yes |
+| **Works for** | Any entity with numeric (or on/off) values | Sensors with a `state_class` (most energy, power and climate sensors) | Any entity |
+| **Best for** | Hours to days of detail | Weeks, months, years | Processed values: smoothing, rates, unit conversion, statistics |
+
+## Entity history
+
+**`entity` plots what Home Assistant recorded for that entity over the time window, and keeps the line live as new states arrive.** Add `attribute` to plot one of its attributes instead of its state.
+
+- Charts plot numbers. The states `on`/`off`, `open`/`closed`, `true`/`false` and `active`/`inactive` plot as 1 and 0; `curve: stepline` draws them as steps.
+- Other text states (`heat`, `home`, `docked` ...) don't plot. Pick a numeric attribute instead, or use a [data source](#data-sources) with `enum_mapping` to turn each state into a number. Chart Studio warns you when a series won't plot.
+
+```yaml live
+# an attribute instead of the state
+type: custom:lcards-chart
+sources:
+  - entity: climate.living_room
+    attribute: current_temperature
+    name: Thermostat reading
+```
+
+```yaml live
+# an on/off entity drawn as steps
+type: custom:lcards-chart
+sources:
+  - entity: light.living_room
+    name: Living room light
+    curve: stepline
+    type: area
+    opacity: 0.4
+```
+
+::: details More about entity history
+- **Edges of the window:** the last value before the window is drawn from its left edge, and the latest value is carried on to now, so a value that hasn't changed in the window still draws a line (as Home Assistant's history graph does).
+- **Units:** the series takes the entity's `unit_of_measurement`, except when it plots an attribute; set `unit` on the series then.
+- **Reconnects:** when the connection to Home Assistant drops and comes back, the chart loads the window again.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `entity` | string | required | The entity to plot |
+| `attribute` | string | the state | Plot this attribute instead of the state |
+
+## Long-term statistics
+
+**`statistics` plots Home Assistant's own summaries of a sensor instead of every state change: the average, low or high of each period, or how much a meter went up.** It works for sensors with a `state_class`, and suits charts of weeks, months or years.
+
+- `type` picks which summary to plot. Three series of the same sensor can show each day's low, average and high.
+- The chart fetches the statistics again every 5 minutes for `5minute` and `hour` periods, and every hour for `day`, `week` and `month`.
+
+```yaml live
+type: custom:lcards-chart
+graph_span: 14d
+sources:
+  - entity: sensor.outdoor_temperature
+    name: Low
+    color: var(--lcars-blue)
+    stroke_dash: 4
+    statistics:
+      type: min
+      period: day
+  - entity: sensor.outdoor_temperature
+    name: Average
+    color: var(--lcars-orange)
+    stroke_width: 3
+    statistics:
+      type: mean
+      period: day
+  - entity: sensor.outdoor_temperature
+    name: High
+    color: var(--lcars-red)
+    stroke_dash: 4
+    statistics:
+      type: max
+      period: day
+style:
+  legend:
+    show: true
+```
+
+| `type` | Each period shows | Typical sensors |
+|--------|-------------------|-----------------|
+| `mean`, `min`, `max` | The average, lowest or highest value | Temperature, humidity, power (`state_class: measurement`) |
+| `change` | How much a meter increased | Energy, water, gas (`total` / `total_increasing`) |
+| `sum`, `state` | The meter's running total, or its reading at the end of the period | Same |
+
+::: details More about statistics
+- **Grouping or statistics:** for long spans of a sensor with a `state_class`, statistics are usually better: Home Assistant has already done the summarising. [Grouping](#grouping) works on any series, including entity history and data sources.
+- **Range areas:** on a `rangeArea` chart, a statistics series without `group_by` plots each period's minimum to maximum as a band, whatever its `type`: see [Range charts](./types#range-charts).
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `statistics.type` | string | `mean` | `mean`, `min`, `max`, `sum`, `state` or `change` |
+| `statistics.period` | string | `hour` | `5minute`, `hour`, `day`, `week` or `month` |
+
+## Data sources
+
+**`datasource` plots an LCARdS data source: a live buffer in your browser that can smooth, convert or otherwise process an entity's values.** Use it to plot a processed value, or to share one value between several cards.
+
+- `buffer` picks one of the data source's processors to plot instead of its raw values.
+- Data sources are created when the dashboard loads, preload some history, then follow live changes. See [Data Sources](../../core/datasources/) for the keys and processors.
+
+```yaml live
+type: custom:lcards-chart
+sources:
+  - datasource: living_room
+    buffer: smoothed
+    name: Smoothed
+data_sources:
+  living_room:
+    entity: sensor.living_room_temperature
+    processing:
+      smoothed:
+        type: smooth
+        method: exponential
+        alpha: 0.3
+```
+
+::: details More about data source series
+- **In these docs:** the previews plot the data source's entity; processors only run on a real dashboard.
+- **Sources from other cards:** a series can name a data source another card defines. If it doesn't exist yet, the chart tries again after 2 seconds.
+- **A missing buffer:** when the data source has no processor called `buffer`, the series plots the raw values and logs a warning.
+:::
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `datasource` | string | required | The name of a data source, in this card's `data_sources` or defined by another card |
+| `buffer` | string | the raw values | The processor whose values to plot |
 
 ## Series options
 
-These work on every kind of series.
+**Every series, whatever its data, takes the same keys for its name, colour, line, units and axis.** Set them on the series when one series should look different; `style` sets them for the whole chart.
 
-| Option | What it does |
-|--------|--------------|
-| `name` | Name in the legend and tooltip (default: the entity's friendly name) |
-| `unit` | Unit in tooltips and axis labels (default: the entity's unit) |
-| `float_precision` | Decimal places in tooltips |
-| `color` | Series colour: any colour, `var(--lcars-...)` or theme token |
-| `type` | Draw this series differently from the chart: `line`, `area`, `column` or `scatter` |
-| `curve` | `smooth` (default), `straight`, `stepline` or `monotoneCubic` |
-| `stroke_width` | Line width |
-| `stroke_dash` | Dash length; `0` is a solid line |
-| `opacity` | Fill opacity for areas and columns (0 to 1) |
-| `yaxis_id` | Put the series on another Y axis: see [Y axes](#y-axes) |
-| `group_by` | Combine points into time buckets: see [Grouping](#grouping) |
+- `name` is shown in the legend and the tooltip. Without it the series takes the entity's friendly name.
+- `type` draws this series as another chart type than the chart's, for a chart of columns and lines: see [Mixing chart types](./types#mixing-chart-types).
 
 ```yaml live
 type: custom:lcards-chart
@@ -34,35 +171,64 @@ sources:
     type: area
     opacity: 0.3
     curve: straight
-```
-
-### Line styles
-
-`curve`, `stroke_width` and `stroke_dash` per series:
-
-```yaml live
-type: custom:lcards-chart
-graph_span: 12h
-sources:
-  - entity: sensor.kitchen_temperature
-    name: smooth
-    curve: smooth
-  - entity: sensor.bedroom_temperature
-    name: straight, dashed
-    curve: straight
-    stroke_dash: 6
-  - entity: sensor.office_temperature
-    name: stepline, thick
-    curve: stepline
-    stroke_width: 4
 style:
   legend:
     show: true
 ```
 
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `name` | string | the entity's friendly name | Name in the legend and tooltip. A data source series is named after the data source (and its buffer) |
+| `type` | string | `chart_type` | `line`, `area`, `column` or `scatter`: draw this series differently from the chart |
+| `yaxis_id` | string | the first axis | The `id` of the [Y axis](#y-axes) this series uses |
+| `group_by` | object | - | Combine points into time buckets: see [Grouping](#grouping) |
+| [Line styles](#line-styles) | | | `color`, `curve`, `stroke_width`, `stroke_dash` and `opacity` |
+| [Units and decimals](#units-and-decimals) | | | `unit` and `float_precision` |
+
+### Line styles
+
+**`curve`, `stroke_width`, `stroke_dash`, `color` and `opacity` style one series' line or fill.** They win over the chart-wide [`style.stroke`](./styling#style-stroke), [`style.fill`](./styling#style-fill) and [`style.colors.series`](./styling#colours) for that series.
+
+```yaml live
+# each series averaged over 30 minutes, so the lines are easy to tell apart
+type: custom:lcards-chart
+graph_span: 12h
+sources:
+  - entity: sensor.attic_temperature
+    name: smooth
+    curve: smooth
+    group_by:
+      duration: 30min
+  - entity: sensor.kitchen_temperature
+    name: straight, dashed
+    curve: straight
+    stroke_dash: 6
+    group_by:
+      duration: 30min
+  - entity: sensor.office_temperature
+    name: stepline, thick
+    curve: stepline
+    stroke_width: 4
+    group_by:
+      duration: 30min
+style:
+  legend:
+    show: true
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `color` | colour | the next colour in `style.colors.series` | Series colour: any colour, `var(--lcars-...)` or `theme:` token |
+| `curve` | string | `style.stroke.curve` | `smooth`, `straight`, `stepline` or `monotoneCubic` |
+| `stroke_width` | number | `style.stroke.width` | Line width, px (0 to 20) |
+| `stroke_dash` | number | `style.stroke.dash_array` | Dash length, px; `0` is a solid line (0 to 20) |
+| `opacity` | number | `style.fill.opacity` | Fill opacity for areas and columns, 0 to 1 |
+
 ### Units and decimals
 
-`unit` and `float_precision` set what the tooltip shows (hover the chart). Without them, the entity's own unit is used:
+**`unit` and `float_precision` set how a series' values read in the tooltip (hover the chart).** Without them the entity's own unit is used, and values show up to two decimal places.
+
+- An axis label shows the unit too, when every series on that axis has the same unit.
 
 ```yaml live
 type: custom:lcards-chart
@@ -81,54 +247,32 @@ yaxis:
     opposite: true
 ```
 
----
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `unit` | string | the entity's unit | Unit in tooltips and axis labels. Not taken from the entity when the series plots an attribute |
+| `float_precision` | number | up to 2 places | Decimal places in the tooltip (0 to 6). Without it, `style.yaxis.decimals` applies when set |
 
 ## Time window
 
-`graph_span` sets how much time the chart shows. It defaults to `24h`, and the window always ends now, moving along as time passes.
+**`graph_span` sets how much time the chart shows, and `span` lines that window up with the calendar or moves it back in time.** Without `span` the window ends now and moves along as time passes.
 
-```yaml
-graph_span: 6h     # also: 30min, 2d, 1w, 1mo, 1y
-```
-
-Use `span` to line the window up with the calendar, or to look back in time. This chart shows all of yesterday:
+- `span.start: day` starts the window at midnight today. With a `24h` span it shows today so far: the window runs to midnight, so the line stops at now.
+- `span.offset` moves the window, so `start: day` with `offset: -1d` shows all of yesterday.
 
 ```yaml live
-type: custom:lcards-chart
-graph_span: 24h
-span:
-  start: day        # start at midnight today
-  offset: -1d       # then move the window back one day
-sources:
-  - entity: sensor.outdoor_temperature
-```
-
-Today so far (the window runs to midnight, so the line stops at "now"):
-
-```yaml live
+# all of yesterday
 type: custom:lcards-chart
 graph_span: 24h
 span:
   start: day
+  offset: -1d
 sources:
   - entity: sensor.outdoor_temperature
-    name: Today
+    name: Yesterday
 ```
 
-The last hour, in detail:
-
 ```yaml live
-type: custom:lcards-chart
-graph_span: 1h
-sources:
-  - entity: sensor.house_power
-    name: Power
-    curve: straight
-```
-
-This week so far, Monday to Sunday, from daily statistics:
-
-```yaml live
+# this week so far, Monday to Sunday, from daily statistics
 type: custom:lcards-chart
 chart_type: column
 graph_span: 7d
@@ -142,53 +286,37 @@ sources:
       period: day
 ```
 
-| `span` option | What it does |
-|---------------|--------------|
-| `start` | The window starts at the beginning of the current `minute`, `hour`, `day`, `week`, `month` or `year` and lasts `graph_span` |
-| `end` | The window ends at the end of the current unit (and starts `graph_span` earlier) |
-| `offset` | Moves the window, e.g. `-1d` (a day earlier) or `+2h` |
+::: details More about the time window
+- **Durations:** a number and a unit: `s`, `min` (or `m`), `h`, `d`, `w`, `mo` or `y`. Spelled out (`hour`, `day`, `week`, `month`, `year`) and plurals (`2days`) work too, and so do decimals (`1.5h`). A month is 30 days and a year 365 days.
+- **Weeks** start on Monday.
+- **Rolling over:** an aligned window (`start` or `end`) is checked every minute; when it rolls over (at midnight for `day`), the chart loads the new window.
+- **Both start and end:** when both are set, `start` is used.
+:::
 
----
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `graph_span` | string | `24h` | How much time the chart shows, such as `30min`, `6h`, `2d`, `1w`, `1mo`, `1y` |
+| `span.start` | string | - | Start the window at the beginning of the current `minute`, `hour`, `day`, `week`, `month` or `year`; it lasts `graph_span` |
+| `span.end` | string | - | End the window at the end of the current unit (same units); it starts `graph_span` earlier |
+| `span.offset` | string | - | Move the window, with a sign: `-1d` (a day earlier) or `+2h` |
 
 ## Grouping
 
-`group_by` combines the points in each time bucket into one value. Use it to smooth out busy sensors, to show hourly averages over a week, or to turn readings into daily totals.
+**`group_by` combines the points in each time bucket into one value.** Use it to smooth out a busy sensor, to show hourly averages over a week, or to turn a meter's readings into totals per hour.
 
-```yaml live
-type: custom:lcards-chart
-chart_type: column
-graph_span: 24h
-sources:
-  - entity: sensor.house_power
-    name: Peak power per hour
-    group_by:
-      func: max        # how each bucket is combined
-      duration: 1h     # bucket length
-      fill: last       # buckets with no readings: last | null (leave a gap) | zero
-```
-
-| `func` | Each bucket shows |
-|--------|-------------------|
-| `avg` | The average |
-| `min`, `max`, `median` | The lowest, highest or middle value |
-| `sum` | The total |
-| `first`, `last` | The first or last reading |
-| `delta` | How much the value changed within the bucket |
-| `diff` | How much the value changed since the previous bucket (useful for meters) |
-| `minmax` | The low and high value, for [range areas](#range-charts) |
-| `box` | Min, quartiles, median and max, for [box plots](#range-charts) |
-| `ohlc` | Open, high, low and close, for [candlesticks](#range-charts) |
-
-Smoothing a noisy sensor: the raw readings, and the same sensor averaged over 30 minutes:
+- `func` decides how each bucket is combined; the table below lists them. `minmax`, `box` and `ohlc` build the data the [range charts](./types#range-charts) need.
+- `delta` is how much a meter went up within each bucket, so a meter that only counts up gives energy per hour.
 
 ```yaml live
 type: custom:lcards-chart
 graph_span: 12h
 sources:
+  # the raw readings
   - entity: sensor.house_power
     name: Raw
     stroke_width: 1
     color: var(--lcars-gray)
+  # the same sensor, averaged over 30 minutes
   - entity: sensor.house_power
     name: 30 min average
     stroke_width: 3
@@ -200,9 +328,8 @@ style:
     show: true
 ```
 
-Energy per hour from a meter that only counts up, using `delta`:
-
 ```yaml live
+# energy per hour from a meter that only counts up
 type: custom:lcards-chart
 chart_type: column
 graph_span: 24h
@@ -212,143 +339,47 @@ sources:
     group_by:
       func: delta
       duration: 1h
+      fill: zero
 ```
 
-::: tip Grouping or statistics?
-For long spans of a sensor with a `state_class`, [long-term statistics](./#where-the-data-comes-from) are usually better: Home Assistant has already done the summarising. Grouping works on any series, including entity history and data sources.
+| `func` | Each bucket shows |
+|--------|-------------------|
+| `avg` | The average |
+| `min`, `max`, `median` | The lowest, highest or middle value |
+| `sum` | The total |
+| `first`, `last` | The first or last reading |
+| `delta` | How much the value changed within the bucket |
+| `diff` | How much the value changed since the previous bucket (useful for meters) |
+| `minmax` | The low and high value, for [range areas](./types#range-charts) |
+| `box` | Min, quartiles, median and max, for [box plots](./types#range-charts) |
+| `ohlc` | Open, high, low and close, for [candlesticks](./types#range-charts) |
+
+::: details More about grouping
+- **Buckets** start at the window's start, one every `duration`, and stop at now; each value is drawn at the start of its bucket.
+- **Empty buckets with `fill: last`:** `delta`, `diff` and `sum` give `0` (nothing changed); the other functions repeat the last reading.
+- **`diff` in the first bucket** compares with the last reading before the window, and is `0` when there is none.
 :::
 
----
-
-## Long-term statistics
-
-The `type` picks which of Home Assistant's summaries to plot. Three series of the same sensor show each day's low, average and high over two weeks:
-
-```yaml live
-type: custom:lcards-chart
-graph_span: 14d
-sources:
-  - entity: sensor.outdoor_temperature
-    name: Low
-    color: var(--lcars-blue)
-    statistics: { type: min, period: day }
-    stroke_dash: 4
-  - entity: sensor.outdoor_temperature
-    name: Average
-    color: var(--lcars-orange)
-    statistics: { type: mean, period: day }
-    stroke_width: 3
-  - entity: sensor.outdoor_temperature
-    name: High
-    color: var(--lcars-red)
-    statistics: { type: max, period: day }
-    stroke_dash: 4
-style:
-  legend:
-    show: true
-```
-
-| `type` | Each period shows | Typical sensors |
-|--------|-------------------|-----------------|
-| `mean`, `min`, `max` | The average, lowest or highest value | Temperature, humidity, power (`state_class: measurement`) |
-| `change` | How much a meter increased | Energy, water, gas (`total` / `total_increasing`) |
-| `sum`, `state` | The meter's running total, or its reading at the end of the period | Same |
-
----
-
-## Range charts
-
-Range charts need several values per point: a low and a high, or open/high/low/close. `group_by` builds them from any series.
-
-```yaml live
-type: custom:lcards-chart
-chart_type: candlestick
-graph_span: 2d
-sources:
-  - entity: sensor.outdoor_temperature
-    name: Outside
-    group_by:
-      func: ohlc
-      duration: 3h
-```
-
-```yaml live
-type: custom:lcards-chart
-chart_type: boxPlot
-graph_span: 7d
-sources:
-  - entity: sensor.house_power
-    name: Power spread per day
-    group_by:
-      func: box
-      duration: 1d
-```
-
-A range band straight from statistics, no grouping needed:
-
-```yaml live
-type: custom:lcards-chart
-chart_type: rangeArea
-graph_span: 14d
-sources:
-  - entity: sensor.outdoor_temperature
-    name: Daily range
-    statistics:
-      type: mean
-      period: day
-```
-
-| Chart type | Set the series' `group_by.func` to |
-|------------|-----------------------------------|
-| `rangeArea` | `minmax`. Or use long-term statistics: the band runs from each period's minimum to maximum |
-| `boxPlot` | `box` |
-| `candlestick` | `ohlc` |
-
----
-
-## Mixing chart types
-
-A series' `type` overrides the chart type, so one chart can show columns and lines together:
-
-```yaml live
-type: custom:lcards-chart
-chart_type: line
-sources:
-  - entity: sensor.energy_consumption
-    name: Energy per hour
-    type: column
-    unit: kWh
-    group_by:
-      func: delta
-      duration: 1h
-  - entity: sensor.outdoor_temperature
-    name: Outside
-    yaxis_id: temperature
-    group_by:
-      func: avg
-      duration: 1h
-yaxis:
-  - id: energy
-  - id: temperature
-    opposite: true
-```
-
-::: tip Columns next to lines
-In a mixed chart, columns are sized by the closest pair of points in *any* series. If the line has a reading every few minutes, the columns become thin lines. Group the line to the same bucket length as the columns (here `1h`), as above.
-:::
-
----
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `group_by.duration` | string | required | Bucket length, such as `10min`, `1h` or `1d` |
+| `group_by.func` | string | `avg` | How each bucket is combined: see the table above |
+| `group_by.fill` | string | `last` | Buckets with no readings: `last` (repeat the last value), `null` (leave a gap) or `zero` |
 
 ## Y axes
 
-All series share one Y axis that scales automatically. When series have very different ranges (temperature and humidity, say), give them their own axes:
+**`yaxis` gives series their own Y axes, for series with very different ranges such as temperature and humidity.** Without it all series share one axis that scales itself.
+
+- Each series picks an axis by its `id` with `yaxis_id`. Series without one use the first axis.
+- `min` and `max` fix the range, so the scale stays steady as values change; leave them out to scale automatically.
 
 ```yaml live
 type: custom:lcards-chart
 yaxis:
   - id: temperature
+  # drawn on the right, pinned to 0 to 100
   - id: humidity
-    opposite: true      # draw it on the right
+    opposite: true
     min: 0
     max: 100
     decimals: 0
@@ -360,28 +391,17 @@ sources:
     yaxis_id: humidity
 ```
 
-Series without a `yaxis_id` use the first axis. Axis labels show the series' unit.
+::: details More about Y axes
+- **Labels:** an axis shows the series' unit when every series on it has the same unit. Without `decimals` it uses [`style.yaxis.decimals`](./labels#style-xaxis-and-style-yaxis), or up to two decimal places.
+- **Styling** (label visibility, axis line, ticks) is in [`style.yaxis`](./labels#style-xaxis-and-style-yaxis), and applies to every axis.
+:::
 
-A fixed range keeps the scale steady as values change, here a humidity axis pinned to 0 to 100:
-
-```yaml live
-type: custom:lcards-chart
-chart_type: area
-yaxis:
-  - id: humidity
-    min: 0
-    max: 100
-    decimals: 0
-sources:
-  - entity: sensor.living_room_humidity
-    name: Humidity
-    opacity: 0.3
-```
-
-| Axis option | What it does |
-|-------------|--------------|
-| `id` | Name the series refer to with `yaxis_id` (required) |
-| `show` | Show the axis (default `true`) |
-| `opposite` | Draw it on the right |
-| `min`, `max` | Fixed range; leave them out to scale automatically |
-| `decimals` | Decimal places in the labels |
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `yaxis[].id` | string | required | The name series use in `yaxis_id` |
+| `yaxis[].show` | boolean | `true` | Show the axis |
+| `yaxis[].opposite` | boolean | `false` | Draw it on the right |
+| `yaxis[].min` | number | automatic | Fixed lowest value |
+| `yaxis[].max` | number | automatic | Fixed highest value |
+| `yaxis[].decimals` | number | up to 2 places | Decimal places in the labels (0 to 6) |
+| `yaxis_id` | string | the first axis | On a series: the axis it uses |

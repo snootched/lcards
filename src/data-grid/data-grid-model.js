@@ -320,7 +320,7 @@ export function styleToCSS(style, { exclude = [] } = {}) {
   return out.join('; ');
 }
 
-const GRID_KEYS = [
+export const GRID_KEYS = [
   'grid-template-columns', 'grid-template-rows', 'grid-template-areas',
   'grid-template', 'grid-auto-columns', 'grid-auto-rows', 'grid-auto-flow',
   'gap', 'row-gap', 'column-gap', 'grid-gap', 'grid-row-gap', 'grid-column-gap',
@@ -424,4 +424,26 @@ export function cascadeColorList(colors) {
   if (Array.isArray(colors)) return [colors[0], colors[1], colors[2]];
   if (isObject(colors)) return [colors.start, colors.text, colors.end];
   return [undefined, undefined, undefined];
+}
+
+/** The action keys a cell can set. */
+export const CELL_ACTION_KEYS = /** @type {const} */ (['tap_action', 'hold_action', 'double_tap_action']);
+
+/**
+ * The actions for one cell: its own tap_action / hold_action / double_tap_action,
+ * and for an entity cell with no tap_action of its own, the card's
+ * `cell_tap_action` as its tap (a cell's hold_action alone used to drop it).
+ * @param {*} cell
+ * @param {Object|undefined} cellTapAction - the card's cell_tap_action
+ * @returns {{ actions: Record<string, Object>, entity?: string }|null}
+ */
+export function cellActions(cell, cellTapAction) {
+    const info = classifyCell(cell);
+    /** @type {Record<string, Object>} */
+    const actions = {};
+    if (cell && typeof cell === 'object') {
+        for (const key of CELL_ACTION_KEYS) if (cell[key]) actions[key] = cell[key];
+    }
+    if (!actions.tap_action && info.entity && cellTapAction) actions.tap_action = cellTapAction;
+    return Object.keys(actions).length ? { actions, entity: info.entity } : null;
 }

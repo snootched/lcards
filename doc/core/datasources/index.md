@@ -188,4 +188,4 @@ sources:
     buffer: smoothed       # values from the 'smoothed' processor
 ```
 
-Data sources live in your browser: they are created when the dashboard loads, preload some history, then follow live changes. They keep a limited number of recent points (see `window_seconds`), so for plain entity history or long spans, plot the entity directly instead. The [Chart card](../../cards/chart/#where-the-data-comes-from) compares the options.
+Data sources live in your browser: they are created when the dashboard loads, preload some history, then follow live changes. They keep a limited number of recent points (see `window_seconds`), so for plain entity history or long spans, plot the entity directly instead. The [Chart card](../../cards/chart/series#where-the-data-comes-from) compares the options.

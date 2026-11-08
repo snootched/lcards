@@ -32,6 +32,9 @@
       The alert overlay as the Alert Studio previews it, on a 1280 × 720 screen with a stand-in dashboard behind it.
       Pick a condition to see what it shows; a tap on the backdrop dismisses it.
     </p>
+    <p v-else-if="isLayoutView" class="card-demo-caption">
+      The view's grid as the Layout Card draws it (the same layout code), in a {{ LAYOUT_VIEW_HEIGHT }} px tall box.
+    </p>
     <p v-else class="card-demo-caption">
       The real {{ cardName }} card with sample entities<span v-if="editable">: try the entities below, or any entity id (it gets a sample value)</span>.
       {{ hint }}
@@ -75,6 +78,11 @@ const ALERT_TAG = 'lcards-alert-overlay'
 const ALERT_CONDITIONS = ['red_alert', 'yellow_alert', 'blue_alert', 'black_alert', 'gray_alert']
 const ALERT_SCREEN = { width: 1280, height: 720 }
 const isAlert = computed(() => cardTag.value === ALERT_TAG)
+// A layout view is a whole view: the demo draws its grid with the Layout Card, which
+// shares the view's layout code (views/layout-grid-utils.js), in a box of a fixed height.
+const LAYOUT_VIEW_TAG = 'lcards-layout-view'
+const LAYOUT_VIEW_HEIGHT = 320
+const isLayoutView = computed(() => cardTag.value === LAYOUT_VIEW_TAG)
 const alertCondition = ref('')
 const cardName = computed(() => cardTag.value.replace(/^lcards-/, '').replace(/-card$/, '').replace(/-/g, ' '))
 const starters = computed(() => CARD_STARTERS[cardTag.value] ?? [])
@@ -115,6 +123,17 @@ const SCHEMAS = {
   'lcards-elbow': async () => (await import('../../../src/cards/schemas/elbow-schema.js')).getElbowSchema(await buttonPresets()),
   'lcards-select-menu': async () => (await import('../../../src/cards/schemas/select-menu-schema.js')).getSelectMenuSchema(await buttonPresets()),
   [ALERT_TAG]: async () => (await import('../../../src/cards/schemas/lcards-alert-overlay-schema.js')).getAlertOverlaySchema(),
+}
+
+/**
+ * A layout view config as a Layout Card in the demo box: the view's own keys (title,
+ * path, icon) dropped, and a height that isn't a pixel value (the view's default
+ * fills the screen) replaced by the box's.
+ */
+function layoutViewAsCard(view) {
+  const { title, path, icon, type, ...rest } = view
+  const px = /^\d+(px)?$/.test(String(rest.layout?.height ?? '').trim())
+  return { ...rest, type: 'custom:lcards-layout-card', layout: { ...(rest.layout ?? {}), ...(px ? {} : { height: `${LAYOUT_VIEW_HEIGHT}px` }) } }
 }
 
 /**
@@ -175,6 +194,7 @@ async function render() {
     messages.value = [{ level: 'error', text: 'The YAML needs a `type:` line, e.g. type: custom:lcards-button' }]
     return
   }
+  if (config.type === `custom:${LAYOUT_VIEW_TAG}`) config = layoutViewAsCard(config)
   const tag = config.type.replace(/^custom:/, '')
   if (!customElements.get(tag)) {
     messages.value = [{ level: 'error', text: `Unknown card type ${config.type}` }]

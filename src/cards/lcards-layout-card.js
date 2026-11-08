@@ -32,7 +32,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
-import { parseLayoutConfig } from '../views/layout-grid-utils.js';
+import { parseLayoutConfig, cellHeightDefinite, gridHeightIsDefinite } from '../views/layout-grid-utils.js';
 import {
     buildGridStyle,
     applyCardPlacement,
@@ -288,13 +288,16 @@ export class LCARdSLayoutCard extends LitElement {
         const cardMargin   = layout.card_margin ?? null;
         const cardOverflow = layout.card_overflow ?? 'visible';
 
-        renderAreaSurfaces(grid, layout, this._activeGrid().areas);
+        const active = this._activeGrid();
+        renderAreaSurfaces(grid, layout, active.areas);
+        const gridDefinite = gridHeightIsDefinite(layout.height);
 
         (this._cardElements ?? []).forEach((cardEl, i) => {
             const childCfg     = this._config?.cards?.[i];
             const viewLayout   = childCfg?.view_layout ?? {};
             const areaSettings = layout.areas?.[viewLayout['grid-area']] ?? {};
-            applyCardPlacement(cardEl, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings);
+            const cellFits     = cellHeightDefinite(active.rows, active.areas, viewLayout, gridDefinite);
+            applyCardPlacement(cardEl, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings, { cellFits });
             applyGridItemHeight(cardEl, childCfg);
             grid.appendChild(cardEl);
         });

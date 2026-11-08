@@ -247,6 +247,9 @@ export class LCARdSButton extends LCARdSCard {
         // The user's own style.text.default, for the same reason: a preset's text.default
         // is merged into this.config.text and must not beat a colour the user set here.
         this._rawUserStyleTextDefault = config?.style?.text?.default ? JSON.parse(JSON.stringify(config.style.text.default)) : {};
+        // The user's own min_height: a preset's (the theme's 56px button height) gives way
+        // in a layout cell of a definite height (_inFittedCell), the user's never does.
+        this._rawUserMinHeight = config?.min_height;
 
         super._onConfigSet(config);
 
@@ -3614,7 +3617,10 @@ export class LCARdSButton extends LCARdSCard {
             };
             // CSS string — used for inline style assignment (handles vh/vw/clamp/etc.).
             const cssHeight    = toCssVal(this.config.height);
-            const cssMinHeight = toCssVal(this.config.min_height);
+            // In a layout cell of a definite height the button follows the cell: the
+            // preset's floor (56px) would spill out of shorter rows.
+            const fitted = (this._rawUserMinHeight === undefined || this._rawUserMinHeight === null || this._rawUserMinHeight === '') && this._inFittedCell();
+            const cssMinHeight = fitted ? '0px' : toCssVal(this.config.min_height);
             const cssWidth     = toCssVal(this.config.width);
             const cssMinWidth  = toCssVal(this.config.min_width);
             const cssMaxHeight = toCssVal(this.config.max_height);
@@ -3626,18 +3632,22 @@ export class LCARdSButton extends LCARdSCard {
             //      when larger, so we suppress it with an inline 0 that beats any CSS var or
             //      preset value.
             //   2. config.height absent, config.min_height set → apply as CSS floor.
-            //   3. Both absent → static CSS var(--lcars-button-min-height, 40px) takes over.
+            //   3. Both absent → static CSS var(--lcards-button-min-height, 40px) takes over.
+            // The host already has the configured size (LCARdSNativeCard), so the
+            // container takes only lengths that don't depend on its parent: a %
+            // (or a calc() with one) here would apply twice (width: 50% drew 25%).
+            const own = (/** @type {string|null} */ v) => (v && !v.includes('%') ? v : null);
             const containerStyleParts = [];
             if (cssHeight) {
-                containerStyleParts.push(`height: ${cssHeight}`);
+                if (own(cssHeight)) containerStyleParts.push(`height: ${cssHeight}`);
                 containerStyleParts.push(`min-height: 0px`);
-            } else if (cssMinHeight) {
+            } else if (own(cssMinHeight)) {
                 containerStyleParts.push(`min-height: ${cssMinHeight}`);
             }
-            if (cssWidth)    containerStyleParts.push(`width: ${cssWidth}`);
-            if (cssMinWidth) containerStyleParts.push(`min-width: ${cssMinWidth}`);
-            if (cssMaxHeight) containerStyleParts.push(`max-height: ${cssMaxHeight}`);
-            if (cssMaxWidth)  containerStyleParts.push(`max-width: ${cssMaxWidth}`);
+            if (own(cssWidth))    containerStyleParts.push(`width: ${cssWidth}`);
+            if (own(cssMinWidth)) containerStyleParts.push(`min-width: ${cssMinWidth}`);
+            if (own(cssMaxHeight)) containerStyleParts.push(`max-height: ${cssMaxHeight}`);
+            if (own(cssMaxWidth))  containerStyleParts.push(`max-width: ${cssMaxWidth}`);
             const containerStyle = containerStyleParts.join('; ');
             if (cssHeight) {
                 this.style.height = cssHeight;
@@ -6896,6 +6906,21 @@ export class LCARdSButton extends LCARdSCard {
         this._destroyCanvasTexture();
 
         super.disconnectedCallback();
+    }
+
+    /**
+     * Whether this card sits directly in a layout card / layout view cell of a
+     * definite height (marked data-lcards-cell-fits by layout-render's
+     * applyCardPlacement): itself, or through Home Assistant's hui-card wrapper.
+     * A card inside a stack in such a cell is not (stacks size cards to content).
+     * @returns {boolean}
+     */
+    _inFittedCell() {
+        const marked = (/** @type {Element|null} */ el) => !!el?.hasAttribute?.('data-lcards-cell-fits');
+        if (marked(this)) return true;
+        const parent = this.parentElement;
+        if (marked(parent)) return true;
+        return parent?.localName === 'hui-card' && marked(parent.parentElement);
     }
 
     /**

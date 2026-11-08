@@ -1118,7 +1118,9 @@ export class LCARdSCard extends LCARdSNativeCard {
         // Reset the parent-margin height correction so the rAF first-measurement block
         // re-detects the current layout context (the card may have moved from a
         // layout-card context with card_margin to a sections view, or vice-versa).
-        this.style.removeProperty('height');
+        // A configured height stays (LCARdSNativeCard._onConfigSet set it).
+        const configuredH = this.config?.height !== undefined && this.config?.height !== null && this.config?.height !== '';
+        if (!configuredH) this.style.removeProperty('height');
         this._parentMarginV = undefined;
         // Reset stored size so the first ResizeObserver callback takes the rAF path
         // (margin re-detection) rather than the debounced update path.
@@ -1241,7 +1243,13 @@ export class LCARdSCard extends LCARdSNativeCard {
                     const myStyle = window.getComputedStyle(this);
                     const marginV = (parseFloat(myStyle.marginTop)    || 0)
                                   + (parseFloat(myStyle.marginBottom) || 0);
-                    if (marginV > 0) {
+                    // A configured height wins (LCARdSNativeCard._onConfigSet set it):
+                    // clearing it here lost `height` on every card that doesn't
+                    // re-apply it in render (a slider with height: 50% filled its cell).
+                    const configuredH = this.config?.height !== undefined && this.config?.height !== null && this.config?.height !== '';
+                    if (configuredH) {
+                        this._parentMarginV = undefined;
+                    } else if (marginV > 0) {
                         this.style.height = `calc(100% - ${marginV}px)`;
                         this._parentMarginV = marginV; // cache for reconnect / window.resize
                     } else {

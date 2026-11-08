@@ -40,7 +40,8 @@ import {
   buildChartOptions,
   buildApexSeries,
   chartStyleDefaults,
-  windowAxis
+  windowAxis,
+  CHART_CARD_DEFAULTS
 } from '../charts/chart-options-builder.js';
 import { ChartSeriesFetcher } from '../charts/chart-series-fetcher.js';
 import { normalizeChartSources, arrayChartProblem } from '../charts/chart-sources.js';
@@ -760,12 +761,9 @@ export class LCARdSChart extends LCARdSCard {
       return;
     }
 
-    // Register behavioral defaults
-    configManager.registerCardDefaults('chart', {
-        chart_type: 'line',           // Default chart type
-        height: 300,                  // Default height in pixels
-        xaxis_type: 'datetime'        // Default x-axis type
-    });
+    // Register behavioral defaults (chart_type, height; the x-axis type is
+    // picked per chart type when unset, so it is not a default here)
+    configManager.registerCardDefaults('chart', { ...CHART_CARD_DEFAULTS });
 
     // Use static import (no .then() needed)
     const schema = getChartSchema({

@@ -442,14 +442,16 @@ export class LCARdSNativeCard extends LitElement {
         // Apply min-height/min-width to the host element — suppressed when the
         // corresponding exact dimension is also set (config.height/config.width wins;
         // CSS min-* always overrides height/width when larger, so we clear it).
+        // An exact size is exact: an inline 0 (not a cleared value) so a card's own
+        // stylesheet floor (the chart's 200px) can't beat it either.
         if (explicitH) {
-            this.style.removeProperty('min-height');
+            this.style.minHeight = '0px';
         } else {
             this.style.minHeight = _toCssLength(config.min_height ?? '');
         }
         const explicitW = _toCssLength(config.width ?? '');
         if (explicitW) {
-            this.style.removeProperty('min-width');
+            this.style.minWidth = '0px';
         } else {
             this.style.minWidth = _toCssLength(config.min_width ?? '');
         }

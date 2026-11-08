@@ -288,3 +288,27 @@ test('parseLayoutConfig keeps every area name when tracks use repeat()', () => {
     });
     assert.deepEqual(auto.areas[0], ['a', 'b', 'c'], 'auto-fill tracks can\'t be counted, so the areas row sets the width');
 });
+
+// ── Cells a card can follow (buttons drop the preset's 56px floor there) ──
+
+test('cellHeightDefinite: fixed rows always, fr and % only in a grid of a set height', () => {
+    const areas = grid('"bar bar" "side main" "side main"');
+    const area = (name) => ({ 'grid-area': name });
+    assert.equal(L.cellHeightDefinite(['40px', '1fr', '1fr'], areas, area('bar'), false), true);
+    assert.equal(L.cellHeightDefinite(['10vh', '1fr', '1fr'], areas, area('bar'), false), true);
+    assert.equal(L.cellHeightDefinite(['40px', '1fr', '1fr'], areas, area('side'), false), false);
+    assert.equal(L.cellHeightDefinite(['40px', '1fr', '1fr'], areas, area('side'), true), true);
+    assert.equal(L.cellHeightDefinite(['auto', '1fr', '1fr'], areas, area('bar'), true), false);
+    assert.equal(L.cellHeightDefinite(['minmax(40px, auto)', '1fr', '1fr'], areas, area('bar'), true), false);
+    // no area, or one not in the grid
+    assert.equal(L.cellHeightDefinite(['40px'], areas, { 'grid-row': '1' }, true), false);
+    assert.equal(L.cellHeightDefinite(['40px'], areas, area('nope'), true), false);
+});
+
+test('gridHeightIsDefinite: a set length, not auto or a percentage', () => {
+    assert.equal(L.gridHeightIsDefinite('320px'), true);
+    assert.equal(L.gridHeightIsDefinite('calc(100dvh - var(--header-height, 56px))'), true);
+    assert.equal(L.gridHeightIsDefinite('auto'), false);
+    assert.equal(L.gridHeightIsDefinite('100%'), false);
+    assert.equal(L.gridHeightIsDefinite(undefined), false);
+});

@@ -13,6 +13,8 @@ const ROOT = path.resolve(import.meta.dirname, '../..');
 
 /** Pages written to the formula */
 const FORMATTED = [
+  'doc/cards/layout-view/index.md',
+  'doc/cards/common.md',
   'doc/cards/slider-card/index.md',
   'doc/cards/slider-card/styles.md',
   'doc/cards/slider-card/components.md',
@@ -43,7 +45,18 @@ const FORMATTED = [
   'doc/cards/alert-overlay/band.md',
   'doc/cards/alert-overlay/symbol.md',
   'doc/cards/alert-overlay/conditions.md',
-  'doc/cards/alert-overlay/raising.md'
+  'doc/cards/alert-overlay/raising.md',
+  'doc/cards/data-grid/index.md',
+  'doc/cards/data-grid/data.md',
+  'doc/cards/data-grid/styling.md',
+  'doc/cards/data-grid/upgrading.md',
+  'doc/cards/chart/index.md',
+  'doc/cards/chart/series.md',
+  'doc/cards/chart/types.md',
+  'doc/cards/chart/styling.md',
+  'doc/cards/chart/labels.md',
+  'doc/cards/chart/examples.md',
+  'doc/cards/chart/upgrading.md'
 ];
 
 const KEY_TABLE = '| Key | Type | Default | Description |';

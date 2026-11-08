@@ -224,7 +224,7 @@ releases:
         summary: "Charts: entity history, long-term statistics and data sources"
         description: "Every series is one entry of sources. Top left, entity history: move POWER and SHIELDS and the lines follow. Top right, an LCARdS data source smoothing the same power value beside its raw history. Below, a week of hourly means from Home Assistant's long-term statistics, and TOGGLE plotted as on/off steps."
         session: "R3"
-        docs: /cards/chart/#where-the-data-comes-from
+        docs: /cards/chart/series#where-the-data-comes-from
         public: true
       - file: chart-types
         summary: "Chart types on the same four values"
@@ -248,7 +248,7 @@ releases:
         summary: "Data grid decorative mode: the LCARS number wall"
         description: "Decorative mode makes up its values: hex with digit columns trickling in and pulsing, floats refreshing faster, and a mixed wall under the cascade animation. Nothing to control: no entities."
         session: "R3"
-        docs: /cards/data-grid/#decorative-mode
+        docs: /cards/data-grid/data#decorative-mode
         public: true
       - file: astro-navigation
         summary: "Astrometrics navigation: follow a moving ship, touchpad pan, a time slider, buttons that fade"

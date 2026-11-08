@@ -69,7 +69,7 @@ test('chart types and tabs link to the chart docs', async ({ page }) => {
         document.body.appendChild(studio);
         await studio.updateComplete;
         const links = {};
-        for (const type of ['line', 'radar', 'pie', 'rangeBar', 'boxPlot']) {
+        for (const type of ['line', 'radar', 'pie', 'boxPlot']) {
             studio._workingConfig = { ...studio._workingConfig, chart_type: type };
             await studio.updateComplete;
             links[type] = [...studio.shadowRoot.querySelectorAll('.info-guide-links a')].map(a => a.getAttribute('href'))
@@ -80,12 +80,16 @@ test('chart types and tabs link to the chart docs', async ({ page }) => {
             studio._activeTab = tab;
             tabs[tab] = studio._tabDocs();
         }
-        return { links, tabs };
+        // rangeBar is not offered (the card can't build its data yet)
+        const html = studio.shadowRoot.innerHTML;
+        return { links, tabs, rangeBarOffered: /Range Bar/.test(html), rangeAreaOffered: /Range Area/.test(html) };
     });
-    expect(result.links.radar).toMatch(/\/cards\/chart\/index\.html#gallery$|\/cards\/chart\/#gallery$/);
-    expect(result.links.rangeBar).toMatch(/\/cards\/chart\/styling\.html#raw-apexcharts-options$/);
-    expect(result.links.boxPlot).toMatch(/\/cards\/chart\/series\.html#range-charts$/);
+    // the chart types page (D2 batch 2)
+    expect(result.links.radar).toMatch(/\/cards\/chart\/types\.html$/);
+    expect(result.links.boxPlot).toMatch(/\/cards\/chart\/types\.html#range-charts$/);
     expect(result.links.line).toBeTruthy();
+    expect(result.rangeAreaOffered).toBe(true);
+    expect(result.rangeBarOffered).toBe(false);
     expect(result.links.pie).toBeTruthy();
     expect(result.tabs).toEqual({ data: '/cards/chart/series', appearance: '/cards/chart/styling', advanced: '/cards/chart/styling#raw-apexcharts-options' });
 });

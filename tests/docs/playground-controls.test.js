@@ -81,5 +81,5 @@ test('invalid YAML is left alone; docs links resolve by prefix', () => {
     assert.equal(docsFor('lcards-chart', ['sources', 0, 'group_by', 'func']), '/cards/chart/series#grouping');
     assert.equal(docsFor('lcards-chart', ['sources', 0, 'curve']), '/cards/chart/series#series-options');
     assert.equal(docsFor('lcards-data-grid', ['rows', 2, 'values', 1, 'style', 'color']), '/cards/data-grid/data#conditional-colours');
-    assert.equal(docsFor('lcards-data-grid', ['nope']), '/cards/data-grid/#configuration-at-a-glance');
+    assert.equal(docsFor('lcards-data-grid', ['nope']), '/cards/data-grid/#card-options');
 });
