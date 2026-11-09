@@ -8,7 +8,7 @@
  *   node scripts/banner/render.mjs <config.yaml> <framesDir> --capture 9000
  *     records the browser's own frames (DevTools screencast, PNG, with timestamps)
  *     for 9000 ms after the banner settles, running `banner_timeline` from the
- *     start; then scripts/banner/encode-gif.sh turns them into a looping GIF.
+ *     start; then scripts/banner/encode-gif.mjs turns them into a looping GIF.
  *
  * Needs `npm run build` first (it serves custom_components/lcards/ like the tests).
  */
