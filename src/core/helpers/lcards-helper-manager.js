@@ -560,6 +560,17 @@ export class LCARdSHelperManager extends BaseService {
       throw new Error(`[HelperManager] Helper not found in registry: ${key}`);
     }
 
+    // A number goes in within the helper's own range (Home Assistant rejects a value
+    // outside it, and an older helper may have a narrower range than the registry's)
+    if (definition.domain === 'input_number' && Number.isFinite(Number(value))) {
+      const attrs = this.hass.states?.[definition.entity_id]?.attributes ?? {};
+      const min = Number(attrs.min), max = Number(attrs.max);
+      let v = Number(value);
+      if (Number.isFinite(min)) v = Math.max(min, v);
+      if (Number.isFinite(max)) v = Math.min(max, v);
+      value = v;
+    }
+
     await apiSetHelperValue(this.hass, definition.entity_id, value);
 
     // Update cache immediately (will be confirmed by state change event).

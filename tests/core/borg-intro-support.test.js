@@ -4,7 +4,7 @@
  * made the canvas slot clickable and waited for a click, so the invisible
  * slot swallowed the first click on the dashboard. The intro is now skipped.
  */
-import { test } from 'node:test';
+import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { BorgAssimilationManager } from '../../src/core/borg/BorgAssimilationManager.js';
 import { borgIntroSupported } from '../../src/core/screen-effects/effects/BorgAssimilationEffect.js';
@@ -36,11 +36,30 @@ test('a real disconnect passes the "Borg font replacement" setting (fontSwap) li
     window.lcards = { core: { borgAssimilationManager: { assimilate: (o) => calls.push(o) } } };
     const svc = new ConnectionOverlayService();
     svc._configLoaded = true;
-    svc._config = { ...svc._config, enabled: true, message: { ...svc._config.message, mode: 'borg',
+    svc._config = { ...svc._config, enabled: true, disconnect_delay_ms: 0, message: { ...svc._config.message, mode: 'borg',
         borgLayers: { canvas: { siteCount: 3 }, paletteHue: 90, fontSwap: false } } };
     svc._onDisconnected();
     assert.equal(calls.length, 1);
     assert.equal(calls[0].fontSwap, false);
     assert.equal(calls[0].paletteHue, 90);
     assert.deepEqual(calls[0].intro, { canvas: { siteCount: 3 } }, 'fontSwap is not left in the intro layers');
+});
+
+test('the Borg disconnect waits out the disconnect tolerance like the overlay (a blip shows nothing)', async () => {
+    const { ConnectionOverlayService } = await import('../../src/core/services/ConnectionOverlayService.js');
+    const calls = [];
+    window.lcards = { core: { borgAssimilationManager: { assimilate: (o) => calls.push(o) } } };
+    mock.timers.enable({ apis: ['setTimeout'] });
+    try {
+        const svc = new ConnectionOverlayService();
+        svc._configLoaded = true;
+        svc._config = { ...svc._config, enabled: true, disconnect_delay_ms: 3000, message: { ...svc._config.message, mode: 'borg' } };
+        svc._onDisconnected();
+        mock.timers.tick(2000);
+        assert.equal(calls.length, 0, 'not yet');
+        mock.timers.tick(1500);
+        assert.equal(calls.length, 1, 'after the tolerance');
+    } finally {
+        mock.timers.reset();
+    }
 });

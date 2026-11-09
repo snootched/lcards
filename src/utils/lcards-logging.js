@@ -28,7 +28,8 @@ function readStoredLogLevel() {
 let lcardsGlobalLogLevel = readStoredLogLevel() || 'info';
 
 export function lcardsSetGlobalLogLevel(level) {
-  const validLevels = ['error', 'warn', 'info', 'debug', 'trace'];
+  // 'off' is the integration's quietest option: nothing at all (it fell back to info)
+  const validLevels = ['off', 'error', 'warn', 'info', 'debug', 'trace'];
   if (!validLevels.includes(level)) {
     console.warn('🟡 LCARdS|WARN: Invalid log level:', level, 'Using "info" instead');
     level = 'info';
@@ -154,7 +155,8 @@ function shouldLog(level) {
   // Correct logging hierarchy: error (most critical) -> warn -> info -> debug -> trace (least critical)
   const levels = ['error', 'warn', 'info', 'debug', 'trace'];
   const levelPriority = {
-    'error': 0,  // Always shown (highest priority)
+    'off': -1,   // Nothing is shown
+    'error': 0,  // Shown at every level but off
     'warn': 1,   // Shown at warn level and above
     'info': 2,   // Shown at info level and above
     'debug': 3,  // Shown at debug level and above

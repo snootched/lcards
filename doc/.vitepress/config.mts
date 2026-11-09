@@ -295,6 +295,7 @@ export default withMermaid(defineConfig({
           { text: 'Installation',          link: '/getting-started/installation' },
           { text: 'Building a Dashboard', link: '/getting-started/building-dashboards' },
           { text: 'Designing LCARS Screens', link: '/getting-started/lcars-design' },
+          { text: 'LCARS Patterns',       link: '/getting-started/lcars-patterns' },
           { text: 'Dashboard Gallery',    link: '/getting-started/dashboard-gallery' },
           { text: 'Live Demo',            link: '/getting-started/live-demo' },
           { text: 'Getting AI Help',      link: '/getting-started/ai-assistance' },
@@ -473,7 +474,14 @@ export default withMermaid(defineConfig({
             { text: 'What is LCARdS?',           link: '/getting-started/what-is-lcards' },
             { text: 'Installation',               link: '/getting-started/installation' },
             { text: 'Building a Dashboard',    link: '/getting-started/building-dashboards' },
-            { text: 'Designing LCARS Screens', link: '/getting-started/lcars-design' },
+            {
+              text: 'Designing LCARS Screens',
+              collapsed: true,
+              items: [
+                { text: 'Overview',       link: '/getting-started/lcars-design' },
+                { text: 'LCARS Patterns', link: '/getting-started/lcars-patterns' },
+              ],
+            },
             { text: 'Dashboard Gallery',       link: '/getting-started/dashboard-gallery' },
             { text: 'Getting AI Help',         link: '/getting-started/ai-assistance' },
             { text: 'Check Your Config',       link: '/getting-started/config-checker' },

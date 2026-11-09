@@ -1259,7 +1259,7 @@ export class LCARdSSoundConfigTab extends LitElement {
           ?outlined=${true}>
           <lcards-message
             type="info"
-            message="Requires the LCARdS integration v1.12+ with scoped storage support. Update the integration to use this feature."
+            message="Needs the LCARdS integration, which stores these overrides per user and per device."
           ></lcards-message>
         </lcards-form-section>
       `;

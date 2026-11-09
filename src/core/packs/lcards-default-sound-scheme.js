@@ -143,7 +143,6 @@ const LCARDS_DEFAULT_SCHEME = {
   card_hold:         'lcards_default_hold',
   card_double_tap:   'lcards_default_double_tap',
   card_hover:        'lcards_default_hover',
-  button_tap:        'lcards_default_tap',
   toggle_on:         'lcards_default_toggle_on',
   toggle_off:        'lcards_default_toggle_off',
   slider_drag_start: 'lcards_default_slider_grab',

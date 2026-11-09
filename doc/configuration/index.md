@@ -1,159 +1,126 @@
+---
+description: "The LCARdS Config Panel: the sidebar page for helpers, alert mode colours, HA-LCARS theme profiles, sounds, the connection overlay, users and devices, content packs and stored settings."
+---
+
 # Configuration
 
-LCARdS configuration is managed through the **LCARdS Config Panel**, a dedicated sidebar entry in Home Assistant that serves as the central control hub for your installation. It provides access to helper management, theme labs, alert mode customisation, sound configuration, content pack exploration, and device/user management.
+**The LCARdS Config Panel is the sidebar page where you set LCARdS up for the whole installation: its helpers, alert mode colours, sounds, the connection overlay, and the users and devices that have their own settings.** The integration adds it to the sidebar as **LCARdS Config**.
 
-The panel is registered automatically when the LCARdS integration is installed.
+- Card settings live in each card's YAML or editor. The panel holds what is shared: the Home Assistant helpers LCARdS reads, and settings stored by the integration.
+- Some settings can differ per user or per device (sounds, the connection overlay, theme token overrides). The panel's scope switches choose which level you are editing.
+- Every tab has a **Docs** link at its top right that opens its page here.
 
 ::: tip New install?
 Start with [First setup](../getting-started/installation#_3-first-setup): create the helpers, then tune alert modes and sounds.
 :::
 
+| Page | Covers |
+|------|--------|
+| [Persistent Helpers](./persistent-helpers) | Every helper LCARdS and HA-LCARS use, and how to create them by hand |
+| [Users & Devices](./users-devices) | Device names and ids, and who has their own settings |
+| [HA-LCARS Theme Profiles](./ha-lcars-theme-profiles) | The two LCARdS profiles HA-LCARS ships |
+| [HA-LCARS Theme Lab](./ha-lcars-theme-lab) | Building your own HA-LCARS theme profile |
+| [Alert Mode Lab](./alert-mode-lab) | How each alert mode recolours your dashboards |
+| [Sound Configuration](./sounds) | Sound schemes, categories, per-event sounds, browser autoplay |
+| [Home Assistant Actions](./ha-actions) | The `lcards.*` actions for automations and scripts |
+| [Using browser_mod](./browser-mod) | LCARdS effects next to browser_mod popups |
+| [Connectivity](./connectivity) | The overlay shown when the dashboard loses Home Assistant |
+
 ---
 
 ## Accessing the Panel
 
-Look for the **LCARdS Config** entry in the Home Assistant sidebar after installation. If it is not visible:
+**Open LCARdS Config in the Home Assistant sidebar.** The integration registers it on install; there is nothing to add to your dashboards.
 
-1. Go to **Settings → Integrations → LCARdS → Configure**
-2. Enable **Show sidebar panel**
-3. The panel appears immediately: no restart needed
-
-You can also customise the sidebar title and icon from the same screen.
+- If the entry is missing, open **Settings > Devices & services > LCARdS > Configure** and turn on **Show sidebar panel**. It appears at once, with no restart.
+- The same screen sets the sidebar title and icon, the log level and preview features: see [Integration options](../getting-started/installation#integration-options).
+- A link can open a tab directly: `/lcards-config?tab=theme`. The tab names are `welcome`, `helpers`, `theme`, `connectivity`, `sounds`, `users`, `packs` and `storage`.
 
 ---
 
 ## Panel Tabs
 
+**The panel has a tab for each area.** Storage shows for Home Assistant administrators only.
+
 ### Welcome
 
-The first tab when opening the Config Panel:
+**The first tab: a setup checklist, a guide to the other tabs, a health check of your installation and links.**
 
-- **Get Started checklist**: step-by-step onboarding: create helpers, configure alert mode, set up sounds
-- **Panel Guide**: clickable cards for each tab with a short description; clicking navigates directly to that tab
-- **Resource links**: documentation, GitHub, and community links
-
----
+- **Get Started** lists the first steps: create the helpers, customize the alert modes in the Alert Lab, customize sounds.
+- **Panel guide** describes each tab; a click on one opens it.
+- **Support & system info** checks your setup and shows the LCARdS, integration, Home Assistant and frontend versions. **Report an issue** opens a pre-filled GitHub bug report for you to review (nothing is sent on its own), and **Copy support info** copies the same report.
 
 ### Helpers
 
+**Lists every Home Assistant helper LCARdS uses, with its value and whether it exists, and creates the missing ones.**
+
+- When any helper is missing, a banner says how many; **Create All** creates them all and gives each its default value. Each table row can also create one helper.
+- The helpers are grouped into **Alert Lab Configuration**, **HA-LCARS Theme Settings** and **Sound System**. **Reset to Defaults** on a group sets its helpers back to their default values (the sound scheme choice is left alone).
+- Helpers are ordinary `input_*` entities: they survive restarts and automations can read and change them. See [Persistent Helpers](./persistent-helpers).
+
 ::: tip First launch
-Open the **Helpers** tab and click **Create All Helpers** before using anything else. This creates any missing Home Assistant input helper LCARdS uses for alert mode, sounds, and sizing in one step.  HA-LCARS theme helpers can also be created here.
+Open the **Helpers** tab and click **Create All** before using anything else. This creates every helper LCARdS uses for alert mode, sounds and the alert colours, plus the HA-LCARS theme helpers, in one step.
 :::
-
-Shows all LCARdS Home Assistant input helpers, their current values, and creation status:
-
-- Create all required helpers in one click (**Create All Helpers**)
-- Inspect or manually set individual helper values
-- Identify missing helpers that may affect card behaviour
-
-Helpers are standard Home Assistant `input_*` entities and persist across restarts.
-
-→ [Persistent Helpers reference](persistent-helpers.md)
-
----
 
 ### Theme Studio
 
-The theme tools, one per tab:
+**The theme tools, one per tab: the two labs, the token and CSS variable browsers, and token overrides.**
 
-- **LCARdS Alert Mode Lab**: customise the colour palette applied per alert level (`red_alert`, `yellow_alert`, `blue_alert`, `gray_alert`, `black_alert`). Adjust hue, saturation, lightness, and anchor parameters, preview changes live across your dashboard, then save to helpers.
-- **HA-LCARS Theme Lab**: build your own HA-LCARS theme profile, with full palettes, LCARS chrome and state colours. See [HA-LCARS Theme Lab](ha-lcars-theme-lab).
-- **LCARdS Theme Tokens**, **LCARS CSS Variables**, **All CSS Variables**: browse the active theme's tokens and the page's CSS variables. Find the exact `theme:colors.ui.primary` path to use in card config, or which CSS variable controls a colour.
-- **Token Overrides**: change a token's value globally, per user or per device.
+- **LCARdS Alert Mode Lab**: tune how each alert mode recolours your dashboards, then save it to helpers. See [Alert Mode Lab](./alert-mode-lab).
+- **HA-LCARS Theme Lab**: build your own HA-LCARS theme profile, with full palettes, LCARS chrome and state colours. See [HA-LCARS Theme Lab](./ha-lcars-theme-lab).
+- **LCARdS Theme Tokens**, **LCARS CSS Variables** and **All CSS Variables** browse the active theme's tokens and the page's CSS variables: find the `theme:colors.ui.primary` path to use in card config, or the variable behind a colour.
+- **Token Overrides** changes a token's value for everyone, for one user or for one device.
 
-A card editor's **Main Engineering > Theme** tab lists the tokens that card uses and links here. The link `/lcards-config?tab=theme` opens this tab directly (other tabs: `helpers`, `connectivity`, `sounds`, `users`, `packs`, `storage`).
-
-→ [Alert Mode Lab](alert-mode-lab.md) &nbsp;·&nbsp; [Alert Mode](../core/alert-mode.md) &nbsp;·&nbsp; [Themes](../core/themes/)
-
----
+A card editor's **Main Engineering > Theme** tab lists the tokens that card uses and links here. See also [Alert Mode](../core/alert-mode) and [Themes](../core/themes/).
 
 ### Connectivity
 
-Configure a full-screen overlay displayed when connection to Home Assistant is lost, ideal for kiosk installs where you always want to know when the dashboard is offline.
+**Sets up the full-screen overlay shown when a browser loses its connection to Home Assistant, so a kiosk never goes stale without anyone noticing.**
 
-- **Enable / disable** the overlay globally, per user, or per device
-- **Simple text**: configure stylized messages
-- **Custom card**: replace the simple text message with any Home Assistant card(s)
-- **Connection Restored**: optional auto-dismissing confirmation shown on reconnect
-- **Effect layers**: independently configure the canvas animation, colour overlay, and backdrop filter applied behind the message
+- The overlay can show styled text, any card, or the Borg assimilation, over effect layers you choose.
+- It is off until you turn it on, and can be set for everyone, one user or one device.
 
-→ [Connectivity](connectivity.md)
-
----
+See [Connectivity](./connectivity).
 
 ### Sounds
 
-Configure LCARS-style audio feedback for card interactions and alert events:
+**Turns LCARS sounds on, picks the sound scheme and changes or mutes single events.**
 
-- Enable or disable sound categories (card interactions, UI navigation, alert sounds)
-- Select the active sound scheme
-- Set per-event overrides: change or mute individual sound events
-- Control master volume
-- **Per-user / per-device overrides**: set different sound preferences for your own browser session without changing global defaults
+- Sound categories (card interactions, UI navigation, alerts) switch groups of events on and off.
+- Users and devices can have their own volume, scheme and event sounds without changing the defaults.
 
-→ [Sounds](./sounds.md)
-
----
+See [Sound Configuration](./sounds).
 
 ### Users & Devices
 
-Manage devices and users that have stored per-device or per-user setting overrides (introduced in LCARdS v2026.3.0)
+**Shows this browser's device name and id, and lets administrators see and tidy the users and devices that have their own settings.**
 
-- **Current Session** (all users): view your device identity, set a display name for this browser
-- **Users** (admin only): list users with stored overrides; clear overrides for a user
-- **Devices** (admin only): list registered devices with last-seen times; rename or delete device records
+- Anyone can rename their own device here. Device names are what [targeted actions](./ha-actions#targeting) use.
+- Administrators also see every user with stored settings and every registered device.
 
-→ [Users & Devices](users-devices.md)
-
----
+See [Users & Devices](./users-devices).
 
 ### Pack Explorer
 
-Browse all installed LCARdS content packs. For each pack you can inspect:
+**Browses every content pack loaded in LCARdS and what each one adds.**
 
-- **Style presets**: button and slider preset definitions
-- **Animations**: available animation presets and their parameters
-- **Themes**: theme tokens contributed by the pack
-- **Sound schemes**: audio asset sets registered by the pack
-
-Built-in packs (core, buttons, sliders, effects, themes) are always shown. User-installed packs appear here once loaded.
-
----
+- Packs are listed with their themes, style presets, components and their presets, animations, SVG assets, fonts, sounds, images and textures.
+- Picking an item shows its details and, for themes, presets and SVG assets, a preview.
 
 ### Storage [advanced]
 
-:::warning **Advanced: use with caution.**
-This tab exposes the raw key/value store on the backend integration.  LCARdS uses this for persistent configuration settings that are not controlled with helpers.
+**Shows the raw key and value store the integration keeps for LCARdS settings that are not in helpers.** Visible to administrators only.
+
+:::warning Advanced: use with caution
+Editing or deleting a key here changes LCARdS settings directly, with no checks. Use it to inspect or repair stored settings.
 :::
 
-- **Live key list**: all keys currently stored
-- **Expandable JSON viewer**: inspect the value of any key
-- **Inline JSON editor**: edit a value directly
-- **Per-key delete**: remove a single key with confirmation
-- **Reset All**: wipe the entire LCARdS store (requires explicit confirmation)
-
-Typical use cases: debugging unexpected behaviour, recovering from a corrupt config value, or inspecting stored scoped settings.
-
----
+- Lists every stored key, with a JSON viewer and an editor for each value.
+- Deletes one key, after a confirmation, or resets the whole store, after an explicit confirmation.
+- Useful for debugging, recovering from a broken stored value, or seeing what per-user and per-device settings hold.
 
 ---
 
 ## HA-LCARS Theme Profiles
 
-[HA-LCARS](https://github.com/th3jesta/ha-lcars) includes two LCARdS theme profiles. They map the LCARdS colour palette to both the HA-LCARS chrome variables and the core Home Assistant colour token scale, so stock Home Assistant components, LCARdS cards, and the HA-LCARS chrome all share the same palette, including alert-mode hue rotations. Pick one as your Home Assistant theme; there is nothing to install separately.
-
-→ [HA-LCARS Theme Profiles](ha-lcars-theme-profiles.md)
-
----
-
-## Related
-
-- [Installation](../getting-started/installation.md): how the panel is registered via the integration
-- [Persistent Helpers](persistent-helpers.md): full helper reference and manual YAML setup
-- [Alert Mode Lab](alert-mode-lab.md): colour palette customisation
-- [Alert Mode](../core/alert-mode.md): how alert mode works and how to trigger it
-- [Connectivity](connectivity.md): connection overlay reference
-- [Sounds](sounds.md): sound system reference
-- [Users & Devices](users-devices.md): scoped settings management
-- [HA-LCARS Theme Profiles](ha-lcars-theme-profiles.md): LCARdS palette ↔ HA-LCARS theme integration
-
+**[HA-LCARS](https://github.com/th3jesta/ha-lcars) includes two theme profiles made for LCARdS.** They map the LCARdS palette onto the HA-LCARS chrome and Home Assistant's own colour tokens, so stock Home Assistant screens, LCARdS cards and the HA-LCARS chrome share one palette, alert mode colour shifts included. Pick one as your Home Assistant theme; there is nothing to install separately. See [HA-LCARS Theme Profiles](./ha-lcars-theme-profiles).

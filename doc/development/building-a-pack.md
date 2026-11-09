@@ -156,7 +156,7 @@ sound_schemes: {
 
 Supported event keys (from `EVENT_CATEGORY` in `src/core/sound/SoundManager.js`), grouped by their Config Panel sub-category:
 
-- **cards**: `card_tap`, `card_hold`, `card_double_tap`, `card_hover`, `button_tap`, `toggle_on`, `toggle_off`, `slider_drag_start`, `slider_drag_end`, `slider_change`, `more_info_open`
+- **cards**: `card_tap`, `card_hold`, `card_double_tap`, `card_hover`, `toggle_on`, `toggle_off`, `slider_drag_start`, `slider_drag_end`, `slider_change`, `more_info_open`
 - **ui**: `menu_expand`, `nav_page`, `dialog_open`, `dialog_close`, `dashboard_edit_start`, `dashboard_edit_save`
 - **alerts**: `alert_red`, `alert_yellow`, `alert_blue`, `alert_gray`, `alert_black`, `alert_clear`, `system_ready`, `error`, `notification`
 

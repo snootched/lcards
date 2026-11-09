@@ -22,6 +22,8 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
  * Colors outside the range are pulled back toward the range edge.
  * This creates a cohesive color personality for each alert mode.
  */
+// The same values as the alert_lab_* helpers' defaults (lcards-helper-registry.js), so a
+// dashboard without the helpers and one after a Reset look alike (test: alert-defaults-match).
 const DEFAULT_ALERT_MODE_TRANSFORMS = {
   green_alert: {
     // Normal mode — no transformation
@@ -53,8 +55,8 @@ const DEFAULT_ALERT_MODE_TRANSFORMS = {
     lightnessMultiplier: 1.0,
     hueAnchor: {
       centerHue: 210,               // Deep blue (not cyan)
-      range: 60,                    // Cyan to purple (150°-270°)
-      strength: 0.9                 // Very strong pull for cohesive personality
+      range: 70,                    // Cyan to purple (140°-280°)
+      strength: 0.85                // Strong pull for cohesive personality
     }
   },
 
@@ -85,14 +87,14 @@ const DEFAULT_ALERT_MODE_TRANSFORMS = {
     hueShift: 0,
     hueStrength: 0,
     saturationMultiplier: 0,
-    lightnessMultiplier: 0.3,       // Very dark
+    lightnessMultiplier: 0.7,       // Darker
     hueAnchor: null,                // No anchoring for black alert
     // Contrast enhancement to maintain readability
     contrastEnhancement: {
       enabled: true,
-      threshold: 50,                // Split point: colors below go darker, above go lighter
+      threshold: 69,                // Split point: colors below go darker, above go lighter
       darkMultiplier: 0.6,          // Make dark colors even darker (below threshold)
-      lightMultiplier: 1.4          // Make light colors lighter (above threshold)
+      lightMultiplier: 1.0          // Light colors keep their lightness (above threshold)
     }
   },
 

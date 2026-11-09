@@ -1,22 +1,25 @@
 ---
 description: "What LCARdS is: LCARS-style cards, a layout view and a shell dashboard for Home Assistant, with themes, rules, data sources, animations, sounds and alert modes, and how the pieces fit together."
+moved_anchors:
+  the-cards: /getting-started/what-is-lcards#how-it-works
+  what-makes-it-different: /getting-started/what-is-lcards#what-that-gives-you
 ---
 
 # What is LCARdS?
 
 ![LCARdS Banner](/img/lcards-banner.gif)
 
-**Build Star Trek LCARS-style dashboards in Home Assistant.**
-
-LCARdS is a an ecosystem of cards and services that you can use to create LCARS-style dashboards.  It includes buttons, elbows, sliders, charts, data grids, ship displays and more.  These all work together as one system designed to pair with the [HA-LCARS theme](https://github.com/th3jesta/ha-lcars).
+**LCARdS builds Star Trek LCARS-style dashboards in Home Assistant: a set of cards and services that work together as one system.** It includes buttons, elbows, sliders, charts, data grids, ship displays and more, designed to pair with the [HA-LCARS theme](https://github.com/th3jesta/ha-lcars).
 
 ## How it works
 
-Three layers, plus a small integration running inside Home Assistant.
+**Three layers, plus a small integration running inside Home Assistant.**
 
 <HowItWorks />
 
 ## What that gives you
+
+**One system instead of separate cards, so the whole screen reacts together.**
 
 - **Colours that follow state:** a button lights up when its light is on, a reading turns red past a threshold. No automations needed.
 - **One look everywhere:** every card takes its colours, fonts and sizes from the same theme, so the whole screen matches.
@@ -27,7 +30,7 @@ Three layers, plus a small integration running inside Home Assistant.
 
 ## Next steps
 
-1. **[Install LCARdS](installation)**: through the Home Assistant Marketplace - run through a quick setup.
+1. **[Install LCARdS](installation)**: from the Home Assistant Marketplace, then a quick setup.
 2. **[Build a dashboard](building-dashboards)**: pick cards and lay out a screen.
 3. **[Browse the gallery](dashboard-gallery)**: copy a complete dashboard and make it yours.
 4. **[Get AI help](ai-assistance)**: let an assistant write the YAML for you.

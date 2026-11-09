@@ -1,76 +1,77 @@
+---
+description: "The Users & Devices tab of the LCARdS Config Panel: this browser's device name and id, the users and devices with their own settings, and how device, user and global settings combine."
+moved_anchors:
+  current-session: /configuration/users-devices#this-session
+  users-admin-only: /configuration/users-devices#users-with-scoped-settings
+  devices-admin-only: /configuration/users-devices#registered-devices
+---
+
 # Users & Devices
 
-::: warning Preview feature
-The **Users & Devices** tab requires the LCARdS Home Assistant integration (v2026.3.0+) with the `scoped_storage` capability. If the integration is absent or on an older version, the tab is hidden.
-:::
+**The Users & Devices tab of LCARdS Config shows who this browser is to LCARdS, and lets administrators see and tidy every user and device that has its own settings.**
 
-The **Users & Devices** tab in the [LCARdS Config Panel](./index.md) is the central place to view and manage the devices and users that have stored per-device or per-user setting overrides.
-
-It has three sections. Non-admin users see only **Current Session**. Home Assistant admins see all three.
+- Every browser gets a device record: a stable id and a display name. Device names are what [targeted actions](./ha-actions#targeting) and per-device settings use.
+- Everyone sees **This Session**. Home Assistant administrators also see **Users with Scoped Settings** and **Registered Devices**.
+- The settings themselves are changed in their own tabs (Sounds, Connectivity, Theme Studio > Token Overrides); this tab manages the records.
 
 ---
 
-## Current Session
+## This Session
 
-Shows the identity of the current browser session: this is your **device record** as seen by LCARdS.
+**Your logged-in user and this browser's device record.** Use it to name the browser, or to find its id for an action.
 
-| Field | Description |
+- Click the pencil next to **Display Name** to rename this device; Enter saves.
+- A new device is named after its browser and system (`Chrome-Android`, `Safari-iPhone`) until you rename it.
+- A device can be named from its address: add `?lcards_device=<name>`, for example `http://homeassistant.local:8123/?lcards_device=Kitchen%20Tablet`. The name applies on every load with it, over a name set before. Handy for kiosk bookmarks.
+- `window.lcards.targeting.getMyIds()` in the browser console returns this device's id and your user id.
+
+| Detail | Description |
 |-------|-------------|
-| **Device name** | Human-readable label for this browser. Editable by any user: click the edit icon, type a new name, and save. Also settable via the URL parameter `?lcards_device=My%20Tablet` on first visit. |
-| **Device ID** | Stable UUID stored in this browser's `localStorage`. Persists across page reloads and Home Assistant logins from the same browser profile. |
-| **Last seen** | Timestamp of this device's last heartbeat to the backend. |
-| **User agent** | Browser/OS string recorded at last registration. |
-
-Setting a device name is optional but makes it much easier to identify sessions in the Devices list and when using [targeted Home Assistant services](../architecture/internals/ha-services.md).
-
----
-
-## Users *(admin only)*
-
-Lists every Home Assistant user who has at least one stored per-user override. For each entry you can see:
-
-- The Home Assistant display name (resolved from the Home Assistant auth list)
-- The opaque Home Assistant user ID
-- A **Clear overrides** action: removes all per-user scoped settings for that user, reverting them to Device → Global fallback
-
-> Clearing overrides does not affect the user's device records or any global settings.
+| **Logged-in User** | Your Home Assistant user's name |
+| **User ID** | Your Home Assistant user id, as `target_user_ids` takes it |
+| **Device ID** | A stable id kept in this browser's `localStorage` (`lcards_device_id`). It survives reloads and logins in the same browser profile; clearing the site's data gives a new one |
+| **Display Name** | The name for this browser. Editable by any user |
+| **Last Seen** | When this device last checked in with the integration |
+| **User Agent** | The browser and system string recorded for it |
 
 ---
 
-## Devices *(admin only)*
+## Users with Scoped Settings
 
-Lists every device that has ever registered a heartbeat with the LCARdS backend. For each device:
+**Administrators only: every Home Assistant user with at least one setting of their own.**
 
-| Column | Description |
-|--------|-------------|
-| **Name** | Display name: click the edit (pencil) icon to rename inline |
-| **Last seen** | ISO timestamp of the last heartbeat |
-| **Device ID** | Stable UUID for targeting services |
-| **Delete** | Removes the entire device record from the backend (requires confirmation). Any scoped overrides stored for this device are also deleted. |
+- Each row shows the user's name (from Home Assistant), their id and the stored keys.
+- **Clear all overrides for this user** deletes that user's own settings after a confirmation; they then get the device or global values. Device records and global settings are not touched.
 
-Deleting a device does not prevent it from re-registering: if the browser visits the dashboard again it will create a new record with the same UUID.
+---
+
+## Registered Devices
+
+**Administrators only: every browser that has registered with the integration, with its name, id and last check-in.**
+
+- **Rename device** edits the display name in place.
+- **Remove device record** deletes the record and the settings stored for that device, after a confirmation. A browser that opens Home Assistant again registers again, with the same id.
 
 ---
 
 ## How scoped settings work
 
-LCARdS settings (currently: sound scheme, per-event sound overrides) are resolved in this order, using the first non-null value found:
+**A setting that can differ per user or device takes the first value it finds: the device's, then the user's, then the global one.**
 
 ```
-Device scope  →  User scope  →  Global scope  →  HA helper fallback
+Device  →  User  →  Global  →  Built-in default (or the helper)
 ```
 
-- **Device** overrides apply to any Home Assistant user logged in on that specific browser.
-- **User** overrides apply to a specific Home Assistant user regardless of which device they use.
-- **Global** is the installation-wide default, shared by everyone.
-
-Per-user and per-device overrides are configured in the individual feature tabs (e.g. [Sound](../core/sounds.md) → *Per-User / Per-Device Overrides* section). The **Users & Devices** tab is the admin view for managing *existing* records; it does not expose raw setting values.
+- **Device** settings apply to whoever is logged in on that browser.
+- **User** settings apply to one Home Assistant user on every device.
+- **Global** is the installation-wide value everyone shares.
+- Today these settings can be scoped: [sounds](./sounds#per-user-per-device-overrides) (master switch, volume, scheme and per-event sounds), the [connection overlay](./connectivity#scope-and-per-device-overrides), and theme token overrides (Theme Studio > Token Overrides).
 
 ---
 
 ## Related
 
-- [Sounds](sounds.md): configure per-user/device sound overrides
-- [Configuration overview](./index.md): panel setup and all tabs overview
-- [Home Assistant Services: targeting](../architecture/internals/ha-services.md): use device/user IDs in `lcards.*` service calls
-- [Scoped Settings Service](../architecture/subsystems/scoped-settings.md): developer reference for the underlying storage system
+- [Home Assistant Actions: targeting](./ha-actions#targeting): send an `lcards.*` action to some devices or users only
+- [Sound Configuration](./sounds): per-user and per-device sound settings
+- [Connectivity](./connectivity): per-user and per-device connection overlay settings
+- [Scoped Settings Service](../architecture/subsystems/scoped-settings): developer reference for the storage behind this tab

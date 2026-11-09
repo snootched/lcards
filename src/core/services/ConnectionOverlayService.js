@@ -722,30 +722,30 @@ export class ConnectionOverlayService extends BaseService {
         this._isDisconnected = true;
         this._isDismissed    = false;
 
-        // Borg mode: assimilation replaces the standard overlay — no tolerance delay.
-        if (this._config.message?.mode === 'borg') {
-            lcardsLog.info('[ConnectionOverlayService] Connection lost — activating Borg assimilation');
+        // What a disconnect shows: the Borg assimilation or the standard overlay.
+        // Both wait out the disconnect tolerance, so a short blip shows neither.
+        const activate = () => {
             this._isActive = true;
-            const borgOpts = borgOptsFromLayers(this._config.message?.borgLayers);
-            window.lcards?.core?.borgAssimilationManager?.assimilate(borgOpts);
-            return;
-        }
+            if (this._config.message?.mode === 'borg') {
+                lcardsLog.info('[ConnectionOverlayService] Connection lost — activating Borg assimilation');
+                window.lcards?.core?.borgAssimilationManager?.assimilate(borgOptsFromLayers(this._config.message?.borgLayers));
+            } else {
+                lcardsLog.info('[ConnectionOverlayService] Connection lost — activating overlay');
+                this._showDisconnectOverlay();
+            }
+        };
 
         const delayMs = this._config.disconnect_delay_ms ?? 0;
         if (delayMs > 0) {
-            lcardsLog.info(`[ConnectionOverlayService] Connection lost — ${delayMs}ms tolerance before overlay`);
+            lcardsLog.info(`[ConnectionOverlayService] Connection lost — ${delayMs}ms tolerance first`);
             this._disconnectDelayTimer = setTimeout(() => {
                 this._disconnectDelayTimer = null;
                 // If the connection was restored during the delay, do nothing.
                 if (!this._isDisconnected) return;
-                lcardsLog.info('[ConnectionOverlayService] Disconnect tolerance expired — activating overlay');
-                this._isActive = true;
-                this._showDisconnectOverlay();
+                activate();
             }, delayMs);
         } else {
-            lcardsLog.info('[ConnectionOverlayService] Connection lost — activating overlay');
-            this._isActive = true;
-            this._showDisconnectOverlay();
+            activate();
         }
     }
 

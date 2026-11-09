@@ -61,7 +61,6 @@ Event types are grouped into three categories, each controlled by an independent
 | `card_hold` | Hold action |
 | `card_double_tap` | Double-tap action |
 | `card_hover` | Hover (desktop pointer) |
-| `button_tap` | LCARdS button element tap |
 | `toggle_on` / `toggle_off` | Toggle state change |
 | `slider_drag_start` / `slider_drag_end` | Slider grab / release |
 | `slider_change` | Per-tick slider value change (silenced in default scheme) |

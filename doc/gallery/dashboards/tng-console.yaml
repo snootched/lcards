@@ -1,4 +1,4 @@
-# TNG console: the classic look from the patterns in doc/getting-started/lcars-design.md.
+# TNG console: the classic look from the patterns in doc/getting-started/lcars-patterns.md.
 # Thick colour blocks as structure: header and footer sweeps continued as labelled
 # segments, a sidebar of blocks with code numbers, a pill grid led by big numbers in
 # alternating roles, a slider and a strip of small pills, a number cascade. Every colour

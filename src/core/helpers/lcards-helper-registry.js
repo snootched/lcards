@@ -132,6 +132,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_red_hue:
     name: Alert Lab Red Hue
+    initial: 0
     min: 0
     max: 360
     step: 1
@@ -157,6 +158,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_red_hue_strength:
     name: Alert Lab Red Hue Strength
+    initial: 0.8
     min: 0
     max: 1
     step: 0.05
@@ -182,6 +184,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_red_saturation:
     name: Alert Lab Red Saturation
+    initial: 140
     min: 0
     max: 300
     step: 1
@@ -208,6 +211,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_red_lightness:
     name: Alert Lab Red Lightness
+    initial: 90
     min: 0
     max: 200
     step: 1
@@ -236,6 +240,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_red_center_hue:
     name: Alert Lab Red Center Hue
+    initial: 0
     min: 0
     max: 360
     step: 1
@@ -262,6 +267,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_red_range:
     name: Alert Lab Red Range
+    initial: 60
     min: 0
     max: 180
     step: 5
@@ -287,6 +293,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_red_strength:
     name: Alert Lab Red Strength
+    initial: 0.9
     min: 0
     max: 1
     step: 0.05
@@ -314,6 +321,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_yellow_hue:
     name: Alert Lab Yellow Hue
+    initial: 45
     min: 0
     max: 360
     step: 1
@@ -339,6 +347,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_yellow_hue_strength:
     name: Alert Lab Yellow Hue Strength
+    initial: 0.9
     min: 0
     max: 1
     step: 0.05
@@ -364,6 +373,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_yellow_saturation:
     name: Alert Lab Yellow Saturation
+    initial: 150
     min: 0
     max: 300
     step: 1
@@ -390,6 +400,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_yellow_lightness:
     name: Alert Lab Yellow Lightness
+    initial: 105
     min: 0
     max: 200
     step: 1
@@ -418,6 +429,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_yellow_center_hue:
     name: Alert Lab Yellow Center Hue
+    initial: 45
     min: 0
     max: 360
     step: 1
@@ -444,6 +456,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_yellow_range:
     name: Alert Lab Yellow Range
+    initial: 50
     min: 0
     max: 180
     step: 5
@@ -469,6 +482,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_yellow_strength:
     name: Alert Lab Yellow Strength
+    initial: 0.9
     min: 0
     max: 1
     step: 0.05
@@ -496,6 +510,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_blue_hue:
     name: Alert Lab Blue Hue
+    initial: 210
     min: 0
     max: 360
     step: 1
@@ -521,6 +536,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_blue_hue_strength:
     name: Alert Lab Blue Hue Strength
+    initial: 0.85
     min: 0
     max: 1
     step: 0.05
@@ -546,6 +562,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_blue_saturation:
     name: Alert Lab Blue Saturation
+    initial: 150
     min: 0
     max: 300
     step: 1
@@ -572,6 +589,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_blue_lightness:
     name: Alert Lab Blue Lightness
+    initial: 100
     min: 0
     max: 200
     step: 1
@@ -600,6 +618,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_blue_center_hue:
     name: Alert Lab Blue Center Hue
+    initial: 210
     min: 0
     max: 360
     step: 1
@@ -626,6 +645,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_blue_range:
     name: Alert Lab Blue Range
+    initial: 70
     min: 0
     max: 180
     step: 5
@@ -651,6 +671,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_blue_strength:
     name: Alert Lab Blue Strength
+    initial: 0.85
     min: 0
     max: 1
     step: 0.05
@@ -678,6 +699,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_gray_hue:
     name: Alert Lab Gray Hue
+    initial: 0
     min: 0
     max: 360
     step: 1
@@ -703,6 +725,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_gray_hue_strength:
     name: Alert Lab Gray Hue Strength
+    initial: 0
     min: 0
     max: 1
     step: 0.01
@@ -719,7 +742,7 @@ export const HELPER_REGISTRY = {
     category: 'alert_system',
     ws_create_params: {
       min: 0,
-      max: 200,
+      max: 300,
       step: 1,
       mode: 'slider',
       unit_of_measurement: '%'
@@ -728,8 +751,9 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_gray_saturation:
     name: Alert Lab Gray Saturation
+    initial: 0
     min: 0
-    max: 200
+    max: 300
     step: 1
     mode: slider
     unit_of_measurement: "%"
@@ -754,6 +778,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_gray_lightness:
     name: Alert Lab Gray Lightness
+    initial: 100
     min: 0
     max: 200
     step: 1
@@ -782,6 +807,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_black_hue:
     name: Alert Lab Black Hue
+    initial: 0
     min: 0
     max: 360
     step: 1
@@ -807,6 +833,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_black_hue_strength:
     name: Alert Lab Black Hue Strength
+    initial: 0
     min: 0
     max: 1
     step: 0.01
@@ -823,7 +850,7 @@ export const HELPER_REGISTRY = {
     category: 'alert_system',
     ws_create_params: {
       min: 0,
-      max: 200,
+      max: 300,
       step: 1,
       mode: 'slider',
       unit_of_measurement: '%'
@@ -832,8 +859,9 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_black_saturation:
     name: Alert Lab Black Saturation
+    initial: 0
     min: 0
-    max: 200
+    max: 300
     step: 1
     mode: slider
     unit_of_measurement: "%"
@@ -858,6 +886,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_black_lightness:
     name: Alert Lab Black Lightness
+    initial: 70
     min: 0
     max: 200
     step: 1
@@ -885,6 +914,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_black_threshold:
     name: Alert Lab Black Threshold
+    initial: 69
     min: 0
     max: 100
     step: 1
@@ -909,6 +939,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_black_dark_multiplier:
     name: Alert Lab Black Dark Multiplier
+    initial: 0.6
     min: 0
     max: 2
     step: 0.01
@@ -933,6 +964,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcards_alert_lab_black_light_multiplier:
     name: Alert Lab Black Light Multiplier
+    initial: 1
     min: 0
     max: 2
     step: 0.01
@@ -955,6 +987,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_boolean:
   lcars_sound:
     name: LCARS Sound
+    initial: false
     icon: mdi:volume-high`
   },
 
@@ -970,6 +1003,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_boolean:
   lcars_texture:
     name: LCARS Texture
+    initial: false
     icon: mdi:texture`
   },
 
@@ -1018,6 +1052,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcars_vertical:
     name: LCARS Vertical
+    initial: 40
     min: 26
     max: 60
     step: 1
@@ -1042,6 +1077,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcars_horizontal:
     name: LCARS Horizontal
+    initial: 30
     min: 6
     max: 60
     step: 1
@@ -1067,6 +1103,7 @@ export const HELPER_REGISTRY = {
     yaml_config: `input_number:
   lcars_menu_font:
     name: LCARS Menu Font
+    initial: 14
     min: 8
     max: 24
     step: 1
@@ -1103,7 +1140,7 @@ export const HELPER_REGISTRY = {
     category: 'sound',
     ws_create_params: {},
     default_value: false,
-    yaml_config: `input_boolean:\n  lcards_sound_enabled:\n    name: LCARdS Sound Effects Enabled\n    icon: mdi:volume-high`
+    yaml_config: `input_boolean:\n  lcards_sound_enabled:\n    name: LCARdS Sound Effects Enabled\n    initial: false\n    icon: mdi:volume-high`
   },
 
   sound_cards_enabled: {
@@ -1115,7 +1152,7 @@ export const HELPER_REGISTRY = {
     category: 'sound',
     ws_create_params: {},
     default_value: true,
-    yaml_config: `input_boolean:\n  lcards_sound_cards:\n    name: LCARdS Card Interaction Sounds\n    icon: mdi:gesture-tap`
+    yaml_config: `input_boolean:\n  lcards_sound_cards:\n    name: LCARdS Card Interaction Sounds\n    initial: true\n    icon: mdi:gesture-tap`
   },
 
   sound_ui_enabled: {
@@ -1127,7 +1164,7 @@ export const HELPER_REGISTRY = {
     category: 'sound',
     ws_create_params: {},
     default_value: true,
-    yaml_config: `input_boolean:\n  lcards_sound_ui:\n    name: LCARdS UI Navigation Sounds\n    icon: mdi:navigation`
+    yaml_config: `input_boolean:\n  lcards_sound_ui:\n    name: LCARdS UI Navigation Sounds\n    initial: true\n    icon: mdi:navigation`
   },
 
   sound_alerts_enabled: {
@@ -1139,7 +1176,7 @@ export const HELPER_REGISTRY = {
     category: 'sound',
     ws_create_params: {},
     default_value: true,
-    yaml_config: `input_boolean:\n  lcards_sound_alerts:\n    name: LCARdS Alert & System Sounds\n    icon: mdi:alert-circle`
+    yaml_config: `input_boolean:\n  lcards_sound_alerts:\n    name: LCARdS Alert & System Sounds\n    initial: true\n    icon: mdi:alert-circle`
   },
 
   sound_volume: {
@@ -1151,7 +1188,7 @@ export const HELPER_REGISTRY = {
     category: 'sound',
     ws_create_params: { min: 0, max: 1, step: 0.05, mode: 'slider' },
     default_value: 0.5,
-    yaml_config: `input_number:\n  lcards_sound_volume:\n    name: LCARdS Sound Volume\n    min: 0\n    max: 1\n    step: 0.05\n    mode: slider\n    icon: mdi:volume-medium`
+    yaml_config: `input_number:\n  lcards_sound_volume:\n    name: LCARdS Sound Volume\n    min: 0\n    max: 1\n    step: 0.05\n    initial: 0.5\n    mode: slider\n    icon: mdi:volume-medium`
   },
 
   sound_scheme: {

@@ -1,43 +1,67 @@
+---
+description: "Every lcards.* Home Assistant action: alert modes, screen effects, sounds, astrometrics camera and clock, portal cards, the Borg, page reload and log level, with their fields, defaults and device or user targeting."
+moved_anchors:
+  cycle-through-alert-modes-on-a-button-press: /configuration/ha-actions#set-the-alert-mode-from-a-helper
+  enable-debug-logging-when-a-dev-mode-flag-is-set: /configuration/ha-actions#debug-logging-while-a-dev-mode-switch-is-on
+  subtle-chime-when-a-kiosk-tablet-wakes: /configuration/ha-actions#a-soft-chime-when-a-kiosk-tablet-wakes
+  borg-mode-assimilate-all-browsers-auto-revert-after-30-minutes: /configuration/ha-actions#borg-mode-for-30-minutes
+---
+
 # Home Assistant Actions
 
-> **Control LCARdS from automations, scripts, voice assistants, and Developer Tools**
+**LCARdS adds Home Assistant actions under the `lcards` domain, so automations, scripts, voice assistants and dashboard buttons can raise alerts, play effects and sounds, move an astrometrics camera and more.** They appear wherever Home Assistant lists actions: the automation and script editors, **Developer Tools > Actions**, and the REST and WebSocket APIs.
 
-LCARdS registers a set of Home Assistant **actions** under the `lcards` domain. Once the integration is installed they appear automatically in:
+- Each action reaches every browser that has a dashboard open, or only the devices and users you [target](#targeting).
+- The examples on this page are plain YAML for an automation's or script's actions (or **Developer Tools > Actions** in YAML mode): actions can't run as live cards on this site. A dashboard button runs one with `tap_action: action: perform-action`.
+- Home Assistant checks every field before anything reaches a browser: a value out of range, or a missing required field, fails the action with an error.
 
-- **Automations & Scripts**: `action:` blocks in YAML or the visual editor
-- **Voice assistants** that call Home Assistant services
-- **Developer Tools → Actions** (one-shot testing)
-- The **REST / WebSocket API** for external integrations
+| Group | Actions |
+|-------|---------|
+| [Alert Mode](#alert-mode-actions) | `lcards.set_alert_mode`, `lcards.red_alert`, `lcards.yellow_alert`, `lcards.blue_alert`, `lcards.gray_alert`, `lcards.black_alert`, `lcards.clear_alert` |
+| [Screen Effects](#screen-effect-actions) | `lcards.trigger_effect`, `lcards.clear_effect` |
+| [Sound](#sound-actions) | `lcards.play_sound` |
+| [Astrometrics](#astrometrics-actions) | `lcards.fly_to`, `lcards.set_clock` |
+| [Portal Overlay](#portal-overlay-actions) | `lcards.show_portal_card`, `lcards.clear_portal_card` |
+| [Borg Assimilation](#borg-assimilation-actions) | `lcards.borg_assimilate`, `lcards.borg_deassimilate` |
+| [Frontend Control](#frontend-control-actions) | `lcards.reload`, `lcards.set_log_level` |
 
 ---
 
 ## Targeting {#targeting}
 
-Several `lcards.*` actions support targeting specific browsers/devices and/or users.  Set any combination of the below fields for supported services.
-If these options are omitted, then the action is global and every connected browser will pick it up. If they are set but match no device or user (a typo in a name, say), the action fails with an error instead of reaching every browser.
+**Four optional fields send an action to some devices or users only; without them it reaches every connected browser.** Every `lcards.*` action takes them, in any combination.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `target_device_ids` | list | Browser device UUIDs (`localStorage.lcards_device_id` in each tab) |
-| `target_device_names` | list | Display names set in Config Panel → Users & Devices or via `?lcards_device=` URL param. Non-unique names match every device sharing that name. |
-| `target_user_ids` | list | Home Assistant user UUIDs |
-| `target_user_names` | list | Home Assistant user display names (case-insensitive) |
+- A browser acts when its device or its user is in the lists. Device names and user names are matched in any case, and a name shared by several devices matches all of them.
+- If the fields are set but match no device and no user (a typo in a name, say), the action fails with an error instead of reaching every browser. A list that matches only some of its names acts on the ones it matches.
+- [Users & Devices](./users-devices) shows each browser's device name and id; `window.lcards.targeting.getMyIds()` in the browser console returns them too.
 
-See [Users & Devices](/configuration/users-devices) for how device IDs and display names are assigned.
+```yaml
+# Red alert on the kitchen tablet only
+action: lcards.red_alert
+data:
+  target_device_names:
+    - Kitchen Tablet
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `target_device_ids` | list | every device | Browser device ids (the `lcards_device_id` each browser keeps in `localStorage`) |
+| `target_device_names` | list | every device | Device display names, set in **LCARdS Config > Users & Devices** or with `?lcards_device=` |
+| `target_user_ids` | list | every user | Home Assistant user ids |
+| `target_user_names` | list | every user | Home Assistant user display names |
 
 ---
 
 ## Alert Mode Actions
 
-Alert state is stored in `input_select.lcards_alert_mode`, the single source of truth. All alert actions update that entity, which propagates automatically to the `ThemeManager` (colour palette), `SoundManager` (alert sounds), and any `lcards-alert-overlay` cards on the dashboards.
+**The alert actions change the [alert mode](../core/alert-mode): the colours, the alert sound and any [alert overlay](../cards/alert-overlay/) on the page.** Without targeting they set `input_select.lcards_alert_mode`, so every browser follows and the mode survives reloads.
 
-### `lcards.set_alert_mode`
+- With [targeting](#targeting) the helper is not changed: only the matched browsers change their alert mode, until they reload or the helper changes.
+- Without targeting the actions need the `input_select.lcards_alert_mode` helper: create it in **LCARdS Config > Helpers** (see [Persistent Helpers](./persistent-helpers#alert-mode)).
 
-Set any alert mode by name.
+### lcards.set_alert_mode
 
-| Field | Type | Required | Options |
-|-------|------|----------|---------|
-| `mode` | select | ✅ | `red_alert`, `yellow_alert`, `blue_alert`, `gray_alert`, `black_alert`, `green_alert` |
+**Sets any alert mode by name.** Use it when the mode comes from a template or a helper.
 
 ```yaml
 action: lcards.set_alert_mode
@@ -45,77 +69,60 @@ data:
   mode: red_alert
 ```
 
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `mode` | string | required | `red_alert`, `yellow_alert`, `blue_alert`, `gray_alert`, `black_alert` or `green_alert` |
+| [Targeting](#targeting) | - | every browser | `target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names` |
+
 ### Shortcut actions
 
-One-shot actions that each set the corresponding alert mode directly. All support [targeting](#targeting); when targeting fields are present only the matched browsers update their local alert state (global `input_select.lcards_alert_mode` is not written).
+**One action per alert mode, with no fields but the targeting ones.** `lcards.clear_alert` returns to normal.
 
 | Action | Effect |
 |--------|--------|
-| `lcards.red_alert` | Activates red alert |
-| `lcards.yellow_alert` | Activates yellow alert |
-| `lcards.blue_alert` | Activates blue alert |
-| `lcards.gray_alert` | Activates gray alert |
-| `lcards.black_alert` | Activates black alert |
-| `lcards.clear_alert` | Returns to normal (`green_alert`) |
+| `lcards.red_alert` | Red alert |
+| `lcards.yellow_alert` | Yellow alert |
+| `lcards.blue_alert` | Blue alert |
+| `lcards.gray_alert` | Gray alert |
+| `lcards.black_alert` | Black alert |
+| `lcards.clear_alert` | Back to normal (`green_alert`) |
 
 ```yaml
 action: lcards.red_alert
 ```
 
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| [Targeting](#targeting) | - | every browser | `target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names` |
+
 ---
 
 ## Screen Effect Actions
 
-Play or clear layered screen effects on connected browser tabs. Supports [targeting](#targeting).
+**Full-screen effects over the dashboard, in three independent layers: `backdrop` (a CSS filter on the page), `color` (a colour over it) and `canvas` (an animation).** [Screen Effects](/core/effects/screen-effects) describes every preset and its settings.
 
-Effects are applied per slot: `backdrop` (CSS filters), `color` (colour overlay), and `canvas` (animated canvas). Slots are independent: you can update one without touching the others. See [Screen Effects](/core/effects/screen-effects) for the full preset reference and parameter docs.
+### lcards.trigger_effect
 
-### `lcards.trigger_effect`
+**Plays one or more screen effect layers, until cleared or for a set time.** Each layer in `layers` takes a `preset` and that preset's settings.
 
-Play one or more layered screen effects.
-
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `layers` | object | ✅ | Per-slot effect config: see below |
-| `duration` | number | | Clear the slots this action sets after this many ms (100–300000). Omit for a persistent effect that must be cleared manually. |
-| `target_device_ids` | list | | → [Targeting](#targeting) |
-| `target_device_names` | list | | → [Targeting](#targeting) |
-| `target_user_ids` | list | | → [Targeting](#targeting) |
-| `target_user_names` | list | | → [Targeting](#targeting) |
-
-**`layers` object**: each key is a slot name; omit a slot to leave it unchanged, set it to `null` to clear it. Each slot object requires a `preset` key plus any preset-specific overrides:
-
-| Slot | Preset | Key params |
-|------|--------|------------|
-| `backdrop` | `blur` | `amount` (e.g. `"8px"`) |
-| `backdrop` | `grayscale` | `amount` (e.g. `"100%"`) |
-| `backdrop` | `saturate` | `amount` (e.g. `"200%"`) |
-| `backdrop` | `contrast` | `amount` (e.g. `"200%"`) |
-| `backdrop` | `hue-rotate` | `angle` (e.g. `"90deg"`) |
-| `color` | `color-tint` | `color` (e.g. `"rgba(200,0,0,0.35)"`) |
-| `color` | `vignette` | `opacity` (e.g. `0.7`) |
-| `canvas` | `static` | `opacity`, `scale` |
-| `canvas` | `pixelate` | `opacity`, `pixelSize` |
-| `canvas` | `glitch` | `opacity`, `intensity` |
-| `canvas` | `scanlines` | `opacity` |
-
-See [Screen Effects](/core/effects/screen-effects) for full parameter details.
+- A layer left out of `layers` keeps whatever it shows; a layer set to `null` is cleared.
+- `duration` clears the layers this call set after that many milliseconds; each layer keeps its own timer, so a later call is never cut short by an earlier one. Without it the effect stays until [`lcards.clear_effect`](#lcards-clear-effect).
 
 ```yaml
-# Red-tinted blur - persistent until cleared
+# A red-tinted blur, until cleared
 action: lcards.trigger_effect
 data:
   layers:
     backdrop:
       preset: blur
-      amount: "12px"
+      amount: 12px
     color:
       preset: color-tint
-      color: "rgba(180,0,0,0.35)"
+      color: alpha(var(--lcars-alert-red), 0.35)
 ```
 
 ```yaml
-# TV static for 5 seconds, then auto-clear
+# TV static for 5 seconds
 action: lcards.trigger_effect
 data:
   duration: 5000
@@ -126,7 +133,7 @@ data:
 ```
 
 ```yaml
-# Target one device, all three slots
+# All three layers, on one device
 action: lcards.trigger_effect
 data:
   target_device_names:
@@ -134,7 +141,7 @@ data:
   layers:
     backdrop:
       preset: grayscale
-      amount: "80%"
+      amount: 80%
     color:
       preset: vignette
       opacity: 0.5
@@ -143,79 +150,72 @@ data:
       opacity: 0.3
 ```
 
-### `lcards.clear_effect`
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `layers` | object | required | A map of layers: `backdrop`, `color` and `canvas`, each a `preset` with its settings, or `null` to clear it |
+| `duration` | number | until cleared | Clear the layers this call sets after this many ms, at least `100` |
+| [Targeting](#targeting) | - | every browser | `target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names` |
 
-Clear one or all active screen effects. Supports [targeting](#targeting).
+The presets for each layer, with their main settings:
 
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `slot` | select | | Which slot to clear: `backdrop`, `canvas`, or `color`. Omit to clear all slots. |
-| `target_device_ids` | list | | → [Targeting](#targeting) |
-| `target_device_names` | list | | → [Targeting](#targeting) |
-| `target_user_ids` | list | | → [Targeting](#targeting) |
-| `target_user_names` | list | | → [Targeting](#targeting) |
+| Layer | Preset | Main settings |
+|-------|--------|---------------|
+| `backdrop` | `blur` | `amount` (`8px`) |
+| `backdrop` | `grayscale` | `amount` (`100%`) |
+| `backdrop` | `saturate` | `amount` (`200%`) |
+| `backdrop` | `contrast` | `amount` (`200%`) |
+| `backdrop` | `hue-rotate` | `angle` (`180deg`) |
+| `color` | `color-tint` | `color` |
+| `color` | `vignette` | `opacity` (`0.7`) |
+| `canvas` | `static` | `opacity`, `scale` |
+| `canvas` | `pixelate` | `opacity`, `pixelSize` |
+| `canvas` | `glitch` | `opacity`, `intensity` |
+| `canvas` | `scanlines` | `opacity`, `lineHeight`, `scroll` |
+
+### lcards.clear_effect
+
+**Clears one screen effect layer, or all of them.**
 
 ```yaml
-# Clear all active effects on all browsers
+# Clear every layer on every browser
 action: lcards.clear_effect
 ```
 
 ```yaml
-# Clear only the backdrop slot
+# Clear only the backdrop layer, on one device
 action: lcards.clear_effect
 data:
   slot: backdrop
-```
-
-```yaml
-# Clear everything on a specific device
-action: lcards.clear_effect
-data:
   target_device_names:
     - Kitchen Tablet
 ```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `slot` | string | every layer | `backdrop`, `canvas` or `color` |
+| [Targeting](#targeting) | - | every browser | `target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names` |
 
 ---
 
 ## Sound Actions
 
-Play a sound effect on connected browser tabs, without touching alert mode, theme, or any screen effect. Useful for subtle audio cues from automations (e.g. a soft chime when a kiosk tablet wakes). Supports [targeting](#targeting).
+### lcards.play_sound
 
-Sound playback always respects the target device's master **Sound Effects Enabled** toggle (`input_boolean.lcards_sound_enabled`); if the user has muted sounds, `play_sound` stays silent too. It does *not* check the `cards` / `ui` / `alerts` category toggles, since an automation-triggered sound isn't tied to any of those categories.
+**Plays a sound, without changing the alert mode, the theme or the screen.** Use it for a soft chime when a kiosk tablet wakes, or a beep when a door opens.
 
-See [Sound Configuration](/configuration/sounds) for the full event list, schemes, and per-user/per-device overrides.
-
-### `lcards.play_sound`
-
-Provide either `event_type` or `asset_key`, not both. If both are given, `asset_key` wins.
-
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `event_type` | select | | Plays whatever sound is currently configured for that UI event on the target device; respects its per-event override and active sound scheme. One of the 26 event keys listed in [Sound Configuration](/configuration/sounds#what-events-are-covered). |
-| `asset_key` | string | | Plays one exact sound file (e.g. `lcards_default_system_ready`), bypassing the target's scheme/overrides entirely. Find valid keys via the Config Panel Sound tab or `window.lcards.core.assetManager.getRegistry('audio').list()` in the browser console. |
-| `target_device_ids` | list | | → [Targeting](#targeting) |
-| `target_device_names` | list | | → [Targeting](#targeting) |
-| `target_user_ids` | list | | → [Targeting](#targeting) |
-| `target_user_names` | list | | → [Targeting](#targeting) |
+- `event_type` plays the sound each browser has for that event (its own per-event sound, else its scheme's), and the event's [sound category](./sounds#enabling-sounds) switch applies.
+- `asset_key` plays one exact sound whatever the scheme says: a sound asset key (**LCARdS Config > Sounds** lists them), a file URL such as `/local/sounds/chime.mp3`, or a `media-source://` id. Only the master switch applies.
+- Give one of the two; if both are given, `asset_key` wins. A browser whose master switch (`input_boolean.lcards_sound_enabled`) is off stays silent. [Sound Configuration](./sounds) has the schemes and the per-user and per-device settings.
 
 ```yaml
-# Play the user's configured "notification" sound on all browsers
+# The "notification" sound, as each browser has it set up
 action: lcards.play_sound
 data:
   event_type: notification
 ```
 
 ```yaml
-# Subtle wake chime on one kiosk tablet, alongside the screen-wake call
-action: lcards.play_sound
-data:
-  event_type: notification
-  target_device_names:
-    - Kitchen Tablet
-```
-
-```yaml
-# Play one exact sound file regardless of the device's active scheme
+# One exact sound on one tablet
 action: lcards.play_sound
 data:
   asset_key: lcards_default_system_ready
@@ -223,27 +223,23 @@ data:
     - Kitchen Tablet
 ```
 
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `event_type` | string | - | One of the 27 event keys in [What Events Are Covered](./sounds#what-events-are-covered), such as `notification`, `card_tap` or `alert_red` |
+| `asset_key` | string | - | A sound asset key, a file URL or a `media-source://` id |
+| [Targeting](#targeting) | - | every browser | `target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names` |
+
 ---
 
 ## Astrometrics Actions
 
-Move the camera of an [astrometrics card](/cards/astrometrics/) from an automation, for example to show the front door on the wall panel when the doorbell rings. The card needs an `id`. Every open dashboard showing that card flies, unless you target devices or users.
+**Move the camera or set the clock of an [astrometrics card](/cards/astrometrics/) from an automation**, for example to show the front door on the wall panel when the doorbell rings. The card needs an `id`; every open dashboard showing that card follows, unless you target devices or users.
 
-### `lcards.fly_to`
+### lcards.fly_to
 
-Give a `view` or a `point`; if both are given, `point` wins.
+**Flies the card's camera to one of its named views or to one of its points.** Give a `view` or a `point`; with both, `point` wins, and with neither the action fails.
 
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `card_id` | string | ✓ | The astrometrics card's `id`. |
-| `view` | string | | A named view of the card (`camera.views`). |
-| `point` | string | | A point id of the card; the camera flies to it as a tap on it would. |
-| `duration` | number | | Flight time in ms. Default: the card's `camera.fly_duration`. |
-| `warp` | boolean | | Stars and dust streak on the way (`true`), or not (`false`). Default: the view's own `warp`, else the card's `camera.warp`. |
-| `target_device_ids` | list | | → [Targeting](#targeting) |
-| `target_device_names` | list | | → [Targeting](#targeting) |
-| `target_user_ids` | list | | → [Targeting](#targeting) |
-| `target_user_names` | list | | → [Targeting](#targeting) |
+- From another LCARdS card on the same dashboard, the `fly-to` card action does the same without a round trip: see [Fly-to from other cards](/cards/astrometrics/data#fly-to-from-other-cards-and-automations).
 
 ```yaml
 # Show the front door on every dashboard with the house map
@@ -254,7 +250,7 @@ data:
 ```
 
 ```yaml
-# The sector overview on the bridge tablet, slowly
+# The sector overview on the bridge tablet, slowly, with warp streaks
 action: lcards.fly_to
 data:
   card_id: galaxy
@@ -265,21 +261,20 @@ data:
     - Bridge Tablet
 ```
 
-From another LCARdS card on the same dashboard, the `fly-to` action does the same without a round trip; see [Fly-to from other cards](/cards/astrometrics/data#fly-to-from-other-cards-and-automations).
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `card_id` | string | required | The astrometrics card's `id` |
+| `view` | string | - | A named view of the card (`camera.views`) |
+| `point` | string | - | A point id of the card; the camera flies to it as a tap on it would |
+| `duration` | number | the card's `camera.fly_duration` | Flight time in ms, `0` to `60000` |
+| `warp` | boolean | the view's `warp`, else the card's `camera.warp` | `true`: stars and dust streak on the way; `false`: they don't |
+| [Targeting](#targeting) | - | every browser | `target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names` |
 
-### `lcards.set_clock`
+### lcards.set_clock
 
-Sets the [scene date](/cards/astrometrics/scale#the-scene-clock) of an astrometrics card and how fast it runs: where its real planets and moons are, and how they are turned. Give a `date`, a `rate` or both; the other keeps running on.
+**Sets the card's [scene date](/cards/astrometrics/scale#the-scene-clock) and how fast it runs: where its real planets and moons are, and how they are turned.** Give a `date`, a `rate` or both (with neither the action fails); the one you leave out keeps running as it was.
 
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `card_id` | string | ✓ | The astrometrics card's `id`. |
-| `date` | string | | `now`, or an ISO date and time (`2026-10-30`, `2026-10-30T12:00:00Z`). A date and time helper's state works too (local time). |
-| `rate` | number or `live` | | Days per second: `1` a day a second, `0` holds it, negative runs back; `live` is real time. |
-| `target_device_ids` | list | | → [Targeting](#targeting) |
-| `target_device_names` | list | | → [Targeting](#targeting) |
-| `target_user_ids` | list | | → [Targeting](#targeting) |
-| `target_user_names` | list | | → [Targeting](#targeting) |
+- From another LCARdS card, the `set-clock` card action does the same: see [the scene clock](/cards/astrometrics/scale#the-scene-clock).
 
 ```yaml
 # Show the planets on the date in a helper, held still
@@ -290,57 +285,53 @@ data:
   rate: 0
 ```
 
-From another LCARdS card, the `set-clock` action does the same: `tap_action: { action: set-clock, card: sol, rate: 30 }`.
+```yaml
+# Back to now, running an hour a second
+action: lcards.set_clock
+data:
+  card_id: sol
+  date: now
+  rate: 1 h/s
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `card_id` | string | required | The astrometrics card's `id` |
+| `date` | string | keeps running | `now`, or an ISO date and time (`2026-10-30`, `2026-10-30T12:00:00Z`). A date and time helper's state works too (local time) |
+| `rate` | string / number | unchanged | Days per second (`1` a day a second, `0` holds it, negative runs back), `live` for real time, or with a unit as the time slider shows it: `1 h/s`, `30 d/s`, `1 y/s` (units `s`, `min`, `h`, `d`, `w`, `mo`, `y`) |
+| [Targeting](#targeting) | - | every browser | `target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names` |
 
 ---
 
 ## Portal Overlay Actions
 
-Display or clear a custom Home Assistant card over the full-screen portal on connected browser tabs. Supports [targeting](#targeting).
+**Show any Home Assistant card over the whole screen of the connected browsers, with screen effects behind it if you like.** The card has its own layer: it doesn't disturb an [alert overlay](../cards/alert-overlay/) or the [connection overlay](./connectivity), and they don't disturb it. For popups with buttons, see [Using browser_mod](./browser-mod).
 
-Cards are mounted in the `'ha-service'` portal slot, which is independent of the Alert and Connection overlay slots; they do not interfere with each other.
+### lcards.show_portal_card
 
-For more advanced use-cases, you can refer to [using browser_mod](./browser-mod.md) integration page.
-
-### `lcards.show_portal_card`
-
-Displays a card or message in the portal overlay.
-
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `content` | object | ✅ | Any Home Assistant card config (`type: custom:lcards-button`, `type: entities`, etc.) |
-| `layers` | object | | SEM effect layers: same shape as `lcards.trigger_effect` |
-| `position` | select | | Content anchor. Default: `center`. Options: `center`, `top`, `top-left`, `top-right`, `bottom`, `bottom-left`, `bottom-right`, `left`, `right` |
-| `width` | string | | CSS width for the content container, e.g. `'400px'` |
-| `height` | string | | CSS height for the content container |
-| `duration` | number | | Auto-dismiss after this many milliseconds (100–300000) |
-| `dismiss` | boolean | | Whether clicking the backdrop dismisses the overlay |
-| `target_device_ids` | list | | → [Targeting](#targeting) |
-| `target_device_names` | list | | → [Targeting](#targeting) |
-| `target_user_ids` | list | | → [Targeting](#targeting) |
-| `target_user_names` | list | | → [Targeting](#targeting) |
+**Shows a card in the portal overlay, until cleared, dismissed or for a set time.**
 
 ```yaml
+# A light button over a blurred, darkened screen for 10 seconds
 action: lcards.show_portal_card
 data:
   content:
     type: custom:lcards-button
     entity: light.bridge
   position: center
-  width: "360px"
+  width: 360px
   duration: 10000
-  dismiss: true
   layers:
     backdrop:
       preset: blur
-      amount: "8px"
+      amount: 8px
     color:
       preset: color-tint
-      color: "rgba(0,0,0,0.5)"
+      color: alpha(var(--lcars-black), 0.5)
 ```
 
 ```yaml
-# Target a specific device
+# A markdown note on one device, until cleared
 action: lcards.show_portal_card
 data:
   content:
@@ -350,211 +341,144 @@ data:
     - Kitchen Tablet
 ```
 
-### `lcards.clear_portal_card`
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `content` | object | required | Any card config (`type: custom:lcards-button`, `type: entities` ...) |
+| `layers` | object | none | Screen effect layers behind the card, as in [`lcards.trigger_effect`](#lcards-trigger-effect) |
+| `position` | string | `center` | `center`, `top`, `top-left`, `top-right`, `bottom`, `bottom-left`, `bottom-right`, `left` or `right` |
+| `width` | string | `auto` | CSS width of the card's box: `400px`, `40vw`, `auto` |
+| `height` | string | `auto` | CSS height of the card's box: `300px`, `30vh`, `auto` |
+| `duration` | number | until cleared | Close it after this many ms, at least `100` |
+| `dismiss` | boolean | `true` | A click on the backdrop closes it |
+| [Targeting](#targeting) | - | every browser | `target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names` |
 
-Hides the portal card shown by `show_portal_card`. Only clears the `'ha-service'` slot; alert and connection overlays are unaffected. Supports [targeting](#targeting).
+### lcards.clear_portal_card
 
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `target_device_ids` | list | | → [Targeting](#targeting) |
-| `target_device_names` | list | | → [Targeting](#targeting) |
-| `target_user_ids` | list | | → [Targeting](#targeting) |
-| `target_user_names` | list | | → [Targeting](#targeting) |
+**Takes away the card shown by `lcards.show_portal_card`.** Alert and connection overlays stay.
 
 ```yaml
-action: lcards.clear_portal_card
-```
-
-```yaml
-# Clear on a specific device only
+# Clear it on one device only
 action: lcards.clear_portal_card
 data:
   target_device_names:
     - Kitchen Tablet
 ```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| [Targeting](#targeting) | - | every browser | `target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names` |
 
 ---
 
 ## Borg Assimilation Actions
 
-Trigger and clear the [Borg Assimilation mode](/core/borg) from automations. Both actions support [targeting](#targeting).
+**Start and end the [Borg assimilation](/core/borg) from automations.** It is not stored: a reload, or a browser opened later, shows the normal dashboard, so a reload also ends it. [Borg Actions](/core/borg-actions) has more examples.
 
-To clear, you can call [`lcards.borg_deassimilate`](#lcards-borg-deassimilate) or simply reload the page - this does not persist across reloads.
+### lcards.borg_assimilate
 
-### `lcards.borg_assimilate`
+**Starts the assimilation; its fields tune the intro, the transition, the font, the sound and the effects left after the intro.** With no fields, the intro waits for a click and the default effects follow it.
 
-Trigger the Borg assimilation on one or all connected browsers.
-
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `intro_duration` | No | - | Auto-dismiss the intro after this many ms (1000–60000). Omit for click-to-dismiss. |
-| `site_count` | No | `8` | Number of injection sites on screen (1–20) |
-| `tendrils_per_site` | No | `5` | Bézier tendrils per injection site (1–20) |
-| `tendril_length` | No | `600` | Maximum tendril reach in pixels (100–1200) |
-| `particle_count` | No | `2` | Nano-probe particles per tendril (0–6); `0` disables particles |
-| `renderer` | No | `auto` | `auto` or `webgl`: the WebGL intro where the browser supports it; `canvas`: the [classic intro](/core/borg#classic-intro) |
-| `cube` | No | `detailed` | WebGL intro: `detailed` (solid cube with machinery), `classic` (wireframe) or `none` (no cube) |
-| `corruption` | No | `0.5` | WebGL intro: signal corruption strength (0–1); `0` turns it off |
-| `overrun` | No | `0.65` | WebGL intro: darkness behind the assimilation front (0–1) |
-| `transition_style` | No | `blur_fade` | Palette transition: `blur_fade`, `flash`, `fade_only`, `off` |
-| `sound` | No | - | Sound as the assimilation starts: a file URL (`/local/sounds/borg.mp3`), a `media-source://` id or a sound asset key; `none` is silent. Left empty, the `borg_assimilate` sound event plays (silent unless your sound scheme assigns it). |
-| `font_swap` | No | `true` | Set to `false` to skip the Borg font injection; all other effects (palette, canvas intro, persistent layers) still run. |
-| `suppress_persistent` | No | `false` | Suppress all persistent effects after intro. Ignored if `persistent_layers` is also set. |
-| `intro_layers` | No | - | **Advanced.** Full per-slot layers dict. Canvas param keys accept either snake_case or camelCase; both are normalised. Values override the corresponding flat shortcuts. |
-| `persistent_layers` | No | - | **Advanced.** Full per-slot layers dict. Overrides `suppress_persistent` when set. Pass `{}` to suppress all. |
-| `target_device_ids` | No | - | → [Targeting](#targeting) |
-| `target_device_names` | No | - | → [Targeting](#targeting) |
-| `target_user_ids` | No | - | → [Targeting](#targeting) |
-| `target_user_names` | No | - | → [Targeting](#targeting) |
+- The flat intro fields (`site_count` to `overrun`) are shortcuts for `intro_layers.canvas`. When both are given, the keys in `intro_layers.canvas` win; they may be camelCase or snake_case.
+- The Borg never writes `input_select.lcards_alert_mode`, targeted or not.
 
 ```yaml
-# Broadcast - click-to-dismiss
+# Every browser; the intro waits for a click
 action: lcards.borg_assimilate
 ```
 
 ```yaml
-# Auto-dismiss after 12 seconds
+# Auto-dismiss after 12 seconds, more and longer tendrils, palette and font only afterwards
 action: lcards.borg_assimilate
 data:
   intro_duration: 12000
   transition_style: fade_only
-```
-
-```yaml
-# More injection sites, denser tendrils, longer reach
-action: lcards.borg_assimilate
-data:
   site_count: 12
   tendrils_per_site: 14
   tendril_length: 900
-  particle_count: 3
-```
-
-```yaml
-# Custom intro with extra blur backdrop
-action: lcards.borg_assimilate
-data:
-  intro_duration: 10000
-  site_count: 12
-  intro_layers:
-    backdrop:
-      preset: blur
-      amount: "6px"
-```
-
-```yaml
-# Suppress all persistent effects - palette + font only
-action: lcards.borg_assimilate
-data:
   suppress_persistent: true
 ```
 
-```yaml
-# Keep the existing font - palette + canvas intro still run
-action: lcards.borg_assimilate
-data:
-  font_swap: false
-```
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `intro_duration` | number | wait for a click | End the intro after this many ms, `1000` to `60000`; a click still ends it earlier |
+| `site_count` | number | `8` | Injection sites on the screen, `1` to `20` |
+| `tendrils_per_site` | number | `5` | Tendrils per injection site, `1` to `20` |
+| `tendril_length` | number | `600` | Longest tendril reach in pixels, `100` to `1200` |
+| `particle_count` | number | `2` | Nano-probe particles per tendril, `0` to `6`; `0` turns them off |
+| `renderer` | string | `auto` | `auto` or `webgl`: the WebGL intro where the browser supports it; `canvas`: the [classic intro](/core/borg#classic-intro) |
+| `cube` | string | `detailed` | WebGL intro: `detailed` (solid cube with machinery), `classic` (wireframe) or `none` |
+| `corruption` | number | `0.5` | WebGL intro: signal corruption strength, `0` to `1`; `0` turns it off |
+| `overrun` | number | `0.65` | WebGL intro: darkness behind the assimilation front, `0` to `1` |
+| `transition_style` | string | `blur_fade` | Palette transition: `blur_fade`, `flash`, `fade_only` or `off` |
+| `font_swap` | boolean | `true` | `false` keeps the dashboard font; everything else still runs |
+| `sound` | string | the `borg_assimilate` [sound event](/core/borg#sounds) | A file URL (`/local/sounds/borg.mp3`), a `media-source://` id or a sound asset key; `none` for silence |
+| `suppress_persistent` | boolean | `false` | `true` leaves no effects after the intro. Ignored when `persistent_layers` is set |
+| `intro_layers` | object | - | Layers for the intro, merged slot by slot with the defaults; see [Layers format](/core/borg#layers-format) |
+| `persistent_layers` | object | - | Layers kept after the intro, replacing the defaults; `{}` keeps none. Wins over `suppress_persistent` |
+| [Targeting](#targeting) | - | every browser | `target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names` |
+
+### lcards.borg_deassimilate
+
+**Restores the dashboard: a short glitch outro, then the normal colours, font and screen.** A browser that is not assimilated ignores it.
 
 ```yaml
-# Target a specific device
-action: lcards.borg_assimilate
-data:
-  intro_duration: 10000
-  target_device_names:
-    - Living Room TV
-```
-
-### `lcards.borg_deassimilate`
-
-Reverse the Borg assimilation and restore all browsers to normal.
-
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `with_outro` | No | `true` | Play outro layers before reverting. `false` = immediate silent revert. |
-| `outro_layers` | No | - | Layers dict for the outro. Longest `duration` param determines wait time. Omit for defaults (glitch on canvas, 1200 ms). |
-| `revert_transition_style` | No | `fade_only` | Palette transition back to normal: `flash`, `fade_only`, `blur_fade`, `off` |
-| `sound` | No | - | Sound as the deassimilation starts: a file URL, a `media-source://` id or a sound asset key; `none` is silent. Left empty, the `borg_deassimilate` sound event plays (silent unless your sound scheme assigns it). |
-| `target_device_ids` | No | - | → [Targeting](#targeting) |
-| `target_device_names` | No | - | → [Targeting](#targeting) |
-| `target_user_ids` | No | - | → [Targeting](#targeting) |
-| `target_user_names` | No | - | → [Targeting](#targeting) |
-
-```yaml
-# Broadcast - default glitch outro
-action: lcards.borg_deassimilate
-```
-
-```yaml
-# Immediate silent revert
+# At once, with no outro
 action: lcards.borg_deassimilate
 data:
   with_outro: false
 ```
 
-```yaml
-# Custom outro
-action: lcards.borg_deassimilate
-data:
-  outro_layers:
-    canvas:
-      preset: glitch
-      duration: 800
-      intensity: 0.6
-  revert_transition_style: fade_only
-```
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `with_outro` | boolean | `true` | `false` restores at once, with no outro and no wait |
+| `outro_layers` | object | glitch on `canvas` for 1200 ms | Outro layers, replacing the default. The longest `duration` in them sets the wait, at least 1200 ms |
+| `revert_transition_style` | string | `fade_only` | Palette transition back to normal: `fade_only`, `flash`, `blur_fade` or `off` |
+| `sound` | string | the `borg_deassimilate` [sound event](/core/borg#sounds) | A sound for this call, as for `lcards.borg_assimilate` |
+| [Targeting](#targeting) | - | every browser | `target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names` |
 
 ---
 
 ## Frontend Control Actions
 
-These actions can be helpful for troubleshooting, or just clean loading front-end.  Both support [targeting](#targeting).
+**Reload dashboards, or change how much LCARdS logs, from an automation.** Useful for troubleshooting and for kiosks nobody stands at.
 
-### `lcards.reload`
+### lcards.reload
 
-Forces the matching browser tabs to reload (`window.location.reload()`). Useful after pushing new assets or changing configuration.
+**Reloads the page in every matched browser tab, at once.** Use it after updating LCARdS or changing a resource.
 
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `target_device_ids` | list | | → [Targeting](#targeting) |
-| `target_device_names` | list | | → [Targeting](#targeting) |
-| `target_user_ids` | list | | → [Targeting](#targeting) |
-| `target_user_names` | list | | → [Targeting](#targeting) |
+::: warning
+The page reloads immediately: anyone using that dashboard loses what they were doing.
+:::
 
 ```yaml
-# Broadcast - reload all tabs
-action: lcards.reload
-```
-
-```yaml
-# Reload a single device
+# Reload one device
 action: lcards.reload
 data:
   target_device_names:
     - Kitchen Tablet
 ```
 
-::: warning
-This *immediately* reloads the matched browser tabs. Use with care if users are actively interacting with dashboards.
-:::
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| [Targeting](#targeting) | - | every browser | `target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names` |
 
-### `lcards.set_log_level`
+### lcards.set_log_level
 
-Changes the JS frontend log level at runtime across matched tabs and updates the Python logger hierarchy simultaneously. Verbose output appears in the browser console immediately, no Home Assistant restart or page reload required. Supports [targeting](#targeting).
+**Changes how much LCARdS writes to the browser console and the Home Assistant log, at once and with no reload.** Use `debug` while chasing a problem, then go back to `warn`.
 
-| Field | Type | Required | Options |
-|-------|------|----------|---------|
-| `level` | select | ✅ | `off`, `error`, `warn`, `info`, `debug`, `trace` |
-| `target_device_ids` | list | | → [Targeting](#targeting) |
-| `target_device_names` | list | | → [Targeting](#targeting) |
-| `target_user_ids` | list | | → [Targeting](#targeting) |
-| `target_user_names` | list | | → [Targeting](#targeting) |
+- The browser level changes in the matched tabs only. The Home Assistant log level is one for the whole server, so it changes whatever the targeting says.
+- The level lasts until the page reloads; the integration's **Log level** option sets the lasting one (see [Integration options](../getting-started/installation#integration-options)).
 
 ```yaml
 action: lcards.set_log_level
 data:
   level: debug
 ```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `level` | string | required | `off`, `error`, `warn`, `info`, `debug` or `trace` |
+| [Targeting](#targeting) | - | every browser | `target_device_ids`, `target_device_names`, `target_user_ids`, `target_user_names` |
 
 ---
 
@@ -564,64 +488,52 @@ data:
 
 ```yaml
 alias: Red alert on motion
-trigger:
-  - platform: state
+triggers:
+  - trigger: state
     entity_id: binary_sensor.hallway_motion
     to: "on"
-action:
+actions:
   - action: lcards.red_alert
 ```
 
-### Cycle through alert modes on a button press
+### Set the alert mode from a helper
 
 ```yaml
-alias: Demo alert cycle
-trigger:
-  - platform: state
-    entity_id: input_button.demo_alert
-action:
+# input_select.ship_condition is your own helper, with alert mode names as its options
+alias: Alert mode from a helper
+triggers:
+  - trigger: state
+    entity_id: input_select.ship_condition
+actions:
   - action: lcards.set_alert_mode
     data:
-      mode: "{{ states('input_select.demo_alert_cycle') }}"
+      mode: "{{ states('input_select.ship_condition') }}"
 ```
 
-### Enable debug logging when a dev mode flag is set
+### Debug logging while a dev mode switch is on
 
 ```yaml
 alias: LCARdS debug on dev mode
-trigger:
-  - platform: state
+triggers:
+  - trigger: state
     entity_id: input_boolean.lcards_dev_mode
-action:
-  - choose:
-      - conditions:
-          - condition: state
-            entity_id: input_boolean.lcards_dev_mode
-            state: "on"
-        sequence:
-          - action: lcards.set_log_level
-            data:
-              level: debug
-      - conditions:
-          - condition: state
-            entity_id: input_boolean.lcards_dev_mode
-            state: "off"
-        sequence:
-          - action: lcards.set_log_level
-            data:
-              level: warn
+actions:
+  - action: lcards.set_log_level
+    data:
+      level: "{{ 'debug' if is_state('input_boolean.lcards_dev_mode', 'on') else 'warn' }}"
 ```
 
-### Subtle chime when a kiosk tablet wakes
+### A soft chime when a kiosk tablet wakes
 
 ```yaml
 alias: Tablet wake chime
-trigger:
-  - platform: state
+triggers:
+  - trigger: state
     entity_id: binary_sensor.hallway_motion
     to: "on"
-action:
-  - action: rest_command.fully_kiosk_wake_screen  # your existing wake call
+actions:
+  # your existing screen-wake action first
+  - action: rest_command.fully_kiosk_wake_screen
   - action: lcards.play_sound
     data:
       event_type: notification
@@ -629,39 +541,38 @@ action:
         - Kitchen Tablet
 ```
 
-### Borg mode: assimilate all browsers, auto-revert after 30 minutes
+### Borg mode for 30 minutes
 
 ```yaml
-automation:
-  - alias: "Borg Mode"
-    trigger:
-      - platform: time
-        at: "20:00:00"
-    action:
-      - action: lcards.borg_assimilate
-        data:
-          intro_duration: 10000
-      - delay:
-          minutes: 30
-      - action: lcards.borg_deassimilate
+alias: Borg mode
+triggers:
+  - trigger: time
+    at: "20:00:00"
+actions:
+  - action: lcards.borg_assimilate
+    data:
+      intro_duration: 10000
+  - delay:
+      minutes: 30
+  - action: lcards.borg_deassimilate
 ```
 
 ---
 
 ## From AI agents
 
-An AI agent connected to Home Assistant (through the Model Context Protocol server, a voice assistant, or the REST/WebSocket API) can drive LCARdS with the same actions: they are ordinary `lcards.*` services, so anything that can call a Home Assistant service can raise an alert, run a screen effect, play a sound or show a portal card.
+**An AI agent connected to Home Assistant (through the Model Context Protocol server, a voice assistant, or the REST or WebSocket API) can drive LCARdS with the same actions.** They are ordinary `lcards.*` actions, so anything that can call a Home Assistant action can raise an alert, run a screen effect, play a sound or show a portal card.
 
-- Every action and its fields is listed above; `services.yaml` in the integration carries the same descriptions, so agents that read the service list see them too.
-- Actions with [targeting](#targeting) fields act on every connected browser when the fields are omitted. Agents should target a device or user when the request is about one screen.
+- Every action and its fields is on this page; `services.yaml` in the integration carries the same descriptions, so agents that read the action list see them too.
+- Without [targeting](#targeting) fields an action reaches every connected browser. Agents should target a device or user when the request is about one screen.
 - To change what a dashboard looks like (rather than trigger something on it), an agent edits dashboard YAML instead. Point it at the [JSON Schemas and the config checker](/getting-started/ai-assistance) so it only writes keys LCARdS has.
 
 ---
 
 ## Related
 
-- [Borg Assimilation](/core/borg): full console API, layer params, and sequence documentation
-- [Screen Effects](/core/effects/screen-effects): full preset reference for `layers` params used by `trigger_effect`, `show_portal_card`, and the borg actions
-- [Sound Configuration](/configuration/sounds): event list, schemes, and per-user/per-device overrides used by `play_sound`
-- [Users & Devices](/configuration/users-devices): how device IDs and display names are assigned
-- [Alert Mode Lab](/configuration/alert-mode-lab): interactive alert mode configuration
+- [Borg Actions](/core/borg-actions) and [Borg Assimilation](/core/borg): more Borg examples, the layers format and the console API
+- [Screen Effects](/core/effects/screen-effects): every preset for the `layers` of `trigger_effect`, `show_portal_card` and the Borg actions
+- [Sound Configuration](./sounds): the events, schemes and per-user and per-device settings `play_sound` uses
+- [Users & Devices](./users-devices): how device ids and names are set
+- [Alert Mode](../core/alert-mode) and the [Alert Mode Lab](./alert-mode-lab): what the alert actions change

@@ -1,5 +1,5 @@
 # Picard console: a Titan.DS-style screen built from the patterns in
-# doc/getting-started/lcars-design.md. Utility pills housed in a bracket frame, a concentric header
+# doc/getting-started/lcars-patterns.md. Utility pills housed in a bracket frame, a concentric header
 # sweep whose leg matches the column of code blocks, a nested frame around a line-drawn ship,
 # a right number column, toggle tabs and gauges along the bottom, a footer sweep.
 # Every colour is a theme role (theme: tokens), so it follows the HA-LCARS theme.

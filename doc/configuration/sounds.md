@@ -1,191 +1,181 @@
+---
+description: "LCARdS sound configuration: the master switch and categories, sound schemes (built-in and your own), per-event sounds, per-user and per-device settings, the events that play sounds, and the browser autoplay setting."
+moved_anchors:
+  silencing-a-specific-event: /configuration/sounds#per-event-overrides
+  notes: /configuration/sounds#enabling-sounds
+---
+
 # Sound Configuration
 
-> **LCARS-style audio feedback for card interactions and Home Assistant UI events**
+**LCARdS can play LCARS sounds when you tap cards, move around Home Assistant, open dialogs and change the alert mode.** The **Sounds** tab of **LCARdS Config** turns them on, picks the sound scheme and changes single events.
 
-LCARdS can play sounds for card taps, navigation, dialogs, alert mode changes, and more. Sounds are **off by default**: you need to create the helper entities and enable the master toggle before any sound plays. Once enabled, all categories are on and the built-in scheme plays immediately with no further configuration.
+- Sounds are off until you create the sound helpers and turn on the master switch.
+- A new installation's scheme is **None (silent)**: pick **lcards_default** (or another scheme) in **Sound Scheme** to hear the built-in sounds.
+- A card can mute itself or play other sounds: see [Card Sounds](../core/sounds).
 
 ---
 
 ## Setup
 
-Open **Config Panel** → **Helpers** tab and create the helpers.
-
-The Home Assistant input helpers that store and control certain global sound settings. You only need to do this once.
-
----
+**Create the sound helpers once: LCARdS Config > Helpers > Create All.** They hold the master switch, the three category switches, the volume and the scheme. See [Persistent Helpers](./persistent-helpers#sound).
 
 ## Enabling Sounds
 
-Sounds won't play until `input_boolean.lcards_sound_enabled` is turned on. Toggle it from:
+**No sound plays until `input_boolean.lcards_sound_enabled` is on.** Turn it on with **Sound effects enabled** in the Sounds tab's **Master Controls**, from a dashboard, or from an automation.
 
-- The **Sound** tab in the Config Panel
-- Your Home Assistant dashboard directly
-- An automation
-
-The three category toggles (`lcards_sound_cards`, `lcards_sound_ui`, `lcards_sound_alerts`) let you enable/disable each group independently. All three default to enabled once the master is on.
-
----
+- **Volume** sets the volume of every sound, `0` to `1` (default `0.5`). There is no volume per event.
+- **Sound Categories** switch groups of events: **Card interaction sounds** (`lcards_sound_cards`), **UI navigation sounds** (`lcards_sound_ui`) and **Alert and system sounds** (`lcards_sound_alerts`). They are on by default, and a missing category helper counts as on.
+- The category switches are the same for everyone; the master switch, volume and scheme can also be set per user or device (see [below](#per-user-per-device-overrides)).
 
 ## Sound Schemes
 
-A scheme maps every event to an audio file. Select your scheme from the **Sound Scheme** dropdown in the Sound tab (or via the `input_select.lcards_sound_scheme` entity).
+**A scheme gives every event its sound.** Pick it in the Sounds tab's **Sound Scheme** section, or set `input_select.lcards_sound_scheme`. **Preview** plays a sample.
 
-**Built-in scheme: `lcards_default`**
-
-Covers all event types with LCARS-style beeps and tones. Additional schemes become available when sound packs are installed.
-
-Set to **none** for an empty scheme: no event plays a sound unless you give it one as an override. To disable all sounds, turn off the master **Sound Effects Enabled** toggle.
-
----
+- **lcards_default** is built in and covers every event with LCARS beeps and tones, except **Slider Value Change** (silent, so dragging a slider doesn't beep on every step) and the two Borg events. Sound packs add more schemes; the helper's options update by themselves.
+- **None (silent)** is an empty scheme: nothing plays except the events you give a sound below. To turn every sound off, use the master switch instead.
+- **Save as new scheme…** (under Per-Event Overrides) saves the current per-event sounds as a scheme of your own, listed as *name (custom)*. With a custom scheme active, per-event edits change that scheme directly; **Delete** removes it permanently.
 
 ## Per-Event Overrides
 
-You can assign a different sound (or silence) to any individual event, independent of the active scheme.
+**Give any single event another sound, or mute it, whatever the scheme says.** Open **Per-Event Overrides** inside the Sound Scheme section and pick a sound for the event.
 
-In the Sound tab, find the event in the overrides table and pick an asset from the dropdown, or set it to **(Use scheme default)** to revert. When any overrides are active, a **Reset all to scheme defaults** button appears above the table to clear them all at once.
-
-Overrides set in the **Global Settings** section are shared across all users and all devices (they apply to everyone who hasn't set a more specific override).
-
-To set overrides that only apply to you or a specific device, use the **Per-User / Per-Device Overrides** section below.
+- Each event offers **(Use scheme default)**, **Mute this event**, **Browse Home Assistant Media…** (a sound from the media library) and every sound asset from the loaded packs. The play button next to it previews the result.
+- Click **Save** to keep your changes, or **Discard**. **Reset to scheme defaults** clears every override at once.
+- Overrides made here are global: they apply to every user and device that has no override of its own. They are stored by the integration (see the Storage tab), not in helpers.
 
 ---
 
 ## Per-User / Per-Device Overrides
 
-> **Requires**: LCARdS integration v1.12+ with `scoped_storage` capability.
-
-The **Per-User / Per-Device Overrides** section at the bottom of the Sound tab lets you set sound settings that only apply to a specific user or device, without changing the global defaults.
+**Your own sound settings, for your Home Assistant user on any device, or for this one browser, without changing everyone else's.** The section is at the bottom of the Sounds tab.
 
 ### Scope selector
 
-Use the **User** / **Device** buttons to switch between the two scopes:
+**The User and Device switches choose which one you are editing.**
 
-- **User**: settings apply to your Home Assistant user account on any device
-- **Device**: settings apply to this specific browser/device only
+- **User:** applies to your Home Assistant user on every device.
+- **Device:** applies to this browser, whoever is logged in.
+- Each setting shows where its current value comes from; the clear button next to an override removes it, and the next level takes over.
 
 ### What can be overridden per-user / per-device
 
-| Setting | User scope | Device scope |
-|---------|------------|-------------|
-| Master enable | ✅ | ✅ |
-| Volume | ✅ | ✅ |
-| Sound scheme | ✅ | ✅ |
-| Per-event overrides | ✅ | ✅ |
+| Setting | User | Device |
+|---------|------|--------|
+| Sound effects enabled | yes | yes |
+| Volume | yes | yes |
+| Sound scheme | yes | yes |
+| Per-event overrides | yes | yes |
+| Sound categories | no | no |
 
 ### Resolution order
 
-Every sound setting (volume, scheme, and per-event overrides) follows the same priority chain. The first non-null value found wins:
+**Each setting takes the first value it finds, in this order.**
 
 ```
-Card config → Device override → User override → Global setting → Scheme default
+Card sounds → Device → User → Global → Scheme
 ```
 
-| Priority | What it is |
-|----------|------------|
-| **Card config** | `tap_action.sound` in a card's YAML; highest, overrides everything |
-| **Device override** | Set in the Device scope for this browser/device |
-| **User override** | Set in the User scope for your Home Assistant account |
-| **Global setting** | The shared default (helpers + global per-event overrides) |
-| **Scheme default** | The active sound scheme's mapping for that event |
-
-Clearing an override at any level (the × button, or setting a per-event override back to **Use scheme default**) drops that level out of the chain; the next level down takes over automatically.
+| Level | What it is |
+|-------|------------|
+| **Card sounds** | A card's own [`sounds`](../core/sounds) block, for that card's events only |
+| **Device** | Set in the Device scope for this browser |
+| **User** | Set in the User scope for your Home Assistant user |
+| **Global** | The helpers and the global per-event overrides |
+| **Scheme** | The active scheme's sound for the event |
 
 ### Admin: editing other users / devices
 
-Home Assistant admin users see an **Edit as admin** dropdown in each scope section. Selecting a user or device lets the admin view and modify that subject's overrides directly. Changes take effect on the target's next playback.
+**Home Assistant administrators can edit another user's or device's settings.** **Edit as admin** in each scope lists the users or devices; pick one to see and change its overrides. The change applies the next time that user or device plays a sound.
 
 ---
 
 ## What Events Are Covered
 
+**Every event that can play a sound, with the key that card `sounds` blocks and [`lcards.play_sound`](./ha-actions#lcards-play-sound) use.**
+
 ### Card Interactions
-| Event | When |
-|-------|------|
-| Card Tap | Tapping any LCARdS card or standard Home Assistant card |
-| Card Hold | Hold action |
-| Card Double-Tap | Double-tap action |
-| Card Hover | Mouse hover (desktop only) |
-| Toggle → On / Off | Toggle state changes |
-| Slider Grab / Release | Grabbing or releasing a slider |
-| More Info Open | Opening the more-info panel |
+
+| Event | Key | When |
+|-------|-----|------|
+| Card Tap | `card_tap` | A tap on an LCARdS card, or a click on a standard Home Assistant card |
+| Card Hold | `card_hold` | A hold action |
+| Card Double-Tap | `card_double_tap` | A double-tap action |
+| Card Hover (Desktop) | `card_hover` | The mouse pointer moving onto a card |
+| Toggle → On / Off | `toggle_on`, `toggle_off` | A toggle action turning an entity on or off |
+| Slider Grab / Release | `slider_drag_start`, `slider_drag_end` | Grabbing or letting go of a slider |
+| Slider Value Change | `slider_change` | Each step while a slider moves |
+| More Info Open | `more_info_open` | A more-info dialog opening |
 
 ### Home Assistant UI Navigation
-| Event | When |
-|-------|------|
-| Menu Expand / Collapse | Hamburger menu button |
-| Page / View Navigation | Moving between dashboard views and sidebar nav items |
-| Dialog Open | Any Home Assistant dialog opens |
-| Dialog Close | Any Home Assistant dialog dismissed |
-| Dashboard Edit Start | Entering dashboard edit mode |
-| Dashboard Edit Save / Done | Exiting dashboard edit mode |
+
+| Event | Key | When |
+|-------|-----|------|
+| Sidebar Menu Expand / Collapse | `menu_expand` | The sidebar menu button |
+| Page / View Navigation | `nav_page` | Moving between views and sidebar pages |
+| Dialog Open | `dialog_open` | Any Home Assistant dialog opening |
+| Dialog Close | `dialog_close` | Any Home Assistant dialog closing |
+| Dashboard Edit Start | `dashboard_edit_start` | Entering dashboard edit mode |
+| Dashboard Edit Save / Done | `dashboard_edit_save` | Leaving dashboard edit mode |
 
 ### Alerts & System
-| Event | When |
-|-------|------|
-| Red Alert | Alert mode set to `red_alert` |
-| Yellow Alert | Alert mode set to `yellow_alert` |
-| Blue Alert | Alert mode set to `blue_alert` |
-| Gray Alert | Alert mode set to `gray_alert` |
-| Black Alert | Alert mode set to `black_alert` |
-| Alert Clear | Alert mode cleared (back to normal) |
-| System Ready | LCARdS initialization complete |
-| System Error | System error condition |
-| Notification | General notification |
-| Borg assimilation | [Borg assimilation](/core/borg#sounds) starts (silent until you assign a sound) |
-| Borg deassimilation | Borg deassimilation starts (silent until you assign a sound) |
+
+| Event | Key | When |
+|-------|-----|------|
+| Red Alert | `alert_red` | The alert mode changes to `red_alert` |
+| Yellow Alert | `alert_yellow` | The alert mode changes to `yellow_alert` |
+| Blue Alert | `alert_blue` | The alert mode changes to `blue_alert` |
+| Gray Alert | `alert_gray` | The alert mode changes to `gray_alert` |
+| Black Alert | `alert_black` | The alert mode changes to `black_alert` |
+| Alert Cleared (Green Alert) | `alert_clear` | The alert mode returns to `green_alert` |
+| System Ready | `system_ready` | LCARdS has finished starting |
+| System Error | `error` | LCARdS fails to start |
+| Notification | `notification` | A Home Assistant notification appears |
+| Borg assimilation | `borg_assimilate` | The [Borg assimilation](/core/borg#sounds) starts (silent until you give it a sound) |
+| Borg deassimilation | `borg_deassimilate` | The Borg deassimilation starts (silent until you give it a sound) |
 
 ---
 
 ## Triggering from Automations
 
-Use [`lcards.play_sound`](/configuration/ha-actions#lcards-play-sound) to play a sound on demand from an automation (e.g. a subtle chime alongside a kiosk tablet wake routine) without changing alert mode or any screen effect. Its `asset_key` can also be a file URL such as `/local/sounds/chime.mp3` (a file in the `www` folder of your Home Assistant configuration). It respects the master **Sound Effects Enabled** toggle but not the category toggles, and supports the same per-device/per-user [targeting](/configuration/ha-actions#targeting) as every other LCARdS action.
+**[`lcards.play_sound`](./ha-actions#lcards-play-sound) plays a sound from an automation**, for example a soft chime when a kiosk tablet wakes, without changing the alert mode or the screen.
 
----
+- With `event_type` it plays that event's sound as the browser has it set up (its overrides and scheme), and that event's category switch applies.
+- With `asset_key` it plays one exact sound: an asset key, a file URL such as `/local/sounds/chime.mp3` (a file in the `www` folder of your Home Assistant configuration) or a `media-source://` id. Only the master switch applies.
+- Like the other `lcards.*` actions, it can [target](./ha-actions#targeting) devices or users.
 
-## Silencing a Specific Event
-
-In the overrides table, set the event's asset to **Silence** (the explicit silence option, distinct from "use scheme default"). The active scheme may also silence events: `slider_change` is silenced in `lcards_default` to avoid sound on every value tick.
+```yaml
+action: lcards.play_sound
+data:
+  event_type: notification
+```
 
 ---
 
 ## Browser Audio Policy {#browser-audio-policy}
 
-Browsers block audio playback until the user has interacted with the page (clicked, tapped, or pressed a key). For most LCARdS sounds this is transparent: the first tap on a card or navigation link is the interaction, and sounds play normally from that point on.
+**Browsers block sound until you have clicked, tapped or pressed a key on the page.** For almost every LCARdS sound that is no trouble: your first tap is the interaction, and sounds play from then on.
 
-The **System Ready** startup sound is different: it plays immediately after LCARdS finishes initializing, before any user interaction. Browsers will block it by default unless your Home Assistant dashboard URL is explicitly allowed to autoplay audio.
+The **System Ready** sound is the exception: it plays as soon as LCARdS has started, before you have touched the page, so the browser blocks it unless your Home Assistant address may play sound on its own. The Sounds tab shows the same notice with a link here.
 
 :::: tabs
 === Chrome / Edge
 
-1. Open **Chrome Settings** → **Privacy and security** → **Site settings** → **Additional content settings** → **Sound**
-2. Under **Allowed to play sound**, click **Add** and enter your Home Assistant URL (e.g. `http://homeassistant.local:8123` or `https://my.ha.instance`)
-3. Hard-refresh your Home Assistant dashboard: the startup sound will now play on page load
+1. Open **Settings > Privacy and security > Site settings > Additional content settings > Sound**.
+2. Under **Allowed to play sound**, click **Add** and enter your Home Assistant address (for example `http://homeassistant.local:8123`).
+3. Hard-refresh your dashboard: the startup sound now plays on page load.
 
-Alternatively, click the **🔒 / ℹ️** icon in the address bar while on your Home Assistant page → **Site settings** → change **Sound** to **Allow**.
+Or click the site icon at the left of the address bar on your Home Assistant page, open **Site settings** and set **Sound** to **Allow**.
 
 === Firefox
 
-1. Open **Firefox Settings** → **Privacy & Security** → scroll to **Permissions** → **Block websites from automatically playing sound** → click **Exceptions...**
-2. Enter your Home Assistant URL and click **Allow** → **Save Changes**
-3. Hard-refresh your Home Assistant dashboard
+1. Open **Settings > Privacy & Security**, scroll to **Permissions**, and click **Settings...** next to **Autoplay**.
+2. Enter your Home Assistant address, set it to **Allow Audio and Video** and click **Save Changes**.
+3. Hard-refresh your dashboard.
 
-Alternatively, when Firefox shows the autoplay blocked icon (🔇) in the address bar, click it and select **Allow Audio and Video**.
+Or, when Firefox shows the autoplay-blocked icon in the address bar, click it and choose **Allow Audio and Video**.
 
 ::::
 
 ::: tip
-If you don't use the System Ready sound, no browser changes are needed; all other sounds fire after a user interaction and play without restriction.
+If you don't use the System Ready sound, no browser change is needed.
 :::
-
----
-
-## Notes
-
-- Sounds are off by default. Nothing plays until `input_boolean.lcards_sound_enabled` exists and is set to `on`.
-- Category toggles (`lcards_sound_cards`, `lcards_sound_ui`, `lcards_sound_alerts`) default to enabled once the master is on; you only need to create them if you want to disable a specific category.
-- Volume is shared across all events: there's no per-event volume.
-- Global overrides apply to all users and devices. User-scoped and device-scoped overrides apply only to that user or device respectively; device-scope wins over user-scope on a per-event basis.
-- The sound scheme helper's option list updates automatically as you install sound packs, no manual YAML edits needed.
-- Setting the scheme to **none** leaves every event silent except the ones you override. To disable all sounds, use the master **Sound Effects Enabled** toggle.
-
----

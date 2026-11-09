@@ -163,7 +163,7 @@ data:
 
 - A browser runs the action when its device or its user is in the lists.
 - The Borg never writes `input_select.lcards_alert_mode`, targeted or not, so other browsers keep their alert mode.
-- A name that matches no device or user leaves its list empty; with every list empty, the action goes to every browser.
+- If the targets match no device or user at all (a typo in a name, say), the action fails with an error rather than reaching every browser.
 - [Users & Devices](/configuration/users-devices) shows each browser's device name and id; `window.lcards.targeting.getMyIds()` in the browser console returns them too.
 
 ```yaml

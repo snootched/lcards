@@ -1,4 +1,4 @@
-# LCARS patterns, classic: the patterns of doc/getting-started/lcars-design.md (D1c), its sample
+# LCARS patterns, classic: the patterns of doc/getting-started/lcars-patterns.md (D1c), its sample
 # entities swapped for lcards_test_* helpers. Each frame is one pattern.
 title: LCARS patterns, classic
 path: lcars-patterns-classic

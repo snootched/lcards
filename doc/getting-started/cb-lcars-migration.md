@@ -1,19 +1,22 @@
+---
+description: "Moving from CB-LCARS to LCARdS: the LCARdS equivalent of each CB-LCARS card and feature, and what is new."
+---
+
 # Coming from CB-LCARS
 
-LCARdS originates from, and supersedes, the [CB-LCARS](https://github.com/snootched/cb-lcars) project.
+**LCARdS grew out of, and supersedes, the [CB-LCARS](https://github.com/snootched/cb-lcars) project: most of its features are here, rebuilt, and the table below gives the LCARdS equivalent of each card.**
 
-CB-LCARS was based on [Custom Button Card](https://github.com/custom-cards/button-card); LCARdS is built from scratch with Lit and needs no other custom cards.
+- CB-LCARS was based on [Custom Button Card](https://github.com/custom-cards/button-card); LCARdS is built from scratch with Lit and needs no other custom cards.
 
-Most features have been ported to LCARdS. Use the table to find the LCARdS equivalent of each CB-LCARS card or feature.
-
-::: tip You can run both simultaneously
-CB-LCARS and LCARdS can coexist while you transition. All new features and fixes will be made in LCARdS only going forward.
+::: tip You can run both at once
+CB-LCARS and LCARdS can coexist while you move over. New features and fixes go into LCARdS only.
 
 The configuration formats differ, so card configs don't carry over directly.
 :::
 
-
 ## Feature Comparison
+
+**Each CB-LCARS card or feature and its LCARdS equivalent.**
 
 ✅ Present | ❌ Not present | ⚠️ Partial
 
@@ -34,10 +37,10 @@ The configuration formats differ, so card configs don't carry over directly.
 | Select menu | ❌ | ✅ `lcards-select-menu` | A grid of buttons for an `input_select` or `select` entity. |
 | card-mod | ⚠️ required | ✅ not needed | LCARdS needs no other custom cards or card-mod. |
 | Charts / Graphs | ❌ | ✅ `lcards-chart` | Embedded ApexCharts library providing 15+ chart types to plot entity/data. |
-| MSD (Master Systems Display) | ❌ | ✅ `lcards-msd` | Full MSD system in a card. Embed controls, connect routing lines, add animations to reflect statuses. |
+| MSD (Master Systems Display) | ❌ | ✅ `lcards-msd-card` | Full MSD system in a card. Embed controls, connect routing lines, add animations to reflect statuses. |
 | Background Animations | ✅ GRID, ALERT, GEO Array, Pulsewave | ⚠️ ✅ | Background animations split into stackable layers: mix and match building blocks. ✅ GRID (enhanced), ✅ ALERT (button component), ✅ Starfield & Nebula (enhanced). ⚠️ GEO Array, Pulsewave (pending). |
 | Element Animations | ❌ | ✅ | Embedded Anime.js v4 enabling animation of any SVG element (cards, lines/stroke, text, etc.). |
-| Symbiont (embedded cards) | ✅ | ✅ | Available in Elbow card: attempts native card injection for basic style imprinting. Add `card_mod` config for advanced styling. |
+| Symbiont (embedded cards) | ✅ | ✅ | In the [elbow card](../cards/elbow/symbiont): embeds any card and imprints the elbow's colours and font on it. `custom_style` adds your own CSS without UIX, and a `uix` block on the embedded card is passed through. |
 | State-based Styling / Custom States | ✅ | ✅✅ | CB-LCARS has a limited set of states. LCARdS uses common state groupings (`default` \| `active` \| `inactive` \| `unavailable`) plus the ability to define ***any state*** for customised styling. Integrates with the core rules engine for hot-patching. |
 | Sounds | ❌ | ✅ | Customisable sounds for many UI and card event types (tap, double tap, hold, hover, sidebar expand/collapse, and more). |
 | Alert Overlay | ❌ | ✅ `lcards-alert-overlay` | Dashboard-level card that reacts to `input_select.lcards_alert_mode` and displays a full-screen configurable backdrop with an embedded content card. |

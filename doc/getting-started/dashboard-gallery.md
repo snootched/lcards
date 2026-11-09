@@ -1,17 +1,19 @@
 ---
-description: "Complete LCARdS dashboards to copy (bridge, engineering, environmental, security, alert mode, Picard-era operations and sciences screens, and six screens built from the design guide), with the YAML and a recording of each."
+description: "Complete LCARdS dashboards to copy (bridge, engineering, environmental, security, alert mode, Picard-era operations and sciences screens, and seven screens built from the design guide), with the YAML and a recording of each."
 ---
 
 # Dashboard Gallery
 
-A set of complete starter dashboards, not single cards: each one is a whole view built from LCARdS cards on a [Layout View](../cards/layout-view/), recorded in Home Assistant while its entities change (lights switch, levels move, alerts sound). Copy one, swap in your own entities, and build from there.
+**Complete starter dashboards to copy, not single cards: each one is a whole view built from LCARdS cards on a [Layout View](../cards/layout-view/).** Each was recorded in Home Assistant while its entities change (lights switch, levels move, alerts sound). Copy one, swap in your own entities, and build from there.
+
+- The dashboards use `lcards_test_*` helpers and one temperature sensor, `sensor.desk_sensor_temperature`. The [Live Demo](live-demo#in-your-own-home-assistant) page has the YAML that creates those helpers, if you want to try a dashboard unchanged first.
 
 To use one:
 
 1. Create a dashboard (**Settings > Dashboards > Add dashboard**), open it, then **Edit dashboard > Raw configuration editor**.
 2. Paste the YAML and save.
 3. Replace the `lcards_test_*` helpers and the sample temperature sensor with your own entities.
-4. Paste your version into [Check Your Config](config-checker) to check syntax if you hit errors.
+4. If something doesn't work, paste your version into [Check Your Config](config-checker).
 
 ## Bridge
 
@@ -89,11 +91,11 @@ Segmented [frames](../cards/elbow/frame#elbow-frame) around a history chart with
 
 ## Built from the design guide
 
-Seven screens composed from the [archetypes](lcars-design#screen-archetypes) and [patterns](lcars-design#patterns) in Designing LCARS Screens, four Picard and three classic. Each starts from a different archetype, so together they show how varied the same design language can be. Every colour is a theme role: they follow your HA-LCARS theme, and the classic ones set a classic theme on their view.
+Seven screens composed from the [archetypes](lcars-design#screen-archetypes) in Designing LCARS Screens and the [LCARS Patterns](lcars-patterns), four Picard and three classic. Each starts from a different layout, so together they show how varied the same design language can be. Every colour is a theme role: they follow your HA-LCARS theme, and the classic ones set a classic theme on their view.
 
 ### Picard: display with side columns
 
-A Titan.DS-style console: small dark utility pills housed in a bracket frame with red alert at the bottom, a [concentric](lcars-design#concentric-sweep) header sweep whose leg matches the [code-block](lcars-design#code-block-column) column, vertical gauges, a nested frame around a dimmed ship schematic, a right number column with a cascade, [toggle tabs](lcars-design#toggle-tab-strip) and gauges along the bottom.
+A Titan.DS-style console: small dark utility pills housed in a bracket frame with red alert at the bottom, a [concentric](lcars-patterns#concentric-sweep) header sweep whose leg matches the [code-block](lcars-patterns#code-block-column) column, vertical gauges, a nested frame around a dimmed ship schematic, a right number column with a cascade, [toggle tabs](lcars-patterns#toggle-tab-strip) and gauges along the bottom.
 
 <video class="doc-video" src="/gallery/picard-console.webm" poster="/gallery/picard-console.webp" title="Picard console: grey sweeps and columns of code blocks, red accents on the blocks and tabs that are on, a dimmed blue ship in a nested frame, vertical and horizontal gauges and a column of numbers" autoplay loop muted playsinline></video>
 
@@ -103,7 +105,7 @@ A Titan.DS-style console: small dark utility pills housed in a bracket frame wit
 
 ### Picard: display over controls
 
-A concentric header sweep continued by a [segmented bar](lcars-design#segmented-bar-classic-arms) of codes, a wide nested frame around a grey shuttle schematic, and a control deck under it: a [gauge bank](lcars-design#gauge-bank), a [tile wall](lcars-design#tile-wall), [readout rows](lcars-design#readout-rows) and a [selector strip](lcars-design#selector-strip).
+A concentric header sweep continued by a [segmented bar](lcars-patterns#segmented-bar-classic-arms) of codes, a wide nested frame around a grey shuttle schematic, and a control deck under it: a [gauge bank](lcars-patterns#gauge-bank), a [tile wall](lcars-patterns#tile-wall), [readout rows](lcars-patterns#readout-rows) and a [selector strip](lcars-patterns#selector-strip).
 
 <video class="doc-video" src="/gallery/picard-display.webm" poster="/gallery/picard-display.webp" title="Picard display: facing grey sweeps with a red title, a wide frame around a grey shuttlecraft schematic, four vertical gauges, four framed number tiles, three readout gauges and a mode selector" autoplay loop muted playsinline></video>
 
@@ -113,7 +115,7 @@ A concentric header sweep continued by a [segmented bar](lcars-design#segmented-
 
 ### Picard: split screen
 
-A split header in the Picard style: two [segmented elbows](lcars-design#concentric-sweep) (a thin outer band with a large curve around a wide inner block) face each other across a cut through the screen, each band running on as thin segments. Utility pills sit inside the upper curve and [flagged blocks](lcars-design#flagged-blocks) inside the lower one, around readout gauges, a cascade, a radar scope and a framed ship schematic.
+A split header in the Picard style: two [segmented elbows](lcars-patterns#concentric-sweep) (a thin outer band with a large curve around a wide inner block) face each other across a cut through the screen, each band running on as thin segments. Utility pills sit inside the upper curve and [flagged blocks](lcars-patterns#flagged-blocks) inside the lower one, around readout gauges, a cascade, a radar scope and a framed ship schematic.
 
 <video class="doc-video" src="/gallery/picard-split.webm" poster="/gallery/picard-split.webp" title="Picard split screen: two grey segmented sweeps facing across a cut through the screen, pills in the upper curve, flagged code blocks in the lower, readout gauges, a number cascade, a radar scope, a dimmed blue ship and toggle tabs" autoplay loop muted playsinline></video>
 
@@ -123,7 +125,7 @@ A split header in the Picard style: two [segmented elbows](lcars-design#concentr
 
 ### Picard: portrait panel
 
-For a phone or an upright tablet: a [header bar](lcars-design#header-bar-with-a-title) with the title, code blocks beside a condition readout, a tile wall, a gauge bank, toggle tabs and a segmented closing bar. Recorded at 600 by 1000.
+For a phone or an upright tablet: a [header bar](lcars-patterns#header-bar-with-a-title) with the title, code blocks beside a condition readout, a tile wall, a gauge bank, toggle tabs and a segmented closing bar. Recorded at 600 by 1000.
 
 <video class="doc-video" src="/gallery/picard-portrait.webm" poster="/gallery/picard-portrait.webp" title="Picard portrait: a red MISSION OPS header bar, code blocks beside a condition readout, three framed number tiles, three vertical gauges and three toggle tabs" autoplay loop muted playsinline></video>
 
@@ -133,13 +135,14 @@ For a phone or an upright tablet: a [header bar](lcars-design#header-bar-with-a-
 
 ### Classic: sweep console
 
-The classic look: thick header and footer sweeps continued as [labelled segments](lcars-design#segmented-bar-classic-arms), a sidebar of coloured blocks with code numbers, a [pill grid](lcars-design#pill-grid-classic) led by big numbers, a slider over a strip of small pills, and a number cascade. The view sets `theme: LCARS Default`, so the roles come out in the TNG pastels whatever your profile theme is.
+The classic look: thick header and footer sweeps continued as [labelled segments](lcars-patterns#segmented-bar-classic-arms), a sidebar of coloured blocks with code numbers, a [pill grid](lcars-patterns#pill-grid-classic) led by big numbers, a slider over a strip of small pills, and a number cascade. The view sets `theme: LCARS Default`, so the roles come out in the TNG pastels whatever your profile theme is.
 
 <video class="doc-video" src="/gallery/tng-console.webm" poster="/gallery/tng-console.webp" title="TNG console: peach header sweep and blocks, rows of pastel pills led by large numbers, two control bars, a pill slider and a column of blue numbers" autoplay loop muted playsinline></video>
 
 ::: details YAML
 <<< @/gallery/dashboards/tng-console.yaml
 :::
+
 ### Classic: bracket screen
 
 DS9-style: top and bottom bars broken into labelled segments, a sidebar of coloured blocks with code numbers, a shuttlecraft cutaway in colour, a readout list and a row of pills. The view uses `theme: LCARS Zeldaar`.
@@ -152,7 +155,7 @@ DS9-style: top and bottom bars broken into labelled segments, a sidebar of colou
 
 ### Classic: list
 
-Voyager-style: a [split header](lcars-design#split-header-classic) whose two bars continue as segments, a number cascade, a duty roster [list](lcars-design#list), a column of big numbers and pill groups. The view uses `theme: LCARS Nemesis Blue`.
+Voyager-style: a [split header](lcars-patterns#split-header-classic) whose two bars continue as segments, a number cascade, a duty roster [list](lcars-patterns#list), a column of big numbers and pill groups. The view uses `theme: LCARS Nemesis Blue`.
 
 <video class="doc-video" src="/gallery/voyager-roster.webm" poster="/gallery/voyager-roster.webp" title="Voyager roster: a tan upper sweep and a blue lower sweep, a duty roster in four coloured columns, a column of large numbers, a number cascade and a row of pills" autoplay loop muted playsinline></video>
 

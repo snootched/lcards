@@ -111,7 +111,20 @@ const FORMATTED = [
   'doc/core/rules/conditions.md',
   'doc/core/rules/changes.md',
   'doc/core/rules/priority.md',
-  'doc/core/rules/examples.md'
+  'doc/core/rules/examples.md',
+  'doc/configuration/index.md',
+  'doc/configuration/ha-actions.md',
+  'doc/configuration/persistent-helpers.md',
+  'doc/configuration/users-devices.md',
+  'doc/configuration/ha-lcars-theme-profiles.md',
+  'doc/configuration/ha-lcars-theme-lab.md',
+  'doc/configuration/alert-mode-lab.md',
+  'doc/configuration/sounds.md',
+  'doc/configuration/browser-mod.md',
+  'doc/configuration/connectivity.md',
+  'doc/getting-started/building-dashboards.md',
+  'doc/getting-started/lcars-design.md',
+  'doc/getting-started/lcars-patterns.md'
 ];
 
 const KEY_TABLE = '| Key | Type | Default | Description |';

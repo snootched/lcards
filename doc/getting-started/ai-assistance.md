@@ -4,7 +4,7 @@ description: "Get Claude, ChatGPT or another AI assistant to write LCARdS YAML t
 
 # Getting AI Help
 
-An AI assistant can write LCARdS cards and whole dashboards for you. It just needs to know LCARdS first.
+**An AI assistant can write LCARdS cards and whole dashboards for you; it just needs to know LCARdS first.**
 
 - Out of the box, a chatbot has never seen LCARdS. It guesses, and guessed options are silently ignored.
 - Give it the real list of LCARdS options and it stops guessing.
@@ -12,7 +12,10 @@ An AI assistant can write LCARdS cards and whole dashboards for you. It just nee
 
 ## With Claude (easiest)
 
-The **LCARdS skill** teaches Claude everything for your LCARdS version: every option, every built-in preset and colour, the docs, the gallery dashboards and the config checker. It also knows [HA-LCARS](https://github.com/th3jesta/ha-lcars): its themes, its `--lcars-*` colour variables and its classes for stock cards. It also knows the [UIX](https://github.com/Lint-Free-Technology/uix) styling HA-LCARS runs on, so it can tell you which job belongs to an LCARdS option, the theme or UIX.
+**The LCARdS skill teaches Claude everything for your LCARdS version: every option, every built-in preset and colour, the docs, the gallery dashboards and the config checker.**
+
+- It also knows [HA-LCARS](https://github.com/th3jesta/ha-lcars): its themes, its `--lcars-*` colour variables and its classes for stock cards.
+- It knows the [UIX](https://github.com/Lint-Free-Technology/uix) styling HA-LCARS runs on too, so it can tell you which job belongs to an LCARdS option, the theme or UIX.
 
 1. Add the skill to Claude:
    - **Claude Code:** install the LCARdS plugin. In a Claude Code session, run:
@@ -27,7 +30,7 @@ The **LCARdS skill** teaches Claude everything for your LCARdS version: every op
    - "Make me an LCARdS button for `light.kitchen` that turns red when it's on."
    - "Build an engineering dashboard with my `sensor.power_*` entities."
 
-Claude can use your real entity ids (either you provde them, or integrate Claude to Home Assistant with [`ha-mcp` - see below](#give-claude-your-home-s-context-ha-mcp) ) instead of inventing them.  It can also check its own YAML before handing it over.
+Claude uses your real entity ids instead of inventing them: give it them, or connect it to Home Assistant with [ha-mcp](#give-claude-your-home-s-context-ha-mcp). It also checks its own YAML before handing it over.
 
 In Claude Code the plugin goes further:
 
@@ -54,7 +57,7 @@ Already have a config, from you or from another tool? Paste it into Claude with 
 
 ## Give Claude your home's context (ha-mcp)
 
-On its own, Claude doesn't know your Home Assistant: you tell it your entity ids. The community [**ha-mcp**](https://github.com/homeassistant-ai/ha-mcp) server connects Claude to your Home Assistant, so together with the LCARdS skill Claude can look things up for itself:
+**On its own, Claude doesn't know your Home Assistant: you tell it your entity ids.** The community [**ha-mcp**](https://github.com/homeassistant-ai/ha-mcp) server connects Claude to your Home Assistant, so together with the LCARdS skill Claude can look things up for itself:
 
 - your **areas and floors**, to group a dashboard by room;
 - your **entities** and their current **states**, so it uses your real entity ids;
@@ -68,7 +71,7 @@ ha-mcp is a separate community project; we don't make, support or take responsib
 
 ## With other assistants
 
-If your assistant supports Agent Skills, use the skill above. Otherwise:
+**If your assistant supports Agent Skills, use the skill above; otherwise attach the option list for your card.**
 
 1. **Download the option list for your card**, for example [`lcards-button.json`](/schema/cards/lcards-button.json). Every card is listed in [`schema/index.json`](/schema/index.json).
 2. **Attach it** to your chat and paste this first:
@@ -83,23 +86,29 @@ If your assistant supports Agent Skills, use the skill above. Otherwise:
 
 ## Check what it wrote
 
+**Check what an assistant wrote before it goes on a dashboard.**
+
 - Paste the YAML into [Check Your Config](config-checker). It runs in your browser and points at each problem.
 - Or ask Claude with the skill to check it (see the tip above).
 - Prefer the command line? Download [`lcards-validate.mjs`](/tools/lcards-validate.mjs) and run `node lcards-validate.mjs my-dashboard.yaml` (Node.js 20 or newer).
 
 ## If it still makes things up
 
+**Give the assistant the checker's results and the schema again.**
+
 - Paste the checker's output back into the chat and ask it to fix exactly those lines.
 - Remind it to re-read the attached schema and not to guess. Most assistants correct themselves once told.
 
 ## Additional Context
 
-::: details What else you can attach (not needed for Claude)
+**More you can attach for a tool without the skill: the schemas, docs pages and a longer prompt.** Claude with the skill already has all of it.
+
+::: details What else you can attach
 
 **Schemas**
 
-- **One card at a time (smallest):** the card's file from [`schema/index.json`](/schema/index.json), plus the shared files its entry lists under `uses` (rules, animations, background animations, state colours, filters). Card files are 2 to 75 KB; attach only the shared files your request touches.
-- **Everything in one file:** [`lcards-schema.json`](/lcards-schema.json) holds every card, the [Layout View](../cards/layout-view/) and the LCARS shell strategy. It is about 460 KB, so it suits tools with large context windows.
+- **One card at a time (smallest):** the card's file from [`schema/index.json`](/schema/index.json), plus the shared files its entry lists under `uses` (rules, animations, background animations, state colours, filters). Card files are under 100 KB; attach only the shared files your request touches.
+- **Everything in one file:** [`lcards-schema.json`](/lcards-schema.json) holds every card, the [Layout View](../cards/layout-view/) and the LCARS shell strategy. It is about 800 KB, so it suits tools with large context windows.
 - Each GitHub release carries both (`lcards-schema.json`, `lcards-schema.zip`), plus the skill and the checker, matching that release exactly.
 
 **Docs pages**

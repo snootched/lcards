@@ -77,7 +77,7 @@ _ALERT_MODES = [
 # surfaces as a clear HA-side error instead of a silent no-op in the browser.
 _SOUND_EVENT_TYPES = [
     "card_tap", "card_hold", "card_double_tap", "card_hover",
-    "button_tap", "toggle_on", "toggle_off",
+    "toggle_on", "toggle_off",
     "slider_drag_start", "slider_drag_end", "slider_change",
     "more_info_open",
     "menu_expand", "nav_page", "dialog_open", "dialog_close",
@@ -238,18 +238,18 @@ async def _async_set_alert_mode(hass: HomeAssistant, mode: str) -> None:
     subscription mechanism already wired up in JS.
     """
     _LOGGER.debug("LCARdS service: setting alert mode → %r", mode)
-    try:
-        await hass.services.async_call(
-            "input_select",
-            "select_option",
-            {"entity_id": _ALERT_MODE_ENTITY, "option": mode},
-            blocking=True,
+    # Without the helper the call did nothing and still reported success
+    if hass.states.get(_ALERT_MODE_ENTITY) is None:
+        raise ServiceValidationError(
+            f"LCARdS: {_ALERT_MODE_ENTITY} does not exist. Create the LCARdS helpers "
+            "(LCARdS config panel, Helpers tab, Create All) and try again."
         )
-    except Exception as exc:  # noqa: BLE001
-        _LOGGER.warning(
-            "LCARdS: failed to set alert mode %r — is %s defined? (%s)",
-            mode, _ALERT_MODE_ENTITY, exc,
-        )
+    await hass.services.async_call(
+        "input_select",
+        "select_option",
+        {"entity_id": _ALERT_MODE_ENTITY, "option": mode},
+        blocking=True,
+    )
 
 
 async def async_setup_services(hass: HomeAssistant) -> None:

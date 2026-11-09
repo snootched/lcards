@@ -121,7 +121,7 @@ data:
 ::: details More about triggering
 - **The same mode again:** an action that sets the mode already active changes nothing: no sound, no transition, and a dismissed alert overlay stays dismissed.
 - **Without the helper:** an `lcards.*` alert action with no targeting only writes the helper, so nothing happens and the integration logs a warning. Targeted actions and the browser console still work.
-- **A name that matches nothing:** a `target_device_names` or `target_user_names` entry that matches no device or user leaves the targeting empty, and the action then acts as if untargeted: it sets the helper for every browser.
+- **A name that matches nothing:** when the targeting fields match no device and no user (a typo in a name, say), the action fails with an error and the helper is not changed.
 - **Finding device ids:** `window.lcards.targeting.getMyIds()` in the browser console returns this browser's device id and user id.
 :::
 

@@ -87,6 +87,10 @@ export class DeviceIdentityManager extends BaseService {
         /** @private — human-readable display name (mutable) */
         this._displayName = null;
 
+        /** @private — the ?lcards_device= name of this page load, if any (wins over the stored name) */
+        /** @type {string|null} */
+        this._urlName = null;
+
         /** @private — ISO timestamp of last successful heartbeat */
         this._lastSeen = null;
 
@@ -184,7 +188,9 @@ export class DeviceIdentityManager extends BaseService {
         // so we fall through to the seeded display name.
         const existing = await this._readFromBackend();
         const storedName = existing?.[DEVICE_KEY_DISPLAY_NAME];
-        if (storedName) {
+        // ?lcards_device= names the device every time (a kiosk bookmark renames it);
+        // only without it does the stored name win over the seeded one
+        if (storedName && !this._urlName) {
             // Honour the stored name; keep local state in sync.
             this._displayName = storedName;
         }
@@ -214,6 +220,7 @@ export class DeviceIdentityManager extends BaseService {
 
         // Apply URL parameter override, if present
         const urlName = _readUrlParam();
+        this._urlName = urlName;
         if (urlName) {
             this._displayName = urlName;
             lcardsLog.info(

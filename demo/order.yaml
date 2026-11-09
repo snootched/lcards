@@ -671,19 +671,19 @@ releases:
         summary: "LCARS patterns, Picard: columns, tabs, sweeps, frames and bars"
         description: "The Picard-era patterns from the LCARS design guide, one per frame, every colour from a theme role: a code-block column, a toggle tab strip, facing sweeps with a title, a nested frame, utility pills in a bracket frame, a concentric sweep, controls inside a wide arm, a header bar with a title, slanted bars, flagged blocks and dot rows. The toggle tabs and the third code block follow LIGHTS and DOORS (tap them); RED ALERT raises one."
         session: "D1c"
-        docs: /getting-started/lcars-design#patterns
+        docs: /getting-started/lcars-patterns
         public: true
       - file: lcars-patterns-readouts
         summary: "LCARS patterns, readouts: status rows, gauges, lists and scopes"
         description: "The design guide's patterns for readings, one per frame: status rows, readout rows and a gauge bank on the power, shields, value, temperature and humidity helpers (drag them), a selector strip on the colour select, a tile wall, a list, fleet tiles, brackets and scopes, and a number cascade to fill a spare area."
         session: "D1c"
-        docs: /getting-started/lcars-design#patterns
+        docs: /getting-started/lcars-patterns
         public: true
       - file: lcars-patterns-classic
         summary: "LCARS patterns, classic: segmented bars, pill grids, bracket frames, split headers"
         description: "The TNG, DS9 and Voyager patterns from the design guide, one per frame: a sweep that continues as labelled segments, a pill grid led by big numbers, a bracket frame with a header, sidebar and footer, and the split header whose two blocks sweep into their bars."
         session: "D1c"
-        docs: /getting-started/lcars-design#patterns
+        docs: /getting-started/lcars-patterns
         public: true
   - version: "2026.09.0"
     views:

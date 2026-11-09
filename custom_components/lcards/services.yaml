@@ -647,7 +647,6 @@ play_sound:
             - { label: "Card Hold", value: card_hold }
             - { label: "Card Double-Tap", value: card_double_tap }
             - { label: "Card Hover (Desktop)", value: card_hover }
-            - { label: "Button Tap", value: button_tap }
             - { label: "Toggle → On", value: toggle_on }
             - { label: "Toggle → Off", value: toggle_off }
             - { label: "Slider Grab", value: slider_drag_start }
