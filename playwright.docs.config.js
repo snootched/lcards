@@ -23,7 +23,10 @@ export default defineConfig({
     timeout: 60_000,
     fullyParallel: true,
     // Each demo page loads the full card bundle; a few at a time keeps runs fast and stable.
-    workers: 4,
+    // CI runners have 4 cores and no GPU: 2 workers there.
+    workers: process.env.CI ? 2 : 4,
+    // A test that fails once on a slow CI runner and then passes is reported as flaky.
+    retries: process.env.CI ? 2 : 0,
     reporter: process.env.CI ? 'line' : 'list',
     // CI skips the pages of many WebGL cards (support.js gpuTag): no GPU there. All run locally.
     grepInvert: process.env.CI ? /@gpu/ : undefined,

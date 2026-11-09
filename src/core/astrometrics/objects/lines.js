@@ -15,7 +15,7 @@
 import { Group, Vector3, Matrix4, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, DoubleSide, SRGBColorSpace } from 'three';
 import { FatLine } from '../lines.js';
 import { altazToLocal } from '../placements.js';
-import { dayPath } from '../sky.js';
+import { dayPath, solarDayStart } from '../sky.js';
 import { orbitPath, periods, toScene, BODIES, AU_KM } from '../ephemeris.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { built, num, pair, bodyTurn, sub, DEFAULT_COLORS } from './common.js';
@@ -566,7 +566,7 @@ export function buildPath(cfg, ctx, objects) {
       const dome = cfg.object ? objects.get(cfg.object) : undefined;
       const sky = ctx.sky();
       if (!sky) return;
-      const day = new Date(sky.time).toDateString();
+      const day = solarDayStart(sky.time, sky.location.longitude);
       const key = `${day}|${sky.location.latitude}|${sky.location.longitude}`;
       if (key === dayKey) return;
       dayKey = key;

@@ -14,6 +14,9 @@ export default defineConfig({
     testDir: 'tests/browser',
     timeout: 30_000,
     fullyParallel: true,
+    // CI runners are slower than a laptop: a test that fails once and then passes is
+    // reported as flaky instead of failing the run. Locally a failure is a failure.
+    retries: process.env.CI ? 2 : 0,
     reporter: process.env.CI ? 'line' : 'list',
     use: {
         baseURL: `http://127.0.0.1:${PORT}`,

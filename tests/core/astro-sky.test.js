@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { sunPosition, moonPosition, sunFromHass, skyState, dayPath } from '../../src/core/astrometrics/sky.js';
+import { sunPosition, moonPosition, sunFromHass, skyState, dayPath, solarDayStart } from '../../src/core/astrometrics/sky.js';
 
 const rows = JSON.parse(readFileSync(new URL('./fixtures/astro-sky-pyephem.json', import.meta.url), 'utf8'));
 
@@ -72,4 +72,29 @@ test('dayPath: one sample every 5 minutes, midnight to midnight', () => {
   const p = dayPath('sun', 43.65, -79.38, Date.UTC(2026, 5, 21, 12, 0));
   assert.equal(p.length, 289);
   assert.ok(p.some((q) => q.altitude > 0) && p.some((q) => q.altitude < 0));
+});
+
+test('dayPath: the day is the location\'s, whatever the browser time zone (a UTC browser split the sun\'s track in two)', () => {
+  const at = Date.UTC(2026, 5, 21, 16, 0); // noon in Toronto
+  const saved = process.env.TZ;
+  /** @type {Record<string, string>} */
+  const tracks = {};
+  try {
+    for (const tz of ['UTC', 'America/Toronto', 'Asia/Tokyo', 'Pacific/Kiritimati']) {
+      process.env.TZ = tz;
+      tracks[tz] = JSON.stringify(dayPath('sun', 43.65, -79.38, at));
+    }
+  } finally {
+    if (saved === undefined) delete process.env.TZ; else process.env.TZ = saved;
+  }
+  assert.equal(new Set(Object.values(tracks)).size, 1, 'same track in every time zone');
+  // one daylight run: below the horizon at both ends (solar midnight), above at noon
+  const p = JSON.parse(tracks.UTC);
+  const runs = p.filter((q, i) => q.altitude > 0 && (i === 0 || p[i - 1].altitude <= 0)).length;
+  assert.equal(runs, 1);
+  assert.ok(p[0].altitude < 0 && p.at(-1).altitude < 0);
+  // the solar day holds the given time and starts near 05:17 UTC at -79.38
+  const start = solarDayStart(at, -79.38);
+  assert.ok(start <= at && at < start + 86400000);
+  assert.equal(new Date(start).getUTCHours(), 5);
 });

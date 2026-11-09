@@ -156,8 +156,24 @@ export function skyState(hass, date = Date.now(), { entity = true } = {}) {
 }
 
 /**
- * A body's path across the local day (midnight to midnight in the browser's
- * time zone), sampled every `stepMin` minutes.
+ * Start (ms) of the local solar day at longitude `lon` that contains `date`:
+ * mean solar midnight there (UTC midnight shifted by lon / 15 hours). It
+ * depends only on the place, never on the browser's time zone, so a scene shows
+ * the same day wherever it is viewed from (a UTC browser used to split the sun's
+ * Toronto track into two daylight runs).
+ * @param {Date | number} date
+ * @param {number} lon - degrees east
+ * @returns {number}
+ */
+export function solarDayStart(date, lon) {
+  const DAY = 86400000;
+  const offset = (lon / 15) * 3600000;
+  return Math.floor((date.valueOf() + offset) / DAY) * DAY - offset;
+}
+
+/**
+ * A body's path across the local day at the location (mean solar midnight to
+ * midnight, see solarDayStart), sampled every `stepMin` minutes.
  * @param {'sun' | 'moon'} body
  * @param {number} lat
  * @param {number} lon
@@ -166,13 +182,12 @@ export function skyState(hass, date = Date.now(), { entity = true } = {}) {
  * @returns {SkyPosition[]}
  */
 export function dayPath(body, lat, lon, date = Date.now(), stepMin = 5) {
-  const day = new Date(date.valueOf());
-  day.setHours(0, 0, 0, 0);
+  const start = solarDayStart(date, lon);
   const fn = body === 'moon' ? moonPosition : sunPosition;
   /** @type {SkyPosition[]} */
   const out = [];
   for (let m = 0; m <= 1440; m += stepMin) {
-    const p = fn(day.valueOf() + m * 60000, lat, lon);
+    const p = fn(start + m * 60000, lat, lon);
     out.push({ azimuth: p.azimuth, altitude: p.altitude });
   }
   return out;
