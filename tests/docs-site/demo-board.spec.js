@@ -106,7 +106,8 @@ test('the demo helpers start as a fresh Home Assistant install has them (the sho
     expect(states).toEqual({ 'input_number.lcards_test_stage': '0', 'input_boolean.lcards_test_warp': 'off', 'input_select.lcards_test_look': 'MIXED' });
 });
 
-test('the showcase\'s controls work without Home Assistant: NEXT and PREV step the stop, PLAY TOUR runs the tour script', async ({ page }) => {
+// an astrometrics view: locally only (support.js gpuTag), CI draws WebGL on the CPU and timed out
+test('the showcase\'s controls work without Home Assistant: NEXT and PREV step the stop, PLAY TOUR runs the tour script', { tag: '@gpu' }, async ({ page }) => {
     const showcase = VIEWS.find(v => v.path === 'astro-showcase');
     await openView(page, showcase);
     const state = (id) => page.evaluate(async (x) => (await globalThis.__lcardsDocsEnv).hass.states[x]?.state, id);
