@@ -1,0 +1,295 @@
+# Concept B, Picard: the split sweep (two segmented elbows meeting at a cut),
+# gray-blue roles, a red title, gauges, a number cascade and a radar.
+banner_states:
+  input_number.lcards_test_power: 72
+  input_number.lcards_test_shields: 48
+  input_number.lcards_test_humidity: 86
+type: custom:lcards-layout-card
+layout:
+  height: 300px
+  grid-gap: 5px
+  grid-template-columns: 200px minmax(0, 1fr) 250px 130px
+  grid-template-rows: minmax(0, 1fr) 14px 14px minmax(0, 1fr)
+  grid-template-areas: |
+    "ucorner title title title"
+    "ucorner ustrip ustrip ustrip"
+    "lcorner lstrip lstrip lstrip"
+    "lcorner gauges cascade radar"
+cards:
+  - type: custom:lcards-elbow
+    view_layout:
+      grid-area: ucorner
+    elbow:
+      type: footer-left
+      style: segmented
+      segments:
+        gap: 5
+        outer_segment:
+          bar_width: 40
+          bar_height: 14
+          outer_curve: 90
+          inner_curve: 50
+          color: theme:colors.ui.primary
+        inner_segment:
+          bar_width: 120
+          bar_height: 26
+          inner_curve: 26
+          color: theme:colors.ui.quaternary
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: ucorner
+    layout:
+      padding: 10px 10px 30px 140px
+      grid-gap: 6px
+      grid-template-columns: minmax(0, 1fr)
+      grid-template-rows: 22px 22px minmax(0, 1fr)
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        min_height: 22
+        text:
+          label:
+            content: ZOOM
+            show: true
+            position: center
+            color: theme:colors.ui.secondary
+        style:
+          card:
+            color:
+              background:
+                default: theme:colors.card.topColor
+      - type: custom:lcards-button
+        preset: lozenge
+        min_height: 22
+        text:
+          label:
+            content: ABOUT
+            show: true
+            position: center
+            color: theme:colors.ui.secondary
+        style:
+          card:
+            color:
+              background:
+                default: theme:colors.card.topColor
+  - type: custom:lcards-elbow
+    view_layout:
+      grid-area: lcorner
+    elbow:
+      type: header-left
+      style: segmented
+      segments:
+        gap: 5
+        outer_segment:
+          bar_width: 40
+          bar_height: 14
+          outer_curve: 90
+          inner_curve: 50
+          color: theme:colors.ui.primary
+        inner_segment:
+          bar_width: 120
+          bar_height: 26
+          inner_curve: 26
+          color: theme:colors.ui.quaternary
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: title
+    layout:
+      grid-gap: 0px
+      grid-template-columns: minmax(0, 1fr)
+      grid-template-rows: 2fr 1fr
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        text:
+          label:
+            content: LCARdS
+            show: true
+            text_transform: none
+            position: bottom-right
+            font_size: 84
+            color: var(--lcars-alt-orange)
+      - type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        text:
+          label:
+            content: LCARS CARDS FOR HOME ASSISTANT
+            show: true
+            position: top-right
+            font_size: 24
+            color: theme:colors.ui.secondary
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: gauges
+    layout:
+      grid-gap: 6px
+      grid-template-columns: 100px minmax(0, 1fr)
+      grid-template-rows: repeat(3, minmax(0, 1fr))
+    cards:
+      - type: custom:lcards-button
+        preset: panel-dark
+        min_height: 0
+        text:
+          label:
+            content: POWER
+            position: center-right
+      - type: custom:lcards-slider
+        preset: gauge-basic
+        entity: input_number.lcards_test_power
+      - type: custom:lcards-button
+        preset: panel-dark
+        min_height: 0
+        text:
+          label:
+            content: SHIELDS
+            position: center-right
+      - type: custom:lcards-slider
+        preset: gauge-basic
+        entity: input_number.lcards_test_shields
+      - type: custom:lcards-button
+        preset: panel-dark
+        min_height: 0
+        text:
+          label:
+            content: WARP
+            position: center-right
+      - type: custom:lcards-slider
+        preset: gauge-basic
+        entity: input_number.lcards_test_humidity
+  - type: custom:lcards-data-grid
+    view_layout:
+      grid-area: cascade
+    data_mode: decorative
+    format: digit
+    grid:
+      grid-template-rows: repeat(4, auto)
+      grid-template-columns: repeat(4, minmax(0, 1fr))
+      gap: 0px
+    style:
+      padding: 0px
+      font_size: 18px
+    animations:
+      - trigger: on_load
+        preset: cascade-color
+  - type: custom:lcards-button
+    view_layout:
+      grid-area: radar
+    component: radar
+  # the sweeps continue as thin bars across the cut
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: ustrip
+    layout:
+      grid-gap: 5px
+      grid-template-columns: 5fr 1fr 2fr 8fr 1fr
+      grid-template-rows: 14px
+    cards:
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            show: false
+        style:
+          card:
+            color:
+              background:
+                default: theme:colors.ui.primary
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            show: false
+        style:
+          card:
+            color:
+              background:
+                default: var(--lcars-alt-orange)
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            show: false
+        style:
+          card:
+            color:
+              background:
+                default: theme:colors.ui.quaternary
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            show: false
+        style:
+          card:
+            color:
+              background:
+                default: theme:colors.ui.primary
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            show: false
+        style:
+          card:
+            color:
+              background:
+                default: theme:colors.ui.quaternary
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: lstrip
+    layout:
+      grid-gap: 5px
+      grid-template-columns: 3fr 6fr 1fr 4fr
+      grid-template-rows: 14px
+    cards:
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            show: false
+        style:
+          card:
+            color:
+              background:
+                default: theme:colors.ui.quaternary
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            show: false
+        style:
+          card:
+            color:
+              background:
+                default: theme:colors.ui.primary
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            show: false
+        style:
+          card:
+            color:
+              background:
+                default: theme:colors.ui.quaternary
+      - type: custom:lcards-button
+        preset: panel-light
+        min_height: 0
+        text:
+          label:
+            show: false
+        style:
+          card:
+            color:
+              background:
+                default: theme:colors.ui.primary

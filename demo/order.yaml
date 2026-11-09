@@ -30,7 +30,7 @@ topics:
       - title: LCARS patterns
         views: [lcars-patterns-picard, lcars-patterns-readouts, lcars-patterns-classic]
       - title: Docs audit fixes
-        views: [d2-batch1-fixes, d2-batch4-msd-fixes, d2-batch5-core-fixes]
+        views: [d2-batch1-fixes, d2-batch4-msd-fixes, d2-batch5-core-fixes, b1-banners-red, b1-banners-blue]
   - id: msd
     title: MSD
     views: [msd-basics, msd-routing, msd-shapes]
@@ -141,6 +141,16 @@ releases:
         description: "ALERT SWITCH drives a rule that dims the blueprint with apply.base_svg filters (with a red drop-shadow, now valid CSS) and turns the line tagged power red (tag: selectors reach MSD overlays; the colour stays on the visible line). The line starts 16 units off the BRIDGE control (anchor_gap) and ends in an arrow (marker_end as a string). Below: anchors as percentages of the view box, a control placed by anchor name with no size as an obstacle, and two lines through a channel with line_spacing 20."
         session: "D2 batch 4"
         docs: /cards/msd/
+        public: false
+      - file: b1-banners-red
+        summary: "B1 banner candidates, Red Accent profile"
+        description: "The four banner candidates (Badlands A and B, wormhole A and B) at 1200 x 300 in the LCARS Picard [LCARdS Red Accent] theme."
+        session: "B1"
+        public: false
+      - file: b1-banners-blue
+        summary: "B1 banner candidates, Blue Accent profile"
+        description: "The four banner candidates (Badlands A and B, wormhole A and B) at 1200 x 300 in the LCARS Picard [LCARdS Blue Accent] theme."
+        session: "B1"
         public: false
       - file: d2-batch5-core-fixes
         summary: "D2 batch 5 fixes: rules, animations and backgrounds the core docs audit fixed"

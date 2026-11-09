@@ -1,0 +1,226 @@
+# Concept F, Picard refined: the split sweep with the bars running the full width
+# (aligned, not repeated strips), an MSD blueprint with routed lines, gauges and a
+# number cascade.
+banner_states:
+  input_number.lcards_test_power: 72
+  input_number.lcards_test_shields: 48
+  input_number.lcards_test_humidity: 86
+type: custom:lcards-layout-card
+layout:
+  height: 300px
+  grid-gap: 5px
+  grid-template-columns: 200px minmax(0, 1fr) 330px 300px
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr)
+  grid-template-areas: |
+    "top top top top"
+    "bottom bottom bottom bottom"
+cards:
+  - type: custom:lcards-elbow
+    view_layout:
+      grid-area: top
+    elbow:
+      type: footer-left
+      style: segmented
+      segments:
+        gap: 5
+        outer_segment:
+          bar_width: 40
+          bar_height: 12
+          outer_curve: 80
+          inner_curve: 50
+          color: theme:colors.ui.primary
+        inner_segment:
+          bar_width: 120
+          bar_height: 22
+          inner_curve: 24
+          color: theme:colors.ui.quaternary
+  - type: custom:lcards-elbow
+    view_layout:
+      grid-area: bottom
+    elbow:
+      type: header-left
+      style: segmented
+      segments:
+        gap: 5
+        outer_segment:
+          bar_width: 40
+          bar_height: 12
+          outer_curve: 80
+          inner_curve: 50
+          color: theme:colors.ui.primary
+        inner_segment:
+          bar_width: 120
+          bar_height: 22
+          inner_curve: 24
+          color: theme:colors.ui.quaternary
+  # top half: the open area above the bars
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: top
+    layout:
+      padding: 4px 8px 46px 176px
+      grid-gap: 8px
+      grid-template-columns: minmax(0, 1fr) 420px
+      grid-template-rows: minmax(0, 1fr)
+    cards:
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg:
+            source: builtin:ncc-1701-a-blue
+            filters:
+              - mode: css
+                type: opacity
+                value: 0.6
+          view_box: [180, 300, 1600, 600]
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 0px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: 2fr 1fr
+        cards:
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: LCARdS
+                show: true
+                text_transform: none
+                position: bottom-right
+                font_size: 64
+                color: var(--lcars-alt-orange)
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: LCARS CARDS FOR HOME ASSISTANT
+                show: true
+                position: top-right
+                font_size: 22
+                color: theme:colors.ui.secondary
+  # bottom half: below the bars
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: bottom
+    layout:
+      padding: 46px 8px 4px 176px
+      grid-gap: 5px
+      grid-template-columns: 90px minmax(0, 1fr) 300px
+      grid-template-rows: repeat(2, minmax(0, 1fr))
+      grid-template-areas: |
+        "l1 g1 cascade"
+        "l2 g2 cascade"
+    cards:
+      - type: custom:lcards-button
+        view_layout:
+          grid-area: l1
+        preset: panel-dark
+        min_height: 0
+        text:
+          label:
+            content: POWER
+            position: center-right
+      - type: custom:lcards-slider
+        view_layout:
+          grid-area: g1
+        preset: gauge-basic
+        entity: input_number.lcards_test_power
+      - type: custom:lcards-button
+        view_layout:
+          grid-area: l2
+        preset: panel-dark
+        min_height: 0
+        text:
+          label:
+            content: SHIELDS
+            position: center-right
+      - type: custom:lcards-slider
+        view_layout:
+          grid-area: g2
+        preset: gauge-basic
+        entity: input_number.lcards_test_shields
+      - type: custom:lcards-data-grid
+        view_layout:
+          grid-area: cascade
+        data_mode: decorative
+        format: digit
+        grid:
+          grid-template-rows: repeat(3, auto)
+          grid-template-columns: repeat(5, minmax(0, 1fr))
+          gap: 0px
+        style:
+          padding: 0px
+          font_size: 17px
+        animations:
+          - trigger: on_load
+            preset: cascade-color
+  # aligned breaks through all four bars (LCARS cuts its bars at shared lines)
+  - type: custom:lcards-layout-card
+    view_layout:
+      grid-area: 1 / 1 / 3 / 5
+    layout:
+      grid-gap: 0px
+      grid-template-columns: 300px 6px 260px 6px 40px 6px minmax(0, 1fr) 6px 120px
+      grid-template-rows: 100px 100px minmax(0, 1fr)
+      grid-template-areas: |
+        ". . . . . . . . ."
+        ". c1 . c2 . c3 . c4 ."
+        ". . . . . . . . ."
+    cards:
+      - type: custom:lcards-button
+        view_layout:
+          grid-area: c1
+        preset: panel-dark
+        min_height: 0
+        interactive: false
+        text:
+          label:
+            show: false
+        style:
+          card:
+            color:
+              background:
+                default: "#000000"
+      - type: custom:lcards-button
+        view_layout:
+          grid-area: c2
+        preset: panel-dark
+        min_height: 0
+        interactive: false
+        text:
+          label:
+            show: false
+        style:
+          card:
+            color:
+              background:
+                default: "#000000"
+      - type: custom:lcards-button
+        view_layout:
+          grid-area: c3
+        preset: panel-dark
+        min_height: 0
+        interactive: false
+        text:
+          label:
+            show: false
+        style:
+          card:
+            color:
+              background:
+                default: "#000000"
+      - type: custom:lcards-button
+        view_layout:
+          grid-area: c4
+        preset: panel-dark
+        min_height: 0
+        interactive: false
+        text:
+          label:
+            show: false
+        style:
+          card:
+            color:
+              background:
+                default: "#000000"

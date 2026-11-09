@@ -7,7 +7,7 @@ moved_anchors:
 
 # What is LCARdS?
 
-![LCARdS Banner](/img/lcards-banner.gif)
+<video class="doc-video" src="/img/lcards-banner.mp4" poster="/img/lcards-banner.webp" title="LCARdS: LCARS cards for Home Assistant. A wormhole opens in a live astrometrics scene beside the title, spins, and closes again." autoplay loop muted playsinline></video>
 
 **LCARdS builds Star Trek LCARS-style dashboards in Home Assistant: a set of cards and services that work together as one system.** It includes buttons, elbows, sliders, charts, data grids, ship displays and more, designed to pair with the [HA-LCARS theme](https://github.com/th3jesta/ha-lcars).
 
