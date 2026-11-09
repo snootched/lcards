@@ -9,14 +9,17 @@
  *   node scripts/build-validator.js [--out=<file>]   (default doc/public/tools/lcards-validate.mjs)
  *
  * Published at /tools/lcards-validate.mjs on the docs site (docs:build) and
- * attached to each GitHub release (the Release workflow).
+ * attached to each GitHub release (the Release workflow). The licence notices of the
+ * npm packages inlined into it (ajv, js-yaml, yaml and their dependencies) go into a
+ * comment at the top of the file (scripts/lib/third-party.js noticesText).
  */
 import { build } from 'vite';
-import { mkdirSync, mkdtempSync, copyFileSync, rmSync, statSync, chmodSync, readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, statSync, chmodSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { buildRegistries } from './lib/registries.js';
+import { packageFromPath, noticesText } from './lib/third-party.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outArg = process.argv.slice(2).find(a => a.startsWith('--out='));
@@ -27,7 +30,7 @@ const REGISTRIES_MODULE = join(ROOT, 'scripts/lib/registries.js');
 const registries = await buildRegistries();
 const work = mkdtempSync(join(tmpdir(), 'lcards-validator-'));
 
-await build({
+const result = await build({
   configFile: false,
   logLevel: 'warn',
   root: ROOT,
@@ -62,9 +65,23 @@ await build({
   },
 });
 
+// The npm packages Rollup inlined, from the modules of the output chunk.
+const packages = new Set();
+for (const output of [result].flat()) {
+  for (const chunk of /** @type {any} */ (output).output ?? []) {
+    for (const id of [...(chunk.moduleIds ?? []), ...Object.keys(chunk.modules ?? {})]) {
+      const name = packageFromPath(id.replace(/\\/g, '/'));
+      if (name) packages.add(name);
+    }
+  }
+}
+const notices = noticesText(packages, { title: `lcards-validate (LCARdS ${pkg.version}): third-party notices`, generator: 'scripts/build-validator.js', hand: false }).replaceAll('*/', '* /');
+const code = readFileSync(join(work, 'lcards-validate.mjs'), 'utf8');
+const shebang = code.startsWith('#!') ? code.slice(0, code.indexOf('\n') + 1) : '';
+
 mkdirSync(dirname(OUT), { recursive: true });
-// Copy, not rename: the temp folder may be on another filesystem (EXDEV).
-copyFileSync(join(work, 'lcards-validate.mjs'), OUT);
+// Write, not rename: the temp folder may be on another filesystem (EXDEV).
+writeFileSync(OUT, `${shebang}/*\n${notices}*/\n${code.slice(shebang.length)}`);
 rmSync(work, { recursive: true, force: true });
 chmodSync(OUT, 0o755);
-console.log(`✅ Wrote ${OUT.startsWith(ROOT) ? OUT.slice(ROOT.length + 1) : OUT} (${(statSync(OUT).size / 1024).toFixed(0)} KB, LCARdS ${pkg.version})`);
+console.log(`✅ Wrote ${OUT.startsWith(ROOT) ? OUT.slice(ROOT.length + 1) : OUT} (${(statSync(OUT).size / 1024).toFixed(0)} KB, LCARdS ${pkg.version}, notices for ${packages.size} packages)`);

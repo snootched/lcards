@@ -1,0 +1,150 @@
+{
+  "$comment": "Third-party libraries for the docs About page (<LibraryTable />, doc/credits.md) and custom_components/lcards/THIRD_PARTY_NOTICES.txt. Hand-written: what package.json cannot say. Versions and licenses are read from node_modules/<pkg>/package.json (scripts/lib/third-party.js), never typed here. `packages` are the package.json dependencies a row stands for; `family` the transitive packages that land in the bundle with them; `license` overrides the package.json license for display (needs `licenseNote`); `load` is main (the main chunk, every page) or lazy (a chunk loaded on demand). tests/docs/third-party.test.js keeps this in step with src/ imports, package.json and the built sourcemaps.",
+  "runtime": [
+    {
+      "id": "lit",
+      "name": "Lit",
+      "url": "https://lit.dev",
+      "purpose": "Web component base for every card, editor and panel",
+      "load": "main",
+      "packages": ["lit"],
+      "family": ["lit-html", "lit-element", "@lit/reactive-element"]
+    },
+    {
+      "id": "animejs",
+      "name": "Anime.js",
+      "url": "https://animejs.com",
+      "purpose": "Animation engine (card and MSD animation presets, background effects, astrometrics camera moves)",
+      "load": "main",
+      "packages": ["animejs"]
+    },
+    {
+      "id": "js-yaml",
+      "name": "js-yaml",
+      "url": "https://github.com/nodeca/js-yaml",
+      "purpose": "YAML parsing and output in the editors, the config panel and the astrometrics starters",
+      "load": "main",
+      "packages": ["js-yaml"]
+    },
+    {
+      "id": "three",
+      "name": "three.js",
+      "url": "https://threejs.org",
+      "purpose": "WebGL rendering for the astrometrics card, its 3D models and the WebGL background presets",
+      "load": "lazy",
+      "packages": ["three"]
+    },
+    {
+      "id": "apexcharts",
+      "name": "ApexCharts",
+      "url": "https://apexcharts.com",
+      "purpose": "Chart rendering for the chart card and the editor's processor preview",
+      "load": "lazy",
+      "packages": ["apexcharts"],
+      "license": {
+        "name": "ApexCharts Community License",
+        "url": "https://apexcharts.com/license/community/"
+      },
+      "licenseNote": "Not MIT: ApexCharts is dual-licensed (a free Community License, and paid Commercial and OEM licenses). The full terms are in its LICENSE file."
+    },
+    {
+      "id": "codemirror",
+      "name": "CodeMirror 6",
+      "url": "https://codemirror.net",
+      "purpose": "Code editor behind every editor YAML tab and the template editor (state, view, language, YAML, autocomplete, lint, search, commands)",
+      "load": "lazy",
+      "packages": [
+        "@codemirror/autocomplete",
+        "@codemirror/commands",
+        "@codemirror/lang-yaml",
+        "@codemirror/language",
+        "@codemirror/lint",
+        "@codemirror/search",
+        "@codemirror/state",
+        "@codemirror/view"
+      ],
+      "family": [
+        "@lezer/common",
+        "@lezer/highlight",
+        "@lezer/lr",
+        "@lezer/yaml",
+        "@marijn/find-cluster-break",
+        "crelt",
+        "style-mod",
+        "w3c-keyname"
+      ]
+    },
+    {
+      "id": "codemirror-theme-vscode-dark",
+      "name": "codemirror-theme-vscode-dark",
+      "url": "https://github.com/fsegurai/codemirror-themes",
+      "purpose": "VS Code Dark colour theme for the YAML and template editors",
+      "load": "lazy",
+      "packages": ["@fsegurai/codemirror-theme-vscode-dark"]
+    },
+    {
+      "id": "codemirror-indentation-markers",
+      "name": "codemirror-indentation-markers",
+      "url": "https://github.com/replit/codemirror-indentation-markers",
+      "purpose": "Indentation guides in the YAML editor",
+      "load": "lazy",
+      "packages": ["@replit/codemirror-indentation-markers"]
+    },
+    {
+      "id": "d3",
+      "name": "d3-zoom and d3-selection",
+      "url": "https://d3js.org",
+      "purpose": "Pan and zoom of the MSD Studio preview (editor only)",
+      "load": "lazy",
+      "packages": ["d3-selection", "d3-zoom"],
+      "family": ["d3-color", "d3-dispatch", "d3-drag", "d3-ease", "d3-interpolate", "d3-timer", "d3-transition"]
+    },
+    {
+      "id": "vanilla-colorful",
+      "name": "vanilla-colorful",
+      "url": "https://github.com/web-padawan/vanilla-colorful",
+      "purpose": "Colour picker (hex with alpha) in the editors",
+      "load": "lazy",
+      "packages": ["vanilla-colorful"]
+    },
+    {
+      "id": "custom-card-helpers",
+      "name": "custom-card-helpers",
+      "url": "https://github.com/custom-cards/custom-card-helpers",
+      "purpose": "Editor change events to Home Assistant (fireEvent)",
+      "load": "lazy",
+      "packages": ["custom-card-helpers"]
+    }
+  ],
+  "docs": [
+    {
+      "id": "vitepress",
+      "name": "VitePress",
+      "url": "https://vitepress.dev",
+      "purpose": "Static site generator for these docs",
+      "packages": ["vitepress"]
+    },
+    {
+      "id": "mermaid",
+      "name": "Mermaid",
+      "url": "https://mermaid.js.org",
+      "purpose": "Diagrams in the docs (through vitepress-plugin-mermaid)",
+      "packages": ["mermaid"],
+      "family": ["vitepress-plugin-mermaid"]
+    },
+    {
+      "id": "vitepress-plugin-tabs",
+      "name": "vitepress-plugin-tabs",
+      "url": "https://vitepress-plugins.sapphi.red/tabs/",
+      "purpose": "Tabbed code blocks in the docs",
+      "packages": ["vitepress-plugin-tabs"]
+    },
+    {
+      "id": "mdi",
+      "name": "Material Design Icons (@mdi/js)",
+      "url": "https://pictogrammers.com/library/mdi/",
+      "purpose": "Icons in the docs' live card demos",
+      "packages": ["@mdi/js"]
+    }
+  ]
+}

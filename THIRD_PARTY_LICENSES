@@ -74,7 +74,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 MIT License for 'three.js' (https://github.com/mrdoob/three.js)
 
-This project bundles three.js (lazy-loaded only by the WebGL background presets).
+This project bundles three.js (lazy-loaded by the astrometrics card, its 3D models and the WebGL background presets).
 
 The MIT License
 

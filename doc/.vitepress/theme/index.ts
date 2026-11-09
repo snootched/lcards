@@ -15,6 +15,7 @@ import DemoBoard from './DemoBoard.vue'
 import ProcessorLab from './ProcessorLab.vue'
 import ReleaseList from './ReleaseList.vue'
 import ReleaseMeta from './ReleaseMeta.vue'
+import LibraryTable from './LibraryTable.vue'
 import VersionSwitcher from './VersionSwitcher.vue'
 import VersionBanner from './VersionBanner.vue'
 import HowItWorks from './HowItWorks.vue'
@@ -111,6 +112,8 @@ export default {
     // Releases section: the index cards and the line under each release page's title.
     app.component('ReleaseList', ReleaseList)
     app.component('ReleaseMeta', ReleaseMeta)
+    // About page: the third-party library tables, generated from package.json and node_modules.
+    app.component('LibraryTable', LibraryTable)
     // "How LCARdS works": the layers and examples (What is LCARdS, the home page).
     app.component('HowItWorks', HowItWorks)
     // Astrometrics overview: the scale diagram, and starter picture tiles (the Studio's pictures).

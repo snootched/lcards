@@ -272,6 +272,10 @@ test('standalone bundle: one file, no node_modules, same results as the repo CLI
     const b = spawnSync(process.execPath, [join(ROOT, 'scripts/build-validator.js'), `--out=${out}`], { encoding: 'utf8' });
     assert.equal(b.status, 0, b.stderr);
     assert.ok(existsSync(out));
+    // the licence notices of the inlined packages ride along in a comment under the shebang
+    const head = readFileSync(out, 'utf8');
+    assert.ok(head.startsWith('#!/usr/bin/env node\n/*\n'), 'shebang, then the notices comment');
+    for (const name of ['ajv', 'js-yaml']) assert.match(head, new RegExp(`^${name} \\d`, 'm'), `${name} notice`);
     writeFileSync(join(dir, 'd.yaml'), 'type: custom:lcards-slider\npreset: pills-basik\nanimations:\n  - preset: puls\n');
     const repo = JSON.parse(runCli(join(ROOT, 'scripts/lcards-validate.mjs'), ['--json', join(dir, 'd.yaml')]).stdout);
     const repoRun = runCli(join(ROOT, 'scripts/lcards-validate.mjs'), ['--json', join(dir, 'd.yaml')]);

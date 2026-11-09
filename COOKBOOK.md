@@ -148,8 +148,9 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 
 | Script | When | What |
 |---|---|---|
-| `build` | every build | Doc examples (strict), schema descriptions, docs em dashes and bare "HA", CSS vars, HA compat, version sync, Vite build (minified, `.br`/`.gz`), asset copy. |
-| `build:integration` | CI/release | Vite build and asset copy only. Never for dev. |
+| `build` | every build | Doc examples (strict), schema descriptions, docs em dashes and bare "HA", CSS vars, HA compat, version sync, Vite build (minified, `.br`/`.gz`), asset copy, third-party notices. |
+| `build:integration` | CI/release | Vite build, asset copy and third-party notices only. Never for dev. |
+| `build:notices` | inside build | Writes `custom_components/lcards/THIRD_PARTY_NOTICES.txt` (gitignored like `lcards.js`, so it ships in `lcards.zip`): the `LICENSE` of every npm package in the build's sourcemaps, transitive ones included, plus the hand entries of `THIRD_PARTY_LICENSES` (ha-lcars, lcars, engage). Runs inside `build`, `build:integration` and `docs:bundle`; needs a build. The About page's library tables (`<LibraryTable />`, `doc/credits.md`) come from `scripts/data/third-party.json` with versions and licences from `node_modules`; `tests/docs/third-party.test.js` fails when `src/` imports a package without a row, a dependency is unused, or a licence outside MIT/ISC/BSD/Apache-2.0/0BSD has no override note (ApexCharts). |
 | `set-version` | inside build | `package.json` version into `manifest.json` (HA CalVer, no suffix) and `const.py`. |
 | `bump-version` | releasing | Strip `-dev.N` (promote), or advance SEQ (reset on a new month). |
 | `bump-version:dev` | each dev build | Next `-dev.N`, or `-dev.1` on the next base. |
@@ -188,7 +189,7 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 | `docs:build` | LLM schema, bundle copy for demos, VitePress build (fails on dead links), anchor check. |
 | `docs:serve` / `docs:serve:network` | Regenerate the schemas, then the dev server (`--host` for other devices on the LAN). |
 | `docs:preview` | Serve the built site. |
-| `docs:bundle` | Build and copy the card bundle into `doc/public/lcards/` (inside `docs:build`). |
+| `docs:bundle` | Build the card bundle and its third-party notices and copy them into `doc/public/lcards/` (inside `docs:build`; the About page links the notices). |
 | `docs:llms-txt` | Writes `llms.txt` (links to every page plus the schemas and checker) and `llms-full.txt` (user docs in one file) into the built site under `DOCS_BASE` (inside `docs:build`). A page whose summary reads badly there gets a frontmatter `description:`. |
 | `docs:check-anchors` | Links to missing `#anchors` (inside `docs:build`). |
 | `docs:routing-diagrams` | Regenerate the MSD routing diagrams. |
@@ -197,7 +198,7 @@ Not in CI (local only): `test:visual`, `test:ha`, `check:ha-impact`, `release:sh
 | `sync:ha-lcars` | Snapshot HA-LCARS into `scripts/data/ha-lcars/` (`snapshot.json`: palette, role variables with defaults and descriptions, themes, every `--lcars-*` name, helper entities; `guide.md`: the README from installation to known issues). Reads `../ha-lcars` (`--repo=<dir>`), else GitHub (`--remote`). The output is committed so builds and tests stay offline; the skill renders `references/ha-lcars/` from it and the checker warns on near-miss `var(--lcars-...)` names from it. Run after HA-LCARS changes; `--check` exits 1 if the snapshot is stale. |
 | `sync:uix` | Snapshot the UIX styling docs pages the skill ships (`references/uix/`) into `scripts/data/uix/`, MkDocs syntax and images removed. Reads `../uix` (`--repo=<dir>`), else a shallow clone. Committed; run after UIX releases; `--check` exits 1 if stale. Each page keeps a CC BY 4.0 attribution line. |
 | `eval:skill` | Run the plugin's eval suite (`skills/lcards/plugin/evals/`, one directory per case: `prompt.md` plus `graders/`) with `claude plugin eval`, each case also run without the plugin so the report shows what the plugin adds (`Δ`). Builds the plugin into a temp dir (the suite is not shipped in the zip), grants Write/Edit and `Bash(node *)` for the checker, 2 runs per arm; extra arguments go to `claude plugin eval` (`--case 'ha-lcars-*'`, `--runs 1`, `--ablation none`). Local only, it costs tokens (about $2 for the whole suite at `--runs 1`); run it after changing `SKILL.md`, the references or the hook. Graders are regex over the YAML file or reply, `tool_used` (skill fired, checker ran) and short LLM rubrics. |
-| `build:validator` | Bundle that checker into one standalone file anyone can run with Node 20+ (`doc/public/tools/lcards-validate.mjs`, served at `/tools/`; inside `docs:build`). The Release workflow attaches it as `lcards-validate.mjs`. |
+| `build:validator` | Bundle that checker into one standalone file anyone can run with Node 20+ (`doc/public/tools/lcards-validate.mjs`, served at `/tools/`; inside `docs:build`). The Release workflow attaches it as `lcards-validate.mjs`. The licence notices of the packages inlined into it (ajv, js-yaml, yaml and their dependencies) are a comment under its shebang. |
 | `generate:llm-schema` | Regenerate the published schemas (gitignored): `doc/public/lcards-schema.json` (everything, MSD included) and `doc/public/schema/` (`index.json`, one file per card/view/strategy, `shared/` for rules, animations, background animations, state colours, filters). Inside `docs:build` and `docs:serve`; the Release workflow attaches them as `lcards-schema.json` and `lcards-schema.zip`. |
 
 **Releases:** see [Release commands](#release-commands).

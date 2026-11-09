@@ -4,7 +4,9 @@
  */
 import { test, expect } from '@playwright/test';
 import { readdirSync, statSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { mountCase, expectNoErrors } from './support.js';
+import { bundledPackagesFromMaps, rowPackages } from '../../scripts/lib/third-party.js';
 
 const DIST = new URL('../../custom_components/lcards/', import.meta.url);
 
@@ -159,6 +161,21 @@ test('size budget: the astrometrics runtime and schema are lazy chunks of their 
     expect(models).not.toBe(runtime);
     expect(mainSource.includes('Draco-compressed files are not supported'), 'model loader in the main chunk').toBe(false);
     expect(size(/** @type {string} */ (models))).toBeLessThanOrEqual(95_000);
+});
+
+// D3e: every package in the built bundle has an About page row (scripts/data/third-party.json,
+// packages or family), and THIRD_PARTY_NOTICES.txt carries its licence. Hard checks here: CI runs
+// npm test before the build, where tests/docs/third-party.test.js skips its bundle checks.
+test('third-party: every bundled package has an About row and a notice', () => {
+    const bundled = bundledPackagesFromMaps(fileURLToPath(DIST).replace(/\/$/, ''));
+    expect(bundled.size, 'packages found in the sourcemaps').toBeGreaterThan(0);
+    const owned = rowPackages('runtime');
+    const orphans = [...bundled.keys()].filter(name => !owned.has(name));
+    expect(orphans, 'bundled packages with no row in scripts/data/third-party.json').toEqual([]);
+    const notices = readFileSync(new URL('THIRD_PARTY_NOTICES.txt', DIST), 'utf8');
+    const missing = [...bundled.keys()].filter(name => !new RegExp(`^${name.replace(/[/.]/g, '\\$&')} \\d`, 'm').test(notices));
+    expect(missing, 'bundled packages without a notice in THIRD_PARTY_NOTICES.txt').toEqual([]);
+    expect(notices).toContain('ApexCharts Community License');
 });
 
 test('rules: editing an existing rule keeps the old rule until a page refresh (documented)', async ({ page }) => {

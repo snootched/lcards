@@ -33,8 +33,9 @@ const CATEGORIES = [
   {
     name: 'Build',
     scripts: {
-      build: { when: 'every build', desc: 'Full validated build: doc examples (strict), schema descriptions, docs em-dash and "Home Assistant" checks, CSS vars, HA compat, version sync, Vite integration build (minified, .br/.gz), asset copy. Use for ALL dev/test builds.' },
-      'build:integration': { when: 'CI/release', desc: 'Vite build + asset copy only, skips validation/version-sync. CI/release only — never for dev.' },
+      build: { when: 'every build', desc: 'Full validated build: doc examples (strict), schema descriptions, docs em-dash and "Home Assistant" checks, CSS vars, HA compat, version sync, Vite integration build (minified, .br/.gz), asset copy, THIRD_PARTY_NOTICES.txt. Use for ALL dev/test builds.' },
+      'build:integration': { when: 'CI/release', desc: 'Vite build + asset copy + THIRD_PARTY_NOTICES.txt only, skips validation/version-sync. CI/release only, never for dev.' },
+      'build:notices': { when: 'every build', desc: 'Write custom_components/lcards/THIRD_PARTY_NOTICES.txt (gitignored, ships in lcards.zip): the LICENSE of every npm package found in the build\'s sourcemaps, plus the hand entries of THIRD_PARTY_LICENSES. Runs inside build, build:integration and docs:bundle; needs a build. Rows for the About page: scripts/data/third-party.json.' },
       typecheck: { when: 'build, CI', desc: 'TypeScript checks across src/: zero errors or it fails (also checks the generated element map). Runs inside build. Rules: doc/development/typescript.md.' },
       'types:elements': { when: 'as needed', desc: 'Regenerate src/types/elements.generated.d.ts after adding or renaming a custom element.' },
       'build:validator': { when: 'as needed', desc: 'Bundle the config checker into one standalone file (doc/public/tools/lcards-validate.mjs; --out=<file>). Runs inside docs:build; the Release workflow attaches it.' },
@@ -93,7 +94,7 @@ const CATEGORIES = [
     name: 'Docs (VitePress)',
     scripts: {
       'docs:build': { when: 'as needed', desc: 'Builds the docs site: LLM schema, production bundle copy for live demos, VitePress (fails on dead links), then the #anchor check.' },
-      'docs:bundle': { when: 'as needed', desc: 'Builds the card bundle and copies it into doc/public/lcards/ for the live demos. Runs inside docs:build.' },
+      'docs:bundle': { when: 'as needed', desc: 'Builds the card bundle (and THIRD_PARTY_NOTICES.txt) and copies it into doc/public/lcards/ for the live demos and the About page. Runs inside docs:build.' },
       'docs:check-anchors': { when: 'as needed', desc: 'Fails on any docs link to a missing #anchor (needs a built site). Runs inside docs:build.' },
       'docs:check-base': { when: 'as needed', desc: 'Fails when a /dev/ or /v/<version>/ docs build (DOCS_BASE) links outside its base. Runs inside docs:build.' },
       'docs:llms-txt': { when: 'as needed', desc: 'Write llms.txt (links to every page + the schemas and checker) and llms-full.txt (user docs in one file) into the built site, under DOCS_BASE. Runs inside docs:build.' },

@@ -31,5 +31,7 @@ for (const name of readdirSync(join(SRC, 'chunks'))) {
     if (name.endsWith('.js')) cpSync(join(SRC, 'chunks', name), join(DEST, 'chunks', name));
 }
 for (const dir of ['fonts', 'msd', 'images', 'models']) cpSync(join(SRC, dir), join(DEST, dir), { recursive: true });
+// The licence notices of the bundled libraries (generate-third-party-notices.js): the About page links them.
+if (existsSync(join(SRC, 'THIRD_PARTY_NOTICES.txt'))) cpSync(join(SRC, 'THIRD_PARTY_NOTICES.txt'), join(DEST, 'THIRD_PARTY_NOTICES.txt'));
 
-console.log('Copied the LCARdS bundle (stub, chunks, fonts, msd, images, models) to doc/public/lcards/.');
+console.log('Copied the LCARdS bundle (stub, chunks, fonts, msd, images, models, licence notices) to doc/public/lcards/.');

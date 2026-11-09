@@ -897,8 +897,8 @@ export default withMermaid(defineConfig({
     },
 
     footer: {
-      message: `Released under the MIT License. | <a href="${BASE}credits">License &amp; Disclaimer</a>`,
-      copyright: `© 2026 snootched | LCARdS | <a href="${BASE}credits">About &amp; Credits</a>`,
+      message: `Released under the MIT License. | <a href="${BASE}credits">About</a>`,
+      copyright: `© 2026 snootched | LCARdS`,
     },
 
     search: {

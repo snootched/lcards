@@ -422,6 +422,7 @@ custom_components/lcards/lcards.js.map
 custom_components/lcards/lcards.js.gz
 custom_components/lcards/lcards.js.br
 custom_components/lcards/chunks/
+custom_components/lcards/THIRD_PARTY_NOTICES.txt
 # Non-integration `vite build` output (scratch; dist/ is retired)
 tmp/vite-build/
 # Asset directories copied from src/assets/ by scripts/copy-assets.js

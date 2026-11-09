@@ -176,6 +176,7 @@ jobs:
           # stable: maps written but not referenced (the zip leaves them out); dev: referenced and shipped
           LCARDS_SOURCEMAP: ${{ steps.prerelease.outputs.is_prerelease == 'true' && 'linked' || 'hidden' }}
         # build:integration = vite build --mode integration && node scripts/copy-assets.js
+        #   && node scripts/generate-third-party-notices.js (THIRD_PARTY_NOTICES.txt, from the maps)
         # This produces custom_components/lcards/lcards.js (+ chunks/) and copies
         # src/assets/{fonts,msd,sounds} into custom_components/lcards/
 
@@ -210,6 +211,13 @@ jobs:
             ERRORS=$((ERRORS + 1))
           else
             echo "✅ chunks/: $(ls custom_components/lcards/chunks/*.js | wc -l) file(s)"
+          fi
+          # Licence notices of the bundled libraries (MIT/ISC/BSD need them to travel with the code)
+          if [ ! -s "custom_components/lcards/THIRD_PARTY_NOTICES.txt" ]; then
+            echo "❌ Missing custom_components/lcards/THIRD_PARTY_NOTICES.txt"
+            ERRORS=$((ERRORS + 1))
+          else
+            echo "✅ THIRD_PARTY_NOTICES.txt present"
           fi
           for DIR in fonts msd sounds; do
             if [ ! -d "custom_components/lcards/$DIR" ]; then
