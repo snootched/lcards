@@ -52,6 +52,7 @@
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { BaseService } from '../BaseService.js';
+import { canWriteGlobalStorage } from './storage-permissions.js';
 
 export class ScopedSettingsService extends BaseService {
 
@@ -139,6 +140,11 @@ export class ScopedSettingsService extends BaseService {
             scope = 'global';
         }
 
+        if (scope === 'global' && !canWriteGlobalStorage(this._hass)) {
+            lcardsLog.warn(`[ScopedSettingsService] write("${key}", scope="global") refused: needs an admin`);
+            return false;
+        }
+
         return this._writeScope(key, value, scope, integration, opts);
     }
 
@@ -156,6 +162,10 @@ export class ScopedSettingsService extends BaseService {
         const integration = this._getIntegration();
         if (!integration?.available || !this._hass?.connection) {
             lcardsLog.warn(`[ScopedSettingsService] clear("${key}", scope="${scope}") — integration unavailable`);
+            return false;
+        }
+        if (scope === 'global' && !canWriteGlobalStorage(this._hass)) {
+            lcardsLog.warn(`[ScopedSettingsService] clear("${key}", scope="global") refused: needs an admin`);
             return false;
         }
         return this._clearScope(key, scope, integration, opts);

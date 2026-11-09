@@ -421,14 +421,14 @@ export class ConnectionOverlayService extends BaseService {
      * Save config to the specified scope.
      *
      * @param {Object} config   - Partial or full config object.
-     * @param {'device'|'user'|'global'} [scope='global']
-     * @returns {Promise<void>}
+     * @param {'device'|'user'|'global'} [scope='global'] - global needs a Home Assistant admin
+     * @returns {Promise<boolean>} false when any write failed or was refused
      */
     async saveConfig(config, scope = 'global', opts = {}) {
         const sss = window.lcards?.core?.scopedSettingsService;
         if (!sss) {
             lcardsLog.warn('[ConnectionOverlayService] ScopedSettingsService unavailable — config not saved');
-            return;
+            return false;
         }
 
         lcardsLog.info('[ConnectionOverlayService] saveConfig start', { scope, opts, enabled: config.enabled });
@@ -468,7 +468,12 @@ export class ConnectionOverlayService extends BaseService {
         if ('transform'            in rec) writes.push(sss.write(CONN_OVERLAY_RECON_TRANSFORM,     rec.transform,            scope, opts));
         if ('content'              in rec) writes.push(sss.write(CONN_OVERLAY_RECON_CONTENT,       rec.content,              scope, opts));
 
-        await Promise.all(writes);
+        const results = await Promise.all(writes);
+        if (!results.every(Boolean)) {
+            lcardsLog.warn(`[ConnectionOverlayService] Config not (fully) saved to scope "${scope}"`);
+            await this.loadConfig();
+            return false;
+        }
 
         // Optimistically patch this._config with the just-saved values so that
         // _onDisconnected() sees the correct flags (e.g. enabled=true) even if the
@@ -528,22 +533,25 @@ export class ConnectionOverlayService extends BaseService {
         this._previewConfig = null;
 
         lcardsLog.info(`[ConnectionOverlayService] Config saved to scope "${scope}"`);
+        return true;
     }
 
     /**
      * Delete config from the specified scope (falls back to next tier on next read).
      *
-     * @param {'device'|'user'|'global'} [scope='global']
-     * @returns {Promise<void>}
+     * @param {'device'|'user'|'global'} [scope='global'] - global needs a Home Assistant admin
+     * @returns {Promise<boolean>} false when any clear failed or was refused
      */
     async clearConfig(scope = 'global', opts = {}) {
         const sss = window.lcards?.core?.scopedSettingsService;
-        if (!sss) return;
+        if (!sss) return false;
 
         // Clear all flat keys from the given scope in parallel.
-        await Promise.all(CONN_OVERLAY_ALL_KEYS.map(k => sss.clear(k, scope, opts)));
+        const results = await Promise.all(CONN_OVERLAY_ALL_KEYS.map(k => sss.clear(k, scope, opts)));
         await this.loadConfig();
-        lcardsLog.info(`[ConnectionOverlayService] Config cleared from scope "${scope}"`);
+        const ok = results.every(Boolean);
+        lcardsLog.info(`[ConnectionOverlayService] Config ${ok ? 'cleared' : 'not (fully) cleared'} from scope "${scope}"`);
+        return ok;
     }
 
     /**

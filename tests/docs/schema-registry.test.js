@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { getSchemaEntries, BUILTIN_OPTIONS } from '../../scripts/lib/card-schemas.js';
 import { StylePresetManager } from '../../src/core/presets/StylePresetManager.js';
 import { ComponentManager } from '../../src/core/components/ComponentManager.js';
-import { loadBuiltinPacks } from '../../src/core/packs/loadBuiltinPacks.js';
+import { loadBuiltinPacks, CORE_REQUESTED_PACK_IDS } from '../../src/core/packs/loadBuiltinPacks.js';
 import { TEXT_POSITIONS } from '../../src/cards/schemas/schema-options.js';
 import { missingDescriptions, currentGaps } from '../../scripts/check-schema-descriptions.js';
 import { getMsdSchema } from '../../src/cards/schemas/msd-schema.js';
@@ -49,10 +49,8 @@ test('the shell strategy form is derived from its schema, in order, with every c
 });
 
 test('published option lists match what the real preset and component managers give the cards at runtime', async () => {
-    // Same pack list as src/core/lcards-core.js.
-    const core = readFileSync(join(ROOT, 'src/core/lcards-core.js'), 'utf8');
-    const ids = JSON.parse(core.match(/packManager\.loadBuiltinPacks\((\[[^\]]*\])\)/)[1].replace(/'/g, '"'));
-    const packs = loadBuiltinPacks(ids);
+    // Same pack list as src/core/lcards-core.js (PackManager's default).
+    const packs = loadBuiltinPacks([...CORE_REQUESTED_PACK_IDS]);
     const spm = new StylePresetManager();
     for (const pack of packs) spm.registerPresetsFromPack(pack);
     const cm = new ComponentManager();

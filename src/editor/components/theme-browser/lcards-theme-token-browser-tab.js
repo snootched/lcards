@@ -26,6 +26,7 @@ import {
 } from '../../../core/themes/alertModeTransform.js';
 import '../shared/lcards-form-section.js';
 import '../shared/lcards-message.js';
+import { canWriteGlobalStorage, GLOBAL_WRITE_REFUSED_MSG } from '../../../core/services/storage-permissions.js';
 import '../shared/lcards-color-picker.js';
 import './alert-mode-color-wheel.js';
 import '../../../panels/components/shared/lcards-scope-selector.js';
@@ -143,6 +144,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       _helperSaveMessage: { type: Object, state: true }, // Message for helper save operations
       // Overrides view state
       _overridesScopeInfo: { type: Object, state: true },  // { scope, userId, deviceId, isAdminTarget }
+      _overridesError: { type: String, state: true },  // shown when a save/clear was refused or failed
       _overridesFilter: { type: String, state: true },     // search filter for overrides list
       _activeEditToken: { type: String, state: true },     // tokenPath currently in edit panel
       _editPendingValue: { type: String, state: true },    // value staged in the edit control
@@ -186,6 +188,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
     this._helperSaveMessage = null; // No message by default
     // Overrides view state
     this._overridesScopeInfo = { scope: 'user', userId: null, deviceId: null, isAdminTarget: false };
+    this._overridesError = null;
     this._overridesFilter = '';
     this._activeEditToken = null;
     this._editPendingValue = '';
@@ -3683,6 +3686,7 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
    */
   _onOverridesScopeChanged(e) {
     this._overridesScopeInfo = e.detail;
+    this._overridesError = null;
     this._activeEditToken = null;
     this._editPendingValue = '';
     this._scopeOverridesCache = null;
@@ -3750,13 +3754,22 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
       : rawValue;
 
     try {
-      await themeManager.setOverride(tokenPath, value, scope);
+      const ok = await themeManager.setOverride(tokenPath, value, scope);
+      this._overridesError = ok ? null : this._overrideWriteError(scope);
+      if (!ok) return;
       this._activeEditToken = null;
       this._editPendingValue = '';
       await this._loadScopeOverrides();
     } catch (err) {
       lcardsLog.error('[ThemeTokenBrowser] Failed to save override:', err);
     }
+  }
+
+  /** Error text for a refused or failed override write. */
+  _overrideWriteError(scope) {
+    return scope === 'global' && !canWriteGlobalStorage(this.hass)
+      ? GLOBAL_WRITE_REFUSED_MSG
+      : 'Could not save the override.';
   }
 
   /** Clear the override for a token in the current scope. */
@@ -3766,7 +3779,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
 
     const scope = this._overridesScopeInfo?.scope ?? 'user';
     try {
-      await themeManager.clearOverride(tokenPath, scope);
+      const ok = await themeManager.clearOverride(tokenPath, scope);
+      this._overridesError = ok ? null : this._overrideWriteError(scope);
+      if (!ok) return;
       if (this._activeEditToken === tokenPath) {
         this._activeEditToken = null;
         this._editPendingValue = '';
@@ -3940,6 +3955,9 @@ export class LCARdSThemeTokenBrowserTab extends LitElement {
           showGlobal
           @scope-changed=${this._onOverridesScopeChanged}>
         </lcards-scope-selector>
+        ${this._overridesError ? html`
+          <lcards-message type="error" .message=${this._overridesError}></lcards-message>
+        ` : ''}
 
         <!-- Filter + summary bar -->
         <div class="overrides-toolbar">

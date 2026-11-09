@@ -276,7 +276,7 @@ this._injectTextFieldsToElement(this._svgEl, width, height);
 
 ## Custom Element Registration
 
-Register the card element in `src/lcards.js` — never in the card file itself. Card editors are the exception: each self-registers with the same guard, in its own editor file. Guard against double-registration:
+Register the card element in `src/lcards-main.js` — never in the card file itself. Card editors are the exception: each self-registers with the same guard, in its own editor file. Guard against double-registration:
 
 ```javascript
 if (!customElements.get('lcards-my-card')) {

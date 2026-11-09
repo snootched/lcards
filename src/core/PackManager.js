@@ -10,7 +10,7 @@
  * @module core/PackManager
  */
 
-import { loadBuiltinPacks } from './packs/loadBuiltinPacks.js';
+import { loadBuiltinPacks, CORE_REQUESTED_PACK_IDS } from './packs/loadBuiltinPacks.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 
 /**
@@ -31,7 +31,7 @@ export class PackManager {
    *
    * @param {Array<string>} packIds - Pack IDs to load (default: all core packs)
    */
-  async loadBuiltinPacks(packIds = ['core', 'lcards_buttons', 'lcards_sliders', 'lcars_fx', 'builtin_themes']) {
+  async loadBuiltinPacks(packIds = [...CORE_REQUESTED_PACK_IDS]) {
     lcardsLog.debug('[PackManager] Loading builtin packs:', packIds);
 
     const packs = loadBuiltinPacks(packIds);

@@ -222,11 +222,15 @@ async def ws_storage_get(
     """Handle lcards/storage/get.
 
     Returns the value for *key*, or the full data dict if key is omitted.
+    Non-admins may read global keys only: the full dict and other users'
+    ``_user_<id>`` entries need an admin (their own come from storage/user/get).
     """
+    key = msg.get("key")
+    if (key is None or key.startswith("_user_")) and not _require_admin(connection, msg):
+        return
     storage = _check_storage(hass, connection, msg)
     if storage is None:
         return
-    key = msg.get("key")
     value = await storage.async_get(key)
     connection.send_result(msg["id"], {"key": key, "value": value})
 
@@ -246,7 +250,10 @@ async def ws_storage_set(
     """Handle lcards/storage/set.
 
     Shallow-merges *data* (a dict of key→value pairs) into the store.
+    Admin only: the global store holds settings every user shares.
     """
+    if not _require_admin(connection, msg):
+        return
     storage = _check_storage(hass, connection, msg)
     if storage is None:
         return
@@ -268,8 +275,10 @@ async def ws_storage_delete(
 ) -> None:
     """Handle lcards/storage/delete.
 
-    Deletes *key* from the store. Responds with existed=True/False.
+    Deletes *key* from the store. Admin only. Responds with existed=True/False.
     """
+    if not _require_admin(connection, msg):
+        return
     storage = _check_storage(hass, connection, msg)
     if storage is None:
         return
@@ -316,8 +325,10 @@ async def ws_storage_reset(
 ) -> None:
     """Handle lcards/storage/reset.
 
-    Wipes the entire LCARdS store. Irreversible.
+    Wipes the entire LCARdS store. Irreversible. Admin only.
     """
+    if not _require_admin(connection, msg):
+        return
     storage = _check_storage(hass, connection, msg)
     if storage is None:
         return
@@ -339,8 +350,11 @@ async def ws_storage_dump(
     """Handle lcards/storage/dump.
 
     Returns the full store contents including the schema version.
-    Intended for debugging and dev-tools inspection.
+    Intended for debugging and dev-tools inspection. Admin only (it includes
+    every user's and device's scoped settings).
     """
+    if not _require_admin(connection, msg):
+        return
     storage = _check_storage(hass, connection, msg)
     if storage is None:
         return

@@ -243,8 +243,10 @@ export class IntegrationService extends BaseService {
      * will remain in storage with a null value; use deleteStorage() to fully
      * remove it).
      *
+     * Admin only (the backend refuses non-admins; see storage-permissions.js).
+     *
      * @param {Object} updates - Plain object of key → value pairs to merge
-     * @returns {Promise<boolean>} `true` on success, `false` on error / unavailable
+     * @returns {Promise<boolean>} `true` on success, `false` on error / refused / unavailable
      */
     async writeStorage(updates) {
         if (!this.available || !this._hass?.connection) return false;
@@ -255,7 +257,11 @@ export class IntegrationService extends BaseService {
             });
             return true;
         } catch (err) {
-            lcardsLog.warn('[IntegrationService] writeStorage() failed:', err);
+            if (err?.code === 'unauthorized') {
+                lcardsLog.warn(`[IntegrationService] writeStorage() refused: global storage needs a Home Assistant admin`);
+            } else {
+                lcardsLog.warn(`[IntegrationService] writeStorage() failed:`, err);
+            }
             return false;
         }
     }
@@ -275,7 +281,11 @@ export class IntegrationService extends BaseService {
             });
             return true;
         } catch (err) {
-            lcardsLog.warn(`[IntegrationService] deleteStorage("${key}") failed:`, err);
+            if (err?.code === 'unauthorized') {
+                lcardsLog.warn(`[IntegrationService] deleteStorage("${key}") refused: global storage needs a Home Assistant admin`);
+            } else {
+                lcardsLog.warn(`[IntegrationService] deleteStorage("${key}") failed:`, err);
+            }
             return false;
         }
     }
@@ -297,7 +307,11 @@ export class IntegrationService extends BaseService {
             });
             return true;
         } catch (err) {
-            lcardsLog.warn('[IntegrationService] resetStorage() failed:', err);
+            if (err?.code === 'unauthorized') {
+                lcardsLog.warn(`[IntegrationService] resetStorage() refused: global storage needs a Home Assistant admin`);
+            } else {
+                lcardsLog.warn(`[IntegrationService] resetStorage() failed:`, err);
+            }
             return false;
         }
     }

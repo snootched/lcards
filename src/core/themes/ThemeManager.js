@@ -747,44 +747,52 @@ export class ThemeManager extends BaseService {
    *
    * @param {string} tokenPath - Dot-notation token path, e.g. 'colors.card.button'
    * @param {string|number} value - New value (CSS var, hex, or number)
-   * @param {'global'|'user'|'device'} scope
-   * @returns {Promise<void>}
+   * @param {'global'|'user'|'device'} scope - global needs a Home Assistant admin
+   * @returns {Promise<boolean>} false when the write failed or was refused
    */
   async setOverride(tokenPath, value, scope) {
     const sss = window.lcards?.core?.scopedSettingsService;
-    if (!sss) return;
+    if (!sss) return false;
 
     // Read the current overrides for this scope only so we deep-merge correctly
     const current = await sss.read(STORAGE_KEY_THEME_OVERRIDES, [scope]) ?? {};
     const updated = { ...current, [tokenPath]: value };
-    await sss.write(STORAGE_KEY_THEME_OVERRIDES, updated, scope);
+    const ok = await sss.write(STORAGE_KEY_THEME_OVERRIDES, updated, scope);
+    if (!ok) {
+      lcardsLog.warn(`[ThemeManager] Override not saved: ${tokenPath} (${scope})`);
+      return false;
+    }
     lcardsLog.info(`[ThemeManager] Override set: ${tokenPath}=${value} (${scope})`);
     await this.loadOverrides();
+    return true;
   }
 
   /**
    * Remove a single token override from a scope.
    *
    * @param {string} tokenPath
-   * @param {'global'|'user'|'device'} scope
-   * @returns {Promise<void>}
+   * @param {'global'|'user'|'device'} scope - global needs a Home Assistant admin
+   * @returns {Promise<boolean>} false when the write failed or was refused
    */
   async clearOverride(tokenPath, scope) {
     const sss = window.lcards?.core?.scopedSettingsService;
-    if (!sss) return;
+    if (!sss) return false;
 
     const current = await sss.read(STORAGE_KEY_THEME_OVERRIDES, [scope]) ?? {};
     const updated = { ...current };
     delete updated[tokenPath];
 
-    if (Object.keys(updated).length === 0) {
-      await sss.clear(STORAGE_KEY_THEME_OVERRIDES, scope);
-    } else {
-      await sss.write(STORAGE_KEY_THEME_OVERRIDES, updated, scope);
+    const ok = Object.keys(updated).length === 0
+      ? await sss.clear(STORAGE_KEY_THEME_OVERRIDES, scope)
+      : await sss.write(STORAGE_KEY_THEME_OVERRIDES, updated, scope);
+    if (!ok) {
+      lcardsLog.warn(`[ThemeManager] Override not cleared: ${tokenPath} (${scope})`);
+      return false;
     }
 
     lcardsLog.info(`[ThemeManager] Override cleared: ${tokenPath} (${scope})`);
     await this.loadOverrides();
+    return true;
   }
 
   /**

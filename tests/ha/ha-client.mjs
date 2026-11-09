@@ -131,6 +131,52 @@ export class HAClient {
     }
 }
 
+// ── Temporary non-admin user ─────────────────────────────────────────────
+
+export const NON_ADMIN_USERNAME = 'lcards_test_nonadmin';
+
+/**
+ * Create a temporary non-admin Home Assistant user, log it in for an access
+ * token, run `fn(userClient, userId)`, then delete the user and the scoped
+ * storage it wrote. A user left behind by an aborted run is deleted first.
+ * @param {HAClient} admin
+ * @param {(user: HAClient, userId: string) => Promise<void>} fn
+ */
+export async function withNonAdminUser(admin, fn) {
+    const removeUser = async (userId) => {
+        await admin.call({ type: 'lcards/storage/users/clear', user_id: userId }).catch(() => {});
+        await admin.call({ type: 'config/auth/delete', user_id: userId });
+    };
+    for (const u of await admin.call({ type: 'config/auth/list' })) {
+        if (u.name === NON_ADMIN_USERNAME) await removeUser(u.id);
+    }
+    const password = `lcards-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+    const { user } = await admin.call({ type: 'config/auth/create', name: NON_ADMIN_USERNAME, group_ids: ['system-users'] });
+    let userClient;
+    try {
+        await admin.call({ type: 'config/auth_provider/homeassistant/create', user_id: user.id, username: NON_ADMIN_USERNAME, password });
+        const clientId = `${HA_URL}/`;
+        const post = async (path, body, form = false) => {
+            const res = await fetch(`${HA_URL}${path}`, {
+                method: 'POST',
+                headers: { 'Content-Type': form ? 'application/x-www-form-urlencoded' : 'application/json' },
+                body: form ? new URLSearchParams(body).toString() : JSON.stringify(body),
+            });
+            if (!res.ok) throw new Error(`${path}: HTTP ${res.status} ${await res.text()}`);
+            return res.json();
+        };
+        const flow = await post('/auth/login_flow', { client_id: clientId, handler: ['homeassistant', null], redirect_uri: clientId });
+        const done = await post(`/auth/login_flow/${flow.flow_id}`, { client_id: clientId, username: NON_ADMIN_USERNAME, password });
+        if (done.type !== 'create_entry') throw new Error(`login flow did not finish: ${JSON.stringify(done)}`);
+        const tokens = await post('/auth/token', { grant_type: 'authorization_code', code: done.result, client_id: clientId }, true);
+        userClient = await HAClient.connect(tokens.access_token);
+        await fn(userClient, user.id);
+    } finally {
+        userClient?.close();
+        await removeUser(user.id);
+    }
+}
+
 // ── Fixtures ─────────────────────────────────────────────────────────────
 
 /** Helpers the test dashboard uses (entity id -> create command). */

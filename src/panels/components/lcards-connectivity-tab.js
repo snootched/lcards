@@ -53,6 +53,7 @@ import { originBadge } from './shared/scoped-field-helpers.js';
 import '../../editor/components/shared/lcards-form-section.js';
 import '../../editor/components/shared/lcards-message.js';
 import './shared/lcards-scope-selector.js';
+import { canWriteGlobalStorage, defaultSettingsScope, GLOBAL_WRITE_REFUSED_MSG } from '../../core/services/storage-permissions.js';
 import '../../editor/components/shared/lcards-color-picker.js';
 import '../../editor/components/editors/lcards-font-selector.js';
 import '../../editor/components/editors/lcards-position-picker.js';
@@ -138,8 +139,12 @@ export class LCARdSConnectivityTab extends LitElement {
     constructor() {
         super();
         this.hass              = undefined;
-        this._scope            = 'global';
-        this._scopeInfo        = { scope: 'global', userId: null, deviceId: null, isAdminTarget: false };
+        // Admins start on Global, everyone else on their own user scope (only an
+        // admin may write global storage); set once hass arrives, see willUpdate().
+        this._scope            = 'user';
+        this._scopeInfo        = { scope: 'user', userId: null, deviceId: null, isAdminTarget: false };
+        /** @private True once the starting scope was picked from hass or by the user. */
+        this._scopeChosen      = false;
         this._editConfig       = null;
         this._contentYaml      = '';
         this._contentYamlError = null;
@@ -159,6 +164,19 @@ export class LCARdSConnectivityTab extends LitElement {
         this._dirtyServiceKeys      = new Set();
         this._boundHandleOverlayDismiss       = () => { this._testActive = false; };
         this._boundHandleRemoteConfigChange   = () => this._handleRemoteConfigChange();
+    }
+
+    /** Pick the starting scope from the user's admin status the first time hass is known. */
+    willUpdate(changedProps) {
+        if (changedProps.has('hass') && this.hass?.user && !this._scopeChosen) {
+            this._scopeChosen = true;
+            const scope = defaultSettingsScope(this.hass);
+            if (scope !== this._scope) {
+                this._scope     = scope;
+                this._scopeInfo = { ...this._scopeInfo, scope };
+                if (this._scopedValues) this._editConfig = this._buildEffectiveConfig();
+            }
+        }
     }
 
     connectedCallback() {
@@ -366,7 +384,11 @@ export class LCARdSConnectivityTab extends LitElement {
             // Delegate nested→flat mapping to the service; it writes each key individually.
             // Use captured scope/opts so we always write to the target that was selected
             // when the user clicked Save, not wherever _scopeInfo happens to point now.
-            await window.lcards?.connectionOverlay?.saveConfig(configToSave, savedScope, savedOpts);
+            const saved = await window.lcards?.connectionOverlay?.saveConfig(configToSave, savedScope, savedOpts);
+            if (saved === false) {
+                this._error = this._writeErrorText(savedScope, 'Could not save settings.');
+                return;
+            }
             lcardsLog.info('[ConnectivityTab] _saveConfig write complete — force-reloading');
             // Force-reload scoped values (bypasses any in-flight load guard) and
             // rebuild the effective config for badges + form.  Pass the same opts used
@@ -392,6 +414,11 @@ export class LCARdSConnectivityTab extends LitElement {
         }
     }
 
+    /** Error text for a refused or failed write to *scope*. */
+    _writeErrorText(scope, fallback) {
+        return scope === 'global' && !canWriteGlobalStorage(this.hass) ? GLOBAL_WRITE_REFUSED_MSG : fallback;
+    }
+
     async _resetScope() {
         const savedScope = this._scope;
         const savedOpts  = this._scopeInfoOpts();
@@ -399,7 +426,11 @@ export class LCARdSConnectivityTab extends LitElement {
         this._error        = null;
         this._confirmClear = false;
         try {
-            await window.lcards?.connectionOverlay?.clearConfig(savedScope, savedOpts);
+            const cleared = await window.lcards?.connectionOverlay?.clearConfig(savedScope, savedOpts);
+            if (cleared === false) {
+                this._error = this._writeErrorText(savedScope, 'Could not reset settings.');
+                return;
+            }
             this._scopedValues = null;
             await this._loadScopedValues(true, savedOpts);
             this._editConfig = this._buildEffectiveConfig();
@@ -789,6 +820,7 @@ export class LCARdSConnectivityTab extends LitElement {
     async _handleScopeChange(ev) {
         const info      = ev.detail ?? {};
         const newScope  = info.scope ?? 'user';
+        this._scopeChosen = true;
         this._scope     = newScope;
         this._scopeInfo = { scope: newScope, userId: info.userId ?? null, deviceId: info.deviceId ?? null, isAdminTarget: info.isAdminTarget ?? false };
         this._isDirty          = false;

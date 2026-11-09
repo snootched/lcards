@@ -243,7 +243,7 @@ class LCARdSCore {
             // Initialize PackManager (Phase 2e) - ✅ Centralized pack loading and registration
             // PackManager is the ONLY place that loads builtin packs
             this.packManager = new PackManager(this);
-            await this.packManager.loadBuiltinPacks(['core', 'lcards_buttons', 'lcards_sliders', 'lcars_fx', 'builtin_themes']);
+            await this.packManager.loadBuiltinPacks();
             lcardsLog.debug('[LCARdSCore] PackManager loaded all packs and registered to managers');
 
             // Load fonts flagged autoLoad:true in core_fonts.json (currently just Antonio).
@@ -473,15 +473,6 @@ class LCARdSCore {
             getEntityState: (entityId) => this.systemsManager?.getEntityState(entityId),
             subscribeToEntity: (entityId, callback) => this.systemsManager?.subscribeToEntity(entityId, callback, cardId),
             unsubscribeFromEntity: (entityId, callback) => this.systemsManager?.unsubscribeFromEntity(entityId, callback),
-
-            // Data source methods (for advanced use cases)
-            subscribeToDataSource: (entityId, callback) => /** @type {any} */ (this.dataSourceManager)?.subscribeToEntity(entityId, callback),
-            getDataSourceState: (entityId) => /** @type {any} */ (this.dataSourceManager)?.getEntityState(entityId),
-
-            // Rules methods (for advanced rule-based overlays)
-            addRule: (rule) => /** @type {any} */ (this.rulesManager)?.addRule(rule),
-            removeRule: (ruleId) => /** @type {any} */ (this.rulesManager)?.removeRule(ruleId),
-            evaluateRules: () => /** @type {any} */ (this.rulesManager)?.evaluateAll((entityId) => this.systemsManager?.getEntityState(entityId)),
 
             // Lifecycle
             destroy: () => this.unregisterCard(cardId)

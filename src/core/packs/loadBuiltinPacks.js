@@ -13,6 +13,7 @@
  * Pack system guide: doc/architecture/subsystems/pack-system.md
  */
 
+import { lcardsLog } from '../../utils/lcards-logging.js';
 import { LCARDS_BUTTONS_PACK }   from './lcards-buttons-pack.js';
 import { LCARDS_SLIDERS_PACK }   from './lcards-sliders-pack.js';
 import { BUILTIN_THEMES_PACK }   from './builtin-themes.js';
@@ -50,6 +51,12 @@ const BUILTIN_REGISTRY = {
   lcards_power:            LCARDS_POWER_PACK,
 };
 
+/** Every id loadBuiltinPacks() can serve. */
+export const BUILTIN_PACK_IDS = Object.freeze(Object.keys(BUILTIN_REGISTRY));
+
+/** The packs LCARdSCore asks for at startup (PackManager.loadBuiltinPacks default). */
+export const CORE_REQUESTED_PACK_IDS = Object.freeze(['core', 'lcards_buttons', 'lcards_sliders', 'builtin_themes']);
+
 /**
  * Load builtin packs by ID.
  *
@@ -77,6 +84,10 @@ export function loadBuiltinPacks(requested = ['core', 'lcards_buttons', 'lcards_
   ];
 
   const packsToLoad = [...new Set([...requested, ...alwaysLoad])];
+  const unknown = packsToLoad.filter(id => !BUILTIN_REGISTRY[id]);
+  if (unknown.length) {
+    lcardsLog.warn('[loadBuiltinPacks] Unknown builtin pack ids ignored:', unknown);
+  }
   return packsToLoad.map(id => BUILTIN_REGISTRY[id]).filter(Boolean);
 }
 

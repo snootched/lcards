@@ -930,28 +930,26 @@ export class SoundManager extends BaseService {
    * Set a per-event sound override.
    * @param {string} eventType - Event type key
    * @param {string|null} assetKey - Asset key to use, or null to clear override
-   * @param {'global'|'user'} [scope='user'] - Storage tier to write to
-   * @returns {Promise<void>}
+   * @param {'global'|'user'|'device'} [scope='user'] - Storage tier to write to
+   * @returns {Promise<boolean>} false when the backend refused or is unavailable
    */
   async setOverride(eventType, assetKey, scope = 'user') {
-    const current = scope === 'global'
-      ? { ...(this._globalOverridesCache ?? {}) }
-      : { ...(this._overridesCache ?? {}) };
+    const current = { ...this.getOverrides(scope) };
     if (assetKey === null) {
       delete current[eventType];
     } else {
       current[eventType] = assetKey;
     }
-    await this._saveOverrides(current, scope);
+    return this._saveOverrides(current, scope);
   }
 
   /**
    * Clear all per-event overrides for a given scope tier.
-   * @param {'global'|'user'} [scope='user']
-   * @returns {Promise<void>}
+   * @param {'global'|'user'|'device'} [scope='user']
+   * @returns {Promise<boolean>} false when the backend refused or is unavailable
    */
   async clearAllOverrides(scope = 'user') {
-    await this._saveOverrides({}, scope);
+    return this._saveOverrides({}, scope);
   }
 
   /**
@@ -960,10 +958,10 @@ export class SoundManager extends BaseService {
    * lcards-sound-config-tab.js) to commit a staged batch of per-event edits
    * at once, instead of one backend write per dropdown change.
    * @param {Object} overridesMap - event type → assetKey | media-source id | null
-   * @returns {Promise<void>}
+   * @returns {Promise<boolean>} false when the backend refused (non-admin) or is unavailable
    */
   async saveGlobalOverrides(overridesMap) {
-    await this._saveOverrides({ ...overridesMap }, 'global');
+    return this._saveOverrides({ ...overridesMap }, 'global');
   }
 
   /**
@@ -1233,16 +1231,19 @@ export class SoundManager extends BaseService {
   }
 
   /**
-   * Persist overrides — updates in-memory cache and backend storage.
+   * Persist overrides: updates the in-memory cache for that scope and backend storage.
    * Logs a warning if the integration is unavailable (overrides will not be persisted).
    * @param {Object} overrides
-   * @returns {Promise<void>}
+   * @param {'global'|'user'|'device'} [scope='user']
+   * @returns {Promise<boolean>} false when the write was refused (global needs an admin) or not possible
    * @private
    */
   async _saveOverrides(overrides, scope = 'user') {
     // 1. Update in-memory cache immediately (synchronous callers benefit)
     if (scope === 'global') {
       this._globalOverridesCache = overrides;
+    } else if (scope === 'device') {
+      this._deviceOverridesCache = overrides;
     } else {
       this._overridesCache = overrides;
     }
@@ -1255,17 +1256,23 @@ export class SoundManager extends BaseService {
       const ok = await sss.write(STORAGE_KEY_SOUND_OVERRIDES, overrides, scope);
       if (ok) {
         lcardsLog.debug(`[SoundManager] Saved sound overrides to ${scope}-scoped backend storage`);
+      } else {
+        lcardsLog.warn(`[SoundManager] Sound overrides not saved to ${scope} storage`);
       }
-    } else if (integration?.available) {
-      // Legacy path (no scoped storage) — always flat global key
+      return ok;
+    }
+    if (integration?.available && scope === 'global') {
+      // Legacy path (no scoped storage): flat global key only
       const ok = await integration.writeStorage({ [STORAGE_KEY_SOUND_OVERRIDES]: overrides });
       if (ok) {
         lcardsLog.debug('[SoundManager] Saved sound overrides to global backend storage (legacy path)');
       }
-    } else {
-      lcardsLog.warn('[SoundManager] Integration unavailable — sound overrides not persisted to backend');
+      return ok;
     }
+    lcardsLog.warn('[SoundManager] Integration unavailable: sound overrides not persisted to backend');
+    return false;
   }
+
 
   /**
    * Resolve asset URL from AssetManager registry and play via cached Audio element.

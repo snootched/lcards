@@ -36,8 +36,10 @@ const STYLE_PRESETS = {
   button: {
     /**
      * Every button preset should declare at minimum: card.color.background.*
-     * and text.default.  Use theme tokens ('{theme:…}') wherever possible
-     * so the preset works across all themes.
+     * and text.default.  Use theme tokens ('theme:<token path>', paths from
+     * src/core/packs/themes/tokens/lcardsDefaultTokens.js) wherever possible
+     * so the preset follows the active theme.  Real presets to copy from:
+     * src/core/packs/style-presets/buttons/index.js.
      */
     'example-lozenge': {
       // Override the shape rendered by the button card
@@ -47,24 +49,24 @@ const STYLE_PRESETS = {
       card: {
         color: {
           background: {
-            default:     '{theme:palette.primary}',
-            active:      '{theme:palette.primary}',
-            inactive:    '{theme:palette.inactive}',
-            unavailable: '{theme:palette.unavailable}',
-            hover:       '{theme:palette.primary-light}',
-            pressed:     '{theme:palette.primary-dark}'
+            default:     'theme:components.button.background.default',
+            active:      'theme:components.button.background.active',
+            inactive:    'theme:components.button.background.inactive',
+            unavailable: 'theme:components.button.background.unavailable',
+            hover:       'theme:components.button.background.hover',
+            pressed:     'theme:components.button.background.pressed'
           }
         }
       },
       text: {
         default: {
-          font_family:    '{theme:components.button.text.font_family}',
-          font_size:      '{theme:components.button.text.font_size}',
+          font_family:    'theme:components.button.text.font_family',
+          font_size:      'theme:components.button.text.font_size',
           text_transform: 'uppercase',
           color: {
-            default:     '{theme:components.button.text.color.active}',
-            inactive:    '{theme:components.button.text.color.inactive}',
-            unavailable: '{theme:components.button.text.color.unavailable}'
+            default:     'theme:components.button.text.color.active',
+            inactive:    'theme:components.button.text.color.inactive',
+            unavailable: 'theme:components.button.text.color.unavailable'
           }
         }
       }
@@ -73,21 +75,16 @@ const STYLE_PRESETS = {
 
   slider: {
     /**
-     * Slider presets follow the same pattern.
+     * Slider presets keep their styling under style.* (see
+     * src/core/packs/style-presets/sliders/index.js).
      * Unused preset types (button, slider, …) can simply be omitted.
      */
     'example-gauge': {
-      height: 60,
-      card: {
-        color: {
-          track: {
-            default:  '{theme:palette.surface}',
-            active:   '{theme:palette.surface}'
-          },
-          fill: {
-            default:  '{theme:palette.primary}',
-            active:   '{theme:palette.primary}'
-          }
+      style: {
+        track: {
+          orientation: 'horizontal',
+          height:      'theme:components.slider.track.height',
+          background:  'theme:components.slider.track.background'
         }
       }
     }
@@ -153,8 +150,9 @@ const THEMES = {
   'example-theme': {
     id:   'example-theme',
     name: 'Example Theme',
-    // tokens: { palette: { primary: '#FF9C00', … }, … }
-    // See src/core/packs/themes/builtin-themes.js for the full token schema.
+    // tokens: { colors: { ui: { primary: 'var(--lcars-orange)', … } }, components: { … } }
+    // The full token tree: src/core/packs/themes/tokens/lcardsDefaultTokens.js
+    // (registered by src/core/packs/builtin-themes.js).
     tokens: {}
   }
 };
@@ -162,30 +160,30 @@ const THEMES = {
 // ─────────────────────────────────────────────────────────────────────
 // RULES
 //
-// Conditional style patches distributed to RulesEngine.
-// Rules fire when their conditions are met and apply CSS/style patches
-// to registered card overlays.
+// Rules distributed to RulesEngine. A rule's `when` is its condition
+// (entity/state, above/below, all/any/not, templates); while it matches,
+// `apply.overlays` merges a config patch into every card it selects
+// (by id, `tag:<name>`, `type:<card type>` or `pattern:<regex>`).
 //
-// Schema reference: doc/architecture/subsystems/rules-engine.md
+// User docs: doc/core/rules/ (conditions.md, changes.md)
+// Engine:    doc/architecture/subsystems/rules-engine.md
 // ─────────────────────────────────────────────────────────────────────
 const RULES = [
   {
     id:          'example-rule',
-    description: 'Turn all buttons with tag "example" red when active',
+    description: 'Turn every card tagged "example" red while the light is on',
     enabled:     true,
-    conditions: [
-      // Match cards that have the 'example' tag AND whose entity is 'on'
-      { type: 'tag',    value: 'example' },
-      { type: 'state',  entity: '{config.entity}', operator: '==', value: 'on' }
-    ],
-    patches: [
-      {
-        target: { tag: 'example' },
-        style: {
-          card: { color: { background: { active: '#CC0000' } } }
+    // Replace light.example with a real entity
+    when: { entity: 'light.example', state: 'on' },
+    apply: {
+      overlays: {
+        'tag:example': {
+          style: {
+            card: { color: { background: 'var(--lcars-alert-red, var(--lcards-orange-dark))' } }
+          }
         }
       }
-    ]
+    }
   }
 ];
 
@@ -221,12 +219,13 @@ const AUDIO_ASSETS = {
 // Named schemes that map SoundManager event keys to audio asset keys.
 // Selecting a scheme in the Config Panel applies all its mappings at once.
 //
-// Supported event keys (see SoundManager for the full list):
+// Event keys (the full list with labels: SOUND_EVENT_LABELS in
+// src/core/sound/SoundManager.js), for example:
 //   card_tap, card_hold, card_double_tap, card_hover
 //   toggle_on, toggle_off
-//   slider_grab, slider_release, slider_change
-//   nav_forward, nav_back
-//   alert_red, alert_yellow, alert_clear
+//   slider_drag_start, slider_drag_end, slider_change
+//   menu_expand, nav_page, dialog_open, dialog_close
+//   alert_red, alert_yellow, alert_blue, alert_clear
 //
 // null  = explicitly silence that event in this scheme
 // omit  = fall through to the system default

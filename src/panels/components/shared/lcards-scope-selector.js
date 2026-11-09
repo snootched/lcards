@@ -17,6 +17,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { renderFilterChips } from '../../../editor/components/shared/filter-chips.js';
+import { canWriteGlobalStorage } from '../../../core/services/storage-permissions.js';
 
 export class LCARdSScopeSelector extends LitElement {
   // --------------------------------------------------------------------------
@@ -24,7 +25,8 @@ export class LCARdSScopeSelector extends LitElement {
   // --------------------------------------------------------------------------
   static properties = {
     hass:             { type: Object },
-    /** When true a "Global" tab is shown first (theme overrides need it). */
+    /** When true a "Global" tab is shown first (theme overrides need it). Admins only:
+     *  non-admins cannot write global storage, so they never see it. */
     showGlobal:       { type: Boolean },
     disabled:         { type: Boolean },
 
@@ -53,21 +55,41 @@ export class LCARdSScopeSelector extends LitElement {
     this._adminUserList      = [];
     this._adminDeviceList    = [];
     this._adminListsLoaded   = false;
+    /** @private */ this._globalWasShown  = false;
+    /** @private */ this._announcePending = false;
+  }
+
+  /** True when the Global tab is offered: asked for, and the user may write global storage. */
+  _globalShown() {
+    return this.showGlobal === true && canWriteGlobalStorage(this.hass);
   }
 
   /**
-   * Determine the default tab when showGlobal changes so the component
-   * doesn't end up on 'global' when showGlobal is turned off.
+   * Pick the default tab when the Global tab appears or disappears (showGlobal
+   * or the user's admin status changes), so a non-admin never ends up on Global.
    */
   willUpdate(changedProps) {
-    if (changedProps.has('showGlobal')) {
-      if (this.showGlobal) {
-        // When the Global tab is shown, default to it.
-        this._scopeTab = 'global';
-      } else if (this._scopeTab === 'global') {
-        // Global tab hidden — fall back to user.
-        this._scopeTab = 'user';
-      }
+    if (!changedProps.has('showGlobal') && !changedProps.has('hass')) return;
+    const shown = this._globalShown();
+    if (shown === this._globalWasShown) return;
+    this._globalWasShown = shown;
+    if (shown) {
+      // When the Global tab is shown, default to it.
+      this._scopeTab = 'global';
+      this._announcePending = true;
+    } else if (this._scopeTab === 'global') {
+      // Global tab hidden: fall back to user.
+      this._scopeTab = 'user';
+      this._announcePending = true;
+    }
+    // Either way the parent hears the new tab (it used to start on 'user' while
+    // the selector showed Global, so theme overrides went to the wrong scope).
+  }
+
+  updated() {
+    if (this._announcePending) {
+      this._announcePending = false;
+      this._fireChange();
     }
   }
 
@@ -83,6 +105,7 @@ export class LCARdSScopeSelector extends LitElement {
 
   /** Set the active scope tab from outside (e.g. parent restoring state). */
   setScope(scope) {
+    if (scope === 'global' && !this._globalShown()) return;
     if (typeof scope === 'string') this._scopeTab = scope;
   }
 
@@ -248,7 +271,7 @@ export class LCARdSScopeSelector extends LitElement {
       ${renderFilterChips({
         className: 'scope-tabs',
         options: [
-          ...(this.showGlobal ? [{ value: 'global', label: 'Global', icon: 'mdi:earth' }] : []),
+          ...(this._globalShown() ? [{ value: 'global', label: 'Global', icon: 'mdi:earth' }] : []),
           { value: 'user', label: 'User', icon: 'mdi:account' },
           { value: 'device', label: 'Device', icon: 'mdi:laptop' },
         ],

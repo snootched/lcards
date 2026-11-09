@@ -5,7 +5,7 @@
 import { test, expect } from '@playwright/test';
 import yaml from 'js-yaml';
 import { readFileSync } from 'node:fs';
-import { HAClient, HA_URL, TEST_DASHBOARD, readToken, ensureHelpers, ensureDashboard, setInputNumberMax } from './ha-client.mjs';
+import { HAClient, HA_URL, TEST_DASHBOARD, readToken, ensureHelpers, ensureDashboard, setInputNumberMax, withNonAdminUser } from './ha-client.mjs';
 
 const TOKEN = readToken();
 /** The fixed LCARdS device id the tests' browser uses (see openDashboard). */
@@ -1561,6 +1561,36 @@ test('Layout studio: grid headers and toolbar sit outside the cells (reserved ed
     await removeStudio(page, dialogTag);
     await removeEditor(page);
     expect(errors).toEqual([]);
+});
+
+test('global storage is admin-only; a non-admin keeps their own user and device storage (D3a)', async () => {
+    const DEVICE = 'lcards-test-nonadmin-device';
+    await client.call({ type: 'lcards/storage/set', data: { lcards_test_admin_only: 'kept' } });
+    try {
+        await withNonAdminUser(client, async (user) => {
+            const refused = async (message) => {
+                await expect(user.call(message), JSON.stringify(message)).rejects.toThrow(/^unauthorized:/);
+            };
+            await refused({ type: 'lcards/storage/set', data: { lcards_test_admin_only: 'changed' } });
+            await refused({ type: 'lcards/storage/delete', key: 'lcards_test_admin_only' });
+            await refused({ type: 'lcards/storage/reset' });
+            await refused({ type: 'lcards/storage/dump' });
+            await refused({ type: 'lcards/storage/get' }); // the full store holds every user's settings
+            await refused({ type: 'lcards/storage/get', key: '_user_someone' });
+
+            // reading a global key, and the user's own and device scopes, still work
+            expect((await user.call({ type: 'lcards/storage/get', key: 'lcards_test_admin_only' })).value).toBe('kept');
+            await user.call({ type: 'lcards/storage/user/set', data: { lcards_test_pref: 1 } });
+            expect((await user.call({ type: 'lcards/storage/user/get', key: 'lcards_test_pref' })).value).toBe(1);
+            await user.call({ type: 'lcards/storage/user/delete', key: 'lcards_test_pref' });
+            await user.call({ type: 'lcards/storage/device/set', device_id: DEVICE, data: { display_name: 'LCARdS test (non-admin)' } });
+            expect((await user.call({ type: 'lcards/storage/device/get', device_id: DEVICE, key: 'display_name' })).value).toBe('LCARdS test (non-admin)');
+        });
+        expect((await client.call({ type: 'lcards/storage/get', key: 'lcards_test_admin_only' })).value).toBe('kept');
+    } finally {
+        await client.call({ type: 'lcards/storage/delete', key: 'lcards_test_admin_only' });
+        await client.call({ type: 'lcards/storage/devices/clear', device_id: DEVICE }).catch(() => {});
+    }
 });
 
 test('storage/delete_many removes the given keys with one call and leaves the rest', async () => {

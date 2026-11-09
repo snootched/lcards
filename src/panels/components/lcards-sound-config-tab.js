@@ -24,6 +24,7 @@ import './shared/lcards-scope-selector.js';
 import { surfaceStyles } from '../../editor/base/surface-styles.js';
 import { showConfirmDeleteDialog } from '../../views/layout-edit-dialogs.js';
 import { docsUrl, DOCS } from '../../utils/docs-url.js';
+import { canWriteGlobalStorage, GLOBAL_WRITE_REFUSED_MSG } from '../../core/services/storage-permissions.js';
 
 const CATEGORY_LABELS = {
   cards:  'Card Interactions',
@@ -75,6 +76,8 @@ export class LCARdSSoundConfigTab extends LitElement {
     _newSchemeName:     { type: String,   state: true },
     /** Validation/backend error from the last save attempt, if any */
     _saveSchemeError:   { type: String,   state: true },
+    /** Shown when saving/resetting global overrides or a custom scheme failed or was refused. */
+    _overridesError:    { type: String,   state: true },
     /** True while the "delete this custom scheme" inline confirm is open */
     /** True when the Per-Event Overrides table has staged (unsaved) edits —
      * global or the active custom scheme's own mapping, see _setOverride() */
@@ -113,6 +116,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     this._savingScheme    = false;
     this._newSchemeName   = '';
     this._saveSchemeError = null;
+    this._overridesError = null;
     this._overridesDirty = false;
   }
 
@@ -659,6 +663,16 @@ export class LCARdSSoundConfigTab extends LitElement {
     return this.hass?.user?.is_admin === true;
   }
 
+  /** True when this user may change the global override layer and custom schemes (admins only). */
+  _canEditGlobal() {
+    return canWriteGlobalStorage(this.hass);
+  }
+
+  /** Error text for a failed global write: the admin message when that is why it failed. */
+  _globalWriteError(fallback) {
+    return this._canEditGlobal() ? (fallback || 'Could not save.') : GLOBAL_WRITE_REFUSED_MSG;
+  }
+
   /** True when the user has opted into preview / experimental features. */
   _isPreviewEnabled() {
     return window.lcards?.core?.integrationService?.options?.enable_previews ?? false;
@@ -733,13 +747,17 @@ export class LCARdSSoundConfigTab extends LitElement {
       const result = await sm.updateCustomScheme(schemeValue, this._overrides);
       if (!result.ok) {
         lcardsLog.error('[SoundConfigTab] Failed to save custom scheme changes:', result.error);
+        this._overridesError = this._globalWriteError(result.error);
         this.requestUpdate();
         return;
       }
-    } else {
-      await sm.saveGlobalOverrides(this._overrides);
+    } else if (!(await sm.saveGlobalOverrides(this._overrides))) {
+      this._overridesError = this._globalWriteError('Could not save the overrides.');
+      this.requestUpdate();
+      return;
     }
 
+    this._overridesError = null;
     this._overridesDirty = false;
     this.requestUpdate();
   }
@@ -769,7 +787,14 @@ export class LCARdSSoundConfigTab extends LitElement {
   async _resetOverrides() {
     const sm = window.lcards?.core?.soundManager;
     if (!sm) return;
-    await sm.clearAllOverrides('global');
+    if (!(await sm.clearAllOverrides('global'))) {
+      this._overridesError = this._globalWriteError('Could not reset the overrides.');
+      await sm.refreshScopedCache();
+      this._overrides = sm.getOverrides('global');
+      this.requestUpdate();
+      return;
+    }
+    this._overridesError = null;
     this._overrides = sm.getOverrides('global');
     this._overridesDirty = false;
     this.requestUpdate();
@@ -828,7 +853,7 @@ export class LCARdSSoundConfigTab extends LitElement {
 
     const result = await sm.saveCustomScheme(this._newSchemeName, snapshot);
     if (!result.ok) {
-      this._saveSchemeError = result.error;
+      this._saveSchemeError = this._globalWriteError(result.error);
       this.requestUpdate();
       return;
     }
@@ -865,6 +890,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     const result = await sm.deleteCustomScheme(schemeName);
     if (!result.ok) {
       lcardsLog.error('[SoundConfigTab] Failed to delete custom scheme:', result.error);
+      this._overridesError = this._globalWriteError(result.error);
       this.requestUpdate();
       return;
     }
@@ -901,6 +927,7 @@ export class LCARdSSoundConfigTab extends LitElement {
     const schemeValue = this._getHelperValue('sound_scheme') || 'none';
     const volumeValue = parseFloat(this._getHelperValue('sound_volume') ?? 0.5);
 
+    const canEditGlobal = this._canEditGlobal();
     return html`
       <div class="studio-layout"><div class="scrollable-body">
 
@@ -926,12 +953,20 @@ export class LCARdSSoundConfigTab extends LitElement {
 
         <!-- ── GLOBAL SETTINGS GROUP ── -->
         <lcards-form-section
-          header="Global Settings"
+          header=${canEditGlobal ? 'Global Settings' : 'Shared Defaults'}
           icon="mdi:earth"
-          description="Default sound behaviour for all users and devices. Per-user / per-device overrides are in the section below. Note: Sound Categories are global-only."
+          description=${canEditGlobal
+            ? 'Default sound behaviour for all users and devices. Per-user / per-device overrides are in the section below. Note: Sound Categories are global-only.'
+            : 'The sound defaults every user and device starts from.'}
           ?expanded=${true}
           ?outlined=${true}>
           <div class="nested-sections">
+          ${canEditGlobal ? '' : html`
+            <lcards-message
+              type="info"
+              message="An administrator sets these defaults. To change sound for yourself or this device, use Per-User / Per-Device Overrides below."
+            ></lcards-message>
+          `}
 
         <!-- ── MASTER CONTROLS ── -->
         <lcards-form-section
@@ -947,7 +982,7 @@ export class LCARdSSoundConfigTab extends LitElement {
               .helper=${'Master on/off for all LCARdS sounds'}
               .selector=${{ boolean: {} }}
               .value=${masterEnabled}
-              ?disabled=${!this._helperExists('sound_enabled')}
+              ?disabled=${!this._helperExists('sound_enabled') || !canEditGlobal}
               @value-changed=${(e) => { e.stopPropagation(); this._setHelperValue('sound_enabled', e.detail.value); }}
             ></ha-selector>
           </div>
@@ -959,7 +994,7 @@ export class LCARdSSoundConfigTab extends LitElement {
               .helper=${'Master volume for all sound effects'}
               .selector=${{ number: { min: 0, max: 1, step: 0.05, mode: 'slider' } }}
               .value=${volumeValue}
-              ?disabled=${!this._helperExists('sound_volume') || !masterEnabled}
+              ?disabled=${!this._helperExists('sound_volume') || !masterEnabled || !canEditGlobal}
               @value-changed=${(e) => this._setHelperValue('sound_volume', e.detail.value)}
             ></ha-selector>
           </div>
@@ -985,7 +1020,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                 .helper=${cat.hint}
                 .selector=${{ boolean: {} }}
                 .value=${this._getHelperValue(cat.key) !== 'off' && this._getHelperValue(cat.key) !== false}
-                ?disabled=${!this._helperExists(cat.key) || !masterEnabled}
+                ?disabled=${!this._helperExists(cat.key) || !masterEnabled || !canEditGlobal}
                 @value-changed=${(e) => { e.stopPropagation(); this._setHelperValue(cat.key, e.detail.value); }}
               ></ha-selector>
             </div>
@@ -1021,7 +1056,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                   mode: 'dropdown'
                 }}}
                 .value=${schemeValue}
-                ?disabled=${!this._helperExists('sound_scheme') || !masterEnabled}
+                ?disabled=${!this._helperExists('sound_scheme') || !masterEnabled || !canEditGlobal}
                 @value-changed=${(e) => this._selectScheme(e.detail.value)}
               ></ha-selector>
               ${schemeValue !== 'none' ? html`
@@ -1033,7 +1068,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                   Preview
                 </ha-button>
               ` : ''}
-              ${window.lcards?.core?.soundManager?.isCustomScheme(schemeValue) ? html`
+              ${this._canEditGlobal() && window.lcards?.core?.soundManager?.isCustomScheme(schemeValue) ? html`
                 <ha-button
                   @click=${this._askDeleteScheme}
                   variant="danger"
@@ -1066,15 +1101,25 @@ export class LCARdSSoundConfigTab extends LitElement {
               ` : ''}
 
               ${this._eventTypes.length > 0 ? html`
-                <lcards-message
-                  type="info"
-                  message="Overrides are stored in LCARdS Integration persistent storage.  See Storage tab for details."
-                ></lcards-message>
+                ${this._canEditGlobal() ? html`
+                  <lcards-message
+                    type="info"
+                    message="Overrides are stored in LCARdS Integration persistent storage.  See Storage tab for details."
+                  ></lcards-message>
+                ` : html`
+                  <lcards-message
+                    type="info"
+                    message="Only an administrator can change these overrides and custom schemes. Set your own sounds under Per-User / Per-Device Overrides below."
+                  ></lcards-message>
+                `}
+                ${this._overridesError ? html`
+                  <lcards-message type="error" .message=${this._overridesError}></lcards-message>
+                ` : ''}
 
                 <!-- ── One dynamic action area — save-scheme form, reset confirm, or the
                      steady-state action row are mutually exclusive, so they share a single slot
                      instead of stacking as separate banners. ── -->
-                ${this._savingScheme ? html`
+                ${!this._canEditGlobal() ? '' : this._savingScheme ? html`
                   <div class="banner info save-scheme-banner">
                     <div class="save-scheme-header">
                       <ha-icon icon="mdi:content-save-plus"></ha-icon>
@@ -1156,7 +1201,7 @@ export class LCARdSSoundConfigTab extends LitElement {
                                 .schemeLabel=${window.lcards?.core?.soundManager?.isCustomScheme(schemeValue)
                                   ? '(Not set in this scheme: silent)'
                                   : '(Use scheme default)'}
-                                ?disabled=${!masterEnabled}
+                                ?disabled=${!masterEnabled || !this._canEditGlobal()}
                                 @value-changed=${(e) => this._setOverride(evt.key, e.detail.value)}
                               ></lcards-sound-source-selector>
                             </td>
