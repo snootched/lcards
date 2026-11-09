@@ -454,3 +454,7 @@ doc/public/schema/
 doc/public/tools/
 # Claude Code marketplace for the docs channel, built by scripts/build-user-skill.js
 doc/public/marketplace.json
+
+# Local working folders: plans, handoffs, audits, scratch output (never committed)
+/reports/
+/tmp/
