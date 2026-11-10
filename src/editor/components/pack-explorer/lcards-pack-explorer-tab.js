@@ -20,6 +20,11 @@ import {
   rendererStyles
 } from '../../dialogs/pack-explorer/renderers/asset-renderers.js';
 import { CANVAS_TEXTURE_PRESETS } from '../../../core/packs/textures/presets/index.js';
+import { listAnimationPresetInfo } from '../../../core/animation/presets.js';
+import {
+  ANIMATION_PRESET_PARAMS_SCHEMAS,
+  _CANONICAL_REDECLARED
+} from '../../../cards/schemas/animation-preset-params-schemas.js';
 import { surfaceStyles } from '../../base/surface-styles.js';
 import '../shared/lcards-form-section.js';
 
@@ -594,9 +599,9 @@ export class LCARdSPackExplorerTab extends LitElement {
         packNode.children.push(componentsNode);
       }
 
-      // Add animations category (from AnimationRegistry)
-      const animations = core.animationRegistry?.getAnimationsWithMetadata() || [];
-      const animsForPack = animations.filter(a => a.pack === pack.id);
+      // Add animations category: the registered animation presets (core/animation/presets.js),
+      // grouped by category; the built-ins belong to the core pack
+      const animsForPack = this._getAnimationPresetsForPack(pack.id);
       if (animsForPack.length > 0) {
         const animationsNode = {
           id: `${packNode.id}_animations`,
@@ -607,13 +612,28 @@ export class LCARdSPackExplorerTab extends LitElement {
           children: /** @type {any[]} */ ([])
         };
 
-        animsForPack.forEach(anim => {
+        /** @type {Map<string, any[]>} */
+        const byCategory = new Map();
+        animsForPack.forEach(info => {
+          const category = info.category || 'other';
+          if (!byCategory.has(category)) byCategory.set(category, []);
+          /** @type {any[]} */ (byCategory.get(category)).push(info);
+        });
+
+        byCategory.forEach((infos, category) => {
           animationsNode.children.push({
-            id: `animation_${anim.id}`,
-            type: 'animation',
-            label: anim.name,
+            id: `${packNode.id}_animations_${category}`,
+            type: 'preset-type',
+            label: `${category} (${infos.length})`,
             icon: 'mdi:animation-play',
-            data: anim
+            data: { presetType: category, packId: pack.id },
+            children: infos.map(info => ({
+              id: `animation_${pack.id}_${info.name}`,
+              type: 'animation',
+              label: info.name,
+              icon: 'mdi:animation-play',
+              data: info
+            }))
           });
         });
 
@@ -1038,12 +1058,46 @@ export class LCARdSPackExplorerTab extends LitElement {
   }
 
   /**
-   * Get animation count for a pack from AnimationRegistry.
+   * Registered animation presets of a pack (the built-ins are the core pack's).
+   * @param {string} packId
+   * @returns {import('../../../core/animation/presets.js').AnimationPresetInfo[]}
+   * @private
+   */
+  _getAnimationPresetsForPack(packId) {
+    return listAnimationPresetInfo().filter(info => (info.pack || 'core') === packId);
+  }
+
+  /**
+   * Get animation preset count for a pack.
    * @private
    */
   _getAnimationCountForPack(packId) {
-    const animations = window.lcards?.core?.animationRegistry?.getAnimationsWithMetadata() || [];
-    return animations.filter(a => a.pack === packId).length;
+    return this._getAnimationPresetsForPack(packId).length;
+  }
+
+  /**
+   * One preset param for the detail view: its type, default and description.
+   * The duration/ease/loop/alternate/delay keys every preset also accepts are left out
+   * unless the preset gives them its own meaning.
+   * @param {any} paramsSchema - The preset's params schema
+   * @returns {{key: string, type: string, def: any, description: string}[]}
+   * @private
+   */
+  _animationPresetParams(paramsSchema) {
+    const props = paramsSchema?.properties || {};
+    /** @type {Record<string, any>} */
+    const canonical = _CANONICAL_REDECLARED;
+    return Object.entries(props)
+      .filter(([key, prop]) => canonical[key] !== prop)
+      .map(([key, prop]) => {
+        const types = prop.type ?? prop.oneOf?.map(o => o.type).filter(Boolean) ?? (prop.enum ? 'enum' : '');
+        return {
+          key,
+          type: Array.isArray(types) ? [...new Set(types.flat())].join(' / ') : String(types || ''),
+          def: prop.default,
+          description: prop.description || ''
+        };
+      });
   }
 
   /**
@@ -1311,54 +1365,64 @@ export class LCARdSPackExplorerTab extends LitElement {
     `;
   }
 
-  _renderAnimationDetail(animation) {
+  /**
+   * Detail view of an animation preset (read-only): origin, description and params.
+   * @param {import('../../../core/animation/presets.js').AnimationPresetInfo} preset
+   * @private
+   */
+  _renderAnimationDetail(preset) {
+    /** @type {Record<string, any>} */
+    const schemas = ANIMATION_PRESET_PARAMS_SCHEMAS;
+    const paramsSchema = schemas[preset.name];
+    const params = this._animationPresetParams(paramsSchema);
     return html`
       <lcards-form-section header="Details" icon="mdi:information-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
         <div class="detail-grid">
           <div class="detail-item">
             <span class="detail-label">Name</span>
-            <span class="detail-value">${animation.name}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">ID</span>
-            <span class="detail-value">${animation.id}</span>
+            <span class="detail-value">${preset.name}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Pack</span>
-            <span class="detail-value">${animation.pack || 'core'}</span>
+            <span class="detail-value">${preset.pack || 'core'}</span>
           </div>
-          ${animation.preset ? html`
+          ${preset.category ? html`
             <div class="detail-item">
-              <span class="detail-label">Preset</span>
-              <span class="detail-value">${animation.preset}</span>
+              <span class="detail-label">Category</span>
+              <span class="detail-value">${preset.category}</span>
             </div>
           ` : ''}
-          ${animation.duration ? html`
+          ${paramsSchema?.description ? html`
             <div class="detail-item">
-              <span class="detail-label">Duration</span>
-              <span class="detail-value">${animation.duration}ms</span>
-            </div>
-          ` : ''}
-          ${animation.ease ? html`
-            <div class="detail-item">
-              <span class="detail-label">Ease</span>
-              <span class="detail-value">${animation.ease}</span>
-            </div>
-          ` : ''}
-          ${animation.loop !== undefined ? html`
-            <div class="detail-item">
-              <span class="detail-label">Loop</span>
-              <span class="detail-value">${animation.loop ? 'Yes' : 'No'}</span>
+              <span class="detail-label">Description</span>
+              <span class="detail-value">${paramsSchema.description}</span>
             </div>
           ` : ''}
         </div>
       </lcards-form-section>
 
-      ${animation.description ? html`
-        <lcards-form-section header="Description" icon="mdi:text" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
-          <p>${animation.description}</p>
+      ${params.length ? html`
+        <lcards-form-section header="Params" icon="mdi:tune-variant" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
+          <div class="detail-grid">
+            ${params.map(p => html`
+              <div class="detail-item">
+                <span class="detail-label">${p.key}</span>
+                <span class="detail-value">
+                  ${p.description}
+                  ${p.type || p.def !== undefined ? html`<br><span class="detail-label">${[
+                    p.type,
+                    p.def !== undefined ? `default ${JSON.stringify(p.def)}` : ''
+                  ].filter(Boolean).join(' · ')}</span>` : ''}
+                </span>
+              </div>
+            `)}
+          </div>
         </lcards-form-section>
       ` : ''}
+
+      <lcards-form-section header="Usage" icon="mdi:code-braces" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
+        ${this._renderCode(`animations:\n  - trigger: on_tap\n    preset: ${preset.name}`)}
+      </lcards-form-section>
     `;
   }
 

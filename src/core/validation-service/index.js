@@ -200,7 +200,6 @@ export class CoreValidationService {
   constructor(config = {}) {
     // Configuration
     this.config = {
-      strict: false,              // Treat warnings as errors
       validateEntities: true,     // Check entity existence in HASS
       cacheResults: true,         // Cache validation results
       debug: false,               // Enable debug logging
@@ -262,7 +261,7 @@ export class CoreValidationService {
    * Validate an object against a schema
    * @param {Object} data - Data to validate
    * @param {string|Object} schema - Schema name or schema object
-   * @param {Object} context - Validation context
+   * @param {Object<string, any>} [context] - Validation context (also part of the cache key)
    * @returns {Object} Validation result
    */
   validate(data, schema, context = {}) {
@@ -311,9 +310,8 @@ export class CoreValidationService {
         this._validateEntities(data, result, context);
       }
 
-      // Determine final validity
-      result.valid = result.errors.length === 0 &&
-                     (!this.config.strict || result.warnings.length === 0);
+      // Determine final validity (warnings never make a result invalid)
+      result.valid = result.errors.length === 0;
 
       // Update statistics
       if (!result.valid) this.stats.errorsFound++;

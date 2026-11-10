@@ -31,9 +31,9 @@ const RULES_DOCS_URL = docsUrl(DOCS.rules);
 /** Sortable table columns: [key, heading] (null key: not sortable). */
 /** What a pending rule waits for, shown in its Status cell. */
 const PENDING = {
-    new: 'New: refresh if it has no effect',
-    changed: 'Changed: refresh to apply',
-    removed: 'Removed: refresh to apply',
+    new: 'New: applies when you save',
+    changed: 'Changed: applies when you save',
+    removed: 'Removed: applies when you save',
 };
 
 /** Same rule content, ignoring the engine's `_` keys and key order. */
@@ -308,9 +308,10 @@ export class LCARdSRulesDashboard extends LitElement {
 
     /**
      * The rules to list: the engine's, with this card's own rules taken from its
-     * config. The engine loads a card's rules once per page load (and skips IDs it
-     * already has), so an edited or removed rule stays live until a refresh: those
-     * rows carry `_pending`.
+     * config. Until the card is saved the engine can still run the saved version of
+     * an edited or removed rule (the dashboard card keeps its saved config; the
+     * preview's version replaces it once the preview updates): those rows carry
+     * `_pending`.
      * @returns {Array<Object>}
      * @private
      */
@@ -416,7 +417,7 @@ export class LCARdSRulesDashboard extends LitElement {
     async _handleDeleteRule(rule) {
         const confirmed = await showConfirmDeleteDialog({
             title: `Delete ${rule.id}?`,
-            message: "It's removed from this card's config. Cards keep its effect until the page is refreshed.",
+            message: "It's removed from this card's config. Cards keep its effect until you save the card.",
         });
         if (!confirmed) return;
         const currentRules = this.editor?.config?.rules || [];
@@ -935,7 +936,7 @@ export class LCARdSRulesDashboard extends LitElement {
 
                 <div class="banner info refresh-notice">
                     <ha-icon icon="mdi:information-outline"></ha-icon>
-                    New rules apply right away. Changes to an existing rule, or removing one, apply after a page refresh.
+                    Rule changes show in the preview straight away and on the dashboard when you save the card.
                 </div>
 
                 <lcards-form-section

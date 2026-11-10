@@ -11,8 +11,8 @@ applyTo: "src/core/data-sources/**, src/cards/**"
 A DataSource wraps a single HA entity subscription with optional:
 - **History** — a rolling window of past values
 - **Processing** — named processor pipeline (`smooth`, `scale`, `convert_unit`, `threshold`, etc. — see `processing:` below; the older `transformations`/`aggregations` config keys are rejected at runtime)
-- **Polling interval** — override the default HA push update rate
-- **Coalescing** — debounce rapid updates before notifying subscribers
+- **Emit throttle**: `min_emit_ms` / `coalesce_ms` / `max_delay_ms` / `emit_on_same_value` shape when subscribers are called (leading emit after a quiet spell, one trailing emit with the latest value for a burst); the buffer and processors still record every value
+- **Periodic refresh**: `periodic_update_interval` re-emits the last value for `duration` processors
 
 DataSources are identified by a string `name` that is unique within the `DataSourceManager`. Multiple cards can share the same DataSource — the manager deduplicates by name.
 
@@ -27,11 +27,12 @@ type: custom:lcards-chart
 data_sources:
   cpu_temp:
     entity: sensor.cpu_temperature
-    periodic_update_interval: 5000   # ms between periodic polls (default 1000)
+    periodic_update_interval: 5000   # ms between re-emits, only with a duration processor (default 1000)
     history: { enabled: true, hours: 6 }  # rolling history preload window
-    windowSeconds: 3600               # in-memory buffer window (camelCase)
-    minEmitMs: 250                    # minimum ms between subscriber calls
-    coalesceMs: 120                   # debounce window
+    window_seconds: 3600              # in-memory buffer window
+    min_emit_ms: 250                  # minimum ms between subscriber calls (default 100)
+    coalesce_ms: 120                  # wait after the last change of a burst (default 40% of min_emit_ms)
+    max_delay_ms: 500                 # longest a change waits for its emit (default 3 x coalesce_ms)
     processing:
       smoothed:
         type: smooth
@@ -45,6 +46,10 @@ data_sources:
 `transformations:`/`aggregations:` (the old config format) are rejected at construction time — `DataSource.js` throws if either key is present, with an error message pointing at the replacement `processing:` field shown above.
 
 The `name` key (`cpu_temp`, `power_usage`) is the ID you use in templates and subscriptions.
+
+Timing keys are snake_case. The camelCase spellings (`windowSeconds`, `minEmitMs`, `sampleMs`, `coalesceMs`, `maxDelayMs`, `emitOnSameValue`) are still read for old configs but deprecated; never write them in new code, docs or examples.
+
+The throttle lives in `DataSource._queueEmit()` / `_flushEmit()`. Subscriber callbacks can be fewer than state changes: when every point matters, read `data.buffer` or a processor buffer instead of counting callbacks. Initial emission, `subscribe()` hydration and periodic updates are not throttled.
 
 ---
 
@@ -95,6 +100,8 @@ const source = await dsManager.createDataSource(
 
 `createDataSource()` is idempotent — if the name already exists it returns the existing source and adds `cardId` to its dependency set.
 
+When the last card leaves a source (`removeCardFromSource()`, called by `LCARdSCard._onDisconnected()`), the manager stops and removes it after `SOURCE_RELEASE_DELAY_MS` (30 s) unless a card asks for the name again first, the name was ever requested without a `cardId` (MSD/config sources are never released), or something else still subscribes to it. So: always unsubscribe what you subscribe, and pass a `cardId` only for sources a card owns.
+
 ---
 
 ## Using DataSources in Templates
@@ -115,17 +122,23 @@ The evaluator resolves these synchronously via `dataSource.getCurrentData()`. If
 ## DataSource Data Shape
 
 ```javascript
-// data emitted to subscribers (getCurrentData() returns the same shape)
+// data emitted to subscribers (_buildEmitData)
 {
-  t: 1713340800000,   // timestamp ms since epoch
-  v: 42.7,             // current value (number, string, or object depending on entity)
-  buffer: RollingBuffer, // rolling history buffer instance — not a plain array; use its methods, e.g. buffer.last()
-  stats: { ... },       // internal counters, incl. historyLoaded
+  t: 1713340800000,   // timestamp ms since epoch (arrival time)
+  v: 42.7,             // current value, always a number (non-numeric states are skipped or enum_mapping'd)
+  buffer: RollingBuffer, // rolling history buffer instance, not a plain array; use its methods, e.g. buffer.last()
+  stats: { ... },       // counters: received, invalid, updates, emits, coalesced, skipsSameValue, historyLoaded, ...
   processing: { ... },  // named processor outputs, keyed by processor name from `processing:` config
   entity: 'sensor.cpu_temperature',
   unit_of_measurement: '°C',
   historyReady: true    // true once history preload has loaded at least one point
 }
+// initial emission adds isInitialEmission: true; periodic updates add isPeriodicUpdate: true
+```
+
+`getCurrentData()` returns `t`, `v`, `buffer`, `stats`, `processing`, `entity`, `historyReady` plus `metadata` (copy of the entity metadata: `unit_of_measurement`, `device_class`, `friendly_name`, ...), `bufferSize` and `started`. It has **no** top-level `unit_of_measurement`: read `getCurrentData().metadata.unit_of_measurement` (or `source.getMetadata()`).
+
+```javascript
 ```
 
 ---

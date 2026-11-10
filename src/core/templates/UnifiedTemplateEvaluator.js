@@ -55,6 +55,10 @@ export class UnifiedTemplateEvaluator {
     // Create DataSource template evaluator (handles {datasource} templates)
     this.dataSourceEvaluator = new DataSourceTemplateEvaluator(this.dataSourceManager);
 
+    // A legacy {source} reference is not a token: the token phase leaves it for the
+    // data source phase (it used to empty it whenever a real token shared the text)
+    this.lcardsCardEvaluator.deferToken = (token) => this._isLegacyDataSourceRef(token);
+
     lcardsLog.debug('[UnifiedTemplateEvaluator] Created', {
       hasHass: !!this.hass,
       hasContext: !!this.context,
@@ -171,6 +175,23 @@ export class UnifiedTemplateEvaluator {
   }
 
   /**
+   * Whether a `{token}` is a legacy `{source[.path][:format]}` data source reference:
+   * its first segment is not a context key (entity, config, variables, ... win on a
+   * name clash) and the data source phase resolves it.
+   *
+   * @private
+   * @param {string} token - Token text inside the braces
+   * @returns {boolean}
+   */
+  _isLegacyDataSourceRef(token) {
+    if (!this.dataSourceManager || !token || token.startsWith('theme:')) return false;
+    const root = token.split(/[.:]/)[0].trim();
+    const context = this.lcardsCardEvaluator.getContext() || {};
+    if (!root || root in context) return false;
+    return this.dataSourceEvaluator.canResolve(token);
+  }
+
+  /**
    * Synchronous evaluation (JavaScript + Tokens + Datasources only)
    *
    * Use this when you need immediate results without Jinja2 support
@@ -220,8 +241,8 @@ export class UnifiedTemplateEvaluator {
    * @param {Object} newContext - New context object
    */
   updateContext(newContext) {
-    this.context = newContext;
     this.lcardsCardEvaluator.updateContext(newContext);
+    this.context = this.lcardsCardEvaluator.getContext();
   }
 
   /**
@@ -232,6 +253,7 @@ export class UnifiedTemplateEvaluator {
   updateHass(newHass) {
     this.hass = newHass;
     this.lcardsCardEvaluator.updateHass(newHass);
+    this.context = this.lcardsCardEvaluator.getContext();
   }
 
   /**

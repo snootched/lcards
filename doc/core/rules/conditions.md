@@ -22,7 +22,7 @@ moved_anchors:
 
 **A rule's `when` block is its condition: while it is true the rule's `apply` block holds, and when it turns false the patch comes off.** It can test an entity, the time, the sun, a template, or several of these combined. The rest of a rule is on the [Rules Engine](./) page.
 
-- A rule is checked again when an entity it names changes: the `entity` of a condition, or an entity a template reads. A rule that names no entity (only the time, say) is checked when the page loads; add `entity: sensor.time` to check it every minute (see [time_between](#time-between)).
+- A rule is checked again when an entity it names changes: the `entity` of a condition, or an entity a template reads. A rule with a `time_between`, `weekday_in` or `random_chance` condition is also checked at the start of every minute.
 - The examples on this page each hold one rule on one button. Use the controls under a card to change the entity and watch the rule match.
 
 ## All conditions at a glance
@@ -47,7 +47,7 @@ moved_anchors:
 **`entity` tests an entity's state: on its own, or with a comparison such as `state: "on"` or `above: 25`.** This is the condition most rules use.
 
 - `state` means exactly the same as `equals`. Quote `"on"` and `"off"`, or YAML may read them as true and false.
-- With no comparison at all, the condition is true while the entity has a state; `entity: sensor.time` in an `all` list uses this to re-check a rule every minute.
+- With no comparison at all, the condition is true while the entity has a state.
 
 ```yaml live controls
 type: custom:lcards-button
@@ -268,7 +268,7 @@ rules:
 
 **`time_between` is true inside a time window each day, such as `"22:00-06:00"` for the night.** A window that ends before it starts runs past midnight.
 
-- The rule is only checked when an entity it names changes. Add `entity: sensor.time` to an `all` list with it (with no comparison, it is true while the sensor has a state), and the rule is checked every minute. `sensor.time` comes from Home Assistant's Time & Date integration; without it, that condition is false.
+- The rule is checked at the start of every minute, so it turns on and off on time with no entity to watch.
 
 ```yaml live
 type: custom:lcards-button
@@ -281,10 +281,7 @@ text:
 rules:
   - id: docs-cond-time
     when:
-      all:
-        # checked again every minute
-        - entity: sensor.time
-        - time_between: "08:00-20:00"
+      time_between: "08:00-20:00"
     apply:
       overlays:
         docs-cond-time-btn:
@@ -307,7 +304,7 @@ rules:
 
 **`weekday_in` is true on the days you list, such as weekdays only.** Pair it with `time_between` in an `all` list for "weekday mornings".
 
-- Like `time_between`, it names no entity, so add `entity: sensor.time` to an `all` list with it to have the rule checked as the day changes.
+- Like `time_between`, the rule is checked at the start of every minute, so it follows the day as it changes.
 
 ```yaml live
 type: custom:lcards-button
@@ -375,7 +372,7 @@ rules:
 **`random_chance` is true with the probability you give, drawn again each time the rule is checked.** Use it for alerts or accents that come and go at random.
 
 - `0.25` is true about one time in four; `0` is never and `1` is always.
-- The rule is only checked when an entity it names changes, so pair it with one that changes often (`sensor.time`, every minute) in an `all` list to get a new draw each time.
+- The rule is checked at the start of every minute (and when an entity it names changes), and each check is a new draw.
 
 ```yaml live
 type: custom:lcards-button
@@ -388,9 +385,7 @@ text:
 rules:
   - id: docs-cond-chance
     when:
-      all:
-        - entity: sensor.time
-        - random_chance: 0.5
+      random_chance: 0.5
     apply:
       overlays:
         docs-cond-chance-btn:
@@ -500,10 +495,9 @@ rules:
 | Access to Home Assistant functions | No (use `states` directly) | Yes (`is_state`, `state_attr`, filters ...) |
 | Best for | Fast logic, math, multi-entity | Home Assistant native functions, formatted values |
 
-## Invalid and reserved conditions
+## Invalid conditions
 
 **A condition LCARdS does not recognise never matches, so a typo turns the rule off rather than on everywhere.**
 
 - **Unknown key** (a typo such as `entitty:`): the condition never matches.
 - **Plain-string `condition:`** (no `[[[ ]]]` or `{{ }}`, such as `condition: light.desk is on`): a warning is logged in the browser console and the condition never matches. Wrap it as JavaScript or Jinja2 instead.
-- **`flag`** and **`perf_metric`** are reserved for development tooling. Nothing provides their values today, so they never match (a `flag` with `is: false` always matches). Don't use them in dashboards.

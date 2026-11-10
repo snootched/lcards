@@ -1,91 +1,125 @@
 # Component Manager
 
-> **`window.lcards.core.componentManager`**: Registry of SVG component definitions for button component mode.
+> **`window.lcards.core.componentManager`**: registry of structural component definitions for the button (component mode), slider and elbow cards.
 
 ---
 
 ## Overview
 
-`ComponentManager` holds named component definitions loaded from packs. Components are structured SVG objects where each named segment can receive independent style, action, and text config. Cards in **component mode** query the registry at render time rather than importing SVG data directly.
+`ComponentManager` (`src/core/components/ComponentManager.js`) holds named component definitions: SVG shells with named segments for button component mode, render functions for slider components, and path generators for elbow types. Cards look components up by name at render time instead of importing the data files. It is a plain class (it does not extend `BaseService`); `LCARdSCore` creates it and also exposes it through `core.getComponentManager()`.
 
 ---
 
-## File
+## Loading
 
-`src/core/components/ComponentManager.js`
+Components reach the registry twice:
+
+1. **Bootstrap.** `LCARdSCore._performInitialization()` calls `componentManager.initialize()` before `PackManager` runs. `initialize()` imports `src/core/packs/components/index.js` and calls `registerComponent(name, def)` for every entry of its `components` object, which spreads `dpadComponents`, `dpadVoyagerComponents`, `sliderComponents`, `elbowComponents`, `alertComponents`, `bracketsComponents` and `radarComponents`. This is where every built-in component comes from.
+2. **Packs.** `PackManager.registerPack()` passes any pack with a `components` key to `registerComponentsFromPack(pack)`, which re-registers each entry as `{ ...def, pack: pack.id }`. Among the built-in packs only `lcards_elbows` has `components` (it re-exports `elbowComponents`), so for elbows this only adds the `pack` field; it is also the path a new pack's components take.
+
+```mermaid
+flowchart LR
+    IDX["packs/components/index.js<br/>components"] -->|"initialize()"| RC["registerComponent(name, def)"]
+    EP["lcards_elbows pack<br/>components: elbowComponents"] --> PM["PackManager.registerPack()"]
+    PM -->|"registerComponentsFromPack(pack)"| RC
+    RC --> MAP["components: Map name to def"]
+    RC --> TYPES["componentsByType: Map type to Map name to def"]
+```
+
+`registerComponent()` files each definition under `metadata.type` (`_inferComponentType()`); a definition without one is filed under `'unknown'` with a warning. Registering a name again replaces the entry; when its type changed it moves to the new type's group, and a group left empty is dropped, so a name is only ever listed under one type.
+
+`src/core/packs/components/buttons/index.js` (`BUTTON_COMPONENTS`) is not in the index and is not registered.
 
 ---
 
 ## Built-in Components
 
-| Component ID | Description |
-|---|---|
-| `dpad` | D-pad directional control (9 segments: up/down/left/right, 4 diagonal corners, center) |
-| `dpad_voyager` | Alternate D-pad visual variant |
-| `alert` | Alert shield shape (2 segments: shape, bars) |
-| `header-left` / `header-right` / `footer-left` / `footer-right` / `header-contained` / `footer-contained` | Elbow shape variants (distributed via `lcards_elbows` pack; no `elbow_` prefix on the IDs) |
+From `src/core/packs/components/index.js`, grouped by `metadata.type`:
+
+| Type | Component names | Used by | Source |
+|---|---|---|---|
+| `dpad` | `dpad` | Button (`component: dpad`) | `components/dpad/index.js` |
+| `dpad_voyager` | `dpad_voyager` | Button | `components/dpad_voyager/index.js` |
+| `alert` | `alert` | Button (and the alert overlay) | `components/alert/index.js` |
+| `brackets` | `brackets` | Button | `components/brackets/index.js` |
+| `radar` | `radar` | Button | `components/radar/index.js` |
+| `slider` | `default`, `picard`, `demo`, `shaped`, `ring` | Slider (`component:`) | `components/sliders/index.js` |
+| `elbow` | `header-left`, `header-right`, `footer-left`, `footer-right`, `header-contained`, `footer-contained`, `header-open`, `footer-open`, `diagonal-cap-left`, `diagonal-cap-right`, `diagonal-cap-footer-left`, `diagonal-cap-footer-right`, `bar-slant-left`, `bar-slant-right`, `bar-parallelogram`, `frame` | Elbow (`elbow.type`) | `components/elbows/index.js` |
+
+`window.lcards.core.componentManager.getAllComponentNames()` is the authoritative list at runtime.
 
 ---
 
-## Component Definition Structure
+## Component Definition Shapes
+
+All definitions carry `metadata` with at least `type`. The rest depends on the card that renders them.
+
+**Button components** (`dpad`, `dpad_voyager`, `alert`, `brackets`, `radar`): an SVG shell with named segments. Example (`dpad`, abbreviated):
 
 ```javascript
 {
-  // Inline SVG markup (viewBox and all segment <path> elements live inside this string)
-  svg: `<svg viewBox="0 0 80 80">...<path id="up" d="M..."/>...</svg>`,
-
+  // Inline SVG; each segment is an element with a matching id
+  svg: dpadSvg,
   orientation: 'square',
   features: ['multi-segment', 'state-based-styling', 'zones', 'text-overlay'],
 
-  // Named rectangular regions in viewBox coordinate space - used for text overlay placement
+  // Named rectangles in viewBox units, for text placement
   zones: {
     up: { x: 34, y: 0.5, width: 12, height: 9.5 },
-    // ... down / left / right / center / up_left / up_right / down_left / down_right
+    // ... down, left, right, center and the four diagonals
   },
 
-  // Default per-segment styling (theme-token references, not literal colors)
+  // Default per-segment style (theme tokens, not literal colours)
   segments: {
     up: {
       style: {
         fill: 'theme:components.dpad.segment.directional.fill',
         stroke: 'theme:components.dpad.segment.directional.stroke',
-        'stroke-width': 'theme:components.dpad.segment.directional.stroke-width',
+        'stroke-width': 'theme:components.dpad.segment.directional.stroke-width'
       }
-    },
-    // ... down / left / right / up-left / up-right / down-left / down-right / center
+    }
+    // ...
   },
 
+  // Named presets the card can pick (config `preset:`); alert has
+  // default and condition_red / _blue / _yellow / _green / _gray / _black
   presets: { default: {} },
   validatePreset(presetName) { return presetName in this.presets; },
   getPresetNames() { return Object.keys(this.presets); },
 
   metadata: {
-    type: 'dpad',           // Required - used by ComponentManager for getComponentsByType()
-    card_type: 'button',    // Which card editor this component is valid for
+    type: 'dpad',          // required: the getComponentsByType() group
+    card_type: 'button',   // which card editor offers it
     pack: 'lcards_buttons',
     id: 'dpad',
     name: 'D-Pad Control',
     description: 'Interactive directional control with 9 segments',
-    version: '1.0.0',
+    version: '1.0.0'
   }
 }
 ```
 
-Per-segment actions (`tap_action`, etc.) are not part of the component definition; they're supplied by the card config (e.g. `dpad.segments.up.tap_action`) and merged on top of these defaults at render time.
+`alert` also has `text` and `animations`; `brackets` and `radar` have no `validatePreset` / `getPresetNames` helpers (the button card checks `presets` itself).
+
+**Slider components**: `{ render(context), calculateZones(...), metadata }`. `metadata` carries `orientation`, `supportsOrientation`, `defaultOrientation`, `features` and either `configSchema` or `textZones`; there is no `card_type`. The slider calls `render()` to build its SVG (`src/cards/lcards-slider.js`, `getComponent(componentName)`).
+
+**Elbow components**: `{ orientation, features, layout: { position, side }, pathGenerator(config), metadata }`. `pathGenerator()` receives `{ geometry, container }` and returns an SVG path string (`src/core/packs/components/elbows/index.js`); the elbow card reads them through `_getElbowComponent(type)` (`src/cards/lcards-elbow.js`).
 
 ---
 
-## Pack Registration
+## How Cards Use Components
 
-```javascript
-// Inside a pack:
-export const ELBOW_PACK = {
-  components: {
-    'header-left': { ... },
-    'footer-right': { ... },
-  }
-};
-```
+**Button component mode** (`component: dpad` and so on):
+
+1. `CoreConfigManager._getComponentDefaults()` adds `{ [component]: { segments: componentPreset.segments } }` as the component layer of the config merge (behavioral, theme, preset, component, user). It reads the definition with `getComponent()` from `src/core/packs/components/index.js` directly, not from the manager.
+2. `LCARdSButton._processComponentPresetFromMergedConfig(componentName)` (`src/cards/lcards-button.js`) gets the definition from `core.getComponentManager().getComponent(componentName)`, picks the preset (range-driven preset, then `config.preset`, then `default`; user `custom_presets` under the component key are deep-merged over the built-in ones without mutating the registry), and builds the segment SVG with per-segment style, text and actions from config merged over the definition's defaults.
+3. Component animations (`componentDef.animations`) are registered after the DOM is rendered, with the SVG container as scope.
+
+Per-segment actions (`tap_action` and so on) are never part of a definition; they come from the card config (for example `dpad.segments.up.tap_action`).
+
+**Slider**: `getComponent(name)` for rendering; `getComponentsByType('slider')` for the list of choices. **Elbow**: `getComponent(type)` for the path generator and layout. **Editors**: the slider editor reads `getComponentMetadata()`, the elbow editor `getComponent()`, the Pack Explorer `getAllComponentNames()`.
+
+User-facing docs: [Button: Components](../../cards/button/components.md).
 
 ---
 
@@ -93,36 +127,27 @@ export const ELBOW_PACK = {
 
 | Method | Returns | Description |
 |---|---|---|
-| `getComponent(name)` | `Object\|undefined` | Full component definition by name |
-| `getComponentMetadata(name)` | `Object\|null` | Just the `metadata` block (or a minimal fallback for legacy components without one) |
-| `hasComponent(name)` | `boolean` | True if a component with this name is registered |
-| `getAllComponentNames()` | `string[]` | All registered component names |
-| `getComponentsByType(type)` | `string[]` | Names of all components matching a type string: **names only**, not full definitions |
-| `getComponentTypes()` | `string[]` | All distinct type strings in use |
-| `registerComponentsFromPack(pack)` | `void` | Bulk-register `pack.components`, tagging each with `pack: pack.id` |
+| `initialize()` | `Promise<void>` | Register everything from `packs/components/index.js`; no-op when already initialized |
+| `registerComponent(name, component)` | `void` | Add or replace one definition, grouped by `metadata.type` |
+| `registerComponentsFromPack(pack)` | `void` | Register `pack.components`, each tagged with `pack: pack.id` |
+| `getComponent(name)` | `Object\|undefined` | Full definition |
+| `getComponentMetadata(name)` | `Object\|null` | The `metadata` block, or `{ name, features, orientation, description }` built from a definition without one |
+| `hasComponent(name)` | `boolean` | Whether the name is registered |
+| `getAllComponentNames()` | `string[]` | All names, in registration order |
+| `getComponentsByType(type)` | `string[]` | Names in one `metadata.type` group (names only) |
+| `getComponentTypes()` | `string[]` | All type groups |
+| `getDebugInfo()` | `Object` | `{ initialized, totalComponents, componentsByType: { type: count }, componentNames }` |
+| `destroy()` | `void` | Clear both maps |
 
 ```javascript
 const cm = window.lcards.core.componentManager;
 
-// Get component definition
-const def = cm.getComponent('dpad');
-
-// Check existence
-cm.hasComponent('dpad')  // true
-
-// List all
-cm.getAllComponentNames()     // ['dpad', 'dpad_voyager', 'alert', 'header-left', ...]
-cm.getComponentsByType('dpad') // ['dpad', 'dpad_voyager']
+cm.getComponent('dpad');              // full definition
+cm.hasComponent('dpad');              // true
+cm.getComponentsByType('elbow');      // ['header-left', 'header-right', ...]
+cm.getComponentsByType('dpad');       // ['dpad'] (dpad_voyager has its own type)
+cm.getComponentTypes();               // ['dpad', 'dpad_voyager', 'slider', 'elbow', 'alert', 'brackets', 'radar']
 ```
-
----
-
-## Button Component Mode
-
-When a button card has `component: dpad` in config, it:
-1. Retrieves the definition from `componentManager`
-2. Builds one SVG path element per segment
-3. Attaches per-segment style, text, and action from config overrides merged on top of definition defaults
 
 ---
 
@@ -131,16 +156,17 @@ When a button card has `component: dpad` in config, it:
 ::: code-group
 ```javascript [Snapshot]
 window.lcards.debug.singleton('componentManager')
-// → { initialized: true, totalComponents: 11, componentsByType: { dpad: 2, alert: 1, elbow: 6, slider: 3 },
-//      componentNames: ['dpad', 'dpad_voyager', 'alert', 'header-left', ...] }
+// → { initialized: true, totalComponents: 26,
+//      componentsByType: { dpad: 1, dpad_voyager: 1, slider: 5, elbow: 16, alert: 1, brackets: 1, radar: 1 },
+//      componentNames: ['dpad', 'dpad_voyager', 'default', 'picard', ...] }
 ```
 ```javascript [Live object]
 const cm = window.lcards.core.componentManager
 
-cm.getAllComponentNames()     // all registered names
-cm.getComponent('dpad')       // full definition with segments/zones/metadata
-cm.hasComponent('dpad')       // existence check
-cm.getComponentsByType('dpad') // names of that type (string[], not full defs)
+cm.getAllComponentNames()          // all registered names
+cm.getComponent('dpad')            // full definition with segments/zones/metadata
+cm.getComponentMetadata('ring')    // metadata only
+cm.getComponentsByType('slider')   // ['default', 'picard', 'demo', 'shaped', 'ring']
 ```
 :::
 
@@ -148,6 +174,6 @@ cm.getComponentsByType('dpad') // names of that type (string[], not full defs)
 
 ## See Also
 
-- [Button Card: Component Mode](../../cards/button/)
-- [Asset Manager](asset-manager.md)
+- [Button: Components](../../cards/button/components.md)
 - [Pack System](pack-system.md)
+- [Asset Manager](asset-manager.md)

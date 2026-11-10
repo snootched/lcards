@@ -1239,14 +1239,18 @@ export class SoundManager extends BaseService {
    * @private
    */
   async _saveOverrides(overrides, scope = 'user') {
-    // 1. Update in-memory cache immediately (synchronous callers benefit)
-    if (scope === 'global') {
-      this._globalOverridesCache = overrides;
-    } else if (scope === 'device') {
-      this._deviceOverridesCache = overrides;
-    } else {
-      this._overridesCache = overrides;
-    }
+    const cacheKey = scope === 'global' ? '_globalOverridesCache'
+      : scope === 'device' ? '_deviceOverridesCache'
+      : '_overridesCache';
+
+    // 1. Update the in-memory cache at once (synchronous callers benefit), and
+    //    put the previous map back if the save fails, so a refused save does not
+    //    change playback. A later save that already replaced the cache is kept.
+    const previous = this[cacheKey];
+    this[cacheKey] = overrides;
+    const rollback = () => {
+      if (this[cacheKey] === overrides) this[cacheKey] = previous;
+    };
 
     // 2. Backend storage
     const sss = this._core?.scopedSettingsService;
@@ -1258,6 +1262,7 @@ export class SoundManager extends BaseService {
         lcardsLog.debug(`[SoundManager] Saved sound overrides to ${scope}-scoped backend storage`);
       } else {
         lcardsLog.warn(`[SoundManager] Sound overrides not saved to ${scope} storage`);
+        rollback();
       }
       return ok;
     }
@@ -1266,10 +1271,13 @@ export class SoundManager extends BaseService {
       const ok = await integration.writeStorage({ [STORAGE_KEY_SOUND_OVERRIDES]: overrides });
       if (ok) {
         lcardsLog.debug('[SoundManager] Saved sound overrides to global backend storage (legacy path)');
+      } else {
+        rollback();
       }
       return ok;
     }
     lcardsLog.warn('[SoundManager] Integration unavailable: sound overrides not persisted to backend');
+    rollback();
     return false;
   }
 

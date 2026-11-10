@@ -119,7 +119,6 @@ window.lcards.core.rulesManager
 window.lcards.core.animationManager
 window.lcards.core.validationService
 window.lcards.core.stylePresetManager
-window.lcards.core.animationRegistry
 ```
 
 All singletons extend `BaseService`. HASS is distributed by `LCARdSCore.ingestHass()` — cards never push HASS to services directly.

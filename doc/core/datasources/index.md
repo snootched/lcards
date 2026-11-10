@@ -61,7 +61,7 @@ grid_options:
 
 - History is preloaded when the card loads: every recorded change over `history.hours`, or Home Assistant's hourly statistics when the recorder has none (for the entity state, not an attribute).
 - The buffer holds a number of points, not a span of time: a sensor that reports once a minute keeps ten hours of values in the default 600 points, and a preload longer than that keeps only its newest points.
-- Rapid changes are merged before cards hear of them: at most one update every `min_emit_ms`, gathered over `coalesce_ms`, and never held back longer than `max_delay_ms`.
+- A change after a quiet spell reaches cards at once. Rapid changes are merged before cards hear of them: at most one update every `min_emit_ms`, sent `coalesce_ms` after the last change of a burst, and never held back longer than `max_delay_ms`. The merged update carries the newest value; the buffer and the processors still see every change.
 
 ### Top-Level Fields
 
@@ -111,7 +111,7 @@ grid_options:
 | `enum_mapping` | object | - | Numbers for states that are not numbers, such as `heat: 2` and `cool: 1` |
 | `window_seconds` | number / string | `60` | How many points the buffer keeps: about 10 per second of window, at least 60 and at most 1,000 (`60` keeps 600). Also takes a duration such as `"5m"` |
 | `min_emit_ms` | number | `100` | The least time between updates sent to cards, ms (at least 10) |
-| `coalesce_ms` | number | 40% of `min_emit_ms`, at least `20` | How long rapid changes are gathered into one update, ms (at least 20) |
+| `coalesce_ms` | number | 40% of `min_emit_ms`, at least `20` | How long to wait after the last of several rapid changes before sending the merged update, ms (at least 20) |
 | `max_delay_ms` | number | 3 x `coalesce_ms` | The longest an update may be held back while gathering, ms (at least `min_emit_ms`) |
 | `emit_on_same_value` | boolean | `true` | Send an update even when the value didn't change |
 | `history.enabled` | boolean | `true` | Preload history when the card loads |

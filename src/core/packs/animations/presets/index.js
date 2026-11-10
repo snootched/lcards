@@ -19,13 +19,23 @@
  * @module core/packs/animations/presets
  */
 
-import { registerAnimationPreset } from '../../../animation/presets.js';
+import { registerAnimationPreset as registerPreset } from '../../../animation/presets.js';
 import { lcardsLog } from '../../../../utils/lcards-logging.js';
 import { resolvePresetParams, getResolvedEasing, presetRandom } from '../../../../utils/lcards-anim-helpers.js';
 import { TIMELINE_PRESETS } from './timeline-presets.js';
 import { STAGGER_PRESETS } from './stagger-presets.js';
 import { TEXT_PRESETS } from './text-presets.js';
 import { EFFECT_PRESETS } from './effect-presets.js';
+
+/**
+ * Register one built-in preset: every built-in belongs to the `core` pack.
+ * @param {string} name - Preset name
+ * @param {Function} factory - Preset function that returns {anime, styles}
+ * @param {string} [category] - `basic` (this file), `timeline`, `stagger`, `text` or `effect`
+ */
+function registerAnimationPreset(name, factory, category = 'basic') {
+  registerPreset(name, factory, { pack: 'core', category });
+}
 
 /**
  * Register all builtin animation presets
@@ -1823,7 +1833,7 @@ registerAnimationPreset('physics-spring', (def) => {
 // ==============================================================================
 
 Object.entries(TIMELINE_PRESETS).forEach(([name, factory]) => {
-  registerAnimationPreset(name, factory);
+  registerAnimationPreset(name, factory, 'timeline');
 });
 
 // ==============================================================================
@@ -1831,7 +1841,7 @@ Object.entries(TIMELINE_PRESETS).forEach(([name, factory]) => {
 // ==============================================================================
 
 Object.entries(STAGGER_PRESETS).forEach(([name, factory]) => {
-  registerAnimationPreset(name, factory);
+  registerAnimationPreset(name, factory, 'stagger');
 });
 
 // ==============================================================================
@@ -1839,7 +1849,7 @@ Object.entries(STAGGER_PRESETS).forEach(([name, factory]) => {
 // ==============================================================================
 
 Object.entries(TEXT_PRESETS).forEach(([name, factory]) => {
-  registerAnimationPreset(name, factory);
+  registerAnimationPreset(name, factory, 'text');
 });
 
 // ==============================================================================
@@ -1847,7 +1857,7 @@ Object.entries(TEXT_PRESETS).forEach(([name, factory]) => {
 // ==============================================================================
 
 Object.entries(EFFECT_PRESETS).forEach(([name, factory]) => {
-  registerAnimationPreset(name, factory);
+  registerAnimationPreset(name, factory, 'effect');
 });
 
 }

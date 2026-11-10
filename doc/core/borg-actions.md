@@ -114,6 +114,7 @@ data:
 | `corruption` | number | `0.5` | WebGL intro: signal corruption strength, 0 to 1; `0` turns it off |
 | `overrun` | number | `0.65` | WebGL intro: darkness behind the assimilation front, 0 to 1 |
 | `transition_style` | string | `blur_fade` | Palette transition: `blur_fade`, `flash`, `fade_only` or `off` |
+| `palette_hue` | number | `110` | The hue (0 to 359) the palette shifts toward: `110` is Borg yellow-green, `240` blue, `0` red |
 | `font_swap` | boolean | `true` | `false` keeps the dashboard font; everything else still runs |
 | `sound` | string | the `borg_assimilate` [sound event](/core/borg#sounds) | A sound for this call: a file URL (`/local/sounds/borg.mp3`), a media library id or a sound asset key; `none` for silence |
 | `suppress_persistent` | boolean | `false` | `true` leaves no effects after the intro. Ignored when `persistent_layers` is set |
@@ -123,7 +124,7 @@ data:
 
 ## lcards.borg_deassimilate
 
-**`lcards.borg_deassimilate` restores the dashboard: a short glitch outro, then the normal colours, font and screen.** A browser that is not assimilated ignores it.
+**`lcards.borg_deassimilate` restores the dashboard: a short glitch outro, then the colours of the alert mode from before the assimilation, the normal font and screen.** A browser that is not assimilated ignores it.
 
 ```yaml
 # Every browser, with the default glitch outro

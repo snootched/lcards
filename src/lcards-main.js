@@ -875,21 +875,21 @@ window.lcards.connectionOverlay = {
   /**
    * Save config to a specific scope (default: 'global').
    * @param {Object} config
-   * @param {'device'|'user'|'global'} [scope='global']
-   * @returns {Promise<void>}
+   * @param {'device'|'user'|'global'} [scope='global'] - global needs a Home Assistant admin
+   * @returns {Promise<boolean>} false when a write failed or was refused (or no service)
    */
   saveConfig(config, scope = 'global', opts = {}) {
     return window.lcards?.core?.connectionOverlayService?.saveConfig(config, scope, opts)
-        ?? Promise.resolve();
+        ?? Promise.resolve(false);
   },
   /**
    * Remove config from a specific scope (falls back to next tier).
-   * @param {'device'|'user'|'global'} [scope='global']
-   * @returns {Promise<void>}
+   * @param {'device'|'user'|'global'} [scope='global'] - global needs a Home Assistant admin
+   * @returns {Promise<boolean>} false when a clear failed or was refused (or no service)
    */
   clearConfig(scope = 'global', opts = {}) {
     return window.lcards?.core?.connectionOverlayService?.clearConfig(scope, opts)
-        ?? Promise.resolve();
+        ?? Promise.resolve(false);
   },
   /**
    * Reload config from the ScopedSettings waterfall and refresh the overlay.

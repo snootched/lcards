@@ -134,7 +134,7 @@ flowchart TB
     subgraph CoreSystems["<b>Core Systems</b>"]
         TM[ThemeManager<br/>Theme tokens]:::coreStyle
         SPM[StylePresetManager<br/>Button & slider presets]:::coreStyle
-        AR[AnimationRegistry<br/>Animation definitions]:::coreStyle
+        CM[ComponentManager<br/>SVG components]:::coreStyle
         RE[RulesEngine<br/>Conditional rules]:::coreStyle
         AM[AssetManager<br/>SVG & font assets]:::coreStyle
     end
@@ -149,13 +149,13 @@ flowchart TB
 
     PM 7@---|themes| TM
     PM 8@---|style_presets| SPM
-    PM 9@---|animations| AR
+    PM 9@---|components| CM
     PM 10@---|rules| RE
     PM 11@---|svg_assets<br/>font_assets| AM
 
     TM 12@-.- Cards([LCARdS Cards])
     SPM 13@-.- Cards
-    AR 14@-.- Cards
+    CM 14@-.- Cards
     RE 15@-.- Cards
     AM 16@-.- Cards
 

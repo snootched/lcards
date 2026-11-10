@@ -308,8 +308,8 @@ export class ProvenanceTracker {
    * // Get config provenance
    * tracker.getProvenance('config');
    *
-   * // Get specific field source
-   * tracker.getProvenance('config.field_sources.style.color');
+   * // Get one field's source (field_sources is a flat map keyed by dotted path)
+   * tracker.getProvenance('config.field_sources')['style.color'];
    *
    * // Get config tree
    * tracker.getProvenance('config.tree');

@@ -132,6 +132,16 @@ export class CoreSystemsManager {
           this._entityStates.set(entityId, newState);
         }
       });
+
+      // An entity gone from hass.states (deleted or renamed in Home Assistant)
+      // leaves the cache, and subscribers get (id, null, oldState): otherwise
+      // getEntityState() kept answering with its last state forever.
+      for (const [entityId, oldState] of this._entityStates) {
+        if (entityId in hass.states) continue;
+        this._entityStates.delete(entityId);
+        this._oldEntityStates?.set(entityId, oldState);
+        changedEntities.add(entityId);
+      }
     }
 
     // Notify subscribers of changes

@@ -65,7 +65,7 @@ rules:
 
 **Two time-based rules on an MSD: at night the blueprint dims and the lines tagged `nav` fade; by day both come back.** They go in the MSD card's `rules`.
 
-- `entity: sensor.time` makes both rules re-check every minute; without it they would only be checked when the page loads.
+- Time rules are checked at the start of every minute, so the switch happens on time.
 - `filters: []` clears the blueprint's filters for the day.
 - It is the `rules` of an MSD of your own (with lines tagged `nav`), so it is shown as YAML only.
 
@@ -74,9 +74,7 @@ rules:
   - id: night-mode
     priority: 100
     when:
-      all:
-        - entity: sensor.time       # re-checks every minute
-        - time_between: "22:00-06:00"
+      time_between: "22:00-06:00"
     apply:
       base_svg:
         filters:
@@ -93,9 +91,7 @@ rules:
   - id: day-mode
     priority: 90
     when:
-      all:
-        - entity: sensor.time
-        - time_between: "06:00-22:00"
+      time_between: "06:00-22:00"
     apply:
       base_svg:
         filters: []

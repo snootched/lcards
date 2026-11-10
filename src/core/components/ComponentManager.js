@@ -79,11 +79,23 @@ export class ComponentManager {
             return;
         }
 
-        // Store component
-        this.components.set(name, component);
-
         // Infer type and categorize
         const type = this._inferComponentType(name, component);
+
+        // A re-registration under another type leaves its old group (dropping
+        // the group once empty), so a name is only ever listed under one type.
+        const previous = this.components.get(name);
+        if (previous) {
+            const previousType = this._inferComponentType(name, previous);
+            const oldGroup = this.componentsByType.get(previousType);
+            if (previousType !== type && oldGroup) {
+                oldGroup.delete(name);
+                if (oldGroup.size === 0) this.componentsByType.delete(previousType);
+            }
+        }
+
+        // Store component
+        this.components.set(name, component);
         let byName = this.componentsByType.get(type);
         if (!byName) {
             byName = new Map();

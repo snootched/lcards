@@ -71,8 +71,8 @@ The LCARdS animation system consists of several integrated components:
                     ┌───────────┴────────────┐
                     │                        │
            ┌────────▼──────────┐   ┌────────▼─────────┐
-           │ AnimationRegistry │   │  anime.js v4     │
-           │ (Preset Caching)  │   │ (Execution)      │
+           │ Animation presets │   │  anime.js v4     │
+           │ (presets.js)      │   │ (Execution)      │
            └───────────────────┘   └──────────────────┘
 ```
 
@@ -82,7 +82,7 @@ The LCARdS animation system consists of several integrated components:
 - **TriggerManager:** Manages overlay-specific animation triggers (on_entity_change, on_datasource_change)
 - **LCARdSActionHandler:** Handles interactive triggers (on_tap, on_hover, on_hold, on_double_tap)
 - **AnimationManager:** Central orchestrator for animation execution and lifecycle
-- **AnimationRegistry:** Caches animation instances for performance
+- **Animation presets:** The built-in presets, registered in `core/animation/presets.js` (`registerBuiltinAnimationPresets()`)
 - **anime.js v4:** Low-level animation execution engine
 
 ## Trigger Types

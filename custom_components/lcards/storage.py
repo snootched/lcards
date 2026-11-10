@@ -19,7 +19,9 @@ Scoped storage namespaces:
   The ``async_deep_set`` method handles sub-key merging within these
   flat keys so that updating one setting does not overwrite all others
   stored for the same user/device (avoiding the shallow-merge clobber
-  problem that ``async_set`` has at the top-level namespace).
+  problem that ``async_set`` has at the top-level namespace).  Its
+  ``replace`` flag replaces each written sub-key's value instead of
+  deep-merging it, so a smaller map (an override removed) really shrinks.
 
   Example layout after two users have written settings::
 
@@ -82,14 +84,23 @@ class LCARdSStorage:
         )
 
     async def async_deep_set(
-        self, namespace: str, entity_id: str, data: dict[str, Any]
+        self,
+        namespace: str,
+        entity_id: str,
+        data: dict[str, Any],
+        replace: bool = False,
     ) -> None:
-        """Deep-merge *data* into a namespaced entity key and persist.
+        """Merge *data* into a namespaced entity key and persist.
 
         The flat storage key is ``f"{namespace}_{entity_id}"`` (e.g.
         ``_user_abc123`` or ``_device_cafe1234``).  The caller's *data* dict
         is recursively merged into whatever is already stored under that key,
         so updating one sub-key does not clobber sibling keys written earlier.
+
+        With ``replace=True`` each top-level sub-key in *data* replaces the
+        stored value outright (sibling sub-keys are still kept).  That is what a
+        caller wants when it writes a whole map, such as the sound overrides:
+        a deep merge would keep the entries the new map no longer has.
 
         This is safe from concurrent-write races because HA's event loop
         serialises WebSocket handlers — at most one handler is running at a
@@ -99,15 +110,16 @@ class LCARdSStorage:
             namespace: Key prefix, e.g. ``_user`` or ``_device``.
             entity_id: The user UUID or device UUID that forms the suffix.
             data: Sub-key/value pairs to merge into the existing entity dict.
+            replace: Replace each sub-key's value instead of deep-merging it.
         """
         flat_key = f"{namespace}_{entity_id}"
         existing = self._data.get(flat_key) or {}
-        merged = _deep_merge(existing, data)
+        merged = {**existing, **data} if replace else _deep_merge(existing, data)
         self._data[flat_key] = merged
         await self._async_save()
         _LOGGER.debug(
-            "LCARdS: storage deep-set %r (%d sub-key(s)): %s",
-            flat_key, len(data), list(data)
+            "LCARdS: storage %s %r (%d sub-key(s)): %s",
+            "replace-set" if replace else "deep-set", flat_key, len(data), list(data)
         )
 
     async def async_entity_delete_key(

@@ -107,6 +107,7 @@ action: lcards.red_alert
 
 - A layer left out of `layers` keeps whatever it shows; a layer set to `null` is cleared.
 - `duration` clears the layers this call set after that many milliseconds; each layer keeps its own timer, so a later call is never cut short by an earlier one. Without it the effect stays until [`lcards.clear_effect`](#lcards-clear-effect).
+- An alert overlay, the connection overlay or a portal card with `layers` replaces only the layers it sets, and clears only its own when it closes, so an effect from this action on another layer keeps running.
 
 ```yaml
 # A red-tinted blur, until cleared

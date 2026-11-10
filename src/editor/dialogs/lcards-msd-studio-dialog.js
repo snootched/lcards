@@ -1785,11 +1785,11 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (source.startsWith('builtin:')) {
             svgKey = source.replace('builtin:', '');
             isBuiltin = true;
-        } else if (source.startsWith('/local/') || source.startsWith('/hacsfiles/') || source.startsWith('/lcards/')) {
-            svgKey = /** @type {string} */ (source.split('/').pop()).replace('.svg', '');
-            isExternal = true;
-        } else if (source.startsWith('http://') || source.startsWith('https://')) {
-            svgKey = /** @type {string} */ (source.split('/').pop()).replace('.svg', '');
+        } else if (source.startsWith('/local/') || source.startsWith('/hacsfiles/') || source.startsWith('/lcards/')
+            || source.startsWith('http://') || source.startsWith('https://')) {
+            // Registered under the whole source, as AssetManager.loadSvg() keys it
+            // (a bare file name would show a same-named built-in's placard).
+            svgKey = source.trim();
             isExternal = true;
         } else if (source.startsWith('media-source://')) {
             // Registered/cached under the content ID itself, not a derived

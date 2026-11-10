@@ -10,8 +10,9 @@ export function compileRule(rule, issues) {
     tree: raw ? compileNode(raw, issues, rule.id) : alwaysTrueNode(),
     deps: {
       entities: new Set(),
-      perf: new Set(),
-      flags: new Set()
+      // time_between / weekday_in / random_chance: the result changes with the clock
+      // (or on each check), so the engine re-checks the rule every minute
+      time: false
     }
   };
   collectDeps(compiled.tree, compiled.deps);
@@ -126,12 +127,6 @@ function compileNode(node, issues, ruleId) {
   if (node.sun_elevation) {
     return { type: 'sun_elevation', cmp: node.sun_elevation };
   }
-  if (node.perf_metric) {
-    return { type: 'perf_metric', c: node.perf_metric };
-  }
-  if (node.flag) {
-    return { type: 'flag', c: node.flag };
-  }
   if (node.random_chance != null) {
     return { type: 'random_chance', p: node.random_chance };
   }
@@ -153,14 +148,13 @@ function collectDeps(node, deps) {
     case 'map_range_cond':
       if (node.c?.entity) deps.entities.add(node.c.entity);
       break;
+    case 'time_between':
+    case 'weekday_in':
+    case 'random_chance':
+      deps.time = true;
+      break;
     case 'sun_elevation':
       deps.entities.add('sun.sun');
-      break;
-    case 'perf_metric':
-      if (node.c?.key) deps.perf.add(node.c.key);
-      break;
-    case 'flag':
-      if (node.c?.debugFlagName) deps.flags.add(node.c.debugFlagName);
       break;
     // ✨ NEW: Extract dependencies from template conditions
     case 'jinja2':
@@ -255,146 +249,6 @@ async function evalJinja2(tree, ctx) {
 }
 
 /**
- * Resolve dot-notation path from context
- *
- * Handles special case: Entity IDs like "light.tv.state"
- * - If token looks like entity_id.property, use getEntity or hass.states
- * - Otherwise, resolve as normal dot-notation
- *
- * @param {Array<string>} parts - Path parts (e.g., ['light', 'tv', 'state'])
- * @param {Object} ctx - Evaluation context
- * @returns {*} Resolved value
- */
-function resolveTokenPath(parts, ctx) {
-  // Special case: Entity ID pattern (domain.name.property)
-  // Examples: light.tv.state, sensor.temp.attributes.battery
-  if (parts.length >= 3) {
-    const potentialEntityId = `${parts[0]}.${parts[1]}`;  // e.g., "light.tv"
-    const propertyPath = parts.slice(2);  // e.g., ["state"] or ["attributes", "battery"]
-
-    // Try to get entity from context
-    let entity = null;
-
-    // Method 1: Use getEntity if available (preferred - handles fallback)
-    if (ctx.getEntity && typeof ctx.getEntity === 'function') {
-      try {
-        entity = ctx.getEntity(potentialEntityId);
-      } catch (e) {
-        // getEntity might throw if entity not found
-      }
-    }
-
-    // Method 2: Try hass.states (direct lookup)
-    if (!entity && ctx.hass?.states?.[potentialEntityId]) {
-      entity = ctx.hass.states[potentialEntityId];
-    }
-
-    // If we found an entity, resolve the property path
-    if (entity) {
-      let current = entity;
-      for (const prop of propertyPath) {
-        if (current === null || current === undefined) {
-          return null;
-        }
-        current = current[prop];
-      }
-      return current;
-    }
-  }
-
-  // Standard dot-notation resolution (non-entity paths)
-  let current = ctx;
-
-  for (const part of parts) {
-    if (current === null || current === undefined) {
-      return null;
-    }
-    current = current[part];
-  }
-
-  return current;
-}
-
-/**
- * Resolve tokens in JavaScript code before evaluation
- *
- * Converts {entity.state} to actual values from context
- * Uses a SIMPLE regex that matches ALL {tokens} including entity IDs
- *
- * IMPORTANT: Detects if token is already quoted and avoids double-quoting!
- *
- * @param {string} code - JavaScript code with tokens
- * @param {Object} ctx - Evaluation context
- * @returns {string} Code with tokens replaced by values
- */
-function resolveTokensInCode(code, ctx) {
-  // Use a simple regex that matches ANY {token} including entity IDs
-  // This is different from TemplateParser.extractTokens() which excludes domain names
-  const tokenRegex = /\{([^{}]+)\}/g;
-
-  let resolved = code;
-  const matches = [];
-  let match;
-
-  // Collect all matches first (to avoid issues with string.replace changing indices)
-  while ((match = tokenRegex.exec(code)) !== null) {
-    matches.push({
-      fullMatch: match[0],  // e.g., "{light.tv.state}"
-      tokenPath: match[1].trim(),  // e.g., "light.tv.state"
-      index: match.index
-    });
-  }
-
-  // Process matches in reverse order to maintain string positions
-  for (let i = matches.length - 1; i >= 0; i--) {
-    const { fullMatch, tokenPath, index } = matches[i];
-
-    // Parse the token path
-    const parts = tokenPath.split('.');
-
-    // Resolve token path from context
-    const value = resolveTokenPath(parts, ctx);
-
-    // Debug logging for token resolution
-    lcardsLog.trace(`[resolveTokensInCode] Resolving token: ${fullMatch}`);
-    lcardsLog.trace(`[resolveTokensInCode] Token path parts:`, parts);
-    lcardsLog.trace(`[resolveTokensInCode] Resolved value:`, value, `(type: ${typeof value})`);
-
-    // Check if token is already wrapped in quotes
-    const beforeToken = code.substring(Math.max(0, index - 1), index);
-    const afterToken = code.substring(index + fullMatch.length, index + fullMatch.length + 1);
-    const isAlreadyQuoted = (beforeToken === '"' || beforeToken === "'") &&
-                            (afterToken === '"' || afterToken === "'");
-
-    lcardsLog.trace(`[resolveTokensInCode] Is already quoted: ${isAlreadyQuoted}`);
-
-    // Replace token with value
-    let replacement;
-    if (value === null || value === undefined) {
-      replacement = isAlreadyQuoted ? 'null' : 'null';  // Don't quote null
-    } else if (typeof value === 'string') {
-      // If already quoted (e.g., "{light.tv.state}"), just insert the value
-      // If not quoted (e.g., {light.tv.state}), wrap in quotes
-      if (isAlreadyQuoted) {
-        replacement = value.replace(/"/g, '\\"').replace(/'/g, "\\'");  // Escape quotes
-      } else {
-        replacement = `"${value.replace(/"/g, '\\"')}"`;  // Wrap in quotes
-      }
-    } else {
-      replacement = String(value);  // Numbers, booleans - no quotes
-    }
-
-    lcardsLog.trace(`[resolveTokensInCode] Replacement value:`, replacement);
-
-    // Replace this specific occurrence
-    resolved = resolved.substring(0, index) + replacement + resolved.substring(index + fullMatch.length);
-  }
-
-  lcardsLog.trace(`[resolveTokensInCode] Final resolved code:`, resolved);
-  return resolved;
-}
-
-/**
  * Evaluate JavaScript condition
  * Simple approach like custom-button-card: just pass hass and states
  *
@@ -478,10 +332,6 @@ export async function evalCompiled(tree, ctx) {
       return evalWeekdayIn(tree.list, ctx);
     case 'sun_elevation':
       return evalSunElevation(tree.cmp, ctx);
-    case 'perf_metric':
-      return evalPerfMetric(tree.c, ctx);
-    case 'flag':
-      return evalFlag(tree.c, ctx);
     case 'random_chance':
       return Math.random() < (tree.p || 0);
 
@@ -569,20 +419,4 @@ function evalSunElevation(cmp, ctx) {
   const elev = ctx.sun?.elevation;
   if (!Number.isFinite(elev)) return false;
   return compareNumericBounds(elev, cmp);
-}
-
-function evalPerfMetric(c, ctx) {
-  const val = ctx.getPerf?.(c.key);
-  const num = Number(val);
-  if (!Number.isFinite(num)) return false;
-  if (!compareNumericBounds(num, c)) return false;
-  if (c.equals != null) return num == c.equals;
-  return true;
-}
-
-function evalFlag(c, ctx) {
-  const val = ctx.flags?.[c.debugFlagName];
-  if (c.is === true) return !!val;
-  if (c.is === false) return !val;
-  return !!val;
 }

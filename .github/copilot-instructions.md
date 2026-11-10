@@ -18,7 +18,6 @@ window.lcards.core.rulesManager       // Conditional styling engine
 window.lcards.core.animationManager   // Animation coordination
 window.lcards.core.validationService  // Config validation
 window.lcards.core.stylePresetManager // Style system & presets
-window.lcards.core.animationRegistry  // Animation caching
 ```
 
 **Critical Pattern**: All services extend `BaseService` which provides `updateHass()` and `ingestHass()` for HASS object propagation. Cards should NOT manage HASS distribution - the core handles it.

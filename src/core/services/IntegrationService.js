@@ -556,6 +556,7 @@ export class IntegrationService extends BaseService {
                     if (payload.intro_layers      != null) opts.intro            = payload.intro_layers;
                     if (payload.persistent_layers != null) opts.persistentLayers = payload.persistent_layers;
                     if (payload.fontSwap          != null) opts.fontSwap         = payload.fontSwap;
+                    if (payload.paletteHue        != null) opts.paletteHue       = payload.paletteHue;
                     if (payload.sound             != null) opts.sound            = payload.sound;
                     bam.assimilate(opts);
                 } else {

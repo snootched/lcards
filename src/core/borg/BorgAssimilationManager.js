@@ -7,7 +7,9 @@
  *   3. Canvas intro       → `borg-assimilation` SEM preset, persistent until the user
  *                           clicks anywhere on the canvas (or an optional timeout fires)
  *   4. Persistent effects → zero or more SEM presets applied after the intro is dismissed
- *   5. Deassimilation     → glitch outro, palette + font revert, SEM clear
+ *   5. Deassimilation     → glitch outro, palette back to the alert mode that was
+ *                           active before (green_alert when unknown or a Borg
+ *                           alert), font revert, SEM clear
  *
  * Exposed on `window.lcards.core.borgAssimilationManager` and accessed via the
  * `window.lcards.borg.*` console API defined in `src/lcards.js`.
@@ -56,7 +58,10 @@ const DEFAULTS = {
         canvas: { preset: 'glitch', duration: 1200, intensity: 0.4, opacity: 0.7 },
     },
 
-    /** Fallback wait time (ms) when no outro layer specifies a duration. */
+    /**
+     * Minimum wait (ms) for the outro: the wait is the longest layer `duration`,
+     * never shorter than this.
+     */
     outroDuration: 1200,
 
     /**
@@ -103,6 +108,12 @@ export class BorgAssimilationManager extends BaseService {
          * @type {boolean}
          */
         this._fontWasSwapped = false;
+        /**
+         * Alert mode active when assimilate() started; deassimilate() goes back
+         * to it. null while not assimilated.
+         * @type {string|null}
+         */
+        this._priorAlertMode = null;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -170,6 +181,9 @@ export class BorgAssimilationManager extends BaseService {
 
         const tm  = window.lcards?.core?.themeManager;
         const sem = window.lcards?.core?.screenEffectManager;
+
+        // Remember the alert mode to return to (read before the borg_alert swap).
+        this._priorAlertMode = tm?.getAlertMode?.() ?? null;
 
         // ── Apply palette hue override before the swap so it takes effect immediately ─
         if (paletteHue != null) {
@@ -271,7 +285,10 @@ export class BorgAssimilationManager extends BaseService {
      *   { slot: { preset, ...params } }
      * The `duration` key inside any layer's params determines how long to wait
      * before proceeding to palette revert. The longest duration among all layers
-     * is used; falls back to DEFAULTS.outroDuration if none is specified.
+     * is used, with DEFAULTS.outroDuration (1200 ms) as the minimum.
+     *
+     * The palette returns to the alert mode that was active when assimilate()
+     * started; green_alert when none was recorded or it was a Borg alert.
      *
      * @param {Object}  [opts]
      * @param {boolean} [opts.withOutro=true]                    Play outro layers before reverting.
@@ -336,8 +353,11 @@ export class BorgAssimilationManager extends BaseService {
         // ── Revert palette → font → SEM (in that order to minimise FOUC) ─────
         // Reset any runtime hue override so the next assimilation starts clean.
         resetAlertModeTransform('borg_alert');
+        const prior = this._priorAlertMode;
+        this._priorAlertMode = null;
+        const restoreMode = (typeof prior === 'string' && prior && !/borg/i.test(prior)) ? prior : 'green_alert';
         if (tm) {
-            await tm.setAlertMode('green_alert', { transitionStyle: revertTransitionStyle });
+            await tm.setAlertMode(restoreMode, { transitionStyle: revertTransitionStyle });
         }
         if (this._fontWasSwapped) {
             revertBorgFont();

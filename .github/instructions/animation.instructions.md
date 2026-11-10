@@ -46,21 +46,9 @@ Cards register their overlays via `_registerOverlayForRules()` — animations de
 
 ---
 
-## AnimationRegistry — Instance Caching
+## Animation presets
 
-`AnimationRegistry` caches animation instances by semantic hash of their definition. Use it to avoid re-parsing identical animation configs on every render.
-
-```javascript
-const registry = window.lcards.core.animationRegistry;
-
-// getOrCreateInstance(definition, targets) → reuses if semantically identical
-const instance = registry.getOrCreateInstance(
-  { preset: 'pulse', duration: 600, ease: 'inOutQuad', loop: true },
-  this.shadowRoot.querySelector('.my-element')
-);
-
-instance.play();
-```
+The built-in presets live in `src/core/packs/animations/presets/` and register through `registerAnimationPreset(name, builder, { pack, category })` in `src/core/animation/presets.js` (`listAnimationPresets()`, `listAnimationPresetInfo()`). There is no instance cache: the old `AnimationRegistry` (`window.lcards.core.animationRegistry`) was removed in 2026.11. There are no user-defined presets (the CB-LCARS MSD `animation_presets` map was removed in 2026.11).
 
 ---
 

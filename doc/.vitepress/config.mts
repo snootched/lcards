@@ -174,6 +174,104 @@ function devBundlePlugin() {
   }
 }
 
+// One sidebar for the developer docs (architecture + development), D3 decision 3.
+const devSidebar = [
+    {
+      text: 'Developer Guide',
+      items: [
+        { text: 'Overview',           link: '/development/' },
+        { text: 'Custom Card',        link: '/development/custom-card' },
+        { text: 'Colour Resolution',  link: '/development/colour-resolution' },
+        { text: 'Building an Editor', link: '/development/building-an-editor' },
+        { text: 'Building a Pack',    link: '/development/building-a-pack' },
+        { text: 'Type Checking',      link: '/development/typescript' },
+      ],
+    },
+    {
+      text: 'API Reference',
+      collapsed: false,
+      items: [
+        { text: 'Animation API',    link: '/development/anim-api' },
+        { text: 'Assets API',       link: '/development/assets-api' },
+        { text: 'Backend WS API',   link: '/development/backend-api' },
+        { text: 'Debug API',        link: '/development/debug-api' },
+        { text: 'Helpers API',      link: '/development/helpers-api' },
+      ],
+    },
+    {
+      text: 'CSS & Theming',
+      collapsed: false,
+      items: [
+        { text: 'Home Assistant CSS Variables', link: '/development/ha-css-vars' },
+      ],
+    },
+    {
+      text: 'Architecture',
+      items: [
+        { text: 'Systems Overview', link: '/architecture/systems-arch' },
+        { text: 'Home Assistant Integration',   link: '/architecture/ha-integration' },
+      ],
+    },
+    {
+      text: 'Cards',
+      collapsed: false,
+      items: [
+        { text: 'Card Foundation',  link: '/architecture/cards/lcards-card-foundation' },
+        { text: 'Layout View',      link: '/architecture/layout-view' },
+        { text: 'MSD Pipeline',     link: '/architecture/msd/' },
+        { text: 'Routing Engine (RouterCore)', link: '/architecture/msd/routing' },
+      ],
+    },
+    {
+      text: 'Animation Architecture',
+      collapsed: false,
+      items: [
+        { text: 'Overview', link: '/architecture/animations/' },
+      ],
+    },
+    {
+      text: 'Core Subsystems',
+      collapsed: true,
+      items: [
+        { text: 'Overview',             link: '/architecture/subsystems/' },
+        { text: 'Action Handler',       link: '/architecture/subsystems/action-handler' },
+        { text: 'Animation Manager',    link: '/architecture/subsystems/animation-manager' },
+        { text: 'Asset Manager',        link: '/architecture/subsystems/asset-manager' },
+        { text: 'Borg Assimilation',    link: '/architecture/subsystems/borg-assimilation' },
+        { text: 'Component Manager',    link: '/architecture/subsystems/component-manager' },
+        { text: 'Config Manager',       link: '/architecture/subsystems/config-manager' },
+        { text: 'Connection Overlay',   link: '/architecture/subsystems/connection-overlay' },
+        { text: 'DataSource System',    link: '/architecture/subsystems/datasource-system' },
+        { text: 'Device Identity',      link: '/architecture/subsystems/device-identity' },
+        { text: 'Helper Manager',       link: '/architecture/subsystems/helper-manager' },
+        { text: 'Integration Service',  link: '/architecture/subsystems/integration-service' },
+        { text: 'Pack System',          link: '/architecture/subsystems/pack-system' },
+        { text: 'Portal Overlay Manager', link: '/architecture/subsystems/portal-overlay-manager' },
+        { text: 'Rules Engine',         link: '/architecture/subsystems/rules-engine' },
+        { text: 'Scoped Settings',      link: '/architecture/subsystems/scoped-settings' },
+        { text: 'Screen Effect System', link: '/architecture/subsystems/screen-effects' },
+        { text: 'Sound System',         link: '/architecture/subsystems/sound-system' },
+        { text: 'Style Preset Manager', link: '/architecture/subsystems/style-preset-manager' },
+        { text: 'Systems Manager',      link: '/architecture/subsystems/systems-manager' },
+        { text: 'Template System',      link: '/architecture/subsystems/template-system' },
+        { text: 'Theme System',         link: '/architecture/subsystems/theme-system' },
+        { text: 'Validation Service',   link: '/architecture/subsystems/validation-service' },
+      ],
+    },
+    {
+      text: 'Internals',
+      collapsed: true,
+      items: [
+        { text: 'Background Animations',  link: '/architecture/internals/background-animation-system' },
+        { text: 'DataSource Buffers',     link: '/architecture/internals/datasource-buffers' },
+        { text: 'Home Assistant Entity Display',      link: '/architecture/internals/ha-entity-display' },
+        { text: 'Home Assistant Services (internals)', link: '/architecture/internals/ha-services' },
+        { text: 'Persistent Storage',     link: '/architecture/internals/storage' },
+        { text: 'Shape & Texture System', link: '/architecture/internals/shape-texture-system' },
+      ],
+    },
+]
+
 export default withMermaid(defineConfig({
   title: 'LCARdS',
   description: 'LCARS-inspired card components for Home Assistant',
@@ -792,99 +890,8 @@ export default withMermaid(defineConfig({
         },
       ],
 
-      '/architecture/': [
-        {
-          text: 'Architecture',
-          items: [
-            { text: 'Systems Overview', link: '/architecture/systems-arch' },
-            { text: 'Home Assistant Integration',   link: '/architecture/ha-integration' },
-          ],
-        },
-        {
-          text: 'Cards',
-          collapsed: false,
-          items: [
-            { text: 'Card Foundation',  link: '/architecture/cards/lcards-card-foundation' },
-            { text: 'Layout View',      link: '/architecture/layout-view' },
-            { text: 'MSD Pipeline',     link: '/architecture/msd/' },
-            { text: 'Routing Engine (RouterCore)', link: '/architecture/msd/routing' },
-          ],
-        },
-        {
-          text: 'Animation Architecture',
-          collapsed: false,
-          items: [
-            { text: 'Overview', link: '/architecture/animations/' },
-          ],
-        },
-        {
-          text: 'Core Subsystems',
-          collapsed: true,
-          items: [
-            { text: 'Animation Manager',    link: '/architecture/subsystems/animation-manager' },
-            { text: 'Asset Manager',        link: '/architecture/subsystems/asset-manager' },
-            { text: 'Component Manager',    link: '/architecture/subsystems/component-manager' },
-            { text: 'Connection Overlay',   link: '/architecture/subsystems/connection-overlay' },
-            { text: 'DataSource System',    link: '/architecture/subsystems/datasource-system' },
-            { text: 'Device Identity',      link: '/architecture/subsystems/device-identity' },
-            { text: 'Helper Manager',       link: '/architecture/subsystems/helper-manager' },
-            { text: 'Integration Service',  link: '/architecture/subsystems/integration-service' },
-            { text: 'Pack System',          link: '/architecture/subsystems/pack-system' },
-            { text: 'Rules Engine',         link: '/architecture/subsystems/rules-engine' },
-            { text: 'Scoped Settings',      link: '/architecture/subsystems/scoped-settings' },
-            { text: 'Screen Effect System', link: '/architecture/subsystems/screen-effects' },
-            { text: 'Sound System',         link: '/architecture/subsystems/sound-system' },
-            { text: 'Style Preset Manager', link: '/architecture/subsystems/style-preset-manager' },
-            { text: 'Systems Manager',      link: '/architecture/subsystems/systems-manager' },
-            { text: 'Template System',      link: '/architecture/subsystems/template-system' },
-            { text: 'Theme System',         link: '/architecture/subsystems/theme-system' },
-            { text: 'Validation Service',   link: '/architecture/subsystems/validation-service' },
-          ],
-        },
-        {
-          text: 'Internals',
-          collapsed: true,
-          items: [
-            { text: 'Background Animations',  link: '/architecture/internals/background-animation-system' },
-            { text: 'DataSource Buffers',     link: '/architecture/internals/datasource-buffers' },
-            { text: 'Home Assistant Entity Display',      link: '/architecture/internals/ha-entity-display' },
-            { text: 'Home Assistant Services (internals)', link: '/architecture/internals/ha-services' },
-            { text: 'Persistent Storage',     link: '/architecture/internals/storage' },
-            { text: 'Shape & Texture System', link: '/architecture/internals/shape-texture-system' },
-          ],
-        },
-      ],
-
-      '/development/': [
-        {
-          text: 'Developer Guide',
-          items: [
-            { text: 'Overview',           link: '/development/' },
-            { text: 'Custom Card',        link: '/development/custom-card' },
-            { text: 'Colour Resolution',  link: '/development/colour-resolution' },
-            { text: 'Building an Editor', link: '/development/building-an-editor' },
-            { text: 'Building a Pack',    link: '/development/building-a-pack' },
-          ],
-        },
-        {
-          text: 'API Reference',
-          collapsed: false,
-          items: [
-            { text: 'Animation API',    link: '/development/anim-api' },
-            { text: 'Assets API',       link: '/development/assets-api' },
-            { text: 'Backend WS API',   link: '/development/backend-api' },
-            { text: 'Debug API',        link: '/development/debug-api' },
-            { text: 'Helpers API',      link: '/development/helpers-api' },
-          ],
-        },
-        {
-          text: 'CSS & Theming',
-          collapsed: false,
-          items: [
-            { text: 'Home Assistant CSS Variables', link: '/development/ha-css-vars' },
-          ],
-        },
-      ],
+      '/architecture/': devSidebar,
+      '/development/': devSidebar,
     },
 
     socialLinks: [

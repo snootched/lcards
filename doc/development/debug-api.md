@@ -257,9 +257,7 @@ window.lcards.debug.msd.rules.listActive({ includeDisabled: true, verbose: true 
 |--------|-------------|
 | `active()` | List currently active animations |
 | `dump()` | Dump full animation state |
-| `registryStats()` | Animation registry statistics |
 | `inspect(id)` | Inspect a specific animation instance |
-| `timeline(id)` | Show timeline details for an animation |
 | `trigger(overlayId, presetName, params?, cardId?)` | Manually trigger an animation preset on an overlay, for testing |
 
 ```javascript

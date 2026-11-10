@@ -84,10 +84,7 @@ import { isSyntheticHass } from '../utils/synthetic-hass.js';
  *
  *     _handleFirstUpdate() {
  *         super._handleFirstUpdate();
- *         this._registerOverlayForRules({
- *             id: `my-card-${this._cardGuid}`,
- *             type: 'button'
- *         });
+ *         this._registerOverlayForRules(this.config.id || `my-card-${this._cardGuid}`, 'button', this.config.tags || []);
  *         this._resolveStyle();
  *     }
  *
@@ -107,6 +104,12 @@ import { isSyntheticHass } from '../utils/synthetic-hass.js';
  *     }
  * }
  */
+/**
+ * How long a disconnected card keeps its rules in the shared engine before they
+ * are removed (Home Assistant moves cards by disconnecting and reconnecting them).
+ */
+export const RULES_RELEASE_MS = 3000;
+
 /** Connected LCARdS cards, newest last (for LCARdSCard.findByConfig). */
 const CONNECTED_CARDS = new Set();
 
@@ -210,7 +213,7 @@ export class LCARdSCard extends LCARdSNativeCard {
         this._singletons = null;
         this._initialized = false;
 
-        // Action handler (unified utility)
+        // Per-card action handler (each card has its own)
         this._actionHandler = new LCARdSActionHandler();
 
         // Template processing state
@@ -257,6 +260,9 @@ export class LCARdSCard extends LCARdSNativeCard {
         this._overlayRegistered = false;  // Track if overlay is registered
         this._rulesRegistration = null;   // Last _registerOverlayForRules() args, for re-registering on reconnect
         this._hasRulesToLoad = false;     // Flag to defer rule loading until singletons are ready
+        this._ownsRules = false;          // This card's rules are in the shared engine (setCardRules)
+        /** @type {any} */
+        this._rulesReleaseTimer = null;   // Pending removal of this card's rules after a disconnect
         this._hassMonitoringSetup = false; // Flag to prevent duplicate monitoring setup
 
         // DataSource tracking for cleanup
@@ -705,16 +711,18 @@ export class LCARdSCard extends LCARdSNativeCard {
             this._entity = this.hass.states[config.entity];
         }
 
-        // Load rules from config into RulesEngine if singletons are ready
-        // This handles the case where config is set after connection
-        if (config.rules && Array.isArray(config.rules) && config.rules.length > 0) {
+        // Load rules from config into RulesEngine if singletons are ready. Every
+        // config change sets this card's rules again: changed rules are replaced and
+        // rules taken out of the config removed (also when it has none left).
+        const hasRules = Array.isArray(config.rules) && config.rules.length > 0;
+        if (hasRules || this._ownsRules) {
             if (this._singletons?.rulesEngine) {
                 // Singletons already initialized - load rules now
-                this._loadRulesFromConfig(config.rules);
+                this._loadRulesFromConfig(hasRules ? config.rules : []);
                 this._hasRulesToLoad = false; // Clear flag
             } else {
                 // Singletons not ready yet - set flag for loading in _onConnected
-                this._hasRulesToLoad = true;
+                this._hasRulesToLoad = hasRules;
             }
         }
 
@@ -878,6 +886,9 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Initialize singleton access
         this._initializeSingletons();
+
+        // Reconnected before its rules were released (a move, edit mode): keep them
+        this._cancelRulesRelease();
 
         // Now that singletons are initialized, register datasource dependencies from templates
         if (this._singletons?.dataSourceManager && this.config) {
@@ -1376,7 +1387,6 @@ export class LCARdSCard extends LCARdSNativeCard {
                 animationManager: animationManager,
                 dataSourceManager: core.dataSourceManager,
                 validationService: core.validationService,
-                actionHandler: core.actionHandler,
                 stylePresetManager: core.getStylePresetManager()
             };
 
@@ -1410,10 +1420,11 @@ export class LCARdSCard extends LCARdSNativeCard {
     // ============================================================================
 
     /**
-     * Load rules from card config into the global RulesEngine
-     * Follows MSD pattern: add rules to shared engine
+     * Set this card's rules in the shared RulesEngine (RulesEngine.setCardRules):
+     * the card instance owns them, so a config change replaces them and an empty
+     * list removes them. Pack rules with the same id are left alone.
      *
-     * @param {Array} rules - Array of rule objects from card config
+     * @param {Array} rules - Array of rule objects from card config ([] removes the card's rules)
      * @private
      */
     _loadRulesFromConfig(rules) {
@@ -1422,56 +1433,55 @@ export class LCARdSCard extends LCARdSNativeCard {
             return;
         }
 
-        if (!Array.isArray(rules) || rules.length === 0) {
-            return;
-        }
+        // Back (or still) connected: the rules stay, nothing to remove later
+        this._cancelRulesRelease();
 
         try {
             const rulesEngine = this._singletons.rulesEngine;
-            let addedCount = 0;
-
             // Get source card ID for tracking
             const sourceCardId = this.config?.id || this._cardGuid || 'unknown-card';
             // Infer card type from config.type or constructor name
             const sourceCardType = this.config?.type?.replace('custom:', '') || this.constructor.name || 'simple';
 
-            // Add each rule to the shared engine (skip duplicates by ID)
-            rules.forEach(rule => {
-                // Ensure rule has an ID
-                if (!rule.id) {
-                    lcardsLog.warn('[LCARdSCard] Rule missing ID, skipping:', rule);
-                    return;
-                }
+            const list = Array.isArray(rules) ? rules : [];
+            const counts = rulesEngine.setCardRules(this._cardGuid, list, { sourceCardId, sourceCardType });
+            this._ownsRules = list.length > 0;
 
-                // Skip if rule already exists in engine
-                if (rulesEngine.rulesById.has(rule.id)) {
-                    lcardsLog.debug(`[LCARdSCard] Rule ${rule.id} already exists in engine, skipping`);
-                    return;
-                }
-
-                // Register a copy carrying the source-card metadata: HA freezes lovelace
-                // card configs, so writing onto `rule` itself threw and no card-level
-                // rule ever loaded on a real dashboard.
-                rulesEngine.rules.push({
-                    ...rule,
-                    _sourceCardId: sourceCardId,
-                    _sourceCardType: sourceCardType,
-                });
-                addedCount++;
-            });
-
-            if (addedCount > 0) {
-                // Rebuild indexes and compile new rules
-                rulesEngine.buildRulesIndex();
-                rulesEngine.buildDependencyIndex();
-                rulesEngine._compileRules();
-                rulesEngine.markAllDirty(); // Mark all rules dirty for initial evaluation
-
-                lcardsLog.info(`[LCARdSCard] Loaded ${addedCount} rules from ${sourceCardId} (${sourceCardType}). Total rules in engine: ${rulesEngine.rules.length}`);
+            if (counts.added || counts.replaced || counts.removed) {
+                lcardsLog.debug(`[LCARdSCard] Rules from ${sourceCardId} (${sourceCardType}): +${counts.added} ~${counts.replaced} -${counts.removed}. Total rules in engine: ${rulesEngine.rules.length}`);
             }
-
         } catch (error) {
             lcardsLog.error('[LCARdSCard] Failed to load rules from config:', error);
+        }
+    }
+
+    /**
+     * After a disconnect, remove this card's rules unless it connects again
+     * within RULES_RELEASE_MS. Home Assistant disconnects and reconnects cards
+     * when it lays out a view, enters edit mode or moves a card; a card that
+     * stays away (deleted, or on a view no longer shown) takes its rules with it
+     * and sets them again if it comes back (_onConnected).
+     * @private
+     */
+    _scheduleRulesRelease() {
+        if (!this._ownsRules || this._rulesReleaseTimer) return;
+        const rulesEngine = this._singletons?.rulesEngine;
+        if (!rulesEngine) return;
+        this._rulesReleaseTimer = setTimeout(() => {
+            this._rulesReleaseTimer = null;
+            if (this.isConnected) return;
+            rulesEngine.removeCardRules(this._cardGuid);
+            this._ownsRules = false;
+            // Set them again on the next connect
+            this._hasRulesToLoad = Array.isArray(this.config?.rules) && this.config.rules.length > 0;
+        }, RULES_RELEASE_MS);
+    }
+
+    /** @private */
+    _cancelRulesRelease() {
+        if (this._rulesReleaseTimer) {
+            clearTimeout(this._rulesReleaseTimer);
+            this._rulesReleaseTimer = null;
         }
     }
 
@@ -1494,25 +1504,20 @@ export class LCARdSCard extends LCARdSNativeCard {
      * - Sets up callback for future rule re-evaluations
      * - Cleanup handled automatically in _onDisconnected()
      *
-     * @param {Object} overlay - Overlay configuration object
-     * @param {string} overlay.id - Unique overlay identifier (e.g., 'lcards-button-' + cardGuid)
-     * @param {string} overlay.type - Overlay type ('button', 'label', 'status', etc.)
-     * @param {Object} [overlay.metadata] - Additional metadata (entity, cardType, etc.)
-     * @param {Array<string>} [overlay.tags] - Tags for rule targeting (optional)
+     * @param {string} overlayId - Overlay id rules target (the card's `id`, else e.g. 'lcards-button-' + cardGuid)
+     * @param {string} type - Overlay type matched by `type:` selectors ('button', 'slider', 'msd-card', ...)
+     * @param {string|Array<string>} [tags] - Tags matched by `tag:` selectors
      *
      * @example
      * // In your card's _handleFirstUpdate():
      * _handleFirstUpdate() {
      *     super._handleFirstUpdate();
      *
-     *     this._registerOverlayForRules({
-     *         id: `lcards-button-${this._cardGuid}`,
-     *         type: 'button',
-     *         metadata: {
-     *             entity: this.config.entity,
-     *             cardType: 'button'
-     *         }
-     *     });
+     *     this._registerOverlayForRules(
+     *         this.config.id || `lcards-button-${this._cardGuid}`,
+     *         'button',
+     *         this.config.tags || []
+     *     );
      *
      *     this._resolveButtonStyle(); // Initial style resolution
      * }
@@ -3847,6 +3852,8 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // --- Rules / overlay ---
         this._unregisterOverlayFromRules();
+        // The card's own rules go a little later, unless it comes back (a move)
+        this._scheduleRulesRelease();
 
         // --- Light color CSS variable ---
         this._cleanupLightColorVariable();
@@ -4096,8 +4103,8 @@ export class LCARdSCard extends LCARdSNativeCard {
      * // Get config provenance
      * card.getProvenance('config');
      *
-     * // Get specific field source
-     * card.getProvenance('config.field_sources.style.color');
+     * // Get one field's source (field_sources is a flat map keyed by dotted path)
+     * card.getProvenance('config.field_sources')['style.color'];
      */
     getProvenance(path = null) {
         if (!this._provenanceTracker) {

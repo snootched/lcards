@@ -26,6 +26,12 @@ Provides the lcards/* WebSocket command namespace:
   lcards/storage/devices/get  — read any device's data              (admin)
   lcards/storage/devices/set  — write any device's data             (admin)
   lcards/storage/devices/clear — remove a device record entirely    (admin)
+
+  The four user/device set commands take ``replace: true`` to replace each
+  written sub-key's value instead of deep-merging it.
+
+  lcards/fire_event: admin, except a non-admin's reload_connection_config
+  targeted at their own user id (see _own_user_event_allowed).
 """
 import logging
 import probatio as vol
@@ -177,7 +183,10 @@ async def ws_lcards_info(
             "options":           options,
             # Capabilities advertised to the frontend so it can gracefully
             # degrade when running against an older backend build.
-            "capabilities":      ["scoped_storage"],
+            # scoped_storage_replace: the user/device set commands take `replace`.
+            # own_user_reload: a non-admin may relay reload_connection_config to
+            # their own sessions through lcards/fire_event.
+            "capabilities":      ["scoped_storage", "scoped_storage_replace", "own_user_reload"],
         },
     )
 
@@ -398,8 +407,32 @@ async def ws_subscribe(
 
 
 # ---------------------------------------------------------------------------
-# Browser-to-all-browsers event relay (admin only)
+# Browser-to-all-browsers event relay (admin; non-admins: own sessions only)
 # ---------------------------------------------------------------------------
+
+# Actions a non-admin may relay, and only to their own user's sessions: after a
+# user saves their own connection overlay settings, their other tabs reload them.
+_OWN_USER_ACTIONS = frozenset({"reload_connection_config"})
+# Payload keys a non-admin may pass along (the saving tab skips its own event).
+_OWN_USER_DATA_KEYS = frozenset({"origin_device_id"})
+
+
+def _own_user_event_allowed(msg: dict, user_id: str) -> bool:
+    """Whether a non-admin's fire_event stays inside their own sessions.
+
+    Allowed: an action from ``_OWN_USER_ACTIONS``, ``target_user_ids`` exactly
+    the caller, no ``target_device_ids`` (a device id is not tied to a user), and
+    only ``_OWN_USER_DATA_KEYS`` in ``data`` with string values (data is spread
+    into the event payload, so any other key could widen the targets).
+    """
+    data = msg.get("data") or {}
+    return (
+        msg["action"] in _OWN_USER_ACTIONS
+        and msg["target_user_ids"] == [user_id]
+        and not msg["target_device_ids"]
+        and set(data) <= _OWN_USER_DATA_KEYS
+        and all(isinstance(v, str) for v in data.values())
+    )
 
 @websocket_api.websocket_command(
     {
@@ -422,11 +455,17 @@ async def ws_fire_event(
     the HA event bus.  Requires admin — the fired event can trigger actions
     (config reloads, sounds, etc.) on other users' sessions.
 
+    One narrow exception: a non-admin may send ``reload_connection_config``
+    targeted at their own user id only (see ``_own_user_event_allowed``), so
+    their other tabs pick up a connection overlay setting they saved for
+    themselves.  Anything wider is refused as before.
+
     Optional ``target_device_ids`` / ``target_user_ids`` are forwarded in the
     payload so the receiving ``IntegrationService._handleLcardsEvent()`` can
     filter events intended only for specific devices or users.
     """
-    if not _require_admin(connection, msg):
+    if not connection.user.is_admin and not _own_user_event_allowed(msg, connection.user.id):
+        connection.send_error(msg["id"], _UNAUTHORIZED, _UNAUTHORIZED_MSG)
         return
     payload: dict = {"action": msg["action"], **msg.get("data", {})}
     if msg["target_device_ids"]:
@@ -480,6 +519,7 @@ async def ws_storage_user_get(
     {
         vol.Required("type"): f"{DOMAIN}/storage/user/set",
         vol.Required("data"): dict,
+        vol.Optional("replace", default=False): bool,
     }
 )
 @websocket_api.async_response
@@ -491,14 +531,16 @@ async def ws_storage_user_set(
     """Handle lcards/storage/user/set.
 
     Deep-merges *data* into the caller's user-scoped storage object.
-    Existing sub-keys not present in *data* are preserved.
+    Existing sub-keys not present in *data* are preserved.  With
+    ``replace: true`` each sub-key in *data* replaces its stored value instead
+    of being deep-merged (so a smaller map really shrinks).
     """
     storage = _check_storage(hass, connection, msg)
     if storage is None:
         return
 
     user_id = connection.user.id
-    await storage.async_deep_set(STORAGE_NS_USER, user_id, msg["data"])
+    await storage.async_deep_set(STORAGE_NS_USER, user_id, msg["data"], replace=msg["replace"])
     connection.send_result(msg["id"], {"ok": True, "user_id": user_id, "keys": list(msg["data"].keys())})
 
 
@@ -594,6 +636,7 @@ async def ws_storage_users_get(
         vol.Required("type"): f"{DOMAIN}/storage/users/set",
         vol.Required("user_id"): str,
         vol.Required("data"): dict,
+        vol.Optional("replace", default=False): bool,
     }
 )
 @websocket_api.async_response
@@ -606,6 +649,7 @@ async def ws_storage_users_set(
 
     Deep-merges *data* into any user's scoped storage.  Requires admin.
     Useful for copying global settings to a specific user from the panel.
+    ``replace: true`` replaces each sub-key's value, as for storage/user/set.
     """
     if not _require_admin(connection, msg):
         return
@@ -615,7 +659,7 @@ async def ws_storage_users_set(
         return
 
     user_id = msg["user_id"]
-    await storage.async_deep_set(STORAGE_NS_USER, user_id, msg["data"])
+    await storage.async_deep_set(STORAGE_NS_USER, user_id, msg["data"], replace=msg["replace"])
     connection.send_result(msg["id"], {"ok": True, "user_id": user_id, "keys": list(msg["data"].keys())})
 
 
@@ -660,6 +704,7 @@ async def ws_storage_device_get(
         vol.Required("type"): f"{DOMAIN}/storage/device/set",
         vol.Required("device_id"): str,
         vol.Required("data"): dict,
+        vol.Optional("replace", default=False): bool,
     }
 )
 @websocket_api.async_response
@@ -670,7 +715,8 @@ async def ws_storage_device_set(
 ) -> None:
     """Handle lcards/storage/device/set.
 
-    Deep-merges *data* into the device-scoped storage object for *device_id*.
+    Deep-merges *data* into the device-scoped storage object for *device_id*
+    (``replace: true`` replaces each sub-key's value, as for storage/user/set).
     This command doubles as the device registration/heartbeat endpoint \u2014
     browsers call it on load with ``display_name``, ``last_seen``, and
     ``user_agent`` so the device appears in the admin panel automatically.
@@ -680,7 +726,7 @@ async def ws_storage_device_set(
         return
 
     device_id = msg["device_id"]
-    await storage.async_deep_set(STORAGE_NS_DEVICE, device_id, msg["data"])
+    await storage.async_deep_set(STORAGE_NS_DEVICE, device_id, msg["data"], replace=msg["replace"])
     connection.send_result(msg["id"], {"ok": True, "device_id": device_id, "keys": list(msg["data"].keys())})
 
 
@@ -814,6 +860,7 @@ async def ws_storage_devices_get(
         vol.Required("type"): f"{DOMAIN}/storage/devices/set",
         vol.Required("device_id"): str,
         vol.Required("data"): dict,
+        vol.Optional("replace", default=False): bool,
     }
 )
 @websocket_api.async_response
@@ -826,6 +873,7 @@ async def ws_storage_devices_set(
 
     Deep-merges *data* into any device's scoped storage.  Requires admin.
     Useful for renaming a device or copying settings from the admin panel.
+    ``replace: true`` replaces each sub-key's value, as for storage/user/set.
     """
     if not _require_admin(connection, msg):
         return
@@ -835,5 +883,5 @@ async def ws_storage_devices_set(
         return
 
     device_id = msg["device_id"]
-    await storage.async_deep_set(STORAGE_NS_DEVICE, device_id, msg["data"])
+    await storage.async_deep_set(STORAGE_NS_DEVICE, device_id, msg["data"], replace=msg["replace"])
     connection.send_result(msg["id"], {"ok": True, "device_id": device_id, "keys": list(msg["data"].keys())})

@@ -20,8 +20,6 @@ function ctx(extra = {}) {
         getEntity: (id) => entities[id],
         hass: { states: entities },
         sun: { elevation: 12 },
-        getPerf: (key) => ({ fps: 58, mem: 'n/a' })[key],
-        flags: { debug_overlay: true },
         ...extra,
     };
 }
@@ -48,10 +46,11 @@ test('compile: each node type', () => {
         [{ time_between: '08:00-09:00' }, 'time_between'],
         [{ weekday_in: ['mon'] }, 'weekday_in'],
         [{ sun_elevation: { above: 0 } }, 'sun_elevation'],
-        [{ perf_metric: { key: 'fps' } }, 'perf_metric'],
-        [{ flag: { debugFlagName: 'x' } }, 'flag'],
         [{ random_chance: 0 }, 'random_chance'],
         [{ bogus_key: 1 }, 'invalid'],
+        // Removed 2026-11-09 (nothing ever supplied their values): now unknown keys
+        [{ perf_metric: { key: 'fps' } }, 'invalid'],
+        [{ flag: { debugFlagName: 'x' } }, 'invalid'],
     ];
     for (const [when, type] of cases) assert.equal(compile(when).tree.type, type, JSON.stringify(when));
 });
@@ -88,19 +87,15 @@ test('compile: an unrecognised key compiles to invalid and evaluates false', asy
     assert.equal(await run({ entitty: 'light.desk', state: 'on' }, ctx()), false);
 });
 
-test('deps: entities, perf keys and flags are collected through nesting', () => {
+test('deps: entities are collected through nesting', () => {
     const { deps } = compile({
         all: [
             { entity: 'light.desk' },
             { any: [{ entity_attr: 'sensor.temp', attribute: 'unit' }, { not: { map_range_cond: { entity: 'sensor.zero' } } }] },
-            { perf_metric: { key: 'fps', above: 30 } },
-            { flag: { debugFlagName: 'debug_overlay' } },
             { condition: "{{ is_state('switch.a', 'on') and states('sensor.b') | float > 1 }}" },
         ],
     });
     assert.deepEqual([...deps.entities].sort(), ['light.desk', 'sensor.b', 'sensor.temp', 'sensor.zero', 'switch.a']);
-    assert.deepEqual([...deps.perf], ['fps']);
-    assert.deepEqual([...deps.flags], ['debug_overlay']);
 });
 
 test('deps: JavaScript conditions depend on the entities they read from states[...]', () => {
@@ -188,16 +183,12 @@ test('weekday_in: case-insensitive short names; empty list false', async () => {
     assert.equal(await run({ weekday_in: ['friday'] }, friday), false); // full names are not recognised
 });
 
-test('sun_elevation, perf_metric, flag', async () => {
+test('sun_elevation', async () => {
     const c = ctx();
     assert.equal(await run({ sun_elevation: { above: 10, below: 20 } }, c), true);
     assert.equal(await run({ sun_elevation: { above: 0 } }, ctx({ sun: {} })), false);
-    assert.equal(await run({ perf_metric: { key: 'fps', at_least: 50 } }, c), true);
-    assert.equal(await run({ perf_metric: { key: 'fps', equals: 58 } }, c), true);
-    assert.equal(await run({ perf_metric: { key: 'mem', above: 0 } }, c), false);
-    assert.equal(await run({ flag: { debugFlagName: 'debug_overlay' } }, c), true);
-    assert.equal(await run({ flag: { debugFlagName: 'debug_overlay', is: false } }, c), false);
-    assert.equal(await run({ flag: { debugFlagName: 'missing', is: false } }, c), true);
+    // Removed condition types evaluate like any unknown key: never match
+    assert.equal(await run({ flag: { debugFlagName: 'missing', is: false } }, c), false);
 });
 
 test('random_chance compares Math.random() against p', async (t) => {

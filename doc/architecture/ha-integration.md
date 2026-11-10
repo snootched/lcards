@@ -254,7 +254,7 @@ The integration registers a `lcards.*` action namespace in `async_setup_entry()`
 | `lcards.play_sound` | `event_type?: string`, `asset_key?: string` | Plays a sound effect on target frontends |
 | `lcards.show_portal_card` | `content: dict`, `layers?`, `position?`, `width?`, `height?`, `duration?`, `dismiss?` | Shows a portal card overlay via `PortalOverlayManager` (slot `'ha-service'`) |
 | `lcards.clear_portal_card` | - | Clears the `'ha-service'` portal overlay |
-| `lcards.borg_assimilate` | `intro_duration?`, `transition_style?`, `site_count?`, `tendrils_per_site?`, `tendril_length?`, `particle_count?`, `intro_layers?`, `persistent_layers?`, `suppress_persistent?`, `font_swap?` | Easter egg: triggers the Borg palette-swap + canvas intro sequence |
+| `lcards.borg_assimilate` | `intro_duration?`, `transition_style?`, `site_count?`, `tendrils_per_site?`, `tendril_length?`, `particle_count?`, `intro_layers?`, `persistent_layers?`, `suppress_persistent?`, `font_swap?`, `palette_hue?` | Easter egg: triggers the Borg palette-swap + canvas intro sequence |
 | `lcards.borg_deassimilate` | `with_outro?`, `outro_layers?`, `revert_transition_style?` | Easter egg: reverses `borg_assimilate`, restoring normal state |
 
 ### Targeting (all services)

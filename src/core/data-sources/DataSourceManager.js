@@ -8,6 +8,13 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { DataSource } from './DataSource.js';
 import { BaseService } from '../../core/BaseService.js';
 
+/**
+ * How long a card-created source keeps running after its last card leaves, so a
+ * card that is removed and added again (edit mode, view switches, a card rebuilt by
+ * HA) picks up the same source, history included, instead of a fresh one.
+ */
+export const SOURCE_RELEASE_DELAY_MS = 30000;
+
 export class DataSourceManager extends BaseService {
   constructor(hass) {
     super();
@@ -20,6 +27,13 @@ export class DataSourceManager extends BaseService {
 
     // NEW: Card-level dependency tracking
     this._sourceToCards = new Map(); // sourceId -> Set<cardId>
+
+    /** @type {Map<string, ReturnType<typeof setTimeout>>} sourceId -> pending release (see removeCardFromSource) */
+    this._releaseTimers = new Map();
+    /** @type {Map<string, Function>} sourceId -> the manager's own entity-forwarding subscriber */
+    this._forwarders = new Map();
+    /** @type {Set<string>} Sources asked for without a card (MSD/global config): never released */
+    this._configSources = new Set();
 
     // Performance statistics
     this._stats = {
@@ -81,6 +95,8 @@ export class DataSourceManager extends BaseService {
    * @returns {Promise<DataSource>}
    */
   async createDataSource(name, config, cardId = null, autoCreated = false) {
+    if (!cardId) this._configSources.add(name);
+
     // Core starts with a stub HASS (no connection) until a card or the page feeds the
     // real one, and HA configures a card before giving it HASS. A source built on the
     // stub skips its history preload and fails to subscribe, so wait for the real one.
@@ -91,6 +107,7 @@ export class DataSourceManager extends BaseService {
     // If datasource already exists, add cardId to tracking
     if (this.sources.has(name)) {
       const existing = this.sources.get(name);
+      this._cancelRelease(name);
 
       if (cardId) {
         if (!this._sourceToCards.has(name)) {
@@ -127,7 +144,7 @@ export class DataSourceManager extends BaseService {
       this.entityIndex.set(enrichedConfig.entity, source);
 
       // Forward entity changes to global listeners AND update hass object
-      source.subscribe((data) => {
+      const forward = () => {
         // Keep our own view of hass current with the new state. Copy, never write
         // into the snapshot: it is the hass object cards hold as their previous
         // state, and a card that finds the new state already there sees no change
@@ -138,27 +155,18 @@ export class DataSourceManager extends BaseService {
         }
 
         this._notifyGlobalEntityChangeListeners([enrichedConfig.entity]);
-      });
+      };
+      this._forwarders.set(name, forward);
+      source.subscribe(forward);
     }
 
     try {
+      // start() loads the entity's current state (once) and subscribes to changes
       await source.start();
-
-      // NEW: Preload initial state from HASS if available
-      if (enrichedConfig.entity && this.hass.states && this.hass.states[enrichedConfig.entity]) {
-        const hassState = this.hass.states[enrichedConfig.entity];
-
-        // Simulate initial state change to populate the data source
-        ;(/** @type {any} */ (source))._handleStateChange({
-          entity_id: enrichedConfig.entity,
-          new_state: hassState,
-          old_state: null
-        });
-      }
-
     } catch (error) {
       lcardsLog.warn(`[DataSourceManager] ⚠️ Failed to start source ${name}:`, error);
       this.sources.delete(name);
+      this._forwarders.delete(name);
       this.entityIndex.delete(enrichedConfig.entity);
       if (cardId) {
         this.removeCardFromSource(name, cardId);
@@ -227,191 +235,58 @@ export class DataSourceManager extends BaseService {
     }
   }
 
-  // NEW: EntityRuntime compatibility methods
+  /**
+   * Entity-like view of a data source (EntityRuntime compatibility; the rules
+   * engine's last-resort lookup and the MSD debug API use it).
+   *
+   * - `name`: the source's current value
+   * - `name.processing.<key>` (or any other dotted path into getCurrentData()):
+   *   that value, or null when the path does not resolve
+   * - an entity id a source tracks: that source's value
+   * - otherwise the HASS state, or null
+   * @param {string} entityId
+   * @returns {Object|null}
+   */
   getEntity(entityId) {
-    // Handle dot notation for datasource references
+    const direct = this.sources.get(entityId);
+    if (direct) return this._sourceEntity(direct, entityId, 'datasource');
+
     if (entityId.includes('.')) {
       const [sourceId, ...pathParts] = entityId.split('.');
       const source = this.sources.get(sourceId);
-
       if (source) {
-        const currentData = source.getCurrentData();
-        const path = pathParts.join('.');
-
-        // Handle transformation paths
-        if (path.startsWith('transformations.')) {
-          return this._resolveDataPath(currentData, path, source, 'transformations');
+        let value = /** @type {any} */ (source.getCurrentData());
+        for (const part of pathParts) {
+          value = value && typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, part) ? value[part] : undefined;
         }
-
-        // Handle aggregation paths
-        if (path.startsWith('aggregations.')) {
-          return this._resolveDataPath(currentData, path, source, 'aggregations');
-        }
-
-        // Default: return raw datasource data
+        if (value === undefined || value === null) return null;
         return {
-          state: currentData.v?.toString() || 'unavailable',
-          attributes: {
-            timestamp: currentData.t,
-            source_type: 'datasource',
-            entity_id: sourceId,
-            ...currentData.stats
-          },
-          // Provide methods for overlay access
-          getHistoricalData: (count) => {
-            try {
-              return source.buffer.getRecent(count || 100);
-            } catch (error) {
-              lcardsLog.warn(`[DataSourceManager] Error getting historical data for ${sourceId}:`, error);
-              return [];
-            }
-          },
-          getTransformedHistory: (transformKey, count) => {
-            try {
-              return source.getTransformedHistory(transformKey, count || 100);
-            } catch (error) {
-              lcardsLog.warn(`[DataSourceManager] ⚠️ Error getting transformed history for ${sourceId}.${transformKey}:`, error);
-              return [];
-            }
-          }
+          state: String(value),
+          attributes: { data_path: pathParts.join('.'), source_type: 'datasource', entity_id: sourceId }
         };
       }
     }
 
-    // Check if it's a simple datasource reference
-    const source = this.sources.get(entityId);
-    if (source) {
-      const currentData = source.getCurrentData();
-      const entityResult = {
-        state: currentData.v?.toString() || 'unavailable',
-        attributes: {
-          timestamp: currentData.t,
-          source_type: 'datasource',
-          entity_id: entityId
-        },
-        getHistoricalData: (count) => {
-          try {
-            return source.buffer.getRecent(count || 100);
-          } catch (error) {
-            lcardsLog.warn(`[DataSourceManager] ⚠️ Error getting historical data for ${entityId}:`, error);
-            return [];
-          }
-        },
-        getTransformedHistory: (transformKey, count) => {
-          try {
-            return source.getTransformedHistory(transformKey, count || 100);
-          } catch (error) {
-            lcardsLog.warn(`[DataSourceManager] ⚠️ Error getting transformed history for ${entityId}.${transformKey}:`, error);
-            return [];
-          }
-        },
-        // NEW: Add subscription capability for real-time updates
-        subscribe: (callback) => {
-          return source.subscribe(callback);
-        }
-      };
-
-      return entityResult;
-    }
-
-    // Check entity index for basic entity sources
     const entitySource = this.entityIndex.get(entityId);
-    if (entitySource) {
-      const currentData = entitySource.getCurrentData();
-      return {
-        state: currentData.v?.toString() || 'unavailable',
-        attributes: {
-          timestamp: currentData.t,
-          source_type: 'entity_datasource'
-        }
-      };
-    }
+    if (entitySource) return this._sourceEntity(entitySource, entityId, 'entity_datasource');
 
-    // Final fallback to HASS states
-    if (this.hass?.states?.[entityId]) {
-      return this.hass.states[entityId];
-    }
-
-    return null;
+    return this.hass?.states?.[entityId] ?? null;
   }
 
   /**
-   * Resolve nested data paths for transformations and aggregations
    * @private
-   * @param {Object} currentData - Current data from datasource
-   * @param {string} path - Full dot notation path
-   * @param {Object} source - Source object for historical data access
-   * @param {string} dataType - 'transformations' or 'aggregations'
-   * @returns {Object|null} Resolved entity-like object
+   * @param {DataSource} source
+   * @param {string} id
+   * @param {string} sourceType
    */
-  _resolveDataPath(currentData, path, source, dataType) {
-    const pathParts = path.split('.');
-    let current = currentData;
-
-    // Navigate through the path
-    for (const part of pathParts) {
-      if (current && typeof current === 'object' && current.hasOwnProperty(part)) {
-        current = current[part];
-      } else {
-        return null;
-      }
-    }
-
-    // If we found a value, create entity-like object
-    if (current !== undefined && current !== null) {
-      const entityResult = {
-        state: current.toString(),
-        attributes: {
-          data_path: path,
-          data_type: dataType,
-          source_id: source.entity || 'unknown'
-        },
-        // NEW: Add subscription capability for dot notation entities
-        subscribe: (callback) => {
-          // Subscribe to the underlying source and filter for our specific transformation/aggregation
-          return source.subscribe((data) => {
-            const pathParts = path.split('.');
-            let current = data;
-
-            for (const part of pathParts) {
-              if (current && typeof current === 'object' && current.hasOwnProperty(part)) {
-                current = current[part];
-              } else {
-                current = null;
-                break;
-              }
-            }
-
-            if (current !== undefined && current !== null) {
-              // Create entity-like data for the callback
-              callback({
-                state: current.toString(),
-                attributes: {
-                  data_path: path,
-                  data_type: dataType,
-                  source_id: source.entity || 'unknown'
-                }
-              });
-            }
-          });
-        }
-      };
-
-      // For transformations, provide historical data access
-      if (dataType === 'transformations') {
-        const transformKey = pathParts[1]; // e.g., "celsius" from "transformations.celsius"
-        entityResult.getHistoricalData = (count) => {
-          try {
-            return source.getTransformedHistory(transformKey, count || 100);
-          } catch (error) {
-            lcardsLog.warn(`[DataSourceManager] ⚠️ Error getting transformed history for ${transformKey}:`, error);
-            return [];
-          }
-        };
-      }
-
-      return entityResult;
-    }    return null;
+  _sourceEntity(source, id, sourceType) {
+    const currentData = source.getCurrentData();
+    return {
+      state: currentData.v?.toString() || 'unavailable',
+      attributes: { timestamp: currentData.t, source_type: sourceType, entity_id: id },
+      getHistoricalData: (count) => source.getRecent(count || 100),
+      subscribe: (callback) => source.subscribe(callback)
+    };
   }
 
   listIds() {
@@ -454,24 +329,79 @@ export class DataSourceManager extends BaseService {
   }
 
   /**
-   * Remove card from datasource tracking
-   * Used when card is destroyed or datasource removed from config
+   * Remove card from datasource tracking.
+   * Used when a card disconnects or a source is removed from its config. When the
+   * last card leaves a source that a card created, the source is stopped and
+   * removed after SOURCE_RELEASE_DELAY_MS, unless a card takes it again first or
+   * something else (a chart, an animation, an MSD overlay) still subscribes to it.
+   * Sources from MSD/global config (created without a card) are never released here.
    * @param {string} sourceName - Datasource identifier
    * @param {string} cardId - Card ID to remove
    */
   removeCardFromSource(sourceName, cardId) {
     const cards = this._sourceToCards.get(sourceName);
-    if (cards) {
-      cards.delete(cardId);
+    if (!cards) return;
+    cards.delete(cardId);
 
-      lcardsLog.debug(`[DataSourceManager] Removed card ${cardId} from datasource ${sourceName} (${cards.size} cards remaining)`);
+    lcardsLog.debug(`[DataSourceManager] Removed card ${cardId} from datasource ${sourceName} (${cards.size} cards remaining)`);
 
-      // Cleanup if no cards left
-      if (cards.size === 0) {
-        this._sourceToCards.delete(sourceName);
-        lcardsLog.debug(`[DataSourceManager] No cards using datasource ${sourceName}, eligible for cleanup`);
-      }
+    if (cards.size === 0) {
+      this._sourceToCards.delete(sourceName);
+      this._scheduleRelease(sourceName);
     }
+  }
+
+  /**
+   * @private
+   * @param {string} name
+   */
+  _scheduleRelease(name) {
+    const source = this.sources.get(name);
+    if (!source || this._configSources.has(name) || source.cfg?._autoCreated) return;
+    this._cancelRelease(name);
+    lcardsLog.debug(`[DataSourceManager] No cards using datasource ${name}; releasing in ${SOURCE_RELEASE_DELAY_MS} ms`);
+    this._releaseTimers.set(name, setTimeout(() => {
+      this._releaseTimers.delete(name);
+      this._releaseSource(name);
+    }, SOURCE_RELEASE_DELAY_MS));
+  }
+
+  /**
+   * @private
+   * @param {string} name
+   */
+  _cancelRelease(name) {
+    const timer = this._releaseTimers.get(name);
+    if (timer) {
+      clearTimeout(timer);
+      this._releaseTimers.delete(name);
+    }
+  }
+
+  /**
+   * Stop and remove a source no card uses. Kept when a card came back or when it
+   * has subscribers besides the manager's own entity forwarder.
+   * @private
+   * @param {string} name
+   */
+  _releaseSource(name) {
+    const source = this.sources.get(name);
+    if (!source || this._sourceToCards.get(name)?.size) return;
+    const own = this._forwarders.get(name);
+    const others = [...source.subscribers].filter(cb => cb !== own).length;
+    if (others > 0) {
+      lcardsLog.debug(`[DataSourceManager] Keeping datasource ${name}: ${others} subscriber(s) outside cards`);
+      return;
+    }
+    this.sources.delete(name);
+    this._forwarders.delete(name);
+    if (this.entityIndex.get(source.cfg.entity) === source) {
+      this.entityIndex.delete(source.cfg.entity);
+      const other = [...this.sources.values()].find(s => s.cfg.entity === source.cfg.entity);
+      if (other) this.entityIndex.set(source.cfg.entity, other);
+    }
+    source.destroy();
+    lcardsLog.debug(`[DataSourceManager] Released datasource ${name} (no cards left)`);
   }
 
   getStats() {
@@ -536,24 +466,14 @@ export class DataSourceManager extends BaseService {
       }
     });
 
-    // Test dot notation access for enhanced sources
+    // Dot-notation lookups for every processor output
     this.sources.forEach((source, id) => {
-      const currentData = source.getCurrentData();
-      if (currentData.transformations && Object.keys(currentData.transformations).length > 0) {
-        Object.keys(currentData.transformations).forEach(transformKey => {
-          const dotPath = `${id}.transformations.${transformKey}`;
-          const resolved = this.getEntity(dotPath);
-          debugInfo.dot_notation_test[dotPath] = resolved ? resolved.state : 'null';
-        });
-      }
-
-      if (currentData.aggregations && Object.keys(currentData.aggregations).length > 0) {
-        Object.keys(currentData.aggregations).forEach(aggKey => {
-          const dotPath = `${id}.aggregations.${aggKey}`;
-          const resolved = this.getEntity(dotPath);
-          debugInfo.dot_notation_test[dotPath] = resolved ? resolved.state : 'null';
-        });
-      }
+      const processing = source.getCurrentData().processing || {};
+      Object.keys(processing).forEach(key => {
+        const dotPath = `${id}.processing.${key}`;
+        const resolved = this.getEntity(dotPath);
+        debugInfo.dot_notation_test[dotPath] = resolved ? resolved.state : 'null';
+      });
     });
 
     return debugInfo;
@@ -562,6 +482,9 @@ export class DataSourceManager extends BaseService {
   async destroy() {
     if (this._destroyed) return;
     this._destroyed = true;
+
+    this._releaseTimers.forEach(timer => clearTimeout(timer));
+    this._releaseTimers.clear();
 
     // Stop all data sources
     const stopPromises = [];
@@ -580,6 +503,8 @@ export class DataSourceManager extends BaseService {
     await Promise.all(stopPromises);
 
     this.sources.clear();
+    this._forwarders.clear();
+    this._configSources.clear();
     this.entityIndex.clear();
     this.globalEntityChangeListeners.clear();
   }
@@ -593,15 +518,14 @@ export class DataSourceManager extends BaseService {
     };
   }
 
-  // ============================================================================
-  // PHASE 1: New HASS Ingestion Method (Step 1 - Add alongside existing)
-  // ============================================================================
-
   /**
-   * NEW: Ingest fresh HASS and update tracked entities
-   * This supplements the real-time subscription mechanism (which remains primary)
-   * Used for: initialization, reconnection, manual refresh
+   * Store fresh HASS and report which tracked entities changed. Data sources get
+   * their values from their own `state_changed` subscriptions, not from here
+   * (feeding HASS snapshots in as well would record every change twice). This
+   * keeps `this.hass` current for getEntity() and the hass forwarding, and
+   * releases createDataSource() calls waiting for a connection.
    * @param {Object} hass - Home Assistant state object
+   * @returns {{hasChanges: boolean, changedCount: number, totalCount: number}}
    */
   ingestHass(hass) {
     if (!hass || !hass.states) {
@@ -609,16 +533,7 @@ export class DataSourceManager extends BaseService {
       return { hasChanges: false, changedCount: 0, totalCount: 0 };
     }
 
-    const previousHass = this.hass;
-    const hassPrevious = !!previousHass?.states;
-
-    lcardsLog.debug('[DataSourceManager] 📥 ingestHass: Updating tracked entities', {
-      entityCount: Object.keys(hass.states).length,
-      trackedCount: this.entityIndex.size,
-      hasPrevious: hassPrevious
-    });
-
-    // Update HASS reference for lookups
+    const previousStates = this.hass?.states;
     this.hass = hass;
 
     // Release data sources waiting for a connected HASS (createDataSource)
@@ -628,57 +543,23 @@ export class DataSourceManager extends BaseService {
       waiters.forEach(resolve => resolve());
     }
 
-    // If we have previous HASS, only update changed entities
-    if (hassPrevious) {
-      let changedCount = 0;
-      let processedCount = 0;
-
-      for (const [entityId, dataSource] of this.entityIndex.entries()) {
-        const currentState = hass.states[entityId];
-        const previousState = previousHass.states[entityId];
-
-        if (currentState) {
-          processedCount++;
-
-          // Check if the entity state actually changed
-          const hasChanged = !previousState ||
-                           currentState.state !== previousState.state ||
-                           currentState.last_changed !== previousState.last_changed ||
-                           JSON.stringify(currentState.attributes) !== JSON.stringify(previousState.attributes);
-
-          if (hasChanged) {
-            changedCount++;
-            lcardsLog.debug(`[DataSourceManager] 🔄 Refreshing changed entity: ${entityId}`);
-
-            // Notify the data source of the fresh state
-            if (dataSource && typeof dataSource.updateFromEntityState === 'function') {
-              dataSource.updateFromEntityState(entityId, currentState);
-            }
-          }
-        }
+    let changedCount = 0;
+    let totalCount = 0;
+    for (const entityId of this.entityIndex.keys()) {
+      const current = hass.states[entityId];
+      if (!current) continue;
+      totalCount++;
+      const previous = previousStates?.[entityId];
+      if (!previous ||
+          current.state !== previous.state ||
+          current.last_changed !== previous.last_changed ||
+          JSON.stringify(current.attributes) !== JSON.stringify(previous.attributes)) {
+        changedCount++;
       }
-
-      lcardsLog.debug(`[DataSourceManager] ✅ ingestHass: Complete - ${changedCount}/${processedCount} entities changed`);
-      return { hasChanges: changedCount > 0, changedCount, totalCount: processedCount };
-    } else {
-      // First run or no previous HASS - update all tracked entities
-      let totalCount = 0;
-      for (const [entityId, dataSource] of this.entityIndex.entries()) {
-        if (hass.states[entityId]) {
-          totalCount++;
-          const freshState = hass.states[entityId];
-          lcardsLog.debug(`[DataSourceManager] 🔄 Refreshing entity: ${entityId}`);
-
-          // Notify the data source of the fresh state
-          if (dataSource && typeof dataSource.updateFromEntityState === 'function') {
-            dataSource.updateFromEntityState(entityId, freshState);
-          }
-        }
-      }
-
-      lcardsLog.debug('[DataSourceManager] ✅ ingestHass: Complete - full refresh');
-      return { hasChanges: true, changedCount: totalCount, totalCount };
     }
+
+    lcardsLog.trace(`[DataSourceManager] ingestHass: ${changedCount}/${totalCount} tracked entities changed`);
+    return { hasChanges: !previousStates || changedCount > 0, changedCount, totalCount };
   }
 
   /**

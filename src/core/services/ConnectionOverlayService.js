@@ -35,8 +35,9 @@
  *
  * The overlay is managed via `PortalOverlayManager` under the named slot
  * `'connection-overlay'`.  POM injects content into the ScreenEffectManager's
- * shared `position:fixed` portal div (`z-index:9100`, appended to
- * `document.body`).  This makes it visible on any page the module is loaded —
+ * shared `position:fixed` portal div (`z-index:9100`, mounted inside
+ * `<home-assistant>` like Home Assistant's own dialogs, so cards in it get Lit
+ * contexts).  This makes it visible on any page the module is loaded, with
  * no card placement required.
  *
  * ## Alert overlay co-existence
@@ -109,7 +110,7 @@ const DEFAULT_CONFIG = {
     message: {
         text:      'Connection Lost',
         color:     'var(--error-color)',
-        mode:      'text',      // 'text' | 'card'
+        mode:      'text',      // 'text' | 'card' | 'borg'
         font:      'Antonio',   // font key from the lcards font registry
         size:      42,
         weight:    '400',
@@ -410,8 +411,16 @@ export class ConnectionOverlayService extends BaseService {
 
         // Re-render immediately if the overlay is currently visible so remote-broadcast
         // config updates (font, colour, etc.) take effect without a page reload.
-        if (this._isActive && window.lcards?.core?.portalOverlayManager?.has('connection-overlay')) {
-            this._showDisconnectOverlay();
+        // Borg mode shows the assimilation instead (and removes a standard overlay
+        // left from a text or card mode setup).
+        if (this._isActive) {
+            const pom = window.lcards?.core?.portalOverlayManager;
+            if (this._config.message?.mode === 'borg') {
+                if (pom?.has('connection-overlay')) pom.hide('connection-overlay');
+                if (!this._isDismissed) this._activateDisconnectView();
+            } else if (pom?.has('connection-overlay')) {
+                this._showDisconnectOverlay();
+            }
         }
 
         return this._config;
@@ -574,7 +583,8 @@ export class ConnectionOverlayService extends BaseService {
         this._isDismissed         = false;
         this._isDisconnected      = true;   // treat as disconnected for state consistency
         this._isActive            = true;
-        this._showDisconnectOverlay();
+        // Immediate, unlike a real disconnect (no tolerance); Borg mode assimilates.
+        this._activateDisconnectView();
     }
 
     /**
@@ -606,6 +616,8 @@ export class ConnectionOverlayService extends BaseService {
         this._isActive            = false;
         this._isDismissed         = false;
         window.lcards?.core?.portalOverlayManager?.hide('connection-overlay');
+        // Borg mode: a forced show assimilated, so undo it (read before the restore below).
+        if (this._config.message?.mode === 'borg') this._deassimilate();
         // Restore config that was active before any showWith() preview.
         if (this._previewConfig) {
             this._config       = this._previewConfig;
@@ -641,6 +653,10 @@ export class ConnectionOverlayService extends BaseService {
         const pom = window.lcards?.core?.portalOverlayManager;
         const cfg = this._config;
 
+        // Borg mode: deassimilation replaces the reconnect banner, as on a real reconnect.
+        const borgMode = cfg.message?.mode === 'borg';
+        if (borgMode) this._deassimilate();
+
         const cleanup = () => {
             if (this._previewConfig) {
                 this._config       = this._previewConfig;
@@ -650,7 +666,9 @@ export class ConnectionOverlayService extends BaseService {
             document.dispatchEvent(new CustomEvent('lcards-connection-overlay-dismissed', { bubbles: false }));
         };
 
-        if (cfg.reconnected?.enabled) {
+        if (borgMode) {
+            cleanup();
+        } else if (cfg.reconnected?.enabled) {
             this._isReconnectedActive = true;
             const recon        = cfg.reconnected;
             const reconContent = (cfg.message?.mode === 'card' && recon?.content) ? recon.content : null;
@@ -734,13 +752,8 @@ export class ConnectionOverlayService extends BaseService {
         // Both wait out the disconnect tolerance, so a short blip shows neither.
         const activate = () => {
             this._isActive = true;
-            if (this._config.message?.mode === 'borg') {
-                lcardsLog.info('[ConnectionOverlayService] Connection lost — activating Borg assimilation');
-                window.lcards?.core?.borgAssimilationManager?.assimilate(borgOptsFromLayers(this._config.message?.borgLayers));
-            } else {
-                lcardsLog.info('[ConnectionOverlayService] Connection lost — activating overlay');
-                this._showDisconnectOverlay();
-            }
+            lcardsLog.info('[ConnectionOverlayService] Connection lost: activating the disconnect view');
+            this._activateDisconnectView();
         };
 
         const delayMs = this._config.disconnect_delay_ms ?? 0;
@@ -790,11 +803,9 @@ export class ConnectionOverlayService extends BaseService {
 
         // Borg mode: deassimilation replaces the standard reconnect overlay.
         if (this._config.message?.mode === 'borg') {
-            const borgMgr = window.lcards?.core?.borgAssimilationManager;
-            if (borgMgr?.isAssimilated) {
-                lcardsLog.info('[ConnectionOverlayService] Connection restored — deassimilating');
-                borgMgr.deassimilate();
-            }
+            this._deassimilate();
+            // Refresh the config here too (see below): Borg mode skipped it.
+            this._loadConfigWithRetry();
             return;
         }
 
@@ -903,8 +914,38 @@ export class ConnectionOverlayService extends BaseService {
     // -------------------------------------------------------------------------
 
     /**
-     * Show the disconnect overlay via PortalOverlayManager using the current
-     * effective config.  Called from show(), showWith(), and _onDisconnected().
+     * What a disconnect shows, by `message.mode`: the Borg assimilation (once; an
+     * assimilation already running is kept) or the standard overlay. Used by a real
+     * disconnect (after its tolerance), show() / showWith() and loadConfig() while active.
+     * @private
+     */
+    _activateDisconnectView() {
+        if (this._config.message?.mode === 'borg') {
+            const borgMgr = window.lcards?.core?.borgAssimilationManager;
+            if (borgMgr && !borgMgr.isAssimilated) {
+                lcardsLog.info('[ConnectionOverlayService] Activating Borg assimilation');
+                borgMgr.assimilate(borgOptsFromLayers(this._config.message?.borgLayers));
+            }
+            return;
+        }
+        this._showDisconnectOverlay();
+    }
+
+    /**
+     * End a Borg assimilation the overlay started (no-op when none is running).
+     * @private
+     */
+    _deassimilate() {
+        const borgMgr = window.lcards?.core?.borgAssimilationManager;
+        if (borgMgr?.isAssimilated) {
+            lcardsLog.info('[ConnectionOverlayService] Deassimilating');
+            borgMgr.deassimilate();
+        }
+    }
+
+    /**
+     * Show the standard disconnect overlay via PortalOverlayManager using the current
+     * effective config (text or card mode). Called through _activateDisconnectView().
      * @private
      */
     _showDisconnectOverlay() {
@@ -914,13 +955,16 @@ export class ConnectionOverlayService extends BaseService {
             return;
         }
         const cfg = this._config;
+        // The saved card shows only in card mode (as on reconnect); text mode keeps
+        // the text even when a card from an earlier card-mode setup is still saved.
+        const content = (cfg.message?.mode === 'card' && cfg.content) ? cfg.content : null;
         pom.show('connection-overlay', {
             position:  cfg.position ?? 'center',
             width:     cfg.width    ?? 'auto',
             height:    cfg.height   ?? 'auto',
             dismiss:   cfg.dismiss  ?? true,
             onDismiss: () => this._handleDismiss(),
-            content:   cfg.content,
+            content,
             text:      cfg.message,
             layers:    cfg.layers,
         });

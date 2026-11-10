@@ -626,6 +626,40 @@ export class AssetManager extends BaseService {
   }
 
   /**
+   * The SVG registry key for a `base_svg`-style source.
+   *
+   * - `builtin:<name>`: `<name>` (pack-registered keys)
+   * - a path (`/local/...`, `/hacsfiles/...`) or `http(s)://` URL: the whole
+   *   source, trimmed, so files with the same name in different folders, or
+   *   named like a built-in, get their own entries
+   * - `media-source://...`: the content ID itself (see loadSvgFromMediaSource)
+   * - anything else: taken as an already registered key
+   *
+   * Sync readers (MSD render, anchor helpers, editor previews) use this to find
+   * what loadSvg() registered.
+   *
+   * @param {string|null|undefined} source
+   * @returns {string|null} Registry key, or null for an empty / 'none' source
+   */
+  svgKeyForSource(source) {
+    if (typeof source !== 'string') return null;
+    const s = source.trim();
+    if (!s || s === 'none') return null;
+    if (s.startsWith('builtin:')) return s.slice('builtin:'.length) || null;
+    return s;
+  }
+
+  /**
+   * True for a source (or key) loadSvg() fetches from a URL itself.
+   * @private
+   * @param {string} source
+   * @returns {boolean}
+   */
+  _isSvgPathSource(source) {
+    return source.startsWith('/') || /^https?:\/\//.test(source);
+  }
+
+  /**
    * Load SVG from source with auto-registration
    * Handles builtin, /local/, and external URLs automatically
    *
@@ -646,29 +680,22 @@ export class AssetManager extends BaseService {
       return null;
     }
 
-    let key;
-    let url;
+    const key = this.svgKeyForSource(source);
 
-    if (source.startsWith('builtin:')) {
-      // Builtin SVGs are pre-registered by packs
-      key = source.replace('builtin:', '');
-    } else if (source.startsWith('/') || /^https?:\/\//.test(source)) {
-      // a path Home Assistant serves (/local/ is the www folder) or a full URL
-      // External/user SVGs: derive key from filename
-      key = /** @type {string} */ (source.split('/').pop()).replace('.svg', '');
-      url = source;
+    if (key && key === source.trim() && this._isSvgPathSource(key)) {
+      // a path Home Assistant serves (/local/ is the www folder) or a full URL:
+      // keyed by the whole source, so it never collides with another folder's
+      // file of the same name or with a built-in pack key
+      const url = key;
 
       // Auto-register if not already registered
       if (!this.getRegistry('svg').has(key)) {
         this.register('svg', key, null, {
           url,
-          source: source.startsWith('/') ? 'user' : 'external'
+          source: key.startsWith('/') ? 'user' : 'external'
         });
         lcardsLog.debug(`[AssetManager] Auto-registered SVG: ${key} from ${url}`);
       }
-    } else {
-      // Assume it's already a registered key
-      key = source;
     }
 
     if (!key) {

@@ -80,12 +80,7 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
       validationService = lcardsCore.validationService;
 
       if (validationService) {
-        // Configure for MSD-specific needs
-        validationService.config.strict = mergedConfig?.debug?.strictValidation || false;
-        validationService.config.stopOnError = false;
-        validationService.config.debug = mergedConfig?.debug?.validation || false;
-
-        lcardsLog.trace('[PipelineCore] Core ValidationService configured');
+        // The service is shared by every card: never write its config here.
 
         // Connect ValidationService to ThemeManager and DataSourceManager
         if (coordinator.themeManager) {
@@ -172,7 +167,6 @@ export async function initMsdPipeline(userMsdConfig, svgContent, mountEl, hass =
       coordinator.animationManager.mountEl = mountEl;
 
       await coordinator.animationManager.initialize(mergedConfig.overlays, {
-        customPresets: mergedConfig.animation_presets || {},
         suppressMountWarning: true // mountEl already set by core singleton init
       });
       lcardsLog.info('[PipelineCore] ✅ AnimationManager initialized:', {

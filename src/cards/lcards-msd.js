@@ -551,7 +551,7 @@ export class LCARdSMSDCard extends LCARdSCard {
         this.hass = null;
 
         // Register MSD card itself with core rulesManager (uses _registerOverlayForRules for callback)
-        this._registerOverlayForRules(this._cardGuid, ['msd-card']);
+        this._registerOverlayForRules(this._cardGuid, 'msd-card');
 
         // Register each overlay as a first-class citizen for rule targeting
         // NOTE: _registerOverlayForRules() can only be called ONCE per card (sets this._overlayRegistered = true)
@@ -1897,20 +1897,19 @@ export class LCARdSMSDCard extends LCARdSCard {
             return '';
         }
 
-        let svgKey = null;
+        // Same key AssetManager.loadSvg() uses: builtin:<name> -> <name>, a path
+        // or URL -> the whole source (so same-named files in other folders, or
+        // a file named like a built-in, never share an entry).
+        const svgKey = assetManager.svgKeyForSource(source);
 
-        if (source.startsWith('builtin:')) {
-            svgKey = source.replace('builtin:', '');
-        } else if (source.startsWith('/') || /^https?:\/\//.test(source)) {
+        if (source.startsWith('/') || /^https?:\/\//.test(source)) {
             // A path Home Assistant serves (/local/ is the www folder) or a full URL, as
             // AssetManager.loadSvg takes them (an https:// source drew nothing: only /local/ was read here)
-            svgKey = source.split('/').pop().replace('.svg', '');
-
             // Register external SVG if not already registered
-            if (!assetManager.getRegistry('svg').has(svgKey)) {
+            if (svgKey && !assetManager.getRegistry('svg').has(svgKey)) {
                 assetManager.register('svg', svgKey, null, {
-                    url: source,
-                    source: source.startsWith('/') ? 'user' : 'external'
+                    url: svgKey,
+                    source: svgKey.startsWith('/') ? 'user' : 'external'
                 });
             }
         } else if (source.startsWith('media-source://')) {
@@ -1922,8 +1921,7 @@ export class LCARdSMSDCard extends LCARdSCard {
             // loadSvgFromMediaSource() and bail out now; the generic
             // "not yet loaded" fallback below would only log a spurious warning
             // since nothing is registered yet at this exact synchronous point.
-            svgKey = source;
-            if (!assetManager.getRegistry('svg').has(svgKey)) {
+            if (svgKey && !assetManager.getRegistry('svg').has(svgKey)) {
                 assetManager.loadSvgFromMediaSource(svgKey).then(loadedContent => {
                     if (loadedContent) {
                         lcardsLog.debug('[LCARdSMSDCard] SVG loaded from media source, triggering re-render:', svgKey);

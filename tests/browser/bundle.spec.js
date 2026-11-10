@@ -178,15 +178,27 @@ test('third-party: every bundled package has an About row and a notice', () => {
     expect(notices).toContain('ApexCharts Community License');
 });
 
-test('rules: editing an existing rule keeps the old rule until a page refresh (documented)', async ({ page }) => {
+test('rules: editing an existing rule applies without a page refresh (D3b R3)', async ({ page }) => {
     await mountCase(page, 'button-rule');
+    // The user's config as mounted (before any rule matches): card.config later
+    // carries the rule's patch, and Home Assistant never hands that back to setConfig
     await page.evaluate(() => {
         const config = JSON.parse(JSON.stringify(window.__card.config));
+        /** @type {any} */ (window).__userConfig = config;
         config.rules[0].apply.overlays.rule_button.style.card.color.background = '#00aa00';
-        window.__reconfigure(config);
+        window.__reconfigure(JSON.parse(JSON.stringify(config)));
     });
     await page.evaluate(() => window.__setState('switch.demo_switch', 'on'));
-    // Pinned behaviour (doc/core/rules: "Refresh after changing an existing rule").
+    // setConfig replaces the card's rule in the shared engine (it used to keep the old one)
     await expect.poll(() => page.locator('lcards-button path.button-bg').evaluate(el => getComputedStyle(el).fill))
-        .toBe('rgb(204, 0, 0)');
+        .toBe('rgb(0, 170, 0)');
+    // A rule taken out of the config stops applying
+    await page.evaluate(() => {
+        const config = JSON.parse(JSON.stringify(/** @type {any} */ (window).__userConfig));
+        config.rules = [];
+        window.__reconfigure(config);
+    });
+    await expect.poll(() => page.locator('lcards-button path.button-bg').evaluate(el => getComputedStyle(el).fill))
+        .not.toBe('rgb(0, 170, 0)');
+    expect(await page.evaluate(() => window.lcards.core.rulesManager.rules.length)).toBe(0);
 });

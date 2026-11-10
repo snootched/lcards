@@ -120,7 +120,9 @@ export class ScopedSettingsService extends BaseService {
     }
 
     /**
-     * Write a setting value to a specific scope tier.
+     * Write a setting value to a specific scope tier. The key's stored value
+     * becomes exactly `value` (an object is replaced, not merged into the old
+     * one), so writing a smaller map removes the entries it no longer has.
      *
      * @param {string} key   - Setting key.
      * @param {any}    value - Value to store (must be JSON-serialisable).
@@ -259,8 +261,16 @@ export class ScopedSettingsService extends BaseService {
         }
     }
 
-    /** @private */
+    /**
+     * A write sets the key to exactly `value`: on a backend that advertises
+     * `scoped_storage_replace` the user/device set commands carry `replace: true`,
+     * so a smaller map (a sound override removed) replaces the stored one instead
+     * of being deep-merged into it. Older backends refuse the unknown flag, so it
+     * is only sent when advertised.
+     * @private
+     */
     async _writeScope(key, value, scope, integration, opts = {}) {
+        const replace = integration?.capabilities?.has?.('scoped_storage_replace') ? { replace: true } : {};
         try {
             switch (scope) {
                 case 'device': {
@@ -272,6 +282,7 @@ export class ScopedSettingsService extends BaseService {
                         type: 'lcards/storage/device/set',
                         device_id: deviceId,
                         data: { [key]: value },
+                        ...replace,
                     });
                     lcardsLog.debug(`[ScopedSettingsService] write device "${key}" = ${JSON.stringify(value)}`);
                     return true;
@@ -284,12 +295,14 @@ export class ScopedSettingsService extends BaseService {
                             type: 'lcards/storage/users/set',
                             user_id: opts.targetUserId,
                             data: { [key]: value },
+                            ...replace,
                         });
                         lcardsLog.debug(`[ScopedSettingsService] write user[${opts.targetUserId}] "${key}" = ${JSON.stringify(value)}`);
                     } else {
                         await this._hass.connection.sendMessagePromise({
                             type: 'lcards/storage/user/set',
                             data: { [key]: value },
+                            ...replace,
                         });
                         lcardsLog.debug(`[ScopedSettingsService] write user "${key}" = ${JSON.stringify(value)}`);
                     }

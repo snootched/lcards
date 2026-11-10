@@ -32,7 +32,7 @@ The [Rules Engine](../core/rules/) from this card's point of view.
 - **Rules targeting this card**, and **all rules on this page**, with each rule's status, source card, target, conditions and changes.
 - **Add rule** opens the rule editor; its **Apply** section is a YAML editor that completes this page's targets and each card's own settings.
 - **Edit as YAML** (`{}`) edits one of this card's rules as a whole; other cards' rules open read only.
-- A rule you have just changed or removed says **refresh to apply** until the page reloads: the engine loads each card's rules once.
+- A rule you have just changed or removed says **applies when you save** until you save the card.
 
 ---
 

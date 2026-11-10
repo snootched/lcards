@@ -117,11 +117,11 @@ cards:
 
 **Rules go in the `rules` list of any LCARdS card, or in a content pack.** All of them run in one engine for the whole page, keyed by rule `id`.
 
-- Give every rule an `id` no other card on the page uses: a second rule with an `id` already loaded is skipped.
+- Give every rule an `id` no other card on the page uses: cards listing the same `id` share one rule (the one loaded last is used), and a card rule with the `id` of a pack rule is skipped.
 - A rule with no `id` is skipped too, with a warning in the browser console.
 
-::: tip Refresh after changing an existing rule
-A **new** rule takes effect as soon as you save the card. Changes to an **existing** rule (same `id`), or removing one, take effect after a page refresh.
+::: tip Rule changes apply when you save
+Adding, changing or removing a rule takes effect when you save the card (the card editor's preview shows it straight away), with no page refresh. A card taken off the dashboard takes its rules with it a few seconds later.
 :::
 
 ## Rule structure

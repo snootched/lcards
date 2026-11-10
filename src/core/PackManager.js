@@ -17,7 +17,7 @@ import { lcardsLog } from '../utils/lcards-logging.js';
  * PackManager - Centralized pack loading and registration
  *
  * Coordinates pack loading and registers pack contents to appropriate
- * core singleton managers (StylePresetManager, AnimationRegistry, etc.)
+ * core singleton managers (StylePresetManager, ThemeManager, ComponentManager, etc.)
  */
 export class PackManager {
   constructor(core) {
@@ -115,8 +115,8 @@ export class PackManager {
       lcardsLog.debug(`[PackManager] Registered sound schemes from pack: ${pack.id}`);
     }
 
-    // ✅ 6. Animations - AnimationRegistry is a cache, no registration needed
-    // Animation definitions in packs are used on-demand via getOrCreateInstance()
+    // 6. Animations: packs register none. The built-in presets come from
+    // core/animation/presets.js (registerBuiltinAnimationPresets)
 
     // ✅ 7. Register structural components to ComponentManager
     if (pack.components && this.core.componentManager) {

@@ -30,8 +30,6 @@ import { CoreValidationService } from './validation-service/index.js';
 import { ComponentManager } from './components/ComponentManager.js';
 
 import { StylePresetManager } from './presets/StylePresetManager.js';
-import { AnimationRegistry } from './animation/AnimationRegistry.js';
-import { LCARdSActionHandler } from '../base/LCARdSActionHandler.js';
 import { CoreConfigManager } from './config-manager/index.js';
 import { injectPalette } from './themes/paletteInjector.js';
 import { PackManager } from './PackManager.js';
@@ -72,8 +70,6 @@ class LCARdSCore {
         this.performanceMonitor = null;  // Performance monitoring (Phase 2a)
         this.validationService = null;   // Config validation and error reporting (Phase 2a)
         this.stylePresetManager = null;  // Unified style system: presets + CSS utilities (Phase 2b)
-        this.animationRegistry = null;   // Animation instance caching (Phase 2b)
-        this.actionHandler = null;       // Unified action handling system
         this.configManager = null;       // Unified configuration processing
         this.packManager = null;         // Pack loading and registration (Phase 4)
         this.assetManager = null;        // Asset management system (Phase 4)
@@ -171,7 +167,9 @@ class LCARdSCore {
             lcardsLog.debug('[LCARdSCore] ✅ DataSourceManager created (MSD will initialize)');
 
             // Initialize RulesManager (Phase 1c)
-            this.rulesManager = new RulesEngine();
+            // With the shared DataSourceManager (created just above): rule conditions that
+            // name a data source resolve against it and re-check when the source updates
+            this.rulesManager = new RulesEngine([], this.dataSourceManager);
             // 🔗 CRITICAL: Connect systemsManager so RulesEngine can access overlay registry
             this.rulesManager.systemsManager = this.systemsManager;
             lcardsLog.debug('[LCARdSCore] ✅ RulesManager initialized and connected to SystemsManager');
@@ -212,14 +210,6 @@ class LCARdSCore {
             // Note: Presets will be loaded by PackManager, not here
             this.stylePresetManager = new StylePresetManager();
             lcardsLog.debug('[LCARdSCore] ✅ StylePresetManager created (awaiting pack loading)');
-
-            // Initialize AnimationRegistry (Phase 2b) - ✅ Real MSD AnimationRegistry as singleton
-            this.animationRegistry = new AnimationRegistry();
-            lcardsLog.debug('[LCARdSCore] ✅ AnimationRegistry initialized');
-
-            // Initialize ActionHandler (Phase 2c) - ✅ Unified action handling for all cards
-            this.actionHandler = new LCARdSActionHandler();
-            lcardsLog.debug('[LCARdSCore] ✅ ActionHandler initialized');
 
             // Initialize AssetManager (Phase 2d) - ✅ Unified asset management system
             this.assetManager = new AssetManager();
@@ -350,8 +340,8 @@ class LCARdSCore {
             });
 
             // Load connection overlay config from scoped settings (fire-and-forget).
-            // The service starts with built-in defaults / localStorage cache so cards
-            // are never blocked on this.
+            // The service starts with its built-in defaults (an in-memory value) so
+            // cards are never blocked on this.
             this.integrationService.onReady().then(() => {
                 return this.connectionOverlayService?.initialize();
             }).catch(err => {
@@ -654,8 +644,6 @@ class LCARdSCore {
             animationManager:   this.animationManager   ? this.animationManager.getDebugInfo()   : null,
             validationService:  this.validationService  ? this.validationService.getDebugInfo()  : null,
             stylePresetManager: this.stylePresetManager ? this.stylePresetManager.getDebugInfo() : null,
-            animationRegistry:  this.animationRegistry  ? this.animationRegistry.getDebugInfo()  : null,
-            actionHandler:      this.actionHandler      ? this.actionHandler.getDebugInfo()      : null,
             configManager:      this.configManager      ? this.configManager.getDebugInfo()      : null,
             assetManager:       this.assetManager       ? this.assetManager.getDebugInfo()       : null,
             packManager:        this.packManager        ? this.packManager.getDebugInfo()        : null,
@@ -716,28 +704,6 @@ class LCARdSCore {
             });
         }
         return result;
-    }
-
-    /**
-     * Get the number of registered rules
-     * @returns {number} Number of rules
-     */
-    getRulesCount() {
-        if (!this.rulesManager) {
-            return 0;
-        }
-        return /** @type {any} */ (this.rulesManager).getRulesCount();
-    }
-
-    /**
-     * Get rules information
-     * @returns {Object} Rules information
-     */
-    getRulesInfo() {
-        if (!this.rulesManager) {
-            return {};
-        }
-        return /** @type {any} */ (this.rulesManager).getRulesInfo();
     }
 
     /**
@@ -868,16 +834,6 @@ class LCARdSCore {
         if (this.stylePresetManager) {
             this.stylePresetManager.destroy();
             this.stylePresetManager = null;
-        }
-
-        if (this.animationRegistry) {
-            this.animationRegistry.destroy();
-            this.animationRegistry = null;
-        }
-
-        if (this.actionHandler) {
-            this.actionHandler.destroy();
-            this.actionHandler = null;
         }
 
         if (this.assetManager) {

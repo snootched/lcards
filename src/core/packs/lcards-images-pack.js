@@ -2,7 +2,7 @@
  * @fileoverview LCARdS Built-in Images Pack
  *
  * Registers named image assets (raster and SVG) that cards can reference with the
- * `builtin:<key>` syntax in any `source` field — e.g. config.source: 'builtin:bedroom'.
+ * `builtin:<key>` syntax in any `source` field — e.g. 'builtin:earth_blue_marble'.
  *
  * This pack uses the AssetManager `image` type, which is a URL-only registry.
  * No content is fetched by AssetManager; the browser loads the image natively via
@@ -10,25 +10,24 @@
  *
  * ## Adding curated images
  *
- * 1. Copy the image file to `hacsfiles/lcards/images/` (mirrored from `src/assets/images/`)
+ * 1. Put the image file in `src/assets/images/` (`scripts/copy-assets.js` copies it
+ *    to `custom_components/lcards/images/`, served at `/lcards/images/`).
  * 2. Add an entry below with a stable snake_case key and a `/lcards/images/` URL.
  * 3. The key becomes the `builtin:<key>` reference users put in card config.
  *
- * ## User-defined images
+ * ## User images
  *
- * Users can add their own entries at runtime from the Config Panel (Settings →
- * Image Library).  Those entries call `assetManager.register('image', key, null, { url })`
- * directly and are persisted in HA storage alongside rules / datasources.
+ * There is no user image library: users point a `source` at their own file
+ * directly (a `/local/...` path, a URL or a `media-source://` item), or ship
+ * a pack with its own `image_assets`.
  *
  * @module core/packs/lcards-images-pack
  */
 
 /**
- * LCARdS built-in raster and SVG image library.
- *
- * Intentionally empty at first ship — the pack scaffold is ready for curated
- * images to be added as they are sourced/licensed.  Third-party pack authors
- * can also provide their own `image_assets` packs following this structure.
+ * LCARdS built-in raster and SVG image library, plus the built-in 3D models.
+ * Third-party pack authors can provide their own `image_assets` packs
+ * following this structure.
  */
 export const LCARDS_IMAGES_PACK = {
     id: 'lcards_images',
@@ -90,8 +89,6 @@ export const LCARDS_IMAGES_PACK = {
     },
 
     image_assets: {
-        // Built-in entries will be added here as they are sourced and licensed.
-        // Users add their own via the Config Panel → Image Library.
         earth_blue_marble: {
             url: '/lcards/images/nasa-blue-marble-earth-2048.webp',
             label: 'Earth (Blue Marble)',

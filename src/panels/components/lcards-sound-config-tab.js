@@ -517,15 +517,26 @@ export class LCARdSSoundConfigTab extends LitElement {
   }
 
   /**
+   * ScopedSettingsService target options for the admin-selected user or device
+   * (empty for your own user and device).
+   * @param {'user'|'device'} scope
+   * @returns {{ targetUserId?: string, targetDeviceId?: string }}
+   */
+  _scopedTargetOpts(scope) {
+    if (scope === 'user' && this._adminScopeUserId) return { targetUserId: this._adminScopeUserId };
+    if (scope === 'device' && this._adminScopeDeviceId) return { targetDeviceId: this._adminScopeDeviceId };
+    return {};
+  }
+
+  /**
    * Write a per-event override for the current scope subject.
    * @param {string} eventKey  The event type key
    * @param {string|null} assetKey  Asset key, '__mute__' for null, '__scheme__' to clear
    * @param {'user'|'device'} scope
    */
   async _setScopedOverride(eventKey, assetKey, scope) {
-    const conn = this.hass?.connection;
     const sss  = window.lcards?.core?.scopedSettingsService;
-    if (!sss || !conn) return;
+    if (!sss) return;
 
     // '__scheme__' → clear this event (fall through to scheme default)
     // '__mute__'   → explicit silence (store null)
@@ -541,65 +552,15 @@ export class LCARdSSoundConfigTab extends LitElement {
       existing[eventKey] = value;
     }
 
-    // IMPORTANT: the backend uses deep-merge (async_deep_set) for all writes, so
-    // writing {} has NO effect — it cannot remove existing keys. The correct approach
-    // is delete-then-rewrite:
-    //   1. Delete the entire "sound_overrides" key for this scope (real removal)
-    //   2. Re-write the new object if it contains any entries
-    // This ensures the stored value always reflects exactly what is in `existing`.
-
+    // sss.write replaces the stored map (the backend's replace flag), so writing
+    // the smaller map is enough to remove an override; an empty map clears the key.
+    // The admin target (another user or device) goes through the same calls.
+    const opts = this._scopedTargetOpts(scope);
     try {
-      if (scope === 'user') {
-        const targetId = this._adminScopeUserId;
-        if (targetId) {
-          // Admin path: null-set first (replaces the existing Mapping since null is not
-          // a Mapping, so deep-merge treats it as a scalar replace), then write real value.
-          await conn.sendMessagePromise({
-            type: 'lcards/storage/users/set',
-            user_id: targetId,
-            data: { [STORAGE_KEY_SOUND_OVERRIDES]: null },
-          });
-          if (Object.keys(existing).length > 0) {
-            await conn.sendMessagePromise({
-              type: 'lcards/storage/users/set',
-              user_id: targetId,
-              data: { [STORAGE_KEY_SOUND_OVERRIDES]: existing },
-            });
-          }
-        } else {
-          // Own user: delete the sub-key entirely, then write the new object if non-empty.
-          await sss.clear(STORAGE_KEY_SOUND_OVERRIDES, 'user');
-          if (Object.keys(existing).length > 0) {
-            await sss.write(STORAGE_KEY_SOUND_OVERRIDES, existing, 'user');
-          }
-        }
-      } else {
-        // Device scope
-        const adminTargetId = this._adminScopeDeviceId;
-        if (adminTargetId) {
-          // Admin editing another device — use the devices/set admin command directly
-          // because sss.clear/write always target the own device ID.
-          await conn.sendMessagePromise({
-            type: 'lcards/storage/devices/set',
-            device_id: adminTargetId,
-            data: { [STORAGE_KEY_SOUND_OVERRIDES]: null },
-          });
-          if (Object.keys(existing).length > 0) {
-            await conn.sendMessagePromise({
-              type: 'lcards/storage/devices/set',
-              device_id: adminTargetId,
-              data: { [STORAGE_KEY_SOUND_OVERRIDES]: existing },
-            });
-          }
-        } else {
-          // Own device: sss.clear sends {key: null} via device/set (own device ID).
-          // null is not a Mapping so the subsequent write replaces rather than deep-merges.
-          await sss.clear(STORAGE_KEY_SOUND_OVERRIDES, 'device');
-          if (Object.keys(existing).length > 0) {
-            await sss.write(STORAGE_KEY_SOUND_OVERRIDES, existing, 'device');
-          }
-        }
-      }
+      const ok = Object.keys(existing).length > 0
+        ? await sss.write(STORAGE_KEY_SOUND_OVERRIDES, existing, scope, opts)
+        : await sss.clear(STORAGE_KEY_SOUND_OVERRIDES, scope, opts);
+      if (!ok) lcardsLog.warn(`[SoundConfigTab] Scoped override for ${eventKey} not saved to ${scope}`);
 
       await this._loadScopedOverrides();
       // Keep SoundManager caches in sync so the override takes effect immediately.
@@ -618,39 +579,12 @@ export class LCARdSSoundConfigTab extends LitElement {
 
   /**
    * Clear all per-event overrides for the current scope subject.
-   * Uses a direct delete so deep-merge artifacts are avoided.
    */
   async _clearAllScopedOverrides(scope) {
-    const conn = this.hass?.connection;
     const sss  = window.lcards?.core?.scopedSettingsService;
-    if (!sss || !conn) return;
+    if (!sss) return;
     try {
-      if (scope === 'user') {
-        const targetId = this._adminScopeUserId;
-        if (targetId) {
-          // Admin: null-set the overrides key for the target user
-          await conn.sendMessagePromise({
-            type: 'lcards/storage/users/set',
-            user_id: targetId,
-            data: { [STORAGE_KEY_SOUND_OVERRIDES]: null },
-          });
-        } else {
-          await sss.clear(STORAGE_KEY_SOUND_OVERRIDES, 'user');
-        }
-      } else {
-        // Device scope
-        const targetId = this._adminScopeDeviceId;
-        if (targetId) {
-          // Admin editing another device — use the devices/set admin command.
-          await conn.sendMessagePromise({
-            type: 'lcards/storage/devices/set',
-            device_id: targetId,
-            data: { [STORAGE_KEY_SOUND_OVERRIDES]: null },
-          });
-        } else {
-          await sss.clear(STORAGE_KEY_SOUND_OVERRIDES, 'device');
-        }
-      }
+      await sss.clear(STORAGE_KEY_SOUND_OVERRIDES, scope, this._scopedTargetOpts(scope));
       await this._loadScopedOverrides();
       await window.lcards?.core?.soundManager?.refreshScopedCache();
     } catch (err) {

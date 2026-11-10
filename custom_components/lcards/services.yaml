@@ -1194,6 +1194,19 @@ borg_assimilate:
       default: true
       selector:
         boolean:
+    palette_hue:
+      name: Palette Hue
+      description: >
+        The hue (0 to 359 degrees) the dashboard palette shifts toward during
+        assimilation: 110 is Borg yellow-green, 240 blue, 0 red. Default: 110.
+      required: false
+      default: 110
+      selector:
+        number:
+          min: 0
+          max: 359
+          step: 1
+          unit_of_measurement: "°"
     intro_layers:
       name: Intro Layers (Advanced)
       description: |-
@@ -1309,8 +1322,9 @@ borg_deassimilate:
   name: Borg Deassimilate
   description: >
     Reverse the Borg assimilation on LCARdS-enabled browsers. Plays a brief
-    glitch outro (optional), reverts the UI palette to normal, restores the
-    standard font, and clears all persistent screen effects.
+    glitch outro (optional), returns the UI palette to the alert mode that was
+    active before the assimilation, restores the standard font, and clears all
+    persistent screen effects.
     Supports targeting — omit all target fields to restore all connected browsers.
   fields:
     with_outro:

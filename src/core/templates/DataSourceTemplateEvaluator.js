@@ -104,6 +104,21 @@ export class DataSourceTemplateEvaluator extends TemplateEvaluator {
   }
 
   /**
+   * Whether a reference (`name[.path][:format]`, no braces) resolves to a value
+   * now. The token phase asks this to leave legacy `{name}` references alone.
+   *
+   * @param {string} reference
+   * @returns {boolean}
+   */
+  canResolve(reference) {
+    try {
+      return this._resolveDatasourceReference(reference) !== null;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Resolve datasource reference to value
    *
    * Supports:

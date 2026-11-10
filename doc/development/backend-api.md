@@ -40,8 +40,15 @@ Backend availability probe. Normally you do not call this directly; `Integration
 const result = await this.hass.connection.sendMessagePromise({
   type: 'lcards/info',
 });
-// → { available: true, version: '2026.3.25' }
+// → { available: true, version: '2026.3.25', storage_key_count: 12, options: {...},
+//     capabilities: ['scoped_storage', 'scoped_storage_replace', 'own_user_reload'] }
 ```
+
+| Capability | Meaning |
+|---|---|
+| `scoped_storage` | The per-user and per-device commands (`lcards/storage/user/*`, `device/*`, `users/*`, `devices/*`) exist |
+| `scoped_storage_replace` | The user and device `set` commands take `replace: true` (see [Scoped storage](#scoped-storage-replace)) |
+| `own_user_reload` | A non-admin may send `reload_connection_config` to their own sessions with `lcards/fire_event` (see [`lcards/fire_event`](#lcards-fire-event)) |
 
 → See [Integration Service](../architecture/subsystems/integration-service) for the full probe lifecycle.
 
@@ -162,6 +169,47 @@ const store = await this.hass.connection.sendMessagePromise({
   type: 'lcards/storage/dump',
 });
 // → { version: 1, data: { 'user.preferences': { theme: 'dark' } } }
+```
+
+### Scoped storage: replace
+
+The per-user and per-device records (`_user_<id>`, `_device_<id>`) are written with `lcards/storage/user/set`, `users/set` (admin), `device/set` and `devices/set` (admin); [Scoped Settings](../architecture/subsystems/scoped-settings#websocket-commands) lists them all. They deep-merge `data` into the record, so writing one sub-key keeps the others, but a smaller map written to the same sub-key keeps the old entries too. Pass `replace: true` to replace each sub-key's value instead (the record's other sub-keys are still kept):
+
+```javascript
+// stored: { sound_overrides: { card_tap: 'beep', card_hold: 'chirp' }, sound_volume: 0.8 }
+await this.hass.connection.sendMessagePromise({
+  type: 'lcards/storage/user/set',
+  data: { sound_overrides: { card_hold: 'chirp' } },
+  replace: true,
+});
+// stored: { sound_overrides: { card_hold: 'chirp' }, sound_volume: 0.8 }
+// (without replace, card_tap would still be there)
+```
+
+Backends without the `scoped_storage_replace` capability refuse the unknown `replace` key (`invalid_format`). Use `ScopedSettingsService.write()` rather than these commands where you can: it sends `replace: true` whenever the backend supports it.
+
+---
+
+## `lcards/fire_event`
+
+Relays an `lcards_event` from the browser to every connected browser (the same event the `lcards.*` actions fire); `IntegrationService._handleLcardsEvent()` handles it on each page.
+
+| Param | Type | Description |
+|---|---|---|
+| `action` | string | The event action, e.g. `reload_connection_config`, `reload` |
+| `target_user_ids` | string[] | Only these users' browsers act on it |
+| `target_device_ids` | string[] | Only these devices act on it |
+| `data` | object | Extra payload keys, spread into the event |
+
+**Admin only**, with one exception: a non-admin may send `action: 'reload_connection_config'` with `target_user_ids` set to exactly their own user id, no `target_device_ids`, and at most `data: { origin_device_id }` (a string). `ConnectionOverlayService.saveConfig()` sends that after a user saves their own connection overlay settings, so their other open tabs reload them. Anything else from a non-admin gets `unauthorized`.
+
+```javascript
+await this.hass.connection.sendMessagePromise({
+  type: 'lcards/fire_event',
+  action: 'reload_connection_config',
+  target_user_ids: [this.hass.user.id],
+  data: { origin_device_id: window.lcards.core.deviceIdentityManager.getDeviceId() },
+});
 ```
 
 ---
@@ -324,3 +372,8 @@ Use dot-separated namespaces to avoid collisions between cards and services:
 | `lcards/storage/delete` | `key: string` | - | `{ ok, existed }` |
 | `lcards/storage/reset` | - | - | `{ ok }` |
 | `lcards/storage/dump` | - | - | `{ version, data }` |
+| `lcards/storage/user/set` | `data: object` | `replace: boolean` | `{ ok, user_id, keys }` |
+| `lcards/storage/device/set` | `device_id: string`, `data: object` | `replace: boolean` | `{ ok, device_id, keys }` |
+| `lcards/storage/users/set` (admin) | `user_id: string`, `data: object` | `replace: boolean` | `{ ok, user_id, keys }` |
+| `lcards/storage/devices/set` (admin) | `device_id: string`, `data: object` | `replace: boolean` | `{ ok, device_id, keys }` |
+| `lcards/fire_event` (admin; see above) | `action: string` | `target_user_ids`, `target_device_ids`, `data` | `null` |

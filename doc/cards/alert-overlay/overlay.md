@@ -104,6 +104,7 @@ layers:
 - **Colours:** the colour settings (`color-tint`'s `color`, and `color` on the `static` and `pixelate` canvas presets) take any LCARdS colour: `rgb()`/`rgba()`, `var(--css-variable)`, theme tokens (`theme:palette.moonlight`), CSS colour names and computed expressions (`alpha(theme:colors.ui.primary, 0.4)`). For colours that follow the alert mode use `var(--lcards-*)` or `var(--lcars-*)` variables.
 - **Older configs:** a card-level `backdrop` with `blur`, `opacity` and `color` (from older versions) is still read when `layers` is not set: `blur` becomes a blur layer and `color` a `color-tint`, with `opacity` (default `0.6`) multiplied into the colour's alpha. The Alert Studio converts it to `layers` when you change a layer.
 - **The band:** in `display: band` the layers are off unless you set them; see [Alert Band](./band).
+- **Effects from actions:** the overlay only replaces the layers it sets and, when it closes, clears only its own. A screen effect started with [`lcards.trigger_effect`](/configuration/ha-actions#lcards-trigger-effect) on a layer the overlay leaves out keeps running, and so does one started on any layer after the overlay appeared.
 :::
 
 | Key | Type | Default | Description |

@@ -1,20 +1,25 @@
 # Screen Effect System
 
 > **Singleton**: `window.lcards.core.screenEffectManager`
-> **Console API**: `window.lcards.screenEffect.*`
-> **Source**: `src/core/screen-effects/`
+> **Console API**: `window.lcards.screenEffect.*` (`src/lcards-main.js:752-829`)
+> **Source**: `src/core/screen-effects/` (`ScreenEffectManager.js`, `ScreenEffectPresetRegistry.js`, `effects/`)
+> **User docs**: [Screen Effects](../../core/effects/screen-effects.md) (every preset and its settings)
 
 ---
 
 ## Overview
 
-The Screen Effect System provides a full-screen composited effect layer that sits above all other LCARdS and Home Assistant UI elements. It is the single authoritative surface for any visual effect that should cover the entire viewport: blur, pixelation, TV static, glitch artefacts, colour tints, and so on.
+The Screen Effect System is the full-screen composited effect layer that sits above the Home Assistant UI. It is the one surface for any visual effect that covers the whole viewport: blur, pixelation, TV static, glitch artefacts, colour tints, the Borg assimilation intro.
 
-Effects are declaratively registered as named **presets** in a shared registry. The same preset name works consistently across all consumers:
+Effects are registered as named **presets** in a shared registry, and each preset targets one of three **slots**. The same preset name works for every consumer:
 
-- Alert overlay backdrop (via `layers` config in card config and per-condition overrides)
-- Console API (`window.lcards.screenEffect.play('pixelate')`)
-- Home Assistant automation service (`lcards.trigger_effect`)
+- The alert overlay and connection overlay backdrops, through `PortalOverlayManager` (`layers` config)
+- The Borg assimilation (`BorgAssimilationManager`)
+- The `lcards.trigger_effect` / `lcards.clear_effect` actions (through `IntegrationService`)
+- The console API (`window.lcards.screenEffect.play('pixelate')`)
+- The Alert Studio's mock screen, which runs presets on its own element (`enterPreset()`)
+
+`ScreenEffectManager` (SEM) extends `BaseService`; it is created in `LCARdSCore._performInitialization()` (`src/core/lcards-core.js:295`) and gets no HASS updates.
 
 ---
 
@@ -22,55 +27,68 @@ Effects are declaratively registered as named **presets** in a shared registry. 
 
 ### Portal stack
 
-On first use `ScreenEffectManager` appends a single `position:fixed; inset:0; z-index:9100` div to `document.body`. This portal contains a set of named **slot** elements rendered in stacking order:
+On first use SEM builds a single portal element (`_ensurePortal()`, `ScreenEffectManager.js:76-104`): a `div[data-lcards-screen-effect-portal]` with `position:fixed; inset:0; z-index:9100; pointer-events:none`, hidden (`display:none`) until something uses it. It holds three slot elements, in this order:
 
 | Slot | Element | Rendering mechanism |
 |---|---|---|
-| `backdrop` | `<div>` | CSS `backdrop-filter`: blurs/filters whatever is behind it |
-| `canvas` | `<canvas>` | Canvas2D rAF loop: draws directly above all content |
-| `color` | `<div>` | CSS `background`: semi-transparent colour overlay |
+| `backdrop` | `div[data-lcards-se-slot="backdrop"]` | CSS `backdrop-filter`: filters whatever is behind the portal (applied on the portal itself, see [Implementation notes](#implementation-notes)) |
+| `canvas` | `canvas[data-lcards-se-slot="canvas"]` | Canvas2D `requestAnimationFrame` loop (or a worker, for `borg-assimilation`) |
+| `color` | `div[data-lcards-se-slot="color"]` | CSS `background`: a semi-transparent colour over everything |
 
-Z-index 9100 places the portal above all Home Assistant UI. The alert overlay card (`lcards-alert-overlay`), `ConnectionOverlayService`, and the `show_portal_card` Home Assistant service all inject content into this shared portal via `PortalOverlayManager`; there is only one portal div on the page at any given time. Each consumer owns an independent named slot (`'alert-overlay'`, `'connection-overlay'`, `'ha-service'`) so their DOM subtrees are separate and can coexist.
+The portal is mounted with `mountDialogNearHomeAssistant()` (`src/utils/lcards-shared-helpers.js:64`), inside the shadow root of `<home-assistant>` (falling back to `document.body`), not in `document.body`. Cards that `PortalOverlayManager` shows inside the portal then get Home Assistant's Lit contexts, and their `hass-action` / `more-info` events reach Home Assistant.
+
+There is only one portal per page. `PortalOverlayManager` (POM) appends its overlay slots (`'alert-overlay'`, `'connection-overlay'`, `'ha-service'`) after the three effect slots, so overlay content always draws above the effects; see [Portal Overlay Manager](portal-overlay-manager.md#dom-structure).
+
+The portal is visible (`_syncPortalVisibility()`) while any effect slot is active **or** an overlay has marked it occupied (`setOverlayOccupied(true)`).
+
+### Slot state
+
+Each slot keeps `{ el, cleanup, active, timer, resolve }` in `sem._slots` (`Map`). `_applySlot()` releases the slot first (one effect per slot), merges `params` over the preset's `defaults`, resolves colour params, shows the slot and the portal (so the effect can measure its size), then calls `preset.enter(el, params)` and keeps the returned cleanup. `_releaseSlot()` clears the slot's timer, resolves a pending `play()` promise, calls the cleanup and hides the element.
 
 ### Preset API shape
 
 ```js
-// Standard preset (single slot)
 {
   slot:     'canvas' | 'backdrop' | 'color',
   label:    'Human-readable name',        // shown in the visual editor dropdown
   defaults: { /* default param values */ },
-  params_schema: [                         // optional - drives the editor UI
+  params_schema: [                         // optional: drives the editor UI
     {
-      key:         'amount',              // param key in resolvedParams
-      type:        'text' | 'number' | 'color-text',
-      label:       'Field Label',
-      placeholder: '8px',                 // shown as hint text in editor
-      helper:      'Blur radius in px',   // help text below field
+      key:         'amount',              // param key in the resolved params
+      type:        'text' | 'number' | 'color-text' | 'select' | 'boolean',
+      label:       'Field label',
+      placeholder: '8px',                 // hint text in the editor
+      helper:      'Blur radius in px',   // help text below the field
       // number only:
       min: 0, max: 1, step: 0.05,
+      // select only:
+      options: [{ value: 'auto', label: 'Auto' }],
     },
   ],
-  enter(slotEl, resolvedParams) {
-    // activate: set CSS, start rAF loop, etc.
-    // slotEl is the slot's <div>/<canvas> - EXCEPT for 'backdrop' presets
-    // where slotEl is the portal element itself (see Implementation Notes).
+  enter(el, resolvedParams) {
+    // activate: set CSS, start a rAF loop, start a worker, ...
+    // el is the slot element, EXCEPT for 'backdrop' presets, which get the portal
+    // element itself (see Implementation notes)
     return () => { /* cleanup */ };
   },
 }
 ```
 
-`color-text` params automatically go through three-step color resolution before `enter()` is called; see Implementation Notes.
+`color-text` params are resolved to concrete colours before `enter()` is called; see [Implementation notes](#implementation-notes). The registry (`ScreenEffectPresetRegistry`, module singleton `screenEffectPresetRegistry`) has `register(name, preset)`, `get(name)`, `has(name)` and `list()`; registering an existing name replaces it.
 
-## Built-in Presets
+## Built-in presets
+
+Registered at module load in `src/core/screen-effects/ScreenEffectPresetRegistry.js`.
 
 ### Backdrop (CSS `backdrop-filter`)
 
+All five come from one factory, `_backdropFilterPreset()`, which sets `backdrop-filter` (and `-webkit-backdrop-filter`) to `<fn>(<value>)`.
+
 | Preset | Default params | Description |
 |---|---|---|
-| `blur` | `amount: '8px'` | Gaussian blur of content behind the overlay |
+| `blur` | `amount: '8px'` | Gaussian blur of the content behind the overlay |
 | `saturate` | `amount: '200%'` | Colour saturation boost |
-| `grayscale` | `amount: '100%'` | Full colour desaturation |
+| `grayscale` | `amount: '100%'` | Colour desaturation |
 | `contrast` | `amount: '200%'` | High contrast |
 | `hue-rotate` | `angle: '180deg'` | Hue rotation |
 
@@ -78,39 +96,43 @@ Z-index 9100 places the portal above all Home Assistant UI. The alert overlay ca
 
 | Preset | Default params | Description |
 |---|---|---|
-| `color-tint` | `color: 'rgba(0,0,0,0.5)'` | Solid/semi-transparent colour fill |
-| `vignette` | `opacity: 0.7` | Dark radial gradient at edges |
+| `color-tint` | `color: 'rgba(0,0,0,0.5)'` | Solid or semi-transparent colour fill |
+| `vignette` | `opacity: 0.7` | Dark radial gradient at the edges |
 
-### Canvas (Canvas2D, runs above all content)
+### Canvas
 
 | Preset | Default params | Description |
 |---|---|---|
-| `static` | `opacity: 0.55, scale: 4, color: '#ffffff', tintStrength: 0` | TV static noise; `scale` controls block size; `color`/`tintStrength` blend toward a tint |
-| `pixelate` | `pixelSize: 8, opacity: 0.75, variance: 0.35, baseLight: 80, color: '#8c9aa6', tintStrength: 0` | Mosaic dark blocks; `multiply` blend, simulates low-res signal degradation; `color`/`tintStrength` blend toward a tint |
-| `glitch` | `intensity: 0.08, maxShift: 40, bandHeight: 4, opacity: 0.85, fps: 20` | Sparse horizontal displacement bands + thin chroma edges; `overlay` blend |
-| `scanlines` | `lineHeight: 4, opacity: 0.25, scroll: 0` | CRT horizontal line overlay; `scroll` px/s for animation |
-| `borg-assimilation` | `siteCount: 7, tendrilsPerSite: 8, tendrilLength: 600, particleCount: 2, color: '#00cc44', glowColor: '#00ff66', renderer: 'auto', cube: true, corruption: 0.5, overrun: 0.65` | Borg assimilation intro; runs until dismissed. `renderer: auto`/`webgl`: WebGL2 in a worker (`BorgAssimilationGLWorker.js`) drawing the layout from `borg-layout.js` (main thread, seeded): pass 1 adds tendril strips, site glows and the Borg cube's edges into a framebuffer, pass 2 draws the assimilation front with procedural circuitry behind it, then the pass 1 picture with signal corruption. `renderer: canvas`, no WebGL2, or a failed context: the classic Canvas2D worker (`BorgAssimilationWorker.js`). Both worker sources are `?raw` strings in a lazy chunk (`borg-worker-sources.js`); the running canvas carries `data-lcards-renderer` |
+| `static` | `opacity: 0.55, scale: 4, color: '#ffffff', tintStrength: 0` | TV static noise (`effects/StaticEffect.js`); `scale` sets the grain size; `color` / `tintStrength` blend toward a tint |
+| `pixelate` | `pixelSize: 8, opacity: 0.75, variance: 0.35, baseLight: 80, color: '#8c9aa6', tintStrength: 0` | Mosaic of dark blocks (`effects/PixelateEffect.js`), `multiply` blend, about 8 fps; simulates low-res signal degradation |
+| `glitch` | `intensity: 0.08, maxShift: 40, bandHeight: 4, opacity: 0.85, fps: 20` | Sparse horizontal displacement bands with thin chroma edges (`effects/GlitchEffect.js`); `overlay` blend |
+| `scanlines` | `lineHeight: 4, opacity: 0.25, scroll: 0` | CRT line overlay (`effects/ScanlineEffect.js`); `scroll` in px/s; redraws only on resize while still |
+| `borg-assimilation` | `siteCount: 7, tendrilsPerSite: 8, tendrilLength: 600, particleCount: 2, color: '#00cc44', glowColor: '#00ff66', renderer: 'auto', cube: true, cubeStyle: 'detailed', corruption: 0.5, overrun: 0.65` | Borg assimilation intro (`effects/BorgAssimilationEffect.js`); runs until cleared, so use `apply()` / `applySlot()`, not `play()`. See below |
+
+**`borg-assimilation` renderers.** `BorgAssimilationEffect` creates its own canvas next to the SEM canvas slot (`pointer-events: none`, so clicks still reach the slot) and transfers it to a worker with `transferControlToOffscreen()`. With `renderer: auto` or `webgl` it runs the WebGL2 worker (`BorgAssimilationGLWorker.js`), which draws the layout computed on the main thread by `borg-layout.js` (seeded): pass 1 adds tendril strips, site glows and the Borg cube's edges into a framebuffer, pass 2 draws the assimilation front with procedural circuitry behind it, then the pass 1 picture with signal corruption. With `renderer: canvas`, no WebGL2 or a failed context, it runs the classic Canvas2D worker (`BorgAssimilationWorker.js`). Both worker sources are `?raw` strings in a lazy chunk (`borg-worker-sources.js`). The running canvas carries `data-lcards-renderer` (`webgl` or `canvas`). `borgIntroSupported()` (exported) reports whether `OffscreenCanvas` transfer and `Worker` exist; `BorgAssimilationManager` skips its intro when they don't.
 
 ---
 
 ## Console API
 
+`window.lcards.screenEffect` delegates to the singleton (`src/lcards-main.js:752-829`):
+
 ```js
-// Play a transient effect (auto-dismisses after duration ms, default 1000)
+// Play a transient effect: it clears after duration ms (default 1000)
 window.lcards.screenEffect.play('pixelate', { duration: 2000, pixelSize: 32 })
 window.lcards.screenEffect.play('static',   { duration: 800, scale: 6 })
 
-// Apply persistent slot effects (stay until explicitly removed)
+// Apply persistent slot effects (they stay until removed)
 window.lcards.screenEffect.applySlot('backdrop', 'blur',       { amount: '12px' })
 window.lcards.screenEffect.applySlot('color',    'color-tint', { color: 'rgba(180,0,0,0.35)' })
 
-// apply() is a per-name shorthand for single-slot presets
+// apply() uses the preset's own slot
 window.lcards.screenEffect.apply('blur',   { amount: '12px' })
 window.lcards.screenEffect.apply('vignette')
 
 // Remove effects
-window.lcards.screenEffect.clearSlot('backdrop')   // remove one slot
-window.lcards.screenEffect.clear()                  // remove all
+window.lcards.screenEffect.clearSlot('backdrop')   // one slot
+window.lcards.screenEffect.clear()                  // all slots
 
 // Register a custom preset at runtime
 window.lcards.screenEffect.registerPreset('my-effect', {
@@ -122,19 +144,29 @@ window.lcards.screenEffect.registerPreset('my-effect', {
   },
 })
 
-// List all registered preset names
-window.lcards.screenEffect.list()
+window.lcards.screenEffect.getPreset('blur')   // the full preset definition
+window.lcards.screenEffect.catalog()           // [{ name, label, slot, params_schema, defaults }, ...]
+window.lcards.screenEffect.list()              // registered names (also logged)
 ```
 
 ---
 
-## Home Assistant Service: `lcards.trigger_effect`
+## Home Assistant actions: `lcards.trigger_effect` and `lcards.clear_effect`
 
-Fire one or more layered screen effects from an automation or script. Effects are specified per **slot** (`backdrop`, `color`, `canvas`), each independently.
+**`trigger_effect` sets one or more slots on the targeted browsers, each slot on its own.** The action (`custom_components/lcards/services.py`, `handle_trigger_effect`) fires a targeted `lcards_event` `{ action: 'trigger_effect', layers, duration? }`; `IntegrationService._handleLcardsEvent()` (`src/core/services/IntegrationService.js:484-510`) applies it:
+
+| `layers.<slot>` | What happens on that slot |
+|---|---|
+| left out | nothing: an effect already running there keeps running, with its own timer |
+| `null` | `sem.clearSlot(slot)` |
+| `{ preset, ...params }` | `sem.applySlotFor(slot, preset, params, duration)` when `duration` is set, else `sem.applySlot(slot, preset, params)` (until cleared) |
+| an unknown slot name | warning, skipped |
+
+`duration` is per slot: `applySlotFor()` (`ScreenEffectManager.js:310-321`) starts a timer on that slot alone, and applying or clearing the slot again cancels it (`_releaseSlot()`). So a later call that sets another slot, or the same slot again, is never cut short by an earlier call's timer, and a slot the call left out keeps whatever it had. The backend only adds `duration` to the payload when it is set (`services.py:336-341`).
 
 ```yaml
-# Red alert - blur + red tint + static noise
-service: lcards.trigger_effect
+# Red alert: blur, red tint and static, each cleared after 5 s
+action: lcards.trigger_effect
 data:
   layers:
     backdrop:
@@ -146,14 +178,14 @@ data:
     canvas:
       preset: static
       opacity: 0.3
-  duration: 5000          # auto-clear after 5 s
+  duration: 5000
   target_device_ids:
-    - "abc123def456"      # specific browser UUID
+    - "abc123def456"
 ```
 
 ```yaml
-# Just a canvas effect broadcast to all browsers
-service: lcards.trigger_effect
+# Swap the canvas effect for 1 s; the backdrop and tint above keep their timers
+action: lcards.trigger_effect
 data:
   layers:
     canvas:
@@ -163,158 +195,136 @@ data:
 ```
 
 ```yaml
-# Borg assimilation - persistent until manually cleared (no duration)
-service: lcards.trigger_effect
+# Clear the tint now, leave the other slots alone
+action: lcards.trigger_effect
 data:
   layers:
-    canvas:
-      preset: borg-assimilation
-      siteCount: 9
-      tendrilLength: 800
-      particleCount: 3
-      color: "#00cc44"
-      glowColor: "#00ff66"
+    color: null
 ```
 
-```yaml
-# Persistent blur targeting a user - must be cleared manually
-service: lcards.trigger_effect
-data:
-  layers:
-    backdrop:
-      preset: blur
-      amount: "16px"
-  target_user_ids:
-    - "a1b2c3d4e5f6"
-```
+**`clear_effect`** fires `{ action: 'clear_effect', slot? }`; the browser calls `screenEffect.clearSlot(slot)`, or `clear()` without a slot (`IntegrationService.js:443-461`).
 
-To find device and user IDs for targeting:
+Device and user ids for targeting: `window.lcards.targeting.getMyIds()` → `{ deviceId, userId }`. User-facing reference: [Home Assistant actions](../../configuration/ha-actions.md#screen-effect-actions).
 
-```js
-window.lcards.targeting.getMyIds()
-// → { deviceId: 'abc123...', userId: 'a1b2c3...' }
-```
+Effects set this way share the slots with the overlays: a `PortalOverlayManager` slot shown with `layers` replaces only the slots its layers set, and when it hides (or a newer overlay with layers takes over) it clears only the effects it applied, so a `trigger_effect` on another slot, or applied after the overlay on the same slot, keeps running. `BorgAssimilationManager.deassimilate()` ends with `sem.clear()`, which clears everything.
 
 ---
 
 ## Programmatic API (singleton)
 
+| Method | Returns | Description |
+|---|---|---|
+| `applySlot(slot, preset, params?)` | `boolean` | Apply a preset to a slot until it is cleared. `false` for an unknown preset or slot, or when `enter()` throws. |
+| `applySlotFor(slot, preset, params, duration)` | `boolean` | As `applySlot()`, then clear that slot alone after `duration` ms (used by `trigger_effect`). |
+| `apply(preset, params?)` | `boolean` | `applySlot()` on the preset's own slot. |
+| `play(preset, params?)` | `Promise<void>` | `apply()`, then release the slot after `params.duration` (default 1000) ms. The promise resolves when the slot is released, also when it is cleared or replaced early. Resolves at once for an unknown preset. |
+| `clearSlot(slot)` | `void` | Release one slot and update the portal visibility. |
+| `slotToken(slot)` | `number` | Which application of an effect runs on the slot: a new number each time an effect is applied there, `0` while it is empty. |
+| `clearSlotIfToken(slot, token)` | `boolean` | Clear the slot only while it still runs the effect `token` names (used by POM, so an overlay never clears an effect applied after its own). |
+| `clear()` | `void` | Release all three slots. |
+| `enterPreset(el, preset, params?)` | `function\|null` | Run a preset on the caller's own element (the Alert Studio mock screen); defaults merged and colours resolved as for a slot. Returns the cleanup, or `null` for an unknown preset or a failed `enter()`. |
+| `registerPreset(name, preset)` | `void` | Register or replace a preset (`screenEffectPresetRegistry.register`). |
+| `listPresets()` | `string[]` | Registered names. |
+| `getPreset(name)` | `Object\|undefined` | One preset definition. |
+| `catalog()` | `Array` | `[{ name, label, slot, params_schema, defaults }]`, for the editors. |
+| `portal` | `HTMLDivElement` | Getter; creates the portal when needed. |
+| `setOverlayOccupied(bool)` | `void` | Keep the portal visible while overlay content is in it, with no effect running. |
+
 ```js
 const sem = window.lcards.core.screenEffectManager;
 
-// Apply individual slots (preferred for multi-slot combos)
 sem.applySlot('backdrop', 'blur',       { amount: '16px' })
 sem.applySlot('color',    'color-tint', { color: 'rgba(180,0,0,0.35)' })
-
-// apply() is a shorthand for single-slot presets by name
-sem.apply('blur', { amount: '16px' })   // returns true if activated
-
-// Transient effect - Returns Promise<void> that resolves when auto-dismissed
+sem.applySlotFor('canvas', 'static', { opacity: 0.4 }, 3000)
 await sem.play('glitch', { duration: 800 })
-
-// Remove a slot or all slots
 sem.clearSlot('canvas')
 sem.clear()
-
-// Register or replace a preset
-sem.registerPreset('my-fx', { ... })
-
-// List registered preset names
-sem.listPresets()
-// → ['blur', 'static', 'pixelate', 'glitch', ...]
-
-// Retrieve a single preset definition (label, slot, params_schema, defaults)
-sem.getPreset('blur')
-
-// Return a catalog array for all presets - used by the visual editor
-sem.catalog()
-// → [ { name, label, slot, params_schema }, ... ]
 ```
 
-### Trusted Consumer API (for overlay systems)
+### Portal access for overlays
 
-The alert overlay and connection overlay inject their own DOM elements directly into the shared portal rather than using slots. Two methods support this pattern:
-
-```js
-// Get (and lazily create) the portal element.
-// Alert overlay and ConnectionOverlayService use this to appendChild their wrappers.
-const portal = sem.portal;
-
-// Notify SEM that the portal is in use even when no effect slots are active.
-// Prevents _syncPortalVisibility() from hiding the portal while overlay content is showing.
-sem.setOverlayOccupied(true);
-// … overlay removed …
-sem.setOverlayOccupied(false);
-```
+`sem.portal` and `sem.setOverlayOccupied()` are meant for `PortalOverlayManager` only; it is the one caller. The alert overlay and the connection overlay do not touch the portal: they call `portalOverlayManager.show()` / `hide()`. New full-screen content should be a POM slot too, not elements appended to the portal by hand.
 
 ---
 
-## Adding a New Effect
+## Adding a new effect
 
 1. Create `src/core/screen-effects/effects/MyEffect.js`:
 
 ```js
-// enter(slotEl, params) → cleanup()
+import { prefersReducedMotion } from '../../../utils/reduced-motion.js';
+
+// enter(canvas, params) → cleanup()
 export function MyEffect(canvas, params = {}) {
   const { opacity = 0.8 } = params;
   canvas.style.opacity = String(opacity);
   let rafId = null;
-  let running = true;
   function draw() {
-    if (!running) return;
     // ... draw to canvas ...
+    if (prefersReducedMotion()) return;   // reduced motion: hold this frame
     rafId = requestAnimationFrame(draw);
   }
   rafId = requestAnimationFrame(draw);
   return () => {
-    running = false;
     if (rafId) cancelAnimationFrame(rafId);
     canvas.style.opacity = '';
   };
 }
 ```
 
-2. Register in `ScreenEffectPresetRegistry.js`:
+2. Register it in `ScreenEffectPresetRegistry.js`:
 
 ```js
 import { MyEffect } from './effects/MyEffect.js';
 
 screenEffectPresetRegistry.register('my-effect', {
-  slot: 'canvas',
+  label:    'My Effect',
+  slot:     'canvas',
   defaults: { opacity: 0.8 },
+  params_schema: [
+    { key: 'opacity', type: 'number', label: 'Opacity', min: 0, max: 1, step: 0.05 },
+  ],
   enter: MyEffect,
 });
 ```
 
-3. Build and test:
+3. Add it to the user docs ([Screen Effects](../../core/effects/screen-effects.md#preset-reference)) and the `trigger_effect` description in `custom_components/lcards/services.yaml`.
+
+4. Build and try it:
 
 ```bash
-npm run build
-# Copy dist/lcards.js → Home Assistant www/community/lcards/
-# window.lcards.screenEffect.play('my-effect', { duration: 2000 })
+npm run build      # writes custom_components/lcards/lcards.js; hard-refresh the browser
+```
+
+```js
+window.lcards.screenEffect.play('my-effect', { duration: 2000 })
 ```
 
 ---
 
-## Relationship to Other Systems
+## Relationship to other systems
 
 | System | Relationship |
 |---|---|
-| **Alert overlay** (`lcards-alert-overlay`) | Delegates its blur/tint backdrop to `ScreenEffectManager` via `applySlot()`. Card config uses `layers: { backdrop, color, canvas }`. Config authority stays in the card; SEM owns the DOM. |
-| **Alert transitions** (`alertTransitions.js`) | Separate system: animates `home-assistant-main` during the CSS variable swap that changes the global theme colour. Not screen-level compositing. |
-| **Background animations** | Card-scoped Canvas2D renders on the card element. No relationship to the screen-level portal. |
-| **Animation system** (`AnimationManager`) | Element-scoped anime.js animations. Not suitable for screen-wide effects. |
+| **PortalOverlayManager** | The only user of `sem.portal` and `setOverlayOccupied()`. Applies a slot's `layers` with `applySlot()` and owns the effects it applied (last overlay shown with layers wins), clearing them by token with `clearSlotIfToken()`. See [Portal Overlay Manager](portal-overlay-manager.md#screen-effect-ownership). |
+| **Alert overlay** (`lcards-alert-overlay`) | Passes `layers: { backdrop, color, canvas }` (card config plus per-condition overrides) to `portalOverlayManager.show('alert-overlay')`. Config stays in the card; SEM owns the effect DOM. |
+| **ConnectionOverlayService** | The same, through slot `'connection-overlay'` (`layers`). |
+| **BorgAssimilationManager** | Calls `apply('borg-assimilation')`, `applySlot()`, `clearSlot()` and `clear()` directly, and listens for clicks on the canvas slot. See [Borg Assimilation](borg-assimilation.md). |
+| **Alert Studio, connectivity tab** | The Alert Studio previews layers on its mock screen with `enterPreset()` (`src/editor/components/alert-overlay/lcards-alert-preview.js`); the editors list presets with `catalog()`. |
+| **Alert transitions** (`alertTransitions.js`) | Separate: animates `home-assistant-main` while the alert palette swaps. Not screen-level compositing. |
+| **Background animations** | Card-scoped renders inside the card. No link to the screen portal. |
+| **AnimationManager** | Element-scoped anime.js animations. Not for screen-wide effects. |
 
 ---
 
-## Implementation Notes
+## Implementation notes
 
-**Color resolution for `color-text` params**: Before `enter()` is called, `ScreenEffectManager` resolves all `color-text` params through a three-step process: (1) substitute `var()` references from live computed DOM style; (2) route through `ThemeTokenResolver` for computed expressions (`alpha()`, `darken()`, token paths); (3) materialise any `var()` the resolver itself emits. This order prevents cache-poisoning: the resolver's cache key becomes a concrete colour string rather than a raw `var()` reference that could be stale from before the LCARS theme committed its CSS variables.
+**Colour resolution for `color-text` params.** Before `enter()`, `_resolveColorParams()` (`ScreenEffectManager.js:382-395`) passes every param whose `params_schema` type is `color-text` through `resolveColor(raw, { concrete: true })` (`src/core/themes/resolve-color.js`). That turns `var(--lcars-*)`, `theme:` tokens and computed colours (`alpha(...)`, `darken(...)`) into a concrete colour the element styles and canvases can use. Concrete mode reads the live values each time and never caches, so a palette change from an alert mode applies to the next effect started; an effect already running keeps the colour it started with. Params of other types are passed as given, and presets without a `params_schema` get none of this (a custom preset that takes colours should declare them as `color-text`).
 
-**`backdrop-filter` and `mix-blend-mode` compositing**: Canvas presets that set `mix-blend-mode` (`static`, `glitch`, `pixelate`) cause the browser to promote the portal into its own compositing layer. When this happens, a `backdrop-filter` applied to a *child element inside the portal* cannot reach through to the content behind the portal; the filter is resolved against an already-composited surface. To avoid this, `ScreenEffectManager` applies the backdrop-filter from the `backdrop` slot **directly on the portal element itself** rather than on the slot's child `<div>`. The portal-level filter is resolved before child compositing, so canvas blend-modes render correctly on top of the already-filtered background. The `scanlines` preset does not set `mix-blend-mode` and is not affected by this constraint.
+**`backdrop-filter` and `mix-blend-mode` compositing.** Canvas presets that set `mix-blend-mode` (`static`, `glitch`, `pixelate`, the classic Borg renderer) make the browser give the portal its own compositing layer. A `backdrop-filter` on a child of the portal then filters an already-composited surface and no longer reaches the dashboard behind it. So `_applySlot()` hands `backdrop` presets the **portal element itself** instead of the slot `<div>` (`ScreenEffectManager.js:211-222`, `enterEl`); the portal-level filter is resolved before the children composite, and the canvas blend modes render correctly on top of the filtered page. `scanlines` sets no blend mode and is not affected.
 
-**Canvas security**: Canvas2D cannot call `ctx.drawWindow()` or sample arbitrary DOM content in the browser for security reasons. The `pixelate` preset therefore generates synthetic colour blocks rather than true pixel-sampling of the viewport content. The visual result is an obscuring mosaic overlay, which is consistent with what the alert transition system already does.
+**Canvas security.** Canvas2D cannot read arbitrary page pixels, so `pixelate` draws synthetic blocks instead of sampling the screen: an obscuring mosaic, not a true pixelation of the content.
 
-**Portal creation is lazy**: The portal div is appended to `document.body` on the first call to `apply()` or `play()`. It is not created at singleton initialization. This avoids any risk of interfering with Home Assistant's own DOM setup.
+**Lazy portal.** The portal is built on the first call that needs it: `applySlot()`, `applySlotFor()`, `apply()`, `play()` or the `portal` getter (POM's first `show()`). `enterPreset()` does not create it. It is never built at singleton construction, so nothing touches Home Assistant's DOM before an effect or overlay is used.
 
-**`prefers-reduced-motion`**: Canvas effects (`static`, `pixelate`, `glitch`, `scanlines`) run continuous rAF loops. If your automation targets all users, consider checking `window.matchMedia('(prefers-reduced-motion: reduce)')` before calling backdrop effects and using the backdrop slot instead.
+**Reduced motion.** With `prefers-reduced-motion: reduce` (`src/utils/reduced-motion.js`), `static`, `pixelate` and `glitch` draw one frame and hold it, `scanlines` stops scrolling, and `borg-assimilation` shows its finished picture (the main thread sends the setting to the worker, also when it changes). SEM itself does not check the setting; each effect does. A custom canvas effect should do the same (see the example above).

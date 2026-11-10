@@ -162,7 +162,7 @@ Supported event keys (from `EVENT_CATEGORY` in `src/core/sound/SoundManager.js`)
 
 ### `svg_assets` / `font_assets`
 
-SVG images and web fonts routed to `AssetManager`:
+SVG images and web fonts routed to `AssetManager`. A font's `url` is a CSS file with the `@font-face` rule (a file you ship, or an external stylesheet such as Google Fonts with `external: true`), not the `.woff2` itself: `loadFont()` adds the URL to the page as a stylesheet link, and the CSS points at the font file. Name the `font-family` after the asset key and start the key with `lcards_`: a card loads a font on demand when its `font_family` names an `lcards_*` key (`autoLoad: true` is only read for the built-in packs at startup).
 
 ```javascript
 svg_assets: {
@@ -172,11 +172,19 @@ svg_assets: {
   }
 },
 font_assets: {
-  'my-font': {
-    url:         '/hacsfiles/my-pack/fonts/MyFont.woff2',
+  'lcards_my_font': {
+    url:         '/hacsfiles/my-pack/fonts/MyFont.css',
     displayName: 'My Font',
     category:    'display',
   }
+}
+```
+
+```css
+/* /hacsfiles/my-pack/fonts/MyFont.css */
+@font-face {
+  font-family: 'lcards_my_font';
+  src: url('MyFont.woff2') format('woff2');
 }
 ```
 

@@ -1,8 +1,9 @@
 /**
  * @fileoverview ScreenEffectManager — full-screen composited effect layer.
  *
- * A singleton service that owns a `position:fixed` portal appended to
- * `document.body` (z-index 9100, above the alert overlay portal at 9000).
+ * A singleton service that owns a `position:fixed` portal mounted inside
+ * `<home-assistant>` (`mountDialogNearHomeAssistant`, like Home Assistant's own
+ * dialogs; z-index 9100).
  * The portal contains a small set of named **slot** elements, each with a
  * distinct rendering responsibility:
  *
@@ -47,7 +48,7 @@ export class ScreenEffectManager extends BaseService {
     constructor() {
         super();
 
-        /** @type {HTMLDivElement|null} top-level portal element on document.body */
+        /** @type {HTMLDivElement|null} top-level portal element (mounted near <home-assistant>) */
         this._portal = null;
 
         /**
@@ -59,9 +60,13 @@ export class ScreenEffectManager extends BaseService {
          *   active:   boolean,
          *   timer:    ReturnType<typeof setTimeout>|null,
          *   resolve:  (() => void)|null,
+         *   token:    number,
          * }>}
          */
         this._slots = new Map();
+
+        /** Last token handed out by _applySlot() (see slotToken()). */
+        this._tokenSeq = 0;
 
         /** @type {boolean} True while the alert overlay has elements in the portal. */
         this._overlayOccupied = false;
@@ -96,6 +101,7 @@ export class ScreenEffectManager extends BaseService {
                 active:  false,
                 timer:   null,
                 resolve: null,
+                token:   0,
             });
         }
 
@@ -220,6 +226,7 @@ export class ScreenEffectManager extends BaseService {
             // correctly on top of the already-filtered surface.
             const enterEl = slot === 'backdrop' ? this._portal : slotState.el;
             slotState.cleanup = preset.enter(enterEl, finalParams) ?? null;
+            slotState.token = ++this._tokenSeq;
         } catch (err) {
             lcardsLog.error(`[ScreenEffectManager] Error entering preset '${presetName}':`, err);
             slotState.el.style.display = 'none';
@@ -278,6 +285,7 @@ export class ScreenEffectManager extends BaseService {
         }
         slotState.el.style.display = 'none';
         slotState.active = false;
+        slotState.token = 0;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -402,6 +410,34 @@ export class ScreenEffectManager extends BaseService {
         this._releaseSlot(slot);
         this._syncPortalVisibility();
         lcardsLog.debug(`[ScreenEffectManager] Cleared slot '${slot}'`);
+    }
+
+    /**
+     * Which application of an effect is running on a slot: a new number each
+     * time an effect is applied there, 0 while the slot is empty. A caller that
+     * applied an effect keeps the token and later clears the slot with
+     * clearSlotIfToken(), so it never clears an effect someone applied after it
+     * (the portal overlays do this; lcards.trigger_effect stays untouched).
+     *
+     * @param {string} slot - Slot name ('backdrop' | 'canvas' | 'color').
+     * @returns {number}
+     */
+    slotToken(slot) {
+        return this._slots.get(slot)?.token ?? 0;
+    }
+
+    /**
+     * Clear a slot only while it still runs the effect `token` names
+     * (see slotToken()).
+     *
+     * @param {string} slot
+     * @param {number} token
+     * @returns {boolean} `true` if the slot was cleared.
+     */
+    clearSlotIfToken(slot, token) {
+        if (!token || this.slotToken(slot) !== token) return false;
+        this.clearSlot(slot);
+        return true;
     }
 
     /**

@@ -232,6 +232,34 @@ export class ThemeTokenResolver {
   }
 
   /**
+   * Resolve a token path as the theme defines it, ignoring the active overrides.
+   *
+   * Runs against private, throwaway caches so the un-overridden results never
+   * reach the live resolutionCache / computedCache that cards read from.
+   *
+   * @param {string} path - Token path
+   * @param {*} [fallback=null] - Value when the path does not resolve
+   * @returns {*} Resolved value without overrides
+   */
+  resolveDefault(path, fallback = null) {
+    const saved = {
+      overrides: this._overrides,
+      resolutionCache: this.resolutionCache,
+      computedCache: this.computedCache,
+    };
+    this._overrides = null;
+    this.resolutionCache = new Map();
+    this.computedCache = new Map();
+    try {
+      return this.resolve(path, fallback);
+    } finally {
+      this._overrides = saved.overrides;
+      this.resolutionCache = saved.resolutionCache;
+      this.computedCache = saved.computedCache;
+    }
+  }
+
+  /**
    * Remove all overrides and clear cache.
    */
   clearOverrides() {

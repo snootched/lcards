@@ -98,12 +98,12 @@ When it is restored:
 
 1. If the intro is still showing, it ends at once, without a click.
 2. The `borg_deassimilate` sound plays (or the `sound` option's sound), and the outro layers show (skipped with `withOutro: false`).
-3. After the longest `duration` in the outro layers, and at least 1200 ms, the palette goes back to `green_alert` with the `revertTransitionStyle` transition.
+3. After the longest `duration` in the outro layers, and at least 1200 ms, the palette goes back to the alert mode that was active before the assimilation, with the `revertTransitionStyle` transition.
 4. The Borg font is removed (if it was swapped in) and every screen effect is cleared.
 
 ::: details More about the sequence
-- **Twice in a row:** starting an assimilation while one is running, or restoring when nothing is assimilated, does nothing (a warning is logged).
-- **The alert mode afterwards:** restoring always returns the colours to `green_alert`, whatever alert mode was active before. The `input_select.lcards_alert_mode` helper is never changed by the Borg.
+- **Twice in a row:** starting an assimilation while one is running, or restoring when nothing is assimilated, does nothing (a warning is logged). The alert mode to go back to is the one from before the first start.
+- **The alert mode afterwards:** restoring returns the colours to the alert mode that was active when the assimilation started (red alert stays red alert). It is `green_alert` when that mode is unknown or was itself a Borg alert. The `input_select.lcards_alert_mode` helper is never changed by the Borg.
 - **Clicks during the intro:** the intro takes every click until it is dismissed; after it, the dashboard works normally under the persistent layers.
 - **All screen effects:** restoring clears every screen effect, including one started separately with `lcards.trigger_effect`.
 - **The font:** the Borg typeface replaces `--lcars-font` and `--lcars-fallback-font`, so text in another font keeps it.
@@ -270,7 +270,7 @@ data:
 | `transitionStyle` | string | `blur_fade` | Palette transition: `blur_fade`, `flash`, `fade_only` or `off` |
 | `intro` | map | see [Layers format](#layers-format) | Intro layers, merged slot by slot with the defaults |
 | `persistentLayers` | map | see [Layers format](#layers-format) | Layers kept after the intro; `{}` for none |
-| `paletteHue` | number | `110` | The hue (0 to 359) the palette shifts toward: `110` is Borg yellow-green, `240` blue, `0` red. Console and Config Panel only |
+| `paletteHue` | number | `110` | The hue (0 to 359) the palette shifts toward: `110` is Borg yellow-green, `240` blue, `0` red. As an action: `palette_hue` |
 | `fontSwap` | boolean | `true` | `false` keeps the dashboard font; everything else still runs |
 | `sound` | string | the `borg_assimilate` [sound event](#sounds) | A sound for this call: a file URL (`/local/sounds/borg.mp3`), a media library id (`media-source://...`) or a sound asset key; `none` plays nothing |
 

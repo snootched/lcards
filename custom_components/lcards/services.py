@@ -507,6 +507,9 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         font_swap = call.data.get("font_swap")
         if font_swap is not None:
             payload["fontSwap"] = font_swap
+        palette_hue = call.data.get("palette_hue")
+        if palette_hue is not None:
+            payload["paletteHue"] = palette_hue
         if call.data.get("sound"):
             payload["sound"] = call.data["sound"]
 
@@ -669,6 +672,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             vol.Optional("overrun"):           vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
             vol.Optional("suppress_persistent"): bool,
             vol.Optional("font_swap"):         bool,
+            vol.Optional("palette_hue"):       vol.All(vol.Coerce(int), vol.Range(min=0, max=359)),
             vol.Optional("sound"):             str,
             vol.Optional("intro_layers"):      dict,
             vol.Optional("persistent_layers"): dict,

@@ -17,7 +17,6 @@ import { deepMerge } from '../../core/config-manager/merge-helpers.js';
 
 // Import animation system components
 // AnimationManager now imported as shared singleton from lcardsCore
-import { processAnimationConfig } from '../../core/animation/AnimationConfigProcessor.js';
 
 import { BaseService } from '../../core/BaseService.js';
 
@@ -26,6 +25,8 @@ export class MsdCardCoordinator extends BaseService {
     super();
     // Initialize core managers
     this.themeManager = null; // Will be set to shared core ThemeManager in initializeSystemsWithPacksFirst
+    /** @type {(() => void) | null} */
+    this._removeEntityChangeListener = null; // DataSourceManager listener, removed in destroy()
 
     this.stylePresetManager = null; // Will be set to shared core StylePresetManager
 
@@ -33,7 +34,6 @@ export class MsdCardCoordinator extends BaseService {
     this.renderer = null;
     this.controlsRenderer = null;
     this.router = null;
-    this.animRegistry = null; // Will be set to shared core AnimationRegistry
     this.animationManager = null; // Animation system
     this._renderTimeout = null;
     this._reRenderCallback = null;
@@ -176,12 +176,7 @@ export class MsdCardCoordinator extends BaseService {
       this.controlsRenderer.setHass(this._hass);
     }
 
-    // Use shared AnimationRegistry and AnimationManager from lcardsCore
-    if (!lcardsCore.animationRegistry) {
-      throw new Error('lcardsCore.animationRegistry is null - core not initialized?');
-    }
-    this.animRegistry = lcardsCore.animationRegistry;
-
+    // Use the shared AnimationManager from lcardsCore
     if (!lcardsCore.animationManager) {
       throw new Error('lcardsCore.animationManager is null - core not initialized?');
     }
@@ -287,7 +282,9 @@ export class MsdCardCoordinator extends BaseService {
 
       // Register entity change listener BEFORE initializing data sources
       // This ensures subscriptions created during initialization can trigger the listener
-      this.dataSourceManager.addEntityChangeListener((changedIds) => {
+      // Removed again in destroy(): the manager outlives this card
+      this._removeEntityChangeListener?.();
+      this._removeEntityChangeListener = this.dataSourceManager.addEntityChangeListener((changedIds) => {
         // CRITICAL: Sync our HASS with DataSourceManager's updated HASS
         // Real-time entity updates come via DataSource subscriptions, which update
         // DataSourceManager.hass but NOT SystemsManager._hass. We need to sync them!
@@ -348,9 +345,13 @@ export class MsdCardCoordinator extends BaseService {
 
 
 
-    // Stop all subscriptions and clean up resources
-    this.dataSourceManager?.destroy();
-    this.animRegistry?.clear();
+    // The DataSourceManager is the shared core singleton: never destroy it from a
+    // card (an MSD disconnect, such as edit mode or a view change, stopped every data
+    // source on the page and the next initializeFromConfig threw). MSD config sources
+    // are created without a card id, so they stay for the page; only this card's
+    // listener goes.
+    this._removeEntityChangeListener?.();
+    this._removeEntityChangeListener = null;
     if (this.controlsRenderer && typeof (/** @type {any} */ (this.controlsRenderer)).destroy === 'function') {
       (/** @type {any} */ (this.controlsRenderer)).destroy();
     }
@@ -389,7 +390,6 @@ export class MsdCardCoordinator extends BaseService {
     // - this.themeManager
     // - this.animationManager
     // - this.stylePresetManager
-    // - this.animRegistry
 
     // Remove global references
     if (typeof window !== 'undefined' && window.lcards.debug.msd) {

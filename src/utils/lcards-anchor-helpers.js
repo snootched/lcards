@@ -109,33 +109,15 @@ export function findSvgAnchors(svgContent) {
 
 export function getSvgContent(base_svg) {
   const assetManager = window.lcards?.core?.assetManager;
-  if (!assetManager) {
-    // Fallback to legacy method if AssetManager not available
-    let svgKey = null;
-    if (base_svg && base_svg.startsWith('builtin:')) {
-      svgKey = base_svg.replace('builtin:', '');
-    } else if (base_svg && base_svg.startsWith('/local/')) {
-      svgKey = base_svg.split('/').pop().replace('.svg','');
-    }
-    return svgKey && window.lcards?.assets?.svg_templates?.[svgKey];
-  }
+  if (!assetManager) return null;
 
-  let svgKey = null;
-  if (base_svg && base_svg.startsWith('builtin:')) {
-    svgKey = base_svg.replace('builtin:', '');
-  } else if (base_svg && base_svg.startsWith('/local/')) {
-    svgKey = base_svg.split('/').pop().replace('.svg','');
-  } else if (base_svg && base_svg.startsWith('media-source://')) {
-    // Registered/cached under the content ID itself — see
-    // AssetManager.loadSvgFromMediaSource(). Sync-only read like the
-    // branches above: only finds it if already fetched by something else.
-    svgKey = base_svg;
-  }
-
+  // Same key AssetManager.loadSvg() registers under: builtin:<name> -> <name>,
+  // a path/URL or media-source:// item -> the whole source. Sync-only read:
+  // finds the SVG once something has fetched it.
+  const svgKey = assetManager.svgKeyForSource(base_svg);
   if (!svgKey) return null;
 
-  const registry = assetManager.getRegistry('svg');
-  return registry.get(svgKey);
+  return assetManager.getRegistry('svg').get(svgKey);
 }
 
 /**

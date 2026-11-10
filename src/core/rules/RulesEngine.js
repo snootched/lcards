@@ -9,10 +9,22 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { BaseService } from '../../core/BaseService.js';
 import { compileRule, evalCompiled } from './compileConditions.js';  // ✨ NEW
 import { UnifiedTemplateEvaluator } from '../templates/UnifiedTemplateEvaluator.js';  // ✨ NEW
-import { deepMerge } from '../config-manager/merge-helpers.js';
 import { resolveAnimParam, resolveAnimCommandParams } from '../animation/resolveAnimParams.js';
 
+/** Rules that read the clock (time_between, weekday_in, random_chance) are checked again every minute, on the minute. */
+export const TIME_REFRESH_MS = 60000;
+
+/** Rule config without the engine's source-card metadata, as comparable text. */
+const ruleText = (rule) => {
+  const { _sourceCardId, _sourceCardType, ...own } = rule || {};
+  try { return JSON.stringify(own); } catch { return null; }
+};
+
 export class RulesEngine extends BaseService {
+  /**
+   * @param {Array<Object>} [rules] - Initial rules
+   * @param {Object|null} [dataSourceManager] - Shared DataSourceManager (rule conditions that name a data source)
+   */
   constructor(rules = [], dataSourceManager = null) {
     super();
     this.rules = Array.isArray(rules) ? rules : [];
@@ -56,6 +68,26 @@ export class RulesEngine extends BaseService {
     // ✨ NEW: Rule-based animation tracking
     // Maps ruleId to Set of overlayIds that have active rule animations
     this.activeRuleAnimations = new Map(); // ruleId -> Map<overlayId, animDef[]> (the looping defs it started)
+
+    // Rules that read the clock, re-checked every minute (see _syncTimeRefresh)
+    /** @type {Set<string>} */
+    this._timeRuleIds = new Set();
+    /** @type {any} */
+    this._timeRefreshTimer = null;
+
+    // Card-owned rules (setCardRules): ruleId -> Map<ownerId, rule>, newest owner last.
+    // The newest owner's definition is the live one; the rule goes when no owner is left.
+    /** @type {Map<string, Map<string, Object>>} */
+    this._ruleOwners = new Map();
+    /** @type {Map<string, Set<string>>} ownerId -> the rule ids it owns */
+    this._ownerRuleIds = new Map();
+    /** @type {any} */
+    this._rulesChangedTimer = null;
+
+    // DataSourceManager entity-change listener (rules naming a data source)
+    /** @type {(() => void) | null} */
+    this._dataSourceUnsubscribe = null;
+    if (dataSourceManager) this._watchDataSources();
 
     this.buildRulesIndex();
     this.buildDependencyIndex();
@@ -128,6 +160,8 @@ export class RulesEngine extends BaseService {
    */
   _compileRules() {
     const issues = [];
+    // Every rule is compiled again below; a removed rule's tree must not linger
+    this.compiledRules.clear();
 
     lcardsLog.debug(`[RulesEngine] Compiling ${this.rules.length} rules...`);
 
@@ -139,9 +173,7 @@ export class RulesEngine extends BaseService {
         lcardsLog.trace(`[RulesEngine] Compiled rule ${rule.id}:`, {
           hasConditions: !!compiled.tree,
           dependencies: {
-            entities: compiled.deps.entities.size,
-            perf: compiled.deps.perf.size,
-            flags: compiled.deps.flags.size
+            entities: compiled.deps.entities.size
           }
         });
       } catch (error) {
@@ -158,6 +190,248 @@ export class RulesEngine extends BaseService {
     }
 
     lcardsLog.debug(`[RulesEngine] Compiled ${this.compiledRules.size} rules successfully`);
+
+    this._syncTimeRefresh();
+  }
+
+  // ============================================================================
+  // Time-dependent rules: checked again every minute
+  // ============================================================================
+
+  /**
+   * Collect the rules that read the clock and start (or stop) the minute timer.
+   * Entity rules are re-checked on state changes; nothing changes when the clock
+   * passes into a time_between window, so these get a timer of their own.
+   * @private
+   */
+  _syncTimeRefresh() {
+    this._timeRuleIds = new Set();
+    for (const [id, compiled] of this.compiledRules) {
+      if (compiled?.deps?.time) this._timeRuleIds.add(id);
+    }
+    if (this._timeRuleIds.size === 0) {
+      this._clearTimeRefresh();
+    } else if (!this._timeRefreshTimer) {
+      this._scheduleTimeRefresh();
+    }
+  }
+
+  /**
+   * Arm the timer for the start of the next minute (time_between has minute
+   * resolution), a little after it so the clock has passed the boundary.
+   * @private
+   */
+  _scheduleTimeRefresh() {
+    const delay = TIME_REFRESH_MS - (Date.now() % TIME_REFRESH_MS) + 50;
+    const timer = setTimeout(() => {
+      this._timeRefreshTimer = null;
+      this.refreshTimeRules();
+      if (this._timeRuleIds.size > 0) this._scheduleTimeRefresh();
+    }, delay);
+    // Node (tests): never keep the process alive for this timer
+    /** @type {any} */ (timer)?.unref?.();
+    this._timeRefreshTimer = timer;
+  }
+
+  /** @private */
+  _clearTimeRefresh() {
+    if (this._timeRefreshTimer) {
+      clearTimeout(this._timeRefreshTimer);
+      this._timeRefreshTimer = null;
+    }
+  }
+
+  /**
+   * Mark the rules that read the clock dirty and run the re-evaluation callbacks.
+   * Called by the minute timer; entity rules are left alone.
+   * @returns {number} How many rules were marked dirty
+   */
+  refreshTimeRules() {
+    let marked = 0;
+    for (const id of this._timeRuleIds) {
+      if (this.rulesById.has(id)) {
+        this.dirtyRules.add(id);
+        marked++;
+      }
+    }
+    if (marked > 0) {
+      lcardsLog.trace(`[RulesEngine] Minute tick: ${marked} time-dependent rules dirty`);
+      this._runReEvaluationCallbacks('time');
+    }
+    return marked;
+  }
+
+  /**
+   * Run every card's re-evaluation callback (each calls evaluateDirty()).
+   * @param {string} reason - For the log
+   * @private
+   */
+  _runReEvaluationCallbacks(reason) {
+    if (this._reEvaluationCallbacks.length === 0) return;
+    [...this._reEvaluationCallbacks].forEach((callback, index) => {
+      try {
+        callback();
+      } catch (error) {
+        lcardsLog.error(`[RulesEngine] Re-evaluation callback ${index} failed (${reason}):`, error);
+      }
+    });
+  }
+
+  // ============================================================================
+  // Card-owned rules: replaced on config change, removed with the card
+  // ============================================================================
+
+  /**
+   * Set the rules a card owns, replacing what it registered before. A rule the
+   * card no longer lists is removed once no other card lists it; a changed rule
+   * replaces the live one. Two cards listing the same id (the dashboard card and
+   * the editor preview) share it, the newest definition live. An id held by a
+   * pack rule is left alone.
+   *
+   * @param {string} ownerId - The card instance (its GUID), not its config id
+   * @param {Array<Object>} rules - The card's `rules` (each needs an `id`)
+   * @param {{sourceCardId?: string, sourceCardType?: string}} [meta] - Shown with the rule (Rules tab)
+   * @returns {{added: number, replaced: number, removed: number}}
+   */
+  setCardRules(ownerId, rules, meta = {}) {
+    const counts = { added: 0, replaced: 0, removed: 0 };
+    if (!ownerId) return counts;
+    const previous = this._ownerRuleIds.get(ownerId) ?? new Set();
+    /** @type {Set<string>} */
+    const next = new Set();
+
+    for (const rule of Array.isArray(rules) ? rules : []) {
+      if (!rule || typeof rule !== 'object' || !rule.id) {
+        lcardsLog.warn('[RulesEngine] Card rule missing ID, skipping:', rule);
+        continue;
+      }
+      // A pack (or constructor) rule with this id: not the card's to replace
+      if (this.rulesById.has(rule.id) && !this._ruleOwners.has(rule.id)) {
+        lcardsLog.debug(`[RulesEngine] Rule ${rule.id} is a pack rule, card rule skipped`);
+        continue;
+      }
+      next.add(rule.id);
+      // A copy carrying the source-card metadata: Home Assistant freezes card configs
+      const entry = { ...rule, _sourceCardId: meta.sourceCardId ?? ownerId, _sourceCardType: meta.sourceCardType ?? 'card' };
+      let owners = this._ruleOwners.get(rule.id);
+      if (!owners) {
+        owners = new Map();
+        this._ruleOwners.set(rule.id, owners);
+      }
+      const held = owners.get(ownerId);
+      // Unchanged: keep its place, so re-setting the same config never takes the
+      // rule back from a newer owner (the editor preview)
+      if (!held || ruleText(held) !== ruleText(entry)) {
+        owners.delete(ownerId);
+        owners.set(ownerId, entry);
+      }
+    }
+
+    for (const id of previous) {
+      if (!next.has(id)) this._ruleOwners.get(id)?.delete(ownerId);
+    }
+    if (next.size) this._ownerRuleIds.set(ownerId, next);
+    else this._ownerRuleIds.delete(ownerId);
+
+    /** @type {string[]} */
+    const removedIds = [];
+    for (const id of new Set([...previous, ...next])) {
+      const owners = this._ruleOwners.get(id);
+      const live = this.rulesById.get(id);
+      if (!owners || owners.size === 0) {
+        this._ruleOwners.delete(id);
+        if (live) {
+          this.rules = this.rules.filter(r => r !== live);
+          removedIds.push(id);
+          counts.removed++;
+        }
+        continue;
+      }
+      const wanted = [...owners.values()].pop();
+      if (live === wanted) continue;
+      if (!live) {
+        this.rules.push(wanted);
+        counts.added++;
+      } else {
+        this.rules = this.rules.map(r => (r === live ? wanted : r));
+        counts.replaced++;
+      }
+    }
+
+    if (counts.added || counts.replaced || counts.removed) {
+      for (const id of removedIds) {
+        this._matchedResults.delete(id);
+        this.lastEvaluation.delete(id);
+        this.dirtyRules.delete(id);
+        this._stopRuleAnimations(id);
+      }
+      this.buildRulesIndex();
+      this.buildDependencyIndex();
+      this._compileRules();
+      this.markAllDirty();
+      this._scheduleRulesChanged();
+      lcardsLog.debug(`[RulesEngine] Card ${meta.sourceCardId ?? ownerId} rules: +${counts.added} ~${counts.replaced} -${counts.removed} (total ${this.rules.length})`);
+    }
+    return counts;
+  }
+
+  /**
+   * Remove every rule a card owns (unless another card lists it too).
+   * @param {string} ownerId - The card instance (its GUID)
+   * @returns {{added: number, replaced: number, removed: number}}
+   */
+  removeCardRules(ownerId) {
+    return this.setCardRules(ownerId, []);
+  }
+
+  /**
+   * Re-evaluate once after rules were added, replaced or removed (several cards
+   * setting rules in one task run the callbacks once).
+   * @private
+   */
+  _scheduleRulesChanged() {
+    if (this._rulesChangedTimer) return;
+    this._rulesChangedTimer = setTimeout(() => {
+      this._rulesChangedTimer = null;
+      if (this.dirtyRules.size > 0) this._runReEvaluationCallbacks('rules changed');
+    }, 0);
+  }
+
+  // ============================================================================
+  // Data sources named in conditions
+  // ============================================================================
+
+  /**
+   * Listen for data source updates, so a rule naming a data source
+   * (`entity: my_source` or `my_source.transformations.x`) is checked again when
+   * the source changes.
+   * @private
+   */
+  _watchDataSources() {
+    this._dataSourceUnsubscribe?.();
+    this._dataSourceUnsubscribe = null;
+    const dsm = this.dataSourceManager;
+    if (typeof dsm?.addEntityChangeListener !== 'function') return;
+    this._dataSourceUnsubscribe = dsm.addEntityChangeListener((ids) => this._onDataSourceEntitiesChanged(ids));
+  }
+
+  /**
+   * A data source's entity changed: mark the rules naming that source dirty.
+   * @param {string[]} changedEntityIds - Home Assistant entity ids the sources read
+   * @private
+   */
+  _onDataSourceEntitiesChanged(changedEntityIds) {
+    const sources = this.dataSourceManager?.sources;
+    if (!sources || typeof sources.entries !== 'function') return;
+    const changed = new Set(changedEntityIds || []);
+    /** @type {string[]} */
+    const names = [];
+    for (const [name, source] of sources.entries()) {
+      if (changed.has(source?.cfg?.entity)) names.push(name);
+    }
+    if (names.length && this.markEntitiesDirty(names) > 0) {
+      this._runReEvaluationCallbacks('data source');
+    }
   }
 
   buildDependencyIndex() {
@@ -205,10 +479,10 @@ export class RulesEngine extends BaseService {
 
           // Check if this is actually a DataSource by consulting the DataSourceManager
           if (this.dataSourceManager && this.dataSourceManager.getSource(sourceName)) {
-            lcardsLog.trace(`[RulesEngine] Skipping DataSource reference in rule monitoring: ${condition.entity}`);
-            // Don't add DataSource references to HASS entity monitoring
-            // The DataSourceManager already handles these entities via its own subscriptions
-            return;
+            // Indexed under the full reference: markEntitiesDirty(sourceName) finds it
+            // by prefix when the source updates. The Home Assistant subscription
+            // (setupHassMonitoring) leaves data source references out.
+            entities.add(condition.entity);
           } else {
             // Not a DataSource, might be an entity with attribute reference (e.g., "sensor.temp.state")
             // Extract just the entity ID part
@@ -615,8 +889,6 @@ export class RulesEngine extends BaseService {
         // Additional context
         // sun_elevation reads sun.sun (there is no getSunInfo on the systems manager)
         sun: { elevation: Number(getEntity?.('sun.sun')?.attributes?.elevation ?? this.systemsManager?.getHass?.()?.states?.['sun.sun']?.attributes?.elevation) },
-        getPerf: (key) => /** @type {any} */ (this).perfMetrics?.[key],
-        flags: /** @type {any} */ (this).debugFlags || {},
 
         // ✨ NEW: Template evaluator for Jinja2/JS
         unifiedTemplateEvaluator: this._templateEvaluator
@@ -1195,11 +1467,6 @@ export class RulesEngine extends BaseService {
     });
   }
 
-  countConditions(when) {
-    if (!when) return 0;
-    return (when.all?.length || 0) + (when.any?.length || 0);
-  }
-
   createEmptyResult() {
     return {
       overlayPatches: [],
@@ -1651,6 +1918,13 @@ export class RulesEngine extends BaseService {
    * @returns {Promise<void>}
    */
   async destroy() {
+    this._clearTimeRefresh();
+    if (this._rulesChangedTimer) {
+      clearTimeout(this._rulesChangedTimer);
+      this._rulesChangedTimer = null;
+    }
+    this._dataSourceUnsubscribe?.();
+    this._dataSourceUnsubscribe = null;
     if (this.hassUnsubscribe) {
       try {
         this.hassUnsubscribe();
@@ -1673,6 +1947,8 @@ export class RulesEngine extends BaseService {
   setDataSourceManager(dataSourceManager) {
     lcardsLog.debug(`[RulesEngine] Setting DataSourceManager with ${Object.keys(dataSourceManager?.sources || {}).length} sources`);
     this.dataSourceManager = dataSourceManager;
+    this._watchDataSources();
+    this._templateEvaluator?.updateDataSourceManager(dataSourceManager);
 
     // Rebuild dependency index to include DataSource references
     this.buildDependencyIndex();
@@ -1803,69 +2079,3 @@ export class RulesEngine extends BaseService {
     });
   }
 }
-
-/**
- * Helper function for applying overlay patches from rule results.
- * @param {Array} overlays - Array of overlay configurations
- * @param {Array} patches - Array of patch configurations from rules
- * @returns {Array} Patched overlays array
- */
-export function applyOverlayPatches(overlays, patches) {
-  if (!patches || patches.length === 0) {
-    return overlays;
-  }
-
-  lcardsLog.trace('[RulesEngine] Applying overlay patches:', {
-    overlayCount: overlays.length,
-    patchCount: patches.length,
-    patches: patches.map(p => ({
-      id: p.id,
-      type: overlays.find(o => o.id === p.id)?.type,
-      styleKeys: Object.keys(p.style || {}),
-      cellTarget: p.cell_target || p.cellTarget || null
-    }))
-  });
-
-  const patchMap = new Map(patches.map(patch => [patch.id, patch]));
-
-  // Removed: applyStatusGridCellPatch - status_grid overlay type is no longer supported
-  // Removed: apexChartUpdates - apexchart overlay type is no longer supported
-
-  const patchedOverlays = overlays.map(overlay => {
-    const patch = patchMap.get(overlay.id);
-    if (!patch) {
-      return overlay;
-    }
-    lcardsLog.trace('[RulesEngine] Applying patch to overlay:', {
-      id: overlay.id,
-      type: overlay.type,
-      cellTarget: patch.cell_target || patch.cellTarget,
-      originalStyle: overlay.style,
-      patchKeys: Object.keys(patch)
-    });
-
-    // Deep merge entire patch into overlay (not just .style)
-    // This allows rules to patch text, dpad, icon, and other properties
-    const patchedOverlay = deepMerge({ ...overlay }, patch);
-
-    // Mark that this is an overlay-level patch, not cell-level
-    patchedOverlay._hasOverlayLevelPatch = !patch.cell_target && !patch.cellTarget;
-
-    lcardsLog.trace('[RulesEngine] Patched overlay result:', {
-      id: patchedOverlay.id,
-      type: patchedOverlay.type,
-      patchedKeys: Object.keys(patch),
-      hasText: !!patchedOverlay.text,
-      hasStyle: !!patchedOverlay.style,
-      hasFinalStyle: !!patchedOverlay.finalStyle
-    });
-
-    return patchedOverlay;
-  });
-  return patchedOverlays;
-}
-
-// ============================================================================
-// PHASE 1: New HASS Ingestion Method (Step 1 - Add alongside existing)
-// ============================================================================
-

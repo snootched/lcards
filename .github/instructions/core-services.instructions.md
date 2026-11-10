@@ -108,8 +108,7 @@ The current order — respect dependencies:
 8. `validationService` — depends on `hass`
 9. `configManager` — depends on `validationService`
 10. `stylePresetManager` — no deps (packs loaded later)
-11. `animationRegistry` — no deps
-12. `actionHandler`, `componentManager`, `packManager`, etc.
+11. `assetManager`, `componentManager`, `helperManager`, `soundManager`, `packManager`, etc.
 
 If your service depends on another, initialize it after that service.
 
@@ -127,10 +126,9 @@ window.lcards.core.rulesManager
 window.lcards.core.animationManager
 window.lcards.core.validationService
 window.lcards.core.stylePresetManager
-window.lcards.core.animationRegistry
 
-// These 7 are the ones cards interact with most — window.lcards.core actually
-// exposes the FULL LCARdSCore instance (15+ more singletons: actionHandler,
+// These 6 are the ones cards interact with most — window.lcards.core actually
+// exposes the FULL LCARdSCore instance (15+ more singletons:
 // configManager, assetManager, componentManager, helperManager, soundManager,
 // packManager, performanceMonitor, and others). See _performInitialization()
 // in src/core/lcards-core.js for the complete, current list.

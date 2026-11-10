@@ -266,12 +266,21 @@ const SVG_ASSETS = {
 // FONT ASSETS
 //
 // Web fonts registered with AssetManager.
-// URL can be an absolute external URL (set external: true)
-// or a local HACS path.
+// `url` is a CSS file holding the @font-face rule(s), not the font file:
+// AssetManager.loadFont() adds it to the page as a <link rel="stylesheet">.
+// The CSS then points at the font file. Name the font-family after the
+// asset key, and start the key with lcards_: a card loads a font on demand
+// when its font_family names an lcards_* key. ExampleFont.css:
+//   @font-face {
+//     font-family: 'lcards_example_font';
+//     src: url('ExampleFont.woff2') format('woff2');
+//   }
+// It can be a local HACS path, or an external stylesheet URL such as
+// Google Fonts (set external: true).
 // ─────────────────────────────────────────────────────────────────────
 const FONT_ASSETS = {
-  'example-font': {
-    url:         '/hacsfiles/lcards-example/fonts/ExampleFont.woff2',
+  'lcards_example_font': {
+    url:         '/hacsfiles/lcards-example/fonts/ExampleFont.css',
     displayName: 'Example Font',
     category:    'display',
     description: 'A placeholder display font',

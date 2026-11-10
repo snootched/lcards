@@ -14,8 +14,10 @@ The Sound System provides event-driven audio feedback for all LCARdS interaction
 SoundManager (BaseService singleton)
     │
     ├─ Tier 1 - Card interactions
-    │   └─ LCARdSActionHandler.setupActions()
-    │       calls soundManager.play(eventType, { cardOverride })
+    │   ├─ LCARdSActionHandler.setupActions() → its playSound() closure
+    │   │   (tap / hold / double tap / toggle_on / toggle_off; card sound_override)
+    │   └─ LCARdSCard._playSound(eventType)  (sliders, button hover, astrometrics; card `sounds`)
+    │       both call soundManager.play(eventType, { cardOverride? })
     │
     ├─ Tier 2 - Global HA UI listeners (document-level)
     │   ├─ hass-toggle-menu         → menu_expand
@@ -26,6 +28,11 @@ SoundManager (BaseService singleton)
     │   ├─ dialog-closed            → dialog_close
     │   └─ history.replaceState patch → dashboard_edit_start / dashboard_edit_save
     │
+    ├─ Tier 3 - Home Assistant state
+    │   ├─ HelperManager 'alert_mode' subscription → alert_red / ... / alert_clear
+    │   ├─ playAlertSound(mode)  (window.lcards.setAlertMode() with no helper, or a targeted alert)
+    │   └─ persistent_notification/subscribe (WebSocket) → notification
+    │
     ├─ Scheme Registry (Map<name, eventMap>)
     │   └─ Registered via PackManager.registerPack() → registerSchemes()
     │
@@ -33,7 +40,8 @@ SoundManager (BaseService singleton)
     │   └─ URL resolved from AssetManager registry (no async preload needed)
     │
     └─ Override Store
-        └─ Integration persistent storage key: 'sound_overrides'  (JSON eventType→assetKey map)
+        └─ ScopedSettingsService key 'sound_overrides' at global / user / device scope
+           (JSON eventType → assetKey | media-source id | URL | null)
 ```
 
 ### Key Files
@@ -87,9 +95,9 @@ Event types are grouped into three categories, each controlled by an independent
 | `alert_gray` | Alert mode set to `gray_alert` |
 | `alert_black` | Alert mode set to `black_alert` |
 | `alert_clear` | Alert mode cleared (back to normal) |
-| `system_ready` | LCARdS initialization complete |
-| `error` | System error condition |
-| `notification` | General notification event |
+| `system_ready` | LCARdS initialization complete (once per page load, see [Startup Sound Sequencing](#startup-sound-sequencing)) |
+| `error` | Core initialization failed (`LCARdSCore._performInitialization()` catch) |
+| `notification` | A Home Assistant persistent notification is added (`_subscribeToNotifications()`, not on the initial snapshot) |
 | `borg_assimilate` | `BorgAssimilationManager.assimilate()` starts (no built-in sound) |
 | `borg_deassimilate` | `BorgAssimilationManager.deassimilate()` starts (no built-in sound) |
 
@@ -97,7 +105,7 @@ Event types are grouped into three categories, each controlled by an independent
 
 ## Home Assistant Helper Integration
 
-Six input helpers store the **global** sound configuration. They are created via the Sound Config Panel or manually via YAML.
+Six input helpers store the **global** (shared) sound configuration. They are created via the Sound Config Panel or manually via YAML. They are shared Home Assistant entities, so the Config Panel's Sound tab only lets Home Assistant admins change them (see [Scopes and permissions](#scopes-and-permissions)).
 
 | Helper key | Entity ID | Type | Purpose |
 |---|---|---|---|
@@ -118,29 +126,38 @@ Six input helpers store the **global** sound configuration. They are created via
 
 ## Per-User / Per-Device Overrides
 
-> **Requires**: LCARdS integration v1.12+ (`scoped_storage` capability)
+> **Requires**: the LCARdS integration with the `scoped_storage` capability (`integrationService.capabilities.has('scoped_storage')`); without it the Config Panel shows a note instead of this section.
 
-All four per-event settings support **user and device scopes** via the `ScopedSettingsService` waterfall:
+Four settings support **user and device scopes** via the `ScopedSettingsService` waterfall:
 
-| Setting | Scopes | Global fallback |
+| Setting | Device and user tiers | Global tier |
 |---------|--------|----------------|
-| `sound_enabled` | device, user, global | `input_boolean.lcards_sound_enabled` |
-| `sound_volume` | device, user, global | `input_number.lcards_sound_volume` |
-| `sound_scheme` | device, user, global | `input_select.lcards_sound_scheme` |
-| `sound_overrides` | device, user, global | backend flat key |
+| `sound_enabled` | scoped key `sound_enabled` | `input_boolean.lcards_sound_enabled` (helper) |
+| `sound_volume` | scoped key `sound_volume` | `input_number.lcards_sound_volume` (helper) |
+| `sound_scheme` | scoped key `sound_scheme` | `input_select.lcards_sound_scheme` (helper) |
+| `sound_overrides` | scoped key `sound_overrides` | scoped key `sound_overrides` at global scope |
 
-Note: Per-category toggles (`sound_cards_enabled`, etc.) are global-only; they cannot be scoped per user or device.
+For the first three, SoundManager reads only the device and user tiers from storage (`sss.read(key, ['device', 'user'])`); the global tier is the live helper value. Per-category toggles (`sound_cards_enabled`, etc.) are helpers only; they cannot be scoped per user or device.
+
+### Scopes and permissions
+
+Global writes need a Home Assistant admin; user and device writes are open to everyone (decision of 2026-11-09, `src/core/services/storage-permissions.js`):
+
+- **Backend.** `lcards/storage/set`, `delete`, `reset` and `dump` are admin-only (`custom_components/lcards/websocket_api.py`, `_require_admin`); the user and device commands (`lcards/storage/user/*`, `device/*`) are not. So the global `sound_overrides` tier and the `custom_sound_schemes` key (written with `IntegrationService.writeStorage()`) are admin-only.
+- **Client.** `ScopedSettingsService.write()` / `clear()` refuse `scope: 'global'` before sending when `canWriteGlobalStorage(hass)` (`hass.user.is_admin === true`) is false, and return `false`.
+- **Sound tab.** For non-admins the "Global Settings" group is titled **Shared Defaults** and is read-only: the master switch, volume, scheme selector, category toggles, the global per-event overrides and the custom-scheme actions are disabled or hidden, with a note pointing to **Per-User / Per-Device Overrides** (`src/panels/components/lcards-sound-config-tab.js`, `_canEditGlobal()`). The helpers themselves are ordinary Home Assistant entities; the read-only state is the tab's choice, since changing them changes every user's sound.
+- **Results.** Every SoundManager save returns a boolean (`setOverride()`, `clearAllOverrides()`, `saveGlobalOverrides()`), and the custom-scheme calls return `{ ok, error? }`; the Sound tab shows an error when one is `false` (`GLOBAL_WRITE_REFUSED_MSG` for a non-admin).
 
 ### How it works
 
-`SoundManager._ensureOverridesLoaded()` runs once after the integration probe resolves, loading all scoped settings asynchronously into five in-memory caches:
+`SoundManager._ensureOverridesLoaded()` (started from `updateHass()`, it waits for `integrationService.onReady()`) loads all scoped settings once into six in-memory caches:
 
 | Cache | What it holds |
 |-------|---------------|
-| `_cachedEnabled` / `_cachedVolume` / `_cachedScheme` | Scoped `sound_enabled` / `sound_volume` / `sound_scheme` (device → user → global waterfall) |
+| `_cachedEnabled` / `_cachedVolume` / `_cachedScheme` | Scoped `sound_enabled` / `sound_volume` / `sound_scheme` (device → user; unset means "use the helper") |
 | `_globalOverridesCache` / `_overridesCache` / `_deviceOverridesCache` | Per-event overrides (`sound_overrides`) at the global / user / device tier |
 
-The synchronous read methods (`_isEnabled()`, `_getVolume()`, `_getActiveScheme()`) return cached values when available, falling back to the live Home Assistant helper before the first load completes. `_getOverrides()` (used inside `play()`) merges `{ ...global, ...user, ...device }`, so device wins per event. `refreshScopedCache()` (public) clears all five caches and re-reads from the backend; the Config Panel calls this after every write so `play()` picks up changes without a page reload.
+The synchronous read methods (`_isEnabled()`, `_getVolume()`, `_getActiveScheme()`) return cached values when available, falling back to the live Home Assistant helper before the first load completes. `_getOverrides()` (used inside `play()`) merges `{ ...global, ...user, ...device }`, so device wins per event. `refreshScopedCache()` (public) clears the three setting caches, then re-reads them and the three override tiers from the backend; the Config Panel calls this after every write so `play()` picks up changes without a page reload.
 
 ### Config Panel
 
@@ -269,7 +286,7 @@ const mapping = sm.getSchemeMapping('custom:bridge-ops');  // { card_tap: 'my_as
 ```
 
 - **Naming**: the display name is slugified (lowercased, non-alphanumerics collapsed to `-`) and prefixed `custom:` (e.g. `"Bridge Ops"` → `custom:bridge-ops`). `isCustomScheme(name)` checks for this prefix; the Config Panel uses it to badge custom schemes (`🛠️ bridge-ops (custom)`) and to gate which schemes can be edited/deleted (pack-provided schemes cannot be).
-- **Persistence**: create/update/delete read-modify-write the flat, global (non-scoped) backend key `custom_sound_schemes` (`STORAGE_KEY_CUSTOM_SOUND_SCHEMES`), a `{ [fullSchemeName]: eventMap }` object, via `IntegrationService.readStorage()`/`writeStorage()` directly, not the per-user/device `ScopedSettingsService` waterfall, since a saved scheme is a shared named preset rather than a personal setting.
+- **Persistence**: create/update/delete read-modify-write the flat, global (non-scoped) backend key `custom_sound_schemes` (`STORAGE_KEY_CUSTOM_SOUND_SCHEMES`), a `{ [fullSchemeName]: eventMap }` object, via `IntegrationService.readStorage()`/`writeStorage()` directly, not the per-user/device `ScopedSettingsService` waterfall, since a saved scheme is a shared named preset rather than a personal setting. `lcards/storage/set` is admin-only, so for a non-admin the write fails and the call returns `{ ok: false, error }`; the Sound tab hides the scheme actions for non-admins anyway.
 - **Availability**: a successful write immediately re-registers the scheme in `_soundSchemes`, so the Sound Scheme dropdown reflects the change without a reload.
 - **Startup load**: `_ensureCustomSchemesLoaded()` reads `custom_sound_schemes` once the integration probe resolves and registers every entry found, a one-shot pattern mirroring `_ensureOverridesLoaded()`.
 - **Deleting the active scheme**: the Config Panel resets the `sound_scheme` helper to `'none'` immediately after a successful delete, since the deleted name is no longer selectable.
@@ -299,7 +316,7 @@ Registering (`saveCustomScheme()`) or removing (`deleteCustomScheme()`) a scheme
 
 ## Override Storage
 
-Per-event overrides are stored as a flat `{ eventType: assetKey }` JSON object under the key `sound_overrides` in scoped storage. Two independent tiers exist:
+Per-event overrides are stored as a flat `{ eventType: assetKey }` JSON object under the key `sound_overrides` (`STORAGE_KEY_SOUND_OVERRIDES`) in scoped storage. Three independent tiers exist:
 
 | Tier | Storage path | Who sees it |
 |------|-------------|-------------|
@@ -307,9 +324,21 @@ Per-event overrides are stored as a flat `{ eventType: assetKey }` JSON object u
 | `user` | per-user scoped storage | that user only, all their devices |
 | `device` | per-device scoped storage | that device only, regardless of user |
 
-User-scope overrides win on a per-event basis (individual events can be user-overridden while others fall through to global).
+Tiers merge per event, device over user over global (`_getOverrides()`), so one event can be overridden for a device while the others fall through.
 
-`null` asset key values silence the event; they **are** stored (as `null`) in the override map. To remove an override entirely (revert to scheme), call `setOverride(eventType, undefined, scope)` or use the clear operation. `_getOverrides()` returns `{}` on any read failure (never throws).
+What a value means in the map, and how to write it:
+
+| Value in the map | Effect in `play()` | Written by |
+|---|---|---|
+| asset key, `media-source://` id or URL | play that sound | `setOverride(event, value, scope)` or a whole map |
+| `null` | silence the event (stop resolving) | a whole map only: `saveGlobalOverrides(map)` or `sss.write('sound_overrides', map, scope)` (the Config Panel's per-user/per-device rows do this for "mute") |
+| key absent | fall through to the next tier, then the scheme | `setOverride(event, null, scope)` **deletes** the key; `clearAllOverrides(scope)` writes `{}` |
+
+So `setOverride()` cannot store a silence: `null` there removes the override (`SoundManager.js:936-945`). A read that fails or finds nothing leaves the tier as `{}`.
+
+**Saving.** `_saveOverrides(map, scope)` is behind all three save methods. It sets the in-memory cache of that tier first (so `play()` uses the new map at once), then writes through `ScopedSettingsService` (or, without scoped storage, the flat global key through `IntegrationService.writeStorage()`, global scope only), and returns the write result. A refused or failed write (or no integration at all) puts the previous map back, so a refused save never changes playback; when a later save has already replaced the cache in the meantime, that newer map is kept.
+
+**The whole map is written.** Every save writes the tier's complete map, and `ScopedSettingsService.write()` replaces the stored `sound_overrides` with it (the `replace: true` flag on the user and device set commands, see [Scoped Settings](scoped-settings.md#websocket-commands)). So a smaller map really removes the missing events, at every tier: `setOverride(event, null, 'user')` and `clearAllOverrides('device')` stay removed after a reload. The Config Panel's per-user/per-device rows (your own or, for an admin, another user or device) write their map the same way, through `sss.write()` and `sss.clear()`.
 
 ---
 
@@ -357,27 +386,33 @@ sm.playAsset('my_asset');                          // respects master sound_enab
                                                     // skips per-category gate - used by
                                                     // the lcards.play_sound HA action
 
-// Global overrides (shared across all users and devices)
+sm.playSource('/local/sounds/borg.mp3', 'borg_assimilate');  // one sound under an event's category
+                                                          // switch, no scheme/overrides (Borg `sound`)
+sm.previewEvent('card_tap');                       // the effective sound for an event, no enable checks
+sm.playAlertSound('red_alert');                    // alert_red, gated by the alerts category
+
+// Global overrides (shared across all users and devices; writes need a Home Assistant admin)
+// Every save resolves to true, or false when refused or the backend is unavailable
 const overrides = sm.getOverrides('global');       // { eventType: assetKey }
-await sm.setOverride('card_tap', 'my_asset', 'global');  // set a single global override immediately
-await sm.setOverride('card_tap', null, 'global');        // silence globally
+await sm.setOverride('card_tap', 'my_asset', 'global');  // set one global override
+await sm.setOverride('card_tap', null, 'global');        // REMOVE that override (back to the scheme)
 await sm.clearAllOverrides('global');                    // clear all global overrides
 await sm.saveGlobalOverrides({ card_tap: 'my_asset', card_hover: null });  // replace the whole
-                                                          // map in one write - used by the Config
-                                                          // Panel's explicit Save button for a
-                                                          // batch of staged edits
+                                                          // map in one write (null = silence);
+                                                          // used by the Config Panel's Save button
 
 // Wait for any in-flight/queued scheme-options sync to settle before an
 // explicit scheme switch (see "Scheme-options sync coordination" above)
 await sm.waitForSchemeSync();
 
-// Device-scoped overrides
+// User and device overrides (open to every user; setOverride/clearAllOverrides default to 'user')
 const deviceOverrides = sm.getOverrides('device');   // { eventType: assetKey }
-await sm.setOverride('card_tap', 'my_asset', 'device');  // set device override
+await sm.setOverride('card_tap', 'my_asset', 'device');  // this device only
+await sm.setOverride('card_tap', 'my_asset');            // the signed-in user
 await sm.clearAllOverrides('device');                    // clear all device overrides
 
 // Cache invalidation - call after any external storage write
-await sm.refreshScopedCache();                     // re-reads all 5 caches from backend
+await sm.refreshScopedCache();                     // re-reads the setting and override caches
 
 // Startup sequencing - await before playing sounds that must respect overrides
 await sm.ensureReady();                            // resolves when overrides/scoped settings are loaded
@@ -391,6 +426,7 @@ sm.isCustomScheme('custom:bridge-ops');            // true - user-created vs. pa
 const result = await sm.saveCustomScheme('Bridge Ops', sm.getOverrides('global'));   // create
 // → { ok: true, name: 'custom:bridge-ops' } or { ok: false, error: '...' }
 sm.getSchemeMapping('custom:bridge-ops');                                            // read raw event map
+sm.getActiveSchemeMapping();                                                         // the active scheme's map
 await sm.updateCustomScheme('custom:bridge-ops', updatedMap);                        // overwrite
 await sm.deleteCustomScheme('custom:bridge-ops');                                    // remove
 
@@ -430,10 +466,12 @@ sm.getSchemeNames()                                      // ['none', 'lcards_def
 sm.getEventTypes()                                       // [{ key, label, category }, ...]
 sm.getOverrides('global')                                // global per-event overrides
 sm.getOverrides('user')                                  // user-scoped per-event overrides
-await sm.setOverride('card_tap', 'my', 'global')         // set global persistent override
+await sm.setOverride('card_tap', 'my', 'global')         // set global override (admin), true/false
 await sm.setOverride('card_tap', 'my', 'user')           // set user-scoped override
 await sm.clearAllOverrides('global')                     // wipe all global overrides
 await sm.refreshScopedCache()                            // force cache reload after admin writes
 await sm.ensureReady()                                   // wait for overrides to be fully loaded
 ```
 :::
+
+`window.lcards.sound` (`src/lcards-main.js:912-918`) is a small console shim: `play(eventType, ctx)`, `playAsset(key)`, `preview(key)`, `getSchemes()`, `getEvents()`, each delegating to the singleton. `sm.diagnose()` logs the whole enable/category decision chain.

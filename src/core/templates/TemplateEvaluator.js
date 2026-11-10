@@ -83,6 +83,25 @@ export class TemplateEvaluator {
   }
 
   /**
+   * The evaluation context object (read-only access for wrapping evaluators)
+   *
+   * @returns {Object}
+   */
+  getContext() {
+    return this.context;
+  }
+
+  /**
+   * Replace the evaluation context object (an owning evaluator shares its own
+   * context with the one it wraps, so both see the same hass and config)
+   *
+   * @param {Object} context - Context object to use as-is
+   */
+  setContext(context) {
+    this.context = context;
+  }
+
+  /**
    * Update evaluation context
    *
    * Allows updating context without creating new evaluator instance.

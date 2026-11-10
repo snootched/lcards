@@ -82,3 +82,13 @@ test('sound scheme events are real events and their assets are registered', () =
         }
     }
 });
+
+test('font assets point to a CSS file (loadFont injects the url as a stylesheet link)', () => {
+    const fonts = Object.entries(pack.font_assets ?? {});
+    assert.ok(fonts.length > 0, 'the example shows a font asset');
+    for (const [key, def] of fonts) {
+        const path = new URL(def.url, 'http://ha.local').pathname;
+        assert.doesNotMatch(path, /\.(woff2?|ttf|otf|eot)$/i, `${key}: ${def.url} is a font file; point url at a CSS file with the @font-face rule`);
+        if (!def.external) assert.match(path, /\.css$/i, `${key}: a local font url is a .css file`);
+    }
+});

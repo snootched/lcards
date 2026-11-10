@@ -20,13 +20,45 @@ import { deepMerge } from '../../utils/deepMerge.js';
 const _presets = new Map();
 
 /**
+ * Where a preset came from, for listings (Pack Explorer).
+ * @typedef {Object} AnimationPresetInfo
+ * @property {string} name - Preset name
+ * @property {string|null} pack - Pack that registered it (`core` for the built-ins)
+ * @property {string|null} category - Group within the pack (`basic`, `stagger`, `text`, `effect`, `timeline`)
+ */
+
+/** @type {Map<string, {pack: string|null, category: string|null}>} */
+const _presetMeta = new Map();
+
+/**
  * Register an animation preset
  * @param {string} name - Preset name
  * @param {Function} builder - Preset function that returns {anime, styles}
+ * @param {{pack?: string, category?: string}} [meta] - Origin of the preset (listings only)
  */
-export function registerAnimationPreset(name, builder) {
+export function registerAnimationPreset(name, builder, meta = {}) {
   _presets.set(name, builder);
+  _presetMeta.set(name, { pack: meta.pack ?? null, category: meta.category ?? null });
   lcardsLog.debug(`[AnimationPresets] Registered preset: ${name}`);
+}
+
+/**
+ * Origin of a registered preset
+ * @param {string} name - Preset name
+ * @returns {AnimationPresetInfo|null} null when no preset has that name
+ */
+export function getAnimationPresetInfo(name) {
+  if (!_presets.has(name)) return null;
+  const meta = _presetMeta.get(name) || { pack: null, category: null };
+  return { name, pack: meta.pack, category: meta.category };
+}
+
+/**
+ * Every registered preset with its origin, in registration order
+ * @returns {AnimationPresetInfo[]}
+ */
+export function listAnimationPresetInfo() {
+  return listAnimationPresets().map(name => /** @type {AnimationPresetInfo} */ (getAnimationPresetInfo(name)));
 }
 
 /**

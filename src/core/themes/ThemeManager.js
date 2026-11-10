@@ -797,7 +797,8 @@ export class ThemeManager extends BaseService {
 
   /**
    * Returns the raw (un-overridden) resolved value for a token path.
-   * Useful for showing "theme default" in the override editor UI.
+   * Useful for showing "theme default" in the override editor UI. It resolves
+   * with private caches, so it never changes what getToken() returns.
    *
    * @param {string} tokenPath
    * @param {*} [fallback=null]
@@ -805,12 +806,8 @@ export class ThemeManager extends BaseService {
    */
   getThemeDefault(tokenPath, fallback = null) {
     if (!this.resolver) return fallback;
-    // Temporarily bypass by checking the token tree directly
-    const savedOverrides = this.resolver._overrides;
-    this.resolver._overrides = null;
-    const value = this.resolver.resolve(tokenPath, fallback);
-    this.resolver._overrides = savedOverrides;
-    return value;
+    // Own caches: the live ones must only ever hold overridden values.
+    return this.resolver.resolveDefault(tokenPath, fallback);
   }
 
   /**

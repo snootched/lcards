@@ -246,7 +246,7 @@ export class MsdDebugAPI {
           },
           animations: {
             desc: 'Animation state and playback control',
-            methods: ['active(cardId?)', 'dump(cardId?)', 'registryStats(cardId?)', 'inspect(overlayId, cardId?)', 'trigger(overlayId, preset, params?, cardId?)']
+            methods: ['active(cardId?)', 'dump(cardId?)', 'inspect(overlayId, cardId?)', 'trigger(overlayId, preset, params?, cardId?)']
           },
           overlays: {
             desc: 'Overlay introspection and search',
@@ -761,15 +761,14 @@ export class MsdDebugAPI {
         /**
          * Dump all animation definitions
          *
-         * Returns complete animation configuration including custom presets
-         * and overlay animations.
+         * Returns every registered overlay animation, one entry per animation
+         * with its overlayId.
          *
-         * @returns {Object} Animation definitions
+         * @returns {Array<Object>|null} Animation definitions
          *
          * @example
          * const dump = window.lcards.debug.msd.animations.dump();
-         * console.log('Custom presets:', dump.customPresets);
-         * console.log('Overlay animations:', dump.overlayAnimations);
+         * console.table(dump);
          */
         dump(cardId = null) {
           try {
@@ -784,35 +783,6 @@ export class MsdDebugAPI {
             return animationManager.getAllAnimationDefinitions();
           } catch (error) {
             lcardsLog.error('[DebugAPI] Error dumping animations:', error);
-            return null;
-          }
-        },
-
-        /**
-         * Get AnimationRegistry statistics
-         *
-         * Returns cache performance metrics, hit rates, and stored animations.
-         *
-         * @returns {Object} Registry statistics
-         *
-         * @example
-         * const stats = window.lcards.debug.msd.animations.registryStats();
-         * console.log('Cache hit rate:', stats.hitRate);
-         * console.log('Stored animations:', stats.size);
-         */
-        registryStats(cardId = null) {
-          try {
-            const coordinator = _getMsdCoordinator(cardId);
-            const registry = coordinator?.animRegistry;
-
-            if (!registry) {
-              lcardsLog.warn('[DebugAPI] AnimationRegistry not available');
-              return null;
-            }
-
-            return registry.getStats();
-          } catch (error) {
-            lcardsLog.error('[DebugAPI] Error getting registry stats:', error);
             return null;
           }
         },

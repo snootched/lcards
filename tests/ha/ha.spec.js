@@ -160,7 +160,7 @@ test('lcards.fly_to flies the astrometrics card on the page', async ({ page }) =
     expect(errors).toEqual([]);
 });
 
-test('lcards.borg_assimilate / borg_deassimilate pass sound and cube to the page', async ({ page }) => {
+test('lcards.borg_assimilate / borg_deassimilate pass sound, cube and palette hue to the page', async ({ page }) => {
     const errors = await openDashboard(page, 'cards');
     // Record the calls instead of running the sequence
     await page.evaluate(() => {
@@ -170,13 +170,14 @@ test('lcards.borg_assimilate / borg_deassimilate pass sound and cube to the page
         bam.deassimilate = async (opts) => { window.__borgCalls.push(['deassimilate', opts]); };
     });
     const calls = () => page.evaluate(() => window.__borgCalls);
-    await client.callService('lcards', 'borg_assimilate', { sound: '/local/sounds/borg.mp3', cube: 'classic', font_swap: false });
+    await client.callService('lcards', 'borg_assimilate', { sound: '/local/sounds/borg.mp3', cube: 'classic', font_swap: false, palette_hue: 240 });
     await expect.poll(async () => (await calls()).length, { timeout: 15_000 }).toBe(1);
     await client.callService('lcards', 'borg_deassimilate', { sound: 'none' });
     await expect.poll(async () => (await calls()).length, { timeout: 15_000 }).toBe(2);
     const [[, a], [, d]] = await calls();
     expect(a.sound).toBe('/local/sounds/borg.mp3');
     expect(a.fontSwap).toBe(false);
+    expect(a.paletteHue).toBe(240);
     expect(a.intro.canvas.cubeStyle).toBe('classic');
     expect(d.sound).toBe('none');
     expect(errors).toEqual([]);
@@ -263,7 +264,7 @@ test('rules editor shows the refresh notice for edited or removed rules', async 
         el.remove();
         return out;
     });
-    expect(text).toContain('apply after a page refresh');
+    expect(text).toContain('on the dashboard when you save the card');
     await removeEditor(page);
 });
 
@@ -845,9 +846,9 @@ test("Rules: the launcher counts rules; this card's rules edit as YAML, others' 
     await dialog.getByRole('button', { name: 'Save' }).click();
     await expect(dialog).toHaveCount(0);
     expect((await editorRules(page))[0].priority).toBe(7);
-    // The engine still runs the old version until a refresh, and the row says so.
+    // The engine runs the saved version until the card is saved, and the row says so.
     await expect(dash.locator('.rules-table tr', { hasText: 'test-attr-rule' }).first().locator('.pending'))
-        .toHaveText('Changed: refresh to apply');
+        .toHaveText('Changed: applies when you save');
     await removeEditor(page);
     expect(errors).toEqual([]);
 });
@@ -928,10 +929,10 @@ test('Rules: deleting a rule asks in an HA dialog; Cancel keeps it, Delete remov
     await dash.getByRole('button', { name: 'Delete rule' }).first().click();
     await confirm.getByRole('button', { name: 'Delete' }).click();
     await expect.poll(async () => (await editorRules(page)).length).toBe(0);
-    // Still running until a refresh: listed as removed, with no edit buttons.
+    // Still running until the card is saved: listed as removed, with no edit buttons.
     await dash.getByText('All rules on this page').first().dispatchEvent('click');
     const removedRow = dash.locator('.rules-table tr', { hasText: 'test-attr-rule' }).first();
-    await expect(removedRow.locator('.pending')).toHaveText('Removed: refresh to apply');
+    await expect(removedRow.locator('.pending')).toHaveText('Removed: applies when you save');
     await expect(removedRow.getByRole('button', { name: 'Edit rule' })).toHaveCount(0);
     await removeEditor(page);
     expect(errors).toEqual([]);
@@ -1590,6 +1591,71 @@ test('global storage is admin-only; a non-admin keeps their own user and device 
     } finally {
         await client.call({ type: 'lcards/storage/delete', key: 'lcards_test_admin_only' });
         await client.call({ type: 'lcards/storage/devices/clear', device_id: DEVICE }).catch(() => {});
+    }
+});
+
+test('scoped set with replace: true replaces a map instead of deep-merging it (D3b S1)', async () => {
+    const DEVICE = 'lcards-test-replace-device';
+    const info = await client.call({ type: 'lcards/info' });
+    expect(info.capabilities).toEqual(expect.arrayContaining(['scoped_storage', 'scoped_storage_replace', 'own_user_reload']));
+    try {
+        await withNonAdminUser(client, async (user, userId) => {
+            // own user: deep merge keeps the removed entry, replace drops it, sibling keys stay
+            await user.call({ type: 'lcards/storage/user/set', data: { lcards_test_map: { a: 1, b: 2 }, lcards_test_keep: 1 } });
+            await user.call({ type: 'lcards/storage/user/set', data: { lcards_test_map: { b: 2 } } });
+            expect((await user.call({ type: 'lcards/storage/user/get', key: 'lcards_test_map' })).value).toEqual({ a: 1, b: 2 });
+            await user.call({ type: 'lcards/storage/user/set', data: { lcards_test_map: { b: 2 } }, replace: true });
+            expect((await user.call({ type: 'lcards/storage/user/get', key: 'lcards_test_map' })).value).toEqual({ b: 2 });
+            expect((await user.call({ type: 'lcards/storage/user/get', key: 'lcards_test_keep' })).value).toBe(1);
+            await user.call({ type: 'lcards/storage/user/set', data: { lcards_test_map: {} }, replace: true });
+            expect((await user.call({ type: 'lcards/storage/user/get', key: 'lcards_test_map' })).value).toEqual({});
+
+            // a device
+            await user.call({ type: 'lcards/storage/device/set', device_id: DEVICE, data: { lcards_test_map: { a: 1, b: 2 } } });
+            await user.call({ type: 'lcards/storage/device/set', device_id: DEVICE, data: { lcards_test_map: { b: 2 } }, replace: true });
+            expect((await user.call({ type: 'lcards/storage/device/get', device_id: DEVICE, key: 'lcards_test_map' })).value).toEqual({ b: 2 });
+
+            // admin, any user and any device
+            await client.call({ type: 'lcards/storage/users/set', user_id: userId, data: { lcards_test_map: { a: 1 } }, replace: true });
+            expect((await user.call({ type: 'lcards/storage/user/get', key: 'lcards_test_map' })).value).toEqual({ a: 1 });
+            await client.call({ type: 'lcards/storage/devices/set', device_id: DEVICE, data: { lcards_test_map: { c: 3 } }, replace: true });
+            expect((await user.call({ type: 'lcards/storage/device/get', device_id: DEVICE, key: 'lcards_test_map' })).value).toEqual({ c: 3 });
+        });
+    } finally {
+        await client.call({ type: 'lcards/storage/devices/clear', device_id: DEVICE }).catch(() => {});
+    }
+});
+
+test("a non-admin may relay reload_connection_config to their own sessions only (D3b CO1)", async () => {
+    /** @type {any[]} */
+    const events = [];
+    const unsubscribe = await client.subscribe({ type: 'subscribe_events', event_type: 'lcards_event' }, (e) => events.push(e.data));
+    try {
+        await withNonAdminUser(client, async (user, userId) => {
+            const refused = async (message) => {
+                await expect(user.call({ type: 'lcards/fire_event', ...message }), JSON.stringify(message)).rejects.toThrow(/^unauthorized:/);
+            };
+            // what ConnectionOverlayService.saveConfig sends after an own-user save
+            await user.call({
+                type: 'lcards/fire_event', action: 'reload_connection_config',
+                target_user_ids: [userId], data: { origin_device_id: 'lcards-test-origin' },
+            });
+            // anything wider stays admin-only
+            await refused({ action: 'reload_connection_config' });                                       // everyone
+            await refused({ action: 'reload_connection_config', target_user_ids: ['someone-else'] });
+            await refused({ action: 'reload_connection_config', target_user_ids: [userId, 'someone-else'] });
+            await refused({ action: 'reload_connection_config', target_user_ids: [userId], target_device_ids: ['any-device'] });
+            await refused({ action: 'reload', target_user_ids: [userId] });
+            await refused({ action: 'reload_connection_config', target_user_ids: [userId], data: { target_user_ids: ['someone-else'] } });
+        });
+        await expect.poll(() => events.filter(e => e.origin_device_id === 'lcards-test-origin').length).toBe(1);
+        const [fired] = events.filter(e => e.origin_device_id === 'lcards-test-origin');
+        expect(fired.action).toBe('reload_connection_config');
+        expect(fired.target_user_ids).toHaveLength(1);
+        expect(fired.target_device_ids).toBeUndefined();
+        expect(events.filter(e => e.origin_device_id !== 'lcards-test-origin' && e.action === 'reload_connection_config')).toEqual([]);
+    } finally {
+        await unsubscribe();
     }
 });
 

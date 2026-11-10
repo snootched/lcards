@@ -62,3 +62,25 @@ test('a failed read clears the overrides, which counts as a change (existing beh
     assert.equal(notified, 2);
     assert.equal(tm.resolver._overrides, null);
 });
+
+test('getThemeDefault returns the un-overridden value and leaves the live caches overridden', () => {
+    tm.resolver = new ThemeTokenResolver({
+        colors: { ui: { primary: '#111' } },
+        components: { demo: { ref: 'colors.ui.primary', mixed: 'darken(colors.ui.primary, 0.2)' } },
+    });
+    tm.resolver.setOverrides({ 'colors.ui.primary': '#ff0000' });
+    const liveRef = tm.getToken('components.demo.ref');
+    const liveMixed = tm.getToken('components.demo.mixed');
+    assert.equal(liveRef, '#ff0000');
+
+    tm.resolver.clearCache();
+    assert.equal(tm.getThemeDefault('components.demo.ref'), '#111');
+    assert.notEqual(tm.getThemeDefault('components.demo.mixed'), liveMixed);
+
+    // The default lookup must not have seeded the shared caches with un-overridden values.
+    assert.equal(tm.getToken('components.demo.ref'), '#ff0000');
+    assert.equal(tm.getToken('components.demo.mixed'), liveMixed);
+    // And the live caches built before a default lookup are kept.
+    assert.equal(tm.getThemeDefault('components.demo.ref'), '#111');
+    assert.equal(tm.getToken('components.demo.ref'), '#ff0000');
+});

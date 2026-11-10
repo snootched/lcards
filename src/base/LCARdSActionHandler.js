@@ -98,11 +98,11 @@ export function pointerOf(event) {
     return { clientX, clientY };
 }
 
+/**
+ * One instance per card (LCARdSCard creates `this._actionHandler`); there is no
+ * page-wide action handler.
+ */
 export class LCARdSActionHandler {
-
-    constructor() {
-        this._activeHandlers = new Set();
-    }
 
     /**
      * Setup action handlers on element with full animation support
@@ -785,18 +785,6 @@ export class LCARdSActionHandler {
     }
 
     /**
-     * Get debug information about the action handler state
-     * @returns {Object} Debug information
-     */
-    getDebugInfo() {
-        return {
-            type: 'LCARdSActionHandler',
-            activeHandlers: this._activeHandlers?.size || 0,
-            initialized: true
-        };
-    }
-
-    /**
      * Handle URL action
      * @private
      */
@@ -809,9 +797,5 @@ export class LCARdSActionHandler {
 
         lcardsLog.debug(`[LCARdSActionHandler] Opening URL ${url}`);
         window.open(url, '_blank');
-    }
-
-    destroy() {
-        this._activeHandlers.clear();
     }
 }

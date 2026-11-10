@@ -10,13 +10,11 @@
  *
  * Architecture Integration:
  * - Initialized in SystemsManager Phase 5 (after AdvancedRenderer)
- * - Uses existing AnimationRegistry for performance caching
  * - Leverages existing anime.js v4 integration via window.lcards.anim
  * - Works with existing preset system in lcards-anim-presets.js
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { AnimationRegistry } from './AnimationRegistry.js';
 import { TriggerManager } from './TriggerManager.js';
 import { BaseService } from '../BaseService.js';
 import { resolveAnimCommandParams, resolveAnimParam } from './resolveAnimParams.js';
@@ -28,9 +26,7 @@ export class AnimationManager extends BaseService {
     this.systemsManager = systemsManager;
 
     // Core components
-    this.registry = new AnimationRegistry();
     this.scopes = new Map(); // overlayId -> { scope, overlay, activeAnimations, triggerManager }
-    this.customPresets = new Map(); // preset name -> preset definition
 
     // Animation tracking
     this.activeAnimations = new Map(); // overlayId -> Set<animation instances>
@@ -460,7 +456,6 @@ export class AnimationManager extends BaseService {
    *
    * @param {Array} overlays - Overlay configurations from merged config
    * @param {Object} [options] - Additional options
-   * @param {Object} [options.customPresets] - User-defined animation_presets
    * @param {Object} [options.suppressMountWarning] - Suppress mount element warning (for core singleton init)
    */
   async initialize(overlays = [], options = {}) {
@@ -473,14 +468,6 @@ export class AnimationManager extends BaseService {
       }
       if (!this.mountEl && !options.suppressMountWarning) {
         lcardsLog.warn('[AnimationManager] No mountEl available - DOM queries may fail');
-      }
-
-      // Store custom presets for resolution
-      if (options.customPresets) {
-        Object.entries(options.customPresets).forEach(([name, preset]) => {
-          this.customPresets.set(name, preset);
-          lcardsLog.debug(`[AnimationManager] Registered custom preset: ${name}`);
-        });
       }
 
       // Register animations from overlay configs (don't execute yet - overlays may not be rendered)
@@ -522,8 +509,7 @@ export class AnimationManager extends BaseService {
       }
 
       lcardsLog.debug('[AnimationManager] Animation system initialized', {
-        overlaysWithAnimations: this.registeredAnimations.size,
-        customPresets: this.customPresets.size
+        overlaysWithAnimations: this.registeredAnimations.size
       });
 
     } catch (error) {
@@ -719,7 +705,7 @@ export class AnimationManager extends BaseService {
 
     lcardsLog.debug(`[AnimationManager] Registering animation for ${overlayId} with trigger: ${trigger}`);
 
-    // Resolve preset_ref to actual definition
+    // Check the preset it names exists
     const resolvedAnimDef = this.resolveAnimationDefinition(animDef);
 
     // Register with trigger manager
@@ -759,7 +745,7 @@ export class AnimationManager extends BaseService {
    * @param {Object} animDef - Animation definition with trigger: on_datasource_change
    */
   setupDatasourceListenerForAnimation(overlayId, animDef) {
-    const dataSourceManager = this.systemsManager?.dataSourceManager;
+    const dataSourceManager = this._getDataSourceManager();
 
     if (!dataSourceManager) {
       lcardsLog.warn('[AnimationManager] DataSourceManager not available for datasource triggers');
@@ -791,8 +777,14 @@ export class AnimationManager extends BaseService {
       return;
     }
 
+    // DataSource.subscribe() hands a new subscriber the current point right away
+    // (hydration); that is not a change, so skip a point we had already seen.
+    let lastSeenT = source.getCurrentData?.()?.t ?? null;
+
     // Subscribe to datasource updates
     const unsubscribe = source.subscribe((data) => {
+      if (data?.t != null && data.t === lastSeenT) return;
+      lastSeenT = data?.t ?? null;
       lcardsLog.debug(`[AnimationManager] 📊 Datasource change: ${datasourceName} (overlay: ${overlayId})`, data);
 
       // Extract value based on path if needed
@@ -1014,35 +1006,13 @@ export class AnimationManager extends BaseService {
   }
 
   /**
-   * Resolve animation definition from preset or custom preset
+   * Copy an animation definition, warning when the preset it names is not registered
    *
    * @param {Object} animDef - Raw animation definition
    * @returns {Object} Resolved animation definition
    */
   resolveAnimationDefinition(animDef) {
-    let resolved = { ...animDef };
-
-    // Check if preset refers to a custom preset (supports both built-in and custom)
-    if (animDef.preset) {
-      const customPreset = this.customPresets.get(animDef.preset);
-      if (customPreset) {
-        // Get the base preset name from the custom preset
-        const basePresetName = customPreset._basePreset || customPreset.preset || customPreset.type;
-
-        // Merge: base preset params < custom preset params < animDef params
-        resolved = {
-          ...customPreset,
-          ...animDef,
-          preset: basePresetName // Use the base preset for execution
-        };
-
-        // Clean up internal fields
-        delete resolved._basePreset;
-        delete resolved.type;
-
-        lcardsLog.debug(`[AnimationManager] Resolved custom preset: ${animDef.preset} -> ${basePresetName}`);
-      }
-    }
+    const resolved = { ...animDef };
 
     // Verify preset exists if specified
     if (resolved.preset) {
@@ -1470,6 +1440,16 @@ export class AnimationManager extends BaseService {
   }
 
   /**
+   * The page's DataSourceManager. It lives on the core singleton, not on the
+   * systems manager this manager was built with (CoreSystemsManager has none).
+   * @returns {any}
+   * @private
+   */
+  _getDataSourceManager() {
+    return this.systemsManager?.dataSourceManager || window.lcards?.core?.dataSourceManager || null;
+  }
+
+  /**
    * Resolve datasource-driven parameters in animation definition
    *
    * @param {Object} animDef - Animation definition
@@ -1477,7 +1457,7 @@ export class AnimationManager extends BaseService {
    */
   async resolveDatasourceParams(animDef) {
     const resolved = {};
-    const dataSourceManager = this.systemsManager?.dataSourceManager;
+    const dataSourceManager = this._getDataSourceManager();
 
     if (!dataSourceManager) {
       return resolved;
@@ -1489,7 +1469,7 @@ export class AnimationManager extends BaseService {
       const datasource = dataSourceManager.getSource(animDef.datasource);
       if (datasource) {
         const currentData = datasource.getCurrentData();
-        datasourceValue = currentData?.value;
+        datasourceValue = currentData?.v ?? null;
       }
     }
 
@@ -1826,7 +1806,6 @@ export class AnimationManager extends BaseService {
 
     // Clear all maps
     this.scopes.clear();
-    this.customPresets.clear();
     this.activeAnimations.clear();
     this.registeredAnimations.clear();
     this._entityToSpeedBindings.clear();
@@ -2029,7 +2008,6 @@ export class AnimationManager extends BaseService {
       type: 'AnimationManager',
       initialized: this.initialized || false,
       scopesCount: this.scopes?.size || 0,
-      customPresetsCount: this.customPresets?.size || 0,
       activeAnimationsCount: this.activeAnimations?.size || 0,
       registeredAnimationsCount: this.registeredAnimations?.size || 0,
       hasMountEl: !!this.mountEl,

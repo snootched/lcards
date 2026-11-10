@@ -135,7 +135,7 @@ rules:
 
 **The card editor's Rules and Provenance tabs show which rules there are and what they change now; the browser console shows the engine's trace.**
 
-- The **Rules** tab lists the rules that target this card and every rule on the page, with each rule's priority, `stop`, on or off, source card, targets, condition and number of changes. It adds, edits, reorders, turns off and deletes the rules in this card's config, and marks a rule that needs a page refresh to apply.
+- The **Rules** tab lists the rules that target this card and every rule on the page, with each rule's priority, `stop`, on or off, source card, targets, condition and number of changes. It adds, edits, reorders, turns off and deletes the rules in this card's config, and marks a rule that applies when you save the card.
 - The **Provenance** tab's "Set by rules now" filter lists the values of this card that a rule is setting right now, and which rule.
 
 From the browser console:

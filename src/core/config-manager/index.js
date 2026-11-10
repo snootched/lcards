@@ -406,18 +406,6 @@ export class CoreConfigManager {
   }
 
   /**
-   * Four-layer deep merge: behavioral → theme → (preset OR component) → user
-   * @private
-   */
-  _fourLayerMerge(behavioral, theme, presetOrComponent, user) {
-    let result = deepMerge({}, behavioral);
-    result = deepMerge(result, theme);
-    result = deepMerge(result, presetOrComponent);
-    result = deepMerge(result, user);
-    return result;
-  }
-
-  /**
    * Get behavioral defaults for card type
    * @private
    */
@@ -686,17 +674,6 @@ export class CoreConfigManager {
   // ============================================================================
   // PRIVATE METHODS - Helpers
   // ============================================================================
-
-  /**
-   * Check if config requires pack-based merging (MSD style)
-   * @private
-   */
-  _usePackMerging(cardType, userConfig) {
-    // DEPRECATED: Pack merging removed in MSD refactor
-    // All packs loaded globally by PackManager, not per-card
-    // MSD now uses standard four-layer merge like other LCARdS cards
-    return false;
-  }
 
   /**
    * Create error result

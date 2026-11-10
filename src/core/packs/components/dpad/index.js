@@ -197,30 +197,6 @@ export const dpadComponents = {
         // Preset support (backward-compatible stub so validatePreset / getPresetNames
         // are available on all components without special-casing in the button card)
         presets: { default: {} },
-        /*
-        presets: {
-            default: {
-                segments: {
-                    default: {
-                        animations: [
-                            {
-                                trigger: 'on_load',
-                                preset: 'draw',
-                                params: {
-                                    duration: 2500,
-                                    ease: 'inOutQuad',
-                                    loop: false,
-                                    alternate: true,
-                                    max_scale: 1.15,
-                                    max_brightness: 1.4
-                                }
-                            }
-                        ]
-                    }
-                }
-
-            }
-        },*/
 
         validatePreset(presetName) {
             return presetName in this.presets;

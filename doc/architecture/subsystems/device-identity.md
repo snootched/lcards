@@ -1,24 +1,24 @@
 # Device Identity Manager
 
 > **Subsystem**: `window.lcards.core.deviceIdentityManager`
-> **Class**: `DeviceIdentityManager` (`src/core/services/DeviceIdentityManager.js`)
+> **Class**: `DeviceIdentityManager` (`src/core/services/DeviceIdentityManager.js`, extends `BaseService`)
 
 ---
 
 ## Overview
 
-`DeviceIdentityManager` provides a **stable, human-labelled identity** for the current browser profile. This identity is used as the key for device-scoped settings in the [`ScopedSettingsService`](scoped-settings.md) waterfall.
+`DeviceIdentityManager` gives the current browser profile a **stable, human-labelled identity**. The ID is the key for device-scoped settings in the [`ScopedSettingsService`](scoped-settings.md) waterfall and for `target_device_ids` / `target_device_names` targeting of LCARdS actions (checked in `IntegrationService._isEventTargetedAtMe()`).
 
 ### What makes a "device"?
 
-A **device** in LCARdS is a specific browser profile on a specific machine, not the physical hardware. Two different Chrome profiles on the same laptop are two different devices. This matches how browser_mod and similar integrations handle device identity.
+A **device** in LCARdS is one browser profile on one machine, not the physical hardware: the ID lives in that profile's `localStorage`. Two Chrome profiles on the same laptop are two devices; clearing site data makes a new device. This matches how browser_mod and similar integrations handle device identity.
 
 | Concept | Implementation |
 |---------|---------------|
-| Stable ID | UUID (`crypto.randomUUID()`) stored in `localStorage['lcards_device_id']` |
-| Display name | User-settable string; auto-seeded from user-agent on first boot |
-| Backend registration | Heartbeat WS call at startup (after IntegrationService probe) |
-| Override at launch | `?lcards_device=<name>` URL parameter |
+| Stable ID | UUID v4 stored in `localStorage['lcards_device_id']` |
+| Display name | Stored in the backend device record; seeded from the user agent; renamed from the config panel or with `?lcards_device=` |
+| Backend registration | Heartbeat (`lcards/storage/device/set`) once per page load, after the integration probe succeeds |
+| Name at launch | `?lcards_device=<name>` URL parameter |
 
 ---
 
@@ -28,89 +28,115 @@ A **device** in LCARdS is a specific browser profile on a specific machine, not 
 const dim = window.lcards.core.deviceIdentityManager;
 ```
 
-### Properties
+### Properties (getters)
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `dim.deviceId` | `string` | Stable UUID for this browser profile |
-| `dim.displayName` | `string` | Human-readable name |
-| `dim.lastSeen` | `string\|null` | ISO timestamp of last heartbeat, or null |
+| `dim.deviceId` | `string` | Stable UUID; same as `getDeviceId()` |
+| `dim.displayName` | `string` | Current display name; same as `getDisplayName()` |
+| `dim.lastSeen` | `string \| null` | ISO timestamp of this page's heartbeat, or `null` before it ran |
 | `dim.userAgent` | `string` | `navigator.userAgent` |
 
 ### Methods
 
+| Method | Returns | Description |
+|---|---|---|
+| `getDeviceId()` | `string` | The UUID; loads it from `localStorage`, or creates and stores one, on first call |
+| `getDisplayName()` | `string` | The display name; the seeded user-agent label when none is set yet |
+| `setDisplayName(name)` | `Promise<void>` | Set the name locally and write `display_name` to the backend record (skipped silently when the integration is unavailable) |
+| `registerHeartbeat()` | `Promise<void>` | Read the stored record, then write `display_name`, `last_seen` and `user_agent`. Runs automatically; you rarely call it |
+
 ```javascript
-// Rename this device (persists to backend immediately)
 await dim.setDisplayName('Kitchen Tablet');
-
-// Explicit heartbeat (called automatically at startup - you rarely need this)
-await dim.registerHeartbeat();
 ```
 
 ---
 
-## First-Boot Behaviour
+## First-Load Behaviour
 
-On the first HASS update, `_init()` runs once and:
+`updateHass()` runs `_init()` once, on the first HASS the core distributes:
 
-1. **Loads or creates UUID**: checks `localStorage['lcards_device_id']`; generates a v4 UUID if absent.
-2. **Applies `?lcards_device=` URL parameter**: if present, sets the display name *and* persists it to localStorage.
-3. **Seeds display name**: if no display name is set, auto-derives one from the user-agent string (e.g. `Chrome-Android`, `Safari-iPhone`, `Firefox-Linux`).
-4. **Registers heartbeat**: after `IntegrationService.onReady()` resolves, sends display name, ISO timestamp, and user-agent to `_device_<uuid>` in backend storage.
+1. **UUID**: `_loadOrCreateId()` reads `localStorage['lcards_device_id']`, or generates a UUID and stores it. If `localStorage` throws (some private modes), an ephemeral UUID is used for this page load only.
+2. **URL parameter**: `?lcards_device=<name>` (trimmed) becomes the display name for this page load and is remembered in memory as `_urlName`. It is not written to `localStorage`.
+3. **Seed**: with no name yet, `_seedDisplayName()` derives one from the user agent.
+4. **Heartbeat**: once `integrationService.onReady()` resolves, and only if `integrationService.available`, `registerHeartbeat()` runs:
+   - It reads the backend record (`lcards/storage/device/get`). A stored `display_name` replaces the seeded name, **unless** this page load has a `?lcards_device=` name: the URL name always wins.
+   - It writes `display_name`, `last_seen` (now) and `user_agent` with `lcards/storage/device/set` (deep merge, so device-scoped settings in the same record are kept).
+
+Without the integration nothing is written anywhere: the name stays in memory and is seeded again on the next load.
+
+### UUID generation
+
+`generateUUID()` has three tiers, because `crypto.randomUUID()` exists only in a secure context (HTTPS or `localhost`) and many Home Assistant installs are reached over plain HTTP on the LAN:
+
+1. `crypto.randomUUID()`
+2. `crypto.getRandomValues()` with the v4 version and variant bits set
+3. `Math.random()` (logged as a warning; not cryptographically secure)
 
 ---
 
-## Naming Convention: URL Parameter
+## Naming with the URL Parameter
 
-Following the `?lcards_log_level=debug` convention, device names are set via:
+Following the `?lcards_log_level=debug` convention, a device is named with:
 
 ```
-https://your-ha-instance/lovelace/?lcards_device=Kitchen+Tablet
+https://your-home-assistant/lovelace/?lcards_device=Kitchen+Tablet
 ```
 
-The name is persisted to localStorage on first boot so the URL parameter only needs to be used once per browser profile. Subsequent navigations without the parameter retain the set name.
+The name reaches the backend in that page load's heartbeat. On later loads **without** the parameter the stored name is read back, so a single visit is enough. A load **with** the parameter renames the device again, which suits kiosk bookmarks. The name persists only through the backend: without the integration the parameter lasts for that page load.
 
 ---
 
 ## Auto-Seeded Display Names
 
-When no display name has been set, `_seedDisplayName()` produces a readable label from `navigator.userAgent`:
+`_seedDisplayName()` builds `<Browser>-<Platform>` from `navigator.userAgent`:
 
-| User-agent pattern | Auto-seed |
-|--------------------|-----------|
-| Chrome + Android | `Chrome-Android` |
-| Chrome + Windows | `Chrome-Windows` |
-| Safari + iPhone | `Safari-iPhone` |
-| Firefox + Linux | `Firefox-Linux` |
-| … | (two-segment `Browser-OS` pattern) |
+| Check (first match wins) | Platform |
+|---|---|
+| `Android` | `Android` |
+| `iPhone`, `iPad` or `iPod` | `iPhone` |
+| `Windows` | `Windows` |
+| `Mac OS X` | `Mac` |
+| `Linux` | `Linux` |
+| `CrOS` | `ChromeOS` |
+| none | `Unknown` |
+
+| Check (first match wins) | Browser |
+|---|---|
+| `Edg/` | `Edge` |
+| `OPR/` | `Opera` |
+| `Chrome` | `Chrome` |
+| `Safari` | `Safari` |
+| `Firefox` | `Firefox` |
+| none | `Browser` |
+
+Examples: `Chrome-Android`, `Safari-iPhone`, `Edge-Windows`, `Firefox-Linux`. If reading the user agent throws, the name is `Unknown-Device`.
 
 ---
 
-## Admin Panel
+## Config Panel
 
-Admins can view and manage all registered devices from the **LCARdS Config Panel → Users & Devices** tab:
+The **Users & Devices** tab (`src/panels/components/lcards-users-devices-tab.js`):
 
-- List all devices with display name and last-seen timestamp
-- Rename any device
-- Delete a device's entire record from the backend
-
-Non-admin users can update their own device's display name from the same tab's **This Device** section.
+- **Current Session** (every user): this browser's name, UUID and last-seen time; renaming calls `setDisplayName()`.
+- **Users** (admins): users with stored settings; clear a user's overrides.
+- **Devices** (admins): every registered device with last-seen time; rename (`lcards/storage/devices/set`) or delete the whole record (`lcards/storage/devices/clear`).
 
 ---
 
 ## Backend Storage
 
-Device data is stored as a flat key `_device_<uuid>` in the LCARdS integration store:
+Device data is the flat key `_device_<uuid>` in the LCARdS store:
 
 ```json
 {
   "display_name": "Kitchen Tablet",
   "last_seen":    "2026-04-12T09:21:05.000Z",
-  "user_agent":   "Mozilla/5.0 (Linux; Android …)"
+  "user_agent":   "Mozilla/5.0 (Linux; Android ...)"
 }
 ```
 
-Any device-scoped settings are stored as additional keys in the same object via `ScopedSettingsService.write()`.
+Device-scoped settings written with `ScopedSettingsService.write(key, value, 'device')` are extra keys in the same object. The Python action targeting resolves `target_device_names` against `display_name` here (case-insensitive).
 
 ---
 
@@ -118,3 +144,4 @@ Any device-scoped settings are stored as additional keys in the same object via 
 
 - [Scoped Settings Service](scoped-settings.md)
 - [Integration Service](integration-service.md)
+- [Users and devices (user guide)](../../configuration/users-devices.md)

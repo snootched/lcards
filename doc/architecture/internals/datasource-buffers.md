@@ -46,6 +46,10 @@ Processor buffers are named outputs from data processors. Each processor has a u
 | `rate` | Custom (e.g., `rate`) | `0.3` |
 | `threshold` | Custom (e.g., `is_high`) | `true` |
 
+### When buffers update
+
+Every accepted state change is pushed into the main buffer and run through every processor (so each processor buffer gains a point) as soon as it arrives. Subscribers are told about it through the emit throttle (`min_emit_ms`, `coalesce_ms`, `max_delay_ms`, `emit_on_same_value`; see [Emit throttle](../subsystems/datasource-system.md#emit-throttle)): a burst of changes can reach a subscriber as one call carrying the latest value, while the buffers still hold every point. Read the buffers rather than counting callbacks when every point matters.
+
 ## Accessing Buffer Values
 
 ### In Templates
