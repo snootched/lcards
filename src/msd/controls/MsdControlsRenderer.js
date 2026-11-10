@@ -131,12 +131,11 @@ export class MsdControlsRenderer {
   _extractControlEntities(overlay) {
     const entities = new Set();
 
-    // Explicit escape hatch (array form): overlay.triggers_update — same field
-    // already used by line overlays for MSD data-source subscriptions
-    // (ModelBuilder.js/OverlayBase.js). Entity-shaped entries are folded into
-    // this control's own change-detection set here; non-entity entries are
-    // MSD data-source refs, unrelated to this method. The 'all' string form
-    // is handled separately by the caller (_registerControl), not here.
+    // Explicit escape hatch (array form): overlay.triggers_update. Entity ids
+    // are folded into this control's own change-detection set; anything else
+    // is ignored (MSD data-source refs here never worked and were dropped in
+    // 2026.11). The 'all' string form is handled by the caller
+    // (_registerControl), not here.
     if (Array.isArray(overlay.triggers_update)) {
       overlay.triggers_update.forEach(ref => {
         if (typeof ref === 'string' && isHAEntity(ref)) {

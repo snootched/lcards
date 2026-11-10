@@ -19,8 +19,7 @@
  * 1. Constructor: Initialize caches and RouterCore reference (only needed for polyline)
  * 2. initialize(mountEl): base lifecycle setup
  * 3. render(): Create shape SVG markup, dispatched by `kind`
- * 4. update(): Full re-render on config change (shapes don't do incremental DOM patching)
- * 5. destroy(): Cleanup cached definitions
+ * 4. destroy(): Cleanup cached definitions
  */
 
 import { OverlayBase } from './OverlayBase.js';
@@ -146,17 +145,6 @@ export class ShapeOverlay extends OverlayBase {
       lcardsLog.error(`[ShapeOverlay] Rendering failed for shape ${overlay.id}:`, error);
       return this._errorResult(overlay.id, error.message, true);
     }
-  }
-
-  /**
-   * Update shape overlay
-   * Shapes re-render fully on config change, matching LineOverlay's convention.
-   *
-   * @returns {boolean} Success status
-   */
-  update(overlayElement, overlay, sourceData) {
-    lcardsLog.trace(`[ShapeOverlay] Update called for ${overlay.id} (shapes re-render fully on config changes)`);
-    return true;
   }
 
   /**

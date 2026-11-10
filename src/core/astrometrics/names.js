@@ -17,7 +17,7 @@ export const OBJECT_TYPES = /** @type {const} */ (['grid', 'volume', 'sphere', '
 
 /**
  * Which type for what: the objects docs page's table (doc/cards/astrometrics/objects.md,
- * kept in step by tests/core/astrometrics-names.test.js) and the Studio's add-object
+ * kept in step by tests/editor/astro-studio-fields.test.js) and the Studio's add-object
  * gallery (grouped by the Studio's TYPE_GROUPS, astro-studio/starter-gallery.js).
  * @type {readonly { type: typeof OBJECT_TYPES[number], use: string, icon: string }[]}
  */
@@ -162,6 +162,50 @@ export function flattenSystems(config) {
   };
   lift(objs, undefined);
   return { ...c, points, objects };
+}
+
+/**
+ * Each object's id as the scene builder names it: its own, or `type#n` for one
+ * without (n counted per type in config order, in the flattened list). Null
+ * for a non-object entry. The builder, the setting bindings, the card and the
+ * runtime's patches all name objects with this.
+ * @param {any[]} objects
+ * @returns {(string | null)[]}
+ */
+export function objectIds(objects) {
+  const counts = /** @type {Record<string, number>} */ ({});
+  return objects.map((o) => {
+    if (!o || typeof o !== 'object') return null;
+    counts[o.type] = (counts[o.type] ?? 0) + 1;
+    return o.id === undefined || o.id === null || o.id === '' ? `${o.type}#${counts[o.type]}` : String(o.id);
+  });
+}
+
+/**
+ * The object a scene id names (its own id or its `type#n`); of two with one
+ * id, the later, as in the scene.
+ * @param {any[]} objects
+ * @param {string} id
+ * @returns {any}
+ */
+export function objectById(objects, id) {
+  const i = objectIds(objects).lastIndexOf(String(id));
+  return i < 0 ? undefined : objects[i];
+}
+
+/**
+ * The objects with each one a patch names (by scene id, `type#n` too)
+ * replaced by its patched config.
+ * @param {any[]} objects
+ * @param {Record<string, any>} patches
+ * @returns {any[]}
+ */
+export function withObjectPatches(objects, patches) {
+  const ids = objectIds(objects);
+  return objects.map((o, i) => {
+    const id = ids[i];
+    return id !== null && patches[id] !== undefined ? patches[id] : o;
+  });
 }
 
 /**

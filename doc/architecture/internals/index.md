@@ -1,6 +1,6 @@
 # Internals
 
-This section documents lower-level implementation details that underpin the subsystems above. You rarely need to touch this code directly, but understanding it is valuable when debugging unexpected rendering behaviour, contributing new visual effects, or tracing data through the pipeline.
+This section documents lower-level implementation details under the [core subsystems](../subsystems/) and the [card foundation](../cards/lcards-card-foundation.md). You rarely need to touch this code directly, but it helps when debugging unexpected rendering, contributing a new visual effect, or tracing data through the pipeline.
 
 ---
 
@@ -8,12 +8,12 @@ This section documents lower-level implementation details that underpin the subs
 
 | Page | What it covers |
 |------|----------------|
-| [Background Animation System](#background-animation-system) | Canvas2D rendering pipeline for animated card backgrounds |
+| [Background Animation System](#background-animation-system) | Canvas2D and WebGL (three.js) rendering of animated card backgrounds |
 | [DataSource Buffers](#datasource-buffer-structure) | Internal buffer and processor-output data shape |
 | [Home Assistant Entity Display](#home-assistant-entity-display-utility) | Locale-aware entity value formatting |
-| [Home Assistant Services: Implementation Notes](#home-assistant-services-implementation-notes) | Backend service architecture and server-push channel |
-| [Shape Texture System](#shape-texture-system) | SVG-native declarative texture effects inside card shapes |
-| [Persistent Storage](#persistent-storage) | Home Assistant-backed key/value store for user and layout state |
+| [Home Assistant Services: Implementation Notes](#home-assistant-services-implementation-notes) | Backend action architecture and the server-push channel |
+| [Shape Texture System](#shape-texture-system) | Canvas2D textures and effects clipped inside button and elbow shapes |
+| [Persistent Storage](#persistent-storage) | The integration's key/value store: global, per-user and per-device settings |
 
 ---
 
@@ -21,9 +21,9 @@ This section documents lower-level implementation details that underpin the subs
 
 [Full reference →](./background-animation-system.md)
 
-Canvas2D rendering architecture for animated card backgrounds. An effect stack system applies modular preset effects (particles, warp, scan lines, noise, etc.) and an `AnimationPerformanceMonitor` degrades quality automatically on low-end devices.
+How the `background_animation` layer of buttons, elbows, MSD and astrometrics cards is drawn: one `<canvas>` and one Canvas2D loop per card, preset effects stacked in config order, optional zoom layers, and a WebGL (three.js) version for many presets, drawn on one WebGL context shared by the page with the Canvas2D version as the fallback. On slow devices `AnimationPerformanceMonitor` makes the renderer skip frames, then stop it with a recovery probe.
 
-Consult this when implementing new canvas-based visual effects, configuring background animations on cards, or investigating performance degradation.
+Consult this when implementing a new background effect, configuring background animations on cards, or investigating performance degradation.
 
 ---
 
@@ -41,7 +41,7 @@ Consult this when referencing datasource values in templates (`{ds:source.buffer
 
 [Full reference →](./ha-entity-display.md)
 
-Centralised utility (`src/utils/ha-entity-display.js`) for i18n/locale-aware formatting of Home Assistant entity values. Delegates to the stable `hass.format*` API family and provides graceful fallbacks. This is the single source of truth for all Home Assistant text formatting in LCARdS.
+Centralised utility (`src/utils/ha-entity-display.js`) for locale-aware formatting of Home Assistant entity values. Delegates to the stable `hass.format*` API family and provides fallbacks. This is the single source of truth for Home Assistant text formatting in LCARdS; cards use the `LCARdSCard` wrappers (`_getStateDisplay()` and friends).
 
 Consult this when displaying entity values, units, or state strings in cards to ensure consistent formatting and translation support.
 
@@ -51,9 +51,9 @@ Consult this when displaying entity values, units, or state strings in cards to 
 
 [Full reference →](./ha-services.md)
 
-Documents the LCARdS backend service architecture: alert mode management, frontend control directives, screen effects, sound, portal overlays, and the server-push channel that broadcasts events (reload, log level changes, effect/portal triggers) to connected browser tabs, with optional per-device/per-user targeting.
+Documents how the `lcards.*` actions are registered and validated, and the server-push channel (`lcards_event` over `lcards/subscribe`) that delivers alert modes, reloads, log levels, screen effects, sounds, portal overlays, Borg and astrometrics commands to connected browsers, with optional per-device and per-user targeting.
 
-Consult this when understanding how Home Assistant service calls interact with the integration lifecycle, or when implementing features that need the push channel.
+Consult this when tracing how a Home Assistant action reaches the browser, or when adding an action that needs the push channel.
 
 ---
 
@@ -61,9 +61,9 @@ Consult this when understanding how Home Assistant service calls interact with t
 
 [Full reference →](./shape-texture-system.md)
 
-SVG-native texture system that renders declarative effects (grid, plasma, fluid, level fills, etc.) inside button and elbow shape boundaries. Complements the canvas background system but operates entirely in SVG, driving color and template evaluation through the same pipeline as the rest of the card.
+The `shape_texture` option: declarative effects (grid, plasma, fluid, level fills and more) drawn with Canvas2D on a `<canvas>` inside a `<foreignObject>` in the card SVG, clipped to the button or elbow shape and driven by one shared animation loop (`CanvasTextureRenderer`, `src/core/packs/textures/`). Colours and templates resolve through the same pipeline as the rest of the card.
 
-Consult this when configuring animated textures on cards, adding new SVG-based preset effects, or tracing texture color resolution.
+Consult this when configuring animated textures on cards, adding a texture preset, or tracing texture colour resolution.
 
 ---
 
@@ -71,6 +71,6 @@ Consult this when configuring animated textures on cards, adding new SVG-based p
 
 [Full reference →](./storage.md)
 
-Key/value store backed by Home Assistant's storage API (written to `.storage/lcards`), exposed over WebSocket as read/write/delete commands. Values survive Home Assistant restarts. Used by scoped settings, layout state, and any feature that needs cross-session persistence.
+The integration's key/value store (Home Assistant's `Store`, written under `.storage/`), exposed over the `lcards/storage/*` WebSocket commands, with per-user and per-device namespaces. Values survive Home Assistant restarts. Its users are the scoped settings service (sound settings, theme overrides, connection overlay settings), the sound manager's custom schemes, device identity (registered devices), and the config panel's storage explorer and users and devices tabs. Layout edits are not stored here: the layout view saves through Home Assistant's own dashboard config (`lovelace.saveConfig`).
 
-Consult this when implementing user preferences or dashboard state that must survive page reloads and Home Assistant restarts.
+Consult this when implementing a setting that must survive page reloads and Home Assistant restarts.

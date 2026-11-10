@@ -4,7 +4,7 @@ import logging
 DOMAIN = "lcards"
 
 # Minimum supported Home Assistant (major, minor). Keep in sync with hacs.json
-# "homeassistant". 2026.11: chips read only --ha-* vars, Lovelace string card
+# "homeassistant" and src/utils/support-info-format.js (tests/support/min-ha-version.test.js). 2026.11: chips read only --ha-* vars, Lovelace string card
 # paths (2026.10 brought core-evaluated dashboard visibility and probatio).
 MIN_HA_VERSION = (2026, 11)
 

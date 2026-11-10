@@ -208,6 +208,7 @@ const devSidebar = [
     {
       text: 'Architecture',
       items: [
+        { text: 'Overview',         link: '/architecture/' },
         { text: 'Systems Overview', link: '/architecture/systems-arch' },
         { text: 'Home Assistant Integration',   link: '/architecture/ha-integration' },
       ],
@@ -217,7 +218,10 @@ const devSidebar = [
       collapsed: false,
       items: [
         { text: 'Card Foundation',  link: '/architecture/cards/lcards-card-foundation' },
-        { text: 'Layout View',      link: '/architecture/layout-view' },
+        { text: 'Layout View and Layout Card', link: '/architecture/layout-view' },
+        { text: 'Shell Strategy',   link: '/architecture/shell-strategy' },
+        { text: 'Charts',           link: '/architecture/charts' },
+        { text: 'Astrometrics',     link: '/architecture/astrometrics' },
         { text: 'MSD Pipeline',     link: '/architecture/msd/' },
         { text: 'Routing Engine (RouterCore)', link: '/architecture/msd/routing' },
       ],

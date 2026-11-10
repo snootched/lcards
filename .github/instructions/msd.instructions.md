@@ -27,12 +27,13 @@ Config (raw YAML)
   ↓
 ConfigProcessor      — normalizes, expands shortcuts, resolves pack refs (delegates pack merging to core.configManager.processConfig())
   ↓
-PipelineCore.initMsdPipeline()  — top-level orchestrator; creates MsdCardCoordinator (owns RouterCore + the other
-  │                                 per-card singletons: themeManager, dataSourceManager, animationManager, ...)
+PipelineCore.initMsdPipeline()  : top-level orchestrator; creates the per-card MsdCardCoordinator (owns RouterCore,
+  │                                 AdvancedRenderer, MsdControlsRenderer; holds references to the SHARED core
+  │                                 singletons themeManager, stylePresetManager, dataSourceManager: never per card)
   ├─ CardModel.buildCardModel()      — resolves base_svg/viewBox/filters, normalizes overlay shape
   └─ new ModelBuilder(mergedConfig, cardModel, coordinator)
        ↓ (on every re-render)
-     ModelBuilder.computeResolvedModel() — merges packs + presets into the final resolved overlay tree
+     ModelBuilder.computeResolvedModel() : merges each overlay's raw config with its card-model entry, resolves theme: tokens
   ↓
 AdvancedRenderer     — renders SVG base + overlay positions, phase 2a (controls) / 2b (lines), then a z_index reorder pass
   ↓
@@ -212,17 +213,17 @@ card._fullConfig         // merged config (packs + user)
 
 ## `_applyRulePatches()` in MSD
 
-`LCARdSMSDCard` overrides `_applyRulePatches()` (unlike simple cards which use the single-overlay base implementation). MSD patches are keyed per overlay ID and applied to the overlay model, then trigger a pipeline re-render of only the affected overlays.
+`LCARdSMSDCard` overrides `_applyRulePatches()` (unlike simple cards which use the single-overlay base implementation). MSD patches are keyed per overlay ID (`_lastRulePatches = { overlayId: patch }`, so the base's `_baseConfig` snapshot is never used). `_onRulePatchesChanged()` then takes one of two paths: a style-only patch (`_isStyleOnlyPatch()`) is written straight onto the existing SVG elements (`_applyStylePatchesToDOM()`, no re-render, animations keep running); any other patch is merged into new overlay objects in `_msdConfig.overlays` and the whole card re-renders (`coordinator._reRenderCallback()`, the pipeline's `reRender()`). There is no per-overlay partial re-render.
 
-Do **not** call `this._getMergedStyleWithRules()` directly in MSD overlay renderers — rule patches to overlay configs are injected by `PipelineCore` before `AdvancedRenderer` runs.
+Do **not** call `this._getMergedStyleWithRules()` in MSD overlay renderers: it reads a single-overlay patch (`patch.style`), and the MSD's patches are a per-overlay map. Rule patches reach overlays through `_msdConfig.overlays` (merged by the card before the re-render) or the style-only DOM patch.
 
 ---
 
 ## Pack System Integration
 
-Packs are loaded by `PackManager` and can supply themes, presets, animation configs, and overlay type definitions. MSD merges packs via `mergePacks()` from `src/core/packs/mergePacks.js`.
+Packs are loaded once by the core `PackManager` (`src/core/PackManager.js`, `lcardsCore.initialize()` awaits `packManager.loadBuiltinPacks()`) and register their themes, style presets, components, animations and MSD backgrounds into the shared managers. MSD has no pack merge step of its own: preset and theme defaults reach the config through `core.configManager.processConfig()` (called from `ConfigProcessor`), and overlays read the shared managers.
 
-When writing MSD overlay logic that references preset names or theme tokens, assume packs are loaded before render — the `PackManager` initializes synchronously during HASS first contact.
+When writing MSD overlay logic that references preset names or theme tokens, assume packs are loaded before render: the core finishes initializing (packs included) before a card processes its config.
 
 ---
 

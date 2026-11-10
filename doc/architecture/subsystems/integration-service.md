@@ -199,7 +199,7 @@ Both lists together mean union: matching either is enough. The Python side resol
 | `clear_portal_card` | `portalOverlayManager.hide('ha-service')` |
 | `fly_to` | `window.lcards.cards.astrometrics.flyTo(payload.card_id, { point } or { view }, { duration, warp })` |
 | `set_clock` | `window.lcards.cards.astrometrics.setClock(payload.card_id, { date, rate })` |
-| `borg_assimilate` | `borgAssimilationManager.assimilate(opts)`, mapping `intro_duration` → `duration`, `transition_style` → `transitionStyle`, `intro_layers` → `intro`, `persistent_layers` → `persistentLayers`, `fontSwap`, `sound` |
+| `borg_assimilate` | `borgAssimilationManager.assimilate(opts)`, mapping `intro_duration` → `duration`, `transition_style` → `transitionStyle`, `intro_layers` → `intro`, `persistent_layers` → `persistentLayers`, `fontSwap`, `paletteHue`, `sound` |
 | `borg_deassimilate` | `borgAssimilationManager.deassimilate(opts)`, mapping `with_outro` → `withOutro`, `outro_layers` → `outroLayers`, `revert_transition_style` → `revertTransitionStyle`, `sound` |
 | `reload_connection_config` | `connectionOverlayService.loadConfig()`, then a `lcards-connection-config-changed` document event for an open config panel; skipped when `payload.origin_device_id` is this device (the saving tab already applied it) |
 | anything else | Logged at `debug` and ignored |

@@ -10,6 +10,14 @@
 
 import { ApexChartsAdapter } from './ApexChartsAdapter.js';
 import { deepMerge } from '../utils/deepMerge.js';
+import {
+  chartTimeZone,
+  toWallClock,
+  pointsToWallClock,
+  datetimeFormats,
+  tooltipTimeFormatter,
+  useAmPm
+} from './chart-time-labels.js';
 
 /**
  * Behaviour defaults the chart card registers with CoreConfigManager, which
@@ -105,6 +113,39 @@ export function buildApexSeries({ series, points, chartType }) {
 }
 
 /**
+ * Time-axis values in Home Assistant's zone (chart-time-labels.js): on a
+ * datetime axis the points and the window move to the zone's wall clock, which
+ * ApexCharts reads as UTC (`datetimeUTC`), so its own ticks land on the zone's
+ * hours and midnights. Without hass (docs demos) nothing moves. The card's live
+ * updates use this too, so they match the full options build.
+ *
+ * @param {Object} args
+ * @param {Object} args.config - Chart card config
+ * @param {{start: number, end: number}|null} [args.span] - Time window
+ * @param {Array<Array<{t: number, v: any}>|undefined>} args.points - Points per series
+ * @param {Object} [args.hass]
+ * @returns {{axis: {min?: number, max?: number}, points: Array<Array<{t: number, v: any}>|undefined>,
+ *   wallClock: boolean, timeZone: string|null}}
+ */
+export function timeAxisData({ config, span = null, points, hass }) {
+  const chartType = config.chart_type || 'line';
+  const xaxisType = config.xaxis_type ?? (chartType === 'bar' ? 'category' : (TIME_AXIS_CHART_TYPES.has(chartType) ? 'datetime' : undefined));
+  const axis = windowAxis(config, span);
+  const timeZone = chartTimeZone(hass);
+  const wallClock = !!timeZone && xaxisType === 'datetime'
+    && TIME_AXIS_CHART_TYPES.has(chartType) && chartType !== 'bar' && chartType !== 'rangeBar';
+  if (!wallClock || !timeZone) return { axis, points, wallClock: false, timeZone };
+  return {
+    axis: axis.min !== undefined && axis.max !== undefined
+      ? { min: toWallClock(axis.min, timeZone), max: toWallClock(axis.max, timeZone) }
+      : axis,
+    points: points.map(list => (list ? pointsToWallClock(list, timeZone) : list)),
+    wallClock: true,
+    timeZone
+  };
+}
+
+/**
  * Complete ApexCharts options, including `series`.
  *
  * @param {Object} args
@@ -125,15 +166,22 @@ export function buildChartOptions({ config, style, series, points, span = null, 
   // The x-axis type and time window go through chart_options (highest
   // precedence) so type defaults can't undo them; user chart_options still win.
   // Time charts default to a datetime axis even when xaxis_type isn't set.
-  const axis = windowAxis(config, span);
   // Horizontal bars get one time label per bar on a category axis (ApexCharts'
   // datetime axis doesn't work sideways).
   const xaxisType = config.xaxis_type ?? (chartType === 'bar' ? 'category' : (TIME_AXIS_CHART_TYPES.has(chartType) ? 'datetime' : undefined));
+  const time = timeAxisData({ config, span, points, hass });
+  const { axis, wallClock, timeZone } = time;
+  points = time.points;
+
   if (xaxisType || axis.min !== undefined) {
+    const timeLabels = wallClock ? {
+      xaxis: { labels: { datetimeUTC: true, datetimeFormatter: datetimeFormats(useAmPm(hass)) } },
+      tooltip: { x: { formatter: tooltipTimeFormatter(hass, span) } }
+    } : {};
     enhancedStyle = {
       ...enhancedStyle,
       chart_options: deepMerge(
-        { xaxis: { ...(xaxisType && { type: xaxisType }), ...axis } },
+        deepMerge(timeLabels, { xaxis: { ...(xaxisType && { type: xaxisType }), ...axis } }),
         enhancedStyle.chart_options || {}
       )
     };
@@ -150,7 +198,10 @@ export function buildChartOptions({ config, style, series, points, span = null, 
     hass,
     series,
     yaxis: config.yaxis,
-    span
+    span,
+    // Zone raw x values are read in by date formatters: wall-clock values are
+    // already the zone's time written as UTC.
+    timeZone: wallClock ? 'UTC' : (timeZone ?? undefined)
   });
 
   // One-value-per-series charts are labelled with the series names

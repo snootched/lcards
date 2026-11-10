@@ -295,7 +295,7 @@ msd:
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `triggers_update` | list / `all` | - | Extra entity ids (or MSD data source names) that refresh this control, or `all` for every update |
+| `triggers_update` | list / `all` | - | Extra entity ids that refresh this control, or `all` for every update |
 
 ## Rules Engine Integration
 

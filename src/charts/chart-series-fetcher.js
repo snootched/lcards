@@ -23,6 +23,7 @@ import {
 } from '../core/data-sources/ha-history-utils.js';
 import { computeSpan, parseDuration } from './chart-span.js';
 import { groupBy } from './chart-group-by.js';
+import { localeCalendar } from '../utils/ha-locale.js';
 
 /** How often aligned/rolling windows are re-evaluated (and stale points dropped). */
 const WINDOW_TICK_MS = 60_000;
@@ -119,7 +120,7 @@ export class ChartSeriesFetcher {
     this.stop();
     this._running = true;
     this._spanConfig = spanConfig ?? {};
-    this._span = computeSpan(this._spanConfig);
+    this._span = this._computeSpan();
     this._states = seriesList.map(series => ({ series, raw: [], stop: null }));
 
     this._states.forEach((state, index) => this._startSeries(state, index));
@@ -152,9 +153,18 @@ export class ChartSeriesFetcher {
 
   // ── Window handling ────────────────────────────────────────────────────
 
+  /**
+   * The window now, aligned to Home Assistant's time zone and first weekday
+   * (the user's profile settings), read from hass on every call.
+   * @returns {{start: number, end: number, duration: number, live: boolean}}
+   */
+  _computeSpan() {
+    return computeSpan(this._spanConfig, Date.now(), localeCalendar(this._getHass()));
+  }
+
   _onWindowTick() {
     if (!this._running) return;
-    const next = computeSpan(this._spanConfig);
+    const next = this._computeSpan();
     const realigned = this._spanConfig.span?.start || this._spanConfig.span?.end;
     if (realigned && next.start !== this._span?.start) {
       // An aligned window rolled over (e.g. midnight): reload everything.
@@ -240,7 +250,7 @@ export class ChartSeriesFetcher {
     const onReady = () => {
       if (disposed) return;
       unsub = null;
-      this._span = computeSpan(this._spanConfig);
+      this._span = this._computeSpan();
       subscribe().catch(error =>
         lcardsLog.warn(`[ChartSeriesFetcher] ${this._logId}: history resubscribe failed`, error));
     };
@@ -367,7 +377,7 @@ export class ChartSeriesFetcher {
     // end and waited for the next tick). Aligned windows end in the future and
     // keep the tick, which notices their rollover.
     if (this._span?.live && !this._spanConfig?.span?.start && !this._spanConfig?.span?.end) {
-      this._span = computeSpan(this._spanConfig);
+      this._span = this._computeSpan();
     }
     const span = this._span;
     if (!span) return;

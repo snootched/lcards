@@ -190,6 +190,39 @@ test('a bound setting on an object without an id: bindings name it as the scene 
   assert.equal(out.objects[4].drift, undefined);
 });
 
+test('a bound rebuild setting on an object without an id reaches the scene: found by its scene id, kept for a full rebuild', async () => {
+  const { objectById, withObjectPatches, objectIds } = await import('../../src/core/astrometrics/names.js');
+  const { collectBindings, settingConfig, bindingKey } = await import('../../src/core/astrometrics/bindings.js');
+  // the scratch repro (D3c AS1): a grid with no id, line_spacing (not a live key) and colour bound
+  const config = { objects: [
+    { type: 'grid', id: 'floor' },
+    { type: 'grid', shape: 'plane', size: 200, line_spacing: { entity: 'input_number.x', input: [0, 100], output: [5, 50] }, color: { entity: 'light.desk', attribute: 'rgb_color' } }
+  ] };
+  const settings = collectBindings(config);
+  assert.deepEqual([...new Set(settings.map((b) => b.id))], ['grid#2']);
+  const values = new Map(settings.map((b) => [bindingKey(b), b.kind === 'color' ? 'rgb(255, 0, 0)' : 25]));
+  const patched = settingConfig(config, settings, values);
+  // the card's _flushSettings lookup: by the id the scene builder gives it
+  const found = objectById(patched.objects, 'grid#2');
+  assert.equal(found?.line_spacing, 25);
+  assert.equal(found?.color, 'rgb(255, 0, 0)');
+  assert.equal(objectById(patched.objects, 'floor'), patched.objects[0]);
+  assert.equal(objectById(patched.objects, 'grid#3'), undefined);
+  // the runtime's patch(): the patched config written back for the id-less object too
+  const kept = withObjectPatches(config.objects, { 'grid#2': found });
+  assert.equal(kept[1], found);
+  assert.equal(kept[0], config.objects[0]);
+  // two objects with one id: the later one is the scene's (the builder's "later one wins")
+  const twins = [{ type: 'ring', id: 'a', radius: 1 }, { type: 'ring', id: 'a', radius: 2 }];
+  assert.equal(objectById(twins, 'a'), twins[1]);
+  // and the scene builds it under that id
+  const w = buildScene(patched, /** @type {any} */ (ctx()));
+  assert.deepEqual([...w.objects.keys()], objectIds(patched.objects));
+  assert.equal(w.objects.get('grid#2')?.config.line_spacing, 25);
+  assert.equal(w.rebuildObject('grid#2', { ...found, line_spacing: 30 }), true);
+  assert.equal(w.objects.get('grid#2')?.config.line_spacing, 30);
+});
+
 test('nebula without the effects chunk is skipped, not thrown', () => {
   const w = buildScene({ objects: [{ type: 'nebula', id: 'neb' }, { type: 'grid', id: 'g' }] }, /** @type {any} */ (ctx({ effects: null })));
   assert.equal(w.objects.has('neb'), false);

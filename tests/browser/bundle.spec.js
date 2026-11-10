@@ -202,3 +202,21 @@ test('rules: editing an existing rule applies without a page refresh (D3b R3)', 
         .not.toBe('rgb(0, 170, 0)');
     expect(await page.evaluate(() => window.lcards.core.rulesManager.rules.length)).toBe(0);
 });
+
+test('rules: a rule patch comes off after the card disconnects and reconnects (D3c RC1)', async ({ page }) => {
+    await mountCase(page, 'button-rule');
+    const fill = () => page.locator('lcards-button path.button-bg').evaluate(el => getComputedStyle(el).fill);
+    await page.evaluate(() => window.__setState('switch.demo_switch', 'on'));
+    await expect.poll(fill).toBe('rgb(204, 0, 0)');
+    // Home Assistant moves cards (edit mode, view change) by disconnecting and reconnecting them
+    await page.evaluate(() => {
+        const card = window.__card;
+        const parent = card.parentNode;
+        parent.removeChild(card);
+        parent.appendChild(card);
+    });
+    await expect.poll(fill).toBe('rgb(204, 0, 0)');
+    await page.evaluate(() => window.__setState('switch.demo_switch', 'off'));
+    // It used to stay red: the patched config was taken as the base on reconnect
+    await expect.poll(fill).toBe('rgb(51, 51, 102)');
+});

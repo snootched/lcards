@@ -142,14 +142,11 @@ export class LCARdSSelectMenu extends LCARdSCard {
     }
 
     _handleFirstUpdate(changedProperties) {
-        // Re-detect preview mode now that we're in the DOM (setConfig fires before mount).
-        // Same pattern as lcards-chart.js / lcards-msd.js.
-        // Only the card-picker (browse-cards screen) should show the placeholder.
-        // hui-card-preview alone appears in dashboard edit mode — do NOT treat that
-        // as the picker.  hui-card-picker IS the reliable indicator for the picker UI.
+        // Only the card picker (browse-cards screen) shows the placeholder, not every
+        // preview (preview mode itself is detected by the base on connect, and is
+        // also true in dashboard edit mode): hui-card-picker is the reliable signal.
         this._isInCardPicker = this._checkForAncestor(['hui-card-picker']);
         if (this._isInCardPicker) {
-            this._isPreviewMode = true;
             this.requestUpdate();
             return; // Skip full initialisation in preview context
         }

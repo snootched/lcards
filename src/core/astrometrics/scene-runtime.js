@@ -46,7 +46,7 @@ import { easeStep } from './bindings.js';
 import { warpTails, cruiseTails } from './star-field.js';
 import { STAR_SHELL } from './objects/stars.js';
 import { num, stepObjects } from './objects/common.js';
-import { usesEffects, usesModels, flattenSystems } from './names.js';
+import { usesEffects, usesModels, flattenSystems, withObjectPatches } from './names.js';
 import { parseLook, lookTargets, stepLook, lookAlpha, partWeights, switchesParts, PART_KINDS } from './looks.js';
 
 const DEG = Math.PI / 180;
@@ -96,10 +96,10 @@ export const CAMERA_COMMANDS = {
   'fly-back': { step: { travel: -0.5 }, rate: { travel: -1.5 } }
 };
 
-/** @type {Record<string, string>} key (shift + key with an `S` prefix) to command */
 /** `model_scale: visible`: a real-size model is drawn at least this large on screen (its largest extent), CSS px */
 export const MODEL_MIN_PX = 40;
 
+/** @type {Record<string, string>} key (shift + key with an `S` prefix) to command */
 const KEY_COMMANDS = {
   ArrowLeft: 'pan-left', ArrowRight: 'pan-right', ArrowUp: 'pan-up', ArrowDown: 'pan-down',
   SArrowLeft: 'orbit-left', SArrowRight: 'orbit-right', SArrowUp: 'orbit-up', SArrowDown: 'orbit-down',
@@ -1797,7 +1797,8 @@ export function createAstroScene(host, config, options = {}) {
     cfg = {
       ...cfg,
       points: Array.isArray(cfg.points) ? cfg.points.map((p) => (p && points[String(p.id)] !== undefined ? points[String(p.id)] : p)) : cfg.points,
-      objects: Array.isArray(cfg.objects) ? cfg.objects.map((o) => (o && o.id !== undefined && objects[String(o.id)] !== undefined ? objects[String(o.id)] : o)) : cfg.objects
+      // by scene id: an object without an id of its own is its `type#n`
+      objects: Array.isArray(cfg.objects) ? withObjectPatches(cfg.objects, objects) : cfg.objects
     };
     if (!world) return;
     const w = world;
@@ -1826,9 +1827,11 @@ export function createAstroScene(host, config, options = {}) {
       else pointAlpha.set(id, alpha);
     }
     if (Object.keys(points).length) syncCards();
-    for (const [id, next] of Object.entries(objects)) {
+    for (const [id, given] of Object.entries(objects)) {
       const b = w.objects.get(id);
-      if (!b || !next) continue;
+      if (!b || !given) continue;
+      // an object without an id of its own was built as its `type#n`: compare it like that
+      const next = given.id === undefined || given.id === null || given.id === '' ? { ...given, id } : given;
       // visible and the distance range act per frame: no rebuild
       const { visible: _a, fade: _f0, min_distance: _n0, max_distance: _x0, ...restOld } = b.config;
       const { visible: _b, fade: _f1, min_distance: _n1, max_distance: _x1, ...restNew } = next;
@@ -2552,6 +2555,8 @@ export function createAstroScene(host, config, options = {}) {
         holdFrame: (/** @type {boolean} */ on) => { frameHold = on; },
         sky,
         world,
+        // the config a full rebuild reads (rule effects and bound settings written back by patch())
+        config: cfg,
         rig,
         labelItems: labels.items,
         labelLayer: labels,

@@ -6,10 +6,10 @@ The `shape_texture` feature renders a Canvas2D texture or animation **inside** t
 
 | System | Rendering | Scope | Animation |
 |---|---|---|---|
-| `background_animation` | Canvas2D | Full card bleed | anime.js / RAF |
-| `shape_texture` | Canvas2D | Inside shape fill only | Canvas2D RAF loop |
+| `background_animation` | Canvas2D, or WebGL (three.js) for presets that have it | Full card bleed | `Canvas2DRenderer` RAF loop; entries are anime.js targets |
+| `shape_texture` | Canvas2D | Inside shape fill only | `Canvas2DRenderer` RAF loop (no PerformanceMonitor) |
 
-The background animation system handles full-bleed card backgrounds. `shape_texture` mounts a `<canvas>` element inside a `<foreignObject>` placeholder in the card SVG, clipped to the shape geometry via Canvas2D Path2D, and drives all presets through a shared RAF loop (`CanvasTextureRenderer`).
+The [background animation system](./background-animation-system.md) handles full-bleed card backgrounds. `shape_texture` mounts a `<canvas>` element inside a `<foreignObject>` placeholder in the card SVG, clipped to the shape geometry via Canvas2D Path2D. Each texture's `CanvasTextureRenderer` runs its effect on its own `Canvas2DRenderer` (the background system's loop, created with `monitorPerformance: false`, `CanvasTextureRenderer.js:105`).
 
 ## Supported Card Types
 
@@ -75,7 +75,7 @@ shape_texture:
 
 ## Preset Reference
 
-All 11 built-in presets are listed below. Color fields accept any of: `rgba()`, `#hex`, `var(--css-variable)`, `{theme:token.path}`, or state-based maps; the color pipeline resolves all formats before they reach the Canvas2D renderer (see [Color Pipeline](#color-pipeline)).
+All 12 built-in presets (`CANVAS_TEXTURE_PRESETS`, `src/core/packs/textures/presets/index.js`) are listed below. Color fields accept any of: `rgba()`, `#hex`, `var(--css-variable)`, `theme:token.path`, or state-based maps; the color pipeline resolves all formats before they reach the Canvas2D renderer (see [Color Pipeline](#color-pipeline)).
 
 ### `grid`
 
@@ -381,7 +381,7 @@ Because `_resolveShapeTextureConfig()` reads directly from `this.config` at ever
 
 | File | Role |
 |---|---|
-| `src/core/packs/textures/CanvasTextureRenderer.js` | Main Canvas2D renderer: creates `<canvas>`, drives RAF loop, manages `ResizeObserver`, delegates to effect |
+| `src/core/packs/textures/CanvasTextureRenderer.js` | Main renderer: creates the `<canvas>`, runs the effect on a `Canvas2DRenderer` (`src/core/packs/backgrounds/renderers/Canvas2DRenderer.js`), manages `ResizeObserver` |
 | `src/core/packs/textures/presets/index.js` | `CANVAS_TEXTURE_PRESETS` registry |
 | `src/core/packs/textures/effects/` | One `BaseTextureEffect` subclass per preset |
 | `src/core/packs/textures/effects/noise-helpers.js` | Shared fBm noise math and `parseColorToRgba` used by fluid/plasma effects |
@@ -393,5 +393,6 @@ Because `_resolveShapeTextureConfig()` reads directly from `this.config` at ever
 
 ## See Also
 
+- [Background Animation System](./background-animation-system.md)
 - [Pack System](../subsystems/pack-system.md)
 - [Asset Manager](../subsystems/asset-manager.md)

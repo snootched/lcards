@@ -11,7 +11,7 @@ installJsdom();
 globalThis.window.lcards = { core: {}, debug: { msd: {} } }; // normally created by src/lcards-main.js
 const { MsdCardCoordinator } = await import('../../src/msd/pipeline/MsdCardCoordinator.js');
 
-test('destroy() leaves the shared DataSourceManager running and removes only its own listener', async () => {
+test('destroy() leaves the shared DataSourceManager running', async () => {
     let destroyed = 0;
     const listeners = new Set();
     const dsm = {
@@ -20,10 +20,9 @@ test('destroy() leaves the shared DataSourceManager running and removes only its
     };
     const coordinator = /** @type {any} */ (new MsdCardCoordinator());
     coordinator.dataSourceManager = dsm;
-    coordinator._removeEntityChangeListener = dsm.addEntityChangeListener(() => {});
     dsm.addEntityChangeListener(() => {}); // another card's
     await coordinator.destroy();
     assert.equal(destroyed, 0, 'the shared manager is not destroyed');
-    assert.equal(listeners.size, 1, 'only this card\'s listener is gone');
+    assert.equal(listeners.size, 1, 'other listeners stay (the MSD registers none since D3c M4)');
     assert.equal(coordinator.dataSourceManager, dsm, 'the shared reference stays');
 });

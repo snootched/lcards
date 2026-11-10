@@ -263,3 +263,22 @@ test('R4a: a body sphere turns to its real pole and meridian, an orbit ring draw
   assert.ok(Math.abs(orbit.radius - r) < 1, `orbit radius ${orbit.radius} km`);
   assert.ok(orbit.lines.length > 0 && orbit.lines[0].object.visible !== false, 'the line is drawn');
 });
+
+test('R4a: a rebuilt body sphere still takes no rotation (as on the first build)', () => {
+  const date = Date.UTC(2026, 9, 30, 12);
+  const c = /** @type {any} */ ({ ...ctx(), date: () => date });
+  const globe = { type: 'sphere', id: 'globe', at: 'earth', radius: 6371, body: 'earth', rotation: [40, 0, 0] };
+  const w = buildScene({ units: 'km', points: [{ id: 'earth', body: 'earth' }], objects: [globe] }, c);
+  const outer = /** @type {any} */ (w.objects.get('globe')).node.parent;
+  assert.equal(outer.rotation.x, 0, 'first build: rotation does not apply');
+  assert.equal(w.rebuildObject('globe', { ...globe, radius: 7000 }), true);
+  assert.equal(/** @type {any} */ (w.objects.get('globe')).node.parent, outer, 'the same outer group');
+  assert.equal(outer.rotation.x, 0, 'rebuild: rotation does not apply either');
+  // an object without a body still takes it on a rebuild
+  const plain = { type: 'sphere', id: 'ball', radius: 5, rotation: [40, 0, 0] };
+  const w2 = buildScene({ objects: [plain] }, c);
+  w2.rebuildObject('ball', { ...plain, radius: 6 });
+  assert.ok(Math.abs(/** @type {any} */ (w2.objects.get('ball')).node.parent.rotation.x - (40 * Math.PI) / 180) < 1e-9);
+  w.dispose();
+  w2.dispose();
+});

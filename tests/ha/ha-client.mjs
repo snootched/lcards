@@ -141,20 +141,21 @@ export const NON_ADMIN_USERNAME = 'lcards_test_nonadmin';
  * storage it wrote. A user left behind by an aborted run is deleted first.
  * @param {HAClient} admin
  * @param {(user: HAClient, userId: string) => Promise<void>} fn
+ * @param {string} [username] - a second name gives a second user (for nesting)
  */
-export async function withNonAdminUser(admin, fn) {
+export async function withNonAdminUser(admin, fn, username = NON_ADMIN_USERNAME) {
     const removeUser = async (userId) => {
         await admin.call({ type: 'lcards/storage/users/clear', user_id: userId }).catch(() => {});
         await admin.call({ type: 'config/auth/delete', user_id: userId });
     };
     for (const u of await admin.call({ type: 'config/auth/list' })) {
-        if (u.name === NON_ADMIN_USERNAME) await removeUser(u.id);
+        if (u.name === username) await removeUser(u.id);
     }
     const password = `lcards-${Math.random().toString(36).slice(2)}-${Date.now()}`;
-    const { user } = await admin.call({ type: 'config/auth/create', name: NON_ADMIN_USERNAME, group_ids: ['system-users'] });
+    const { user } = await admin.call({ type: 'config/auth/create', name: username, group_ids: ['system-users'] });
     let userClient;
     try {
-        await admin.call({ type: 'config/auth_provider/homeassistant/create', user_id: user.id, username: NON_ADMIN_USERNAME, password });
+        await admin.call({ type: 'config/auth_provider/homeassistant/create', user_id: user.id, username: username, password });
         const clientId = `${HA_URL}/`;
         const post = async (path, body, form = false) => {
             const res = await fetch(`${HA_URL}${path}`, {
@@ -166,7 +167,7 @@ export async function withNonAdminUser(admin, fn) {
             return res.json();
         };
         const flow = await post('/auth/login_flow', { client_id: clientId, handler: ['homeassistant', null], redirect_uri: clientId });
-        const done = await post(`/auth/login_flow/${flow.flow_id}`, { client_id: clientId, username: NON_ADMIN_USERNAME, password });
+        const done = await post(`/auth/login_flow/${flow.flow_id}`, { client_id: clientId, username: username, password });
         if (done.type !== 'create_entry') throw new Error(`login flow did not finish: ${JSON.stringify(done)}`);
         const tokens = await post('/auth/token', { grant_type: 'authorization_code', code: done.result, client_id: clientId }, true);
         userClient = await HAClient.connect(tokens.access_token);

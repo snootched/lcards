@@ -206,7 +206,7 @@ data:
 
 - `event_type` plays the sound each browser has for that event (its own per-event sound, else its scheme's), and the event's [sound category](./sounds#enabling-sounds) switch applies.
 - `asset_key` plays one exact sound whatever the scheme says: a sound asset key (**LCARdS Config > Sounds** lists them), a file URL such as `/local/sounds/chime.mp3`, or a `media-source://` id. Only the master switch applies.
-- Give one of the two; if both are given, `asset_key` wins. A browser whose master switch (`input_boolean.lcards_sound_enabled`) is off stays silent. [Sound Configuration](./sounds) has the schemes and the per-user and per-device settings.
+- Give one of the two: a call with neither is refused. If both are given, `asset_key` wins. A browser whose master switch (`input_boolean.lcards_sound_enabled`) is off stays silent. [Sound Configuration](./sounds) has the schemes and the per-user and per-device settings.
 
 ```yaml
 # The "notification" sound, as each browser has it set up

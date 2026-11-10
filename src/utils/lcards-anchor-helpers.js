@@ -23,10 +23,10 @@ import { lcardsLog } from './lcards-logging.js';
  * document, since `getCTM()` is unreliable on fully-detached elements.
  *
  * @param {string} svgContent - SVG markup as string
- * @returns {Object<string, number[]|null>} Map of anchor ID to [x, y] coordinates
+ * @returns {Object<string, number[]>} Map of anchor ID to [x, y] coordinates
  */
 export function findSvgAnchors(svgContent) {
-  const anchors = /** @type {Object.<string, number[]|null>} */ ({});
+  const anchors = /** @type {Object.<string, number[]>} */ ({});
   if (!svgContent) return anchors;
 
   const container = document.createElement('div');
@@ -92,13 +92,37 @@ export function findSvgAnchors(svgContent) {
       }
     });
 
-    // <g id="anchor"> - unconditionally overwrites a same-id match from any
-    // element type above, matching this function's pre-existing (if perhaps
-    // accidental) precedence.
+    // <g id="anchor">: the centre of the group's bounding box (getBBox() is in
+    // the group's own user space, so its CTM maps it like the shapes above).
+    // Where getBBox() is missing (no layout engine) or the box is empty, the
+    // centre of the anchors found inside the group; a group with neither is
+    // left out, so the anchor check reports it as missing instead of a control
+    // being skipped silently.
     svgRoot.querySelectorAll('g[id]').forEach(el => {
       const id = el.id;
       if (id.startsWith('__') || id.startsWith('msd-internal-')) return;
-      anchors[id] = null; // Optionally: calculate centroid if needed
+      const group = /** @type {any} */ (el);
+      let box = null;
+      try {
+        box = typeof group.getBBox === 'function' ? group.getBBox() : null;
+      } catch {
+        box = null; // Firefox throws for a group that is not rendered
+      }
+      if (box && Number.isFinite(box.x) && Number.isFinite(box.y) && (box.width > 0 || box.height > 0)) {
+        anchors[id] = resolvePoint(el, box.x + box.width / 2, box.y + box.height / 2);
+        return;
+      }
+      const inner = Array.from(el.querySelectorAll('[id]'))
+        .map(child => anchors[child.id])
+        .filter(point => Array.isArray(point));
+      if (inner.length) {
+        const xs = inner.map(p => p[0]);
+        const ys = inner.map(p => p[1]);
+        anchors[id] = [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
+        return;
+      }
+      delete anchors[id];
+      lcardsLog.warn(`[findSvgAnchors] Group anchor '${id}' has no measurable geometry; left out`);
     });
   } finally {
     document.body.removeChild(container);

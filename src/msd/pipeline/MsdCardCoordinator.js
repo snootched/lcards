@@ -25,8 +25,6 @@ export class MsdCardCoordinator extends BaseService {
     super();
     // Initialize core managers
     this.themeManager = null; // Will be set to shared core ThemeManager in initializeSystemsWithPacksFirst
-    /** @type {(() => void) | null} */
-    this._removeEntityChangeListener = null; // DataSourceManager listener, removed in destroy()
 
     this.stylePresetManager = null; // Will be set to shared core StylePresetManager
 
@@ -122,8 +120,9 @@ export class MsdCardCoordinator extends BaseService {
     // Initialize other critical systems that overlays might need
     lcardsLog.trace('[MsdCardCoordinator] ⚙️ Initializing per-card systems');
 
-    // Initialize data source manager FIRST (overlays may reference it)
-    await this._initializeDataSources(hass, mergedConfig);
+    // The shared core DataSourceManager, for the validation service and the debug
+    // API. Card-root data_sources are created by LCARdSCard; the core feeds it HASS.
+    this.dataSourceManager = lcardsCore.dataSourceManager || null;
 
     // Use shared StylePresetManager singleton from lcardsCore (already initialized by core)
     if (!lcardsCore.stylePresetManager) {
@@ -235,125 +234,20 @@ export class MsdCardCoordinator extends BaseService {
   // REMOVED: _instrumentRulesEngine - RulesEngine now managed by core singleton
   // Performance tracking should be added to core rulesManager if needed globally
 
-  async _initializeDataSources(hass, mergedConfig) {
-    this.dataSourceManager = null;
-
-    if (!hass) {
-      lcardsLog.warn('[MsdCardCoordinator] No HASS provided - DataSourceManager will not be initialized');
-      return;
-    }
-
-    // Pre-register entity change listener BEFORE creating data sources
-    // This ensures the listener is ready when data source subscriptions are set up
-    this._entityChangeListenerRegistered = false;
-
-    // Use configured data sources
-    const configuredDataSources = mergedConfig.data_sources || {};
-
-    // Controls use direct HASS - no data sources needed
-    const controlEntities = this._extractControlEntities(mergedConfig);
-
-    // Use configured data sources
-    const allDataSources = { ...configuredDataSources };
-
-    // Only log if data sources actually configured (avoid noise for common case)
-    if (Object.keys(configuredDataSources).length > 0 || controlEntities.length > 0) {
-      lcardsLog.trace('[MsdCardCoordinator] 📊 Data sources configured', {
-        configured: Object.keys(configuredDataSources).length,
-        controls: controlEntities.length,
-        total: Object.keys(allDataSources).length
-      });
-    }
-
-    if (Object.keys(allDataSources).length === 0) {
-      lcardsLog.trace('[MsdCardCoordinator] No data sources configured or auto-created - DataSourceManager will not be initialized');
-      return;
-    }
-
-    lcardsLog.trace('[MsdCardCoordinator] Initializing DataSourceManager with', Object.keys(allDataSources).length, 'data sources');
-
-    try {
-      // Use shared core DataSourceManager singleton
-      lcardsLog.trace('[MsdCardCoordinator] 🔗 Using shared core DataSourceManager singleton');
-      if (!lcardsCore.dataSourceManager) {
-        throw new Error('lcardsCore.dataSourceManager is null - core not initialized?');
-      }
-      this.dataSourceManager = lcardsCore.dataSourceManager;
-
-      // Register entity change listener BEFORE initializing data sources
-      // This ensures subscriptions created during initialization can trigger the listener
-      // Removed again in destroy(): the manager outlives this card
-      this._removeEntityChangeListener?.();
-      this._removeEntityChangeListener = this.dataSourceManager.addEntityChangeListener((changedIds) => {
-        // CRITICAL: Sync our HASS with DataSourceManager's updated HASS
-        // Real-time entity updates come via DataSource subscriptions, which update
-        // DataSourceManager.hass but NOT SystemsManager._hass. We need to sync them!
-        if (this.dataSourceManager && this.dataSourceManager.hass) {
-          this._hass = this.dataSourceManager.hass;
-        }
-
-        // REMOVED: RulesEngine dirty marking - now handled by core rulesManager singleton
-        // Core rulesManager receives entity changes via BaseService and evaluates globally
-      });
-
-      lcardsLog.trace('[MsdCardCoordinator] ✅ Entity change listener configured for rule evaluation (BEFORE data source init)');
-      this._entityChangeListenerRegistered = true;
-
-      const sourceCount = await this.dataSourceManager.initializeFromConfig(allDataSources);
-      lcardsLog.trace('[MsdCardCoordinator] ✅ DataSourceManager initialized -', sourceCount, 'sources started');
-
-      // Verify entities are available
-      const entityIds = this.dataSourceManager.listIds();
-      lcardsLog.trace('[MsdCardCoordinator] ✅ DataSourceManager entities available:', entityIds);
-
-    } catch (error) {
-      lcardsLog.error('[MsdCardCoordinator] ❌ DataSourceManager initialization failed:', error);
-      lcardsLog.error('[MsdCardCoordinator] Error details:', error.stack);
-      this.dataSourceManager = null;
-    }
-  }
-
-  /**
-   * Extract entity IDs from control overlays for auto data source creation
-   */
-  _extractControlEntities(mergedConfig) {
-    const entities = new Set();
-
-    // Extract from overlays
-    const overlays = mergedConfig.overlays || [];
-    overlays.forEach(overlay => {
-      if (overlay.type === 'control' && overlay.card) {
-        // Check multiple possible entity locations
-        const entity = overlay.card.config?.entity ||
-                      overlay.card.config?.variables?.entity ||
-                      overlay.card.entity;
-
-        if (entity) {
-          entities.add(entity);
-        }
-      }
-    });
-
-    // Extract from any other control configurations
-    // (Add more extraction logic here as needed)
-
-    return Array.from(entities);
-  }
-
-
   async destroy() {
 
 
 
     // The DataSourceManager is the shared core singleton: never destroy it from a
-    // card (an MSD disconnect, such as edit mode or a view change, stopped every data
-    // source on the page and the next initializeFromConfig threw). MSD config sources
-    // are created without a card id, so they stay for the page; only this card's
-    // listener goes.
-    this._removeEntityChangeListener?.();
-    this._removeEntityChangeListener = null;
-    if (this.controlsRenderer && typeof (/** @type {any} */ (this.controlsRenderer)).destroy === 'function') {
-      (/** @type {any} */ (this.controlsRenderer)).destroy();
+    // card (an MSD disconnect, such as edit mode or a view change, would stop every
+    // data source on the page).
+    // MsdControlsRenderer names its teardown cleanup() (it used to be called as destroy() and never ran)
+    if (this.controlsRenderer && typeof (/** @type {any} */ (this.controlsRenderer)).cleanup === 'function') {
+      try {
+        (/** @type {any} */ (this.controlsRenderer)).cleanup();
+      } catch (error) {
+        lcardsLog.warn('[MsdCardCoordinator] Controls renderer cleanup error:', error);
+      }
     }
     if (this.renderer && typeof (/** @type {any} */ (this.renderer)).destroy === 'function') {
       (/** @type {any} */ (this.renderer)).destroy();
@@ -611,20 +505,14 @@ export class MsdCardCoordinator extends BaseService {
 
   /**
    * Propagate HASS to subsystems in correct order.
-   * ORDER MATTERS: DataSourceManager → RulesEngine → Controls
+   * Controls first, then lines with entity-bound colours (the DataSourceManager
+   * and RulesEngine get HASS from the core).
    * @private
    */
   _propagateHassToSystems(hass) {
     lcardsLog.debug('[MsdCardCoordinator] 🔄 _propagateHassToSystems: Starting ordered propagation');
 
-    // 1. DataSourceManager first (provides entity values)
-    let dataSourceResult = { hasChanges: true, changedCount: 0, totalCount: 0 };
-    if (this.dataSourceManager && typeof this.dataSourceManager.ingestHass === 'function') {
-      lcardsLog.debug('[MsdCardCoordinator] 📊 Propagating to DataSourceManager');
-      dataSourceResult = this.dataSourceManager.ingestHass(hass) || { hasChanges: true, changedCount: 0, totalCount: 0 };
-    } else {
-      lcardsLog.debug('[MsdCardCoordinator] ⏭️ DataSourceManager not ready or no ingestHass method');
-    }
+    // 1. The shared DataSourceManager gets HASS from the core (LCARdSCore.ingestHass)
 
 
     // The core rulesManager receives HASS updates automatically and evaluates rules globally
@@ -645,7 +533,6 @@ export class MsdCardCoordinator extends BaseService {
       this.renderer.updateLineEntityColors(hass);
     }
 
-    // 4. Overlays update automatically via DataSource subscriptions
     lcardsLog.debug('[MsdCardCoordinator] ✅ _propagateHassToSystems: Propagation complete');
   }
 

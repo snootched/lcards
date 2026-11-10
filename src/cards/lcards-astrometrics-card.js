@@ -40,7 +40,7 @@ import { BackgroundAnimationRenderer } from '../core/packs/backgrounds/Backgroun
 import { WarpDrive, warpOn } from '../core/astrometrics/warp-drive.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { deepMergeImmutable } from '../utils/deepMerge.js';
-import { flattenSystems } from '../core/astrometrics/names.js';
+import { flattenSystems, objectById } from '../core/astrometrics/names.js';
 import { registerAstrometricsCard, unregisterAstrometricsCard } from './astrometrics-registry.js';
 import { cameraButtonLayout, timeMode, BUTTONS_IDLE_MS, TIME_STOPS, timeStop, PAD_AREAS, dpadPaths, padTokenStyle } from './astrometrics-buttons.js';
 import { DATE_STOPS, dateStop, formatSceneDate, LIVE_RATE } from '../core/astrometrics/clock.js';
@@ -116,6 +116,8 @@ function loadRuntime() {
 
 /** @type {Promise<boolean> | null} */
 let schemaPromise = null;
+/** The schema is registered: a config processed now is validated */
+let schemaReady = false;
 
 /**
  * Register the card's schema with CoreConfigManager, loading it on first use:
@@ -132,6 +134,7 @@ export function ensureAstrometricsSchema() {
             return false;
         }
         configManager.registerCardSchema('astrometrics', astrometricsSchema, { version: __LCARDS_VERSION__ });
+        schemaReady = true;
         return true;
     }).catch((error) => {
         lcardsLog.warn('[LCARdSAstrometricsCard] Could not load the card schema:', error);
@@ -687,18 +690,31 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         /** @type {((scene: import('../core/astrometrics/scene-runtime.js').AstroSceneApi) => void)[]} waiting for the scene (studioScene) */
         this._sceneWaiters = [];
         this._onPickKey = this._onPickKey.bind(this);
+        this._onEntityChange = this._onEntityChange.bind(this);
+        /** @type {Function[]} the entity subscriptions' unsubscribe functions (_subscribeEntities) */
+        this._entityUnsubs = [];
+        /** @type {string | null} the entities they follow, joined */
+        this._subscribedKey = null;
+        /** @type {Set<string>} entities changed since the last refresh */
+        this._changedEntities = new Set();
+        this._entityFlushQueued = false;
+        /** waiting for the lazy schema to process the config again (setConfig) */
+        this._awaitingSchema = false;
     }
 
     /**
-     * The first config of the page processes before the lazy schema has
-     * arrived (it is not validated then); once it is registered, process
-     * again so the config is validated.
+     * A config that processes before the lazy schema has arrived is not
+     * validated: every card configured while it loads (not only the first
+     * of the page) waits for it once and processes its latest config again
+     * when it is registered.
      * @param {any} config
      */
     setConfig(config) {
         super.setConfig(config);
-        if (schemaPromise) return;
+        if (schemaReady || this._awaitingSchema) return;
+        this._awaitingSchema = true;
         ensureAstrometricsSchema().then((registered) => {
+            this._awaitingSchema = false;
             if (registered && this._rawConfig) this._reprocessForThemeChange();
         });
     }
@@ -724,6 +740,8 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
      */
     async _onConnected() {
         await super._onConnected();
+        // the disconnect dropped the entity subscriptions (singletons may be new too)
+        this._subscribeEntities();
         if (this._firstUpdateDone && !this._inPicker && this.isConnected) registerAstrometricsCard(this);
         if (this._firstUpdateDone && !this._inPicker && !this._scene && this.isConnected) this._startScene();
     }
@@ -1020,7 +1038,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         for (const b of this._settings) {
             if (changed && !b.entities.some((e) => changed.has(e))) continue;
             if (b.spec) {
-                const entity = this.hass?.states?.[b.spec.entity];
+                const entity = this._entityState(b.spec.entity);
                 this._applySetting(b, b.kind === 'date' ? runtime.dateValue(b.spec, entity)
                     : b.kind === 'color' ? runtime.entityColor(b.spec, entity, entity ? this._classifyEntityState(entity) : 'unavailable')
                         : runtime.mapEntity(b.spec, entity), !changed);
@@ -1037,23 +1055,23 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         }
         const flight = this._flightWarpEntity;
         if (flight && (!changed || changed.has(flight.entity))) {
-            const st = this.hass?.states?.[flight.entity];
+            const st = this._entityState(flight.entity);
             this._scene.setFlightWarp(warpOn(flight.attribute ? st?.attributes?.[flight.attribute] : st?.state));
         }
         const warp = this._warpEntity;
         if (warp && (!changed || changed.has(warp.entity))) {
-            const st = this.hass?.states?.[warp.entity];
+            const st = this._entityState(warp.entity);
             this._setWarp(warpOn(warp.attribute ? st?.attributes?.[warp.attribute] : st?.state));
         }
         const look = this._lookEntity;
         if (look && (!changed || changed.has(look.entity))) {
-            const st = this.hass?.states?.[look.entity];
+            const st = this._entityState(look.entity);
             const value = look.attribute ? st?.attributes?.[look.attribute] : st?.state;
             if (value !== undefined) this._scene.setLook(value);
         }
         const tour = this._tour;
         if (tour && (!changed || changed.has(tour.entity))) {
-            const stop = runtime.tourStop(tour, this.hass?.states?.[tour.entity]);
+            const stop = runtime.tourStop(tour, this._entityState(tour.entity));
             const at = stop ? JSON.stringify(stop) : null;
             if (stop && at !== this._tourAt) {
                 const first = this._tourAt === null;
@@ -1114,8 +1132,10 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         const send = { points: {}, objects: {} };
         for (const item of this._settingDirty) {
             const [scope, id] = [item.slice(0, item.indexOf(':')), item.slice(item.indexOf(':') + 1)];
-            const list = scope === 'point' ? patched.points : patched.objects;
-            const found = (Array.isArray(list) ? list : []).find((/** @type {any} */ x) => String(x?.id) === id);
+            const given = scope === 'point' ? patched.points : patched.objects;
+            const list = Array.isArray(given) ? given : [];
+            // an object by the id the scene builds it under (its `type#n` without an id of its own)
+            const found = scope === 'point' ? list.find((/** @type {any} */ x) => String(x?.id) === id) : objectById(list, id);
             if (found) (scope === 'point' ? send.points : send.objects)[id] = found;
         }
         this._settingDirty.clear();
@@ -1135,7 +1155,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         const values = {};
         for (const b of this._bindings) {
             if (changed && !changed.has(b.entityId)) continue;
-            const entity = this.hass?.states?.[b.entityId];
+            const entity = this._entityState(b.entityId);
             const r = runtime.bindingValue(b.point, entity);
             if (!r) continue;
             values[b.id] = { [r.form]: r.value };
@@ -1184,7 +1204,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         const put = (/** @type {string} */ id) => (out[id] ??= { fields: {} });
         for (const src of this._labelSources) {
             if (change.ids && !change.ids.has(src.id)) continue;
-            const entity = src.entityId ? this.hass?.states?.[src.entityId] ?? null : null;
+            const entity = src.entityId ? this._entityState(src.entityId) : null;
             const entityChanged = !!(src.entityId && change.entities?.has(src.entityId));
             if (src.color && (change.all || entityChanged)) {
                 const c = this._pointStateColor(src.color, entity);
@@ -1262,6 +1282,58 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         if (this._flightWarpEntity) tracked.add(this._flightWarpEntity.entity);
         for (const src of this._labelSources) for (const f of src.fields) f.deps.entities.forEach((e) => tracked.add(e));
         this._trackedEntities = [...tracked];
+        this._subscribeEntities();
+    }
+
+    /**
+     * An entity's state now, from the core's entity cache (getEntityState),
+     * null without one.
+     * @private
+     * @param {string | null | undefined} entityId
+     * @returns {any}
+     */
+    _entityState(entityId) {
+        return entityId ? this.getEntityState(entityId) : null;
+    }
+
+    /**
+     * Follow every tracked entity through the core (subscribeToEntity, cleaned
+     * up on disconnect): the changes of one hass update are gathered and the
+     * bindings, settings and labels that read them refreshed once. Called
+     * when the tracked set changes and on reconnect; a subscription does not
+     * fire on subscribe (the first values come from the scene's start and the
+     * first hass).
+     * @private
+     */
+    _subscribeEntities() {
+        if (!this._singletons?.systemsManager || !this.isConnected) return;
+        const ids = [...new Set(this._trackedEntities ?? [])].filter((id) => typeof id === 'string' && id);
+        const key = ids.join('|');
+        if (key === this._subscribedKey) return;
+        this._entityUnsubs.forEach((off) => off());
+        this._subscribedKey = key;
+        this._entityUnsubs = ids.map((id) => this.subscribeToEntity(id, this._onEntityChange));
+    }
+
+    /**
+     * A followed entity changed: gather it, refresh after the rest of the
+     * update's changes are in (a microtask).
+     * @private
+     * @param {string} entityId
+     */
+    _onEntityChange(entityId) {
+        this._changedEntities.add(entityId);
+        if (this._entityFlushQueued) return;
+        this._entityFlushQueued = true;
+        queueMicrotask(() => {
+            this._entityFlushQueued = false;
+            const changed = this._changedEntities;
+            this._changedEntities = new Set();
+            if (!this._runtime || !changed.size) return;
+            this._refreshBindings(changed);
+            this._refreshSettings(changed);
+            this._refreshLabels({ entities: changed });
+        });
     }
 
     /**
@@ -1411,6 +1483,8 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             return true;
         }
         if (action.action === 'fly-to') {
+            // the card sound, as for every other action it runs (a tap without a view or point flies from the scene)
+            this._playSound(key === 'tap_action' ? 'card_tap' : 'card_hold');
             /** @type {{ duration?: number, warp?: boolean }} */
             const flight = {};
             if (action.duration !== undefined) flight.duration = action.duration;
@@ -1486,23 +1560,12 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
     _handleHassUpdate(newHass, oldHass) {
         super._handleHassUpdate?.(newHass, oldHass);
         this._scene?.setHass(newHass);
-        if (this._runtime) {
-            if (!oldHass) {
-                this._refreshBindings(null);
-                this._refreshSettings(null);
-                this._refreshLabels({ all: true });
-            } else {
-                /** @type {Set<string>} */
-                const changed = new Set();
-                for (const id of this._trackedEntities ?? []) {
-                    if (oldHass.states?.[id] !== newHass?.states?.[id]) changed.add(id);
-                }
-                if (changed.size) {
-                    this._refreshBindings(changed);
-                    this._refreshSettings(changed);
-                    this._refreshLabels({ entities: changed });
-                }
-            }
+        // the first hass: everything from the entities as they are now (changes come
+        // through the entity subscriptions, _subscribeEntities)
+        if (this._runtime && !oldHass) {
+            this._refreshBindings(null);
+            this._refreshSettings(null);
+            this._refreshLabels({ all: true });
         }
         this._backgroundRenderer?.updateHass(newHass, null, this.config);
     }
@@ -2012,6 +2075,9 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
         unregisterAstrometricsCard(this);
         this._endPick(null);
         this._stopScene();
+        // the base drops every entity subscription: follow them again on reconnect
+        this._entityUnsubs = [];
+        this._subscribedKey = null;
         super._onDisconnected();
     }
 

@@ -2,25 +2,17 @@
  * TriggerManager - Handles animation triggers for a single overlay
  *
  * Responsibilities:
- * - Register animations with specific triggers
- * - Handle non-interactive triggers (on_load, on_datasource_change, etc.)
- * - Coordinate with AnimationManager for animation execution
+ * - Register an overlay's animations by trigger
+ * - Set up the one reactive trigger it owns, on_entity_change: entity
+ *   subscriptions, and `while` animations that start and stop with a condition
  * - Cleanup resources on destroy
  *
- * NOTE: Interactive triggers (on_tap, on_hold, on_hover, on_double_tap) are now
- * handled by ActionHelpers.js to leverage its proven event handling and button-card
- * bridge pattern. TriggerManager only handles reactive/automatic triggers.
- *
- * Supported Triggers:
- * - on_load: Execute when overlay is first rendered (Phase 1) ✅
- * - on_show: Execute each time the card is attached to the page (AnimationManager)
- * - on_datasource_change: Execute when datasource value changes (Phase 2) 🔮
- * - on_state_change: Execute when HA entity state changes (Phase 2) 🔮
- * - on_redraw: Execute when overlay re-renders (Future) 🔮
- * - on_exit: Execute when overlay is removed (Future) 🔮
- *
- * Interactive triggers handled by ActionHelpers:
- * - on_tap, on_hold, on_hover, on_double_tap ➡️ See ActionHelpers.js
+ * Not handled here:
+ * - on_load: fired by AnimationManager when the overlay is rendered
+ * - on_show: fired by AnimationManager each time the card is attached
+ * - on_tap, on_hold, on_hover, on_leave, on_double_tap: the card's own event
+ *   handlers (ActionHelpers / the card's action setup) play them
+ * - on_datasource_change, on_state_change: accepted, no listener (logged)
  */
 
 import { lcardsLog } from '../../utils/lcards-logging.js';

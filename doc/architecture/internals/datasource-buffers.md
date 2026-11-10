@@ -6,7 +6,7 @@ Datasources use a buffer structure with **main buffers** and **processor buffers
 
 ## Buffer Structure
 
-Datasource data objects have the following structure (verified against `DataSource.js`'s emitted/returned shape):
+Datasource data objects have the following structure. Subscribers receive it from `DataSource._buildEmitData()` (`src/core/data-sources/DataSource.js:537`, the same shape for live, initial and periodic emits); `getCurrentData()` (`:798`) returns the same core fields:
 
 ```javascript
 {
@@ -16,9 +16,16 @@ Datasource data objects have the following structure (verified against `DataSour
     <processorKey>: <value>,  // Processor buffer 1
     <processorKey>: <value>,  // Processor buffer 2
     // ... additional processor buffers
-  }
+  },
+  buffer: <RollingBuffer>,      // The main buffer itself (all points)
+  stats: { ... },               // Counters (updates received, history loaded, ...)
+  entity: 'sensor.temperature', // The source entity
+  unit_of_measurement: '°F',    // From the config or the entity
+  historyReady: true            // History preload has added points
 }
 ```
+
+Emits add one flag on two occasions: `isInitialEmission: true` (the first emit after start, `_emitInitialData()`) and `isPeriodicUpdate: true` (the periodic re-emit of the last value). `getCurrentData()` has no `unit_of_measurement`, and adds `metadata`, `bufferSize` and `started`.
 
 ### Main Buffer (`v`)
 
@@ -37,7 +44,7 @@ const data = {
 
 ### Processor Buffers
 
-Processor buffers are named outputs from data processors. Each processor has a unique key:
+Processor buffers are named outputs from data processors. Each processor has a unique key. There are twelve processor types (`src/core/data-sources/processors/`: clamp, convert_unit, delta, duration, expression, rate, round, scale, smooth, statistics, threshold, trend); every one with its keys is in the [Processor Reference](../../core/datasources/processor-reference.md). A few examples:
 
 | Processor Type | Key | Example Value |
 |---------------|-----|---------------|

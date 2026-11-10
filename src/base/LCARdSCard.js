@@ -7,8 +7,9 @@
  * tracking, and entity/DataSource subscriptions.
  *
  * Philosophy:
- * - Card controls everything explicitly
- * - No auto-subscriptions or magic behaviour
+ * - The base tracks the entities a config references (primary entity, rules,
+ *   templates, triggers_update) and re-renders when they change
+ * - Anything else (extra entities, DataSources) the card subscribes to itself
  * - Helpers available when needed
  * - Clear, predictable lifecycle
  *
@@ -65,8 +66,9 @@ import { isSyntheticHass } from '../utils/synthetic-hass.js';
  * ### _renderCard()
  * Called on every render. Return card content HTML.
  *
- * ### _onRulePatchesChanged(patches)
- * Called when rule patches change. Use for:
+ * ### _onRulePatchesChanged()
+ * Called when rule patches change (no argument: read `this._lastRulePatches`;
+ * `this.config` already has the patches merged in). Use for:
  * - Re-resolving styles with new patches
  * - Triggering re-render
  * - Updating derived state
@@ -88,7 +90,7 @@ import { isSyntheticHass } from '../utils/synthetic-hass.js';
  *         this._resolveStyle();
  *     }
  *
- *     _onRulePatchesChanged(patches) {
+ *     _onRulePatchesChanged() {
  *         this._resolveStyle(); // Re-resolve with new patches
  *     }
  *
@@ -316,9 +318,6 @@ export class LCARdSCard extends LCARdSNativeCard {
         // CRITICAL: setConfig MUST be synchronous for Home Assistant!
         // Store raw config immediately, then process asynchronously
 
-        // Reset patch snapshot so next rule cycle gets a fresh base
-        this._baseConfig = null;
-
         // Store the untouched HA-supplied config so the theme-override handler
         // can re-run processConfig (which builds a fresh mergedConfig) without
         // losing the original theme: token strings that were already resolved.
@@ -334,6 +333,9 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Call parent with raw config immediately (synchronous)
         super.setConfig(config);
+
+        // Active rule patches apply to the new config too (fresh base snapshot)
+        this._rebaseRulePatches();
 
         // Start async config processing in background (don't await!)
         // Store the promise so subclasses can wait for it if needed
@@ -422,8 +424,10 @@ export class LCARdSCard extends LCARdSNativeCard {
                     return;
                 }
 
-                // Update internal config
+                // Update internal config; active rule patches stay applied on
+                // the new merged config (theme override, alert mode re-process)
                 this.config = result.mergedConfig;
+                this._rebaseRulePatches();
 
                 // Re-scan tracked entities now that we have the final merged config.
                 // This is the authoritative call for all card types — it covers primary
@@ -1630,10 +1634,40 @@ export class LCARdSCard extends LCARdSNativeCard {
             lcardsLog.debug(`[LCARdSCard] Unregistered overlay: ${this._overlayId}`);
         }
 
+        // Take the rule patches off the config: a re-registration snapshots the
+        // config as its base, so a patched config would make the patch stick
+        if (this._baseConfig) {
+            this.config = JSON.parse(JSON.stringify(this._baseConfig));
+            this._baseConfig = null;
+            this._provenanceTracker?.clearRulePatches();
+            if (this._lastRulePatches !== null && typeof this._onRulePatchesChanged === 'function') {
+                this._lastRulePatches = null;
+                this._onRulePatchesChanged();
+            }
+        }
+
         this._overlayId = null;
         this._overlayTags = [];
         this._lastRulePatches = null;
         this._overlayRegistered = false;
+    }
+
+    /**
+     * After this.config was replaced (setConfig, a config re-process), take the
+     * new config as the unpatched base and apply the active rule patches to it
+     * again. Without this the next rules callback sees the same patch, returns
+     * early, and the rule styling is gone until the patch changes.
+     * Only for the single-overlay patching in _applyRulePatches (the MSD keeps
+     * its own patch map and never sets _baseConfig).
+     * @protected
+     */
+    _rebaseRulePatches() {
+        if (!this._baseConfig || !this._lastRulePatches || !this.config) return;
+        this._baseConfig = JSON.parse(JSON.stringify(this.config));
+        this.config = deepMerge(JSON.parse(JSON.stringify(this._baseConfig)), this._lastRulePatches);
+        if (typeof this._onRulePatchesChanged === 'function') {
+            this._onRulePatchesChanged();
+        }
     }
 
     /**
@@ -1813,63 +1847,34 @@ export class LCARdSCard extends LCARdSNativeCard {
     }
 
     /**
-     * Merge base config style with active rule patches
+     * Merge a resolved style object with the active rule patches' `style`.
      *
-     * Rule patches have **highest priority** in the style resolution chain and will
-     * override any matching properties from the config style. This method should be
-     * called as the final step in your style resolution logic.
+     * Rule patches are config-shaped (`{ id, style, text, ... }`). The whole patch
+     * is already merged into `this.config` by `_applyRulePatches()`, so a style
+     * built from `this.config.style` carries it. This puts `patch.style` on top
+     * once more, after the card added its own defaults (theme tokens, state
+     * opacity), so a rule always wins over those. Other patched keys (`text`,
+     * `icon`, ...) are read from `this.config`.
      *
-     * **IMPORTANT:** This performs a DEEP MERGE of the entire patch config, not
-     * just the `style` property. This allows rules to patch any config property
-     * including `text.*`, `dpad.*`, `icon.*`, etc.
-     *
-     * **Style Resolution Priority (low to high):**
-     * 1. Preset styles
-     * 2. Config styles
-     * 3. Theme token resolution
-     * 4. State overrides
-     * 5. Rule patches (applied by this method)
-     *
-     * **Performance:**
-     * - Returns immediately if no rule patches active
-     * - Deep merge for nested objects (text, dpad, etc.)
-     * - No DOM interaction (pure computation)
-     *
-     * @param {Object} configStyle - Base style/config from preset/theme resolution
-     * @returns {Object} Merged config with rule patches applied (rules override config)
+     * @param {Object} configStyle - Style resolved from config, preset and theme
+     * @returns {Object} The style with the rule patches' `style` applied (rules win)
      *
      * @example
-     * // In your style resolution method:
-     * _resolveButtonStyle() {
-     *     // 1. Start with config
+     * _resolveStyle() {
      *     let style = { ...(this.config.style || {}) };
-     *
-     *     // 2. Apply preset
-     *     if (this.config.preset) {
-     *         const preset = this.getStylePreset('button', this.config.preset);
-     *         style = { ...preset, ...style };
-     *     }
-     *
-     *     // 3. Apply theme tokens
-     *     style = this.resolveStyle(style, ['colors.primary']);
-     *
-     *     // 4. Apply rule patches (highest priority - can patch ANY config property)
-     *     style = this._getMergedStyleWithRules(style); // Call this last
-     *
-     *     this._buttonStyle = style;
+     *     style = this._getMergedStyleWithRules(style); // call this last
+     *     this._cardStyle = style;
      *     this.requestUpdate();
      * }
      *
      * @protected
      */
     _getMergedStyleWithRules(configStyle = {}) {
-        if (!this._lastRulePatches) {
+        const patchStyle = this._lastRulePatches?.style;
+        if (!patchStyle || typeof patchStyle !== 'object') {
             return configStyle;
         }
-
-        // Deep merge entire patch into config (not just .style)
-        // This allows rules to patch text, dpad, icon, and other top-level properties
-        return deepMerge(configStyle, this._lastRulePatches);
+        return deepMerge(configStyle, patchStyle);
     }
 
     // ============================================================================
@@ -2948,33 +2953,6 @@ export class LCARdSCard extends LCARdSNativeCard {
             lcardsLog.warn(`[LCARdSCard] Preset fetch failed:`, error);
             return null;
         }
-    }
-
-    /**
-     * Resolve styles with theme tokens and state overrides
-     *
-     * @param {Object} baseStyle - Base style object
-     * @param {Array<string>} themeTokens - Array of theme token paths to apply
-     * @param {Object} stateOverrides - State-based style overrides
-     * @returns {Object} Resolved style object
-     */
-    resolveStyle(baseStyle = {}, themeTokens = [], stateOverrides = {}) {
-        let resolved = { ...baseStyle };
-
-        // Apply theme tokens
-        themeTokens.forEach(tokenPath => {
-            const value = this.getThemeToken(tokenPath);
-            if (value !== null && value !== undefined) {
-                // Extract property name from path (last segment)
-                const property = /** @type {string} */ (tokenPath.split('.').pop());
-                resolved[property] = value;
-            }
-        });
-
-        // Apply state overrides (highest priority)
-        resolved = { ...resolved, ...stateOverrides };
-
-        return resolved;
     }
 
     /**

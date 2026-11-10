@@ -3,10 +3,13 @@
  * build one headless): the objects, the placements over them, and the label
  * items for the points.
  *
- * Build order: objects that points can stand on (`grid`, `volume`,
- * `sphere`, `image`, `glow`), then the placements (generated points first, the
- * user's after, so a user point of the same id wins), then the line objects
- * that read points (`ring`, `path`, `beam`). Each object sits in an outer
+ * Build order: objects that points can stand on (every type but the line
+ * objects and `system`: `grid`, `volume`, `sphere`, `image`, `glow`, `belt`,
+ * `asteroid`, `comet`, `galaxy`, `lightning`, `crystalline`, and `nebula`,
+ * `cube`, `model` from their lazy chunks), then the placements (generated
+ * points first, the user's after, so a user point of the same id wins), then
+ * the line objects that read points (`ring`, `path`, `beam`, `trail`). An
+ * object without an id is `type#n` (names.js objectIds). Each object sits in an outer
  * group (its `at` position and `rotation`, turned along its point's travel
  * with `face: motion`, facing.js); the inner node spins.
  *
@@ -22,7 +25,7 @@ import { Placements } from './placements.js';
 import { labelItem } from './label-layer.js';
 import { resolveLabel, plainColor, selectedColor, fieldCss } from './label-text.js';
 import { TemplateDetector } from '../templates/TemplateDetector.js';
-import { MARKERS, OBJECT_TYPES, flattenSystems, systemScale, kmPerUnit } from './names.js';
+import { MARKERS, OBJECT_TYPES, flattenSystems, systemScale, kmPerUnit, objectIds } from './names.js';
 import { Frames, ROOT } from './frames.js';
 import { pointCard } from './card-layer.js';
 import { buildGrid } from './objects/grid.js';
@@ -45,7 +48,18 @@ import { Facing, spinTangent, axisFacing } from './facing.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
 
 export { OBJECT_TYPES };
-/** Builders of the objects points can stand on; line objects read points, so they come second */
+
+/**
+ * Whether an object's outer group takes its `rotation`: a real body turns
+ * itself (bodyTurn), so it gets none on top, on the first build and on a
+ * rebuild alike.
+ * @param {import('./objects/common.js').BuiltObject} b
+ * @param {any} cfg
+ */
+function takesRotation(b, cfg) {
+  return !b.onDate || cfg.body === undefined;
+}
+
 /**
  * A builder that notes every colour its object asks for (`colorInputs`), so
  * a theme change can tell which objects it changes (recolor.js) without
@@ -89,6 +103,7 @@ export function disposeBuilt(b) {
   disposeNode(b.node);
 }
 
+/** Builders of the objects points can stand on; line objects read points, so they come second */
 const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image: buildImage, glow: buildGlow, belt: buildBelt, asteroid: buildAsteroid, comet: buildComet, galaxy: buildGalaxy, lightning: buildLightning, crystalline: buildCrystalline };
 
 /**
@@ -218,16 +233,18 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   // the live map (a rebuilt object replaces its entry): lightning finds the nebulae it lights
   ctx.objects = () => objects;
   const cfgs = Array.isArray(config?.objects) ? config.objects.filter((o) => o && typeof o === 'object') : [];
-  const counts = /** @type {Record<string, number>} */ ({});
+  // An object without an id gets `type#n` (names.js objectIds: the bindings, the card and the
+  // runtime's patches name it the same way)
+  const generatedIds = objectIds(cfgs);
+  const sceneIds = new Map(cfgs.map((o, i) => [o, generatedIds[i]]));
 
   /** @type {Map<string, (cfg: any, ctx?: import('./objects/common.js').BuildContext) => import('./objects/common.js').BuiltObject>} how each object was built, by id */
   const builders = new Map();
   /** @param {any} cfg @param {(cfg: any, ctx?: import('./objects/common.js').BuildContext) => import('./objects/common.js').BuiltObject} raw */
   const add = (cfg, raw) => {
     const build = recordingColors(raw, ctx);
-    counts[cfg.type] = (counts[cfg.type] ?? 0) + 1;
-    // An object without an id gets `type#n` (its generated points stand on it)
-    if (cfg.id === undefined || cfg.id === null || cfg.id === '') cfg = { ...cfg, id: `${cfg.type}#${counts[cfg.type]}` };
+    // its generated points stand on its `type#n`
+    if (cfg.id === undefined || cfg.id === null || cfg.id === '') cfg = { ...cfg, id: sceneIds.get(cfg) };
     else if (objects.has(String(cfg.id))) lcardsLog.warn(`[Astrometrics] two objects with id '${cfg.id}': the later one wins in references`);
     let b;
     try {
@@ -238,8 +255,7 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
     }
     const g = new Group();
     g.name = `at:${b.id}`;
-    // a real body turns itself (bodyTurn): no rotation on top
-    if (!b.onDate || cfg.body === undefined) applyRotation(g, cfg);
+    if (takesRotation(b, cfg)) applyRotation(g, cfg);
     g.add(b.node);
     if (cfg.visible === false) g.visible = false;
     frames.get(cfg._system).node.add(g);
@@ -536,7 +552,7 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
       old.lines.forEach((l) => l.dispose());
       disposeNode(old.node);
       g.rotation.set(0, 0, 0);
-      applyRotation(g, cfg);
+      if (takesRotation(b, cfg)) applyRotation(g, cfg);
       g.visible = cfg.visible !== false;
       g.add(b.node);
       outer.delete(old);

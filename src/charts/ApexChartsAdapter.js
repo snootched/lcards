@@ -23,6 +23,7 @@ import { haFormatNumber } from '../utils/ha-entity-display.js';
 import { BUILTIN_THEMES_PACK } from '../core/packs/builtin-themes.js';
 import { resolveColor } from '../core/themes/resolve-color.js';
 import { isComputedColor } from '../core/themes/color-syntax.js';
+import { zonedParts } from './chart-span.js';
 
 /** Series colours used when a series sets its own colour and no palette is configured. */
 const DEFAULT_SERIES_COLORS = [
@@ -436,6 +437,7 @@ export class ApexChartsAdapter {
       size,
       names: (context.series ?? []).map(s => s.name ?? ''),
       span: context.span,
+      timeZone: context.timeZone,
       fontSize,
       valueFormatter
     });
@@ -492,7 +494,7 @@ export class ApexChartsAdapter {
 
     // Apply X-Axis Label Formatter
     if (style.formatters?.xaxis_label) {
-      const formatter = this._createLabelFormatter(style.formatters.xaxis_label, 'xaxis', context.hass);
+      const formatter = this._createLabelFormatter(style.formatters.xaxis_label, 'xaxis', context.hass, context.timeZone);
       if (!optionsWithTypeDefaults.xaxis) optionsWithTypeDefaults.xaxis = {};
       if (!optionsWithTypeDefaults.xaxis.labels) optionsWithTypeDefaults.xaxis.labels = {};
       optionsWithTypeDefaults.xaxis.labels.formatter = formatter;
@@ -511,7 +513,7 @@ export class ApexChartsAdapter {
 
     // Apply Tooltip Formatter
     if (style.formatters?.tooltip) {
-      const formatter = this._createTooltipFormatter(style.formatters.tooltip, context.hass);
+      const formatter = this._createTooltipFormatter(style.formatters.tooltip, context.hass, context.timeZone);
       if (!optionsWithTypeDefaults.tooltip) optionsWithTypeDefaults.tooltip = {};
       optionsWithTypeDefaults.tooltip.custom = formatter;
       lcardsLog.debug('[ApexChartsAdapter] Applied tooltip formatter:', style.formatters.tooltip);
@@ -667,6 +669,7 @@ export class ApexChartsAdapter {
    * @param {{start: number, end: number}|null} [layout.span] - Time window
    * @param {number} [layout.fontSize] - Label font size in px
    * @param {Function} [layout.valueFormatter] - Value label formatter (style.yaxis.decimals)
+   * @param {string} [layout.timeZone] - IANA zone time labels are read in (omitted = browser)
    * @returns {Object} ApexCharts options specific to chart type
    */
   static _getChartTypeDefaults(chartType, style, hass = null, layout = {}) {
@@ -717,7 +720,7 @@ export class ApexChartsAdapter {
           xaxis: { labels: { formatter: value } },
           // Timestamps are far above any plotted value, so only they become times.
           yaxis: { labels: { formatter: (val) => (typeof val === 'number' && val > 1e11
-            ? this._formatDate(val, timeFormat, hass)
+            ? this._formatDate(val, timeFormat, hass, layout.timeZone)
             : value(val)) } }
         };
       }
@@ -1247,15 +1250,16 @@ export class ApexChartsAdapter {
    * @param {string} format - Format template (e.g., "MMM DD", "{value}°C")
    * @param {string} axis - Axis type ('xaxis' or 'yaxis')
    * @param {Object} [hass] - Home Assistant instance for locale-aware formatting
+   * @param {string} [timeZone] - IANA zone dates are read in (omitted = browser)
    * @returns {Function} ApexCharts formatter function
    */
-  static _createLabelFormatter(format, axis, hass = null) {
+  static _createLabelFormatter(format, axis, hass = null, timeZone = undefined) {
     // Check if it's a date format (no braces) or value template
     if (!format.includes('{')) {
       // Assume date format for x-axis
       return function(val) {
         if (axis === 'xaxis' && typeof val === 'number') {
-          return ApexChartsAdapter._formatDate(val, format, hass);
+          return ApexChartsAdapter._formatDate(val, format, hass, timeZone);
         }
         return val;
       };
@@ -1278,9 +1282,10 @@ export class ApexChartsAdapter {
    * @private
    * @param {string} format - Format template (e.g., "{x|MMM DD}: {y}°C")
    * @param {Object} [hass] - Home Assistant instance for locale-aware formatting
+   * @param {string} [timeZone] - IANA zone dates are read in (omitted = browser)
    * @returns {Function} ApexCharts tooltip.custom function
    */
-  static _createTooltipFormatter(format, hass = null) {
+  static _createTooltipFormatter(format, hass = null, timeZone = undefined) {
     return function({ series, seriesIndex, dataPointIndex, w }) {
       const x = w.globals.seriesX[seriesIndex][dataPointIndex];
       const y = series[seriesIndex][dataPointIndex];
@@ -1290,9 +1295,9 @@ export class ApexChartsAdapter {
       // {x|format} formats the x value as a date; plain {x} uses a default format
       const xMatch = output.match(/\{x\|([^}]+)\}/);
       if (xMatch) {
-        output = output.replace(xMatch[0], ApexChartsAdapter._formatDate(x, xMatch[1], hass));
+        output = output.replace(xMatch[0], ApexChartsAdapter._formatDate(x, xMatch[1], hass, timeZone));
       } else if (output.includes('{x}')) {
-        const formattedX = typeof x === 'number' ? ApexChartsAdapter._formatDate(x, 'MMM DD HH:mm', hass) : x;
+        const formattedX = typeof x === 'number' ? ApexChartsAdapter._formatDate(x, 'MMM DD HH:mm', hass, timeZone) : x;
         output = output.replace('{x}', formattedX);
       }
 
@@ -1320,39 +1325,44 @@ export class ApexChartsAdapter {
    * @param {number|Date} timestamp - Timestamp (ms) or Date
    * @param {string} format - Format string (e.g., "MMM DD", "HH:mm", "YYYY-MM-DD HH:mm")
    * @param {Object} [hass] - Home Assistant instance (locale for month/day names)
+   * @param {string} [timeZone] - IANA zone the date is read in (omitted = browser)
    * @returns {string} Formatted date string
    */
-  static _formatDate(timestamp, format, hass = null) {
+  static _formatDate(timestamp, format, hass = null, timeZone = undefined) {
     const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
     if (isNaN(date.getTime())) {
       return String(timestamp);
     }
 
     const locale = hass?.locale?.language ?? 'en';
-    const name = (options) => new Intl.DateTimeFormat(locale, options).format(date);
+    const name = (options) => new Intl.DateTimeFormat(locale, timeZone ? { ...options, timeZone } : options).format(date);
     const pad = (n) => String(n).padStart(2, '0');
-    const hours = date.getHours();
+    const f = timeZone
+      ? zonedParts(date.getTime(), timeZone)
+      : { year: date.getFullYear(), month: date.getMonth() + 1, day: date.getDate(),
+          hour: date.getHours(), minute: date.getMinutes(), second: date.getSeconds() };
+    const hours = f.hour;
     const hours12 = hours % 12 || 12;
 
     const tokens = {
-      YYYY: () => String(date.getFullYear()),
-      YY: () => String(date.getFullYear()).slice(-2),
+      YYYY: () => String(f.year),
+      YY: () => String(f.year).slice(-2),
       MMMM: () => name({ month: 'long' }),
       MMM: () => name({ month: 'short' }),
-      MM: () => pad(date.getMonth() + 1),
-      M: () => String(date.getMonth() + 1),
+      MM: () => pad(f.month),
+      M: () => String(f.month),
       dddd: () => name({ weekday: 'long' }),
       ddd: () => name({ weekday: 'short' }),
-      DD: () => pad(date.getDate()),
-      D: () => String(date.getDate()),
+      DD: () => pad(f.day),
+      D: () => String(f.day),
       HH: () => pad(hours),
       H: () => String(hours),
       hh: () => pad(hours12),
       h: () => String(hours12),
-      mm: () => pad(date.getMinutes()),
-      m: () => String(date.getMinutes()),
-      ss: () => pad(date.getSeconds()),
-      s: () => String(date.getSeconds()),
+      mm: () => pad(f.minute),
+      m: () => String(f.minute),
+      ss: () => pad(f.second),
+      s: () => String(f.second),
       A: () => (hours >= 12 ? 'PM' : 'AM'),
       a: () => (hours >= 12 ? 'pm' : 'am')
     };

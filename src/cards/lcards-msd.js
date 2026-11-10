@@ -34,6 +34,18 @@ import { resolveColor } from '../core/themes/resolve-color.js';
  * - Provenance tracking via inherited _provenanceTracker
  * - Theme token resolution via inherited helpers
  */
+/**
+ * The text of a pipeline issue: a string, or an object with `message` (or the
+ * older `msg`).
+ * @param {any} issue
+ * @returns {string}
+ */
+export function msdIssueText(issue) {
+    if (issue == null) return '';
+    if (typeof issue === 'string') return issue;
+    return issue.message || issue.msg || issue.code || String(issue);
+}
+
 export class LCARdSMSDCard extends LCARdSCard {
 
     /** Card type identifier for CoreConfigManager */
@@ -233,17 +245,8 @@ export class LCARdSMSDCard extends LCARdSCard {
             lcardsLog.trace(`[LCARdSMSDCard] Applied config ID to element: ${this.id}`);
         }
 
-        // Re-detect preview mode now that we're in the DOM
-        // setConfig() is called before element is mounted, so parentElement was null
-        const newPreviewMode = this._detectPreviewMode();
-        if (newPreviewMode !== this._isPreviewMode) {
-            lcardsLog.debug('[LCARdSMSDCard] Preview mode re-detected after mount:', {
-                before: this._isPreviewMode,
-                after: newPreviewMode
-            });
-            this._isPreviewMode = /** @type {any} */ (newPreviewMode);
-            this.requestUpdate(); // Trigger re-render with correct mode
-        }
+        // Preview mode is detected again by LCARdSNativeCard.connectedCallback()
+        // (it calls this card's _detectPreviewMode())
     }
 
     /**
@@ -1213,7 +1216,10 @@ export class LCARdSMSDCard extends LCARdSCard {
 
             if (!pipelineResult || !pipelineResult.enabled) {
                 lcardsLog.error('[LCARdSMSDCard] Pipeline initialization failed or disabled');
-                this._configIssues = pipelineResult?.issues || { errors: ['Pipeline initialization failed'] };
+                this._configIssues = pipelineResult?.issues
+                    || (pipelineResult?.errors?.length
+                        ? { errors: pipelineResult.errors, warnings: pipelineResult.warnings || [] }
+                        : { errors: ['Pipeline initialization failed'] });
                 this._msdInitialized = false;  // Reset on failure
                 this.requestUpdate();
                 return;
@@ -1370,7 +1376,7 @@ export class LCARdSMSDCard extends LCARdSCard {
                         <ul style="margin: 4px 0; padding-left: 20px;">
                             ${errors.map(err => html`
                                 <li style="color: var(--primary-text-color); margin: 4px 0;">
-                                    ${err.message || err}
+                                    ${msdIssueText(err)}
                                 </li>
                             `)}
                         </ul>
@@ -1382,7 +1388,7 @@ export class LCARdSMSDCard extends LCARdSCard {
                         <ul style="margin: 4px 0; padding-left: 20px;">
                             ${warnings.map(warn => html`
                                 <li style="color: var(--primary-text-color); margin: 4px 0;">
-                                    ${warn.message || warn}
+                                    ${msdIssueText(warn)}
                                 </li>
                             `)}
                         </ul>
@@ -2181,7 +2187,7 @@ export class LCARdSMSDCard extends LCARdSCard {
      */
     _onAlertModeChanged(_mode) {
         this._refreshBackgroundAnimationColors();
-        const hass = this.hass ?? this._msdPipeline?.coordinator?.hass;
+        const hass = this.hass ?? this._msdPipeline?.coordinator?.getHass?.();
         this._msdPipeline?.coordinator?.renderer?.updateLineEntityColors?.(hass, { all: true });
     }
 

@@ -1,209 +1,165 @@
 # Systems Architecture
 
-The diagram below shows how LCARdS cards, core singletons, and Home Assistant relate at runtime.
+> **How the pieces fit at runtime**: the Python integration, the one JavaScript bundle it loads into every Home Assistant page, the core singletons on `window.lcards.core`, and the cards, view and strategy on a dashboard.
+
+---
+
+## Runtime overview
 
 ```mermaid
-graph LR
+flowchart LR
     subgraph HA["Home Assistant"]
-        HACore[HA Core]
-        subgraph Integration["custom_components/lcards/ (HACS Integration)"]
-            IntPy["Python backend\nasync_setup / setup_entry\nWebSocket API"]:::integrationStyle
+        HACore["Home Assistant Core<br/>states, services, events"]
+        subgraph Integration["custom_components/lcards/ (custom integration)"]
+            Front["frontend.py<br/>static paths, add_extra_js_url"]:::integrationStyle
+            WS["websocket_api.py<br/>lcards/info, lcards/subscribe,<br/>lcards/storage/*"]:::integrationStyle
+            Svc["services.py<br/>lcards.* actions"]:::integrationStyle
+        end
+        HAFront["Home Assistant frontend<br/>home-assistant element, hass object,<br/>hui-card"]
+    end
+
+    subgraph Browser["LCARdS bundle (/lcards/lcards.js, main chunk)"]
+        subgraph CORE["LCARdSCore (window.lcards.core)"]
+            SysMgr["systemsManager"]:::coreStyle
+            Rules["rulesManager"]:::coreStyle
+            Theme["themeManager"]:::coreStyle
+            Data["dataSourceManager"]:::coreStyle
+            Anim["animationManager"]:::coreStyle
+            IntSvc["integrationService"]:::coreStyle
+            Other["... 15 more services"]:::coreStyle
+        end
+        subgraph DASHBOARD["Dashboard elements"]
+            Cards(["LCARdSCard cards<br/>button, elbow, slider, chart,<br/>data grid, select menu,<br/>astrometrics, MSD"]):::lcardsStyle
+            Lit(["LitElement cards<br/>layout card, alert overlay"]):::lcardsStyle
+            View(["lcards-layout-view"]):::lcardsStyle
+            Strat(["lcars-shell strategy"]):::lcardsStyle
         end
     end
 
-    subgraph CORE["LCARdS Core (window.lcards.core.*)"]
-        direction LR
-        CoreIntSvc[Integration Service]:::coreStyle
-        CoreRules[Rules Engine]:::coreStyle
-        CoreThemes[Theme Manager]:::coreStyle
-        CoreData[Data Source Manager]:::coreStyle
-        CoreSystemsMgr[Systems Manager]:::coreStyle
-        CoreAnim[Animation Manager]:::coreStyle
-        CoreOther[...other core systems]:::coreStyle
-    end
-
-    subgraph DASHBOARD["Dashboard"]
-        Button([LCARdS Button Card]):::lcardsStyle
-        Elbow(["LCARdS Elbow Card"]):::lcardsStyle
-        Slider([LCARdS Slider Card]):::lcardsStyle
-        Chart([LCARdS Chart Card]):::lcardsStyle
-        Grid([LCARdS Data Grid Card]):::lcardsStyle
-        AlertOverlay([LCARdS Alert Overlay Card]):::lcardsStyle
-        subgraph MSD[LCARdS MSD Card]
-            Card1([HA Cards]):::lcardsStyle
-            MSDLCARdS([LCARdS Cards]):::lcardsStyle
-        end
-    end
-
-    IntPy 0@-..->|"injects lcards.js"| CORE
-    HACore 1@-..-CoreSystemsMgr
-    IntPy 2@-..->|"lcards/info WS"| CoreIntSvc
-    CoreIntSvc 3@-.- CoreRules
-    CORE 4@-...- Button
-    CORE 5@-.- Slider
-    CORE 6@-.- Chart
-    CORE 7@-.- Elbow
-    CORE 8@-.- Grid
-    CORE 9@-.- AlertOverlay
-    CORE 10@-.- MSD
-    CORE 11@-.- MSDLCARdS
-
-    0@{ animate: slow }
-    1@{ animate: slow }
-    2@{ animate: slow }
-    3@{ animate: slow }
-    4@{ animate: slow }
-    5@{ animate: slow }
-    6@{ animate: slow }
-    7@{ animate: slow }
-    8@{ animate: slow }
-    9@{ animate: slow }
-    10@{ animate: slow }
-    11@{ animate: slow }
-
-    linkStyle 0,2 stroke:#37a6d1,stroke-width:3px
-    linkStyle 1,3,4,5,6,7,8,9,10,11 stroke:#00eeee,stroke-width:3px
+    Front -->|"injects /lcards/lcards.js"| Browser
+    HAFront -->|"hass"| Cards
+    HAFront -->|"hass"| Lit
+    HAFront -->|"hass, lovelace, cards"| View
+    Strat -->|"generate(): views"| HAFront
+    Cards -->|"ingestHass() when its entities change"| CORE
+    HAFront -.->|"500 ms poll while no card is registered"| CORE
+    Rules -->|"state_changed subscription"| HACore
+    Cards -->|"callService()"| HACore
+    IntSvc <-->|"WebSocket commands"| WS
+    Svc -->|"lcards_event push"| IntSvc
 
     classDef lcardsStyle fill:#ffb399,stroke:#e7442a,color:#000
-    classDef coreStyle fill:#6d748c,stroke:#d2d5df
+    classDef coreStyle fill:#6d748c,stroke:#d2d5df,color:#fff
     classDef integrationStyle fill:#1c3c55,stroke:#37a6d1,color:#fff
 
     style HA fill:#162535,stroke:#37a6d1,color:#fff
     style Integration fill:#1c3c55,stroke:#37a6d1,color:#fff
     style HACore fill:#37a6d1,stroke:#93e1ff,color:#fff
-
-    style CORE fill:#1e2229,stroke:#2f3749
-
-    style DASHBOARD fill:#2f3749,stroke:#52596e
-    style MSD fill:#e7442a,stroke:#ffb399,color:#fff
+    style HAFront fill:#37a6d1,stroke:#93e1ff,color:#fff
+    style Browser fill:#1e2229,stroke:#2f3749,color:#fff
+    style CORE fill:#2f3749,stroke:#52596e,color:#fff
+    style DASHBOARD fill:#2f3749,stroke:#52596e,color:#fff
 ```
 
----
-
-## Core Services
-
-These services start on page load and become accessible to all LCARdS cards via **`window.lcards.core.*`**. Cards interact with them transparently; they do not need to implement any of this themselves.
-
-| Service | `window.lcards.core.*` | What it does |
-|---|---|---|
-| **Integration Service** | `integrationService` | Probes the Home Assistant Python backend on startup; sets `available` flag and `capabilities` Set so other services can gate on backend APIs. Falls back gracefully when the integration is absent. Exposes `onReady()` Promise API. |
-| **Systems Manager** | `systemsManager` | Centralised entity state subscriptions; cards register interest and receive smart push notifications; no duplicate subscriptions |
-| **DataSource Manager** | `dataSourceManager` | Named data buffers tied to entities; records history, runs processing pipelines (moving average, min/max, aggregation) and notifies subscribers |
-| **Rules Engine** | `rulesManager` | Evaluates conditions and hot-patches LCARd styles at runtime; target any card by tag, type, or ID |
-| **Theme Manager** | `themeManager` | Token-based theming (colours, spacing, borders, and more); resolves theme tokens in any card field. Also owns alert-mode state (`setAlertMode()` / `getAlertMode()`): coordinated alert states (green / red / yellow / blue / gray / black) that drive palette shifts and are driven by `input_select.lcards_alert_mode` |
-| **Animation Manager** | `animationManager` | Coordinates Anime.js v4 animations; provides built-in configurable presets or accepts custom anime.js parameters |
-| **Sound Manager** | `soundManager` | LCARS-style audio feedback for card interactions and UI events; configurable scheme with per-event overrides; supports per-user and per-device scope via ScopedSettingsService |
-| **Style Preset Manager** | `stylePresetManager` | Central registry of named style presets for buttons, sliders, elbows; consumed from packs |
-| **Component Manager** | `componentManager` | Registry of SVG component definitions (D-pad, Alert, custom shapes) used in button component mode |
-| **Asset Manager** | `assetManager` | Loads and caches SVG and font assets for use across cards |
-| **Pack Manager** | `packManager` | Loads and distributes content from packs (themes, presets, animations, assets, etc.) to appropriate managers at startup |
-| **Helper Manager** | `helperManager` | Manages LCARdS and HA-LCARS `input_*` helper entities; auto-create from LCARdS Config Panel |
-| **Device Identity Manager** | `deviceIdentityManager` | Stable per-browser UUID + display name; heartbeat registration to backend; supports `?lcards_device=` URL param |
-| **Scoped Settings Service** | `scopedSettingsService` | Three-tier waterfall (Device → User → Global) for any LCARdS setting; requires backend `scoped_storage` capability; graceful degradation |
-| **Screen Effect Manager** | `screenEffectManager` | Full-screen composited canvas effect layer (blur, static, glitch, vignette, etc.); accessible via Home Assistant services, console, and card config |
-| **Portal Overlay Manager** | `portalOverlayManager` | Shared portal overlay lifecycle engine for dialogs and modal card overlays rendered above the dashboard |
-| **Connection Overlay Service** | `connectionOverlayService` | Monitors Home Assistant WebSocket health and shows a full-screen connection-lost overlay when the frontend loses server contact |
-
-**Template Support**: any text field in any card supports four syntaxes (JS `[[[...]]]`, LCARdS tokens `{...}`, DataSource `{ds:...}`, Jinja2 `{{...}}`), orchestrated by `UnifiedTemplateEvaluator`. See [Template System](subsystems/template-system.md) for the full reference.
+- **Loading.** `frontend.py` serves the integration folder at `/lcards` and registers `/lcards/lcards.js` with `add_extra_js_url()`, so the bundle loads on every Home Assistant page without a Lovelace resource. `lcards.js` is a small loader stub that imports the hashed main chunk (`chunks/lcards-main-*.js`); editors, studios, the config panel, the grid edit overlay, ApexCharts and three.js are lazy chunks. See [Home Assistant Integration: Bundle and Loading](ha-integration.md#bundle-and-loading).
+- **Core start.** `src/lcards-main.js` calls `lcardsCore.initialize(stubHass)` when the main chunk runs and defines the card elements only after it resolves; the view element and the strategy element are defined at module top level (Home Assistant's strategy resolver waits only a short time). The 30 initialization steps are listed in [Core Subsystems: Initialization Order](subsystems/index.md#initialization-order).
+- **HASS.** Home Assistant sets `hass` on each card. An `LCARdSCard` forwards it to `window.lcards.core.ingestHass()` only on its first HASS or when one of its own entities changed; the core then pushes it to its services once per microtask. While no card is registered (or a portal overlay shows content) the core polls `document.querySelector('home-assistant').hass` every 500 ms instead. See [HASS distribution](subsystems/index.md#hass-distribution) and [Card Foundation: HASS flow](cards/lcards-card-foundation.md#hass-flow).
+- **Rules** subscribe to Home Assistant `state_changed` events themselves (one subscription for the page), so rule entities update even when no card forwarded the change ([Rules Engine](subsystems/rules-engine.md)).
+- **Backend channel.** `integrationService` probes `lcards/info` on the first HASS with a connection, then subscribes to the `lcards_event` push channel through `lcards/subscribe` (Home Assistant's own `subscribe_events` is admin-only for custom event types). The `lcards.*` actions (alert mode, reload, screen effects, sound, Borg, astrometrics) reach the browsers this way. See [Integration Service](subsystems/integration-service.md) and [Home Assistant Services: Implementation Notes](internals/ha-services.md).
+- **Actions.** Each card has its own `LCARdSActionHandler` (there is no core action handler); service calls go through `LCARdSCard.callService()` ([Action Handler](subsystems/action-handler.md)).
 
 ---
 
-## Pack System
+## What runs where
 
-Packs are the extensibility mechanism that distributes themes, presets, animations, and assets to the core managers.
+| Element | Class (file under `src/`) | Base | Architecture page |
+|---|---|---|---|
+| `lcards-button`, `lcards-elbow`, `lcards-slider` | `LCARdSButton`, `LCARdSElbow`, `LCARdSSlider` (`cards/`) | `LCARdSCard` (elbow and slider extend the button) | [Card Foundation](cards/lcards-card-foundation.md) |
+| `lcards-chart` | `LCARdSChart` (`cards/lcards-chart.js`, `charts/`) | `LCARdSCard` | [Charts](charts.md) |
+| `lcards-data-grid` | `LCARdSDataGrid` (`cards/lcards-data-grid.js`, `data-grid/`) | `LCARdSCard` | [Card Foundation](cards/lcards-card-foundation.md) |
+| `lcards-select-menu` | `LCARdSSelectMenu` (`cards/lcards-select-menu.js`) | `LCARdSCard` | [Card Foundation](cards/lcards-card-foundation.md) |
+| `lcards-astrometrics-card` | `LCARdSAstrometricsCard` (`cards/lcards-astrometrics-card.js`, `core/astrometrics/`) | `LCARdSCard` | [Astrometrics](astrometrics.md) |
+| `lcards-msd-card` | `LCARdSMSDCard` (`cards/lcards-msd.js`, `msd/`) | `LCARdSCard` | [MSD Pipeline](msd/) |
+| `lcards-layout-card` | `LCARdSLayoutCard` (`cards/lcards-layout-card.js`) | `LitElement` | [Layout View and Layout Card](layout-view.md) |
+| `lcards-alert-overlay` | `LCARdSAlertOverlay` (`cards/lcards-alert-overlay.js`) | `LitElement` | [Screen Effects](subsystems/screen-effects.md), [Portal Overlay Manager](subsystems/portal-overlay-manager.md) |
+| `lcards-layout-view` (view type `custom:lcards-layout-view`) | `LCARdSLayoutView` (`views/lcards-layout-view.js`) | `LitElement` | [Layout View and Layout Card](layout-view.md) |
+| `ll-strategy-dashboard-lcars-shell` (strategy `custom:lcars-shell`) | `LCARdSShellDashboardStrategy` (`strategies/lcards-shell-strategy.js`) | `HTMLElement` | [Shell Strategy](shell-strategy.md) |
+
+All elements are registered in `src/lcards-main.js`, each behind a `customElements.get()` guard. The card picker entries are one guarded push of `LCARdSCardClasses` into `window.customCards`; the strategy is listed in `window.customStrategies` for Home Assistant's New Dashboard picker.
+
+---
+
+## Core services
+
+`window.lcards.core` is the `LCARdSCore` instance (`src/core/lcards-core.js`). It creates these services once and exposes each as a property. Each one is documented in [Core Subsystems](subsystems/), which also has the full initialization table.
+
+| Area | Services (`window.lcards.core.*`) |
+|---|---|
+| Entities and overlays | [`systemsManager`](subsystems/systems-manager.md) (entity cache, subscriptions, card and overlay registries) |
+| Data | [`dataSourceManager`](subsystems/datasource-system.md) (named buffers with processors) |
+| Rules | [`rulesManager`](subsystems/rules-engine.md) (one engine for every rule on the page) |
+| Theming | [`themeManager`](subsystems/theme-system.md) (tokens, alert modes), [`stylePresetManager`](subsystems/style-preset-manager.md), [`componentManager`](subsystems/component-manager.md) |
+| Animation | [`animationManager`](subsystems/animation-manager.md), [`performanceMonitor`](subsystems/index.md#performance-monitor) (FPS watch for canvas backgrounds) |
+| Config | [`validationService`](subsystems/validation-service.md), [`configManager`](subsystems/config-manager.md) (merge pipeline with provenance) |
+| Assets and packs | [`assetManager`](subsystems/asset-manager.md), [`packManager`](subsystems/pack-system.md) |
+| Helpers and sound | [`helperManager`](subsystems/helper-manager.md) (LCARdS `input_*` helpers, alert-mode auto-switch), [`soundManager`](subsystems/sound-system.md) |
+| Screen | [`screenEffectManager`](subsystems/screen-effects.md), [`borgAssimilationManager`](subsystems/borg-assimilation.md), [`portalOverlayManager`](subsystems/portal-overlay-manager.md), [`connectionOverlayService`](subsystems/connection-overlay.md) |
+| Backend | [`integrationService`](subsystems/integration-service.md), [`deviceIdentityManager`](subsystems/device-identity.md), [`scopedSettingsService`](subsystems/scoped-settings.md) |
+
+The template evaluator is not a singleton: `UnifiedTemplateEvaluator` is created per use ([Template System](subsystems/template-system.md)). There is no `actionHandler` and no `animationRegistry` on the core: action handlers are per card, and the animation presets are a module registry (`src/core/animation/presets.js`).
+
+---
+
+## Packs
+
+Packs are plain JavaScript objects bundled with LCARdS that fill the registries at startup. There is no external or user pack loader.
 
 ```mermaid
-flowchart TB
-    subgraph BuiltinPacks["<b>Builtin Packs</b>"]
-        P1["lcards_buttons<br/>v2026.x.y<br/><br/><code>- style_presets [buttons]</code>"]:::builtinPacksStyle
-        P2["lcards_sliders<br/>v2026.x.y<br/><br/><code>- style_presets [sliders]</code>"]:::builtinPacksStyle
-        P3["builtin_themes<br/>v2026.x.y<br/><br/><code>- themes</code>"]:::builtinPacksStyle
-        P4["lcars_fx<br/>v2026.x.y<br/><br/><code>- animations<br/>- rules</code>"]:::builtinPacksStyle
+flowchart LR
+    subgraph Packs["Built-in packs (src/core/packs/)"]
+        Req["Requested by the core:<br/>core, lcards_buttons,<br/>lcards_sliders, builtin_themes"]:::builtinPacksStyle
+        Always["Always loaded:<br/>builtin_msd_backgrounds, core_fonts,<br/>lcards_sounds_default, lcards_beeps,<br/>lcards_alerts, lcards_elbows,<br/>lcards_textures, lcards_images,<br/>lcards_power"]:::builtinPacksStyle
     end
-
-    subgraph ExternalPacks["<b>External/User Packs</b>"]
-        E1["ds9_pack<br/>v2.0.0<br/><br/><code>- themes<br/>- style_presets<br/>- svg_assets<br/>- animations</code>"]:::externalPacksStyle
-        E2["voyager_pack<br/>v1.5.0<br/><br/><code>- themes<br/>- font_assets<br/>- rules</code>"]:::externalPacksStyle
-        E3["msd_collection<br/>v1.0.0<br/><br/><code>- svg_assets<br/>- animations</code>"]:::externalPacksStyle
-    end
-
-    subgraph PackMgr["<b>PackManager</b>"]
-        PM[Pack Loader &<br/>Content Distributor]
-    end
-
-    subgraph CoreSystems["<b>Core Systems</b>"]
-        TM[ThemeManager<br/>Theme tokens]:::coreStyle
-        SPM[StylePresetManager<br/>Button & slider presets]:::coreStyle
-        CM[ComponentManager<br/>SVG components]:::coreStyle
-        RE[RulesEngine<br/>Conditional rules]:::coreStyle
-        AM[AssetManager<br/>SVG & font assets]:::coreStyle
-    end
-
-    P1 0@--- PM
-    P2 1@--- PM
-    P3 2@--- PM
-    P4 3@--- PM
-    E1 4@--- PM
-    E2 5@--- PM
-    E3 6@--- PM
-
-    PM 7@---|themes| TM
-    PM 8@---|style_presets| SPM
-    PM 9@---|components| CM
-    PM 10@---|rules| RE
-    PM 11@---|svg_assets<br/>font_assets| AM
-
-    TM 12@-.- Cards([LCARdS Cards])
-    SPM 13@-.- Cards
-    CM 14@-.- Cards
-    RE 15@-.- Cards
-    AM 16@-.- Cards
-
-    0@{ animate: slow }
-    1@{ animate: slow }
-    2@{ animate: slow }
-    3@{ animate: slow }
-    4@{ animate: slow }
-    5@{ animate: slow }
-    6@{ animate: slow }
-    7@{ animate: slow }
-    8@{ animate: slow }
-    9@{ animate: slow }
-    10@{ animate: slow }
-    11@{ animate: slow }
-    12@{ animate: slow }
-    13@{ animate: slow }
-    14@{ animate: slow }
-    15@{ animate: slow }
-    16@{ animate: slow }
-
-    linkStyle 0,1,2,3 stroke:#67caf0,stroke-width:3px
-    linkStyle 4,5,6 stroke:#f9ef97,stroke-width:3px
-    linkStyle 7,8,9,10,11 stroke:#00eeee,stroke-width:3px,color:#fff
-    linkStyle 12,13,14,15,16 stroke:#ffb399,stroke-width:3px
-
-    style BuiltinPacks fill:#2f3749,stroke:#52596e
-    style ExternalPacks fill:#2f3749,stroke:#52596e
-    style CoreSystems fill:#1e2229,stroke:#2f3749
-    style Cards fill:#e7442a,stroke:#ffb399,color:#fff
-    style PM fill:#1c3c55,stroke:#37a6d1,color:#fff
-    style PackMgr fill:#2f3749,stroke:#52596e
+    LBP["loadBuiltinPacks()<br/>(also registerBuiltinAnimationPresets())"]
+    PM["PackManager.registerPack(pack)"]
+    Req --> LBP
+    Always --> LBP
+    LBP --> PM
+    PM -->|"themes"| TM["themeManager"]:::coreStyle
+    PM -->|"style_presets"| SPM["stylePresetManager"]:::coreStyle
+    PM -->|"rules"| RE["rulesManager"]:::coreStyle
+    PM -->|"svg, font, audio,<br/>image, model assets"| AM["assetManager"]:::coreStyle
+    PM -->|"sound_schemes"| SM["soundManager"]:::coreStyle
+    PM -->|"components"| CM["componentManager"]:::coreStyle
+    TM --> UI(["Cards, editors, config panel"])
+    SPM --> UI
+    RE --> UI
+    AM --> UI
+    SM --> UI
+    CM --> UI
 
     classDef builtinPacksStyle fill:#2a7193,stroke:#67caf0,color:#fff
-    classDef externalPacksStyle fill:#ac943b,stroke:#f9ef97,color:#fff
-    classDef coreStyle fill:#2f3749,stroke:#52596e
+    classDef coreStyle fill:#2f3749,stroke:#52596e,color:#fff
+    style Packs fill:#2f3749,stroke:#52596e,color:#fff
+    style PM fill:#1c3c55,stroke:#37a6d1,color:#fff
+    style LBP fill:#1c3c55,stroke:#37a6d1,color:#fff
+    style UI fill:#e7442a,stroke:#ffb399,color:#fff
 ```
 
-See [Pack System](subsystems/pack-system.md) for the full developer reference.
+- `PackManager.loadBuiltinPacks()` (`src/core/PackManager.js`) is called once, from `LCARdSCore._performInitialization()`, with `CORE_REQUESTED_PACK_IDS`; `loadBuiltinPacks()` (`src/core/packs/loadBuiltinPacks.js`) adds the always-loaded packs, so 14 packs are registered.
+- Animation presets do not come from packs: `registerBuiltinAnimationPresets()` fills the preset registry in `src/core/animation/presets.js`.
+- The `rules` key is supported, but no built-in pack ships rules today.
+
+What each pack holds and how to add one: [Pack System](subsystems/pack-system.md).
 
 ---
 
-## Further Reading
+## Further reading
 
-- [Home Assistant Integration Architecture](ha-integration.md)
-- [Integration Service](subsystems/integration-service.md)
-- [Pack System](subsystems/pack-system.md)
+- [Architecture overview](./) (every page in this section)
+- [Home Assistant Integration](ha-integration.md)
+- [Card Foundation](cards/lcards-card-foundation.md)
+- [Core Subsystems](subsystems/)
 - [Template System](subsystems/template-system.md)
 - [Background Animation System](internals/background-animation-system.md)
 - [Shape Texture System](internals/shape-texture-system.md)
-- [Sound System](subsystems/sound-system.md)

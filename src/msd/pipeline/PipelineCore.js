@@ -469,6 +469,7 @@ function createDisabledPipeline(mergedConfig, issues, provenance, fullUserConfig
 
   const disabledPipeline = {
     enabled: false,
+    issues: { errors: issues.errors, warnings: issues.warnings },
     errors: issues.errors,
     warnings: issues.warnings,
     html: errorHtml,
@@ -480,8 +481,6 @@ function createDisabledPipeline(mergedConfig, issues, provenance, fullUserConfig
     getResolvedModel: () => null,
     ingestHass: () => {},
     updateEntities: () => {},
-    listEntities: () => [],
-    getEntity: () => null,
     getActiveProfiles: () => [],
     getAnchors: () => (mergedConfig.anchors || {}),
     repairAnchorsFromMerged: () => false
@@ -708,7 +707,6 @@ function createPipelineApi(mergedConfig, cardModel, coordinator, modelBuilder, r
     // Core systems
     coordinator,
     dataSourceManager: coordinator.dataSourceManager,
-    rulesEngine: coordinator.rulesEngine,
     renderer: coordinator.renderer,
     router: coordinator.router,
     validationService: coordinator.validationService,
@@ -779,8 +777,6 @@ function createPipelineApi(mergedConfig, cardModel, coordinator, modelBuilder, r
     },
 
     updateEntities: (map) => coordinator.updateEntities(map),
-    listEntities: () => coordinator.entityRuntime.listIds(),
-    getEntity: (id) => coordinator.entityRuntime.getEntity(id),
     getActiveProfiles: () => [],
     getAnchors: () => ({ ...cardModel.anchors }),
 

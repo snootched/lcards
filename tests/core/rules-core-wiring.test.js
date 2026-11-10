@@ -105,3 +105,20 @@ test('R9: warnings never invalidate a result (no strict mode); the MSD pipeline 
     const pipeline = readFileSync(new URL('../../src/msd/pipeline/PipelineCore.js', import.meta.url), 'utf8');
     assert.doesNotMatch(pipeline, /validationService\.config\.\w+\s*=/);
 });
+
+test('D3c RC2: removing the last rule still runs the callbacks, so a card takes its patch off', async () => {
+    const engine = lcardsCore.rulesManager;
+    engine.setCardRules('rc-guid', [{ id: 'rc-last', when: { entity: 'light.x', state: 'on' }, apply: {} }]);
+    await new Promise(resolve => setTimeout(resolve, 5));
+    let calls = 0;
+    const callback = () => { calls++; };
+    engine.setReEvaluationCallback(callback);
+    try {
+        engine.setCardRules('rc-guid', []);
+        assert.equal(engine.dirtyRules.size, 0, 'nothing left dirty');
+        await new Promise(resolve => setTimeout(resolve, 5));
+        assert.equal(calls, 1, 'the callback ran once for the removal');
+    } finally {
+        engine.removeReEvaluationCallback(callback);
+    }
+});

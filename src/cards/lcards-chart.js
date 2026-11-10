@@ -39,8 +39,8 @@ import { lcardsLog } from '../utils/lcards-logging.js';
 import {
   buildChartOptions,
   buildApexSeries,
+  timeAxisData,
   chartStyleDefaults,
-  windowAxis,
   CHART_CARD_DEFAULTS
 } from '../charts/chart-options-builder.js';
 import { ChartSeriesFetcher } from '../charts/chart-series-fetcher.js';
@@ -424,20 +424,23 @@ export class LCARdSChart extends LCARdSCard {
    * @returns {Array<any>}
    */
   _buildApexSeries() {
+    // Same wall-clock values as the full build (Home Assistant's time zone).
+    const { points } = timeAxisData({ config: this.config, span: this._fetcher?.span, points: this._seriesPoints, hass: this.hass });
     return buildApexSeries({
       series: this._displaySeries(),
-      points: this._seriesPoints,
+      points,
       chartType: this.config.chart_type || 'line'
     });
   }
 
   /**
-   * Fix the datetime x-axis to the chart's time window.
+   * Fix the datetime x-axis to the chart's time window (on Home Assistant's
+   * wall clock, like the full build).
    * @private
    * @returns {Object} xaxis options (empty for non-time charts)
    */
   _windowAxis() {
-    return windowAxis(this.config, this._fetcher?.span);
+    return timeAxisData({ config: this.config, span: this._fetcher?.span, points: [], hass: this.hass }).axis;
   }
 
   /**

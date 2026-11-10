@@ -63,7 +63,7 @@ class LCARdSStorage:
         return self
 
     async def _async_save(self) -> None:
-        """Persist the current in-memory state to disk (debounced by HA)."""
+        """Persist the current in-memory state to disk now (Store.async_save writes at once; it is not debounced)."""
         await self._store.async_save({"data": self._data})
 
     async def async_get(self, key: str | None = None) -> Any:

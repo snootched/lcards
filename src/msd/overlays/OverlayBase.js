@@ -2,9 +2,8 @@
  * OverlayBase - Base class for all MSD overlay renderers
  *
  * Provides instance-based lifecycle management for overlays:
- * - initialize: Setup subscriptions, animation scopes
- * - render: Generate SVG markup
- * - update: Incremental DOM updates (no full re-render)
+ * - initialize: Store the mount element
+ * - render: Generate SVG markup (a data change re-renders the card)
  * - computeAttachmentPoints: For line anchoring
  * - destroy: Cleanup resources
  *
@@ -19,7 +18,6 @@
 
 import { BaseRenderer } from '../renderer/BaseRenderer.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
-import { isHAEntity } from '../utils/HADomains.js';
 
 /**
  * Base class for all overlay instances
@@ -55,9 +53,7 @@ export class OverlayBase extends BaseRenderer {
     // Performance tracking
     this._stats = {
       renderCount: 0,
-      updateCount: 0,
-      lastRender: null,
-      lastUpdate: /** @type {number|null} */ (null)
+      lastRender: null
     };
 
     lcardsLog.trace(`[${this.rendererName}] Instance created for overlay:`, overlay.id);
@@ -67,10 +63,8 @@ export class OverlayBase extends BaseRenderer {
    * Initialize overlay instance
    * Called once when overlay is first created
    *
-   * Sets up:
-   * - DataSource subscriptions
-   * - Animation scopes
-   * - Event listeners
+   * Stores the mount element. Overlays have no data subscriptions of their own:
+   * a change re-renders the card (rules, HASS), controls update their cards.
    *
    * @param {Element} mountEl - Mount element (shadowRoot or container)
    * @returns {Promise<void>}
@@ -85,32 +79,8 @@ export class OverlayBase extends BaseRenderer {
 
     lcardsLog.trace(`[${this.rendererName}] Initializing overlay:`, this.overlay.id);
 
-    try {
-      // Get explicit update triggers from overlay config
-      const updateTriggers = this._getUpdateTriggers();
-
-      if (updateTriggers.length > 0) {
-        lcardsLog.trace(`[${this.rendererName}] Subscribing to update triggers:`, updateTriggers);
-
-        // Subscribe to each trigger (HA entity or MSD datasource)
-        for (const triggerRef of updateTriggers) {
-          if (isHAEntity(triggerRef)) {
-            this._subscribeToEntity(triggerRef);
-          } else {
-            this._subscribeToDataSource(triggerRef);
-          }
-        }
-      } else {
-        lcardsLog.trace(`[${this.rendererName}] No triggers_update specified for overlay:`, this.overlay.id);
-      }
-
-      this._initialized = true;
-      lcardsLog.trace(`[${this.rendererName}] Initialization complete:`, this.overlay.id);
-
-    } catch (error) {
-      lcardsLog.error(`[${this.rendererName}] Initialization failed:`, error);
-      throw error;
-    }
+    this._initialized = true;
+    lcardsLog.trace(`[${this.rendererName}] Initialization complete:`, this.overlay.id);
   }
 
   /**
@@ -129,23 +99,6 @@ export class OverlayBase extends BaseRenderer {
    */
   render(overlay, anchors, viewBox, svgContainer, cardInstance = null) {
     throw new Error(`${this.rendererName}.render() must be implemented by subclass`);
-  }
-
-  /**
-   * Update overlay when data changes
-   *
-   * Performs incremental DOM updates without full re-render
-   * Must be implemented by subclasses
-   *
-   * @abstract
-   * @param {Element} overlayElement - DOM element to update
-   * @param {Object} overlay - Updated overlay config
-   * @param {Object} sourceData - Changed data
-   * @returns {boolean} True if DOM was updated
-   * @throws {Error} If not implemented by subclass
-   */
-  update(overlayElement, overlay, sourceData) {
-    throw new Error(`${this.rendererName}.update() must be implemented by subclass`);
   }
 
   /**
@@ -168,7 +121,7 @@ export class OverlayBase extends BaseRenderer {
    * Cleanup overlay resources
    *
    * Cleans up:
-   * - DataSource subscriptions
+   * - Registered subscriptions
    * - Animation scopes
    * - Timers
    * - Event listeners
@@ -199,91 +152,6 @@ export class OverlayBase extends BaseRenderer {
   // ============================================================
   // Protected Methods (for subclass use)
   // ============================================================
-
-  /**
-   * Handle DataSource updates
-   * @protected
-   */
-  _onDataUpdate(sourceId, data) {
-    if (this._destroyed) {
-      return;
-    }
-
-    lcardsLog.trace(`[${this.rendererName}] DataSource update:`, sourceId, data);
-
-    // Find DOM element if not cached
-    if (!this.element && this.mountEl) {
-      this.element = this.mountEl.querySelector(`#${this.overlay.id}`);
-    }
-
-    if (this.element) {
-      try {
-        const updated = this.update(this.element, this.overlay, data);
-
-        if (updated) {
-          this._stats.updateCount++;
-          this._stats.lastUpdate = Date.now();
-        }
-
-      } catch (error) {
-        lcardsLog.error(`[${this.rendererName}] Update failed:`, error);
-      }
-    }
-  }
-
-  /**
-   * Get explicit update triggers from overlay configuration
-   * @protected
-   * @returns {Array<string>} Array of trigger references (HA entities or MSD datasources)
-   */
-  _getUpdateTriggers() {
-    if (!this.overlay.triggers_update || !Array.isArray(this.overlay.triggers_update)) {
-      return [];
-    }
-
-    return this.overlay.triggers_update;
-  }
-
-  /**
-   * Subscribe to Home Assistant entity updates
-   * @protected
-   * @param {string} entityId - Entity ID (e.g., 'sensor.temperature')
-   */
-  _subscribeToEntity(entityId) {
-    // TODO: Implement HA entity subscription
-    // This would integrate with MsdTemplateEngine or Home Assistant connection
-    lcardsLog.trace(`[${this.rendererName}] HA entity subscription requested:`, entityId);
-    lcardsLog.warn(`[${this.rendererName}] HA entity subscriptions not yet implemented - ${entityId} will not auto-update`);
-
-    // Note: For now, HA entity updates are handled by MsdTemplateEngine separately
-    // Full integration would require connecting to HA's WebSocket API
-  }
-
-  /**
-   * Subscribe to DataSource updates
-   * @protected
-   */
-  _subscribeToDataSource(sourceId) {
-    if (!this.systems || !this.systems.dataSourceManager) {
-      lcardsLog.warn(`[${this.rendererName}] DataSourceManager not available, cannot subscribe`);
-      return;
-    }
-
-    try {
-      const unsubscribe = this.systems.dataSourceManager.subscribe(
-        sourceId,
-        this._onDataUpdate.bind(this, sourceId)
-      );
-
-      if (unsubscribe) {
-        this._registerSubscription(unsubscribe);
-        lcardsLog.trace(`[${this.rendererName}] Subscribed to DataSource:`, sourceId);
-      }
-
-    } catch (error) {
-      lcardsLog.warn(`[${this.rendererName}] Failed to subscribe to ${sourceId}:`, error);
-    }
-  }
 
   /**
    * Register subscription for cleanup

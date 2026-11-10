@@ -1,0 +1,23 @@
+# D3c AS1: settings bound on objects without an id. The second grid's
+# line_spacing (a rebuild key, not live) follows power and its colour follows
+# the toggle; the scene names it grid#2 (astrometrics.spec.js drives the
+# entities with __setState).
+type: custom:lcards-astrometrics-card
+id: astro_idless_bindings
+height: 400
+objects:
+  - type: grid
+    shape: plane
+    size: 100
+  - type: grid
+    shape: plane
+    size: 200
+    at: [0, -40, 0]
+    line_spacing:
+      entity: input_number.lcards_test_power
+      input: [0, 100]
+      output: [5, 50]
+    color:
+      entity: input_boolean.lcards_test_toggle
+      active: "#ff9900"
+      inactive: "#808080"

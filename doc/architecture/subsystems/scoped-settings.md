@@ -35,7 +35,7 @@ The device ID comes from [`DeviceIdentityManager`](device-identity.md); the user
 - `read()` and `readAllScopes()` skip the device and user scopes; the global scope and `globalFallback` are still tried (the global read returns nothing when the integration is unavailable).
 - `write()` returns `false` without writing when the integration is unavailable or there is no connection. With the integration present but the capability missing, a device or user write is downgraded to the global scope (and then needs an admin).
 
-**Admin only for global.** The backend refuses `lcards/storage/set`, `delete`, `reset` and `dump` for non-admins (`_require_admin()` in `custom_components/lcards/websocket_api.py`). The service checks first: `write()` and `clear()` with `scope: 'global'` return `false` without sending anything unless `canWriteGlobalStorage(hass)` (`src/core/services/storage-permissions.js`: `hass.user.is_admin === true`). Device and user scopes stay open to every signed-in user, so non-admins can still keep their own settings and register their device.
+**Admin only for global.** The backend refuses `lcards/storage/set`, `delete`, `reset` and `dump` for non-admins (`_require_admin()` in `custom_components/lcards/websocket_api.py`). The service checks first: `write()` and `clear()` with `scope: 'global'` return `false` without sending anything unless `canWriteGlobalStorage(hass)` (`src/core/services/storage-permissions.js`: `hass.user.is_admin === true`). User scope stays open to every signed-in user (their own record), and device scope to the user signed in on that device, so non-admins can still keep their own settings and register their device.
 
 UI built on this service follows the same check: the shared scope selector (`src/panels/components/shared/lcards-scope-selector.js`) only shows the Global tab when it is asked for and `canWriteGlobalStorage(hass)` is true, and falls back to the User tab otherwise; settings tabs start on `defaultSettingsScope(hass)` (`'global'` for admins, `'user'` for everyone else) and show `GLOBAL_WRITE_REFUSED_MSG` when a global save is refused.
 
@@ -153,7 +153,7 @@ Everything lives in the LCARdS store (`.storage/lcards`). Scoped records are fla
 
 ```
 _user_<home-assistant-user-id>   → { sound_volume: 0.8, sound_scheme: "enterprise" }
-_device_<uuid>                   → { display_name: "Kitchen Tablet", last_seen: "...", user_agent: "...", sound_volume: 0.6 }
+_device_<uuid>                   → { display_name: "Kitchen Tablet", last_seen: "...", user_agent: "...", owner_user_id: "...", sound_volume: 0.6 }
 sound_overrides                  → { card_tap: "beep" }        ← global scope: the key itself
 ```
 
@@ -168,20 +168,20 @@ sound_overrides                  → { card_tap: "beep" }        ← global scop
 | `lcards/storage/user/get` | any user | Read the caller's user record (or one `key`) |
 | `lcards/storage/user/set` | any user | Deep-merge into the caller's user record (`replace: true`: replace each sub-key) |
 | `lcards/storage/user/delete` | any user | Delete one sub-key from the caller's user record |
-| `lcards/storage/device/get` | any user | Read a device record (or one `key`) by `device_id` |
-| `lcards/storage/device/set` | any user | Deep-merge into a device record (`replace: true`: replace each sub-key); also the device heartbeat |
+| `lcards/storage/device/get` | the device's current owner, or **admin** (a record with no owner: any user) | Read a device record (or one `key`) by `device_id` |
+| `lcards/storage/device/set` | any user (a non-admin becomes the owner; an admin claims only an unowned record) | Deep-merge into a device record (`replace: true`: replace each sub-key); also the device heartbeat. `owner_user_id` in `data` is ignored |
 | `lcards/storage/users/list` | **admin** | User IDs with stored data and their key counts |
 | `lcards/storage/users/get` | **admin** | Read any user's record |
 | `lcards/storage/users/set` | **admin** | Deep-merge into any user's record (`replace: true`: replace each sub-key) |
 | `lcards/storage/users/clear` | **admin** | Delete a user's whole record |
 | `lcards/storage/devices/list` | **admin** | All registered devices |
 | `lcards/storage/devices/get` | **admin** | Read any device's record |
-| `lcards/storage/devices/set` | **admin** | Deep-merge into any device's record (`replace: true`: replace each sub-key) |
+| `lcards/storage/devices/set` | **admin** | Deep-merge into any device's record (`replace: true`: replace each sub-key); `data: { owner_user_id }` sets the owner |
 | `lcards/storage/devices/clear` | **admin** | Delete a device's whole record |
-| `lcards/storage/get` | any user for global keys; **admin** for `_user_*` keys and the full store | Global scope read |
+| `lcards/storage/get` | any user for global keys; a `_device_*` key as `device/get`; **admin** for `_user_*` keys and the full store | Global scope read |
 | `lcards/storage/set`, `delete`, `delete_many`, `reset`, `dump` | **admin** | Global scope writes and whole-store operations |
 
-The device ID is a routing key chosen by the browser, not a credential: any signed-in user can read or write a device record whose ID they know. User records are protected by the server-side user ID.
+The device ID lives in the browser's `localStorage`, so a device record's owner (`owner_user_id`, set by the backend) is the user signed in on that browser: a non-admin's write makes them the owner, and reads are for the owner and admins ([Device Identity: Backend Storage](./device-identity#backend-storage)). Someone who learns another device's ID can take it over by writing to it, the same as signing in on that browser. User records are protected by the server-side user ID.
 
 ---
 

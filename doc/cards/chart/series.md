@@ -258,6 +258,7 @@ yaxis:
 
 - `span.start: day` starts the window at midnight today. With a `24h` span it shows today so far: the window runs to midnight, so the line stops at now.
 - `span.offset` moves the window, so `start: day` with `offset: -1d` shows all of yesterday.
+- The calendar follows your Home Assistant profile: days start at midnight in the time zone it uses (the server's or your device's), and weeks start on its first weekday.
 
 ```yaml live
 # all of yesterday
@@ -272,7 +273,7 @@ sources:
 ```
 
 ```yaml live
-# this week so far, Monday to Sunday, from daily statistics
+# this week so far, from daily statistics
 type: custom:lcards-chart
 chart_type: column
 graph_span: 7d
@@ -288,7 +289,9 @@ sources:
 
 ::: details More about the time window
 - **Durations:** a number and a unit: `s`, `min` (or `m`), `h`, `d`, `w`, `mo` or `y`. Spelled out (`hour`, `day`, `week`, `month`, `year`) and plurals (`2days`) work too, and so do decimals (`1.5h`). A month is 30 days and a year 365 days.
-- **Weeks** start on Monday.
+- **Time zone:** days, weeks, months and years line up in the time zone set in your Home Assistant profile (Settings > Profile > Time zone): the server's zone (Settings > System > General) or your device's. A browser in another zone than Home Assistant still shows the same "today", and the axis labels and tooltip times use the same zone.
+- **Weeks** start on the first weekday set in your profile: "Language" takes it from your language (Sunday for `en`, Monday for `de` or `en-GB`), or pick a day. Without a profile setting, weeks start on Monday.
+- **Hours** line up with the hour in that zone too, so in a zone such as India's (UTC+5:30) `start: hour` begins at half past the UTC hour.
 - **Rolling over:** an aligned window (`start` or `end`) is checked every minute; when it rolls over (at midnight for `day`), the chart loads the new window.
 - **Both start and end:** when both are set, `start` is used.
 :::

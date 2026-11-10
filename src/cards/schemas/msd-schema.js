@@ -365,7 +365,7 @@ export function getMsdSchema() {
                 {
                   type: 'array',
                   items: { type: 'string' },
-                  description: 'Extra entity IDs (or MSD data-source refs) this overlay depends on, beyond what static analysis of `card` can detect. Home Assistant entity IDs are folded into a control overlay\'s HASS change-detection set; non-entity refs are subscribed as MSD data-source updates (existing behavior, any overlay type).'
+                  description: 'Extra entity IDs this control overlay depends on, beyond what static analysis of `card` can detect; they are added to the control\'s change detection. Entries that are not entity IDs are ignored (data-source names here never refreshed anything and were dropped).'
                 },
                 {
                   type: 'string',

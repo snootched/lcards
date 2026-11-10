@@ -136,6 +136,23 @@ test('a target that matches no device fails the call instead of broadcasting', a
     expect((await client.getState('input_select.lcards_alert_mode'))?.state).toBe('green_alert');
 });
 
+test('lcards.play_sound without event_type or asset_key is refused', async () => {
+    // Used to fire an event every browser ignored, and report success.
+    await expect(client.callService('lcards', 'play_sound', {}))
+        .rejects.toThrow(/play_sound needs an event_type or an asset_key/);
+    await expect(client.callService('lcards', 'play_sound', { target_device_ids: [TEST_DEVICE_ID] }))
+        .rejects.toThrow(/play_sound needs an event_type or an asset_key/);
+});
+
+test('lcards.set_log_level with a target that matches nobody is refused', async () => {
+    // The handler now resolves targets before it touches the Python level, so a
+    // refused call leaves custom_components.lcards as it was. That level is not
+    // readable from a client (logger/log_info reports homeassistant.components.*
+    // loggers only), so this checks the refusal; the order is in services.py.
+    await expect(client.callService('lcards', 'set_log_level', { level: 'debug', target_device_names: ['lcards_test_no_such_device'] }))
+        .rejects.toThrow(/no device or user matches/);
+});
+
 test('lcards.trigger_effect and clear_effect run on the page, "All slots" included', async ({ page }) => {
     const errors = await openDashboard(page, 'cards');
     const active = () => page.evaluate(() => ['backdrop', 'color', 'canvas']
@@ -1591,6 +1608,51 @@ test('global storage is admin-only; a non-admin keeps their own user and device 
     } finally {
         await client.call({ type: 'lcards/storage/delete', key: 'lcards_test_admin_only' });
         await client.call({ type: 'lcards/storage/devices/clear', device_id: DEVICE }).catch(() => {});
+    }
+});
+
+test('a device record follows the user signed in on it: the kiosk case (D3c)', async () => {
+    const KIOSK = 'lcards-test-kiosk-device';
+    const clear = () => client.call({ type: 'lcards/storage/devices/clear', device_id: KIOSK }).catch(() => {});
+    const owner = async () => (await client.call({ type: 'lcards/storage/devices/get', device_id: KIOSK })).value.owner_user_id;
+    await clear();
+    try {
+        const admin = await client.call({ type: 'auth/current_user' });
+        // an admin sets the tablet up first: the heartbeat registers it, owned by the admin
+        await client.call({ type: 'lcards/storage/device/set', device_id: KIOSK, data: { display_name: 'LCARdS test kiosk' } });
+        expect(await owner()).toBe(admin.id);
+
+        await withNonAdminUser(client, async (kiosk, kioskId) => {
+            const refused = async (who, message) => {
+                await expect(who.call(message), JSON.stringify(message)).rejects.toThrow(/^unauthorized:/);
+            };
+            // the kiosk user signs in on it: reading the admin's record is refused until
+            // their heartbeat writes, which makes them the owner (owner_user_id in data is ignored)
+            await refused(kiosk, { type: 'lcards/storage/device/get', device_id: KIOSK });
+            await kiosk.call({ type: 'lcards/storage/device/set', device_id: KIOSK, data: { last_seen: 'now', owner_user_id: admin.id } });
+            expect(await owner()).toBe(kioskId);
+            expect((await kiosk.call({ type: 'lcards/storage/device/get', device_id: KIOSK })).value)
+                .toMatchObject({ display_name: 'LCARdS test kiosk', last_seen: 'now', owner_user_id: kioskId });
+            expect((await kiosk.call({ type: 'lcards/storage/get', key: `_device_${KIOSK}` })).value.last_seen).toBe('now');
+
+            // the admin still reads it, and editing its settings leaves the kiosk user the owner
+            expect((await client.call({ type: 'lcards/storage/device/get', device_id: KIOSK })).value.display_name).toBe('LCARdS test kiosk');
+            await client.call({ type: 'lcards/storage/device/set', device_id: KIOSK, data: { lcards_test_volume: 0.5 } });
+            expect(await owner()).toBe(kioskId);
+            expect((await client.call({ type: 'lcards/storage/devices/list' })).devices[KIOSK].owner_user_id).toBe(kioskId);
+
+            // a third user who is not signed in on it cannot read it, by either command
+            await withNonAdminUser(client, async (other) => {
+                await refused(other, { type: 'lcards/storage/device/get', device_id: KIOSK });
+                await refused(other, { type: 'lcards/storage/get', key: `_device_${KIOSK}` });
+            }, 'lcards_test_nonadmin2');
+
+            // an admin can hand it to a user outright
+            await client.call({ type: 'lcards/storage/devices/set', device_id: KIOSK, data: { owner_user_id: admin.id } });
+            await refused(kiosk, { type: 'lcards/storage/device/get', device_id: KIOSK });
+        });
+    } finally {
+        await clear();
     }
 });
 

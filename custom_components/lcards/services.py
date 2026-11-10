@@ -319,11 +319,13 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         """Update log level on Python backend and push to JS frontends (targeted or all)."""
         level = call.data["level"]
         _LOGGER.info("LCARdS service: setting log level → %r", level)
-        # Update Python logger hierarchy immediately (always — it is process-wide)
+        # Resolve targets first: a target that matches nobody raises, and the
+        # failed call must leave the backend level as it was.
+        device_ids, user_ids = await _async_resolve_targets(hass, call)
+        # Update the Python logger hierarchy (always: it is process-wide)
         py_level = _LOG_LEVEL_MAP.get(level, logging.WARNING)
         logging.getLogger(f"custom_components.{DOMAIN}").setLevel(py_level)
         # Push to connected JS frontends via the lcards_event channel
-        device_ids, user_ids = await _async_resolve_targets(hass, call)
         _fire_targeted_event(hass, "set_log_level", {"level": level}, device_ids, user_ids)
     async def handle_trigger_effect(call: ServiceCall) -> None:
         """Fire layered screen effects on target LCARdS frontends.
@@ -591,11 +593,20 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, SERVICE_PLAY_SOUND, handle_play_sound,
-        schema=vol.Schema({
-            vol.Optional("event_type"): vol.In(_SOUND_EVENT_TYPES),
-            vol.Optional("asset_key"):  vol.All(str, vol.Length(min=1)),
-            **_TARGET_FIELDS,
-        }),
+        schema=vol.All(
+            vol.Schema({
+                vol.Optional("event_type"): vol.In(_SOUND_EVENT_TYPES),
+                vol.Optional("asset_key"):  vol.All(str, vol.Length(min=1)),
+                **_TARGET_FIELDS,
+            }),
+            # Without either one the browsers had nothing to play and the call
+            # still reported success
+            vol.Any(
+                vol.Schema({vol.Required("event_type"): object}, extra=vol.ALLOW_EXTRA),
+                vol.Schema({vol.Required("asset_key"): object}, extra=vol.ALLOW_EXTRA),
+                msg="play_sound needs an event_type or an asset_key",
+            ),
+        ),
     )
     hass.services.async_register(
         DOMAIN, SERVICE_FLY_TO, handle_fly_to,

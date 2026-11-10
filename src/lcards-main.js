@@ -5,10 +5,17 @@ import { isKnownAlertMode } from './core/themes/alertModeTransform.js';
 import { injectPalette } from './core/themes/paletteInjector.js';
 import { collectSupportInfo, buildSupportReport, copySupportInfo, reportIssue } from './utils/support-info.js';
 
+// Log level. Static imports are hoisted: every module imported in this file
+// (including the ones listed below this block) is evaluated before this code runs.
+// Their module-level logs (a few debug lines such as "Card module loaded") use the
+// level lcards-logging.js starts with: the last level saved in localStorage, else
+// 'info'. Everything logged from here on (core init, cards, services) uses the
+// level set below.
+//
 // 1. Integration-configured log level: frontend.py bakes it into the script URL as
 //    ?log=<level>; the loader stub (src/lcards.js) reads it from its own URL and
-//    leaves it on window.__LCARDS_BOOT__. Applies the persistent user preference
-//    set in the HA "Configure" dialog before anything else runs.
+//    leaves it on window.__LCARDS_BOOT__ before it imports this module. Applies the
+//    persistent preference set in the Home Assistant "Configure" dialog.
 const scriptLogLevel = window.__LCARDS_BOOT__?.log;
 if (scriptLogLevel) {
     lcardsSetGlobalLogLevel(scriptLogLevel);
@@ -24,7 +31,8 @@ if (urlLogLevel) {
 // Display banner after log level is set
 lcardsLogBanner();
 
-// Now import everything else (including MSD system which will use correct log level)
+// The rest of the imports (hoisted like the ones above, so evaluated before the
+// log level code; see the note at the top of this block)
 import * as anime from 'animejs';
 import { registerEffectAdapter } from './core/packs/backgrounds/effect-adapter.js';
 import { loadSVGToCache, getSVGFromCache } from './utils/lcards-fileutils.js';

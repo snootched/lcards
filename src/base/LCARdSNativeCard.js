@@ -259,19 +259,15 @@ export class LCARdSNativeCard extends LitElement {
 
         lcardsLog.debug(`[LCARdSNativeCard] Connected: ${this._cardGuid}`);
 
-        // Re-detect whether we're inside the card editor dialog now that the card
-        // is in the DOM. setConfig() runs before connectedCallback() (HA inserts the
-        // element after configuration), so shadow-DOM-piercing ancestor checks always
-        // return false at setConfig() time. We only need to catch the editor dialog
-        // case here — dashboard edit mode and card-picker detection are handled by
-        // _detectPreviewMode() (called from setConfig()) once the card is placed in
-        // its final context, and by each card's _handleFirstUpdate() override.
-        // NOTE: intentionally does NOT call the full _detectPreviewMode() to avoid
-        // falsely setting _isPreviewMode=true for dashboard edit mode, which would
-        // break cards that use _isPreviewMode to decide whether to render a placeholder.
-        if (this._checkForAncestor(['hui-dialog-edit-card'])) {
-            lcardsLog.debug(`[LCARdSNativeCard] Preview detection: card editor dialog detected (connectedCallback)`);
-            this._isPreviewMode = true;
+        // Detect preview mode again now that the card is placed: setConfig() runs
+        // before Home Assistant's hui-card sets `.preview` and before the card has
+        // a parent, so the detection in setConfig() never sees either. Subclasses
+        // with their own _detectPreviewMode() (the MSD's tiers) get it here too.
+        const previewMode = this._detectPreviewMode();
+        if (previewMode !== this._isPreviewMode) {
+            lcardsLog.debug(`[LCARdSNativeCard] Preview mode on connect: ${String(this._isPreviewMode)} -> ${String(previewMode)}`);
+            this._isPreviewMode = /** @type {any} */ (previewMode);
+            this.requestUpdate();
         }
 
         // Load fonts if needed

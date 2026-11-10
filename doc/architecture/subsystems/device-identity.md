@@ -132,9 +132,14 @@ Device data is the flat key `_device_<uuid>` in the LCARdS store:
 {
   "display_name": "Kitchen Tablet",
   "last_seen":    "2026-04-12T09:21:05.000Z",
-  "user_agent":   "Mozilla/5.0 (Linux; Android ...)"
+  "user_agent":   "Mozilla/5.0 (Linux; Android ...)",
+  "owner_user_id": "9f1c..."
 }
 ```
+
+`owner_user_id` is set by the backend, never by the browser: it is the user signed in on that browser. The UUID lives only in that browser's `localStorage`, so every non-admin `lcards/storage/device/set` (the heartbeat on each page load, device-scoped settings) makes the caller the owner; an admin's write claims only a record with no owner, so editing a kiosk's settings from the config panel leaves the kiosk user the owner. `device/get` (and `storage/get` of the `_device_*` key) is for admins and the current owner; a record with no owner (new, from before owners, or whose owner user was deleted) reads for anyone.
+
+The kiosk case: an admin sets a tablet up first, so the record is the admin's; then the kiosk user signs in on it. Their first `device/get` in `registerHeartbeat()` is refused (`unauthorized`), so the heartbeat writes `last_seen` and `user_agent` first (which makes them the owner), reads the record again and keeps the stored `display_name` instead of the seeded one (node test `tests/core/device-heartbeat-owner.test.js`). Device-scoped settings read before that first heartbeat on such a page load come back empty and fall back to the user and global scopes. An admin can still read and edit the record, and can set the owner with `lcards/storage/devices/set` (`data: { owner_user_id }`). Rules: `custom_components/lcards/device_access.py`.
 
 Device-scoped settings written with `ScopedSettingsService.write(key, value, 'device')` are extra keys in the same object. The Python action targeting resolves `target_device_names` against `display_name` here (case-insensitive).
 

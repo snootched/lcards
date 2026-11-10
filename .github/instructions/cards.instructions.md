@@ -43,16 +43,31 @@ Override only what you need. Call `super` first in every hook:
 _handleFirstUpdate(changedProps) {
   super._handleFirstUpdate(changedProps);
 
-  // Guard: skip expensive init in preview contexts (card picker, editor preview)
-  if (this._isPreviewMode) return;
+  // Guard: skip expensive init only in the card picker (see Preview Mode Guard)
+  if (this._checkForAncestor(['hui-card-picker'])) return;
 
-  // Setup actions, register rules overlay, subscribe to entities
-  this._setupCardActions();
+  // Register the rules overlay, subscribe to extra entities
+  // (actions: see Action Handling below; each card has its own setup method)
   this._registerOverlayForRules(`my-card-${this._cardGuid}`, 'my-card');
-  this.subscribeToEntity(this.config.entity, (id, newState) => {
-    this._entity = newState;
+  this._subscribeExtraEntities();
+}
+
+// 1b. Called on every connect, including a reconnect (Home Assistant moves cards
+// by disconnecting and reconnecting them). _handleFirstUpdate runs once per
+// element, and disconnect drops every subscribeToEntity() subscription, so
+// subscriptions made only in _handleFirstUpdate are lost after a reconnect.
+// Subscribe again here (lcards-elbow.js _onConnected() does this):
+_onConnected() {
+  super._onConnected();
+  if (this._initialized) this._subscribeExtraEntities();
+}
+
+_subscribeExtraEntities() {
+  this._extraUnsubs?.forEach(unsub => unsub());
+  this._extraUnsubs = [this.subscribeToEntity('sensor.other', (id, newState) => {
+    this._other = newState;
     this.requestUpdate();
-  });
+  })];
 }
 
 // 2. Called on every HASS update
@@ -87,7 +102,7 @@ _onDisconnected() {
 
 ### Preferred: event-driven via `subscribeToEntity()`
 
-Fires on initial load and every subsequent state change. **Auto-unsubscribed** on disconnect — do NOT manually call unsubscribe in `_onDisconnected`.
+Fires on every state change after you subscribe, **not** on subscribe: read the current state yourself first (`getEntityState()`) if you need it. The card's own `entity` and the entities its templates, rules and `triggers_update` name already re-render the card (the base tracks them), so subscribe only for other entities. **Auto-unsubscribed** on disconnect: do NOT manually call unsubscribe in `_onDisconnected`, and subscribe again on reconnect (`_onConnected()`, see the lifecycle above).
 
 ```javascript
 this.subscribeToEntity(this.config.entity, (entityId, newState, oldState) => {
@@ -201,15 +216,17 @@ HA wraps every card in `<hui-card>` (light DOM, no styles, no height of its own)
 
 ## Preview Mode Guard
 
-The base class (`LCARdSNativeCard`) only tracks a boolean: `isPreviewMode()` / `this._isPreviewMode` returns `true` or `false` (`_detectPreviewMode()` in `src/base/LCARdSNativeCard.js`). Use it to skip expensive init in preview/picker contexts:
+The base class (`LCARdSNativeCard`) only tracks a boolean: `isPreviewMode()` / `this._isPreviewMode` returns `true` or `false` (`_detectPreviewMode()` in `src/base/LCARdSNativeCard.js`, run in `setConfig()` and again on every connect, since Home Assistant sets `.preview` after `setConfig()`). It is also `true` on every card while the dashboard is in edit mode (`hui-view` sets `.preview` on all of them), and `_handleFirstUpdate()` runs once per element, so **never skip one-time init on `_isPreviewMode`**: the card would stay half set up after edit mode ends. Skip it only in the card picker, which the card never leaves:
 
 ```javascript
 _handleFirstUpdate() {
   super._handleFirstUpdate();
-  if (this._isPreviewMode) return; // skip DataSource subscriptions, animations, ResizeObserver
+  if (this._checkForAncestor(['hui-card-picker'])) return; // the picker's gallery card
   this._initFullSetup();
 }
 ```
+
+Use `_isPreviewMode` for work that is checked again later (the background renderer skips its off-screen IntersectionObserver in previews).
 
 `isPreviewMode()` returning the tri-state `false`/`'editor'`/`'picker'` string is **`LCARdSMSDCard`-specific** — `lcards-msd.js` overrides `_detectPreviewMode()` without calling `super()` and does its own picker-vs-editor distinction (`this._isPreviewMode === 'picker'`). Don't rely on the tri-state form outside `lcards-msd.js`; see `msd.instructions.md`.
 
@@ -267,8 +284,9 @@ this._injectTextFieldsToElement(this._svgEl, width, height);
 - All `subscribeToEntity()` calls (auto-tracked set)
 - Registered DataSources
 - ResizeObserver
-- `setupActions()` handler
 - Theme overrides listener
+
+Not handled: the cleanup function `setupActions()` returns. The card keeps it and calls it before setting actions up again on new elements (button: `_actionCleanup`, slider: `_borderActionCleanups`, data grid: `_cellActionCleanups`). The base cannot run them on disconnect: a reconnected card keeps its DOM and would lose its taps.
 
 **Cards must NOT duplicate any of these cleanup calls.** Only add an `_onDisconnected()` override for card-specific teardown (timers, AbortControllers, 3rd-party instances). Always call `super._onDisconnected()` last.
 
@@ -284,7 +302,7 @@ if (!customElements.get('lcards-my-card')) {
 }
 ```
 
-`window.customCards` metadata is a single guarded bulk push of an array (`LCARdSCardClasses`), not a per-card call — add your card's `{ type, name, description }` entry to that array in `src/lcards.js` rather than calling `window.customCards.push({...})` yourself:
+`window.customCards` metadata is a single guarded bulk push of an array (`LCARdSCardClasses`), not a per-card call: add your card's `{ type, name, description }` entry to that array in `src/lcards-main.js` rather than calling `window.customCards.push({...})` yourself:
 
 ```javascript
 window.customCards.push(...LCARdSCardClasses); // guarded by !window.customCards.some(c => c.type === 'lcards-button')

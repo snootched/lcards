@@ -373,7 +373,8 @@ Use dot-separated namespaces to avoid collisions between cards and services:
 | `lcards/storage/reset` | - | - | `{ ok }` |
 | `lcards/storage/dump` | - | - | `{ version, data }` |
 | `lcards/storage/user/set` | `data: object` | `replace: boolean` | `{ ok, user_id, keys }` |
-| `lcards/storage/device/set` | `device_id: string`, `data: object` | `replace: boolean` | `{ ok, device_id, keys }` |
+| `lcards/storage/device/get` (current owner or admin) | `device_id: string` | `key: string` | `{ device_id, key, value }` |
+| `lcards/storage/device/set` (any user; a non-admin becomes the owner, an admin claims only an unowned record) | `device_id: string`, `data: object` (`owner_user_id` ignored) | `replace: boolean` | `{ ok, device_id, keys }` |
 | `lcards/storage/users/set` (admin) | `user_id: string`, `data: object` | `replace: boolean` | `{ ok, user_id, keys }` |
-| `lcards/storage/devices/set` (admin) | `device_id: string`, `data: object` | `replace: boolean` | `{ ok, device_id, keys }` |
+| `lcards/storage/devices/set` (admin; `data.owner_user_id` sets the owner) | `device_id: string`, `data: object` | `replace: boolean` | `{ ok, device_id, keys }` |
 | `lcards/fire_event` (admin; see above) | `action: string` | `target_user_ids`, `target_device_ids`, `data` | `null` |

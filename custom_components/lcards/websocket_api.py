@@ -19,9 +19,11 @@ Provides the lcards/* WebSocket command namespace:
   lcards/storage/users/set    — write any user's data               (admin)
   lcards/storage/users/clear  — delete all overrides for a user     (admin)
 
-  Per-device scoped storage (device_id supplied by the browser):
-  lcards/storage/device/get   — read a device's scoped data
-  lcards/storage/device/set   — write a device's scoped data (deep-merge)
+  Per-device scoped storage (device_id supplied by the browser; the record's
+  owner is the user signed in on it, see device_access.py):
+  lcards/storage/device/get   — read a device's scoped data    (owner or admin)
+  lcards/storage/device/set   — write a device's scoped data (deep-merge; a
+                                non-admin caller becomes the owner)
   lcards/storage/devices/list — list all stored device IDs          (admin)
   lcards/storage/devices/get  — read any device's data              (admin)
   lcards/storage/devices/set  — write any device's data             (admin)
@@ -40,6 +42,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.components import websocket_api
 
 from .support import async_collect_backend_diagnostics
+from .device_access import OWNER_KEY, device_read_allowed, device_write_data, record_owner
 
 from .const import (
     DOMAIN,
@@ -65,6 +68,7 @@ _STORAGE_UNAVAILABLE = "storage_unavailable"
 _STORAGE_UNAVAILABLE_MSG = "LCARdS storage is not initialised"
 _UNAUTHORIZED = "unauthorized"
 _UNAUTHORIZED_MSG = "Admin access required"
+_DEVICE_UNAUTHORIZED_MSG = "This device record belongs to the user signed in on that device"
 
 
 def _get_storage(hass: HomeAssistant):
@@ -92,6 +96,28 @@ def _require_admin(connection, msg: dict) -> bool:
         connection.send_error(msg["id"], _UNAUTHORIZED, _UNAUTHORIZED_MSG)
         return False
     return True
+
+
+async def _owner_exists(hass: HomeAssistant, record) -> bool:
+    """False when the record's owner is no longer a Home Assistant user."""
+    owner = record_owner(record)
+    if owner is None:
+        return True
+    return await hass.auth.async_get_user(owner) is not None
+
+
+async def _readable_device_record(hass: HomeAssistant, connection, msg: dict, storage, device_id: str):
+    """``(record,)`` when the caller may read the device record, else None (error sent).
+
+    Admins and the record's current owner may read it; so may anyone when it
+    has no (living) owner (see device_access.py).
+    """
+    record = await storage.async_get(f"{STORAGE_NS_DEVICE}_{device_id}")
+    user = connection.user
+    if not device_read_allowed(record, user.id, user.is_admin, await _owner_exists(hass, record)):
+        connection.send_error(msg["id"], _UNAUTHORIZED, _DEVICE_UNAUTHORIZED_MSG)
+        return None
+    return (record,)
 
 
 def async_setup_ws(hass: HomeAssistant) -> None:
@@ -232,13 +258,17 @@ async def ws_storage_get(
 
     Returns the value for *key*, or the full data dict if key is omitted.
     Non-admins may read global keys only: the full dict and other users'
-    ``_user_<id>`` entries need an admin (their own come from storage/user/get).
+    ``_user_<id>`` entries need an admin (their own come from storage/user/get),
+    and a ``_device_<id>`` entry follows the device record rule (owner or admin).
     """
     key = msg.get("key")
-    if (key is None or key.startswith("_user_")) and not _require_admin(connection, msg):
+    if (key is None or key.startswith(f"{STORAGE_NS_USER}_")) and not _require_admin(connection, msg):
         return
     storage = _check_storage(hass, connection, msg)
     if storage is None:
+        return
+    prefix = f"{STORAGE_NS_DEVICE}_"
+    if key and key.startswith(prefix) and await _readable_device_record(hass, connection, msg, storage, key[len(prefix):]) is None:
         return
     value = await storage.async_get(key)
     connection.send_result(msg["id"], {"key": key, "value": value})
@@ -665,8 +695,10 @@ async def ws_storage_users_set(
 
 # ---------------------------------------------------------------------------
 # Per-device scoped storage
-# device_id is supplied by the browser (localStorage UUID).
-# We trust it as a routing key, not as an auth credential.
+# device_id is supplied by the browser (localStorage UUID). The record's owner
+# (owner_user_id) is the user signed in on that browser: every non-admin write
+# makes the caller the owner, and reads are for the owner and admins
+# (device_access.py).
 # ---------------------------------------------------------------------------
 
 @websocket_api.websocket_command(
@@ -685,14 +717,18 @@ async def ws_storage_device_get(
     """Handle lcards/storage/device/get.
 
     Returns the device-scoped data dict (or a single sub-key) for the given
-    device_id.  Any authenticated user may read their own device data.
+    device_id.  Admins read any device; a non-admin the device they currently
+    own, or one with no owner (a new one reads empty), else ``unauthorized``.
     """
     storage = _check_storage(hass, connection, msg)
     if storage is None:
         return
 
     device_id = msg["device_id"]
-    device_data = (await storage.async_get(f"{STORAGE_NS_DEVICE}_{device_id}")) or {}
+    checked = await _readable_device_record(hass, connection, msg, storage, device_id)
+    if checked is None:
+        return
+    device_data = checked[0] or {}
 
     key = msg.get("key")
     value = device_data.get(key) if key else device_data
@@ -720,14 +756,24 @@ async def ws_storage_device_set(
     This command doubles as the device registration/heartbeat endpoint \u2014
     browsers call it on load with ``display_name``, ``last_seen``, and
     ``user_agent`` so the device appears in the admin panel automatically.
+
+    Open to every signed-in user: the device id lives in that browser, so the
+    caller is the user signed in on it. A non-admin's write makes them the
+    owner (``owner_user_id``); an admin's write claims only a record with no
+    (living) owner, so editing a kiosk's settings from the panel leaves its
+    owner alone (see device_access.py). ``owner_user_id`` in *data* is
+    ignored here (admins set it with storage/devices/set).
     """
     storage = _check_storage(hass, connection, msg)
     if storage is None:
         return
 
     device_id = msg["device_id"]
-    await storage.async_deep_set(STORAGE_NS_DEVICE, device_id, msg["data"], replace=msg["replace"])
-    connection.send_result(msg["id"], {"ok": True, "device_id": device_id, "keys": list(msg["data"].keys())})
+    record = await storage.async_get(f"{STORAGE_NS_DEVICE}_{device_id}")
+    user = connection.user
+    data = device_write_data(record, msg["data"], user.id, user.is_admin, await _owner_exists(hass, record))
+    await storage.async_deep_set(STORAGE_NS_DEVICE, device_id, data, replace=msg["replace"])
+    connection.send_result(msg["id"], {"ok": True, "device_id": device_id, "keys": [k for k in data if k != OWNER_KEY]})
 
 
 # ---------------------------------------------------------------------------
@@ -820,6 +866,7 @@ async def ws_storage_devices_list(
             "display_name": data.get("display_name") if isinstance(data, dict) else None,
             "last_seen":    data.get("last_seen")    if isinstance(data, dict) else None,
             "user_agent":   data.get("user_agent")   if isinstance(data, dict) else None,
+            "owner_user_id": record_owner(data),
             "key_count":    len(data) if isinstance(data, dict) else 0,
         }
         for did, data in entities.items()

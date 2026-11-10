@@ -1,25 +1,32 @@
-# Layout View Architecture
+# Layout View and Layout Card
 
-The **Layout View** (`custom:lcards-layout-view`) is a `LovelaceViewElement` that renders a CSS Grid and provides an in-view WYSIWYG editor. This page covers how it's built and the non-obvious constraints behind its design.
+LCARdS has one CSS Grid layout engine with three front ends:
 
-All code lives in `src/views/`:
+- **The layout view** (`custom:lcards-layout-view`, `src/views/lcards-layout-view.js`): a Lovelace view type (a `LovelaceViewElement`) that renders the grid for a whole view and has an in-view WYSIWYG editor in dashboard edit mode.
+- **The layout card** (`custom:lcards-layout-card`, `src/cards/lcards-layout-card.js`): the same grid as a card, to nest a sub-grid in one area of a view (or in any view or stack). It is read-only on the dashboard.
+- **The Layout Studio** (`src/editor/dialogs/lcards-layout-studio-dialog.js`): the full-screen dialog the layout card's GUI editor opens, with a live preview and the same grid editor on a large canvas.
 
-| File | Role |
-|------|------|
-| `lcards-layout-view.js` | The view element: renders the grid, mounts Home Assistant cards, owns config + persistence, manages the editor overlay. |
-| `lcards-grid-edit-overlay.js` | The in-view editor chrome (Layout mode): track handles, headers, area overlays, toolbars, settings panels. |
-| `layout-edit-chrome.js` | Shared edit-mode chrome for the view and the overlay: mdi icon paths, the toolbar strip and panel styles, the Layout / Cards toggle. |
-| `layout-grid-utils.js` | Pure, DOM-free functions: track-list parsing, 2D area manipulation, area-settings reconciliation. |
-| `layout-render.js` | Shared render helpers (`buildGridStyle`, `applyCardPlacement`, `renderAreaSurfaces`, `resolveColorValue`) used by both the view and the card. |
-| `layout-edit-dialogs.js` | Shared `ha-dialog` confirmation helper (destructive actions). |
+This page covers how they are built and the non-obvious constraints behind the design. The user docs are [Layout View](../cards/layout-view/) and [Layout Card](../cards/layout-card/); the [Shell Strategy](shell-strategy.md) generates a whole dashboard on top of both.
 
-The **card** version (`custom:lcards-layout-card`) reuses all of the above:
+The view and the shared pieces live in `src/views/`:
 
 | File | Role |
 |------|------|
-| `cards/lcards-layout-card.js` | Container card: renders the same grid, builds its own children as `hui-card` wrappers (so native Visibility works), propagates hass. Read-only on the dashboard. |
-| `editor/cards/lcards-layout-card-editor.js` | The card's GUI editor: a thin launcher that opens the Layout Studio and relays its `config-changed` to Home Assistant. |
-| `editor/dialogs/lcards-layout-studio-dialog.js` | Full-screen studio: a single live preview + grid overlay on a large canvas, a Layout tab (global settings), and a tab per card with an inline `hui-card-element-editor` + placement. |
+| `lcards-layout-view.js` | The view element: renders the grid, mounts Home Assistant cards, owns config and persistence, manages the editor overlay. |
+| `lcards-grid-edit-overlay.js` | The editor chrome (Layout mode): track handles, headers, area overlays, toolbars, settings panels. A lazy chunk: the view imports it on first edit, the studio imports it with itself. |
+| `layout-edit-chrome.js` | Shared edit-mode chrome for the view and the overlay: mdi icon paths, the toolbar strip and panel styles, the Layout / Cards toggle, the dock width and breakpoint. |
+| `layout-grid-utils.js` | Pure, DOM-free functions: track-list parsing and serialising, 2D area manipulation, area-settings reconciliation. |
+| `layout-render.js` | Shared render helpers (`buildGridStyle`, `applyCardPlacement`, `applyGridItemHeight`, `renderAreaSurfaces`, `measureGridFrame`, `resolveColorValue`) used by the view, the card and the studio. |
+| `layout-edit-dialogs.js` | Shared `ha-dialog` helpers: confirm (destructive actions), info and prompt. |
+
+The card side:
+
+| File | Role |
+|------|------|
+| `cards/lcards-layout-card.js` | Container card (a plain `LitElement`, not an `LCARdSCard`): renders the same grid, builds its own children as `hui-card` wrappers (so native Visibility works) and passes `hass` down. Read-only on the dashboard. |
+| `cards/schemas/layout-card-schema.js` | The card's JSON Schema (registered by `LCARdSLayoutCard.registerSchema()`; also the studio's YAML tab schema). |
+| `editor/cards/lcards-layout-card-editor.js` | The card's GUI editor: a thin launcher that shows a summary and opens the Layout Studio, then relays the studio's `config-changed` to Home Assistant. |
+| `editor/dialogs/lcards-layout-studio-dialog.js` | The full-screen studio: one live preview card plus one grid overlay on a large canvas, a Layout tab (global and per-area settings), a tab per card (inline `hui-card-element-editor` plus placement) and a YAML tab. |
 
 ---
 
@@ -36,11 +43,11 @@ graph TB
         Ghost["#ghost-grid\n(measurement source)"]
         Chrome["headers · handles · area overlays · panels"]
     end
-    HA["HA: lovelace / hass / pre-built card elements"]
+    HA["Home Assistant: lovelace, hass, pre-built hui-card elements"]
 
     HA -->|"set lovelace / hass / cards"| View
-    View -->|"createElement + props (imperative)"| Overlay
-    Overlay -->|"grid-state-changed · area-* · add-card · layout-settings"| View
+    View -->|"import() on first edit, then createElement + properties"| Overlay
+    Overlay -->|"grid-state-changed, grid-preview-changed,<br/>area-settings-changed, area-renamed, area-cards-changed,<br/>add-card-to-area, layout-settings-changed,<br/>switch-to-cards-mode, dock-changed"| View
     View --> Save -->|"lovelace.saveConfig"| HA
 
     style View fill:#1c3c55,stroke:#37a6d1,color:#eee
@@ -57,9 +64,9 @@ The view does **not** put `<lcards-grid-edit-overlay>` in its Lit template. Home
 
 > `Failed to construct 'HTMLElement': This instance is already constructed`
 
-So `_syncEditOverlay()` (called from `updated()`) creates the overlay with `document.createElement('lcards-grid-edit-overlay')` (the **global** registry), wires events with `addEventListener`, sets state via properties, and appends it to `renderRoot`. It is removed when leaving Layout mode and on disconnect.
+So `_syncEditOverlay()` (called from `updated()`) starts `import('./lcards-grid-edit-overlay.js')` (the overlay and the editor components it uses are a lazy chunk, which keeps them out of the main chunk's size budget), creates the overlay with `document.createElement('lcards-grid-edit-overlay')` (the **global** registry; the element upgrades when its definition arrives and keeps the properties set before then), wires events with `addEventListener`, sets state via properties, and appends it to `renderRoot`. It is removed when leaving Layout mode and on disconnect.
 
-The **layout card** uses the same imperative pattern, but inside the **Layout Studio** dialog rather than Home Assistant's cramped card-edit dialog: the studio creates a single preview card *and* a single grid overlay via `document.createElement` on a large canvas. Because the studio owns one of each for its lifetime (and is destroyed on close), the duplicate-overlay/alignment problems of in-dialog editing don't arise. Editing needs **no edit-mode detection** and no nested-path `saveConfig`; overlay events recompute a working config and the studio fires `config-changed`, which the card's GUI editor relays to Home Assistant. New cards use Home Assistant's `hui-card-picker`; each card is edited inline with `hui-card-element-editor` in its tab.
+The **layout card** uses the same imperative pattern, but inside the **Layout Studio** dialog rather than Home Assistant's cramped card-edit dialog: the studio creates a single preview card *and* a single grid overlay via `document.createElement` on a large canvas. Because the studio owns one of each for its lifetime (and is destroyed on close), the duplicate-overlay/alignment problems of in-dialog editing don't arise. Editing needs **no edit-mode detection** and no nested-path `saveConfig`; overlay events update the studio's working config, and **Save** fires one `config-changed`, which the card's GUI editor relays to Home Assistant (see [The Layout Studio](#the-layout-studio)).
 
 ---
 
@@ -102,7 +109,7 @@ When several cards share a `grid-area`, `_placeCards()` adds a `.stack-picker` (
 `_placeCards()` rebuilds `#grid-root` whenever cards or layout change:
 
 1. **Area surfaces** (`renderAreaSurfaces()`, from `layout-render.js`): for each entry in `layout.areas`, a non-interactive `.area-surface` div is appended first (so cards paint above it by DOM order), styled by `applyAreaSurfaceStyle()`. `theme:` tokens in colors are resolved via `window.lcards.core.themeManager.resolver`.
-2. **Cards**: each Home Assistant card element gets placement applied by `applyCardPlacement(gridItem, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings)` (also from `layout-render.js`).
+2. **Cards**: each Home Assistant card element gets placement applied by `applyCardPlacement(gridItem, cardEl, viewLayout, cardMargin, cardOverflow, areaSettings, { cellFits })` (also from `layout-render.js`). `cellFits` comes from `cellHeightDefinite()` (`layout-grid-utils.js`): when the card's area has a definite height, the grid item gets `data-lcards-cell-fits` and an LCARdS button in it follows the cell instead of its preset's minimum height. `applyGridItemHeight()` forwards a card's own `height` to the grid item.
 
 **Precedence:** global (`card_margin` / `card_overflow`) → per-area (`layout.areas[name]`) → per-card (`view_layout`). Grid placement and alignment land on the *grid item* (the card, or its edit-mode wrapper); `overflow` lands on the card so content clips regardless of the wrapper.
 
@@ -169,6 +176,51 @@ Per-area settings (`layout.areas`) are keyed by area name, so they must track re
 - **Delete / track removal**: `_onGridStateChanged` prunes orphans via `pruneAreaSettings` against the current area names.
 
 All of these route back through `_saveViewConfig`.
+
+---
+
+## The layout card
+
+`LCARdSLayoutCard` (`src/cards/lcards-layout-card.js`) is a plain `LitElement` with `CARD_TYPE = 'layout-card'`, a schema, a lazy `getConfigElement()` and no `LCARdSCard` features (no rules, templates or entity subscriptions of its own; its children have theirs).
+
+- **Children.** Home Assistant gives a *view* pre-built card elements, but not a card, so the card builds them. `setConfig()` deep-clones the config, parses the layout (`parseLayoutConfig()`) and rebuilds the children only when `cards` changed (a layout-only change re-places the existing ones). `_createChild()` prefers a `hui-card` wrapper (native Visibility, lifecycle, `preview`), falls back to `loadCardHelpers().createCardElement()`, then to a registered `custom:` element (outside Home Assistant: docs live demos and the browser test harness), and finally to `hui-error-card`.
+- **HASS.** The `hass` setter passes the object to every child (`_propagateHass()`).
+- **Placement.** `updated()` calls `_placeCards()` when the config, the grid state or `editing` changed: it empties `#grid-root`, appends the area surfaces (`renderAreaSurfaces()`), and appends every child with `applyCardPlacement()` and `applyGridItemHeight()`. The host height mirrors `layout.height` (default `100%`), because a percentage host in a content-sized row would collapse to 0.
+- **Media queries.** `layout.mediaquery` overrides are matched with `matchMedia()` listeners (`_setupMediaQueries()`) and merged into the drawn grid by `_activeGrid()`; while `editing` is set (in the studio) the base layout is always drawn, because that is what the studio edits.
+- **Edit mode.** `preview` (set by `hui-card` in dashboard edit mode) is passed to the children, so like `hui-stack-card` they stay visible when their Visibility conditions are not met. `editing` (set by the studio) reserves the overlay gutter (`buildGridStyle(..., { editMode: 'grid' })`).
+- **Not in the card:** the view's visibility-driven row sizing and its in-place editor. A row of a layout card holding only hidden cards follows plain CSS Grid rules.
+
+---
+
+## The Layout Studio
+
+```mermaid
+sequenceDiagram
+    participant HA as Home Assistant card editor
+    participant Ed as lcards-layout-card-editor
+    participant St as lcards-layout-studio-dialog
+    participant Pv as preview lcards-layout-card
+    participant Ov as lcards-grid-edit-overlay
+    HA->>Ed: setConfig(config)
+    Ed->>St: createElement, hass, config (deep copy), mountDialogNearHomeAssistant()
+    St->>Pv: createElement('lcards-layout-card'), editing = true, setConfig(working copy)
+    St->>Ov: createElement('lcards-grid-edit-overlay'), hideCardMode, hideSettings, grid state
+    Ov->>St: grid-state-changed, area-*, layout-settings-changed, add-card-to-area
+    St->>St: _commit(new working config)
+    St->>Pv: setConfig(working copy)
+    St->>Ov: columns, rows, areas, gap, cardConfigs, layout
+    Note over St: Save: config-changed with the working config. Cancel or close: config-changed with the initial config
+    St->>Ed: config-changed
+    Ed->>HA: config-changed (fireEvent)
+```
+
+- **Mounting.** The editor creates the dialog on **Open Layout Studio** and mounts it with `mountDialogNearHomeAssistant()` (inside `home-assistant`, so Home Assistant's Lit contexts reach `ha-dialog` and the pickers). The editor removes it on `closed` and on its own disconnect.
+- **Working copy.** The `config` setter keeps `_initialConfig` and `_workingConfig` (both deep copies). Overlay events (`grid-state-changed`, `area-renamed`, `area-settings-changed`, `layout-settings-changed`, `area-cards-changed`, `add-card-to-area`) and the tabs change the working copy through `_commit()`, which re-renders the studio and pushes the copy to the preview and the overlay (`_syncCanvas()`). `grid-preview-changed` (a drag in progress) only writes the preview's `grid-template-*` styles.
+- **Save and Cancel.** Nothing reaches Home Assistant while you edit. **Save** dispatches one `config-changed` with the working config; **Cancel**, Escape or closing the dialog dispatches `config-changed` with the initial config, so the card is never left in an intermediate state. `_handled` makes sure only the first of them fires (the dialog's asynchronous `closed` event follows a save).
+- **Measuring.** A `ResizeObserver` on the preview's `#grid-root` feeds `measureGridFrame()` (resolved px tracks and the first cell's offset) to the overlay, so its ghost grid matches content-sized (`auto`) rows; the overlay is refreshed again one frame and 250 ms after opening, after the dialog animation.
+- **Tabs.** *Layout*: grid and per-area settings (the overlay's own settings panel is hidden with `hideSettings`). *One tab per card*: placement (area, alignment, overflow, written to `view_layout`) and an inline `hui-card-element-editor`; its changes are committed quietly (`_commitQuiet()`, the preview updates without re-rendering the studio, so the editor keeps its input state). *YAML*: `lcards-studio-yaml-tab` with the layout card schema.
+- **Adding cards.** The overlay's per-area **Add card** opens Home Assistant's `hui-card-picker` in an `ha-dialog`. Home Assistant registers the picker only after its own create-card dialog has opened once; when it is missing the studio shows an info dialog instead.
+- **Removing cards** asks first (`showConfirmDeleteDialog()`) and can be undone by cancelling the studio.
 
 ---
 

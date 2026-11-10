@@ -201,7 +201,7 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
         if (ref === o.id) {
           const code = 'anchor.self_reference';
           if (!existingCodes.has(`${code}:${o.id}`)) {
-            issues.errors.push({ code, severity:'error', overlay:o.id, anchor:ref, msg:`Overlay ${o.id} cannot reference itself as an anchor` });
+            issues.errors.push({ code, severity:'error', overlay:o.id, anchor:ref, message:`Overlay ${o.id} cannot reference itself as an anchor` });
             existingCodes.add(`${code}:${o.id}`);
           }
           return;
@@ -209,7 +209,7 @@ export async function processAndValidateConfig(userMsdConfig, svgContent = null)
         if (!anchorSet.has(ref)) {
           const code = 'anchor.missing';
           if (!existingCodes.has(`${code}:${ref}:${o.id}`)) {
-            issues.errors.push({ code, severity:'error', overlay:o.id, anchor:ref, msg:`Overlay ${o.id} references missing anchor '${ref}'` });
+            issues.errors.push({ code, severity:'error', overlay:o.id, anchor:ref, message:`Overlay ${o.id} references missing anchor '${ref}'` });
             existingCodes.add(`${code}:${ref}:${o.id}`);
           }
         }

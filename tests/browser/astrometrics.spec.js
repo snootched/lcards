@@ -1689,6 +1689,29 @@ test('whole-number settings and type live keys: a belt\'s count and inner edge e
     await expectNoErrors(page);
 });
 
+test('D3c AS1 settings bound on objects without an id: a rebuild key and a colour reach grid#2 and stay in the config a full rebuild reads', async ({ page }) => {
+    await mountCase(page, 'astro-idless-bindings', { width: '800' });
+    await sceneReady(page);
+    const grid = () => page.evaluate(() => {
+        const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug();
+        const b = s.world.objects.get('grid#2');
+        return { spacing: b?.config.line_spacing, color: b?.config.color, kept: s.config.objects[1].line_spacing, keptColor: s.config.objects[1].color, first: s.world.objects.get('grid#1')?.config.line_spacing };
+    });
+    // power 50: 5 + 0.5 * 45 = 27.5, a rebuild of grid#2 (line_spacing is not a live key)
+    await page.evaluate(() => window.__setState('input_number.lcards_test_power', '50'));
+    await expect.poll(async () => (await grid()).spacing, { timeout: 5000 }).toBeCloseTo(27.5, 6);
+    expect((await grid()).kept).toBeCloseTo(27.5, 6);
+    expect((await grid()).first, 'the grid without a binding untouched').toBeUndefined();
+    await page.evaluate(() => window.__setState('input_boolean.lcards_test_toggle', 'on'));
+    await expect.poll(async () => (await grid()).color, { timeout: 5000 }).toBe('#ff9900');
+    expect((await grid()).keptColor).toBe('#ff9900');
+    // a full rebuild from that config keeps both
+    await page.evaluate(() => { const s = /** @type {any} */ (document.querySelector('#mount > *'))._scene; s.setConfig(s.debug().config); });
+    await expect.poll(async () => (await grid()).spacing, { timeout: 5000 }).toBeCloseTo(27.5, 6);
+    expect((await grid()).color).toBe('#ff9900');
+    await expectNoErrors(page);
+});
+
 test('NB2b colours from entities: a state map (state, active / inactive, above:N), a colours item and a template crossfade their object to the colour, no rebuild', async ({ page }) => {
     await mountCase(page, 'astro-colours', { width: '800' });
     await sceneReady(page);

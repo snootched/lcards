@@ -137,7 +137,7 @@ style:
 ```
 
 ::: details More about axes
-- **Time labels:** the X axis picks its own time format to suit the window. Set your own with [`style.formatters.xaxis_label`](#formatters).
+- **Time labels:** the X axis picks its own time format to suit the window. Times show in the time zone and clock (12 or 24 hour) set in your Home Assistant profile, the same zone the [time window](./series#time-window) uses; the tooltip time too. Set your own format with [`style.formatters.xaxis_label`](#formatters).
 - **Rotating labels** works on category axes only; time axes don't rotate.
 - **Colours** are [`style.colors.axis`](./styling#colours).
 :::
@@ -175,6 +175,7 @@ style:
 
 ::: details More about formatters
 - **Date tokens:** `YYYY`, `YY`, `MMMM` (October), `MMM` (Oct), `MM`, `M`, `dddd` (Tuesday), `ddd` (Tue), `DD`, `D`, `HH`, `H`, `hh`, `h`, `mm`, `m`, `ss`, `s`, `A` (PM), `a` (pm). Month and day names follow your Home Assistant language. Put literal text in square brackets: `[at] HH:mm`.
+- **Time zone:** date formats show times in the time zone set in your Home Assistant profile, like the axis.
 - **Values:** `{value}` in axis labels; `{y}`, `{x}`, `{x|format}` and `{seriesName}` in tooltips. `{value}` and `{y}` show up to one decimal place, and a plain `{x}` reads like `Oct 07 14:30`.
 - **Quote** a format that starts with `{`, or YAML reads it as a map.
 :::

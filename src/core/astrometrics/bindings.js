@@ -44,7 +44,7 @@
 import { TemplateDetector } from '../templates/TemplateDetector.js';
 import { templateRefs } from '../templates/template-refs.js';
 import { BINDABLE_FORMS } from './placements.js';
-import { WHOLE_NUMBER_KEYS, LIVE_TYPE_KEYS } from './names.js';
+import { WHOLE_NUMBER_KEYS, LIVE_TYPE_KEYS, objectIds } from './names.js';
 import { stateKeyFor } from '../../utils/state-color-resolver.js';
 import { isColorValue } from '../themes/color-syntax.js';
 
@@ -153,20 +153,8 @@ function walk(node, path, found, isPoint) {
   }
 }
 
-/**
- * Each object's id as the scene builder names it: its own, or `type#n` for one
- * without (n counted per type in config order). Null for a non-object entry.
- * @param {any[]} objects
- * @returns {(string | null)[]}
- */
-export function objectIds(objects) {
-  const counts = /** @type {Record<string, number>} */ ({});
-  return objects.map((o) => {
-    if (!o || typeof o !== 'object') return null;
-    counts[o.type] = (counts[o.type] ?? 0) + 1;
-    return o.id === undefined || o.id === null || o.id === '' ? `${o.type}#${counts[o.type]}` : String(o.id);
-  });
-}
+/** Each object's id as the scene builder names it (names.js) */
+export { objectIds };
 
 /**
  * Every setting binding in a (flattened) card config.

@@ -626,12 +626,12 @@ clear_effect:
 play_sound:
   name: Play Sound
   description: >
-    Play a sound effect on target LCARdS frontends — without changing alert
-    mode, theme, or any screen effect. Provide either `event_type` (plays
-    whatever sound is currently configured for that UI event on the target
-    device, respecting its overrides/scheme) or `asset_key` (plays one exact
-    sound file, bypassing scheme/overrides). If both are given, `asset_key`
-    wins.
+    Play a sound effect on target LCARdS frontends, without changing alert
+    mode, theme, or any screen effect. Provide `event_type` (plays whatever
+    sound is currently configured for that UI event on the target device,
+    respecting its overrides/scheme) or `asset_key` (plays one exact sound
+    file, bypassing scheme/overrides); a call with neither is refused. If both
+    are given, `asset_key` wins.
   fields:
     event_type:
       name: Event Type

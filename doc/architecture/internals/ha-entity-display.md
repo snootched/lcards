@@ -4,7 +4,7 @@ Single source of truth for all Home Assistant i18n/locale-aware formatting in LC
 
 ## Purpose
 
-Delegates entirely to the `hass.format*` public API family (stable since Home Assistant 2024.4+, guaranteed on the LCARdS Home Assistant 2026.10 minimum). All cards, editors, charts, and datasource utilities **must** import from this module; never call `hass.format*` directly elsewhere.
+Delegates entirely to the `hass.format*` public API family (stable since Home Assistant 2024.4+, guaranteed on the LCARdS Home Assistant 2026.11 minimum, `MIN_HA_VERSION` in `custom_components/lcards/const.py`). All cards, editors, charts, and datasource utilities **must** import from this module; never call `hass.format*` directly elsewhere.
 
 ## Why a Centralized Utility?
 

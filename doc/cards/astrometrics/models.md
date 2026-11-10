@@ -30,7 +30,7 @@ In short:
 - Copy files in with the File editor or Studio Code Server add-on, a Samba share, or any way you reach `/config`. Subfolders are fine (`ships/odyssey.glb`). Keep a `.gltf` and its `.bin` and texture files together in one folder.
 
 ::: details More about the folder
-- **Not private:** like everything in `/config/www`, the files can be fetched without logging in by anyone who can reach your Home Assistant and knows their names. Keep only models there.
+- **Not private:** like everything in `/config/www`, the files can be fetched without logging in (on `/lcards-user/...` and on `/local/lcards/...`) by anyone who can reach your Home Assistant and knows their names. Keep only models there.
 - **What it lists:** the media browser lists `.glb` and `.gltf` files only.
 - **No uploads:** uploading through the media browser does not work here. Home Assistant's own media folder only takes audio, video and images, which is why LCARdS has its own.
 :::

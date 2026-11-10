@@ -13,8 +13,7 @@
  * 1. Constructor: Initialize caches and RouterCore reference
  * 2. initialize(mountEl): Pre-resolve styles
  * 3. render(): Create line SVG markup with routing
- * 4. update(): Recompute path if anchor positions change
- * 5. destroy(): Cleanup cached definitions
+ * 4. destroy(): Cleanup cached definitions
  */
 
 import { OverlayBase } from './OverlayBase.js';
@@ -293,22 +292,6 @@ export class LineOverlay extends OverlayBase {
         })
       };
     }
-  }
-
-  /**
-   * Update line overlay
-   * Recomputes path if anchor positions changed
-   *
-   * @param {Element} overlayElement - The overlay's DOM element
-   * @param {Object} overlay - Updated overlay configuration
-   * @param {*} sourceData - New data from data source (not used for lines)
-   * @returns {boolean} Success status
-   */
-  update(overlayElement, overlay, sourceData) {
-    // Lines typically don't update based on data changes
-    // They update when anchor positions change, which triggers a full re-render
-    lcardsLog.trace(`[LineOverlay] Update called for ${overlay.id} (lines typically re-render on anchor changes)`);
-    return true;
   }
 
   /**

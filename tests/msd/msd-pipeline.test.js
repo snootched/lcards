@@ -4,7 +4,7 @@
  */
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { HA_DOMAINS, isHAEntity, parseTriggerReference } from '../../src/msd/utils/HADomains.js';
+import { HA_DOMAINS, isHAEntity } from '../../src/msd/utils/HADomains.js';
 import { AnchorProcessor } from '../../src/msd/pipeline/AnchorProcessor.js';
 import { processAndValidateConfig, processMsdConfig } from '../../src/msd/pipeline/ConfigProcessor.js';
 import { ModelBuilder } from '../../src/msd/pipeline/ModelBuilder.js';
@@ -23,13 +23,6 @@ test('isHAEntity: known domain prefix with an object id', () => {
     ];
     for (const [ref, want] of cases) assert.equal(isHAEntity(ref), want, String(ref));
     assert.ok(HA_DOMAINS.includes('light'));
-});
-
-test('parseTriggerReference: entity, bare datasource, datasource path', () => {
-    assert.deepEqual(parseTriggerReference('light.desk'), { type: 'ha_entity', id: 'light.desk' });
-    assert.deepEqual(parseTriggerReference('power'), { type: 'msd_datasource', id: 'power' });
-    assert.deepEqual(parseTriggerReference('power.transformations.kw'), { type: 'msd_datasource', id: 'power', path: 'transformations.kw' });
-    assert.equal(parseTriggerReference(''), null);
 });
 
 // ── AnchorProcessor ────────────────────────────────────────────────────
@@ -117,11 +110,9 @@ test('processMsdConfig returns config and validation from CoreConfigManager', as
 
 function builder({ overlays, themeManager, sources = {} } = {}) {
     const subscribed = [];
-    const updates = [];
     const coordinator = {
         router: { setOverlays: (o) => { coordinator.routed = o; } },
         themeManager,
-        renderer: { updateOverlayData: (id, data) => updates.push([id, data]) },
         dataSourceManager: {
             getSource: (name) => sources[name] && {
                 subscribe: (cb) => { subscribed.push(name); sources[name].cb = cb; return () => { sources[name].unsubscribed = true; }; },
@@ -129,7 +120,7 @@ function builder({ overlays, themeManager, sources = {} } = {}) {
         },
     };
     const cardModel = { viewBox: [0, 0, 100, 100], anchors: { a: [1, 1] }, overlaysBase: overlays };
-    return { mb: new ModelBuilder({}, cardModel, coordinator), coordinator, subscribed, updates };
+    return { mb: new ModelBuilder({}, cardModel, coordinator), coordinator, subscribed };
 }
 
 test('computeResolvedModel: overlays merge raw + base, theme: tokens resolve per component', async () => {
@@ -161,14 +152,11 @@ test('computeResolvedModel: without a ready theme manager styles pass through', 
     assert.equal(model.overlays[0].style.color, 'theme:colors.ui.primary');
 });
 
-test('triggers_update: datasources subscribe and forward data, HA entities are skipped', async () => {
+test('triggers_update: the model builder no longer subscribes data sources (removed: it never re-rendered anything)', async () => {
     const sources = { power: {} };
     const overlays = [{ id: 'o1', type: 'text', raw: {}, triggers_update: ['light.desk', 'power.transformations.kw', 'ghost'] }];
-    const { mb, subscribed, updates } = builder({ overlays, sources });
+    const { mb, subscribed } = builder({ overlays, sources });
     await mb.computeResolvedModel();
-    assert.deepEqual(subscribed, ['power']);
-    sources.power.cb({ v: 1 });
-    assert.deepEqual(updates, [['o1', { v: 1 }]]);
-    mb.destroy();
-    assert.equal(sources.power.unsubscribed, true);
+    assert.deepEqual(subscribed, []);
+    assert.equal(/** @type {any} */ (mb)._subscribeOverlaysToUpdates, undefined);
 });

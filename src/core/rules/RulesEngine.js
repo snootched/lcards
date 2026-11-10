@@ -83,6 +83,7 @@ export class RulesEngine extends BaseService {
     this._ownerRuleIds = new Map();
     /** @type {any} */
     this._rulesChangedTimer = null;
+    this._rulesRemovedPending = false; // a rule was removed since the last "rules changed" run
 
     // DataSourceManager entity-change listener (rules naming a data source)
     /** @type {(() => void) | null} */
@@ -369,6 +370,9 @@ export class RulesEngine extends BaseService {
       this.buildDependencyIndex();
       this._compileRules();
       this.markAllDirty();
+      // A removed rule leaves nothing dirty when it was the last one, but the
+      // cards it patched still need a callback to take the patch off
+      if (counts.removed) this._rulesRemovedPending = true;
       this._scheduleRulesChanged();
       lcardsLog.debug(`[RulesEngine] Card ${meta.sourceCardId ?? ownerId} rules: +${counts.added} ~${counts.replaced} -${counts.removed} (total ${this.rules.length})`);
     }
@@ -393,7 +397,9 @@ export class RulesEngine extends BaseService {
     if (this._rulesChangedTimer) return;
     this._rulesChangedTimer = setTimeout(() => {
       this._rulesChangedTimer = null;
-      if (this.dirtyRules.size > 0) this._runReEvaluationCallbacks('rules changed');
+      const removed = this._rulesRemovedPending;
+      this._rulesRemovedPending = false;
+      if (this.dirtyRules.size > 0 || removed) this._runReEvaluationCallbacks('rules changed');
     }, 0);
   }
 

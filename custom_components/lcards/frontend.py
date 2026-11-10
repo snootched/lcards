@@ -193,7 +193,9 @@ async def async_remove_frontend_script_resource(hass: HomeAssistant) -> None:
         await resources.async_load()
         resources.loaded = True
 
-    for r in resources.async_items():
+    # list(): the YAML collection's async_items() is its data list itself, so
+    # removing from it while iterating would skip the next entry.
+    for r in list(resources.async_items()):
         if r["url"].startswith(f"/{DOMAIN}/{FRONTEND_SCRIPT_URL}"):
             if isinstance(resources, ResourceStorageCollection):
                 await resources.async_delete_item(r["id"])
