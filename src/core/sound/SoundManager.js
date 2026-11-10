@@ -23,6 +23,7 @@
 
 import { BaseService } from '../BaseService.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { bundleUrl } from '../../utils/bundle-url.js';
 import {
   STORAGE_KEY_SOUND_OVERRIDES,
   STORAGE_KEY_SOUND_VOLUME,
@@ -1317,7 +1318,8 @@ export class SoundManager extends BaseService {
     try {
       let audio = this._audioCache.get(assetKey);
       if (!audio) {
-        audio = new Audio(url);
+        // built-in /lcards/... URLs resolve against the bundle folder
+        audio = new Audio(bundleUrl(url));
         this._audioCache.set(assetKey, audio);
       }
       audio.volume = this._getVolume();

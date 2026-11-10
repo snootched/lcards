@@ -16,6 +16,7 @@
  */
 
 import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { bundleUrl } from '../../../utils/bundle-url.js';
 
 /** @type {Map<string, Promise<HTMLImageElement>>} */
 const _cache = new Map();
@@ -64,7 +65,7 @@ function _loadImageElement(url) {
         img.crossOrigin = 'anonymous'; // required for canvas drawImage — avoids tainted-canvas errors
         img.onload  = () => resolve(img);
         img.onerror = () => reject(new Error(`[ImageLoader] Failed to load: "${url}"`));
-        img.src = url;
+        img.src = bundleUrl(url); // built-in /lcards/... URLs resolve against the bundle folder
     });
 }
 

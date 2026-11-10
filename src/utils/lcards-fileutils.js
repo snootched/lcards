@@ -6,6 +6,7 @@
  */
 
 import { lcardsLog } from './lcards-logging.js';
+import { bundleUrl } from './bundle-url.js';
 import jsyaml from 'js-yaml';
 
 // Ensure global fallback for legacy callers expecting window.jsyaml
@@ -37,7 +38,7 @@ export async function loadSVGToCache(key, url) {
         return cache[key];
     }
     try {
-        const response = await fetch(url);
+        const response = await fetch(bundleUrl(url));
         if (!response.ok) {
             lcardsLog.error(`[loadSVGToCache] Failed to fetch SVG [${url}] for key [${key}]: ${response.status} ${response.statusText}`);
             return undefined;

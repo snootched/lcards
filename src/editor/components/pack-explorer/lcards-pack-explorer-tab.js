@@ -15,6 +15,7 @@
 import { LitElement, html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
+import { bundleUrl } from '../../../utils/bundle-url.js';
 import {
   renderThemePreview,
   rendererStyles
@@ -1681,7 +1682,7 @@ export class LCARdSPackExplorerTab extends LitElement {
         <lcards-form-section header="Preview" icon="mdi:eye-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
           <div class="image-preview-container">
             <img
-              src="${asset.url}"
+              src="${bundleUrl(asset.url)}"
               alt="${asset.label || asset.key}"
               @error=${(e) => { e.target.style.display='none'; e.target.insertAdjacentHTML('afterend', '<span style="color:var(--secondary-text-color)">Image not found</span>'); }}
             />
@@ -1784,7 +1785,7 @@ export class LCARdSPackExplorerTab extends LitElement {
       ${asset.url ? html`
         <lcards-form-section header="Preview" icon="mdi:eye-outline" ?expanded=${true} ?outlined=${true} ?noCollapse=${true}>
           <div class="audio-preview-container">
-            <audio controls src="${asset.url}">
+            <audio controls src="${bundleUrl(asset.url)}">
               Your browser does not support the audio element.
             </audio>
           </div>

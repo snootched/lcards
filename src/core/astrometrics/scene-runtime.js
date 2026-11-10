@@ -27,6 +27,7 @@ import { prefersReducedMotion, onReducedMotionChange } from '../../utils/reduced
 import { createLoadingRing, LOADING_RING_CSS } from './loading-ring.js';
 import { createOutlineEditor, OUTLINE_EDITOR_CSS } from './outline-editor.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { bundleUrl } from '../../utils/bundle-url.js';
 import { CameraRig, viewToKeys, parseLimits, clampKeys, screenRay, rayPlane, cameraPose, viewHeight, DEFAULT_KEYS } from './camera-rig.js';
 import { ROOT } from './frames.js';
 import { LabelLayer } from './label-layer.js';
@@ -379,7 +380,8 @@ export function createAstroScene(host, config, options = {}) {
       if (!url) throw new Error(`could not resolve ${src} through the media browser`);
       return url;
     }
-    return src;
+    // a path as given; a built-in /lcards/... path resolves against the bundle folder
+    return bundleUrl(src);
   }
 
   const rig = new CameraRig({ onChange: () => requestFrame() });

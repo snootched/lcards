@@ -13,6 +13,7 @@
 import { BaseService } from '../BaseService.js';
 import { sanitizeSvg } from '../../utils/lcards-svg-helpers.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { bundleUrl } from '../../utils/bundle-url.js';
 
 /** How long a resolved `media-source://…` URL is trusted before re-resolving. */
 const MEDIA_SOURCE_CACHE_TTL_MS = 15 * 60 * 1000;
@@ -299,7 +300,8 @@ export class AssetManager extends BaseService {
     lcardsLog.debug(`[AssetManager] Loading external ${type}: ${key} from ${url}`);
 
     try {
-      const response = await fetch(url);
+      // built-in /lcards/... URLs resolve against the bundle folder
+      const response = await fetch(bundleUrl(url));
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -497,10 +499,10 @@ export class AssetManager extends BaseService {
     try {
       // Check the image registry first
       const imageAsset = this.getRegistry('image').assets.get(key);
-      if (imageAsset?.url) return imageAsset.url;
+      if (imageAsset?.url) return bundleUrl(imageAsset.url);
       // Fall back: SVG assets (ships, backgrounds, etc.) are also usable as <img> sources
       const svgAsset = this.getRegistry('svg').assets.get(key);
-      return svgAsset?.url ?? null;
+      return svgAsset?.url ? bundleUrl(svgAsset.url) : null;
     } catch (_) {
       return null;
     }
@@ -514,7 +516,8 @@ export class AssetManager extends BaseService {
    */
   resolveModelUrl(key) {
     try {
-      return this.getRegistry('model').assets.get(key)?.url ?? null;
+      const url = this.getRegistry('model').assets.get(key)?.url;
+      return url ? bundleUrl(url) : null;
     } catch (_) {
       return null;
     }
@@ -754,7 +757,7 @@ export class AssetManager extends BaseService {
       const link = document.createElement('link');
       link.id = linkId;
       link.rel = 'stylesheet';
-      link.href = fontAsset.url;
+      link.href = bundleUrl(fontAsset.url);
       document.head.appendChild(link);
 
       lcardsLog.debug(`[AssetManager] Loaded font: ${migratedKey} from ${fontAsset.url}`);

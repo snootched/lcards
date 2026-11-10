@@ -211,13 +211,15 @@ sequenceDiagram
     participant Lazy as lazy chunks
 
     Page->>Stub: extra_js_url module load
-    Stub->>Stub: read ?log= from import.meta.url,<br/>window.__LCARDS_BOOT__ = { log }
+    Stub->>Stub: read ?log= and its folder from import.meta.url,<br/>window.__LCARDS_BOOT__ = { log, base }
     Stub->>Main: import('./lcards-main.js')
     Main->>Main: apply log level, define custom elements,<br/>initialize core
     Main-->>Lazy: import() on first use<br/>(editor, panel, chart, WebGL scene ...)
 ```
 
-**Loader stub.** `src/lcards.js` (the Vite entry, about 20 lines) reads `log` from its own URL, stores it on `window.__LCARDS_BOOT__`, and dynamically imports `./lcards-main.js`, which Vite emits as `chunks/lcards-main-<hash>.js`. `src/lcards-main.js` then applies the level (and the `?lcards_log_level=` page URL override), registers every card element and initializes the core. The split exists because lazy chunks import shared code from the main chunk by its plain URL: if that code lived in the entry, they would request `lcards.js` without `?v=&log=`, a second module URL, and the browser would run a second copy of the bundle (a second core).
+**Loader stub.** `src/lcards.js` (the Vite entry, about 30 lines) reads `log` and its own folder from its URL, stores them on `window.__LCARDS_BOOT__`, and dynamically imports `./lcards-main.js`, which Vite emits as `chunks/lcards-main-<hash>.js`. `src/lcards-main.js` then applies the level (and the `?lcards_log_level=` page URL override), registers every card element and initializes the core. The split exists because lazy chunks import shared code from the main chunk by its plain URL: if that code lived in the entry, they would request `lcards.js` without `?v=&log=`, a second module URL, and the browser would run a second copy of the bundle (a second core).
+
+**Built-in asset URLs resolve against the bundle folder.** The stub also records the folder it was loaded from as `window.__LCARDS_BOOT__.base` (the path, or a full URL when the bundle is on another origin; `/lcards/` when its URL cannot be read). Packs, docs examples and configs write built-in asset URLs as `/lcards/...` (fonts, sounds, MSD SVGs, images, models, the brand icon); every place that fetches, links or plays one passes it through `bundleUrl()` (`src/utils/bundle-url.js`), which swaps the leading `/lcards/` for that base. Other URLs (`/lcards-user/...`, `/local/...`, `http(s)://`, `builtin:` keys, `data:`) are untouched. In Home Assistant the base is `/lcards/`, so the URLs are identical; the versioned docs site serves the bundle from `/dev/lcards/` or `/v/<version>/lcards/`, where a root-absolute `/lcards/...` would load the latest channel's copy. The font stylesheets in `src/assets/fonts/` use `url()`s relative to their own folder for the same reason. `tests/core/bundle-url.test.js` fails on a literal `/lcards/` URL in `src/` that is used without `bundleUrl()`, and `tests/browser/bundle-base.spec.js` loads the bundle from `/base-test/lcards/` and checks that no request goes to `/lcards/`.
 
 **Lazy chunks.** Rarely needed code is split out with native `import()`, resolved relative to the importing chunk (no global chunk registry that could collide with other bundled cards). `chunkFileNames: 'chunks/[name]-[hash].js'`. The main ones:
 

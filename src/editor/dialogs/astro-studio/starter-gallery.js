@@ -10,6 +10,7 @@
  */
 
 import { applyStarter, starterParams } from '../../../core/astrometrics/starters/index.js';
+import { bundleUrl } from '../../../utils/bundle-url.js';
 
 /** Where the Studio's generated pictures are served */
 export const PICTURE_BASE = '/lcards/images/astro-studio/';
@@ -19,7 +20,7 @@ export const PICTURE_BASE = '/lcards/images/astro-studio/';
  * @param {string} id
  */
 export function starterPicture(id) {
-  return `${PICTURE_BASE}starter-${id}.webp`;
+  return bundleUrl(`${PICTURE_BASE}starter-${id}.webp`);
 }
 
 /**
@@ -27,7 +28,7 @@ export function starterPicture(id) {
  * @param {string} type
  */
 export function typePicture(type) {
-  return `${PICTURE_BASE}type-${type}.webp`;
+  return bundleUrl(`${PICTURE_BASE}type-${type}.webp`);
 }
 
 /**
@@ -36,7 +37,7 @@ export function typePicture(type) {
  * @param {string} shape
  */
 export function shapePicture(type, shape) {
-  return `${PICTURE_BASE}shape-${type}-${shape}.webp`;
+  return bundleUrl(`${PICTURE_BASE}shape-${type}-${shape}.webp`);
 }
 
 /**

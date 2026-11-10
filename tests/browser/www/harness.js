@@ -6,6 +6,8 @@
  *
  * URL: /harness.html?case=<fixture>[&freeze=1][&width=480][&height=300][&now=<ms>][&seed=<n>][&log=<level>][&connectFirst=1]
  *      [&historyDelay=<entity_id>:<ms>]  (answer that entity's history late)
+ *      [&base=/base-test/lcards/]  (load the bundle from another folder, like the versioned
+ *                                   docs site; built-in assets must follow it: bundle-base.spec.js)
  *
  * Exposes for Playwright:
  *   window.__ready      true once the card rendered and fonts loaded (or 'error')
@@ -73,7 +75,10 @@ async function mount() {
     // Like HA: /lcards/lcards.js?v=<version>&log=<level> (?log=<level> via the harness).
     const scriptQuery = new URLSearchParams({ v: 'test' });
     if (params.get('log')) scriptQuery.set('log', params.get('log'));
-    await import(`/lcards/lcards.js?${scriptQuery}`);
+    // ?base=<folder>: the same bundle served from another folder (serve.mjs mounts /base-test/lcards/)
+    const base = params.get('base') ?? '/lcards/';
+    if (!/^\/[\w\-/]*\/$/.test(base)) throw new Error(`bad base ${base}`);
+    await import(`${base}lcards.js?${scriptQuery}`);
     await customElements.whenDefined('lcards-button');
     if (!caseName) { window.__ready = true; return; }
 

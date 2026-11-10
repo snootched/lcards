@@ -1,4 +1,5 @@
 import { lcardsLog } from './lcards-logging.js';
+import { bundleUrl } from './bundle-url.js';
 import { isComputedColor } from '../core/themes/color-syntax.js';
 
 /**
@@ -33,7 +34,7 @@ export function loadFont(fontInput) {
     // Else assume local LCARdS font (NEW PREFIX)
     if (!fontName.startsWith('lcards_')) return;
 
-    const href = `/lcards/fonts/${fontName}.css`;
+    const href = bundleUrl(`/lcards/fonts/${fontName}.css`);
     const fontKey = fontName;
 
     if (_loadedFonts.has(fontKey)) return;

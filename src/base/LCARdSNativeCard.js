@@ -9,6 +9,7 @@
 
 import { LitElement, html, css, unsafeCSS } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { bundleUrl } from '../utils/bundle-url.js';
 import { isSyntheticHass } from '../utils/synthetic-hass.js';
 
 /**
@@ -123,14 +124,14 @@ export class LCARdSNativeCard extends LitElement {
             /* LCARS font loading */
             @font-face {
                 font-family: 'lcards_jeffries';
-                src: url('/lcards/fonts/jeffries.woff2') format('woff2'),
-                     url('/lcards/fonts/jeffries.woff') format('woff');
+                src: url('${unsafeCSS(bundleUrl('/lcards/fonts/jeffries.woff2'))}') format('woff2'),
+                     url('${unsafeCSS(bundleUrl('/lcards/fonts/jeffries.woff'))}') format('woff');
             }
 
             @font-face {
                 font-family: 'lcards_microgramma';
-                src: url('/lcards/fonts/microgramma.woff2') format('woff2'),
-                     url('/lcards/fonts/microgramma.woff') format('woff');
+                src: url('${unsafeCSS(bundleUrl('/lcards/fonts/microgramma.woff2'))}') format('woff2'),
+                     url('${unsafeCSS(bundleUrl('/lcards/fonts/microgramma.woff'))}') format('woff');
             }
         `;
     }

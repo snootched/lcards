@@ -4,6 +4,8 @@
  *
  *   /lcards/*     -> custom_components/lcards/   (the built bundle, like HA serves it;
  *                                                 .br/.gz siblings honoured)
+ *   /base-test/lcards/* -> custom_components/lcards/ (the same bundle under another folder,
+ *                                                 like the versioned docs site: bundle-base.spec.js)
  *   /helpers/*    -> tests/helpers/              (fake-hass.js)
  *   /demo-data.js -> doc/.vitepress/theme/chart-demo-data.js
  *   /fixtures/*   -> tests/browser/fixtures/
@@ -22,6 +24,7 @@ const port = Number(process.argv[2] ?? process.env.LCARDS_TEST_PORT ?? 4870);
 
 const MOUNTS = [
     ['/lcards/', join(root, 'custom_components/lcards')],
+    ['/base-test/lcards/', join(root, 'custom_components/lcards')],
     ['/helpers/', join(root, 'tests/helpers')],
     ['/fixtures/', join(root, 'tests/browser/fixtures')],
     ['/vendor/', join(root, 'node_modules')],
@@ -38,6 +41,9 @@ const TYPES = {
     '.css': 'text/css',
     '.svg': 'image/svg+xml',
     '.png': 'image/png',
+    '.webp': 'image/webp',
+    '.jpg': 'image/jpeg',
+    '.glb': 'model/gltf-binary',
     '.woff2': 'font/woff2',
     '.woff': 'font/woff',
     '.ttf': 'font/ttf',

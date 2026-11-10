@@ -54,6 +54,7 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSCard } from '../base/LCARdSCard.js';
 import { actionSoundEvent } from '../base/LCARdSActionHandler.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { bundleUrl } from '../utils/bundle-url.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { deepMergeImmutable } from '../utils/deepMerge.js';
@@ -811,7 +812,7 @@ export class LCARdSButton extends LCARdSCard {
      */
     async _fetchExternalSvg(url, svgConfig) {
         try {
-            const response = await fetch(url);
+            const response = await fetch(bundleUrl(url));
             if (!response.ok) {
                 throw new Error(`Failed to load SVG: ${response.statusText}`);
             }

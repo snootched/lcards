@@ -31,6 +31,7 @@ import { LitElement, html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { lcardsLog } from '../../utils/lcards-logging.js';
+import { bundleBase } from '../../utils/bundle-url.js';
 import { editorStyles } from '../base/editor-styles.js';
 import { messageStyles } from '../base/surface-styles.js';
 import { OverlayUtils } from '../../msd/renderer/OverlayUtils.js';
@@ -1796,7 +1797,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         if (source.startsWith('builtin:')) {
             svgKey = source.replace('builtin:', '');
             isBuiltin = true;
-        } else if (source.startsWith('/local/') || source.startsWith('/hacsfiles/') || source.startsWith('/lcards/')
+        } else if (source.startsWith('/local/') || source.startsWith('/hacsfiles/') || source.startsWith('/lcards/') || source.startsWith(bundleBase())
             || source.startsWith('http://') || source.startsWith('https://')) {
             // Registered under the whole source, as AssetManager.loadSvg() keys it
             // (a bare file name would show a same-named built-in's placard).

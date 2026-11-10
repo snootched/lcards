@@ -21,6 +21,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { bundleUrl } from '../utils/bundle-url.js';
 import '../editor/components/theme-browser/lcards-theme-token-browser-tab.js';
 import '../editor/components/pack-explorer/lcards-pack-explorer-tab.js';
 import '../editor/components/shared/lcards-form-section.js';
@@ -620,7 +621,7 @@ export class LCARdSConfigPanel extends LitElement {
         <div class="header">
           <img
             class="banner-logo"
-            src="/lcards/brand/icon@2x.png"
+            src=${bundleUrl('/lcards/brand/icon@2x.png')}
             alt="LCARdS"
             @error=${(e) => { e.target.style.display = 'none'; }}
           />

@@ -17,7 +17,7 @@ For a bug report, `await window.lcards.support.copy()` copies the full checked s
 **Four places set the level; the later one wins** (`src/lcards-main.js:8-29`).
 
 1. The level saved in this browser (`localStorage` key `lcards-global-log-level`), else `info`. Module-level logs from before core startup use this one (`src/utils/lcards-logging.js:14-28`).
-2. The integration's **Log level** option: `frontend.py` puts it on the script URL as `/lcards/lcards.js?v=<version>&log=<level>`, and the loader stub hands it on as `window.__LCARDS_BOOT__.log` (`src/lcards.js:12-18`).
+2. The integration's **Log level** option: `frontend.py` puts it on the script URL as `/lcards/lcards.js?v=<version>&log=<level>`, and the loader stub hands it on as `window.__LCARDS_BOOT__.log` (`src/lcards.js:13-30`).
 3. `?lcards_log_level=<level>` on the page URL, for one session without touching the integration settings. Useful for catching early startup errors.
 4. `window.lcards.setGlobalLogLevel(level)` in the console, at any time.
 
