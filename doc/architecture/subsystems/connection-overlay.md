@@ -330,7 +330,8 @@ window.lcards.connectionOverlay.simulateReconnect({ reconnected: { text: 'Back o
 // Read the currently active resolved config
 window.lcards.connectionOverlay.getConfig()
 
-// Save config to global scope (default; Home Assistant admins only). Resolves to true or false
+// Save config: with no scope, global for a Home Assistant admin and the user's own scope
+// otherwise (defaultSettingsScope() in storage-permissions.js). Resolves to true or false
 const ok = await window.lcards.connectionOverlay.saveConfig({
   message: { text: 'No Connection', color: '#ff9900' }
 })

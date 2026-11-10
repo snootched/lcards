@@ -40,7 +40,7 @@ export const infoGuideStyles = css`
     background: color-mix(in srgb, var(--primary-text-color) 10%, transparent);
     padding: 1px 6px;
     border-radius: var(--ha-border-radius-sm);
-    font-family: var(--code-font-family, monospace);
+    font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
     font-size: 13px;
   }
 
@@ -54,7 +54,7 @@ export const infoGuideStyles = css`
     border-radius: var(--ha-border-radius-sm);
     padding: var(--ha-space-2) var(--ha-space-3);
     margin: 0 0 var(--ha-space-3);
-    font-family: var(--code-font-family, monospace);
+    font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
     font-size: 13px;
     white-space: pre;
     overflow-x: auto;

@@ -27,6 +27,7 @@ The red alert button under [Triggering alert mode](#triggering-alert-mode) raise
 | [Raising and Dismissing](/cards/alert-overlay/raising) | The `lcards.*` alert actions, targeting, dismiss timers and transition effects |
 | [Alert Mode Lab](/configuration/alert-mode-lab) | Tuning the colours of each alert level |
 | [Users & Devices](/configuration/users-devices) | Device names and ids for targeted alerts |
+| [Theme System: Alert Mode Integration](/architecture/subsystems/theme-system#alert-mode-integration) | For developers: how a mode is applied, the colour transforms, and how cards repaint |
 
 ## Alert levels
 

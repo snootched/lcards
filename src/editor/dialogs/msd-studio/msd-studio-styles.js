@@ -118,7 +118,7 @@ export const msdStudioStyles = css`
         border-radius: 24px;
         padding: 8px 16px;
         border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        box-shadow: var(--ha-box-shadow-m);
         z-index: 1000;
     }
 
@@ -167,7 +167,7 @@ export const msdStudioStyles = css`
         background: var(--card-background-color);
         border: 1px solid var(--divider-color);
         border-radius: 12px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        box-shadow: var(--ha-box-shadow-m);
         z-index: 1001;
         animation: slideIn 0.2s ease;
     }
@@ -469,7 +469,7 @@ export const msdStudioStyles = css`
         font-weight: 600;
         white-space: nowrap;
         pointer-events: none;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        box-shadow: var(--ha-box-shadow-s);
     }
 
     /* Interactive Anchors */
@@ -587,7 +587,7 @@ export const msdStudioStyles = css`
 
     .selected-card-header:hover {
         border-color: var(--primary-color);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--ha-box-shadow-s);
     }
 
     /* Preview Tab Styles */

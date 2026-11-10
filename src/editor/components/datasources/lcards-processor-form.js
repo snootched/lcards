@@ -115,7 +115,7 @@ export class LCARdSProcessorForm extends LitElement {
         color: var(--secondary-text-color);
       }
       .help code {
-        font-family: var(--code-font-family, monospace);
+        font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
       }
       .latest {
         font-size: 13px;

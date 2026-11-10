@@ -38,7 +38,7 @@ export const datasourceItemStyles = css`
 
   .info-row .value {
     color: var(--primary-text-color);
-    font-family: var(--code-font-family, monospace);
+    font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
     text-align: right;
     overflow-wrap: anywhere;
   }
@@ -61,7 +61,7 @@ export const datasourceItemStyles = css`
     background: color-mix(in srgb, var(--primary-color) 18%, transparent);
     color: var(--primary-text-color);
     font-size: 12px;
-    font-family: var(--code-font-family, monospace);
+    font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
   }
 
   .chip.auto {

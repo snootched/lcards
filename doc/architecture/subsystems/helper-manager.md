@@ -65,7 +65,7 @@ Values are entity **state strings** as Home Assistant reports them: `'on'` / `'o
 
 ## Alert-Mode Auto-Switch
 
-This is the link between the `alert_mode` helper and the [Theme System](theme-system.md):
+This is the link between the `alert_mode` helper and the [Theme System](theme-system.md); what `setAlertMode()` then does is in [Alert Mode Integration](theme-system.md#alert-mode-integration):
 
 - **On change**: a subscriber on `alert_mode` calls `window.lcards.setAlertMode(newMode)` for every change of the helper, whatever `alert_mode_auto_switch` says. It skips the call when `themeManager.getAlertMode()` already equals the new mode (the change came from `setAlertMode()` itself syncing the helper), and pushes the current HASS to the core first.
 - **Auto-switch turned on**: when `alert_mode_auto_switch` goes from off to on, the current `alert_mode` is applied.

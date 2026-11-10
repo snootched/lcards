@@ -74,7 +74,7 @@ Browser and real-HA layers (Playwright, system `/usr/bin/chromium`; run `npm run
 
 ```bash
 npm run test:browser             # Layer A: cards mounted from tests/browser/fixtures/*.yaml against a fake hass
-npm run test:visual              # Layer B: screenshot baselines (local only); add -- --update-snapshots after an intended change
+npm run test:visual              # Layer B: screenshot baselines (local only); add -- --update-snapshots=all after an intended change
 npm run test:ha                  # Layer C: smoke tests against the dev HA; needs a long-lived token in $HA_TOKEN or .ha-token (gitignored)
 npm run test:docs                # docs site: live card demos + playgrounds on the built site and the dev server (run npm run docs:build first)
 ```
@@ -159,74 +159,26 @@ import { themeTokenResolver } from '...ThemeTokenResolver.js';
 The `theme:` prefix is required in any config value that references a token path: `'theme:colors.ui.primary'`.
 `spacing.*` and `animations.*` are phantom namespaces — they always return fallback.
 
-### CSS variables — register before use
+### CSS variables: register before use
 
-New `--lcars-*` vars must be added to `scripts/ha-lcars-theme-vars.js`.
-New `--lcards-*` vars must be added to `src/lcards-vars.js`.
-The build fails if you reference an unregistered variable.
+New `--lcars-*` vars must exist in the HA-LCARS theme (the validator reads `../ha-lcars/themes/lcars.yaml`, else GitHub); also add them to `STATIC_FALLBACK_VARS` in `scripts/ha-lcars-theme-vars.js` for offline runs. User-settable names HA-LCARS lacks go in `LCARS_USER_CONVENTION_VARS` (`scripts/validate-css-vars.js`).
+New `--lcards-*` vars are `GREEN_ALERT_PALETTE` keys in `src/core/themes/paletteInjector.js`, or entries in `LCARDS_COMPONENT_VARS` (`scripts/validate-css-vars.js`).
+The build fails on an unregistered variable. Details: `doc/development/colour-resolution.md#css-variables-and-theme-tokens`.
 
-### HA CSS variables — always use, never hardcode (HA 2026.6+)
+### HA CSS variables: always use, never hardcode (HA 2026.11+)
 
-**Box shadows:** `var(--ha-box-shadow-s/m/l)` — never write `box-shadow: 0 Xpx Xpx rgba(0,0,0,X)`.
+Names, light/dark values and frontend file:line citations live only in `doc/development/ha-css-vars.md`. Read it before choosing a value; don't copy its tables into instructions.
 
-**Border radius** (full scale available):
-
-| Value | Variable |
-|---|---|
-| 4px | `var(--ha-border-radius-sm)` |
-| 8px | `var(--ha-border-radius-md)` |
-| 12px | `var(--ha-border-radius-lg)` (= `--ha-card-border-radius`) |
-| 16px | `var(--ha-border-radius-xl)` |
-| 20px | `var(--ha-border-radius-2xl)` |
-| 24px | `var(--ha-border-radius-3xl)` |
-| 28px | `var(--ha-border-radius-4xl)` |
-| 32px | `var(--ha-border-radius-5xl)` |
-| 36px | `var(--ha-border-radius-6xl)` |
-| pill | `var(--ha-border-radius-pill)` (9999px) |
-| circle | `var(--ha-border-radius-circle)` (50%) |
-
-No HA var for 6px, 3px, 22px — leave those hardcoded.
-
-**Border width:** `var(--ha-border-width-sm)` = 1px, `var(--ha-border-width-md)` = 2px, `var(--ha-border-width-lg)` = 3px. Always use these in `border: var(--ha-border-width-sm) solid …` — never hardcode `1px`/`2px` in border declarations.
-
-**Spacing** (4px scale, `--ha-space-N` where value = N×4px):
-
-| px | Variable | px | Variable |
-|---|---|---|---|
-| 4px | `var(--ha-space-1)` | 24px | `var(--ha-space-6)` |
-| 8px | `var(--ha-space-2)` | 28px | `var(--ha-space-7)` |
-| 12px | `var(--ha-space-3)` | 32px | `var(--ha-space-8)` |
-| 16px | `var(--ha-space-4)` | 40px | `var(--ha-space-10)` |
-| 20px | `var(--ha-space-5)` | 48px | `var(--ha-space-12)` |
-
-No HA var for 2px, 6px, 10px, 14px, 18px — leave those hardcoded.
-
-**Animation duration** (automatically collapses to 1ms with `prefers-reduced-motion: reduce`):
-
-| Duration | Variable |
-|---|---|
-| 75ms | `var(--ha-animation-duration-instant)` |
-| 150ms (= 0.15s) | `var(--ha-animation-duration-fast)` |
-| 250ms (≈ 0.2s) | `var(--ha-animation-duration-normal, 0.2s)` |
-| 350ms (≈ 0.3s) | `var(--ha-animation-duration-slow, 0.3s)` |
-
-Use `var(--ha-animation-duration-fast/normal/slow, <original>)` — fallback preserves original speed when HA var is unavailable.
-
-**Semi-transparent backgrounds inside cards** (compatible with HA-LCARS where `card-background-color = secondary-background-color`):
-```css
-background-color: color-mix(
-    in srgb,
-    var(--secondary-background-color) 50%,
-    color-mix(in srgb, var(--primary-background-color) 25%, transparent)
-);
-```
-Never use `rgba(60,60,60,X)` or `rgba(255,255,255,X)` in structural CSS — these are theme-blind.
-
-**Buttons:** `<ha-button variant="danger/warning/brand">` — never use `--mdc-theme-primary` CSS overrides.
-
-**HA 2026.6+:** Use `ha-input`/`ha-textarea` (not `ha-textfield`), `ha-textarea resize="auto"`. Loading spinner: `ha-spinner size="small"` (`ha-circular-progress` was removed from HA's frontend entirely — silently renders 0×0, no error).
-
-Full reference: `.github/instructions/editor.instructions.md` → CSS & Theming Conventions.
+- **Box shadows:** `var(--ha-box-shadow-s/m/l)`, never `box-shadow: 0 Xpx Xpx rgba(0,0,0,X)`.
+- **Border radius:** `var(--ha-border-radius-sm|md|lg|xl|2xl...6xl|pill|circle)` (4px to 36px). Card-like containers: `var(--ha-card-border-radius, var(--ha-border-radius-lg))` (a theme var, not a global: always give the fallback). No var for 3px, 6px, 10px, 22px.
+- **Border width:** `border: var(--ha-border-width-sm|md|lg) solid …` (1/2/3px); never hardcode `1px`/`2px` in a border.
+- **Spacing:** `var(--ha-space-N)` = N×4px (1-20). No var for 2px, 6px, 10px, 14px, 18px.
+- **Durations:** `var(--ha-animation-duration-fast)` (0.15s), `var(--ha-animation-duration-normal, 0.2s)`, `var(--ha-animation-duration-slow, 0.3s)`; all collapse to 1ms under prefers-reduced-motion.
+- **Fonts:** `--ha-font-size-*`, `--ha-font-weight-*`, `var(--ha-font-family-body)`, `var(--ha-font-family-code)`.
+- **Semi-transparent backgrounds inside cards** (HA-LCARS sets card-background = secondary-background):
+  `color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent))`.
+  Never `rgba(60,60,60,X)` or `rgba(255,255,255,X)` in structural CSS.
+- **Components:** `<ha-button variant="danger/warning/brand">` (no `--mdc-theme-primary` overrides); `ha-input`/`ha-textarea resize="auto"` (not `ha-textfield`); `ha-spinner size="small"` (`ha-circular-progress` is gone and renders 0×0).
 
 ### Custom element registration — centralized and guarded
 
@@ -315,5 +267,5 @@ window.lcards.debug.msd.routing.trunks('card-id')    // every discovered/configu
 
 1. Create in `src/core/` extending `BaseService`
 2. Import and instantiate in `src/core/lcards-core.js` `_performInitialization()` (respect initialization order)
-3. Expose on `window.lcards.core.myService`
+3. Nothing to expose: `window.lcards.core` is `lcardsCore` itself (set in `src/lcards-main.js` before `initialize()`), so `this.myService` is `window.lcards.core.myService`; never add a separate `window.lcards.core.X =` copy
 4. Document in `doc/architecture/subsystems/`

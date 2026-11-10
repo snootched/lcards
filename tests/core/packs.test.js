@@ -4,6 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { loadBuiltinPacks, BUILTIN_PACK_IDS, CORE_REQUESTED_PACK_IDS } from '../../src/core/packs/loadBuiltinPacks.js';
 import { PackManager } from '../../src/core/PackManager.js';
 import { createFakeHass } from '../helpers/fake-hass.js';
@@ -76,13 +77,19 @@ test('lcardsCore.initialize under jsdom: every builtin pack registered, default 
     installJsdom();
     globalThis.lcards = { core: {} }; // normally created by src/lcards-main.js
     const { lcardsCore } = await import('../../src/core/lcards-core.js');
+    // lcards-main.js attaches the core before initialize(): window.lcards.core
+    // IS the core, so its services need no window.lcards.core.X copies (G4)
+    globalThis.lcards.core = lcardsCore;
     await lcardsCore.initialize(createFakeHass());
     try {
         assert.deepEqual(lcardsCore.packManager.getLoadedPackIds().sort(), [...ALL_BUILTIN].sort());
         const theme = lcardsCore.themeManager.getActiveTheme();
         assert.equal(theme.id, 'lcards-default');
         assert.ok(theme.tokens.colors, 'theme has a colour token tree');
-        assert.equal(globalThis.lcards.core.borgAssimilationManager, lcardsCore.borgAssimilationManager);
+        assert.ok(globalThis.lcards.core.borgAssimilationManager, 'the Borg manager is on the core');
+        assert.ok(globalThis.lcards.core.portalOverlayManager, 'the portal overlay manager is on the core');
+        assert.equal(readFileSync(new URL('../../src/core/lcards-core.js', import.meta.url), 'utf8').match(/window\.lcards\.core\.\w+\s*=/g), null,
+            'lcards-core.js writes no window.lcards.core.X copies of its own services');
         assert.match(lcardsCore.themeManager.resolver.resolve('colors.ui.primary'), /^var\(--lcars-ui-primary, /);
 
         // D3a: the card context offered helpers calling methods that do not exist

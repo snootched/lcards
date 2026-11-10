@@ -124,7 +124,15 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         this._previewEl = this._overlayEl = null;
     }
 
-    updated() {
+    /** @param {Map<string, unknown>} changed */
+    updated(changed) {
+        // A state tick only needs the new hass on the preview and overlay; the
+        // full sync re-applies the config to the preview card.
+        if (changed.size === 1 && changed.has('hass') && this._previewEl) {
+            this._previewEl.hass = this.hass;
+            if (this._overlayEl) this._overlayEl.hass = this.hass;
+            return;
+        }
         this._syncCanvas();
     }
 
@@ -308,7 +316,7 @@ export class LCARdSLayoutStudioDialog extends LitElement {
         return html`
             <ha-dialog
                 open
-                @closed=${(e) => { e.stopPropagation(); this._handleCancel(); }}
+                @closed=${this._onDialogClosed}
                 flexcontent
                 header-title="Layout Studio">
 
@@ -694,6 +702,17 @@ export class LCARdSLayoutStudioDialog extends LitElement {
             detail: { config: this._workingConfig }, bubbles: true, composed: true,
         }));
         this._handleClose();
+    }
+
+    /**
+     * Only the dialog's own `closed` cancels; closes bubbling from pickers and
+     * selects inside it must not close the studio (or reach the card editor).
+     * @param {Event} e
+     * @private
+     */
+    _onDialogClosed(e) {
+        e.stopPropagation();
+        if (e.target === e.currentTarget) this._handleCancel();
     }
 
     _handleCancel() {

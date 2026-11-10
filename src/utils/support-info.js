@@ -10,7 +10,7 @@
  * included only with `includeConfig: true`. Nothing is sent anywhere — callers
  * copy to the clipboard or open a prefilled GitHub form the user reviews.
  *
- * Exposed as window.lcards.support (see src/lcards.js) and used by the config
+ * Exposed as window.lcards.support (see src/lcards-main.js) and used by the config
  * panel's Welcome tab.
  *
  * @module utils/support-info

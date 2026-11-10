@@ -113,7 +113,7 @@ export class LCARdSCardThemeTab extends LitElement {
             }
 
             .path {
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 font-size: 13px;
                 font-weight: 600;
                 color: var(--primary-text-color);
@@ -127,7 +127,7 @@ export class LCARdSCardThemeTab extends LitElement {
             }
 
             .sub code {
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
             }
 
             .chip {

@@ -76,17 +76,7 @@ flowchart TD
 
 ## Trigger types
 
-| Trigger | Fired by | Scope | Use |
-|---|---|---|---|
-| `on_load` | `AnimationManager.registerAnimation()`, when the scope is first set up (not on a re-render) | One element | Entrance animation |
-| `on_show` | `AnimationManager._maybeFireOnShow()` / `onCardShown()`, once per connection of the card (`LCARdSNativeCard.connectedCallback()` calls `onCardShown()` after the first render) | One element | Each time the card is attached (view opened, visibility condition met) |
-| `on_tap`, `on_hold`, `on_double_tap` | The card's `LCARdSActionHandler`, with the pointer position | One element | Interaction feedback |
-| `on_hover`, `on_leave` | `LCARdSActionHandler` `mouseenter` / `mouseleave`; leaving stops the `on_hover` animations first | One element | Hover effects |
-| `on_entity_change` | `TriggerManager` entity subscriptions (`entity`, `attribute`, `from_state`, `to_state`, `while`, `check_on_load`); for an entry without `entity` the button fires it on its own entity's state change | One element | Simple state reactions |
-| `on_datasource_change` | `AnimationManager.setupDatasourceListenerForAnimation()`, on every new point of the source (the current point at subscribe time is skipped) | One element | Data source value changes |
-| Rule (`on_rule`, internal) | `RulesEngine`: `apply.animations` plays when a rule starts matching; looping ones stop when it stops matching | Any element by id, tag, type or pattern | Conditions across cards |
-
-`TriggerManager`'s file header still lists `on_load` among its triggers; it does not fire it (`finalizeRegistrations()` skips `on_load`, and `setupTriggerListener()` leaves `on_show`, `on_datasource_change` and the interactive triggers to the manager and the card).
+The list of triggers and what each one does for a user is on the [Triggers](../../core/animations/triggers.md) page (with [Entity Change Triggers](../../core/animations/entity-change-triggers.md) for `on_entity_change`). Which code fires each trigger, with file and line, is in [Animation Manager: Trigger types](../subsystems/animation-manager.md#trigger-types). In short: `AnimationManager` fires `on_load` and `on_show`, the card's `LCARdSActionHandler` the tap, hold and hover triggers, `TriggerManager` `on_entity_change`, a data source subscription `on_datasource_change`, and the Rules Engine the internal `on_rule`.
 
 ### Rule-based or entity change
 

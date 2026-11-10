@@ -221,7 +221,7 @@ export class LCARdSProvenanceTab extends LitElement {
             .row .name {
                 flex: 1;
                 min-width: 0;
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
@@ -306,7 +306,7 @@ export class LCARdSProvenanceTab extends LitElement {
 
             .detail-title h3 {
                 margin: 0;
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 font-size: 16px;
                 color: var(--primary-text-color);
                 overflow-wrap: anywhere;
@@ -337,7 +337,7 @@ export class LCARdSProvenanceTab extends LitElement {
                 align-items: center;
                 gap: var(--ha-space-2);
                 margin-top: var(--ha-space-1);
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 font-size: 18px;
                 color: var(--primary-text-color);
                 overflow-wrap: anywhere;
@@ -414,7 +414,7 @@ export class LCARdSProvenanceTab extends LitElement {
                 align-items: center;
                 gap: var(--ha-space-2);
                 margin-top: 2px;
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 font-size: 13px;
                 color: var(--secondary-text-color);
                 overflow-wrap: anywhere;
@@ -449,7 +449,7 @@ export class LCARdSProvenanceTab extends LitElement {
             .link {
                 all: unset;
                 cursor: pointer;
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 font-size: 13px;
                 padding: 2px var(--ha-space-2);
                 border-radius: var(--ha-border-radius-pill);

@@ -91,6 +91,25 @@ test('allows live hooks with similar names', () => {
     assert.deepEqual(ids('--ha-assist-chip-filled-container-color: red;'), []);
 });
 
+test('catches variables nothing defines (fallback always applies)', () => {
+    assert.deepEqual(ids('background: var(--error-background-color, rgba(244, 67, 54, 0.1));'), ['status-background-vars']);
+    assert.deepEqual(ids('background: var(--warning-background-color);'), ['status-background-vars']);
+    assert.deepEqual(ids('background: var(--info-background-color);'), ['status-background-vars']);
+    assert.deepEqual(ids('style="background: var(--code-background-color, rgba(0,0,0,0.1))"'), ['code-background-var']);
+    assert.deepEqual(ids("font-family: var(--primary-font-family, 'Antonio', sans-serif);"), ['primary-font-family']);
+    assert.deepEqual(ids('fill="var(--ha-card-background-color,var(--card-background-color))"'), ['ha-card-background-color']);
+});
+
+test('allows the defined variables these replace', () => {
+    assert.deepEqual(ids('background: color-mix(in srgb, var(--error-color) 10%, transparent);'), []);
+    assert.deepEqual(ids('background: var(--ha-color-fill-danger-quiet-resting);'), []);
+    assert.deepEqual(ids('background: var(--markdown-code-background-color, var(--primary-background-color));'), []);
+    assert.deepEqual(ids('--code-editor-background-color: red;'), []);
+    assert.deepEqual(ids("font-family: var(--lcars-font, var(--lcars-fallback-font, 'Antonio')), 'Antonio', sans-serif;"), []);
+    assert.deepEqual(ids('background: var(--ha-card-background, var(--card-background-color));'), []);
+    assert.deepEqual(ids('background: var(--card-background-color);'), []);
+});
+
 test('suppression marker skips a deliberate line', () => {
     assert.deepEqual(ids('<mwc-icon-button> <!-- ha-compat-ignore -->'), []);
 });

@@ -785,4 +785,4 @@ export class LCARdSChart extends LCARdSCard {
   }
 }
 
-// NOTE: Card registration (customElements.define and window.customCards) handled in src/lcards.js
+// NOTE: Card registration (customElements.define and window.customCards) handled in src/lcards-main.js

@@ -69,6 +69,7 @@ import { LCARdSAstrometricsCard } from './cards/lcards-astrometrics-card.js';
 // Config panel: a small shell; the panel itself loads when it is opened.
 import './panels/lcards-config-panel-shell.js';
 import { docsUrl, DOCS } from './utils/docs-url.js';
+import { createConnectionOverlayConsoleApi } from './core/services/connection-overlay-console.js';
 import { loadThreeRuntime } from './core/packs/backgrounds/webgl/ThreeSceneEffect.js';
 
 
@@ -240,11 +241,8 @@ async function initializeCustomCard() {
     window.lcards.theme = lcardsCore.getThemeManager();
     window.lcards.styleResolver = lcardsCore.getStylePresetManager();
 
-    // Add core to debug API
-    window.lcards.debug.core = () => lcardsCore.getDebugInfo();
-
-    // Add singleton reference to debug tier for unified API consistency
-    window.lcards.debug.singletons = lcardsCore;
+    // debug.core / .singleton / .singletons come from CoreDebugAPI, attached
+    // during lcardsCore.initialize() (src/core/lcards-core.js)
 
     // three.js background tier: the shared WebGL context (loads the chunk if needed)
     window.lcards.debug.webgl = {
@@ -317,7 +315,6 @@ async function initializeCustomCard() {
     };
 
     lcardsLog.debug('[lcards.js] LCARdSCore singleton attached to window.lcards.core');
-    lcardsLog.debug('[lcards.js] ✅ Singleton reference added to debug.singletons');
 
     // === SINGLETON INITIALIZATION ===
     // Initialize core singletons immediately without HASS
@@ -388,9 +385,7 @@ initializeCustomCard()
             if (LCARdSLayoutCard.registerSchema) LCARdSLayoutCard.registerSchema();
             if (LCARdSAstrometricsCard.registerSchema) LCARdSAstrometricsCard.registerSchema();
 
-            lcardsLog.debug('[lcards.js] Card schemas registered');
-
-        lcardsLog.debug('[lcards.js] Card schemas registered (strategies registered at module load)');
+            lcardsLog.debug('[lcards.js] Card schemas registered (strategies registered at module load)');
         } else {
             lcardsLog.error('[lcards.js] ❌ CoreConfigManager not available for schema registration');
         }
@@ -839,75 +834,9 @@ lcardsLog.debug('[lcards.js] screenEffect console API attached');
 
 // === CONNECTION OVERLAY API ===
 // Full-screen overlay displayed when the frontend loses contact with the HA server.
-// Works on any page the module is loaded — no card placement required.
-//
-// Usage examples:
-//   window.lcards.connectionOverlay.show()                  // Force-show (simulate disconnect)
-//   window.lcards.connectionOverlay.simulateReconnect()      // Simulate reconnection sequence
-//   window.lcards.connectionOverlay.hide()                  // Force-hide (clear test)
-//   window.lcards.connectionOverlay.getConfig()             // Read active config
-//   window.lcards.connectionOverlay.saveConfig({...})       // Save to global scope
-//   window.lcards.connectionOverlay.saveConfig({...}, 'device')  // Save to device scope
-//   window.lcards.connectionOverlay.clearConfig('device')   // Remove device override
-//   window.lcards.connectionOverlay.loadConfig()            // Reload from scoped settings
-window.lcards.connectionOverlay = {
-  /** Force-show the overlay (useful for testing config changes). */
-  show() {
-    window.lcards?.core?.connectionOverlayService?.show();
-  },
-  /**
-   * Show the overlay using a temporary preview config (not persisted).
-   * Original config is restored on hide().  Used by the config panel preview.
-   * @param {Object} previewConfig
-   */
-  showWith(previewConfig) {
-    window.lcards?.core?.connectionOverlayService?.showWith(previewConfig);
-  },
-  /** Force-hide the overlay. */
-  hide() {
-    window.lcards?.core?.connectionOverlayService?.hide();
-  },
-  /**
-   * Simulate the reconnection sequence for live preview.
-   * Transitions from the disconnect overlay to the "connection restored" banner
-   * (if enabled), auto-dismisses, then restores the original config.
-   * @param {Object|null} [previewConfig]
-   */
-  simulateReconnect(previewConfig = null) {
-    window.lcards?.core?.connectionOverlayService?.simulateReconnect(previewConfig);
-  },
-  /** Return the currently active (resolved) config object. */
-  getConfig() {
-    return window.lcards?.core?.connectionOverlayService?.getConfig() ?? null;
-  },
-  /**
-   * Save config to a specific scope (default: 'global').
-   * @param {Object} config
-   * @param {'device'|'user'|'global'} [scope='global'] - global needs a Home Assistant admin
-   * @returns {Promise<boolean>} false when a write failed or was refused (or no service)
-   */
-  saveConfig(config, scope = 'global', opts = {}) {
-    return window.lcards?.core?.connectionOverlayService?.saveConfig(config, scope, opts)
-        ?? Promise.resolve(false);
-  },
-  /**
-   * Remove config from a specific scope (falls back to next tier).
-   * @param {'device'|'user'|'global'} [scope='global'] - global needs a Home Assistant admin
-   * @returns {Promise<boolean>} false when a clear failed or was refused (or no service)
-   */
-  clearConfig(scope = 'global', opts = {}) {
-    return window.lcards?.core?.connectionOverlayService?.clearConfig(scope, opts)
-        ?? Promise.resolve(false);
-  },
-  /**
-   * Reload config from the ScopedSettings waterfall and refresh the overlay.
-   * @returns {Promise<Object>} Resolved config
-   */
-  loadConfig() {
-    return window.lcards?.core?.connectionOverlayService?.loadConfig()
-        ?? Promise.resolve(null);
-  },
-};
+// Works on any page the module is loaded, no card placement required. The
+// usage examples are in src/core/services/connection-overlay-console.js.
+window.lcards.connectionOverlay = createConnectionOverlayConsoleApi(() => window.lcards?.core);
 lcardsLog.debug('[lcards.js] connectionOverlay console API attached');
 
 // === SOUND DEBUG API ===

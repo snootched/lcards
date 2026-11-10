@@ -77,12 +77,7 @@ await this.myService.initialize(hass); // if async init needed
 lcardsLog.debug('[LCARdSCore] ✅ MyService initialized');
 ```
 
-4. Expose on `window.lcards.core`:
-
-```javascript
-// At the bottom of _performInitialization() or in the namespace setup block:
-window.lcards.core.myService = this.myService;
-```
+4. It is on `window.lcards.core` already: `src/lcards-main.js` sets `window.lcards.core = lcardsCore` before `initialize()`, so `this.myService` is `window.lcards.core.myService`. Don't write a separate `window.lcards.core.myService = ...` copy.
 
 5. Add a getter if lazy access is needed:
 

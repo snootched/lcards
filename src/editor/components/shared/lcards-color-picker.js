@@ -682,7 +682,7 @@ export class LCARdSColorPicker extends LitElement {
                 color: var(--error-color, #f44336);
                 font-size: var(--ha-font-size-s);
                 padding: 8px;
-                background: var(--error-background-color, rgba(244, 67, 54, 0.1));
+                background: color-mix(in srgb, var(--error-color, #db4437) 10%, transparent);
                 border-radius: var(--ha-border-radius-sm);
                 margin-top: 8px;
             }

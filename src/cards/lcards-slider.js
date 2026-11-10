@@ -202,7 +202,7 @@ export class LCARdSSlider extends LCARdSButton {
                 }
 
                 .text-field {
-                    font-family: var(--primary-font-family, 'Antonio', sans-serif);
+                    font-family: var(--lcars-font, var(--lcars-fallback-font, 'Antonio')), 'Antonio', sans-serif;
                     font-size: 14px;
                     line-height: 1.2;
                     color: var(--lcars-text-light, #ffffff);
@@ -225,7 +225,7 @@ export class LCARdSSlider extends LCARdSButton {
                     z-index: 15;
                     padding: 2px 8px;
                     border-radius: var(--ha-border-radius-pill, 9999px);
-                    font-family: var(--primary-font-family, 'Antonio', sans-serif);
+                    font-family: var(--lcars-font, var(--lcars-fallback-font, 'Antonio')), 'Antonio', sans-serif;
                     line-height: 1.2;
                     opacity: 0;
                     transition-property: opacity;
@@ -2389,7 +2389,7 @@ export class LCARdSSlider extends LCARdSButton {
 
             labelsMarkup += `
                 <text ${labelTag} x="0" y="0" transform="translate(${labelX},${labelY})"
-                      font-size="${label.fontSize}px" font-weight="400" font-family="var(--primary-font-family, Antonio, sans-serif)"
+                      font-size="${label.fontSize}px" font-weight="400" font-family="var(--lcars-font, var(--lcars-fallback-font, Antonio)), Antonio, sans-serif"
                       fill="${label.color}"
                       text-anchor="${isVertical ? 'start' : 'middle'}" dominant-baseline="${isVertical ? 'middle' : 'auto'}">${escapeHtml(label.text)}</text>
             `;
@@ -2800,7 +2800,7 @@ export class LCARdSSlider extends LCARdSButton {
                         if (shouldRenderLabel) {
                             svg += `
                         <text x="${x}" y="${labelY}"
-                              font-size="${labelFontSize}px" font-weight="400" font-family="var(--primary-font-family, Antonio, sans-serif)"
+                              font-size="${labelFontSize}px" font-weight="400" font-family="var(--lcars-font, var(--lcars-fallback-font, Antonio)), Antonio, sans-serif"
                               fill="${tickLabelColor}"
                               text-anchor="end"
                               dx="${-labelPadding}" dy="0">${labelText}</text>
@@ -2925,7 +2925,7 @@ export class LCARdSSlider extends LCARdSButton {
 
                         if (shouldRenderLabel) {
                             svg += `
-                        <text x="${labelX}" y="${y}" font-size="${labelFontSizeVertical}px" font-weight="400" font-family="var(--primary-font-family, Antonio, sans-serif)"
+                        <text x="${labelX}" y="${y}" font-size="${labelFontSizeVertical}px" font-weight="400" font-family="var(--lcars-font, var(--lcars-fallback-font, Antonio)), Antonio, sans-serif"
                               fill="${tickLabelColor}" text-anchor="end"
                               dx="0" dy="${labelVerticalOffset}">${labelText}</text>
                     `;
@@ -4711,7 +4711,7 @@ export class LCARdSSlider extends LCARdSButton {
             const color = this._resolveRingColor(labels.color, 'theme:components.slider.gauge.label.color.default');
             const tickExt = Math.max(major?.length ?? 0, minor?.length ?? 0);
             const rl = r0 + tickExt + labels.padding;
-            svg += `<g data-lcards-role="ring-scale-labels" fill="${color}" font-size="${labels.fontSize}px" font-family="var(--primary-font-family, Antonio, sans-serif)" text-anchor="middle" dominant-baseline="central">`;
+            svg += `<g data-lcards-role="ring-scale-labels" fill="${color}" font-size="${labels.fontSize}px" font-family="var(--lcars-font, var(--lcars-fallback-font, Antonio)), Antonio, sans-serif" text-anchor="middle" dominant-baseline="central">`;
             for (const { value, text } of this._ringScaleLabels()) {
                 const p = this._ringScaleFraction(value, ring);
                 if (p === null) continue;
@@ -4812,7 +4812,7 @@ export class LCARdSSlider extends LCARdSButton {
                     `data-pos-base="${base}" data-pos-scale="${scale}" data-pos-cx="${cx}" data-pos-cy="${cy}" ` +
                     `data-ring-r0="${r0}" data-ring-w="${w}" data-ring-h="${h}" data-ring-ox="${ox}" data-ring-oy="${oy}" ` +
                     `x="0" y="0" transform="translate(${pos.x + ox},${pos.y + oy})" ` +
-                    `font-size="${m.labelFontSize}px" font-family="var(--primary-font-family, Antonio, sans-serif)" fill="${labelColor}" ` +
+                    `font-size="${m.labelFontSize}px" font-family="var(--lcars-font, var(--lcars-fallback-font, Antonio)), Antonio, sans-serif" fill="${labelColor}" ` +
                     `text-anchor="middle" dominant-baseline="central">${escapeHtml(m.labelText)}</text>`;
             }
         }
@@ -5528,7 +5528,7 @@ export class LCARdSSlider extends LCARdSButton {
 
         return `
             <text ${labelTag} x="0" y="0" transform="translate(${labelX},${labelY})"
-                  font-size="${labelFontSize}px" font-weight="400" font-family="var(--primary-font-family, Antonio, sans-serif)"
+                  font-size="${labelFontSize}px" font-weight="400" font-family="var(--lcars-font, var(--lcars-fallback-font, Antonio)), Antonio, sans-serif"
                   fill="${labelColor}"
                   text-anchor="${textAnchor}" dominant-baseline="${isVertical ? 'middle' : 'auto'}">${escapeHtml(labelText)}</text>
         `;
@@ -6021,7 +6021,7 @@ export class LCARdSSlider extends LCARdSButton {
     }
 }
 
-// NOTE: Card registration handled in src/lcards.js initializeCustomCard().then()
+// NOTE: Card registration handled in src/lcards-main.js initializeCustomCard().then()
 
 lcardsLog.debug('[LCARdSSlider] Card module loaded');
 

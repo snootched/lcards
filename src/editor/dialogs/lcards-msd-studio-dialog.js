@@ -1404,6 +1404,17 @@ export class LCARdSMSDStudioDialog extends LitElement {
     }
 
     /**
+     * Only the dialog's own `closed` closes; closes bubbling from pickers and
+     * selects inside it must not close the studio (or reach the card editor).
+     * @param {Event} e
+     * @private
+     */
+    _onDialogClosed(e) {
+        e.stopPropagation();
+        if (e.target === e.currentTarget) this._handleClose();
+    }
+
+    /**
      * Close dialog and dispatch closed event
      * @private
      */
@@ -1820,7 +1831,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     background: linear-gradient(135deg, #4A5C7A 0%, #2C3E50 100%);
                     border-radius: 8px;
                     color: white;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    box-shadow: var(--ha-box-shadow-m);
                     font-family: var(--lcars-font, var(--lcars-fallback-font, 'Antonio', sans-serif));
                 ">
                     <!-- Header -->
@@ -1950,15 +1961,15 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     <div style="display: grid; gap: 6px; font-size: 12px;">
                         <div>
                             <span style="opacity: 0.7;">Filename:</span>
-                            <code style="background: var(--code-background-color, rgba(0,0,0,0.1)); padding: 2px 6px; border-radius: 3px; font-size: 11px;">${filename}</code>
+                            <code style="background: var(--markdown-code-background-color, var(--primary-background-color)); padding: 2px 6px; border-radius: 3px; font-size: 11px;">${filename}</code>
                         </div>
                         <div>
                             <span style="opacity: 0.7;">Path:</span>
-                            <code style="background: var(--code-background-color, rgba(0,0,0,0.1)); padding: 2px 6px; border-radius: 3px; font-size: 11px;">${path}/</code>
+                            <code style="background: var(--markdown-code-background-color, var(--primary-background-color)); padding: 2px 6px; border-radius: 3px; font-size: 11px;">${path}/</code>
                         </div>
                         <div>
                             <span style="opacity: 0.7;">Full URL:</span>
-                            <code style="background: var(--code-background-color, rgba(0,0,0,0.1)); padding: 2px 6px; border-radius: 3px; font-size: 11px;">${source}</code>
+                            <code style="background: var(--markdown-code-background-color, var(--primary-background-color)); padding: 2px 6px; border-radius: 3px; font-size: 11px;">${source}</code>
                         </div>
                     </div>
 
@@ -2796,7 +2807,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         return html`
             <ha-dialog
                 open
-                @closed=${(e) => { e.stopPropagation(); this._closeAnchorForm(); }}
+                @closed=${(/** @type {Event} */ e) => { e.stopPropagation(); if (e.target === e.currentTarget) this._closeAnchorForm(); }}
                 .headerTitle=${title}
                 style="--ha-dialog-width-md: 500px;">
                 <div style="padding: 12px 8px;">
@@ -6244,7 +6255,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     font-size: 11px;
                     font-weight: 600;
                     white-space: nowrap;
-                    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+                    box-shadow: var(--ha-box-shadow-s);
                 ">
                     X: ${displayX}
                 </div>
@@ -6274,7 +6285,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     font-size: 11px;
                     font-weight: 600;
                     white-space: nowrap;
-                    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+                    box-shadow: var(--ha-box-shadow-s);
                 ">
                     Y: ${displayY}
                 </div>
@@ -6292,7 +6303,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     font-size: 11px;
                     font-weight: 600;
                     white-space: nowrap;
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+                    box-shadow: var(--ha-box-shadow-s);
                     pointer-events: none;
                 ">
                     ${displayX}, ${displayY}${snapEnabled ? ' ⊞' : ''}
@@ -6481,7 +6492,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     font-size: 12px;
                     font-weight: 700;
                     white-space: nowrap;
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                    box-shadow: var(--ha-box-shadow-m);
                 ">
                     ${this._highlightedAnchor}
                 </div>
@@ -6608,7 +6619,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     font-size: 12px;
                     font-weight: 700;
                     white-space: nowrap;
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                    box-shadow: var(--ha-box-shadow-m);
                 ">
                     ${control.id}
                 </div>
@@ -6774,7 +6785,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     font-size: 12px;
                     font-weight: 700;
                     white-space: nowrap;
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                    box-shadow: var(--ha-box-shadow-m);
                 ">
                     ${line.id}
                 </div>
@@ -7600,7 +7611,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 border: 1px dashed #FFF;
                                 cursor: pointer;
                                 pointer-events: auto;
-                                box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+                                box-shadow: var(--ha-box-shadow-s);
                                 z-index: 1000;
                             "
                             @click=${(e) => this._handleShapeSegmentInsertClick(e, selectedShape.id, insertIndex, midX, midY)}
@@ -7694,7 +7705,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 border: 2px solid #FFF;
                                 cursor: move;
                                 pointer-events: auto;
-                                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                                box-shadow: var(--ha-box-shadow-m);
                                 z-index: ${isDragging ? '1002' : '1001'};
                                 display: flex;
                                 align-items: center;
@@ -8357,7 +8368,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 border: 1px dashed #FFF;
                                 cursor: pointer;
                                 pointer-events: auto;
-                                box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+                                box-shadow: var(--ha-box-shadow-s);
                                 z-index: 1000;
                             "
                             @click=${(e) => this._handleWaypointInsertClick(e, selectedLine.id, insertIndex, midX, midY)}
@@ -8480,7 +8491,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 border: 2px solid ${isNamedAnchor ? '#FF9900' : '#FFF'};
                                 cursor: move;
                                 pointer-events: auto;
-                                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                                box-shadow: var(--ha-box-shadow-m);
                                 transition: all 0.2s ease;
                                 z-index: ${isDragging ? '1002' : '1001'};
                                 display: flex;
@@ -8621,7 +8632,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 border: 2px solid #FFF;
                                 cursor: ew-resize;
                                 pointer-events: auto;
-                                box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+                                box-shadow: var(--ha-box-shadow-s);
                                 z-index: ${isDragging ? '1003' : '1001'};
                             "
                             @mousedown=${(e) => this._handleCornerRadiusMouseDown(e, selectedLine.id, wpIndex)}
@@ -9147,7 +9158,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                     font-size: 12px;
                     font-weight: 700;
                     white-space: nowrap;
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                    box-shadow: var(--ha-box-shadow-m);
                 ">
                     ${this._highlightedChannel}
                 </div>
@@ -9710,7 +9721,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                 font-weight: 600;
                 line-height: 1.4;
                 white-space: normal;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+                box-shadow: var(--ha-box-shadow-s);
             ">${text}</div>
         `;
     }
@@ -10521,7 +10532,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             <ha-dialog
                 class="subform-dialog"
                 open
-                @closed=${(e) => { e.stopPropagation(); this._closeControlForm(); }}
+                @closed=${(/** @type {Event} */ e) => { e.stopPropagation(); if (e.target === e.currentTarget) this._closeControlForm(); }}
                 .headerTitle=${title}
                 prevent-scrim-close>
 
@@ -11723,7 +11734,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             <ha-dialog
                 class="subform-dialog"
                 open
-                @closed=${(e) => { e.stopPropagation(); this._closeCardEditorForm(); }}
+                @closed=${(/** @type {Event} */ e) => { e.stopPropagation(); if (e.target === e.currentTarget) this._closeCardEditorForm(); }}
                 .headerTitle=${'Edit Card Configuration'}
                 prevent-scrim-close>
 
@@ -14145,7 +14156,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         return html`
             <ha-dialog
                 open
-                @closed=${(e) => { e.stopPropagation(); this._closeChannelForm(); }}
+                @closed=${(/** @type {Event} */ e) => { e.stopPropagation(); if (e.target === e.currentTarget) this._closeChannelForm(); }}
                 .headerTitle=${isNew ? 'Add Routing Channel' : `Edit Channel: ${channelId}`}
                 style="--ha-dialog-width-md: 640px;">
 
@@ -15825,7 +15836,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             <ha-dialog
                 class="subform-dialog"
                 open
-                @closed=${(e) => { e.stopPropagation(); this._closeShapeForm(); }}
+                @closed=${(/** @type {Event} */ e) => { e.stopPropagation(); if (e.target === e.currentTarget) this._closeShapeForm(); }}
                 .headerTitle=${title}
                 prevent-scrim-close>
 
@@ -16132,7 +16143,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             <ha-dialog
                 class="subform-dialog"
                 open
-                @closed=${(e) => { e.stopPropagation(); this._closeLineForm(); }}
+                @closed=${(/** @type {Event} */ e) => { e.stopPropagation(); if (e.target === e.currentTarget) this._closeLineForm(); }}
                 .headerTitle=${title}
                 prevent-scrim-close>
 
@@ -18355,7 +18366,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
             color: white;
             padding: 12px 24px;
             border-radius: 4px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            box-shadow: var(--ha-box-shadow-m);
             z-index: 10000;
             font-weight: 500;
         `;
@@ -18427,7 +18438,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         return html`
             <ha-dialog
                 open
-                @closed=${(e) => { e.stopPropagation(); this._handleClose(); }}
+                @closed=${this._onDialogClosed}
                 prevent-scrim-close
                 flexcontent
                 header-title="MSD Configuration Studio">

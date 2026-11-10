@@ -3,20 +3,26 @@
  *
  * This file is the canonical template for creating a new LCARdS pack.
  * It demonstrates every key the pack format supports, with inline
- * documentation for each section.  Copy this file to a new folder,
+ * documentation for each section.  Copy this file to the packs root,
  * rename everything from 'example' to your pack name, and delete the
  * sections you don't need.
  *
  * ─────────────────────────────────────────────────────────────────────
  * Quick-start checklist
  * ─────────────────────────────────────────────────────────────────────
- *  1. Copy this folder to  src/core/packs/<your-pack-name>/
- *  2. Rename  lcards-example-pack.js  →  lcards-<your-pack-name>-pack.js
- *  3. Set  id, name, version, description  at the bottom
- *  4. Fill in only the sections that apply; delete the rest
+ *  1. Copy this file to the packs root as
+ *       src/core/packs/lcards-<your-pack-name>-pack.js
+ *     (every built-in pack is one file there; this one sits in example/
+ *     only so it is never loaded)
+ *  2. Set  id, name, version, description  at the bottom
+ *  3. Fill in only the sections that apply; delete the rest
+ *  4. Put asset files under src/assets/{sounds,msd,fonts,images}/ (the
+ *     build copies them next to lcards.js, served at /lcards/...)
  *  5. Import the pack in  src/core/packs/loadBuiltinPacks.js  and add it
- *     to  BUILTIN_REGISTRY  (and optionally  alwaysLoad)
- *  6. npm run build  →  hard-refresh HA  →  check Pack Explorer
+ *     to  BUILTIN_REGISTRY, then make it load: add its id to  alwaysLoad
+ *     (or to  CORE_REQUESTED_PACK_IDS ). A pack in neither list is
+ *     registered nowhere and never loads.
+ *  6. npm run build  →  hard-refresh Home Assistant  →  check Pack Explorer
  *
  * Pack system reference: doc/architecture/subsystems/pack-system.md
  */
@@ -194,13 +200,14 @@ const RULES = [
 // Once registered, assets appear in the Config Panel "Sound" tab
 // override picker for per-event assignment.
 //
-// URL convention for HACS-distributed packs:
-//   /hacsfiles/<your-pack-hacs-id>/sounds/<file>.mp3
+// URL convention (as the built-in sound packs): files in
+// src/assets/sounds/<your-pack-id>/ are copied next to lcards.js and
+// served at  /lcards/sounds/<your-pack-id>/<file>.mp3
 //
 // Access at runtime (indirect — via SoundManager):
 //   window.lcards.core.soundManager.play('card_tap')
 // ─────────────────────────────────────────────────────────────────────
-const BASE_AUDIO_URL = '/hacsfiles/lcards-example/sounds';
+const BASE_AUDIO_URL = '/lcards/sounds/lcards_example';
 
 const AUDIO_ASSETS = {
   example_tap: {
@@ -245,14 +252,14 @@ const SOUND_SCHEMES = {
 // SVG images registered with AssetManager for use as MSD backgrounds
 // or card imagery.
 //
-// URL convention for HACS-distributed packs:
-//   /hacsfiles/<your-pack-hacs-id>/svg/<file>.svg
+// URL convention (as builtin-msd.js): files in src/assets/msd/ are
+// served at  /lcards/msd/<file>.svg
 // ─────────────────────────────────────────────────────────────────────
-const BASE_SVG_URL = '/hacsfiles/lcards-example/svg';
+const BASE_SVG_URL = '/lcards/msd';
 
 const SVG_ASSETS = {
   'example-bg': {
-    url:      `${BASE_SVG_URL}/background.svg`,
+    url:      `${BASE_SVG_URL}/example-background.svg`,
     metadata: {
       name:        'Example Background',
       description: 'A placeholder MSD background',
@@ -275,12 +282,13 @@ const SVG_ASSETS = {
 //     font-family: 'lcards_example_font';
 //     src: url('ExampleFont.woff2') format('woff2');
 //   }
-// It can be a local HACS path, or an external stylesheet URL such as
-// Google Fonts (set external: true).
+// It can be a local path (files in src/assets/fonts/ are served at
+// /lcards/fonts/, as core-fonts-pack.js), or an external stylesheet URL
+// such as Google Fonts (set external: true).
 // ─────────────────────────────────────────────────────────────────────
 const FONT_ASSETS = {
   'lcards_example_font': {
-    url:         '/hacsfiles/lcards-example/fonts/ExampleFont.css',
+    url:         '/lcards/fonts/ExampleFont.css',
     displayName: 'Example Font',
     category:    'display',
     description: 'A placeholder display font',

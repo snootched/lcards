@@ -195,7 +195,7 @@ export class MyEffect extends BaseEffect {
 
 ## three.js background scenes
 
-The WebGL presets are three.js scenes (`src/core/packs/backgrounds/webgl/`):
+The WebGL presets are three.js scenes (`src/core/packs/backgrounds/webgl/`). Every preset and its keys: [Background Animation Preset Reference](../core/effects/background-animations/preset-reference.md); which effect class draws each preset on each tier: [Background Animation System](../architecture/internals/background-animation-system.md#current-presets).
 
 - **One WebGL context per page** (`three-runtime.js`, lazy chunk with three.js and `animejs/adapters/three`). Browsers keep about 16 live contexts and drop the oldest, so a scene renders on the shared context (an `OffscreenCanvas`) and its `ThreeSceneEffect` draws the frame into the card's Canvas2D canvas (`transferToImageBitmap`). The scene is one more entry in `Canvas2DRenderer`, so pausing, the reduced-motion held frame, transforms and zoom apply unchanged. The last scene out disposes the context; a disconnected card releases its scene (`releaseGPU()`) and rebuilds it on the next draw.
 - **Scene motion runs on the effect clock.** A scene builds its anime.js animations on three.js objects (cameras, meshes, `getInstances(instancedMesh)`, materials, uniforms, timelines) with `autoplay: false`, and `seek(time)` runs every frame with the effect's elapsed time, which already runs at `speed`. So `speed` warps a scene without a jump, and a paused card is a paused scene.

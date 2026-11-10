@@ -33,7 +33,15 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
         super();
         this.cardType = 'msd';
         this._cardPickerDialogRef = null;
+        /** @type {any} Open studio dialog, kept in sync with hass */
+        this._studio = null;
         lcardsLog.debug('[LCARdSMSDEditor] Editor initialized with cardType: msd (1 tab: Configuration Studio launcher)');
+    }
+
+    /** @param {Map<string, unknown>} changedProps */
+    updated(changedProps) {
+        super.updated(changedProps);
+        if (changedProps.has('hass') && this._studio) this._studio.hass = this.hass;
     }
 
     /**
@@ -298,6 +306,7 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
 
         // Deep clone current config
         dialog.config = JSON.parse(JSON.stringify(this.config || {}));
+        this._studio = dialog;
 
         // Listen for card picker results and forward to dialog
         const cardPickerResultHandler = (e) => {
@@ -332,6 +341,7 @@ export class LCARdSMSDEditor extends LCARdSBaseEditor {
         dialog.addEventListener('closed', () => {
             this.removeEventListener('card-picker-result', cardPickerResultHandler);
             dialog.remove();
+            if (this._studio === dialog) this._studio = null;
         });
 
         // Mount inside <home-assistant>'s shadow root (not document.body) so

@@ -82,7 +82,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
             .path {
                 flex: 1;
                 min-width: 0;
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 font-size: 13px;
                 font-weight: 600;
                 color: var(--primary-text-color);
@@ -107,7 +107,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
             }
 
             .template {
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 font-size: 12px;
                 color: var(--secondary-text-color);
                 white-space: pre-wrap;
@@ -135,7 +135,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
             .result.failed ha-icon { color: var(--error-color); }
 
             .result .value {
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 overflow-wrap: anywhere;
                 white-space: pre-wrap;
             }
@@ -150,7 +150,7 @@ export class LCARdSTemplateEvaluationTab extends LitElement {
             }
 
             .mistake code {
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
             }
 
             .empty {

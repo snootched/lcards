@@ -1,46 +1,70 @@
 # Home Assistant CSS Variable Reference
 
-> **Home Assistant 2026.6+ required.** All variables documented here are available from Home Assistant 2026.6 onwards. Source files are in the [Home Assistant frontend repository](https://github.com/home-assistant/frontend/tree/dev/src/resources/theme).
+> **Home Assistant 2026.11 or later.** LCARdS refuses to load on anything older (`MIN_HA_VERSION` in `custom_components/lcards/const.py:9`), so every variable on this page is available to LCARdS code. Values are read from the Home Assistant frontend source, `src/resources/theme/` ([on GitHub](https://github.com/home-assistant/frontend/tree/dev/src/resources/theme)); `file:line` citations refer to frontend `20261028.2`, the 2026.11 release line.
 
-LCARdS targets Home Assistant 2026.6+ and uses Home Assistant CSS variables throughout its editor, panel, and theme code. This document catalogues every available variable, the actual value it resolves to in the default Home Assistant theme, and the current LCARdS implementation status.
+This page is the one reference for Home Assistant CSS variables in LCARdS: what each variable is called, the value it has in the default Home Assistant theme (light and dark), and the rules LCARdS code follows when it uses them. `CLAUDE.md` and `.github/instructions/editor.instructions.md` keep only the short rules and link here.
+
+It does not track which LCARdS files use which variable. Search the code for that (`grep -rn "var(--ha-space-" src/`).
 
 ---
 
 ## Variable Sources
 
+All paths are under `src/resources/theme/` in the frontend checkout. `theme.ts:13-22` joins them into one stylesheet in this order, so a later file wins when two set the same variable on `html`.
+
 | Source file | Category |
 |---|---|
-| `src/resources/theme/core.globals.ts` | Motion, border-radius, border-width, spacing |
-| `src/resources/theme/typography.globals.ts` | Font families, sizes, weights, line-heights |
-| `src/resources/theme/semantic.globals.ts` | Box shadows (light/dark responsive) |
-| `src/resources/theme/color/core.globals.ts` | Colour palette atoms |
-| `src/resources/theme/color/semantic.globals.ts` | Semantic colour tokens (fills, borders, surfaces, text) |
-| `src/resources/theme/color/color.globals.ts` | Legacy Home Assistant semantic vars (theme-author overridable) |
-| `src/resources/theme/color/wa.globals.ts` | WebAwesome component aliases |
-| `src/resources/theme/main.globals.ts` | Layout, opacity, direction, app shell |
-| `src/resources/theme/animations.globals.ts` | Keyframe definitions (not variables) |
+| `core.globals.ts` | Border width, border radius (including picture radius), spacing, motion |
+| `main.globals.ts` | Header height, opacities, direction, safe-area insets, dialog scrim, scrollbar |
+| `typography.globals.ts` | Font families, sizes, weights, line heights, font smoothing |
+| `semantic.globals.ts` | Box shadows (light and dark) |
+| `color/core.globals.ts` | Colour palette atoms |
+| `color/semantic.globals.ts` | Semantic colour tokens: text, borders, fills, on-colours, surfaces, forms (light and dark) |
+| `color/color.globals.ts` | Legacy semantic variables that themes override (`--primary-color` and friends), light and dark |
+| `color/wa.globals.ts` | WebAwesome colour aliases |
+| `wa.globals.ts` | WebAwesome non-colour aliases: focus ring, spacing, borders, radii, font sizes, shadows, form controls |
+| `animations.globals.ts` | Keyframes (`fade-in`, `fade-out`, `scale`), no variables |
+
+**Dark mode.** The dark values come from `darkSemanticStyles` (`semantic.globals.ts:16`), `darkSemanticColorStyles` (`color/semantic.globals.ts:182`) and `darkColorStyles` (`color/color.globals.ts:341`). Home Assistant applies them as theme variables when the dark mode is active (`src/common/dom/apply_themes_on_element.ts:56`), not through a media query. A variable without a dark entry keeps its light value; the tables below say "same".
+
+### Theme variables, not globals
+
+Some variables that look global are not defined by any globals file. Home Assistant components read them with a fallback, and only a theme sets them. Always give the fallback when you read one.
+
+| Variable | Read by | Fallback there |
+|---|---|---|
+| `--ha-card-background` | `ha-card` (`src/components/ha-card.ts:12-15`) | `var(--card-background-color, white)` |
+| `--ha-card-border-radius` | `ha-card` (`ha-card.ts:19`) and many `hui-*` cards | `var(--ha-border-radius-lg)` (12px) |
+| `--ha-card-border-width` | `ha-card` (`ha-card.ts:20`) | `1px` |
+| `--ha-card-border-color` | `ha-card` (`ha-card.ts:22`) | `var(--divider-color, #e0e0e0)` |
+| `--ha-card-box-shadow` | `ha-card` (`ha-card.ts:17`) | `none` |
+| `--ha-card-header-color`, `--ha-card-header-font-family`, `--ha-card-header-font-size` | `ha-card` header (`ha-card.ts:41-43`) | `var(--primary-text-color)`, `inherit`, `var(--ha-font-size-2xl)` |
+| `--code-font-family` | `ha-assist-chat.ts:937` | `monospace` (the global is `--ha-font-family-code`) |
+| `--code-editor-background-color` | `ha-code-editor.ts:1915`, `codemirror.ts:265` | `var(--card-background-color)` |
+| `--text-accent-color` | `ha-sidebar.ts:860` | `var(--text-primary-color)` |
+| `--ha-dialog-surface-background` | `--wa-color-surface-raised` (`color/wa.globals.ts:59`) | `var(--mdc-theme-surface, #fff)` |
+
+HA-LCARS sets `ha-card-border-radius: var(--lcars-outer-radius)`, `ha-card-border-width: 0px` and `text-accent-color` in its base theme (`yaml/theme/ha-lcars-all-themes.yaml`, the `&base` block).
 
 ---
 
 ## Motion
 
-**Source:** `core.globals.ts`
-**Important:** All five vars automatically collapse to `1ms` when `prefers-reduced-motion: reduce` is set. Using these vars gives LCARdS reduced-motion support for free.
+**Source:** `core.globals.ts:47-61`. All five collapse to `1ms` under `prefers-reduced-motion: reduce` (`core.globals.ts:54-62`), so using them gives reduced-motion support for free.
 
-| Variable | Default value | LCARdS usage |
-|---|---|---|
-| `--ha-animation-duration-none` | `1ms` | Not used directly |
-| `--ha-animation-duration-instant` | `75ms` | Not yet used |
-| `--ha-animation-duration-fast` | `150ms` | All 0.15s transitions |
-| `--ha-animation-duration-normal` | `250ms` | All 0.2s transitions (with `, 0.2s` fallback) |
-| `--ha-animation-duration-slow` | `350ms` | All 0.3s transitions (with `, 0.3s` fallback) |
+| Variable | Value |
+|---|---|
+| `--ha-animation-duration-none` | `1ms` |
+| `--ha-animation-duration-instant` | `75ms` |
+| `--ha-animation-duration-fast` | `150ms` |
+| `--ha-animation-duration-normal` | `250ms` |
+| `--ha-animation-duration-slow` | `350ms` |
 
-**LCARdS pattern:**
 ```css
-/* Exact match - no fallback needed */
+/* Exact match: no fallback needed */
 transition: all var(--ha-animation-duration-fast);
 
-/* Approximate match - include original as fallback */
+/* Approximate match: keep the original duration as the fallback */
 transition: all var(--ha-animation-duration-normal, 0.2s);
 transition: max-height var(--ha-animation-duration-slow, 0.3s);
 ```
@@ -49,32 +73,34 @@ transition: max-height var(--ha-animation-duration-slow, 0.3s);
 
 ## Border Radius
 
-**Source:** `core.globals.ts`
+**Source:** `core.globals.ts:10-23`.
 
 | Variable | Value | Common use |
 |---|---|---|
 | `--ha-border-radius-square` | `0` | Flat containers |
 | `--ha-border-radius-sm` | `4px` | Tags, badges, inline code |
 | `--ha-border-radius-md` | `8px` | Toolbars, form containers |
-| `--ha-border-radius-lg` | `12px` | Same as `--ha-card-border-radius` |
+| `--ha-border-radius-lg` | `12px` | The `ha-card` fallback when a theme sets no `--ha-card-border-radius` |
 | `--ha-border-radius-xl` | `16px` | |
 | `--ha-border-radius-2xl` | `20px` | |
-| `--ha-border-radius-3xl` | `24px` | Expansion panels |
+| `--ha-border-radius-3xl` | `24px` | Expansion panels, `--wa-panel-border-radius` |
 | `--ha-border-radius-4xl` | `28px` | |
 | `--ha-border-radius-5xl` | `32px` | |
 | `--ha-border-radius-6xl` | `36px` | |
 | `--ha-border-radius-pill` | `9999px` | Chips, pills |
 | `--ha-border-radius-circle` | `50%` | Avatars, circular buttons |
+| `--ha-picture-border-radius` | `var(--ha-border-radius-lg)` | Entity pictures, person and badge images (`ha-badge.ts:135`, `state-badge.ts:271`) |
+| `--ha-picture-border-radius-sm` | `var(--ha-border-radius-sm)` | Small pictures (`ha-related-items.ts:576`) |
 
-**No Home Assistant var for:** 3px, 6px, 10px, 22px; these remain hardcoded where used.
+No Home Assistant variable for 3px, 6px, 10px or 22px: leave those hardcoded.
 
-**LCARdS implementation:** `--ha-border-radius-sm/md/lg/3xl` used throughout `editor/base/` and `editor/components/shared/`. Expansion panels use `var(--ha-card-border-radius, var(--ha-border-radius-3xl))` so the LCARS theme's large card radius applies.
+LCARdS expansion panels use `var(--ha-card-border-radius, var(--ha-border-radius-3xl))`, so the HA-LCARS card radius applies when that theme is active.
 
 ---
 
 ## Border Width
 
-**Source:** `core.globals.ts`
+**Source:** `core.globals.ts:6-8`.
 
 | Variable | Value |
 |---|---|
@@ -82,7 +108,6 @@ transition: max-height var(--ha-animation-duration-slow, 0.3s);
 | `--ha-border-width-md` | `2px` |
 | `--ha-border-width-lg` | `3px` |
 
-**LCARdS implementation:** All structural borders in `editor/base/`, `editor/components/`, and `panels/components/` use these vars. Pattern:
 ```css
 border: var(--ha-border-width-sm) solid var(--divider-color);
 border: var(--ha-border-width-md) solid var(--primary-color);
@@ -92,8 +117,7 @@ border: var(--ha-border-width-md) solid var(--primary-color);
 
 ## Spacing
 
-**Source:** `core.globals.ts`
-**Scale:** `--ha-space-N` where value = N × 4px. Full range is 1–20 (4px–80px).
+**Source:** `core.globals.ts:26-45`. `--ha-space-N` is N × 4px, for N from 1 to 20.
 
 | Variable | Value | Variable | Value |
 |---|---|---|---|
@@ -108,460 +132,579 @@ border: var(--ha-border-width-md) solid var(--primary-color);
 | `--ha-space-9` | `36px` | `--ha-space-19` | `76px` |
 | `--ha-space-10` | `40px` | `--ha-space-20` | `80px` |
 
-**No Home Assistant var for:** 2px, 6px, 10px, 14px, 18px; leave those hardcoded.
-
-**LCARdS implementation:** All padding, margin, and gap values that are 4px multiples use `--ha-space-*` across `editor/base/` and `editor/components/shared/`. Shorthand values mixing mapped and unmapped sizes (e.g. `padding: 2px 8px`) are left as-is or split into separate properties.
+No Home Assistant variable for 2px, 6px, 10px, 14px or 18px: leave those hardcoded. A shorthand that mixes the two (`padding: 2px 8px`) stays as it is or is split into separate properties.
 
 ---
 
 ## Typography
 
-**Source:** `typography.globals.ts`
-**Note:** Font sizes use `calc(Xpx * var(--ha-font-size-scale))` where `--ha-font-size-scale: 1` by default. Users who change their Home Assistant font scale will have all these sizes scale proportionally.
+**Source:** `typography.globals.ts`. Font sizes are `calc(Npx * var(--ha-font-size-scale))` with `--ha-font-size-scale: 1` (`typography.globals.ts:11-20`), so they follow the user's font scale.
 
 ### Font Size
 
-| Variable | Default (scale=1) | LCARdS usage |
-|---|---|---|
-| `--ha-font-size-xs` | `10px` | Not currently used |
-| `--ha-font-size-s` | `12px` | Helper text, badges, small labels |
-| `--ha-font-size-m` | `14px` | Body text, form labels, descriptions |
-| `--ha-font-size-l` | `16px` | Section headers |
-| `--ha-font-size-xl` | `20px` | Not currently used |
-| `--ha-font-size-2xl` | `24px` | Not currently used |
-| `--ha-font-size-3xl` | `28px` | Not currently used |
-| `--ha-font-size-4xl` | `32px` | Not currently used |
-| `--ha-font-size-5xl` | `40px` | Not currently used |
+| Variable | Value at scale 1 |
+|---|---|
+| `--ha-font-size-xs` | `10px` |
+| `--ha-font-size-s` | `12px` |
+| `--ha-font-size-m` | `14px` |
+| `--ha-font-size-l` | `16px` |
+| `--ha-font-size-xl` | `20px` |
+| `--ha-font-size-2xl` | `24px` |
+| `--ha-font-size-3xl` | `28px` |
+| `--ha-font-size-4xl` | `32px` |
+| `--ha-font-size-5xl` | `40px` |
 
-**No Home Assistant var for:** 13px, 18px; remain hardcoded.
-
-**LCARdS implementation:** `--ha-font-size-s/m/l` used throughout `editor/base/` and `editor/components/shared/`. Panel files use em/rem for intentional relative scaling; those are correct as-is.
+No Home Assistant variable for 13px or 18px. Panel files that use `em` / `rem` for relative scaling are fine as they are. The root font size is `14px` (`typography.globals.ts:10`).
 
 ### Font Weight
 
-| Variable | Value | Semantic use |
-|---|---|---|
-| `--ha-font-weight-light` | `300` | |
-| `--ha-font-weight-normal` | `400` | Body text |
-| `--ha-font-weight-medium` | `500` | Labels, actions |
-| `--ha-font-weight-bold` | `700` | Headings |
-| `--ha-font-weight-body` | `var(--ha-font-weight-normal)` | |
-| `--ha-font-weight-heading` | `var(--ha-font-weight-bold)` | |
-| `--ha-font-weight-action` | `var(--ha-font-weight-medium)` | Buttons |
+**Source:** `typography.globals.ts:22-30`.
 
-**No Home Assistant var for:** 600; Home Assistant uses 300/400/500/700 only.
+| Variable | Value |
+|---|---|
+| `--ha-font-weight-light` | `300` |
+| `--ha-font-weight-normal` | `400` |
+| `--ha-font-weight-medium` | `500` |
+| `--ha-font-weight-bold` | `700` |
+| `--ha-font-weight-body` | `var(--ha-font-weight-normal)` |
+| `--ha-font-weight-heading` | `var(--ha-font-weight-bold)` |
+| `--ha-font-weight-action` | `var(--ha-font-weight-medium)` (buttons) |
+
+No Home Assistant variable for 600.
 
 ### Font Family
 
-| Variable | Default value | Use |
-|---|---|---|
-| `--ha-font-family-body` | `Roboto, Noto, sans-serif` | UI body text |
-| `--ha-font-family-heading` | `var(--ha-font-family-body)` | Headings |
-| `--ha-font-family-code` | `monospace` | Code blocks |
-| `--ha-font-family-longform` | `ui-sans-serif, system-ui, sans-serif` | Long-form text |
+**Source:** `typography.globals.ts:6-8, 27`.
 
-**LCARdS/HA-LCARS theme:** The LCARS theme YAML sets `ha-font-family-body` to the Tungsten/Antonio font stack, which cascades to all Home Assistant components.
+| Variable | Value |
+|---|---|
+| `--ha-font-family-body` | `Roboto, Noto, sans-serif` |
+| `--ha-font-family-heading` | `var(--ha-font-family-body)` |
+| `--ha-font-family-code` | `monospace` |
+| `--ha-font-family-longform` | `ui-sans-serif, system-ui, sans-serif` |
 
-### Line Height
+HA-LCARS sets `ha-font-family-body: var(--font-family)`, its LCARS font stack, in the `&base` block, so every Home Assistant component picks it up. A host element that does not inherit `--ha-font-family-body` shows Roboto next to LCARS labels.
+
+### Line Height and Smoothing
+
+**Source:** `typography.globals.ts:32-37`.
 
 | Variable | Value |
 |---|---|
 | `--ha-line-height-condensed` | `1.2` |
 | `--ha-line-height-normal` | `1.6` |
 | `--ha-line-height-expanded` | `2` |
+| `--ha-font-smoothing` | `antialiased` (for `-webkit-font-smoothing`, `src/resources/styles.ts:20`) |
+| `--ha-moz-osx-font-smoothing` | `grayscale` (for `-moz-osx-font-smoothing`) |
 
 ---
 
 ## Elevation / Box Shadow
 
-**Source:** `semantic.globals.ts`
-**Responsive:** Different values for light and dark Home Assistant themes.
+**Source:** `semantic.globals.ts:10-12` (light), `:18-20` (dark).
 
-| Variable | Light theme | Dark theme |
+| Variable | Light | Dark |
 |---|---|---|
-| `--ha-box-shadow-s` | `0 1px 2px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.12)` | same with opacity 0.4/0.5 |
-| `--ha-box-shadow-m` | `0 3px 6px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.15)` | same with opacity 0.35/0.45 |
-| `--ha-box-shadow-l` | `0 6px 12px rgba(0,0,0,0.12), 0 16px 32px rgba(0,0,0,0.2)` | same with opacity 0.4/0.55 |
+| `--ha-box-shadow-s` | `0 1px 2px 0 rgba(0,0,0,0.08), 0 1px 3px 0 rgba(0,0,0,0.12)` | same offsets, opacity `0.4` / `0.5` |
+| `--ha-box-shadow-m` | `0 3px 6px -1px rgba(0,0,0,0.1), 0 8px 16px -2px rgba(0,0,0,0.15)` | same offsets, opacity `0.35` / `0.45` |
+| `--ha-box-shadow-l` | `0 6px 12px -3px rgba(0,0,0,0.12), 0 16px 32px -6px rgba(0,0,0,0.2)` | same offsets, opacity `0.4` / `0.55` |
 
-**LCARdS implementation:** Used everywhere: editor panels, overlays, cards. The `--wa-shadow-s/m/l` WebAwesome aliases resolve to these same vars.
+`--wa-shadow-s/m/l` alias these (`wa.globals.ts:37-39`). `color/wa.globals.ts:66` also sets `--wa-shadow-l` to `4px 8px 12px 0 rgba(0, 0, 0, 0.3)`, but `wa.globals.ts` loads later (`theme.ts:20`), so `--wa-shadow-l` is `var(--ha-box-shadow-l)`.
+
+---
+
+## Layout / App Shell
+
+**Source:** `main.globals.ts`.
+
+| Variable | Value | Use |
+|---|---|---|
+| `--header-height` | `56px` (`:9`) | Top app bar height (HA-LCARS sets `40px`) |
+| `--dark-divider-opacity` | `0.12` (`:12`) | Dark text on a light background |
+| `--dark-disabled-opacity` | `0.38` | |
+| `--dark-secondary-opacity` | `0.54` | |
+| `--dark-primary-opacity` | `0.87` | |
+| `--light-divider-opacity` | `0.12` (`:18`) | Light text on a dark background |
+| `--light-disabled-opacity` | `0.3` | |
+| `--light-secondary-opacity` | `0.7` | |
+| `--light-primary-opacity` | `1` | |
+| `--direction` | `ltr` (`:24`) | Text direction |
+| `--float-start` / `--float-end` | `left` / `right` | |
+| `--margin-title-ltr` / `--margin-title-rtl` | `0 0 0 24px` / `0 24px 0 0` | |
+| `--ha-dialog-scrim-backdrop-filter` | `brightness(68%)` (`:53`) | Modal backdrop |
+
+### Safe Area
+
+**Source:** `main.globals.ts:31-50`. For layouts that must stay clear of notches and home indicators (full-screen dialogs, overlays). Each `--safe-area-inset-*` reads `--app-safe-area-inset-*` first (set by the companion apps), then `env(safe-area-inset-*, 0px)`.
+
+| Variable | Value |
+|---|---|
+| `--safe-area-inset-top`, `-bottom`, `-left`, `-right` | `var(--app-safe-area-inset-<side>, env(safe-area-inset-<side>, 0px))` |
+| `--safe-area-inset-x` | left + right |
+| `--safe-area-inset-y` | top + bottom |
+| `--safe-area-offset-left`, `-right`, `-top`, `-bottom` | Half the difference between opposite insets (0 if negative), for centring in an asymmetric safe area |
+| `--safe-width` | `calc(100vw - left inset - right inset)`: use instead of `100vw` |
+| `--safe-height` | `calc(100vh - top inset - bottom inset)`: use instead of `100vh` |
+
+---
+
+## WebAwesome Aliases (Non-Colour)
+
+**Source:** `wa.globals.ts:6-48`. Home Assistant's `ha-*` components are built on WebAwesome; these map WebAwesome's variables onto Home Assistant's. Use the `--ha-*` names in LCARdS CSS; the `--wa-*` names are for styling inside WebAwesome components (`wa-button-group`, `wa-*` parts).
+
+| Variable | Value |
+|---|---|
+| `--wa-focus-ring-style` / `-width` / `-offset` | `solid` / `2px` / `2px` |
+| `--wa-focus-ring` | `var(--wa-focus-ring-style) var(--wa-focus-ring-width) var(--wa-focus-ring-color)` |
+| `--wa-space-xs` / `-m` / `-l` / `-xl` | `var(--ha-space-2)` / `-4` / `-6` / `-8` |
+| `--wa-font-weight-action` / `-body` | `var(--ha-font-weight-medium)` / `var(--ha-font-weight-normal)` |
+| `--wa-transition-normal` / `-fast` | `var(--ha-animation-duration-fast)` / `var(--ha-animation-duration-instant)` |
+| `--wa-transition-easing` | `ease` |
+| `--wa-border-style` | `solid` |
+| `--wa-border-width-s` / `-m` / `-l` | `var(--ha-border-width-sm)` / `-md` / `-lg` |
+| `--wa-border-radius-s` / `-m` / `-l` / `-pill` | `var(--ha-border-radius-sm)` / `-md` / `-lg` / `-pill` |
+| `--wa-line-height-condensed` | `var(--ha-line-height-condensed)` |
+| `--wa-font-size-s` / `-m` / `-l` | `var(--ha-font-size-s)` / `-m` / `-l` |
+| `--wa-shadow-s` / `-m` / `-l` | `var(--ha-box-shadow-s)` / `-m` / `-l` |
+| `--wa-form-control-padding-block` | `0.75em` |
+| `--wa-form-control-value-line-height` | `var(--wa-line-height-condensed)` |
+| `--wa-form-control-value-font-weight` | `var(--wa-font-weight-body)` |
+| `--wa-form-control-border-radius` | `var(--wa-border-radius-l)` |
+| `--wa-form-control-border-style` / `-width` | `var(--wa-border-style)` / `var(--wa-border-width-s)` |
+| `--wa-form-control-height` | `40px` |
+| `--wa-form-control-padding-inline` | `var(--ha-space-3)` |
 
 ---
 
 ## Colour System
 
-Home Assistant 2026.6 uses a **three-layer colour architecture**:
+Home Assistant uses three colour layers:
 
 ```
 Palette atoms  →  Semantic tokens  →  Legacy semantic vars
-(ha-color-primary-40)   (ha-color-fill-primary-loud-resting)   (--primary-color)
+(--ha-color-primary-40)   (--ha-color-fill-primary-loud-resting)   (--primary-color)
 ```
 
-When a LCARdS theme overrides palette atoms, the semantic tokens cascade automatically. When legacy semantic vars are set, they affect both old and new Home Assistant components.
+A theme that overrides the palette atoms changes the semantic tokens too, since they reference the atoms. A theme that sets the legacy variables changes both old and new Home Assistant components (`--primary-text-color` is itself `var(--ha-color-text-primary)` in light mode).
 
 ---
 
 ### Layer 1: Colour Palette Atoms
 
-**Source:** `color/core.globals.ts`
-**Purpose:** Raw colour scales. Do not use directly in component CSS; use semantic tokens instead. These are the values theme authors override to remap Home Assistant's entire colour system.
+**Source:** `color/core.globals.ts:14-80`. Raw colour scales, 11 stops each, dark (`05`) to light (`95`). Home Assistant's own comment (`:9`) says not to use them directly in components: use the semantic tokens. Theme authors override them to remap Home Assistant's whole palette.
 
-Each palette has 11 stops (05–95) going from darkest to lightest.
+| Stop | `primary` | `neutral` | `orange` | `red` | `green` |
+|---|---|---|---|---|---|
+| `05` | `#001721` | `#141414` | `#280700` | `#2a040b` | `#031608` |
+| `10` | `#002e3e` | `#202020` | `#3b0f00` | `#3e0913` | `#052310` |
+| `20` | `#004156` | `#363636` | `#5e1c00` | `#631323` | `#0a3a1d` |
+| `30` | `#006787` | `#4a4a4a` | `#7e2900` | `#8a132c` | `#0a5027` |
+| `40` | `#009ac7` | `#5e5e5e` | `#9d3800` | `#b30532` | `#036730` |
+| `50` | `#18bcf2` | `#7a7a7a` | `#c94e00` | `#dc3146` | `#00883c` |
+| `60` | `#37c8fd` | `#989898` | `#f36d00` | `#f3676c` | `#00ac49` |
+| `70` | `#7bd4fb` | `#b1b1b1` | `#ff9342` | `#fd8f90` | `#5dc36f` |
+| `80` | `#b9e6fc` | `#cccccc` | `#ffbb89` | `#ffb8b6` | `#93da98` |
+| `90` | `#dff3fc` | `#e6e6e6` | `#ffe0c8` | `#ffdedc` | `#c2f2c1` |
+| `95` | `#eff9fe` | `#f3f3f3` | `#fff0e4` | `#fff0ef` | `#e3f9e3` |
 
-| Palette | Key value | All stops |
+The variables are `--ha-color-<palette>-<stop>`, plus `--ha-color-black: #000000` and `--ha-color-white: #ffffff` (`:14-15`).
+
+**HA-LCARS LCARdS profiles.** On the ha-lcars branch `lcards-semantic-colors` (not merged yet; `master` maps each stop to the nearest LCARdS colour, see [What the HA-LCARS profiles set](#what-the-ha-lcars-profiles-set)), both Picard profiles remap all five palettes 1:1 across the 11 stops, onto LCARdS's own 11-stop scales ([LCARdS Colour Palette](../core/themes/index.md#lcards-css-colour-palette)):
+
+| Home Assistant palette | Red Accent profile | Blue Accent profile |
 |---|---|---|
-| `--ha-color-primary-*` (teal/cyan) | `primary-40: #009ac7` | 05=`#001721` → 95=`#eff9fe` |
-| `--ha-color-neutral-*` (grey) | `neutral-40: #5e5e5e` | 05=`#141414` → 95=`#f3f3f3` |
-| `--ha-color-orange-*` | `orange-60: #f36d00` | 05=`#280700` → 95=`#fff0e4` |
-| `--ha-color-red-*` | `red-50: #dc3146` | 05=`#2a040b` → 95=`#fff0ef` |
-| `--ha-color-green-*` | `green-50: #00883c` | 05=`#031608` → 95=`#e3f9e3` |
-| `--ha-color-black` | `#000000` | |
-| `--ha-color-white` | `#ffffff` | |
+| `--ha-color-primary-*` | `--lcards-orange-*` | `--lcards-blue-*` |
+| `--ha-color-neutral-*` | `--lcards-gray-*` | `--lcards-gray-*` |
+| `--ha-color-orange-*` | `--lcards-yellow-*` | `--lcards-yellow-*` |
+| `--ha-color-red-*` | `--lcards-orange-*` | `--lcards-orange-*` |
+| `--ha-color-green-*` | `--lcards-green-*` | `--lcards-green-*` |
 
-**LCARdS/HA-LCARS theme mapping:** All five palettes are fully remapped in both the Red Accent and Blue Accent themes, 1:1 across the full 11-stop scale (not a lossy nearest-stop collapse; LCARdS's own palette was expanded to a genuine 11-stop scale specifically to support this; see [LCARdS Colour Palette](../core/themes/index.md#lcards-css-colour-palette)):
-
-| Home Assistant palette | LCARdS Red theme maps to | LCARdS Blue theme maps to |
-|---|---|---|
-| `ha-color-primary-*` | `--lcards-orange-*` scale | `--lcards-blue-*` scale |
-| `ha-color-neutral-*` | `--lcards-gray-*` scale | `--lcards-gray-*` scale |
-| `ha-color-orange-*` | `--lcards-yellow-*` scale | `--lcards-yellow-*` scale |
-| `ha-color-red-*` | `--lcards-orange-*` scale | `--lcards-orange-*` scale |
-| `ha-color-green-*` | `--lcards-green-*` scale | `--lcards-green-*` scale |
-
-**Remapping the palette alone is not sufficient.** Home Assistant's semantic tokens (Layer 2, below) assume any hue survives readably at a given tone number; true for Home Assistant's smoothly-generated palettes, not for every hand-picked LCARdS hue (orange has a much narrower usable-lightness band than blue). Both Picard profiles therefore also explicitly override the full `on-*`/`fill-*`/`border-*`/`surface-*` semantic layer, each value WCAG-validated rather than trusting the tone-index convention blindly; see Layer 2 below.
+**Remapping the palette alone is not enough.** Home Assistant's semantic tokens (Layer 2) assume any hue stays readable at a given tone number. That holds for Home Assistant's generated palettes, not for every hand-picked LCARdS hue (orange has a much narrower usable lightness band than blue). So both profiles also set the whole `on-*`, `fill-*`, `border-*` and `surface-*` layer, each value checked against WCAG contrast; see [What the HA-LCARS profiles set](#what-the-ha-lcars-profiles-set).
 
 ---
 
 ### Layer 2: Semantic Colour Tokens
 
-**Source:** `color/semantic.globals.ts`
-**Responsive:** Different light/dark values. All reference palette atoms, so remapping the palette atoms (Layer 1) cascades here automatically.
+**Source:** `color/semantic.globals.ts`: light block `:8-180`, dark block `:182-333`. They reference the palette atoms, so remapping Layer 1 changes them too. Palette atoms are written without the `--ha-color-` prefix below (`neutral-05` is `var(--ha-color-neutral-05)`).
 
 #### Text
 
-| Variable | Light resolves to | Dark resolves to |
+| Variable | Light | Dark |
 |---|---|---|
-| `--ha-color-text-primary` | `neutral-05` (#141414) | `neutral-90` |
-| `--ha-color-text-secondary` | `neutral-40` (#5e5e5e) | `neutral-60` |
-| `--ha-color-text-disabled` | `neutral-60` (#989898) | `neutral-40` |
-| `--ha-color-text-link` | `primary-40` (#009ac7) | `primary-50` |
-| `--ha-color-text-primary-inverted` | `white` | `neutral-05` |
-| `--ha-color-text-secondary-inverted` | `neutral-20` | `neutral-80` |
+| `--ha-color-text-primary` | `neutral-05` (`:13`) | `var(--white-color)` (`:185`) |
+| `--ha-color-text-secondary` | `neutral-40` | `neutral-80` |
+| `--ha-color-text-disabled` | `neutral-60` | same |
+| `--ha-color-text-link` | `primary-40` | `primary-60` |
+| `--ha-color-text-primary-inverted` | `var(--ha-color-white)` | `var(--ha-color-black)` |
+| `--ha-color-text-secondary-inverted` | `neutral-20` | `neutral-40` |
 
 #### Surfaces
 
-| Variable | Light | Dark | Use |
+| Variable | Light (`:164-170`) | Dark (`:320-326`) | Use |
 |---|---|---|---|
-| `--ha-color-surface-default` | `white` | `#1c1c1c` | Cards, dialogs |
-| `--ha-color-surface-low` | `neutral-95` (#f3f3f3) | `neutral-10` | Raised containers |
-| `--ha-color-surface-lower` | `neutral-90` (#e6e6e6) | `neutral-05` | Double-raised |
-| `--ha-color-surface-default-inverted` | `neutral-10` | `white` | Inverted callouts |
-| `--ha-color-surface-low-inverted` | `neutral-05` | `neutral-90` | |
-| `--ha-color-on-surface-default` | `neutral-05` | `neutral-90` | Text on surface-default |
+| `--ha-color-surface-default` | `var(--ha-color-white)` | `neutral-10` (`#202020`) | Cards, dialogs |
+| `--ha-color-surface-low` | `neutral-95` | `neutral-05` | Raised containers |
+| `--ha-color-surface-lower` | `neutral-90` | `var(--ha-color-black)` | Double-raised |
+| `--ha-color-surface-default-inverted` | `neutral-10` | `var(--ha-color-white)` | Inverted callouts |
+| `--ha-color-surface-low-inverted` | `neutral-05` | `neutral-95` | |
+| `--ha-color-surface-lower-inverted` | `var(--ha-color-black)` | `var(--ha-color-90)`, which does not exist (`:325`), so the variable is invalid in dark mode | |
+| `--ha-color-on-surface-default` | `neutral-05` | `neutral-95` | Text on `surface-default` |
 
 #### Form Backgrounds
 
-| Variable | Light | Dark |
+| Variable | Light (`:173-175`) | Dark (`:329-331`) |
 |---|---|---|
-| `--ha-color-form-background` | `neutral-95` | `neutral-10` |
-| `--ha-color-form-background-hover` | `neutral-90` | `neutral-15` |
+| `--ha-color-form-background` | `neutral-95` | `neutral-20` |
+| `--ha-color-form-background-hover` | `neutral-90` | `neutral-30` |
 | `--ha-color-form-background-disabled` | `neutral-80` | `neutral-20` |
-
-**LCARdS/HA-LCARS theme:** `ha-color-form-background` is explicitly set in both light (40% moonlight mix) and dark (30% moonlight mix) mode sections to give form inputs a subtle LCARS-tinted background.
 
 #### Borders (`quiet` < `normal` < `loud`)
 
-Nine combinations: primary/neutral/danger/warning/success × quiet/normal/loud.
+Fifteen variables: five roles (primary, neutral, danger, warning, success) × three levels. `--ha-color-border-<role>-<level>`, light `:22-44`, dark `:193-206`.
 
-| Pattern | Light example | Use |
+| Role | Light quiet / normal / loud | Dark quiet / normal / loud |
 |---|---|---|
-| `--ha-color-border-neutral-quiet` | `neutral-90` | Subtle dividers |
-| `--ha-color-border-neutral-normal` | `neutral-60` | Visible borders |
-| `--ha-color-border-neutral-loud` | `neutral-40` | Emphasis borders |
-| `--ha-color-border-primary-quiet/normal/loud` | primary-90/70/40 | Primary-tinted borders |
-| `--ha-color-border-danger-quiet/normal/loud` | red-90/70/40 | Danger zones |
-| `--ha-color-border-warning-quiet/normal/loud` | orange-90/70/40 | Warnings |
-| `--ha-color-border-success-quiet/normal/loud` | green-90/70/40 | Success states |
+| `primary` | `primary-90` / `primary-70` / `primary-40` | same |
+| `neutral` | `neutral-90` / `neutral-60` / `neutral-40` | `neutral-40` / `neutral-50` / `neutral-70` |
+| `danger` | `red-90` / `red-70` / `red-40` | same / `red-50` / `red-50` |
+| `warning` | `orange-90` / `orange-70` / `orange-40` | same / `orange-50` / `orange-50` |
+| `success` | `green-90` / `green-70` / `green-40` | same |
 
 #### Fills (interactive backgrounds)
 
-Pattern: `--ha-color-fill-[role]-[loudness]-[state]`
-Loudness: `quiet` / `normal` / `loud`
-State: `resting` / `hover` / `active`
-Roles: `primary`, `neutral`, `disabled`, `danger`, `warning`, `success`
+`--ha-color-fill-<role>-<loudness>-<state>`: loudness `quiet` / `normal` / `loud`, state `resting` / `hover` / `active`. Roles `primary`, `neutral`, `disabled`, `danger`, `warning`, `success`; `disabled` has no `active`. Light `:47-131`, dark `:209-288`. Values are tone numbers of the role's palette (`danger` is `red`, `warning` is `orange`, `success` is `green`, `disabled` is `neutral`).
 
-Key values (light theme):
-| Variable | Value | Use |
+| Role | Loudness | Light resting / hover / active | Dark resting / hover / active |
+|---|---|---|---|
+| `primary` | quiet | 95 / 90 / 95 | 05 / 10 / 05 |
+| `primary` | normal | 90 / 80 / 90 | 10 / 20 / 10 |
+| `primary` | loud | 40 / 30 / 40 | same |
+| `neutral` | quiet | 95 / 90 / 95 | 05 / 10 / `neutral-00` (does not exist, `:221`) |
+| `neutral` | normal | 90 / 80 / 90 | 10 / 20 / 10 |
+| `neutral` | loud | 40 / 30 / 40 | 60 / 70 / 60 |
+| `disabled` | quiet | 95 / 90 | 10 / 20 |
+| `disabled` | normal | 95 / 90 | 20 / 30 |
+| `disabled` | loud | 80 / 70 | 30 / 40 |
+| `danger` | quiet | 95 / 90 / 95 | 05 / 10 / 05 |
+| `danger` | normal | 90 / 80 / 90 | 10 / 20 / 10 |
+| `danger` | loud | 50 / 40 / 50 | 40 / 30 / 40 |
+| `warning` | quiet | 95 / 90 / 95 | 05 / 10 / 05 |
+| `warning` | normal | 90 / 80 / 90 | 10 / 20 / 10 |
+| `warning` | loud | 70 / 50 / 70 | 40 / 30 / 40 |
+| `success` | quiet | 95 / 90 / 95 | 05 / 10 / 05 |
+| `success` | normal | 90 / 80 / 90 | 10 / 20 / 10 |
+| `success` | loud | 50 / 40 / 50 | 40 / 30 / 40 |
+
+**`<ha-button>` maps onto this scale**: `appearance="accent"` uses `fill-{role}-loud-resting`, `appearance="filled"` uses `fill-{role}-normal-resting`, through the `--wa-color-*` aliases (`src/components/ha-button.ts:205-240`). Home Assistant's generated ramps make `quiet < normal < loud` a real prominence order; LCARdS's hand-picked canon palette does not guarantee it everywhere (blue's `-lightest` stop is a vivid electric cyan, more saturated than the family's tone-40 anchor). Where that is a confirmed visible problem, swap the tone number for that one (role, mode, tier) cell in the `FILL` table (`src/core/themes/themeGeneratorCore.js:342`), shared by the Theme Generator and `generate-lcards-ha-semantic-tokens.js`. Do not add an automated chroma-clamping pass: an earlier attempt made the real UI worse and was reverted.
+
+#### On-Colours (text on fills)
+
+`--ha-color-on-<role>-<loudness>`, light `:134-161`, dark `:291-317`.
+
+| Role | Light quiet / normal / loud | Dark quiet / normal / loud |
 |---|---|---|
-| `--ha-color-fill-primary-loud-resting` | `primary-40` | Filled primary button |
-| `--ha-color-fill-primary-normal-resting` | `primary-90` | Tinted primary container |
-| `--ha-color-fill-primary-quiet-resting` | `primary-95` | Very light primary tint |
-| `--ha-color-fill-neutral-loud-resting` | `neutral-40` | Filled neutral button |
-| `--ha-color-fill-neutral-normal-resting` | `neutral-90` | Default chip/badge |
-| `--ha-color-fill-danger-loud-resting` | `red-50` | Danger button |
-| `--ha-color-fill-warning-loud-resting` | `orange-70` | Warning button |
-| `--ha-color-fill-success-loud-resting` | `green-50` | Success badge |
+| `primary` | `primary-50` / `primary-40` / `var(--white-color)` | `primary-70` / `primary-60` / same |
+| `neutral` | `neutral-50` / `neutral-40` / `var(--white-color)` | `neutral-70` / `neutral-60` / `var(--white-color)` |
+| `disabled` | `neutral-80` / `neutral-70` / `neutral-95` | `neutral-40` / `neutral-50` / `neutral-50` |
+| `danger` | `red-50` / `red-40` / `var(--white-color)` | `red-70` / `red-60` / `var(--white-color)` |
+| `warning` | `orange-50` / `orange-40` / `var(--white-color)` | `orange-70` / `orange-60` / `var(--white-color)` |
+| `success` | `green-50` / `green-40` / `var(--white-color)` | `green-70` / `green-60` / `var(--white-color)` |
 
-**Home Assistant's `<ha-button>` `appearance` attribute maps directly onto this scale**: `appearance="accent"` uses `fill-{role}-loud-resting`, `appearance="filled"` uses `fill-{role}-normal-resting` (`ha-button.ts`). Home Assistant's generated ramps guarantee `quiet < normal < loud` reads as a real prominence hierarchy; LCARdS's hand-picked canon palette doesn't guarantee this everywhere (e.g. blue's `-lightest` stop is a deliberately vivid electric-cyan accent, more saturated than its own family's tone-40 anchor). Where this is a confirmed visible problem, fix it with a hand-picked tone-number swap for that specific (role, mode, tier) cell in `generate-lcards-ha-semantic-tokens.js`'s `FILL` table, not an automated chroma-clamping pass (a prior automated attempt made real UI worse and was reverted).
-
-#### On-Colors (text on fills)
-
-Pattern: `--ha-color-on-[role]-[loudness]`
-
-| Variable | Light value | Use |
-|---|---|---|
-| `--ha-color-on-primary-loud` | `white` | Text on filled primary button |
-| `--ha-color-on-primary-normal` | `primary-40` | Text in tinted primary container |
-| `--ha-color-on-neutral-loud` | `white` | Text on filled neutral button |
-| `--ha-color-on-danger-loud` | `white` | Text on danger button |
-| `--ha-color-on-warning-loud` | `white` | Text on warning button |
-| `--ha-color-on-success-loud` | `white` | Text on success button |
-
-**Not derived from a contrast formula.** These are hand-picked *tone references*: Home Assistant never computes an actual WCAG ratio here, and `on-*-loud` is a hardcoded literal `white` for every role in every theme regardless of the hue underneath it. LCARdS's two Picard profiles instead run each value through `generate-lcards-ha-semantic-tokens.js`: Home Assistant's tone-index convention picks a starting value, then real WCAG contrast math (4.5:1 AA) against the actual resolved LCARdS hex substitutes white/black wherever the mechanical default fails; see [Regenerating the theme profiles](#regenerating-the-theme-profiles) below.
+**Not derived from a contrast formula.** These are tone references; Home Assistant computes no WCAG ratio, and `on-*-loud` is `var(--white-color)` for every role whatever the hue underneath. The two LCARdS Picard profiles run each value through `generate-lcards-ha-semantic-tokens.js` instead: the tone-index convention picks a starting value, then WCAG contrast (4.5:1, AA) against the resolved LCARdS colour swaps in white or black where the default fails. See [Regenerating the theme profiles](#regenerating-the-theme-profiles).
 
 #### Other
 
-| Variable | Value | Use |
-|---|---|---|
-| `--ha-color-focus` | `neutral-60` in light | Focus ring colour |
-| `--ha-color-shadow-scrollable-fade` | `rgba(0,0,0,0.08)` | Scroll shadow gradient |
-| `--ha-color-border-normal` | alias | Generic border |
+| Variable | Light | Dark | Use |
+|---|---|---|---|
+| `--ha-color-focus` | `neutral-60` (`:10`) | same | Focus ring (`--wa-focus-ring-color`) |
+| `--ha-color-shadow-scrollable-fade` | `rgba(0, 0, 0, 0.08)` (`:178`) | same | Scroll shadow gradient |
+| `--ha-color-border-normal` | not set | `primary-50` (`:193`) | Set in dark mode only; nothing in the frontend reads it |
 
 ---
 
 ### Layer 3: Legacy Semantic Variables
 
-**Source:** `color/color.globals.ts`
-**Theme-author overridable:** These are the variables set in Home Assistant theme YAML files (including our `ha-lcars-lcards-themes.yaml`). They feed both legacy Home Assistant components and some new ones.
-
-#### Core Palette
-
-| Variable | Default | LCARdS/HA-LCARS theme |
-|---|---|---|
-| `--primary-color` | `#009ac7` (primary-40) | `var(--lcars-ui-tertiary)`: orange or blue per theme variant |
-| `--dark-primary-color` | darker teal | |
-| `--light-primary-color` | lighter teal | |
-| `--accent-color` | `#ff9800` | `var(--lcars-orange)` |
+**Source:** `color/color.globals.ts`: light `:5-339`, dark `:341-402`. These are the variables Home Assistant theme YAML files set (including HA-LCARS). They feed older Home Assistant components and many new ones.
 
 #### Text
 
-| Variable | Light default | LCARdS/HA-LCARS |
+| Variable | Light | Dark |
 |---|---|---|
-| `--primary-text-color` | `#141414` (via ha-color-text-primary) | `var(--lcars-text-gray)` |
-| `--secondary-text-color` | `#5e5e5e` | `var(--lcars-text-gray)` |
-| `--text-primary-color` | `#ffffff` (text ON primary bg) | `var(--lcars-text-gray)` |
-| `--disabled-text-color` | `~#989898` | `"#555"` |
+| `--primary-text-color` | `var(--ha-color-text-primary)` (`:8`) | `#e1e1e1` (`:347`) |
+| `--secondary-text-color` | `var(--ha-color-text-secondary)` | `#9b9b9b` |
+| `--text-primary-color` | `#ffffff`: text on a `--primary-color` background (`:10`) | same |
+| `--text-light-primary-color` | `#212121` | same |
+| `--disabled-text-color` | `#bdbdbd` (`:12`) | `#6f6f6f` (`:349`) |
 
-#### Surfaces
+#### Main Interface
 
-| Variable | Light default | LCARdS/HA-LCARS |
+| Variable | Light | Dark |
 |---|---|---|
-| `--primary-background-color` | `#fafafa` | `var(--lcars-background-color)` (#000000) |
-| `--secondary-background-color` | `#e5e5e5` | `var(--lcars-ui-quaternary)` |
-| `--card-background-color` | `#ffffff` | `var(--secondary-background-color)` |
-| `--clear-background-color` | transparent | |
+| `--primary-color` | `var(--ha-color-primary-40)` (`:15`) | same |
+| `--dark-primary-color` | `#0288d1` | same |
+| `--darker-primary-color` | `#016194` | same |
+| `--light-primary-color` | `#b3e5fc` | same |
+| `--accent-color` | `#ff9800` (`:19`) | same |
+| `--divider-color` | `rgba(0, 0, 0, 0.12)` | `rgba(225, 225, 225, 0.12)` |
+| `--outline-color` | `rgba(0, 0, 0, 0.12)` | `rgba(225, 225, 225, 0.12)` |
+| `--outline-hover-color` | `rgba(0, 0, 0, 0.24)` | `rgba(225, 225, 225, 0.24)` |
+| `--shadow-color` | `rgba(0, 0, 0, 0.16)` | `rgba(0, 0, 0, 0.48)` |
+| `--scrollbar-thumb-color` | `rgb(194, 194, 194)` | `rgb(110, 110, 110)` |
+| `--disabled-color` | `#bdbdbd` (`:70`) | `#464646` (`:393`) |
+
+#### Backgrounds
+
+| Variable | Light (`:46-49`) | Dark (`:343-346`) |
+|---|---|---|
+| `--primary-background-color` | `#fafafa` | `#111111` |
+| `--secondary-background-color` | `#e5e5e5` | `#282828` |
+| `--card-background-color` | `#ffffff` | `#1c1c1c` |
+| `--clear-background-color` | `#ffffff` | `#111111` |
 
 #### Status
 
-| Variable | Default |
+| Variable | Value (`:40-43`) |
 |---|---|
 | `--error-color` | `#db4437` |
 | `--warning-color` | `#ffa600` |
 | `--success-color` | `#43a047` |
 | `--info-color` | `#039be5` |
 
-**LCARdS/HA-LCARS:** `success-color`, `warning-color`, `error-color` overridden per light/dark mode in theme YAML.
+No dark overrides. There are no `--error-background-color`, `--warning-background-color` or `--info-background-color` variables: mix the status colour with `transparent` (see [Useful Patterns](#useful-patterns)).
 
 #### State Indicators
 
-| Variable | Default |
+| Variable | Value |
 |---|---|
-| `--state-active-color` | `#ffc107` (amber) |
-| `--state-inactive-color` | `#9e9e9e` (grey) |
-| `--state-unavailable-color` | disabled text |
-| `--state-icon-color` | mid-grey |
+| `--state-icon-color` | `#44739e` (`:55`) |
+| `--state-active-color` | `var(--amber-color)` (`:175`) |
+| `--state-inactive-color` | `var(--grey-color)` |
+| `--state-unavailable-color` | `var(--state-icon-unavailable-color, var(--disabled-text-color))` |
+| `--state-icon-error-color` | `var(--error-state-color, var(--error-color))` (`:265`) |
 
-#### Domain State Colors
+#### Domain State Colours
 
-Full set of per-domain state colors. Pattern: `--state-[domain]-color` or `--state-[domain]-[condition]-color`.
+**Source:** `color/color.globals.ts:180-260`. Pattern: `--state-<domain>-<state>-color`, plus `--state-<domain>-active-color` for the generic on state. Domains: `alarm_control_panel`, `alert`, `binary_sensor` (by device class), `climate`, `cover`, `device_tracker`, `fan`, `humidifier`, `lawn_mower`, `light`, `lock`, `media_player`, `person`, `plant`, `sensor` (battery), `siren`, `sun`, `switch`, `update`, `vacuum`, `valve`, `water_heater`, `weather`. Each refers to a named colour below, for example `--state-light-active-color: var(--amber-color)` (`:217`).
 
-Domains covered: `alarm_control_panel`, `alert`, `binary_sensor`, `climate`, `cover`, `device_tracker`, `fan`, `light`, `lock`, `media_player`, `person`, `switch`, `vacuum`, `lawn_mower`, `weather`.
-
-**LCARdS/HA-LCARS:** Several climate states overridden: `state-climate-auto-color`, `state-climate-heat-color`, `state-climate-cool-color`, etc. mapped to LCARS colors.
+HA-LCARS maps the climate states (`state-climate-auto-color`, `-heat-color`, `-cool-color` and the rest) to LCARS colours in its `&base` block.
 
 #### Named Colour Palette (Material Design)
 
-Available as CSS variables for use in card configs and themes:
+**Source:** `color/color.globals.ts:71-93`. Usable in card configs and themes.
 
 `--red-color`, `--pink-color`, `--purple-color`, `--deep-purple-color`, `--indigo-color`, `--blue-color`, `--light-blue-color`, `--cyan-color`, `--teal-color`, `--green-color`, `--light-green-color`, `--lime-color`, `--yellow-color`, `--amber-color`, `--orange-color`, `--deep-orange-color`, `--brown-color`, `--light-grey-color`, `--grey-color`, `--dark-grey-color`, `--blue-grey-color`, `--black-color`, `--white-color`
 
-#### Data Visualization
+#### Data Visualisation and Energy
 
-`--color-1` through `--color-54`: 54 distinct hues for history graphs, energy dashboards, calendar.
+`--color-1` through `--color-54` (`:96-149`): distinct hues for history graphs, energy dashboards, calendars and maps. Energy flows have their own: `--energy-grid-consumption-color`, `--energy-grid-return-color`, `--energy-solar-color`, `--energy-non-fossil-color`, `--energy-battery-out-color`, `--energy-battery-in-color`, `--energy-gas-color`, `--energy-water-color` (`:60-67`).
 
 #### RGB Component Variants (Legacy)
 
-Used for `rgba(var(--rgb-primary-color), 0.5)` patterns. **Superseded by `color-mix()`**: prefer `color-mix(in srgb, var(--primary-color) 50%, transparent)` in new code.
+**Source:** `color/color.globals.ts:26-36`. For `rgba(var(--rgb-primary-color), 0.5)`. Prefer `color-mix(in srgb, var(--primary-color) 50%, transparent)` in new code.
 
-`--rgb-primary-color`, `--rgb-accent-color`, `--rgb-primary-text-color`, `--rgb-secondary-text-color`, `--rgb-card-background-color`, `--rgb-warning-color`, `--rgb-error-color`, `--rgb-success-color`, `--rgb-info-color`
-
----
-
-### Layer 3b: WebAwesome Aliases
-
-**Source:** `color/wa.globals.ts`
-Maps Home Assistant semantic tokens to WebAwesome component var names. Available for use in LCARdS if targeting WA components directly.
-
-Pattern: `--wa-color-[role]-fill-[loudness]`, `--wa-color-[role]-border-[loudness]`, `--wa-color-[role]-on-[loudness]` where role = brand/neutral/success/warning/danger.
-
----
-
-## Layout / App Shell
-
-**Source:** `main.globals.ts`
-
-| Variable | Value | Use |
-|---|---|---|
-| `--header-height` | `56px` | Top app bar height (40px in LCARS theme) |
-| `--direction` | `ltr` | Text direction |
-| `--ha-dialog-scrim-backdrop-filter` | `brightness(68%)` | Modal overlay blur |
-| `--dark-primary-opacity` | `0.87` | Primary text opacity on light bg |
-| `--dark-secondary-opacity` | `0.54` | Secondary text opacity on light bg |
-| `--dark-disabled-opacity` | `0.38` | Disabled element opacity |
-| `--light-primary-opacity` | `1` | Primary text opacity on dark bg |
-| `--light-secondary-opacity` | `0.7` | Secondary text opacity on dark bg |
-| `--light-disabled-opacity` | `0.3` | Disabled element opacity on dark bg |
-
----
-
-## LCARdS Implementation Summary
-
-### What LCARdS CSS code uses
-
-| Category | Status |
+| Variable | Light default |
 |---|---|
-| `--ha-animation-duration-*` | ✅ All transitions in editor/base, editor/components, panels |
-| `--ha-border-radius-sm/md/lg/xl/3xl` | ✅ All structural radii in scope files |
-| `--ha-border-width-sm/md` | ✅ All border declarations in editor and panel files |
-| `--ha-space-1` through `--ha-space-10` | ✅ All 4px-multiple spacing in editor/base and editor/components/shared |
-| `--ha-font-size-s/m/l` | ✅ All font sizes in editor/base and editor/components/shared |
-| `--ha-box-shadow-s/m/l` | ✅ All box shadows |
-| `--primary-color`, `--accent-color`, `--*-text-color` | ✅ Used throughout |
-| `--primary-background-color`, `--secondary-background-color`, `--card-background-color` | ✅ Used throughout |
-| `--error-color`, `--warning-color`, `--success-color`, `--info-color` | ✅ Used throughout |
-| `--divider-color`, `--chip-background-color` | ✅ Used for borders and structural dividers |
-| `--ha-font-size-xl/2xl/3xl/4xl/5xl` | ⬜ Not yet needed: no UI elements at those sizes |
-| `--ha-font-weight-*` | ⬜ Still hardcoded (500, 600, 700); future cleanup pass |
-| `--ha-line-height-*` | ⬜ Still hardcoded; future cleanup pass |
-| `--ha-space-11` through `--ha-space-20` | ⬜ No values that large in editor scope |
-| `--ha-color-*` semantic tokens | ✅ Not used directly in LCARdS's own component CSS, but explicitly set (not just cascaded) by both HA-LCARS Picard theme profiles; see below |
+| `--rgb-primary-color` | `0, 154, 199` |
+| `--rgb-accent-color` | `255, 152, 0` |
+| `--rgb-primary-text-color` | `33, 33, 33` |
+| `--rgb-secondary-text-color` | `114, 114, 114` |
+| `--rgb-text-primary-color` | `255, 255, 255` |
+| `--rgb-card-background-color` | `255, 255, 255` |
+| `--rgb-warning-color` / `-error-` / `-success-` / `-info-` | `255, 166, 0` / `219, 68, 55` / `67, 160, 71` / `3, 155, 229` |
 
-### What the HA-LCARS theme profile sets
+#### Component Groups
 
-**Authoritative source:** `ha-lcars/src/themes/lcards_picard_{red,blue}.yaml` (in the separate `ha-lcars` repository), assembled by ha-lcars's own **unmodified, stock** `py/generate_themes.py` into the installable `ha-lcars/themes/lcars.yaml`. `yaml/theme/ha-lcars-lcards-themes.yaml` in *this* repo is a vendored copy-paste-able mirror for users who don't want to depend on the ha-lcars HACS release cycle; keep it resynced when the ha-lcars source changes.
+Also in `color/color.globals.ts`, for matching Home Assistant's own surfaces:
 
-**Both profile files are fully self-contained: zero changes to shared ha-lcars source** (`preamble.yaml`, `defaults.yaml`, `generate_themes.py` are byte-identical to upstream `origin/master`). Everything LCARdS-specific, including the four numeric palette stops per family (`-10`/`-50`/`-60`/`-95`) that used to live in ha-lcars's shared `&lcars-variables` anchor, is declared directly in each profile file: a genuine drop-in with no upstream PR or fork maintenance required.
-
-Each profile sets:
-
-| Category | Status |
+| Group | Variables |
 |---|---|
-| `ha-color-primary-05` through `-95` | ✅ Full 1:1 11-stop mapping to LCARdS orange (Red) or blue (Blue), no lossy collapsing |
-| `ha-color-neutral-05` through `-95` | ✅ Full 1:1 mapping to LCARdS gray scale |
-| `ha-color-orange-05` through `-95` | ✅ Full 1:1 mapping to LCARdS yellow scale |
-| `ha-color-red-05` through `-95` | ✅ Full 1:1 mapping to LCARdS orange scale (errors/danger → orange) |
-| `ha-color-green-05` through `-95` | ✅ Full 1:1 mapping to LCARdS green scale |
-| `ha-color-on-{primary,neutral,disabled,danger,warning,success}-{quiet,normal,loud}` | ✅ Set per light/dark mode, WCAG-validated against the actual resolved fill colors (Phase-2 correction applied where Home Assistant's mechanical tone-index default fails 4.5:1) |
-| `ha-color-fill-{primary,neutral,disabled,danger,warning,success}-{quiet,normal,loud}-{resting,hover,active}` | ✅ Set per light/dark mode, following Home Assistant's own tone-index convention |
-| `ha-color-border-{primary,neutral,danger,warning,success}-{quiet,normal,loud}` | ✅ Set per light/dark mode |
-| `ha-color-surface-{default,low,lower}(-inverted)`, `ha-color-on-surface-default` | ✅ Set per light/dark mode |
-| `ha-color-form-background` | ✅ Light and dark mode values (moonlight tint) |
-| `ha-color-form-background-hover/-disabled` | ✅ Set per light/dark mode (previously cascaded from the neutral palette only) |
-| `primary-color`, `accent-color` | ✅ Set via `lcars-ui-tertiary` |
-| `primary-background-color`, `secondary-background-color` | ✅ Set to LCARS black and quaternary gray |
-| `card-background-color`, `ha-card-background` | ✅ Set |
-| `primary-text-color`, `secondary-text-color` | ✅ Set to LCARS text gray |
-| `success-color`, `warning-color`, `error-color` | ✅ Per light/dark mode overrides |
-| Climate domain state colors | ✅ Mapped to LCARS palette |
-| Sidebar, header, slider, toggle vars | ✅ Full LCARS styling |
-| `ha-font-family-body` | ✅ Set to Tungsten/Antonio LCARS font stack |
-| `ha-box-shadow-s/m/l` | ⬜ Not overridden: default Home Assistant shadows used |
-| `ha-animation-duration-*` | ⬜ Not overridden: default timing used |
-| `ha-border-radius-*` | ⬜ Not overridden: uses `ha-card-border-radius: var(--lcars-outer-radius)` for cards |
+| Sidebar and app header (`:266-300`) | `--sidebar-text-color`, `--sidebar-background-color`, `--sidebar-selected-text-color`, `--sidebar-selected-icon-color`, `--sidebar-icon-color`, `--app-header-text-color`, `--app-header-background-color`, `--app-header-border-bottom`, `--app-theme-color` |
+| Sliders (`:271-273`) | `--slider-color`, `--slider-secondary-color`, `--slider-track-color` |
+| Tables and code (`:276-280`) | `--table-header-background-color`, `--table-row-background-color`, `--table-row-alternative-background-color`, `--data-table-background-color`, `--markdown-code-background-color` |
+| Inputs (`:155-166`, dark `:360-371`) | `--input-idle-line-color`, `--input-hover-line-color`, `--input-fill-color`, `--input-ink-color`, `--input-label-ink-color`, ... |
+| Chips (`:335-337`) | `--ha-assist-chip-filled-container-color`, `--ha-assist-chip-active-container-color`, `--chip-background-color` |
+| Label badges (`:52`, `:169-172`, `:274-275`) | `--label-badge-red`, `-blue`, `-green`, `-yellow`, `-grey`, `--label-badge-background-color`, `--label-badge-text-color` |
+| Material (`:284-334`) | `--mdc-theme-*`, `--mdc-text-field-*`, `--mdc-select-*`: still defined, but the MDC components are gone; do not use them to style `ha-button` |
+| Dark only (`:373-398`) | `--codemirror-*`, `--map-filter`, `--ha-button-primary-light-color` and three more `--ha-button-*` colours |
 
-Build-time validation: ha-lcars's own stock `generate_themes.py` runs its existing non-fatal WCAG verifier, `verify_contrast_rule()`, on every build (checks `lcars-ui-*`/`lcars-card-*` LCARS-aesthetic decorative text across all 24 themes). The `on-*`/`fill-*` semantic-token pairs are validated separately, client-side, by `generate-lcards-ha-semantic-tokens.js` itself (see below); no ha-lcars-side verifier needed.
+---
+
+### Layer 3b: WebAwesome Colour Aliases
+
+**Source:** `color/wa.globals.ts:5-71`. Maps the semantic tokens onto WebAwesome names, for styling inside WebAwesome components.
+
+| Pattern | Maps to |
+|---|---|
+| `--wa-color-<role>-fill-loud` / `-normal` | `--ha-color-fill-<role>-loud-resting` / `-normal-resting` |
+| `--wa-color-<role>-fill-quiet` | `--ha-color-fill-<role>-quiet-hover` (hover, not resting) |
+| `--wa-color-<role>-border-<level>` | `--ha-color-border-<role>-<level>`; except `--wa-color-brand-border-normal`, which is `var(--ha-color-primary-50)` (`:9`) |
+| `--wa-color-<role>-on-<level>` | `--ha-color-on-<role>-<level>` |
+
+`<role>` is `brand` (Home Assistant `primary`), `neutral`, `success`, `warning` or `danger`.
+
+| Variable | Value |
+|---|---|
+| `--wa-color-text-quiet` | `var(--ha-color-text-secondary)` |
+| `--wa-color-text-normal` | `var(--primary-text-color)` |
+| `--wa-color-surface-default` | `var(--card-background-color)` |
+| `--wa-color-surface-raised` | `var(--ha-dialog-surface-background, var(--mdc-theme-surface, #fff))` |
+| `--wa-color-surface-border` | `var(--ha-color-border-neutral-quiet)` |
+| `--wa-panel-border-radius` / `-style` / `-width` | `var(--ha-border-radius-3xl)` / `solid` / `1px` |
+| `--wa-focus-ring-color` | `var(--ha-color-focus)` |
+| `--wa-form-control-background-color` | `var(--wa-color-surface-raised)` |
+| `--wa-form-control-border-color` | `var(--ha-color-border-neutral-quiet)` |
+| `--wa-form-control-value-color` | `var(--primary-text-color)` |
+| `--wa-form-control-placeholder-color` | `var(--ha-color-text-secondary)` |
+
+The Theme Generator keeps a copy of this alias list (`WA_COLOR_ALIAS_VARS` in `src/core/themes/themeGeneratorCore.js`); nothing checks it against the frontend, so update it by hand when this file changes.
+
+---
+
+## Rules for LCARdS Code
+
+The short form of these rules is in `CLAUDE.md` (its CSS variables section) and `.github/instructions/editor.instructions.md` ("CSS & Theming Conventions").
+
+| Property | Rule |
+|---|---|
+| Box shadow | `var(--ha-box-shadow-s)` (hover, tight cards), `-m` (floating panels, overlays), `-l` (dialogs). Never `box-shadow: 0 2px 4px rgba(0,0,0,X)`. Decorative glows, coloured shadows and focus rings stay as they are |
+| Border radius | The `--ha-border-radius-*` scale above. Card-like containers: `var(--ha-card-border-radius, var(--ha-border-radius-lg))` |
+| Border width | `border: var(--ha-border-width-sm) solid ...` (1px), `-md` (2px), `-lg` (3px). Never `1px` / `2px` in a border declaration |
+| Spacing | `var(--ha-space-N)` for every multiple of 4px |
+| Transition duration | `var(--ha-animation-duration-fast)` for 0.15s; `var(--ha-animation-duration-normal, 0.2s)` and `var(--ha-animation-duration-slow, 0.3s)` with the original as fallback |
+| Font size and weight | `--ha-font-size-*`, `--ha-font-weight-*` where a value matches |
+| Font family | `var(--ha-font-family-body)` for UI text, `var(--ha-font-family-code)` for code |
+| Colour | Theme variables only (`--primary-color`, `--primary-text-color`, `--secondary-background-color`, the status colours, the semantic tokens); never `rgba(60,60,60,X)` or `rgba(255,255,255,X)` in structural CSS. LCARS colours come from `--lcars-*` / `--lcards-*` or `theme:` tokens ([Colour Resolution](colour-resolution.md#css-variables-and-theme-tokens)) |
+| Theme variables | Read `--ha-card-*` and the other [theme variables](#theme-variables-not-globals) with a fallback |
+
+Home Assistant components: `<ha-button variant="danger | warning | brand">` (never `--mdc-theme-primary` overrides), `ha-input` / `ha-textarea` (not `ha-textfield`), `ha-spinner size="small"` (not `ha-circular-progress`). The full component rules are in `.github/instructions/editor.instructions.md`.
+
+---
+
+## What the HA-LCARS Profiles Set
+
+**Files:** `ha-lcars/src/themes/lcards_picard_{red,blue}.yaml` in the ha-lcars repository, assembled by ha-lcars's own unmodified `py/generate_themes.py` into the installable `ha-lcars/themes/lcars.yaml`. `yaml/theme/ha-lcars-lcards-themes.yaml` in this repo is a copy-and-paste mirror of the two profiles for users who do not want to wait for an ha-lcars release; `yaml/theme/ha-lcars-all-themes.yaml` vendors the whole generated `lcars.yaml` for the Theme Generator's "Load from ha-lcars library" picker. User-facing description: [HA-LCARS Theme Profiles](../configuration/ha-lcars-theme-profiles.md).
+
+The profile files change nothing in shared ha-lcars source (`preamble.yaml`, `defaults.yaml`, `generate_themes.py`). Everything LCARdS-specific, including the four numeric palette stops per family (`-10`, `-50`, `-60`, `-95`), is declared in each profile.
+
+**The source is ha-lcars `master`.** Its generated `themes/lcars.yaml` carries 375 `ha-color-*` entries: every theme gets the `ha-color-primary-{05..95}` ramp, mixed in OKLCH from `--lcars-ui-tertiary` (`src/defaults.yaml`); the shared preamble sets `ha-color-text-primary`, `ha-color-form-background` (with `-hover` and `-disabled`) and `ha-color-fill-primary-quiet-resting` (`src/preamble.yaml`); and the two Picard profiles map the five palettes onto the nearest LCARdS colour (`--lcards-orange-darkest` ... `--lcards-orange-lightest`) and set `ha-color-form-background` per mode.
+
+The LCARdS 11-stop palette for the Picard profiles (the 1:1 mapping in [Layer 1](#layer-1-colour-palette-atoms), with the `on-*`, `fill-*`, `border-*` and `surface-*` layer) is on the ha-lcars branch `lcards-semantic-colors` (checkpoint `bd888e1`), not merged into `master` yet; the rows marked "Each profile" below describe that branch and the vendored mirror. Check out that branch before running the scripts below.
+
+| Variables | Set by |
+|---|---|
+| `ha-color-{primary,neutral,orange,red,green}-{05..95}` | Each profile: 1:1 onto the LCARdS scales (table in [Layer 1](#layer-1-colour-palette-atoms)) |
+| `ha-color-on-{role}-{quiet,normal,loud}` | Each profile, per light and dark mode: WCAG-checked against the resolved fills |
+| `ha-color-fill-{role}-{loudness}-{state}` | Each profile, per mode, following Home Assistant's tone-index convention |
+| `ha-color-border-{role}-{level}` | Each profile, per mode |
+| `ha-color-surface-*`, `ha-color-on-surface-default` | Each profile, per mode |
+| `ha-color-form-background` | Each profile: `color-mix` of `--lcards-moonlight` with transparent, 40% light, 30% dark |
+| `ha-color-form-background-hover`, `-disabled` | Each profile, per mode |
+| `success-color`, `warning-color`, `error-color` | Each profile, per mode |
+| `primary-color`, `primary-background-color`, `secondary-background-color`, `accent-color` | HA-LCARS `&base`: `var(--lcars-ui-tertiary)`, `var(--lcars-background-color)`, `var(--lcars-ui-quaternary)`, `var(--lcars-ui-accent-color)` |
+| `primary-text-color`, `secondary-text-color`, `text-primary-color` | HA-LCARS `&base`: `var(--lcars-primary-text)` |
+| `disabled-text-color` | HA-LCARS `&base`: `var(--lcars-graphite)` |
+| `card-background-color`, `ha-card-border-radius`, `ha-card-border-width` | HA-LCARS `&base`: `var(--secondary-background-color)`, `var(--lcars-outer-radius)`, `0px` |
+| `ha-font-family-body`, `header-height` | HA-LCARS `&base`: `var(--font-family)`, `40px` |
+| Climate state colours, sidebar, header and label-badge variables | HA-LCARS `&base` |
+| `ha-box-shadow-*`, `ha-animation-duration-*`, `ha-border-radius-*` | Not set: Home Assistant defaults |
+
+ha-lcars's `generate_themes.py` runs its own non-fatal WCAG check, `verify_contrast_rule()`, on every build (the `lcars-ui-*` / `lcars-card-*` text across all 24 themes). The `on-*` / `fill-*` pairs are checked by `generate-lcards-ha-semantic-tokens.js` itself (below).
 
 ---
 
 ## Regenerating the theme profiles
 
-Three scripts in `lcards/scripts/`, run in order, take the LCARdS canon palette all the way to installable ha-lcars theme files. All three are idempotent: safe to re-run after any change, they replace their own previously-written blocks rather than duplicating them.
+Scripts in `scripts/`, run in order, take the LCARdS canon palette to installable ha-lcars theme files. All are idempotent: they replace the blocks they wrote before.
 
-**1. `generate-lcards-palette-scale.js`: 7 canon stops → 11-stop scale**
+**1. `generate-lcards-palette-scale.js`: 7 canon stops to an 11-stop scale**
 
-Reads the 7 hand-picked canon Picard-screen anchors from `src/core/themes/paletteInjector.js`'s `GREEN_ALERT_PALETTE` (the *only* place those 7 values should ever be hand-edited) and computes the 4 gap/extrapolated stops per family (`-10`, `-50`, `-60`, `-95`) via OKLCH interpolation.
-
-```bash
-npm run lcars:palette-scale          # dry run, writes reports/palette-scale-review.html for human review
-npm run lcars:palette-scale:write    # patches GREEN_ALERT_PALETTE in paletteInjector.js, resyncs the docs snapshot (below)
-```
-
-Always review `reports/palette-scale-review.html` before the `:write` variant; the `-95` slot in particular is extrapolated (no real anchor on either side) and is a judgment call, not a mechanical derivation. A snapshot of this review artifact (per-family swatch rows: canon anchors vs. computed/extrapolated stops, contrast ratios, and `<wa-button>` fill/accent mockups) is kept as visual reference at **[Palette Scale Review](/reports/palette-scale-review.html)**: it's a static copy, not live-generated; `lcars:palette-scale:write` keeps it in sync automatically.
-
-**2. `generate-lcards-ha-semantic-tokens.js`: palette → both ha-lcars profile files**
-
-Reads the full resolved palette back out of `paletteInjector.js` and derives everything both profile files need:
-- The 4 numeric palette-stop declarations per family (literal hex, self-contained; no shared ha-lcars source touched).
-- The 1:1 `ha-color-{primary,neutral,orange,red,green}-{05..95}` ramp.
-- The full `on-*`/`fill-*`/`border-*`/`surface-*`/`form-background-*` semantic layer, per light/dark mode, WCAG-validated (see Layer 2 above).
+Reads the 7 hand-picked canon Picard anchors from `GREEN_ALERT_PALETTE` in `src/core/themes/paletteInjector.js` (the only place those 7 values are edited by hand) and computes the 4 missing stops per family (`-10`, `-50`, `-60`, `-95`) by OKLCH interpolation.
 
 ```bash
-npm run lcars:semantic-tokens          # dry run, prints YAML + contrast report to console
-npm run lcars:semantic-tokens:write    # patches both profile YAML files in ../ha-lcars/src/themes/
+npm run lcars:palette-scale          # dry run: writes reports/palette-scale-review.html for review
+npm run lcars:palette-scale:write    # patches GREEN_ALERT_PALETTE and copies the review page into doc/public/reports/
 ```
 
-This assumes a sibling `ha-lcars` checkout at `../ha-lcars` relative to this repo. **It does not touch anything outside `src/themes/lcards_picard_{red,blue}.yaml`**: no shared ha-lcars files.
+Review `reports/palette-scale-review.html` before the `:write` variant; `-95` is extrapolated (no anchor on either side), a judgement call, not a derivation. A copy of the review page (per-family swatch rows, canon anchors against computed stops, contrast ratios, `<wa-button>` fill and accent mockups) is kept at **[Palette Scale Review](/reports/palette-scale-review.html)**; `lcars:palette-scale:write` refreshes it.
 
-**3. Regenerate the installable theme file and rebuild**
+**2. `generate-lcards-ha-semantic-tokens.js`: palette to both ha-lcars profile files**
+
+Reads the resolved palette from `paletteInjector.js` and writes what both profiles need:
+
+- the 4 numeric palette-stop declarations per family (literal hex, so no shared ha-lcars source changes);
+- the 1:1 `ha-color-{primary,neutral,orange,red,green}-{05..95}` ramp;
+- the whole `on-*`, `fill-*`, `border-*`, `surface-*` and `form-background-*` layer per light and dark mode, WCAG-checked (see [Layer 2](#layer-2-semantic-colour-tokens)). The tone tables (`BORDER`, `ON`, `FILL`, `SURFACE`, `FORM_BACKGROUND_TONES`) are in `src/core/themes/themeGeneratorCore.js`, transcribed from `color/semantic.globals.ts` and shared with the Theme Generator.
 
 ```bash
-npm run lcars:generate-themes   # ha-lcars's own stock generator - assembles themes/lcars.yaml
-npm run build                   # validates CSS vars, rebuilds LCARdS itself
-npm run lcars:export-vendored   # resyncs the copy-paste-able yaml/theme/ha-lcars-lcards-themes.yaml
+npm run lcars:semantic-tokens          # dry run: prints the YAML and a contrast report
+npm run lcars:semantic-tokens:write    # patches both profile files in ../ha-lcars/src/themes/
 ```
 
-Or run steps 2+3 together for the common case (tuning semantic tokens, not touching the canon palette anchors):
+It expects an `ha-lcars` checkout at `../ha-lcars` and touches nothing there but `src/themes/lcards_picard_{red,blue}.yaml`.
+
+**3. Assemble the theme file, rebuild and re-vendor**
 
 ```bash
-npm run lcars:regenerate
+npm run lcars:generate-themes   # ha-lcars's own generator: assembles ../ha-lcars/themes/lcars.yaml
+npm run build                   # validates CSS variables, rebuilds LCARdS
+npm run lcars:export-vendored   # refreshes yaml/theme/ha-lcars-lcards-themes.yaml (the two profiles)
+npm run lcars:export-all-themes # refreshes yaml/theme/ha-lcars-all-themes.yaml (every theme, for the Theme Generator)
 ```
 
-**Values that are hand-maintained, not generated** (edit directly in the two profile files, no script involved):
-- `lcars-settings-card-color`: the medium-luminance background ha-lcars uses for config/dialog/profile/more-info panels (paired with hardcoded white text in ha-lcars's own shared `card-mod-css`). Currently `var(--lcards-gray)` in both profiles.
-- `lcars-ui-{primary,secondary,tertiary,quaternary}` and their `-text` companions, and everything under `modes:` that isn't a `ha-color-*` semantic token (e.g. `lcars-alert-color`, `success-color`/`warning-color`/`error-color`, `lcars-ui-quaternary-text`); these drive most of the rest of Home Assistant's UI indirectly via `defaults.yaml`'s fallback chain (e.g. `lcars-ui-app-header-background-color: var(--lcars-ui-primary)`) and don't need per-profile overrides beyond the base set already present.
+`npm run lcars:regenerate` runs steps 2 and 3 in one go (`package.json:68`), the usual case when you tune semantic tokens and leave the canon anchors alone.
+
+**Hand-maintained values** (edit them in the two profile files; no script writes them):
+
+- `lcars-settings-card-color`: the medium-luminance background ha-lcars uses for config, dialog, profile and more-info panels (with white text from ha-lcars's shared `card-mod-css`). `var(--lcards-gray)` in both profiles of the vendored mirror.
+- `lcars-ui-{primary,secondary,tertiary,quaternary}` and their `-text` companions, and everything under `modes:` that is not an `ha-color-*` token (`lcars-alert-color`, `success-color`, `warning-color`, `error-color`, `lcars-ui-quaternary-text`). These drive most of Home Assistant's UI through `defaults.yaml`'s fallback chain (for example `lcars-ui-app-header-background-color: var(--lcars-ui-primary)`).
 
 ---
 
 ## Useful Patterns
 
-### Structural container backgrounds (editor/panel sections)
+### Structural container backgrounds (editor and panel sections)
+
+**The card standard is `secondary-background-color` 50% over `primary-background-color` 25%.** Use it for any semi-transparent container inside a card, dialog or panel; a form section is the one exception (below).
 
 ```css
-/* Standard section - 50% blend, works with HA-LCARS where card-bg = secondary-bg */
+/* Card standard: works with HA-LCARS, where card-background = secondary-background */
 background-color: color-mix(
     in srgb,
     var(--secondary-background-color) 50%,
     color-mix(in srgb, var(--primary-background-color) 25%, transparent)
 );
 
-/* Focused/active state - slightly more opaque */
+/* Focused or active state: a little more opaque */
 background-color: color-mix(
     in srgb,
     var(--secondary-background-color) 65%,
     color-mix(in srgb, var(--primary-background-color) 35%, transparent)
 );
 
-/* Inner card/container - solid secondary background */
+/* Inner card or container: solid secondary background */
 background: var(--secondary-background-color);
+```
+
+**Form sections only: 30% instead of 50%.** `lcards-form-section` (`src/editor/components/shared/lcards-form-section.js`) uses a lighter version of the same mix on its `ha-expansion-panel`, resting and expanded:
+
+```css
+ha-expansion-panel {
+    background-color: color-mix(
+        in srgb,
+        var(--secondary-background-color) 30%,
+        color-mix(in srgb, var(--primary-background-color) 25%, transparent)
+    );
+}
+```
+
+The only other users are containers drawn to look like a form section: the Pack Explorer's tree pane (`.tree-pane`, "a section card on the inset, like lcards-form-section", `src/editor/components/pack-explorer/lcards-pack-explorer-tab.js`) and the data source browser's detail blocks (`.detail-section`, "reads like an lcards-form-section card", `src/editor/components/datasources/lcards-datasource-browser.js`). Anything else takes the 50% card standard. The focused form section uses the 65%/35% mix above.
+
+Never use `color-mix(in srgb, var(--secondary-background-color) 50%, transparent)` alone inside a card: under HA-LCARS `card-background-color` is `secondary-background-color`, so it has no contrast. Anchor it with `--primary-background-color` as above.
+
+**Page-level backgrounds** (outside cards, where secondary is not the card background):
+
+```css
+background: color-mix(in srgb, var(--secondary-background-color) 50%, transparent);
 ```
 
 ### Hover states
@@ -571,26 +714,29 @@ background: var(--secondary-background-color);
 background: color-mix(in srgb, var(--primary-color) 15%, var(--secondary-background-color));
 ```
 
-### Light overlays (on colored backgrounds)
+### Overlays
 
 ```css
-/* White hover on primary-color header */
-background: color-mix(in srgb, white 20%, transparent);
-
-/* Text-color tint (works in both light/dark) */
+/* Text-colour tint: works in light and dark */
 background: color-mix(in srgb, var(--primary-text-color) 10%, transparent);
+
+/* Hover on a --primary-color header only: tint with the colour of text on primary */
+background: color-mix(in srgb, var(--text-primary-color) 20%, transparent);
 ```
 
-### Status zone borders and backgrounds
+### Status zones
 
 ```css
 border-top: var(--ha-border-width-sm) solid color-mix(in srgb, var(--error-color) 40%, transparent);
 background: color-mix(in srgb, var(--error-color) 5%, transparent);
 ```
 
+The same works for `--warning-color`, `--success-color` and `--info-color`, or use the semantic fills (`var(--ha-color-fill-danger-quiet-resting)`), which follow the theme's palette.
+
 ### Code block backgrounds
 
 ```css
-/* Terminal/code feel - darker than card background */
+/* Terminal feel: darker than the card background */
 background: var(--primary-background-color);
+font-family: var(--ha-font-family-code);
 ```

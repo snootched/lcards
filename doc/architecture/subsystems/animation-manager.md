@@ -116,6 +116,8 @@ Cards re-render often (a state change re-colours a button, a tap toggles its ent
 
 ## Trigger types
 
+What each trigger means for a user, and its config keys: [Triggers](../../core/animations/triggers.md). This table is the developer side: which code fires each one.
+
 | Trigger | Fired by |
 |---|---|
 | `on_load` | `registerAnimation()` when the scope is first set up |

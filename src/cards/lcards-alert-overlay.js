@@ -656,4 +656,4 @@ export class LCARdSAlertOverlay extends LitElement {
     }
 }
 
-// NOTE: Card registration handled in src/lcards.js initializeCustomCard().then()
+// NOTE: Card registration handled in src/lcards-main.js initializeCustomCard().then()

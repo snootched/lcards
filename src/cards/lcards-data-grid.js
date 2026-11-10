@@ -890,7 +890,7 @@ export class LCARdSDataGrid extends LCARdSCard {
     return this.renderRoot?.querySelector(target);
   }
 
-  /** Register the schema with CoreConfigManager (called by lcards.js). */
+  /** Register the schema with CoreConfigManager (called by src/lcards-main.js). */
   static registerSchema() {
     const configManager = window.lcards?.core?.configManager;
     if (!configManager) {

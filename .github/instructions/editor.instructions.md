@@ -69,7 +69,7 @@ FormField.renderField(this, 'custom_field', {
 })
 ```
 
-`options` keys: `label`, `helper`, `selectorOverride`, `disabled`, `required` — nothing else. To make a field a number slider, select dropdown, entity picker, etc. by default, declare it on the schema instead:
+`options` keys: `label`, `helper`, `value` (show this instead of the config value or schema default, e.g. a value the config implies), `selectorOverride`, `disabled`, `required`; nothing else. To make a field a number slider, select dropdown, entity picker, etc. by default, declare it on the schema instead:
 
 ```javascript
 // in the card's schema (e.g. src/cards/schemas/*.js)
@@ -139,7 +139,7 @@ No headings, bullet characters, emoji or inline styles inside messages; lists an
 Use these HA-native elements where appropriate. Do **not** fabricate alternatives:
 
 - `ha-expansion-panel` — collapsible sections
-- `ha-tab-group` / `ha-tab-group-tab` — tab layouts (used internally by base). Note: `<ha-tab-panel>` used by `LCARdSBaseEditor` is **not** an HA element (never defined) — it's an unknown inline wrapper toggled with `?hidden`; don't style it expecting block layout.
+- `ha-tab-group` / `ha-tab-group-tab`: tab layouts (used internally by base). `LCARdSBaseEditor` renders each tab's content in a plain `<div class="tab-panel">` (toggled with `?hidden`); there is no `ha-tab-panel` element.
 - `ha-selector` — generic HA selector (entity, device, number, text, select, etc.)
 - `ha-alert` — info/warning/error banners
 - `ha-entity-picker` — entity ID autocomplete
@@ -163,111 +163,15 @@ html`<ha-switch .checked=${on} @change=${(e) => this._toggle(e.target.checked)}>
 
 ## CSS & Theming Conventions
 
-LCARdS requires HA 2026.11+. Use HA CSS variables — no fallbacks needed unless noted.
+LCARdS requires HA 2026.11+. Use HA CSS variables; no fallbacks needed unless noted. The tables (names, light/dark values, file:line in the frontend) live in one place only: `doc/development/ha-css-vars.md`. Read it before picking a value; don't copy its tables here.
 
-### Box shadows — always use HA vars
-
-| Shadow weight | Variable | Use |
-|---|---|---|
-| Small — hover states, tight cards | `var(--ha-box-shadow-s)` | `0 1px 2px … 0 1px 3px …` |
-| Medium — floating panels, overlays | `var(--ha-box-shadow-m)` | `0 3px 6px … 0 8px 16px …` |
-| Large — dialogs, full-screen overlays | `var(--ha-box-shadow-l)` | `0 6px 12px … 0 16px 32px …` |
-
-❌ `box-shadow: 0 2px 4px rgba(0,0,0,0.1)` — use `var(--ha-box-shadow-s)`  
-✅ Decorative glow/colored shadows and `:focus` rings are intentional — leave those alone
-
-### Border radius — always use HA vars
-
-| Value | Variable | Notes |
-|---|---|---|
-| 4px | `var(--ha-border-radius-sm)` | Tags, badges, code inline |
-| 8px | `var(--ha-border-radius-md)` | Toolbars, containers |
-| 12px | `var(--ha-border-radius-lg)` | Same as `--ha-card-border-radius` |
-| 16px | `var(--ha-border-radius-xl)` | |
-| 20px | `var(--ha-border-radius-2xl)` | |
-| 24px | `var(--ha-border-radius-3xl)` | Expansion panels |
-| 28–36px | `--ha-border-radius-4xl` through `-6xl` | |
-| pill | `var(--ha-border-radius-pill)` | 9999px |
-| circle | `var(--ha-border-radius-circle)` | 50% |
-
-No HA var for 6px, 3px, 22px — leave those hardcoded.
-
-### Border width — always use HA vars
-
-```css
-border: var(--ha-border-width-sm) solid var(--divider-color);    /* 1px */
-border: var(--ha-border-width-md) solid var(--primary-color);    /* 2px */
-border: var(--ha-border-width-lg) solid var(--error-color);      /* 3px */
-```
-
-❌ `border: 1px solid …` — use `var(--ha-border-width-sm) solid …`  
-❌ `border: 2px solid …` — use `var(--ha-border-width-md) solid …`
-
-### Spacing — always use HA vars
-
-`--ha-space-N` where the value = N×4px:
-
-| px | Variable | px | Variable |
-|---|---|---|---|
-| 4px | `var(--ha-space-1)` | 24px | `var(--ha-space-6)` |
-| 8px | `var(--ha-space-2)` | 28px | `var(--ha-space-7)` |
-| 12px | `var(--ha-space-3)` | 32px | `var(--ha-space-8)` |
-| 16px | `var(--ha-space-4)` | 40px | `var(--ha-space-10)` |
-| 20px | `var(--ha-space-5)` | 48px | `var(--ha-space-12)` |
-
-No HA var for 2px, 6px, 10px, 14px — leave those hardcoded. For shorthands mixing var and non-var values (e.g. `padding: 2px 8px`), use separate properties or leave as-is.
-
-### Animation duration — always use HA vars (prefers-reduced-motion aware)
-
-All `--ha-animation-duration-*` vars collapse to 1ms automatically when `prefers-reduced-motion: reduce` is set.
-
-```css
-transition: all var(--ha-animation-duration-fast);           /* 150ms = 0.15s — exact match */
-transition: all var(--ha-animation-duration-normal, 0.2s);   /* 250ms ≈ 0.2s — include fallback */
-transition: all var(--ha-animation-duration-slow, 0.3s);     /* 350ms ≈ 0.3s — include fallback */
-```
-
-❌ `transition: all 0.15s` — use `var(--ha-animation-duration-fast)`  
-❌ `transition: all 0.2s` — use `var(--ha-animation-duration-normal, 0.2s)`
-
-### Semi-transparent backgrounds — always `color-mix`
-
-**Inside dialogs/cards** (works with HA-LCARS where `card-background-color = secondary-background-color`):
-```css
-/* Default state */
-background-color: color-mix(
-    in srgb,
-    var(--secondary-background-color) 30%,
-    color-mix(in srgb, var(--primary-background-color) 25%, transparent)
-);
-
-/* Focused/active state */
-background-color: color-mix(
-    in srgb,
-    var(--secondary-background-color) 45%,
-    color-mix(in srgb, var(--primary-background-color) 35%, transparent)
-);
-```
-
-**Page-level backgrounds** (outside cards, where secondary ≠ card background):
-```css
-background: color-mix(in srgb, var(--secondary-background-color) 50%, transparent);
-```
-
-**Light/white overlay tints** (inline code highlights, subtle overlays):
-```css
-background: color-mix(in srgb, var(--primary-text-color) 10%, transparent);
-```
-
-**Error/danger zone backgrounds:**
-```css
-border-top: 1px solid color-mix(in srgb, var(--error-color) 40%, transparent);
-background: color-mix(in srgb, var(--error-color) 5%, transparent);
-```
-
-❌ `rgba(60, 60, 60, 0.5)` — hardcoded dark, breaks HA-LCARS light themes  
-❌ `rgba(255, 255, 255, 0.1)` — hardcoded light, use `color-mix` with `--primary-text-color`  
-❌ `color-mix(in srgb, var(--secondary-background-color) 50%, transparent)` alone inside cards — in HA-LCARS `card-background-color = secondary-background-color`, resulting in zero contrast; always anchor with `--primary-background-color` too
+- **Box shadows:** `var(--ha-box-shadow-s/m/l)`, never `box-shadow: 0 Xpx Xpx rgba(0,0,0,X)`. Decorative glows, coloured shadows and `:focus` rings stay.
+- **Border radius:** `--ha-border-radius-sm` (4px) ... `-6xl` (36px), `-pill`, `-circle`. Card-like containers: `var(--ha-card-border-radius, var(--ha-border-radius-lg))` (`--ha-card-border-radius` is a theme var, always give the fallback). No HA var for 3px, 6px, 10px, 22px.
+- **Border width:** `border: var(--ha-border-width-sm|md|lg) solid ...` (1/2/3px); never a hardcoded `1px`/`2px` in a border declaration.
+- **Spacing:** `var(--ha-space-N)` = N x 4px (1-20). No HA var for 2px, 6px, 10px, 14px, 18px; mixed shorthands (`padding: 2px 8px`) stay or are split.
+- **Durations:** `var(--ha-animation-duration-fast)` (0.15s), `var(--ha-animation-duration-normal, 0.2s)`, `var(--ha-animation-duration-slow, 0.3s)`; they collapse to 1ms under `prefers-reduced-motion`.
+- **Fonts:** `--ha-font-size-*`, `--ha-font-weight-*`, `var(--ha-font-family-body)`, `var(--ha-font-family-code)` (not `--code-font-family` / `--primary-font-family`, which no global defines).
+- **Semi-transparent backgrounds inside cards:** `color-mix(in srgb, var(--secondary-background-color) 50%, color-mix(in srgb, var(--primary-background-color) 25%, transparent))` (65%/35% for focused); the card standard. Only `lcards-form-section` (and containers drawn to look like one) uses 30% in place of 50%. Never `secondary-background-color` mixed with `transparent` alone inside a card (zero contrast under HA-LCARS), never `rgba(60,60,60,X)` / `rgba(255,255,255,X)`. More patterns: ha-css-vars.md "Useful Patterns".
 
 ### ha-button variants — use semantic variants, never CSS overrides
 

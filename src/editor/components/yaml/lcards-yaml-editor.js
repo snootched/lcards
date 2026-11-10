@@ -281,7 +281,7 @@ export class LCARdSYamlEditor extends LitElement {
                 background: #282c34;
                 border: var(--ha-border-width-sm) solid #3e4451;
                 border-radius: 8px;
-                box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+                box-shadow: var(--ha-box-shadow-l);
                 z-index: 10000;
                 max-width: 600px;
                 width: 90%;

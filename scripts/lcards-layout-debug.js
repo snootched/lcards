@@ -1,6 +1,15 @@
 /**
  * lcards-layout-debug.js: LCARdS Layout View diagnostic tool
  *
+ * A browser-console paste script, not a Node script: nothing in the build or the
+ * tests runs it. It reports how an lcards-layout-view sized its grid rows: the
+ * host and grid heights, every row's configured track against its computed px
+ * height, the visibility-controlled rows (_baseRows / _visibilityRows, see
+ * doc/architecture/layout-view.md "Visibility-driven row sizing"), unexpected
+ * 0px rows, whether the host ResizeObserver is connected, and the LCARdS version.
+ * Use it when a layout view's rows collapse, overflow or ignore a visibility
+ * toggle.
+ *
  * Paste the entire contents of this file into the browser console on any HA
  * dashboard that uses custom:lcards-layout-view.
  *

@@ -24,13 +24,20 @@ export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
     constructor() {
         super();
         this.cardType = 'layout-card';
-        this._studioDialog = null;
+        /** @type {any} Open studio dialog, kept in sync with hass */
+        this._studio = null;
+    }
+
+    /** @param {Map<string, unknown>} changedProps */
+    updated(changedProps) {
+        super.updated(changedProps);
+        if (changedProps.has('hass') && this._studio) this._studio.hass = this.hass;
     }
 
     disconnectedCallback() {
         super.disconnectedCallback?.();
-        this._studioDialog?.remove();
-        this._studioDialog = null;
+        this._studio?.remove();
+        this._studio = null;
     }
 
     render() {
@@ -71,7 +78,7 @@ export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
         const dialog = document.createElement('lcards-layout-studio-dialog');
         dialog.hass = this.hass;
         dialog.config = JSON.parse(JSON.stringify(this.config ?? {}));
-        this._studioDialog = dialog;
+        this._studio = dialog;
 
         dialog.addEventListener('config-changed', (e) => {
             const cfg = e.detail?.config;
@@ -83,7 +90,7 @@ export class LCARdSLayoutCardEditor extends LCARdSBaseEditor {
         });
         dialog.addEventListener('closed', () => {
             dialog.remove();
-            if (this._studioDialog === dialog) this._studioDialog = null;
+            if (this._studio === dialog) this._studio = null;
         });
 
         mountDialogNearHomeAssistant(dialog, this);

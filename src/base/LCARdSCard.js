@@ -187,7 +187,7 @@ export class LCARdSCard extends LCARdSNativeCard {
                     justify-content: center;
                     min-height: 100px;
                     padding: 16px;
-                    background: var(--error-background-color, rgba(244, 67, 54, 0.1));
+                    background: color-mix(in srgb, var(--error-color, #db4437) 10%, transparent);
                     border: 1px solid var(--error-color, #f44336);
                     border-radius: 4px;
                     color: var(--error-color, #f44336);
@@ -232,6 +232,14 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // Entity tracking for Jinja2 template updates
         this._trackedEntities = [];
+
+        // subscribeToEntity() bookkeeping: the release functions (dropped on
+        // disconnect) and how many subscriptions each entity has (an entity with
+        // one gates HASS forwarding to the core like a tracked one)
+        /** @type {Set<() => void> | undefined} */
+        this._entitySubscriptions = undefined;
+        /** @type {Map<string, number> | undefined} */
+        this._subscribedEntityCounts = undefined;
 
         // Pre-evaluated style template cache (template string → result).
         // Populated by _preEvaluateStyleTemplates() during async _processCustomTemplates().
@@ -821,9 +829,18 @@ export class LCARdSCard extends LCARdSNativeCard {
                 oldHass?.states?.[entityId] !== newHass?.states?.[entityId]
             );
 
-            if (!oldHass || cardEntityChanged || trackedEntitiesChanged) {
+            // Entities the card subscribed to (subscribeToEntity) count too:
+            // their callbacks fire from the core's ingest.
+            const subscribed = this._subscribedEntityCounts;
+            const subscribedEntitiesChanged = !!subscribed && subscribed.size > 0 &&
+                [...subscribed.keys()].some(entityId =>
+                    oldHass?.states?.[entityId] !== newHass?.states?.[entityId]
+                );
+
+            if (!oldHass || cardEntityChanged || trackedEntitiesChanged || subscribedEntitiesChanged) {
                 lcardsLog.trace(`[LCARdSCard] Forwarding HASS to core.ingestHass() for ${this._cardGuid}`, {
-                    reason: !oldHass ? 'initial' : cardEntityChanged ? 'card entity' : 'tracked entity',
+                    reason: !oldHass ? 'initial' : cardEntityChanged ? 'card entity'
+                        : trackedEntitiesChanged ? 'tracked entity' : 'subscribed entity',
                     cardEntity: this.config?.entity,
                     trackedCount: this._trackedEntities?.length || 0
                 });
@@ -3563,16 +3580,20 @@ export class LCARdSCard extends LCARdSNativeCard {
      * Subscribe to entity state changes
      *
      * Uses CoreSystemsManager's subscription system for efficient change notifications.
-     * Automatically tracks subscriptions for cleanup on card destroy.
+     * Automatically tracks subscriptions for cleanup on card destroy. The entity also
+     * counts as one of the card's own while subscribed: a HASS update that changes it
+     * is forwarded to the core (which fires the callback), even when the card does not
+     * track it otherwise. Unsubscribing (or a disconnect) stops that, unless the card
+     * tracks the entity for another reason (its own entity, templates, rules).
      *
      * @param {string} entityId - Entity to monitor
      * @param {Function} callback - Called on change: callback(entityId, newState, oldState)
-     * @returns {Function} Unsubscribe function
+     * @returns {Function} Unsubscribe function (calling it again is a no-op)
      *
      * @example
      * // Subscribe to temperature sensor
      * const unsubscribe = this.subscribeToEntity('sensor.temperature', (id, newState, oldState) => {
-     *   console.log('Temperature changed from', oldState.state, 'to', newState.state);
+     *   lcardsLog.debug('[MyCard] temperature', { from: oldState?.state, to: newState?.state });
      *   this.requestUpdate();
      * });
      *
@@ -3594,6 +3615,9 @@ export class LCARdSCard extends LCARdSNativeCard {
         if (!this._entitySubscriptions) {
             this._entitySubscriptions = new Set();
         }
+        if (!this._subscribedEntityCounts) {
+            this._subscribedEntityCounts = new Map();
+        }
 
         // Subscribe via CoreSystemsManager
         const unsubscribe = this._singletons.systemsManager.subscribeToEntity(
@@ -3602,16 +3626,54 @@ export class LCARdSCard extends LCARdSNativeCard {
             this._cardGuid
         );
 
+        // The entity now gates HASS forwarding to the core (see _onHassChanged)
+        const counts = this._subscribedEntityCounts;
+        counts.set(entityId, (counts.get(entityId) ?? 0) + 1);
+
+        let active = true;
+        const release = () => {
+            if (!active) return;
+            active = false;
+            this._entitySubscriptions?.delete(release);
+            const left = (counts.get(entityId) ?? 1) - 1;
+            if (left > 0) counts.set(entityId, left);
+            else counts.delete(entityId);
+            unsubscribe();
+        };
+
         // Track subscription for automatic cleanup
-        this._entitySubscriptions.add(unsubscribe);
+        this._entitySubscriptions.add(release);
 
         lcardsLog.debug(`[LCARdSCard] Subscribed to entity: ${entityId} (card: ${this._cardGuid})`);
 
-        // Return unsubscribe function
-        return () => {
-            this._entitySubscriptions?.delete(unsubscribe);
-            unsubscribe();
-        };
+        return release;
+    }
+
+    /**
+     * Whether the card holds a subscribeToEntity() subscription to the entity.
+     * @param {string} entityId
+     * @returns {boolean}
+     * @protected
+     */
+    _isSubscribedEntity(entityId) {
+        return (this._subscribedEntityCounts?.get(entityId) ?? 0) > 0;
+    }
+
+    /**
+     * Drop every subscribeToEntity() subscription (on disconnect).
+     * @protected
+     */
+    _releaseEntitySubscriptions() {
+        if (!this._entitySubscriptions) return;
+        for (const release of [...this._entitySubscriptions]) {
+            try {
+                release();
+            } catch (error) {
+                lcardsLog.error('[LCARdSCard] Error unsubscribing from entity:', error);
+            }
+        }
+        this._entitySubscriptions.clear();
+        this._subscribedEntityCounts?.clear();
     }
 
     /**
@@ -3817,14 +3879,7 @@ export class LCARdSCard extends LCARdSNativeCard {
 
         // --- Entity subscriptions ---
         if (this._entitySubscriptions) {
-            this._entitySubscriptions.forEach(unsubscribe => {
-                try {
-                    unsubscribe();
-                } catch (error) {
-                    lcardsLog.error('[LCARdSCard] Error unsubscribing from entity:', error);
-                }
-            });
-            this._entitySubscriptions.clear();
+            this._releaseEntitySubscriptions();
             lcardsLog.debug(`[LCARdSCard] Cleaned up entity subscriptions for ${this._cardGuid}`);
         }
 

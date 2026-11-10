@@ -203,5 +203,5 @@ The intro draws on its own canvas, inserted right after the SEM canvas slot with
 - [Borg Assimilation](../../core/borg.md) and [Borg actions](../../core/borg-actions.md): the user docs
 - [Screen Effect System](screen-effects.md): the `borg-assimilation` preset and its renderers
 - [Connection Overlay System](connection-overlay.md): Borg mode on disconnect
-- [Theme System](theme-system.md): alert modes and palette transforms
+- [Theme System](theme-system.md#alert-mode-integration): alert modes and palette transforms
 - [Sound System](sound-system.md): the `borg_assimilate` / `borg_deassimilate` events

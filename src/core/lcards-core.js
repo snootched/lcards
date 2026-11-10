@@ -288,7 +288,6 @@ class LCARdSCore {
             // Create BorgAssimilationManager — Easter egg orchestrator.
             // Depends on screenEffectManager and themeManager, both ready at this point.
             this.borgAssimilationManager = new BorgAssimilationManager();
-            window.lcards.core.borgAssimilationManager = this.borgAssimilationManager;
             lcardsLog.debug('[LCARdSCore] ✅ BorgAssimilationManager created');
 
             // Create IntegrationService — it self-probes on the first _updateHass
@@ -308,7 +307,6 @@ class LCARdSCore {
             // Provides named-slot show/hide API consumed by ConnectionOverlayService,
             // lcards-alert-overlay, and the show_portal_card HA service.
             this.portalOverlayManager = new PortalOverlayManager();
-            window.lcards.core.portalOverlayManager = this.portalOverlayManager;
             lcardsLog.debug('[LCARdSCore] ✅ PortalOverlayManager created');
 
             // Create ConnectionOverlayService — monitors hass connection state and

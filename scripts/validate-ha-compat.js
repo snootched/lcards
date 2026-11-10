@@ -100,6 +100,20 @@ export const RULES = [
     reason: 'dead — ha-dialog is WebAwesome',
     fix: 'use --ha-dialog-max-width / --ha-dialog-min-height / --ha-dialog-width-{sm,md,lg}' },
 
+  // ── Undefined variables (no HA globals file or HA-LCARS theme sets them, so the fallback always applies) ──
+  { id: 'status-background-vars', kind: 'js', pattern: /(?<![\w-])--(?:error|warning|info|success)-background-color\b/g,
+    reason: 'not defined by Home Assistant or HA-LCARS: the theme-blind fallback always applies',
+    fix: 'color-mix(in srgb, var(--error-color) 10%, transparent) (or --warning-color / --info-color / --success-color), or var(--ha-color-fill-danger-quiet-resting)' },
+  { id: 'code-background-var', kind: 'js', pattern: /(?<![\w-])--code-background-color\b/g,
+    reason: 'not defined by Home Assistant or HA-LCARS: the fallback always applies',
+    fix: 'var(--markdown-code-background-color, var(--primary-background-color))' },
+  { id: 'primary-font-family', kind: 'js', pattern: /(?<![\w-])--primary-font-family\b/g,
+    reason: 'not defined by Home Assistant 2026.11 or HA-LCARS: the fallback always applies',
+    fix: "LCARS text: var(--lcars-font, var(--lcars-fallback-font, 'Antonio')), 'Antonio', sans-serif; UI text: var(--ha-font-family-body)" },
+  { id: 'ha-card-background-color', kind: 'js', pattern: /--ha-card-background-color\b/g,
+    reason: 'ha-card reads --ha-card-background; --ha-card-background-color does not exist',
+    fix: 'var(--ha-card-background, var(--card-background-color))' },
+
   // ── Backend ──────────────────────────────────────────────────────────────
   { id: 'voluptuous-import', kind: 'py', pattern: /^\s*(?:import voluptuous|from voluptuous\b)/gm,
     reason: 'HA core migrated to probatio (2026.10); voluptuous only exists via HA\'s compat shim',

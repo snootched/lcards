@@ -92,3 +92,13 @@ test('font assets point to a CSS file (loadFont injects the url as a stylesheet 
         if (!def.external) assert.match(path, /\.css$/i, `${key}: a local font url is a .css file`);
     }
 });
+
+test('G3: asset URLs follow the built-in packs (/lcards/...), not the legacy /hacsfiles/ path', () => {
+    const urls = [
+        ...Object.values(pack.audio_assets ?? {}),
+        ...Object.values(pack.svg_assets ?? {}),
+        ...Object.values(pack.font_assets ?? {}),
+    ].filter((def) => !def.external).map((def) => def.url);
+    assert.ok(urls.length >= 3, 'the example shows sound, SVG and font assets');
+    for (const url of urls) assert.match(url, /^\/lcards\//, `${url} is served from /lcards/`);
+});

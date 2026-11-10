@@ -182,7 +182,7 @@ export class LCARdSRulesDashboard extends LitElement {
             }
 
             .mono {
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
             }
 
             .rule-id {
@@ -266,7 +266,7 @@ export class LCARdSRulesDashboard extends LitElement {
             }
 
             .info-row .value {
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 text-align: right;
                 overflow-wrap: anywhere;
             }

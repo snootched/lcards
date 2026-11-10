@@ -582,7 +582,7 @@ export class LCARdSSelectMenu extends LCARdSCard {
 
     /**
      * Register card schema with CoreConfigManager.
-     * Called from src/lcards.js after core initialisation.
+     * Called from src/lcards-main.js after core initialisation.
      * @static
      */
     static registerSchema() {

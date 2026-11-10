@@ -46,7 +46,7 @@ export const MY_PACK = {
 
   font_assets: {
     // url points to a CSS file with the @font-face rules, not the font file
-    my_font: { url: '/local/my_pack/my-font.css', displayName: 'My Font', category: 'Custom', autoLoad: false }
+    lcards_my_font: { url: '/local/my_pack/my-font.css', displayName: 'My Font', category: 'Custom', autoLoad: false }
   },
 
   image_assets: {

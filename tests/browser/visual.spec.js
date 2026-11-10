@@ -1,7 +1,7 @@
 /**
  * Layer B: screenshot baselines for canonical cards. Local only (fonts render
  * differently across machines). Refresh after an intended visual change with:
- *   npm run test:visual -- --update-snapshots
+ *   npm run test:visual -- --update-snapshots=all
  */
 import { test, expect } from '@playwright/test';
 import { mountCase, expectNoErrors } from './support.js';

@@ -288,13 +288,13 @@ export class ThemeManager extends BaseService {
   /**
    * Get a theme token by path (for StylePresetManager integration)
    *
-   * @param {string} tokenPath - Token path (e.g., 'colors.accent.primary')
+   * @param {string} tokenPath - Token path (e.g., 'colors.ui.primary')
    * @param {*} fallback - Fallback value if token not found
    * @param {Object} context - Additional context for resolution
    * @returns {*} Resolved token value or fallback
    *
    * @example
-   * const primaryColor = themeManager.getToken('colors.accent.primary');
+   * const primaryColor = themeManager.getToken('colors.ui.primary');
    * const textSize = themeManager.getToken('typography.fontSize.base', '16px');
    */
   getToken(tokenPath, fallback = undefined, context = {}) {
@@ -314,7 +314,7 @@ export class ThemeManager extends BaseService {
    *
    * @example
    * const resolver = themeManager.getResolver();
-   * const color = resolver.resolve('colors.accent.primary');
+   * const color = resolver.resolve('colors.ui.primary');
    */
   getResolver() {
     if (!this.resolver) {
@@ -356,7 +356,7 @@ export class ThemeManager extends BaseService {
    *
    * @example
    * const themes = themeManager.listThemes();
-   * // Returns: ['lcards-default', 'lcars-ds9', 'lcars-voyager']
+   * // Returns: ['lcards-default'] (the one built-in theme, plus any a pack registers)
    */
   listThemes() {
     return Array.from(this.themes.keys());
@@ -492,8 +492,8 @@ export class ThemeManager extends BaseService {
    * Records token resolution chains for debugging and troubleshooting.
    * Called by cards when they resolve theme tokens through getToken() or getDefault().
    *
-   * @param {string} tokenPath - Token path (e.g., 'colors.accent.primary')
-   * @param {string} originalRef - Original reference (e.g., 'theme:colors.accent.primary')
+   * @param {string} tokenPath - Token path (e.g., 'colors.ui.primary')
+   * @param {string} originalRef - Original reference (e.g., 'theme:colors.ui.primary')
    * @param {any} resolvedValue - Final resolved value
    * @param {Array<Object>} resolutionChain - Resolution steps
    * @param {Object} cardTracker - Card's ProvenanceTracker instance
@@ -501,8 +501,8 @@ export class ThemeManager extends BaseService {
    *
    * @example
    * themeManager.trackTokenResolution(
-   *   'colors.accent.primary',
-   *   'theme:colors.accent.primary',
+   *   'colors.ui.primary',
+   *   'theme:colors.ui.primary',
    *   '#ff9966',
    *   [{ step: 'token_lookup', value: '#ff9966', source: 'theme.tokens' }],
    *   card._provenanceTracker,

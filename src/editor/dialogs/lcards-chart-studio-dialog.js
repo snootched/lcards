@@ -71,6 +71,8 @@ export class LCARdSChartStudioDialog extends LitElement {
 
         // Create ref for preview container
         this._previewRef = createRef();
+        /** @type {any} The preview card in the mount, kept in sync with hass */
+        this._previewCard = null;
 
         // Debounce timer for preview updates
         this._previewUpdateTimer = null;
@@ -222,6 +224,12 @@ export class LCARdSChartStudioDialog extends LitElement {
         if (this._previewUpdateTimer) {
             clearTimeout(this._previewUpdateTimer);
         }
+    }
+
+    /** @param {Map<string, unknown>} changed */
+    updated(changed) {
+        super.updated(changed);
+        if (changed.has('hass') && this._previewCard) this._previewCard.hass = this.hass;
     }
 
     static get styles() {
@@ -538,6 +546,7 @@ export class LCARdSChartStudioDialog extends LitElement {
         if (!mount) return;
 
         mount.replaceChildren();
+        this._previewCard = null;
         const previewConfig = this._getPreviewConfig();
         this._previewEmpty = !previewConfig;
         this._previewError = null;
@@ -549,6 +558,7 @@ export class LCARdSChartStudioDialog extends LitElement {
             card.setConfig(previewConfig);
             card.hass = this.hass;
             mount.appendChild(card);
+            this._previewCard = card;
         } catch (error) {
             lcardsLog.error('[ChartStudio] Failed to update preview:', error);
             this._previewError = error.message || 'Failed to render chart';
@@ -686,6 +696,17 @@ export class LCARdSChartStudioDialog extends LitElement {
      */
     _confirmAction(message) {
         return showConfirmDeleteDialog({ title: 'Discard changes?', message, confirmText: 'Discard' });
+    }
+
+    /**
+     * Only the dialog's own `closed` closes; closes bubbling from pickers and
+     * selects inside it must not close the studio (or reach the card editor).
+     * @param {Event} e
+     * @private
+     */
+    _onDialogClosed(e) {
+        e.stopPropagation();
+        if (e.target === e.currentTarget) this._handleClose();
     }
 
     /**
@@ -1843,7 +1864,7 @@ yaxis:
         return html`
             <ha-dialog
                 open
-                @closed=${(e) => { e.stopPropagation(); this._handleClose(); }}
+                @closed=${this._onDialogClosed}
                 flexcontent
                 header-title="Chart Studio">
 
@@ -1903,7 +1924,7 @@ yaxis:
                             open
                             class="datasources-dialog"
                             header-title="Data sources"
-                            @closed=${(e) => { e.stopPropagation(); this._closeDataSourceEditor(); }}>
+                            @closed=${(/** @type {Event} */ e) => { e.stopPropagation(); if (e.target === e.currentTarget) this._closeDataSourceEditor(); }}>
                             <lcards-datasource-editor-tab
                                 .editor=${this._dataSourceHost}
                                 .hass=${this.hass}>

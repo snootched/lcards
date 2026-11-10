@@ -166,7 +166,7 @@ flowchart TD
     OnHass --> Ent["_entity = states[config.entity]<br/>light colour CSS variable"]
     OnHass --> Mon["first hass and rulesEngine ready:<br/>await rulesEngine.setupHassMonitoring(hass)"]
     OnHass --> Gate{"synthetic hass?"}
-    Gate -- no --> Gate2{"first hass, card entity<br/>or tracked entity changed?"}
+    Gate -- no --> Gate2{"first hass, card entity, tracked<br/>or subscribed entity changed?"}
     Gate2 -- yes --> Ingest["window.lcards.core.ingestHass(hass)<br/>(one _updateHass per microtask)"]
     OnHass --> Tpl["tracked entity changed:<br/>_scheduleTemplateUpdate()"]
     OnHass --> Sub["_handleHassUpdate(new, old)"]
@@ -174,7 +174,7 @@ flowchart TD
 ```
 
 - **Re-render gate.** The setter always calls `_onHassChanged()`, but calls `requestUpdate()` only when `_shouldUpdateOnHassChange()` says so: on the first HASS, or when the state object of `config.entity` or of any `_trackedEntities` entry changed (Home Assistant replaces a state object when it changes, so `!==` is enough). An unrelated entity change costs no render.
-- **Forwarding to the core** is gated the same way. One forwarded HASS updates every service, and `CoreSystemsManager.updateHass()` diffs all entities, so changes to entities no card forwarded for are still delivered. The distribution order, the microtask deduplication and the global HASS feed for pages without cards are documented in [HASS distribution](../subsystems/index.md#hass-distribution) and [Systems Manager: HASS Update Flow](../subsystems/systems-manager.md#hass-update-flow).
+- **Forwarding to the core** is gated the same way, and an entity the card holds a `subscribeToEntity()` subscription to counts as well (`_subscribedEntityCounts`), so its callback fires even when nothing else tracks it. One forwarded HASS updates every service, and `CoreSystemsManager.updateHass()` diffs all entities, so changes to entities no card forwarded for are still delivered. The distribution order, the microtask deduplication and the global HASS feed for pages without cards are documented in [HASS distribution](../subsystems/index.md#hass-distribution) and [Systems Manager: HASS Update Flow](../subsystems/systems-manager.md#hass-update-flow).
 - **Synthetic HASS.** A parent card may hand a child a rewritten HASS copy for that child only (the select menu does for its option buttons). `isSyntheticHass()` (`src/utils/synthetic-hass.js`) marks it; such a copy never reaches the core or the helper manager.
 - **Ordering.** `_onHassChanged()` is `async`: on the first HASS it awaits `setupHassMonitoring()` before it forwards and calls `_handleHassUpdate()`.
 
@@ -189,7 +189,7 @@ flowchart TD
 - every `map_range.entity` anywhere in the config;
 - `triggers_update` entries, the escape hatch for JavaScript templates (`[[[...]]]` is never scanned).
 
-Subclasses extend it (`super._updateTrackedEntities()` first): the elbow adds its segment entities; the slider, data grid and astrometrics card add their own.
+Subclasses extend it (`super._updateTrackedEntities()` first): the slider, data grid and astrometrics card add their own. An entity the card only subscribes to (the elbow's segment entities) needs no entry here: `subscribeToEntity()` already makes its changes reach the core, and the callback re-renders.
 
 ---
 
@@ -207,7 +207,7 @@ const state = this.getEntityState('sensor.temperature');
 const own = this.getEntityState(); // config.entity
 ```
 
-- **`subscribeToEntity(entityId, callback)`** calls `systemsManager.subscribeToEntity(entityId, callback, this._cardGuid)` and keeps the unsubscribe function in `_entitySubscriptions`. It returns an unsubscribe that also removes it from that set. Without the singletons (before `_onConnected()`) it warns and returns a no-op. The callback is **not** called on subscribe: it fires when `CoreSystemsManager.updateHass()` sees the entity change (with `oldState` `null` the first time the entity enters the cache, `newState` `null` when the entity is removed). Read the current value with `getEntityState()`.
+- **`subscribeToEntity(entityId, callback)`** calls `systemsManager.subscribeToEntity(entityId, callback, this._cardGuid)`, counts the entity in `_subscribedEntityCounts` (so a change to it is forwarded to the core, see [HASS flow](#hass-flow)) and keeps a release function in `_entitySubscriptions`. It returns that release: it unsubscribes, removes it from the set and drops the count (the entity still gates forwarding while another subscription or the tracked set holds it); a second call does nothing. Without the singletons (before `_onConnected()`) it warns and returns a no-op. The callback is **not** called on subscribe: it fires when `CoreSystemsManager.updateHass()` sees the entity change (with `oldState` `null` the first time the entity enters the cache, `newState` `null` when the entity is removed). Read the current value with `getEntityState()`.
 - **Reconnects.** `_onDisconnected()` drops every subscription, and `_handleFirstUpdate()` never runs again, so a card that subscribes there loses its subscriptions after the first disconnect (Home Assistant disconnects cards on edit mode, view changes and moves). Subscribe from a method you also call in `_onConnected()` when `_initialized` is true, as the elbow does for its segment entities (`_subscribeSegmentEntities()`, `src/cards/lcards-elbow.js`).
 - **`this._entity`** is the state object of `config.entity`, refreshed on every HASS (and from `hass` in `_onConfigSet()`). Most cards render from it plus `_trackedEntities`, which already re-render the card.
 - **Display helpers**: `_getStateDisplay(entity)`, `_getEntityName(entity)`, `_getAttributeDisplay(key, entity)` and `_getAttributeName(key, entity)` wrap `src/utils/ha-entity-display.js` (see [Home Assistant Entity Display](../internals/ha-entity-display.md)). Never call `hass.format*()` directly.
@@ -245,9 +245,12 @@ Colour syntax lives only in `src/core/themes/color-syntax.js`; see `.github/inst
 ## Actions, sounds and services
 
 ```javascript
-_handleFirstUpdate() {
+async _handleFirstUpdate() {
     super._handleFirstUpdate();
+    // The first render was the loading placeholder: wait for the card's own DOM
+    await this.updateComplete;
     const el = this.shadowRoot.querySelector('.interactive');
+    if (!el) return;
     this._actionCleanup?.();
     this._actionCleanup = this.setupActions(el, {
         tap_action: this.config.tap_action,
@@ -256,6 +259,8 @@ _handleFirstUpdate() {
     });
 }
 ```
+
+- **Wait for the DOM.** `_handleFirstUpdate()` runs from `firstUpdated()`, whose render was still the "Loading LCARdS..." placeholder: `_mountResolved` turns `true` there and the card's own template renders in the next update. Query `shadowRoot` after `await this.updateComplete` (the button does, in `lcards-button.js`), or the element is `null`.
 
 - **One handler per card.** The constructor creates `this._actionHandler = new LCARdSActionHandler()`; there is no shared core action handler. `setupActions(element, actions, options)` adds the card's `animations`, `getAnimationSetup`, `shadowRoot`, the entity (`options.entity` first, then `config.entity`), `getHass` and the card-level sound overrides (`_cardSoundOverride()`, from `config.sounds`), and calls `this._actionHandler.setupActions(element, actions, this.hass, options)`. It also registers the card's animation scope with the [Animation Manager](../subsystems/animation-manager.md), so rules can animate the card even when it has no `animations:`.
 - **Cleanup.** `setupActions()` returns a function that removes the listeners. The base class does not keep or call it: the listeners live on the card's own shadow DOM elements. A card that rebuilds the element or rebinds (the button does on config changes) calls the previous cleanup first.

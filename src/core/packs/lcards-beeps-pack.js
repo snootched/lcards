@@ -6,14 +6,15 @@
  * intended to be selected individually via per-event overrides
  * in the Config Panel Sound tab.
  *
- * File layout on disk (relative to the HA www root):
+ * Served at:
  *   /lcards/sounds/lcards_beeps/<asset>.mp3
  *
  * Asset key conventions:
  *   beeps_<descriptor>   e.g. beeps_short, beeps_chirp_high
  *
  * To add real audio files:
- *   1. Place .mp3 files in hacsfiles/lcards/sounds/lcards_beeps/
+ *   1. Place .mp3 files in src/assets/sounds/lcards_beeps/ (copied to
+ *      custom_components/lcards/sounds/lcards_beeps/ by the build)
  *   2. Update the `url` fields below to match the actual filenames.
  *   3. Rebuild (npm run build) and hard-refresh HA.
  *

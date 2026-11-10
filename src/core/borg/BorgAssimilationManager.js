@@ -12,7 +12,7 @@
  *                           alert), font revert, SEM clear
  *
  * Exposed on `window.lcards.core.borgAssimilationManager` and accessed via the
- * `window.lcards.borg.*` console API defined in `src/lcards.js`.
+ * `window.lcards.borg.*` console API defined in `src/lcards-main.js`.
  *
  * @module core/borg/BorgAssimilationManager
  */

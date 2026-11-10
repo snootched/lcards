@@ -183,8 +183,14 @@ export class LCARdSMSDLivePreview extends LitElement {
     updated(changedProps) {
         super.updated(changedProps);
 
-        if (changedProps.has('config') || changedProps.has('hass')) {
+        if (changedProps.has('config')) {
             this._schedulePreviewUpdate();
+        } else if (changedProps.has('hass')) {
+            // A state tick only needs the new hass on the card that is there:
+            // rebuilding it every tick resets the pipeline, zoom and selection.
+            const card = /** @type {any} */ (this.shadowRoot?.querySelector('.preview-card-container lcards-msd-card'));
+            if (card) card.hass = this.hass;
+            else this._schedulePreviewUpdate();
         }
     }
 

@@ -176,7 +176,7 @@ export class LCARdSBaseEditor extends LitElement {
                             <code>core.configManager.registerCardSchema('${this.cardType}', schema)</code>
                         </p>
                         <p>
-                            See <a href=${docsUrl(DOCS.buildingAnEditor)} target="_blank" rel="noopener">Building an Editor</a>
+                            See <a href=${docsUrl(DOCS.buildingAnEditor)} target="_blank" rel="noopener">Building a Studio Editor</a>
                             for more information on schema registration.
                         </p>
                     </ha-alert>

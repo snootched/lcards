@@ -2,7 +2,16 @@
  * PackManager - Central Pack Registration System
  *
  * Manages loading and registration of builtin and external packs.
- * Packs contain only: style_presets, animations, rules, and themes.
+ * A pack can hold (registerPack hands each to its manager):
+ *   - themes         → ThemeManager
+ *   - style_presets  → StylePresetManager
+ *   - rules          → RulesEngine
+ *   - svg_assets, font_assets, audio_assets, image_assets, model_assets
+ *                    → AssetManager
+ *   - sound_schemes  → SoundManager
+ *   - components     → ComponentManager
+ * Animation presets are not a pack key: the built-in ones come from
+ * core/animation/presets.js (registerBuiltinAnimationPresets).
  *
  * Obsolete fields (overlays, anchors, routing, palettes, profiles) are
  * deprecated and will be ignored with a warning.
@@ -55,7 +64,7 @@ export class PackManager {
    * Register pack contents to core managers
    * Distributes pack data to ThemeManager, StylePresetManager, RulesEngine, etc.
    *
-   * @param {Object} pack - Pack object with style_presets, animations, rules, themes, svg_assets
+   * @param {Object} pack - Pack object (the keys are listed in this file's header)
    */
   async registerPack(pack) {
     if (!pack || !pack.id) {

@@ -102,7 +102,7 @@ _onDisconnected() {
 
 ### Preferred: event-driven via `subscribeToEntity()`
 
-Fires on every state change after you subscribe, **not** on subscribe: read the current state yourself first (`getEntityState()`) if you need it. The card's own `entity` and the entities its templates, rules and `triggers_update` name already re-render the card (the base tracks them), so subscribe only for other entities. **Auto-unsubscribed** on disconnect: do NOT manually call unsubscribe in `_onDisconnected`, and subscribe again on reconnect (`_onConnected()`, see the lifecycle above).
+Fires on every state change after you subscribe, **not** on subscribe: read the current state yourself first (`getEntityState()`) if you need it. The card's own `entity` and the entities its templates, rules and `triggers_update` name already re-render the card (the base tracks them), so subscribe only for other entities. Subscribing also makes a change to that entity reach the core (the base counts it like a tracked entity), so no `_updateTrackedEntities()` override is needed for it. **Auto-unsubscribed** on disconnect: do NOT manually call unsubscribe in `_onDisconnected`, and subscribe again on reconnect (`_onConnected()`, see the lifecycle above).
 
 ```javascript
 this.subscribeToEntity(this.config.entity, (entityId, newState, oldState) => {
@@ -141,11 +141,15 @@ const unsub = this._singletons.systemsManager.subscribeToEntity(id, cb);
 Use `setupActions()` for **all** tap/hold/double-tap interactions. Never bind raw click/pointer listeners for HA actions.
 
 ```javascript
-_handleFirstUpdate() {
+async _handleFirstUpdate() {
   super._handleFirstUpdate();
+  // The first render was the loading placeholder (_mountResolved turns true in
+  // firstUpdated): wait for the card's own DOM, as lcards-button.js does
+  await this.updateComplete;
   const el = this.shadowRoot.querySelector('.interactive');
   if (el) {
-    this.setupActions(el, {
+    this._actionCleanup?.();
+    this._actionCleanup = this.setupActions(el, {
       tap_action:        this.config.tap_action,
       hold_action:       this.config.hold_action,
       double_tap_action: this.config.double_tap_action

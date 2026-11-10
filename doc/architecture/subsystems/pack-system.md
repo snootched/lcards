@@ -119,7 +119,7 @@ Every key except `id` is optional. `registerPack()` acts only on the keys below;
 
   // ── Assets → AssetManager.preloadFromPack() (registered, loaded on first use) ─
   svg_assets:   { my_msd:  { url: '/local/my_pack/msd.svg', metadata: { description: '...' } } },
-  font_assets:  { my_font: { url: '/local/my_pack/my-font.css', displayName: 'My Font', category: 'Custom' } },
+  font_assets:  { lcards_my_font: { url: '/local/my_pack/my-font.css', displayName: 'My Font', category: 'Custom' } },
   image_assets: { my_bg:   { url: '/local/my_pack/bg.webp', label: 'My background', category: 'backgrounds' } },
   model_assets: { my_ship: { url: '/local/my_pack/ship.glb', label: 'My ship', parts: ['saucer'] } },
   audio_assets: { my_tap:  { url: '/local/my_pack/tap.mp3', description: 'Tap beep' } },

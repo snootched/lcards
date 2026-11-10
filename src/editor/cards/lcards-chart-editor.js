@@ -35,6 +35,14 @@ export class LCARdSChartEditor extends LCARdSBaseEditor {
         this._openedConfigSeen = false;
         /** @type {string[]} Migration notes shown in the upgrade notice */
         this._upgradeNotes = [];
+        /** @type {any} Open studio dialog, kept in sync with hass */
+        this._studio = null;
+    }
+
+    /** @param {Map<string, unknown>} changedProps */
+    updated(changedProps) {
+        super.updated(changedProps);
+        if (changedProps.has('hass') && this._studio) this._studio.hass = this.hass;
     }
 
     /**
@@ -170,6 +178,7 @@ export class LCARdSChartEditor extends LCARdSBaseEditor {
         const dialog = /** @type {any} */ (document.createElement('lcards-chart-studio-dialog'));
         dialog.hass = this.hass;
         dialog.config = JSON.parse(JSON.stringify(this.config || {}));
+        this._studio = dialog;
 
         // Studio sends the whole config: replace, don't merge (deleted keys must go)
         dialog.addEventListener('config-changed', (/** @type {CustomEvent} */ e) => {
@@ -189,6 +198,7 @@ export class LCARdSChartEditor extends LCARdSBaseEditor {
         // Cleanup on close
         dialog.addEventListener('closed', () => {
             dialog.remove();
+            if (this._studio === dialog) this._studio = null;
         });
 
         // Append to body and show

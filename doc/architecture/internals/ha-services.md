@@ -142,3 +142,4 @@ Browsers subscribe with LCARdS's own `lcards/subscribe` command, open to non-adm
 - [Integration Service](../subsystems/integration-service): the browser-side probe, subscription and handlers
 - [Borg Assimilation](../subsystems/borg-assimilation): what the Borg actions drive
 - [Helper Manager](../subsystems/helper-manager): how the browsers follow `input_select.lcards_alert_mode`
+- [Theme System: Alert Mode Integration](../subsystems/theme-system#alert-mode-integration): how a browser applies an alert mode

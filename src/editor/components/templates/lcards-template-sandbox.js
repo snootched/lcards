@@ -213,7 +213,7 @@ export class LCARdSTemplateSandbox extends LitElement {
             }
 
             .value {
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 font-size: 20px;
                 line-height: 1.4;
                 color: var(--primary-text-color);
@@ -236,7 +236,7 @@ export class LCARdSTemplateSandbox extends LitElement {
             }
 
             .gaps code {
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 color: var(--warning-color);
             }
 
@@ -258,13 +258,13 @@ export class LCARdSTemplateSandbox extends LitElement {
             }
 
             .used .name {
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 color: var(--primary-text-color);
                 overflow-wrap: anywhere;
             }
 
             .used .val {
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 color: var(--secondary-text-color);
                 overflow-wrap: anywhere;
             }
@@ -319,7 +319,7 @@ export class LCARdSTemplateSandbox extends LitElement {
             }
 
             .syntax code {
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 color: var(--primary-color);
             }
 

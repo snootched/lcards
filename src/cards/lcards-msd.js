@@ -1363,7 +1363,7 @@ export class LCARdSMSDCard extends LCARdSCard {
         return html`
             <div style="
                 padding: 20px;
-                background: var(--error-background-color, rgba(244, 67, 54, 0.1));
+                background: color-mix(in srgb, var(--error-color, #db4437) 10%, transparent);
                 border: 2px solid var(--error-color, #f44336);
                 border-radius: 8px;
             ">
@@ -2307,5 +2307,5 @@ export class LCARdSMSDCard extends LCARdSCard {
     }
 }
 
-// NOTE: Card registration (customElements.define and window.customCards) handled in src/lcards.js
+// NOTE: Card registration (customElements.define and window.customCards) handled in src/lcards-main.js
 // This ensures all core singletons are initialized before cards can be instantiated

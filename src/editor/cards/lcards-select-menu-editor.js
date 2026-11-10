@@ -1013,7 +1013,7 @@ export class LCARdSSelectMenuEditor extends LCARdSBaseEditor {
         };
         const { title, body } = messages[this._confirmAction] || { title: 'Confirm', body: 'Are you sure?' };
         return html`
-            <ha-dialog open .headerTitle=${title} @closed=${() => this._cancelConfirm()}>
+            <ha-dialog open .headerTitle=${title} @closed=${(/** @type {Event} */ e) => { e.stopPropagation(); if (e.target === e.currentTarget) this._cancelConfirm(); }}>
                 <p style="margin:0;line-height:1.6">${body}</p>
                 <ha-dialog-footer slot="footer">
                     <ha-button slot="secondaryAction" appearance="plain" variant="neutral" autofocus @click=${() => this._cancelConfirm()}>Cancel</ha-button>

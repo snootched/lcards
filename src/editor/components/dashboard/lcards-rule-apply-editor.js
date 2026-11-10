@@ -99,7 +99,7 @@ export class LCARdSRuleApplyEditor extends LitElement {
             }
 
             .ref-id {
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 font-weight: 600;
                 color: var(--primary-text-color);
             }
@@ -127,7 +127,7 @@ export class LCARdSRuleApplyEditor extends LitElement {
             }
 
             .selectors code {
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
             }
         `];
     }

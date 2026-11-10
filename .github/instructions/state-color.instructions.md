@@ -119,17 +119,17 @@ When adding new code that calls `_classifyEntityState()` with a card's entity, n
 
 ```javascript
 // Get a typed token value
-const value = this.getThemeToken('palette.moonlight', fallbackValue);
+const value = this.getThemeToken('colors.ui.primary', fallbackValue);
 
 // In templates (token syntax)
-'{theme:palette.moonlight}'
+'{theme:colors.ui.primary}'
 
 // Direct resolver access — always via singleton, never via module import
 const resolver = window.lcards?.core?.themeManager?.resolver;
 const resolved = resolver ? resolver.resolve(rawValue, rawValue) : rawValue;
 ```
 
-Built-in themes: `lcars-default`, `lcars-dark`, `cb-lcars`
+Built-in theme: `lcards-default` (the only one; packs can register more). Token paths come from `src/core/packs/themes/tokens/lcardsDefaultTokens.js`; there is no `palette.*` namespace.
 
 ---
 
@@ -157,7 +157,7 @@ The `theme:` prefix signals that a string is a token reference, not a literal. `
 |-----------------------|---------------|
 | Card config property | `'theme:colors.ui.primary'` |
 | Style preset value | `'theme:lighten(colors.card.button, 0.2)'` |
-| Template string | `'{theme:palette.moonlight}'` |
+| Template string | `'{theme:colors.ui.primary}'` |
 | Inside `lcardsDefaultTokens.js` (cross-ref) | `'darken(colors.card.button, 0.35)'` — **no prefix** |
 
 ```javascript

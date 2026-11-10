@@ -112,7 +112,7 @@ export const editorStyles = css`
 
     .error-message {
         color: var(--error-color, #f44336);
-        background: var(--error-background-color, rgba(244, 67, 54, 0.1));
+        background: color-mix(in srgb, var(--error-color, #db4437) 10%, transparent);
         padding: var(--ha-space-2) var(--ha-space-3);
         border-radius: var(--ha-border-radius-sm);
         margin: var(--ha-space-2) 0;
@@ -130,7 +130,7 @@ export const editorStyles = css`
 
     .warning-message {
         color: var(--warning-color, #ff9800);
-        background: var(--warning-background-color, rgba(255, 152, 0, 0.1));
+        background: color-mix(in srgb, var(--warning-color, #ffa600) 10%, transparent);
         padding: var(--ha-space-2) var(--ha-space-3);
         border-radius: var(--ha-border-radius-sm);
         margin: var(--ha-space-2) 0;
@@ -139,7 +139,7 @@ export const editorStyles = css`
 
     .info-message {
         color: var(--info-color, #2196f3);
-        background: var(--info-background-color, rgba(33, 150, 243, 0.1));
+        background: color-mix(in srgb, var(--info-color, #039be5) 10%, transparent);
         padding: var(--ha-space-2) var(--ha-space-3);
         border-radius: var(--ha-border-radius-sm);
         margin: var(--ha-space-2) 0;

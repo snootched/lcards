@@ -168,10 +168,12 @@ Inside an `LCARdSCard`, use `this.getThemeToken(path, fallback, usedByField)` (`
 
 ## Alert Mode Integration
 
+This section is the developer reference for alert modes; the user page is [Alert Mode](../../core/alert-mode.md), and other pages link here rather than repeat it.
+
 **Who calls it.** `ThemeManager.setAlertMode(mode, opts)` does the palette work. It is called by:
 
 - `window.lcards.setAlertMode(mode, opts)` (`src/lcards-main.js`): validates the mode with `isKnownAlertMode()`, reads the transition style from the `alert_transition_style` helper (or `off` with `opts.skipTransition`), calls `themeManager.setAlertMode(mode, { transitionStyle })`, then writes the mode back to `input_select.lcards_alert_mode` when that helper exists (unless `opts.skipHelperSync`); without the helper, or with the sync skipped, it plays the alert sound and fires `lcards-alert-mode-local` itself.
-- `LCARdSHelperManager._setupAlertModeAutoSwitch()` (`src/core/helpers/lcards-helper-manager.js`): subscribes to the `alert_mode` helper (`input_select.lcards_alert_mode`) and calls `window.lcards.setAlertMode(newMode)` on a change, unless the theme manager already shows that mode. On startup, if `input_boolean.lcards_alert_mode_auto_switch` is on, it applies the helper's mode without a transition (timed retries at 100, 750 and 2500 ms, then on every HASS update until it settles).
+- `LCARdSHelperManager._setupAlertModeAutoSwitch()` (`src/core/helpers/lcards-helper-manager.js`): subscribes to the `alert_mode` helper (`input_select.lcards_alert_mode`) and calls `window.lcards.setAlertMode(newMode)` on a change, unless the theme manager already shows that mode ([Alert-Mode Auto-Switch](helper-manager.md#alert-mode-auto-switch)). On startup, if `input_boolean.lcards_alert_mode_auto_switch` is on, it applies the helper's mode without a transition (timed retries at 100, 750 and 2500 ms, then on every HASS update until it settles).
 - `BorgAssimilationManager` calls `tm.setAlertMode('borg_alert', ...)` directly; `borg_alert` is not an option of the helper.
 
 **Serialized.** Each call chains onto `_alertModeQueue`, so back-to-back calls finish in the order issued even though the work is async. A call that throws does not break the queue; its own returned promise still rejects.

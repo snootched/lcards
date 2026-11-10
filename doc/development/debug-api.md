@@ -1,26 +1,34 @@
 # Debug API
 
-Browser console tools for LCARdS development, accessed via `window.lcards.debug`.
+Browser console tools for LCARdS development: the log level, the `window.lcards.debug.*` namespaces, and the other console APIs on `window.lcards`. Everything here is set up by the bundle on every Home Assistant page; open the browser's developer tools on a dashboard and type into the console.
 
 ::: tip Runtime snapshot
 ```javascript
-window.lcards.info()   // prints version, build date, log level, core status
+window.lcards.info()   // version (frontend and integration), build date, Home Assistant version and theme,
+                       // UIX / card-mod, log level, preview flag, registered cards, core status
 ```
-:::
-
-::: tip URL log level override
-Append `?lcards_log_level=debug` (or `trace`) to the Home Assistant URL to set the log level before the page fully loads, useful for catching early init errors.
+For a bug report, `await window.lcards.support.copy()` copies the full checked support info as markdown ([Getting Help](/getting-started/getting-help#other-ways-to-collect-info)).
 :::
 
 ---
 
-## General Debug Utilities
+## Log Level
 
-### `setGlobalLogLevel(level)`: Log level
+**Four places set the level; the later one wins** (`src/lcards-main.js:8-29`).
 
-Sets the global log level for all LCARdS output. The level is saved in this browser and survives reloads.
+1. The level saved in this browser (`localStorage` key `lcards-global-log-level`), else `info`. Module-level logs from before core startup use this one (`src/utils/lcards-logging.js:14-28`).
+2. The integration's **Log level** option: `frontend.py` puts it on the script URL as `/lcards/lcards.js?v=<version>&log=<level>`, and the loader stub hands it on as `window.__LCARDS_BOOT__.log` (`src/lcards.js:12-18`).
+3. `?lcards_log_level=<level>` on the page URL, for one session without touching the integration settings. Useful for catching early startup errors.
+4. `window.lcards.setGlobalLogLevel(level)` in the console, at any time.
+
+Every way of setting the level also saves it in this browser, so it survives reloads.
+
+### `setGlobalLogLevel(level)`
+
+Sets the level for all LCARdS output. Valid levels are `off`, `error`, `warn`, `info`, `debug` and `trace`; anything else falls back to `info` with a warning (`lcards-logging.js:30-45`).
 
 ```javascript
+window.lcards.setGlobalLogLevel('off')     // nothing at all
 window.lcards.setGlobalLogLevel('error')   // errors only
 window.lcards.setGlobalLogLevel('warn')
 window.lcards.setGlobalLogLevel('info')    // default
@@ -28,29 +36,37 @@ window.lcards.setGlobalLogLevel('debug')
 window.lcards.setGlobalLogLevel('trace')   // maximum verbosity
 ```
 
-### `getGlobalLogLevel()`: Current log level
+The `lcards.set_log_level` action sets it remotely on every browser (or targeted ones) and the Python logger too ([Home Assistant Actions](/configuration/ha-actions)).
 
-Returns the current global log level string.
+### `getGlobalLogLevel()`
+
+Returns the current level string.
 
 ```javascript
 window.lcards.getGlobalLogLevel()
-// Returns: 'info'
+// → 'info'
 ```
+
+---
+
+## General Debug Utilities
+
+These live on `window.lcards.debug`, set up in `src/lcards-main.js:243-322`.
 
 ### `perf`: Performance monitor
 
-Shortcuts to the internal performance monitor.
+Shortcuts to the core performance monitor (`window.lcards.core.performanceMonitor`), which drives the frame guards of background animations.
 
 | Property / Method | Description |
 |---|---|
-| `perf.fps()` | Current measured FPS |
-| `perf.status()` | Full status object |
-| `perf.thresholds` | Active threshold config `{ disable3D, reduceEffects }` |
+| `perf.fps()` | Current measured FPS, or `null` without a monitor |
+| `perf.status()` | `{ fps, isMonitoring, settled, settleMs, consecutiveLow, lowRequiredCount, thresholds }` |
+| `perf.thresholds` | Active thresholds `{ disable3D, reduceEffects }` (defaults 12 and 24 FPS, `PerformanceMonitor.js:19-22`) |
 
 ```javascript
 window.lcards.debug.perf.fps()
 window.lcards.debug.perf.status()
-// { fps: 60, isMonitoring: true, settled: true, thresholds: { ... }, ... }
+// → { fps: 60, isMonitoring: true, settled: true, settleMs: ..., thresholds: { disable3D: 12, reduceEffects: 24 }, ... }
 ```
 
 ### `theme`: Theme inspection
@@ -63,49 +79,52 @@ Shortcuts to `ThemeManager` state.
 | `theme.alertMode()` | Current alert mode name |
 | `theme.list()` | All registered theme IDs |
 | `theme.token(path, fallback?)` | Resolve a token path against the active theme |
-| `theme.info()` | Full `ThemeManager.getDebugInfo()` snapshot |
+| `theme.info()` | `ThemeManager.getDebugInfo()`: `{ initialized, activeTheme, availableThemes, resolverCacheSize, themeCount }` |
 
 ```javascript
 window.lcards.debug.theme.alertMode()
-// → 'red_alert'
+// → 'green_alert'
 
-window.lcards.debug.theme.token('colors.accent.primary')
-// → '#7EB6E8'
+window.lcards.debug.theme.token('colors.ui.primary')
+// → 'var(--lcars-ui-primary, var(--lcards-gray-medium))'
 
 window.lcards.debug.theme.list()
-// → ['lcards-default', 'lcars-ds9', ...]
+// → ['lcards-default', ...]   (plus any themes from packs)
 ```
 
----
+Token values are often CSS variables, which stay live so alert modes recolour without a re-render. The only built-in theme is `lcards-default` (`src/core/packs/builtin-themes.js:22`); the token tree is [Theme System](../architecture/subsystems/theme-system.md).
 
-## Other Console APIs
+### `webgl`: Shared WebGL context
 
-These live on the root `window.lcards` namespace rather than `debug.*`:
+Tools for the three.js background tier, which renders every WebGL background on one shared context (`src/lcards-main.js:250-279`).
 
-| API | Description |
+| Method | Description |
 |---|---|
-| `window.lcards.info()` | Runtime snapshot: version, build date, log level, core status |
-| `window.lcards.alert.*` | Alert mode control: see [Alert Mode](../core/alert-mode.md) |
-| `window.lcards.sound.*` | Sound system debug: `play(event)`, `preview(assetKey)`, `getSchemes()`, `getEvents()` |
+| `await webgl.stats()` | Users of the shared context, the context, how many contexts were created (loads the three.js chunk if needed) |
+| `webgl.frameStats(reset?)` | Background frame cost on this page: `{ cards, meanMsPerCardFrame, maxMs, perCard }`; `true` resets the counters after reading |
+| `await webgl.loseContext()` | Simulates the browser dropping the context, to test the Canvas2D fallback |
+
+Details: [Animation API: three.js background scenes](./anim-api#three-js-background-scenes).
 
 ---
 
 ## Core Systems Introspection
 
-Introspect the `window.lcards.core.*` singleton registry directly. These live on `window.lcards.debug` (wired by `CoreDebugAPI` at core init time) and have nothing to do with MSD.
+Snapshots of the `window.lcards.core.*` singletons. They live on `window.lcards.debug`, attached by `CoreDebugAPI.create()` during core initialization (`src/api/CoreDebugAPI.js`, `src/core/lcards-core.js:274-278`), and have nothing to do with MSD.
 
 ### `debug.core()`
 
-Returns `window.lcards.core.getDebugInfo()`, a snapshot of all core manager states.
+Returns `window.lcards.core.getDebugInfo()` (`lcards-core.js:634-656`): the core's own state (initialized flag, card count and load order, pending cards) plus the snapshot of every manager in the table below.
 
 ```javascript
 window.lcards.debug.core()
-// → { systemsManager: {...}, dataSourceManager: {...}, rulesManager: {...}, ... }
+// → { coreInitialized: true, cardCount: 6, cardLoadOrder: [...], pendingCards: 0,
+//     systemsManager: {...}, dataSourceManager: {...}, rulesManager: {...}, ..., hasHass: true }
 ```
 
 ### `debug.singleton(manager)`
 
-Returns `getDebugInfo()` for a specific core singleton by name.
+Returns `getDebugInfo()` of one core singleton, by its property name on `window.lcards.core`. An unknown name returns `{ error, manager, available: [...] }` with the names that exist; a singleton without `getDebugInfo()` returns `{ error, manager, type }`.
 
 ```javascript
 window.lcards.debug.singleton('dataSourceManager')
@@ -113,48 +132,90 @@ window.lcards.debug.singleton('animationManager')
 window.lcards.debug.singleton('rulesManager')
 ```
 
-**Valid names:**
+**Singletons with a snapshot:**
 
-| Manager | What it tells you |
+| Manager | What the snapshot holds |
 |---|---|
-| `systemsManager` | Entity subscriptions, overlay registry |
-| `dataSourceManager` | Active sources, buffer sizes, subscribers |
-| `rulesManager` | Active rules, last evaluation results |
-| `animationManager` | Active animations, registry stats |
-| `themeManager` | Active theme, registered tokens |
-| `stylePresetManager` | Loaded presets, pack contributions |
-| `assetManager` | Loaded SVGs, font status |
-| `packManager` | Loaded packs, load order |
-| `soundManager` | Active scheme, event bindings |
-| `componentManager` | Registered SVG components |
-| `helperManager` | Helper entity states |
-| `validationService` | Validation rule cache |
+| `systemsManager` | Registered cards and overlays, entity state and subscription counts |
+| `dataSourceManager` | Source count, entity index size, and each source's own debug info (entity, current value, buffer, processors, stats) |
+| `rulesManager` | Rule count, dirty rules, evaluation counts, the entity/rule dependency index, recent matches and the trace |
+| `animationManager` | Scope count, active and registered animation counts |
+| `performanceMonitor` | Monitoring flag, current FPS, reference count, thresholds |
+| `themeManager` | Active theme, available themes, resolver cache size |
+| `stylePresetManager` | Loaded packs with their preset categories, cache size, presets by type |
+| `assetManager` | Asset registries per type (SVG, fonts, ...) with their assets and pending loads |
+| `packManager` | Loaded packs and their count |
+| `soundManager` | Scheme count and names, audio cache size, helper option sync state |
+| `componentManager` | Registered components, by type |
+| `helperManager` | Subscription, watched helper and cached value counts, alert auto-switch state |
+| `validationService` | Config, stats, cache sizes, available schemas |
+| `configManager` | Processing stats and the registered card schemas and defaults |
+
+The other singletons (`integrationService`, `scopedSettingsService`, `deviceIdentityManager`, `connectionOverlayService`, `screenEffectManager`, `borgAssimilationManager`, `portalOverlayManager`) have no `getDebugInfo()`: inspect them on `window.lcards.core` directly.
 
 ::: tip Full singleton API reference
-`debug.singleton()` returns a lightweight stats snapshot. Each singleton has a dedicated subsystem doc with all properties and methods:
+`debug.singleton()` returns a lightweight stats snapshot. Each singleton has a subsystem page with all properties and methods:
 
 [Systems Manager](../architecture/subsystems/systems-manager.md) · [DataSource System](../architecture/subsystems/datasource-system.md) · [Rules Engine](../architecture/subsystems/rules-engine.md) · [Theme System](../architecture/subsystems/theme-system.md) · [Animation Manager](../architecture/subsystems/animation-manager.md) · [Pack System](../architecture/subsystems/pack-system.md) · [Asset Manager](../architecture/subsystems/asset-manager.md) · [Component Manager](../architecture/subsystems/component-manager.md) · [Style Preset Manager](../architecture/subsystems/style-preset-manager.md) · [Helper Manager](../architecture/subsystems/helper-manager.md) · [Sound System](../architecture/subsystems/sound-system.md) · [Validation Service](../architecture/subsystems/validation-service.md)
 :::
 
 ### `debug.singletons()`
 
-Lists all managers that expose `getDebugInfo()` and returns a combined snapshot.
+Lists the singletons that have `getDebugInfo()`.
 
 ```javascript
 window.lcards.debug.singletons()
-// → { managers: ['systemsManager', 'animationManager', ...], count: 12, coreInitialized: true }
+// → { managers: ['systemsManager', 'dataSourceManager', ...], count: 14, coreInitialized: true }
 ```
+
+### `debug.datasources`
+
+DataSource introspection (`src/api/DataSourceDebugAPI.js`): `list()`, `get(name)`, `listProcessors(dsName)`, `showProcessorGraph(dsName)`, `inspectProcessor(dsName, processorName)`, `validate(dsName)`, `getStats(dsName)` and `help()`. Each method is described in [DataSource System: Debug Namespace](../architecture/subsystems/datasource-system.md#debug-namespace-window-lcards-debug-datasources).
+
+```javascript
+window.lcards.debug.datasources.list()
+window.lcards.debug.datasources.getStats('temp_sensor')
+```
+
+---
+
+## Other Console APIs
+
+**These live on the root `window.lcards` namespace** (`src/lcards-main.js` unless noted). Most are documented on the page of their feature.
+
+| API | Description |
+|---|---|
+| `version` | The frontend version string |
+| `info()` | Runtime snapshot (above) |
+| `support.collect(opts?)`, `report(opts?)`, `copy(opts?)`, `openIssue(opts?)` | Support info for bug reports; `{ includeConfig: true }` adds data source names and entity IDs. See [Getting Help](/getting-started/getting-help#other-ways-to-collect-info) |
+| `await refreshOptions()` | Re-reads the integration options (`lcards/info`) after changing them, without a reload |
+| `alert.set(mode)`, `get()`, `red()`, `yellow()`, `blue()`, `gray()`, `black()`, `green()`, `off()`, `borg(opts?)` | Alert mode control. See [Alert Mode: From the browser console](/core/alert-mode#from-the-browser-console) |
+| `alert.config` (also `alertConfig`) | Alert colour transforms: `setParam(mode, parameter, value, applyNow?)`, `getTransform(mode)`, `reset(mode, applyNow?)`, `resetAll(applyNow?)`, `export()`, `import(overrides)` |
+| `setAlertMode(mode)`, `getAlertMode()`, `redAlert()`, `yellowAlert()`, `blueAlert()`, `grayAlert()`, `blackAlert()`, `greenAlert()`, `normalAlert()` | Older root shortcuts for the same |
+| `borg.assimilate(opts?)`, `deassimilate(opts?)`, `status` | The Borg effect. See [Borg: Console API](/core/borg#console-api) |
+| `screenEffect.apply()`, `play()`, `applySlot()`, `clearSlot()`, `clear()`, `registerPreset()`, `getPreset()`, `catalog()`, `list()` | Full-screen effects. See [Screen Effect System: Console API](../architecture/subsystems/screen-effects.md#console-api) |
+| `connectionOverlay.show()`, `showWith()`, `hide()`, `simulateReconnect()`, `getConfig()`, `saveConfig()`, `clearConfig()`, `loadConfig()` | The connection-lost overlay. See [Connection Overlay: Console API](../architecture/subsystems/connection-overlay.md#console-api) |
+| `sound.play(eventType, ctx?)`, `playAsset(assetKey)`, `preview(assetKey)`, `getSchemes()`, `getEvents()` | Sound system. `play` goes through the event's mapping and the enable switches; `playAsset` and `preview` play one asset key |
+| `targeting.getMyIds()` | `{ deviceId, userId }` of this browser, for the targeting fields of the `lcards.*` actions ([Backend API: Targeting](./backend-api#targeting)) |
+| `loadAlertPreview()` | Lazy-loads the `lcards-alert-preview` element (the Alert Studio's mock screen; the docs site mounts it) |
+| `findCardByConfig(config)` | The connected LCARdS card rendered from this config object (the editor's Provenance tab uses it) |
+| `anim.*` and the root aliases `anime`, `animejs`, `animateElement`, `waitForElement` | Animation helpers. See [Animation API](./anim-api) |
+| `svgHelpers`, `anchorHelpers`, `findSvgAnchors`, `loadFont`, `loadUserSVG`, `getSVGFromCache` | Asset helpers. See [Assets API](./assets-api) |
+| `setGlobalLogLevel()`, `getGlobalLogLevel()` | The [log level](#log-level) |
+| `core` | The core singleton: `window.lcards.core.themeManager`, `.dataSourceManager`, ... |
+| `theme`, `styleResolver`, `animationManager` | Shortcuts to `core.themeManager`, `core.stylePresetManager` and `core.animationManager` (the last set by `AnimationManager.js:505-509`) |
+| `cards.msd` | MSD card lookup, below |
 
 ---
 
 ## MSD Card API (`window.lcards.cards.msd`)
 
-Production utilities for locating MSD card elements by config ID. These work in normal use, not just debug sessions.
+Production utilities for finding MSD card elements by their config `id` (`src/msd/index.js:36-90`). They work in normal use, not just in debug sessions.
 
 | Method | Returns | Description |
 |---|---|---|
 | `getAll()` | `Element[]` | All MSD card elements registered with `SystemsManager` |
-| `getById(id)` | `Element\|null` | MSD card element whose config `id` matches, or `null` |
+| `getById(id)` | `Element\|null` | The MSD card element whose config `id` matches, or `null` |
 
 ```javascript
 window.lcards.cards.msd.getAll()
@@ -169,100 +230,85 @@ card._msdPipeline?.getResolvedModel()?.overlays
 
 ## MSD Debug Namespace (`debug.msd`)
 
-Introspection tools for MSD cards, accessed via `window.lcards.debug.msd`.
+Introspection tools for MSD cards (`src/api/MsdDebugAPI.js`, attached by `src/msd/index.js:96-100`).
 
-::: tip Discover the API in the console
+- **`cardId`.** Every method that takes an optional `cardId` means the card's config `id` (for example `'bridge'`); without it the first MSD card on the page is used. `listMsdCards()` shows the IDs.
+- **Discover the API in the console:**
+
 ```javascript
 window.lcards.debug.msd.help()           // list all namespaces
-window.lcards.debug.msd.help('routing')  // show methods in a namespace
-window.lcards.debug.msd.usage('data')    // show usage examples for a namespace
+window.lcards.debug.msd.help('routing')  // the methods of one namespace
+window.lcards.debug.msd.usage('data')    // usage examples for a namespace
 ```
-:::
 
----
+### Root Methods
 
-## Root Methods
-
-### `help([topic])`
-
-Prints all available namespaces (no args) or the methods in a specific namespace.
-
-### `usage([namespace])`
-
-Shows detailed usage examples for a namespace.
-
-### `listMsdCards()`
-
-Lists all MSD cards registered with SystemsManager.
+| Method | Description |
+|---|---|
+| `help(topic?)` | All namespaces, or the methods of one |
+| `usage(namespace?)` | Usage examples |
+| `listMsdCards()` | `[{ id, systemId, hasConfig, hasPipeline, overlayCount, routingChannels, element }]` for every MSD card |
 
 ```javascript
 window.lcards.debug.msd.listMsdCards()
-// Returns: [{ id, systemId, hasConfig, hasPipeline, overlayCount, routingChannels, element }]
 ```
 
-> For singleton manager introspection, see [Core Systems Introspection](#core-systems-introspection) above.
-
----
-
-## Namespaces
-
-All namespace methods are called as `window.lcards.debug.msd.<namespace>.<method>()`.
+For singleton manager introspection, see [Core Systems Introspection](#core-systems-introspection) above.
 
 ### `routing`: Routing resolution
 
 | Method | Description |
 |--------|-------------|
-| `inspect(overlayId, cardId?)` | The overlay's actual routed points/path, read-only from the route cache; never computes or mutates routing state |
-| `inspectAll(cardId?)` | Like `inspect()`, but for every overlay currently in the route cache at once |
-| `trunks(cardId?)` | List every registered trunk row (config-seeded and spontaneously-discovered) with its bounds, centerline, and member set |
-| `stats(cardId?)` | Router statistics: cache size, obstacle count, trunk/crossing registry counts, registry version |
-| `invalidate(id, cardId?)` | Invalidate cached routing for an overlay |
-| `visualize(overlayId)` | Visualize routing (not yet implemented) |
+| `inspect(overlayId, cardId?)` | The overlay's routed points and path, read from the route cache: `{ pts, d, meta, cacheKey }`. `meta.debug` holds the resolved `stubLength`, `gridResolution`, `cornerRadiusMode` and `cornerRadius`. It never computes or changes routing state |
+| `inspectAll(cardId?)` | Like `inspect()`, for every overlay in the route cache at once |
+| `trunks(cardId?)` | Every trunk row (configured and discovered) with its bounds, centerline and members |
+| `stats(cardId?)` | Router statistics: cache size, obstacle count, trunk and crossing registry counts, registry version |
+| `invalidate(id?, cardId?)` | Invalidate the cached route of one overlay (`'*'`, the default, for all) |
 
 ```javascript
-window.lcards.debug.msd.routing.inspect('my_overlay')   // { pts, d, meta, cacheKey }
-window.lcards.debug.msd.routing.inspectAll()             // same shape, one entry per overlay
-console.table(window.lcards.debug.msd.routing.trunks())
-window.lcards.debug.msd.routing.stats()                 // { size, obstacles, trunks, crossings, registryVersion, ... }
+window.lcards.debug.msd.routing.inspect('line-id')
+window.lcards.debug.msd.routing.inspectAll()
+console.table(window.lcards.debug.msd.routing.trunks('bridge'))
+window.lcards.debug.msd.routing.stats()
 ```
 
 ### `data`: DataSource state
 
 | Method | Description |
 |--------|-------------|
-| `trace(entityId, cardId?)` | Trace data flow for an entity through DataSource → overlay |
+| `trace(entityId, cardId?)` | Trace an entity's data through DataSources to the overlays that use it |
 
 ```javascript
 window.lcards.debug.msd.data.trace('sensor.temperature')
 ```
 
-> For broader DataSource introspection, use `window.lcards.debug.datasources.*`.
+For DataSources in general, use [`window.lcards.debug.datasources`](#debug-datasources).
 
 ### `rules`: Rules engine
 
 | Method | Description |
 |--------|-------------|
-| `listActive(options?, cardId?)` | List currently active/enabled rules |
+| `listActive(options?, cardId?)` | The card's active rules; `{ includeDisabled: true, verbose: true }` for all of them in detail |
 
 ```javascript
 window.lcards.debug.msd.rules.listActive()
 window.lcards.debug.msd.rules.listActive({ includeDisabled: true, verbose: true })
 ```
 
-> For full rules engine introspection, use `window.lcards.debug.singleton('rulesManager')`.
+For the rules engine itself, use `window.lcards.debug.singleton('rulesManager')`.
 
 ### `animations`: Animation state
 
 | Method | Description |
 |--------|-------------|
-| `active()` | List currently active animations |
-| `dump()` | Dump full animation state |
-| `inspect(id)` | Inspect a specific animation instance |
-| `trigger(overlayId, presetName, params?, cardId?)` | Manually trigger an animation preset on an overlay, for testing |
+| `active(cardId?)` | Currently running animations |
+| `dump(cardId?)` | The full animation state |
+| `inspect(overlayId, cardId?)` | The animations of one overlay |
+| `trigger(overlayId, presetName, params?, cardId?)` | Run an animation preset on an overlay, for testing |
 
 ```javascript
 window.lcards.debug.msd.animations.active()
-window.lcards.debug.msd.animations.inspect('my_anim_id')
+window.lcards.debug.msd.animations.inspect('cpu_status')
 window.lcards.debug.msd.animations.trigger('cpu_status', 'pulse', { duration: 500 })
 ```
 
@@ -270,17 +316,18 @@ window.lcards.debug.msd.animations.trigger('cpu_status', 'pulse', { duration: 50
 
 | Method | Description |
 |--------|-------------|
-| `inspect(id)` | Full overlay inspection |
-| `getBBox(id)` | Get bounding box for an overlay |
-| `getTransform(id)` | Get transform info for an overlay |
-| `getState(id)` | Get current state of an overlay |
-| `findByType(type)` | Find overlays by type |
-| `findByEntity(entityId)` | Find overlays bound to an entity |
-| `tree()` | Show overlay hierarchy tree |
-| `list()` | List all overlays |
+| `inspect(id, cardId?)` | Full overlay inspection |
+| `getBBox(id, cardId?)` | The overlay's bounding box |
+| `getTransform(id, cardId?)` | The overlay's transform |
+| `getState(id, cardId?)` | The overlay's current state |
+| `findByType(type, cardId?)` | Overlays of one type |
+| `findByEntity(entityId, cardId?)` | Overlays bound to an entity |
+| `tree(cardId?)` | The resolved overlays grouped by type |
+| `list(cardId?)` | All overlays |
 
 ```javascript
 window.lcards.debug.msd.overlays.list()
+window.lcards.debug.msd.overlays.tree('bridge')
 window.lcards.debug.msd.overlays.findByEntity('sensor.temperature')
 ```
 
@@ -288,15 +335,16 @@ window.lcards.debug.msd.overlays.findByEntity('sensor.temperature')
 
 | Method | Description |
 |--------|-------------|
-| `stages(cardId?)` | Show pipeline stages |
+| `stages(cardId?)` | The pipeline stages |
 | `timing(cardId?)` | Pipeline execution timing |
-| `config(cardId?)` | Pipeline configuration |
+| `config(cardId?)` | The pipeline's config |
 | `errors(cardId?)` | Pipeline errors |
-| `rerun(cardId?)` | Force pipeline re-execution |
-| `getInstance(cardId?)` | Get pipeline instance reference |
+| `rerun(cardId?)` | Run the pipeline again |
+| `getInstance(cardId?)` | The pipeline instance itself |
 
 ```javascript
 window.lcards.debug.msd.pipeline.stages()
+window.lcards.debug.msd.pipeline.getInstance('bridge')
 window.lcards.debug.msd.pipeline.rerun()
 ```
 
@@ -304,15 +352,15 @@ window.lcards.debug.msd.pipeline.rerun()
 
 | Method | Description |
 |--------|-------------|
-| `getAll(cardId?)` | Get all anchors |
-| `get(anchorId, cardId?)` | Get a specific anchor |
-| `trace(anchorId, cardId?)` | Trace anchor resolution |
-| `list(cardId?)` | List all anchor IDs |
-| `print(cardId?)` | Print formatted anchor summary |
+| `getAll(cardId?)` | All anchors of the resolved model, `{ name: [x, y] }` |
+| `get(name, cardId?)` | One anchor's `[x, y]`, or `null` |
+| `trace(cardId?)` | Where the anchors sit at each pipeline stage (card model, resolved model, ...) |
+| `list(cardId?)` | All anchor names |
+| `print(cardId?)` | A formatted anchor summary |
 
 ```javascript
 window.lcards.debug.msd.anchors.list()
-window.lcards.debug.msd.anchors.trace('my_anchor')
+window.lcards.debug.msd.anchors.trace()
 ```
 
 ---
@@ -322,3 +370,4 @@ window.lcards.debug.msd.anchors.trace('my_anchor')
 - [DataSource System](../architecture/subsystems/datasource-system.md)
 - [Systems Manager](../architecture/subsystems/systems-manager.md)
 - [Rules Engine](../architecture/subsystems/rules-engine.md)
+- [Testing](./testing): test layers for turning a console finding into a test

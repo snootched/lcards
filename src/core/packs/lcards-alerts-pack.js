@@ -13,7 +13,8 @@
  *   alerts_<descriptor>   e.g. alerts_red, alerts_blue
  *
  * To add real audio files:
- *   1. Place .mp3 files in hacsfiles/lcards/sounds/lcards_alerts/
+ *   1. Place .mp3 files in src/assets/sounds/lcards_alerts/ (copied to
+ *      custom_components/lcards/sounds/lcards_alerts/ by the build)
  *   2. Update the `url` fields below to match the actual filenames.
  *   3. Rebuild (npm run build) and hard-refresh HA.
  *

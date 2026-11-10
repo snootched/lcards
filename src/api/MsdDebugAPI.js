@@ -583,31 +583,6 @@ export class MsdDebugAPI {
         // `route`) and blanket-invalidated the entire route cache twice as
         // a "debug" side effect. Debug inspection must never mutate routing
         // state; use inspect() (read-only, from the route cache) instead.
-
-        /**
-         * Visualize routing paths (future enhancement)
-         *
-         * Will render visual representation of data flow paths.
-         *
-         * @param {string} [overlayId] - Overlay to visualize, or all if omitted
-         * @returns {Object} NOT_IMPLEMENTED response
-         *
-         * @example
-         * const viz = window.lcards.debug.msd.routing.visualize('button_1');
-         */
-        visualize(overlayId) {
-          lcardsLog.warn('[DebugAPI] routing.visualize() not yet implemented - planned for Phase 5');
-          lcardsLog.info('[DebugAPI] This will draw routing paths directly on the MSD');
-          return {
-            error: 'NOT_IMPLEMENTED',
-            message: 'Feature planned for Phase 5',
-            plannedFeatures: [
-              'Visual overlay of routing paths on MSD',
-              'Interactive path exploration',
-              'Highlight data flow bottlenecks'
-            ]
-          };
-        }
       },
 
       // ==========================================

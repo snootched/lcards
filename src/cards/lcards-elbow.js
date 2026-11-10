@@ -685,8 +685,9 @@ export class LCARdSElbow extends LCARdSButton {
 
     /**
      * Subscribe to the entity_id of each segment of a segmented elbow, so a
-     * segment's colour follows its own entity live. The card's own entity already
-     * re-renders the card.
+     * segment's colour follows its own entity live (subscribeToEntity also makes
+     * a change to it reach the core). The card's own entity already re-renders
+     * the card.
      * @private
      */
     _subscribeSegmentEntities() {
@@ -702,20 +703,6 @@ export class LCARdSElbow extends LCARdSButton {
                 this._elbowSegmentEntities.set(id, newState);
                 this.requestUpdate();
             }));
-        }
-    }
-
-    /**
-     * Also track each segment's entity_id (segmented style), so a change to it
-     * re-renders the card and reaches the core (and the segment subscriptions).
-     * @override
-     * @protected
-     */
-    _updateTrackedEntities() {
-        super._updateTrackedEntities();
-        const segs = this.config?.elbow?.style === 'segmented' ? this.config.elbow.segments : null;
-        for (const id of [segs?.outer_segment?.entity_id, segs?.inner_segment?.entity_id]) {
-            if (id && !this._trackedEntities.includes(id)) this._trackedEntities.push(id);
         }
     }
 
@@ -3381,7 +3368,7 @@ export class LCARdSElbow extends LCARdSButton {
     }
 }
 
-// NOTE: Card registration moved to src/lcards.js initializeCustomCard().then()
+// NOTE: Card registration moved to src/lcards-main.js initializeCustomCard().then()
 // This ensures all core singletons are initialized before cards can be instantiated.
 
 lcardsLog.debug('[LCARdSElbow] Card module loaded');

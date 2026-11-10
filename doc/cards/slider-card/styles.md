@@ -204,7 +204,7 @@ style:
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `radius` | number / string | - | Corner radius of the card: px, a `px` or `rem` string, or a CSS variable such as `var(--ha-card-border-radius)`. Unset, the corners are square |
+| `radius` | number / string | - | Corner radius of the card: px, a `px` or `rem` string, or a CSS variable such as `var(--ha-card-border-radius, var(--ha-border-radius-lg))` (a theme variable: give it a fallback). Unset, the corners are square |
 | `radius.top_left` | number / string | `0` | One corner only, px or a CSS variable |
 | `radius.top_right` | number / string | `0` | One corner only |
 | `radius.bottom_right` | number / string | `0` | One corner only |

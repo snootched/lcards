@@ -913,8 +913,8 @@ export function getSliderSchema(options = {}) {
                                         type: 'string',
                                         description: 'CSS variable or px/rem value for uniform corner radius, resolved at render time',
                                         examples: [
-                                            'var(--ha-card-border-radius)',
-                                            'var(--ha-card-border-radius, 12px)',
+                                            'var(--ha-card-border-radius, var(--ha-border-radius-lg))',
+                                            'var(--ha-border-radius-lg)',
                                             '12px',
                                             '0.75rem'
                                         ]
@@ -933,9 +933,9 @@ export function getSliderSchema(options = {}) {
                                 description: 'Corner radius: number or CSS variable string for uniform rounding, or per-corner object. Supports var(--ha-card-border-radius), px values, and rem values.',
                                 examples: [
                                     12,
-                                    'var(--ha-card-border-radius)',
-                                    'var(--ha-card-border-radius, 12px)',
-                                    { top_left: 0, bottom_left: 0, top_right: 'var(--ha-card-border-radius)', bottom_right: 'var(--ha-card-border-radius)' }
+                                    'var(--ha-card-border-radius, var(--ha-border-radius-lg))',
+                                    'var(--ha-border-radius-lg)',
+                                    { top_left: 0, bottom_left: 0, top_right: 'var(--ha-card-border-radius, var(--ha-border-radius-lg))', bottom_right: 'var(--ha-card-border-radius, var(--ha-border-radius-lg))' }
                                 ],
                                 'x-ui-hints': {
                                     label: 'Corner Radius',

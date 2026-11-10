@@ -13,7 +13,7 @@ applyTo: "src/core/templates/**, src/cards/**"
 | # | Type | Syntax | Sync/Async |
 |---|------|--------|------------|
 | 1 | JavaScript | `[[[return entity.state.toUpperCase()]]]` | Sync |
-| 2 | Token | `{entity.state}`, `{entity.attributes.brightness}`, `{theme:palette.moonlight}` | Sync |
+| 2 | Token | `{entity.state}`, `{entity.attributes.brightness}`, `{theme:colors.ui.primary}` | Sync |
 | 3 | DataSource | `{datasource:sensor_temp:.1f}°C`, `{ds:cpu_usage}` | Sync |
 | 4 | Jinja2 | `{{states("sensor.temp")}}`, `{% if is_state(...) %}` | Async (via HA) |
 
@@ -92,7 +92,7 @@ Available in `{...}` token templates:
 | `{states.domain.object_id.attributes.X}` | Attribute `X` of an explicitly named entity |
 | `{config.X}` | `config.X` from card config |
 | `{variables.X}` | `config.variables.X` |
-| `{theme:palette.moonlight}` | Theme token at path `palette.moonlight` |
+| `{theme:colors.ui.primary}` | Theme token at path `colors.ui.primary` |
 | `{hass.user.name}` | Current HA user name |
 
 `{states.domain.object_id...}` requires `states` to be present on the evaluator's `context` (see above) — it is a flat dict keyed by the full `"domain.object_id"` string, so the entity ID is reconstructed from the two segments right after `states` (`_resolveToken()` special-cases this, since a plain per-segment dot-walk can't otherwise resolve a key that itself contains a `.`).

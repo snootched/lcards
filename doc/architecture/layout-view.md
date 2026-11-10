@@ -151,6 +151,10 @@ Nested `hui-card`s (inside an MSD control, `lcards-layout-card` child, or elbow 
 
 A `ResizeObserver` on the host element (created in `connectedCallback`, torn down in `disconnectedCallback`) fires `_applyVisibilityRowHeights()` via a `requestAnimationFrame` debounce whenever the host's bounding box changes: window resize, Home Assistant sidebar toggle, devtools open/close. This keeps row allocations correct across all viewport changes without polling.
 
+### Debugging row sizing
+
+`scripts/lcards-layout-debug.js` is a console paste script: run it on a dashboard with a layout view (or with the view selected in the DevTools Elements panel) to print each row's configured track against its computed height, the `_baseRows` / `_visibilityRows` state, unexpected `0px` rows and whether the host `ResizeObserver` is connected.
+
 ---
 
 ## Persistence & event flow

@@ -1020,7 +1020,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
 
       .detail-value,
       .attribute-value {
-        font-family: var(--code-font-family, monospace);
+        font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
         color: var(--primary-text-color);
         text-align: right;
         overflow-wrap: anywhere;
@@ -1035,7 +1035,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
         padding: var(--ha-space-3);
         border-radius: var(--ha-border-radius-md);
         background: var(--primary-background-color);
-        font-family: var(--code-font-family, monospace);
+        font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
         font-size: 13px;
         color: var(--primary-text-color);
         overflow-x: auto;
@@ -1105,7 +1105,7 @@ export class LCARdSDataSourceBrowser extends LitElement {
       <ha-dialog
         open
         flexcontent
-        @closed=${(e) => { e.stopPropagation(); this._handleClose(); }}
+        @closed=${(/** @type {Event} */ e) => { e.stopPropagation(); if (e.target === e.currentTarget) this._handleClose(); }}
         header-title="Data Source Browser">
         <div class="dialog-content">
           <div class="studio-layout">

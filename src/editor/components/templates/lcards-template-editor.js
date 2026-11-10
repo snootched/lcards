@@ -76,7 +76,7 @@ export class LCARdSTemplateEditor extends LitElement {
                 outline: none;
             }
             .cm-scroller {
-                font-family: var(--code-font-family, monospace);
+                font-family: var(--code-font-family, var(--ha-font-family-code, monospace));
                 line-height: 1.6;
             }
             .tpl-token {

@@ -20,6 +20,7 @@ import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { editorComponentStyles } from '../base/editor-component-styles.js';
 import { configToYaml, yamlToConfig } from '../utils/yaml-utils.js';
 import { getElbowSchema } from '../../cards/schemas/elbow-schema.js';
+import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 import '../components/shared/lcards-message.js';
 import '../components/yaml/lcards-yaml-editor.js';
 // Import shared form components
@@ -484,11 +485,11 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         {
                             type: 'custom',
                             render: () => html`
-                                <ha-selector
-                                    .hass=${this.hass}
-                                    .label=${'Elbow Position'}
-                                    .helper=${'Position of the elbow corner on the card'}
-                                    .selector=${{
+                                ${this._renderFieldWithHandler('elbow.type', {
+                                    label: 'Elbow Position',
+                                    helper: 'Position of the elbow corner on the card',
+                                    value: elbowType,
+                                    selectorOverride: {
                                         select: {
                                             mode: 'dropdown',
                                             options: this._getElbowComponentEntries().map(([key, component]) => ({
@@ -496,29 +497,25 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                                                 label: component.metadata?.name || key
                                             }))
                                         }
-                                    }}
-                                    .value=${elbowType}
-                                    @value-changed=${this._handleElbowTypeChange}>
-                                </ha-selector>
+                                    }
+                                }, (value) => this._handleElbowTypeChange(value))}
 
-                                <ha-selector
-                                    .hass=${this.hass}
-                                    .label=${'Elbow Style'}
-                                    .helper=${supportsSegmented
+                                ${this._renderFieldWithHandler('elbow.style', {
+                                    label: 'Elbow Style',
+                                    helper: supportsSegmented
                                         ? (elbowStyle === 'simple'
                                             ? 'Simple: Single elbow with one curve'
                                             : 'Segmented: Double concentric elbows with gap (TNG aesthetic)')
-                                        : 'This component only supports simple style'}
-                                    .selector=${{
+                                        : 'This component only supports simple style',
+                                    value: elbowStyle,
+                                    disabled: !supportsSegmented,
+                                    selectorOverride: {
                                         select: {
                                             mode: 'dropdown',
                                             options: styleOptions
                                         }
-                                    }}
-                                    .value=${elbowStyle}
-                                    .disabled=${!supportsSegmented}
-                                    @value-changed=${this._handleStyleChange}>
-                                </ha-selector>
+                                    }
+                                }, (value) => this._handleStyleChange(value))}
                             `
                         }
                     ]
@@ -534,18 +531,15 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                         {
                             type: 'custom',
                             render: () => html`
-                                <ha-selector
-                                    .hass=${this.hass}
-                                    .label=${'Entity'}
-                                    .helper=${'[Optional] Entity whose state drives colour and icon changes'}
-                                    .selector=${{ entity: {} }}
-                                    .value=${this.config?.entity || ''}
-                                    @value-changed=${(e) => {
-                                        const v = e.detail.value;
-                                        if (v) this._setConfigValue('entity', v);
-                                        else   this._removeConfigPath('entity');
-                                    }}>
-                                </ha-selector>
+                                ${this._renderFieldWithHandler('entity', {
+                                    label: 'Entity',
+                                    helper: '[Optional] Entity whose state drives colour and icon changes',
+                                    value: this.config?.entity || '',
+                                    selectorOverride: { entity: {} }
+                                }, (v) => {
+                                    if (v) this._setConfigValue('entity', v);
+                                    else   this._removeConfigPath('entity');
+                                })}
                             `
                         },
                         {
@@ -2396,13 +2390,31 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
     // ==================== Event Handlers ====================
 
     /**
-     * Handle elbow type change (header-left, header-right, etc.)
-     * Reset to simple if new type doesn't support segmented
-     * @param {CustomEvent} event
+     * Render a field through FormField whose change has side effects: the
+     * change goes to `onChange` instead of a plain write of `path`.
+     * @param {string} path - Config path, for the schema lookup
+     * @param {Object} options - FormField options (label, helper, value, selectorOverride, disabled)
+     * @param {(value: any) => void} onChange - Receives the selected value
+     * @returns {import('lit').TemplateResult}
      * @private
      */
-    _handleElbowTypeChange(event) {
-        const newType = event.detail.value;
+    _renderFieldWithHandler(path, options, onChange) {
+        const host = {
+            hass: this.hass,
+            _getSchemaForPath: (/** @type {string} */ p) => this._getSchemaForPath(p),
+            _getConfigValue: (/** @type {string} */ p) => this._getConfigValue(p),
+            _setConfigValue: (/** @type {string} */ _p, /** @type {any} */ value) => onChange(value),
+        };
+        return FormField.renderField(host, path, options);
+    }
+
+    /**
+     * Handle elbow type change (header-left, header-right, etc.)
+     * Reset to simple if new type doesn't support segmented
+     * @param {string} newType
+     * @private
+     */
+    _handleElbowTypeChange(newType) {
         this._setConfigValue('elbow.type', newType);
 
         // Check if new component supports current style
@@ -2427,11 +2439,10 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
 
     /**
      * Handle style change (simple vs segmented)
-     * @param {CustomEvent} event
+     * @param {string} newStyle
      * @private
      */
-    _handleStyleChange(event) {
-        const newStyle = event.detail.value;
+    _handleStyleChange(newStyle) {
         const currentStyle = this._getElbowStyle();
 
         if (newStyle === currentStyle) return;
@@ -2695,7 +2706,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
                 <g transform="translate(8, 6)">
                     <!-- Card background — makes the gap between segments visible -->
                     <rect x="0" y="0" width="${cW}" height="${cH}"
-                          fill="var(--ha-card-background-color,var(--card-background-color,#1c1c2a))"
+                          fill="var(--ha-card-background,var(--card-background-color,#1c1c2a))"
                           stroke="var(--divider-color,#444)" stroke-width="1" stroke-dasharray="4,3" rx="2"/>
 
                     <!-- Outer segment arms — blue, L-path naturally excludes the content area -->

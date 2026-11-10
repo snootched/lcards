@@ -146,7 +146,7 @@ sequenceDiagram
 
 1. **Version gate**: returns `False` below `MIN_HA_VERSION` (see above).
 2. **Static paths**: `async_register_static_path(hass)` registers `/lcards` and `/lcards-user` (see [Static Paths](#static-paths)). It creates `<config>/www/lcards/models` first if it is missing.
-3. **WebSocket commands**: `async_setup_ws(hass)` registers all 23 `lcards/*` commands (`websocket_api.py:97-138`), so `lcards/info` answers even before a config entry exists. Commands that need storage answer `storage_unavailable` until Phase 2 has run.
+3. **WebSocket commands**: `async_setup_ws(hass)` registers all 23 `lcards/*` commands (`websocket_api.py:123-164`), so `lcards/info` answers even before a config entry exists. Commands that need storage answer `storage_unavailable` until Phase 2 has run.
 4. **`hass.data["lcards"]`** is created (`setdefault`), so storage and `frontend.py` can write into it later.
 
 ### Phase 2: `async_setup_entry()` (config entry active)
@@ -291,33 +291,33 @@ Saving reloads the entry (unload, then setup), so every option applies without a
 
 ## WebSocket API
 
-`async_setup_ws()` (`websocket_api.py:97-138`) registers 23 commands in `async_setup()`. Each handler is `@websocket_api.async_response`; schemas use `probatio` (imported as `vol`, the voluptuous successor Home Assistant uses since 2026.10). Two error codes are LCARdS's own: `unauthorized` ("Admin access required", from `_require_admin()`) and `storage_unavailable` ("LCARdS storage is not initialised", from `_check_storage()`, before `async_setup_entry` has run). Admin checks always run before the storage check.
+`async_setup_ws()` (`websocket_api.py:123-164`) registers 23 commands in `async_setup()`. Each handler is `@websocket_api.async_response`; schemas use `probatio` (imported as `vol`, the voluptuous successor Home Assistant uses since 2026.10). Two error codes are LCARdS's own: `unauthorized` ("Admin access required", from `_require_admin()`) and `storage_unavailable` ("LCARdS storage is not initialised", from `_check_storage()`, before `async_setup_entry` has run). Admin checks always run before the storage check.
 
 | Command | Auth | Handler (`websocket_api.py`) | Request fields | Result |
 |---|---|---|---|---|
-| `lcards/info` | any user | `ws_lcards_info` (`:141-191`) | none | `{ available, version, storage_key_count, options, capabilities }` |
-| `lcards/diagnostics` | admin | `ws_lcards_diagnostics` (`:194-212`) | none | `async_collect_backend_diagnostics()` (see [Support and diagnostics](#support-and-diagnostics)) |
-| `lcards/subscribe` | any user | `ws_subscribe` (`:377-406`) | none | empty result, then one event message per `lcards_event` |
-| `lcards/fire_event` | admin; non-admin: own-user `reload_connection_config` only | `ws_fire_event` (`:437-480`) | `action`, `target_device_ids?`, `target_user_ids?`, `data?` | empty result |
-| `lcards/storage/get` | any user for global and `_device_*` keys; admin for the full store (no `key`) and `_user_*` keys | `ws_storage_get` (`:219-244`) | `key?` | `{ key, value }` |
-| `lcards/storage/set` | admin | `ws_storage_set` (`:247-270`) | `data` | `{ ok, keys }` |
-| `lcards/storage/delete` | admin | `ws_storage_delete` (`:273-295`) | `key` | `{ ok, existed }` |
-| `lcards/storage/delete_many` | admin | `ws_storage_delete_many` (`:298-321`) | `keys` | `{ ok, removed }` (count) |
-| `lcards/storage/reset` | admin | `ws_storage_reset` (`:324-345`) | none | `{ ok }` |
-| `lcards/storage/dump` | admin | `ws_storage_dump` (`:348-370`) | none | `{ version, data }` |
-| `lcards/storage/user/get` | any user (own record) | `ws_storage_user_get` (`:488-515`) | `key?` | `{ user_id, key, value }` |
-| `lcards/storage/user/set` | any user (own record) | `ws_storage_user_set` (`:518-544`) | `data`, `replace?` | `{ ok, user_id, keys }` |
-| `lcards/storage/user/delete` | any user (own record) | `ws_storage_user_delete` (`:547-570`) | `key` | `{ ok, user_id, existed }` |
-| `lcards/storage/users/list` | admin | `ws_storage_users_list` (`:577-603`) | none | `{ users: { <id>: { key_count } } }` |
-| `lcards/storage/users/get` | admin | `ws_storage_users_get` (`:606-631`) | `user_id` | `{ user_id, value }` |
-| `lcards/storage/users/set` | admin | `ws_storage_users_set` (`:634-663`) | `user_id`, `data`, `replace?` | `{ ok, user_id, keys }` |
-| `lcards/storage/users/clear` | admin | `ws_storage_users_clear` (`:737-761`) | `user_id` | `{ ok, removed, user_id }` |
-| `lcards/storage/device/get` | any user | `ws_storage_device_get` (`:672-699`) | `device_id`, `key?` | `{ device_id, key, value }` |
-| `lcards/storage/device/set` | any user | `ws_storage_device_set` (`:702-730`) | `device_id`, `data`, `replace?` | `{ ok, device_id, keys }` |
-| `lcards/storage/devices/list` | admin | `ws_storage_devices_list` (`:794-827`) | none | `{ devices: { <id>: { display_name, last_seen, user_agent, key_count } } }` |
-| `lcards/storage/devices/get` | admin | `ws_storage_devices_get` (`:830-855`) | `device_id` | `{ device_id, value }` |
-| `lcards/storage/devices/set` | admin | `ws_storage_devices_set` (`:858-887`) | `device_id`, `data`, `replace?` | `{ ok, device_id, keys }` |
-| `lcards/storage/devices/clear` | admin | `ws_storage_devices_clear` (`:764-788`) | `device_id` | `{ ok, removed, device_id }` |
+| `lcards/info` | any user | `ws_lcards_info` (`:167-217`) | none | `{ available, version, storage_key_count, options, capabilities }` |
+| `lcards/diagnostics` | admin | `ws_lcards_diagnostics` (`:220-238`) | none | `async_collect_backend_diagnostics()` (see [Support and diagnostics](#support-and-diagnostics)) |
+| `lcards/subscribe` | any user | `ws_subscribe` (`:407-436`) | none | empty result, then one event message per `lcards_event` |
+| `lcards/fire_event` | admin; non-admin: own-user `reload_connection_config` only | `ws_fire_event` (`:467-510`) | `action`, `target_device_ids?`, `target_user_ids?`, `data?` | empty result |
+| `lcards/storage/get` | any user for plain (global) keys; a `_device_*` key as `device/get`; admin for the full store (no `key`) and `_user_*` keys | `ws_storage_get` (`:245-274`) | `key?` | `{ key, value }` |
+| `lcards/storage/set` | admin | `ws_storage_set` (`:277-300`) | `data` | `{ ok, keys }` |
+| `lcards/storage/delete` | admin | `ws_storage_delete` (`:303-325`) | `key` | `{ ok, existed }` |
+| `lcards/storage/delete_many` | admin | `ws_storage_delete_many` (`:328-351`) | `keys` | `{ ok, removed }` (count) |
+| `lcards/storage/reset` | admin | `ws_storage_reset` (`:354-375`) | none | `{ ok }` |
+| `lcards/storage/dump` | admin | `ws_storage_dump` (`:378-400`) | none | `{ version, data }` |
+| `lcards/storage/user/get` | any user (own record) | `ws_storage_user_get` (`:518-545`) | `key?` | `{ user_id, key, value }` |
+| `lcards/storage/user/set` | any user (own record) | `ws_storage_user_set` (`:548-574`) | `data`, `replace?` | `{ ok, user_id, keys }` |
+| `lcards/storage/user/delete` | any user (own record) | `ws_storage_user_delete` (`:577-600`) | `key` | `{ ok, user_id, existed }` |
+| `lcards/storage/users/list` | admin | `ws_storage_users_list` (`:607-633`) | none | `{ users: { <id>: { key_count } } }` |
+| `lcards/storage/users/get` | admin | `ws_storage_users_get` (`:636-661`) | `user_id` | `{ user_id, value }` |
+| `lcards/storage/users/set` | admin | `ws_storage_users_set` (`:664-693`) | `user_id`, `data`, `replace?` | `{ ok, user_id, keys }` |
+| `lcards/storage/users/clear` | admin | `ws_storage_users_clear` (`:783-807`) | `user_id` | `{ ok, removed, user_id }` |
+| `lcards/storage/device/get` | admin, or the record's current owner (a record with no owner: any user) | `ws_storage_device_get` (`:704-735`) | `device_id`, `key?` | `{ device_id, key, value }` |
+| `lcards/storage/device/set` | any user (a non-admin becomes the owner; an admin claims only an unowned record) | `ws_storage_device_set` (`:738-776`) | `device_id`, `data`, `replace?` | `{ ok, device_id, keys }` (without `owner_user_id`) |
+| `lcards/storage/devices/list` | admin | `ws_storage_devices_list` (`:840-874`) | none | `{ devices: { <id>: { display_name, last_seen, user_agent, owner_user_id, key_count } } }` |
+| `lcards/storage/devices/get` | admin | `ws_storage_devices_get` (`:877-902`) | `device_id` | `{ device_id, value }` |
+| `lcards/storage/devices/set` | admin (`data.owner_user_id` sets the owner) | `ws_storage_devices_set` (`:905-934`) | `device_id`, `data`, `replace?` | `{ ok, device_id, keys }` |
+| `lcards/storage/devices/clear` | admin | `ws_storage_devices_clear` (`:810-834`) | `device_id` | `{ ok, removed, device_id }` |
 
 The user commands always take the user ID from `connection.user.id`, never from the request. A device ID is a routing key the browser chooses (a UUID in `localStorage`), not a credential. What each storage command does to the store, and the `replace` semantics, are in [Persistent Storage](internals/storage); the client wrapper is [Scoped Settings](subsystems/scoped-settings#websocket-commands); call examples are in [Backend API](../development/backend-api).
 
@@ -347,7 +347,7 @@ Capabilities let a newer frontend run against an older backend: the frontend che
 
 ### `lcards/fire_event`
 
-Relays an event from one browser to every subscribed browser: it fires `lcards_event` with `{ action, ...data }` plus `target_device_ids` / `target_user_ids` when given. Admin only, because the event can act on other users' sessions. The single non-admin exception (`_own_user_event_allowed()`, `websocket_api.py:413-435`, capability `own_user_reload`) requires all of:
+Relays an event from one browser to every subscribed browser: it fires `lcards_event` with `{ action, ...data }` plus `target_device_ids` / `target_user_ids` when given. Admin only, because the event can act on other users' sessions. The single non-admin exception (`_own_user_event_allowed()`, `websocket_api.py:450-464`, capability `own_user_reload`) requires all of:
 
 - `action` is `reload_connection_config`;
 - `target_user_ids` is exactly `[<caller's user id>]`;
@@ -422,7 +422,7 @@ Every action accepts four optional list fields, resolved in `_async_resolve_targ
 - **Targeting that resolves to at least one ID**: the event carries `target_device_ids` / `target_user_ids` and each browser keeps only events addressed to it (union of both lists).
 - **Targeting that matches nobody** (for example a misspelt name): `ServiceValidationError` ("LCARdS: no device or user matches the target (names: [...])"). It never falls back to a broadcast.
 
-The alert actions write `input_select.lcards_alert_mode` only without targeting: that helper is the shared alert state, and the browsers follow it through their HelperManager subscriptions. A targeted alert is a transient, local change on the matched browsers (`setAlertMode(mode, { skipHelperSync: true })`). Without targeting and without the helper, the call fails with `ServiceValidationError` telling the user to create the LCARdS helpers.
+The alert actions write `input_select.lcards_alert_mode` only without targeting: that helper is the shared alert state, and the browsers follow it through their HelperManager subscriptions. A targeted alert is a transient, local change on the matched browsers (`setAlertMode(mode, { skipHelperSync: true })`). Without targeting and without the helper, the call fails with `ServiceValidationError` telling the user to create the LCARdS helpers. How a browser then applies the mode: [Theme System: Alert Mode Integration](subsystems/theme-system.md#alert-mode-integration).
 
 ---
 
