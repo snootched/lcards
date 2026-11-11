@@ -53,6 +53,8 @@ test('the parser reads YAML 1.1 as Home Assistant does', () => {
         { path: 'a.y', yaml12: 'key "y"', yaml11: 'key "true" or "false"' },
         { path: 'a.label', yaml12: 'N', yaml11: false }
     ]);
+    // js-yaml's YAML11_SCHEMA (Home Assistant) reads e1 / E5 as strings; the yaml package reads NaN
+    assert.deepEqual(yaml11Differences('grid-area: e1\nother: E5\nsign: +e2\n'), []);
 });
 
 test('docs and skill examples mean the same in Home Assistant\'s code editor (YAML 1.1)', () => {

@@ -67,6 +67,35 @@ test('slider: picard-gauge-vertical draws the picard component without component
     await expectNoErrors(page);
 });
 
+test('slider: picard-gauge-column draws both caps, the value in the top one and the entity name (or your content) in the bottom one', async ({ page }) => {
+    await mountCase(page, 'slider-picard-column', { height: '400' });
+    const caps = () => page.locator('lcards-slider').evaluate(el => ['border-top', 'border-bottom']
+        .map(id => el.shadowRoot.getElementById(id)?.getBoundingClientRect().height ?? 0));
+    await expect.poll(caps).toEqual([24, 24]);
+    const texts = () => page.locator('lcards-slider').evaluate(el => [...el.shadowRoot.querySelectorAll('text')].map(t => t.textContent.trim()));
+    await expect.poll(async () => (await texts()).some(t => /^demo level$/i.test(t))).toBe(true); // the name, by default
+    await expect.poll(async () => (await texts()).some(t => /^40/.test(t))).toBe(true); // demo_level starts at 40
+    // Your own content in the bottom cap wins over the name
+    await page.evaluate(() => window.__reconfigure({ type: 'custom:lcards-slider', entity: 'input_number.demo_level', preset: 'picard-gauge-column', text: { name: { content: '3788' } } }));
+    await expect.poll(texts).toContain('3788');
+    await expectNoErrors(page);
+});
+
+test('slider: the value text is formatted by Home Assistant for the user locale (comma decimals), without its unit', async ({ page }) => {
+    await mountCase(page, 'slider-picard-column', { height: '400' });
+    const texts = () => page.locator('lcards-slider').evaluate(el => [...el.shadowRoot.querySelectorAll('text')].map(t => t.textContent.trim()));
+    await page.evaluate(() => window.__setState('input_number.demo_level', '40.5'));
+    // Home Assistant with a European number format: the value part, then the unit part
+    await page.evaluate(() => {
+        const card = window.__card;
+        const parts = (s) => [{ type: 'value', value: String(s.state).replace('.', ',') }, { type: 'literal', value: ' ' }, { type: 'unit', value: '%' }];
+        card.hass = { ...window.__hass, formatEntityStateToParts: parts, formatEntityState: (s) => parts(s).map(p => p.value).join('') };
+    });
+    await expect.poll(texts).toContain('40,5');
+    expect((await texts()).some(t => t.includes('40.5'))).toBe(false);
+    await expectNoErrors(page);
+});
+
 test('button: state change switches the state colour', async ({ page }) => {
     await mountCase(page, 'button-more-info');
     await expect.poll(() => bgFill(page)).toBe('rgb(51, 51, 102)'); // inactive
@@ -85,6 +114,30 @@ test('button: a text field colour can be a JS template, and follows the entity',
     await expect.poll(fill).toBe('rgb(0, 255, 0)'); // demo_level starts at 40
     await page.evaluate(() => window.__setState('input_number.demo_level', '90'));
     await expect.poll(fill).toBe('rgb(255, 0, 0)');
+    await expectNoErrors(page);
+});
+
+test('button: {entity.state} formats again when Home Assistant swaps in its locale formatter', async ({ page }) => {
+    // Home Assistant's first hass formats as the raw state; the locale-aware formatter
+    // comes later in a new hass with no entity change (frontend connection-mixin.ts,
+    // state-display-mixin.ts). Cards rendered before then showed "18.8" for "18,8 °C".
+    await mountCase(page, 'button-text-token-update');
+    const texts = () => page.locator('lcards-button').evaluate(el => [...el.shadowRoot.querySelectorAll('text')].map(t => t.textContent.trim()).filter(Boolean).join('/'));
+    await expect.poll(texts).toContain('40');
+    await page.evaluate(() => {
+        const card = window.__card;
+        const hass = window.__hass;
+        const raw = (s, v) => String(v ?? s.state);
+        card.hass = { ...hass, formatEntityState: raw, formatEntityStateToParts: (s, v) => [{ type: 'value', value: raw(s, v) }] };
+    });
+    await expect.poll(texts).toMatch(/(^|\/)40($|\/)/);
+    await page.evaluate(() => {
+        const card = window.__card;
+        const hass = card.hass;
+        const fmt = (s, v) => `${String(v ?? s.state).replace('.', ',')},0 LOC`;
+        card.hass = { ...hass, locale: { ...(hass.locale ?? {}), number_format: 'comma_decimal' }, formatEntityState: fmt, formatEntityStateToParts: (s, v) => [{ type: 'value', value: fmt(s, v) }] };
+    });
+    await expect.poll(texts).toContain('40,0 LOC');
     await expectNoErrors(page);
 });
 
@@ -371,6 +424,62 @@ test('layout card mediaquery: a matching query swaps the grid; it follows the vi
     await page.setViewportSize({ width: 1000, height: 700 });
     await expect.poll(async () => { const [p, q] = await boxes(); return q.y === p.y; }).toBe(true);
     await expectNoErrors(page);
+});
+
+/** Every arc in the card's SVG paths: radius and centre (from the end points, sweep and large-arc flags) */
+const elbowArcs = (page) => page.locator('lcards-elbow').evaluate((el) => {
+    const out = [];
+    for (const p of el.shadowRoot.querySelectorAll('path')) {
+        const tok = (p.getAttribute('d') ?? '').match(/[a-zA-Z]|-?\d*\.?\d+(?:e-?\d+)?/g) ?? [];
+        let i = 0, x = 0, y = 0, cmd = '';
+        const num = () => Number(tok[i++]);
+        while (i < tok.length) {
+            if (/[a-zA-Z]/.test(tok[i])) cmd = tok[i++];
+            if (cmd === 'M' || cmd === 'L') { x = num(); y = num(); }
+            else if (cmd === 'H') x = num();
+            else if (cmd === 'V') y = num();
+            else if (cmd === 'A') {
+                const r = num(); num(); num(); const large = num(); const sweep = num(); const nx = num(); const ny = num();
+                if (r > 0.01) {
+                    const mx = (x + nx) / 2, my = (y + ny) / 2, dx = nx - x, dy = ny - y, d = Math.hypot(dx, dy);
+                    const h = Math.sqrt(Math.max(0, r * r - (d / 2) ** 2)), s = large !== sweep ? 1 : -1;
+                    out.push({ r, cx: mx - s * h * dy / d, cy: my + s * h * dx / d, path: p.id || '' });
+                }
+                x = nx; y = ny;
+            } else i++;
+        }
+    }
+    return out;
+});
+/** Pairs of arcs on one centre (within 0.5 px): the bends, as [outer r, inner r] */
+const bends = (arcs) => {
+    const out = [];
+    for (const a of arcs) for (const b of arcs) {
+        if (a !== b && a.r > b.r && a.path === b.path && Math.hypot(a.cx - b.cx, a.cy - b.cy) < 0.5) out.push([a.r, b.r]);
+    }
+    return out;
+};
+
+test('elbow concentric band: a thin inner band keeps one width round the bend (arcs on one centre, a bar apart)', async ({ page }) => {
+    await mountCase(page, 'elbow-concentric-band', { height: '200' });
+    await expect.poll(async () => (await elbowArcs(page)).length).toBeGreaterThan(3);
+    const band = bends(await elbowArcs(page)).filter(([o, i]) => Math.abs(o - i - 6) < 0.5);
+    expect(band.length).toBeGreaterThan(0); // the band's outer and inner arcs: one centre, 6 apart
+    await expectNoErrors(page);
+});
+
+test('elbow thin frame: the turning corners stay one width, the open side ends square', async ({ page }) => {
+    await mountCase(page, 'elbow-frame-thin', { height: '200' });
+    await expect.poll(async () => (await elbowArcs(page)).length).toBeGreaterThan(0);
+    const arcs = await elbowArcs(page);
+    expect(arcs).toHaveLength(4); // two corners, outer and inner each; none at the open ends
+    expect(bends(arcs).map(([o, i]) => [Math.round(o), Math.round(i)])).toEqual([[60, 48], [60, 48]]);
+});
+
+test('elbow thin simple: equal thin bars with a large curve keep one width round the bend', async ({ page }) => {
+    await mountCase(page, 'elbow-thin-simple', { height: '200' });
+    await expect.poll(async () => (await elbowArcs(page)).length).toBeGreaterThan(0);
+    expect(bends(await elbowArcs(page)).map(([o, i]) => [Math.round(o), Math.round(i)])).toEqual([[60, 48]]);
 });
 
 test('elbow bar-slant-right: the bar is the whole card, slanted at the right end, with its label on it', async ({ page }) => {

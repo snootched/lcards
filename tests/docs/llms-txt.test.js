@@ -65,7 +65,9 @@ test('URLs carry the channel base; llms-full has the user docs only, cleaned', (
     // took it to 1454 KB); the user, 2026-11-07: let it grow until the rollout ends, then revisit
     // 1550 KB until 2026-11-08 (D2 batch 5: the core pages, now with live examples and key tables,
     // took it to 1631 KB); still growing until the rollout ends (the user, 2026-11-07)
-    assert.ok(Buffer.byteLength(full) < 1750 * 1024, 'llms-full.txt stays loadable');
+    // 1750 KB until 2026-11-11 (design review: scale and density rules, display sweep, readings
+    // table and the classic data screen in lcars-design/lcars-patterns took it to 1774 KB)
+    assert.ok(Buffer.byteLength(full) < 1850 * 1024, 'llms-full.txt stays loadable');
 });
 
 test('page summaries: frontmatter description wins, callouts and bare type names are skipped', () => {

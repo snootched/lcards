@@ -50,6 +50,7 @@ const SLIDER_EXTRA = {
   'picard-gauge-vertical': 'component: picard\ngrid_options:\n  rows: 7\n  columns: 6\n',
   'ring': 'grid_options:\n  rows: 4\n',
   'picard-ring': 'grid_options:\n  rows: 4\n',
+  'picard-gauge-column': 'grid_options:\n  rows: 7\n  columns: 3\n',
 }
 const sliderTile = (preset) => ({
   label: `preset: ${preset}`,

@@ -68,7 +68,7 @@ import { LCARdSButton } from './lcards-button.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { isCssLengthString, measureCssLength } from '../utils/css-length-utils.js';
-import { parseFrameConfig, frameLengthValues, elbowContentInsets, translatePath, segmentActions, segmentOwnsInput, themeBindings, parseSegmentBar, SEGMENT_ACTION_KEYS } from './elbow-config.js';
+import { concentricInnerCurve, parseFrameConfig, frameLengthValues, elbowContentInsets, translatePath, segmentActions, segmentOwnsInput, themeBindings, parseSegmentBar, SEGMENT_ACTION_KEYS } from './elbow-config.js';
 import { getElbowSchema } from './schemas/elbow-schema.js';
 import { TEXT_POSITIONS } from './schemas/schema-options.js';
 import {
@@ -1372,8 +1372,11 @@ export class LCARdSElbow extends LCARdSButton {
             lcardsLog.debug(`[LCARdSElbow] Calculated outer_curve (arm_fill): ${outer_curve}px`);
         }
 
-        // Resolve inner_curve — keyword modes or LCARS formula (outer / 2)
-        if (inner_curve === undefined || inner_curve === 'auto') {
+        // Resolve inner_curve: keyword modes, the LCARS formula (outer / 2) for 'auto', and
+        // unset: concentric, so a thin bar keeps one width round the bend (concentricInnerCurve)
+        if (inner_curve === undefined) {
+            inner_curve = concentricInnerCurve(outer_curve, bar_width, bar_height);
+        } else if (inner_curve === 'auto') {
             inner_curve = outer_curve / 2;
             lcardsLog.debug(`[LCARdSElbow] Calculated LCARS inner_curve: ${inner_curve}px`);
         } else if (inner_curve === 'arm_width') {
@@ -1462,7 +1465,8 @@ export class LCARdSElbow extends LCARdSButton {
         })();
         const outerSegmentInnerRadius = (() => {
             const ic = outer_segment.inner_curve;
-            if (ic === undefined || ic === 'auto') return outerSegmentOuterRadius / 2;
+            if (ic === undefined) return concentricInnerCurve(outerSegmentOuterRadius, outerHorizontal, outerVertical);
+            if (ic === 'auto') return outerSegmentOuterRadius / 2;
             if (ic === 'arm_width') return outerHorizontal / 2;
             if (ic === 'arm_height') return outerVertical / 2;
             if (ic === 'arm_max') return Math.max(outerHorizontal, outerVertical) / 2;
@@ -1495,9 +1499,11 @@ export class LCARdSElbow extends LCARdSButton {
             return oc;
         })();
 
-        // Default for inner inner_curve: LCARS formula
+        // Default for inner inner_curve: LCARS formula; with the concentric outer curve,
+        // a thin band stays one even width round the corner (concentricInnerCurve)
         const innerSegmentInnerRadius = (() => {
             const ic = inner_segment.inner_curve;
+            if (ic === undefined && inner_segment.outer_curve === undefined) return concentricInnerCurve(innerSegmentOuterRadius, innerHorizontal, innerVertical);
             if (ic === undefined || ic === 'auto') return innerSegmentOuterRadius / 2;
             if (ic === 'arm_width') return innerHorizontal / 2;
             if (ic === 'arm_height') return innerVertical / 2;
@@ -2182,9 +2188,13 @@ export class LCARdSElbow extends LCARdSButton {
         // auto inner_curve) is preserved. The offset model (subtract the same absolute delta)
         // breaks the ratio — e.g. auto inner=32.5 with outer clamped 65→40 would give 7.5
         // instead of the expected 20 (= clamped_outer / 2).
-        const clampedInnerRadius = outerRadius > 0
-            ? Math.max(0, innerRadius * (clampedOuterRadius / outerRadius))
-            : 0;
+        // A uniform bend (inner = outer less the bar, as concentricInnerCurve gives for thin
+        // bars) keeps its thickness instead, so the band does not pinch when clamped.
+        const bar = Math.max(Number(horizontal) || 0, Number(vertical) || 0);
+        const uniform = outerRadius > bar && Math.abs((outerRadius - innerRadius) - bar) < 0.5;
+        const clampedInnerRadius = outerRadius <= 0 ? 0
+            : uniform ? concentricInnerCurve(clampedOuterRadius, horizontal, vertical)
+            : Math.max(0, innerRadius * (clampedOuterRadius / outerRadius));
 
         // Get component from registry using the full type
         const elbowType = g.type;
@@ -2385,12 +2395,16 @@ export class LCARdSElbow extends LCARdSButton {
             ? Math.max(0, outerClampedIR - gap)
             : inner.outerRadius;
 
-        // When inner inner_curve is also auto, derive it from the cascaded outer_curve
-        // so the 2:1 LCARS ratio is preserved after the cascade.
-        const innerICIsAuto = innerSegmentConfig.inner_curve === undefined || innerSegmentConfig.inner_curve === 'auto';
-        const innerInnerRadiusForPath = (innerOCConfigIsUndefined && innerICIsAuto)
-            ? innerOuterRadiusForPath / 2
-            : inner.innerRadius;
+        // When inner inner_curve is also unset, derive it from the cascaded outer_curve:
+        // concentric, so a thin band keeps one width round the bend (concentricInnerCurve);
+        // an explicit 'auto' keeps the 2:1 LCARS ratio.
+        const innerICUnset = innerSegmentConfig.inner_curve === undefined;
+        const innerICIsAuto = innerICUnset || innerSegmentConfig.inner_curve === 'auto';
+        const innerInnerRadiusForPath = (innerOCConfigIsUndefined && innerICUnset)
+            ? concentricInnerCurve(innerOuterRadiusForPath, inner.horizontal, inner.vertical)
+            : (innerOCConfigIsUndefined && innerICIsAuto)
+                ? innerOuterRadiusForPath / 2
+                : inner.innerRadius;
 
         // Generate inner segment path (smaller elbow)
         // The inner segment must fit within the outer segment's content area

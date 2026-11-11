@@ -167,7 +167,7 @@ for (const file of files) {
         const png = join(tmpdir(), `lcards-gallery-${process.pid}-${name}.png`);
         await page.screenshot({ path: png, clip });
         const out = join(outDir, `${name}.webp`);
-        execFileSync('magick', [png, '-resize', '1600x>', '-quality', '85', out]);
+        execFileSync('magick', [png, '-resize', '1600x>', '-quality', '85', '-define', 'webp:use-sharp-yuv=true', out]); // sharp YUV: dark slate edges stay crisp
         rmSync(png, { force: true });
         console.log(`${name}: ${out.startsWith(ROOT) ? out.slice(ROOT.length + 1) : out}${errors.length ? `  (${errors.length} page error(s))` : ''}`);
         for (const e of errors.slice(0, 5)) console.log(`  page error: ${e}`);

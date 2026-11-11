@@ -140,7 +140,7 @@ sections:
         interactive: false
         text:
           label:
-            content: NESTED FRAME
+            content: DISPLAY SWEEP
             show: true
             position: center-left
             color: theme:colors.ui.tertiary
@@ -153,13 +153,14 @@ sections:
           rows: 4
         elbow:
           type: frame
-          style: segmented
           segment:
-            color: theme:colors.ui.primary
+            color: theme:colors.ui.secondary
           frame:
-            bar_width: 30
-            right: {enabled: false}
-            segments: {gap: 6, inner_frame: {bar_width: 10, color: theme:colors.card.topColor}}
+            bar_width: 14
+            bar_height: 12
+            outer_curve: 60
+            right:
+              enabled: false
   - type: grid
     column_span: 4
     cards:
@@ -218,7 +219,7 @@ sections:
           segments:
             gap: 6
             outer_segment: {bar_width: 140, bar_height: 24, color: theme:colors.ui.secondary}
-            inner_segment: {bar_width: 6, bar_height: 4, inner_curve: 25, color: theme:colors.ui.primary}
+            inner_segment: {bar_width: 6, bar_height: 4, color: theme:colors.ui.primary}
         text:
           title:
             content: COURSE SELECT

@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { getElbowSchema } from '../../src/cards/schemas/elbow-schema.js';
 import { elbowComponents as ELBOW_COMPONENTS } from '../../src/core/packs/components/elbows/index.js';
 import {
-    parseFrameConfig, frameLengthValues, elbowContentInsets, translatePath,
+    concentricInnerCurve, parseFrameConfig, frameLengthValues, elbowContentInsets, translatePath,
     segmentActions, segmentOwnsInput, themeBindings, parseSegmentBar,
 } from '../../src/cards/elbow-config.js';
 
@@ -106,4 +106,42 @@ test('schema: segments declare what the card reads; segment and symbiont default
     assert.ok(elbow.segment.properties.bar_height.oneOf.every(b => b.default === undefined));
     const pos = getElbowSchema().properties.symbiont.properties.position.properties;
     assert.deepEqual(Object.fromEntries(Object.entries(pos).map(([k, v]) => [k, v.default])), { top: 0, left: 0, right: 0, bottom: 0 });
+});
+
+test('segmented elbow: a thin inner band keeps one even width round the corner (2026-11-11)', () => {
+    // Pilot header: outer segment 134 x 20 (outer radius 67, inner 33.5), gap 6 -> the inner
+    // segment's outer radius 27.5. A 5 x 4 band used half of it (13.75) round another centre,
+    // so it swelled at the corner; R - bar puts both arcs round (nearly) one centre.
+    const R = 27.5;
+    assert.equal(concentricInnerCurve(R, 5, 4), 22.5);
+    // centre of the band's outer arc vs its inner arc, measured from the band's corner
+    assert.equal(R, 5 + concentricInnerCurve(R, 5, 4));
+    // Uniform whenever the curve is bigger than the bar (the user, 2026-11-11: equal bars,
+    // uniform bend), so 40 round a 24 bar -> 16, not the classic 20
+    assert.equal(concentricInnerCurve(40, 24, 24), 16);
+    // A curve no bigger than the bar (the classic thick LCARS elbow): half the outer radius
+    assert.equal(concentricInnerCurve(30, 60, 60), 15);
+    assert.equal(concentricInnerCurve(45, 90, 90), 22.5);
+    // Sizes not known as px yet (CSS lengths): the classic half
+    assert.equal(concentricInnerCurve(40, 'clamp(10px, 2vw, 20px)', 10), 20);
+});
+
+test('frame: a corner beside an open side is a square bar end; thin bars keep one width round a corner (2026-11-11)', () => {
+    // The utility bracket: left side off -> its top-left and bottom-left are bar ends
+    const bracket = parseFrameConfig({ bar_width: 14, bar_height: 36, outer_curve: 36, left: { enabled: false } }, 'simple');
+    assert.deepEqual(bracket.corners.top_left, { outer: 0, inner: 0 });
+    assert.deepEqual(bracket.corners.bottom_left, { outer: 0, inner: 0 });
+    // the turning corners keep the curve; a curve no bigger than the 36 bar -> the classic half
+    assert.deepEqual(bracket.corners.top_right, { outer: 36, inner: 18 });
+    // Equal 24 bars round a 40 curve: uniform, 16
+    assert.deepEqual(parseFrameConfig({ bar_width: 24, outer_curve: 40, top: { enabled: false } }, 'simple').corners.bottom_left, { outer: 40, inner: 16 });
+    // A corner's own curve still wins on an open side (a rounded bar end on purpose)
+    const rounded = parseFrameConfig({ right: { enabled: false }, corners: { top_right: { outer_curve: 20 } } }, 'simple');
+    assert.equal(rounded.corners.top_right.outer, 20);
+    // Display sweep: thin bars (14 / 12) with outer 60 -> inner 60 - 14 = 46, not 30
+    const sweep = parseFrameConfig({ bar_width: 14, bar_height: 12, outer_curve: 60, right: { enabled: false } }, 'simple');
+    assert.deepEqual(sweep.corners.top_left, { outer: 60, inner: 46 });
+    assert.deepEqual(sweep.corners.top_right, { outer: 0, inner: 0 });
+    // Thick default bars keep the classic half of the outer radius
+    assert.deepEqual(parseFrameConfig({}, 'simple').corners.top_left, { outer: 45, inner: 23 });
 });

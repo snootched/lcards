@@ -19,7 +19,7 @@
 
 import { html, css } from 'lit';
 import { lcardsLog } from '../utils/lcards-logging.js';
-import { LCARdSNativeCard } from './LCARdSNativeCard.js';
+import { LCARdSNativeCard, hassFormattersChanged } from './LCARdSNativeCard.js';
 import { LCARdSActionHandler } from './LCARdSActionHandler.js';
 import { UnifiedTemplateEvaluator } from '../core/templates/UnifiedTemplateEvaluator.js';
 import { TemplateParser } from '../core/templates/TemplateParser.js';
@@ -864,6 +864,12 @@ export class LCARdSCard extends LCARdSNativeCard {
                 // Re-process templates when tracked entities change
                 this._scheduleTemplateUpdate();
             }
+        }
+
+        // Home Assistant swapped in its locale-aware formatters (or the locale changed):
+        // {entity.state} and friends rendered with the placeholder ones show the raw state
+        if (hassFormattersChanged(newHass, oldHass)) {
+            this._scheduleTemplateUpdate();
         }
 
         // Call card-specific HASS handler

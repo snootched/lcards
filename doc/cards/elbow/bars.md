@@ -42,7 +42,7 @@ elbow:
 
 - Leave `bar_height` out and the top bar is as thick as the side bar.
 - Sizes are px, or a CSS length such as `clamp(60px, 8vw, 120px)` that follows the screen size; the elbow measures it again when the window is resized.
-- The corner curves default to the classic LCARS proportions: the outer radius is half the side bar and the inner radius half the outer. [Arc radius modes](#arc-radius-modes) has the other choices.
+- The corner curves default to the classic LCARS proportions: the outer radius is half the side bar and the inner radius half the outer. Give a thin bar a curve bigger than itself and the inner curve follows it instead, so the bend keeps the bar's width all the way round. [Arc radius modes](#arc-radius-modes) has the other choices.
 
 ```yaml live
 type: custom:lcards-elbow
@@ -67,7 +67,7 @@ elbow:
 | `bar_width` | number / string | `90` | Thickness of the vertical bar: px (10 to 500), a CSS length, or `theme` ([HA-LCARS](#ha-lcars-theme-binding)) |
 | `bar_height` | number / string | `bar_width` | Thickness of the horizontal bar: px (10 to 500), a CSS length, or `theme` |
 | `outer_curve` | number / string | `auto` | Radius of the outer corner: px (0 to 500), a CSS length or a [keyword](#arc-radius-modes) |
-| `inner_curve` | number / string | `auto` (half of `outer_curve`) | Radius of the inner corner: px, a CSS length or a [keyword](#arc-radius-modes) |
+| `inner_curve` | number / string | `outer_curve` less the bar when the curve is bigger than the bar, else half of it | Radius of the inner corner: px, a CSS length or a [keyword](#arc-radius-modes). Unset, a bend whose curve is bigger than the bar keeps one width all the way round |
 | `outer_curve_clamp` | string / number | `card` | Upper limit for the outer radius: see [Paired elbows](#paired-elbows) |
 | `diagonal_angle` | number / string | `45` | Cut angle in degrees (0 to 90) for the diagonal caps and slanted bars, or `theme`: see [Diagonal cuts](#diagonal-cuts) |
 | `color` | colour / state map | the theme's header or footer colour | Fill colour: see [Colours](./appearance#colours) |
@@ -184,7 +184,7 @@ elbow:
 **The two elbows of the segmented style: the outer one, the inner one and the gap between them.** Set `elbow.style: segmented` to use it.
 
 - Both segments are required, each with its own `bar_width`.
-- The inner elbow sits inside the outer one, `gap` px in from its bars. Leave the inner `outer_curve` out and it follows the outer elbow's inner curve less the gap, so the two curves stay concentric.
+- The inner elbow sits inside the outer one, `gap` px in from its bars. Leave the inner `outer_curve` out and it follows the outer elbow's inner curve less the gap, so the two curves stay concentric. Leave its `inner_curve` out too and the inner bar keeps one even width round the corner, like a line drawn inside the outer sweep.
 - Each segment can follow an entity of its own: with `entity_id` its colour state map matches that entity, and a tap on it acts on that entity. Its own `tap_action`, `hold_action` and `double_tap_action` replace the card's for that segment; the ones it leaves out are the card's.
 
 ```yaml live
@@ -213,7 +213,7 @@ elbow:
 
 ### Segment keys
 
-**Each segment takes the simple style's keys, plus an entity of its own.** The defaults differ in two places: `bar_width` is required, and the inner elbow's outer curve follows the outer elbow.
+**Each segment takes the simple style's keys, plus an entity of its own.** The defaults differ in three places: `bar_width` is required, the inner elbow's outer curve follows the outer elbow, and with both its curves left out the inner elbow keeps an even width round the corner.
 
 - A `bar_height` near 0 (such as `0.01`) leaves that segment's horizontal bar out; `0` itself counts as not set.
 - The inner segment's `diagonal_angle` defaults to the outer one's.
@@ -269,7 +269,7 @@ elbow:
 | `bar_width` | number / string | required | Thickness of the vertical bar: px (1 to 500), a CSS length, or `theme` ([HA-LCARS](#ha-lcars-theme-binding)) |
 | `bar_height` | number / string | `bar_width` | Thickness of the horizontal bar: px (up to 500), a CSS length, or `theme` |
 | `outer_curve` | number / string | outer: `auto`; inner: the outer elbow's inner curve less `gap` | Outer corner radius: px, a CSS length or a [keyword](#arc-radius-modes) |
-| `inner_curve` | number / string | `auto` (half of `outer_curve`) | Inner corner radius: px, a CSS length or a [keyword](#arc-radius-modes) |
+| `inner_curve` | number / string | `outer_curve` less the bar when the curve is bigger than the bar, else half of it | Inner corner radius: px, a CSS length or a [keyword](#arc-radius-modes) |
 | `outer_curve_clamp` | string / number | `card` | Upper limit for the outer radius, as in [Paired elbows](#paired-elbows) |
 | `diagonal_angle` | number / string | outer: `45`; inner: the outer one's | Cut angle on the diagonal caps, or `theme` |
 | `color` | colour / state map | the theme's header or footer colour | Fill colour of this segment: see [Colours](./appearance#colours). A state map follows `entity_id`, else the card's `entity` |

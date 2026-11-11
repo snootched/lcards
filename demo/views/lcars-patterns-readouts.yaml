@@ -56,10 +56,10 @@ sections:
           rows: 1
       - type: custom:lcards-layout-card
         layout:
-          height: 190px
-          grid-gap: 6px
-          grid-template-columns: 130px minmax(0, 1fr)
-          grid-template-rows: repeat(3, minmax(0, 1fr))
+          height: 80px
+          grid-gap: 4px
+          grid-template-columns: 110px minmax(0, 1fr)
+          grid-template-rows: repeat(3, 24px)
         cards:
           - type: custom:lcards-button
             preset: panel-dark
@@ -68,6 +68,7 @@ sections:
           - type: custom:lcards-slider
             entity: input_number.lcards_test_power
             preset: gauge-basic
+            style: {gauge: {scale: {labels: {enabled: false}}}}
           - type: custom:lcards-button
             preset: panel-dark
             min_height: 0
@@ -75,6 +76,7 @@ sections:
           - type: custom:lcards-slider
             entity: input_number.lcards_test_shields
             preset: gauge-basic
+            style: {gauge: {scale: {labels: {enabled: false}}}}
           - type: custom:lcards-button
             preset: panel-dark
             min_height: 0
@@ -82,9 +84,10 @@ sections:
           - type: custom:lcards-slider
             entity: input_number.lcards_test_value
             preset: gauge-basic
+            style: {gauge: {scale: {labels: {enabled: false}}}}
         grid_options:
           columns: full
-          rows: 4
+          rows: 2
   - type: grid
     column_span: 4
     cards:
@@ -103,26 +106,34 @@ sections:
       - type: custom:lcards-layout-card
         layout:
           height: 420px
-          grid-gap: 10px
-          grid-template-columns: repeat(4, minmax(0, 1fr))
+          grid-gap: 6px
+          grid-template-columns: repeat(4, 60px)
           grid-template-rows: minmax(0, 1fr)
         cards:
           - type: custom:lcards-slider
-            component: picard
-            preset: picard-gauge-vertical
+            preset: picard-gauge-column
             entity: input_number.lcards_test_temperature
+            text:
+              name:
+                content: "37-88"
           - type: custom:lcards-slider
-            component: picard
-            preset: picard-gauge-vertical
+            preset: picard-gauge-column
             entity: input_number.lcards_test_humidity
+            text:
+              name:
+                content: "51-80"
           - type: custom:lcards-slider
-            component: picard
-            preset: picard-gauge-vertical
+            preset: picard-gauge-column
             entity: input_number.lcards_test_value
+            text:
+              name:
+                content: "21-10"
           - type: custom:lcards-slider
-            component: picard
-            preset: picard-gauge-vertical
+            preset: picard-gauge-column
             entity: input_number.lcards_test_power
+            text:
+              name:
+                content: "65-87"
         grid_options:
           columns: full
           rows: 7
@@ -310,3 +321,61 @@ sections:
         grid_options:
           columns: full
           rows: 3
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        interactive: false
+        text:
+          label:
+            content: READINGS TABLE
+            show: true
+            position: center-left
+            color: theme:colors.ui.tertiary
+        grid_options:
+          columns: full
+          rows: 1
+      - type: custom:lcards-data-grid
+        data_mode: data
+        grid_options:
+          columns: full
+          rows: 2
+        rows:
+          - values:
+              - 01-TMP
+              - input_number.lcards_test_temperature
+              - "{{ 'NOMINAL' if states('input_number.lcards_test_temperature') | float(0) < 24 else 'HIGH' }}"
+            style:
+              color: theme:colors.ui.secondary
+          - values:
+              - 02-HUM
+              - input_number.lcards_test_humidity
+              - NOMINAL
+            style:
+              color: theme:colors.ui.secondary
+          - values:
+              - 03-PWR
+              - value: input_number.lcards_test_power
+                style:
+                  color:
+                    default: theme:colors.ui.primary
+                    above:90: var(--lcars-alert-color, var(--lcards-orange-dark))
+              - "{{ 'HIGH' if states('input_number.lcards_test_power') | float(0) > 90 else 'NOMINAL' }}"
+            style:
+              color: theme:colors.ui.primary
+        columns:
+          - style:
+              align: left
+          - style:
+              align: right
+          - style:
+              align: left
+        grid:
+          grid-template-columns: 70px 70px 80px
+          grid-template-rows: repeat(3, 20px)
+          gap: 0px 10px
+        style:
+          font_size: 14
+          align: right
+          text_transform: uppercase

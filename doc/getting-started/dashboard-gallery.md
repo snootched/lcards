@@ -91,13 +91,13 @@ Segmented [frames](../cards/elbow/frame#elbow-frame) around a history chart with
 
 ## Built from the design guide
 
-Seven screens composed from the [archetypes](lcars-design#screen-archetypes) in Designing LCARS Screens and the [LCARS Patterns](lcars-patterns), four Picard and three classic. Each starts from a different layout, so together they show how varied the same design language can be. Every colour is a theme role: they follow your HA-LCARS theme, and the classic ones set a classic theme on their view.
+Eight sample screens composed from the [archetypes](lcars-design#screen-archetypes) in Designing LCARS Screens and the [LCARS Patterns](lcars-patterns), four Picard and four classic. They show layouts to start from rather than finished dashboards: build your own with the [LCARdS skill](ai-assistance), swapping the decorative parts for your own controls and readings. Each starts from a different layout, so together they show how varied the same design language can be. Every colour is a theme role: they follow your HA-LCARS theme, and the classic ones set a classic theme on their view.
 
 ### Picard: display with side columns
 
-A Titan.DS-style console: small dark utility pills housed in a bracket frame with red alert at the bottom, a [concentric](lcars-patterns#concentric-sweep) header sweep whose leg matches the [code-block](lcars-patterns#code-block-column) column, vertical gauges, a nested frame around a dimmed ship schematic, a right number column with a cascade, [toggle tabs](lcars-patterns#toggle-tab-strip) and gauges along the bottom.
+A Titan.DS-style deck plan built as modules whose slots take a decorative part or a control: [utility pills](lcars-patterns#utility-pills) in a bracket open on the left with gauge groups in its slot, one [display sweep](lcars-patterns#display-sweep) whose header bar turns down over a [code-block column](lcars-patterns#code-block-column), a dimmed ship schematic with leader lines, a [gauge bank](lcars-patterns#gauge-bank) of `picard-gauge-column` sliders beside a column of flagged readings, and [toggle tabs](lcars-patterns#toggle-tab-strip) with [readout rows](lcars-patterns#readout-rows) along the bottom.
 
-<video class="doc-video" src="/gallery/picard-console.webm" poster="/gallery/picard-console.webp" title="Picard console: grey sweeps and columns of code blocks, red accents on the blocks and tabs that are on, a dimmed blue ship in a nested frame, vertical and horizontal gauges and a column of numbers" autoplay loop muted playsinline></video>
+<video class="doc-video" src="/gallery/picard-console.webm" poster="/gallery/picard-console.webp" title="Picard console: a grey sweep down the left over columns of small code blocks, utility pills and gauges in a bracket, a dimmed ship deck plan with labelled leader lines, three tall gauges, toggle tabs and readout bars along the bottom, blue accents on what is on" autoplay loop muted playsinline></video>
 
 ::: details YAML
 <<< @/gallery/dashboards/picard-console.yaml
@@ -141,6 +141,16 @@ The classic look: thick header and footer sweeps continued as [labelled segments
 
 ::: details YAML
 <<< @/gallery/dashboards/tng-console.yaml
+:::
+
+### Classic: data screen
+
+The TNG data screen: an upper band with a sweep, a [readings table](lcars-patterns#readings-table) of the environment beside the screen's one small [number cascade](lcars-patterns#number-cascade-filler), the big title and a [pill group](lcars-patterns#pill-grid-classic) led by big numbers; a divider of [segmented bars](lcars-patterns#segmented-bar-classic-arms); a sidebar of blocks beside a long range scan ([astrometrics](../cards/astrometrics/)) with a bearing scale and a systems readings table. Every number is a labelled reading except the one cascade. The view sets `theme: LCARS Default`.
+
+<video class="doc-video" src="/gallery/tng-data.webm" poster="/gallery/tng-data.webp" title="TNG data screen: violet and peach sweeps, a table of labelled temperature, humidity, lights and doors readings, a big red LONG RANGE SCAN title, pills led by big numbers, a sidebar of blocks and a gridded star scan with a probe track and a table of power, shields and warp readings" autoplay loop muted playsinline></video>
+
+::: details YAML
+<<< @/gallery/dashboards/tng-data.yaml
 :::
 
 ### Classic: bracket screen

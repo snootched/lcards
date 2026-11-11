@@ -20,6 +20,7 @@ import { LCARdSBaseEditor } from '../base/LCARdSBaseEditor.js';
 import { editorComponentStyles } from '../base/editor-component-styles.js';
 import { configToYaml, yamlToConfig } from '../utils/yaml-utils.js';
 import { getElbowSchema } from '../../cards/schemas/elbow-schema.js';
+import { concentricInnerCurve, parseFrameConfig } from '../../cards/elbow-config.js';
 import { LCARdSFormFieldHelper as FormField } from '../components/shared/lcards-form-field.js';
 import '../components/shared/lcards-message.js';
 import '../components/yaml/lcards-yaml-editor.js';
@@ -647,8 +648,10 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
         const iDefIC    = innerFc.inner_curve ?? Math.round(iDefOC / 2);
         const segGap    = frame.segments?.gap ?? 4;
 
-        const cornerOuter = (ck) => frame.corners?.[ck]?.outer_curve ?? defOC;
-        const cornerInner = (ck) => frame.corners?.[ck]?.inner_curve ?? defIC;
+        // The card's own corner defaults (square beside an open side, concentric inner curve)
+        const parsedCorners = /** @type {Record<string, { outer: number, inner: number }>} */ (parseFrameConfig(frame, elbowStyle).corners);
+        const cornerOuter = (ck) => frame.corners?.[ck]?.outer_curve ?? parsedCorners[ck]?.outer ?? defOC;
+        const cornerInner = (ck) => frame.corners?.[ck]?.inner_curve ?? parsedCorners[ck]?.inner ?? defIC;
 
         const renderSideRow = (key, label) => html`
             <div style="display: flex; align-items: center; gap: 12px; padding: 4px 0;">
@@ -968,7 +971,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             if (innerCurve === 'arm_max') return armMax / 2;
             if (innerCurve === 'arm_min') return armMin / 2;
             if (innerCurve === 'arm_fill') return armMax;
-            return effectiveOuter / 2; // 'auto', undefined, or fallback
+            if (innerCurve === undefined) return concentricInnerCurve(effectiveOuter, numericBarWidth, numericBarHeight);
+            return effectiveOuter / 2; // 'auto' or fallback
         })();
 
         // Drive the selects: keyword modes map to themselves; numeric → 'manual'; CSS → 'css'
@@ -1360,7 +1364,8 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             if (outerIC === 'arm_max')    return outerArmMax / 2;
             if (outerIC === 'arm_min')    return outerArmMin / 2;
             if (outerIC === 'arm_fill')   return outerArmMax;
-            return outerOCPx / 2; // auto / undefined
+            if (outerIC === undefined) return concentricInnerCurve(outerOCPx, outerBW, outerBH);
+            return outerOCPx / 2; // auto
         })();
 
         const outerClamp     = outerSegment.outer_curve_clamp ?? 'card';
@@ -1408,6 +1413,7 @@ export class LCARdSElbowEditor extends LCARdSBaseEditor {
             if (innerIC === 'arm_max')    return innerArmMax / 2;
             if (innerIC === 'arm_min')    return innerArmMin / 2;
             if (innerIC === 'arm_fill')   return innerArmMax;
+            if (innerIC === undefined && innerOC === undefined) return concentricInnerCurve(innerOCPx, innerBW, innerBH);
             return innerOCPx / 2; // auto / undefined
         })();
 

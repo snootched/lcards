@@ -1,0 +1,12 @@
+# A thin frame open on the right: the turning corners stay one width round the bend, the
+# open side's bar ends are square (no arc there)
+type: custom:lcards-elbow
+elbow:
+  type: frame
+  segment:
+    color: var(--lcards-gray)
+  frame:
+    bar_width: 12
+    outer_curve: 60
+    right:
+      enabled: false

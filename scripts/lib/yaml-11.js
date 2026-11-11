@@ -49,6 +49,10 @@ function differences(a, b, at = '') {
     }
     return out;
   }
+  // The `yaml` package's 1.1 float pattern makes every part optional, so a word
+  // like `e1` or `E5` (a grid-area name) reads as NaN. Home Assistant's js-yaml
+  // YAML11_SCHEMA reads it as the string, so it is no difference.
+  if (typeof a === 'string' && typeof b === 'number' && Number.isNaN(b)) return [];
   return [{ path: at || '(root)', yaml12: a, yaml11: b }];
 }
 

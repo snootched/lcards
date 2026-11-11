@@ -27,6 +27,7 @@ import { isTemplateString } from '../../src/utils/template-string.js';
 import { migrateChartConfig } from '../../src/charts/chart-config-migration.js';
 import { migrateDataGridConfig } from '../../src/data-grid/data-grid-config-migration.js';
 import { classifyThemePath } from './theme-token-rules.js';
+import { parseAreasString } from '../../src/views/layout-grid-utils.js';
 import { CARD_PLUMBING_KEYS as PLUMBING_KEYS } from '../../src/cards/schemas/card-plumbing.js';
 import { PLACEMENT_FORMS, LABEL_STYLE_NAMES, UNIT_NAMES } from '../../src/core/astrometrics/names.js';
 import { withNebulaPreset } from '../../src/core/astrometrics/nebula-presets.js';
@@ -345,6 +346,37 @@ export function cutValueIssues(node) {
     const unclosed = /^[a-z][a-z0-9-]*\(/i.test(text) && (text.match(/\(/g) ?? []).length > (text.match(/\)/g) ?? []).length;
     if (!text.endsWith(',') && !unclosed) return;
     out.push({ path, message: `"${text}" looks cut off: in YAML a # after a space starts a comment, so the rest of the value was dropped. Put the whole value in quotes, e.g. "var(--name, #cc0000)"` });
+  });
+  return out;
+}
+
+/**
+ * `grid-template-areas` (layout view, layout card, data grid `grid`) where a named
+ * area is not one filled rectangle (an L shape, or split in two). CSS then drops
+ * the whole template and every card lands in the first cell, with no error.
+ * @returns {{path: string, message: string}[]}
+ */
+export function gridAreaIssues(node) {
+  const out = [];
+  walk(node, '', (value, path) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+    const text = value['grid-template-areas'];
+    if (typeof text !== 'string' || isTemplateString(text)) return;
+    const grid = parseAreasString(text);
+    /** @type {Map<string, {r0: number, r1: number, c0: number, c1: number, n: number}>} */
+    const boxes = new Map();
+    grid.forEach((row, r) => row.forEach((name, c) => {
+      if (name === '.' || /^\.+$/.test(name)) return;
+      const b = boxes.get(name);
+      if (!b) boxes.set(name, { r0: r, r1: r, c0: c, c1: c, n: 1 });
+      else Object.assign(b, { r0: Math.min(b.r0, r), r1: Math.max(b.r1, r), c0: Math.min(b.c0, c), c1: Math.max(b.c1, c), n: b.n + 1 });
+    }));
+    const bad = [...boxes].filter(([, b]) => b.n !== (b.r1 - b.r0 + 1) * (b.c1 - b.c0 + 1)).map(([name]) => name);
+    if (!bad.length) return;
+    out.push({
+      path: `${path ? `${path}.` : ''}grid-template-areas`,
+      message: `area${bad.length > 1 ? 's' : ''} ${bad.map(n => `"${n}"`).join(', ')} ${bad.length > 1 ? 'are' : 'is'} not a rectangle: the browser then ignores the whole template and every card lands in the first cell. Make each area one rectangle; to overlap cards, place them with view_layout grid-row / grid-column instead`,
+    });
   });
   return out;
 }
@@ -800,6 +832,7 @@ export function createConfigValidator({ entries, registries = null }) {
     for (const r of animationParamIssues(node)) add('warning', 'missing-param', r.path, r.message);
     for (const r of cutValueIssues(node)) add('warning', 'cut-value', r.path, r.message);
     for (const r of legacyActionIssues(node)) add('warning', 'legacy-action', r.path, r.message);
+    for (const r of gridAreaIssues(node)) add('error', 'grid-areas', r.path, r.message);
     return issues;
   }
 

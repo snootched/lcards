@@ -13,6 +13,26 @@
  * @param {unknown} value
  * @returns {number}
  */
+/**
+ * Default inner radius of a segmented elbow's inner segment when both its curves
+ * are left to default. Its outer arc is then concentric with the outer segment's
+ * inner arc; the classic "half the outer radius" for the inner arc puts that arc
+ * round a different centre, so a thin band swells at the corner. `R - bar` keeps
+ * the band one even width round the corner whenever the curve is bigger than the bar;
+ * otherwise (the classic thick LCARS elbow) the inner curve is half the outer.
+ * @param {number} outerRadius - the inner segment's outer radius
+ * @param {number} barWidth - the inner segment's vertical bar width, px
+ * @param {number} barHeight - the inner segment's horizontal bar height, px
+ * @returns {number}
+ */
+export function concentricInnerCurve(outerRadius, barWidth, barHeight) {
+  const w = Number(barWidth), h = Number(barHeight);
+  // Sizes not known as px yet (a CSS length still to be measured): the classic half
+  if (!Number.isFinite(outerRadius) || !Number.isFinite(w) || !Number.isFinite(h)) return outerRadius / 2;
+  const bar = Math.max(w, h);
+  return outerRadius > bar ? outerRadius - bar : outerRadius / 2;
+}
+
 export function parseLength(value) {
     if (typeof value === 'number') return value;
     if (typeof value === 'string') {
@@ -68,7 +88,6 @@ export function parseFrameConfig(fc, style, toPx = parseLength) {
         const defBW = toPx(r.bar_width ?? defaultBarWidth);
         const defBH = r.bar_height !== undefined ? toPx(r.bar_height) : defBW;
         const defOC = r.outer_curve !== undefined ? toPx(r.outer_curve) : Math.round(defBW / 2);
-        const defIC = r.inner_curve !== undefined ? toPx(r.inner_curve) : Math.round(defOC / 2);
         const side = (key) => {
             const raw = r[key] || {};
             // top/bottom default to bar_height, left/right to bar_width
@@ -76,15 +95,24 @@ export function parseFrameConfig(fc, style, toPx = parseLength) {
             const value = raw.bar_width ?? raw.bar_height ?? raw.thickness;
             return { thickness: value !== undefined ? toPx(value) : fallback, enabled: raw.enabled !== false };
         };
+        const sides = Object.fromEntries(FRAME_SIDES.map(k => [k, side(k)]));
         const corner = (key) => {
             const c = r.corners?.[key] || {};
-            return {
-                outer: c.outer_curve !== undefined ? toPx(c.outer_curve) : defOC,
-                inner: c.inner_curve !== undefined ? toPx(c.inner_curve) : defIC,
-            };
+            const [v, h] = /** @type {[string, string]} */ (key.split('_')); // top_left -> top, left
+            // A corner beside an open side is a bar's end, not a turn: square unless set
+            // on the corner itself (2026-11-11; it used to take the frame's curve).
+            const open = !sides[v].enabled || !sides[h].enabled;
+            const outer = c.outer_curve !== undefined ? toPx(c.outer_curve) : (open ? 0 : defOC);
+            // Unset inner curve: concentric with the outer, so a thin bar keeps one width
+            // round the corner (thick bars keep the classic half of the outer radius).
+            const inner = c.inner_curve !== undefined ? toPx(c.inner_curve)
+                : r.inner_curve !== undefined && !(open && c.outer_curve === undefined) ? toPx(r.inner_curve)
+                : open && c.outer_curve === undefined ? 0
+                : Math.round(concentricInnerCurve(outer, sides[v].thickness, sides[h].thickness));
+            return { outer, inner };
         };
         return {
-            sides: Object.fromEntries(FRAME_SIDES.map(k => [k, side(k)])),
+            sides,
             corners: Object.fromEntries(FRAME_CORNERS.map(k => [k, corner(k)])),
         };
     };

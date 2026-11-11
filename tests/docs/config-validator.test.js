@@ -472,3 +472,17 @@ test('actions with Home Assistant\'s older names (call-service, service, service
     assert.deepEqual(messages(check(button({ action: 'perform-action', perform_action: 'light.turn_on', target: { entity_id: 'light.desk' }, data: { brightness: 10 } }))), []);
     assert.deepEqual(messages(check(button({ action: 'fire-dom-event', browser_mod: { service: 'browser_mod.popup', data: { title: 'Hi' } } }))), []);
 });
+
+test('grid-template-areas: an area that is not one rectangle is an error (the browser drops the whole template)', () => {
+    const view = (areas) => ({ type: 'custom:lcards-layout-view', layout: { 'grid-template-areas': areas }, cards: [] });
+    // 2026-11-10: a classic data screen with an L-shaped "display" put every card in one cell
+    const bad = messages(check(view('"side top top" "side display display" "foot display ."')).filter(i => i.code === 'grid-areas'));
+    assert.equal(bad.length, 1);
+    assert.match(bad[0], /^error layout\.grid-template-areas: area "display" is not a rectangle/);
+    // Rectangles, '.' and short rows (padded with '.') pass
+    assert.deepEqual(check(view('"a a b" "a a b" ". . b"')).filter(i => i.code === 'grid-areas'), []);
+    assert.deepEqual(check(view('"head head" "side"')).filter(i => i.code === 'grid-areas'), []);
+    // A layout card inside, with a split area
+    const card = { type: 'custom:lcards-layout-card', layout: { 'grid-template-areas': '"x y x"' }, cards: [] };
+    assert.match(messages(check(card).filter(i => i.code === 'grid-areas'))[0], /area "x" is not a rectangle/);
+});

@@ -115,6 +115,7 @@ Rendered:
 | `ring` | Ring gauge: a 270 degree value arc around a large value, the name above it (`component: ring`) |
 | `picard-ring` | Picard-era ring: near-full thick ring with flat ends, small label over a large value |
 | `picard-gauge-vertical` | Picard-style vertical gauge (`component: picard`) |
+| `picard-gauge-column` | Picard-era column gauge: number caps at both ends, a thin value bar, short ticks and a small oval thumb |
 
 Rendered:
 

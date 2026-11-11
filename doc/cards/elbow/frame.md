@@ -36,6 +36,7 @@ elbow:
 ::: details More about elbow.frame
 - **Text zones:** a frame has a zone for each side it draws (`top`, `bottom`, `left`, `right`) plus `body` for the open area and `full` for the whole card.
 - **Curve limits:** an outer curve is capped at half the card's width or height, and an inner curve at half the open area's.
+- **Open sides:** where a side is off, the bars beside it end square; a corner's own `outer_curve` rounds that end instead.
 - **Side thickness keys:** `bar_width`, `bar_height` and `thickness` all set one side's thickness; if you set more than one, `bar_width` wins, then `bar_height`.
 :::
 
@@ -44,7 +45,7 @@ elbow:
 | `bar_width` | number / string | `90` | Thickness of the left and right sides: px or a CSS length |
 | `bar_height` | number / string | `bar_width` | Thickness of the top and bottom sides: px or a CSS length |
 | `outer_curve` | number / string | half of `bar_width` | Outer radius of every corner: px or a CSS length |
-| `inner_curve` | number / string | half of `outer_curve` | Inner radius of every corner: px or a CSS length |
+| `inner_curve` | number / string | concentric with `outer_curve` | Inner radius of every corner: px or a CSS length. Unset, a side keeps one width round the corner (`outer_curve` less the side's thickness) whenever the curve is bigger than the side; otherwise half of `outer_curve` |
 | `top` | object | - | The top side, with the side keys below |
 | `bottom` | object | - | The bottom side |
 | `left` | object | - | The left side |
@@ -52,7 +53,7 @@ elbow:
 | `top.enabled` | boolean | `true` | `false` leaves that side open. The same on `bottom`, `left` and `right` |
 | `top.bar_width` | number / string | `bar_height` on top and bottom, `bar_width` on the left and right | Thickness of that side: px or a CSS length. `bar_height` and `thickness` do the same. The same on every side |
 | `corners.top_left` | object | - | One corner; also `top_right`, `bottom_left` and `bottom_right` |
-| `corners.top_left.outer_curve` | number / string | the frame's `outer_curve` | Outer radius of that corner: px or a CSS length |
+| `corners.top_left.outer_curve` | number / string | the frame's `outer_curve`; `0` beside an open side | Outer radius of that corner: px or a CSS length. Set it to round the end of a bar whose side is open |
 | `corners.top_left.inner_curve` | number / string | the frame's `inner_curve` | Inner radius of that corner: px or a CSS length |
 | `segments` | object | - | `style: segmented` only: an inner ring, see [Segmented frame](#segmented-frame) |
 

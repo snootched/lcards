@@ -47,6 +47,23 @@ function _toPxInt(val) {
 }
 
 /**
+ * True when Home Assistant's display formatters or locale changed between two hass
+ * objects. The first hass a card sees carries placeholder formatters that return the
+ * raw state ("18.8"); the locale-aware ones ("18,8 °C") arrive later in a new hass
+ * object without any entity changing (frontend src/state/connection-mixin.ts,
+ * state-display-mixin.ts), so cards must format their text again when they do.
+ * @param {any} newHass
+ * @param {any} oldHass
+ * @returns {boolean}
+ */
+export function hassFormattersChanged(newHass, oldHass) {
+    if (!newHass || !oldHass) return false;
+    return newHass.formatEntityState !== oldHass.formatEntityState
+        || newHass.formatEntityAttributeValue !== oldHass.formatEntityAttributeValue
+        || newHass.locale !== oldHass.locale;
+}
+
+/**
  * Base class for all LCARdS native cards.
  *
  * @extends LitElement
@@ -375,6 +392,11 @@ export class LCARdSNativeCard extends LitElement {
     _shouldUpdateOnHassChange(newHass, oldHass) {
         // First HASS update - always render
         if (!oldHass) {
+            return true;
+        }
+
+        // Home Assistant's formatters or locale changed: text needs formatting again
+        if (hassFormattersChanged(newHass, oldHass)) {
             return true;
         }
 

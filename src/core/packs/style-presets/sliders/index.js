@@ -130,8 +130,9 @@ export const SLIDER_PRESETS = {
         content: "[[[return entity ? entity.attributes.friendly_name : null]]]",
         show: false
       },
+      // The value as Home Assistant formats it for the user's locale (18,8 not 18.8), without its unit
       state: {
-        content: "[[[if (!entity) return null; if (entity.entity_id.split('.')[0] === 'light' && entity.attributes.brightness != null) return Math.round(entity.attributes.brightness / 2.55) + '%'; return entity.state;]]]",
+        content: "[[[if (!entity) return null; if (entity.entity_id.split('.')[0] === 'light' && entity.attributes.brightness != null) return Math.round(entity.attributes.brightness / 2.55) + '%'; const parts = hass && hass.formatEntityStateToParts ? hass.formatEntityStateToParts(entity) : null; const value = parts && parts.find((p) => p.type === 'value'); return value ? value.value : entity.state;]]]",
         show: false
       }
     }
@@ -535,6 +536,75 @@ export const SLIDER_PRESETS = {
           align:    'start',
           border:   { enabled: true },
           offset:   { x: 20 }
+        }
+      }
+    }
+  },
+
+  // =====================================
+  // PICARD COLUMN GAUGE - the Picard-era upright gauge of the reference consoles:
+  // a number cap at each end, a thin value bar on a dark track, short ticks,
+  // plain scale numbers and a small oval thumb. Structure roles for the caps and
+  // track, so a bank of them reads as structure, not as a block of accent.
+  // =====================================
+
+  'picard-gauge-column': {
+    extends: 'slider.gauge-basic',
+    description: 'Picard-era column gauge: number caps at both ends, a thin value bar, short ticks and a small oval thumb',
+    compatibleComponents: ['default'],
+
+    style: {
+      track: {
+        orientation: 'vertical'
+      },
+      border: {
+        top:    { enabled: true, size: 24, color: 'theme:colors.card.topColor' },
+        bottom: { enabled: true, size: 24, color: 'theme:colors.card.topColor' }
+      },
+      gauge: {
+        progress_bar: {
+          height:  8,
+          align:   'start',
+          padding: { left: 6 },
+          radius:  0,
+          background: { color: 'theme:colors.card.topColor', height: 8, radius: 0 }
+        },
+        scale: {
+          tick_marks: {
+            major: { interval: 10, height: 12, width: 2, color: 'theme:colors.ui.secondary' },
+            minor: { interval: 2, height: 6, width: 1, color: 'theme:colors.card.topColor' }
+          },
+          labels: { show_unit: false, font_size: 11, color: 'theme:colors.ui.secondary' }
+        },
+        indicator: {
+          enabled: true,
+          type:    'round',
+          color:   'theme:colors.ui.secondary',
+          size:    { width: 22, height: 9 }
+        }
+      }
+    },
+
+    // The value in the top cap, the entity's name in the bottom one
+    text: {
+      state: {
+        zone: 'top',
+        position: 'center-right',
+        show: true,
+        font_size: 14,
+        color: {
+          default: 'theme:colors.ui.secondary',
+          unavailable: 'theme:darken(colors.ui.secondary, 0.3)'
+        }
+      },
+      name: {
+        zone: 'bottom',
+        position: 'center-right',
+        show: true,
+        font_size: 14,
+        color: {
+          default: 'theme:colors.ui.secondary',
+          unavailable: 'theme:darken(colors.ui.secondary, 0.3)'
         }
       }
     }

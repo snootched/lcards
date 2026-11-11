@@ -19,7 +19,7 @@ topics:
       - title: Design guide, Picard
         views: [gallery/picard-console, gallery/picard-display, gallery/picard-split, gallery/picard-portrait]
       - title: Design guide, classic
-        views: [gallery/tng-console, gallery/ds9-bracket, gallery/voyager-roster]
+        views: [gallery/tng-console, gallery/tng-data, gallery/ds9-bracket, gallery/voyager-roster]
   - id: buttons
     title: Buttons and elbows
     groups:
@@ -28,7 +28,7 @@ topics:
       - title: Elbows
         views: [elbows]
       - title: LCARS patterns
-        views: [lcars-patterns-picard, lcars-patterns-readouts, lcars-patterns-classic]
+        views: [lcars-patterns-picard, lcars-patterns-readouts, lcars-patterns-classic, lcars-shapes-check]
       - title: Docs audit fixes
         views: [d2-batch1-fixes, d2-batch4-msd-fixes, d2-batch5-core-fixes, b1-banners-red, b1-banners-blue]
   - id: msd
@@ -93,6 +93,19 @@ topics:
 releases:
   - version: "2026.11.0"
     views:
+      - file: gallery/tng-data
+        title: "Classic data screen"
+        summary: "Classic data screen: a readings table, one cascade, a long range scan"
+        description: "The TNG data screen from the design guide: an upper band with a sweep, a table of labelled readings (temperature, humidity, ambient, lights, doors) beside one small number cascade, a big title and a pill group led by big numbers; segmented divider bars; a sidebar of blocks beside a long range scan with a bearing scale and a table of systems readings. Every number is a labelled reading except the one cascade. Drag POWER past 90 to turn it red. In Home Assistant the view uses the LCARS Default theme; here it shows the default colours."
+        session: "Design review R3"
+        docs: /getting-started/dashboard-gallery#classic-data-screen
+        public: true
+      - file: lcars-shapes-check
+        summary: "LCARS shapes check: open frame ends, even thin corners, the column gauge"
+        description: "The shapes changed in the design review, drawn large. DISPLAY SWEEP: a frame with its right side off ends its bars square, and its thin bars keep one width round the corners. The utility bracket ends square on its open side. CONCENTRIC SWEEP: the thin band keeps an even width with no curve set. The column gauges show the value on top and the entity's name below (the last one a code of its own); drag the helpers. Last, a closed thin frame and an open-top frame whose corner rounds its bar end on purpose."
+        session: "Design review R2"
+        docs: /getting-started/lcars-patterns
+        public: false
       - file: astro-showcase
         heavy: true
         summary: "Astrometrics showcase: the Star Trek galaxy down to Deep Space 9"
@@ -617,8 +630,8 @@ releases:
         public: true
       - file: gallery/picard-console
         title: "Picard console"
-        summary: "Picard console: utility pills in a bracket, a concentric sweep, a nested ship frame"
-        description: "A Titan.DS-style console built from the design guide: small utility pills housed in a bracket frame with red alert at the bottom, a concentric header sweep whose leg matches the code-block column, vertical gauges, a nested frame round a dimmed ship schematic and a column of numbers. Every colour is a theme role, so on this page it shows the default colours."
+        summary: "Picard console: a display sweep round a deck plan, code-block columns, column gauges"
+        description: "A Titan.DS-style deck plan built from the design guide as modules with slots: utility pills in a bracket open on the left, one display sweep whose header bar turns down over a code-block column, a dimmed ship schematic with leader lines, three picard-gauge-column gauges beside flagged readings, and toggle tabs with readout rows along the bottom. Every colour is a theme role, so on this page it shows the default colours."
         session: "S17 gallery"
         docs: /getting-started/dashboard-gallery#picard-display-with-side-columns
         public: true
@@ -679,13 +692,13 @@ releases:
         public: true
       - file: lcars-patterns-picard
         summary: "LCARS patterns, Picard: columns, tabs, sweeps, frames and bars"
-        description: "The Picard-era patterns from the LCARS design guide, one per frame, every colour from a theme role: a code-block column, a toggle tab strip, facing sweeps with a title, a nested frame, utility pills in a bracket frame, a concentric sweep, controls inside a wide arm, a header bar with a title, slanted bars, flagged blocks and dot rows. The toggle tabs and the third code block follow LIGHTS and DOORS (tap them); RED ALERT raises one."
+        description: "The Picard-era patterns from the LCARS design guide, one per frame, every colour from a theme role: a code-block column, a toggle tab strip, facing sweeps with a title, a display sweep (open on the right, square bar ends), utility pills in a bracket frame, a concentric sweep, controls inside a wide arm, a header bar with a title, slanted bars, flagged blocks and dot rows. The toggle tabs and the third code block follow LIGHTS and DOORS (tap them); RED ALERT raises one."
         session: "D1c"
         docs: /getting-started/lcars-patterns
         public: true
       - file: lcars-patterns-readouts
         summary: "LCARS patterns, readouts: status rows, gauges, lists and scopes"
-        description: "The design guide's patterns for readings, one per frame: status rows, readout rows and a gauge bank on the power, shields, value, temperature and humidity helpers (drag them), a selector strip on the colour select, a tile wall, a list, fleet tiles, brackets and scopes, and a number cascade to fill a spare area."
+        description: "The design guide's patterns for readings, one per frame: status rows, readout rows and a gauge bank (picard-gauge-column) on the power, shields, value, temperature and humidity helpers (drag them), a selector strip on the colour select, a tile wall, a list, fleet tiles, brackets and scopes, a number cascade to fill a spare area, and a readings table of labelled values (power turns red past 90)."
         session: "D1c"
         docs: /getting-started/lcars-patterns
         public: true

@@ -40,7 +40,7 @@ const frameCornersSchema = (defaults) => ({
         description: `The ${corner.replace('_', '-')} corner.`,
         properties: {
             outer_curve: frameLength(`Outer radius (default: ${defaults}).`),
-            inner_curve: frameLength('Inner radius (default: half the outer curve).')
+            inner_curve: frameLength('Inner radius (default: the outer curve less the bar, so the bend keeps one width, when the curve is bigger than the bar; else half the outer curve).')
         }
     }]))
 });
@@ -48,7 +48,7 @@ const frameRingProperties = (defaultBarWidth) => ({
     bar_width: frameLength(`Thickness of the left and right sides (default: ${defaultBarWidth}).`),
     bar_height: frameLength('Thickness of the top and bottom sides (default: bar_width).'),
     outer_curve: frameLength('Outer radius of every corner (default: half of bar_width).'),
-    inner_curve: frameLength('Inner radius of every corner (default: half of outer_curve).'),
+    inner_curve: frameLength('Inner radius of every corner (default: outer_curve less the side thickness, so each bend keeps one width, when the curve is bigger than the side; else half of outer_curve).'),
     top: frameSideSchema('top', 'bar_height'),
     bottom: frameSideSchema('bottom', 'bar_height'),
     left: frameSideSchema('left', 'bar_width'),
@@ -442,7 +442,7 @@ export function getElbowSchema(options = {}) {
                                         examples: ['auto', 'arm_max', 'arm_height', 'arm_min', 'clamp(10px, 2vw, 30px)']
                                     }
                                 ],
-                                $comment: 'LCARS formula default: inner_curve = outer_curve / 2. Keywords use the same bar dimension formulas as outer_curve, independently of the outer value.',
+                                $comment: 'Unset: outer_curve less the bar when the curve is bigger than the bar (an even bend), else outer_curve / 2; auto: outer_curve / 2. Keywords use the same bar dimension formulas as outer_curve, independently of the outer value.',
                                 'x-ui-hints': {
                                     label: 'Inner Curve',
                                     helper: 'Inner arc radius: auto = outer_curve / 2 (LCARS formula)',
@@ -587,7 +587,7 @@ export function getElbowSchema(options = {}) {
                                             { type: 'number', minimum: 0, maximum: 500 },
                                             { type: 'string', description: 'CSS length expression (e.g. \'clamp(15px, 2vw, 30px)\')' }
                                         ],
-                                        description: 'Inner corner radius (pixels or CSS length, defaults to outer_curve / 2)',
+                                        description: 'Inner corner radius (pixels or CSS length; unset: outer_curve less the bar when the curve is bigger than the bar, so the bend keeps one width, else outer_curve / 2)',
                                         examples: [22.5, 30, 37.5, 'clamp(15px, 2vw, 30px)']
                                     },
                                     outer_curve_clamp: {
@@ -665,7 +665,7 @@ export function getElbowSchema(options = {}) {
                                             { type: 'number', minimum: 0, maximum: 500 },
                                             { type: 'string', description: 'CSS length expression for inner corner radius' }
                                         ],
-                                        description: 'Inner corner radius (pixels or CSS length, defaults to outer_curve / 2)',
+                                        description: 'Inner corner radius (pixels or CSS length; unset: outer_curve less the bar when the curve is bigger than the bar, so the bend keeps one width, else outer_curve / 2)',
                                         examples: [9, 15, 20]
                                     },
                                     outer_curve_clamp: {

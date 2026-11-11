@@ -1,0 +1,265 @@
+# LCARS shapes check (design review round 2, 2026-11-11): the shapes changed in this round,
+# drawn large to check by eye. Display sweep (open frame side: square bar ends, thin bars
+# one width round the corners), the utility bracket, the concentric sweep's thin band
+# (even width, no hand-set curve), picard-gauge-column (value on top, entity name below),
+# a closed thin frame, and an open frame whose corner rounds its bar end on purpose.
+title: LCARS shapes check
+path: lcars-shapes-check
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-layout-card
+        grid_options:
+          columns: full
+        layout:
+          height: 1300px
+          grid-gap: 24px
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 180px
+          grid-template-rows: 300px 200px 200px minmax(0, 1fr)
+          grid-template-areas: |
+            "sweep sweep bracket"
+            "conc conc bracket"
+            "simple conc2 bracket"
+            "gauges frames bracket"
+        cards:
+          - type: custom:lcards-elbow
+            view_layout:
+              grid-area: sweep
+            elbow:
+              type: frame
+              segment:
+                color: theme:colors.ui.secondary
+              frame:
+                bar_width: 14
+                bar_height: 14
+                outer_curve: 60
+                right:
+                  enabled: false
+            text:
+              title:
+                content: DISPLAY SWEEP · 14 / 14
+                zone: body
+                position: center
+                color: theme:colors.ui.tertiary
+          - type: custom:lcards-elbow
+            view_layout:
+              grid-area: bracket
+            elbow:
+              type: frame
+              segment:
+                color: theme:colors.ui.secondary
+              frame:
+                bar_width: 14
+                bar_height: 36
+                outer_curve: 36
+                left:
+                  enabled: false
+          - type: custom:lcards-layout-card
+            view_layout:
+              grid-area: bracket
+            layout:
+              padding: 46px 22px 46px 4px
+              grid-gap: 8px
+              grid-template-columns: minmax(0, 1fr)
+              grid-template-rows: 26px 26px 26px minmax(0, 1fr) 26px
+            cards:
+              - type: custom:lcards-button
+                preset: lozenge
+                min_height: 26
+                text:
+                  label:
+                    content: ZOOM
+                    show: true
+                    position: center
+                    color: theme:colors.ui.secondary
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.card.topColor
+              - type: custom:lcards-button
+                preset: lozenge
+                min_height: 26
+                text:
+                  label:
+                    content: SETTINGS
+                    show: true
+                    position: center
+                    color: theme:colors.ui.secondary
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.card.topColor
+              - type: custom:lcards-button
+                preset: lozenge
+                min_height: 26
+                text:
+                  label:
+                    content: DIMMER
+                    show: true
+                    position: center
+                    color: theme:colors.ui.secondary
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.card.topColor
+              - type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+              - type: custom:lcards-button
+                preset: lozenge
+                min_height: 26
+                text:
+                  label:
+                    content: RED ALERT
+                    show: true
+                    position: center
+                style:
+                  card:
+                    color:
+                      background:
+                        default: var(--lcars-alert-color, var(--lcards-orange-dark))
+          - type: custom:lcards-elbow
+            view_layout:
+              grid-area: conc
+            elbow:
+              type: header-left
+              style: segmented
+              segments:
+                gap: 6
+                outer_segment:
+                  bar_width: 140
+                  bar_height: 24
+                  color: theme:colors.ui.secondary
+                inner_segment:
+                  bar_width: 6
+                  bar_height: 6
+                  color: theme:colors.ui.primary
+            text:
+              title:
+                content: CONCENTRIC SWEEP · BAND 6 / 6
+                position: bottom-right
+                color: theme:colors.ui.tertiary
+          - type: custom:lcards-elbow
+            view_layout:
+              grid-area: simple
+            elbow:
+              type: header-left
+              segment:
+                bar_width: 12
+                bar_height: 12
+                outer_curve: 60
+                color: theme:colors.ui.secondary
+            text:
+              title:
+                content: SIMPLE ELBOW · 12 / 12
+                position: bottom-right
+                color: theme:colors.ui.tertiary
+          - type: custom:lcards-elbow
+            view_layout:
+              grid-area: conc2
+            elbow:
+              type: header-left
+              style: segmented
+              segments:
+                gap: 6
+                outer_segment:
+                  bar_width: 16
+                  bar_height: 16
+                  outer_curve: 80
+                  color: theme:colors.ui.secondary
+                inner_segment:
+                  bar_width: 90
+                  bar_height: 30
+                  color: theme:colors.ui.primary
+            text:
+              title:
+                content: THIN OUTER · 16 / 16
+                position: bottom-right
+                color: theme:colors.ui.tertiary
+          - type: custom:lcards-layout-card
+            view_layout:
+              grid-area: gauges
+            layout:
+              grid-gap: 6px
+              grid-template-columns: repeat(4, 64px)
+              grid-template-rows: minmax(0, 1fr)
+            cards:
+              - type: custom:lcards-slider
+                preset: picard-gauge-column
+                entity: input_number.lcards_test_power
+              - type: custom:lcards-slider
+                preset: picard-gauge-column
+                entity: input_number.lcards_test_shields
+              - type: custom:lcards-slider
+                preset: picard-gauge-column
+                entity: input_number.lcards_test_humidity
+              - type: custom:lcards-slider
+                preset: picard-gauge-column
+                entity: input_number.lcards_test_value
+                text:
+                  name:
+                    content: 65-87
+          - type: custom:lcards-layout-card
+            view_layout:
+              grid-area: frames
+            layout:
+              grid-gap: 24px
+              grid-template-columns: minmax(0, 1fr)
+              grid-template-rows: repeat(3, minmax(0, 1fr))
+            cards:
+              - type: custom:lcards-elbow
+                elbow:
+                  type: frame
+                  segment:
+                    color: theme:colors.ui.primary
+                  frame:
+                    bar_width: 10
+                    outer_curve: 50
+                text:
+                  title:
+                    content: CLOSED THIN FRAME · 10 / 10
+                    zone: body
+                    position: center
+                    color: theme:colors.ui.tertiary
+              - type: custom:lcards-elbow
+                elbow:
+                  type: frame
+                  segment:
+                    color: theme:colors.card.topColor
+                  frame:
+                    bar_width: 24
+                    bar_height: 24
+                    outer_curve: 40
+                    top:
+                      enabled: false
+                text:
+                  title:
+                    content: OPEN TOP · 24 / 24 · SQUARE ENDS
+                    zone: body
+                    position: center
+                    color: theme:colors.ui.tertiary
+              - type: custom:lcards-elbow
+                elbow:
+                  type: frame
+                  segment:
+                    color: theme:colors.card.topColor
+                  frame:
+                    bar_width: 24
+                    outer_curve: 40
+                    top:
+                      enabled: false
+                    corners:
+                      top_left:
+                        outer_curve: 12
+                text:
+                  title:
+                    content: OPEN TOP · LEFT END ROUNDED ON PURPOSE
+                    zone: body
+                    position: center
+                    color: theme:colors.ui.tertiary

@@ -1,0 +1,19 @@
+# Gallery video for tng-data.yaml: the readings follow the helpers (power past 90 turns red), the sidebar blocks and pills switch.
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/tng-data.yaml --video
+steps:
+- {wait: 800}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_doors}]
+- {wait: 1200}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 96}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_temperature, value: 27}]
+- {wait: 1500}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_toggle}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_lights}]
+- {wait: 1500}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 82}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_temperature, value: 21.5}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_doors}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_toggle}]
+- {wait: 800}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_lights}]
+tail: 1500
