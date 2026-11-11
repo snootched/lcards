@@ -70,7 +70,7 @@ The docs page is the full release notes. The GitHub release body (also what Home
 - the fixes that link a GitHub issue, under "Reported issues fixed";
 - a link to the full notes.
 
-Aim for 400 to 800 words; `release:check` fails above 900 (`SLIM_WORD_LIMIT` in `scripts/release-lib.mjs`) and when a highlight names no `###` feature. A video becomes its GIF twin on GitHub (`<name>.gif` beside it, `release:shots --gif`), else a link. `npm run release:notes -- <version>` prints the slim body; add `--full` for the whole page. Pages without `highlights:` (the older ones) export whole.
+Aim for 400 to 800 words; `release:check` fails above 900 (`SLIM_WORD_LIMIT` in `scripts/release-lib.mjs`) and when a highlight names no `###` feature. A video becomes its GIF twin on GitHub (`<name>.gif` beside it, `release:shots --gif`); without one, a video with a `poster` (a `.webp` still beside it) becomes that still linked to the clip, which suits long or colourful clips whose GIF would be heavy; else a link. `npm run release:notes -- <version>` prints the slim body; add `--full` for the whole page. Pages without `highlights:` (the older ones) export whole.
 
 ## Pictures
 

@@ -5,6 +5,7 @@
  * Steps (in order): { click: selector } | { hover: selector } | { wait: ms }
  *   | { eval: 'js' } | { service: [domain, service, data] }
  *   | { type: [selector, text] } | { drag: [selector, from, to, ms] }
+ *   | { tap: [selector, count, gap ms] }  (real mouse taps at its centre)
  *   | { goto: '/path' }  (dashboard-shots only cares that the page settles again)
  *   | { press: 'Control+Space' }  a key or chord on the focused element
  *   | { state: [entity_id, state, attributes?] }  a fake state in HA's state machine
@@ -49,6 +50,26 @@ export async function runSteps(page, client, steps = [], marks = null) {
             }
             await page.waitForTimeout(600);
             await page.mouse.up();
+        }
+        else if (step.tap) {
+            // Real mouse taps at an element's centre: [selector, count = 1, gap ms = 150]
+            // A touch ring shows each tap (headless recordings draw no cursor).
+            const [selector, count = 1, gap = 150] = step.tap;
+            const box = await page.locator(selector).first().boundingBox();
+            const x = box.x + box.width / 2;
+            const y = box.y + box.height / 2;
+            for (let i = 0; i < count; i++) {
+                await page.evaluate(([x, y]) => {
+                    const ring = document.createElement('div');
+                    ring.style.cssText = `position:fixed;left:${x - 22}px;top:${y - 22}px;width:44px;height:44px;border-radius:50%;`
+                        + 'border:3px solid rgba(255,255,255,0.9);background:rgba(255,255,255,0.25);pointer-events:none;z-index:2147483647';
+                    document.body.appendChild(ring);
+                    ring.animate([{ transform: 'scale(0.6)', opacity: 1 }, { transform: 'scale(1.4)', opacity: 0 }], { duration: 450, easing: 'ease-out' })
+                        .finished.then(() => ring.remove());
+                }, [x, y]);
+                await page.mouse.click(x, y, { delay: 60 });
+                if (i < count - 1) await page.waitForTimeout(gap);
+            }
         }
         else if (step.goto) { await page.goto(step.goto); await page.waitForTimeout(step.settle ?? 3000); }
         else throw new Error(`unknown step ${JSON.stringify(step)}`);

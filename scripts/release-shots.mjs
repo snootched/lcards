@@ -28,6 +28,7 @@
  *       - service: [input_number, set_value, { entity_id: input_number.lcards_test_value, value: 40 }]
  *       - drag: [lcards-slider, 0.2, 0.8, 1500]   # press at 20% of its width, move to 80% over 1.5 s, hold, release
  *       - press: Control+Space    # a key or chord on the focused element
+ *       - tap: [button, 4, 150]   # real mouse taps at its centre: count, gap ms
  *     selector: lcards-chart-studio-dialog ha-dialog     # crop to this element (default: whole viewport)
  *     padding: 16                   # px around the crop
  *     viewport: [1400, 900]
@@ -146,6 +147,8 @@ const client = await HAClient.connect(token);
 await ensureHelpers(client);
 const browser = await chromium.launch({
     headless: !headed,
+    // The real GPU for WebGL (else SwiftShader on the CPU, and real-time videos stutter).
+    args: ['--ignore-gpu-blocklist', '--enable-gpu', '--use-angle=vulkan', '--enable-features=Vulkan'],
     executablePath: process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined),
 });
 

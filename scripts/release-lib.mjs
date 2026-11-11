@@ -322,12 +322,16 @@ export function toGithubMarkdown(page, opts = {}) {
     let md = out.join('\n');
 
     md = mapProse(md, (text) => text
-        // <video src="/releases/v/x.webm"> -> GIF twin if there is one, else a link.
+        // <video src="/releases/v/x.webm"> -> GIF twin if there is one, else its poster
+        // linked to the clip (light for a long clip), else a link.
         .replace(/<video\b[^>]*\bsrc="([^"]+)"[^>]*>(?:\s*<\/video>)?/g, (tag, src) => {
             const gif = src.replace(/\.(webm|mp4)$/, '.gif');
             const alt = /\btitle="([^"]*)"/.exec(tag)?.[1] ?? '';
+            const clip = src.startsWith('/') ? absoluteSiteUrl(src) : src;
             if (src.startsWith('/') && gif !== src && fileExists(gif)) return `<img src="${absoluteSiteUrl(gif)}" alt="${alt}" />`;
-            return `[Watch the clip](${src.startsWith('/') ? absoluteSiteUrl(src) : src})`;
+            const poster = /\bposter="(\/[^"]+)"/.exec(tag)?.[1];
+            if (poster && fileExists(poster)) return `<a href="${clip}"><img src="${absoluteSiteUrl(poster)}" alt="${alt}" /></a>\n\n[Watch the clip](${clip})`;
+            return `[Watch the clip](${clip})`;
         })
         // Site-relative links and images -> absolute.
         .replace(/(\]\(|\b(?:src|href)=")(\/(?!\/)[^)"\s]*)/g, (_, pre, path) => pre + absoluteSiteUrl(path))

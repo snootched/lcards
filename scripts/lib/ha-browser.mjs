@@ -11,6 +11,8 @@ import { HA_URL } from '../../tests/ha/ha-client.mjs';
 export function launchChromium({ headless = true } = {}) {
     return chromium.launch({
         headless,
+        // The real GPU for WebGL (else SwiftShader on the CPU, and real-time videos stutter).
+        args: ['--ignore-gpu-blocklist', '--enable-gpu', '--use-angle=vulkan', '--enable-features=Vulkan'],
         executablePath: process.env.CHROMIUM_PATH ?? (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined),
     });
 }

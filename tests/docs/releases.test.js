@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
     checkReleases, listReleases, toGithubMarkdown, importGithubBody, compareVersions, sortReleases,
-    absoluteSiteUrl, hardBreaks, RELEASES_DIR, slimReleaseBody, headingSlug, readingWords, SLIM_WORD_LIMIT,
+    absoluteSiteUrl, hardBreaks, RELEASES_DIR, headingSlug, readingWords, SLIM_WORD_LIMIT,
 } from '../../scripts/release-lib.mjs';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
@@ -118,6 +118,16 @@ test('GitHub export: no frontmatter or title, absolute links, alerts, short refs
     assert.match(md, /```yaml\ntype: custom:lcards-chart/);
     assert.match(md, /<img src="https:\/\/lcards\.unimatrix01\.ca\/releases\/2026\.11\.0\/anim\.gif"/);
     assert.match(md, /\[Watch the clip\]\(https:\/\/lcards\.unimatrix01\.ca\/releases\/2026\.11\.0\/nogif\.webm\)/);
+});
+
+test('a clip without a GIF twin shows its poster, linked to the clip', () => {
+    const body = '<video class="release-shot" src="/releases/2026.11.0/long.webm" poster="/releases/2026.11.0/long.webp" title="A long clip" autoplay loop muted playsinline></video>';
+    const md = toGithubMarkdown(page({ body }), { fileExists: p => p === '/releases/2026.11.0/long.webp' });
+    assert.match(md, /<a href="https:\/\/lcards\.unimatrix01\.ca\/releases\/2026\.11\.0\/long\.webm"><img src="https:\/\/lcards\.unimatrix01\.ca\/releases\/2026\.11\.0\/long\.webp" alt="A long clip" \/><\/a>/);
+    assert.match(md, /\[Watch the clip\]\(https:\/\/lcards\.unimatrix01\.ca\/releases\/2026\.11\.0\/long\.webm\)/);
+    // A poster that isn't there falls back to the plain link.
+    const bare = toGithubMarkdown(page({ body }), { fileExists: () => false });
+    assert.doesNotMatch(bare, /<img/);
     assert.match(md, /Read these notes on the docs site: https:\/\/lcards\.unimatrix01\.ca\/releases\/2026\.11\.0\.html\n$/);
     assert.doesNotMatch(md.replace(/```[\s\S]*?```/g, ''), /\]\(\/|="\/(?!\/)|^:::/m, 'no site-relative links or containers left');
 });
