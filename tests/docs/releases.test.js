@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
     checkReleases, listReleases, toGithubMarkdown, importGithubBody, compareVersions, sortReleases,
-    absoluteSiteUrl, hardBreaks, RELEASES_DIR,
+    absoluteSiteUrl, hardBreaks, RELEASES_DIR, slimReleaseBody, headingSlug, readingWords, SLIM_WORD_LIMIT,
 } from '../../scripts/release-lib.mjs';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
@@ -127,6 +127,98 @@ test('GitHub export of an in-testing page leads with the dev build note', () => 
     assert.match(md, /^> \[!NOTE\]\n> Dev build of the upcoming LCARdS 2026\.11\.0\./);
 });
 
+/** A two-tier page: intro, before you update, three features, improvements and fixes. */
+function twoTier({ highlights = ['Big card', 'Charts, rebuilt'], extraWords = 0 } = {}) {
+    const body = [
+        'A short hook. ' + 'word '.repeat(extraWords),
+        '',
+        '- **Big card**: the headline',
+        '',
+        '## Before you update',
+        '',
+        '- **Home Assistant 2026.11 or newer is required.**',
+        '',
+        '::: details Smaller changes',
+        '- A minor behaviour change.',
+        ':::',
+        '',
+        '## New features',
+        '',
+        'Try them in the [Live Demo](/getting-started/live-demo).',
+        '',
+        '### Big card',
+        '',
+        'The lead sentence of the big card.',
+        '',
+        '<img class="release-shot" alt="Big card" src="/releases/2026.11.0/big.webp" />',
+        '',
+        '::: details More on the big card',
+        '- A small detail nobody needs on GitHub.',
+        '::: tip Nested',
+        'Still inside the details.',
+        ':::',
+        ':::',
+        '',
+        '### Charts, rebuilt',
+        '',
+        'Charts lead.',
+        '',
+        '### Entrance animations: `on_show`',
+        '',
+        'Entrance lead that stays on the docs page.',
+        '',
+        '## Improvements & Fixes',
+        '',
+        '::: details ...a lot of them',
+        '- **Button:** colour animations now play ([#401](https://github.com/snootched/lcards/issues/401)). Other button fix without an issue.',
+        '- **Slider:** a fix without an issue.',
+        ':::',
+    ].join('\n');
+    return ['---', 'version: "2026.11.0"', 'status: released', 'date: 2026-11-20', 'summary: "Things."', 'breaking: true',
+        `highlights: ${JSON.stringify(highlights)}`, '---', '', '# LCARdS 2026.11.0', '', body, ''].join('\n');
+}
+
+test('slim GitHub body: intro, before you update, highlights without details, other features as links, issue fixes', () => {
+    const md = toGithubMarkdown(twoTier(), { fileExists: () => false });
+    assert.match(md, /^A short hook\./);
+    assert.match(md, /## Before you update\n\n- \*\*Home Assistant 2026\.11 or newer is required\.\*\*/);
+    assert.match(md, /required\.\*\*\n- \*\*More:\*\* smaller changes .*\(https:\/\/lcards\.unimatrix01\.ca\/releases\/2026\.11\.0\.html#before-you-update\)/);
+    assert.doesNotMatch(md, /A minor behaviour change/);
+    assert.match(md, /### Big card\n\nThe lead sentence of the big card\.\n\n<img [^>]*big\.webp/);
+    assert.match(md, /### Charts, rebuilt\n\nCharts lead\./);
+    assert.doesNotMatch(md, /small detail|Still inside|Entrance lead|a fix without an issue|Other button fix/);
+    assert.match(md, /### Also new\n\n- \[Entrance animations: `on_show`\]\(https:\/\/lcards\.unimatrix01\.ca\/releases\/2026\.11\.0\.html#entrance-animations-on-show\)/);
+    assert.match(md, /## Reported issues fixed\n\n- \*\*Button:\*\* colour animations now play \(#401\)\./);
+    assert.match(md, /\*\*Full release notes\*\*, with every improvement and fix and more pictures: https:\/\/lcards\.unimatrix01\.ca\/releases\/2026\.11\.0\.html\n$/);
+    assert.doesNotMatch(md, /<details>/, 'no details blocks reach the slim body');
+});
+
+test('--full and pages without highlights export the whole page', () => {
+    const full = toGithubMarkdown(twoTier(), { full: true, fileExists: () => false });
+    assert.match(full, /small detail nobody needs/);
+    assert.match(full, /Entrance lead/);
+    assert.match(full, /Read these notes on the docs site/);
+});
+
+test('heading slugs match VitePress anchors', () => {
+    assert.equal(headingSlug('Entrance animations: `on_show`'), 'entrance-animations-on-show');
+    assert.equal(headingSlug('Documentation:TNG'), 'documentation-tng');
+    assert.equal(headingSlug('Help from AI, and help built in'), 'help-from-ai-and-help-built-in');
+    assert.equal(headingSlug('Borg assimilation, rebuilt'), 'borg-assimilation-rebuilt');
+    assert.equal(headingSlug('2026 notes'), '_2026-notes');
+});
+
+test('checks: highlights must name feature headings, and the slim body stays in its word budget', () => {
+    const { rel, pub } = fixture({ '2026.11.0': twoTier({ highlights: ['Big card', 'No such feature'] }) }, ['releases/2026.11.0/big.webp']);
+    const errors = checkReleases({ dir: rel, publicDir: pub });
+    assert.ok(errors.some(e => /highlight "No such feature"/.test(e)), errors.join('\n'));
+    const long = fixture({ '2026.11.0': twoTier({ extraWords: SLIM_WORD_LIMIT + 10 }) }, ['releases/2026.11.0/big.webp']);
+    assert.ok(checkReleases({ dir: long.rel, publicDir: long.pub }).some(e => /words \(limit/.test(e)));
+    const ok = fixture({ '2026.11.0': twoTier() }, ['releases/2026.11.0/big.webp']);
+    assert.deepEqual(checkReleases({ dir: ok.rel, publicDir: ok.pub }), []);
+    assert.ok(readingWords('Two <img src="x" /> [words](https://a.b/c)') === 2);
+});
+
 test('absoluteSiteUrl keeps assets and treats version-like page names as pages', () => {
     assert.equal(absoluteSiteUrl('/releases/2026.09.0'), 'https://lcards.unimatrix01.ca/releases/2026.09.0.html');
     assert.equal(absoluteSiteUrl('/releases/2026.09.0/a.webp'), 'https://lcards.unimatrix01.ca/releases/2026.09.0/a.webp');
@@ -189,6 +281,20 @@ test('the built releases index lists every release', { skip: !existsSync(join(DI
     for (const r of listReleases()) {
         assert.ok(html.includes(`${r.link}.html`), `${r.version} missing from /releases/`);
         assert.ok(existsSync(join(DIST, `releases/${r.tag}.html`)), `${r.tag}.html not built`);
+    }
+});
+
+test('feature anchors of the slim body exist on the built pages', { skip: !existsSync(join(DIST, 'releases/index.html')) && 'docs site not built' }, () => {
+    for (const r of listReleases()) {
+        const html = join(DIST, 'releases', `${r.tag}.html`);
+        if (!existsSync(html)) continue;
+        const built = readFileSync(html, 'utf8');
+        const text = readFileSync(join(RELEASES_DIR, r.file), 'utf8');
+        if (!/^highlights:/m.test(text)) continue;
+        for (const m of text.matchAll(/^###\s+(.+)$/gm)) {
+            const id = headingSlug(m[1].trim());
+            assert.ok(built.includes(`id="${id}"`), `${r.file}: no #${id} on the built page for "${m[1]}"`);
+        }
     }
 });
 

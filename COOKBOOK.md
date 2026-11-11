@@ -39,6 +39,7 @@ doc/releases/<version>.md  ──►  docs site /releases/        (Docs workflow
 - **`status: released` + `date:`** when it ships. The Release workflow refuses a stable release without that, before it creates the tag.
 - **`notes_through: <sha>`** in the frontmatter: the last commit the notes cover. `npm run release:commits` lists everything after it, so each update only looks at what's new.
 - **Pictures** in `doc/public/releases/<version>/`, captured from the dev HA by `npm run release:shots` from `doc/releases/shots/<version>.yaml`, or dropped in by hand.
+- **Two tiers:** the docs page is the full notes; the GitHub body (also Home Assistant's update dialog and HACS) is a slim export of it: intro, Before you update, the features named in the page's `highlights:` (without their `::: details` blocks), links to the rest and the reported-issue fixes. `npm run release:notes -- <version>` prints it, `--full` the whole page.
 - **Writing rules:** `.github/instructions/releases.instructions.md`.
 
 ### Who does what
@@ -61,7 +62,7 @@ doc/releases/<version>.md  ──►  docs site /releases/        (Docs workflow
    - adds shots and captures them (needs the dev HA, `.ha-token` and a fresh build);
    - sets `notes_through`;
    - runs the checks and reports what to hand-tune, with a commit message.
-3. **Review:** read the page (`npm run docs:serve`, then `/releases/`) and every new picture. Optionally preview the GitHub body: `npm run release:notes -- 2026.11.0-dev.1`.
+3. **Review:** read the page (`npm run docs:serve`, then `/releases/`) and every new picture. Preview the slim GitHub body: `npm run release:notes -- 2026.11.0-dev.1` (add `--full` for the whole page).
 4. **Check:** `npm run build` and `npm test`.
 5. **Commit and push `dev`:** one commit with `package.json`, `custom_components/lcards/const.py` (and `manifest.json` if it changed), the release page, and its pictures and shot list. The built bundle (`lcards.js`, `chunks/`) is gitignored and never committed.
 6. **Wait for the Docs workflow** (Actions, then Docs) to finish. The GitHub body links pictures at `lcards.unimatrix01.ca/releases/<version>/`; a `dev` deploy publishes those picture folders at the site root too (`scripts/docs-deploy.mjs`), so they must be live first.
@@ -110,7 +111,7 @@ A dev build with no page at all still publishes, with GitHub's generated notes o
 |---|---|
 | `npm run release:commits` | Commits the notes don't cover yet, with messages and areas (`-- --brief` for subjects only). |
 | `npm run release:check` | Every page: frontmatter, images exist and are used, nothing that can't export. Also in `npm test`. |
-| `npm run release:notes -- <version>` | Prints the GitHub body exactly as the workflow makes it. |
+| `npm run release:notes -- <version>` | Prints the GitHub body exactly as the workflow makes it (the slim body for a page with `highlights:`; `--full` for the whole page). |
 | `npm run release:shots -- <version> [name ...] [--gif]` | Captures pictures from the dev HA per the shot list. `--gif` adds GitHub GIFs for videos. Other shot lists: `--list <file> --out <dir>` (the card overview pictures: `doc/cards/shots/cards.yaml` into `doc/public/img/cards`). |
 | `node scripts/release-notes.mjs import` | One-off backfill from GitHub (done 2026-10-12). Don't re-run with `--force`: it overwrites hand edits. |
 

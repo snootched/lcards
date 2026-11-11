@@ -113,14 +113,170 @@ const ASSET_EXT = /\.(html|webp|png|jpe?g|gif|svg|webm|mp4|json|xml|txt|zip|pdf)
 
 const CONTAINER_ALERT = { tip: 'TIP', info: 'NOTE', note: 'NOTE', warning: 'WARNING', danger: 'CAUTION', important: 'IMPORTANT' };
 
+// ── Slim body (two tiers) ───────────────────────────────────────────────────
+
+/** Heading anchor as VitePress makes it (@mdit-vue/shared slugify on the heading's text). */
+export function headingSlug(heading) {
+    const text = String(heading)
+        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')   // links keep their text
+        .replace(/[`*]/g, '')                       // code and emphasis marks are not text
+        .normalize('NFKD').replace(/[̀-ͯ]/g, '');
+    const slug = text
+        .replace(/[\s~`!@#$%^&*()\-_+=[\]{}|\\;:"'“”‘’<>,.?/]+/g, '-')
+        .replace(/-{2,}/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .replace(/^(\d)/, '_$1')
+        .toLowerCase();
+    return slug;
+}
+
 /**
- * Turn a release page into the GitHub release body.
+ * Split a body into `## ` sections (fence-aware). The first entry is everything before
+ * the first `## ` heading (title and intro) with heading null.
+ * @returns {{ heading: string|null, lines: string[] }[]}
+ */
+function splitSections(lines, level) {
+    const marker = new RegExp(`^${'#'.repeat(level)}\\s+(.*)$`);
+    const sections = [{ heading: null, lines: [] }];
+    let fence = null;
+    for (const line of lines) {
+        const f = FENCE.exec(line);
+        if (fence) {
+            if (f && f[2][0] === fence[0] && !f[3].trim()) fence = null;
+        } else if (f) {
+            fence = f[2];
+        } else {
+            const m = marker.exec(line);
+            if (m) {
+                sections.push({ heading: m[1].trim(), lines: [line] });
+                continue;
+            }
+        }
+        sections[sections.length - 1].lines.push(line);
+    }
+    return sections;
+}
+
+/** Lines with every `::: details` block removed (fence-aware), or replaced by `replacement`. */
+function withoutDetails(lines, replacement = null) {
+    const out = [];
+    let fence = null;
+    let depth = 0;
+    for (const line of lines) {
+        const f = FENCE.exec(line);
+        if (fence) {
+            if (f && f[2][0] === fence[0] && !f[3].trim()) fence = null;
+        } else if (f) {
+            fence = f[2];
+        } else if (/^:::\s*details\b/.test(line)) {
+            if (!depth && replacement) {
+                // Join the list above it, so the link is one more item of that list.
+                while (out.length && !out[out.length - 1].trim()) out.pop();
+                out.push(replacement);
+            }
+            depth++;
+            continue;
+        } else if (depth && /^:::\s*\w/.test(line)) {
+            depth++;
+        } else if (depth && /^:::\s*$/.test(line)) {
+            depth--;
+            continue;
+        }
+        if (!depth) out.push(line);
+    }
+    // Collapse the blank runs left where blocks were.
+    return out.filter((l, i) => l.trim() || (i > 0 && out[i - 1].trim()));
+}
+
+/** Sentences of the page's other sections that name a GitHub issue or pull request. */
+function issueFixes(sections) {
+    const found = [];
+    for (const s of sections) {
+        for (const line of s.lines) {
+            if (!/\]\(https:\/\/github\.com\/snootched\/lcards\/(?:issues|pull)\/\d+\)/.test(line)) continue;
+            const item = line.replace(/^\s*[-*]\s+/, '');
+            const area = /^\*\*([^*]+?):?\*\*:?\s*/.exec(item);
+            const rest = area ? item.slice(area[0].length) : item;
+            const sentences = rest.split(/(?<=[.!?])\s+(?=[A-Z`*[])/);
+            for (const sentence of sentences) {
+                if (/github\.com\/snootched\/lcards\/(?:issues|pull)\//.test(sentence)) {
+                    found.push(`- ${area ? `**${area[1].replace(/:$/, '')}:** ` : ''}${sentence.trim()}`);
+                }
+            }
+        }
+    }
+    return found;
+}
+
+/**
+ * The slim GitHub body of a page with `highlights:` (also shown by Home Assistant's
+ * update dialog and HACS): title and intro, "Before you update" (its `::: details`
+ * block of smaller changes becomes a link), the
+ * highlighted `### ` features without their `::: details` blocks, the other features
+ * as one list of links, and the fixes that name a GitHub issue. The docs page keeps
+ * everything; the export appends a link to it.
+ * @param {string} body page body (no frontmatter)
+ * @param {{ highlights: string[], tag: string }} opts
+ * @returns {{ body: string, missing: string[] }} missing: highlight names with no feature heading
+ */
+export function slimReleaseBody(body, { highlights, tag }) {
+    const sections = splitSections(body.split('\n'), 2);
+    const isFeatures = s => /^new features$/i.test(s.heading ?? '');
+    const isBefore = s => /^before you update$/i.test(s.heading ?? '');
+    const features = sections.find(isFeatures);
+    const wanted = new Set(highlights.map(h => String(h).trim()));
+    const out = [...sections[0].lines];
+    const before = sections.find(isBefore);
+    // Its collapsed smaller changes become one link to them.
+    if (before) {
+        out.push(...withoutDetails(before.lines,
+            `- **More:** smaller changes that may affect a dashboard, mostly fixes, are in the [full release notes](${releaseLink(tag)}#before-you-update).`), '');
+    }
+    const missing = [...wanted];
+    if (features) {
+        const subs = splitSections(features.lines.slice(1), 3);
+        out.push(features.lines[0], '', ...withoutDetails(subs[0].lines));
+        const others = [];
+        for (const sub of subs.slice(1)) {
+            if (wanted.has(sub.heading)) {
+                missing.splice(missing.indexOf(sub.heading), 1);
+                out.push(...withoutDetails(sub.lines));
+            } else {
+                others.push(`- [${sub.heading}](${releaseLink(tag)}#${headingSlug(sub.heading)})`);
+            }
+        }
+        if (others.length) out.push('### Also new', '', ...others, '');
+    }
+    const fixes = issueFixes(sections.filter(s => s !== features && s !== before && s.heading));
+    if (fixes.length) out.push('## Reported issues fixed', '', ...fixes, '');
+    return { body: out.join('\n').replace(/\n{3,}/g, '\n\n'), missing };
+}
+
+/** Words a reader reads in exported markdown: no tags, URLs or markup. */
+export function readingWords(md) {
+    const text = md
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\]\([^)]*\)/g, ']')
+        .replace(/https?:\/\/\S+/g, ' ')
+        .replace(/[#>*`[\]|_-]+/g, ' ');
+    return text.split(/\s+/).filter(w => /[A-Za-z0-9]/.test(w)).length;
+}
+
+/** Word budget of the slim body: the target is 400-800, the check fails above this. */
+export const SLIM_WORD_LIMIT = 900;
+
+/**
+ * Turn a release page into the GitHub release body. A page with `highlights:` exports
+ * its slim body (slimReleaseBody) unless opts.full.
  * @param {string} page full page text (frontmatter included)
- * @param {{ tag?: string, fileExists?: (sitePath: string) => boolean }} [opts]
+ * @param {{ tag?: string, full?: boolean, fileExists?: (sitePath: string) => boolean }} [opts]
  */
 export function toGithubMarkdown(page, opts = {}) {
-    const { data, body } = splitFrontmatter(page);
+    const fm = splitFrontmatter(page);
+    const { data } = fm;
     const tag = opts.tag ?? String(data.version);
+    const slim = Array.isArray(data.highlights) && data.highlights.length && !opts.full;
+    const body = slim ? slimReleaseBody(fm.body, { highlights: data.highlights, tag: baseVersion(tag) }).body : fm.body;
     const fileExists = opts.fileExists ?? (p => existsSync(join(PUBLIC_DIR, p)));
     const lines = body.split('\n');
 
@@ -186,7 +342,9 @@ export function toGithubMarkdown(page, opts = {}) {
             `> Dev build of the upcoming LCARdS ${baseVersion(tag)}. These notes grow with each dev build; the final notes ship with the stable release.`,
             '');
     }
-    parts.push(md.trimEnd(), '', '---', '', `Read these notes on the docs site: ${absoluteSiteUrl(releaseLink(baseVersion(tag)))}`, '');
+    const link = absoluteSiteUrl(releaseLink(baseVersion(tag)));
+    parts.push(md.trimEnd(), '', '---', '',
+        slim ? `**Full release notes**, with every improvement and fix and more pictures: ${link}` : `Read these notes on the docs site: ${link}`, '');
     return parts.join('\n');
 }
 
@@ -356,6 +514,18 @@ export function checkReleases({ dir = RELEASES_DIR, publicDir = join(PUBLIC_DIR,
             errors.push(`${where}: notes_through must be a commit sha`);
         }
         if (!/^#\s/m.test(body)) errors.push(`${where}: needs a "# " title`);
+        if (data.highlights !== undefined) {
+            if (!Array.isArray(data.highlights) || !data.highlights.length || data.highlights.some(h => typeof h !== 'string')) {
+                errors.push(`${where}: highlights must be a list of "### " feature headings`);
+            } else {
+                const { missing } = slimReleaseBody(body, { highlights: data.highlights, tag: r.tag });
+                for (const h of missing) errors.push(`${where}: highlight "${h}" is not a "### " heading under "## New features"`);
+                const words = readingWords(toGithubMarkdown(text, { tag: r.tag, fileExists: () => false }));
+                if (words > SLIM_WORD_LIMIT) {
+                    errors.push(`${where}: the GitHub body is ${words} words (limit ${SLIM_WORD_LIMIT}, aim for 400-800): shorten the intro, "Before you update" or the highlights' text outside ::: details`);
+                }
+            }
+        }
         mapProse(body, (t) => {
             const comp = /<([A-Z][A-Za-z]+)[\s/>]/.exec(t);
             if (comp) errors.push(`${where}: <${comp[1]}> components don't export to GitHub; link to the docs page instead`);

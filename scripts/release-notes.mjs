@@ -2,8 +2,10 @@
 /**
  * release-notes.mjs - docs release pages <-> GitHub releases.
  *
- *   node scripts/release-notes.mjs export <version> [--out file]
+ *   node scripts/release-notes.mjs export <version> [--out file] [--full]
  *       GitHub release body from doc/releases/<base version>.md (stdout or --out).
+ *       A page with `highlights:` exports its slim body (see slimReleaseBody);
+ *       --full exports the whole page instead.
  *       Exit 2: no page. Exit 3: a stable version whose page is still status: testing.
  *   node scripts/release-notes.mjs check
  *       Validate every release page (frontmatter, images, no demo components).
@@ -49,7 +51,7 @@ function cmdExport() {
         console.error(`doc/releases/${base}.md is still status: testing; set status: released and date: before a stable release`);
         process.exit(3);
     }
-    const md = toGithubMarkdown(page, { tag: base });
+    const md = toGithubMarkdown(page, { tag: base, full: rest.includes('--full') });
     const out = flag('out');
     if (typeof out === 'string') {
         writeFileSync(out, md);

@@ -25,6 +25,8 @@ date: 2026-11-04          # released pages only
 status: released          # released | testing
 summary: "One line for the release list and the page description."
 breaking: true            # shows the Breaking changes badge
+highlights:               # optional: the ### features the slim GitHub body leads with (5 to 8)
+  - "Astrometrics card"
 notes_through: "3f70b3007746"   # optional: last commit the notes cover
 ---
 
@@ -35,9 +37,10 @@ The `# LCARdS <version>` title is required (the export drops it; GitHub shows th
 
 ## Who it's for
 
-People who use LCARdS on their dashboards, not people who work on its code.
+People who use LCARdS on their dashboards, not people who work on its code. Readers have a short attention span: lead with the main features, keep it short, and leave the detail to collapsed blocks. Release notes are part marketing: say why a feature is worth having, in the maintainer's own voice (see the released pages), not a list of everything that was done.
 
 - Say what a feature does and why it matters before how to set it up.
+- A new feature is one item, however many commits built it ("new model", "new nebula shape" are details of the feature, not entries of their own).
 - Show config only when the user has to type it. Keep it short and valid (YAML blocks are schema-checked like every docs page).
 - No internal names: no file paths, class or function names, batch or session ids, subsystem jargon ("ConfigProcessor", "B3", "the S8 runner"). Say what the user sees: "the data source dialog", "Main Engineering".
 - Link to the docs page for details instead of repeating it: `[Series and time](/cards/chart/series)`. Root-relative links; the export makes them absolute.
@@ -49,13 +52,25 @@ People who use LCARdS on their dashboards, not people who work on its code.
 
 In this order, leaving out any that are empty:
 
-1. **Intro:** one or two sentences, then a bullet list of the headline items.
-2. **`## Before you update`:** every breaking or behaviour change, each saying what changed and what to check or do. Set `breaking: true` when this section exists.
-3. **`## New features`:** one `###` per feature, each with a picture when it has something to see.
-4. **`## Improvements`:** short bullets.
-5. **`## Fixes`:** grouped by area, inside `::: details All fixes` when long.
+1. **Intro:** a short video or picture, one or two sentences, then a bullet list of the headline items.
+2. **`## Before you update`:** the changes a user has to act on, one or two sentences each: what changed and what to do. Smaller behaviour changes (mostly fixes that change what you see) go in one `::: details Smaller changes that may affect a dashboard (mostly fixes)` block at the end of the list. Set `breaking: true` when this section exists.
+3. **`## New features`:** one `###` per feature, the biggest first. Each has a **lead**: one to three sentences, a picture when there is something to see, and a docs link. Everything else (bullets, more pictures) goes in a `::: details More on ...` block under it.
+4. **`## Improvements & Fixes`:** two collapsed blocks, `::: details Improvements` and `::: details Fixes` (fixes grouped by area, one bullet per area).
 
 Allowed markdown: plain markdown, HTML `<img>`/`<video>` for pictures, and `::: tip|info|warning|danger|details` containers (exported as GitHub alerts and `<details>`). No Vue components and no `yaml live` or `yaml lab` blocks: they can't be exported (the check fails on them). Link to the card's docs page, which has the live demo.
+
+## Two tiers: the docs page and the GitHub body
+
+The docs page is the full release notes. The GitHub release body (also what Home Assistant's update dialog and HACS show) is a slim version made from the same page, so the two never drift. A page with `highlights:` in its frontmatter exports:
+
+- the intro;
+- "Before you update", its `::: details` block replaced by a link to the full list;
+- the features named in `highlights:`, each without its `::: details` blocks (so the lead is what GitHub shows);
+- the other features as one "Also new" list of links to the page;
+- the fixes that link a GitHub issue, under "Reported issues fixed";
+- a link to the full notes.
+
+Aim for 400 to 800 words; `release:check` fails above 900 (`SLIM_WORD_LIMIT` in `scripts/release-lib.mjs`) and when a highlight names no `###` feature. A video becomes its GIF twin on GitHub (`<name>.gif` beside it, `release:shots --gif`), else a link. `npm run release:notes -- <version>` prints the slim body; add `--full` for the whole page. Pages without `highlights:` (the older ones) export whole.
 
 ## Pictures
 

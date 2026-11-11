@@ -110,7 +110,7 @@ const CATEGORIES = [
     scripts: {
       'release:commits': { when: 'as needed', desc: 'Commits the release notes do not cover yet (from the in-testing page\'s notes_through, or the last release), with messages and areas. Input for drafting doc/releases/<version>.md.' },
       'release:check': { when: 'as needed', desc: 'Checks every release page: frontmatter, images exist and are used, nothing that cannot export to GitHub. Also runs in npm test.' },
-      'release:notes': { when: 'CI/release', desc: 'Prints the GitHub release body for a version (npm run release:notes -- 2026.11.0). The Release workflow runs it with --out.' },
+      'release:notes': { when: 'CI/release', desc: 'Prints the GitHub release body for a version (npm run release:notes -- 2026.11.0): the slim body for a page with highlights:, --full for the whole page. The Release workflow runs it with --out.' },
       'release:shots': { when: 'as needed', desc: 'Captures release pictures from the dev HA per doc/releases/shots/<version>.yaml (npm run release:shots -- <version> [name ...] [--gif]); other shot lists with --list <file> --out <dir> (card overview: doc/cards/shots/cards.yaml).' },
     },
   },
