@@ -659,13 +659,17 @@ export class LCARdSLayoutView extends LitElement {
         const hostHeight = layout.height ?? 'calc(100dvh - var(--header-height, 56px))';
         this.style.height = hostHeight;
 
+        // A grid taller than its height scrolls (the documented behaviour; it used to be
+        // clipped, so the last rows were out of reach). `height: auto` grows instead.
+        // Sideways stays hidden, as the host clipped it before.
+        const scrolls = layout.height !== 'auto';
         const gridStyle = buildGridStyle(layout, this._columns, this._rows, this._areas, this._gap, {
             // Edit mode reserves room for the toolbar strip (and, in grid mode, the
             // row/column header gutter) so the editor chrome never covers cards.
             editMode: this._editMode ? this._editSubMode : null,
-            overflowY: 'clip',
+            overflowY: 'auto',
             overrideHeight: '100%',  // #grid-root fills the host; host carries the actual height
-        });
+        }) + (scrolls ? '; overflow-y: auto; overflow-x: hidden' : '');
         const hasAreas  = getAreaNames(this._areas).length > 0;
         // The hint is for a blank view only: cards placed by grid-row/grid-column or
         // auto-flow need no named areas, and the hint would sit over them.
@@ -1001,7 +1005,9 @@ export class LCARdSLayoutView extends LitElement {
 
         // Replace each fr track with its allocated px.
         for (const { index, units } of frTracks) {
-            rows[index] = Math.round(frSpace * units / totalFR) + 'px';
+            // Rounded down, so the rows never add up to a pixel more than the grid
+            // (which would show a scrollbar on a view that fits).
+            rows[index] = Math.floor(frSpace * units / totalFR) + 'px';
         }
 
         grid.style.gridTemplateRows = rows.join(' ');

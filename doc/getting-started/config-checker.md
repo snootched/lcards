@@ -22,11 +22,13 @@ description: "Paste LCARdS YAML (a card, a view or a whole dashboard) and see ev
 
 ## Reading the results
 
-**Errors are things LCARdS rejects or ignores; warnings are names it doesn't know.** Each result shows the option's path and line, and links to the docs for that option.
+**Errors are things LCARdS rejects or ignores; warnings are names it doesn't know and other likely mistakes.** Each result shows the option's path and line, and links to the docs for that option.
 
 - **Errors:** invalid values, keys LCARdS doesn't have, an MSD with nothing to draw on. Fix these.
 - **Warnings:** a preset, animation, sound or theme token LCARdS doesn't have, or a misspelt `var(--lcars-*)` or `var(--lcards-*)` colour, almost always a typo; the checker suggests the closest match. A name from a content pack of your own also shows as a warning, and is fine.
 - A warning about an older chart or data grid format means the config still works but can be updated.
+- **Missing animation params:** some animation presets do nothing without certain params, such as `color-shift` without `color_from` and `color_to`; the warning names the ones to add.
+- **Cut-off values:** in YAML a `#` after a space starts a comment, so an unquoted `color: var(--lcars-alert-red, #cc0000)` reads as `var(--lcars-alert-red,`. A value that ends in a comma, or opens a CSS function it never closes, warns: put the whole value in quotes.
 
 ## Pasting into Home Assistant's code editor
 

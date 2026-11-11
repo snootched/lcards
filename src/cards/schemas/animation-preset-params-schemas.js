@@ -12,6 +12,8 @@
  * src/core/packs/animations/presets/{index,stagger-presets,text-presets,
  * timeline-presets}.js — keep in sync when adding/changing preset fields
  * there. Each preset factory carries a one-line pointer comment back here.
+ * `'x-required'` lists the params a preset can't run without (see
+ * missingPresetParams() at the end of this file).
  *
  * @module cards/schemas/animation-preset-params-schemas
  */
@@ -368,6 +370,7 @@ export const bounceParamsSchema = {
 
 export const colorShiftParamsSchema = {
   type: 'object',
+  'x-required': ['color_from', 'color_to'],
   description: 'Params for the "color-shift" preset. NOTE: the default `property` ("color") only visibly works on plain HTML/CSS-rendered targets; LCARdS\'s own cards (button/elbow/slider/MSD) draw their shapes as SVG paths, which don\'t respond to the CSS `color` property at all. Set `property` to `fill` or `stroke` when targeting an SVG shape.',
   properties: {
     ..._CANONICAL_REDECLARED,
@@ -418,6 +421,7 @@ export const setParamsSchema = {
 
 export const motionpathParamsSchema = {
   type: 'object',
+  'x-required': ['path'],
   description: 'Params for the "motionpath" preset: animates an element (or, with `shape` set, a self-created tracer shape) along an SVG path.',
   properties: {
     ..._CANONICAL_REDECLARED,
@@ -447,6 +451,7 @@ export const motionpathParamsSchema = {
 
 export const morphParamsSchema = {
   type: 'object',
+  'x-required': ['to'],
   description: 'Params for the "morph" preset: the target shape (a path, polygon or polyline, or the first one inside the target) takes the geometry of the `to` shape. Stopping puts the original back; loop with alternate flips between the two.',
   properties: {
     ..._CANONICAL_REDECLARED,
@@ -460,6 +465,7 @@ export const morphParamsSchema = {
 
 export const sequenceParamsSchema = {
   type: 'object',
+  'x-required': ['steps'],
   description: "Params for the \"sequence\" preset: timeline of steps. Each step may set its own duration/ease (falling back to this preset's own duration/ease as per-step defaults). Step positioning uses `offset`; the preset factory also accepts the older `at` name as a fallback (translated to `offset` internally); `offset` wins if a step sets both.",
   properties: {
     duration: { type: 'number', minimum: 0, default: 2000, description: 'Fallback duration for steps missing their own duration.' },
@@ -523,6 +529,7 @@ export const chaosParamsSchema = {
 
 export const physicsSpringParamsSchema = {
   type: 'object',
+  'x-required': ['from', 'to'],
   description: 'Params for the "physics-spring" preset. `ease`, `duration`, and `alternate` (canonical) are entirely bypassed; spring dynamics determine the effective duration internally. `loop`, however, genuinely is read and respected. Has its own parallel spring-config system separate from the generic `ease: {type:"spring", params:{...}}` path: see Phase 13.6.',
   properties: {
     property: { type: 'string', default: 'scale', description: 'Passthrough anime property name.' },
@@ -853,6 +860,7 @@ export const sensorSweepParamsSchema = {
 
 export const timelineCascadeParamsSchema = {
   type: 'object',
+  'x-required': ['steps'],
   description: 'Params for the "timeline-cascade" preset: multi-step timeline. Timing/easing for each step lives in that step\'s own config; the top-level canonical `duration`/`ease` are genuinely inert (confirmed against anime.js\'s own source: Timeline recomputes its own duration from its children regardless, and `ease` isn\'t read by the underlying Timer class at all; only a separate `playbackEase` is). `loop`/`alternate`/`delay`, however, do still apply: they govern the whole timeline\'s repeat/reverse/start-delay behavior, since Timeline extends Timer and inherits those from the same top-level params.',
   properties: {
     loop: { ..._CANONICAL_REDECLARED.loop, default: false },
@@ -984,3 +992,33 @@ function _mapRangeAwareVariant(paramsSchema) {
 export const ANIMATION_PRESET_PARAMS_SCHEMAS_MAPRANGE_AWARE = Object.fromEntries(
   Object.entries(ANIMATION_PRESET_PARAMS_SCHEMAS).map(([name, schema]) => [name, _mapRangeAwareVariant(schema)])
 );
+
+/**
+ * The params a built-in preset needs to do anything, from `'x-required'` on its
+ * params schema (the preset factory skips the animation with a console warning
+ * without them; tests/docs/config-validator.test.js checks the lists against the
+ * factories). Not a JSON Schema `required` on `params`: a preset reads its params
+ * from the animation's top level and `params` alike (resolvePresetParams() in
+ * lcards-anim-helpers.js), so a required param may be in either place. A
+ * deprecated param whose `x-replacement` is `params.<name>` stands in for <name>
+ * (morph's morph_to_selector for to).
+ *
+ * @param {string} preset - The animation's `preset`
+ * @param {object} animation - The animation entry (top-level keys plus `params`)
+ * @returns {string[]} The required params it is missing ([] for an unknown preset)
+ */
+export function missingPresetParams(preset, animation) {
+  const schemas = /** @type {Record<string, any>} */ (ANIMATION_PRESET_PARAMS_SCHEMAS);
+  const schema = Object.prototype.hasOwnProperty.call(schemas, preset) ? schemas[preset] : null;
+  const required = schema?.['x-required'];
+  if (!Array.isArray(required) || !animation || typeof animation !== 'object') return [];
+  // params as a template: what it gives is only known at render time
+  if (typeof animation.params === 'string') return [];
+  const params = animation.params && typeof animation.params === 'object' ? animation.params : {};
+  const merged = { ...params, ...animation };
+  const given = (v) => v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0);
+  const aliases = (name) => Object.entries(schema.properties ?? {})
+    .filter(([, s]) => s?.deprecated && s['x-replacement'] === `params.${name}`)
+    .map(([alias]) => alias);
+  return required.filter((name) => !given(merged[name]) && !aliases(name).some((a) => given(merged[a])));
+}

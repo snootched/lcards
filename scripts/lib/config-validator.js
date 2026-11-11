@@ -16,6 +16,9 @@
  *     (scripts/lib/registries.js). User packs can add names, so these are warnings.
  *   - astrometrics: one placement form per point, and every point, object and view id
  *     a reference names exists in the card (errors: nothing outside the card adds them)
+ *   - animations without the params their built-in preset needs (color-shift without
+ *     color_from / color_to does nothing), and values a ` #` comment cut short
+ *     (`color: var(--x, #cc0000)` unquoted reads as `var(--x,`): warnings
  */
 
 import Ajv from 'ajv';
@@ -26,6 +29,7 @@ import { classifyThemePath } from './theme-token-rules.js';
 import { CARD_PLUMBING_KEYS as PLUMBING_KEYS } from '../../src/cards/schemas/card-plumbing.js';
 import { PLACEMENT_FORMS, LABEL_STYLE_NAMES, UNIT_NAMES } from '../../src/core/astrometrics/names.js';
 import { withNebulaPreset } from '../../src/core/astrometrics/nebula-presets.js';
+import { missingPresetParams } from '../../src/cards/schemas/animation-preset-params-schemas.js';
 
 /** Keys every card accepts that card schemas don't list (src/cards/schemas/card-plumbing.js). */
 const CARD_PLUMBING_KEYS = new Set(PLUMBING_KEYS);
@@ -299,6 +303,46 @@ export function flyToIssues(node, tag) {
     const inAstro = tag === 'lcards-astrometrics-card';
     if (!inAstro && typeof value.card !== 'string') out.push({ path, message: 'fly-to needs card: the id of the astrometrics card to fly' });
     else if ((!inAstro || value.card !== undefined) && !value.view && !value.point) out.push({ path, message: 'fly-to to another card needs a view or a point' });
+  });
+  return out;
+}
+
+/**
+ * Animations (card `animations:`, rule `apply.animations`, MSD overlay and
+ * segment animations: every list under an `animations` key) whose built-in
+ * preset is missing a param it needs. The preset reads params from the entry's
+ * top level and `params` alike, so both count (missingPresetParams()).
+ * @returns {{path: string, message: string}[]}
+ */
+export function animationParamIssues(node) {
+  const out = [];
+  walk(node, '', (value, path) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value) || !/(^|\.)animations\[\d+\]$/.test(path)) return;
+    if (!isLiteral(value.preset)) return;
+    const missing = missingPresetParams(value.preset, value);
+    if (!missing.length) return;
+    const names = missing.map(n => `params.${n}`);
+    const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
+    out.push({ path, message: `the ${value.preset} preset needs ${list}; without ${missing.length > 1 ? 'them' : 'it'} the animation does nothing` });
+  });
+  return out;
+}
+
+/**
+ * A plain value YAML cut short at a comment: ` #` starts a comment anywhere in an
+ * unquoted value, so `color: var(--x, #cc0000)` reads as `var(--x,`. Flags a string
+ * that ends in a comma, or that starts as a CSS function (`var(`, `rgba(`,
+ * `drop-shadow(`) and never closes it. Templates are left alone.
+ * @returns {{path: string, message: string}[]}
+ */
+export function cutValueIssues(node) {
+  const out = [];
+  walk(node, '', (value, path) => {
+    if (typeof value !== 'string' || isTemplateString(value)) return;
+    const text = value.trim();
+    const unclosed = /^[a-z][a-z0-9-]*\(/i.test(text) && (text.match(/\(/g) ?? []).length > (text.match(/\)/g) ?? []).length;
+    if (!text.endsWith(',') && !unclosed) return;
+    out.push({ path, message: `"${text}" looks cut off: in YAML a # after a space starts a comment, so the rest of the value was dropped. Put the whole value in quotes, e.g. "var(--name, #cc0000)"` });
   });
   return out;
 }
@@ -614,7 +658,7 @@ function distance(a, b) {
 // ── The validator ──────────────────────────────────────────────────────────────
 /**
  * @typedef {{ path: string, tag: string, severity: 'error'|'warning', code: string, message: string }} Issue
- *   code: schema | unknown-key | msd-canvas | legacy-format | registry | reference
+ *   code: schema | unknown-key | msd-canvas | legacy-format | registry | reference | missing-param | cut-value
  */
 
 /**
@@ -724,6 +768,8 @@ export function createConfigValidator({ entries, registries = null }) {
       for (const r of astrometricsIssues(node)) add(r.severity, 'reference', r.path, r.message);
     }
     for (const r of flyToIssues(node, tag)) add('warning', 'reference', r.path, r.message);
+    for (const r of animationParamIssues(node)) add('warning', 'missing-param', r.path, r.message);
+    for (const r of cutValueIssues(node)) add('warning', 'cut-value', r.path, r.message);
     return issues;
   }
 

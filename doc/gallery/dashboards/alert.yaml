@@ -92,7 +92,7 @@ views:
           card:
             color:
               background:
-                default: var(--lcars-alert-red, #cc0000)
+                default: "var(--lcars-alert-red, #cc0000)"
         text:
           name:
             content: RED ALERT
@@ -107,7 +107,7 @@ views:
           card:
             color:
               background:
-                default: var(--lcars-alert-yellow, #ffcc00)
+                default: "var(--lcars-alert-yellow, #ffcc00)"
         text:
           name:
             content: YELLOW ALERT
@@ -122,7 +122,7 @@ views:
           card:
             color:
               background:
-                default: var(--lcars-alert-blue, #3366ff)
+                default: "var(--lcars-alert-blue, #3366ff)"
         text:
           name:
             content: BLUE ALERT

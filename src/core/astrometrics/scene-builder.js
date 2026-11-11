@@ -104,6 +104,8 @@ export function disposeBuilt(b) {
 }
 
 /** Builders of the objects points can stand on; line objects read points, so they come second */
+/** Object types that count toward the scene's bounds besides FIRST's */
+const BOUNDS_TOO = new Set(['nebula', 'model', 'cube', 'ring', 'path']);
 const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image: buildImage, glow: buildGlow, belt: buildBelt, asteroid: buildAsteroid, comet: buildComet, galaxy: buildGalaxy, lightning: buildLightning, crystalline: buildCrystalline };
 
 /**
@@ -348,18 +350,6 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   const stars = starsCfg ? starsBuild(starsCfg) : null;
   if (stars) scene.add(stars.node);
 
-  // Bounds before the first placement pass (a default view frames them)
-  scene.updateMatrixWorld(true);
-  const box = new Box3();
-  for (const b of list) if (b.type in FIRST || b.type === 'nebula' || b.type === 'model' || b.type === 'cube') box.expandByObject(b.node);
-  const bounds = box.isEmpty() ? new Sphere(new Vector3(), 100) : box.getBoundingSphere(new Sphere());
-
-  // Dust round the scene (after the bounds: it fills them)
-  const dustCfg = config?.backdrop?.dust ? (config.backdrop.dust === true ? {} : config.backdrop.dust) : null;
-  const dustBuild = recordingColors((c, x = ctx) => buildDust(c, x, { radius: bounds.radius }), ctx);
-  const dust = dustCfg ? dustBuild(dustCfg) : null;
-  if (dust) frames.get(ROOT).node.add(dust.node);
-
   // Labels: the last definition of an id wins (the user's over generated ones)
   /** @type {Map<string, any>} */
   const byId = new Map();
@@ -490,6 +480,24 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   layout();
   for (const b of list) if (!b.dynamic) b.update?.();
   scene.updateMatrixWorld();
+
+  // Bounds after the first placement pass (a default view frames them): objects
+  // on points are where they stand, not at the origin, and orbits, paths and the
+  // points you can see count, so a scene with no view opens on what it holds
+  const box = new Box3();
+  for (const b of list) if (b.type in FIRST || BOUNDS_TOO.has(b.type)) box.expandByObject(b.node);
+  for (const p of pointDefs) {
+    if (p.label === undefined && p.marker === undefined) continue;
+    const v = places.get(String(p.id));
+    if (v) box.expandByPoint(v);
+  }
+  const bounds = box.isEmpty() ? new Sphere(new Vector3(), 100) : box.getBoundingSphere(new Sphere());
+
+  // Dust round the scene (after the bounds: it fills them)
+  const dustCfg = config?.backdrop?.dust ? (config.backdrop.dust === true ? {} : config.backdrop.dust) : null;
+  const dustBuild = recordingColors((c, x = ctx) => buildDust(c, x, { radius: bounds.radius }), ctx);
+  const dust = dustCfg ? dustBuild(dustCfg) : null;
+  if (dust) frames.get(ROOT).node.add(dust.node);
 
   // How far each system's contents reach from its origin (its own units): the camera works in it inside a few times that
   for (const o of systems) {

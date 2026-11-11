@@ -421,3 +421,40 @@ test('astrometrics pair settings: either side can follow an entity or a template
     assert.deepEqual(errors(belt([50, '[[[ return 90 ]]]'])), []);
     assert.ok(errors(belt([50, { entity: 'input_number.a', to: [1, 2] }])).length > 0, 'the old words are unknown keys');
 });
+
+test('animation presets: a missing required param warns in every animations list; the top level and params both count', () => {
+    const button = (animations, extra = {}) => ({ type: 'custom:lcards-button', preset: 'lozenge', animations, ...extra });
+    assert.deepEqual(messages(check(button([{ trigger: 'on_tap', preset: 'color-shift', params: { property: 'fill' } }]))),
+        ['warning animations[0]: the color-shift preset needs params.color_from and params.color_to; without them the animation does nothing']);
+    assert.deepEqual(messages(check(button([{ trigger: 'on_tap', preset: 'physics-spring', params: { from: 0.9 } }]))),
+        ['warning animations[0]: the physics-spring preset needs params.to; without it the animation does nothing']);
+    const issue = (config) => check(config).filter(i => i.code === 'missing-param').map(i => i.path);
+    assert.deepEqual(messages(check(button([
+        { trigger: 'on_tap', preset: 'color-shift', params: { color_from: '#ffffff', color_to: 'var(--lcards-orange)', property: 'fill' } },
+        { trigger: 'on_tap', preset: 'physics-spring', params: { from: 0.9, to: 1 } },
+        { trigger: 'on_load', preset: 'sequence', params: { steps: [{ scale: 1.1 }] } },
+        { trigger: 'on_load', preset: 'pulse' },
+    ]))), []);
+    // Top level (resolvePresetParams merges it with params) and a user pack preset: no missing-param warning
+    assert.deepEqual(issue(button([
+        { trigger: 'on_tap', preset: 'color-shift', color_from: '#ffffff', params: { color_to: '#000000' } },
+        { trigger: 'on_load', preset: 'my-pack-preset' },
+    ])), []);
+    // A rule's apply.animations and an MSD overlay's animations
+    assert.deepEqual(issue(button([], { rules: [{ id: 'r', when: { entity: 'light.x', state: 'on' }, apply: { animations: [{ preset: 'motionpath' }] } }] })), ['rules[0].apply.animations[0]']);
+    assert.deepEqual(issue({ type: 'custom:lcards-msd-card', msd: { view_box: [0, 0, 100, 100], overlays: [
+        { id: 'l', type: 'line', anchor: [0, 0], attach_to: [10, 10], animations: [{ trigger: 'on_load', preset: 'timeline-cascade' }, { trigger: 'on_load', preset: 'morph', params: { morph_to_selector: '#b' } }] },
+    ] } }), ['msd.overlays[0].animations[0]']);
+});
+
+test('a value cut short by a # comment (unquoted var(--x, #cc0000)) warns; quoted values, commas inside text and templates pass', () => {
+    const button = (style) => ({ type: 'custom:lcards-button', preset: 'lozenge', style });
+    // What YAML makes of `default: var(--lcars-alert-red, #cc0000)` unquoted
+    const cut = messages(check(button({ card: { color: { background: { default: 'var(--lcars-alert-red,' } } } })));
+    assert.deepEqual(cut, ['warning style.card.color.background.default: "var(--lcars-alert-red," looks cut off: in YAML a # after a space starts a comment, so the rest of the value was dropped. Put the whole value in quotes, e.g. "var(--name, #cc0000)"']);
+    // An unclosed CSS function without a trailing comma: `drop-shadow(0 0 4px #fff)` unquoted
+    assert.ok(messages(check(button({ card: { filter: 'drop-shadow(0 0 4px' } }))).some(m => m.includes('looks cut off')));
+    assert.deepEqual(messages(check(button({ card: { color: { background: { default: 'var(--lcars-alert-red, #cc0000)' } } } }))), []);
+    assert.deepEqual(check({ type: 'custom:lcards-button', preset: 'lozenge', text: { name: { content: 'Warp core, deck 12', show: true } } }).filter(i => i.code === 'cut-value'), []);
+    assert.deepEqual(check({ type: 'custom:lcards-button', preset: 'lozenge', text: { name: { content: '[[[ return "a,"; ]]]' } } }).filter(i => i.code === 'cut-value'), []);
+});
