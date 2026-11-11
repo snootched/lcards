@@ -291,9 +291,10 @@ export const actionSchema = {
             entity: 'light.living_room'
         },
         {
-            action: 'call-service',
-            service: 'light.turn_on',
-            service_data: {
+            action: 'perform-action',
+            perform_action: 'light.turn_on',
+            target: { entity_id: 'light.living_room' },
+            data: {
                 brightness: 255,
                 color_name: 'red'
             }
@@ -310,8 +311,10 @@ export const actionSchema = {
     properties: {
         action: {
             type: 'string',
-            enum: ['toggle', 'call-service', 'perform-action', 'navigate', 'url', 'more-info', 'assist', 'fly-to', 'set-clock', 'set-model-scale', 'none'],
-            description: 'Type of action to perform (no default: an action without it does nothing). fly-to: fly the camera of the astrometrics card named in card to its view or point. set-clock: set the scene date and or rate of the astrometrics card named in card. set-model-scale: draw its models at their real size, or larger to stay visible (model_scale).',
+            enum: ['toggle', 'call-service', 'perform-action', 'navigate', 'url', 'more-info', 'assist', 'fire-dom-event', 'fly-to', 'set-clock', 'set-model-scale', 'none'],
+            // Home Assistant's older names: still run, but not written or published (the checker suggests the current one)
+            'x-legacy-values': { 'call-service': 'perform-action' },
+            description: 'Type of action to perform (no default: an action without it does nothing). fire-dom-event: fire Home Assistant\'s ll-custom event with this action (browser_mod listens for it). fly-to: fly the camera of the astrometrics card named in card to its view or point. set-clock: set the scene date and or rate of the astrometrics card named in card. set-model-scale: draw its models at their real size, or larger to stay visible (model_scale).',
             enumDescriptions: [
                 'Toggle entity on/off',
                 'Call a Home Assistant service (older name of perform-action)',
@@ -320,6 +323,7 @@ export const actionSchema = {
                 'Open a URL',
                 'Show entity more-info dialog',
                 'Open the Assist dialog',
+                'Fire an ll-custom event (browser_mod)',
                 'Fly an astrometrics card\'s camera',
                 'Set an astrometrics card\'s scene date and rate',
                 'Change an astrometrics card\'s model scale',
@@ -339,7 +343,8 @@ export const actionSchema = {
         service: {
             type: 'string',
             pattern: '^[a-z_]+\\.[a-z0-9_]+$',
-            description: 'Service to call (format: domain.service)',
+            'x-legacy': 'perform_action',
+            description: 'Older Home Assistant name for perform_action (format: domain.service); still runs',
             examples: ['light.turn_on', 'switch.toggle', 'notify.mobile_app']
         },
         perform_action: {
@@ -350,12 +355,13 @@ export const actionSchema = {
         },
         service_data: {
             type: 'object',
-            description: 'Data to pass to the service',
+            'x-legacy': 'data',
+            description: 'Older Home Assistant name for data; still runs',
             examples: [{ brightness: 255, color_name: 'red' }]
         },
         data: {
             type: 'object',
-            description: 'Alias for service_data',
+            description: 'Data for the action (perform-action), such as brightness for light.turn_on',
             examples: [{ brightness: 255 }]
         },
         navigation_path: {
@@ -378,8 +384,12 @@ export const actionSchema = {
         },
         target: {
             type: 'object',
-            description: 'Service target selector',
+            description: 'What the action acts on: entity_id, device_id, area_id, floor_id or label_id (and exclude), passed to Home Assistant as the action\'s target',
             examples: [{ entity_id: 'light.living_room' }]
+        },
+        browser_mod: {
+            type: 'object',
+            description: 'fire-dom-event: what browser_mod runs, in its own grammar (service and data, e.g. service: browser_mod.popup), read from the ll-custom event'
         },
         card: {
             type: 'string',

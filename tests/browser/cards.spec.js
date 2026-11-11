@@ -301,7 +301,7 @@ test('select menu: a tap selects the option through the option button (select_op
     expect(await card.evaluate(el => el.getCardSize())).toBe(1);
     await page.locator('lcards-select-menu lcards-button').nth(2).locator('.button-bg').click();
     await expect.poll(() => page.evaluate(() => window.__hass.serviceCalls))
-        .toEqual([{ domain: 'input_select', service: 'select_option', data: { option: 'Heat', entity_id: 'input_select.demo_mode' } }]);
+        .toEqual([{ domain: 'input_select', service: 'select_option', data: { option: 'Heat' }, target: { entity_id: 'input_select.demo_mode' } }]);
     // one column: a row each
     await page.evaluate(() => window.__reconfigure({ type: 'custom:lcards-select-menu', entity: 'input_select.demo_mode', preset: 'toggle-tab', grid: { columns: 1 } }));
     await expect.poll(() => card.evaluate(el => el.getCardSize())).toBe(4);

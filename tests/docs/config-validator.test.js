@@ -458,3 +458,17 @@ test('a value cut short by a # comment (unquoted var(--x, #cc0000)) warns; quote
     assert.deepEqual(check({ type: 'custom:lcards-button', preset: 'lozenge', text: { name: { content: 'Warp core, deck 12', show: true } } }).filter(i => i.code === 'cut-value'), []);
     assert.deepEqual(check({ type: 'custom:lcards-button', preset: 'lozenge', text: { name: { content: '[[[ return "a,"; ]]]' } } }).filter(i => i.code === 'cut-value'), []);
 });
+
+test('actions with Home Assistant\'s older names (call-service, service, service_data) warn with the current name; the current form and fire-dom-event pass', () => {
+    const button = (tap_action) => ({ type: 'custom:lcards-button', preset: 'lozenge', tap_action });
+    const old = check(button({ action: 'call-service', service: 'light.turn_on', service_data: { brightness: 10 } }));
+    assert.deepEqual(old.filter(i => i.code === 'legacy-action').map(i => `${i.path}: ${i.message}`), [
+        "tap_action.action: call-service is Home Assistant's older name; use action: perform-action",
+        "tap_action.service: service is Home Assistant's older name; use perform_action",
+        "tap_action.service_data: service_data is Home Assistant's older name; use data",
+    ]);
+    // perform-action written with the old key (the gallery had this mix)
+    assert.deepEqual(check(button({ action: 'perform-action', service: 'lcards.red_alert' })).filter(i => i.code === 'legacy-action').map(i => i.path), ['tap_action.service']);
+    assert.deepEqual(messages(check(button({ action: 'perform-action', perform_action: 'light.turn_on', target: { entity_id: 'light.desk' }, data: { brightness: 10 } }))), []);
+    assert.deepEqual(messages(check(button({ action: 'fire-dom-event', browser_mod: { service: 'browser_mod.popup', data: { title: 'Hi' } } }))), []);
+});

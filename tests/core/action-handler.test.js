@@ -89,17 +89,38 @@ test('toggle: the service Home Assistant\'s own toggle picks for each domain', (
     assert.deepEqual(hass.serviceCalls.map(c => `${c.domain}.${c.service}`), ['lock.unlock', 'button.press']);
 });
 
-test('call-service / perform-action: service or perform_action, data merged with target', () => {
+test('call-service / perform-action: service or perform_action; the target goes separately, as Home Assistant passes it', () => {
     handler._executeAction({ action: 'call-service', service: 'light.turn_on', service_data: { brightness: 10 } }, hass, null);
     handler._executeAction({
         action: 'perform-action', perform_action: 'climate.set_temperature',
-        data: { temperature: 21 }, target: { entity_id: 'climate.lounge' },
+        data: { temperature: 21 }, target: { entity_id: 'climate.lounge', exclude: { entity_id: ['climate.attic'] } },
     }, hass, null);
     handler._executeAction({ action: 'perform-action' }, hass, null); // missing service: ignored
-    assert.deepEqual(hass.serviceCalls.map(({ domain, service, data }) => ({ domain, service, data })), [
-        { domain: 'light', service: 'turn_on', data: { brightness: 10 } },
-        { domain: 'climate', service: 'set_temperature', data: { temperature: 21, entity_id: 'climate.lounge' } },
+    assert.deepEqual(hass.serviceCalls, [
+        { domain: 'light', service: 'turn_on', data: { brightness: 10 }, target: undefined },
+        { domain: 'climate', service: 'set_temperature', data: { temperature: 21 }, target: { entity_id: 'climate.lounge', exclude: { entity_id: ['climate.attic'] } } },
     ]);
+});
+
+test('perform-action: with both names set, Home Assistant\'s current ones win (perform_action, data)', () => {
+    handler._executeAction({
+        action: 'perform-action', perform_action: 'light.turn_on', service: 'light.turn_off',
+        data: { brightness: 50 }, service_data: { brightness: 1 },
+    }, hass, null);
+    assert.deepEqual(hass.serviceCalls.map(({ domain, service, data }) => ({ domain, service, data })), [
+        { domain: 'light', service: 'turn_on', data: { brightness: 50 } },
+    ]);
+});
+
+test('fire-dom-event: an ll-custom event with the action config, as Home Assistant fires it (browser_mod)', () => {
+    const el = fakeElement();
+    const cfg = { action: 'fire-dom-event', browser_mod: { service: 'browser_mod.javascript', data: { code: '1' } } };
+    handler._executeAction(cfg, hass, el);
+    const [ev] = el.events;
+    assert.equal(ev.type, 'll-custom');
+    assert.deepEqual(ev.detail, cfg);
+    assert.equal(ev.bubbles, true);
+    assert.equal(ev.composed, true);
 });
 
 test('more-info: bubbling, composed hass-more-info event from the element', () => {

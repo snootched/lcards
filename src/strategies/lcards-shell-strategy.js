@@ -216,12 +216,12 @@ function _contentPlaceholderCard(message = 'Content Area: select a Room Selector
 function _areaSelectAction(entityId, areaId) {
     const domain = entityId.split('.')[0];
     if (domain === 'input_text') {
-        return { action: 'call-service', service: 'input_text.set_value',
-                 data: { entity_id: entityId, value: areaId } };
+        return { action: 'perform-action', perform_action: 'input_text.set_value',
+                 target: { entity_id: entityId }, data: { value: areaId } };
     }
     if (domain === 'input_select' || domain === 'select') {
-        return { action: 'call-service', service: `${domain}.select_option`,
-                 data: { entity_id: entityId, option: areaId } };
+        return { action: 'perform-action', perform_action: `${domain}.select_option`,
+                 target: { entity_id: entityId }, data: { option: areaId } };
     }
     return { action: 'none' };
 }

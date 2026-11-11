@@ -156,11 +156,11 @@ _renderCard() {
   segments: {
     up: {
       style: { fill: 'theme:colors.lcars.blue' },
-      tap_action: { action: 'call-service', service: 'media_player.volume_up' }
+      tap_action: { action: 'perform-action', perform_action: 'media_player.volume_up' }
     },
     down: {
       style: { fill: 'theme:colors.lcars.red' },
-      tap_action: { action: 'call-service', service: 'media_player.volume_down' }
+      tap_action: { action: 'perform-action', perform_action: 'media_player.volume_down' }
     }
   }
 }
@@ -483,9 +483,9 @@ component: dpad
 entity: media_player.living_room
 dpad:
   segments:
-    up: { tap_action: { action: call-service, service: media_player.volume_up } }
-    down: { tap_action: { action: call-service, service: media_player.volume_down } }
-    center: { tap_action: { action: call-service, service: media_player.media_play_pause } }
+    up: { tap_action: { action: perform-action, perform_action: media_player.volume_up } }
+    down: { tap_action: { action: perform-action, perform_action: media_player.volume_down } }
+    center: { tap_action: { action: perform-action, perform_action: media_player.media_play_pause } }
 ```
 
 ### Example 2: Slider Component
@@ -522,7 +522,7 @@ export const keypadComponents = {
     segments: {
       'key-1': { 
         style: { fill: 'theme:colors.lcars.blue' },
-        tap_action: { action: 'call-service', service: 'input_number.set_value', data: { value: 1 } }
+        tap_action: { action: 'perform-action', perform_action: 'input_number.set_value', data: { value: 1 } }
       },
       // ... more segments
     },

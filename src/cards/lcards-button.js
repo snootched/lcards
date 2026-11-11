@@ -2082,22 +2082,21 @@ export class LCARdSButton extends LCARdSCard {
         });
 
         if (action.action === 'fire-dom-event') {
-            // Custom event for advanced integrations
+            // The segment's own event (older integrations listen for it); the shared
+            // handler below also fires Home Assistant's ll-custom (browser_mod)
             this.dispatchEvent(new CustomEvent(action.event_type || 'segment-action', {
                 detail: { segment: segment.id, action, context: { entity: entityId, segment: segment.id } },
                 bubbles: true,
                 composed: true
             }));
-            return;
         }
 
         // A service call with no target acts on the segment's entity
         let config = action;
         const isService = action.action === 'call-service' || action.action === 'perform-action';
-        const data = action.service_data || action.data || {};
+        const data = action.data ?? action.service_data ?? {};
         if (isService && !action.target && entityId && !data.entity_id) {
-            config = { ...action, data: { ...data, entity_id: entityId } };
-            delete config.service_data;
+            config = { ...action, target: { entity_id: entityId } };
         }
 
         // The same action types as the card's own taps (perform-action, url, assist, ...)

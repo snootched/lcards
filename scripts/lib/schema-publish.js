@@ -40,23 +40,29 @@ const SECTION = { card: 'cards', view: 'views', strategy: 'strategies' };
 // reader of the YAML contract. Source `$id`s point at URLs that don't exist and
 // would change how the relative shared-file refs resolve; `$schema` is set once
 // per published file instead. Deprecated keys still validate for old configs,
-// but the published schema teaches only the current form. `examples` keep one
+// but the published schema teaches only the current form; so do Home Assistant's
+// older names (`x-legacy`: service, service_data; `x-legacy-values`: call-service). `examples` keep one
 // representative item. `description` is kept in full.
-const DROP_KEYS = new Set(['x-ui-hints', 'x-ui', 'x-replacement', 'validators', '$id', '$schema']);
+const DROP_KEYS = new Set(['x-ui-hints', 'x-ui', 'x-replacement', 'x-legacy', 'x-legacy-values', 'validators', '$id', '$schema']);
 
 /** @param {any} node @returns {any} a stripped deep copy */
 export function stripSchema(node) {
   if (Array.isArray(node)) return node.map(stripSchema);
   if (!node || typeof node !== 'object') return node;
   const out = {};
+  // Home Assistant's older names (`x-legacy-values` on an enum: call-service) still
+  // run but are not taught: drop them from the enum and its descriptions
+  const legacy = node['x-legacy-values'] && Array.isArray(node.enum) ? new Set(Object.keys(node['x-legacy-values'])) : null;
   for (const [k, v] of Object.entries(node)) {
     if (DROP_KEYS.has(k) || typeof v === 'function') continue;
+    if (legacy && k === 'enum') { out[k] = v.filter(x => !legacy.has(x)); continue; }
+    if (legacy && k === 'enumDescriptions' && Array.isArray(v)) { out[k] = v.filter((_, i) => !legacy.has(node.enum[i])); continue; }
     // LCARdS-only `additionalProperties: 'warn'` (unknown keys warn at runtime but
     // are accepted) is not JSON Schema; published as an open object.
     if (k === 'additionalProperties' && v === 'warn') continue;
     if (k === 'properties' && v && typeof v === 'object' && !Array.isArray(v)) {
       out[k] = Object.fromEntries(
-        Object.entries(v).filter(([, prop]) => !prop?.deprecated).map(([name, prop]) => [name, stripSchema(prop)])
+        Object.entries(v).filter(([, prop]) => !prop?.deprecated && !prop?.['x-legacy']).map(([name, prop]) => [name, stripSchema(prop)])
       );
       continue;
     }

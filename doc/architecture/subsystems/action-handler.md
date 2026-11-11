@@ -119,7 +119,8 @@ Tap, double tap and hold capture `{ pointer: pointerOf(event) }` from the trigge
 |---|---|
 | `toggle` | `toggleService(entityId, state)`, then `hass.callService(domain, service, { entity_id })`. Needs an entity |
 | `more-info` | Dispatches `hass-more-info` (`{ entityId }`, bubbling and composed) from the element, or the document. Needs an entity |
-| `call-service`, `perform-action` | Service from `service` or `perform_action` (`domain.service`); data from `service_data` or `data`, with `target` merged into it; `hass.callService(domain, service, data)` |
+| `call-service`, `perform-action` | Service from `perform_action`, else the older `service` (`domain.service`); data from `data`, else `service_data`; `hass.callService(domain, service, data, target)`, the target passed separately as Home Assistant's `handle-action` does. The older names log at debug level |
+| `fire-dom-event` | Dispatches `ll-custom` (the action config as `detail`, bubbling and composed) from the element, as Home Assistant does; browser_mod listens for it |
 | `navigate` | `history.pushState(null, '', navigation_path)` and a `location-changed` window event |
 | `url` | `window.open(url_path, '_blank')` |
 | `assist` | Dispatches `show-dialog` for `ha-voice-command-dialog` with `pipeline_id` (default `preferred`) and `start_listening` (default `true`) |

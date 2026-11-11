@@ -603,6 +603,10 @@ export class LCARdSActionHandler {
                 // An astrometrics card's models at their real size or larger, by the card's id
                 /** @type {any} */ (window).lcards?.cards?.astrometrics?.setModelScale(actionConfig.card, actionConfig.model_scale ?? 'toggle');
                 break;
+            case 'fire-dom-event':
+                // As Home Assistant: an ll-custom event with the action config (browser_mod listens for it)
+                element?.dispatchEvent(new CustomEvent('ll-custom', { detail: actionConfig, bubbles: true, composed: true }));
+                break;
             case 'none':
                 // Do nothing
                 break;
@@ -744,23 +748,25 @@ export class LCARdSActionHandler {
      * @private
      */
     _handleCallService(hass, actionConfig) {
-        // Support both 'service' (legacy) and 'perform_action' (new HA naming)
-        const service = actionConfig.service || actionConfig.perform_action;
+        // Home Assistant's names first: perform_action over the older service,
+        // data over service_data (as Home Assistant's own handle-action does)
+        const service = actionConfig.perform_action ?? actionConfig.service;
         if (!service) {
             lcardsLog.warn(`[LCARdSActionHandler] Call service action requires service or perform_action`);
             return;
         }
+        if (actionConfig.action === 'call-service' || actionConfig.service !== undefined || actionConfig.service_data !== undefined) {
+            lcardsLog.debug('[LCARdSActionHandler] Older Home Assistant action names (call-service, service, service_data); the current ones are perform-action, perform_action and data', actionConfig);
+        }
 
         const [domain, serviceAction] = service.split('.');
-        // Support both service_data and data
-        const serviceData = actionConfig.service_data || actionConfig.data || {};
-        const target = actionConfig.target || {};
+        const serviceData = actionConfig.data ?? actionConfig.service_data ?? {};
+        // The target goes separately, as Home Assistant passes it (entity_id, device_id,
+        // area_id, ... and exclude since 2026.11), not merged into the data
+        const target = actionConfig.target;
 
-        // Merge target into serviceData if provided
-        const finalData = { ...serviceData, ...target };
-
-        lcardsLog.debug(`[LCARdSActionHandler] Calling service ${service} with data:`, finalData);
-        hass.callService(domain, serviceAction, finalData);
+        lcardsLog.debug(`[LCARdSActionHandler] Calling service ${service}`, { data: serviceData, target });
+        hass.callService(domain, serviceAction, serviceData, target);
     }
 
     /**

@@ -115,5 +115,29 @@ export function renderThemes(snapshot) {
 export function renderGuide(snapshot, guide) {
   return header('HA-LCARS guide', snapshot,
     'The HA-LCARS README from installation to known issues: UIX, fonts, `lcars.js`, the clock, helpers, the `uix: class:` classes for stock cards and layout tips. Classes style stock HA cards (markdown, heading, button, entities); LCARdS cards draw their own LCARS shapes and take colours from their own options.\n\n') +
-    guide.replace(/^#/gm, '##');
+    modernizeGuide(guide).replace(/^#/gm, '##');
+}
+
+/**
+ * The README's YAML in Home Assistant's current grammar, so the skill never teaches
+ * the old one. Each rewrite matches one known upstream block exactly (or one exact
+ * line pair); when the upstream text changes, it simply does not apply. The snapshot
+ * itself stays verbatim.
+ *
+ * - The default-theme automation: `trigger:` / `platform:` / `condition:` /
+ *   `action:` + `service:` become `triggers:` / `trigger:` / `conditions:` /
+ *   `actions:` + `action:`.
+ * - A card action `action: call-service` + `service: x` becomes
+ *   `action: perform-action` + `perform_action: x`.
+ *
+ * @param {string} guide
+ * @returns {string}
+ */
+export function modernizeGuide(guide) {
+  return guide
+    .replace(
+      /^- alias: (.+)\n  description: (.*)\n  trigger:\n  - event: start\n    platform: homeassistant\n  condition: \[\]\n  action:\n  - data:\n      name: (.+)\n    service: frontend\.set_theme$/m,
+      (_, alias, description, name) =>
+        `- alias: ${alias}\n  description: ${description}\n  triggers:\n  - trigger: homeassistant\n    event: start\n  conditions: []\n  actions:\n  - action: frontend.set_theme\n    data:\n      name: ${name}`)
+    .replace(/^( *)action: call-service\n\1service: (\S+)$/gm, '$1action: perform-action\n$1perform_action: $2');
 }

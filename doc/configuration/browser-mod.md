@@ -33,7 +33,7 @@ actions:
           - binary_sensor.hallway_motion
       right_button: Acknowledge
       right_button_action:
-        service: browser_mod.close_popup
+        action: browser_mod.close_popup
   - action: lcards.trigger_effect
     data:
       duration: 10000
@@ -66,7 +66,7 @@ actions:
         content: Motion detected at **Front Entrance**. Acknowledge to clear.
       right_button: Acknowledge & Clear
       right_button_action:
-        service: lcards.clear_alert
+        action: lcards.clear_alert
       left_button: Keep Active
       left_button_close: true
       dismissable: false
@@ -143,7 +143,7 @@ data:
   code: "window.lcards?.screenEffect?.play('static', { duration: 2000, opacity: 0.4 })"
 ```
 
-As a card's `tap_action`:
+As a card's `tap_action` (browser_mod reads `service:` inside its own `browser_mod:` block; that is browser_mod's grammar, not a Home Assistant action):
 
 ```yaml
 tap_action:

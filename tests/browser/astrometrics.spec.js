@@ -111,7 +111,7 @@ test('tap on a point runs its tap_action; a drag from the same point does not', 
     const q = await pointOnPage(page, 'svc');
     await page.mouse.click(q.x, q.y);
     await expect.poll(() => page.evaluate(() => window.__hass.serviceCalls))
-        .toEqual([{ domain: 'light', service: 'turn_on', data: { entity_id: 'light.demo' } }]);
+        .toEqual([{ domain: 'light', service: 'turn_on', data: {}, target: { entity_id: 'light.demo' } }]);
     await expectNoErrors(page);
 });
 

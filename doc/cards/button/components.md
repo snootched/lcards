@@ -34,24 +34,24 @@ dpad:
           default: var(--lcars-orange)
           hover: var(--lcars-yellow)
       tap_action:
-        action: call-service
-        service: media_player.media_play_pause
+        action: perform-action
+        perform_action: media_player.media_play_pause
         target:
           entity_id: media_player.tv
     up:
       style:
         fill: var(--lcars-blue)
       tap_action:
-        action: call-service
-        service: media_player.volume_up
+        action: perform-action
+        perform_action: media_player.volume_up
         target:
           entity_id: media_player.tv
     down:
       style:
         fill: var(--lcars-blue)
       tap_action:
-        action: call-service
-        service: media_player.volume_down
+        action: perform-action
+        perform_action: media_player.volume_down
         target:
           entity_id: media_player.tv
 ```
@@ -127,14 +127,14 @@ dpad_voyager:
           inactive: var(--lcards-gray)
     up_arrow:
       tap_action:
-        action: call-service
-        service: media_player.volume_up
+        action: perform-action
+        perform_action: media_player.volume_up
         target:
           entity_id: media_player.tv
     down_arrow:
       tap_action:
-        action: call-service
-        service: media_player.volume_down
+        action: perform-action
+        perform_action: media_player.volume_down
         target:
           entity_id: media_player.tv
 ```

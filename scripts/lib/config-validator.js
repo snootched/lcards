@@ -17,8 +17,9 @@
  *   - astrometrics: one placement form per point, and every point, object and view id
  *     a reference names exists in the card (errors: nothing outside the card adds them)
  *   - animations without the params their built-in preset needs (color-shift without
- *     color_from / color_to does nothing), and values a ` #` comment cut short
- *     (`color: var(--x, #cc0000)` unquoted reads as `var(--x,`): warnings
+ *     color_from / color_to does nothing), values a ` #` comment cut short
+ *     (`color: var(--x, #cc0000)` unquoted reads as `var(--x,`), and actions with
+ *     Home Assistant's older names (call-service, service, service_data): warnings
  */
 
 import Ajv from 'ajv';
@@ -30,6 +31,7 @@ import { CARD_PLUMBING_KEYS as PLUMBING_KEYS } from '../../src/cards/schemas/car
 import { PLACEMENT_FORMS, LABEL_STYLE_NAMES, UNIT_NAMES } from '../../src/core/astrometrics/names.js';
 import { withNebulaPreset } from '../../src/core/astrometrics/nebula-presets.js';
 import { missingPresetParams } from '../../src/cards/schemas/animation-preset-params-schemas.js';
+import { actionSchema } from '../../src/cards/schemas/common-schemas.js';
 
 /** Keys every card accepts that card schemas don't list (src/cards/schemas/card-plumbing.js). */
 const CARD_PLUMBING_KEYS = new Set(PLUMBING_KEYS);
@@ -347,6 +349,33 @@ export function cutValueIssues(node) {
   return out;
 }
 
+/** Home Assistant's older action names and what replaces them, from the action schema's `x-legacy` markers */
+const LEGACY_ACTION_VALUES = actionSchema.properties.action['x-legacy-values'] ?? {};
+const LEGACY_ACTION_KEYS = Object.fromEntries(
+  Object.entries(actionSchema.properties).filter(([, p]) => p?.['x-legacy']).map(([k, p]) => [k, p['x-legacy']])
+);
+
+/**
+ * Actions (any object with an `action` LCARdS knows) written with Home Assistant's
+ * older names: `call-service`, `service`, `service_data`. They still run; the
+ * warning gives the current name.
+ * @returns {{path: string, message: string}[]}
+ */
+export function legacyActionIssues(node) {
+  const out = [];
+  const known = new Set(actionSchema.properties.action.enum);
+  walk(node, '', (value, path) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value) || typeof value.action !== 'string' || !known.has(value.action)) return;
+    const now = LEGACY_ACTION_VALUES[value.action];
+    if (now) out.push({ path: `${path}.action`, message: `${value.action} is Home Assistant's older name; use action: ${now}` });
+    if (value.action !== 'call-service' && value.action !== 'perform-action') return;
+    for (const [key, replacement] of Object.entries(LEGACY_ACTION_KEYS)) {
+      if (key in value) out.push({ path: `${path}.${key}`, message: `${key} is Home Assistant's older name; use ${replacement}` });
+    }
+  });
+  return out;
+}
+
 /**
  * Home Assistant's code editor (card dialogs, the raw dashboard editor) reads
  * YAML 1.1 since Home Assistant 2026.8: unquoted on, off, y, n, yes, no (any
@@ -658,7 +687,7 @@ function distance(a, b) {
 // ── The validator ──────────────────────────────────────────────────────────────
 /**
  * @typedef {{ path: string, tag: string, severity: 'error'|'warning', code: string, message: string }} Issue
- *   code: schema | unknown-key | msd-canvas | legacy-format | registry | reference | missing-param | cut-value
+ *   code: schema | unknown-key | msd-canvas | legacy-format | registry | reference | missing-param | cut-value | legacy-action
  */
 
 /**
@@ -770,6 +799,7 @@ export function createConfigValidator({ entries, registries = null }) {
     for (const r of flyToIssues(node, tag)) add('warning', 'reference', r.path, r.message);
     for (const r of animationParamIssues(node)) add('warning', 'missing-param', r.path, r.message);
     for (const r of cutValueIssues(node)) add('warning', 'cut-value', r.path, r.message);
+    for (const r of legacyActionIssues(node)) add('warning', 'legacy-action', r.path, r.message);
     return issues;
   }
 

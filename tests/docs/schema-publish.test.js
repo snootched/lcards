@@ -89,6 +89,18 @@ test('stripping drops editor metadata, functions, $id and $schema but keeps desc
     assert.deepEqual(out, { type: 'object', properties: { kept: { type: 'string', description: 'd', examples: [1] } } });
 });
 
+test('Home Assistant\'s older action names still validate but are not published (call-service, service, service_data)', async () => {
+    const { actionSchema } = await import('../../src/cards/schemas/common-schemas.js');
+    assert.ok(actionSchema.properties.action.enum.includes('call-service'), 'the source still accepts it');
+    const out = stripSchema(actionSchema);
+    assert.ok(!out.properties.action.enum.includes('call-service'));
+    assert.equal(out.properties.action.enum.length, out.properties.action.enumDescriptions.length, 'descriptions stay aligned');
+    assert.equal(out.properties.action.enumDescriptions[out.properties.action.enum.indexOf('perform-action')], 'Perform a Home Assistant action');
+    assert.ok(!('service' in out.properties) && !('service_data' in out.properties));
+    assert.ok('perform_action' in out.properties && 'data' in out.properties && 'target' in out.properties);
+    assert.ok(!JSON.stringify(out).includes('x-legacy'));
+});
+
 test('index lists every file with its real size and the shared files it references', () => {
     for (const section of ['cards', 'views', 'strategies', 'shared']) {
         for (const [tag, info] of Object.entries(index[section])) {

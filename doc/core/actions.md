@@ -61,6 +61,7 @@ tap_action:
 | `navigate` | Go to another dashboard or view (`navigation_path`) |
 | `url` | Open an address in a new browser tab (`url_path`) |
 | `assist` | Open Home Assistant's Assist dialog |
+| `fire-dom-event` | Fire Home Assistant's `ll-custom` event with the action, for integrations that listen for it such as [browser_mod](/configuration/browser-mod) |
 | `fly-to`, `set-clock`, `set-model-scale` | Move the camera, the scene date or the model size of an astrometrics card: see [Scene actions](/cards/astrometrics/points#scene-actions) |
 | `none` | Do nothing, in place of the card's default |
 
@@ -73,8 +74,8 @@ tap_action:
 
 **The keys of an action object, besides `action`: which entity it acts on, what to run, and where to go.**
 
-- `target` and `data` are merged into one set of data for the action. A key in both takes the value from `target`.
-- The older names `service` and `service_data` still work. When an action sets both an old and a new name, the old one wins.
+- `target` goes to Home Assistant as the action's target, separate from `data`, as Home Assistant's own cards send it.
+- The older names `call-service`, `service` and `service_data` still work, and the [config checker](/getting-started/config-checker) suggests the current one. When an action sets both an old and a new name, the new one wins, as in Home Assistant.
 
 ```yaml live
 type: custom:lcards-button
@@ -109,6 +110,7 @@ hold_action:
 | `target.entity_id` | string / list | - | Entity ids to act on |
 | `target.device_id` | string / list | - | Device ids to act on |
 | `target.area_id` | string / list | - | Area ids to act on |
+| `browser_mod` | object | - | `fire-dom-event`: what browser_mod runs, in its own grammar (`service` and `data`): see [browser_mod](/configuration/browser-mod) |
 | `navigation_path` | string | - | `navigate`: the dashboard path, starting with `/` (`/lovelace/bridge`). Required |
 | `url_path` | string | - | `url`: the address to open. Required |
 | `pipeline_id` | string | `preferred` | `assist`: the Assist pipeline to use |

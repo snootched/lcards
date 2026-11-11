@@ -98,7 +98,7 @@ views:
             content: RED ALERT
         tap_action:
           action: perform-action
-          service: lcards.red_alert
+          perform_action: lcards.red_alert
         view_layout:
           grid-area: red
       - type: custom:lcards-button
@@ -113,7 +113,7 @@ views:
             content: YELLOW ALERT
         tap_action:
           action: perform-action
-          service: lcards.yellow_alert
+          perform_action: lcards.yellow_alert
         view_layout:
           grid-area: yellow
       - type: custom:lcards-button
@@ -128,7 +128,7 @@ views:
             content: BLUE ALERT
         tap_action:
           action: perform-action
-          service: lcards.blue_alert
+          perform_action: lcards.blue_alert
         view_layout:
           grid-area: blue
       - type: custom:lcards-button
@@ -138,7 +138,7 @@ views:
             content: STAND DOWN
         tap_action:
           action: perform-action
-          service: lcards.clear_alert
+          perform_action: lcards.clear_alert
         view_layout:
           grid-area: clear
       - type: custom:lcards-button

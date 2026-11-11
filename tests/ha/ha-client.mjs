@@ -233,6 +233,9 @@ export const GALLERY_STATES = [
     ['input_boolean', 'turn_off', { entity_id: 'input_boolean.lcards_test_toggle' }],
     ['input_select', 'select_option', { entity_id: 'input_select.lcards_test_mode', option: 'beta' }],
     ['input_number', 'set_value', { entity_id: 'input_number.lcards_test_stage', value: 20 }],
+    // Last: the dev Home Assistant's test automation turns mode beta into yellow alert;
+    // the shots (and the dev Home Assistant afterwards) want normal colours
+    ['lcards', 'clear_alert', {}],
 ];
 
 /** Create any missing lcards_test_* helpers. Returns the ids it created. */

@@ -42,3 +42,39 @@ for (const [name, config] of [
         assert.deepEqual(issues.map(i => `${i.severity} ${i.path}: ${i.message}`), []);
     });
 }
+
+/** Every action config (`*_action` or `actions[]` entry) anywhere in the generated dashboard. */
+function collectActions(node, out = []) {
+    if (Array.isArray(node)) { node.forEach(n => collectActions(n, out)); return out; }
+    if (!node || typeof node !== 'object') return out;
+    for (const [key, value] of Object.entries(node)) {
+        if (/_action$/.test(key) && value && typeof value === 'object') out.push(value);
+        collectActions(value, out);
+    }
+    return out;
+}
+
+test('shell strategy actions use the current Home Assistant grammar (perform-action, perform_action, target)', async () => {
+    const all = [];
+    for (const config of [
+        {},
+        { room_selector_entity: 'input_select.rooms', page_selector_entity: 'input_select.rooms', top_bar_entity: 'input_boolean.top', right_sidebar_entity: 'input_boolean.right' },
+        { room_selector_entity: 'input_text.area' },
+    ]) {
+        all.push(...collectActions(await strategy.generate(config, hass)));
+    }
+    assert.ok(all.length > 0);
+    for (const a of all) {
+        assert.notEqual(a.action, 'call-service', JSON.stringify(a));
+        assert.equal('service' in a, false, `old service key: ${JSON.stringify(a)}`);
+        assert.equal('service_data' in a, false, `old service_data key: ${JSON.stringify(a)}`);
+    }
+
+    const select = all.find(a => a.action === 'perform-action');
+    assert.deepEqual(select, {
+        action: 'perform-action',
+        perform_action: 'input_text.set_value',
+        target: { entity_id: 'input_text.area' },
+        data: { value: 'bridge' },
+    });
+});

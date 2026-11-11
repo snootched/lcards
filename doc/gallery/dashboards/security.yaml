@@ -105,13 +105,13 @@ views:
             left:
               tap_action:
                 action: perform-action
-                service: input_number.decrement
+                perform_action: input_number.decrement
                 target:
                   entity_id: input_number.lcards_test_value
             right:
               tap_action:
                 action: perform-action
-                service: input_number.increment
+                perform_action: input_number.increment
                 target:
                   entity_id: input_number.lcards_test_value
         view_layout:
