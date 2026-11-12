@@ -41,14 +41,34 @@ function setAutoSide(line, key, side) {
 const anchorGaps = (raw) => ({
   attach_gap: raw.anchor_gap ?? raw.anchorGap,
   attach_gap_x: raw.anchor_gap_x ?? raw.anchorGapX,
-  attach_gap_y: raw.anchor_gap_y ?? raw.anchorGapY
+  attach_gap_y: raw.anchor_gap_y ?? raw.anchorGapY,
+  corner_inset: cornerInset(raw, raw.route_hint)
 });
 /** @param {any} raw - the line's config */
 const attachGaps = (raw) => ({
   attach_gap: raw.attach_gap ?? raw.attachGap,
   attach_gap_x: raw.attach_gap_x ?? raw.attachGapX,
-  attach_gap_y: raw.attach_gap_y ?? raw.attachGapY
+  attach_gap_y: raw.attach_gap_y ?? raw.attachGapY,
+  corner_inset: cornerInset(raw, raw.route_hint_last)
 });
+/**
+ * A line that leaves (or reaches) a corner of an overlay along one of its edges
+ * runs inside the edge, not centred on it: the line's outer edge is flush with the
+ * box and it starts half a width inside the corner, so a label's border bar and its
+ * leader line make one clean L with no seam (2026-11-12).
+ * Only with a route hint at that end (route_hint, route_hint_last), which says the
+ * line runs along an edge from the corner; no hint, no inset.
+ * @param {any} raw - the line's config
+ * @param {string | undefined} hint
+ * @returns {{ half: number } | null}
+ */
+function cornerInset(raw, hint) {
+  const h = String(hint || '').toLowerCase();
+  if (h !== 'xy' && h !== 'yx') return null;
+  const width = Number(raw.style?.width ?? raw.style?.stroke_width ?? 2);
+  if (!(width > 0)) return null;
+  return { half: width / 2 };
+}
 
 export class AdvancedRenderer {
   /**
@@ -774,7 +794,8 @@ export class AdvancedRenderer {
       }
     });
 
-    if (!(gapX || gapY)) {
+    const inset = raw.corner_inset && typeof side === 'string' && side.includes('-') ? raw.corner_inset : null;
+    if (!(gapX || gapY || inset)) {
       lcardsLog.debug(`[AdvancedRenderer] ⏭️ No gap to apply, returning original point`);
       return point;
     }
@@ -791,6 +812,16 @@ export class AdvancedRenderer {
       case 'bottom-left': dx = -gapX; dy = gapY; break;
       case 'bottom-right': dx = gapX; dy = gapY; break;
       default: break;
+    }
+    // Along the top or bottom edge from a corner: move in by half the line's width
+    // (cornerInset), and start half a width back inside the corner too, so the line
+    // overlaps a border bar there instead of meeting it on a shared, half-covered
+    // pixel (a faint seam in the browser). The corner gap above still applies.
+    if (inset) {
+      const inX = side.endsWith('left') ? inset.half : -inset.half;
+      const inY = side.startsWith('top') ? inset.half : -inset.half;
+      dx += inX;
+      dy += inY;
     }
 
     const result = [x + dx, y + dy];

@@ -1,4 +1,4 @@
-# Gallery video for picard-display.yaml: the selector moves through the modes, the gauges and readings tables follow power, shields and humidity, the schematic's shield and power labels follow their readings, and the doors, aux and lights blocks and tabs light as they switch.
+# Gallery video for picard-display.yaml: the selector moves through the modes, the gauges and readings tables follow power, shields and humidity, the schematic's shield and power labels follow their readings, and the doors, aux and lights blocks and tabs light as they switch; the LEADERS block flips the schematic from angled leaders to level ones in columns and back.
 # node scripts/dashboard-shots.mjs doc/gallery/dashboards/picard-display.yaml --video
 steps:
 - {wait: 800}
@@ -21,4 +21,8 @@ steps:
 - service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_toggle}]
 - {wait: 800}
 - service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_lights}]
+- {wait: 1500}
+- service: [input_select, select_option, {entity_id: input_select.lcards_test_leaders, option: LEVEL}]
+- {wait: 3000}
+- service: [input_select, select_option, {entity_id: input_select.lcards_test_leaders, option: ANGLED}]
 tail: 1500

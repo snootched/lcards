@@ -6,7 +6,7 @@
  */
 const ENTITY = /(?<![.\w])(input_boolean|input_number|input_select|input_text|sensor|binary_sensor|light|switch|lock|camera|climate|media_player|cover|fan|alarm_control_panel|sun|zone|person|device_tracker)\.([a-z0-9_]+)/g;
 /** Service calls in the YAML look like entity ids; these are services, not entities. */
-const SERVICES = new Set(['increment', 'decrement', 'set_value', 'select_option', 'toggle', 'turn_on', 'turn_off']);
+const SERVICES = new Set(['increment', 'decrement', 'set_value', 'select_option', 'select_next', 'select_previous', 'toggle', 'turn_on', 'turn_off']);
 
 /**
  * The entity ids in `text` that are neither lcards_test_* helpers nor in `allowed`.

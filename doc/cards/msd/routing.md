@@ -42,7 +42,7 @@ flowchart TD
 ```
 
 - Bundling and crossing avoidance are cost comparisons, never hard rules: a line joins a bundle or takes a detour only when that is cheaper than the alternative.
-- `direct`, `manhattan` and `manual` lines keep their shape, but they are still registered: other lines avoid crossing them and can bundle beside them. That makes a `direct` line a good fixed backbone or wall.
+- `direct`, `angled`, `manhattan` and `manual` lines keep their shape, but they are still registered: other lines avoid crossing them and can bundle beside them. That makes a `direct` line a good fixed backbone or wall.
 
 ## Obstacles
 
@@ -116,7 +116,7 @@ msd:
 
 - The first line's path becomes the trunk's centre line and stays put. Lines that join take lanes either side of it, `trunk_line_spacing` apart.
 - A line joins only when that is cheaper than going its own way. Which side of the centre a line rides follows where it comes from, never its id, and stays the same along a chain of trunks.
-- Only `auto`, `smart` and `grid` lines join a bundle; `direct`, `manhattan` and `manual` lines can still have others bundle beside them.
+- Only `auto`, `smart` and `grid` lines join a bundle; `direct`, `angled`, `manhattan` and `manual` lines can still have others bundle beside them.
 
 ![Three lines merging into a shared lane-separated corridor, then branching apart at their destinations](/img/msd-routing-trunk-bundling.svg)
 
@@ -607,6 +607,7 @@ msd:
 |---|---|
 | `auto` | The default: full pathfinding with obstacle avoidance, bundling and crossing avoidance. Resolves to `smart`, or to `routing.default_mode` |
 | `direct` | A straight line. Never pathfinds or detours |
+| `angled` | A straight stub out of `anchor_side` (and into `attach_side` when set), then one straight run at any angle. Never pathfinds or detours |
 | `manhattan` | One bend (more only to leave and arrive on the sides set). No pathfinding, no bundling, no crossing avoidance |
 | `smart` | Pathfinding plus a refinement pass that nudges bends for clearance and corner room |
 | `grid` | Like `smart` (pathfinding, bundling, crossing avoidance) without the refinement pass |

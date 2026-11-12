@@ -823,11 +823,11 @@ views:
                   type: control
                   attachment: top-left
                   position:
-                    - 180
+                    - 62
                     - -90
                   size:
-                    - 190
-                    - 20
+                    - 155
+                    - 24
                   card:
                     type: custom:lcards-button
                     preset: text-only
@@ -836,8 +836,8 @@ views:
                       label:
                         content: DEUTERIUM 1-3 · 04-118
                         show: true
-                        position: center-left
-                        font_size: 13
+                        position: center-right
+                        font_size: 15
                         color: theme:colors.ui.secondary
                 - id: ln-tanks
                   type: line
@@ -845,21 +845,22 @@ views:
                   attach_to:
                     - 281
                     - 60
-                  anchor_side: bottom
-                  route: manhattan
-                  corner_style: miter
                   style:
                     color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                    width: 1.5
+                    width: 2.9
+                  anchor_side: right
+                  anchor_gap: 7
+                  route: manhattan
+                  corner_radius: 12
                 - id: lbl-flight
                   type: control
                   attachment: top-left
                   position:
-                    - 640
+                    - 481
                     - -90
                   size:
-                    - 150
-                    - 20
+                    - 117
+                    - 24
                   card:
                     type: custom:lcards-button
                     preset: text-only
@@ -868,8 +869,8 @@ views:
                       label:
                         content: FLIGHT DECK · 2C
                         show: true
-                        position: center-left
-                        font_size: 13
+                        position: center-right
+                        font_size: 15
                         color: theme:colors.ui.secondary
                 - id: ln-flight
                   type: line
@@ -877,21 +878,22 @@ views:
                   attach_to:
                     - 662
                     - 250
-                  anchor_side: bottom
-                  route: manhattan
-                  corner_style: miter
                   style:
                     color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                    width: 1.5
+                    width: 2.9
+                  anchor_side: right
+                  anchor_gap: 7
+                  route: manhattan
+                  corner_radius: 12
                 - id: lbl-sensor
                   type: control
                   attachment: top-left
                   position:
-                    - 1010
-                    - 110
+                    - 868
+                    - -90
                   size:
-                    - 130
-                    - 20
+                    - 98
+                    - 24
                   card:
                     type: custom:lcards-button
                     preset: text-only
@@ -900,8 +902,8 @@ views:
                       label:
                         content: NAV SENSOR 41
                         show: true
-                        position: center-left
-                        font_size: 13
+                        position: center-right
+                        font_size: 15
                         color: theme:colors.ui.secondary
                 - id: ln-sensor
                   type: line
@@ -909,21 +911,22 @@ views:
                   attach_to:
                     - 1030
                     - 240
-                  anchor_side: bottom
-                  route: manhattan
-                  corner_style: miter
                   style:
                     color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                    width: 1.5
+                    width: 2.9
+                  anchor_side: right
+                  anchor_gap: 7
+                  route: manhattan
+                  corner_radius: 12
                 - id: lbl-impulse
                   type: control
                   attachment: top-left
                   position:
-                    - 0
+                    - 84
                     - 590
                   size:
-                    - 130
-                    - 20
+                    - 98
+                    - 24
                   card:
                     type: custom:lcards-button
                     preset: text-only
@@ -933,7 +936,7 @@ views:
                         content: IMPULSE · AFT
                         show: true
                         position: center-left
-                        font_size: 13
+                        font_size: 15
                         color: theme:colors.ui.secondary
                 - id: ln-impulse
                   type: line
@@ -941,21 +944,22 @@ views:
                   attach_to:
                     - 20
                     - 383
-                  anchor_side: top
-                  route: manhattan
-                  corner_style: miter
                   style:
                     color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                    width: 1.5
+                    width: 2.9
+                  anchor_side: left
+                  anchor_gap: 7
+                  route: manhattan
+                  corner_radius: 12
                 - id: lbl-cargo
                   type: control
                   attachment: top-left
                   position:
-                    - 330
+                    - 364
                     - 590
                   size:
-                    - 180
-                    - 20
+                    - 142
+                    - 24
                   card:
                     type: custom:lcards-button
                     preset: text-only
@@ -965,7 +969,7 @@ views:
                         content: CARGO 4 · SEAL FAULT
                         show: true
                         position: center-left
-                        font_size: 13
+                        font_size: 15
                         color: theme:colors.ui.tertiary
                 - id: ln-cargo
                   type: line
@@ -973,21 +977,22 @@ views:
                   attach_to:
                     - 300
                     - 413
-                  anchor_side: top
-                  route: manhattan
-                  corner_style: miter
                   style:
                     color: theme:colors.ui.tertiary
-                    width: 1.5
+                    width: 2.9
+                  anchor_side: left
+                  route: manhattan
+                  corner_radius: 12
+                  anchor_gap: 7
                 - id: lbl-hatch
                   type: control
                   attachment: top-left
                   position:
-                    - 760
+                    - 550
                     - 590
                   size:
-                    - 120
-                    - 20
+                    - 85
+                    - 24
                   card:
                     type: custom:lcards-button
                     preset: text-only
@@ -996,8 +1001,8 @@ views:
                       label:
                         content: AFT HATCH 2
                         show: true
-                        position: center-left
-                        font_size: 13
+                        position: center-right
+                        font_size: 15
                         color: theme:colors.ui.secondary
                 - id: ln-hatch
                   type: line
@@ -1005,21 +1010,22 @@ views:
                   attach_to:
                     - 700
                     - 420
-                  anchor_side: top
-                  route: manhattan
-                  corner_style: miter
                   style:
                     color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                    width: 1.5
+                    width: 2.9
+                  anchor_side: right
+                  anchor_gap: 7
+                  route: manhattan
+                  corner_radius: 12
                 - id: lbl-rcs
                   type: control
                   attachment: top-left
                   position:
-                    - 960
+                    - 944
                     - 590
                   size:
-                    - 170
-                    - 20
+                    - 129
+                    - 24
                   card:
                     type: custom:lcards-button
                     preset: text-only
@@ -1029,7 +1035,7 @@ views:
                         content: RCS QUAD 3 · 61-04
                         show: true
                         position: center-left
-                        font_size: 13
+                        font_size: 15
                         color: theme:colors.ui.secondary
                 - id: ln-rcs
                   type: line
@@ -1037,12 +1043,13 @@ views:
                   attach_to:
                     - 880
                     - 300
-                  anchor_side: top
-                  route: manhattan
-                  corner_style: miter
                   style:
                     color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                    width: 1.5
+                    width: 2.9
+                  anchor_side: left
+                  anchor_gap: 7
+                  route: manhattan
+                  corner_radius: 12
               background_animation:
                 - preset: grid
                   config:

@@ -16421,6 +16421,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
         const routeMode = this._lineFormData.route || 'auto';
         const routeInfoMap = {
             'direct': { icon: 'mdi:vector-line', title: 'Direct', description: 'Straight line from source to target' },
+            'angled': { icon: 'mdi:vector-polyline', title: 'Angled', description: 'A short straight stub out of the start side (and into the end side when one is set), then one straight run at any angle. No pathfinding. Set the start side so the stub leaves the label toward the part.' },
             'manual': { icon: 'mdi:map-marker-path', title: 'Manual', description: 'Draw custom path through explicit waypoints' },
             'auto': { icon: 'mdi:routes', title: 'Auto', description: 'Full pathfinding: obstacle avoidance, trunk bundling with nearby lines, and crossing avoidance, always, whether or not obstacles/channels are present' },
             'manhattan': { icon: 'mdi:vector-polyline', title: 'Manhattan (Advanced)', description: 'A fixed single-bend elbow shape: no pathfinding, no obstacle avoidance, no bundling, no crossing avoidance. The cheap, fully predictable opt-out from Auto.' },
@@ -16462,6 +16463,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                                 options: [
                                     { value: 'auto', label: 'Auto (Recommended)' },
                                     { value: 'direct', label: 'Direct (Straight line)' },
+                                    { value: 'angled', label: 'Angled (Side stub, then straight)' },
                                     { value: 'manual', label: 'Manual (Custom waypoints)' },
                                     { value: 'manhattan', label: 'Manhattan (Advanced: opt out of bundling)' },
                                     { value: 'grid', label: 'Grid (Advanced: skip refinement pass)' }
@@ -16508,7 +16510,7 @@ export class LCARdSMSDStudioDialog extends LitElement {
                         </lcards-message>
                     ` : ''}
 
-                    ${routeMode === 'auto' || routeMode === 'direct' ? html`
+                    ${routeMode === 'auto' || routeMode === 'direct' || routeMode === 'angled' ? html`
                         <ha-button
                             @click=${() => this._convertLineToManual(this._lineFormData.id)}
                             size="s">

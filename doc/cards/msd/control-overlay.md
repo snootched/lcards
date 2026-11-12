@@ -227,7 +227,7 @@ msd:
 
 **`obstacle: true` makes routed lines go round the control instead of across it.** Use it for a card that sits between two things a line joins.
 
-- Only lines routed `auto` (the default), `smart` or `grid` avoid obstacles; `direct`, `manhattan` and `manual` lines keep their shape. See [Line Routing](./routing#obstacles).
+- Only lines routed `auto` (the default), `smart` or `grid` avoid obstacles; `direct`, `angled`, `manhattan` and `manual` lines keep their shape. See [Line Routing](./routing#obstacles).
 - `clearance` on the line, or in [`routing`](./routing#routing), keeps lines a set distance from the box.
 
 ```yaml live

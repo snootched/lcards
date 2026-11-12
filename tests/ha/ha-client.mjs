@@ -217,6 +217,8 @@ export const GALLERY_HELPERS = {
         type: 'input_select/create', name: 'LCARdS Test Rate', options: ['PAUSED', 'LIVE', '1 H/S', '1 D/S', '30 D/S', '1 Y/S'], initial: '1 H/S',
     },
     'input_select.lcards_test_look': { type: 'input_select/create', name: 'LCARdS Test Look', options: ['DIAGRAM', 'REALISTIC', 'MIXED'], initial: 'MIXED' },
+    // picard-display's leader-line style (MSD leader lines): bracket labels angled, or level in columns
+    'input_select.lcards_test_leaders': { type: 'input_select/create', name: 'LCARdS Test Leaders', options: ['ANGLED', 'LEVEL'], initial: 'ANGLED' },
     // The Crystalline Entity's colour (CE1); its own select, because lcards_test_mode sets the alert mode
     'input_select.lcards_test_color': { type: 'input_select/create', name: 'LCARdS Test Color', options: ['BLUE', 'LAVENDER', 'ORANGE'], initial: 'BLUE' },
 };
@@ -233,6 +235,7 @@ export const GALLERY_STATES = [
     ['input_boolean', 'turn_off', { entity_id: 'input_boolean.lcards_test_toggle' }],
     ['input_select', 'select_option', { entity_id: 'input_select.lcards_test_mode', option: 'beta' }],
     ['input_number', 'set_value', { entity_id: 'input_number.lcards_test_stage', value: 20 }],
+    ['input_select', 'select_option', { entity_id: 'input_select.lcards_test_leaders', option: 'ANGLED' }],
     // Last: the dev Home Assistant's test automation turns mode beta into yellow alert;
     // the shots (and the dev Home Assistant afterwards) want normal colours
     ['lcards', 'clear_alert', {}],

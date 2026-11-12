@@ -784,7 +784,7 @@ views:
               type: control
               attachment: top-left
               position:
-                - 180
+                - 508
                 - 130
               size:
                 - 100
@@ -809,10 +809,10 @@ views:
               type: control
               attachment: top-left
               position:
-                - 292
+                - 620
                 - 130
               size:
-                - 300
+                - 201
                 - 38
               card:
                 type: custom:lcards-button
@@ -824,25 +824,24 @@ views:
                     content: PORT NACELLE · WF {entity.state}
                     show: true
                     position: center-left
-                    font_size: 21
+                    font_size: 20
                     color: theme:colors.ui.secondary
             - id: ln-warp
               type: line
               anchor: blk-warp
               attach_to: pn_1
-              anchor_side: bottom
-              route: auto
-              corner_style: round
-              corner_radius: 10
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 2.4
+                width: 3.9
+              anchor_side: left
+              route: manhattan
+              corner_radius: 16
             - id: blk-bay
               type: control
               attachment: top-left
               position:
-                - 667
-                - 130
+                - 780
+                - 181
               size:
                 - 100
                 - 38
@@ -866,10 +865,10 @@ views:
               type: control
               attachment: top-left
               position:
-                - 779
-                - 130
+                - 892
+                - 181
               size:
-                - 300
+                - 276
                 - 38
               card:
                 type: custom:lcards-button
@@ -881,25 +880,24 @@ views:
                     content: '{{ ''SHUTTLE BAY · DOORS OPEN'' if is_state(''input_boolean.lcards_test_doors'', ''on'') else ''SHUTTLE BAY · SEALED'' }}'
                     show: true
                     position: center-left
-                    font_size: 21
+                    font_size: 20
                     color: theme:colors.ui.secondary
             - id: ln-bay
               type: line
               anchor: blk-bay
               attach_to: sb
-              anchor_side: bottom
-              route: auto
-              corner_style: round
-              corner_radius: 10
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 2.4
+                width: 3.9
+              anchor_side: left
+              route: manhattan
+              corner_radius: 16
             - id: blk-scan
               type: control
               attachment: top-left
               position:
-                - 1104
-                - 130
+                - 991
+                - 233
               size:
                 - 100
                 - 38
@@ -922,10 +920,10 @@ views:
               type: control
               attachment: top-left
               position:
-                - 1216
-                - 130
+                - 812
+                - 233
               size:
-                - 300
+                - 167
                 - 38
               card:
                 type: custom:lcards-button
@@ -935,25 +933,24 @@ views:
                   label:
                     content: SENSOR ARRAY · FWD
                     show: true
-                    position: center-left
-                    font_size: 21
+                    position: center-right
+                    font_size: 20
                     color: theme:colors.ui.secondary
             - id: ln-scan
               type: line
               anchor: blk-scan
               attach_to: scr_nw
-              anchor_side: bottom
-              route: auto
-              corner_style: round
-              corner_radius: 10
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 2.4
+                width: 3.9
+              anchor_side: right
+              route: manhattan
+              corner_radius: 16
             - id: blk-bridge
               type: control
               attachment: top-left
               position:
-                - 1480
+                - 1108
                 - 130
               size:
                 - 100
@@ -978,10 +975,10 @@ views:
               type: control
               attachment: top-left
               position:
-                - 1592
+                - 954
                 - 130
               size:
-                - 300
+                - 142
                 - 38
               card:
                 type: custom:lcards-button
@@ -991,25 +988,24 @@ views:
                   label:
                     content: BRIDGE · DECK 1
                     show: true
-                    position: center-left
-                    font_size: 21
+                    position: center-right
+                    font_size: 20
                     color: theme:colors.ui.secondary
             - id: ln-bridge
               type: line
               anchor: blk-bridge
               attach_to: br
-              anchor_side: bottom
-              route: auto
-              corner_style: round
-              corner_radius: 10
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 2.4
+                width: 3.9
+              anchor_side: right
+              route: manhattan
+              corner_radius: 16
             - id: blk-stbd
               type: control
               attachment: top-left
               position:
-                - 180
+                - 496
                 - 1080
               size:
                 - 100
@@ -1033,10 +1029,10 @@ views:
               type: control
               attachment: top-left
               position:
-                - 292
+                - 608
                 - 1080
               size:
-                - 300
+                - 192
                 - 38
               card:
                 type: custom:lcards-button
@@ -1047,25 +1043,24 @@ views:
                     content: STBD NACELLE · 3 OF 3
                     show: true
                     position: center-left
-                    font_size: 21
+                    font_size: 20
                     color: theme:colors.ui.secondary
             - id: ln-stbd
               type: line
               anchor: blk-stbd
               attach_to: sbn_1
-              anchor_side: top
-              route: auto
-              corner_style: round
-              corner_radius: 10
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 2.4
+                width: 3.9
+              anchor_side: left
+              route: manhattan
+              corner_radius: 16
             - id: blk-core
               type: control
               attachment: top-left
               position:
-                - 917
-                - 1080
+                - 804
+                - 1029
               size:
                 - 100
                 - 38
@@ -1089,10 +1084,10 @@ views:
               type: control
               attachment: top-left
               position:
-                - 605
-                - 1080
+                - 642
+                - 1029
               size:
-                - 300
+                - 150
                 - 38
               card:
                 type: custom:lcards-button
@@ -1104,24 +1099,23 @@ views:
                     content: WARP CORE · {entity.state}
                     show: true
                     position: center-right
-                    font_size: 21
+                    font_size: 20
                     color: theme:colors.ui.secondary
             - id: ln-core
               type: line
               anchor: blk-core
               attach_to: wc
-              anchor_side: top
-              route: auto
-              corner_style: round
-              corner_radius: 10
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 2.4
+                width: 3.9
+              anchor_side: right
+              route: manhattan
+              corner_radius: 16
             - id: blk-coolant
               type: control
               attachment: top-left
               position:
-                - 1104
+                - 1217
                 - 1080
               size:
                 - 100
@@ -1145,10 +1139,10 @@ views:
               type: control
               attachment: top-left
               position:
-                - 1216
+                - 1329
                 - 1080
               size:
-                - 300
+                - 201
                 - 38
               card:
                 type: custom:lcards-button
@@ -1159,25 +1153,24 @@ views:
                     content: PLASMA COOLANT · FAULT
                     show: true
                     position: center-left
-                    font_size: 21
+                    font_size: 20
                     color: theme:colors.ui.tertiary
             - id: ln-coolant
               type: line
               anchor: blk-coolant
               attach_to: scr_sw
-              anchor_side: top
-              route: auto
-              corner_style: round
-              corner_radius: 10
               style:
                 color: theme:colors.ui.tertiary
-                width: 2.4
+                width: 3.9
+              anchor_side: left
+              route: manhattan
+              corner_radius: 16
             - id: blk-shields
               type: control
               attachment: top-left
               position:
-                - 1480
-                - 1080
+                - 1455
+                - 1029
               size:
                 - 100
                 - 38
@@ -1200,10 +1193,10 @@ views:
               type: control
               attachment: top-left
               position:
-                - 1592
-                - 1080
+                - 1567
+                - 1029
               size:
-                - 300
+                - 167
                 - 38
               card:
                 type: custom:lcards-button
@@ -1215,19 +1208,18 @@ views:
                     content: SHIELD GRID · {entity.state}
                     show: true
                     position: center-left
-                    font_size: 21
+                    font_size: 20
                     color: theme:colors.ui.secondary
             - id: ln-shields
               type: line
               anchor: blk-shields
               attach_to: scr_se
-              anchor_side: top
-              route: auto
-              corner_style: round
-              corner_radius: 10
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 2.4
+                width: 3.9
+              anchor_side: left
+              route: manhattan
+              corner_radius: 16
           background_animation:
             - preset: grid
               config:

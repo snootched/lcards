@@ -1780,10 +1780,10 @@ views:
               type: control
               attachment: top-left
               position:
-                - 400
+                - 428
                 - 262
               size:
-                - 330
+                - 192
                 - 30
               card:
                 type: custom:lcards-button
@@ -1794,7 +1794,7 @@ views:
                   label:
                     content: PORT NACELLE · WF {entity.state}
                     show: true
-                    position: center-left
+                    position: center-right
                     font_size: 19
                     color: theme:colors.ui.secondary
             - id: ln-nacp
@@ -1803,20 +1803,21 @@ views:
               attach_to:
                 - 700
                 - 416
-              anchor_side: bottom
-              route: manhattan
-              corner_style: miter
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 2.2
+                width: 3.6
+              anchor_side: right
+              anchor_gap: 9
+              route: manhattan
+              corner_radius: 14
             - id: lbl-bridge
               type: control
               attachment: top-left
               position:
-                - 1060
+                - 1049
                 - 262
               size:
-                - 220
+                - 136
                 - 30
               card:
                 type: custom:lcards-button
@@ -1826,7 +1827,7 @@ views:
                   label:
                     content: BRIDGE · DECK 1
                     show: true
-                    position: center-left
+                    position: center-right
                     font_size: 19
                     color: theme:colors.ui.secondary
             - id: ln-bridge
@@ -1835,20 +1836,21 @@ views:
               attach_to:
                 - 1265
                 - 560
-              anchor_side: bottom
-              route: manhattan
-              corner_style: miter
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 2.2
+                width: 3.6
+              anchor_side: right
+              anchor_gap: 9
+              route: manhattan
+              corner_radius: 14
             - id: lbl-shd
               type: control
               attachment: top-left
               position:
-                - 1400
+                - 1292
                 - 262
               size:
-                - 290
+                - 128
                 - 30
               card:
                 type: custom:lcards-button
@@ -1859,7 +1861,7 @@ views:
                   label:
                     content: SHIELDS · {entity.state}
                     show: true
-                    position: center-left
+                    position: center-right
                     font_size: 19
                     color: theme:colors.ui.secondary
             - id: ln-shd
@@ -1868,20 +1870,21 @@ views:
               attach_to:
                 - 1500
                 - 440
-              anchor_side: bottom
-              route: manhattan
-              corner_style: miter
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 2.2
+                width: 3.6
+              anchor_side: right
+              anchor_gap: 9
+              route: manhattan
+              corner_radius: 14
             - id: lbl-aft
               type: control
               attachment: top-left
               position:
-                - 222
-                - 640
+                - 496
+                - 900
               size:
-                - 170
+                - 144
                 - 30
               card:
                 type: custom:lcards-button
@@ -1891,7 +1894,7 @@ views:
                   label:
                     content: AFT HULL · 12-04
                     show: true
-                    position: center-left
+                    position: center-right
                     font_size: 19
                     color: theme:colors.ui.secondary
             - id: ln-aft
@@ -1900,20 +1903,21 @@ views:
               attach_to:
                 - 720
                 - 620
-              anchor_side: right
-              route: manhattan
-              corner_style: miter
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 2.2
+                width: 3.6
+              anchor_side: right
+              anchor_gap: 9
+              route: manhattan
+              corner_radius: 14
             - id: lbl-nacs
               type: control
               attachment: top-left
               position:
-                - 400
-                - 900
+                - 402
+                - 860
               size:
-                - 280
+                - 168
                 - 30
               card:
                 type: custom:lcards-button
@@ -1923,7 +1927,7 @@ views:
                   label:
                     content: STBD NACELLE · 97.9
                     show: true
-                    position: center-left
+                    position: center-right
                     font_size: 19
                     color: theme:colors.ui.secondary
             - id: ln-nacs
@@ -1932,20 +1936,21 @@ views:
               attach_to:
                 - 650
                 - 783
-              anchor_side: top
-              route: manhattan
-              corner_style: miter
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 2.2
+                width: 3.6
+              anchor_side: right
+              anchor_gap: 9
+              route: manhattan
+              corner_radius: 14
             - id: lbl-imp
               type: control
               attachment: top-left
               position:
-                - 760
+                - 792
                 - 900
               size:
-                - 260
+                - 128
                 - 30
               card:
                 type: custom:lcards-button
@@ -1956,7 +1961,7 @@ views:
                   label:
                     content: IMPULSE · {entity.state}
                     show: true
-                    position: center-left
+                    position: center-right
                     font_size: 19
                     color: theme:colors.ui.secondary
             - id: ln-imp
@@ -1965,20 +1970,21 @@ views:
               attach_to:
                 - 1000
                 - 640
-              anchor_side: top
-              route: manhattan
-              corner_style: miter
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 2.2
+                width: 3.6
+              anchor_side: right
+              anchor_gap: 9
+              route: manhattan
+              corner_radius: 14
             - id: lbl-defl
               type: control
               attachment: top-left
               position:
-                - 1120
+                - 1210
                 - 900
               size:
-                - 400
+                - 192
                 - 30
               card:
                 type: custom:lcards-button
@@ -1997,12 +2003,13 @@ views:
               attach_to:
                 - 1130
                 - 650
-              anchor_side: top
-              route: manhattan
-              corner_style: miter
               style:
                 color: theme:colors.ui.tertiary
-                width: 2.2
+                width: 3.6
+              anchor_side: left
+              route: manhattan
+              corner_radius: 14
+              anchor_gap: 9
           background_animation:
             - preset: grid
               config:

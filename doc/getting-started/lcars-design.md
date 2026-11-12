@@ -305,6 +305,7 @@ cards:
 | Numbers that mean something | Most numbers are readings with a label; at most one decorative cascade filling an area, in a slot a reading can take (short groups inside a code-block column don't count) |
 | Frames | Open sweeps that interlock; bars in two to four segments (a bracket screen's header may run on in many short coded segments); never one thick frame around a grid of equal boxes |
 | Ends at the screen edge | Sweeps and bars that run off the screen end square; a short capped bar or a pill keeps its round cap |
+| Leader lines | One style for the whole MSD; leave the label's side facing the part, at the text's mid-height; turn once, near the part, with a curve (broad on classic, tight on Picard), never a square corner; the bracket style runs straight, or turns sharply into one diagonal, in its bar's colour |
 
 ## Picard
 
@@ -315,7 +316,7 @@ cards:
 - **Concentric sweeps**: a thick sweep with a thin line running parallel inside it, for headers and corners. See [concentric sweep](lcars-patterns#concentric-sweep).
 - **Controls inside a wide arm**: a thick frame whose black inset holds a group of blocks. See [controls inside a wide arm](lcars-patterns#controls-inside-a-wide-arm).
 - **Vertical gauges with tick scales** beside the number columns ([Picard and gauge sliders](../cards/slider-card/)). See [gauge bank](lcars-patterns#gauge-bank).
-- **The main display is a schematic**: a line drawing with leader lines to labels, small accent highlights for faults ([MSD](../cards/msd/)).
+- **The main display is a schematic**: a line drawing with leader lines to labels, small accent highlights for faults ([MSD](../cards/msd/)). A leader leaves its label from the side, runs out and turns once into the part with a tight curve, never a square corner. A screen keeps one style for every label: that one, a thin bar beside each label whose line leaves the bar's corner and runs straight (level with its part, or one sharp turn into a diagonal), or a short stub and an angled run. See [labelled schematic](lcars-patterns#labelled-schematic).
 - **A strip of tabs and sliders along the bottom.** Tabs show their state as a line along the top ([toggle tab strip](lcars-patterns#toggle-tab-strip)).
 - **Fixed chrome, changing centre.** Titan.DS keeps the same frame, columns and strips on every screen and swaps only the central display. In LCARdS: a layout view whose centre area holds several cards with [visibility conditions](../cards/layout-view/), one shown at a time.
 
@@ -329,6 +330,7 @@ cards:
 - **A column of big numbers** (`20`, `008`, `358`) leads each group of pills.
 - **Bracket frames**: a top and a bottom bar with rounded ends, and a sidebar of stacked blocks with code numbers. See [bracket frame](lcars-patterns#bracket-frame-classic).
 - **A split header**: two sweeps meeting across the top, with a thin segmented band in the gap between them. See [split header](lcars-patterns#split-header-classic).
+- **Schematics list their labels in columns** beside the drawing, and each leader sweeps round into its part with a broad curve, like a small sweep. See [labelled schematic](lcars-patterns#labelled-schematic).
 - **Segment the long arms.** A classic bar seldom runs unbroken across the screen: the sweep turns into a short bar, then segments of different lengths and roles carry labels. See [segmented bar](lcars-patterns#segmented-bar-classic-arms).
 
 ## Motion and alerts

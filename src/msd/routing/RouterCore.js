@@ -16,6 +16,20 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 // genuinely 'anchor_side'/'attach_side' (not an explicit route_hint override
 // or the geometry fallback, neither of which carry a real direction).
 const CARDINAL_DIR = { left: [-1,0], right: [1,0], top: [0,-1], bottom: [0,1] };
+/**
+ * route: angled from a corner side (a bracket label's bar): the stub runs along the
+ * edge the route hint names, away from the box. Start: route_hint xy runs
+ * horizontally, yx vertically. End: route_hint_last xy arrives vertically, yx
+ * horizontally. Only a hint set on the line counts; no corner or no hint: no stub.
+ * @param {string} side @param {string} hint @param {'start'|'end'} end
+ * @returns {number[] | null}
+ */
+function cornerStubDir(side, hint, end) {
+  if (typeof side !== 'string' || !side.includes('-') || (hint !== 'xy' && hint !== 'yx')) return null;
+  const [v, h] = side.split('-');
+  const horizontal = end === 'start' ? hint === 'xy' : hint === 'yx';
+  return horizontal ? [h === 'left' ? -1 : 1, 0] : [0, v === 'top' ? -1 : 1];
+}
 // Last-resort fallback only — every real request carries its own resolved
 // `req.minStubLength` (see buildRouteRequest: `_resolvedGridResolution() *
 // _minStubLengthFactor`), which is what stubLengthFor/cardinalStubLengthFor
@@ -1036,8 +1050,10 @@ export class RouterCore {
    * @returns {{ stubReq: object, prefix: number[][], suffix: number[][] }}
    */
   _applyCardinalStubs(req) {
-    const anchorDir = req._hintSourceFirst === 'anchor_side' ? CARDINAL_DIR[req.anchorSide] : null;
-    const attachDir = req._hintSourceLast === 'attach_side' ? CARDINAL_DIR[req.attachSide] : null;
+    const anchorDir = req._hintSourceFirst === 'anchor_side' ? CARDINAL_DIR[req.anchorSide]
+      : (req.modeFull === 'angled' && req._hintSourceFirst === 'explicit' ? cornerStubDir(req.anchorSide, req.modeHint, 'start') : null);
+    const attachDir = req._hintSourceLast === 'attach_side' ? CARDINAL_DIR[req.attachSide]
+      : (req.modeFull === 'angled' && req._hintSourceLast === 'explicit' ? cornerStubDir(req.attachSide, req.modeHintLast, 'end') : null);
     if (!anchorDir && !attachDir) {
       return { stubReq: req, prefix: [], suffix: [] };
     }
@@ -1194,6 +1210,10 @@ export class RouterCore {
           result = this._computeManual(req);
         } else if (mode === 'direct') {
           result = this._computeDirect(req);
+        } else if (mode === 'angled') {
+          // The side stubs come from _applyCardinalStubs (prefix/suffix,
+          // spliced back on below); between them, one straight run.
+          result = this._computeDirect(stubReq, 'angled');
         } else if (usesCorridorRouting) {
           if (hasForceChannels) {
             // Force channels are mandatory — always use the full merged
@@ -5761,19 +5781,20 @@ export class RouterCore {
   }
 
   /**
-   * route: 'direct' — a literal 2-point straight line, no elbow, no
+   * route: 'direct' (and the middle run of 'angled', between its side
+   * stubs) — a literal 2-point straight line, no elbow, no
    * obstacle avoidance, matching its own documentation (LineOverlay docs /
    * Studio UI both describe it this way — before this method existed,
    * 'direct' fell through to _computeManhattan and got the same elbow shape
    * as every other unrecognized mode).
    * @param {object} req - Route request
    */
-  _computeDirect(req) {
+  _computeDirect(req, strategy = 'direct') {
     const pts = [req.a, req.b];
     return {
       d: this._polylineToPath(pts),
       pts,
-      meta: { strategy: 'direct', cost: this._costSimple(pts), segments: 1, bends: 0 }
+      meta: { strategy, cost: this._costSimple(pts), segments: 1, bends: 0 }
     };
   }
 

@@ -73,7 +73,6 @@ msd:
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `id` | string | required | Unique id, for rules and the Studio |
-| `style.marker_end.type` | string | required | `line` |
 | `anchor` | string / `[x, y]` | required | Start: an overlay `id`, an anchor name or `[x, y]` |
 | `attach_to` | string / `[x, y]` | required | End: an overlay `id`, an anchor name or `[x, y]` |
 | `tags` | list | - | Tags for rules: the selector `tag:<name>` matches every overlay with that tag |
@@ -86,6 +85,7 @@ msd:
 
 - On an end that is a control or shape, a side you leave out is the one nearest the other end, and the line starts out at right angles to it. Set `center` to run to the middle.
 - A side also sets the direction the line leaves or arrives in: `left` and `right` make that end horizontal, `top` and `bottom` vertical. This works on an anchor or `[x, y]` end too, which has no edge to sit on.
+- A corner side with a `route_hint` (`route_hint_last` at the end) runs the line along that edge, inside it: the line's outer edge is flush with the box, and it starts half its width inside the corner. A label with a border on one side and a line from that side's top corner make one clean L.
 - In MSD Studio's Connect mode these points show as dots on every control (orange), shape (green) and anchor (cyan): click a start and an end to draw a line with the sides filled in. Dragging a line's end near a point snaps it on.
 
 ```yaml live
@@ -205,20 +205,22 @@ msd:
 
 ## Routing Modes
 
-**`route` picks how the path is drawn: found round obstacles and other lines (`auto`), straight, one bend, or through your own points.** Leave it out for `auto`, which suits almost every line.
+**`route` picks how the path is drawn: found round obstacles and other lines (`auto`), straight, one bend, a side stub and then straight, or through your own points.** Leave it out for `auto`, which suits almost every line.
 
-- `auto`, `smart` and `grid` lines bundle with nearby lines and avoid crossing them; see [Line Routing](./routing). `direct`, `manhattan` and `manual` lines keep their shape, though other lines still bundle beside them and avoid crossing them.
-- `route_hint` and `route_hint_last` set which way the first and last stretch run, for every mode except `direct` and `manual`. A side (`anchor_side`, `attach_side`) sets them for you when you leave them out.
+- `auto`, `smart` and `grid` lines bundle with nearby lines and avoid crossing them; see [Line Routing](./routing). `direct`, `angled`, `manhattan` and `manual` lines keep their shape, though other lines still bundle beside them and avoid crossing them.
+- `route_hint` and `route_hint_last` set which way the first and last stretch run, for every mode except `direct`, `angled` and `manual`. A side (`anchor_side`, `attach_side`) sets them for you when you leave them out.
 
 ```yaml live
 type: custom:lcards-msd-card
 msd:
-  view_box: [0, 0, 600, 300]
+  view_box: [0, 0, 600, 380]
   anchors:
     a1: [40, 40]
     b1: [560, 120]
     a2: [40, 160]
     b2: [560, 280]
+    a3: [40, 360]
+    b3: [460, 290]
   overlays:
     # straight
     - id: direct_line
@@ -251,12 +253,25 @@ msd:
       style:
         color: var(--lcars-green)
         width: 3
+    # a stub out of the right side, then straight at an angle
+    - id: angled_line
+      type: line
+      anchor: a3
+      attach_to: b3
+      route: angled
+      anchor_side: right
+      stub_length: 120
+      corner_radius: 12
+      style:
+        color: var(--lcars-yellow)
+        width: 3
 ```
 
 | Mode | What it draws |
 |---|---|
 | `auto` | The default: full pathfinding with obstacle avoidance, bundling and crossing avoidance. The same as `smart` |
 | `direct` | A straight line between the ends. Never pathfinds |
+| `angled` | A straight stub out of `anchor_side` (and into `attach_side` when set), then one straight run at any angle. `stub_length` sets the stub. Never pathfinds |
 | `manhattan` | One bend (or a few, to leave and arrive on the sides you set). No pathfinding, bundling or crossing avoidance |
 | `smart` | Pathfinding plus a refinement pass that nudges bends for room and clearance |
 | `grid` | Pathfinding, bundling and crossing avoidance, without the refinement pass |
@@ -271,7 +286,7 @@ msd:
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `route` | string | `auto` | `auto`, `direct`, `manhattan`, `smart`, `grid` or `manual` |
+| `route` | string | `auto` | `auto`, `direct`, `angled`, `manhattan`, `smart`, `grid` or `manual` |
 | `route_hint` | string | from `anchor_side` | First stretch: `xy` horizontal, `yx` vertical |
 | `route_hint_last` | string | from `attach_side` | Last stretch: `xy` vertical, `yx` horizontal |
 | `waypoints` | list | - | `manual` only: the points to pass through, in order: `[x, y]`, `[x, y, radius]` or an anchor name. See [Manual Routing](./manual-routing#per-waypoint-corner-radius) |

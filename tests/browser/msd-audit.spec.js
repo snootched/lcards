@@ -119,3 +119,21 @@ test('two rules on one MSD line: the higher priority colour wins, the other rule
     expect(await attr(page, '#line_a .line-path', 'stroke-width')).toBe('9');
     await expectNoErrors(page);
 });
+
+test('leader lines: a line from a corner along the top edge sits inside it (flush with a bracket bar); route angled draws a stub then a diagonal', async ({ page }) => {
+    await mountCase(page, 'msd-leader-lines', { width: '800' });
+    await expect.poll(() => attr(page, '#bracket_line .line-path', 'd'), { timeout: 10000 }).not.toBeNull();
+    await expect.poll(() => attr(page, '#angled_line .line-path', 'd'), { timeout: 10000 }).not.toBeNull();
+    // The bracket's top-right corner is (240, 100): the 6-wide line starts 3 below it
+    // and 3 inside it (overlapping the border bar, so no seam where they meet)
+    const d = /** @type {string} */ (await attr(page, '#bracket_line .line-path', 'd'));
+    const nums = (d.match(/-?[\d.]+/g) ?? []).map(Number);
+    expect(nums[0]).toBeCloseTo(237, 0);
+    expect(nums[1]).toBeCloseTo(103, 0);
+    // then along the top edge (same y), before turning down to (500, 250)
+    expect(nums[3]).toBeCloseTo(103, 0);
+    // angled: (700, 50) -> stub to (660, 50) -> straight to (400, 200)
+    const a = (/** @type {string} */ (await attr(page, '#angled_line .line-path', 'd')).match(/-?[\d.]+/g) ?? []).map(Number);
+    expect(a).toEqual([700, 50, 660, 50, 400, 200]);
+    await expectNoErrors(page);
+});

@@ -427,10 +427,10 @@ export function getMsdSchema() {
             // Line overlay routing properties
             route: {
               type: 'string',
-              enum: ['auto', 'direct', 'manhattan', 'smart', 'grid', 'manual'],
+              enum: ['auto', 'direct', 'angled', 'manhattan', 'smart', 'grid', 'manual'],
               optional: true,
               default: 'auto',
-              description: 'Routing algorithm. auto (recommended): always full pathfinding (obstacle avoidance, trunk bundling, crossing avoidance) regardless of whether obstacles/channels are present. direct: straight line, no pathfinding. manual: explicit waypoints. Escape hatches for the cheap/non-participating alternative: manhattan (fixed 2-elbow shape, no pathfinding, no bundling, no crossing avoidance) or grid (pathfinding + bundling/crossing avoidance, without the extra local-search refinement pass smart adds). smart is what auto resolves to.'
+              description: 'Routing algorithm. auto (recommended): always full pathfinding (obstacle avoidance, trunk bundling, crossing avoidance) regardless of whether obstacles/channels are present. direct: straight line, no pathfinding. angled: a short straight stub out of anchor_side (and into attach_side when set), then one straight run at any angle between them; no pathfinding (stub length: stub_length). manual: explicit waypoints. Escape hatches for the cheap/non-participating alternative: manhattan (fixed 2-elbow shape, no pathfinding, no bundling, no crossing avoidance) or grid (pathfinding + bundling/crossing avoidance, without the extra local-search refinement pass smart adds). smart is what auto resolves to.'
             },
             waypoints: {
               type: 'array',

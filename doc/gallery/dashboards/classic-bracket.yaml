@@ -302,11 +302,11 @@ views:
               type: control
               attachment: top-left
               position:
-                - -20
+                - 134
                 - -90
               size:
-                - 250
-                - 30
+                - 104
+                - 24
               card:
                 type: custom:lcards-button
                 preset: text-only
@@ -317,7 +317,7 @@ views:
                     content: IMPULSE · {entity.state}
                     show: true
                     position: center-left
-                    font_size: 17
+                    font_size: 15
                     color: theme:colors.ui.primary
             - id: ln-imp
               type: line
@@ -325,21 +325,21 @@ views:
               attach_to:
                 - 70
                 - 75
-              anchor_side: bottom
-              route: manhattan
-              corner_style: miter
               style:
                 color: theme:colors.ui.quaternary
-                width: 2
+                width: 2.3
+              anchor_side: left
+              anchor_gap: 7
+              route: manhattan
             - id: lbl-eps
               type: control
               attachment: top-left
               position:
-                - 300
+                - 346
                 - -90
               size:
-                - 250
-                - 30
+                - 129
+                - 24
               card:
                 type: custom:lcards-button
                 preset: text-only
@@ -349,7 +349,7 @@ views:
                     content: EPS TANKS · 3 OF 3
                     show: true
                     position: center-left
-                    font_size: 17
+                    font_size: 15
                     color: theme:colors.ui.primary
             - id: ln-eps
               type: line
@@ -357,21 +357,21 @@ views:
               attach_to:
                 - 282
                 - 50
-              anchor_side: bottom
-              route: manhattan
-              corner_style: miter
               style:
                 color: theme:colors.ui.quaternary
-                width: 2
+                width: 2.3
+              anchor_side: left
+              anchor_gap: 7
+              route: manhattan
             - id: lbl-cab
               type: control
               attachment: top-left
               position:
-                - 620
+                - 545
                 - -90
               size:
-                - 260
-                - 30
+                - 92
+                - 24
               card:
                 type: custom:lcards-button
                 preset: text-only
@@ -381,8 +381,8 @@ views:
                   label:
                     content: CABIN · {entity.state}
                     show: true
-                    position: center-left
-                    font_size: 17
+                    position: center-right
+                    font_size: 15
                     color: theme:colors.ui.primary
             - id: ln-cab
               type: line
@@ -390,21 +390,21 @@ views:
               attach_to:
                 - 700
                 - 120
-              anchor_side: bottom
-              route: manhattan
-              corner_style: miter
               style:
                 color: theme:colors.ui.quaternary
-                width: 2
+                width: 2.3
+              anchor_side: right
+              anchor_gap: 7
+              route: manhattan
             - id: lbl-shd
               type: control
               attachment: top-left
               position:
-                - 880
-                - -60
+                - 792
+                - -90
               size:
-                - 200
-                - 30
+                - 104
+                - 24
               card:
                 type: custom:lcards-button
                 preset: text-only
@@ -414,8 +414,8 @@ views:
                   label:
                     content: SHIELDS · {entity.state}
                     show: true
-                    position: center-left
-                    font_size: 17
+                    position: center-right
+                    font_size: 15
                     color: theme:colors.ui.primary
             - id: ln-shd
               type: line
@@ -423,21 +423,21 @@ views:
               attach_to:
                 - 960
                 - 200
-              anchor_side: bottom
-              route: manhattan
-              corner_style: miter
               style:
                 color: theme:colors.ui.quaternary
-                width: 2
+                width: 2.3
+              anchor_side: right
+              anchor_gap: 7
+              route: manhattan
             - id: lbl-nav
               type: control
               attachment: top-left
               position:
-                - 840
-                - 470
+                - 674
+                - 500
               size:
-                - 230
-                - 30
+                - 142
+                - 24
               card:
                 type: custom:lcards-button
                 preset: text-only
@@ -446,8 +446,8 @@ views:
                   label:
                     content: NAV SENSOR · 98-2204
                     show: true
-                    position: center-left
-                    font_size: 17
+                    position: center-right
+                    font_size: 15
                     color: theme:colors.ui.primary
             - id: ln-nav
               type: line
@@ -455,21 +455,21 @@ views:
               attach_to:
                 - 880
                 - 300
-              anchor_side: top
-              route: manhattan
-              corner_style: miter
               style:
                 color: theme:colors.ui.quaternary
-                width: 2
+                width: 2.3
+              anchor_side: right
+              anchor_gap: 7
+              route: manhattan
             - id: lbl-pod
               type: control
               attachment: top-left
               position:
-                - 300
+                - 484
                 - 500
               size:
-                - 250
-                - 30
+                - 129
+                - 24
               card:
                 type: custom:lcards-button
                 preset: text-only
@@ -480,7 +480,7 @@ views:
                     content: WARP POD · WF {entity.state}
                     show: true
                     position: center-left
-                    font_size: 17
+                    font_size: 15
                     color: theme:colors.ui.primary
             - id: ln-pod
               type: line
@@ -488,21 +488,21 @@ views:
               attach_to:
                 - 420
                 - 440
-              anchor_side: top
-              route: manhattan
-              corner_style: miter
               style:
                 color: theme:colors.ui.quaternary
-                width: 2
+                width: 2.3
+              anchor_side: left
+              anchor_gap: 7
+              route: manhattan
             - id: lbl-aft
               type: control
               attachment: top-left
               position:
-                - -20
+                - 104
                 - 500
               size:
-                - 230
-                - 30
+                - 287
+                - 24
               card:
                 type: custom:lcards-button
                 preset: text-only
@@ -512,7 +512,7 @@ views:
                     content: AFT HATCH · {{ 'OPEN' if is_state('input_boolean.lcards_test_doors', 'on') else 'SEALED' }}
                     show: true
                     position: center-left
-                    font_size: 17
+                    font_size: 15
                     color: theme:colors.ui.tertiary
             - id: ln-aft
               type: line
@@ -520,12 +520,12 @@ views:
               attach_to:
                 - 40
                 - 440
-              anchor_side: top
-              route: manhattan
-              corner_style: miter
               style:
                 color: theme:colors.ui.tertiary
-                width: 2
+                width: 2.3
+              anchor_side: left
+              anchor_gap: 7
+              route: manhattan
       - type: custom:lcards-layout-card
         layout:
           grid-gap: 18px

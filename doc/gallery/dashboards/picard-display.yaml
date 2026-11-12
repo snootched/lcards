@@ -1,7 +1,9 @@
 # Picard display: the "display over controls" archetype from doc/getting-started/lcars-design.md,
 # built as modules whose slots take a decorative part or a control of the same size.
 # One display sweep, open on the right, frames a dimmed side profile of a starship with labelled
-# leader lines (three labels carry live readings, one fault in the accent); its top and bottom bars
+# bracket-style leader lines (three labels carry live readings, one fault in the accent): angled
+# lines from labels above and below, or level lines from labels in two columns, switched by the
+# LEADERS block (input_select.lcards_test_leaders); its top and bottom bars
 # run on as segments and the title sits under the top bar. The control deck under it: a code-block
 # column (three blocks toggle helpers), a gauge bank (picard-gauge-column), toggle tabs over two
 # readings tables and a mode selector, a column of flagged blocks, and utility pills in a bracket
@@ -162,6 +164,7 @@ views:
             view_layout:
               grid-column: 5 / -1
               grid-row: '2'
+          # the schematic with angled leaders (LEADERS block: ANGLED); bracket labels above and below
           - type: custom:lcards-msd-card
             view_layout:
               grid-column: 2 / -1
@@ -186,206 +189,260 @@ views:
                   type: control
                   attachment: top-left
                   position:
-                    - 60
-                    - 118
+                    - -10
+                    - 145
                   size:
-                    - 150
-                    - 20
+                    - 94
+                    - 16
                   card:
                     type: custom:lcards-button
                     preset: text-only
                     min_height: 0
+                    style:
+                      border:
+                        width:
+                          right: 4
+                        color: theme:colors.ui.secondary
                     text:
                       label:
                         content: BRIDGE · DECK 1
                         show: true
-                        position: center-left
-                        font_size: 13
+                        position: center-right
+                        font_size: 10
                         color: theme:colors.ui.secondary
+                        padding:
+                          right: 11
                 - id: ln-bridge
                   type: line
                   anchor: lbl-bridge
                   attach_to:
                     - 226
                     - 238
-                  anchor_side: bottom
-                  route: manhattan
-                  corner_style: miter
                   style:
-                    color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                    width: 1.5
+                    color: theme:colors.ui.secondary
+                    width: 2.0
+                  anchor_side: top-right
+                  route: angled
+                  route_hint: xy
+                  stub_length: 50.1
+                  corner_style: miter
                 - id: lbl-hull
                   type: control
                   attachment: top-left
                   position:
-                    - 300
+                    - 49
                     - 118
                   size:
-                    - 200
-                    - 20
+                    - 128
+                    - 16
                   card:
                     type: custom:lcards-button
                     preset: text-only
                     min_height: 0
                     entity: input_number.lcards_test_shields
+                    style:
+                      border:
+                        width:
+                          right: 4
+                        color: theme:colors.ui.secondary
                     text:
                       label:
                         content: PRIMARY HULL · SHD {entity.state}
                         show: true
-                        position: center-left
-                        font_size: 13
+                        position: center-right
+                        font_size: 10
                         color: theme:colors.ui.secondary
+                        padding:
+                          right: 11
                 - id: ln-hull
                   type: line
                   anchor: lbl-hull
                   attach_to:
                     - 380
                     - 272
-                  anchor_side: bottom
-                  route: manhattan
-                  corner_style: miter
                   style:
-                    color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                    width: 1.5
+                    color: theme:colors.ui.secondary
+                    width: 2.0
+                  anchor_side: top-right
+                  route: angled
+                  route_hint: xy
+                  stub_length: 50.1
+                  corner_style: miter
                 - id: lbl-bussard
                   type: control
                   attachment: top-left
                   position:
-                    - 560
+                    - 663
                     - 118
                   size:
-                    - 170
-                    - 20
+                    - 111
+                    - 16
                   card:
                     type: custom:lcards-button
                     preset: text-only
                     min_height: 0
+                    style:
+                      border:
+                        width:
+                          left: 4
+                        color: theme:colors.ui.secondary
                     text:
                       label:
                         content: BUSSARD COLLECTOR 2
                         show: true
                         position: center-left
-                        font_size: 13
+                        font_size: 10
                         color: theme:colors.ui.secondary
+                        padding:
+                          left: 11
                 - id: ln-bussard
                   type: line
                   anchor: lbl-bussard
                   attach_to:
                     - 486
                     - 246
-                  anchor_side: bottom
-                  route: manhattan
-                  corner_style: miter
                   style:
-                    color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                    width: 1.5
+                    color: theme:colors.ui.secondary
+                    width: 2.0
+                  anchor_side: top-left
+                  route: angled
+                  route_hint: xy
+                  stub_length: 50.1
+                  corner_style: miter
                 - id: lbl-nacelle
                   type: control
                   attachment: top-left
                   position:
-                    - 800
+                    - 923
                     - 118
                   size:
-                    - 190
-                    - 20
+                    - 123
+                    - 16
                   card:
                     type: custom:lcards-button
                     preset: text-only
                     min_height: 0
                     entity: input_number.lcards_test_warp_factor
+                    style:
+                      border:
+                        width:
+                          left: 4
+                        color: theme:colors.ui.secondary
                     text:
                       label:
                         content: WARP NACELLE · WF {entity.state}
                         show: true
                         position: center-left
-                        font_size: 13
+                        font_size: 10
                         color: theme:colors.ui.secondary
+                        padding:
+                          left: 11
                 - id: ln-nacelle
                   type: line
                   anchor: lbl-nacelle
                   attach_to:
                     - 760
                     - 232
-                  anchor_side: bottom
-                  route: manhattan
-                  corner_style: miter
                   style:
-                    color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                    width: 1.5
+                    color: theme:colors.ui.secondary
+                    width: 2.0
+                  anchor_side: top-left
+                  route: angled
+                  route_hint: xy
+                  stub_length: 50.1
+                  corner_style: miter
                 - id: lbl-deflector
                   type: control
                   attachment: top-left
                   position:
-                    - -60
+                    - -15
                     - 500
                   size:
-                    - 150
-                    - 20
+                    - 102
+                    - 16
                   card:
                     type: custom:lcards-button
                     preset: text-only
                     min_height: 0
+                    style:
+                      border:
+                        width:
+                          right: 4
+                        color: theme:colors.ui.secondary
                     text:
                       label:
                         content: DEFLECTOR · 41-07
                         show: true
-                        position: center-left
-                        font_size: 13
+                        position: center-right
+                        font_size: 10
                         color: theme:colors.ui.secondary
+                        padding:
+                          right: 11
                 - id: ln-deflector
                   type: line
                   anchor: lbl-deflector
                   attach_to:
                     - 290
                     - 392
-                  anchor_side: top
-                  route: manhattan
-                  corner_style: miter
                   style:
-                    color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                    width: 1.5
+                    color: theme:colors.ui.secondary
+                    width: 2.0
+                  anchor_side: top-right
+                  route: angled
+                  route_hint: xy
+                  stub_length: 50.1
+                  corner_style: miter
                 - id: lbl-power
                   type: control
                   attachment: top-left
                   position:
-                    - 160
+                    - 171
                     - 500
                   size:
-                    - 190
-                    - 20
+                    - 102
+                    - 16
                   card:
                     type: custom:lcards-button
                     preset: text-only
                     min_height: 0
                     entity: input_number.lcards_test_power
+                    style:
+                      border:
+                        width:
+                          right: 4
+                        color: theme:colors.ui.secondary
                     text:
                       label:
                         content: MAIN POWER · {entity.state}
                         show: true
-                        position: center-left
-                        font_size: 13
+                        position: center-right
+                        font_size: 10
                         color: theme:colors.ui.secondary
+                        padding:
+                          right: 11
                 - id: ln-power
                   type: line
                   anchor: lbl-power
                   attach_to:
                     - 462
                     - 402
-                  anchor_side: top
-                  route: manhattan
-                  corner_style: miter
                   style:
-                    color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                    width: 1.5
+                    color: theme:colors.ui.secondary
+                    width: 2.0
+                  anchor_side: top-right
+                  route: angled
+                  route_hint: xy
+                  stub_length: 50.1
+                  corner_style: miter
                 - id: lbl-pylon
                   type: control
                   attachment: top-left
                   position:
-                    - 420
-                    - 500
+                    - -70
+                    - 331
                   size:
-                    - 200
-                    - 20
+                    - 128
+                    - 16
                   card:
                     type: custom:lcards-button
                     preset: text-only
@@ -394,8 +451,15 @@ views:
                       label:
                         content: PYLON 2 · COOLANT FAULT
                         show: true
-                        position: center-left
-                        font_size: 13
+                        position: center-right
+                        font_size: 10
+                        color: theme:colors.ui.tertiary
+                        padding:
+                          right: 11
+                    style:
+                      border:
+                        width:
+                          right: 4
                         color: theme:colors.ui.tertiary
                 - id: ln-pylon
                   type: line
@@ -403,76 +467,95 @@ views:
                   attach_to:
                     - 552
                     - 332
-                  anchor_side: top
-                  route: manhattan
-                  corner_style: miter
                   style:
                     color: theme:colors.ui.tertiary
-                    width: 1.5
+                    width: 2.0
+                  anchor_side: top-right
+                  route_hint: xy
+                  route: manhattan
+                  corner_style: miter
                 - id: lbl-bay
                   type: control
                   attachment: top-left
                   position:
-                    - 680
+                    - 367
                     - 500
                   size:
-                    - 160
-                    - 20
+                    - 119
+                    - 16
                   card:
                     type: custom:lcards-button
                     preset: text-only
                     min_height: 0
+                    style:
+                      border:
+                        width:
+                          right: 4
+                        color: theme:colors.ui.secondary
                     text:
                       label:
                         content: SHUTTLEBAY 2 · 06-114
                         show: true
-                        position: center-left
-                        font_size: 13
+                        position: center-right
+                        font_size: 10
                         color: theme:colors.ui.secondary
+                        padding:
+                          right: 11
                 - id: ln-bay
                   type: line
                   anchor: lbl-bay
                   attach_to:
                     - 618
                     - 384
-                  anchor_side: top
-                  route: manhattan
-                  corner_style: miter
                   style:
-                    color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                    width: 1.5
+                    color: theme:colors.ui.secondary
+                    width: 2.0
+                  anchor_side: top-right
+                  route: angled
+                  route_hint: xy
+                  stub_length: 50.1
+                  corner_style: miter
                 - id: lbl-aft
                   type: control
                   attachment: top-left
                   position:
-                    - 900
+                    - 569
                     - 500
                   size:
-                    - 140
-                    - 20
+                    - 94
+                    - 16
                   card:
                     type: custom:lcards-button
                     preset: text-only
                     min_height: 0
+                    style:
+                      border:
+                        width:
+                          right: 4
+                        color: theme:colors.ui.secondary
                     text:
                       label:
                         content: AFT CAP · 77-30
                         show: true
-                        position: center-left
-                        font_size: 13
+                        position: center-right
+                        font_size: 10
                         color: theme:colors.ui.secondary
+                        padding:
+                          right: 11
                 - id: ln-aft
                   type: line
                   anchor: lbl-aft
                   attach_to:
                     - 968
                     - 246
-                  anchor_side: top
-                  route: manhattan
-                  corner_style: miter
                   style:
-                    color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                    width: 1.5
+                    color: theme:colors.ui.secondary
+                    width: 2.0
+                  anchor_side: top-right
+                  route: angled
+                  route_hint: xy
+                  stub_length: 50.1
+                  corner_style: miter
               background_animation:
                 - preset: grid
                   config:
@@ -483,6 +566,408 @@ views:
                     scroll_speed_y: 0
                     show_border_lines: false
                     color: alpha(var(--lcars-card-top-color, var(--lcards-gray-medium)), 0.35)
+            visibility:
+              - condition: state
+                entity: input_select.lcards_test_leaders
+                state: ANGLED
+          # the same schematic with level leaders: bracket labels in two columns beside the ship
+          - type: custom:lcards-msd-card
+            view_layout:
+              grid-column: 2 / -1
+              grid-row: '3'
+            msd:
+              base_svg:
+                source: builtin:ncc-1701-kelvin
+                filters:
+                  - mode: css
+                    type: grayscale
+                    value: 1
+                  - mode: css
+                    type: opacity
+                    value: 0.42
+              view_box:
+                - -200
+                - 60
+                - 1390
+                - 530
+              overlays:
+                - id: lbl-bridge
+                  type: control
+                  attachment: top-left
+                  position:
+                    - -150
+                    - 237
+                  size:
+                    - 110
+                    - 19
+                  card:
+                    type: custom:lcards-button
+                    preset: text-only
+                    min_height: 0
+                    style:
+                      border:
+                        width:
+                          right: 5
+                        color: theme:colors.ui.secondary
+                    text:
+                      label:
+                        content: BRIDGE · DECK 1
+                        show: true
+                        position: center-right
+                        font_size: 12
+                        color: theme:colors.ui.secondary
+                        padding:
+                          right: 13
+                - id: ln-bridge
+                  type: line
+                  anchor: lbl-bridge
+                  attach_to:
+                    - 226
+                    - 238
+                  style:
+                    color: theme:colors.ui.secondary
+                    width: 2.3
+                  anchor_side: top-right
+                  route: manhattan
+                  route_hint: xy
+                  corner_style: miter
+                - id: lbl-hull
+                  type: control
+                  attachment: top-left
+                  position:
+                    - -190
+                    - 281
+                  size:
+                    - 150
+                    - 19
+                  card:
+                    type: custom:lcards-button
+                    preset: text-only
+                    min_height: 0
+                    entity: input_number.lcards_test_shields
+                    style:
+                      border:
+                        width:
+                          right: 5
+                        color: theme:colors.ui.secondary
+                    text:
+                      label:
+                        content: PRIMARY HULL · SHD {entity.state}
+                        show: true
+                        position: center-right
+                        font_size: 12
+                        color: theme:colors.ui.secondary
+                        padding:
+                          right: 13
+                - id: ln-hull
+                  type: line
+                  anchor: lbl-hull
+                  attach_to:
+                    - 380
+                    - 282
+                  style:
+                    color: theme:colors.ui.secondary
+                    width: 2.3
+                  anchor_side: top-right
+                  route: manhattan
+                  route_hint: xy
+                  corner_style: miter
+                - id: lbl-bussard
+                  type: control
+                  attachment: top-left
+                  position:
+                    - 1030
+                    - 275
+                  size:
+                    - 130
+                    - 19
+                  card:
+                    type: custom:lcards-button
+                    preset: text-only
+                    min_height: 0
+                    style:
+                      border:
+                        width:
+                          left: 5
+                        color: theme:colors.ui.secondary
+                    text:
+                      label:
+                        content: BUSSARD COLLECTOR 2
+                        show: true
+                        position: center-left
+                        font_size: 12
+                        color: theme:colors.ui.secondary
+                        padding:
+                          left: 13
+                - id: ln-bussard
+                  type: line
+                  anchor: lbl-bussard
+                  attach_to:
+                    - 486
+                    - 276
+                  style:
+                    color: theme:colors.ui.secondary
+                    width: 2.3
+                  anchor_side: top-left
+                  route: manhattan
+                  route_hint: xy
+                  corner_style: miter
+                - id: lbl-nacelle
+                  type: control
+                  attachment: top-left
+                  position:
+                    - 1030
+                    - 225
+                  size:
+                    - 145
+                    - 19
+                  card:
+                    type: custom:lcards-button
+                    preset: text-only
+                    min_height: 0
+                    entity: input_number.lcards_test_warp_factor
+                    style:
+                      border:
+                        width:
+                          left: 5
+                        color: theme:colors.ui.secondary
+                    text:
+                      label:
+                        content: WARP NACELLE · WF {entity.state}
+                        show: true
+                        position: center-left
+                        font_size: 12
+                        color: theme:colors.ui.secondary
+                        padding:
+                          left: 13
+                - id: ln-nacelle
+                  type: line
+                  anchor: lbl-nacelle
+                  attach_to:
+                    - 760
+                    - 226
+                  style:
+                    color: theme:colors.ui.secondary
+                    width: 2.3
+                  anchor_side: top-left
+                  route: manhattan
+                  route_hint: xy
+                  corner_style: miter
+                - id: lbl-deflector
+                  type: control
+                  attachment: top-left
+                  position:
+                    - -160
+                    - 385
+                  size:
+                    - 120
+                    - 19
+                  card:
+                    type: custom:lcards-button
+                    preset: text-only
+                    min_height: 0
+                    style:
+                      border:
+                        width:
+                          right: 5
+                        color: theme:colors.ui.secondary
+                    text:
+                      label:
+                        content: DEFLECTOR · 41-07
+                        show: true
+                        position: center-right
+                        font_size: 12
+                        color: theme:colors.ui.secondary
+                        padding:
+                          right: 13
+                - id: ln-deflector
+                  type: line
+                  anchor: lbl-deflector
+                  attach_to:
+                    - 290
+                    - 386
+                  style:
+                    color: theme:colors.ui.secondary
+                    width: 2.3
+                  anchor_side: top-right
+                  route: manhattan
+                  route_hint: xy
+                  corner_style: miter
+                - id: lbl-power
+                  type: control
+                  attachment: top-left
+                  position:
+                    - -160
+                    - 409
+                  size:
+                    - 120
+                    - 19
+                  card:
+                    type: custom:lcards-button
+                    preset: text-only
+                    min_height: 0
+                    entity: input_number.lcards_test_power
+                    style:
+                      border:
+                        width:
+                          right: 5
+                        color: theme:colors.ui.secondary
+                    text:
+                      label:
+                        content: MAIN POWER · {entity.state}
+                        show: true
+                        position: center-right
+                        font_size: 12
+                        color: theme:colors.ui.secondary
+                        padding:
+                          right: 13
+                - id: ln-power
+                  type: line
+                  anchor: lbl-power
+                  attach_to:
+                    - 462
+                    - 410
+                  style:
+                    color: theme:colors.ui.secondary
+                    width: 2.3
+                  anchor_side: top-right
+                  route: manhattan
+                  route_hint: xy
+                  corner_style: miter
+                - id: lbl-pylon
+                  type: control
+                  attachment: top-left
+                  position:
+                    - 1030
+                    - 331
+                  size:
+                    - 150
+                    - 19
+                  card:
+                    type: custom:lcards-button
+                    preset: text-only
+                    min_height: 0
+                    text:
+                      label:
+                        content: PYLON 2 · COOLANT FAULT
+                        show: true
+                        position: center-left
+                        font_size: 12
+                        color: theme:colors.ui.tertiary
+                        padding:
+                          left: 13
+                    style:
+                      border:
+                        width:
+                          left: 5
+                        color: theme:colors.ui.tertiary
+                - id: ln-pylon
+                  type: line
+                  anchor: lbl-pylon
+                  attach_to:
+                    - 552
+                    - 332
+                  style:
+                    color: theme:colors.ui.tertiary
+                    width: 2.3
+                  anchor_side: top-left
+                  route_hint: xy
+                  route: manhattan
+                  corner_style: miter
+                - id: lbl-bay
+                  type: control
+                  attachment: top-left
+                  position:
+                    - 1030
+                    - 387
+                  size:
+                    - 140
+                    - 19
+                  card:
+                    type: custom:lcards-button
+                    preset: text-only
+                    min_height: 0
+                    style:
+                      border:
+                        width:
+                          left: 5
+                        color: theme:colors.ui.secondary
+                    text:
+                      label:
+                        content: SHUTTLEBAY 2 · 06-114
+                        show: true
+                        position: center-left
+                        font_size: 12
+                        color: theme:colors.ui.secondary
+                        padding:
+                          left: 13
+                - id: ln-bay
+                  type: line
+                  anchor: lbl-bay
+                  attach_to:
+                    - 618
+                    - 388
+                  style:
+                    color: theme:colors.ui.secondary
+                    width: 2.3
+                  anchor_side: top-left
+                  route: manhattan
+                  route_hint: xy
+                  corner_style: miter
+                - id: lbl-aft
+                  type: control
+                  attachment: top-left
+                  position:
+                    - 1030
+                    - 251
+                  size:
+                    - 110
+                    - 19
+                  card:
+                    type: custom:lcards-button
+                    preset: text-only
+                    min_height: 0
+                    style:
+                      border:
+                        width:
+                          left: 5
+                        color: theme:colors.ui.secondary
+                    text:
+                      label:
+                        content: AFT CAP · 77-30
+                        show: true
+                        position: center-left
+                        font_size: 12
+                        color: theme:colors.ui.secondary
+                        padding:
+                          left: 13
+                - id: ln-aft
+                  type: line
+                  anchor: lbl-aft
+                  attach_to:
+                    - 968
+                    - 252
+                  style:
+                    color: theme:colors.ui.secondary
+                    width: 2.3
+                  anchor_side: top-left
+                  route: manhattan
+                  route_hint: xy
+                  corner_style: miter
+              background_animation:
+                - preset: grid
+                  config:
+                    line_spacing: 64
+                    major_row_interval: 0
+                    major_col_interval: 0
+                    scroll_speed_x: 0
+                    scroll_speed_y: 0
+                    show_border_lines: false
+                    color: alpha(var(--lcars-card-top-color, var(--lcards-gray-medium)), 0.35)
+            visibility:
+              - condition: state
+                entity: input_select.lcards_test_leaders
+                state: LEVEL
           - type: custom:lcards-button
             preset: panel-light
             min_height: 0
@@ -1302,13 +1787,16 @@ views:
           - type: custom:lcards-button
             preset: panel-flagged
             min_height: 0
-            entity: input_boolean.lcards_test_visible
+            entity: input_select.lcards_test_leaders
             interactive: true
             tap_action:
-              action: toggle
+              action: perform-action
+              perform_action: input_select.select_next
+              target:
+                entity_id: input_select.lcards_test_leaders
             text:
               label:
-                content: VISIBLE
+                content: '{entity.state}'
                 position: center-right
                 font_size: 13
                 color:

@@ -194,14 +194,12 @@ elbow:
 
 ## Labelled schematic
 
-**The main display of a Picard screen: a dimmed line drawing with small labels pointing at its parts.** It is an [MSD](../cards/msd/) whose labels are `text-only` buttons placed as controls, each joined to its part by a thin line.
+**The main display: a dimmed line drawing with small labels pointing at its parts.** It is an [MSD](../cards/msd/) whose labels are `text-only` buttons placed as controls, each joined to its part by a leader line.
 
-- Widen `view_box` beyond the drawing to leave room for the labels around it, and place each label in that margin, well inside the `view_box` edge (at least a label's height), so it stays clear of the frame round the display.
-- Match the `view_box` proportions to the display's area; otherwise the drawing is letterboxed and the margin moves.
-- Each line runs from its label (`anchor`) to a point on the drawing (`attach_to`, in `view_box` units); `route: manhattan` keeps it to right angles.
-- Keep labels and lines in structure tones and give the one that needs attention the accent, as a fault.
-- The labels' `size` and `font_size` are in `view_box` units and scale with the drawing: in a display smaller than the `view_box`, raise `font_size` until the labels render at about 13 px.
-- A faint grid behind the drawing (the `grid` background preset) suits it, but that preset scrolls by default: set its `config.scroll_speed_x` and `config.scroll_speed_y` to `0` so the screen stays still.
+- Widen `view_box` beyond the drawing to leave room for the labels, and place each label in that margin, well inside the `view_box` edge, with its proportions matching the display's area (otherwise the drawing is letterboxed and the margin moves).
+- A leader leaves its label from the side that faces the part (`anchor_side: left` or `right`), at the text's mid-height. Align the text toward that side (`center-right` or `center-left`) and size the box close to the text, so the line starts at the text, not at empty box.
+- Place the label so the part lies well past its end, above or below it: the line runs out, turns once near the part, and goes in. Leave top and bottom exits to a bar's corner.
+- Sizes are in `view_box` units and scale with the drawing. Aim for labels that render at 12 to 14 px, lines at 2 to 3 px (Picard) or 1.5 to 2 px (classic), and bends that read as curves: value = px x `view_box` width / the display's width in px. Use one leader style for the whole MSD, with one corner size and line width; mix styles only when asked.
 
 ```yaml live
 type: custom:lcards-msd-card
@@ -216,21 +214,20 @@ msd:
         type: opacity
         value: 0.55
   view_box:
-    - -40
-    - -110
-    - 1123
-    - 720
+    - -60
+    - -150
+    - 1160
+    - 800
   overlays:
-    # a label in the top margin, joined to the fuel tanks
     - id: lbl-tanks
       type: control
       attachment: top-left
       position:
-        - 150
-        - -100
+        - -50
+        - -120
       size:
-        - 190
-        - 22
+        - 240
+        - 40
       card:
         type: custom:lcards-button
         preset: text-only
@@ -239,30 +236,32 @@ msd:
           label:
             content: DEUTERIUM 1-3
             show: true
-            position: center-left
-            font_size: 13
+            position: center-right
+            font_size: 28
             color: theme:colors.ui.secondary
+    # every label the same way: out of the side, one tight bend into the part
     - id: ln-tanks
       type: line
       anchor: lbl-tanks
       attach_to:
         - 281
         - 60
-      anchor_side: bottom
+      anchor_side: right
+      anchor_gap: 8
       route: manhattan
+      corner_radius: 22
       style:
         color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-        width: 1.5
-    # the fault, in the accent, below the drawing
+        width: 5
     - id: lbl-cargo
       type: control
       attachment: top-left
       position:
-        - 330
-        - 530
+        - -50
+        - 570
       size:
-        - 190
-        - 22
+        - 300
+        - 40
       card:
         type: custom:lcards-button
         preset: text-only
@@ -271,20 +270,295 @@ msd:
           label:
             content: CARGO 4 · SEAL FAULT
             show: true
+            position: center-right
+            font_size: 28
+            color: theme:colors.ui.tertiary
+    # the fault: the accent, the same style
+    - id: ln-cargo
+      type: line
+      anchor: lbl-cargo
+      attach_to:
+        - 450
+        - 440
+      anchor_side: right
+      anchor_gap: 8
+      route: manhattan
+      corner_radius: 22
+      style:
+        color: theme:colors.ui.tertiary
+        width: 5
+    - id: lbl-seat
+      type: control
+      attachment: top-left
+      position:
+        - 880
+        - 540
+      size:
+        - 170
+        - 40
+      card:
+        type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        text:
+          label:
+            content: FLIGHT DECK
+            show: true
             position: center-left
-            font_size: 13
+            font_size: 28
+            color: theme:colors.ui.secondary
+    - id: ln-seat
+      type: line
+      anchor: lbl-seat
+      attach_to:
+        - 632
+        - 227
+      anchor_side: left
+      anchor_gap: 8
+      route: manhattan
+      corner_radius: 22
+      style:
+        color: var(--lcars-card-top-color, var(--lcards-gray-medium))
+        width: 5
+```
+
+::: details More about leader lines
+- **Picard bends are tight but never square:** a small `corner_radius` (about 8 to 12 px rendered), never `corner_style: miter`. The bracket style is the exception: its lines are straight, or turn once at a sharp corner into a diagonal.
+- **Picard styles, one per MSD:** straight out of the side with one tight bend (above); a thin bar beside every label, its line leaving the bar's top corner straight or into one diagonal (below); or a short stub and then a straight run at an angle (`route: angled`, `stub_length`; see [routing modes](../cards/msd/line-overlay#routing-modes)). A fault keeps the screen's style and takes the accent.
+- **Gap:** the button's text `padding` (8 by default) plus `anchor_gap` keeps the line off the letters. A line leaving a bar or a filled block touches it.
+- **End on a point:** `attach_to` as `[x, y]` on the drawing. A line that ends on an overlay (a shape or control) arrives at the side nearest its label, which adds a bend; give it `attach_side: center` to keep the one bend.
+- **Faults** take the accent, the line too; everything else stays in structure tones.
+- **A grid behind the drawing** (the `grid` background preset) suits it, but that preset scrolls by default: set its `config.scroll_speed_x` and `config.scroll_speed_y` to `0` so the screen stays still.
+:::
+
+**The bracket style gives every label a thin bar on the side its line leaves, and the line runs from the bar's top corner along its edge, then straight to the part.** The bar is the label's own border (`style.border.width.right` or `left`); `anchor_side: top-right` or `top-left` with `route_hint: xy` starts the line along the top, flush with the bar. Lay the labels out one of two ways: in columns beside the drawing, each level with its part so every line runs straight out; or above and below it, each line running a long stub (about 60 px) along the bar's edge before one sharp turn into a straight diagonal (`route: angled`, `stub_length`, `corner_style: miter`). No curves. The line takes the bar's colour.
+
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: builtin:enterprise-d-shuttlecraft15-anomaly
+    filters:
+      - mode: css
+        type: grayscale
+        value: 1
+      - mode: css
+        type: opacity
+        value: 0.55
+  view_box:
+    - -60
+    - -150
+    - 1160
+    - 800
+  overlays:
+    # a thin bar beside every label; each line leaves the top corner along the bar, then runs straight
+    - id: lbl-tanks
+      type: control
+      attachment: top-left
+      position:
+        - 520
+        - -120
+      size:
+        - 240
+        - 40
+      card:
+        type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        style:
+          border:
+            width:
+              left: 5
+            color: theme:colors.ui.secondary
+        text:
+          label:
+            content: DEUTERIUM 1-3
+            show: true
+            position: center-left
+            font_size: 28
+            color: theme:colors.ui.secondary
+            padding:
+              left: 16
+    - id: ln-tanks
+      type: line
+      anchor: lbl-tanks
+      attach_to:
+        - 281
+        - 60
+      anchor_side: top-left
+      route_hint: xy
+      route: angled
+      stub_length: 115
+      corner_style: miter
+      style:
+        color: theme:colors.ui.secondary
+        width: 5
+    - id: lbl-cargo
+      type: control
+      attachment: top-left
+      position:
+        - -50
+        - 570
+      size:
+        - 300
+        - 40
+      card:
+        type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        style:
+          border:
+            width:
+              right: 5
+            color: theme:colors.ui.tertiary
+        text:
+          label:
+            content: CARGO 4 · SEAL FAULT
+            show: true
+            position: center-right
+            padding:
+              right: 16
+            font_size: 28
             color: theme:colors.ui.tertiary
     - id: ln-cargo
       type: line
       anchor: lbl-cargo
       attach_to:
-        - 300
-        - 413
-      anchor_side: top
-      route: manhattan
+        - 450
+        - 440
+      anchor_side: top-right
+      route_hint: xy
+      route: angled
+      stub_length: 115
+      corner_style: miter
       style:
         color: theme:colors.ui.tertiary
-        width: 1.5
+        width: 5
+    - id: lbl-seat
+      type: control
+      attachment: top-left
+      position:
+        - 880
+        - 540
+      size:
+        - 170
+        - 40
+      card:
+        type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        style:
+          border:
+            width:
+              left: 5
+            color: theme:colors.ui.secondary
+        text:
+          label:
+            content: FLIGHT DECK
+            show: true
+            position: center-left
+            font_size: 28
+            color: theme:colors.ui.secondary
+            padding:
+              left: 16
+    - id: ln-seat
+      type: line
+      anchor: lbl-seat
+      attach_to:
+        - 632
+        - 227
+      anchor_side: top-left
+      route_hint: xy
+      route: angled
+      stub_length: 115
+      corner_style: miter
+      style:
+        color: theme:colors.ui.secondary
+        width: 5
+```
+
+**The classic version lists its labels in a column beside the drawing, and each line sweeps round into its part.** The default `corner_radius` (34) gives the broad curve; the drawing keeps its colours.
+
+```yaml live
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: builtin:enterprise-d-shuttlecraft15-anomaly
+    filters:
+      - mode: css
+        type: opacity
+        value: 0.6
+  view_box:
+    - -60
+    - -150
+    - 1160
+    - 800
+  overlays:
+    - id: lbl-tanks
+      type: control
+      attachment: top-left
+      position:
+        - -50
+        - -85
+      size:
+        - 240
+        - 40
+      card:
+        type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        text:
+          label:
+            content: DEUTERIUM 1-3
+            show: true
+            position: center-right
+            font_size: 28
+            color: theme:colors.ui.primary
+    - id: lbl-cargo
+      type: control
+      attachment: top-left
+      position:
+        - -50
+        - -130
+      size:
+        - 240
+        - 40
+      card:
+        type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        text:
+          label:
+            content: CARGO BAY 4
+            show: true
+            position: center-right
+            font_size: 28
+            color: theme:colors.ui.primary
+    # a column of labels, the top one going furthest, so the lines nest
+    - id: ln-tanks
+      type: line
+      anchor: lbl-tanks
+      attach_to:
+        - 281
+        - 60
+      anchor_side: right
+      anchor_gap: 8
+      route: manhattan
+      style:
+        color: theme:colors.ui.secondary
+        width: 3
+    - id: ln-cargo
+      type: line
+      anchor: lbl-cargo
+      attach_to:
+        - 400
+        - 340
+      anchor_side: right
+      anchor_gap: 8
+      route: manhattan
+      style:
+        color: theme:colors.ui.secondary
+        width: 3
 ```
 
 ## Utility pills

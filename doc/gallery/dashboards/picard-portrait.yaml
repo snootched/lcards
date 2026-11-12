@@ -72,11 +72,11 @@ views:
               type: control
               attachment: top-left
               position:
-                - 300
+                - 794
                 - 180
               size:
-                - 380
-                - 50
+                - 330
+                - 54
               card:
                 type: custom:lcards-button
                 preset: text-only
@@ -95,21 +95,22 @@ views:
               attach_to:
                 - 700
                 - 416
-              anchor_side: bottom
-              route: manhattan
-              corner_style: miter
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 4
+                width: 6.5
+              anchor_side: left
+              anchor_gap: 16
+              route: manhattan
+              corner_radius: 26
             - id: lbl-bridge
               type: control
               attachment: top-left
               position:
-                - 1130
+                - 1359
                 - 180
               size:
-                - 300
-                - 50
+                - 230
+                - 54
               card:
                 type: custom:lcards-button
                 preset: text-only
@@ -127,21 +128,22 @@ views:
               attach_to:
                 - 1265
                 - 600
-              anchor_side: bottom
-              route: manhattan
-              corner_style: miter
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 4
+                width: 6.5
+              anchor_side: left
+              anchor_gap: 16
+              route: manhattan
+              corner_radius: 26
             - id: lbl-imp
               type: control
               attachment: top-left
               position:
-                - 290
-                - 960
+                - 590
+                - 887
               size:
-                - 360
-                - 50
+                - 216
+                - 54
               card:
                 type: custom:lcards-button
                 preset: text-only
@@ -151,7 +153,7 @@ views:
                   label:
                     content: IMPULSE · {entity.state}
                     show: true
-                    position: center-left
+                    position: center-right
                     font_size: 34
                     color: theme:colors.ui.secondary
             - id: ln-imp
@@ -160,21 +162,22 @@ views:
               attach_to:
                 - 900
                 - 640
-              anchor_side: top
-              route: manhattan
-              corner_style: miter
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 4
+                width: 6.5
+              anchor_side: right
+              anchor_gap: 16
+              route: manhattan
+              corner_radius: 26
             - id: lbl-defl
               type: control
               attachment: top-left
               position:
-                - 690
+                - 686
                 - 960
               size:
-                - 400
-                - 50
+                - 330
+                - 54
               card:
                 type: custom:lcards-button
                 preset: text-only
@@ -183,7 +186,7 @@ views:
                   label:
                     content: DEFLECTOR · SEAL FAULT
                     show: true
-                    position: center-left
+                    position: center-right
                     font_size: 34
                     color: theme:colors.ui.tertiary
             - id: ln-defl
@@ -192,21 +195,22 @@ views:
               attach_to:
                 - 1110
                 - 620
-              anchor_side: top
-              route: manhattan
-              corner_style: miter
               style:
                 color: theme:colors.ui.tertiary
-                width: 4
+                width: 6.5
+              anchor_side: right
+              route: manhattan
+              corner_radius: 26
+              anchor_gap: 16
             - id: lbl-shd
               type: control
               attachment: top-left
               position:
-                - 1150
+                - 1140
                 - 960
               size:
-                - 360
-                - 50
+                - 216
+                - 54
               card:
                 type: custom:lcards-button
                 preset: text-only
@@ -216,7 +220,7 @@ views:
                   label:
                     content: SHIELDS · {entity.state}
                     show: true
-                    position: center-left
+                    position: center-right
                     font_size: 34
                     color: theme:colors.ui.secondary
             - id: ln-shd
@@ -225,12 +229,13 @@ views:
               attach_to:
                 - 1450
                 - 760
-              anchor_side: top
-              route: manhattan
-              corner_style: miter
               style:
                 color: var(--lcars-card-top-color, var(--lcards-gray-medium))
-                width: 4
+                width: 6.5
+              anchor_side: right
+              anchor_gap: 16
+              route: manhattan
+              corner_radius: 26
           background_animation:
             - preset: grid
               config:

@@ -33,7 +33,7 @@ topics:
         views: [d2-batch1-fixes, d2-batch4-msd-fixes, d2-batch5-core-fixes, b1-banners-red, b1-banners-blue]
   - id: msd
     title: MSD
-    views: [msd-basics, msd-routing, msd-shapes]
+    views: [msd-basics, msd-routing, msd-shapes, msd-leader-lines]
   - id: astrometrics
     title: Astrometrics
     groups:
@@ -93,6 +93,12 @@ topics:
 releases:
   - version: "2026.11.0"
     views:
+      - file: msd-leader-lines
+        summary: "MSD leader lines: side exits, sweeps, tight bends, brackets and angled runs"
+        description: "Labels joined to their parts the canon way, one leader style per MSD. Before: lines dropping from the middle of wide label boxes with square corners. Picard: every label leaves from its side with a tight bend (the fault only takes the accent). Picard bracket style: a thin bar on every label, its line leaving the bar's top corner. Classic: a column of labels whose lines sweep round into their parts and nest. Last: the variants side by side (sweep and tight, bracket corners, route: angled)."
+        session: "MSD leader lines"
+        docs: /getting-started/lcars-patterns#labelled-schematic
+        public: false
       - file: gallery/picard-tiles
         title: "Picard tile wall"
         summary: "Picard tile wall: nine framed section tiles, readings, slots and controls"
@@ -652,7 +658,7 @@ releases:
       - file: gallery/picard-display
         title: "Picard display over controls"
         summary: "Picard display over controls: a labelled ship in a display sweep over a deck of small parts"
-        description: "One display sweep, open on the right, round a large ship side profile with labelled leader lines (three are live readings, one a fault). Under it a deck of small parts: a code-block column, a gauge bank, toggle tabs, two readings tables, one number cascade, a selector strip, flagged blocks and utility pills."
+        description: "One display sweep, open on the right, round a large ship side profile with bracket-style leader lines (three are live readings, one a fault); the LEADERS block switches them between angled lines and level lines from two label columns. Under it a deck of small parts: a code-block column, a gauge bank, toggle tabs, two readings tables, one number cascade, a selector strip, flagged blocks and utility pills."
         session: "S17 gallery"
         docs: /getting-started/dashboard-gallery#picard-display-over-controls
         public: true

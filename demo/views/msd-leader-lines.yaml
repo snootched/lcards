@@ -1,0 +1,762 @@
+# MSD leader lines (2026-11-12): labels joined to their parts the canon way, for
+# review in Home Assistant before the gallery MSDs are reworked
+# (reports/msd-leader-lines-plan.md). Before, the Picard and classic patterns
+# examples, and the angled and bracket variants on a bare card.
+title: MSD leader lines
+path: msd-leader-lines
+type: sections
+max_columns: 4
+sections:
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        text:
+          label:
+            content: "BEFORE: TOP AND BOTTOM EXITS, SQUARE CORNERS"
+            show: true
+            position: center-left
+            font_size: 16
+            color: theme:colors.ui.primary
+        grid_options:
+          columns: 24
+          rows: 1
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg:
+            source: builtin:enterprise-d-shuttlecraft15-anomaly
+            filters:
+              - mode: css
+                type: grayscale
+                value: 1
+              - mode: css
+                type: opacity
+                value: 0.55
+          view_box:
+            - -40
+            - -110
+            - 1123
+            - 720
+          overlays:
+            # a label in the top margin, joined to the fuel tanks
+            - id: lbl-tanks
+              type: control
+              attachment: top-left
+              position:
+                - 150
+                - -100
+              size:
+                - 190
+                - 22
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: DEUTERIUM 1-3
+                    show: true
+                    position: center-left
+                    font_size: 13
+                    color: theme:colors.ui.secondary
+            - id: ln-tanks
+              type: line
+              anchor: lbl-tanks
+              attach_to:
+                - 281
+                - 60
+              anchor_side: bottom
+              attach_side: center
+              route: manhattan
+              style:
+                color: var(--lcars-card-top-color, var(--lcards-gray-medium))
+                width: 1.5
+            # the fault, in the accent, below the drawing
+            - id: lbl-cargo
+              type: control
+              attachment: top-left
+              position:
+                - 330
+                - 530
+              size:
+                - 190
+                - 22
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: CARGO 4 · SEAL FAULT
+                    show: true
+                    position: center-left
+                    font_size: 13
+                    color: theme:colors.ui.tertiary
+            - id: ln-cargo
+              type: line
+              anchor: lbl-cargo
+              attach_to:
+                - 300
+                - 413
+              anchor_side: top
+              attach_side: center
+              route: manhattan
+              style:
+                color: theme:colors.ui.tertiary
+                width: 1.5
+        grid_options:
+          columns: 24
+          rows: 14
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        text:
+          label:
+            content: "AFTER: PICARD, ONE STYLE (SIDE EXIT, TIGHT BEND)"
+            show: true
+            position: center-left
+            font_size: 16
+            color: theme:colors.ui.primary
+        grid_options:
+          columns: 24
+          rows: 1
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg:
+            source: builtin:enterprise-d-shuttlecraft15-anomaly
+            filters:
+              - mode: css
+                type: grayscale
+                value: 1
+              - mode: css
+                type: opacity
+                value: 0.55
+          view_box:
+            - -60
+            - -150
+            - 1160
+            - 800
+          overlays:
+            - id: lbl-tanks
+              type: control
+              attachment: top-left
+              position:
+                - -50
+                - -120
+              size:
+                - 240
+                - 40
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: DEUTERIUM 1-3
+                    show: true
+                    position: center-right
+                    font_size: 28
+                    color: theme:colors.ui.secondary
+            # every label the same way: out of the side, one tight bend into the part
+            - id: ln-tanks
+              type: line
+              anchor: lbl-tanks
+              attach_to:
+                - 281
+                - 60
+              anchor_side: right
+              anchor_gap: 8
+              route: manhattan
+              corner_radius: 22
+              style:
+                color: var(--lcars-card-top-color, var(--lcards-gray-medium))
+                width: 5
+            - id: lbl-cargo
+              type: control
+              attachment: top-left
+              position:
+                - -50
+                - 570
+              size:
+                - 300
+                - 40
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: CARGO 4 · SEAL FAULT
+                    show: true
+                    position: center-right
+                    font_size: 28
+                    color: theme:colors.ui.tertiary
+            # the fault: the accent, the same style
+            - id: ln-cargo
+              type: line
+              anchor: lbl-cargo
+              attach_to:
+                - 450
+                - 440
+              anchor_side: right
+              anchor_gap: 8
+              route: manhattan
+              corner_radius: 22
+              style:
+                color: theme:colors.ui.tertiary
+                width: 5
+            - id: lbl-seat
+              type: control
+              attachment: top-left
+              position:
+                - 880
+                - 540
+              size:
+                - 170
+                - 40
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: FLIGHT DECK
+                    show: true
+                    position: center-left
+                    font_size: 28
+                    color: theme:colors.ui.secondary
+            - id: ln-seat
+              type: line
+              anchor: lbl-seat
+              attach_to:
+                - 632
+                - 227
+              anchor_side: left
+              anchor_gap: 8
+              route: manhattan
+              corner_radius: 22
+              style:
+                color: var(--lcars-card-top-color, var(--lcards-gray-medium))
+                width: 5
+        grid_options:
+          columns: 24
+          rows: 14
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        text:
+          label:
+            content: "AFTER: PICARD BRACKET STYLE (A BAR ON EVERY LABEL)"
+            show: true
+            position: center-left
+            font_size: 16
+            color: theme:colors.ui.primary
+        grid_options:
+          columns: 24
+          rows: 1
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg:
+            source: builtin:enterprise-d-shuttlecraft15-anomaly
+            filters:
+              - mode: css
+                type: grayscale
+                value: 1
+              - mode: css
+                type: opacity
+                value: 0.55
+          view_box:
+            - -60
+            - -150
+            - 1160
+            - 800
+          overlays:
+            # a thin bar beside every label; each line leaves the top corner along the bar, then runs straight
+            - id: lbl-tanks
+              type: control
+              attachment: top-left
+              position:
+                - 520
+                - -120
+              size:
+                - 240
+                - 40
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                style:
+                  border:
+                    width:
+                      left: 5
+                    color: theme:colors.ui.secondary
+                text:
+                  label:
+                    content: DEUTERIUM 1-3
+                    show: true
+                    position: center-left
+                    font_size: 28
+                    color: theme:colors.ui.secondary
+                    padding:
+                      left: 16
+            - id: ln-tanks
+              type: line
+              anchor: lbl-tanks
+              attach_to:
+                - 281
+                - 60
+              anchor_side: top-left
+              route_hint: xy
+              route: angled
+              stub_length: 115
+              corner_style: miter
+              style:
+                color: theme:colors.ui.secondary
+                width: 5
+            - id: lbl-cargo
+              type: control
+              attachment: top-left
+              position:
+                - -50
+                - 570
+              size:
+                - 300
+                - 40
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                style:
+                  border:
+                    width:
+                      right: 5
+                    color: theme:colors.ui.tertiary
+                text:
+                  label:
+                    content: CARGO 4 · SEAL FAULT
+                    show: true
+                    position: center-right
+                    padding:
+                      right: 16
+                    font_size: 28
+                    color: theme:colors.ui.tertiary
+            - id: ln-cargo
+              type: line
+              anchor: lbl-cargo
+              attach_to:
+                - 450
+                - 440
+              anchor_side: top-right
+              route_hint: xy
+              route: angled
+              stub_length: 115
+              corner_style: miter
+              style:
+                color: theme:colors.ui.tertiary
+                width: 5
+            - id: lbl-seat
+              type: control
+              attachment: top-left
+              position:
+                - 880
+                - 540
+              size:
+                - 170
+                - 40
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                style:
+                  border:
+                    width:
+                      left: 5
+                    color: theme:colors.ui.secondary
+                text:
+                  label:
+                    content: FLIGHT DECK
+                    show: true
+                    position: center-left
+                    font_size: 28
+                    color: theme:colors.ui.secondary
+                    padding:
+                      left: 16
+            - id: ln-seat
+              type: line
+              anchor: lbl-seat
+              attach_to:
+                - 632
+                - 227
+              anchor_side: top-left
+              route_hint: xy
+              route: angled
+              stub_length: 115
+              corner_style: miter
+              style:
+                color: theme:colors.ui.secondary
+                width: 5
+        grid_options:
+          columns: 24
+          rows: 14
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        text:
+          label:
+            content: "AFTER: CLASSIC (COLUMN, SWEEP)"
+            show: true
+            position: center-left
+            font_size: 16
+            color: theme:colors.ui.primary
+        grid_options:
+          columns: 24
+          rows: 1
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg:
+            source: builtin:enterprise-d-shuttlecraft15-anomaly
+            filters:
+              - mode: css
+                type: opacity
+                value: 0.6
+          view_box:
+            - -60
+            - -150
+            - 1160
+            - 800
+          overlays:
+            - id: lbl-tanks
+              type: control
+              attachment: top-left
+              position:
+                - -50
+                - -85
+              size:
+                - 240
+                - 40
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: DEUTERIUM 1-3
+                    show: true
+                    position: center-right
+                    font_size: 28
+                    color: theme:colors.ui.primary
+            - id: lbl-cargo
+              type: control
+              attachment: top-left
+              position:
+                - -50
+                - -130
+              size:
+                - 240
+                - 40
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: CARGO BAY 4
+                    show: true
+                    position: center-right
+                    font_size: 28
+                    color: theme:colors.ui.primary
+            # a column of labels, the top one going furthest, so the lines nest
+            - id: ln-tanks
+              type: line
+              anchor: lbl-tanks
+              attach_to:
+                - 281
+                - 60
+              anchor_side: right
+              anchor_gap: 8
+              route: manhattan
+              style:
+                color: theme:colors.ui.secondary
+                width: 3
+            - id: ln-cargo
+              type: line
+              anchor: lbl-cargo
+              attach_to:
+                - 400
+                - 340
+              anchor_side: right
+              anchor_gap: 8
+              route: manhattan
+              style:
+                color: theme:colors.ui.secondary
+                width: 3
+        grid_options:
+          columns: 24
+          rows: 14
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        text:
+          label:
+            content: "VARIANTS: ANGLED, BRACKET CORNERS, TIGHT VS SWEEP"
+            show: true
+            position: center-left
+            font_size: 16
+            color: theme:colors.ui.primary
+        grid_options:
+          columns: 24
+          rows: 1
+      - type: custom:lcards-msd-card
+        msd:
+          base_svg:
+            source: none
+          view_box: [0, 0, 1200, 720]
+          overlays:
+            - id: l-sweep
+              type: control
+              attachment: top-left
+              position: [40, 40]
+              size: [280, 40]
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: SWEEP · RADIUS 34
+                    show: true
+                    position: center-right
+                    font_size: 24
+                    color: theme:colors.ui.primary
+            - id: d-sweep
+              type: shape
+              kind: circle
+              position: [513, 173]
+              size: [14, 14]
+              style:
+                color: theme:colors.ui.primary
+                fill: theme:colors.ui.primary
+            - id: ln-sweep
+              type: line
+              anchor: l-sweep
+              attach_to: d-sweep
+              anchor_side: right
+              anchor_gap: 6
+              attach_side: center
+              route: manhattan
+              style:
+                color: theme:colors.ui.primary
+                width: 3
+            - id: l-tight
+              type: control
+              attachment: top-left
+              position: [640, 40]
+              size: [280, 40]
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: TIGHT · RADIUS 10
+                    show: true
+                    position: center-right
+                    font_size: 24
+                    color: theme:colors.ui.secondary
+            - id: d-tight
+              type: shape
+              kind: circle
+              position: [1113, 173]
+              size: [14, 14]
+              style:
+                color: theme:colors.ui.primary
+                fill: theme:colors.ui.primary
+            - id: ln-tight
+              type: line
+              anchor: l-tight
+              attach_to: d-tight
+              anchor_side: right
+              anchor_gap: 6
+              attach_side: center
+              route: manhattan
+              corner_radius: 10
+              style:
+                color: theme:colors.ui.secondary
+                width: 3
+            - id: l-btop
+              type: control
+              attachment: top-left
+              position: [40, 260]
+              size: [300, 40]
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                style:
+                  border:
+                    width:
+                      right: 5
+                    color: theme:colors.ui.tertiary
+                text:
+                  label:
+                    padding:
+                      right: 14
+                    content: BRACKET · TOP CORNER
+                    show: true
+                    position: center-right
+                    font_size: 24
+                    color: theme:colors.ui.tertiary
+            - id: d-btop
+              type: shape
+              kind: circle
+              position: [513, 393]
+              size: [14, 14]
+              style:
+                color: theme:colors.ui.primary
+                fill: theme:colors.ui.primary
+            - id: ln-btop
+              type: line
+              anchor: l-btop
+              attach_to: d-btop
+              anchor_side: top-right
+              route_hint: xy
+              attach_side: center
+              route: manhattan
+              corner_radius: 10
+              style:
+                color: theme:colors.ui.tertiary
+                width: 3
+            - id: l-bbot
+              type: control
+              attachment: top-left
+              position: [820, 330]
+              size: [300, 40]
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                style:
+                  border:
+                    width:
+                      left: 5
+                    color: theme:colors.ui.secondary
+                text:
+                  label:
+                    padding:
+                      left: 14
+                    content: BRACKET · BOTTOM CORNER
+                    show: true
+                    position: center-left
+                    font_size: 24
+                    color: theme:colors.ui.secondary
+            - id: d-bbot
+              type: shape
+              kind: circle
+              position: [633, 243]
+              size: [14, 14]
+              style:
+                color: theme:colors.ui.primary
+                fill: theme:colors.ui.primary
+            - id: ln-bbot
+              type: line
+              anchor: l-bbot
+              attach_to: d-bbot
+              anchor_side: bottom-left
+              route_hint: xy
+              attach_side: center
+              route: manhattan
+              corner_radius: 10
+              style:
+                color: theme:colors.ui.secondary
+                width: 3
+            - id: l-ang1
+              type: control
+              attachment: top-left
+              position: [40, 520]
+              size: [280, 40]
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: ANGLED · STUB 40
+                    show: true
+                    position: center-right
+                    font_size: 24
+                    color: theme:colors.ui.secondary
+            - id: d-ang1
+              type: shape
+              kind: circle
+              position: [473, 633]
+              size: [14, 14]
+              style:
+                color: theme:colors.ui.primary
+                fill: theme:colors.ui.primary
+            - id: ln-ang1
+              type: line
+              anchor: l-ang1
+              attach_to: d-ang1
+              anchor_side: right
+              anchor_gap: 6
+              attach_side: center
+              route: angled
+              stub_length: 40
+              corner_radius: 10
+              style:
+                color: theme:colors.ui.secondary
+                width: 3
+            - id: l-ang2
+              type: control
+              attachment: top-left
+              position: [880, 640]
+              size: [280, 40]
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: ANGLED · BOTH ENDS
+                    show: true
+                    position: center-left
+                    font_size: 24
+                    color: theme:colors.ui.secondary
+            - id: d-ang2
+              type: shape
+              kind: circle
+              position: [653, 513]
+              size: [14, 14]
+              style:
+                color: theme:colors.ui.primary
+                fill: theme:colors.ui.primary
+            - id: ln-ang2
+              type: line
+              anchor: l-ang2
+              attach_to: d-ang2
+              anchor_side: left
+              anchor_gap: 6
+              attach_side: bottom
+              route: angled
+              stub_length: 50
+              corner_radius: 10
+              style:
+                color: theme:colors.ui.secondary
+                width: 3
+        grid_options:
+          columns: 24
+          rows: 14

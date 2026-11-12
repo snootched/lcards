@@ -1,0 +1,47 @@
+# Leader lines (msd-audit.spec.js): a bracket label (the label's own right border)
+# whose line leaves its top-right corner along the top edge, inset by half the line's
+# width so line and bar make one L; and route: angled (a side stub, then straight).
+type: custom:lcards-msd-card
+msd:
+  base_svg:
+    source: none
+  view_box: [0, 0, 800, 300]
+  overlays:
+    - id: bracket
+      type: control
+      attachment: top-left
+      position: [40, 100]
+      size: [200, 40]
+      card:
+        type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        style:
+          border:
+            width:
+              right: 6
+        text:
+          label:
+            content: BRACKET
+            show: true
+            position: center-right
+    - id: bracket_line
+      type: line
+      anchor: bracket
+      anchor_side: top-right
+      route_hint: xy
+      attach_to: [500, 250]
+      route: manhattan
+      corner_style: miter
+      style:
+        width: 6
+    - id: angled_line
+      type: line
+      anchor: [700, 50]
+      anchor_side: left
+      attach_to: [400, 200]
+      route: angled
+      stub_length: 40
+      corner_style: miter
+      style:
+        width: 2
