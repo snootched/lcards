@@ -127,6 +127,8 @@ grid_options:
 
 **`interactive: false` makes a button decorative: no hand cursor, no hover colour, no hover animations.** Use it for panels, headers and fillers that shouldn't look tappable.
 
+- A button with no action and no entity a tap can toggle (a title, a dot row, a filler, a sensor readout) is decorative already; set `interactive: true` to give it hover effects anyway.
+- A label bound to a light, switch or input boolean only for its text or colour still toggles it on a tap; give it `tap_action: { action: none }` and it is decorative too.
 - Taps and holds still run their actions, so a decorative button can still do something.
 
 ```yaml live
@@ -142,13 +144,13 @@ tap_action:
 ```
 
 ::: details More about interactive
-- **What changes:** with `interactive: true` (the default) the cursor is a hand (`pointer`), the background changes to the hover colour from the preset or `style`, and hover animations run. With `false` the cursor is the arrow (`default`), the colour stays, and hover animations don't run.
+- **What changes:** with `interactive: true` the cursor is a hand (`pointer`), the background changes to the hover colour from the preset or `style`, and hover animations run. With `false` the cursor is the arrow (`default`), the colour stays, and hover animations don't run.
 - **Presets:** the panel presets set `interactive: false` for you.
 :::
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `interactive` | boolean | `true` (`false` on panel presets) | `false`: no hand cursor, hover colour or hover animations. Actions still run |
+| `interactive` | boolean | `true` with an action or a switchable entity, else `false` (`false` on panel presets) | `false`: no hand cursor, hover colour or hover animations. Actions still run |
 
 ## style.cursor
 

@@ -55,6 +55,10 @@ The LCARdS skill follows the open [Agent Skills](https://agentskills.io) standar
 Already have a config, from you or from another tool? Paste it into Claude with the skill loaded and ask *"check this LCARdS config and fix it"*. Claude runs the same checker as the [Check Your Config](config-checker) page and explains each problem.
 :::
 
+::: tip Claude can restyle a dashboard you already have
+Paste a whole dashboard and ask *"restyle this to the LCARS design rules"*. Claude keeps your entities, controls and labels, asks about anything the YAML doesn't settle (the look, how colours work, the schematic's leader style), rebuilds it with [Designing LCARS Screens](lcars-design) and the [patterns](lcars-patterns), then grades it against the guide's [Check a screen](lcars-design#check-a-screen) list and the config checker. You get the new YAML with each check marked met, fixed or left as is, and a short list of what changed.
+:::
+
 ## Give Claude your home's context (ha-mcp)
 
 **On its own, Claude doesn't know your Home Assistant: you tell it your entity ids.** The community [**ha-mcp**](https://github.com/homeassistant-ai/ha-mcp) server connects Claude to your Home Assistant, so together with the LCARdS skill Claude can look things up for itself:

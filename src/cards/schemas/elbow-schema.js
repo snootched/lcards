@@ -185,8 +185,7 @@ export function getElbowSchema(options = {}) {
 
             interactive: {
                 type: 'boolean',
-                default: true,
-                description: 'When false, hover colour changes and hover animations are suppressed. The cursor defaults to the arrow unless overridden via style.cursor. Tap/hold actions still fire if configured.',
+                description: 'When false, hover colour changes and hover animations are suppressed. The cursor defaults to the arrow unless overridden via style.cursor. Tap/hold actions still fire if configured. Left out, an elbow is interactive when it has a tap, hold or double tap action or an entity its default tap (toggle) can switch, and decorative (false) otherwise.',
                 'x-ui-hints': {
                     label: 'Show hover effects',
                     helper: 'Disable to suppress colour change and hover animations on mouse-over. Does not affect tap/hold actions.'

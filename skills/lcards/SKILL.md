@@ -28,6 +28,15 @@ LCARdS is a Home Assistant integration of LCARS-style cards, a grid view type an
 
 When the user pastes LCARdS YAML (theirs, or written by another tool) and asks why it doesn't work or to check it: save it to a file and run the checker on it, then explain each error and warning in plain words at its path, and give the corrected YAML. Run the checker again on your fix. Without code execution, compare each key with the card's schema and each name with `registries.json`.
 
+## Restyling a dashboard the user pastes
+
+When the user gives you an existing dashboard (theirs, an older LCARdS one, or from another tool) and asks to make it look right, LCARS-correct or "like the gallery":
+
+1. Keep what it does: every entity, control and action stays, and so do the user's names and labels unless they ask otherwise. Ask the questions from steps 1 and 2 that its YAML doesn't already answer (look, colours by state or by hand, the MSD leader style).
+2. Rebuild it with the design guide and the patterns (step 2): fixed px tracks for small parts, theme roles for colours, the right archetype for the device, one leader style per MSD.
+3. Grade it before you hand it over: go down the "Check a screen" table in `references/docs/getting-started/lcars-design.md` and give the user each row as met, fixed, or left as is with the reason. Run the checker (step 6) and fix what it reports.
+4. Hand over the new YAML with a short list of what changed and why.
+
 ## HA-LCARS and UIX
 
 Many LCARdS users also run **HA-LCARS**, the LCARS theme for all of Home Assistant, which styles stock cards through **UIX** (UI eXtension, the successor to card-mod). Three layers, each with its own vocabulary:
@@ -45,6 +54,7 @@ Many LCARdS users also run **HA-LCARS**, the LCARS theme for all of Home Assista
 
 ## Rules
 
+- Decorative buttons (titles, dot rows, fillers, readouts of a sensor or number) need no `interactive` key: a button with no action and no entity a tap can toggle shows no hover colour or hand cursor. A label bound to a light, switch or input boolean only for its text or colour gets `tap_action: { action: none }`, which also turns its hover off. Set `interactive: true` or `false` only to override.
 - Card types are `type: custom:<tag>`: `custom:lcards-button`, `custom:lcards-msd-card`, ... Views: `type: custom:lcards-layout-view`. Strategy: `strategy: { type: custom:lcars-shell }`.
 - Only keys the schema declares. If something the user wants has no key, say so instead of inventing one.
 - Names must exist: presets, components, animation and background presets, filters, sound assets, MSD backgrounds (`builtin:<name>`) and theme tokens are listed in `references/schema/registries.json`.

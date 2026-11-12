@@ -141,7 +141,7 @@ tap_action:
 | `entity` | string | - | The entity whose state picks the [fill colour](./appearance#colours) and the actions act on |
 | `text` | object | - | Text on the bars or in the open area: see [Text labels](./appearance#text-labels) |
 | `tap_action` | object | `none` | What a tap does; `hold_action` and `double_tap_action` too. See [Actions](/core/actions) |
-| `interactive` | boolean | `true` | `false` turns off the hover and pressed colours; actions still run. See [interactive](/core/actions#interactive) |
+| `interactive` | boolean | `true` with an action or a switchable entity, else `false` | `false` turns off the hover and pressed colours; actions still run. See [interactive](/core/actions#interactive) |
 | `style.cursor` | string | pointer, or arrow when not interactive | The mouse cursor over the elbow. See [style.cursor](/core/actions#style-cursor) |
 | `shape_texture` | object | - | A texture inside the elbow's fill: see [Shape texture](./appearance#shape-texture) |
 | `background_animation` | list / object | - | An animated background in the open area: see [Background animation inset](./appearance#background-animation-inset) |

@@ -1,0 +1,8 @@
+# The same lozenge with an entity: interactive (hand cursor) (button-interactive in cards.spec.js).
+type: custom:lcards-button
+preset: lozenge
+entity: input_boolean.lcards_test_toggle
+text:
+  label:
+    content: TITLE
+    show: true

@@ -15,6 +15,7 @@ import { lcardsLog } from '../../utils/lcards-logging.js';
 import { getComponentNames, getComponentsForCard } from '../../core/packs/components/index.js';
 import '../components/shared/lcards-message.js';
 import '../components/yaml/lcards-yaml-editor.js';
+import { isInteractive } from '../../utils/button-interactive.js';
 // Import shared form components
 import '../components/shared/lcards-form-section.js';
 // Import specialized editor components
@@ -699,7 +700,7 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
      * Actions tab - uses multi-action editor
      */
     _renderActionsTab() {
-        const isInteractive = this.config.interactive !== false;
+        const interactive = isInteractive(this.config);
         const cursorOptions = [
             { value: 'pointer',      label: 'Pointer (hand), default' },
             { value: 'default',      label: 'Default (arrow)' },
@@ -723,9 +724,9 @@ export class LCARdSButtonEditor extends LCARdSBaseEditor {
                 <ha-selector
                     .hass=${this.hass}
                     .label=${'Show hover effects (colour change & hover animations)'}
-                    .helper=${'When off, mouse-over does not change the button colour or trigger hover animations. Tap/hold actions are unaffected.'}
+                    .helper=${'When off, mouse-over does not change the button colour or trigger hover animations. Tap/hold actions are unaffected. Left unset, it is on when the button has an action or an entity a tap can toggle.'}
                     .selector=${{ boolean: {} }}
-                    .value=${isInteractive}
+                    .value=${interactive}
                     @value-changed=${(e) => {
                         this._updateConfig({ interactive: e.detail.value !== false });
                     }}>

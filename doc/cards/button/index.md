@@ -175,7 +175,7 @@ hold_action:
 | `svg` | object | - | Your own SVG: see [Custom SVG](./custom-svg) |
 | `style` | object | from the preset | Background, border, cursor and text defaults: see [Style, Text and Hover](./styles) |
 | `text` | object | from the preset | Text on the card: see [Text fields](./styles#text-fields) |
-| `interactive` | boolean | `true` | `false`: no hover colour or hover animations. See [interactive](./styles#interactive) |
+| `interactive` | boolean | `true` with an action or a switchable entity, else `false` | `false`: no hover colour or hover animations. See [interactive](./styles#interactive) |
 | `filters` | list | - | CSS and SVG filters: see [filters](./styles#filters) |
 | `show_icon` | boolean | `false`, `true` on some presets | Show the icon: see [Icons](./icons#icon) |
 | `icon` | string | the entity's icon | The icon: see [Icons](./icons#icon) |

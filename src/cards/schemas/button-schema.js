@@ -91,8 +91,7 @@ export function getButtonSchema(options = {}) {
 
             interactive: {
                 type: 'boolean',
-                default: true,
-                description: 'When false, hover colour changes and hover animations are suppressed. The cursor defaults to the arrow unless overridden via style.cursor. Tap/hold actions still fire if configured.',
+                description: 'When false, hover colour changes and hover animations are suppressed. The cursor defaults to the arrow unless overridden via style.cursor. Tap/hold actions still fire if configured. Left out, a button is interactive when it has a tap, hold or double tap action, a component or SVG segments, or an entity its default tap (toggle) can switch (lights, switches, input booleans, covers, locks, ...), and decorative (false) otherwise: a title, a filler, or a readout of a sensor or number.',
                 'x-ui-hints': {
                     label: 'Show hover effects',
                     helper: 'Disable to suppress colour change and hover animations on mouse-over. Does not affect tap/hold actions.'

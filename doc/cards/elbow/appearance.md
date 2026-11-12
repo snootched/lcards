@@ -43,7 +43,7 @@ tap_action:
 | `elbow.segment.color` | colour / state map | the theme's header or footer colour | Fill of a simple elbow, or the outer ring of a frame |
 | `elbow.segments.outer_segment.color` | colour / state map | the theme's header or footer colour | Fill of the outer elbow of a segmented elbow; a state map follows the segment's `entity_id`, else the card's `entity` |
 | `elbow.segments.inner_segment.color` | colour / state map | the theme's header or footer colour | Fill of the inner elbow; a state map follows the segment's `entity_id`, else the card's `entity` |
-| `interactive` | boolean | `true` | `false` turns off the hover and pressed colours |
+| `interactive` | boolean | `true` with an action or a switchable entity, else `false` | `false` turns off the hover and pressed colours |
 
 ## Text labels
 

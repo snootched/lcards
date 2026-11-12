@@ -54,6 +54,7 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSCard } from '../base/LCARdSCard.js';
 import { actionSoundEvent } from '../base/LCARdSActionHandler.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { isInteractive } from '../utils/button-interactive.js';
 import { bundleUrl } from '../utils/bundle-url.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { ColorUtils } from '../core/themes/ColorUtils.js';
@@ -1933,7 +1934,7 @@ export class LCARdSButton extends LCARdSCard {
         };
 
         // Attach listeners — skip hover visual listeners in non-interactive (decorative) mode
-        if (this.config.interactive !== false) {
+        if (isInteractive(this.config)) {
             element.addEventListener('mouseenter', handleMouseEnter);
             element.addEventListener('mouseleave', handleMouseLeaveWhilePressed);
         }
@@ -1953,7 +1954,7 @@ export class LCARdSButton extends LCARdSCard {
         // Make element pointer-interactive
         element.style.pointerEvents = 'all';
         // Only show pointer cursor when the card is interactive
-        if (this.config.interactive !== false) {
+        if (isInteractive(this.config)) {
             element.style.cursor = 'pointer';
         }
 
@@ -2699,7 +2700,7 @@ export class LCARdSButton extends LCARdSCard {
     _extractInteractionStyles(resolvedStyle, buttonState, actualEntityState) {
         // When the button is in non-interactive (decorative) mode, suppress all
         // hover and pressed visual feedback so colour never changes on mouse-over.
-        if (this.config.interactive === false) {
+        if (!isInteractive(this.config)) {
             this._buttonHoverStyle = null;
             this._buttonPressedStyle = null;
             this._buttonBorderHoverStyle = null;
@@ -3424,7 +3425,7 @@ export class LCARdSButton extends LCARdSCard {
      */
     _applyButtonCursor() {
         const cursor = this.config.style?.cursor
-            ?? (this.config.interactive === false ? 'default' : 'pointer');
+            ?? (!isInteractive(this.config) ? 'default' : 'pointer');
         const groupEl = /** @type {HTMLElement|null} */ (this.shadowRoot?.querySelector('[data-overlay-id="button"]'));
         if (groupEl) {
             groupEl.style.cursor = cursor;
@@ -3489,7 +3490,7 @@ export class LCARdSButton extends LCARdSCard {
                 animations: this.config.animations,
                 // In non-interactive (decorative) mode, suppress pointer cursor and
                 // hover/leave animation triggers in the action handler.
-                disableHover: this.config.interactive === false,
+                disableHover: !isInteractive(this.config),
                 ...this._getButtonActionOptions()
             }
         );
@@ -4770,7 +4771,7 @@ export class LCARdSButton extends LCARdSCard {
         // re-computing geometry at the measured container dimensions produces no distortion.
         const svgAttrs = `width="100%" viewBox="${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"`;
         const _btnCursor = this.config.style?.cursor
-            ?? (this.config.interactive === false ? 'default' : 'pointer');
+            ?? (!isInteractive(this.config) ? 'default' : 'pointer');
         const gAttrs   = `data-button-id="button" data-overlay-id="button" class="button-group" style="pointer-events: visiblePainted; cursor: ${_btnCursor};"`;
 
         // Debug zone overlay — only present when config.debug_zones is true.

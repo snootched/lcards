@@ -66,6 +66,7 @@ import { html, css } from 'lit';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { LCARdSButton } from './lcards-button.js';
 import { lcardsLog } from '../utils/lcards-logging.js';
+import { isInteractive } from '../utils/button-interactive.js';
 import { resolveStateColor } from '../utils/state-color-resolver.js';
 import { isCssLengthString, measureCssLength } from '../utils/css-length-utils.js';
 import { concentricInnerCurve, parseFrameConfig, frameLengthValues, elbowContentInsets, translatePath, segmentActions, segmentOwnsInput, themeBindings, parseSegmentBar, SEGMENT_ACTION_KEYS } from './elbow-config.js';
@@ -501,7 +502,7 @@ export class LCARdSElbow extends LCARdSButton {
         // When the elbow is in non-interactive (decorative) mode, suppress all
         // hover and pressed visual feedback so colour never changes on mouse-over.
         // Mirrors LCARdSButton._extractInteractionStyles().
-        if (this.config.interactive === false) {
+        if (!isInteractive(this.config)) {
             this._elbowHoverStyle = null;
             this._elbowPressedStyle = null;
             this._elbowOuterHoverStyle = null;
@@ -2311,7 +2312,7 @@ export class LCARdSElbow extends LCARdSButton {
 
         // Compose SVG
         const _elbowCursor = this.config.style?.cursor
-            ?? (this.config.interactive === false ? 'default' : 'pointer');
+            ?? (!isInteractive(this.config) ? 'default' : 'pointer');
         const svgString = `
             <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
                 <g data-button-id="elbow"
@@ -2448,7 +2449,7 @@ export class LCARdSElbow extends LCARdSButton {
 
         // Compose segmented SVG with two elbow paths
         const _elbowCursor = this.config.style?.cursor
-            ?? (this.config.interactive === false ? 'default' : 'pointer');
+            ?? (!isInteractive(this.config) ? 'default' : 'pointer');
         const svgString = `
             <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
                 <g data-button-id="elbow"
@@ -2653,7 +2654,7 @@ export class LCARdSElbow extends LCARdSButton {
         const textureMarkup = this._generateTextureMarkup(width, height, {}, `${outerRingPath} ${innerRingPath}`.trim());
 
         const _elbowCursor = this.config.style?.cursor
-            ?? (this.config.interactive === false ? 'default' : 'pointer');
+            ?? (!isInteractive(this.config) ? 'default' : 'pointer');
         const svgString = `
             <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"
                  xmlns="http://www.w3.org/2000/svg">

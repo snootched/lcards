@@ -875,6 +875,9 @@ views:
                 preset: text-only
                 min_height: 0
                 entity: input_boolean.lcards_test_doors
+                # the entity only feeds the label's text: no toggle on tap (the BAY 2 block switches the doors)
+                tap_action:
+                  action: none
                 text:
                   label:
                     content: '{{ ''SHUTTLE BAY · DOORS OPEN'' if is_state(''input_boolean.lcards_test_doors'', ''on'') else ''SHUTTLE BAY · SEALED'' }}'

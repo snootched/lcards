@@ -552,3 +552,31 @@ test('button: a label set to an empty string stays empty (not the preset\'s temp
     expect(text).not.toContain('Math.random');
     await expectNoErrors(page);
 });
+
+test('button-interactive: a button with no entity and no action is decorative (arrow, no hover colour); with an entity it is interactive', async ({ page }) => {
+    /** @param {string} name */
+    const probe = async (name) => {
+        await mountCase(page, name);
+        const read = () => page.evaluate(() => {
+            const card = /** @type {any} */ (document.querySelector('#mount > *'));
+            const g = card.shadowRoot.querySelector('[data-overlay-id="button"]');
+            const bg = card.shadowRoot.querySelector('[data-overlay-id="button"] path, [data-overlay-id="button"] rect');
+            return { cursor: getComputedStyle(g).cursor, fill: bg ? getComputedStyle(bg).fill : null };
+        });
+        const before = await read();
+        const box = await page.locator('#mount > *').boundingBox();
+        if (!box) throw new Error('no card');
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.waitForTimeout(300);
+        const after = await read();
+        await page.mouse.move(0, 0);
+        return { before, after };
+    };
+    const deco = await probe('button-decorative');
+    expect(deco.before.cursor).toBe('default');
+    expect(deco.after.fill).toBe(deco.before.fill);
+    await expectNoErrors(page);
+    const live = await probe('button-decorative-twin');
+    expect(live.before.cursor).toBe('pointer');
+    await expectNoErrors(page);
+});
