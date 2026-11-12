@@ -68,6 +68,7 @@ sections:
           - type: custom:lcards-slider
             entity: input_number.lcards_test_power
             preset: gauge-basic
+            height: 24
             style: {gauge: {scale: {labels: {enabled: false}}}}
           - type: custom:lcards-button
             preset: panel-dark
@@ -76,6 +77,7 @@ sections:
           - type: custom:lcards-slider
             entity: input_number.lcards_test_shields
             preset: gauge-basic
+            height: 24
             style: {gauge: {scale: {labels: {enabled: false}}}}
           - type: custom:lcards-button
             preset: panel-dark
@@ -84,6 +86,7 @@ sections:
           - type: custom:lcards-slider
             entity: input_number.lcards_test_value
             preset: gauge-basic
+            height: 24
             style: {gauge: {scale: {labels: {enabled: false}}}}
         grid_options:
           columns: full

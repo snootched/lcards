@@ -1,0 +1,7 @@
+# A label set to an empty string stays empty (it printed the preset's template source)
+type: custom:lcards-button
+preset: text-only
+text:
+  label:
+    content: ''
+    show: true

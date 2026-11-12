@@ -18,6 +18,7 @@ import { ThemeTokenResolver, initializeTokenResolver, getTokenResolver } from '.
 import { lcardsLog } from '../../utils/lcards-logging.js';
 import { BaseService } from '../../core/BaseService.js';
 import { setAlertMode as injectAlertMode, captureOriginalColors } from './paletteInjector.js';
+import { applyAlertToScopes } from './alertThemeScopes.js';
 import { isKnownAlertMode } from './alertModeTransform.js';
 import { loadAlertTransformsFromHelpers } from './alertModeTransform.js';
 import { STORAGE_KEY_THEME_OVERRIDES } from '../services/ScopedSettingsConstants.js';
@@ -56,6 +57,15 @@ export class ThemeManager extends BaseService {
      * @type {Set<Function>}
      */
     this._alertModeSubscribers = new Set();
+
+    /** @type {any} last hass.themes seen (updateHass), to notice Home Assistant re-applying themes */
+    this._lastHassThemes = undefined;
+    /** @type {(() => void)|null} navigation listener that re-shifts themed scopes during an alert */
+    this._locationListener = null;
+    /** @type {ReturnType<typeof setTimeout>|undefined} */
+    this._alertScopeTimer = undefined;
+    /** @type {ReturnType<typeof setTimeout>|undefined} */
+    this._alertScopeLateTimer = undefined;
 
     /**
      * Subscribers notified after theme token overrides change.
@@ -616,6 +626,55 @@ export class ThemeManager extends BaseService {
     if (!applied) onApplied();
 
     lcardsLog.info(`[ThemeManager] ✅ Alert mode: ${mode}`);
+  }
+
+  /**
+   * Home Assistant re-applies view, section and card themes on navigation and
+   * when its themes change; during an alert those scopes must be shifted again
+   * (alertThemeScopes.js). Called with each new hass.
+   * @param {any} hass
+   */
+  updateHass(hass) {
+    const themes = hass?.themes;
+    if (themes && themes !== this._lastHassThemes) {
+      const first = this._lastHassThemes === undefined;
+      this._lastHassThemes = themes;
+      if (!first) this._scheduleAlertScopeRefresh();
+    }
+    if (!this._locationListener && typeof window !== 'undefined') {
+      this._locationListener = () => this._scheduleAlertScopeRefresh();
+      window.addEventListener('location-changed', this._locationListener);
+      window.addEventListener('popstate', this._locationListener);
+    }
+  }
+
+  /**
+   * Shift themed scopes again soon (Home Assistant renders a new view and
+   * applies its theme asynchronously), if an alert is up.
+   * @private
+   */
+  _scheduleAlertScopeRefresh() {
+    if (!this.currentAlertMode || this.currentAlertMode === 'green_alert') return;
+    clearTimeout(this._alertScopeTimer);
+    clearTimeout(this._alertScopeLateTimer);
+    this._alertScopeTimer = setTimeout(() => this.refreshAlertScopes(), 100);
+    this._alertScopeLateTimer = setTimeout(() => this.refreshAlertScopes(), 700);
+  }
+
+  /**
+   * Shift any themed view, section or card that appeared or was re-themed
+   * since the alert was raised; cards repaint when a new scope was shifted.
+   * @returns {number} scopes newly shifted
+   */
+  refreshAlertScopes() {
+    const mode = this.currentAlertMode;
+    if (!mode || mode === 'green_alert' || typeof document === 'undefined') return 0;
+    const { fresh } = applyAlertToScopes(mode);
+    if (fresh) {
+      this.resolver?.clearCache?.();
+      window.dispatchEvent(new CustomEvent('lcards:theme-overrides-changed'));
+    }
+    return fresh;
   }
 
   /**

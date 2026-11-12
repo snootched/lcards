@@ -135,12 +135,12 @@ style:
 | `progress_bar.background.min` | number | `control.min` | Value where the empty track starts |
 | `progress_bar.background.max` | number | `control.max` | Value where the empty track ends |
 | `scale.tick_marks.major.enabled` | boolean | `true` | Show major ticks |
-| `scale.tick_marks.major.interval` | number | `10` | A major tick every this many value units |
+| `scale.tick_marks.major.interval` | number | `10` | A major tick every this many value units; a fraction (`0.5`) suits a small range, and the labels show its decimals |
 | `scale.tick_marks.major.color` | colour | theme | Major tick colour |
 | `scale.tick_marks.major.height` | number | the track | Major tick length, px |
 | `scale.tick_marks.major.width` | number | `2` | Major tick width, px |
 | `scale.tick_marks.minor.enabled` | boolean | `true` | Show the minor ticks between the major ones |
-| `scale.tick_marks.minor.interval` | number | `2` | A minor tick every this many value units |
+| `scale.tick_marks.minor.interval` | number | `2` | A minor tick every this many value units; fractions work |
 | `scale.tick_marks.minor.color` | colour | theme | Minor tick colour |
 | `scale.tick_marks.minor.height` | number | `10` | Minor tick length, px |
 | `scale.tick_marks.minor.width` | number | `1` | Minor tick width, px |

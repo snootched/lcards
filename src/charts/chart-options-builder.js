@@ -157,9 +157,10 @@ export function timeAxisData({ config, span = null, points, hass }) {
  * @param {[number, number]} [args.size] - Container size
  * @param {Object} [args.hass] - For locale-aware formatting
  * @param {(style: Object) => Object} [args.resolveStyle] - Theme token resolution
+ * @param {Element|null} [args.element] - The chart card: CSS variables in colours resolve against it
  * @returns {Object} ApexCharts options
  */
-export function buildChartOptions({ config, style, series, points, span = null, size = [400, 200], hass, resolveStyle }) {
+export function buildChartOptions({ config, style, series, points, span = null, size = [400, 200], hass, resolveStyle, element = null }) {
   const chartType = config.chart_type || 'line';
   let enhancedStyle = { chart_type: chartType, ...style };
 
@@ -196,6 +197,7 @@ export function buildChartOptions({ config, style, series, points, span = null, 
 
   const options = ApexChartsAdapter.generateOptions(enhancedStyle, size, {
     hass,
+    element,
     series,
     yaxis: config.yaxis,
     span,

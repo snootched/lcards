@@ -50,10 +50,17 @@ export function pageUrl(rel, base = '/') {
 export function cleanMarkdown(text) {
   return text
     .replace(/^---\n[\s\S]*?\n---\n/, '')
-    // VitePress file includes (<<< @/path) become the file's content.
+    // VitePress file includes (<<< @/path) become the file's content, except the
+    // gallery dashboards: whole screens of 1000+ lines each, which would swamp
+    // llms-full.txt. They become a pointer (the skill ships them as references/gallery/).
     .replace(/^<<< @\/(\S+)[ \t]*$/gm, (line, rel) => {
       const file = join(DOC, rel);
       if (!existsSync(file)) return line;
+      const gallery = /^gallery\/dashboards\/([^/]+\.yaml)$/.exec(rel);
+      if (gallery) {
+        return `The YAML is \`${gallery[1]}\`: in the LCARdS skill \`references/gallery/${gallery[1]}\`, `
+          + `in the repository https://github.com/snootched/lcards/blob/main/doc/${rel}`;
+      }
       const lang = rel.split('.').pop() === 'yml' ? 'yaml' : rel.split('.').pop();
       return '```' + lang + '\n' + readFileSync(file, 'utf8').trimEnd() + '\n```';
     })

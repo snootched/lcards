@@ -1,5 +1,5 @@
 ---
-description: A classic TNG-style screen follows the design guide - layout view, theme roles, pill groups, no hard-coded colours
+description: A classic screen follows the design guide - layout view, theme roles, pill groups, no hard-coded colours
 tags: [design]
 runs: 2
 max_turns: 40

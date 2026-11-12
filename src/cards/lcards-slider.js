@@ -95,6 +95,7 @@ import { ColorUtils } from '../core/themes/ColorUtils.js';
 import { deepMerge } from '../utils/deepMerge.js';
 import { resolveThemeTokensRecursive } from '../utils/lcards-theme.js';
 import { haFormatStateParts, extractUnit, haFormatNumber } from '../utils/ha-entity-display.js';
+import { ringNameFollowsFill, RING_FILL_TOKEN } from './slider-ring-text.js';
 
 // Import unified schema
 import { getSliderSchema } from './schemas/slider-schema.js';
@@ -515,6 +516,12 @@ export class LCARdSSlider extends LCARdSButton {
      */
     _onConfigUpdated() {
         lcardsLog.debug(`[LCARdSSlider] Config updated by CoreConfigManager, re-resolving slider style`);
+
+        // A ring preset's name is "in the fill colour": follow the user's own fill.
+        if (this.config?.component === 'ring') {
+            this.config = ringNameFollowsFill(this.config, this._rawConfig,
+                this.getThemeToken(RING_FILL_TOKEN.slice('theme:'.length)));
+        }
 
         // Re-process SVG configuration (in case config was replaced by CoreConfigManager)
         this._processSvgConfig();
@@ -2668,6 +2675,12 @@ export class LCARdSSlider extends LCARdSButton {
             ? (labelConfig?.unit ?? this._displayConfig.unit ?? '')
             : '';
         const labelPadding = labelConfig?.padding || 3; // Padding between tick and label
+        // Tick label text: as many decimals as the major interval (0.5 -> one), in the
+        // user's number format without grouping, so a fractional interval reads 1,5 / 2
+        // rather than repeating rounded values or showing floating-point noise.
+        const intervalDecimals = (String(majorInterval).split('.')[1] ?? '').length;
+        const tickLabel = (/** @type {number} */ value) => haFormatNumber(this.hass, Number(value.toFixed(intervalDecimals)),
+            { maximumFractionDigits: intervalDecimals, useGrouping: false });
 
         // Label color - state-aware resolution for tick labels
         const tickLabelColor = this._resolveColorValue(String(this._resolveStateValue({
@@ -2787,7 +2800,7 @@ export class LCARdSSlider extends LCARdSButton {
                     // Label - positioned near bottom with proper spacing
                     if (labelsEnabled && !isFirstTick) {
                         // Estimate label width (rough approximation: ~8px per digit + unit)
-                        const labelText = Math.round(displayValue) + labelUnit;
+                        const labelText = tickLabel(displayValue) + labelUnit;
                         const estimatedLabelWidth = labelText.length * labelFontSize * 0.57;
 
                         // Check if label would extend beyond track bounds
@@ -2911,7 +2924,7 @@ export class LCARdSSlider extends LCARdSButton {
 
                     // Draw label if enabled (to the right, below the line)
                     if (labelsEnabled && !isBottomTick) {
-                        const labelText = `${displayValue}${labelUnit}`;
+                        const labelText = `${tickLabel(displayValue)}${labelUnit}`;
                         const labelFontSizeVertical = labelFontSize;
 
                         // Estimate label width and check bounds

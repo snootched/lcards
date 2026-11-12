@@ -96,6 +96,32 @@ test('slider: the value text is formatted by Home Assistant for the user locale 
     await expectNoErrors(page);
 });
 
+test('button: bar-label-left sizes its label to the bar, and an explicit font_size wins', async ({ page }) => {
+    await mountCase(page, 'button-bar-label-font-size', { height: '48' });
+    const size = () => page.locator('lcards-button').evaluate(el => [...el.shadowRoot.querySelectorAll('text')]
+        .find(t => t.textContent.trim() === 'MISSION OPS')?.getAttribute('font-size'));
+    await expect.poll(size).toBe('20');
+    // font_size_percent sizes it against the bar
+    await page.evaluate(() => window.__reconfigure({ type: 'custom:lcards-button', preset: 'bar-label-left', height: 48, min_height: 0, text: { label: { content: 'MISSION OPS', font_size_percent: 50 } } }));
+    await expect.poll(async () => Number(await size())).toBeGreaterThan(22);
+    await expect.poll(async () => Number(await size())).toBeLessThan(32);
+    await expectNoErrors(page);
+});
+
+test('slider: a fractional tick interval labels the scale with its decimals', async ({ page }) => {
+    await mountCase(page, 'slider-picard-column', { height: '400' });
+    await page.evaluate(() => window.__reconfigure({
+        type: 'custom:lcards-slider', entity: 'input_number.demo_level', preset: 'picard-gauge-column',
+        style: { gauge: { scale: { tick_marks: { major: { interval: 12.5 }, minor: { interval: 2.5 } }, labels: { enabled: true } } } },
+    }));
+    const texts = () => page.locator('lcards-slider').evaluate(el => [...el.shadowRoot.querySelectorAll('text')].map(t => t.textContent.trim()));
+    await expect.poll(texts).toContain('12.5');
+    const labels = await texts();
+    expect(labels).toContain('37.5');
+    expect(labels.some(t => /\d\.\d{3,}/.test(t))).toBe(false); // no floating-point noise
+    await expectNoErrors(page);
+});
+
 test('button: state change switches the state colour', async ({ page }) => {
     await mountCase(page, 'button-more-info');
     await expect.poll(() => bgFill(page)).toBe('rgb(51, 51, 102)'); // inactive
@@ -516,4 +542,13 @@ test('a component text field can use the whole symbol (zone: full), as a plain b
     // the corner text sits at the top of the symbol, above the label zones (alert_line starts at y 25.26)
     expect(r.y).not.toBeNull();
     expect(r.y).toBeLessThan(r.alertTop);
+});
+
+test('button: a label set to an empty string stays empty (not the preset\'s template source)', async ({ page }) => {
+    await mountCase(page, 'button-empty-label');
+    await page.waitForTimeout(500);
+    const text = await page.locator('lcards-button').evaluate(el => [...el.shadowRoot.querySelectorAll('text')].map(t => t.textContent).join('|'));
+    expect(text).not.toContain('return');
+    expect(text).not.toContain('Math.random');
+    await expectNoErrors(page);
 });

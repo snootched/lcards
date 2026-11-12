@@ -1,0 +1,1270 @@
+# Classic bracket: the "bracket screen" archetype from doc/getting-started/lcars-design.md.
+# A top sweep whose bar runs on as four coded segments into
+# the title, a sidebar of stacked blocks with codes at the top right (two toggle helpers), and
+# a lower sweep whose bar closes the bottom; a divider band cuts across above the lower strip.
+# The display is the shuttlecraft cutaway with labelled leader lines, several carrying live
+# readings. Beside it a readings list (every value live), the screen's one number cascade and a
+# dim code. The lower strip holds gauges that set three levels and a pill group led by big
+# numbers whose pills toggle helpers. The view uses the LCARS Zeldaar theme;
+# every colour is a theme role. Uses lcards_test_* helpers and sensor.desk_sensor_temperature.
+title: Classic Bracket
+views:
+  - title: Runabout
+    path: runabout
+    theme: LCARS Zeldaar
+    type: custom:lcards-layout-view
+    layout:
+      height: calc(100dvh - var(--header-height, 56px))
+      padding: 12px
+      grid-gap: 6px
+      grid-template-columns: 150px 40px minmax(0, 1fr) 400px
+      grid-template-rows: 72px minmax(0, 1fr) 24px 138px 30px
+    cards:
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-column: 1 / 3
+          grid-row: '1'
+        elbow:
+          type: header-left
+          segment:
+            bar_width: 150
+            bar_height: 30
+            color: theme:colors.ui.primary
+        text:
+          code:
+            content: 1701-D · 2369
+            zone: vertical_bar
+            position: bottom-right
+            font_size: 14
+            color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: minmax(0, 1fr) 120px 160px 90px 600px
+          grid-template-rows: 30px minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 253-3769
+                position: center-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: '1'
+              grid-row: '1'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 847-3874
+                position: center-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+            view_layout:
+              grid-column: '2'
+              grid-row: '1'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 847-2837
+                position: center-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.tertiary
+            view_layout:
+              grid-column: '3'
+              grid-row: '1'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 847-9586
+                position: center-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: '4'
+              grid-row: '1'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: SHUTTLECRAFT 15 • 3645
+                show: true
+                position: top-right
+                font_size: 60
+                color: theme:colors.ui.secondary
+            view_layout:
+              grid-column: '5'
+              grid-row: 1 / 3
+        view_layout:
+          grid-column: 3 / 5
+          grid-row: '1'
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: 64px 30px 30px 150px 30px 30px minmax(0, 1fr) 30px 64px 30px
+        cards:
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 948-5094
+                position: top-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 374-9483
+                position: top-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            entity: input_boolean.lcards_test_lights
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: LIGHTS
+                position: top-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    active: theme:colors.ui.tertiary
+                    inactive: theme:colors.card.topColor
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 349-4635
+                position: top-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 201-7730
+                position: top-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            entity: input_boolean.lcards_test_doors
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: HATCH
+                position: top-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    active: theme:colors.ui.tertiary
+                    inactive: theme:colors.card.topColor
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 948-5094
+                position: top-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 612-0458
+                position: top-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 754-8473
+                position: top-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 530-1182
+                position: top-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+        view_layout:
+          grid-column: '1'
+          grid-row: '2'
+      - type: custom:lcards-msd-card
+        view_layout:
+          grid-column: '3'
+          grid-row: '2'
+          margin: 12px 0 0 0
+        msd:
+          base_svg:
+            source: builtin:enterprise-d-shuttlecraft15-anomaly
+          view_box:
+            - -30
+            - -100
+            - 1100
+            - 650
+          overlays:
+            - id: lbl-imp
+              type: control
+              attachment: top-left
+              position:
+                - -20
+                - -90
+              size:
+                - 250
+                - 30
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                entity: input_number.lcards_test_power
+                text:
+                  label:
+                    content: IMPULSE · {entity.state}
+                    show: true
+                    position: center-left
+                    font_size: 17
+                    color: theme:colors.ui.primary
+            - id: ln-imp
+              type: line
+              anchor: lbl-imp
+              attach_to:
+                - 70
+                - 75
+              anchor_side: bottom
+              route: manhattan
+              corner_style: miter
+              style:
+                color: theme:colors.ui.quaternary
+                width: 2
+            - id: lbl-eps
+              type: control
+              attachment: top-left
+              position:
+                - 300
+                - -90
+              size:
+                - 250
+                - 30
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: EPS TANKS · 3 OF 3
+                    show: true
+                    position: center-left
+                    font_size: 17
+                    color: theme:colors.ui.primary
+            - id: ln-eps
+              type: line
+              anchor: lbl-eps
+              attach_to:
+                - 282
+                - 50
+              anchor_side: bottom
+              route: manhattan
+              corner_style: miter
+              style:
+                color: theme:colors.ui.quaternary
+                width: 2
+            - id: lbl-cab
+              type: control
+              attachment: top-left
+              position:
+                - 620
+                - -90
+              size:
+                - 260
+                - 30
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                entity: input_number.lcards_test_temperature
+                text:
+                  label:
+                    content: CABIN · {entity.state}
+                    show: true
+                    position: center-left
+                    font_size: 17
+                    color: theme:colors.ui.primary
+            - id: ln-cab
+              type: line
+              anchor: lbl-cab
+              attach_to:
+                - 700
+                - 120
+              anchor_side: bottom
+              route: manhattan
+              corner_style: miter
+              style:
+                color: theme:colors.ui.quaternary
+                width: 2
+            - id: lbl-shd
+              type: control
+              attachment: top-left
+              position:
+                - 880
+                - -60
+              size:
+                - 200
+                - 30
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                entity: input_number.lcards_test_shields
+                text:
+                  label:
+                    content: SHIELDS · {entity.state}
+                    show: true
+                    position: center-left
+                    font_size: 17
+                    color: theme:colors.ui.primary
+            - id: ln-shd
+              type: line
+              anchor: lbl-shd
+              attach_to:
+                - 960
+                - 200
+              anchor_side: bottom
+              route: manhattan
+              corner_style: miter
+              style:
+                color: theme:colors.ui.quaternary
+                width: 2
+            - id: lbl-nav
+              type: control
+              attachment: top-left
+              position:
+                - 840
+                - 470
+              size:
+                - 230
+                - 30
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: NAV SENSOR · 98-2204
+                    show: true
+                    position: center-left
+                    font_size: 17
+                    color: theme:colors.ui.primary
+            - id: ln-nav
+              type: line
+              anchor: lbl-nav
+              attach_to:
+                - 880
+                - 300
+              anchor_side: top
+              route: manhattan
+              corner_style: miter
+              style:
+                color: theme:colors.ui.quaternary
+                width: 2
+            - id: lbl-pod
+              type: control
+              attachment: top-left
+              position:
+                - 300
+                - 500
+              size:
+                - 250
+                - 30
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                entity: input_number.lcards_test_warp_factor
+                text:
+                  label:
+                    content: WARP POD · WF {entity.state}
+                    show: true
+                    position: center-left
+                    font_size: 17
+                    color: theme:colors.ui.primary
+            - id: ln-pod
+              type: line
+              anchor: lbl-pod
+              attach_to:
+                - 420
+                - 440
+              anchor_side: top
+              route: manhattan
+              corner_style: miter
+              style:
+                color: theme:colors.ui.quaternary
+                width: 2
+            - id: lbl-aft
+              type: control
+              attachment: top-left
+              position:
+                - -20
+                - 500
+              size:
+                - 230
+                - 30
+              card:
+                type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: AFT HATCH · {{ 'OPEN' if is_state('input_boolean.lcards_test_doors', 'on') else 'SEALED' }}
+                    show: true
+                    position: center-left
+                    font_size: 17
+                    color: theme:colors.ui.tertiary
+            - id: ln-aft
+              type: line
+              anchor: lbl-aft
+              attach_to:
+                - 40
+                - 440
+              anchor_side: top
+              route: manhattan
+              corner_style: miter
+              style:
+                color: theme:colors.ui.tertiary
+                width: 2
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 18px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: 240px 66px 162px minmax(0, 1fr)
+          justify-items: end
+        cards:
+          - type: custom:lcards-data-grid
+            data_mode: data
+            rows:
+              - values:
+                  - SYSTEM
+                  - READING
+                  - STATUS
+                style:
+                  color: theme:colors.ui.secondary
+              - values:
+                  - IMPULSE
+                  - input_number.lcards_test_power
+                  - '{{ ''LOW'' if states(''input_number.lcards_test_power'') | float(0) < 20 else (''HIGH'' if states(''input_number.lcards_test_power'') | float(0) > 95 else ''NOMINAL'') }}'
+                style:
+                  color: theme:colors.ui.primary
+              - values:
+                  - SHIELDS
+                  - input_number.lcards_test_shields
+                  - '{{ ''LOW'' if states(''input_number.lcards_test_shields'') | float(0) < 30 else (''HIGH'' if states(''input_number.lcards_test_shields'') | float(0) > 101 else ''NOMINAL'') }}'
+                style:
+                  color: theme:colors.ui.primary
+              - values:
+                  - CABIN
+                  - input_number.lcards_test_temperature
+                  - '{{ ''LOW'' if states(''input_number.lcards_test_temperature'') | float(0) < 18 else (''HIGH'' if states(''input_number.lcards_test_temperature'') | float(0) > 26 else ''NOMINAL'') }}'
+                style:
+                  color: theme:colors.ui.primary
+              - values:
+                  - AMBIENT
+                  - sensor.desk_sensor_temperature
+                  - '{{ ''LOW'' if states(''sensor.desk_sensor_temperature'') | float(0) < 18 else (''HIGH'' if states(''sensor.desk_sensor_temperature'') | float(0) > 26 else ''NOMINAL'') }}'
+                style:
+                  color: theme:colors.ui.primary
+              - values:
+                  - HUMIDITY
+                  - input_number.lcards_test_humidity
+                  - '{{ ''LOW'' if states(''input_number.lcards_test_humidity'') | float(0) < 30 else (''HIGH'' if states(''input_number.lcards_test_humidity'') | float(0) > 60 else ''NOMINAL'') }}'
+                style:
+                  color: theme:colors.ui.primary
+              - values:
+                  - WARP POD
+                  - input_number.lcards_test_warp_factor
+                  - '{{ ''ONLINE'' if is_state(''input_boolean.lcards_test_warp_travel'', ''on'') else ''OFFLINE'' }}'
+                style:
+                  color: theme:colors.ui.tertiary
+              - values:
+                  - LIGHTS
+                  - input_boolean.lcards_test_lights
+                  - '{{ ''ACTIVE'' if is_state(''input_boolean.lcards_test_lights'', ''on'') else ''STANDBY'' }}'
+                style:
+                  color: theme:colors.ui.tertiary
+              - values:
+                  - HATCH
+                  - input_boolean.lcards_test_doors
+                  - '{{ ''OPEN'' if is_state(''input_boolean.lcards_test_doors'', ''on'') else ''SEALED'' }}'
+                style:
+                  color: theme:colors.ui.tertiary
+              - values:
+                  - AUX
+                  - input_boolean.lcards_test_toggle
+                  - '{{ ''ACTIVE'' if is_state(''input_boolean.lcards_test_toggle'', ''on'') else ''STANDBY'' }}'
+                style:
+                  color: theme:colors.ui.tertiary
+            columns:
+              - style:
+                  align: left
+              - {}
+              - style:
+                  align: left
+            grid:
+              grid-template-columns: 96px 80px 90px
+              grid-template-rows: repeat(10, 24px)
+              gap: 0px 14px
+            style:
+              font_size: 14
+              padding: 0px
+              line_height: 1.1
+              align: right
+              text_transform: uppercase
+          - type: custom:lcards-layout-card
+            layout:
+              grid-gap: 6px
+              grid-template-columns: repeat(6, 56px)
+              grid-template-rows: 30px 30px
+            cards:
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                text:
+                  label:
+                    content: '35'
+                    position: bottom-right
+                    font_size: 14
+                    color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.ui.primary
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                text:
+                  label:
+                    content: '87'
+                    position: bottom-right
+                    font_size: 14
+                    color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.ui.quaternary
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                entity: input_boolean.lcards_test_lights
+                text:
+                  label:
+                    content: '62'
+                    position: bottom-right
+                    font_size: 14
+                    color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                style:
+                  card:
+                    color:
+                      background:
+                        active: theme:colors.ui.tertiary
+                        inactive: theme:colors.card.topColor
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                text:
+                  label:
+                    content: '27'
+                    position: bottom-right
+                    font_size: 14
+                    color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.ui.quaternary
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                text:
+                  label:
+                    content: '72'
+                    position: bottom-right
+                    font_size: 14
+                    color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.ui.secondary
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                entity: input_boolean.lcards_test_toggle
+                text:
+                  label:
+                    content: '34'
+                    position: bottom-right
+                    font_size: 14
+                    color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                style:
+                  card:
+                    color:
+                      background:
+                        active: theme:colors.ui.tertiary
+                        inactive: theme:colors.card.topColor
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                text:
+                  label:
+                    content: '54'
+                    position: bottom-right
+                    font_size: 14
+                    color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.ui.quaternary
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                text:
+                  label:
+                    content: '24'
+                    position: bottom-right
+                    font_size: 14
+                    color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.ui.secondary
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                text:
+                  label:
+                    content: '87'
+                    position: bottom-right
+                    font_size: 14
+                    color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.ui.quaternary
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                entity: input_boolean.lcards_test_doors
+                text:
+                  label:
+                    content: '12'
+                    position: bottom-right
+                    font_size: 14
+                    color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                style:
+                  card:
+                    color:
+                      background:
+                        active: theme:colors.ui.tertiary
+                        inactive: theme:colors.card.topColor
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                text:
+                  label:
+                    content: '80'
+                    position: bottom-right
+                    font_size: 14
+                    color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.ui.primary
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                text:
+                  label:
+                    content: '34'
+                    position: bottom-right
+                    font_size: 14
+                    color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.ui.quaternary
+          - type: custom:lcards-data-grid
+            data_mode: decorative
+            format: digit
+            refresh_interval: 2500
+            refresh_cells: 0.06
+            grid:
+              grid-template-columns: repeat(5, 58px)
+              grid-template-rows: repeat(9, 18px)
+              gap: 0px 10px
+            style:
+              font_size: 14
+              padding: 0px
+              color: theme:colors.ui.secondary
+              align: right
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: 73647-8847
+                show: true
+                position: bottom-right
+                font_size: 40
+                color: theme:colors.ui.primary
+        view_layout:
+          grid-column: '4'
+          grid-row: '2'
+          margin: 12px 0 0 0
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 150px 40px 1fr 200px 154px
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: ''
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: '324344'
+                position: center-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: '324345'
+                position: center-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: '324346'
+                position: center-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+        view_layout:
+          grid-column: 1 / 5
+          grid-row: '3'
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 8px
+          grid-template-columns: 130px minmax(0, 1fr)
+          grid-template-rows: repeat(3, 30px) minmax(0, 1fr)
+          padding-right: 40px
+        cards:
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: IMPULSE {{ states('input_number.lcards_test_power') | int }}
+                position: center-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: '1'
+              grid-row: '1'
+          - type: custom:lcards-slider
+            entity: input_number.lcards_test_power
+            preset: gauge-basic
+            view_layout:
+              grid-column: '2'
+              grid-row: '1'
+            style:
+              gauge:
+                progress_bar:
+                  height: 8
+                  align: end
+                  color: theme:colors.ui.primary
+                  background:
+                    color: theme:colors.ui.quaternary
+                    height: 8
+                scale:
+                  labels:
+                    enabled: false
+                  tick_marks:
+                    major:
+                      color: theme:colors.ui.primary
+                    minor:
+                      color: theme:colors.ui.quaternary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: SHIELDS {{ states('input_number.lcards_test_shields') | int }}
+                position: center-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: '1'
+              grid-row: '2'
+          - type: custom:lcards-slider
+            entity: input_number.lcards_test_shields
+            preset: gauge-basic
+            view_layout:
+              grid-column: '2'
+              grid-row: '2'
+            style:
+              gauge:
+                progress_bar:
+                  height: 8
+                  align: end
+                  color: theme:colors.ui.primary
+                  background:
+                    color: theme:colors.ui.quaternary
+                    height: 8
+                scale:
+                  labels:
+                    enabled: false
+                  tick_marks:
+                    major:
+                      color: theme:colors.ui.primary
+                    minor:
+                      color: theme:colors.ui.quaternary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: LEVEL {{ states('input_number.lcards_test_value') | int }}
+                position: center-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: '1'
+              grid-row: '3'
+          - type: custom:lcards-slider
+            entity: input_number.lcards_test_value
+            preset: gauge-basic
+            view_layout:
+              grid-column: '2'
+              grid-row: '3'
+            style:
+              gauge:
+                progress_bar:
+                  height: 8
+                  align: end
+                  color: theme:colors.ui.primary
+                  background:
+                    color: theme:colors.ui.quaternary
+                    height: 8
+                scale:
+                  labels:
+                    enabled: false
+                  tick_marks:
+                    major:
+                      color: theme:colors.ui.primary
+                    minor:
+                      color: theme:colors.ui.quaternary
+        view_layout:
+          grid-column: '3'
+          grid-row: '4'
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 52px repeat(2, 140px)
+          grid-template-rows: repeat(4, 30px)
+          justify-content: end
+        cards:
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '47'
+                show: true
+                position: center-right
+                font_size: 30
+                color: theme:colors.ui.tertiary
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            entity: input_boolean.lcards_test_doors
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: HATCH
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    active: theme:colors.ui.tertiary
+                    inactive: theme:colors.card.topColor
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: 21-7745
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '08'
+                show: true
+                position: center-right
+                font_size: 30
+                color: theme:colors.ui.tertiary
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            entity: input_boolean.lcards_test_lights
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: LIGHTS
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    active: theme:colors.ui.tertiary
+                    inactive: theme:colors.card.topColor
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: 40-2274
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '15'
+                show: true
+                position: center-right
+                font_size: 30
+                color: theme:colors.ui.secondary
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            entity: input_boolean.lcards_test_toggle
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: AUX
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    active: theme:colors.ui.secondary
+                    inactive: theme:colors.card.topColor
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: 68-5009
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '03'
+                show: true
+                position: center-right
+                font_size: 30
+                color: theme:colors.ui.secondary
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            entity: input_boolean.lcards_test_warp_travel
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: WARP POD
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    active: theme:colors.ui.secondary
+                    inactive: theme:colors.card.topColor
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: 92-1180
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+        view_layout:
+          grid-column: '4'
+          grid-row: '4'
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-column: 1 / 3
+          grid-row: 4 / 6
+        elbow:
+          type: footer-left
+          segment:
+            bar_width: 150
+            bar_height: 30
+            color: theme:colors.ui.primary
+        text:
+          code:
+            content: 756-5904
+            zone: vertical_bar
+            position: top-right
+            font_size: 14
+            color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 1fr 160px 240px
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: ''
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: UNIT 15
+                position: center-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: BOUNDARIES PRIOR TO HOSTILITIES
+                position: center-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+        view_layout:
+          grid-column: 3 / 5
+          grid-row: '5'

@@ -1,42 +1,22 @@
-# Gallery video for bridge.yaml: Lights and red alert buttons toggle, power and shields change, the mode changes.
+# Gallery video for bridge.yaml (classic TNG, display over controls): the big numbers, status table,
+# power pills and shield gauge follow power and shields, the lights pill and auxiliary row toggle,
+# and the mode selector moves.
 # node scripts/dashboard-shots.mjs doc/gallery/dashboards/bridge.yaml --video
 steps:
 - {wait: 800}
-- service:
-  - input_boolean
-  - turn_off
-  - {entity_id: input_boolean.lcards_test_lights}
-- {wait: 1000}
-- service:
-  - input_boolean
-  - turn_on
-  - {entity_id: input_boolean.lcards_test_toggle}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 45}]
 - {wait: 1200}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_power, value: 45}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 25}]
 - {wait: 1200}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_shields, value: 25}
-- {wait: 1400}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_power, value: 82}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_shields, value: 64}
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_lights}]
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_toggle}]
+- {wait: 1200}
+- service: [input_select, select_option, {entity_id: input_select.lcards_test_mode, option: gamma}]
+- {wait: 1200}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 82}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 64}]
 - {wait: 1000}
-- service:
-  - input_boolean
-  - turn_off
-  - {entity_id: input_boolean.lcards_test_toggle}
-- service:
-  - input_boolean
-  - turn_on
-  - {entity_id: input_boolean.lcards_test_lights}
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_toggle}]
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_lights}]
+- service: [input_select, select_option, {entity_id: input_select.lcards_test_mode, option: alpha}]
 tail: 1500

@@ -1,6 +1,12 @@
-# Sciences: Picard-era readouts. Segmented frames around a history chart and a set of
-# radial gauges, a sensor table and hourly averages, in cool blues and greys with
-# orange accents. Uses lcards_test_* helpers and a temperature sensor.
+# Sciences: the "bracket screen" archetype from doc/getting-started/lcars-design.md, in the
+# Picard look: a top and a bottom bar with round caps, in segments, and a numbered sidebar of
+# code blocks (three toggle the scan, probe and lab lights). The readout fills the bracket in
+# labelled sections divided by a thin segmented bar: a 24 hour temperature history (a smooth line
+# and its hourly mean as steps) with a readings table beside it; four Picard ring gauges that set
+# power, shields, humidity and the cabin temperature; a sensor log (every number a labelled live
+# reading); and hourly means over 12 hours as columns.
+# Every colour is a theme role (theme: tokens), so it follows the HA-LCARS theme.
+# Uses lcards_test_* helpers and sensor.desk_sensor_temperature.
 title: Sciences
 views:
   - title: Sciences
@@ -8,193 +14,1704 @@ views:
     type: custom:lcards-layout-view
     layout:
       height: calc(100dvh - var(--header-height, 56px))
-      padding: 12px
-      grid-gap: 8px
-      grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr)
-      grid-template-rows: 80px minmax(0, 1.3fr) minmax(0, 1fr) 70px
-      grid-template-areas: |
-        "header  header"
-        "history gauges"
-        "table   bars"
-        "footer  footer"
+      padding: 8px
+      grid-gap: 6px
+      grid-template-columns: 134px minmax(0, 1fr)
+      grid-template-rows: 18px 54px minmax(0, 1fr) 18px
     cards:
-      - type: custom:lcards-elbow
-        elbow:
-          type: header-right
-          style: segmented
-          segments:
-            gap: 6
-            outer_segment:
-              bar_width: 160
-              bar_height: 24
-              color: var(--lcards-blue-medium-light)
-            inner_segment:
-              bar_width: 40
-              bar_height: 8
-              color: var(--lcards-orange-medium)
-        text:
-          title:
-            content: SCIENCES · SENSOR ANALYSIS
-            position: bottom-left
-            font_size: 26
-            color: var(--lcards-blue-lightest)
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 120px 300px 64px minmax(0, 1fr) 96px 64px 120px
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: bullet-right
+            min_height: 0
+            text:
+              label:
+                content: SCIENCES
+                show: true
+                position: center-right
+                font_size: 13
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.card.topColor
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.tertiary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: ••  •  •••
+                show: true
+                position: center
+                font_size: 14
+                color: theme:colors.ui.secondary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.card.topColor
+          - type: custom:lcards-button
+            preset: bullet
+            min_height: 0
+            text:
+              label:
+                content: ''
+                show: false
+              name:
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
         view_layout:
-          grid-area: header
-
-      # History: a segmented frame with the chart inside it.
-      - type: custom:lcards-elbow
-        elbow:
-          type: frame
-          style: segmented
-          segment:
-            color: var(--lcards-gray-medium)
-          frame:
-            bar_width: 14
-            bar_height: 10
-            segments:
-              gap: 5
-              inner_frame:
-                bar_width: 4
-                color: var(--lcards-blue-medium-light)
+          grid-column: 1 / -1
+          grid-row: '1'
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 64px 64px 200px minmax(0, 1fr)
+          grid-template-rows: minmax(0, 1fr) 24px
+        cards:
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 05-666
+                position: center-right
+                font_size: 13
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.tertiary
+            view_layout:
+              grid-column: '1'
+              grid-row: '2'
+          - type: custom:lcards-button
+            preset: panel-dark
+            min_height: 0
+            text:
+              label:
+                content: 84-889
+                position: center-right
+                font_size: 13
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.card.topColor
+            view_layout:
+              grid-column: '2'
+              grid-row: '2'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: LAB 2 · DECK 9
+                position: center-right
+                font_size: 13
+            view_layout:
+              grid-column: '3'
+              grid-row: '2'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: SCIENCES · SENSOR ANALYSIS
+                show: true
+                position: bottom-right
+                font_size: 40
+                color: theme:colors.ui.tertiary
+            view_layout:
+              grid-column: '4'
+              grid-row: 1 / 3
         view_layout:
-          grid-area: history
-      - type: custom:lcards-chart
-        chart_type: area
-        graph_span: 24h
-        data_sources:
-          deck_temp:
-            entity: sensor.desk_sensor_temperature
-            history:
-              hours: 24
-            processing:
-              smoothed:
-                type: smooth
-                method: exponential
-                alpha: 0.15
-        sources:
-          - datasource: deck_temp
-            name: Deck 4
-          - datasource: deck_temp
-            buffer: smoothed
-            name: Trend
-        style:
-          colors:
-            series:
-              - var(--lcards-blue-light)
-              - var(--lcards-orange-medium)
-          fill:
-            type: gradient
-            gradient:
-              opacityFrom: 0.4
-              opacityTo: 0.02
-          legend:
-            show: true
+          grid-column: '2'
+          grid-row: '2'
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 22px 106px
+          grid-template-rows: repeat(22, 24px) minmax(0, 1fr) 24px
+        cards:
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '01'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '1'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 52-739
+                position: center-right
+                font_size: 13
+            view_layout:
+              grid-column: '2'
+              grid-row: '1'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '02'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '2'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 44-909
+                position: center-right
+                font_size: 13
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.tertiary
+            view_layout:
+              grid-column: '2'
+              grid-row: '2'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '03'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '3'
+          - type: custom:lcards-button
+            preset: panel-dark
+            min_height: 0
+            text:
+              label:
+                content: 32-748
+                position: center-right
+                font_size: 13
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.card.topColor
+            view_layout:
+              grid-column: '2'
+              grid-row: '3'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '04'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '4'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            entity: input_boolean.lcards_test_lights
+            interactive: true
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: LIGHTS
+                position: center-right
+                font_size: 13
+            view_layout:
+              grid-column: '2'
+              grid-row: '4'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '05'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '5'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 09-598
+                position: center-right
+                font_size: 13
+            view_layout:
+              grid-column: '2'
+              grid-row: '5'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '06'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '6'
+          - type: custom:lcards-button
+            preset: panel-dark
+            min_height: 0
+            text:
+              label:
+                content: 79-722
+                position: center-right
+                font_size: 13
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.card.topColor
+            view_layout:
+              grid-column: '2'
+              grid-row: '6'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '07'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '7'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 40-243
+                position: center-right
+                font_size: 13
+            view_layout:
+              grid-column: '2'
+              grid-row: '7'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '08'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '8'
+          - type: custom:lcards-button
+            preset: panel-dark
+            min_height: 0
+            entity: input_boolean.lcards_test_toggle
+            interactive: true
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: SCAN
+                position: center-right
+                font_size: 13
+                color:
+                  default: theme:colors.ui.secondary
+                  active: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                  inactive: theme:colors.ui.secondary
+            view_layout:
+              grid-column: '2'
+              grid-row: '8'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '09'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '9'
+          - type: custom:lcards-button
+            preset: panel-dark
+            min_height: 0
+            text:
+              label:
+                content: 79-832
+                position: center-right
+                font_size: 13
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.card.topColor
+            view_layout:
+              grid-column: '2'
+              grid-row: '9'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '10'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '10'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 75-085
+                position: center-right
+                font_size: 13
+            view_layout:
+              grid-column: '2'
+              grid-row: '10'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '11'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '11'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 30-730
+                position: center-right
+                font_size: 13
+            view_layout:
+              grid-column: '2'
+              grid-row: '11'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '12'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '12'
+          - type: custom:lcards-button
+            preset: panel-dark
+            min_height: 0
+            text:
+              label:
+                content: 21-469
+                position: center-right
+                font_size: 13
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.card.topColor
+            view_layout:
+              grid-column: '2'
+              grid-row: '12'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '13'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '13'
+          - type: custom:lcards-button
+            preset: panel-dark
+            min_height: 0
+            entity: input_boolean.lcards_test_doors
+            interactive: true
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: PROBE
+                position: center-right
+                font_size: 13
+                color:
+                  default: theme:colors.ui.secondary
+                  active: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                  inactive: theme:colors.ui.secondary
+            view_layout:
+              grid-column: '2'
+              grid-row: '13'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '14'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '14'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 97-998
+                position: center-right
+                font_size: 13
+            view_layout:
+              grid-column: '2'
+              grid-row: '14'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '15'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '15'
+          - type: custom:lcards-button
+            preset: panel-dark
+            min_height: 0
+            text:
+              label:
+                content: 29-936
+                position: center-right
+                font_size: 13
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.card.topColor
+            view_layout:
+              grid-column: '2'
+              grid-row: '15'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '16'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '16'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 40-628
+                position: center-right
+                font_size: 13
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.tertiary
+            view_layout:
+              grid-column: '2'
+              grid-row: '16'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '17'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '17'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 07-911
+                position: center-right
+                font_size: 13
+            view_layout:
+              grid-column: '2'
+              grid-row: '17'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '18'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '18'
+          - type: custom:lcards-button
+            preset: panel-dark
+            min_height: 0
+            text:
+              label:
+                content: 82-803
+                position: center-right
+                font_size: 13
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.card.topColor
+            view_layout:
+              grid-column: '2'
+              grid-row: '18'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '19'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '19'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 65-121
+                position: center-right
+                font_size: 13
+            view_layout:
+              grid-column: '2'
+              grid-row: '19'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '20'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '20'
+          - type: custom:lcards-button
+            preset: panel-flagged
+            min_height: 0
+            text:
+              label:
+                content: 25-825
+                position: center-right
+                font_size: 13
+            view_layout:
+              grid-column: '2'
+              grid-row: '20'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '21'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '21'
+          - type: custom:lcards-button
+            preset: panel-dark
+            min_height: 0
+            text:
+              label:
+                content: 88-397
+                position: center-right
+                font_size: 13
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.card.topColor
+            view_layout:
+              grid-column: '2'
+              grid-row: '21'
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: '22'
+                show: true
+                position: center-left
+                font_size: 13
+                color: theme:colors.card.topColor
+            view_layout:
+              grid-column: '1'
+              grid-row: '22'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 27-046
+                position: center-right
+                font_size: 13
+            view_layout:
+              grid-column: '2'
+              grid-row: '22'
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: '048'
+                position: center-right
+                font_size: 13
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+            view_layout:
+              grid-column: 1 / 3
+              grid-row: '24'
         view_layout:
-          grid-area: history
-          margin: 30px 34px
-
-      # Gauges: radial bars for the live levels, in a matching frame.
-      - type: custom:lcards-elbow
-        elbow:
-          type: frame
-          style: segmented
-          segment:
-            color: var(--lcards-gray-medium)
-          frame:
-            bar_width: 14
-            bar_height: 10
-            segments:
-              gap: 5
-              inner_frame:
-                bar_width: 4
-                color: var(--lcards-orange-medium)
+          grid-column: '1'
+          grid-row: 2 / 4
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 784px 300px minmax(0, 1fr)
+          grid-template-rows: 24px minmax(0, 1fr) 14px 286px
+        cards:
+          - type: custom:lcards-layout-card
+            layout:
+              grid-gap: 6px
+              grid-template-columns: 64px 220px minmax(0, 1fr) 64px 96px
+              grid-template-rows: 24px
+            cards:
+              - type: custom:lcards-button
+                preset: panel-dark
+                min_height: 0
+                text:
+                  label:
+                    content: S-01
+                    position: center-right
+                    font_size: 13
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.card.topColor
+              - type: custom:lcards-button
+                preset: panel-dark
+                min_height: 0
+                text:
+                  label:
+                    content: TEMPERATURE · 24 H
+                    position: center-right
+                    font_size: 13
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.card.topColor
+              - type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: •  ••  •••  •
+                    show: true
+                    position: center-right
+                    font_size: 14
+                    color: theme:colors.ui.secondary
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                text:
+                  label:
+                    content: 15 MIN
+                    position: center-right
+                    font_size: 13
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.ui.tertiary
+              - type: custom:lcards-button
+                preset: panel-dark
+                min_height: 0
+                text:
+                  label:
+                    content: 34-274
+                    position: center-right
+                    font_size: 13
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.card.topColor
+            view_layout:
+              grid-column: 1 / -1
+              grid-row: '1'
+          - type: custom:lcards-layout-card
+            layout:
+              grid-gap: 6px
+              grid-template-columns: minmax(0, 1fr) 196px
+              grid-template-rows: minmax(0, 1fr)
+            cards:
+              - type: custom:lcards-chart
+                chart_type: line
+                graph_span: 24h
+                sources:
+                  - entity: sensor.desk_sensor_temperature
+                    name: DECK 9
+                    curve: monotoneCubic
+                    stroke_width: 2
+                    group_by:
+                      func: avg
+                      duration: 15m
+                  - entity: sensor.desk_sensor_temperature
+                    name: HOURLY
+                    curve: stepline
+                    stroke_width: 1
+                    group_by:
+                      func: avg
+                      duration: 1h
+                style:
+                  colors:
+                    series:
+                      - theme:colors.ui.tertiary
+                      - theme:colors.ui.secondary
+                    grid: theme:colors.card.topColor
+                    axis:
+                      x: theme:colors.ui.secondary
+                      'y': theme:colors.ui.secondary
+                      border: theme:colors.card.topColor
+                      ticks: theme:colors.card.topColor
+                  legend:
+                    show: false
+                view_layout:
+                  grid-column: '1'
+                  margin: 8px 0 0 0
+              - type: custom:lcards-layout-card
+                layout:
+                  grid-gap: 6px
+                  grid-template-columns: 94px 96px
+                  grid-template-rows: 18px repeat(5, 20px) 12px repeat(6, 24px) minmax(0, 1fr)
+                cards:
+                  - type: custom:lcards-button
+                    preset: text-only
+                    min_height: 0
+                    text:
+                      label:
+                        content: READINGS
+                        show: true
+                        position: bottom-left
+                        font_size: 14
+                        color: theme:colors.ui.tertiary
+                    view_layout:
+                      grid-column: 1 / 3
+                      grid-row: '1'
+                  - type: custom:lcards-data-grid
+                    data_mode: data
+                    rows:
+                      - values:
+                          - value: '01'
+                            style:
+                              color: theme:colors.card.topColor
+                          - DECK 9
+                          - sensor.desk_sensor_temperature
+                        style:
+                          color: theme:colors.ui.secondary
+                      - values:
+                          - value: '02'
+                            style:
+                              color: theme:colors.card.topColor
+                          - CABIN
+                          - input_number.lcards_test_temperature
+                        style:
+                          color: theme:colors.ui.secondary
+                      - values:
+                          - value: '03'
+                            style:
+                              color: theme:colors.card.topColor
+                          - HUMIDITY
+                          - input_number.lcards_test_humidity
+                        style:
+                          color: theme:colors.ui.secondary
+                      - values:
+                          - value: '04'
+                            style:
+                              color: theme:colors.card.topColor
+                          - POWER
+                          - input_number.lcards_test_power
+                        style:
+                          color: theme:colors.ui.primary
+                      - values:
+                          - value: '05'
+                            style:
+                              color: theme:colors.card.topColor
+                          - SHIELDS
+                          - input_number.lcards_test_shields
+                        style:
+                          color: theme:colors.ui.primary
+                    columns:
+                      - style:
+                          align: left
+                      - style:
+                          align: left
+                      - {}
+                      - style:
+                          align: left
+                    grid:
+                      grid-template-columns: 20px 90px 60px
+                      grid-template-rows: repeat(5, 20px)
+                      gap: 0px 10px
+                    style:
+                      font_size: 14
+                      padding: 0px
+                      line_height: 1.1
+                      align: right
+                      text_transform: uppercase
+                    view_layout:
+                      grid-column: 1 / 3
+                      grid-row: 2 / 7
+                  - type: custom:lcards-button
+                    preset: panel-dark
+                    min_height: 0
+                    text:
+                      label:
+                        content: NOW
+                        position: center-right
+                        font_size: 13
+                    style:
+                      card:
+                        color:
+                          background:
+                            default: theme:colors.card.topColor
+                    view_layout:
+                      grid-column: '1'
+                      grid-row: '8'
+                  - type: custom:lcards-button
+                    preset: panel-flagged
+                    min_height: 0
+                    entity: sensor.desk_sensor_temperature
+                    text:
+                      label:
+                        content: '{entity.state}'
+                        position: center-right
+                        font_size: 13
+                        color:
+                          default: theme:colors.ui.secondary
+                          active: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                          inactive: theme:colors.ui.secondary
+                    view_layout:
+                      grid-column: '2'
+                      grid-row: '8'
+                  - type: custom:lcards-button
+                    preset: panel-light
+                    min_height: 0
+                    text:
+                      label:
+                        content: LINE
+                        position: center-right
+                        font_size: 13
+                    style:
+                      card:
+                        color:
+                          background:
+                            default: theme:colors.ui.tertiary
+                    view_layout:
+                      grid-column: '1'
+                      grid-row: '9'
+                  - type: custom:lcards-button
+                    preset: panel-light
+                    min_height: 0
+                    text:
+                      label:
+                        content: 15 MIN MEAN
+                        position: center-right
+                        font_size: 13
+                    view_layout:
+                      grid-column: '2'
+                      grid-row: '9'
+                  - type: custom:lcards-button
+                    preset: panel-light
+                    min_height: 0
+                    text:
+                      label:
+                        content: STEP
+                        position: center-right
+                        font_size: 13
+                    style:
+                      card:
+                        color:
+                          background:
+                            default: theme:colors.ui.secondary
+                    view_layout:
+                      grid-column: '1'
+                      grid-row: '10'
+                  - type: custom:lcards-button
+                    preset: panel-light
+                    min_height: 0
+                    text:
+                      label:
+                        content: 1 H MEAN
+                        position: center-right
+                        font_size: 13
+                    view_layout:
+                      grid-column: '2'
+                      grid-row: '10'
+                  - type: custom:lcards-button
+                    preset: panel-dark
+                    min_height: 0
+                    text:
+                      label:
+                        content: 34-103
+                        position: center-right
+                        font_size: 13
+                    style:
+                      card:
+                        color:
+                          background:
+                            default: theme:colors.card.topColor
+                    view_layout:
+                      grid-column: '1'
+                      grid-row: '11'
+                  - type: custom:lcards-button
+                    preset: panel-light
+                    min_height: 0
+                    text:
+                      label:
+                        content: 58-221
+                        position: center-right
+                        font_size: 13
+                    view_layout:
+                      grid-column: '2'
+                      grid-row: '11'
+                  - type: custom:lcards-button
+                    preset: panel-light
+                    min_height: 0
+                    text:
+                      label:
+                        content: 48-688
+                        position: center-right
+                        font_size: 13
+                    view_layout:
+                      grid-column: '1'
+                      grid-row: '12'
+                  - type: custom:lcards-button
+                    preset: panel-dark
+                    min_height: 0
+                    text:
+                      label:
+                        content: 68-782
+                        position: center-right
+                        font_size: 13
+                    style:
+                      card:
+                        color:
+                          background:
+                            default: theme:colors.card.topColor
+                    view_layout:
+                      grid-column: '2'
+                      grid-row: '12'
+                  - type: custom:lcards-button
+                    preset: panel-dark
+                    min_height: 0
+                    text:
+                      label:
+                        content: 68-923
+                        position: center-right
+                        font_size: 13
+                    style:
+                      card:
+                        color:
+                          background:
+                            default: theme:colors.card.topColor
+                    view_layout:
+                      grid-column: '1'
+                      grid-row: '13'
+                  - type: custom:lcards-button
+                    preset: panel-flagged
+                    min_height: 0
+                    text:
+                      label:
+                        content: 95-130
+                        position: center-right
+                        font_size: 13
+                    view_layout:
+                      grid-column: '2'
+                      grid-row: '13'
+                view_layout:
+                  grid-column: '2'
+                  margin: 8px 0 0 0
+            view_layout:
+              grid-column: 1 / -1
+              grid-row: '2'
+          - type: custom:lcards-layout-card
+            layout:
+              grid-gap: 6px
+              grid-template-columns: 784px 300px minmax(0, 1fr) 64px
+              grid-template-rows: minmax(0, 1fr)
+            cards:
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                text:
+                  label:
+                    show: false
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.card.topColor
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                text:
+                  label:
+                    show: false
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.ui.secondary
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                text:
+                  label:
+                    show: false
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.card.topColor
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                text:
+                  label:
+                    show: false
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.ui.tertiary
+            view_layout:
+              grid-column: 1 / -1
+              grid-row: '3'
+          - type: custom:lcards-layout-card
+            layout:
+              grid-gap: 6px
+              grid-template-columns: minmax(0, 1fr)
+              grid-template-rows: 24px minmax(0, 1fr)
+            cards:
+              - type: custom:lcards-layout-card
+                layout:
+                  grid-gap: 6px
+                  grid-template-columns: 64px minmax(0, 1fr) 64px
+                  grid-template-rows: 24px
+                cards:
+                  - type: custom:lcards-button
+                    preset: panel-dark
+                    min_height: 0
+                    text:
+                      label:
+                        content: S-02
+                        position: center-right
+                        font_size: 13
+                    style:
+                      card:
+                        color:
+                          background:
+                            default: theme:colors.card.topColor
+                  - type: custom:lcards-button
+                    preset: panel-dark
+                    min_height: 0
+                    text:
+                      label:
+                        content: LEVELS
+                        position: center-right
+                        font_size: 13
+                    style:
+                      card:
+                        color:
+                          background:
+                            default: theme:colors.card.topColor
+                  - type: custom:lcards-button
+                    preset: panel-light
+                    min_height: 0
+                    text:
+                      label:
+                        content: 87-007
+                        position: center-right
+                        font_size: 13
+                    style:
+                      card:
+                        color:
+                          background:
+                            default: theme:colors.ui.secondary
+              - type: custom:lcards-layout-card
+                layout:
+                  grid-gap: 6px
+                  grid-template-columns: repeat(4, minmax(0, 1fr))
+                  grid-template-rows: minmax(0, 1fr)
+                cards:
+                  - type: custom:lcards-slider
+                    entity: input_number.lcards_test_power
+                    preset: picard-ring
+                    text:
+                      name:
+                        content: POWER
+                        color: theme:colors.ui.tertiary
+                    style:
+                      ring:
+                        padding: 22
+                        scale:
+                          tick_marks:
+                            major:
+                              interval: 50
+                              color: theme:colors.ui.secondary
+                            minor:
+                              interval: 10
+                              color: theme:colors.card.topColor
+                          labels:
+                            show_unit: false
+                            font_size: 12
+                            color: theme:colors.ui.secondary
+                        fill:
+                          color: theme:colors.ui.tertiary
+                  - type: custom:lcards-slider
+                    entity: input_number.lcards_test_shields
+                    preset: picard-ring
+                    text:
+                      name:
+                        content: SHIELDS
+                        color: theme:colors.ui.secondary
+                    style:
+                      ring:
+                        padding: 22
+                        scale:
+                          tick_marks:
+                            major:
+                              interval: 50
+                              color: theme:colors.ui.secondary
+                            minor:
+                              interval: 10
+                              color: theme:colors.card.topColor
+                          labels:
+                            show_unit: false
+                            font_size: 12
+                            color: theme:colors.ui.secondary
+                        fill:
+                          color: theme:colors.ui.secondary
+                  - type: custom:lcards-slider
+                    entity: input_number.lcards_test_humidity
+                    preset: picard-ring
+                    text:
+                      name:
+                        content: HUMIDITY
+                        color: theme:colors.ui.secondary
+                    style:
+                      ring:
+                        padding: 22
+                        scale:
+                          tick_marks:
+                            major:
+                              interval: 50
+                              color: theme:colors.ui.secondary
+                            minor:
+                              interval: 10
+                              color: theme:colors.card.topColor
+                          labels:
+                            show_unit: false
+                            font_size: 12
+                            color: theme:colors.ui.secondary
+                        fill:
+                          color: theme:colors.ui.secondary
+                  - type: custom:lcards-slider
+                    entity: input_number.lcards_test_temperature
+                    preset: picard-ring
+                    text:
+                      name:
+                        content: CABIN
+                        color: theme:colors.ui.tertiary
+                    style:
+                      ring:
+                        padding: 22
+                        scale:
+                          tick_marks:
+                            major:
+                              interval: 10
+                              color: theme:colors.ui.secondary
+                            minor:
+                              interval: 2
+                              color: theme:colors.card.topColor
+                          labels:
+                            show_unit: false
+                            font_size: 12
+                            color: theme:colors.ui.secondary
+                        fill:
+                          color: theme:colors.ui.tertiary
+                    control:
+                      min: 15
+                      max: 35
+                view_layout:
+                  grid-column: '1'
+                  grid-row: '2'
+            view_layout:
+              grid-column: '1'
+              grid-row: '4'
+          - type: custom:lcards-layout-card
+            layout:
+              grid-gap: 6px
+              grid-template-columns: minmax(0, 1fr)
+              grid-template-rows: 24px minmax(0, 1fr)
+            cards:
+              - type: custom:lcards-layout-card
+                layout:
+                  grid-gap: 6px
+                  grid-template-columns: 64px minmax(0, 1fr)
+                  grid-template-rows: 24px
+                cards:
+                  - type: custom:lcards-button
+                    preset: panel-dark
+                    min_height: 0
+                    text:
+                      label:
+                        content: S-03
+                        position: center-right
+                        font_size: 13
+                    style:
+                      card:
+                        color:
+                          background:
+                            default: theme:colors.card.topColor
+                  - type: custom:lcards-button
+                    preset: panel-dark
+                    min_height: 0
+                    text:
+                      label:
+                        content: SENSOR LOG
+                        position: center-right
+                        font_size: 13
+                    style:
+                      card:
+                        color:
+                          background:
+                            default: theme:colors.card.topColor
+              - type: custom:lcards-data-grid
+                data_mode: data
+                rows:
+                  - values:
+                      - value: '06'
+                        style:
+                          color: theme:colors.card.topColor
+                      - DECK 9
+                      - sensor.desk_sensor_temperature
+                      - '{{ ''LOW'' if states(''sensor.desk_sensor_temperature'') | float(0) < 18 else (''HIGH'' if states(''sensor.desk_sensor_temperature'') | float(0) > 26 else ''NOMINAL'') }}'
+                    style:
+                      color: theme:colors.ui.secondary
+                  - values:
+                      - value: '07'
+                        style:
+                          color: theme:colors.card.topColor
+                      - CABIN
+                      - input_number.lcards_test_temperature
+                      - '{{ ''LOW'' if states(''input_number.lcards_test_temperature'') | float(0) < 18 else (''HIGH'' if states(''input_number.lcards_test_temperature'') | float(0) > 26 else ''NOMINAL'') }}'
+                    style:
+                      color: theme:colors.ui.secondary
+                  - values:
+                      - value: '08'
+                        style:
+                          color: theme:colors.card.topColor
+                      - HUMIDITY
+                      - input_number.lcards_test_humidity
+                      - '{{ ''LOW'' if states(''input_number.lcards_test_humidity'') | float(0) < 30 else (''HIGH'' if states(''input_number.lcards_test_humidity'') | float(0) > 60 else ''NOMINAL'') }}'
+                    style:
+                      color: theme:colors.ui.secondary
+                  - values:
+                      - value: '09'
+                        style:
+                          color: theme:colors.card.topColor
+                      - POWER
+                      - input_number.lcards_test_power
+                      - '{{ ''LOW'' if states(''input_number.lcards_test_power'') | float(0) < 30 else (''HIGH'' if states(''input_number.lcards_test_power'') | float(0) > 95 else ''NOMINAL'') }}'
+                    style:
+                      color: theme:colors.ui.secondary
+                  - values:
+                      - value: '10'
+                        style:
+                          color: theme:colors.card.topColor
+                      - SHIELDS
+                      - input_number.lcards_test_shields
+                      - '{{ ''LOW'' if states(''input_number.lcards_test_shields'') | float(0) < 50 else (''HIGH'' if states(''input_number.lcards_test_shields'') | float(0) > 101 else ''NOMINAL'') }}'
+                    style:
+                      color: theme:colors.ui.secondary
+                  - values:
+                      - value: '11'
+                        style:
+                          color: theme:colors.card.topColor
+                      - FLOW
+                      - input_number.lcards_test_value
+                      - '{{ ''LOW'' if states(''input_number.lcards_test_value'') | float(0) < 20 else (''HIGH'' if states(''input_number.lcards_test_value'') | float(0) > 90 else ''NOMINAL'') }}'
+                    style:
+                      color: theme:colors.ui.secondary
+                  - values:
+                      - value: '12'
+                        style:
+                          color: theme:colors.card.topColor
+                      - SCAN
+                      - input_boolean.lcards_test_toggle
+                      - '{{ ''ACTIVE'' if is_state(''input_boolean.lcards_test_toggle'', ''on'') else ''STANDBY'' }}'
+                    style:
+                      color: theme:colors.ui.primary
+                  - values:
+                      - value: '13'
+                        style:
+                          color: theme:colors.card.topColor
+                      - PROBE
+                      - input_boolean.lcards_test_doors
+                      - '{{ ''LAUNCHED'' if is_state(''input_boolean.lcards_test_doors'', ''on'') else ''STOWED'' }}'
+                    style:
+                      color: theme:colors.ui.primary
+                  - values:
+                      - value: '14'
+                        style:
+                          color: theme:colors.card.topColor
+                      - LIGHTS
+                      - input_boolean.lcards_test_lights
+                      - '{{ ''ON'' if is_state(''input_boolean.lcards_test_lights'', ''on'') else ''DIM'' }}'
+                    style:
+                      color: theme:colors.ui.primary
+                  - values:
+                      - value: '15'
+                        style:
+                          color: theme:colors.card.topColor
+                      - STAGE
+                      - input_number.lcards_test_stage
+                      - OF 20
+                    style:
+                      color: theme:colors.ui.primary
+                columns:
+                  - style:
+                      align: left
+                  - style:
+                      align: left
+                  - {}
+                  - style:
+                      align: left
+                grid:
+                  grid-template-columns: 22px 84px 64px 76px
+                  grid-template-rows: repeat(10, 20px)
+                  gap: 0px 10px
+                style:
+                  font_size: 14
+                  padding: 0px
+                  line_height: 1.1
+                  align: right
+                  text_transform: uppercase
+                view_layout:
+                  grid-column: '1'
+                  grid-row: '2'
+                  margin: 6px 0 0 0
+            view_layout:
+              grid-column: '2'
+              grid-row: '4'
+          - type: custom:lcards-layout-card
+            layout:
+              grid-gap: 6px
+              grid-template-columns: minmax(0, 1fr)
+              grid-template-rows: 24px minmax(0, 1fr)
+            cards:
+              - type: custom:lcards-layout-card
+                layout:
+                  grid-gap: 6px
+                  grid-template-columns: 64px minmax(0, 1fr) 64px 64px
+                  grid-template-rows: 24px
+                cards:
+                  - type: custom:lcards-button
+                    preset: panel-dark
+                    min_height: 0
+                    text:
+                      label:
+                        content: S-04
+                        position: center-right
+                        font_size: 13
+                    style:
+                      card:
+                        color:
+                          background:
+                            default: theme:colors.card.topColor
+                  - type: custom:lcards-button
+                    preset: panel-dark
+                    min_height: 0
+                    text:
+                      label:
+                        content: HOURLY MEAN · 12 H
+                        position: center-right
+                        font_size: 13
+                    style:
+                      card:
+                        color:
+                          background:
+                            default: theme:colors.card.topColor
+                  - type: custom:lcards-button
+                    preset: panel-flagged
+                    min_height: 0
+                    entity: sensor.desk_sensor_temperature
+                    text:
+                      label:
+                        content: '{entity.state}'
+                        position: center-right
+                        font_size: 13
+                        color:
+                          default: theme:colors.ui.secondary
+                          active: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                          inactive: theme:colors.ui.secondary
+                  - type: custom:lcards-button
+                    preset: panel-light
+                    min_height: 0
+                    text:
+                      label:
+                        content: 88-666
+                        position: center-right
+                        font_size: 13
+              - type: custom:lcards-chart
+                chart_type: column
+                graph_span: 12h
+                yaxis:
+                  - id: temp
+                    min: 16
+                sources:
+                  - entity: sensor.desk_sensor_temperature
+                    name: HOURLY MEAN
+                    yaxis_id: temp
+                    group_by:
+                      func: avg
+                      duration: 1h
+                style:
+                  colors:
+                    series:
+                      - theme:colors.ui.secondary
+                    grid: theme:colors.card.topColor
+                    axis:
+                      x: theme:colors.ui.secondary
+                      'y': theme:colors.ui.secondary
+                      border: theme:colors.card.topColor
+                      ticks: theme:colors.card.topColor
+                  legend:
+                    show: false
+                view_layout:
+                  grid-column: '1'
+                  grid-row: '2'
+                  margin: 6px 0 0 0
+            view_layout:
+              grid-column: '3'
+              grid-row: '4'
         view_layout:
-          grid-area: gauges
-      - type: custom:lcards-chart
-        chart_type: radialBar
-        sources:
-          - entity: input_number.lcards_test_power
-            name: Power
-          - entity: input_number.lcards_test_shields
-            name: Shields
-          - entity: input_number.lcards_test_humidity
-            name: Humidity
-        style:
-          colors:
-            series:
-              - var(--lcards-orange-medium)
-              - var(--lcards-blue-light)
-              - var(--lcards-blue-medium-light)
-          legend:
-            show: true
-          chart_options:
-            plotOptions:
-              radialBar:
-                startAngle: -135
-                endAngle: 135
-                hollow:
-                  size: 35%
+          grid-column: '2'
+          grid-row: '3'
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 120px 64px minmax(0, 1fr) 200px 64px 120px
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: bullet-right
+            min_height: 0
+            text:
+              label:
+                content: 14-954
+                show: true
+                position: center-right
+                font_size: 13
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.tertiary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.card.topColor
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.card.topColor
+          - type: custom:lcards-button
+            preset: bullet
+            min_height: 0
+            text:
+              label:
+                content: LCARS 5034
+                show: true
+                position: center-left
+                font_size: 13
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
         view_layout:
-          grid-area: gauges
-          margin: 30px 34px
-
-      - type: custom:lcards-data-grid
-        data_mode: data
-        rows:
-          - values: [SENSOR, READING, STATUS]
-            header: true
-          - [DECK 4 TEMP, sensor.desk_sensor_temperature, NOMINAL]
-          - [CABIN TEMP, input_number.lcards_test_temperature, NOMINAL]
-          - [HUMIDITY, input_number.lcards_test_humidity, "{{ 'HIGH' if states('input_number.lcards_test_humidity') | int > 60 else 'NOMINAL' }}"]
-          - [POWER, input_number.lcards_test_power, "{{ 'ONLINE' if states('input_number.lcards_test_power') | int > 20 else 'LOW' }}"]
-        grid:
-          grid-template-columns: 2fr 1fr 1fr
-          grid-template-rows: repeat(5, min-content)
-          gap: 6px
-        style:
-          font_size: 20px
-          color: var(--lcards-blue-lightest)
-        columns:
-          - style:
-              align: left
-              color: var(--lcards-orange-medium)
-          - style:
-              align: right
-          - style:
-              align: right
-              color: var(--lcards-blue-light)
-        view_layout:
-          grid-area: table
-
-      - type: custom:lcards-chart
-        chart_type: column
-        graph_span: 12h
-        sources:
-          - entity: sensor.desk_sensor_temperature
-            name: Hourly average
-            group_by:
-              func: avg
-              duration: 1h
-        style:
-          colors:
-            series:
-              - var(--lcards-blue-medium-light)
-        view_layout:
-          grid-area: bars
-
-      - type: custom:lcards-elbow
-        elbow:
-          type: footer-right
-          style: segmented
-          segments:
-            gap: 6
-            outer_segment:
-              bar_width: 160
-              bar_height: 24
-              color: var(--lcards-blue-medium-light)
-            inner_segment:
-              bar_width: 40
-              bar_height: 8
-              color: var(--lcards-orange-medium)
-        view_layout:
-          grid-area: footer
+          grid-column: 1 / -1
+          grid-row: '4'

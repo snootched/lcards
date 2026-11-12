@@ -1,0 +1,23 @@
+# Gallery video for picard-tiles.yaml: tiles light up as their sections come on (bay doors, warp, holodeck),
+# the engineering number and the deflector readouts follow power and shields, and the holodeck scene steps down.
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/picard-tiles.yaml --video
+steps:
+- {wait: 1000}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_doors}]
+- {wait: 1500}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_warp}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 96}]
+- {wait: 1500}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 30}]
+- {wait: 1200}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_toggle}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_stage, value: 12}]
+- {wait: 1500}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 82}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 64}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_stage, value: 20}]
+- {wait: 1000}
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_toggle}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_warp}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_doors}]
+tail: 1500

@@ -132,3 +132,49 @@ test('data grid: the cascade restarts with the new palette, data kept', async ({
     await expect.poll(last, { timeout: 2000 }).toBe(green);
     await expectNoErrors(page);
 });
+
+// ── Themed scopes ────────────────────────────────────────────────────────────
+// Home Assistant writes a view's, section's or card's own theme as inline
+// variables on that element (and records them in element.__themes); inside it
+// those values win over the page root, so alert mode shifts each scope too.
+
+/** Wrap the card in an element themed the way Home Assistant themes a view. */
+const themeAround = (page, tag, vars, cacheKey = 'Test Theme') => page.evaluate(({ t, v, k }) => {
+    const card = document.querySelector(t);
+    const wrap = document.createElement('div');
+    wrap.__themes = { cacheKey: k, keys: Object.fromEntries(Object.keys(v).map(n => [n, ''])) };
+    for (const [n, val] of Object.entries(v)) wrap.style.setProperty(n, val);
+    card.parentNode.insertBefore(wrap, card);
+    wrap.appendChild(card);
+}, { t: tag, v: vars, k: cacheKey });
+
+const varAt = (page, tag, name) => page.evaluate(({ t, n }) => getComputedStyle(document.querySelector(t)).getPropertyValue(n).trim(), { t: tag, n: name });
+
+test('alert mode shifts a view with its own theme, and green restores its own colours', async ({ page }) => {
+    await mountCase(page, 'button-lozenge');
+    await themeAround(page, 'lcards-button', { '--lcars-ui-primary': '#ff9966', '--lcars-ui-tertiary': 'var(--lcars-ui-primary)' });
+    expect(await varAt(page, 'lcards-button', '--lcars-ui-primary')).toBe('#ff9966');
+
+    await setAlert(page, 'red_alert');
+    await expect.poll(() => varAt(page, 'lcards-button', '--lcars-ui-primary')).not.toBe('#ff9966');
+    const red = await varAt(page, 'lcards-button', '--lcars-ui-primary');
+    await setAlert(page, 'blue_alert');
+    await expect.poll(() => varAt(page, 'lcards-button', '--lcars-ui-primary')).not.toBe(red);   // from the original, no drift
+    // a value that references another variable is left alone and follows it
+    expect(await varAt(page, 'lcards-button', '--lcars-ui-tertiary')).toBe(await varAt(page, 'lcards-button', '--lcars-ui-primary'));
+
+    await setAlert(page, 'green_alert');
+    await expect.poll(() => varAt(page, 'lcards-button', '--lcars-ui-primary')).toBe('#ff9966');
+    await expectNoErrors(page);
+});
+
+test('a themed view opened during an alert is shifted after navigation', async ({ page }) => {
+    await mountCase(page, 'button-lozenge');
+    await setAlert(page, 'red_alert');
+    await themeAround(page, 'lcards-button', { '--lcars-ui-primary': '#ff9966' }, 'Late Theme');
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('location-changed')));
+    await expect.poll(() => varAt(page, 'lcards-button', '--lcars-ui-primary'), { timeout: 3000 }).not.toBe('#ff9966');
+    await setAlert(page, 'green_alert');
+    await expect.poll(() => varAt(page, 'lcards-button', '--lcars-ui-primary')).toBe('#ff9966');
+    await expectNoErrors(page);
+});

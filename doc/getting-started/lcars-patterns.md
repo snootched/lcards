@@ -11,6 +11,7 @@ description: "LCARS patterns to compose a screen from, each a live LCARdS card o
 - **Give the layout card's rows a size** (`grid-template-rows` or `grid-auto-rows` in px or `minmax(0, 1fr)`): rows left to size themselves squash the cards.
 - **Keep a button's row at least as tall as the button:** 56 px by default. Small pills and blocks set a lower `min_height`, and bar labels size their text to it.
 - Patterns marked *(classic)* come from TNG, DS9 and Voyager screens, and most of the others from the *Picard* references. The theme sets the colours, so most work in either look.
+- The examples pick every colour by hand to show the look. Before you copy them onto controls bound to your entities, read [Colours by state or by hand](lcars-design#colours-by-state-or-by-hand).
 
 | For | Patterns |
 |---|---|
@@ -199,6 +200,7 @@ elbow:
 - Match the `view_box` proportions to the display's area; otherwise the drawing is letterboxed and the margin moves.
 - Each line runs from its label (`anchor`) to a point on the drawing (`attach_to`, in `view_box` units); `route: manhattan` keeps it to right angles.
 - Keep labels and lines in structure tones and give the one that needs attention the accent, as a fault.
+- The labels' `size` and `font_size` are in `view_box` units and scale with the drawing: in a display smaller than the `view_box`, raise `font_size` until the labels render at about 13 px.
 - A faint grid behind the drawing (the `grid` background preset) suits it, but that preset scrolls by default: set its `config.scroll_speed_x` and `config.scroll_speed_y` to `0` so the screen stays still.
 
 ```yaml live
@@ -396,7 +398,8 @@ cards:
 - Use it where nothing else turns the same corner: above a [display sweep](#display-sweep), let the display's own sweep make the corner instead.
 - The line ends where the sweep's bar ends. When the bar carries on as segments in the next cards, end the elbow's area at the first gap, so the line stops at that gap with the bar.
 
-- Swap the weights for the other common Picard form: a thin outer band with a large curve wrapped round a wide inner block. The [split screen](dashboard-gallery#picard-split-screen) uses `outer_segment` 40 by 14 with `outer_curve: 120` round an `inner_segment` 150 by 30; the lcars-shell strategy's corners have the same form.
+- Keep the sweep's vertical part short: let the bar carry on as a segmented band beside a column of small blocks rather than as one tall block, or a wide inner block becomes a full-height slab.
+- Swap the weights for the other common Picard form: a thin outer band with a large curve wrapped round a wide inner block. The [split screen](dashboard-gallery#picard-split-screen) uses `outer_segment` 40 by 14 with `outer_curve: 100` round an `inner_segment` 134 by 24 (as wide as a two-block column); the lcars-shell strategy's corners have the same form.
 
 ```yaml live
 type: custom:lcards-elbow
@@ -511,7 +514,7 @@ cards:
 **Classic screens rarely run one unbroken bar across the screen: the sweep turns into a short bar, then continues as labelled segments of different lengths and roles.** Each segment is a panel in its own grid column.
 
 - Keep the elbow's area just wider than its vertical bar, and put the segments in a row the same height as the bar (40 px here).
-- Two to four segments per bar is plenty; more reads as a ruler.
+- Two to four segments per bar is plenty; more reads as a ruler. A bracket screen's header is the exception: its top bar runs on in many short coded segments.
 - The same works for a Picard closing bar: thin segments (14 to 20 px) in structure tones, one in the accent.
 
 ```yaml live
@@ -689,9 +692,10 @@ style:
 
 ## Pill grid (classic)
 
-**TNG style: big numbers leading a group of pills, the groups in different roles.** The numbers are `text-only` buttons; each pill is a `lozenge` with its background set to a role.
+**Big numbers leading a group of pills, the groups in different roles.** The numbers are `text-only` buttons; each pill is a `lozenge` with its background set to a role.
 
 - The `lozenge` preset hides its label; to name a pill, add a label with `show: true` (WARP below).
+- For a live big number without its unit, use a template such as `{{ states('input_number.warp') | int }}`; `{entity.state}` adds the unit.
 
 ```yaml live
 type: custom:lcards-layout-card
@@ -768,7 +772,7 @@ cards:
 
 ## Bracket frame (classic)
 
-**DS9 and Voyager screens: a header bar with the title, a sidebar of blocks and a footer bar, round the content.** Two elbows (`header-left` and `footer-left`) with the same `bar_width` as the sidebar column make the bracket.
+**Classic screens: a header bar with the title, a sidebar of blocks and a footer bar, round the content.** Two elbows (`header-left` and `footer-left`) with the same `bar_width` as the sidebar column make the bracket.
 
 ```yaml live
 type: custom:lcards-layout-card
@@ -845,7 +849,9 @@ style:
 
 **A label block and a horizontal gauge per line, for a set of levels read side by side.** Each line is a `panel-dark` button beside a slider with the `gauge-basic` preset; drag a level under the card to move its gauge.
 
+- A slider keeps a minimum height of about 40 px so it stays easy to drag. A thin readout gauge in a shorter row sets `height` to the row (24 here); otherwise it spills into the next row.
 - In rows this small, turn the gauge's scale labels off (`style.gauge.scale.labels.enabled: false`): at their default size they cover the fill. The ticks stay.
+- On a full screen, a thin bar reads better than a full-height fill, which turns each row into a large accent slab: set `style.gauge.progress_bar.height` to about 8 with the ticks in a structure tone, as the `picard-gauge-column` preset does.
 
 ```yaml live controls
 type: custom:lcards-layout-card
@@ -865,6 +871,7 @@ cards:
   - type: custom:lcards-slider
     entity: input_number.primary_level
     preset: gauge-basic
+    height: 24
     style:
       gauge:
         scale:
@@ -880,6 +887,7 @@ cards:
   - type: custom:lcards-slider
     entity: input_number.secondary_level
     preset: gauge-basic
+    height: 24
     style:
       gauge:
         scale:
@@ -895,6 +903,7 @@ cards:
   - type: custom:lcards-slider
     entity: input_number.reserve_level
     preset: gauge-basic
+    height: 24
     style:
       gauge:
         scale:
@@ -948,6 +957,8 @@ cards:
 ## Selector strip
 
 **A row of equal tabs for choosing one of several, as in the Titan.DS fleet directory.** It is a [select menu](../cards/select-menu/) with the `toggle-tab` preset; the selected option is highlighted.
+
+- In a fixed px row (about 30 px), set `grid.grid-auto-rows` to the row's height so the tabs fit it.
 
 ```yaml live controls
 type: custom:lcards-select-menu
@@ -1051,7 +1062,7 @@ cards:
 
 ## Split header (classic)
 
-**The TNG and Voyager header: an upper block that sweeps down into a bar, a thin gap, and a lower block that sweeps out of the next bar.** The title sits in the black beside the upper sweep, as a text field on the upper elbow.
+**The classic split header: an upper block that sweeps down into a bar, a thin gap, and a lower block that sweeps out of the next bar.** The title sits in the black beside the upper sweep, as a text field on the upper elbow.
 
 ```yaml live
 type: custom:lcards-layout-card
@@ -1085,14 +1096,17 @@ cards:
 
 ## List
 
-**Rows of text in columns, for rosters, schedules and logs, as in Voyager's duty roster.** It is a [data grid](../cards/data-grid/) in data mode with fixed text or your entities; the first row is a header.
+**Rows of text in columns, for rosters, schedules and logs, such as a crew duty roster.** It is a [data grid](../cards/data-grid/) in data mode with fixed text or your entities.
+
+- The first row names the columns in another role, on black like the rest; `header: true` would draw boxed header cells.
 
 ```yaml live
 type: custom:lcards-data-grid
 data_mode: data
 rows:
-  - values: [Name, Station, Shift]
-    header: true
+  - values: [NAME, STATION, SHIFT]
+    style:
+      color: theme:colors.ui.secondary
   - [TUVOK, SECURITY, ALPHA]
   - [TORRES, ENGINEERING, BETA]
   - [PARIS, CONN, ALPHA]
@@ -1211,6 +1225,8 @@ text:
 ## Fleet tiles
 
 **A row of framed tiles, one per item, as in the Titan.DS fleet directory.** Each tile is a frame elbow with two text fields, the name and the class; its thicker top and bottom bars (`bar_height`) can carry a state colour.
+
+- The two fields need about 90 px of tile height; in a shorter tile, put both on one line (`NCC-1701-A · CONSTITUTION`).
 
 ```yaml live
 type: custom:lcards-layout-card

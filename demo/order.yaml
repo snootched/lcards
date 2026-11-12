@@ -15,11 +15,11 @@ topics:
       - title: Everyday
         views: [gallery/bridge, gallery/engineering, gallery/environmental, gallery/security, gallery/alert]
       - title: Picard era
-        views: [gallery/titan-operations, gallery/sciences]
+        views: [gallery/picard-operations, gallery/sciences]
       - title: Design guide, Picard
-        views: [gallery/picard-console, gallery/picard-display, gallery/picard-split, gallery/picard-portrait]
+        views: [gallery/picard-console, gallery/picard-display, gallery/picard-split, gallery/picard-portrait, gallery/picard-tiles]
       - title: Design guide, classic
-        views: [gallery/tng-console, gallery/tng-data, gallery/ds9-bracket, gallery/voyager-roster]
+        views: [gallery/classic-console, gallery/classic-data, gallery/classic-bracket, gallery/classic-list, gallery/classic-wings]
   - id: buttons
     title: Buttons and elbows
     groups:
@@ -93,10 +93,24 @@ topics:
 releases:
   - version: "2026.11.0"
     views:
-      - file: gallery/tng-data
+      - file: gallery/picard-tiles
+        title: "Picard tile wall"
+        summary: "Picard tile wall: nine framed section tiles, readings, slots and controls"
+        description: "The tile wall from the design guide: nine sections of the Enterprise, each a framed tile with a readings table, a slot (gauges, a big number, a chart, readout bars, a selector, transporter pads, the one number cascade) and a control row. A tile lights while its section is active; switch the index blocks on the right, open the bay doors or engage warp."
+        session: "LCARS samples rollout"
+        docs: /getting-started/dashboard-gallery#picard-tile-wall
+        public: true
+      - file: gallery/classic-wings
+        title: "Classic wings"
+        summary: "Classic wings: port and starboard nacelles mirrored round a shared centre"
+        description: "The wings layout from the design guide: port (wheat) and starboard (blue) nacelles as the same module mirrored, each with its flow, pill rows led by live numbers, its own readings and a flow slider, round a centre chart of both flows, shared readings and warp pills. In Home Assistant the view uses the LCARS Nemesis Blue theme; here it shows the default colours."
+        session: "LCARS samples rollout"
+        docs: /getting-started/dashboard-gallery#classic-wings
+        public: true
+      - file: gallery/classic-data
         title: "Classic data screen"
         summary: "Classic data screen: a readings table, one cascade, a long range scan"
-        description: "The TNG data screen from the design guide: an upper band with a sweep, a table of labelled readings (temperature, humidity, ambient, lights, doors) beside one small number cascade, a big title and a pill group led by big numbers; segmented divider bars; a sidebar of blocks beside a long range scan with a bearing scale and a table of systems readings. Every number is a labelled reading except the one cascade. Drag POWER past 90 to turn it red. In Home Assistant the view uses the LCARS Default theme; here it shows the default colours."
+        description: "The classic data screen from the design guide: an upper band with a sweep, a table of labelled readings (temperature, humidity, ambient, lights, doors) beside one small number cascade, a big title and a pill group led by big numbers; segmented divider bars; a sidebar of blocks beside a long range scan with a bearing scale and a table of systems readings. Every number is a labelled reading except the one cascade. Drag POWER past 90 to turn it red. In Home Assistant the view uses the LCARS Default theme; here it shows the default colours."
         session: "Design review R3"
         docs: /getting-started/dashboard-gallery#classic-data-screen
         public: true
@@ -581,50 +595,50 @@ releases:
         public: true
       - file: gallery/bridge
         title: "Bridge"
-        summary: "Bridge: an LCARS frame round a status grid, sliders, a toggle and a chart"
-        description: "An LCARS frame (header and footer elbows, a sidebar of buttons) round a status grid, power and shields sliders, a lights toggle and a temperature history chart."
+        summary: "Bridge: classic display over controls, a chart, a status table and pill groups"
+        description: "A classic display over controls in the LCARS TNG theme: a thick sweep with labelled segments and the title, a chart of power and shields beside a ship status table and a live warp factor, and a control deck of pill groups led by big live numbers, a power slider, a shield gauge, main lights, a mode select menu and red alert."
         session: "S17 gallery"
         docs: /getting-started/dashboard-gallery#bridge
         public: true
       - file: gallery/engineering
         title: "Engineering"
-        summary: "Engineering: the NCC-1701-A blueprint in a Picard frame, shields and routed controls"
-        description: "A Master Systems Display of the built-in NCC-1701-A blueprint in a Picard-era frame. The shield arcs round the ship change colour with SHIELDS, and three controls are joined to the bridge, warp core and shuttle bay by routed lines. Square sidebar buttons, a tick band, a systems table, two Picard sliders and a data cascade."
+        summary: "Engineering: a Picard master systems display, shield arcs and eight routed callouts"
+        description: "The master systems display in the Picard look: the NCC-1701-A blueprint as a dimmed schematic, shield arcs that turn yellow below 50% and red below 20% of SHIELDS, and eight callouts joined to the ship's markers by routed lines (four switch helpers, their labels carry live readings). Round it: a code-block column with gauges, utility pills, a systems table with flagged blocks, a mode selector and toggle tabs over readings tables."
         session: "S17 gallery"
         docs: /getting-started/dashboard-gallery#engineering
         public: true
       - file: gallery/environmental
         title: "Environmental"
-        summary: "Environmental: a shaped temperature slider, a humidity gauge, a grid and a chart"
-        description: "A shaped temperature slider, a humidity gauge, a status grid and a temperature history chart."
+        summary: "Environmental: a Picard data screen, readings tables, a temperature trace, a humidity gauge"
+        description: "A data screen in the Picard look: climate and life support readings tables and the title over toggle tabs and a shaped set point slider, then a 24-hour temperature trace beside a humidity gauge column with dry, nominal and humid bands and a sidebar of code blocks with gauges."
         session: "S17 gallery"
         docs: /getting-started/dashboard-gallery#environmental
         public: true
       - file: gallery/security
         title: "Security"
-        summary: "Security: toggles, a mode select, a D-pad and a wall of sector tiles"
-        description: "Door and light toggles whose labels follow their state, a select menu for the security mode, a D-pad stepping a value (a stand-in for a camera pan), a status grid and a wall of sector tiles, one framed feed per sector with its live status."
+        summary: "Security: a classic sweep console, a D-pad camera group, pill rows, sector tiles"
+        description: "A classic sweep console in the LCARS Classic theme: a thick header sweep, a sidebar of toggle blocks, the mode select menu in the title row, a D-pad camera group led by the pan value (a helper standing in for a camera pan), pill rows for doors, lights, intruder alert, camera presets and alert actions, four sector tiles that light while their sector is active, a sector status table and one number cascade."
         session: "S17 gallery"
         docs: /getting-started/dashboard-gallery#security
         public: true
       - file: gallery/alert
         title: "Alert mode"
-        summary: "Alert mode: alert buttons beside a systems screen, with the alert overlay"
-        description: "Buttons that raise and clear an alert mode through the lcards.* actions, beside an everyday systems screen. Press RED ALERT or YELLOW ALERT: the alert overlay covers the view with the symbol for that alert; CLEAR ends it."
+        summary: "Alert mode: alert buttons in a classic frame; the themed view recolours under the overlay"
+        description: "A classic display with side columns in the LCARS Modern theme (set on the view). The left arm's blocks raise and clear an alert mode through the lcards.* actions; between the arms, a chart, a ship status table and deck control pills. Press RED ALERT or YELLOW ALERT: the whole view recolours, its own theme included, and the alert overlay covers it; STAND DOWN ends it."
         session: "S17 gallery"
         docs: /getting-started/dashboard-gallery#alert-mode
         public: true
-      - file: gallery/titan-operations
+      - file: gallery/picard-operations
         title: "Operations"
-        summary: "Operations (Picard era): segmented double elbows, lit buttons, a hex cascade"
-        description: "Picard-era screens use thinner, double-ringed frames, square-ended buttons and cooler blues and greys. Segmented double elbows, filled buttons that light up with their state, a select menu in the outline style, a cascade of changing hex values, a status table and two Picard sliders."
+        summary: "Operations (Picard): a switchable display, a power chart, the Enterprise, a tactical plot"
+        description: "The switchable display in the Picard look: the frame, columns and strips stay while a select menu along the bottom swaps the centre between an EPS power chart, a hologram of the Enterprise with live callouts and a tactical polar plot (each a card with a visibility condition). Round it: code blocks with toggles, a status table over a gauge bank, readout bars and utility pills."
         session: "S17 gallery"
         docs: /getting-started/dashboard-gallery#operations
         public: true
       - file: gallery/sciences
         title: "Sciences"
-        summary: "Sciences (Picard era): framed history with a smoothed trend, radial gauges"
-        description: "Segmented frames round a history chart with a smoothed data source trend and a set of radial gauges, a sensor table and hourly averages."
+        summary: "Sciences (Picard): a bracket screen, a temperature history, ring gauges, a sensor log"
+        description: "A bracket screen in the Picard look: capped bars in segments and a numbered sidebar of code blocks round a 24-hour temperature history with its hourly mean and a readings table, four ring gauges that set levels, a sensor log and hourly means as columns."
         session: "S17 gallery"
         docs: /getting-started/dashboard-gallery#sciences
         public: true
@@ -637,15 +651,15 @@ releases:
         public: true
       - file: gallery/picard-display
         title: "Picard display over controls"
-        summary: "Picard display over controls: a framed schematic over gauges, tiles and readouts"
-        description: "A concentric header sweep continued by a segmented bar of codes, a wide nested frame round a grey shuttle schematic, and a control deck under it: a gauge bank, a tile wall, readout rows and a selector."
+        summary: "Picard display over controls: a labelled ship in a display sweep over a deck of small parts"
+        description: "One display sweep, open on the right, round a large ship side profile with labelled leader lines (three are live readings, one a fault). Under it a deck of small parts: a code-block column, a gauge bank, toggle tabs, two readings tables, one number cascade, a selector strip, flagged blocks and utility pills."
         session: "S17 gallery"
         docs: /getting-started/dashboard-gallery#picard-display-over-controls
         public: true
       - file: gallery/picard-split
         title: "Picard split screen"
         summary: "Picard split screen: segmented elbows facing across a cut"
-        description: "A split header in the Picard style: two segmented elbows face each other across a cut through the screen, each band running on as thin segments, with utility pills in the upper curve, flagged blocks in the lower, readout gauges, a number cascade, a radar scope, a dimmed ship and toggle tabs."
+        description: "A split header in the Picard style: two segmented elbows face each other across a cut through the screen, each band running on as thin segments, with utility pills in the upper curve, flagged blocks in the lower, a readings table, thin readout bars, a gauge pair beside toggle blocks, a labelled ship schematic, fleet tiles and toggle tabs."
         session: "S17 gallery"
         docs: /getting-started/dashboard-gallery#picard-split-screen
         public: true
@@ -653,28 +667,28 @@ releases:
         max_width: 600
         title: "Picard portrait panel"
         summary: "Picard portrait panel: for a phone or an upright tablet"
-        description: "For a phone or an upright tablet: a header bar with the title, code blocks beside a condition readout, a tile wall, a gauge bank, toggle tabs and a segmented closing bar."
+        description: "For a phone or an upright tablet: a header bar with the title, a sweep down the left edge into a segmented closing bar, a labelled ship schematic, code blocks beside a condition readings table, a gauge bank beside signal readings, utility pills and toggle tabs."
         session: "S17 gallery"
         docs: /getting-started/dashboard-gallery#picard-portrait-panel
         public: true
-      - file: gallery/tng-console
+      - file: gallery/classic-console
         title: "Classic sweep console"
-        summary: "Classic sweep console: thick sweeps, coloured blocks, a pill grid led by big numbers"
-        description: "The classic look: thick header and footer sweeps continued as labelled segments, a sidebar of coloured blocks with code numbers, a pill grid led by big numbers, a slider over a strip of small pills, and a number cascade. In Home Assistant the view uses the LCARS Default theme; here it shows the default colours."
+        summary: "Classic sweep console: facing sweeps, pill groups led by live numbers, a chart and readings"
+        description: "A helm-style console: two thick sweeps facing across the top, their arms running down the middle as stacked coded blocks; pill groups led by big numbers (live levels the pills set, toggles, a warp slider); the title, a framed chart, a readings table and one number cascade. In Home Assistant the view uses the LCARS Default theme; here it shows the default colours."
         session: "S17 gallery"
         docs: /getting-started/dashboard-gallery#classic-sweep-console
         public: true
-      - file: gallery/ds9-bracket
+      - file: gallery/classic-bracket
         title: "Classic bracket screen"
-        summary: "Classic bracket screen (DS9): segmented bars, a shuttlecraft cutaway, a readout list"
-        description: "DS9-style: top and bottom bars broken into labelled segments, a sidebar of coloured blocks with code numbers, a shuttlecraft cutaway in colour, a readout list and a row of pills. In Home Assistant the view uses the LCARS Zeldaar theme."
+        summary: "Classic bracket screen: coded segments, a labelled shuttlecraft cutaway, readings and gauges"
+        description: "A bracket round a shuttlecraft cutaway, its top bar running on as short coded segments, a thick sidebar of coded blocks, seven labels on leader lines (five live), a readings table, three thin gauges that set helpers and a pill group led by numbers. In Home Assistant the view uses the LCARS Zeldaar theme."
         session: "S17 gallery"
         docs: /getting-started/dashboard-gallery#classic-bracket-screen
         public: true
-      - file: gallery/voyager-roster
+      - file: gallery/classic-list
         title: "Classic list"
-        summary: "Classic list (Voyager): a split header, a duty roster, big numbers"
-        description: "Voyager-style: a split header whose two bars continue as segments, a number cascade, a duty roster list, a column of big numbers and pill groups. In Home Assistant the view uses the LCARS Nemesis Blue theme."
+        summary: "Classic list: a split header, readings tables, a duty roster, labelled counts"
+        description: "A split header whose two bars continue as segments, three short readings tables, a duty roster coloured by shift (the medical officer's status follows a helper), labelled counts and four pill rows whose first pills are toggles. In Home Assistant the view uses the LCARS Nemesis Blue theme."
         session: "S17 gallery"
         docs: /getting-started/dashboard-gallery#classic-list
         public: true
@@ -704,7 +718,7 @@ releases:
         public: true
       - file: lcars-patterns-classic
         summary: "LCARS patterns, classic: segmented bars, pill grids, bracket frames, split headers"
-        description: "The TNG, DS9 and Voyager patterns from the design guide, one per frame: a sweep that continues as labelled segments, a pill grid led by big numbers, a bracket frame with a header, sidebar and footer, and the split header whose two blocks sweep into their bars."
+        description: "The classic patterns from the design guide, one per frame: a sweep that continues as labelled segments, a pill grid led by big numbers, a bracket frame with a header, sidebar and footer, and the split header whose two blocks sweep into their bars."
         session: "D1c"
         docs: /getting-started/lcars-patterns
         public: true

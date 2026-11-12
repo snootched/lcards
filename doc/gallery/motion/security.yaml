@@ -1,42 +1,25 @@
-# Gallery video for security.yaml: Doors open, lights go off, the mode changes and the camera pans.
+# Gallery video for security.yaml (classic sweep console): the main doors open, the intruder
+# alert lights its sector tile and red alert runs, the camera pans (its big number, pill slider
+# and tile follow), the mode changes, and everything is cleared again.
 # node scripts/dashboard-shots.mjs doc/gallery/dashboards/security.yaml --video
 steps:
 - {wait: 800}
-- service:
-  - input_boolean
-  - turn_on
-  - {entity_id: input_boolean.lcards_test_doors}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_doors}]
 - {wait: 1200}
-- service:
-  - input_boolean
-  - turn_off
-  - {entity_id: input_boolean.lcards_test_lights}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_value, value: 75}]
 - {wait: 1200}
-- service:
-  - input_select
-  - select_option
-  - {entity_id: input_select.lcards_test_mode, option: gamma}
-- {wait: 1200}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_value, value: 75}
-- {wait: 1200}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_value, value: 20}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_toggle}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_lights}]
 - {wait: 1000}
-- service:
-  - input_boolean
-  - turn_off
-  - {entity_id: input_boolean.lcards_test_doors}
-- service:
-  - input_boolean
-  - turn_on
-  - {entity_id: input_boolean.lcards_test_lights}
-- service:
-  - input_select
-  - select_option
-  - {entity_id: input_select.lcards_test_mode, option: beta}
+- service: [lcards, red_alert, {}]
+- {wait: 3000}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_value, value: 20}]
+- service: [input_select, select_option, {entity_id: input_select.lcards_test_mode, option: gamma}]
+- {wait: 2600}
+- service: [lcards, clear_alert, {}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_toggle}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_doors}]
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_lights}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_value, value: 40}]
+- service: [input_select, select_option, {entity_id: input_select.lcards_test_mode, option: alpha}]
 tail: 1500

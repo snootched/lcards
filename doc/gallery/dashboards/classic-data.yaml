@@ -1,11 +1,11 @@
-# TNG data screen: the classic "data screen" archetype from doc/getting-started/lcars-design.md.
+# Classic data screen: the classic "data screen" archetype from doc/getting-started/lcars-design.md.
 # An upper band with a sweep, a readings table of the environment (labelled live values with a
 # status word) beside the screen's one small number cascade, the big title and a pill group
 # led by big numbers; a divider band of segmented bars; a sidebar of blocks (three toggle
 # helpers) beside a long range scan (astrometrics) with a bearing scale and a systems
-# readings table. The view sets theme: LCARS Default for the TNG pastels.
+# readings table. The view sets theme: LCARS Default for its pastels.
 # Uses lcards_test_* helpers and sensor.desk_sensor_temperature.
-title: TNG Data Screen
+title: Classic Data Screen
 views:
   - title: Long Range Scan
     path: scan

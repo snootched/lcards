@@ -191,6 +191,7 @@ export function isPaletteInjected(rootElement = null) {
 
 import { transformColorToAlertMode, isKnownAlertMode } from './alertModeTransform.js';
 import { runTransitionEffect } from './alertTransitions.js';
+import { applyAlertToScopes, restoreThemeScopes } from './alertThemeScopes.js';
 
 
 /**
@@ -389,11 +390,16 @@ export async function setAlertMode(mode, hass, rootElement = null, opts = {}) {
         restoreOriginalColors(root, originalLcarsColors);
       // Restore LCARdS fallback palette variables (--lcards-*)
       injectPalette(GREEN_ALERT_PALETTE, root);
+      // Views, sections and cards with their own theme (alertThemeScopes.js)
+      if (root === document.documentElement) restoreThemeScopes();
     } else {
       // Transform from ORIGINAL colours (prevents drift when switching modes)
       await transformAndApplyAlertMode(mode, root, originalLcarsColors);
       // Transform LCARdS fallback variables (--lcards-*) from green_alert baseline
       injectTransformedPalette(mode, root);
+      // Views, sections and cards with their own theme: their values win inside
+      // them, so each is shifted from its own originals (alertThemeScopes.js)
+      if (root === document.documentElement) applyAlertToScopes(mode);
     }
     // Cards repaint now, while the transition still hides the swap (colours
     // resolved to concrete values cannot follow a CSS variable change alone).

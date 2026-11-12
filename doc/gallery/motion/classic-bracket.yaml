@@ -1,5 +1,5 @@
-# Gallery video for ds9-bracket.yaml: the hatch and shields pills switch, the sidebar block follows the lights, the readout list follows power and shields.
-# node scripts/dashboard-shots.mjs doc/gallery/dashboards/ds9-bracket.yaml --video
+# Gallery video for classic-bracket.yaml: the hatch, lights and aux pills, sidebar blocks and coded blocks switch; the cutaway labels, readings list and gauges follow power, shields and humidity.
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/classic-bracket.yaml --video
 steps:
 - {wait: 800}
 - service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_doors}]

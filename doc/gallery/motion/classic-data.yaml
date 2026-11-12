@@ -1,5 +1,5 @@
-# Gallery video for tng-data.yaml: the readings follow the helpers (power past 90 turns red), the sidebar blocks and pills switch.
-# node scripts/dashboard-shots.mjs doc/gallery/dashboards/tng-data.yaml --video
+# Gallery video for classic-data.yaml: the readings follow the helpers (power past 90 turns red), the sidebar blocks and pills switch.
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/classic-data.yaml --video
 steps:
 - {wait: 800}
 - service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_doors}]

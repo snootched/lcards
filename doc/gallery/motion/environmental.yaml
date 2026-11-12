@@ -1,33 +1,22 @@
-# Gallery video for environmental.yaml: Temperature climbs and falls, humidity follows.
+# Gallery video for environmental.yaml (Picard data screen): the set point slider and the
+# climate table follow the temperature, the humidity gauge climbs into its humid band and back,
+# and the vents and scrubber tabs toggle.
 # node scripts/dashboard-shots.mjs doc/gallery/dashboards/environmental.yaml --video
 steps:
 - {wait: 800}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_temperature, value: 26}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_temperature, value: 26}]
 - {wait: 1400}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_humidity, value: 68}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_humidity, value: 72}]
 - {wait: 1400}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_temperature, value: 17}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_doors}]
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_toggle}]
 - {wait: 1400}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_humidity, value: 35}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_temperature, value: 17}]
 - {wait: 1400}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_temperature, value: 21.5}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_humidity, value: 46}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_humidity, value: 24}]
+- {wait: 1400}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_temperature, value: 21.5}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_humidity, value: 46}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_doors}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_toggle}]
 tail: 1500

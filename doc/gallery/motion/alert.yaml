@@ -1,7 +1,17 @@
-# Gallery video for alert.yaml: Red alert with its overlay, stand down, then yellow alert.
+# Gallery video for alert.yaml: The deck lights and main power change on the everyday screen, then red alert with its overlay, stand down, then yellow alert.
 # node scripts/dashboard-shots.mjs doc/gallery/dashboards/alert.yaml --video
 steps:
 - {wait: 1000}
+- service:
+  - input_boolean
+  - turn_on
+  - {entity_id: input_boolean.lcards_test_doors}
+- {wait: 800}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_power, value: 100}
+- {wait: 1200}
 - service:
   - lcards
   - red_alert
@@ -21,4 +31,13 @@ steps:
   - lcards
   - clear_alert
   - {}
+- {wait: 800}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_power, value: 82}
+- service:
+  - input_boolean
+  - turn_off
+  - {entity_id: input_boolean.lcards_test_doors}
 tail: 1500

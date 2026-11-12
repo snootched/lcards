@@ -79,7 +79,7 @@ export class ApexChartsAdapter {
    *
    * @param {Object} style - MSD overlay style configuration (theme tokens already resolved)
    * @param {Array} size - Chart size [width, height]
-   * @param {Object} context - Additional context (hasData, config, card)
+   * @param {Object} context - Additional context (hasData, config, card; element: the card, for CSS variables)
    * @returns {Object} ApexCharts options
    */
   static generateOptions(style, size, context = {}) {
@@ -568,7 +568,7 @@ export class ApexChartsAdapter {
     // ApexCharts computes shades, gradients and opacity mixes from colour values
     // in JS, so it needs concrete colours rather than var() strings.
     lcardsLog.debug('[ApexChartsAdapter] 🔍 Starting final CSS variable resolution pass');
-    finalOptions = this._resolveAllCssVariables(finalOptions);
+    finalOptions = this._resolveAllCssVariables(finalOptions, context.element ?? null);
     lcardsLog.debug('[ApexChartsAdapter] ✅ Final CSS variable resolution complete');
 
     // Several candlestick series in red/green can't be told apart, and the legend
@@ -1057,9 +1057,11 @@ export class ApexChartsAdapter {
    *
    * @private
    * @param {any} obj - Object to process (can be object, array, string, etc.)
+   * @param {Element|null} [element] - The chart card: CSS variables resolve against it, so a
+   *   theme set on its view (or section) applies, not only the page's
    * @returns {any} Object with all CSS variables resolved
    */
-  static _resolveAllCssVariables(obj) {
+  static _resolveAllCssVariables(obj, element = null) {
     // Handle null/undefined
     if (obj === null || obj === undefined) {
       return obj;
@@ -1067,14 +1069,14 @@ export class ApexChartsAdapter {
 
     // Handle arrays - recursively process each element
     if (Array.isArray(obj)) {
-      return obj.map(item => this._resolveAllCssVariables(item));
+      return obj.map(item => this._resolveAllCssVariables(item, element));
     }
 
     // Handle objects - recursively process each property
     if (typeof obj === 'object') {
       const resolved = {};
       for (const [key, value] of Object.entries(obj)) {
-        resolved[key] = this._resolveAllCssVariables(value);
+        resolved[key] = this._resolveAllCssVariables(value, element);
       }
       return resolved;
     }
@@ -1084,8 +1086,8 @@ export class ApexChartsAdapter {
     // (series names, labels, font stacks) only get their var() materialised.
     if (typeof obj === 'string') {
       if (!(obj.startsWith('theme:') || isComputedColor(obj) || obj.includes('var('))) return obj;
-      const color = resolveColor(obj, { concrete: true, fallback: null });
-      const resolved = color ?? (obj.includes('var(') ? ColorUtils.resolveCssVariable(obj) : obj);
+      const color = resolveColor(obj, { concrete: true, element, fallback: null });
+      const resolved = color ?? (obj.includes('var(') ? ColorUtils.resolveCssVariable(obj, '#000000', element) : obj);
       if (resolved !== obj) {
         lcardsLog.debug(`[ApexChartsAdapter] 🎨 Resolved colour: ${obj} → ${resolved}`);
       }

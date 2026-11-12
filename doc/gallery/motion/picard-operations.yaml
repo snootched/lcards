@@ -1,0 +1,52 @@
+# Gallery video for picard-operations.yaml: The shuttle bay opens on the vessel display, the selector swaps the centre to the tactical plot and then the power chart while power and shields change on the gauge bank.
+# node scripts/dashboard-shots.mjs doc/gallery/dashboards/picard-operations.yaml --video
+steps:
+- {wait: 1000}
+- service:
+  - input_boolean
+  - turn_on
+  - {entity_id: input_boolean.lcards_test_doors}
+- {wait: 1500}
+- service:
+  - input_boolean
+  - turn_on
+  - {entity_id: input_boolean.lcards_test_warp}
+- {wait: 1500}
+- service:
+  - input_select
+  - select_option
+  - {entity_id: input_select.lcards_test_mode, option: gamma}
+- {wait: 2500}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_power, value: 40}
+- {wait: 1000}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_shields, value: 92}
+- {wait: 1200}
+- service:
+  - input_select
+  - select_option
+  - {entity_id: input_select.lcards_test_mode, option: alpha}
+- {wait: 2500}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_power, value: 82}
+- service:
+  - input_number
+  - set_value
+  - {entity_id: input_number.lcards_test_shields, value: 64}
+- {wait: 1000}
+- service:
+  - input_boolean
+  - turn_off
+  - {entity_id: input_boolean.lcards_test_doors}
+- service:
+  - input_boolean
+  - turn_off
+  - {entity_id: input_boolean.lcards_test_warp}
+tail: 1500

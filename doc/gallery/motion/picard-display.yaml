@@ -1,4 +1,4 @@
-# Gallery video for picard-display.yaml: the selector moves through the modes, the gauges and readout rows follow power, shields and humidity, a tile frame lights when the doors open.
+# Gallery video for picard-display.yaml: the selector moves through the modes, the gauges and readings tables follow power, shields and humidity, the schematic's shield and power labels follow their readings, and the doors, aux and lights blocks and tabs light as they switch.
 # node scripts/dashboard-shots.mjs doc/gallery/dashboards/picard-display.yaml --video
 steps:
 - {wait: 800}

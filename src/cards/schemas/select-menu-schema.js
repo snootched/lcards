@@ -333,6 +333,13 @@ export function getSelectMenuSchema(options = {}) {
             // ── Style ─────────────────────────────────────────────────────
             style: selectStyleSchema,
 
+            // Read by lcards-select-menu.js (_renderOption): the base of every option button
+            button_template: {
+                type: 'object',
+                description: 'Any button card keys (text, style, icon, min_height ...) applied to every option button as their base; the card\'s own keys and each option\'s settings win over it. id and tags are ignored, and the label text is always the option\'s label.',
+                additionalProperties: true
+            },
+
             // ── Actions ───────────────────────────────────────────────────
             tap_action: {
                 ...actionSchema,

@@ -1,43 +1,25 @@
-# Gallery video for engineering.yaml: Warp core online, shields drop through orange to red and recover, power dips and returns.
+# Gallery video for engineering.yaml (Picard master systems display): the shield arcs drop through
+# yellow to red and recover, the warp core callout and gauges follow power, and the bridge and
+# shuttle bay callout blocks toggle.
 # node scripts/dashboard-shots.mjs doc/gallery/dashboards/engineering.yaml --video
 steps:
 - {wait: 800}
-- service:
-  - input_boolean
-  - turn_on
-  - {entity_id: input_boolean.lcards_test_toggle}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_toggle}]
+- {wait: 1200}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 40}]
+- {wait: 1500}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 12}]
+- {wait: 1500}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 35}]
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_doors}]
 - {wait: 1400}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_shields, value: 40}
-- {wait: 1600}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_shields, value: 12}
-- {wait: 1600}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_power, value: 35}
-- {wait: 1400}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_shields, value: 90}
-- service:
-  - input_number
-  - set_value
-  - {entity_id: input_number.lcards_test_power, value: 82}
-- {wait: 1400}
-- service:
-  - input_boolean
-  - turn_off
-  - {entity_id: input_boolean.lcards_test_lights}
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 90}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_power, value: 82}]
+- {wait: 1200}
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_lights}]
 - {wait: 1000}
-- service:
-  - input_boolean
-  - turn_on
-  - {entity_id: input_boolean.lcards_test_lights}
+- service: [input_boolean, turn_on, {entity_id: input_boolean.lcards_test_lights}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_doors}]
+- service: [input_boolean, turn_off, {entity_id: input_boolean.lcards_test_toggle}]
+- service: [input_number, set_value, {entity_id: input_number.lcards_test_shields, value: 64}]
 tail: 1500

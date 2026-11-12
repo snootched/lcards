@@ -67,7 +67,11 @@ test('URLs carry the channel base; llms-full has the user docs only, cleaned', (
     // took it to 1631 KB); still growing until the rollout ends (the user, 2026-11-07)
     // 1750 KB until 2026-11-11 (design review: scale and density rules, display sweep, readings
     // table and the classic data screen in lcars-design/lcars-patterns took it to 1774 KB)
-    assert.ok(Buffer.byteLength(full) < 1850 * 1024, 'llms-full.txt stays loadable');
+    // 1850 KB until 2026-11-11 (the reworked gallery samples, 1000+ lines each, were inlined
+    // and took it to 2406 KB; they are now a pointer to references/gallery/, 1573 KB)
+    assert.ok(Buffer.byteLength(full) < 1650 * 1024, 'llms-full.txt stays loadable');
+    assert.ok(!full.includes('BRIDGE OPERATIONS'), 'gallery dashboards are pointed to, not inlined');
+    assert.ok(full.includes('references/gallery/bridge.yaml'), 'the gallery page points to the skill copies');
 });
 
 test('page summaries: frontmatter description wins, callouts and bare type names are skipped', () => {

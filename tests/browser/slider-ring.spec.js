@@ -158,3 +158,21 @@ test('ring: debug_zones outlines the rectangle zones only (the `_ring` layout zo
     expect(browserErrors.filter(e => /Expected length/.test(e))).toEqual([]);
     await expectNoErrors(page);
 });
+
+test('ring: picard-ring\'s name follows a fill colour you set', async ({ page }) => {
+    await mountCase(page, 'slider-picard-ring-fill', SIZE);
+    const colours = () => page.locator('lcards-slider').evaluate(el => {
+        const root = el.shadowRoot;
+        const arc = root.querySelector('[data-lcards-role="progress-fill"]');
+        const name = [...root.querySelectorAll('text')].find(t => /zone f/i.test(t.textContent || ''));
+        return {
+            arc: arc ? getComputedStyle(arc).stroke : null,
+            name: name ? getComputedStyle(name).fill : null,
+        };
+    });
+    await expect.poll(async () => (await colours()).name).not.toBeNull();
+    const { arc, name } = await colours();
+    expect(arc).not.toBe('none');
+    expect(name).toBe(arc);
+    await expectNoErrors(page);
+});

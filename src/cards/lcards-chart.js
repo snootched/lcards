@@ -536,7 +536,9 @@ export class LCARdSChart extends LCARdSCard {
       span: this._fetcher?.span,
       size: [width, height],
       hass: this.hass,
-      resolveStyle: tm ? (st) => resolveThemeTokensRecursive(st, tm) : undefined
+      resolveStyle: tm ? (st) => resolveThemeTokensRecursive(st, tm) : undefined,
+      // a theme on the chart's view or section sets the CSS variables its colours read
+      element: this
     });
   }
 

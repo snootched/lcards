@@ -705,8 +705,8 @@ export function getSliderSchema(options = {}) {
                                                     enabled: { type: 'boolean' },
                                                     interval: {
                                                         type: 'number',
-                                                        minimum: 1,
-                                                        description: 'Interval for major tick marks'
+                                                        exclusiveMinimum: 0,
+                                                        description: 'Value units between major tick marks (default 10); fractions such as 0.5 work for small ranges, and the labels show as many decimals as the interval'
                                                     },
                                                     color: stateColorSchema,
                                                     height: { type: 'number' },
@@ -719,8 +719,8 @@ export function getSliderSchema(options = {}) {
                                                     enabled: { type: 'boolean' },
                                                     interval: {
                                                         type: 'number',
-                                                        minimum: 1,
-                                                        description: 'Interval for minor tick marks'
+                                                        exclusiveMinimum: 0,
+                                                        description: 'Value units between minor tick marks (default 2); fractions such as 0.5 work for small ranges'
                                                     },
                                                     color: stateColorSchema,
                                                     height: { type: 'number' },

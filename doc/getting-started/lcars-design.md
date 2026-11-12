@@ -1,5 +1,5 @@
 ---
-description: "Guidelines for making a Home Assistant dashboard look like LCARS: frames, colour roles from your theme, the Picard and classic TNG/DS9/Voyager looks, motion, and the screen archetypes to start from."
+description: "Guidelines for making a Home Assistant dashboard look like LCARS: frames, colour roles from your theme, the Picard and classic looks, motion, and the screen archetypes to start from."
 ---
 
 # Designing LCARS Screens
@@ -19,7 +19,7 @@ description: "Guidelines for making a Home Assistant dashboard look like LCARS: 
 
 **LCARS comes in two broad looks: the thin, dark *Picard* screens and the thick, colourful classic ones.** Most of the guidelines below apply to both.
 
-- The look mostly comes from the theme: the same layout reads as Picard in a Picard theme and as TNG in a classic one.
+- The look mostly comes from the theme: the same layout reads as Picard in a Picard theme and as classic in a classic one.
 
 | | Picard (*Picard* S3, Titan) | Classic (TNG, DS9, Voyager) |
 |---|---|---|
@@ -112,6 +112,59 @@ cards:
 | Data | Readings, schematic lines, gauges | | a palette colour, e.g. `var(--lcars-blue, var(--lcards-blue-medium))` |
 | Alert | Alert states | | `var(--lcars-alert-color, var(--lcards-orange-dark))` |
 | Text on a role | Labels on a coloured block | | the role's text partner: `--lcars-ui-primary-text`, `--lcars-card-top-text`, ... |
+
+## Colours by state or by hand
+
+**Decide before you build whether a control's colour follows its entity's state or is picked by hand, because changing your mind later means editing every card.** The [gallery](dashboard-gallery) and the [patterns](lcars-patterns) pick by hand; a working dashboard usually shouldn't.
+
+- **By state (the usual choice for your own dashboard):** leave the colour unset on a button bound to an entity, and its preset takes the theme's colours for on, off and unavailable. Every switch reads the same way, your theme and alert mode recolour it, and there is nothing to keep in step. Add a [state map](../core/colours/state-maps) only where one entity needs colours of its own.
+- **By hand:** each control gets its own role for on and off (`active` and `inactive`), which gives the many-coloured canon look. Every bound card then carries its own colours, so moving to state colours later means cleaning up each one.
+- **Mixed:** the decorative parts (sweeps, bars, code blocks, cascades) take roles picked by hand, which is where most of the look comes from, and the controls keep the theme's state colours.
+- **Why the samples pick by hand:** their entities are test helpers, so hand-picked roles are the only way to show the look. Treat their colours as a picture of the style, not as how your switches should be coloured.
+
+```yaml live
+type: custom:lcards-layout-card
+layout:
+  height: 48px
+  grid-gap: 6px
+  grid-template-columns: repeat(3, minmax(0, 1fr))
+  grid-template-rows: minmax(0, 1fr)
+cards:
+  # decorative block: a role picked by hand
+  - type: custom:lcards-button
+    preset: panel-light
+    text:
+      label:
+        content: 03-118
+    style:
+      card:
+        color:
+          background: theme:colors.ui.secondary
+  # bound control, by state: no colour set, the theme's on and off colours
+  - type: custom:lcards-button
+    preset: panel-light
+    entity: light.living_room
+    text:
+      label:
+        content: LIGHTS
+    tap_action:
+      action: toggle
+  # bound control, by hand: its own role for on and off
+  - type: custom:lcards-button
+    preset: panel-light
+    entity: light.living_room
+    text:
+      label:
+        content: LIGHTS
+    style:
+      card:
+        color:
+          background:
+            active: theme:colors.ui.primary
+            inactive: theme:colors.card.bottomColor
+    tap_action:
+      action: toggle
+```
 
 ## Structure
 
@@ -243,14 +296,15 @@ cards:
 | Check | Aim near |
 |---|---|
 | Small parts on fixed px tracks | Only the main display uses `1fr`, plus one filler part per edge column or bar |
-| Small blocks, pills and bars on a full screen | 50 to 90 |
+| Small blocks, pills and bars on a full screen | 50 to 90 (a portrait panel about 600 px wide: 25 to 45) |
 | Block size at 1600 px wide | About 64 x 24 px; a classic sidebar block is wider |
 | Label text | Letters about half the block's height (`font_size` 13 to 14 in a 24 px block); one title at 36 to 48 (Picard) or 56 to 80 (classic), clear of everything round it |
 | Largest empty region | Under about a tenth of the screen |
 | Accent colour | About a tenth of the screen (Picard); classic carries more |
 | Number cascades and readouts | On black, never in outlined or rounded boxes |
 | Numbers that mean something | Most numbers are readings with a label; at most one decorative cascade filling an area, in a slot a reading can take (short groups inside a code-block column don't count) |
-| Frames | Open sweeps that interlock; bars in two to four segments; never one thick frame around a grid of equal boxes |
+| Frames | Open sweeps that interlock; bars in two to four segments (a bracket screen's header may run on in many short coded segments); never one thick frame around a grid of equal boxes |
+| Ends at the screen edge | Sweeps and bars that run off the screen end square; a short capped bar or a pill keeps its round cap |
 
 ## Picard
 
@@ -290,7 +344,7 @@ cards:
 
 **Start a screen by picking its overall shape, then fill the areas with [patterns](lcars-patterns).** These are the layouts that recur across the reference screens, and each suits a different job.
 
-- Mix them: a Picard screen can use the wings layout, a classic one the tile wall.
+- An archetype isn't tied to a look: any of them works as a Picard or a classic screen, whatever the table's examples name. The gallery's environmental screen is a data screen in the Picard look.
 - Take groupings and sections from the [gallery](dashboard-gallery) and the references freely, but compose the screen for its own job rather than reproducing one whole.
 - Two things vary a screen more than anything else: which archetype you start from, and which patterns you put in its areas. A screen that reuses one gallery screen's grid with new labels is the same screen; one that combines a different archetype with two or three patterns is a new one.
 
@@ -298,11 +352,13 @@ cards:
 |---|---|---|---|
 | **Display with side columns** | One main system (a ship, a floor plan, a chart) with controls around it; Titan.DS modules | `"pills top top top" "pills left main right" "pills left strip right"` | [Picard](dashboard-gallery#picard-display-with-side-columns) |
 | **Display over controls** | A wide display with a dense control deck under it; Titan.DS ship screens | `"head head" "display display" "deck1 deck2"` | [Picard](dashboard-gallery#picard-display-over-controls) |
-| **Wings** | Two related halves (port and starboard, upstairs and downstairs) around a shared centre | `"head head head" "lwing centre rwing"` |  |
+| **Wings** | Two related halves (port and starboard, upstairs and downstairs) around a shared centre | `"head head head" "lwing centre rwing"` | [Classic](dashboard-gallery#classic-wings) |
+| **Switchable display** | Several systems on one screen, one at a time: a selector strip swaps the centre while the frame, columns and strips stay; Titan.DS modules | `"head head head" "left main right" "sel sel sel"` (several cards in `main`, each with a visibility condition) | [Picard](dashboard-gallery#operations) |
+| **Master systems display** | One whole ship, house or floor as a schematic filling the screen, with routed callouts to readings and controls round its edges | `"head head head" "calll msd callr" "foot foot foot"` | [Picard](dashboard-gallery#engineering) |
 | **Portrait panel** | Phones and wall tablets mounted upright | `"title" "main" "gauges" "controls"` | [Picard](dashboard-gallery#picard-portrait-panel) |
-| **Tile wall** | Many similar things at once: cameras, rooms, sensors | `"head head head" "t1 t2 t3" "t4 t5 t6"` |  |
-| **Data screen** | One large classic display (a scan, a map, a chart) with data rows above it; TNG and Voyager readouts | `"sweep data title" "side band band" "side display display"` | [Classic](dashboard-gallery#classic-data-screen) |
-| **Sweep console** | A classic control panel: thick header sweep, sidebar, button groups | `"head head head" "side pills readout" "foot foot foot"` | [Classic](dashboard-gallery#classic-sweep-console) |
+| **Tile wall** | Many similar things at once: cameras, rooms, sensors | `"head head head" "t1 t2 t3" "t4 t5 t6"` | [Picard](dashboard-gallery#picard-tile-wall) |
+| **Data screen** | One large display (a scan, a map, a chart) with data rows above it | `"sweep data title" "side band band" "side display display"` | [Classic](dashboard-gallery#classic-data-screen) |
+| **Sweep console** | A control panel: thick header sweep, sidebar, button groups; or two sweeps facing across the top, their arms running down the middle as stacked blocks | `"head head head" "side pills readout" "foot foot foot"` | [Classic](dashboard-gallery#classic-sweep-console) |
 | **Bracket screen** | A readout or a document: capped top and bottom bars, a numbered sidebar | `"top top" "side main" "bottom bottom"` | [Classic](dashboard-gallery#classic-bracket-screen) |
 | **List** | Rosters, schedules, logs: rows of text under a split header | `"head head" "list numbers" "pills pills"` | [Classic](dashboard-gallery#classic-list) |
 

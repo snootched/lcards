@@ -5134,7 +5134,9 @@ export class LCARdSButton extends LCARdSCard {
             // Check if key EXISTS in _processedTemplates (not if value is truthy - empty string is valid!)
             const content = this._processedTemplates && fieldId in this._processedTemplates
                 ? this._processedTemplates[fieldId]  // Use processed template value (may be empty string)
-                : (fieldConfig.content || presetFieldConfig.content || '');  // Fall back to raw config
+                // Fall back to raw config; a content you set to '' stays empty (|| fell through
+                // to the preset's unevaluated template and printed its source)
+                : (fieldConfig.content ?? presetFieldConfig.content ?? '');
 
             // What the user wrote (the field, then their text.default) beats anything a
             // preset filled in; fieldConfig / userDefaults are post-merge and hold preset
@@ -5584,7 +5586,9 @@ export class LCARdSButton extends LCARdSCard {
             // No cap_height_ratio or explicit user baseline → use original middle logic.
             let effectiveFontSize = field.font_size;
 
-            if (field.font_size_percent != null && Number.isFinite(field.cap_height_ratio) && baseline === 'middle') {
+            // An explicit font_size in the user's YAML wins here too (as in the zone-height
+            // re-application below): the cap-height fill only sizes text the user left unsized.
+            if (field.font_size_percent != null && !field._user_explicit_font_size && Number.isFinite(field.cap_height_ratio) && baseline === 'middle') {
                 const _pad = field.padding;
                 const _padTop    = (_pad != null && typeof _pad === 'object') ? (_pad.top    ?? 0) : (typeof _pad === 'number' ? _pad : 0);
                 const _padBottom = (_pad != null && typeof _pad === 'object') ? (_pad.bottom ?? 0) : (typeof _pad === 'number' ? _pad : 0);

@@ -78,6 +78,23 @@ if (!token) {
 
 const client = await HAClient.connect(token);
 await ensureHelpers(client, { ...TEST_HELPERS, ...GALLERY_HELPERS });
+
+// The dev Home Assistant's automation.lcards_test_alert turns input_select.lcards_test_mode
+// into an alert mode (beta yellow, gamma red). Samples bind selectors to that helper, so it is
+// switched off for the run: changing the mode in a still or video must not raise an alert
+// (motion files that want one call lcards.red_alert themselves). Switched back on at the end.
+const ALERT_AUTOMATION = 'automation.lcards_test_alert';
+const alertAutomationWasOn = (await client.call({ type: 'get_states' }))
+    .some(s => s.entity_id === ALERT_AUTOMATION && s.state === 'on');
+const restoreAlertAutomation = async () => {
+    if (alertAutomationWasOn) await client.callService('automation', 'turn_on', { entity_id: ALERT_AUTOMATION }).catch(() => {});
+};
+if (alertAutomationWasOn) {
+    await client.callService('automation', 'turn_off', { entity_id: ALERT_AUTOMATION, stop_actions: true });
+    for (const sig of ['SIGINT', 'SIGTERM']) {
+        process.once(sig, () => { restoreAlertAutomation().finally(() => process.exit(130)); });
+    }
+}
 // The same sample values for every shot (power 82 %, lights on, ...).
 for (const [domain, service, data] of GALLERY_STATES) await client.callService(domain, service, data);
 const dashboards = await client.call({ type: 'lovelace/dashboards/list' });
@@ -189,5 +206,7 @@ if (!args.includes('--keep')) {
     await client.call({ type: 'lovelace/config/save', url_path: GALLERY_DASHBOARD, config: { title: 'LCARdS Gallery', views: [{ title: 'Empty', cards: [] }] } });
 }
 await browser.close();
+// Sample states (mode beta) are set first, so turning the automation back on raises no alert.
+await restoreAlertAutomation();
 client.close();
 process.exit(failed ? 1 : 0);
