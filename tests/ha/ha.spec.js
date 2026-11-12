@@ -128,6 +128,83 @@ test('lcards.red_alert / clear_alert services switch the alert mode on the page'
     await expect.poll(mode, { timeout: 15_000 }).toBe('green_alert');
 });
 
+test('alert mode shifts a themed view and a section with its own theme, after navigation too; green restores them exactly', async ({ page }) => {
+    const errors = await openDashboard(page, 'themed-alert');
+    const mode = () => page.evaluate(() => window.lcards.core.themeManager.getAlertMode());
+    await page.waitForFunction(() => window.lcards.core.helperManager?._valueCache?.get('alert_mode') === 'green_alert', null, { timeout: 15_000 });
+
+    // The colours each button sees, for the alert-shifted variables its scope's theme
+    // sets as literal colours (read from Home Assistant's own record, element.__themes).
+    // scope: 'view' is hui-view-container (the view's theme), 'section' the themed hui-section.
+    const read = () => page.evaluate(() => {
+        const deep = (root, sel, out = []) => {
+            for (const el of root.querySelectorAll('*')) {
+                if (el.matches(sel)) out.push(el);
+                if (el.shadowRoot) deep(el.shadowRoot, sel, out);
+            }
+            return out;
+        };
+        const scopeOf = (el) => {
+            for (let n = el; n; n = n.parentNode || n.host) {
+                if (n.__themes?.keys && n !== document.documentElement) return n;
+            }
+            return null;
+        };
+        const result = {};
+        for (const [name, id] of [['view', 'themed_view_button'], ['section', 'themed_section_button']]) {
+            const button = deep(document, 'lcards-button').find(b => b.config?.id === id);
+            const scope = button && scopeOf(button);
+            if (!scope) return null;
+            const vars = Object.keys(scope.__themes.keys)
+                .filter(k => k.startsWith('--lcars-') && /^(#|rgb)/.test(scope.style.getPropertyValue(k).trim()))
+                .sort().slice(0, 6);
+            result[name] = {
+                tag: scope.localName,
+                theme: scope.__themes.cacheKey,
+                colors: Object.fromEntries(vars.map(v => [v, getComputedStyle(button).getPropertyValue(v).trim()])),
+            };
+        }
+        return result;
+    });
+
+    await expect.poll(read, { timeout: 15_000 }).not.toBeNull();
+    const before = await read();
+    expect(before.view.tag).toBe('hui-view-container');
+    expect(before.section.tag).toBe('hui-section');
+    expect(before.view.theme).toMatch(/^LCARS Modern/);
+    expect(before.section.theme).toMatch(/^LCARS TNG/);
+    for (const scope of ['view', 'section']) expect(Object.keys(before[scope].colors).length).toBeGreaterThan(2);
+
+    /** Every variable in both scopes differs from its green value (or, `same`, equals it). */
+    const allChanged = (now, same = false) => ['view', 'section'].every(s =>
+        Object.entries(before[s].colors).every(([k, v]) => (now?.[s]?.colors?.[k] === v) === same));
+
+    await client.callService('lcards', 'red_alert');
+    await expect.poll(mode, { timeout: 15_000 }).toBe('red_alert');
+    await expect.poll(async () => allChanged(await read()), { timeout: 10_000 }).toBe(true);
+    const red = await read();
+
+    // Away and back inside the app (Home Assistant's navigate()): the view is rebuilt and
+    // its section re-applies its theme on reconnect; both must be shifted again, as before.
+    const navigate = (path) => page.evaluate((p) => {
+        history.pushState(null, '', p);
+        window.dispatchEvent(new CustomEvent('location-changed', { detail: { replace: false } }));
+    }, path);
+    await navigate('/lcards-test/cards');
+    await page.waitForFunction(() => location.pathname.endsWith('/cards'));
+    await settle(page);
+    await navigate('/lcards-test/themed-alert');
+    await expect.poll(async () => {
+        const now = await read();
+        return allChanged(now) && JSON.stringify(now) === JSON.stringify(red);
+    }, { timeout: 10_000 }).toBe(true);
+
+    await client.callService('lcards', 'clear_alert');
+    await expect.poll(mode, { timeout: 15_000 }).toBe('green_alert');
+    await expect.poll(async () => JSON.stringify(await read()), { timeout: 10_000 }).toBe(JSON.stringify(before));
+    expect(errors).toEqual([]);
+});
+
 test('a target that matches no device fails the call instead of broadcasting', async () => {
     // A typo in target_device_names used to fall back to a broadcast: the
     // alert services then wrote the global helper and every dashboard went red.

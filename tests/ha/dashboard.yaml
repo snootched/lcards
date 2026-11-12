@@ -65,6 +65,34 @@ views:
               columns: 12
               rows: 4
 
+  # Alert mode on themed scopes: Home Assistant writes the view's theme on its
+  # hui-view-container and the second section's own theme on that hui-section.
+  # Both must shift under an alert and come back exactly on green.
+  - title: Themed alert
+    path: themed-alert
+    type: sections
+    theme: LCARS Modern
+    sections:
+      - type: grid
+        cards:
+          - type: custom:lcards-button
+            id: themed_view_button
+            preset: lozenge
+            text:
+              label:
+                content: VIEW THEME
+                show: true
+      - type: grid
+        theme: LCARS TNG
+        cards:
+          - type: custom:lcards-button
+            id: themed_section_button
+            preset: lozenge
+            text:
+              label:
+                content: SECTION THEME
+                show: true
+
   - title: Layout
     path: layout
     type: custom:lcards-layout-view
