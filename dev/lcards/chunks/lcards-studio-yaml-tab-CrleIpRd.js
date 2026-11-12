@@ -1,0 +1,321 @@
+var l=Object.defineProperty;var r=(s,e)=>l(s,"name",{value:e,configurable:true});import{a as n,i as d,b as c,l as h}from"./lcards-main-C148JfkA.js";import{c as p,y as g}from"./yaml-docs-links-UEyTsmzQ.js";import"./lcards-message-CF99Ox_M.js";import"./lcards-yaml-editor-iu3_W6QT.js";const y=n`
+    /* Dialog Sizing - Web Awesome ha-dialog uses --ha-dialog-* CSS properties */
+    ha-dialog {
+        --ha-dialog-width-md: min(95vw, 95vw);
+        --ha-dialog-width-lg: min(95vw, 95vw);
+        --ha-dialog-min-height: 90vh;
+        --ha-dialog-max-height: 90vh;
+    }
+
+    /* Ensure ha-dialog's internal structure respects height */
+    ha-dialog::part(dialog) {
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* ha-dialog::part(body) is the scrollable body container in WA-based ha-dialog */
+    ha-dialog::part(body) {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Footer: HA lays it out as a flex row aligned to the end (Cancel, then
+       the brand Save). Secondary actions (Documentation, Reset) go in a
+       .footer-start group, which sits at the left. */
+    .footer-start {
+        display: flex;
+        align-items: center;
+        gap: var(--ha-space-3);
+        margin-inline-end: auto;
+    }
+
+    /* The ha-dialog needs the flexcontent attribute: it makes HA's own .body
+       a flex column, so .dialog-content (and the inset) fill the fixed dialog
+       height instead of shrinking to a short tab's content.
+
+       .dialog-content is the direct light-DOM child slotted into that body —
+       without its own flex sizing it defaults to its content's natural
+       height, which can exceed the body and force the *whole dialog* to
+       scroll instead of just .tab-content. Keeping it in the same flex chain
+       (flex:1, min-height:0, overflow:hidden) means only .tab-content (which
+       opts in below) ever actually scrolls; the tab headers and canvas
+       toolbar stay put.
+
+       font-family: Home Assistant's panel typography (as haStyle and the
+       config panel host). Without it LCARdS text inherits the page's
+       hardcoded Roboto while HA controls follow the theme font (Antonio
+       under HA-LCARS), so one studio showed two fonts. */
+    .dialog-content {
+        font-family: var(--ha-font-family-body);
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+    }
+
+    /* Split Panel Layout (50/50 ratio - balanced config and preview) */
+    .studio-layout {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 50% 50%;
+        gap: 0;
+        overflow: hidden;
+        background: var(--primary-background-color);
+        min-height: 0;
+        border-radius: var(--ha-card-border-radius, 12px);
+    }
+
+    .config-panel {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border-right: 2px solid var(--divider-color);
+        min-height: 0;
+    }
+
+    /* Tab content scrolling */
+    /* .tab-content (the scrolling tab body) is defined below with its padding. */
+
+    /* Never scrolls — always consumes exactly the space it's given. Overflow
+       within the canvas is handled by d3-zoom pan/zoom, not a scrollbar. */
+    .preview-panel {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+    }
+
+    /* Floating Toolbar Pattern — a dark scrim is still needed here for icon
+       legibility over arbitrary base_svg/canvas content behind it, but tinted
+       with the theme's own accent color (rather than flat neutral black)
+       so it reads as part of the LCARdS palette, matching the
+       rgba(var(--rgb-primary-color, ...), alpha) pattern already used
+       elsewhere in the Studio dialogs (e.g. lcards-data-grid-studio-dialog.js). */
+    .canvas-toolbar {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        max-width: calc(100% - 24px);
+        display: flex;
+        gap: 8px;
+        background: color-mix(in srgb, rgba(var(--rgb-primary-color, 3, 169, 244), 0.9) 12%, rgba(0, 0, 0, 0.8) 88%);
+        backdrop-filter: blur(8px);
+        border-radius: 20px;
+        padding: 8px;
+        box-shadow: var(--ha-box-shadow-l);
+        z-index: 1000;
+        transition: all 0.3s ease;
+    }
+
+    .canvas-toolbar-toggle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        flex-shrink: 0;
+    }
+
+    .canvas-toolbar-toggle:hover {
+        background: var(--primary-color);
+        filter: brightness(1.2);
+    }
+
+    .canvas-toolbar-toggle ha-icon {
+        --mdc-icon-size: 24px;
+        color: white;
+    }
+
+    .canvas-toolbar-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+    }
+
+    /* Groups related buttons into a visually distinct "chip" (e.g. Tools,
+       Edit Mode, View aids, Overlay toggles) — a subtly lighter capsule
+       floating within the toolbar's own dark pill, so it's clear at a glance
+       which buttons belong together without relying on a thin, easy-to-miss
+       divider line. Never splits across a wrap boundary — the whole group
+       moves to the next row together. */
+    .canvas-toolbar-group {
+        display: flex;
+        flex-wrap: nowrap;
+        flex-shrink: 0;
+        gap: 4px;
+        align-items: center;
+        background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.18);
+        border: 1px solid rgba(var(--rgb-primary-color, 3, 169, 244), 0.32);
+        /* Full pill, not a fixed radius — each group is always exactly one
+           row tall (button height + padding), so this keeps the chip's end
+           curvature concentric with the fully-round buttons inside it. */
+        border-radius: var(--ha-border-radius-pill, 9999px);
+        padding: 4px;
+    }
+
+    /* Group caption — sits inline as the first item in its group's row, next
+       to the buttons (not stacked above them, so the group's height/pill
+       shape never changes). Muted relative to the icons so it reads as a
+       label, not another control. */
+    .canvas-toolbar-group-label {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: white;
+        opacity: 0.7;
+        padding: 0 2px 0 8px;
+        white-space: nowrap;
+        flex-shrink: 0;
+        user-select: none;
+    }
+
+    .canvas-toolbar-button {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.12);
+        border: 2px solid transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        flex-shrink: 0;
+    }
+
+    .canvas-toolbar-button:hover {
+        background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.3);
+        border-color: var(--primary-color);
+    }
+
+    .canvas-toolbar-button.active {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+
+    .canvas-toolbar-button ha-icon {
+        --mdc-icon-size: 20px;
+        color: white;
+    }
+
+    /* Zoom Controls Pattern — same palette-tinted dark scrim as .canvas-toolbar above */
+    .zoom-controls {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        background: color-mix(in srgb, rgba(var(--rgb-primary-color, 3, 169, 244), 0.9) 12%, rgba(0, 0, 0, 0.85) 88%);
+        backdrop-filter: blur(8px);
+        border-radius: 24px;
+        padding: 8px 16px;
+        box-shadow: var(--ha-box-shadow-l);
+        z-index: 1000;
+    }
+
+    .zoom-level {
+        font-size: 14px;
+        font-weight: 600;
+        color: white;
+        min-width: 48px;
+        text-align: center;
+        user-select: none;
+    }
+
+    /* Tab Navigation */
+    ha-tab-group {
+        display: block;
+        margin-bottom: 0;
+        border-bottom: 2px solid var(--divider-color);
+    }
+
+    ha-tab-group-tab ha-icon {
+        --mdc-icon-size: 18px;
+        margin-right: 8px;
+    }
+
+    /* Tab Content - Independent Scrolling */
+    .tab-content {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 16px;
+        min-height: 0; /* Allow flex item to shrink */
+    }
+
+    /* Placeholder Content */
+    .placeholder-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 24px;
+        text-align: center;
+        color: var(--secondary-text-color);
+    }
+
+    .placeholder-content ha-icon {
+        --mdc-icon-size: 64px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    .placeholder-title {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0 0 12px 0;
+    }
+
+    .placeholder-description {
+        font-size: 14px;
+        margin: 0;
+        max-width: 500px;
+    }
+
+    /* Responsive: the default 50/50 layout stacks. A studio that sets its own
+       grid-template-columns must set grid-template-rows too, or it keeps these
+       two rows beside its two columns (tests/editor/studio-layout-css.test.js). */
+    @media (max-width: 1024px) {
+        .studio-layout {
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        .config-panel {
+            border-right: none;
+            border-bottom: 2px solid var(--divider-color);
+        }
+    }
+`,i=class i2 extends d{static get properties(){return{hass:{type:Object},config:{type:Object},schema:{type:Object},cardType:{type:String},note:{type:String},_text:{type:String,state:true}}}constructor(){super(),this.hass=null,this.config=null,this.schema=null,this.cardType="",this.note="",this._text="",this._lastJson=null,this._echoPending=false}static get styles(){return n`
+            :host {
+                display: flex;
+                flex-direction: column;
+                gap: var(--ha-space-3);
+            }
+        `}willUpdate(e){if(!e.has("config"))return;const t=JSON.stringify(this.config??{}),o=this._echoPending;this._echoPending=false,t!==this._lastJson&&(this._lastJson=t,!o&&(this._text=p(this.config??{})))}render(){return c`
+            <lcards-message type="info">
+                ${this.note||"Edit the whole configuration as YAML. Changes show in the preview; Save keeps them."}
+            </lcards-message>
+            <lcards-yaml-editor
+                .value=${this._text}
+                .schema=${this.schema}
+                .cardType=${this.cardType}
+                .hass=${this.hass}
+                @value-changed=${this._onChange}>
+            </lcards-yaml-editor>
+        `}_onChange(e){e.stopPropagation();let t;try{t=g(e.detail.value)}catch(o){h.debug("[StudioYamlTab] YAML does not parse yet; not applied",o==null?void 0:o.message);return}!t||typeof t!="object"||Array.isArray(t)||(this._text=e.detail.value,this._lastJson=JSON.stringify(t),this._echoPending=true,this.dispatchEvent(new CustomEvent("yaml-config-changed",{detail:{config:t}})))}};r(i,"LCARdSStudioYamlTab");let a=i;customElements.get("lcards-studio-yaml-tab")||customElements.define("lcards-studio-yaml-tab",a);export{y as s};
+//# sourceMappingURL=lcards-studio-yaml-tab-CrleIpRd.js.map

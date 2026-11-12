@@ -1,0 +1,2185 @@
+<!DOCTYPE html>
+<html lang="en-US" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Live Demo | LCARdS</title>
+    <meta name="description" content="LCARdS running live, by topic: astrometrics scenes, WebGL backgrounds, grid surfaces, charts, data grids, alerts and animation, as real cards you can try.">
+    <meta name="generator" content="VitePress v1.6.4">
+    <link rel="preload stylesheet" href="/dev/assets/style.QPr2KBxk.css" as="style">
+    <link rel="preload stylesheet" href="/dev/vp-icons.css" as="style">
+    
+    <script type="module" src="/dev/assets/app.CG7JUn2_.js"></script>
+    <link rel="preload" href="/dev/assets/inter-roman-latin.Di8DUHzh.woff2" as="font" type="font/woff2" crossorigin="">
+    <link rel="modulepreload" href="/dev/assets/chunks/framework.DIp0zHSV.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/theme.90cI75yW.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/katex.C5jXJg4s.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/sizeCapture-INFHLROL.CthlY7ST.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/dagre-GXQ25YYZ.CrBnKodw.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/swimlanes-42K2YHIH.rKOkA0lk.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/cose-bilkent-JH36ORCC.Dn1tAhAq.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/c4Diagram-7LVT6UL2.CVfr4wxx.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/flowDiagram-HODETNUW.BTu4-dWj.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/swimlanesDiagram-VR7AAH4N.BZAqV4E6.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/erDiagram-RLTQ6QDP.BQElt21j.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/gitGraphDiagram-WWUBYQGX.D2-rwdEO.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/ganttDiagram-EL5Y4UJY.BWAjrJzL.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/infoDiagram-27XIBGKW.CYG6jPKa.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/pieDiagram-E7YTZNPT.7IgyEHVe.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/quadrantDiagram-AXDQQJYC.jX3g-MJO.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/xychartDiagram-S5SC5T6Z.DVBvJ6SG.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/requirementDiagram-BXWQKSXE.CtfrLzXr.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/sequenceDiagram-WJ2MYXX4.BG_uDPjC.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/classDiagram-ZZMXUADV.xbvPWRMy.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/classDiagram-v2-VYDZK3BY.xbvPWRMy.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/stateDiagram-D77RDMKH.CRgbibX4.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/stateDiagram-v2-MP3YSRHH.D9B_3TRs.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/journeyDiagram-3NMN7TZE.DbeBk0Nz.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/timeline-definition-24CTP7MA.ELzs7nes.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/mindmap-definition-YA3MSWOX.wF3_4IIU.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/kanban-definition-UXKFOSKX.sPn7Xk0F.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/sankeyDiagram-P5KCCOFB.DGKiLkeW.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/diagram-Z3DM3KII.C0AsD-1w.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/diagram-UQ7AKVKN.BC07Gy5l.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/blockDiagram-I7D4REHJ.DE74pDqt.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/diagram-S7CK7UJ4.CVqWXpl6.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/architectureDiagram-5GKGNRK7.DhhzVvOP.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/diagram-VSXAHHWV.DSgVFyg5.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/ishikawaDiagram-5VMMS53U.DHJs0-gH.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/vennDiagram-4TSXK5OY.COdHaoFp.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/diagram-VX7I27RA.Coi6GodG.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/wardleyDiagram-VM6X3IG4.24gk7hps.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/cynefinDiagram-5FMLGOSQ.nhHoYN3N.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/railroadDiagram-O6MQD6OU.D7dqCOyX.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/ebnfDiagram-PWID7BFC.D77BoPvZ.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/abnfDiagram-VCTEODGH.Df8cIGgD.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/pegDiagram-XKGWAZYB.hNsoGPNr.js">
+    <link rel="modulepreload" href="/dev/assets/chunks/virtual_mermaid-config.DDnGl6nM.js">
+    <link rel="modulepreload" href="/dev/assets/getting-started_live-demo.md.Conwoa3r.lean.js">
+    <meta name="robots" content="noindex">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&amp;display=swap">
+    <script async src="https://plausible.io/js/pa-78zuO-ZL5IQCS6WOAhRja.js"></script>
+    <script>window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}},plausible.init();</script>
+    <script id="check-dark-mode">(()=>{const e=localStorage.getItem("vitepress-theme-appearance")||"dark",a=window.matchMedia("(prefers-color-scheme: dark)").matches;(!e||e==="auto"?a:e==="dark")&&document.documentElement.classList.add("dark")})();</script>
+    <script id="check-mac-os">document.documentElement.classList.toggle("mac",/Mac|iPhone|iPod|iPad/i.test(navigator.platform));</script>
+  </head>
+  <body>
+    <div id="app"><div class="Layout demo-wide" data-v-5d98c3a5><!--[--><div class="lcards-version-banner" role="note" data-v-b4a2747c><span data-v-b4a2747c>You are reading the development docs (2026.11.0-dev.1): features here may not be released yet.</span><button type="button" data-v-b4a2747c>Go to the latest docs</button></div><!--]--><!--[--><span tabindex="-1" data-v-0b0ada53></span><a href="#VPContent" class="VPSkipLink visually-hidden" data-v-0b0ada53>Skip to content</a><!--]--><!----><header class="VPNav" data-v-5d98c3a5 data-v-ae24b3ad><div class="VPNavBar" data-v-ae24b3ad data-v-6aa21345><div class="wrapper" data-v-6aa21345><div class="container" data-v-6aa21345><div class="title" data-v-6aa21345><div class="VPNavBarTitle" data-v-6aa21345 data-v-1168a8e4><a class="title" href="/dev/" data-v-1168a8e4><!--[--><!--]--><!----><span data-v-1168a8e4>LCARdS</span><!--[--><!--[--><!--[--><!--[--><!----><!--]--><!--]--><!--]--><!--]--></a></div></div><div class="content" data-v-6aa21345><div class="content-body" data-v-6aa21345><!--[--><!--]--><div class="VPNavBarSearch search" data-v-6aa21345><!--[--><!----><div id="local-search"><button type="button" class="DocSearch DocSearch-Button" aria-label="Search"><span class="DocSearch-Button-Container"><span class="vp-icon DocSearch-Search-Icon"></span><span class="DocSearch-Button-Placeholder">Search</span></span><span class="DocSearch-Button-Keys"><kbd class="DocSearch-Button-Key"></kbd><kbd class="DocSearch-Button-Key">K</kbd></span></button></div><!--]--></div><nav aria-labelledby="main-nav-aria-label" class="VPNavBarMenu menu" data-v-6aa21345 data-v-dc692963><span id="main-nav-aria-label" class="visually-hidden" data-v-dc692963> Main Navigation </span><!--[--><!--[--><div class="VPFlyout VPNavBarMenuGroup active" data-v-dc692963 data-v-cf11d7a2><button type="button" class="button" aria-haspopup="true" aria-expanded="false" data-v-cf11d7a2><span class="text" data-v-cf11d7a2><!----><span data-v-cf11d7a2>Getting Started</span><span class="vpi-chevron-down text-icon" data-v-cf11d7a2></span></span></button><div class="menu" data-v-cf11d7a2><div class="VPMenu" data-v-cf11d7a2 data-v-b98bc113><div class="items" data-v-b98bc113><!--[--><!--[--><div class="VPMenuLink" data-v-b98bc113 data-v-35975db6><a class="VPLink link" href="/dev/getting-started/what-is-lcards.html" data-v-35975db6><!--[--><span data-v-35975db6>What is LCARdS?</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-b98bc113 data-v-35975db6><a class="VPLink link" href="/dev/getting-started/installation.html" data-v-35975db6><!--[--><span data-v-35975db6>Installation</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-b98bc113 data-v-35975db6><a class="VPLink link" href="/dev/getting-started/building-dashboards.html" data-v-35975db6><!--[--><span data-v-35975db6>Building a Dashboard</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-b98bc113 data-v-35975db6><a class="VPLink link" href="/dev/getting-started/lcars-design.html" data-v-35975db6><!--[--><span data-v-35975db6>Designing LCARS Screens</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-b98bc113 data-v-35975db6><a class="VPLink link" href="/dev/getting-started/lcars-patterns.html" data-v-35975db6><!--[--><span data-v-35975db6>LCARS Patterns</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-b98bc113 data-v-35975db6><a class="VPLink link" href="/dev/getting-started/dashboard-gallery.html" data-v-35975db6><!--[--><span data-v-35975db6>Dashboard Gallery</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-b98bc113 data-v-35975db6><a class="VPLink link active" href="/dev/getting-started/live-demo.html" data-v-35975db6><!--[--><span data-v-35975db6>Live Demo</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-b98bc113 data-v-35975db6><a class="VPLink link" href="/dev/getting-started/ai-assistance.html" data-v-35975db6><!--[--><span data-v-35975db6>Getting AI Help</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-b98bc113 data-v-35975db6><a class="VPLink link" href="/dev/getting-started/config-checker.html" data-v-35975db6><!--[--><span data-v-35975db6>Check Your Config</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-b98bc113 data-v-35975db6><a class="VPLink link" href="/dev/getting-started/getting-help.html" data-v-35975db6><!--[--><span data-v-35975db6>Getting Help</span><!--]--></a></div><!--]--><!--]--></div><!--[--><!--]--></div></div></div><!--]--><!--[--><div class="VPFlyout VPNavBarMenuGroup" data-v-dc692963 data-v-cf11d7a2><button type="button" class="button" aria-haspopup="true" aria-expanded="false" data-v-cf11d7a2><span class="text" data-v-cf11d7a2><!----><span data-v-cf11d7a2>Configuration</span><span class="vpi-chevron-down text-icon" data-v-cf11d7a2></span></span></button><div class="menu" data-v-cf11d7a2><div class="VPMenu" data-v-cf11d7a2 data-v-b98bc113><div class="items" data-v-b98bc113><!--[--><!--[--><div class="VPMenuGroup" data-v-b98bc113 data-v-69e747b5><p class="title" data-v-69e747b5>Setup</p><!--[--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/configuration/" data-v-35975db6><!--[--><span data-v-35975db6>Overview & Setup</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/configuration/persistent-helpers.html" data-v-35975db6><!--[--><span data-v-35975db6>Helpers</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/configuration/users-devices.html" data-v-35975db6><!--[--><span data-v-35975db6>Users & Devices</span><!--]--></a></div><!--]--><!--]--></div><!--]--><!--[--><div class="VPMenuGroup" data-v-b98bc113 data-v-69e747b5><p class="title" data-v-69e747b5>Look &amp; Sound</p><!--[--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/configuration/ha-lcars-theme-profiles.html" data-v-35975db6><!--[--><span data-v-35975db6>HA-LCARS Theme Profiles</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/configuration/ha-lcars-theme-lab.html" data-v-35975db6><!--[--><span data-v-35975db6>HA-LCARS Theme Lab</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/configuration/alert-mode-lab.html" data-v-35975db6><!--[--><span data-v-35975db6>Alert Mode Lab</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/configuration/sounds.html" data-v-35975db6><!--[--><span data-v-35975db6>Sound Configuration</span><!--]--></a></div><!--]--><!--]--></div><!--]--><!--[--><div class="VPMenuGroup" data-v-b98bc113 data-v-69e747b5><p class="title" data-v-69e747b5>Integrations</p><!--[--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/configuration/ha-actions.html" data-v-35975db6><!--[--><span data-v-35975db6>Home Assistant Actions</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/configuration/browser-mod.html" data-v-35975db6><!--[--><span data-v-35975db6>Using browser_mod</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/configuration/connectivity.html" data-v-35975db6><!--[--><span data-v-35975db6>Connectivity</span><!--]--></a></div><!--]--><!--]--></div><!--]--><!--]--></div><!--[--><!--]--></div></div></div><!--]--><!--[--><div class="VPFlyout VPNavBarMenuGroup" data-v-dc692963 data-v-cf11d7a2><button type="button" class="button" aria-haspopup="true" aria-expanded="false" data-v-cf11d7a2><span class="text" data-v-cf11d7a2><!----><span data-v-cf11d7a2>Cards</span><span class="vpi-chevron-down text-icon" data-v-cf11d7a2></span></span></button><div class="menu" data-v-cf11d7a2><div class="VPMenu" data-v-cf11d7a2 data-v-b98bc113><div class="items" data-v-b98bc113><!--[--><!--[--><div class="VPMenuGroup" data-v-b98bc113 data-v-69e747b5><p class="title" data-v-69e747b5>Cards</p><!--[--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/cards/" data-v-35975db6><!--[--><span data-v-35975db6>Overview</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/cards/common.html" data-v-35975db6><!--[--><span data-v-35975db6>Common Properties</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/cards/main-engineering.html" data-v-35975db6><!--[--><span data-v-35975db6>Main Engineering</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/" data-v-35975db6><!--[--><span data-v-35975db6>Card Features →</span><!--]--></a></div><!--]--><!--]--></div><!--]--><!--[--><div class="VPMenuGroup" data-v-b98bc113 data-v-69e747b5><p class="title" data-v-69e747b5>Card Reference</p><!--[--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/cards/alert-overlay/" data-v-35975db6><!--[--><span data-v-35975db6>Alert Overlay</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/cards/astrometrics/" data-v-35975db6><!--[--><span data-v-35975db6>Astrometrics</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/cards/button/" data-v-35975db6><!--[--><span data-v-35975db6>Button</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/cards/chart/" data-v-35975db6><!--[--><span data-v-35975db6>Chart</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/cards/data-grid/" data-v-35975db6><!--[--><span data-v-35975db6>Data Grid</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/cards/elbow/" data-v-35975db6><!--[--><span data-v-35975db6>Elbow</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/cards/layout-card/" data-v-35975db6><!--[--><span data-v-35975db6>Layout Card</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/cards/layout-view/" data-v-35975db6><!--[--><span data-v-35975db6>Layout View</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/cards/msd/" data-v-35975db6><!--[--><span data-v-35975db6>MSD</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/cards/select-menu/" data-v-35975db6><!--[--><span data-v-35975db6>Select Menu</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/cards/slider-card/" data-v-35975db6><!--[--><span data-v-35975db6>Slider</span><!--]--></a></div><!--]--><!--]--></div><!--]--><!--]--></div><!--[--><!--]--></div></div></div><!--]--><!--[--><div class="VPFlyout VPNavBarMenuGroup" data-v-dc692963 data-v-cf11d7a2><button type="button" class="button" aria-haspopup="true" aria-expanded="false" data-v-cf11d7a2><span class="text" data-v-cf11d7a2><!----><span data-v-cf11d7a2>Features</span><span class="vpi-chevron-down text-icon" data-v-cf11d7a2></span></span></button><div class="menu" data-v-cf11d7a2><div class="VPMenu" data-v-cf11d7a2 data-v-b98bc113><div class="items" data-v-b98bc113><!--[--><!--[--><div class="VPMenuGroup" data-v-b98bc113 data-v-69e747b5><p class="title" data-v-69e747b5>On Every Card</p><!--[--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/" data-v-35975db6><!--[--><span data-v-35975db6>Overview</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/actions.html" data-v-35975db6><!--[--><span data-v-35975db6>Actions</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/colours.html" data-v-35975db6><!--[--><span data-v-35975db6>Colours</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/presets.html" data-v-35975db6><!--[--><span data-v-35975db6>Presets</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/sounds.html" data-v-35975db6><!--[--><span data-v-35975db6>Card Sounds</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/styles.html" data-v-35975db6><!--[--><span data-v-35975db6>Styles</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/text-fields.html" data-v-35975db6><!--[--><span data-v-35975db6>Text Fields</span><!--]--></a></div><!--]--><!--]--></div><!--]--><!--[--><div class="VPMenuGroup" data-v-b98bc113 data-v-69e747b5><p class="title" data-v-69e747b5>Shared Services</p><!--[--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/datasources/" data-v-35975db6><!--[--><span data-v-35975db6>Data Sources</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/rules/" data-v-35975db6><!--[--><span data-v-35975db6>Rules Engine</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/templates/" data-v-35975db6><!--[--><span data-v-35975db6>Templates</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/themes/" data-v-35975db6><!--[--><span data-v-35975db6>Themes</span><!--]--></a></div><!--]--><!--]--></div><!--]--><!--[--><div class="VPMenuGroup" data-v-b98bc113 data-v-69e747b5><p class="title" data-v-69e747b5>Effects</p><!--[--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/alert-mode.html" data-v-35975db6><!--[--><span data-v-35975db6>Alert Mode</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/animations.html" data-v-35975db6><!--[--><span data-v-35975db6>Animations</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/effects/background-animations.html" data-v-35975db6><!--[--><span data-v-35975db6>Background Animations</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/borg.html" data-v-35975db6><!--[--><span data-v-35975db6>Borg Assimilation</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/effects/filters.html" data-v-35975db6><!--[--><span data-v-35975db6>Filters</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/core/effects/screen-effects.html" data-v-35975db6><!--[--><span data-v-35975db6>Screen Effects</span><!--]--></a></div><!--]--><!--]--></div><!--]--><!--]--></div><!--[--><!--]--></div></div></div><!--]--><!--[--><div class="VPFlyout VPNavBarMenuGroup" data-v-dc692963 data-v-cf11d7a2><button type="button" class="button" aria-haspopup="true" aria-expanded="false" data-v-cf11d7a2><span class="text" data-v-cf11d7a2><!----><span data-v-cf11d7a2>Developers</span><span class="vpi-chevron-down text-icon" data-v-cf11d7a2></span></span></button><div class="menu" data-v-cf11d7a2><div class="VPMenu" data-v-cf11d7a2 data-v-b98bc113><div class="items" data-v-b98bc113><!--[--><!--[--><div class="VPMenuGroup" data-v-b98bc113 data-v-69e747b5><p class="title" data-v-69e747b5>Architecture</p><!--[--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/architecture/systems-arch.html" data-v-35975db6><!--[--><span data-v-35975db6>Systems Overview</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/architecture/ha-integration.html" data-v-35975db6><!--[--><span data-v-35975db6>Home Assistant Integration</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/architecture/cards/lcards-card-foundation.html" data-v-35975db6><!--[--><span data-v-35975db6>Card Foundation</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/architecture/layout-view.html" data-v-35975db6><!--[--><span data-v-35975db6>Layout View</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/architecture/msd/" data-v-35975db6><!--[--><span data-v-35975db6>MSD Pipeline</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/architecture/msd/routing.html" data-v-35975db6><!--[--><span data-v-35975db6>Routing Engine (RouterCore)</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/architecture/animations/" data-v-35975db6><!--[--><span data-v-35975db6>Animation Architecture</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/architecture/subsystems/" data-v-35975db6><!--[--><span data-v-35975db6>Core Subsystems →</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/architecture/internals/" data-v-35975db6><!--[--><span data-v-35975db6>Internals →</span><!--]--></a></div><!--]--><!--]--></div><!--]--><!--[--><div class="VPMenuGroup" data-v-b98bc113 data-v-69e747b5><p class="title" data-v-69e747b5>Guide</p><!--[--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/development/" data-v-35975db6><!--[--><span data-v-35975db6>Overview</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/development/custom-card.html" data-v-35975db6><!--[--><span data-v-35975db6>Custom Card</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/development/colour-resolution.html" data-v-35975db6><!--[--><span data-v-35975db6>Colour Resolution</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/development/typescript.html" data-v-35975db6><!--[--><span data-v-35975db6>Type Checking</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/development/building-an-editor.html" data-v-35975db6><!--[--><span data-v-35975db6>Building a Studio Editor</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/development/building-a-pack.html" data-v-35975db6><!--[--><span data-v-35975db6>Building a Pack</span><!--]--></a></div><!--]--><!--]--></div><!--]--><!--[--><div class="VPMenuGroup" data-v-b98bc113 data-v-69e747b5><p class="title" data-v-69e747b5>API Reference</p><!--[--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/development/anim-api.html" data-v-35975db6><!--[--><span data-v-35975db6>Animation API</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/development/assets-api.html" data-v-35975db6><!--[--><span data-v-35975db6>Assets API</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/development/backend-api.html" data-v-35975db6><!--[--><span data-v-35975db6>Backend WS API</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/development/debug-api.html" data-v-35975db6><!--[--><span data-v-35975db6>Debug API</span><!--]--></a></div><!--]--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/development/helpers-api.html" data-v-35975db6><!--[--><span data-v-35975db6>Helpers API</span><!--]--></a></div><!--]--><!--]--></div><!--]--><!--[--><div class="VPMenuGroup" data-v-b98bc113 data-v-69e747b5><p class="title" data-v-69e747b5>CSS &amp; Theming</p><!--[--><!--[--><div class="VPMenuLink" data-v-69e747b5 data-v-35975db6><a class="VPLink link" href="/dev/development/ha-css-vars.html" data-v-35975db6><!--[--><span data-v-35975db6>Home Assistant CSS Variables</span><!--]--></a></div><!--]--><!--]--></div><!--]--><!--]--></div><!--[--><!--]--></div></div></div><!--]--><!--[--><a class="VPLink link VPNavBarMenuLink active" href="/dev/getting-started/live-demo.html" tabindex="0" data-v-dc692963 data-v-e56f3d57><!--[--><span data-v-e56f3d57>Live Demo</span><!--]--></a><!--]--><!--[--><a class="VPLink link VPNavBarMenuLink" href="/dev/releases/" tabindex="0" data-v-dc692963 data-v-e56f3d57><!--[--><span data-v-e56f3d57>Releases</span><!--]--></a><!--]--><!--[--><a class="VPLink link VPNavBarMenuLink" href="/dev/credits.html" tabindex="0" data-v-dc692963 data-v-e56f3d57><!--[--><span data-v-e56f3d57>About</span><!--]--></a><!--]--><!--]--></nav><!----><div class="VPNavBarAppearance appearance" data-v-6aa21345 data-v-6c893767><button class="VPSwitch VPSwitchAppearance" type="button" role="switch" title aria-checked="true" data-v-6c893767 data-v-5337faa4 data-v-1d5665e3><span class="check" data-v-1d5665e3><span class="icon" data-v-1d5665e3><!--[--><span class="vpi-sun sun" data-v-5337faa4></span><span class="vpi-moon moon" data-v-5337faa4></span><!--]--></span></span></button></div><div class="VPSocialLinks VPNavBarSocialLinks social-links" data-v-6aa21345 data-v-0394ad82 data-v-7bc22406><!--[--><a class="VPSocialLink no-icon" href="https://github.com/snootched/lcards" aria-label="github" target="_blank" rel="noopener" data-v-7bc22406 data-v-bd121fe5><span class="vpi-social-github"></span></a><!--]--></div><div class="VPFlyout VPNavBarExtra extra" data-v-6aa21345 data-v-bb2aa2f0 data-v-cf11d7a2><button type="button" class="button" aria-haspopup="true" aria-expanded="false" aria-label="extra navigation" data-v-cf11d7a2><span class="vpi-more-horizontal icon" data-v-cf11d7a2></span></button><div class="menu" data-v-cf11d7a2><div class="VPMenu" data-v-cf11d7a2 data-v-b98bc113><!----><!--[--><!--[--><!----><div class="group" data-v-bb2aa2f0><div class="item appearance" data-v-bb2aa2f0><p class="label" data-v-bb2aa2f0>Appearance</p><div class="appearance-action" data-v-bb2aa2f0><button class="VPSwitch VPSwitchAppearance" type="button" role="switch" title aria-checked="true" data-v-bb2aa2f0 data-v-5337faa4 data-v-1d5665e3><span class="check" data-v-1d5665e3><span class="icon" data-v-1d5665e3><!--[--><span class="vpi-sun sun" data-v-5337faa4></span><span class="vpi-moon moon" data-v-5337faa4></span><!--]--></span></span></button></div></div></div><div class="group" data-v-bb2aa2f0><div class="item social-links" data-v-bb2aa2f0><div class="VPSocialLinks social-links-list" data-v-bb2aa2f0 data-v-7bc22406><!--[--><a class="VPSocialLink no-icon" href="https://github.com/snootched/lcards" aria-label="github" target="_blank" rel="noopener" data-v-7bc22406 data-v-bd121fe5><span class="vpi-social-github"></span></a><!--]--></div></div></div><!--]--><!--]--></div></div></div><!--[--><!--]--><button type="button" class="VPNavBarHamburger hamburger" aria-label="mobile navigation" aria-expanded="false" aria-controls="VPNavScreen" data-v-6aa21345 data-v-e5dd9c1c><span class="container" data-v-e5dd9c1c><span class="top" data-v-e5dd9c1c></span><span class="middle" data-v-e5dd9c1c></span><span class="bottom" data-v-e5dd9c1c></span></span></button></div></div></div></div><div class="divider" data-v-6aa21345><div class="divider-line" data-v-6aa21345></div></div></div><!----></header><div class="VPLocalNav empty fixed" data-v-5d98c3a5 data-v-a6f0e41e><div class="container" data-v-a6f0e41e><!----><div class="VPLocalNavOutlineDropdown" style="--vp-vh:0px;" data-v-a6f0e41e data-v-8a42e2b4><button data-v-8a42e2b4>Return to top</button><!----></div></div></div><!----><div class="VPContent" id="VPContent" data-v-5d98c3a5 data-v-1428d186><div class="VPDoc" data-v-1428d186 data-v-39a288b8><!--[--><!--]--><div class="container" data-v-39a288b8><!----><div class="content" data-v-39a288b8><div class="content-container" data-v-39a288b8><!--[--><!--]--><main class="main" data-v-39a288b8><div style="position:relative;" class="vp-doc _dev_getting-started_live-demo" data-v-39a288b8><div data-v-f0b73003><h1 id="live-demo" tabindex="-1" data-v-f0b73003>Live Demo <a class="header-anchor" href="#live-demo" aria-label="Permalink to &quot;Live Demo&quot;" data-v-f0b73003>​</a></h1><p data-v-f0b73003><strong data-v-f0b73003>LCARdS running live: every view below is made of real LCARdS cards from this version, on sample entities, laid out the way a Home Assistant sections view lays them out.</strong> Open a topic in the menu and pick a view, try the controls (the alert buttons, sliders, taps on the cards), then open <strong data-v-f0b73003>YAML of this view</strong> to copy it, or follow the <strong data-v-f0b73003>Docs</strong> button on the view to read about the feature. <span data-v-f0b73003><strong data-v-f0b73003>Show</strong> at the top of the menu picks one release: the views of what is new in <span data-v-f0b73003>2026.11.0</span>, or of an earlier release.</span></p><p data-v-f0b73003>The same views make up the demo dashboard the LCARdS developers check every release on.</p><div class="demo-board" data-v-f0b73003 data-v-39f1e23e><div class="demo-board-frame" data-v-39f1e23e><nav class="demo-board-menu" aria-label="Demo views by topic" data-v-39f1e23e><label class="demo-board-filter" data-v-39f1e23e><span class="demo-board-filter-label" data-v-39f1e23e>Show</span><select data-v-39f1e23e><option value="" data-v-39f1e23e selected>All releases (96)</option><!--[--><option value="2026.11.0" data-v-39f1e23e>New in 2026.11.0 (78)</option><option value="2026.09.0" data-v-39f1e23e>2026.09.0 (1)</option><option value="2026.08.0" data-v-39f1e23e>2026.08.0 (3)</option><option value="Before 2026.08" data-v-39f1e23e>Before 2026.08 (14)</option><!--]--></select></label><!--[--><!--[--><button type="button" data-topic="dashboards" class="open current demo-board-topic" aria-expanded="true" data-v-39f1e23e><span data-v-39f1e23e>Dashboards</span><span class="count" data-v-39f1e23e>17</span></button><div class="demo-board-topic-views" data-v-39f1e23e><!--[--><!--[--><div class="demo-board-group" data-v-39f1e23e>Everyday</div><!--[--><button type="button" data-view="dashboard-bridge" class="active" aria-pressed="true" title="Bridge: classic display over controls, a chart, a status table and pill groups" data-v-39f1e23e>Bridge<span class="demo-board-badge" data-v-39f1e23e>New</span></button><button type="button" data-view="dashboard-engineering" class="" aria-pressed="false" title="Engineering: a Picard master systems display, shield arcs and eight routed callouts" data-v-39f1e23e>Engineering<span class="demo-board-badge" data-v-39f1e23e>New</span></button><button type="button" data-view="dashboard-environmental" class="" aria-pressed="false" title="Environmental: a Picard data screen, readings tables, a temperature trace, a humidity gauge" data-v-39f1e23e>Environmental<span class="demo-board-badge" data-v-39f1e23e>New</span></button><button type="button" data-view="dashboard-security" class="" aria-pressed="false" title="Security: a classic sweep console, a D-pad camera group, pill rows, sector tiles" data-v-39f1e23e>Security<span class="demo-board-badge" data-v-39f1e23e>New</span></button><button type="button" data-view="dashboard-alert" class="" aria-pressed="false" title="Alert mode: alert buttons in a classic frame; the themed view recolours under the overlay" data-v-39f1e23e>Alert mode<span class="demo-board-badge" data-v-39f1e23e>New</span></button><!--]--><!--]--><!--[--><div class="demo-board-group" data-v-39f1e23e>Picard era</div><!--[--><button type="button" data-view="dashboard-picard-operations" class="" aria-pressed="false" title="Operations (Picard): a switchable display, a power chart, the Enterprise, a tactical plot" data-v-39f1e23e>Operations<span class="demo-board-badge" data-v-39f1e23e>New</span></button><button type="button" data-view="dashboard-sciences" class="" aria-pressed="false" title="Sciences (Picard): a bracket screen, a temperature history, ring gauges, a sensor log" data-v-39f1e23e>Sciences<span class="demo-board-badge" data-v-39f1e23e>New</span></button><!--]--><!--]--><!--[--><div class="demo-board-group" data-v-39f1e23e>Design guide, Picard</div><!--[--><button type="button" data-view="dashboard-picard-console" class="" aria-pressed="false" title="Picard console: a display sweep round a deck plan, code-block columns, column gauges" data-v-39f1e23e>Picard console<span class="demo-board-badge" data-v-39f1e23e>New</span></button><button type="button" data-view="dashboard-picard-display" class="" aria-pressed="false" title="Picard display over controls: a labelled ship in a display sweep over a deck of small parts" data-v-39f1e23e>Picard display over controls<span class="demo-board-badge" data-v-39f1e23e>New</span></button><button type="button" data-view="dashboard-picard-split" class="" aria-pressed="false" title="Picard split screen: segmented elbows facing across a cut" data-v-39f1e23e>Picard split screen<span class="demo-board-badge" data-v-39f1e23e>New</span></button><button type="button" data-view="dashboard-picard-portrait" class="" aria-pressed="false" title="Picard portrait panel: for a phone or an upright tablet" data-v-39f1e23e>Picard portrait panel<span class="demo-board-badge" data-v-39f1e23e>New</span></button><button type="button" data-view="dashboard-picard-tiles" class="" aria-pressed="false" title="Picard tile wall: nine framed section tiles, readings, slots and controls" data-v-39f1e23e>Picard tile wall<span class="demo-board-badge" data-v-39f1e23e>New</span></button><!--]--><!--]--><!--[--><div class="demo-board-group" data-v-39f1e23e>Design guide, classic</div><!--[--><button type="button" data-view="dashboard-classic-console" class="" aria-pressed="false" title="Classic sweep console: facing sweeps, pill groups led by live numbers, a chart and readings" data-v-39f1e23e>Classic sweep console<span class="demo-board-badge" data-v-39f1e23e>New</span></button><button type="button" data-view="dashboard-classic-data" class="" aria-pressed="false" title="Classic data screen: a readings table, one cascade, a long range scan" data-v-39f1e23e>Classic data screen<span class="demo-board-badge" data-v-39f1e23e>New</span></button><button type="button" data-view="dashboard-classic-bracket" class="" aria-pressed="false" title="Classic bracket screen: coded segments, a labelled shuttlecraft cutaway, readings and gauges" data-v-39f1e23e>Classic bracket screen<span class="demo-board-badge" data-v-39f1e23e>New</span></button><button type="button" data-view="dashboard-classic-list" class="" aria-pressed="false" title="Classic list: a split header, readings tables, a duty roster, labelled counts" data-v-39f1e23e>Classic list<span class="demo-board-badge" data-v-39f1e23e>New</span></button><button type="button" data-view="dashboard-classic-wings" class="" aria-pressed="false" title="Classic wings: port and starboard nacelles mirrored round a shared centre" data-v-39f1e23e>Classic wings<span class="demo-board-badge" data-v-39f1e23e>New</span></button><!--]--><!--]--><!--]--></div><!--]--><!--[--><button type="button" data-topic="buttons" class="demo-board-topic" aria-expanded="false" data-v-39f1e23e><span data-v-39f1e23e>Buttons and elbows</span><span class="count" data-v-39f1e23e>9</span></button><!----><!--]--><!--[--><button type="button" data-topic="msd" class="demo-board-topic" aria-expanded="false" data-v-39f1e23e><span data-v-39f1e23e>MSD</span><span class="count" data-v-39f1e23e>3</span></button><!----><!--]--><!--[--><button type="button" data-topic="astrometrics" class="demo-board-topic" aria-expanded="false" data-v-39f1e23e><span data-v-39f1e23e>Astrometrics</span><span class="count" data-v-39f1e23e>36</span></button><!----><!--]--><!--[--><button type="button" data-topic="backgrounds" class="demo-board-topic" aria-expanded="false" data-v-39f1e23e><span data-v-39f1e23e>Backgrounds</span><span class="count" data-v-39f1e23e>11</span></button><!----><!--]--><!--[--><button type="button" data-topic="cards" class="demo-board-topic" aria-expanded="false" data-v-39f1e23e><span data-v-39f1e23e>Cards</span><span class="count" data-v-39f1e23e>11</span></button><!----><!--]--><!--[--><button type="button" data-topic="data" class="demo-board-topic" aria-expanded="false" data-v-39f1e23e><span data-v-39f1e23e>Data and rules</span><span class="count" data-v-39f1e23e>3</span></button><!----><!--]--><!--[--><button type="button" data-topic="alerts" class="demo-board-topic" aria-expanded="false" data-v-39f1e23e><span data-v-39f1e23e>Alerts and animation</span><span class="count" data-v-39f1e23e>6</span></button><!----><!--]--><!--]--></nav><div class="demo-board-main" data-v-39f1e23e><div class="demo-board-heading" data-v-39f1e23e><span class="demo-board-title" data-v-39f1e23e>Bridge</span><span class="demo-board-badge demo-board-badge-heading" data-v-39f1e23e>New in 2026.11.0</span><p class="demo-board-summary" data-v-39f1e23e>Bridge: classic display over controls, a chart, a status table and pill groups</p></div><!----><!----><div class="demo-board-stage" data-view="dashboard-bridge" data-v-39f1e23e></div><details class="demo-board-yaml" data-v-39f1e23e><summary data-v-39f1e23e>YAML of this view</summary><pre data-v-39f1e23e><code data-v-39f1e23e># Bridge: the &quot;display over controls&quot; archetype from doc/getting-started/lcars-design.md, in
+# the classic TNG look. A thick sweep across the top carries labelled segments and the title.
+# The main display charts power and shields over 24 hours inside a thin nested sweep, beside a
+# ship status table (every number a labelled live reading) and the warp factor. The display&#39;s
+# sidebar sweeps into a closing bar, and the next bar sweeps down into the control deck: pill
+# groups led by big live numbers (their pills set power, shields, level, temperature and
+# humidity, or toggle lights, doors and the auxiliary helper), a power slider, a shield gauge,
+# main lights, a mode selector and red alert.
+# Every colour is a theme role; the view uses the LCARS TNG theme.
+# Uses lcards_test_* helpers and sensor.desk_sensor_temperature.
+title: Bridge
+views:
+  - title: Bridge
+    path: bridge
+    theme: LCARS TNG
+    type: custom:lcards-layout-view
+    layout:
+      height: calc(100dvh - var(--header-height, 56px))
+      padding: 12px
+      grid-gap: 6px
+      grid-template-columns: 168px 48px minmax(0, 1fr) 300px
+      grid-template-rows: 40px 84px minmax(0, 1fr) 40px 20px 20px 40px 262px
+    cards:
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-column: 1 / 3
+          grid-row: 1 / 3
+        elbow:
+          type: header-left
+          segment:
+            bar_width: 168
+            bar_height: 40
+            color: theme:colors.ui.primary
+        text:
+          code:
+            content: 01-4271
+            zone: vertical_bar
+            position: bottom-right
+            font_size: 14
+            color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 260px 96px minmax(0, 1fr) 180px
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: MAIN BRIDGE
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;47&#39;
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.tertiary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: OPERATIONS MANAGER
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 02-654598
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+        view_layout:
+          grid-column: 3 / 5
+          grid-row: &#39;1&#39;
+      - type: custom:lcards-button
+        preset: text-only
+        min_height: 0
+        text:
+          label:
+            content: BRIDGE OPERATIONS • 1701
+            show: true
+            position: top-right
+            font_size: 64
+            color: theme:colors.ui.tertiary
+        view_layout:
+          grid-column: 3 / 5
+          grid-row: &#39;2&#39;
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: minmax(0, 1fr) 30px 96px 30px 64px 30px 30px
+        cards:
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 04-765466
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 05-1138
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 05-2207
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            entity: input_boolean.lcards_test_lights
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: LIGHTS
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    active: theme:colors.ui.tertiary
+                    inactive: theme:colors.card.topColor
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 06-2243
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            entity: input_boolean.lcards_test_doors
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: DOORS
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    active: theme:colors.ui.tertiary
+                    inactive: theme:colors.card.topColor
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 07-5765
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+        view_layout:
+          grid-column: &#39;1&#39;
+          grid-row: &#39;3&#39;
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-column: &#39;3&#39;
+          grid-row: &#39;3&#39;
+        elbow:
+          type: header-left
+          segment:
+            bar_width: 20
+            bar_height: 10
+            color: theme:colors.ui.quaternary
+      - type: custom:lcards-chart
+        chart_type: line
+        graph_span: 24h
+        sources:
+          - entity: input_number.lcards_test_power
+            name: POWER
+            stroke_width: 2
+            curve: stepline
+            group_by:
+              func: avg
+              duration: 1h
+          - entity: input_number.lcards_test_shields
+            name: SHIELDS
+            stroke_width: 2
+            curve: stepline
+            group_by:
+              func: avg
+              duration: 1h
+        style:
+          colors:
+            series:
+              - theme:colors.ui.secondary
+              - theme:colors.ui.tertiary
+            grid: theme:colors.ui.quaternary
+            axis:
+              x: theme:colors.ui.primary
+              &#39;y&#39;: theme:colors.ui.primary
+              border: theme:colors.ui.quaternary
+              ticks: theme:colors.ui.quaternary
+          legend:
+            show: false
+        view_layout:
+          grid-column: &#39;3&#39;
+          grid-row: &#39;3&#39;
+          margin: 20px 0 0 34px
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: 30px 222px minmax(0, 1fr) 30px
+        cards:
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: SHIP STATUS
+                show: true
+                position: bottom-left
+                font_size: 16
+                color: theme:colors.ui.secondary
+          - type: custom:lcards-data-grid
+            data_mode: data
+            rows:
+              - values:
+                  - value: &#39;01&#39;
+                    style:
+                      color: theme:colors.ui.quaternary
+                  - WARP CORE
+                  - input_number.lcards_test_power
+                  - &#39;{{ &#39;&#39;ONLINE&#39;&#39; if states(&#39;&#39;input_number.lcards_test_power&#39;&#39;) | float(0) &gt; 0 else &#39;&#39;OFFLINE&#39;&#39; }}&#39;
+                style:
+                  color: theme:colors.ui.secondary
+              - values:
+                  - value: &#39;02&#39;
+                    style:
+                      color: theme:colors.ui.quaternary
+                  - SHIELDS
+                  - input_number.lcards_test_shields
+                  - &#39;{{ &#39;&#39;RAISED&#39;&#39; if states(&#39;&#39;input_number.lcards_test_shields&#39;&#39;) | float(0) &gt; 50 else &#39;&#39;LOW&#39;&#39; }}&#39;
+                style:
+                  color: theme:colors.ui.secondary
+              - values:
+                  - value: &#39;03&#39;
+                    style:
+                      color: theme:colors.ui.quaternary
+                  - LEVEL
+                  - input_number.lcards_test_value
+                  - &#39;{{ &#39;&#39;LOW&#39;&#39; if states(&#39;&#39;input_number.lcards_test_value&#39;&#39;) | float(0) &lt; 20 else (&#39;&#39;HIGH&#39;&#39; if states(&#39;&#39;input_number.lcards_test_value&#39;&#39;) | float(0) &gt; 90 else &#39;&#39;NOMINAL&#39;&#39;) }}&#39;
+                style:
+                  color: theme:colors.ui.secondary
+              - values:
+                  - value: &#39;04&#39;
+                    style:
+                      color: theme:colors.ui.quaternary
+                  - DECK 4
+                  - sensor.desk_sensor_temperature
+                  - &#39;{{ &#39;&#39;LOW&#39;&#39; if states(&#39;&#39;sensor.desk_sensor_temperature&#39;&#39;) | float(0) &lt; 18 else (&#39;&#39;HIGH&#39;&#39; if states(&#39;&#39;sensor.desk_sensor_temperature&#39;&#39;) | float(0) &gt; 26 else &#39;&#39;NOMINAL&#39;&#39;) }}&#39;
+                style:
+                  color: theme:colors.ui.primary
+              - values:
+                  - value: &#39;05&#39;
+                    style:
+                      color: theme:colors.ui.quaternary
+                  - SET POINT
+                  - input_number.lcards_test_temperature
+                  - SET
+                style:
+                  color: theme:colors.ui.primary
+              - values:
+                  - value: &#39;06&#39;
+                    style:
+                      color: theme:colors.ui.quaternary
+                  - HUMIDITY
+                  - input_number.lcards_test_humidity
+                  - &#39;{{ &#39;&#39;LOW&#39;&#39; if states(&#39;&#39;input_number.lcards_test_humidity&#39;&#39;) | float(0) &lt; 30 else (&#39;&#39;HIGH&#39;&#39; if states(&#39;&#39;input_number.lcards_test_humidity&#39;&#39;) | float(0) &gt; 60 else &#39;&#39;NOMINAL&#39;&#39;) }}&#39;
+                style:
+                  color: theme:colors.ui.primary
+              - values:
+                  - value: &#39;07&#39;
+                    style:
+                      color: theme:colors.ui.quaternary
+                  - LIGHTS
+                  - input_boolean.lcards_test_lights
+                  - &#39;{{ &#39;&#39;ACTIVE&#39;&#39; if is_state(&#39;&#39;input_boolean.lcards_test_lights&#39;&#39;, &#39;&#39;on&#39;&#39;) else &#39;&#39;STANDBY&#39;&#39; }}&#39;
+                style:
+                  color: theme:colors.ui.tertiary
+              - values:
+                  - value: &#39;08&#39;
+                    style:
+                      color: theme:colors.ui.quaternary
+                  - DOORS
+                  - input_boolean.lcards_test_doors
+                  - &#39;{{ &#39;&#39;OPEN&#39;&#39; if is_state(&#39;&#39;input_boolean.lcards_test_doors&#39;&#39;, &#39;&#39;on&#39;&#39;) else &#39;&#39;SECURE&#39;&#39; }}&#39;
+                style:
+                  color: theme:colors.ui.tertiary
+              - values:
+                  - value: &#39;09&#39;
+                    style:
+                      color: theme:colors.ui.quaternary
+                  - ALERT
+                  - input_boolean.lcards_test_toggle
+                  - &#39;{{ &#39;&#39;RED ALERT&#39;&#39; if is_state(&#39;&#39;input_boolean.lcards_test_toggle&#39;&#39;, &#39;&#39;on&#39;&#39;) else &#39;&#39;CLEAR&#39;&#39; }}&#39;
+                style:
+                  color: theme:colors.ui.tertiary
+              - values:
+                  - value: &#39;10&#39;
+                    style:
+                      color: theme:colors.ui.quaternary
+                  - MODE
+                  - input_select.lcards_test_mode
+                  - SET
+                style:
+                  color: theme:colors.ui.tertiary
+            columns:
+              - style:
+                  align: left
+              - style:
+                  align: left
+              - {}
+              - style:
+                  align: left
+            grid:
+              grid-template-columns: 22px 82px 64px 78px
+              grid-template-rows: repeat(10, 22px)
+              gap: 0px 10px
+            style:
+              font_size: 14
+              padding: 0px
+              line_height: 1.1
+              align: right
+              text_transform: uppercase
+          - type: custom:lcards-layout-card
+            layout:
+              grid-gap: 6px
+              grid-template-columns: minmax(0, 1fr) 16px 120px
+              grid-template-rows: 30px 20px
+              align-content: end
+            cards:
+              - type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                entity: input_number.lcards_test_warp_factor
+                text:
+                  label:
+                    content: &#39;{entity.state}&#39;
+                    show: true
+                    position: center-right
+                    font_size: 44
+                    color: theme:colors.ui.secondary
+                view_layout:
+                  grid-column: &#39;1&#39;
+                  grid-row: 1 / 3
+              - type: custom:lcards-button
+                preset: panel-light
+                min_height: 0
+                text:
+                  label:
+                    content: &#39;&#39;
+                    show: false
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.ui.secondary
+                view_layout:
+                  grid-column: &#39;2&#39;
+                  grid-row: &#39;1&#39;
+              - type: custom:lcards-button
+                preset: lozenge
+                min_height: 0
+                tap_action:
+                  action: perform-action
+                  perform_action: input_number.set_value
+                  target:
+                    entity_id: input_number.lcards_test_warp_factor
+                  data:
+                    value: 9
+                text:
+                  label:
+                    content: WARP 9
+                    show: true
+                    position: bottom-right
+                    font_size: 14
+                    color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+                style:
+                  card:
+                    color:
+                      background:
+                        default: theme:colors.ui.quaternary
+                view_layout:
+                  grid-column: &#39;3&#39;
+                  grid-row: &#39;1&#39;
+              - type: custom:lcards-button
+                preset: text-only
+                min_height: 0
+                text:
+                  label:
+                    content: WARP FACTOR · 77-30
+                    show: true
+                    position: top-right
+                    font_size: 14
+                    color: theme:colors.ui.primary
+                view_layout:
+                  grid-column: 2 / 4
+                  grid-row: &#39;2&#39;
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: SENSOR LOG · 24 H
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+        view_layout:
+          grid-column: &#39;4&#39;
+          grid-row: &#39;3&#39;
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-column: 1 / 3
+          grid-row: 4 / 6
+        elbow:
+          type: footer-left
+          segment:
+            bar_width: 168
+            bar_height: 20
+            color: theme:colors.ui.secondary
+        text:
+          code:
+            content: 03-9756
+            zone: vertical_bar
+            position: bottom-right
+            font_size: 14
+            color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: minmax(0, 1fr) 72px 220px 120px
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.tertiary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: PRIMARY SYSTEMS
+                position: center-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+        view_layout:
+          grid-column: 3 / 5
+          grid-row: &#39;5&#39;
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 140px 330px minmax(0, 1fr) 72px
+          grid-template-rows: minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: HELM · TACTICAL
+                position: center-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+        view_layout:
+          grid-column: 3 / 5
+          grid-row: &#39;6&#39;
+      - type: custom:lcards-elbow
+        view_layout:
+          grid-column: 1 / 3
+          grid-row: 6 / 8
+        elbow:
+          type: header-left
+          segment:
+            bar_width: 168
+            bar_height: 20
+            color: theme:colors.ui.primary
+        text:
+          code:
+            content: 08-1194
+            zone: vertical_bar
+            position: bottom-right
+            font_size: 14
+            color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: minmax(0, 1fr)
+          grid-template-rows: 30px 30px 64px 30px minmax(0, 1fr)
+        cards:
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            entity: input_boolean.lcards_test_toggle
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: AUX
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    active: theme:colors.ui.tertiary
+                    inactive: theme:colors.card.topColor
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 11-0347
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 12-4471
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 18-5102
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: 21-3305
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+        view_layout:
+          grid-column: &#39;1&#39;
+          grid-row: &#39;8&#39;
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 64px 16px repeat(3, 116px) minmax(0, 1fr) 64px 16px repeat(3, 116px)
+          grid-template-rows: 30px 30px 30px minmax(6px, 1fr) 30px 30px 30px
+        cards:
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: &#39;{{ states(&#39;&#39;input_number.lcards_test_power&#39;&#39;) | int }}&#39;
+                show: true
+                position: center-right
+                font_size: 30
+                color: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;1&#39;
+              grid-row: &#39;1&#39;
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;2&#39;
+              grid-row: &#39;1&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            tap_action:
+              action: perform-action
+              perform_action: input_number.set_value
+              target:
+                entity_id: input_number.lcards_test_power
+              data:
+                value: 25
+            text:
+              label:
+                content: PWR 25
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;3&#39;
+              grid-row: &#39;1&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            tap_action:
+              action: perform-action
+              perform_action: input_number.set_value
+              target:
+                entity_id: input_number.lcards_test_power
+              data:
+                value: 50
+            text:
+              label:
+                content: PWR 50
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;4&#39;
+              grid-row: &#39;1&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            tap_action:
+              action: perform-action
+              perform_action: input_number.set_value
+              target:
+                entity_id: input_number.lcards_test_power
+              data:
+                value: 100
+            text:
+              label:
+                content: PWR 100
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;5&#39;
+              grid-row: &#39;1&#39;
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: &#39;{{ states(&#39;&#39;input_number.lcards_test_shields&#39;&#39;) | int }}&#39;
+                show: true
+                position: center-right
+                font_size: 30
+                color: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;1&#39;
+              grid-row: &#39;2&#39;
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;2&#39;
+              grid-row: &#39;2&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            tap_action:
+              action: perform-action
+              perform_action: input_number.set_value
+              target:
+                entity_id: input_number.lcards_test_shields
+              data:
+                value: 25
+            text:
+              label:
+                content: SHD 25
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;3&#39;
+              grid-row: &#39;2&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            tap_action:
+              action: perform-action
+              perform_action: input_number.set_value
+              target:
+                entity_id: input_number.lcards_test_shields
+              data:
+                value: 50
+            text:
+              label:
+                content: SHD 50
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;4&#39;
+              grid-row: &#39;2&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            tap_action:
+              action: perform-action
+              perform_action: input_number.set_value
+              target:
+                entity_id: input_number.lcards_test_shields
+              data:
+                value: 100
+            text:
+              label:
+                content: SHD 100
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;5&#39;
+              grid-row: &#39;2&#39;
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: &#39;{{ states(&#39;&#39;input_number.lcards_test_value&#39;&#39;) | int }}&#39;
+                show: true
+                position: center-right
+                font_size: 30
+                color: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;1&#39;
+              grid-row: &#39;3&#39;
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;2&#39;
+              grid-row: &#39;3&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            tap_action:
+              action: perform-action
+              perform_action: input_number.set_value
+              target:
+                entity_id: input_number.lcards_test_value
+              data:
+                value: 0
+            text:
+              label:
+                content: LVL 0
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;3&#39;
+              grid-row: &#39;3&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            tap_action:
+              action: perform-action
+              perform_action: input_number.set_value
+              target:
+                entity_id: input_number.lcards_test_value
+              data:
+                value: 40
+            text:
+              label:
+                content: LVL 40
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;4&#39;
+              grid-row: &#39;3&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            tap_action:
+              action: perform-action
+              perform_action: input_number.set_value
+              target:
+                entity_id: input_number.lcards_test_value
+              data:
+                value: 80
+            text:
+              label:
+                content: LVL 80
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;5&#39;
+              grid-row: &#39;3&#39;
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: &#39;{{ states(&#39;&#39;input_number.lcards_test_temperature&#39;&#39;) | int }}&#39;
+                show: true
+                position: center-right
+                font_size: 30
+                color: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;7&#39;
+              grid-row: &#39;1&#39;
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;8&#39;
+              grid-row: &#39;1&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            tap_action:
+              action: perform-action
+              perform_action: input_number.set_value
+              target:
+                entity_id: input_number.lcards_test_temperature
+              data:
+                value: 18
+            text:
+              label:
+                content: TMP 18
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;9&#39;
+              grid-row: &#39;1&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            tap_action:
+              action: perform-action
+              perform_action: input_number.set_value
+              target:
+                entity_id: input_number.lcards_test_temperature
+              data:
+                value: 21
+            text:
+              label:
+                content: TMP 21
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;10&#39;
+              grid-row: &#39;1&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            tap_action:
+              action: perform-action
+              perform_action: input_number.set_value
+              target:
+                entity_id: input_number.lcards_test_temperature
+              data:
+                value: 24
+            text:
+              label:
+                content: TMP 24
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;11&#39;
+              grid-row: &#39;1&#39;
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: &#39;{{ states(&#39;&#39;input_number.lcards_test_humidity&#39;&#39;) | int }}&#39;
+                show: true
+                position: center-right
+                font_size: 30
+                color: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;7&#39;
+              grid-row: &#39;2&#39;
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;8&#39;
+              grid-row: &#39;2&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            tap_action:
+              action: perform-action
+              perform_action: input_number.set_value
+              target:
+                entity_id: input_number.lcards_test_humidity
+              data:
+                value: 30
+            text:
+              label:
+                content: HUM 30
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;9&#39;
+              grid-row: &#39;2&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            tap_action:
+              action: perform-action
+              perform_action: input_number.set_value
+              target:
+                entity_id: input_number.lcards_test_humidity
+              data:
+                value: 45
+            text:
+              label:
+                content: HUM 45
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;10&#39;
+              grid-row: &#39;2&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            tap_action:
+              action: perform-action
+              perform_action: input_number.set_value
+              target:
+                entity_id: input_number.lcards_test_humidity
+              data:
+                value: 60
+            text:
+              label:
+                content: HUM 60
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;11&#39;
+              grid-row: &#39;2&#39;
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: &#39;137&#39;
+                show: true
+                position: center-right
+                font_size: 30
+                color: theme:colors.ui.tertiary
+            view_layout:
+              grid-column: &#39;7&#39;
+              grid-row: &#39;3&#39;
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            entity: input_boolean.lcards_test_lights
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    active: theme:colors.ui.tertiary
+                    inactive: theme:colors.card.topColor
+            view_layout:
+              grid-column: &#39;8&#39;
+              grid-row: &#39;3&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            entity: input_boolean.lcards_test_lights
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: LIGHTS
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    active: theme:colors.ui.tertiary
+                    inactive: theme:colors.card.topColor
+            view_layout:
+              grid-column: &#39;9&#39;
+              grid-row: &#39;3&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            entity: input_boolean.lcards_test_doors
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: DOORS
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    active: theme:colors.ui.tertiary
+                    inactive: theme:colors.card.topColor
+            view_layout:
+              grid-column: &#39;10&#39;
+              grid-row: &#39;3&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            entity: input_boolean.lcards_test_toggle
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: AUX
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    active: theme:colors.ui.tertiary
+                    inactive: theme:colors.card.topColor
+            view_layout:
+              grid-column: &#39;11&#39;
+              grid-row: &#39;3&#39;
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: &#39;147&#39;
+                show: true
+                position: center-right
+                font_size: 30
+                color: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;1&#39;
+              grid-row: &#39;5&#39;
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;2&#39;
+              grid-row: &#39;5&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: NV 0447
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;3&#39;
+              grid-row: &#39;5&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: NV 0448
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;4&#39;
+              grid-row: &#39;5&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: CM 1021
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;5&#39;
+              grid-row: &#39;5&#39;
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: &#39;52&#39;
+                show: true
+                position: center-right
+                font_size: 30
+                color: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;1&#39;
+              grid-row: &#39;6&#39;
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;2&#39;
+              grid-row: &#39;6&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: OP 2207
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;3&#39;
+              grid-row: &#39;6&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: OP 2208
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;4&#39;
+              grid-row: &#39;6&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: SC 3310
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;5&#39;
+              grid-row: &#39;6&#39;
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: &#39;019&#39;
+                show: true
+                position: center-right
+                font_size: 30
+                color: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;1&#39;
+              grid-row: &#39;7&#39;
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;2&#39;
+              grid-row: &#39;7&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: TC 4402
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;3&#39;
+              grid-row: &#39;7&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: TC 4403
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;4&#39;
+              grid-row: &#39;7&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: EN 5501
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;5&#39;
+              grid-row: &#39;7&#39;
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: &#39;276&#39;
+                show: true
+                position: center-right
+                font_size: 30
+                color: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;7&#39;
+              grid-row: &#39;5&#39;
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;8&#39;
+              grid-row: &#39;5&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: HM 0612
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;9&#39;
+              grid-row: &#39;5&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: HM 0613
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;10&#39;
+              grid-row: &#39;5&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: &#39;31876&#39;
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;11&#39;
+              grid-row: &#39;5&#39;
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: &#39;39&#39;
+                show: true
+                position: center-right
+                font_size: 30
+                color: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;7&#39;
+              grid-row: &#39;6&#39;
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;8&#39;
+              grid-row: &#39;6&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: CN 0721
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;9&#39;
+              grid-row: &#39;6&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: CN 0722
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;10&#39;
+              grid-row: &#39;6&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: &#39;8817&#39;
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;11&#39;
+              grid-row: &#39;6&#39;
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            text:
+              label:
+                content: &#39;84&#39;
+                show: true
+                position: center-right
+                font_size: 30
+                color: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;7&#39;
+              grid-row: &#39;7&#39;
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: &#39;&#39;
+                show: false
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;8&#39;
+              grid-row: &#39;7&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: AX 0910
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;9&#39;
+              grid-row: &#39;7&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: AX 0911
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;10&#39;
+              grid-row: &#39;7&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            text:
+              label:
+                content: &#39;0099&#39;
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;11&#39;
+              grid-row: &#39;7&#39;
+        view_layout:
+          grid-column: &#39;3&#39;
+          grid-row: &#39;8&#39;
+      - type: custom:lcards-layout-card
+        layout:
+          grid-gap: 6px
+          grid-template-columns: 110px minmax(0, 1fr)
+          grid-template-rows: 30px 40px 30px 40px minmax(6px, 1fr) 30px 30px
+        cards:
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: IMPULSE
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;1&#39;
+              grid-row: &#39;1&#39;
+          - type: custom:lcards-button
+            preset: text-only
+            min_height: 0
+            entity: input_number.lcards_test_power
+            text:
+              label:
+                content: &#39;{entity.state}&#39;
+                show: true
+                position: bottom-right
+                font_size: 18
+                color: theme:colors.ui.secondary
+            view_layout:
+              grid-column: &#39;2&#39;
+              grid-row: &#39;1&#39;
+          - type: custom:lcards-slider
+            entity: input_number.lcards_test_power
+            preset: pills-basic
+            style:
+              track:
+                segments:
+                  gradient:
+                    start: theme:colors.ui.primary
+                    end: theme:colors.ui.secondary
+            view_layout:
+              grid-column: 1 / 3
+              grid-row: &#39;2&#39;
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: SHIELDS
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: &#39;1&#39;
+              grid-row: &#39;3&#39;
+          - type: custom:lcards-slider
+            entity: input_number.lcards_test_shields
+            preset: gauge-basic
+            style:
+              gauge:
+                progress_bar:
+                  height: 10
+                  align: end
+                  color: theme:colors.ui.secondary
+                  background:
+                    color: theme:colors.ui.quaternary
+                    height: 10
+                scale:
+                  labels:
+                    enabled: false
+                  tick_marks:
+                    major:
+                      color: theme:colors.ui.primary
+                    minor:
+                      color: theme:colors.ui.quaternary
+            view_layout:
+              grid-column: 1 / 3
+              grid-row: &#39;4&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            entity: input_boolean.lcards_test_lights
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: MAIN LIGHTS
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    active: theme:colors.ui.tertiary
+                    inactive: theme:colors.card.topColor
+            view_layout:
+              grid-column: &#39;1&#39;
+              grid-row: &#39;6&#39;
+          - type: custom:lcards-select-menu
+            entity: input_select.lcards_test_mode
+            preset: lozenge
+            grid:
+              columns: 3
+              gap: 6px
+              grid-auto-rows: 30px
+            style:
+              text:
+                default:
+                  font_size: 14
+                  color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            view_layout:
+              grid-column: &#39;2&#39;
+              grid-row: &#39;6&#39;
+          - type: custom:lcards-button
+            preset: lozenge
+            min_height: 0
+            entity: input_boolean.lcards_test_toggle
+            tap_action:
+              action: toggle
+            text:
+              label:
+                content: RED ALERT
+                show: true
+                position: bottom-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    active: var(--lcars-alert-color, var(--lcards-orange-dark))
+                    inactive: theme:colors.card.topColor
+            view_layout:
+              grid-column: &#39;1&#39;
+              grid-row: &#39;7&#39;
+          - type: custom:lcards-button
+            preset: panel-light
+            min_height: 0
+            text:
+              label:
+                content: TACTICAL · 77-30
+                position: center-right
+                font_size: 14
+                color: var(--lcars-text-dark, var(--lcards-gray-darkest))
+            style:
+              card:
+                color:
+                  background:
+                    default: theme:colors.ui.primary
+            view_layout:
+              grid-column: &#39;2&#39;
+              grid-row: &#39;7&#39;
+        view_layout:
+          grid-column: &#39;4&#39;
+          grid-row: &#39;8&#39;
+</code></pre></details><p class="demo-board-caption" data-v-39f1e23e> Real cards from this version&#39;s LCARdS bundle, on sample entities. The alert buttons switch the alert mode of this page; sliders and toggles change the sample values. </p></div></div></div><h2 id="in-your-own-home-assistant" tabindex="-1" data-v-f0b73003>In your own Home Assistant <a class="header-anchor" href="#in-your-own-home-assistant" aria-label="Permalink to &quot;In your own Home Assistant&quot;" data-v-f0b73003>​</a></h2><p data-v-f0b73003><strong data-v-f0b73003>Paste a view&#39;s YAML into a dashboard (Edit dashboard &gt; Raw configuration editor) and add the helpers it uses.</strong> The views drive <code data-v-f0b73003>lcards_test_*</code> helpers (sliders, toggles, a select), so they work unchanged once those helpers exist: add this to <code data-v-f0b73003>configuration.yaml</code> (or a file in your <code data-v-f0b73003>packages/</code> folder) and restart Home Assistant. Afterwards you can delete the helpers again, or swap them for your own entities in the YAML.</p><pre class="demo-helpers" data-v-f0b73003><code data-v-f0b73003>input_boolean:
+  lcards_test_doors:
+    name: LCARdS Test Doors
+  lcards_test_lights:
+    name: LCARdS Test Lights
+  lcards_test_toggle:
+    name: LCARdS Test Toggle
+  lcards_test_visible:
+    name: LCARdS Test Visible
+  lcards_test_warp:
+    name: LCARdS Test Warp
+  lcards_test_warp_travel:
+    name: LCARdS Test Warp Travel
+    initial: true
+input_datetime:
+  lcards_test_date:
+    name: LCARdS Test Date
+    has_date: true
+    has_time: true
+input_number:
+  lcards_test_humidity:
+    name: LCARdS Test Humidity
+    min: 0
+    max: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: &#39;%&#39;
+  lcards_test_power:
+    name: LCARdS Test Power
+    min: 0
+    max: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: &#39;%&#39;
+  lcards_test_shields:
+    name: LCARdS Test Shields
+    min: 0
+    max: 100
+    step: 1
+    mode: slider
+    unit_of_measurement: &#39;%&#39;
+  lcards_test_stage:
+    name: LCARdS Test Stage
+    min: 0
+    max: 20
+    step: 1
+    mode: box
+  lcards_test_temperature:
+    name: LCARdS Test Temperature
+    min: 10
+    max: 35
+    step: 0.5
+    mode: slider
+    unit_of_measurement: °C
+  lcards_test_value:
+    name: LCARdS Test Value
+    min: 0
+    max: 100
+    step: 1
+    mode: slider
+  lcards_test_warp_factor:
+    name: LCARdS Test Warp Factor
+    min: 1
+    max: 9.9
+    step: 0.1
+    mode: slider
+input_select:
+  lcards_test_color:
+    name: LCARdS Test Color
+    options: [BLUE, LAVENDER, ORANGE]
+    initial: BLUE
+  lcards_test_leaders:
+    name: LCARdS Test Leaders
+    options: [ANGLED, LEVEL]
+    initial: ANGLED
+  lcards_test_look:
+    name: LCARdS Test Look
+    options: [DIAGRAM, REALISTIC, MIXED]
+    initial: MIXED
+  lcards_test_mode:
+    name: LCARdS Test Mode
+    options: [alpha, beta, gamma]
+  lcards_test_rate:
+    name: LCARdS Test Rate
+    options: [PAUSED, LIVE, 1 H/S, 1 D/S, 30 D/S, 1 Y/S]
+    initial: 1 H/S
+script:
+  lcards_test_tour:
+    alias: LCARdS Test Tour
+    mode: restart
+    sequence: [{action: input_number.set_value, target: {entity_id: input_number.lcards_test_stage}, data: {value: 0}}, {repeat: {count: 17, sequence: [{delay: {seconds: 12}}, {action: input_number.increment, target: {entity_id: input_number.lcards_test_stage}}]}}]
+automation:
+  - id: lcards_test_alert
+    alias: LCARdS Test Alert
+    mode: restart
+    triggers: [{trigger: state, entity_id: input_select.lcards_test_mode}]
+    actions: [{action: lcards.set_alert_mode, data: {mode: &#39;{{ {&#39;&#39;alpha&#39;&#39;: &#39;&#39;green_alert&#39;&#39;, &#39;&#39;beta&#39;&#39;: &#39;&#39;yellow_alert&#39;&#39;, &#39;&#39;gamma&#39;&#39;: &#39;&#39;red_alert&#39;&#39;}[trigger.to_state.state] | default(&#39;&#39;green_alert&#39;&#39;) }}&#39;}}]
+  - id: lcards_test_date
+    alias: LCARdS Test Date
+    mode: restart
+    triggers: [{trigger: state, entity_id: input_datetime.lcards_test_date}]
+    actions: [{action: lcards.set_clock, data: {card_id: astro_showcase, date: &#39;{{ states(&#39;&#39;input_datetime.lcards_test_date&#39;&#39;) }}&#39;}}]
+</code></pre><p data-v-f0b73003>A few views also read a real temperature sensor, <code data-v-f0b73003>sensor.desk_sensor_temperature</code>: replace it with any temperature sensor of yours.</p></div></div></main><footer class="VPDocFooter" data-v-39a288b8 data-v-e257564d><!--[--><!--]--><div class="edit-info" data-v-e257564d><div class="edit-link" data-v-e257564d><a class="VPLink link vp-external-link-icon no-icon edit-link-button" href="https://github.com/snootched/lcards/blob/main/doc/getting-started/live-demo.md" target="_blank" rel="noreferrer" data-v-e257564d><!--[--><span class="vpi-square-pen edit-link-icon" data-v-e257564d></span> Edit this page on GitHub<!--]--></a></div><div class="last-updated" data-v-e257564d><p class="VPLastUpdated" data-v-e257564d data-v-e98dd255>Last updated: <time datetime="2026-11-09T00:39:19.000Z" data-v-e98dd255></time></p></div></div><nav class="prev-next" aria-labelledby="doc-footer-aria-label" data-v-e257564d><span class="visually-hidden" id="doc-footer-aria-label" data-v-e257564d>Pager</span><div class="pager" data-v-e257564d><!----></div><div class="pager" data-v-e257564d><a class="VPLink link pager-link next" href="/dev/getting-started/what-is-lcards.html" data-v-e257564d><!--[--><span class="desc" data-v-e257564d>Next page</span><span class="title" data-v-e257564d>What is LCARdS?</span><!--]--></a></div></nav></footer><!--[--><!--]--></div></div></div><!--[--><!--]--></div></div><footer class="VPFooter" data-v-5d98c3a5 data-v-e315a0ad><div class="container" data-v-e315a0ad><p class="message" data-v-e315a0ad>Released under the MIT License. | <a href="/dev/credits">About</a></p><p class="copyright" data-v-e315a0ad>© 2026 snootched | LCARdS</p></div></footer><!--[--><!--]--></div></div>
+    <script>window.__VP_HASH_MAP__=JSON.parse("{\"architecture_animations_index.md\":\"B6BJTA2x\",\"architecture_astrometrics.md\":\"DVygioXl\",\"architecture_cards_lcards-card-foundation.md\":\"D3YaxgW4\",\"architecture_charts.md\":\"DcNCR1fk\",\"architecture_ha-integration.md\":\"BGSc2-Pu\",\"architecture_index.md\":\"JPakHlFf\",\"architecture_internals_background-animation-system.md\":\"Hrm1PGCH\",\"architecture_internals_datasource-buffers.md\":\"CJj0gyQy\",\"architecture_internals_ha-entity-display.md\":\"DP0vreVg\",\"architecture_internals_ha-services.md\":\"DGSFN4jL\",\"architecture_internals_index.md\":\"BPduS4dP\",\"architecture_internals_shape-texture-system.md\":\"BHZpCxzT\",\"architecture_internals_storage.md\":\"Q1RnpeGV\",\"architecture_layout-view.md\":\"2n8GfRch\",\"architecture_msd_index.md\":\"DNRAByNA\",\"architecture_msd_routing.md\":\"BwUDo0Lr\",\"architecture_shell-strategy.md\":\"tyKkdkhT\",\"architecture_subsystems_action-handler.md\":\"B_-h8fXy\",\"architecture_subsystems_animation-manager.md\":\"DJc1qjeM\",\"architecture_subsystems_asset-manager.md\":\"zkkgfxhz\",\"architecture_subsystems_borg-assimilation.md\":\"CzxHisaN\",\"architecture_subsystems_component-manager.md\":\"mm0j7EX1\",\"architecture_subsystems_config-manager.md\":\"BkNOtV2p\",\"architecture_subsystems_connection-overlay.md\":\"BBUoryC6\",\"architecture_subsystems_datasource-system.md\":\"xlQSvjre\",\"architecture_subsystems_device-identity.md\":\"DA6Hle7C\",\"architecture_subsystems_helper-manager.md\":\"DelZmTX4\",\"architecture_subsystems_index.md\":\"C56A5Ipq\",\"architecture_subsystems_integration-service.md\":\"HU-vKyGE\",\"architecture_subsystems_pack-system.md\":\"BYUEPDyL\",\"architecture_subsystems_portal-overlay-manager.md\":\"CtZ8ha6m\",\"architecture_subsystems_rules-engine.md\":\"CZ3MOEYj\",\"architecture_subsystems_scoped-settings.md\":\"Dun84dC9\",\"architecture_subsystems_screen-effects.md\":\"BAn2mqsR\",\"architecture_subsystems_sound-system.md\":\"DfwtI8Ld\",\"architecture_subsystems_style-preset-manager.md\":\"DZDwSvKt\",\"architecture_subsystems_systems-manager.md\":\"C2_lvdmQ\",\"architecture_subsystems_template-system.md\":\"WkJqcmbA\",\"architecture_subsystems_theme-system.md\":\"CA-iSSCN\",\"architecture_subsystems_validation-service.md\":\"C_AitqNE\",\"architecture_systems-arch.md\":\"8JdHzQwT\",\"cards_ai-assistance.md\":\"RNav3Aqz\",\"cards_alert-overlay_band.md\":\"CJmBbQTm\",\"cards_alert-overlay_conditions.md\":\"C79Tej6h\",\"cards_alert-overlay_index.md\":\"w0zqc-CX\",\"cards_alert-overlay_overlay.md\":\"D500G6xZ\",\"cards_alert-overlay_raising.md\":\"DLRSEwOs\",\"cards_alert-overlay_symbol.md\":\"D5dByXJ_\",\"cards_astrometrics_camera.md\":\"Dj620C1x\",\"cards_astrometrics_data.md\":\"CxsnwsV0\",\"cards_astrometrics_effects.md\":\"CVzdsi4r\",\"cards_astrometrics_index.md\":\"HGWsFjE9\",\"cards_astrometrics_models.md\":\"Bqiebw55\",\"cards_astrometrics_objects.md\":\"B1RnBGl1\",\"cards_astrometrics_objects_lines.md\":\"Cm49dRF5\",\"cards_astrometrics_objects_ships.md\":\"BGZ937q1\",\"cards_astrometrics_objects_space.md\":\"B4qzo09S\",\"cards_astrometrics_objects_surfaces.md\":\"an6_3M7T\",\"cards_astrometrics_points.md\":\"8IIi2dx9\",\"cards_astrometrics_scale.md\":\"6nkFFRxI\",\"cards_astrometrics_scene.md\":\"Djezk0Xu\",\"cards_astrometrics_start.md\":\"C7frR6B2\",\"cards_astrometrics_starters.md\":\"BZ9dAHpU\",\"cards_button_components.md\":\"CrSuVkbx\",\"cards_button_custom-svg.md\":\"D7N5ELci\",\"cards_button_icons.md\":\"BvEBnvwX\",\"cards_button_index.md\":\"kyY8Q1EP\",\"cards_button_playground.md\":\"B1FVwy-r\",\"cards_button_styles.md\":\"5VQzJzMX\",\"cards_button_textures.md\":\"D_OL30p3\",\"cards_chart_examples.md\":\"Bu5nbB3u\",\"cards_chart_index.md\":\"CJvvg7Mu\",\"cards_chart_labels.md\":\"OdI_Z42x\",\"cards_chart_playground.md\":\"Cu86grZQ\",\"cards_chart_series.md\":\"Ce6Iv_7e\",\"cards_chart_styling.md\":\"CBS7GYOR\",\"cards_chart_types.md\":\"DZcQTMGG\",\"cards_chart_upgrading.md\":\"BUlmL8k9\",\"cards_common.md\":\"B6VEHCUR\",\"cards_data-grid_data.md\":\"DeHEN-by\",\"cards_data-grid_index.md\":\"CQi8m8kd\",\"cards_data-grid_playground.md\":\"CWP_FajM\",\"cards_data-grid_styling.md\":\"D0zEF5yK\",\"cards_data-grid_upgrading.md\":\"CNz7869e\",\"cards_elbow_appearance.md\":\"DZ6jgJGd\",\"cards_elbow_bars.md\":\"Bb9OxbV6\",\"cards_elbow_frame.md\":\"BMIFix5A\",\"cards_elbow_index.md\":\"D4SmjJHK\",\"cards_elbow_playground.md\":\"eQpE-zKb\",\"cards_elbow_symbiont.md\":\"CY1FvFDP\",\"cards_index.md\":\"B23eEz3s\",\"cards_layout-card_index.md\":\"C1tZrF8n\",\"cards_layout-view_index.md\":\"D-o-E1hC\",\"cards_main-engineering.md\":\"DKX5OxKR\",\"cards_msd_animations.md\":\"DgOG41bH\",\"cards_msd_background.md\":\"Du32-mnq\",\"cards_msd_base-svg-filters.md\":\"DDpDstB0\",\"cards_msd_control-overlay.md\":\"BS8RFfXw\",\"cards_msd_index.md\":\"fcWzv4AE\",\"cards_msd_line-overlay.md\":\"DG495i7o\",\"cards_msd_manual-routing.md\":\"Dgjea8wQ\",\"cards_msd_quick-start.md\":\"iqid3iVd\",\"cards_msd_routing-concepts.md\":\"x6UzL1KH\",\"cards_msd_routing.md\":\"OXfZYxdh\",\"cards_msd_shape-overlay.md\":\"CLhkRJIH\",\"cards_select-menu_index.md\":\"CV5rXrNB\",\"cards_select-menu_layout.md\":\"BmsrKIgR\",\"cards_select-menu_options.md\":\"BJiE1y8C\",\"cards_select-menu_playground.md\":\"9oKT0co_\",\"cards_select-menu_styles.md\":\"BcAbT3vd\",\"cards_slider-card_components.md\":\"BBSv1yhK\",\"cards_slider-card_control.md\":\"Cz7B1XqI\",\"cards_slider-card_index.md\":\"Djv-mQzE\",\"cards_slider-card_playground.md\":\"DcgyYWSf\",\"cards_slider-card_ranges.md\":\"Cqpebm1F\",\"cards_slider-card_styles.md\":\"Du0sn_OI\",\"configuration_alert-mode-lab.md\":\"Bc3UVmHi\",\"configuration_browser-mod.md\":\"BrWtjRR2\",\"configuration_connectivity.md\":\"COM03c3c\",\"configuration_ha-actions.md\":\"CbpZekAT\",\"configuration_ha-lcars-theme-lab.md\":\"2hZnln1l\",\"configuration_ha-lcars-theme-profiles.md\":\"Dne6ZMGj\",\"configuration_index.md\":\"LAZmDizj\",\"configuration_persistent-helpers.md\":\"CV80Xvss\",\"configuration_sounds.md\":\"NYaYiE7H\",\"configuration_users-devices.md\":\"LpsUcArf\",\"core_actions.md\":\"DRIicah6\",\"core_alert-mode.md\":\"1SH857QE\",\"core_animations.md\":\"eVm4fFju\",\"core_animations_entity-change-triggers.md\":\"CWHSl2B8\",\"core_animations_preset-reference.md\":\"aIRrLl5a\",\"core_animations_rule-based-animations.md\":\"DODdgHXE\",\"core_animations_timing-and-easing.md\":\"B_0UwsTx\",\"core_animations_triggers.md\":\"Bdq9ioEg\",\"core_borg-actions.md\":\"DbI6TF6v\",\"core_borg.md\":\"DKnqFIDT\",\"core_colours.md\":\"C6xc4buF\",\"core_colours_attributes.md\":\"aySyt38Q\",\"core_colours_state-maps.md\":\"DgLyip8g\",\"core_colours_values.md\":\"CiW87erM\",\"core_datasources_index.md\":\"C8YvU6V3\",\"core_datasources_processor-reference.md\":\"DEFZMbya\",\"core_effects_background-animations.md\":\"DqPpCQtq\",\"core_effects_background-animations_binding-and-animation.md\":\"BiRj-fED\",\"core_effects_background-animations_preset-reference.md\":\"DEBahTea\",\"core_effects_background-animations_stacking-and-zoom.md\":\"CvYUZGEx\",\"core_effects_filters.md\":\"DqB6mOl4\",\"core_effects_screen-effects.md\":\"D6aEktX8\",\"core_index.md\":\"U37w1B9G\",\"core_presets.md\":\"DxrmLHI-\",\"core_rules_changes.md\":\"B4RpLu69\",\"core_rules_conditions.md\":\"Csv--zx7\",\"core_rules_examples.md\":\"BNA1EHJd\",\"core_rules_index.md\":\"LhVGC4pk\",\"core_rules_priority.md\":\"YykWe_s7\",\"core_sounds.md\":\"BYLZhfzS\",\"core_styles.md\":\"BAu-j3WB\",\"core_templates_index.md\":\"YyoSYYt7\",\"core_text-fields-content.md\":\"DmlOkT0o\",\"core_text-fields-placement.md\":\"C7MDPQBx\",\"core_text-fields-style.md\":\"B_YQQ6KK\",\"core_text-fields-zones.md\":\"BxccRvJV\",\"core_text-fields.md\":\"PFd6s87q\",\"core_themes_index.md\":\"BmEVmyZq\",\"credits.md\":\"Bs5B2oBl\",\"development_adding-a-card-option.md\":\"CzuyV0Jy\",\"development_adding-a-core-service.md\":\"CDEAvD9k\",\"development_anim-api.md\":\"BQxoEH9l\",\"development_assets-api.md\":\"BehGwy_r\",\"development_backend-api.md\":\"Bwt93PWP\",\"development_building-a-pack.md\":\"awpRuziC\",\"development_building-an-editor.md\":\"E1_yntl9\",\"development_colour-resolution.md\":\"OGEEn0Rk\",\"development_custom-card.md\":\"LBZRQ1PH\",\"development_debug-api.md\":\"C-w074x0\",\"development_ha-css-vars.md\":\"Ctietw6W\",\"development_helpers-api.md\":\"Cp_crIwJ\",\"development_index.md\":\"hctdEABJ\",\"development_testing.md\":\"CU0ZD0-c\",\"development_typescript.md\":\"C7OXEHMz\",\"getting-started_ai-assistance.md\":\"p23QAzsw\",\"getting-started_building-dashboards.md\":\"kn5C_ktF\",\"getting-started_cb-lcars-migration.md\":\"Zy2erXmW\",\"getting-started_config-checker.md\":\"BQ45AmxA\",\"getting-started_dashboard-gallery.md\":\"CuzZGgR_\",\"getting-started_getting-help.md\":\"CnE6j8pi\",\"getting-started_installation.md\":\"BrmbwYQI\",\"getting-started_lcars-design.md\":\"DMhp27Ep\",\"getting-started_lcars-patterns.md\":\"DU-d6sPC\",\"getting-started_live-demo.md\":\"Conwoa3r\",\"getting-started_what-is-lcards.md\":\"hqsZYwaE\",\"index.md\":\"CTY5DoQf\",\"releases_2026.03.27.1.md\":\"B8501svU\",\"releases_2026.03.27.md\":\"3TyWZXDZ\",\"releases_2026.03.28.2.md\":\"DhFCrkTf\",\"releases_2026.03.29.1.md\":\"BI1nhAAO\",\"releases_2026.04.11.2.md\":\"DqXfSuil\",\"releases_2026.04.13.1.md\":\"DZDnkHGT\",\"releases_2026.04.25.1.md\":\"DXKcgxLF\",\"releases_2026.04.3.1.md\":\"CUjch2-j\",\"releases_2026.04.5.1.md\":\"cxVeG7tC\",\"releases_2026.04.6.1.md\":\"DeCyEuZc\",\"releases_2026.05.09.1.md\":\"C6FzABwb\",\"releases_2026.05.24.1.md\":\"enJBhfxv\",\"releases_2026.06.01.1.md\":\"Cc5P0LFW\",\"releases_2026.06.16.1.md\":\"DOWHteBa\",\"releases_2026.07.01.1.md\":\"DXFt5NWW\",\"releases_2026.07.02.1.md\":\"7l662W9m\",\"releases_2026.08.0.md\":\"DrSTSDNR\",\"releases_2026.09.0.md\":\"eVAggL_L\",\"releases_2026.11.0.md\":\"BBGX9NDt\",\"releases_index.md\":\"DpcqhXCK\"}");window.__VP_SITE_DATA__=JSON.parse("{\"lang\":\"en-US\",\"dir\":\"ltr\",\"title\":\"LCARdS\",\"description\":\"LCARS-inspired card components for Home Assistant\",\"base\":\"/dev/\",\"head\":[],\"router\":{\"prefetchLinks\":true},\"appearance\":\"dark\",\"themeConfig\":{\"siteTitle\":\"LCARdS\",\"docsChannel\":{\"channel\":\"dev\",\"version\":\"2026.11.0-dev.1\",\"base\":\"/dev/\"},\"nav\":[{\"text\":\"Getting Started\",\"activeMatch\":\"/getting-started/\",\"items\":[{\"text\":\"What is LCARdS?\",\"link\":\"/getting-started/what-is-lcards\"},{\"text\":\"Installation\",\"link\":\"/getting-started/installation\"},{\"text\":\"Building a Dashboard\",\"link\":\"/getting-started/building-dashboards\"},{\"text\":\"Designing LCARS Screens\",\"link\":\"/getting-started/lcars-design\"},{\"text\":\"LCARS Patterns\",\"link\":\"/getting-started/lcars-patterns\"},{\"text\":\"Dashboard Gallery\",\"link\":\"/getting-started/dashboard-gallery\"},{\"text\":\"Live Demo\",\"link\":\"/getting-started/live-demo\"},{\"text\":\"Getting AI Help\",\"link\":\"/getting-started/ai-assistance\"},{\"text\":\"Check Your Config\",\"link\":\"/getting-started/config-checker\"},{\"text\":\"Getting Help\",\"link\":\"/getting-started/getting-help\"}]},{\"text\":\"Configuration\",\"activeMatch\":\"/configuration/\",\"items\":[{\"text\":\"Setup\",\"items\":[{\"text\":\"Overview & Setup\",\"link\":\"/configuration/\"},{\"text\":\"Helpers\",\"link\":\"/configuration/persistent-helpers\"},{\"text\":\"Users & Devices\",\"link\":\"/configuration/users-devices\"}]},{\"text\":\"Look & Sound\",\"items\":[{\"text\":\"HA-LCARS Theme Profiles\",\"link\":\"/configuration/ha-lcars-theme-profiles\"},{\"text\":\"HA-LCARS Theme Lab\",\"link\":\"/configuration/ha-lcars-theme-lab\"},{\"text\":\"Alert Mode Lab\",\"link\":\"/configuration/alert-mode-lab\"},{\"text\":\"Sound Configuration\",\"link\":\"/configuration/sounds\"}]},{\"text\":\"Integrations\",\"items\":[{\"text\":\"Home Assistant Actions\",\"link\":\"/configuration/ha-actions\"},{\"text\":\"Using browser_mod\",\"link\":\"/configuration/browser-mod\"},{\"text\":\"Connectivity\",\"link\":\"/configuration/connectivity\"}]}]},{\"text\":\"Cards\",\"activeMatch\":\"/cards/\",\"items\":[{\"text\":\"Cards\",\"items\":[{\"text\":\"Overview\",\"link\":\"/cards/\"},{\"text\":\"Common Properties\",\"link\":\"/cards/common\"},{\"text\":\"Main Engineering\",\"link\":\"/cards/main-engineering\"},{\"text\":\"Card Features →\",\"link\":\"/core/\"}]},{\"text\":\"Card Reference\",\"items\":[{\"text\":\"Alert Overlay\",\"link\":\"/cards/alert-overlay/\"},{\"text\":\"Astrometrics\",\"link\":\"/cards/astrometrics/\"},{\"text\":\"Button\",\"link\":\"/cards/button/\"},{\"text\":\"Chart\",\"link\":\"/cards/chart/\"},{\"text\":\"Data Grid\",\"link\":\"/cards/data-grid/\"},{\"text\":\"Elbow\",\"link\":\"/cards/elbow/\"},{\"text\":\"Layout Card\",\"link\":\"/cards/layout-card/\"},{\"text\":\"Layout View\",\"link\":\"/cards/layout-view/\"},{\"text\":\"MSD\",\"link\":\"/cards/msd/\"},{\"text\":\"Select Menu\",\"link\":\"/cards/select-menu/\"},{\"text\":\"Slider\",\"link\":\"/cards/slider-card/\"}]}]},{\"text\":\"Features\",\"activeMatch\":\"/core/\",\"items\":[{\"text\":\"On Every Card\",\"items\":[{\"text\":\"Overview\",\"link\":\"/core/\"},{\"text\":\"Actions\",\"link\":\"/core/actions\"},{\"text\":\"Colours\",\"link\":\"/core/colours\"},{\"text\":\"Presets\",\"link\":\"/core/presets\"},{\"text\":\"Card Sounds\",\"link\":\"/core/sounds\"},{\"text\":\"Styles\",\"link\":\"/core/styles\"},{\"text\":\"Text Fields\",\"link\":\"/core/text-fields\"}]},{\"text\":\"Shared Services\",\"items\":[{\"text\":\"Data Sources\",\"link\":\"/core/datasources/\"},{\"text\":\"Rules Engine\",\"link\":\"/core/rules/\"},{\"text\":\"Templates\",\"link\":\"/core/templates/\"},{\"text\":\"Themes\",\"link\":\"/core/themes/\"}]},{\"text\":\"Effects\",\"items\":[{\"text\":\"Alert Mode\",\"link\":\"/core/alert-mode\"},{\"text\":\"Animations\",\"link\":\"/core/animations\"},{\"text\":\"Background Animations\",\"link\":\"/core/effects/background-animations\"},{\"text\":\"Borg Assimilation\",\"link\":\"/core/borg\"},{\"text\":\"Filters\",\"link\":\"/core/effects/filters\"},{\"text\":\"Screen Effects\",\"link\":\"/core/effects/screen-effects\"}]}]},{\"text\":\"Developers\",\"activeMatch\":\"/(architecture|development)/\",\"items\":[{\"text\":\"Architecture\",\"items\":[{\"text\":\"Systems Overview\",\"link\":\"/architecture/systems-arch\"},{\"text\":\"Home Assistant Integration\",\"link\":\"/architecture/ha-integration\"},{\"text\":\"Card Foundation\",\"link\":\"/architecture/cards/lcards-card-foundation\"},{\"text\":\"Layout View\",\"link\":\"/architecture/layout-view\"},{\"text\":\"MSD Pipeline\",\"link\":\"/architecture/msd/\"},{\"text\":\"Routing Engine (RouterCore)\",\"link\":\"/architecture/msd/routing\"},{\"text\":\"Animation Architecture\",\"link\":\"/architecture/animations/\"},{\"text\":\"Core Subsystems →\",\"link\":\"/architecture/subsystems/\"},{\"text\":\"Internals →\",\"link\":\"/architecture/internals/\"}]},{\"text\":\"Guide\",\"items\":[{\"text\":\"Overview\",\"link\":\"/development/\"},{\"text\":\"Custom Card\",\"link\":\"/development/custom-card\"},{\"text\":\"Colour Resolution\",\"link\":\"/development/colour-resolution\"},{\"text\":\"Type Checking\",\"link\":\"/development/typescript\"},{\"text\":\"Building a Studio Editor\",\"link\":\"/development/building-an-editor\"},{\"text\":\"Building a Pack\",\"link\":\"/development/building-a-pack\"}]},{\"text\":\"API Reference\",\"items\":[{\"text\":\"Animation API\",\"link\":\"/development/anim-api\"},{\"text\":\"Assets API\",\"link\":\"/development/assets-api\"},{\"text\":\"Backend WS API\",\"link\":\"/development/backend-api\"},{\"text\":\"Debug API\",\"link\":\"/development/debug-api\"},{\"text\":\"Helpers API\",\"link\":\"/development/helpers-api\"}]},{\"text\":\"CSS & Theming\",\"items\":[{\"text\":\"Home Assistant CSS Variables\",\"link\":\"/development/ha-css-vars\"}]}]},{\"text\":\"Live Demo\",\"link\":\"/getting-started/live-demo\",\"activeMatch\":\"/getting-started/live-demo\"},{\"text\":\"Releases\",\"link\":\"/releases/\",\"activeMatch\":\"/releases/\"},{\"text\":\"About\",\"link\":\"/credits\"}],\"sidebar\":{\"/releases/\":[{\"text\":\"Releases\",\"items\":[{\"text\":\"All releases\",\"link\":\"/releases/\"}]},{\"text\":\"In testing\",\"items\":[{\"text\":\"2026.11.0 (dev builds)\",\"link\":\"/releases/2026.11.0\"}]},{\"text\":\"Released\",\"items\":[{\"text\":\"2026.09.0\",\"link\":\"/releases/2026.09.0\"},{\"text\":\"2026.08.0\",\"link\":\"/releases/2026.08.0\"},{\"text\":\"2026.07.02.1\",\"link\":\"/releases/2026.07.02.1\"},{\"text\":\"2026.07.01.1\",\"link\":\"/releases/2026.07.01.1\"},{\"text\":\"2026.06.16.1\",\"link\":\"/releases/2026.06.16.1\"},{\"text\":\"2026.06.01.1\",\"link\":\"/releases/2026.06.01.1\"},{\"text\":\"2026.05.24.1\",\"link\":\"/releases/2026.05.24.1\"},{\"text\":\"2026.05.09.1\",\"link\":\"/releases/2026.05.09.1\"},{\"text\":\"2026.04.25.1\",\"link\":\"/releases/2026.04.25.1\"},{\"text\":\"2026.04.13.1\",\"link\":\"/releases/2026.04.13.1\"},{\"text\":\"2026.04.11.2\",\"link\":\"/releases/2026.04.11.2\"},{\"text\":\"2026.04.6.1\",\"link\":\"/releases/2026.04.6.1\"},{\"text\":\"2026.04.5.1\",\"link\":\"/releases/2026.04.5.1\"},{\"text\":\"2026.04.3.1\",\"link\":\"/releases/2026.04.3.1\"},{\"text\":\"2026.03.29.1\",\"link\":\"/releases/2026.03.29.1\"},{\"text\":\"2026.03.28.2\",\"link\":\"/releases/2026.03.28.2\"},{\"text\":\"2026.03.27.1\",\"link\":\"/releases/2026.03.27.1\"},{\"text\":\"2026.03.27\",\"link\":\"/releases/2026.03.27\"}]}],\"/getting-started/\":[{\"text\":\"Getting Started\",\"items\":[{\"text\":\"What is LCARdS?\",\"link\":\"/getting-started/what-is-lcards\"},{\"text\":\"Installation\",\"link\":\"/getting-started/installation\"},{\"text\":\"Building a Dashboard\",\"link\":\"/getting-started/building-dashboards\"},{\"text\":\"Designing LCARS Screens\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/getting-started/lcars-design\"},{\"text\":\"LCARS Patterns\",\"link\":\"/getting-started/lcars-patterns\"}]},{\"text\":\"Dashboard Gallery\",\"link\":\"/getting-started/dashboard-gallery\"},{\"text\":\"Getting AI Help\",\"link\":\"/getting-started/ai-assistance\"},{\"text\":\"Check Your Config\",\"link\":\"/getting-started/config-checker\"},{\"text\":\"Getting Help\",\"link\":\"/getting-started/getting-help\"}]},{\"text\":\"More\",\"collapsed\":true,\"items\":[{\"text\":\"Coming from CB-LCARS\",\"link\":\"/getting-started/cb-lcars-migration\"}]}],\"/cards/\":[{\"text\":\"Cards\",\"items\":[{\"text\":\"Overview\",\"link\":\"/cards/\"},{\"text\":\"Common Properties\",\"link\":\"/cards/common\"},{\"text\":\"Main Engineering\",\"link\":\"/cards/main-engineering\"}]},{\"text\":\"Card Reference\",\"collapsed\":false,\"items\":[{\"text\":\"Button\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/cards/button/\"},{\"text\":\"Style, Text and Hover\",\"link\":\"/cards/button/styles\"},{\"text\":\"Icons\",\"link\":\"/cards/button/icons\"},{\"text\":\"Textures and Backgrounds\",\"link\":\"/cards/button/textures\"},{\"text\":\"D-pads, Alerts and Scopes\",\"link\":\"/cards/button/components\"},{\"text\":\"Custom SVG\",\"link\":\"/cards/button/custom-svg\"},{\"text\":\"Playground\",\"link\":\"/cards/button/playground\"}]},{\"text\":\"Elbow\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/cards/elbow/\"},{\"text\":\"Bars and Curves\",\"link\":\"/cards/elbow/bars\"},{\"text\":\"Frames\",\"link\":\"/cards/elbow/frame\"},{\"text\":\"Colour, Text and Effects\",\"link\":\"/cards/elbow/appearance\"},{\"text\":\"Symbiont\",\"link\":\"/cards/elbow/symbiont\"},{\"text\":\"Playground\",\"link\":\"/cards/elbow/playground\"}]},{\"text\":\"Slider\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/cards/slider-card/\"},{\"text\":\"Pills and Gauges\",\"link\":\"/cards/slider-card/styles\"},{\"text\":\"Ring, Shaped and Picard\",\"link\":\"/cards/slider-card/components\"},{\"text\":\"Ranges and Markers\",\"link\":\"/cards/slider-card/ranges\"},{\"text\":\"Control and Motion\",\"link\":\"/cards/slider-card/control\"},{\"text\":\"Playground\",\"link\":\"/cards/slider-card/playground\"}]},{\"text\":\"Chart\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/cards/chart/\"},{\"text\":\"Series and Time\",\"link\":\"/cards/chart/series\"},{\"text\":\"Chart Types\",\"link\":\"/cards/chart/types\"},{\"text\":\"Styling\",\"link\":\"/cards/chart/styling\"},{\"text\":\"Axes and Labels\",\"link\":\"/cards/chart/labels\"},{\"text\":\"Examples\",\"link\":\"/cards/chart/examples\"},{\"text\":\"Playground\",\"link\":\"/cards/chart/playground\"},{\"text\":\"Upgrading\",\"link\":\"/cards/chart/upgrading\"}]},{\"text\":\"Data Grid\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/cards/data-grid/\"},{\"text\":\"Data and Cells\",\"link\":\"/cards/data-grid/data\"},{\"text\":\"Styling and Animation\",\"link\":\"/cards/data-grid/styling\"},{\"text\":\"Playground\",\"link\":\"/cards/data-grid/playground\"},{\"text\":\"Upgrading\",\"link\":\"/cards/data-grid/upgrading\"}]},{\"text\":\"Layout Card\",\"link\":\"/cards/layout-card/\"},{\"text\":\"Layout View\",\"link\":\"/cards/layout-view/\"},{\"text\":\"MSD\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/cards/msd/\"},{\"text\":\"Getting Started\",\"link\":\"/cards/msd/quick-start\"},{\"text\":\"Background and Anchors\",\"link\":\"/cards/msd/background\"},{\"text\":\"Control Overlay\",\"link\":\"/cards/msd/control-overlay\"},{\"text\":\"Line Overlay\",\"link\":\"/cards/msd/line-overlay\"},{\"text\":\"Shape Overlay\",\"link\":\"/cards/msd/shape-overlay\"},{\"text\":\"Line Routing\",\"link\":\"/cards/msd/routing\"},{\"text\":\"Manual Routing\",\"link\":\"/cards/msd/manual-routing\"},{\"text\":\"Animations and Rules\",\"link\":\"/cards/msd/animations\"},{\"text\":\"Base SVG Filters\",\"link\":\"/cards/msd/base-svg-filters\"}]},{\"text\":\"Select Menu\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/cards/select-menu/\"},{\"text\":\"Options and Actions\",\"link\":\"/cards/select-menu/options\"},{\"text\":\"Grid and Sizing\",\"link\":\"/cards/select-menu/layout\"},{\"text\":\"Styles\",\"link\":\"/cards/select-menu/styles\"},{\"text\":\"Playground\",\"link\":\"/cards/select-menu/playground\"}]},{\"text\":\"Alert Overlay\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/cards/alert-overlay/\"},{\"text\":\"Position and Screen Effects\",\"link\":\"/cards/alert-overlay/overlay\"},{\"text\":\"Alert Band\",\"link\":\"/cards/alert-overlay/band\"},{\"text\":\"Symbol and Content\",\"link\":\"/cards/alert-overlay/symbol\"},{\"text\":\"Per-Condition Settings\",\"link\":\"/cards/alert-overlay/conditions\"},{\"text\":\"Raising and Dismissing\",\"link\":\"/cards/alert-overlay/raising\"}]},{\"text\":\"Astrometrics\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/cards/astrometrics/\"},{\"text\":\"Getting Started\",\"link\":\"/cards/astrometrics/start\"},{\"text\":\"Starters\",\"link\":\"/cards/astrometrics/starters\"},{\"text\":\"Points\",\"link\":\"/cards/astrometrics/points\"},{\"text\":\"Objects\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/cards/astrometrics/objects\"},{\"text\":\"Grids, Spheres and Volumes\",\"link\":\"/cards/astrometrics/objects/surfaces\"},{\"text\":\"Lines and Light\",\"link\":\"/cards/astrometrics/objects/lines\"},{\"text\":\"Space Phenomena\",\"link\":\"/cards/astrometrics/objects/space\"},{\"text\":\"Ships and Stations\",\"link\":\"/cards/astrometrics/objects/ships\"}]},{\"text\":\"Camera and Views\",\"link\":\"/cards/astrometrics/camera\"},{\"text\":\"Scene and Looks\",\"link\":\"/cards/astrometrics/scene\"},{\"text\":\"Live Data\",\"link\":\"/cards/astrometrics/data\"},{\"text\":\"Effects\",\"link\":\"/cards/astrometrics/effects\"},{\"text\":\"Scale\",\"link\":\"/cards/astrometrics/scale\"},{\"text\":\"Your Own Models\",\"link\":\"/cards/astrometrics/models\"}]}]},{\"text\":\"Card Features →\",\"link\":\"/core/\"}],\"/configuration/\":[{\"text\":\"Setup\",\"items\":[{\"text\":\"Overview & Setup\",\"link\":\"/configuration/\"},{\"text\":\"Helpers\",\"link\":\"/configuration/persistent-helpers\"},{\"text\":\"Users & Devices\",\"link\":\"/configuration/users-devices\"}]},{\"text\":\"Look & Sound\",\"items\":[{\"text\":\"HA-LCARS Theme Profiles\",\"link\":\"/configuration/ha-lcars-theme-profiles\"},{\"text\":\"HA-LCARS Theme Lab\",\"link\":\"/configuration/ha-lcars-theme-lab\"},{\"text\":\"Alert Mode Lab\",\"link\":\"/configuration/alert-mode-lab\"},{\"text\":\"Sound Configuration\",\"link\":\"/configuration/sounds\"}]},{\"text\":\"Integrations\",\"items\":[{\"text\":\"Home Assistant Actions\",\"link\":\"/configuration/ha-actions\"},{\"text\":\"Using browser_mod\",\"link\":\"/configuration/browser-mod\"},{\"text\":\"Connectivity\",\"link\":\"/configuration/connectivity\"}]}],\"/core/\":[{\"text\":\"Features\",\"link\":\"/core/\"},{\"text\":\"On Every Card\",\"items\":[{\"text\":\"Actions\",\"link\":\"/core/actions\"},{\"text\":\"Colours\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/core/colours\"},{\"text\":\"Colour Values\",\"link\":\"/core/colours/values\"},{\"text\":\"State Maps\",\"link\":\"/core/colours/state-maps\"},{\"text\":\"Attributes and Buckets\",\"link\":\"/core/colours/attributes\"}]},{\"text\":\"Presets\",\"link\":\"/core/presets\"},{\"text\":\"Card Sounds\",\"link\":\"/core/sounds\"},{\"text\":\"Styles\",\"link\":\"/core/styles\"},{\"text\":\"Text Fields\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/core/text-fields\"},{\"text\":\"Placing Text\",\"link\":\"/core/text-fields-placement\"},{\"text\":\"Zones\",\"link\":\"/core/text-fields-zones\"},{\"text\":\"Fonts, Colour and Backgrounds\",\"link\":\"/core/text-fields-style\"},{\"text\":\"Content and Formats\",\"link\":\"/core/text-fields-content\"}]}]},{\"text\":\"Shared Services\",\"collapsed\":false,\"items\":[{\"text\":\"Data Sources\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/core/datasources/\"},{\"text\":\"Processor Reference\",\"link\":\"/core/datasources/processor-reference\"}]},{\"text\":\"Rules Engine\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/core/rules/\"},{\"text\":\"Conditions\",\"link\":\"/core/rules/conditions\"},{\"text\":\"Targets and Changes\",\"link\":\"/core/rules/changes\"},{\"text\":\"Priority and Debugging\",\"link\":\"/core/rules/priority\"},{\"text\":\"Examples\",\"link\":\"/core/rules/examples\"}]},{\"text\":\"Templates\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/core/templates/\"}]},{\"text\":\"Themes\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/core/themes/\"},{\"text\":\"HA-LCARS Theme Profiles\",\"link\":\"/configuration/ha-lcars-theme-profiles\"}]}]},{\"text\":\"Effects\",\"collapsed\":false,\"items\":[{\"text\":\"Alert Mode\",\"link\":\"/core/alert-mode\"},{\"text\":\"Animations\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/core/animations\"},{\"text\":\"Triggers\",\"link\":\"/core/animations/triggers\"},{\"text\":\"Timing and Easing\",\"link\":\"/core/animations/timing-and-easing\"},{\"text\":\"Preset Reference\",\"link\":\"/core/animations/preset-reference\"},{\"text\":\"Entity Change Triggers\",\"link\":\"/core/animations/entity-change-triggers\"},{\"text\":\"Rule-based Animations\",\"link\":\"/core/animations/rule-based-animations\"}]},{\"text\":\"Background Animations\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/core/effects/background-animations\"},{\"text\":\"Stacking and Zoom\",\"link\":\"/core/effects/background-animations/stacking-and-zoom\"},{\"text\":\"Binding and Animation\",\"link\":\"/core/effects/background-animations/binding-and-animation\"},{\"text\":\"Preset Reference\",\"link\":\"/core/effects/background-animations/preset-reference\"}]},{\"text\":\"Borg Assimilation\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/core/borg\"},{\"text\":\"Borg Actions\",\"link\":\"/core/borg-actions\"}]},{\"text\":\"Filters\",\"link\":\"/core/effects/filters\"},{\"text\":\"Screen Effects\",\"link\":\"/core/effects/screen-effects\"}]}],\"/architecture/\":[{\"text\":\"Developer Guide\",\"items\":[{\"text\":\"Overview\",\"link\":\"/development/\"},{\"text\":\"Custom Card\",\"link\":\"/development/custom-card\"},{\"text\":\"Colour Resolution\",\"link\":\"/development/colour-resolution\"},{\"text\":\"Building a Studio Editor\",\"link\":\"/development/building-an-editor\"},{\"text\":\"Building a Pack\",\"link\":\"/development/building-a-pack\"},{\"text\":\"Adding a Card Option\",\"link\":\"/development/adding-a-card-option\"},{\"text\":\"Adding a Core Service\",\"link\":\"/development/adding-a-core-service\"},{\"text\":\"Testing\",\"link\":\"/development/testing\"},{\"text\":\"Type Checking\",\"link\":\"/development/typescript\"}]},{\"text\":\"API Reference\",\"collapsed\":false,\"items\":[{\"text\":\"Animation API\",\"link\":\"/development/anim-api\"},{\"text\":\"Assets API\",\"link\":\"/development/assets-api\"},{\"text\":\"Backend WS API\",\"link\":\"/development/backend-api\"},{\"text\":\"Debug API\",\"link\":\"/development/debug-api\"},{\"text\":\"Helpers API\",\"link\":\"/development/helpers-api\"}]},{\"text\":\"CSS & Theming\",\"collapsed\":false,\"items\":[{\"text\":\"Home Assistant CSS Variables\",\"link\":\"/development/ha-css-vars\"}]},{\"text\":\"Architecture\",\"items\":[{\"text\":\"Overview\",\"link\":\"/architecture/\"},{\"text\":\"Systems Overview\",\"link\":\"/architecture/systems-arch\"},{\"text\":\"Home Assistant Integration\",\"link\":\"/architecture/ha-integration\"}]},{\"text\":\"Cards\",\"collapsed\":false,\"items\":[{\"text\":\"Card Foundation\",\"link\":\"/architecture/cards/lcards-card-foundation\"},{\"text\":\"Layout View and Layout Card\",\"link\":\"/architecture/layout-view\"},{\"text\":\"Shell Strategy\",\"link\":\"/architecture/shell-strategy\"},{\"text\":\"Charts\",\"link\":\"/architecture/charts\"},{\"text\":\"Astrometrics\",\"link\":\"/architecture/astrometrics\"},{\"text\":\"MSD Pipeline\",\"link\":\"/architecture/msd/\"},{\"text\":\"Routing Engine (RouterCore)\",\"link\":\"/architecture/msd/routing\"}]},{\"text\":\"Animation Architecture\",\"collapsed\":false,\"items\":[{\"text\":\"Overview\",\"link\":\"/architecture/animations/\"}]},{\"text\":\"Core Subsystems\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/architecture/subsystems/\"},{\"text\":\"Action Handler\",\"link\":\"/architecture/subsystems/action-handler\"},{\"text\":\"Animation Manager\",\"link\":\"/architecture/subsystems/animation-manager\"},{\"text\":\"Asset Manager\",\"link\":\"/architecture/subsystems/asset-manager\"},{\"text\":\"Borg Assimilation\",\"link\":\"/architecture/subsystems/borg-assimilation\"},{\"text\":\"Component Manager\",\"link\":\"/architecture/subsystems/component-manager\"},{\"text\":\"Config Manager\",\"link\":\"/architecture/subsystems/config-manager\"},{\"text\":\"Connection Overlay\",\"link\":\"/architecture/subsystems/connection-overlay\"},{\"text\":\"DataSource System\",\"link\":\"/architecture/subsystems/datasource-system\"},{\"text\":\"Device Identity\",\"link\":\"/architecture/subsystems/device-identity\"},{\"text\":\"Helper Manager\",\"link\":\"/architecture/subsystems/helper-manager\"},{\"text\":\"Integration Service\",\"link\":\"/architecture/subsystems/integration-service\"},{\"text\":\"Pack System\",\"link\":\"/architecture/subsystems/pack-system\"},{\"text\":\"Portal Overlay Manager\",\"link\":\"/architecture/subsystems/portal-overlay-manager\"},{\"text\":\"Rules Engine\",\"link\":\"/architecture/subsystems/rules-engine\"},{\"text\":\"Scoped Settings\",\"link\":\"/architecture/subsystems/scoped-settings\"},{\"text\":\"Screen Effect System\",\"link\":\"/architecture/subsystems/screen-effects\"},{\"text\":\"Sound System\",\"link\":\"/architecture/subsystems/sound-system\"},{\"text\":\"Style Preset Manager\",\"link\":\"/architecture/subsystems/style-preset-manager\"},{\"text\":\"Systems Manager\",\"link\":\"/architecture/subsystems/systems-manager\"},{\"text\":\"Template System\",\"link\":\"/architecture/subsystems/template-system\"},{\"text\":\"Theme System\",\"link\":\"/architecture/subsystems/theme-system\"},{\"text\":\"Validation Service\",\"link\":\"/architecture/subsystems/validation-service\"}]},{\"text\":\"Internals\",\"collapsed\":true,\"items\":[{\"text\":\"Background Animations\",\"link\":\"/architecture/internals/background-animation-system\"},{\"text\":\"DataSource Buffers\",\"link\":\"/architecture/internals/datasource-buffers\"},{\"text\":\"Home Assistant Entity Display\",\"link\":\"/architecture/internals/ha-entity-display\"},{\"text\":\"Home Assistant Services (internals)\",\"link\":\"/architecture/internals/ha-services\"},{\"text\":\"Persistent Storage\",\"link\":\"/architecture/internals/storage\"},{\"text\":\"Shape & Texture System\",\"link\":\"/architecture/internals/shape-texture-system\"}]}],\"/development/\":[{\"text\":\"Developer Guide\",\"items\":[{\"text\":\"Overview\",\"link\":\"/development/\"},{\"text\":\"Custom Card\",\"link\":\"/development/custom-card\"},{\"text\":\"Colour Resolution\",\"link\":\"/development/colour-resolution\"},{\"text\":\"Building a Studio Editor\",\"link\":\"/development/building-an-editor\"},{\"text\":\"Building a Pack\",\"link\":\"/development/building-a-pack\"},{\"text\":\"Adding a Card Option\",\"link\":\"/development/adding-a-card-option\"},{\"text\":\"Adding a Core Service\",\"link\":\"/development/adding-a-core-service\"},{\"text\":\"Testing\",\"link\":\"/development/testing\"},{\"text\":\"Type Checking\",\"link\":\"/development/typescript\"}]},{\"text\":\"API Reference\",\"collapsed\":false,\"items\":[{\"text\":\"Animation API\",\"link\":\"/development/anim-api\"},{\"text\":\"Assets API\",\"link\":\"/development/assets-api\"},{\"text\":\"Backend WS API\",\"link\":\"/development/backend-api\"},{\"text\":\"Debug API\",\"link\":\"/development/debug-api\"},{\"text\":\"Helpers API\",\"link\":\"/development/helpers-api\"}]},{\"text\":\"CSS & Theming\",\"collapsed\":false,\"items\":[{\"text\":\"Home Assistant CSS Variables\",\"link\":\"/development/ha-css-vars\"}]},{\"text\":\"Architecture\",\"items\":[{\"text\":\"Overview\",\"link\":\"/architecture/\"},{\"text\":\"Systems Overview\",\"link\":\"/architecture/systems-arch\"},{\"text\":\"Home Assistant Integration\",\"link\":\"/architecture/ha-integration\"}]},{\"text\":\"Cards\",\"collapsed\":false,\"items\":[{\"text\":\"Card Foundation\",\"link\":\"/architecture/cards/lcards-card-foundation\"},{\"text\":\"Layout View and Layout Card\",\"link\":\"/architecture/layout-view\"},{\"text\":\"Shell Strategy\",\"link\":\"/architecture/shell-strategy\"},{\"text\":\"Charts\",\"link\":\"/architecture/charts\"},{\"text\":\"Astrometrics\",\"link\":\"/architecture/astrometrics\"},{\"text\":\"MSD Pipeline\",\"link\":\"/architecture/msd/\"},{\"text\":\"Routing Engine (RouterCore)\",\"link\":\"/architecture/msd/routing\"}]},{\"text\":\"Animation Architecture\",\"collapsed\":false,\"items\":[{\"text\":\"Overview\",\"link\":\"/architecture/animations/\"}]},{\"text\":\"Core Subsystems\",\"collapsed\":true,\"items\":[{\"text\":\"Overview\",\"link\":\"/architecture/subsystems/\"},{\"text\":\"Action Handler\",\"link\":\"/architecture/subsystems/action-handler\"},{\"text\":\"Animation Manager\",\"link\":\"/architecture/subsystems/animation-manager\"},{\"text\":\"Asset Manager\",\"link\":\"/architecture/subsystems/asset-manager\"},{\"text\":\"Borg Assimilation\",\"link\":\"/architecture/subsystems/borg-assimilation\"},{\"text\":\"Component Manager\",\"link\":\"/architecture/subsystems/component-manager\"},{\"text\":\"Config Manager\",\"link\":\"/architecture/subsystems/config-manager\"},{\"text\":\"Connection Overlay\",\"link\":\"/architecture/subsystems/connection-overlay\"},{\"text\":\"DataSource System\",\"link\":\"/architecture/subsystems/datasource-system\"},{\"text\":\"Device Identity\",\"link\":\"/architecture/subsystems/device-identity\"},{\"text\":\"Helper Manager\",\"link\":\"/architecture/subsystems/helper-manager\"},{\"text\":\"Integration Service\",\"link\":\"/architecture/subsystems/integration-service\"},{\"text\":\"Pack System\",\"link\":\"/architecture/subsystems/pack-system\"},{\"text\":\"Portal Overlay Manager\",\"link\":\"/architecture/subsystems/portal-overlay-manager\"},{\"text\":\"Rules Engine\",\"link\":\"/architecture/subsystems/rules-engine\"},{\"text\":\"Scoped Settings\",\"link\":\"/architecture/subsystems/scoped-settings\"},{\"text\":\"Screen Effect System\",\"link\":\"/architecture/subsystems/screen-effects\"},{\"text\":\"Sound System\",\"link\":\"/architecture/subsystems/sound-system\"},{\"text\":\"Style Preset Manager\",\"link\":\"/architecture/subsystems/style-preset-manager\"},{\"text\":\"Systems Manager\",\"link\":\"/architecture/subsystems/systems-manager\"},{\"text\":\"Template System\",\"link\":\"/architecture/subsystems/template-system\"},{\"text\":\"Theme System\",\"link\":\"/architecture/subsystems/theme-system\"},{\"text\":\"Validation Service\",\"link\":\"/architecture/subsystems/validation-service\"}]},{\"text\":\"Internals\",\"collapsed\":true,\"items\":[{\"text\":\"Background Animations\",\"link\":\"/architecture/internals/background-animation-system\"},{\"text\":\"DataSource Buffers\",\"link\":\"/architecture/internals/datasource-buffers\"},{\"text\":\"Home Assistant Entity Display\",\"link\":\"/architecture/internals/ha-entity-display\"},{\"text\":\"Home Assistant Services (internals)\",\"link\":\"/architecture/internals/ha-services\"},{\"text\":\"Persistent Storage\",\"link\":\"/architecture/internals/storage\"},{\"text\":\"Shape & Texture System\",\"link\":\"/architecture/internals/shape-texture-system\"}]}]},\"socialLinks\":[{\"icon\":\"github\",\"link\":\"https://github.com/snootched/lcards\"}],\"editLink\":{\"pattern\":\"https://github.com/snootched/lcards/blob/main/doc/:path\",\"text\":\"Edit this page on GitHub\"},\"footer\":{\"message\":\"Released under the MIT License. | <a href=\\\"/dev/credits\\\">About</a>\",\"copyright\":\"© 2026 snootched | LCARdS\"},\"search\":{\"provider\":\"local\"},\"outline\":{\"level\":[2,3]}},\"locales\":{},\"scrollOffset\":134,\"cleanUrls\":false}");</script>
+    
+  </body>
+</html>

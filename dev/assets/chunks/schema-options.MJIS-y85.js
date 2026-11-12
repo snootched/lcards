@@ -1,0 +1,1 @@
+const t=Object.freeze(["top-left","top-center","top-right","center-left","center","center-right","bottom-left","bottom-center","bottom-right","top","bottom","left","right","left-center","right-center"]);export{t as TEXT_POSITIONS};
