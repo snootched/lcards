@@ -39,12 +39,12 @@
         <template v-else-if="c.kind === 'light'">
           <button type="button" class="card-demo-btn" :class="{ 'is-on': c.state === 'on' }"
             :aria-pressed="c.state === 'on'" @click="setEntity(c.id, c.state === 'on' ? 'off' : 'on')">{{ c.state }}</button>
-          <label class="card-demo-sub">brightness
+          <label v-if="c.brightness" class="card-demo-sub">brightness
             <input type="range" min="0" max="100" step="1" :value="c.pct" :aria-label="`${c.id} brightness`"
               @input="setLight(c.id, { pct: Number($event.target.value) })" />
             <span class="card-demo-value">{{ c.pct }}%</span>
           </label>
-          <label class="card-demo-sub">colour
+          <label v-if="c.colour" class="card-demo-sub">colour
             <input type="range" min="0" max="359" step="1" :value="c.hue" :aria-label="`${c.id} colour`"
               @input="setLight(c.id, { hue: Number($event.target.value) })" />
           </label>
@@ -82,7 +82,7 @@
 import PlaygroundAssist from './PlaygroundAssist.vue'
 import { ref, shallowRef, computed, watch, onMounted, onUnmounted, getCurrentInstance } from 'vue'
 import { SAMPLE_ENTITIES } from './chart-demo-data.js'
-import { cardRuntime, sizeMount, mountWidth, mountRoom, demoHint } from './card-demo-runtime.js'
+import { cardRuntime, sizeMount, mountWidth, mountRoom, demoHint, lightReads } from './card-demo-runtime.js'
 import { CARD_STARTERS, DEMO_ENTITIES } from './card-demo-starters.js'
 
 const props = defineProps({
@@ -288,14 +288,14 @@ function rgbOf(hue, sat = 100) {
   return [r, g, b].map(v => Math.round((v + m) * 255))
 }
 
-function controlFor(id, st) {
+function controlFor(id, st, reads = { brightness: true, colour: true }) {
   if (!st) return null
   const a = st.attributes ?? {}
-  // A light: on/off, brightness and colour, so examples that follow them can be tried
-  if (id.startsWith('light.')) {
+  // A light: on/off, plus brightness and colour when the example follows them
+  if (id.startsWith('light.') && (reads.brightness || reads.colour)) {
     const pct = st.state === 'on' ? Math.round(((a.brightness ?? 255) / 255) * 100) : 0
     const hue = Array.isArray(a.hs_color) ? Math.round(a.hs_color[0]) : Array.isArray(a.rgb_color) ? hueOf(a.rgb_color) : 30
-    return { id, kind: 'light', state: st.state, pct, hue }
+    return { id, kind: 'light', state: st.state, pct, hue, brightness: reads.brightness, colour: reads.colour }
   }
   if (st.state === 'on' || st.state === 'off') return { id, kind: 'toggle', state: st.state }
   if (Array.isArray(a.options)) return { id, kind: 'select', state: st.state, options: a.options }
@@ -309,8 +309,10 @@ function refreshControls() {
   if (!props.controls || !env) return
   // entities only: a service name after action: or service: is not one
   const lines = (yamlText.value || initialYaml).split('\n').filter(l => !/^\s*(-\s*)?(action|service|perform_action):/.test(l))
-  const ids = [...new Set(lines.join('\n').match(ENTITY_RE) ?? [])]
-  entityControls.value = ids.map(id => controlFor(id, env.hass.states[id])).filter(Boolean)
+  const text = lines.join('\n')
+  const ids = [...new Set(text.match(ENTITY_RE) ?? [])]
+  const reads = lightReads(text)
+  entityControls.value = ids.map(id => controlFor(id, env.hass.states[id], reads)).filter(Boolean)
 }
 
 function setEntity(id, value) {

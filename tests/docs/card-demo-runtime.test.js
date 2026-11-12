@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sizeMount, mountWidth, demoHint } from '../../doc/.vitepress/theme/card-demo-runtime.js';
+import { sizeMount, mountWidth, demoHint, lightReads } from '../../doc/.vitepress/theme/card-demo-runtime.js';
 
 const card = (rows) => ({ getGridOptions: () => ({ rows }) });
 
@@ -44,3 +44,17 @@ test('grid_options.columns narrows the demo like an HA section column span', () 
     assert.equal(mountWidth({ grid_options: { columns: 12 } }), '');
     assert.equal(mountWidth({}), '');
 });
+
+test('a light gets brightness and colour controls only when the example reads them', () => {
+    // switched only (the LCARS patterns): the on/off toggle alone
+    assert.deepEqual(lightReads('entity: light.demo\npreset: toggle-tab\nstyle:\n  card:\n    color:\n      active: theme:colors.ui.primary'),
+        { brightness: false, colour: false });
+    // a slider drives brightness; ranges on brightness_pct read it
+    assert.equal(lightReads('type: custom:lcards-slider\nentity: light.bedroom').brightness, true);
+    assert.equal(lightReads('entity: light.tv\nranges_attribute: brightness_pct').brightness, true);
+    // the light's own colour
+    assert.equal(lightReads('color: match-light').colour, true);
+    assert.equal(lightReads("content: '{{ state_attr(\"light.tv\", \"rgb_color\") }}'").colour, true);
+    assert.equal(lightReads('entity: light.tv\nranges_attribute: brightness_pct').colour, false);
+});
+

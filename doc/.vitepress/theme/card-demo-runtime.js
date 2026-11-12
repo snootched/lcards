@@ -147,3 +147,16 @@ export function demoHint(config) {
   if (readOnly) return `${config.entity} is a read-only sample sensor.`
   return ''
 }
+
+/**
+ * What of a light an example reads, from its YAML: brightness (a slider drives
+ * it, or `brightness` / `match-brightness` is named) and colour (`match-light`,
+ * or a colour attribute is named). A light the example only switches gets the
+ * on/off toggle alone, so no control does nothing.
+ */
+export function lightReads(text) {
+  return {
+    brightness: /brightness|custom:lcards-slider/.test(text),
+    colour: /match-light|rgb_color|hs_color|xy_color|color_temp/.test(text),
+  }
+}

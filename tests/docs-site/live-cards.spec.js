@@ -266,6 +266,15 @@ test('a read-only sensor slider says so instead of offering toggles', async ({ p
     }
 });
 
+test('a light the example only switches gets the on/off toggle alone (LCARS patterns)', async ({ page }) => {
+    await page.goto('/getting-started/lcars-patterns');
+    await waitForDemos(page, PAGES.find(([u]) => u === '/getting-started/lcars-patterns')[1].length);
+    const lightRows = page.locator('.card-demo-control').filter({ has: page.locator('code', { hasText: /^light\./ }) });
+    expect(await lightRows.count()).toBeGreaterThan(0);
+    await expect(page.locator('[aria-label$=" brightness"], [aria-label$=" colour"]')).toHaveCount(0);
+    for (const row of await lightRows.all()) await expect(row.locator('button.card-demo-btn')).toHaveCount(1);
+});
+
 test('a light\'s controls set its colour and brightness, and a match-light card follows', async ({ page }) => {
     await page.goto('/core/colours/values');
     await waitForDemos(page, PAGES.find(([u]) => u === '/core/colours/values')[1].length);
