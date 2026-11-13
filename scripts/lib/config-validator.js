@@ -318,6 +318,15 @@ export function flyToIssues(node, tag) {
     const inAstro = tag === 'lcards-astrometrics-card';
     if (!inAstro && typeof value.card !== 'string') out.push({ path, message: 'fly-to needs card: the id of the astrometrics card to fly' });
     else if ((!inAstro || value.card !== undefined) && !value.view && !value.point) out.push({ path, message: 'fly-to to another card needs a view or a point' });
+    if (value.point_card !== undefined && !value.point) out.push({ path, message: 'point_card opens a point\'s card: give fly-to a point' });
+  });
+  // point-card: the card (outside it) and the point (except on the astrometrics card's own point)
+  walk(node, '', (value, path) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value) || value.action !== 'point-card') return;
+    const inAstro = tag === 'lcards-astrometrics-card';
+    const onPoint = inAstro && /^points\[\d+\]\.(tap|hold)_action$|\.points\[\d+\]\.(tap|hold)_action$/.test(path);
+    if (!inAstro && typeof value.card !== 'string') out.push({ path, message: 'point-card needs card: the id of the astrometrics card' });
+    else if (!value.point && !(onPoint && value.card === undefined)) out.push({ path, message: 'point-card needs point: the point whose card opens or closes' });
   });
   return out;
 }

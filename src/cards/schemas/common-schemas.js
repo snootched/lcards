@@ -311,10 +311,10 @@ export const actionSchema = {
     properties: {
         action: {
             type: 'string',
-            enum: ['toggle', 'call-service', 'perform-action', 'navigate', 'url', 'more-info', 'assist', 'fire-dom-event', 'fly-to', 'set-clock', 'set-model-scale', 'none'],
+            enum: ['toggle', 'call-service', 'perform-action', 'navigate', 'url', 'more-info', 'assist', 'fire-dom-event', 'fly-to', 'set-clock', 'set-model-scale', 'point-card', 'none'],
             // Home Assistant's older names: still run, but not written or published (the checker suggests the current one)
             'x-legacy-values': { 'call-service': 'perform-action' },
-            description: 'Type of action to perform (no default: an action without it does nothing). fire-dom-event: fire Home Assistant\'s ll-custom event with this action (browser_mod listens for it). fly-to: fly the camera of the astrometrics card named in card to its view or point. set-clock: set the scene date and or rate of the astrometrics card named in card. set-model-scale: draw its models at their real size, or larger to stay visible (model_scale).',
+            description: 'Type of action to perform (no default: an action without it does nothing). fire-dom-event: fire Home Assistant\'s ll-custom event with this action (browser_mod listens for it). fly-to: fly the camera of the astrometrics card named in card to its view or point. set-clock: set the scene date and or rate of the astrometrics card named in card. set-model-scale: draw its models at their real size, or larger to stay visible (model_scale). point-card: open, close or toggle the card pinned to one of its points (point, point_card).',
             enumDescriptions: [
                 'Toggle entity on/off',
                 'Call a Home Assistant service (older name of perform-action)',
@@ -327,6 +327,7 @@ export const actionSchema = {
                 'Fly an astrometrics card\'s camera',
                 'Set an astrometrics card\'s scene date and rate',
                 'Change an astrometrics card\'s model scale',
+                'Open or close the card on an astrometrics point',
                 'No action (disabled)'
             ]
         },
@@ -393,7 +394,7 @@ export const actionSchema = {
         },
         card: {
             type: 'string',
-            description: 'fly-to, set-clock and set-model-scale: the id of the astrometrics card to act on (any card on the same dashboard or open in the same browser). On the astrometrics card\'s own points and objects, leave it out for that card.'
+            description: 'fly-to, set-clock, set-model-scale and point-card: the id of the astrometrics card to act on (any card on the same dashboard or open in the same browser). On the astrometrics card\'s own points and objects, leave it out for that card.'
         },
         view: {
             type: 'string',
@@ -401,7 +402,7 @@ export const actionSchema = {
         },
         point: {
             type: 'string',
-            description: 'fly-to only: a point id of that card to fly to (wins over view).'
+            description: 'fly-to: a point id of that card to fly to (wins over view). point-card: the point whose card opens or closes (on the astrometrics card\'s own point, leave it out for that point).'
         },
         duration: {
             type: 'number',
@@ -427,6 +428,11 @@ export const actionSchema = {
             enum: ['real', 'visible', 'toggle'],
             default: 'toggle',
             description: 'set-model-scale only: real draws the card\'s models at their real size, visible draws small ones at least 40 px across, toggle (the default) switches between them. Not saved.'
+        },
+        point_card: {
+            type: 'string',
+            enum: ['open', 'close', 'toggle'],
+            description: 'point-card: open, close or toggle (the default) the point\'s card (a card with show: tap; one is open at a time). fly-to with a point: open (or close, toggle) its card as the camera flies there.'
         }
     }
 };

@@ -12,7 +12,7 @@ import { installJsdom } from '../helpers/jsdom-env.js';
 
 const env = installJsdom();
 after(() => env.restore());
-const { pointCard, cardBox } = await import('../../src/core/astrometrics/card-layer.js');
+const { pointCard, cardBox, leaderLine } = await import('../../src/core/astrometrics/card-layer.js');
 const { layoutLabels, labelItem } = await import('../../src/core/astrometrics/label-layer.js');
 const { makeLabelItem } = await import('../../src/core/astrometrics/scene-builder.js');
 
@@ -27,10 +27,14 @@ function camera() {
 
 test('pointCard: defaults, aliases, and no card without a card config with a type', () => {
   const pc = pointCard({ id: 'a', card: { card: { type: 'tile', entity: 'light.x' } } });
-  assert.deepEqual({ ...pc, card: undefined, key: undefined }, { id: 'a', show: 'tap', position: 'center-right', offset: [0, 0], width: 280, card: undefined, key: undefined });
+  assert.deepEqual({ ...pc, card: undefined, key: undefined }, { id: 'a', show: 'tap', position: 'center-right', offset: [0, 0], width: 280, height: null, leader: false, card: undefined, key: undefined });
   assert.equal(pointCard({ id: 'a', card: { show: 'always', position: 'top', width: 10, card: { type: 'x' } } })?.position, 'top-center');
   assert.equal(pointCard({ id: 'a', card: { show: 'always', width: 10, card: { type: 'x' } } })?.width, 80);
   assert.equal(pointCard({ id: 'a', card: { position: 'nowhere', card: { type: 'x' } } })?.position, 'center-right');
+  // F2: a fixed height (at least 40) and a leader
+  assert.equal(pointCard({ id: 'a', card: { height: 150, leader: true, card: { type: 'x' } } })?.height, 150);
+  assert.equal(pointCard({ id: 'a', card: { height: 10, card: { type: 'x' } } })?.height, 40);
+  assert.equal(pointCard({ id: 'a', card: { leader: true, card: { type: 'x' } } })?.leader, true);
   assert.equal(pointCard({ id: 'a' }), null);
   assert.equal(pointCard({ id: 'a', card: { show: 'tap' } }), null);
   assert.equal(pointCard({ id: 'a', card: { card: { entity: 'light.x' } } }), null);
@@ -79,4 +83,16 @@ test('makeLabelItem: a card point with no text or marker gets an anchor item; a 
   assert.equal(makeLabelItem({ id: 'p' }, undefined, css), null);
   const plain = makeLabelItem({ id: 'p', label: 'P' }, undefined, css);
   assert.equal(plain?.anchor, false);
+});
+
+test('leaderLine: from beside the point to the nearest point of the card (F2)', () => {
+  // a card to the right: the line runs level to its left edge, starting 5 px from the point
+  assert.deepEqual(leaderLine(100, 100, 150, 50, 200, 100), [105, 100, 150, 100]);
+  // a card below and to the right: to its top-left corner
+  const l = /** @type {number[]} */ (leaderLine(0, 0, 30, 40, 100, 100));
+  assert.deepEqual(l.slice(2), [30, 40]);
+  assert.ok(Math.abs(Math.hypot(l[0], l[1]) - 5) < 1e-9);
+  // the point inside the box, or right at its edge: no line
+  assert.equal(leaderLine(100, 100, 50, 50, 200, 200), null);
+  assert.equal(leaderLine(100, 100, 106, 50, 100, 100), null);
 });

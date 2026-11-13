@@ -172,6 +172,7 @@ const KEY_COMMANDS = {
  * @property {(hass: any) => void} setHass
  * @property {(view: string | Record<string, any>, opts?: { duration?: number, warp?: boolean }) => Promise<void>} flyTo
  * @property {(scale: number) => void} setTimeScale - how fast the scene's motion runs (1 as configured, 0 holds it)
+ * @property {(id: string, mode?: 'open' | 'close' | 'toggle') => boolean} pointCard - open, close or toggle a point's tap card (and select the point); false when the point has no tap card
  * @property {() => number} timeScale
  * @property {(id: string | null, opts?: AstroOutlineEditOptions) => void} editOutline - a prism volume's outline as handles on
  *   its base (the Studio's Edit on preview), or drawn anew (`draw`); null ends it
@@ -2322,6 +2323,18 @@ export function createAstroScene(host, config, options = {}) {
       if (refreshSky()) requestFrame();
     },
     flyTo,
+    pointCard(id, mode = 'toggle') {
+      const key = String(id);
+      if (!cards.showsOnTap(key)) return false;
+      const isOpen = cards.openId === key;
+      if (mode === 'open' ? !isOpen : mode === 'close' ? isOpen : true) {
+        const opened = cards.toggle(key);
+        if (opened) select(key);
+        else if (selected === key) select(null);
+      }
+      requestFrame();
+      return true;
+    },
     setTimeScale(scale) {
       timeScale = Math.max(0, Number.isFinite(scale) ? scale : 1);
       last = 0;

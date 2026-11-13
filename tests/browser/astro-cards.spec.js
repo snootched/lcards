@@ -99,3 +99,48 @@ test('a card whose point is behind a sphere hides; keys typed in a card are not 
     expect((await sceneState(page)).keys.tx).toBe(before.tx);
     expect(await cardErrors(page)).toEqual([]);
 });
+
+test('point-card actions, fly-to point_card, a fixed height and a leader (F2)', async ({ page }) => {
+    await mountCase(page, 'astro-cards', { width: '800' });
+    await sceneReady(page);
+    const eng = () => page.evaluate(() => {
+        const card = /** @type {any} */ (document.querySelector('#mount > *'));
+        const el = card.renderRoot.querySelector('.astro-pin[data-id="eng"]');
+        const line = card.renderRoot.querySelector('.astro-leaders line[data-id="eng"]');
+        const s = card._scene.debug();
+        return {
+            opacity: el ? Number(el.style.opacity) : 0,
+            height: el?.getBoundingClientRect().height ?? 0,
+            line: line ? { opacity: Number(line.style.opacity), x1: Number(line.getAttribute('x1')), x2: Number(line.getAttribute('x2')), stroke: line.style.stroke } : null,
+            selected: s.selected ?? null
+        };
+    });
+    const run = (action) => page.evaluate((a) => {
+        const card = /** @type {any} */ (document.querySelector('#mount > *'));
+        card._actionHandler.runAction(a, card.hass, card);
+    }, action);
+    // the action from any card (by the astrometrics card's id): open
+    await run({ action: 'point-card', card: 'astro_cards', point: 'eng', point_card: 'open' });
+    await expect.poll(async () => (await eng()).opacity).toBe(1);
+    const open = await eng();
+    expect(open.height).toBe(60);
+    // the leader: from beside the point (x 460 on an 800 px top view) to the card on its right
+    expect(open.line?.opacity).toBe(1);
+    expect(open.line.x2).toBeGreaterThan(open.line.x1);
+    expect(open.line.stroke).not.toBe('');
+    // open again: stays open; toggle closes; close on a closed card does nothing
+    await run({ action: 'point-card', card: 'astro_cards', point: 'eng', point_card: 'open' });
+    await page.waitForTimeout(200);
+    expect((await eng()).opacity).toBe(1);
+    await run({ action: 'point-card', card: 'astro_cards', point: 'eng' });
+    await expect.poll(async () => (await eng()).opacity).toBe(0);
+    expect((await eng()).line.opacity).toBe(0);
+    await run({ action: 'point-card', card: 'astro_cards', point: 'eng', point_card: 'close' });
+    await page.waitForTimeout(200);
+    expect((await eng()).opacity).toBe(0);
+    // fly-to with point_card: open
+    await run({ action: 'fly-to', card: 'astro_cards', point: 'eng', point_card: 'open', duration: 0 });
+    await expect.poll(async () => (await eng()).opacity).toBe(1);
+    await page.locator('#mount').screenshot({ path: process.env.CARD_SHOT ?? 'tmp/astro-cards-leader.png' });
+    expect(await cardErrors(page)).toEqual([]);
+});

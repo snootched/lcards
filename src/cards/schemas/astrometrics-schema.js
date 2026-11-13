@@ -575,10 +575,12 @@ const pointCardSchema = {
     additionalProperties: false,
     description: 'A Lovelace card (any card: tile, entities, an LCARdS card) pinned to the point. It follows the point, and hides when the point is off screen, behind an object or out of its distance range.',
     properties: {
-        show: { type: 'string', enum: ['tap', 'always'], default: 'tap', description: 'tap: a tap on the point opens the card and selects the point (one card open at a time; a tap elsewhere or Escape closes it); the tap_action then runs only when it is fly-to. always: the card is always shown.' },
+        show: { type: 'string', enum: ['tap', 'always'], default: 'tap', description: 'tap: a tap on the point opens the card and selects the point (one card open at a time; a tap elsewhere or Escape closes it); the tap_action then runs only when it is fly-to. A point-card action (on any LCARdS card) and fly-to with point_card open and close it too. always: the card is always shown.' },
         position: { type: 'string', enum: [...LABEL_POSITION_NAMES], default: 'center-right', description: 'Where the card sits round the point (the label position names). It stays inside the scene.' },
         offset: tuple(2, 'Moves the card by [x, y] px from where position puts it.'),
-        width: number('Card width, px; its height follows the card.', { minimum: 80, default: 280 }),
+        width: number('Card width, px.', { minimum: 80, default: 280 }),
+        height: number('Card height, px: the card scrolls inside it. Default: the card\'s own height.', { minimum: 40 }),
+        leader: { type: 'boolean', default: false, description: 'true draws a thin line from the point to the card\'s nearest edge, in the point\'s colour, so it is clear which point a card belongs to.' },
         card: {
             type: 'object',
             required: ['type'],
@@ -798,11 +800,22 @@ const gridObject = {
             anyOf: [{ type: 'number', exclusiveMinimum: 0 }, { type: 'array', items: { type: 'number', minimum: 0 }, minItems: 2, maxItems: 2 }, settingBinding, settingTemplate]
         },
         height: setting('cylinder: height, scene units. Default the radius.', { exclusiveMinimum: 0 }),
-        depth: setting('well: depth below the rim, scene units (the rim is at the object\'s position). Default the radius.', { exclusiveMinimum: 0 }),
+        depth: setting('well: depth below the rim, scene units (the rim is at the object\'s position). Follows an entity smoothly, in place. Default the radius.', { exclusiveMinimum: 0 }),
         well: part('well: the funnel\'s profile from the rim down: a named shape and its throat, or any profile.', {
             shape: { type: 'string', enum: [...WELL_SHAPE_NAMES], default: 'trumpet', description: 'trumpet (a gravity well: flat at the rim, plunging to the throat), cone, bowl or wormhole (two trumpets throat to throat, the throat halfway down). profile replaces it.', enumDescriptions: { trumpet: 'Gravity well', cone: 'Straight sides', bowl: 'Rounded bottom', wormhole: 'Hourglass' } },
             throat: setting('Throat diameter as a fraction of the rim (shape).', { minimum: 0.02, maximum: 1, default: 0.15 }),
-            profile: { type: 'array', items: { type: 'number', minimum: 0 }, minItems: 2, maxItems: 32, description: 'Any profile: diameters as fractions of the rim from the rim down, evenly spaced along the depth; a smooth curve passes through each. [1, 0.4, 0.2, 0.15] is a trumpet, [1, 0.2, 1] an hourglass. Replaces shape.' }
+            profile: { type: 'array', items: { type: 'number', minimum: 0 }, minItems: 2, maxItems: 32, description: 'Any profile: diameters as fractions of the rim from the rim down, evenly spaced along the depth; a smooth curve passes through each. [1, 0.4, 0.2, 0.15] is a trumpet, [1, 0.2, 1] an hourglass. Replaces shape.' },
+            to: {
+                type: 'object',
+                additionalProperties: false,
+                description: 'A second shape the well morphs toward with morph: { shape, throat } or { profile }, as the well\'s own. [0.02, 0.02] is a needle: the funnel draws into its centre (a wormhole closing).',
+                properties: {
+                    shape: { type: 'string', enum: [...WELL_SHAPE_NAMES], description: 'The shape it morphs toward. Default the well\'s shape.' },
+                    throat: { type: 'number', minimum: 0.02, maximum: 1, description: 'Its throat diameter as a fraction of the rim. Default the well\'s throat.' },
+                    profile: { type: 'array', items: { type: 'number', minimum: 0 }, minItems: 2, maxItems: 32, description: 'Its profile: diameters as fractions of the rim from the rim down. Replaces shape.' }
+                }
+            },
+            morph: setting('How far the well has changed from its shape (0) to to (1). Follows an entity smoothly, in place (as depth does): a wormhole opening and closing.', { minimum: 0, maximum: 1, default: 0 })
         }, { group: 'main' }),
         deform: { type: 'array', items: deformSchema, description: 'Deformations of the surface, applied in order: wobble, bend, twist, noise. A wobbling cylinder is jelly; a well with bend (motion: circle) and twist is a tornado; a disc with twist is a whirlpool.' },
         line_spacing_deg: setting('disc: a spoke every N degrees; dome, sphere, cylinder, well: rings and meridians every N degrees (a whole number fits round). Default 15 on curved shapes.', { exclusiveMinimum: 0 }),
@@ -1486,8 +1499,9 @@ const modelObject = {
         scan: scanPart('It sweeps along the model.'),
         solid: { type: 'boolean', default: true, description: 'false: see-through.' },
         blend: { type: 'string', enum: ['add', 'normal'], default: 'add', description: 'Hologram blending: add (default) or normal.' },
-        edges: part('Feature edges: true, false, or { angle, color }. Default on for hologram, except on a model over 250,000 triangles (working them out freezes the page for seconds); true or an object draws them anyway.', {
+        edges: part('Feature edges: true, false, or { angle, width, color }. Default on for hologram, except on a model over 250,000 triangles (working them out freezes the page for seconds); true or an object draws them anyway.', {
             angle: setting('Edges where faces meet at more than this angle, degrees.', { minimum: 0, maximum: 180, default: 30 }),
+            width: number('Edge width, px. Above 1 the edges draw as thick lines that hold their width on any screen (1: thin hairlines, the cheapest on detailed models).', { minimum: 1, default: 1 }),
             color: objectColor('Edge colour. Default the rim colour.')
         }, { toggle: true }),
         animation: {

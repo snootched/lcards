@@ -1482,15 +1482,27 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             this.setClock({ date: action.date, rate: action.rate });
             return true;
         }
+        // point-card on this card (no card, or its own id): a point's card opens or closes here
+        if (action.action === 'point-card' && (action.card === undefined || action.card === this.config?.id)) {
+            this._playSound(key === 'tap_action' ? 'card_tap' : 'card_hold');
+            this.pointCard(String(action.point ?? hit.id), action.point_card ?? 'toggle');
+            return true;
+        }
+        if (action.action === 'point-card') {
+            this._playSound(key === 'tap_action' ? 'card_tap' : 'card_hold');
+            this._actionHandler.runAction(action, this.hass, this);
+            return true;
+        }
         if (action.action === 'fly-to') {
             // the card sound, as for every other action it runs (a tap without a view or point flies from the scene)
             this._playSound(key === 'tap_action' ? 'card_tap' : 'card_hold');
-            /** @type {{ duration?: number, warp?: boolean }} */
+            /** @type {{ duration?: number, warp?: boolean, point_card?: 'open' | 'close' | 'toggle' }} */
             const flight = {};
             if (action.duration !== undefined) flight.duration = action.duration;
             if (typeof action.warp === 'boolean') flight.warp = action.warp;
             if (action.point) {
-                this._scene?.flyTo({ point: action.point }, flight);
+                if (action.point_card) flight.point_card = action.point_card;
+                this.flyTo({ point: action.point }, flight);
                 return true;
             }
             if (action.view) {
@@ -1610,8 +1622,9 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
     /**
      * Fly the camera (the registry, `lcards.fly_to` and fly-to actions from
      * other cards call this): a view name or point id, `{ point }`, or keys.
+     * With `point_card` (open, close or toggle) and a point, its card too.
      * @param {string | Record<string, any>} view
-     * @param {{ duration?: number }} [opts]
+     * @param {{ duration?: number, warp?: boolean, point_card?: 'open' | 'close' | 'toggle' }} [opts]
      * @returns {Promise<void>}
      */
     flyTo(view, opts = {}) {
@@ -1619,7 +1632,26 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
             lcardsLog.debug('[LCARdSAstrometricsCard] fly-to before the scene is ready: ignored');
             return Promise.resolve();
         }
-        return this._scene.flyTo(view, opts);
+        const { point_card: mode, ...flight } = opts;
+        const flying = this._scene.flyTo(view, flight);
+        const point = typeof view === 'object' && view ? view.point : undefined;
+        if (mode && point !== undefined) this.pointCard(String(point), mode);
+        return flying;
+    }
+
+    /**
+     * Open, close or toggle a point's tap card (point-card actions, fly-to
+     * with point_card and the registry call this).
+     * @param {string} point - the point's id
+     * @param {'open' | 'close' | 'toggle'} [mode]
+     * @returns {boolean} false before the scene is ready, or when the point has no tap card
+     */
+    pointCard(point, mode = 'toggle') {
+        if (!this._scene) return false;
+        const m = mode === 'open' || mode === 'close' ? mode : 'toggle';
+        const ok = this._scene.pointCard(String(point), m);
+        if (!ok) lcardsLog.warn(`[LCARdSAstrometricsCard] point-card: point '${point}' has no card that opens on tap`);
+        return ok;
     }
 
     /**

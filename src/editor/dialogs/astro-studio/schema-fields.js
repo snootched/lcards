@@ -188,7 +188,8 @@ export function fieldKind(s, key) {
   if (Array.isArray(s.type) && s.type.every((/** @type {string} */ t) => ['string', 'number', 'integer'].includes(t))) return 'text';
   if (hasType(s, 'array')) {
     if (isTuple(s)) return 'tuple';
-    if (isNumberArray(s)) return 'numbers';
+    // items that can be words too (satellites: names or NORAD ids) are a list of words
+    if (isNumberArray(s) && !hasType(s.items, 'string')) return 'numbers';
     if (hasType(s.items, 'string') && !s.items.enum) return 'strings';
     if (isPointRef(s.items)) return 'pointList';
     if (isObj(s.items?.properties)) return 'objectList';

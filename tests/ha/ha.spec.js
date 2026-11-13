@@ -254,6 +254,31 @@ test('lcards.fly_to flies the astrometrics card on the page', async ({ page }) =
     expect(errors).toEqual([]);
 });
 
+test('a tile card on an astrometrics point opens with point-card, toggles its entity and closes (F2)', async ({ page }) => {
+    await client.callService('input_boolean', 'turn_off', { entity_id: 'input_boolean.lcards_test_toggle' });
+    const errors = await openDashboard(page, 'astrometrics');
+    const astro = () => page.evaluate(() => !!window.lcards.cards.astrometrics.get('lcards_test_astro')?._scene?.debug().ready);
+    await expect.poll(astro, { timeout: 20_000 }).toBe(true);
+    const pin = page.locator('lcards-astrometrics-card .astro-pin[data-id="relay"]');
+    // a point-card action from any card opens it: Home Assistant's own tile, in hui-card
+    await page.evaluate(() => window.lcards.cards.astrometrics.pointCard('lcards_test_astro', 'relay', 'open'));
+    await expect.poll(() => pin.evaluate((el) => Number(/** @type {HTMLElement} */ (el).style.opacity)), { timeout: 10_000 }).toBe(1);
+    const tile = pin.locator('hui-tile-card');
+    await expect(tile).toBeAttached({ timeout: 10_000 });
+    await expect(tile).toContainText('LCARdS Test Toggle');
+    // the tile's icon toggles the helper, through the real Home Assistant
+    await tile.locator('ha-tile-icon').click();
+    await expect.poll(async () => (await client.getState('input_boolean.lcards_test_toggle'))?.state, { timeout: 10_000 }).toBe('on');
+    // the leader is drawn while it is open
+    const leader = page.locator('lcards-astrometrics-card .astro-leaders line[data-id="relay"]');
+    expect(await leader.evaluate((el) => Number(/** @type {SVGElement} */ (el).style.opacity))).toBe(1);
+    // and the action closes it
+    await page.evaluate(() => window.lcards.cards.astrometrics.pointCard('lcards_test_astro', 'relay', 'close'));
+    await expect.poll(() => pin.evaluate((el) => Number(/** @type {HTMLElement} */ (el).style.opacity)), { timeout: 10_000 }).toBe(0);
+    await client.callService('input_boolean', 'turn_off', { entity_id: 'input_boolean.lcards_test_toggle' });
+    expect(errors).toEqual([]);
+});
+
 test('lcards.borg_assimilate / borg_deassimilate pass sound, cube and palette hue to the page', async ({ page }) => {
     const errors = await openDashboard(page, 'cards');
     // Record the calls instead of running the sequence

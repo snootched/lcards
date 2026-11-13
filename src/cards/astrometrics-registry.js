@@ -11,7 +11,7 @@
 import { lcardsLog } from '../utils/lcards-logging.js';
 
 /**
- * @typedef {HTMLElement & { config?: any, flyTo: (view: string | Record<string, any>, opts?: { duration?: number }) => Promise<void>, setClock: (opts: { date?: any, rate?: any }) => boolean, setModelScale: (mode: 'real' | 'visible' | 'toggle') => boolean }} AstrometricsCardElement
+ * @typedef {HTMLElement & { config?: any, flyTo: (view: string | Record<string, any>, opts?: { duration?: number, warp?: boolean, point_card?: 'open' | 'close' | 'toggle' }) => Promise<void>, setClock: (opts: { date?: any, rate?: any }) => boolean, setModelScale: (mode: 'real' | 'visible' | 'toggle') => boolean, pointCard: (point: string, mode?: 'open' | 'close' | 'toggle') => boolean }} AstrometricsCardElement
  */
 
 /** @type {Set<AstrometricsCardElement>} */
@@ -60,7 +60,7 @@ export const astrometricsRegistry = {
      * Fly every connected card with this `id`.
      * @param {string} id
      * @param {string | { view?: string, point?: string }} target - a view name or point id, or `{ view }` / `{ point }`
-     * @param {{ duration?: number, warp?: boolean }} [opts] - warp: true or false overrides the view's and the card's
+     * @param {{ duration?: number, warp?: boolean, point_card?: 'open' | 'close' | 'toggle' }} [opts] - warp: true or false overrides the view's and the card's; point_card: the point's card too
      * @returns {number} how many cards flew
      */
     flyTo(id, target, opts = {}) {
@@ -75,12 +75,31 @@ export const astrometricsRegistry = {
             return 0;
         }
         const duration = Number(opts.duration);
-        /** @type {{ duration?: number, warp?: boolean }} */
+        /** @type {{ duration?: number, warp?: boolean, point_card?: 'open' | 'close' | 'toggle' }} */
         const flight = {};
         if (Number.isFinite(duration) && duration >= 0) flight.duration = duration;
         if (typeof opts.warp === 'boolean') flight.warp = opts.warp;
+        if (opts.point_card) flight.point_card = opts.point_card;
         for (const card of matches) card.flyTo(to, flight);
         return matches.length;
+    },
+
+    /**
+     * Open, close or toggle a point's tap card on every connected card with this `id`.
+     * @param {string} id
+     * @param {string} point - the point's id
+     * @param {'open' | 'close' | 'toggle'} [mode]
+     * @returns {number} how many cards took it
+     */
+    pointCard(id, point, mode = 'toggle') {
+        const matches = [...cards].filter((c) => c.config?.id === id);
+        if (!matches.length) {
+            lcardsLog.debug(`[Astrometrics] point-card: no astrometrics card with id '${id}' is open here`);
+            return 0;
+        }
+        let n = 0;
+        for (const card of matches) if (card.pointCard(point, mode)) n++;
+        return n;
     },
 
     /**

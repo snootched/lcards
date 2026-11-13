@@ -158,6 +158,67 @@ objects:
 | `well.throat` | number | `0.15` | The throat's width as a fraction of the rim, `0.02` to `1` |
 | `well.profile` | list | - | Any profile: widths as fractions of the rim, from the rim down, evenly spaced along the depth (2 to 32 values). A smooth curve passes through each. `[1, 0.2, 1]` is an hourglass. Replaces `well.shape` |
 
+#### Opening and closing
+
+**`well.to` is a second shape and `well.morph` how far the well has changed into it, from `0` to `1`: a wormhole that opens and closes.** Bind `well.morph` to an entity and the funnel eases between the two shapes in place, without being rebuilt.
+
+- A needle, `well.to` with `profile: [0.02, 0.02]`, closes the well: the funnel draws into its centre, which stays put.
+- `depth` follows an entity in place too, so a well can sink or flatten as it opens.
+- A `deform` (a twist, a wobble) follows the new shape as it changes.
+
+```yaml live controls
+type: custom:lcards-astrometrics-card
+height: 320
+camera:
+  views:
+    v:
+      target: [0, -30, 0]
+      yaw: 20
+      tilt: 20
+      distance: 180
+objects:
+  - type: grid
+    shape: well
+    radius: 50
+    # deeper as power rises
+    depth:
+      entity: input_number.lcards_test_power
+      input: [0, 100]
+      output: [20, 70]
+      smooth: 800
+    well:
+      shape: trumpet
+      throat: 0.1
+      # closed: a needle
+      to:
+        profile: [0.02, 0.02]
+      # power 100 % is open, 0 closed
+      morph:
+        entity: input_number.lcards_test_power
+        input: [0, 100]
+        output: [1, 0]
+        smooth: 800
+    deform:
+      - type: twist
+        angle: 60
+        anchor: top
+    color: var(--lcars-blue)
+```
+
+::: details More about morphing wells
+- **Both shapes have the same rings:** the rim, the throat and every ring between them move to their place in the other shape, so a trumpet can morph into a bowl or a cone as well as close.
+- **The swirl fill** of a `fill.effect` follows the new depth (it thins out down the throat).
+:::
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `well.to` | object | - | The shape it morphs toward |
+| `well.to.shape` | string | the well's shape | `trumpet`, `cone`, `bowl` or `wormhole` |
+| `well.to.throat` | number | the well's throat | Its throat's width as a fraction of the rim, `0.02` to `1` |
+| `well.to.profile` | list | - | Its profile: widths as fractions of the rim from the rim down. Replaces `well.to.shape` |
+| `well.morph` | number | `0` | How far the well has changed into `well.to`, `0` to `1`. Eases in place when it follows an entity |
+| `depth` | number | the radius | Eases in place when it follows an entity |
+
 #### Two mouths, one wormhole
 
 **Two wells [facing](../objects#facing-a-point) each other make one wormhole: a mouth at each end, and a line from throat to throat as the throat stretched thin between them.** Each end of the line is a point standing on its well at `[0, -depth, 0]`, the bottom of the well's axis.

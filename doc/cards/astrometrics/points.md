@@ -551,7 +551,7 @@ objects:
 
 ### Scene actions
 
-**Three actions belong to the astrometrics card: `fly-to` moves the camera, `set-clock` sets the scene date, and `set-model-scale` switches the models between their real size and visible size.** On the card's own points and objects they act on this card; from any other LCARdS card, `card` names the astrometrics card (its `id`).
+**Four actions belong to the astrometrics card: `fly-to` moves the camera, `set-clock` sets the scene date, `set-model-scale` switches the models between their real size and visible size, and `point-card` opens a point's [card](#opening-cards-from-other-cards).** On the card's own points and objects they act on this card; from any other LCARdS card, `card` names the astrometrics card (its `id`).
 
 - `action: fly-to` alone flies to the point (on an object: to its middle). With `view`, it flies to that named view instead; with `point`, to that point.
 - `duration` and `warp` on the action win over the card's `camera.fly_duration` and `camera.warp` and the view's own `warp`.
@@ -603,10 +603,11 @@ objects:
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `action` | string | - | `fly-to`, `set-clock` or `set-model-scale` (or any other card action) |
+| `action` | string | - | `fly-to`, `set-clock`, `set-model-scale` or `point-card` (or any other card action) |
 | `card` | string | this card | The astrometrics card to act on, by its `id`. Needed from any other LCARdS card |
 | `view` | string | - | `fly-to`: a named view (`camera.views`) to fly to instead of the point |
-| `point` | string | - | `fly-to`: a point id to fly to. Wins over `view` |
+| `point` | string | - | `fly-to`: a point id to fly to. Wins over `view`. `point-card`: the point whose card opens |
+| `point_card` | string | `toggle` | `point-card`, and `fly-to` with a `point`: `open`, `close` or `toggle` the point's card |
 | `duration` | number | `camera.fly_duration` | `fly-to`: how long the flight takes, ms |
 | `warp` | boolean | the view's `warp`, else `camera.warp` | `fly-to`: `true` streaks the stars on the way, `false` never |
 | `date` | string | - | `set-clock`: the [scene date](./scale#the-scene-clock), `now` or an ISO date |
@@ -620,6 +621,8 @@ objects:
 - `show: tap` (the default): a tap on the point opens its card and selects the point; a tap anywhere else, another point or Escape closes it. One card is open at a time. A `tap_action` then runs only when it is `fly-to` (the card opens and the camera flies).
 - `show: always`: the card is always shown, a small control panel standing in the scene.
 - A point with a card needs no label or marker: the card is what shows. Its visibility conditions work as on a dashboard.
+- Other cards open and close it with a [`point-card` action](#opening-cards-from-other-cards), and `fly-to` with `point_card: open` opens it as the camera flies there.
+- `leader: true` draws a thin line from the point to the card's nearest edge, in the point's colour, which helps when `offset` moves the card away from its point.
 - A rule can patch `card` like any other point key; only that card is built again.
 
 ```yaml live controls
@@ -657,7 +660,9 @@ points:
     label: OUTPOST (TAP)
     card:
       position: top-right
+      offset: [30, -30]
       width: 170
+      leader: true
       card:
         type: custom:lcards-button
         entity: switch.demo_switch
@@ -681,4 +686,71 @@ objects:
 | `card.show` | string | `tap` | `tap`: opens on a tap on the point. `always`: always shown |
 | `card.position` | string | `center-right` | Where the card sits round the point, with the label position names. It stays inside the scene |
 | `card.offset` | `[x, y]` | `[0, 0]` | Moves the card from where `position` puts it, px |
-| `card.width` | number | `280` | Card width, px (at least `80`); the height follows the card |
+| `card.width` | number | `280` | Card width, px (at least `80`) |
+| `card.height` | number | the card's own | Card height, px (at least `40`); the card scrolls inside it |
+| `card.leader` | boolean | `false` | A thin line from the point to the card's nearest edge, in the point's colour |
+
+### Opening cards from other cards
+
+**`action: point-card` opens, closes or toggles a point's card from any LCARdS card, or from the scene's own points and objects.** It works on cards with `show: tap`; one is open at a time, so opening one closes another.
+
+- On another card, `card` names the astrometrics card (its `id`) and `point` the point. On the astrometrics card's own points and objects, leave `card` out; on a point, `point` defaults to that point.
+- `fly-to` with a `point` takes `point_card` too: the camera flies to the point and its card opens.
+
+```yaml live
+type: custom:lcards-astrometrics-card
+id: outpost_map
+height: 320
+camera:
+  views:
+    v:
+      target: [0, 0, 0]
+      yaw: 20
+      tilt: 35
+      distance: 120
+points:
+  - id: outpost
+    xyz: [25, 0, 0]
+    marker: dot
+    label: OUTPOST
+    card:
+      position: top-right
+      width: 170
+      leader: true
+      card:
+        type: custom:lcards-button
+        entity: switch.demo_switch
+        preset: lozenge
+        text:
+          name:
+            content: SHIELDS
+            show: true
+  # a tap on the beacon opens the outpost's card
+  - id: beacon
+    xyz: [-25, 0, 0]
+    marker: diamond
+    label: BEACON (TAP)
+    tap_action:
+      action: point-card
+      point: outpost
+      point_card: open
+objects:
+  - type: grid
+    shape: disc
+    radius: 50
+    pattern: polar
+    line_spacing: 10
+    spoke_count: 12
+```
+
+::: details More about opening cards
+- **From a button elsewhere:** `tap_action: { action: point-card, card: outpost_map, point: outpost }` toggles the card on the astrometrics card with `id: outpost_map`, on the same dashboard or open in the same browser.
+- **A card that is always shown** (`show: always`) is not opened or closed by these actions.
+:::
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `action` | string | required | `point-card` |
+| `card` | string | this card | The astrometrics card's `id`. Required on other cards |
+| `point` | string | the point tapped | The point whose card opens or closes |
+| `point_card` | string | `toggle` | `open`, `close` or `toggle`. Also on `fly-to` with a `point` |

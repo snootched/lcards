@@ -1,0 +1,22 @@
+# F2 well morph: a twisted trumpet well that closes into a needle as well.morph
+# follows lcards_test_power (0 open, 100 closed) and sinks as depth follows
+# lcards_test_shields, both eased in place without a rebuild (astro-well-morph.spec.js).
+type: custom:lcards-astrometrics-card
+id: astro_well_morph
+height: 400
+camera:
+  views:
+    side: { target: [0, -20, 0], yaw: 20, tilt: 20, distance: 160 }
+objects:
+  - type: grid
+    id: funnel
+    shape: well
+    radius: 50
+    depth: { entity: input_number.lcards_test_shields, input: [0, 100], output: [10, 60], smooth: 300 }
+    well:
+      shape: trumpet
+      throat: 0.1
+      to: { profile: [0.02, 0.02] }
+      morph: { entity: input_number.lcards_test_power, input: [0, 100], output: [0, 1], smooth: 300 }
+    deform:
+      - { type: twist, angle: 60, anchor: top }

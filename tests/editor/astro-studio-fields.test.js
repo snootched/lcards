@@ -388,3 +388,12 @@ test('UX1 P5: an object row says one key value, a route only when nothing else d
   assert.equal(objectSummary({ type: 'system', at: 'sol', units: 'km', points: [{ id: 'x' }] }), 'in km · at sol');
   assert.equal(objectSummary({ type: 'ring', radius: 40, at: 'sun', from: 'a', to: 'b' }), '40 · at sun');
 });
+
+test('F1/F2 keys get their fields: satellites names as words, the morph shape of a well, model edge width', () => {
+  assert.equal(fieldKind(objectBranch(objectSchema, 'satellites').own.satellites, 'satellites'), 'strings');
+  const well = objectBranch(objectSchema, 'grid').own.well.oneOf?.find((/** @type {any} */ b) => b.type === 'object') ?? objectBranch(objectSchema, 'grid').own.well;
+  assert.equal(fieldKind(well.properties.to, 'to'), 'object');
+  assert.equal(fieldKind(well.properties.morph, 'morph'), 'number');
+  const edges = objectBranch(objectSchema, 'model').own.edges.oneOf.find((/** @type {any} */ b) => b.type === 'object');
+  assert.equal(fieldKind(edges.properties.width, 'width'), 'number');
+});

@@ -1,0 +1,133 @@
+# Astrometrics F2: a wormhole that opens and closes (well.to + well.morph, depth in place),
+# thick model edges (edges.width), and cards on points opened from other cards
+# (point-card, fly-to point_card), with a fixed height and a leader.
+title: Astrometrics wells and cards
+path: astro-wells-cards
+type: sections
+max_columns: 4
+sections:
+  # 1. The wormhole: APERTURE opens it (0 closed, 100 open), DEPTH sinks it
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_power
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: APERTURE } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-slider
+        entity: input_number.lcards_test_shields
+        preset: shaped-horizontal
+        component: shaped
+        text: { name: { content: DEPTH } }
+        style: { shaped: { text_bands: { left: { size: 120 } } } }
+        grid_options: { columns: 12, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_wormhole_morph
+        height: 600
+        camera:
+          views:
+            mouth: { target: [ 0, -12, 0 ], yaw: 15, tilt: 22, distance: 95 }
+        backdrop: { stars: true }
+        points:
+          - { id: mouth, xyz: [ 0, 0, 0 ] }
+        objects:
+          - type: grid
+            id: funnel
+            shape: well
+            at: mouth
+            radius: 30
+            depth: { entity: input_number.lcards_test_shields, input: [ 0, 100 ], output: [ 0, 45 ], smooth: 900 }
+            line_width: 0.6
+            well:
+              shape: trumpet
+              throat: 0.08
+              to: { profile: [ 0.02, 0.02 ] }
+              morph: { entity: input_number.lcards_test_power, input: [ 0, 100 ], output: [ 1, 0 ], smooth: 900 }
+            fill:
+              effect: { type: swirl, colors: [ var(--lcards-moonlight), var(--lcars-violet), var(--lcards-blue-medium), var(--lcars-violet), var(--lcards-blue-dark) ], speed: 2.5, turbulence: 0.8 }
+            deform:
+              - { type: twist, angle: 80, anchor: top, period: 6 }
+            color: var(--lcars-blue)
+          - type: glow
+            at: mouth
+            color: var(--lcards-orange-lightest)
+            size: { entity: input_number.lcards_test_power, input: [ 0, 100 ], output: [ 0, 14 ], smooth: 700 }
+        grid_options: { columns: full }
+  # 2. Model edges: hairlines (left) and edges.width 2.5 (right)
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-astrometrics-card
+        id: astro_edges
+        height: 600
+        camera:
+          views:
+            side: { target: [ 0, 0, 0 ], yaw: 60, tilt: 12, distance: 190 }
+        points:
+          - { id: thin_at, xyz: [ -45, 0, 0 ] }
+          - { id: thick_at, xyz: [ 45, 0, 0 ] }
+          - { id: thin_label, xyz: [ -45, -30, 0 ], label: EDGES 1 PX, style: minor }
+          - { id: thick_label, xyz: [ 45, -30, 0 ], label: EDGES 2.5 PX, style: minor }
+        objects:
+          - { type: model, id: thin, at: thin_at, src: builtin:constitution_class_refit, size: 70 }
+          - { type: model, id: thick, at: thick_at, src: builtin:constitution_class_refit, size: 70, edges: { width: 2.5 } }
+        grid_options: { columns: full }
+  # 3. Cards on points: OPEN / CLOSE the relay's card, FLY TO OUTPOST opens the outpost's
+  - type: grid
+    column_span: 4
+    cards:
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: OPEN RELAY, show: true } }
+        tap_action: { action: point-card, card: astro_point_cards, point: relay, point_card: open }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: CLOSE RELAY, show: true } }
+        tap_action: { action: point-card, card: astro_point_cards, point: relay, point_card: close }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-button
+        preset: lozenge
+        text: { name: { content: FLY TO OUTPOST, show: true } }
+        tap_action: { action: fly-to, card: astro_point_cards, point: outpost, point_card: open }
+        grid_options: { columns: 8, rows: 1 }
+      - type: custom:lcards-astrometrics-card
+        id: astro_point_cards
+        height: 600
+        camera:
+          view: wide
+          views:
+            wide: { target: [ 0, 0, 0 ], yaw: 20, tilt: 40, distance: 200 }
+        points:
+          # a tap card with a leader, moved off its point
+          - id: relay
+            xyz: [ -50, 0, 20 ]
+            marker: diamond
+            label: RELAY
+            card:
+              position: top-right
+              offset: [ 40, -40 ]
+              width: 200
+              leader: true
+              card: { type: custom:lcards-button, entity: input_boolean.lcards_test_toggle, preset: lozenge, text: { name: { content: RELAY POWER, show: true } } }
+          # a fixed-height card: its content scrolls
+          - id: outpost
+            xyz: [ 50, 0, -20 ]
+            marker: dot
+            label: OUTPOST
+            card:
+              position: bottom-right
+              offset: [ 30, 30 ]
+              width: 220
+              height: 90
+              leader: true
+              card:
+                type: custom:lcards-data-grid
+                data_mode: decorative
+                grid: { grid-template-columns: 'repeat(4, 1fr)' }
+        objects:
+          - { type: grid, shape: disc, radius: 90, pattern: polar, line_spacing: 15, spoke_count: 12 }
+        grid_options: { columns: full }

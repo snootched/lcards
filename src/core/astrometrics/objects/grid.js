@@ -138,6 +138,8 @@ export function buildGrid(cfg, ctx) {
   const warpGeos = [];
   /** @type {number[] | undefined} the y range round the axis (axial deforms) */
   let extent;
+  /** @type {((key: string, value: number | null) => boolean) | null} a well's depth and morph, in place */
+  let wellLive = null;
   /** @param {number[][]} runs */
   const addEdge = (runs) => {
     if (deforming) runs = runs.map((r) => densify(r, edgeStep(cfg)));
@@ -251,14 +253,53 @@ export function buildGrid(cfg, ctx) {
       addFace(sphereGeometry({ radius: R, around: scale, detail }), look);
       extent = [-R, R];
     } else if (shape === 'well') {
-      const depth = Math.max(1e-3, num(cfg.depth, R));
+      const builtDepth = Math.max(1e-3, num(cfg.depth, R));
       // the background grid surface's params, from the object's well part
       const well = sub(cfg.well);
-      const profile = wellProfile({ well_shape: well.shape, well_throat: well.throat, well_profile: well.profile }, R);
-      addFace(wellGeometry({ profile, depth, around: scale, detail }), look);
-      if (border) addEdge(profile[0] > 1e-3 ? [circleRun(R), circleRun(profile[0], -depth)] : [circleRun(R)]);
+      const from = wellProfile({ well_shape: well.shape, well_throat: well.throat, well_profile: well.profile }, R);
+      // well.to: a second shape it morphs toward (well.morph, 0 to 1)
+      const toPart = well.to && typeof well.to === 'object' ? well.to : null;
+      const to = toPart ? wellProfile({ well_shape: toPart.shape ?? (toPart.profile ? undefined : well.shape), well_throat: toPart.throat ?? well.throat, well_profile: toPart.profile }, R) : null;
+      const builtMorph = Math.min(1, Math.max(0, num(well.morph, 0)));
+      let depth = builtDepth;
+      let morph = builtMorph;
+      const profileAt = () => (to && morph > 0 ? from.map((r, i) => r + (to[i] - r) * morph) : from);
+      // the bottom circle while either shape has an opening there
+      const bottom = from[0] > 1e-3 || (to !== null && to[0] > 1e-3);
+      /** @param {number[]} p */
+      const rims = (p) => {
+        const runs = bottom ? [circleRun(p[p.length - 1]), circleRun(Math.max(p[0], 1e-4), -depth)] : [circleRun(p[p.length - 1])];
+        return deforming ? runs.map((r) => densify(r, edgeStep(cfg))) : runs;
+      };
+      const profile = profileAt();
+      const geo = wellGeometry({ profile, depth, around: scale, detail });
+      addFace(geo, look);
+      if (border) addEdge(rims(profile));
+      const rimLine = border ? warpLines[warpLines.length - 1].line : null;
       extent = [-depth, 0];
       out.centre = [0, -depth / 2, 0];
+      // depth and well.morph follow an entity in place: the surface and its rims are
+      // rewritten (the same vertex count), the deform worked out again on the new shape
+      wellLive = (/** @type {string} */ key, /** @type {number | null} */ value) => {
+        if (key === 'depth') depth = value === null ? builtDepth : Math.max(1e-3, value);
+        else if (key === 'well.morph') morph = value === null ? builtMorph : Math.min(1, Math.max(0, value));
+        else return false;
+        const p = profileAt();
+        const next = wellGeometry({ profile: p, depth, around: scale, detail });
+        for (const [name, attr] of Object.entries(next.attributes)) {
+          const own = geo.getAttribute(name);
+          if (own && own.array.length === attr.array.length) {
+            /** @type {any} */ (own.array).set(attr.array);
+            own.needsUpdate = true;
+          }
+        }
+        next.dispose();
+        geo.computeBoundingSphere();
+        if (rimLine) rimLine.setRuns(rims(p));
+        extent = [-depth, 0];
+        out.centre = [0, -depth / 2, 0];
+        return true;
+      };
     } else {
       const h = Math.max(1e-3, num(cfg.height, R));
       addFace(cylinderGeometry({ radius: R, y0: -h / 2, y1: h / 2, around: scale, detail }), look);
@@ -286,7 +327,21 @@ export function buildGrid(cfg, ctx) {
   }
   // flat and not deformed: distances are to the surface (see distance-fade.js)
   out.flat = (shape === 'plane' || shape === 'disc') && !deforming;
-  out.tick = combineTicks(deformTicker(cfg, shape, out, extent, warpGeos, warpLines), scanTicker(cfg, ctx, out.gridFaces), effect?.tick);
+  let deformTick = deformTicker(cfg, shape, out, extent, warpGeos, warpLines);
+  const moves = !!deformTick;
+  out.tick = combineTicks(moves ? (dt, t) => (deformTick ? deformTick(dt, t) : false) : null, scanTicker(cfg, ctx, out.gridFaces), effect?.tick);
+  const live = wellLive;
+  if (live) {
+    out.live = (key, value) => {
+      if (!live(key, value)) return false;
+      // the fill's swirl thins out down the new depth
+      const u = /** @type {any} */ (effect?.material)?.uniforms;
+      if (u?.uDepth) u.uDepth.value = extent ? -extent[0] : 0;
+      // the deform on the new shape (its bases are the rewritten surface)
+      if (deforming) deformTick = deformTicker(cfg, shape, out, extent, warpGeos, warpLines);
+      return true;
+    };
+  }
   return out;
 }
 

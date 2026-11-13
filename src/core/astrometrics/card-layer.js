@@ -9,7 +9,9 @@
  *     show: tap | always     tap (default): opens on a tap on the point, one at a time
  *     position: center-right where the card sits round the point (LABEL_POSITIONS)
  *     offset: [x, y]         px from the point
- *     width: 280             px; the height follows the card
+ *     width: 280             px
+ *     height: 200            px, the content scrolls (default: the card's own height)
+ *     leader: true           a thin line from the point to the card's nearest edge
  *     card: { type: tile, entity: light.bridge }
  *
  * Free of Home Assistant: the scene's owner mounts the card elements
@@ -41,6 +43,8 @@ const ALIASES = /** @type {Record<string, string>} */ ({
  * @property {string} position - a LABEL_POSITIONS name
  * @property {[number, number]} offset
  * @property {number} width
+ * @property {number | null} height - px (the content scrolls), else the card's own
+ * @property {boolean} leader - a line from the point to the card
  * @property {Record<string, any>} card - the Lovelace card config
  * @property {string} key - what the element is built from (a change rebuilds it)
  */
@@ -60,6 +64,8 @@ export function pointCard(def) {
     position: LABEL_POSITIONS[pos] ? pos : 'center-right',
     offset: [num(off[0], 0), num(off[1], 0)],
     width: Math.max(80, num(c.width, DEFAULT_WIDTH)),
+    height: c.height !== undefined && c.height !== null && num(c.height, 0) > 0 ? Math.max(40, num(c.height, 0)) : null,
+    leader: c.leader === true,
     card: c.card,
     key: JSON.stringify(c.card)
   };
@@ -94,7 +100,34 @@ const CSS = `
   transition: opacity var(--ha-animation-duration-fast, 150ms); }
 .astro-pin.shown { pointer-events: auto; }
 .astro-pin > * { display: block; }
+.astro-pin.fixed { overflow-y: auto; overscroll-behavior: contain; }
+.astro-leaders { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.astro-leaders line { stroke-width: 1.5; transition: opacity var(--ha-animation-duration-fast, 150ms); }
 `;
+
+/** Space (CSS px) a leader keeps from its point's marker */
+const LEADER_GAP = 5;
+
+/**
+ * Where a card's leader runs: from the point (its marker kept clear) to the
+ * nearest point of the card's box. Null when the point is inside the box or
+ * too close to it. Pure, for tests.
+ * @param {number} sx - the point, CSS px
+ * @param {number} sy
+ * @param {number} x - the card's box
+ * @param {number} y
+ * @param {number} w
+ * @param {number} h
+ * @returns {[number, number, number, number] | null} x1, y1, x2, y2
+ */
+export function leaderLine(sx, sy, x, y, w, h) {
+  const ex = Math.min(Math.max(sx, x), x + w);
+  const ey = Math.min(Math.max(sy, y), y + h);
+  const d = Math.hypot(ex - sx, ey - sy);
+  if (d <= LEADER_GAP + 2) return null;
+  const k = LEADER_GAP / d;
+  return [sx + (ex - sx) * k, sy + (ey - sy) * k, ex, ey];
+}
 
 /**
  * @typedef {Object} CardEls
@@ -106,6 +139,7 @@ const CSS = `
  * @property {number} x
  * @property {number} y
  * @property {number} op
+ * @property {SVGLineElement | null} [line] - its leader
  */
 
 export class CardLayer {
@@ -118,7 +152,9 @@ export class CardLayer {
     this.root.className = 'astro-pins';
     const style = document.createElement('style');
     style.textContent = CSS;
-    this.root.append(style);
+    this.leaders = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    this.leaders.setAttribute('class', 'astro-leaders');
+    this.root.append(style, this.leaders);
     host.append(this.root);
     this.mount = mount ?? null;
     this.setHassFn = setHass ?? null;
@@ -159,7 +195,7 @@ export class CardLayer {
         else this.cards.set(pc.id, this._shell(pc));
       }
       const e = this.cards.get(pc.id);
-      if (e) e.el.style.width = `${pc.width}px`;
+      if (e) this._size(e);
     }
     if (this.openId && next.get(this.openId)?.show !== 'tap') this.openId = null;
   }
@@ -169,9 +205,26 @@ export class CardLayer {
     const el = document.createElement('div');
     el.className = 'astro-pin';
     el.dataset.id = pc.id;
-    el.style.width = `${pc.width}px`;
     el.inert = true;
-    return { pc, el, card: null, w: 0, h: 0, x: NaN, y: NaN, op: -1 };
+    const c = { pc, el, card: null, w: 0, h: 0, x: NaN, y: NaN, op: -1, line: null };
+    this._size(c);
+    return c;
+  }
+
+  /** Width, a fixed height (its content scrolls) and the leader, from the settings @param {CardEls} c */
+  _size(c) {
+    c.el.style.width = `${c.pc.width}px`;
+    c.el.style.height = c.pc.height ? `${c.pc.height}px` : '';
+    c.el.classList.toggle('fixed', !!c.pc.height);
+    if (c.pc.leader && !c.line) {
+      c.line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      c.line.dataset.id = c.pc.id;
+      c.line.style.opacity = '0';
+      this.leaders.append(c.line);
+    } else if (!c.pc.leader && c.line) {
+      c.line.remove();
+      c.line = null;
+    }
   }
 
   /** @param {PointCard} pc */
@@ -195,6 +248,7 @@ export class CardLayer {
     if (!c) return;
     this.ro?.unobserve(c.el);
     c.el.remove();
+    c.line?.remove();
     this.cards.delete(id);
     if (this.openId === id) this.openId = null;
   }
@@ -263,11 +317,26 @@ export class CardLayer {
         c.el.inert = op <= 0.05;
         c.op = op;
       }
-      if (!op || !it) continue;
+      if (!op || !it) {
+        if (c.line) c.line.style.opacity = '0';
+        continue;
+      }
       const [rx, ry] = cardBox(c.pc, it.sx, it.sy, c.w, c.h, width, height);
       const x = Math.round(rx);
       const y = Math.round(ry);
       if (x !== c.x || y !== c.y) { c.el.style.transform = `translate3d(${x}px, ${y}px, 0)`; c.x = x; c.y = y; }
+      if (c.line) {
+        const l = leaderLine(it.sx, it.sy, x, y, c.w, c.h);
+        c.line.style.opacity = l ? String(op) : '0';
+        if (l) {
+          c.line.setAttribute('x1', String(l[0]));
+          c.line.setAttribute('y1', String(l[1]));
+          c.line.setAttribute('x2', String(l[2]));
+          c.line.setAttribute('y2', String(l[3]));
+          // the point's colour (the scene's label items carry it)
+          c.line.style.stroke = /** @type {any} */ (it).color || 'currentColor';
+        }
+      }
     }
   }
 

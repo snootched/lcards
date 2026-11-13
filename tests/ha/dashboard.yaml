@@ -172,6 +172,15 @@ views:
             top: { target: [0, 0, 0], tilt: 90, distance: 200 }
         points:
           - { id: beacon, xyz: [-60, 0, 0], marker: square, label: BEACON }
+          # F2: a Home Assistant tile card on a point, opened by a point-card action
+          - id: relay
+            xyz: [-40, 0, 40]
+            marker: dot
+            label: RELAY
+            card:
+              width: 220
+              leader: true
+              card: { type: tile, entity: input_boolean.lcards_test_toggle }
         objects:
           - { type: grid, shape: plane, size: [240, 160], line_spacing: 20 }
 

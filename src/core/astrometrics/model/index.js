@@ -21,7 +21,7 @@
  * @module core/astrometrics/model
  */
 import {
-  Group, Box3, Vector3, LineSegments, LineBasicMaterial, EdgesGeometry, BoxGeometry, Mesh,
+  Group, Box3, Vector2, Vector3, LineSegments, LineBasicMaterial, EdgesGeometry, BoxGeometry, Mesh,
   AnimationMixer, LoopRepeat, HemisphereLight, DirectionalLight, SRGBColorSpace
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -31,6 +31,8 @@ import { scanAt } from '../../packs/backgrounds/webgl/scenes/scan-band.js';
 import { built, num, sub, isOn, DEFAULT_COLORS } from '../objects/common.js';
 import { hologramUniforms, hologramMaterial, depthOnlyMaterial } from './hologram-material.js';
 import { OCCLUDER_LAYER } from '../depth-occlusion.js';
+import { FatLine } from '../lines.js';
+import { edgeRuns } from '../objects/diagram.js';
 import { lcardsLog } from '../../../utils/lcards-logging.js';
 import { modelSizeSet, modelLengthSet, realScale } from '../names.js';
 
@@ -330,11 +332,29 @@ export function buildModel(cfg, ctx) {
       const edgeMat = new LineBasicMaterial({ transparent: true, depthWrite: false, opacity: (ec[3] ?? 1) * Math.min(1, opacity + 0.15) });
       edgeMat.color.setRGB(ec[0], ec[1], ec[2], SRGBColorSpace);
       const angle = num(sub(cfg.edges).angle, 30);
+      // wider than 1 px: fat lines (WebGL draws LineSegments 1 px whatever their width)
+      const width = num(sub(cfg.edges).width, 1);
       /** @type {Mesh[]} */
       const meshes = [];
       copy.traverse((o) => { if (/** @type {any} */ (o).isMesh && !(/** @type {any} */ (o).isSkinnedMesh)) meshes.push(/** @type {Mesh} */ (o)); });
       for (const m of meshes) {
-        const lines = new LineSegments(new EdgesGeometry(m.geometry, angle), edgeMat);
+        const edges = new EdgesGeometry(m.geometry, angle);
+        if (width > 1) {
+          const line = new FatLine(edgeRuns(edges), { color: ec, width, opacity: Math.min(1, opacity + 0.15), renderOrder: 2 });
+          edges.dispose();
+          // the file loads after the scene sized its lines: take the canvas size at render time
+          const size = new Vector2();
+          const own = line.object.onBeforeRender;
+          line.object.onBeforeRender = function (renderer, ...rest) {
+            renderer.getSize(size);
+            line.setResolution(size.x, size.y);
+            own.call(this, renderer, ...rest);
+          };
+          m.add(line.object);
+          out.lines.push(line);
+          continue;
+        }
+        const lines = new LineSegments(edges, edgeMat);
         lines.renderOrder = 2;
         m.add(lines);
       }

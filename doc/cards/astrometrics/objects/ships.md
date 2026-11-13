@@ -70,6 +70,7 @@ objects:
 | `scan.color` | colour | `var(--lcards-moonlight)` | The scan band's colour |
 | `edges` | boolean / object | on for a hologram | Feature edges as lines. Off with `material: original`, and on a model over 250,000 triangles |
 | `edges.angle` | number | `30` | Draw an edge where faces meet at more than this angle, degrees |
+| `edges.width` | number | `1` | Edge width, px. Above `1` the edges are thick lines that keep their width on any screen; `1` draws thin hairlines, the cheapest on detailed models |
 | `edges.color` | colour | the rim colour | Edge colour |
 | `animation` | string / list | - | Clips to loop: `all`, a clip name or a list of names. Both built-in ships have one clip, `bussards` |
 | `occlude` | boolean | `true` | Hide labels and cards behind it |

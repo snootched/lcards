@@ -38,7 +38,7 @@ topics:
     title: Astrometrics
     groups:
       - title: Start here
-        views: [astro-showcase, astro-starters, astro-star-trek, astro-real-sol, astro-solar-orbits, astro-satellites]
+        views: [astro-showcase, astro-starters, astro-star-trek, astro-real-sol, astro-solar-orbits, astro-satellites, astro-wells-cards]
       - title: Objects
         views: [astro-objects, astro-planets, astro-belt, astro-asteroid, astro-comet, astro-galaxy, astro-crystalline, astro-cube, astro-wormhole, astro-deformed-grids]
       - title: Ships and starbases
@@ -93,6 +93,12 @@ topics:
 releases:
   - version: "2026.11.0"
     views:
+      - file: astro-wells-cards
+        summary: "Astrometrics: a wormhole that opens and closes, thick model edges, cards opened from other cards"
+        description: "APERTURE opens the wormhole and closes it into a point at its centre (well.morph toward a needle, eased in place), DEPTH sinks it; the twist and swirl follow the new shape. Two ships: edges as hairlines and at edges.width 2.5. Cards on points: OPEN and CLOSE RELAY run point-card actions, FLY TO OUTPOST flies there and opens its card (fly-to point_card); both cards draw a leader to their point, the outpost's has a fixed height."
+        session: "F2 astrometrics leftovers"
+        docs: /cards/astrometrics/objects/surfaces#opening-and-closing
+        public: true
       - file: astro-satellites
         summary: "Astrometrics satellites: the ISS, GPS, Galileo and the weather satellites where they are now"
         description: "Real Earth satellites round an Earth turned as it really does, from orbits shipped with LCARdS (nothing is downloaded). Top: the Earth orbit starter at diagram heights: the ISS, Tiangong and Hubble with their orbits, the GPS and Galileo constellations and the named geostationary weather satellites. ORBITS, EARTH and ISS fly the camera; LIVE runs the clock in real time, 2 MIN / S speeds it up. Bottom: the same at real heights, the ISS skimming the surface and the weather satellites almost six Earth radii out."

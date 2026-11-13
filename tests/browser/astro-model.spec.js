@@ -221,3 +221,33 @@ test('UX1 P6c visible size: the size button, the V key and model_scale draw smal
     await expect.poll(async () => (await state()).ship, { timeout: 5_000 }).toBeCloseTo(0.001, 6);
     expect((await cardErrors(page)).filter((e) => !/Frame took \d+ms/.test(e))).toEqual([]);
 });
+
+test('edges.width above 1 draws the edges as thick lines sized to the canvas (F2)', async ({ page }) => {
+    await mountCase(page, 'astro-model', { width: '800' });
+    await expect.poll(async () => (await model(page))?.state, { timeout: 15_000 }).toBe('ready');
+    const edges = () => page.evaluate(() => {
+        const ship = /** @type {any} */ (document.querySelector('#mount > *'))._scene.debug().world.objects.get('ship');
+        const out = { thin: 0, fat: 0, widths: new Set(), res: [] };
+        ship.node.traverse((o) => {
+            if (o.isLineSegments2) { out.fat++; out.widths.add(o.material.linewidth); out.res.push(o.material.resolution.x); } else if (o.isLineSegments && o.name !== 'placeholder') out.thin++;
+        });
+        return { thin: out.thin, fat: out.fat, widths: [...out.widths], minRes: Math.min(...out.res, Infinity) };
+    });
+    // 1 px by default: plain LineSegments
+    const before = await edges();
+    expect(before.thin).toBeGreaterThan(5);
+    expect(before.fat).toBe(0);
+    await page.evaluate(() => window.__reconfigure({
+        type: 'custom:lcards-astrometrics-card', height: 400,
+        camera: { view: 'side', views: { side: { target: [0, 0, 0], yaw: 90, tilt: 4, distance: 110 } } },
+        objects: [{ type: 'model', id: 'ship', src: 'builtin:constitution_class_refit', size: 70, edges: { width: 3 } }]
+    }));
+    await expect.poll(async () => (await model(page))?.state, { timeout: 15_000 }).toBe('ready');
+    await expect.poll(async () => (await edges()).fat, { timeout: 5_000 }).toBeGreaterThan(5);
+    const after = await edges();
+    expect(after.thin).toBe(0);
+    expect(after.widths).toEqual([3]);
+    // drawn at least once: the canvas size, not the 1 px default
+    await expect.poll(async () => (await edges()).minRes, { timeout: 5_000 }).toBeGreaterThan(100);
+    await page.locator('#mount').screenshot({ path: process.env.EDGE_SHOT ?? 'tmp/astro-model-edges.png' });
+});
