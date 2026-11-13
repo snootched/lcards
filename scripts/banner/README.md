@@ -23,6 +23,22 @@ node scripts/banner/encode-gif.mjs $S/cap-worm doc/public/img/lcards-banner.mp4 
 
 The `.webp` poster is one frame of the capture (ffmpeg, a frame where the wormhole is open). GitHub shows GIFs up to 10 MB; the current one is about 7 MB, the MP4 about 2 MB.
 
+## Banner v2 (the wormhole really opens)
+
+`e-wormhole-b-blue-anim-v2` (`doc/public/img/lcards-banner-v2.gif`, `.mp4`, `.webp`, 2026-11-13): the same frame and timeline as v1, but the funnel opens out of the flash instead of fading in: `well.morph` runs from a needle (`well.to: { profile: [0.02, 0.02] }`) to the trumpet while `depth` grows from 0.2 to 11, both following `input_number.banner_aperture` and eased in place. v1 stays as it is.
+
+```bash
+node scripts/banner/render.mjs scripts/banner/concepts/e-wormhole-b-blue-anim-v2.yaml $S/cap-v2 --wait 6000 --capture 9500
+node scripts/banner/encode-gif.mjs $S/cap-v2 doc/public/img/lcards-banner-v2.gif --fps 12 --colors 192 --crossfade 1000
+node scripts/banner/encode-gif.mjs $S/cap-v2 doc/public/img/lcards-banner-v2.mp4 --fps 30 --crossfade 1000
+```
+
+The poster `.webp` is the frame at 4 s (ffmpeg, `-quality 85`).
+
+## Banner v3 (staged like the DS9 wormhole)
+
+`e-wormhole-b-blue-anim-v3` (`doc/public/img/lcards-banner-v3.*`): v2's morph, staged on three values with their own timing. Opening: the flash, the disc blooms fast (`banner_aperture`), then the funnel's mouth widens (`banner_mouth`: `well.morph`) and its throat deepens (`banner_throat`: `depth`). Closing in reverse: the throat pulls back, the mouth narrows into the disc, the disc collapses into the core, the last flash. Render and encode as v2 with `-v3` names.
+
 ## Make the red version
 
 Only the blue animations exist; the red stills do (`concepts/*-red.yaml`). In `make-concepts.py`, the `*-anim.yaml` blocks call `banner(..., PROFILES['blue'], ...)` and write `*-blue-anim.yaml`: copy the block for the one you want with `PROFILES['red']` and a `-red-anim.yaml` file name, run it, then render and encode as above. The profile recolours the frame (title, bars, URL); the scene's own colours (`var(--lcards-blue-*)` in the vortex and nebula) stay unless you change them in the scene too.
