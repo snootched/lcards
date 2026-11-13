@@ -14,7 +14,7 @@
 
 Components reach the registry twice:
 
-1. **Bootstrap.** `LCARdSCore._performInitialization()` calls `componentManager.initialize()` before `PackManager` runs. `initialize()` imports `src/core/packs/components/index.js` and calls `registerComponent(name, def)` for every entry of its `components` object, which spreads `dpadComponents`, `dpadVoyagerComponents`, `sliderComponents`, `elbowComponents`, `alertComponents`, `bracketsComponents` and `radarComponents`. This is where every built-in component comes from.
+1. **Bootstrap.** `LCARdSCore._performInitialization()` calls `componentManager.initialize()` before `PackManager` runs. `initialize()` imports `src/core/packs/components/index.js` and calls `registerComponent(name, def)` for every entry of its `components` object, which spreads `dpadComponents`, `dpadVoyagerComponents`, `sliderComponents`, `elbowComponents`, `alertComponents` and `bracketsComponents`. This is where every built-in component comes from.
 2. **Packs.** `PackManager.registerPack()` passes any pack with a `components` key to `registerComponentsFromPack(pack)`, which re-registers each entry as `{ ...def, pack: pack.id }`. Among the built-in packs only `lcards_elbows` has `components` (it re-exports `elbowComponents`), so for elbows this only adds the `pack` field; it is also the path a new pack's components take.
 
 ```mermaid
@@ -42,7 +42,6 @@ From `src/core/packs/components/index.js`, grouped by `metadata.type`:
 | `dpad_voyager` | `dpad_voyager` | Button | `components/dpad_voyager/index.js` |
 | `alert` | `alert` | Button (and the alert overlay) | `components/alert/index.js` |
 | `brackets` | `brackets` | Button | `components/brackets/index.js` |
-| `radar` | `radar` | Button | `components/radar/index.js` |
 | `slider` | `default`, `picard`, `demo`, `shaped`, `ring` | Slider (`component:`) | `components/sliders/index.js` |
 | `elbow` | `header-left`, `header-right`, `footer-left`, `footer-right`, `header-contained`, `footer-contained`, `header-open`, `footer-open`, `diagonal-cap-left`, `diagonal-cap-right`, `diagonal-cap-footer-left`, `diagonal-cap-footer-right`, `bar-slant-left`, `bar-slant-right`, `bar-parallelogram`, `frame` | Elbow (`elbow.type`) | `components/elbows/index.js` |
 
@@ -54,7 +53,7 @@ From `src/core/packs/components/index.js`, grouped by `metadata.type`:
 
 All definitions carry `metadata` with at least `type`. The rest depends on the card that renders them.
 
-**Button components** (`dpad`, `dpad_voyager`, `alert`, `brackets`, `radar`): an SVG shell with named segments. Example (`dpad`, abbreviated):
+**Button components** (`dpad`, `dpad_voyager`, `alert`, `brackets`): an SVG shell with named segments. Example (`dpad`, abbreviated):
 
 ```javascript
 {
@@ -99,7 +98,7 @@ All definitions carry `metadata` with at least `type`. The rest depends on the c
 }
 ```
 
-`alert` also has `text` and `animations`; `brackets` and `radar` have no `validatePreset` / `getPresetNames` helpers (the button card checks `presets` itself).
+`alert` also has `text` and `animations`; `brackets` has no `validatePreset` / `getPresetNames` helpers (the button card checks `presets` itself).
 
 **Slider components**: `{ render(context), calculateZones(...), metadata }`. `metadata` carries `orientation`, `supportsOrientation`, `defaultOrientation`, `features` and either `configSchema` or `textZones`; there is no `card_type`. The slider calls `render()` to build its SVG (`src/cards/lcards-slider.js`, `getComponent(componentName)`).
 
@@ -146,7 +145,7 @@ cm.getComponent('dpad');              // full definition
 cm.hasComponent('dpad');              // true
 cm.getComponentsByType('elbow');      // ['header-left', 'header-right', ...]
 cm.getComponentsByType('dpad');       // ['dpad'] (dpad_voyager has its own type)
-cm.getComponentTypes();               // ['dpad', 'dpad_voyager', 'slider', 'elbow', 'alert', 'brackets', 'radar']
+cm.getComponentTypes();               // ['dpad', 'dpad_voyager', 'slider', 'elbow', 'alert', 'brackets']
 ```
 
 ---
@@ -157,7 +156,7 @@ cm.getComponentTypes();               // ['dpad', 'dpad_voyager', 'slider', 'elb
 ```javascript [Snapshot]
 window.lcards.debug.singleton('componentManager')
 // → { initialized: true, totalComponents: 26,
-//      componentsByType: { dpad: 1, dpad_voyager: 1, slider: 5, elbow: 16, alert: 1, brackets: 1, radar: 1 },
+//      componentsByType: { dpad: 1, dpad_voyager: 1, slider: 5, elbow: 16, alert: 1, brackets: 1 },
 //      componentNames: ['dpad', 'dpad_voyager', 'default', 'picard', ...] }
 ```
 ```javascript [Live object]

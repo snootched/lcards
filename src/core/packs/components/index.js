@@ -23,7 +23,6 @@ import { sliderComponents } from './sliders/index.js';
 import { elbowComponents } from './elbows/index.js';
 import { alertComponents } from './alert/index.js';
 import { bracketsComponents } from './brackets/index.js';
-import { radarComponents } from './radar/index.js';
 
 /**
  * Component registry mapping component names to their presets
@@ -36,7 +35,6 @@ export const components = {
     ...elbowComponents,          // Elbow components (header-left, header-right, footer-left, footer-right)
     ...alertComponents,          // Alert components (alert)
     ...bracketsComponents,       // Bracket arcs (brackets)
-    ...radarComponents,          // Radar scope (radar)
 };
 
 /**

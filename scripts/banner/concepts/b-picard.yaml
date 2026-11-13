@@ -1,5 +1,5 @@
 # Concept B, Picard: the split sweep (two segmented elbows meeting at a cut),
-# gray-blue roles, a red title, gauges, a number cascade and a radar.
+# gray-blue roles, a red title, gauges, a number cascade and brackets round a reading.
 banner_states:
   input_number.lcards_test_power: 72
   input_number.lcards_test_shields: 48
@@ -14,7 +14,7 @@ layout:
     "ucorner title title title"
     "ucorner ustrip ustrip ustrip"
     "lcorner lstrip lstrip lstrip"
-    "lcorner gauges cascade radar"
+    "lcorner gauges cascade brackets"
 cards:
   - type: custom:lcards-elbow
     view_layout:
@@ -175,8 +175,15 @@ cards:
         preset: cascade-color
   - type: custom:lcards-button
     view_layout:
-      grid-area: radar
-    component: radar
+      grid-area: brackets
+    component: brackets
+    text:
+      label:
+        content: "47"
+        show: true
+        position: center
+        font_size: 40
+        color: theme:colors.ui.tertiary
   # the sweeps continue as thin bars across the cut
   - type: custom:lcards-layout-card
     view_layout:

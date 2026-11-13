@@ -2,7 +2,7 @@
  * Bracket Arcs Component
  *
  * Two arcs, ( and ), framing a round display (meWho Titan.DS fleet directory, M141).
- * Put the content in the `center` zone (a ring gauge, a radar, a number) or layer a card
+ * Put the content in the `center` zone (a ring gauge, a number) or layer a card
  * over it; the arcs are segments, so they take state colours, actions and animations.
  *
  * @module core/packs/components/brackets

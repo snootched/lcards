@@ -1578,14 +1578,16 @@ cards:
 
 ## Brackets and scopes
 
-**Round displays framed by bracket arcs, and radar scopes (meWho's Titan.DS and Protostar screens).** They are the button's `brackets` and `radar` [components](../cards/button/components#brackets-and-radar), and both take their colours from the theme roles.
+**Round displays framed by bracket arcs, and radar scopes (meWho's Titan.DS and Protostar screens).** Brackets are the button's `brackets` [component](../cards/button/components#brackets), coloured by the theme roles; a scope is the Astrometrics card's [Radar scope starter](../cards/astrometrics/starters#radar-scope).
+
+- The scope is a real 3D scene: range rings, a turning sweep and contacts you can place from entities by distance and bearing, and you can tilt it.
 
 ```yaml live
 type: custom:lcards-layout-card
 layout:
   height: 300px
   grid-gap: 12px
-  grid-template-columns: 300px 300px
+  grid-template-columns: 300px
   grid-template-rows: minmax(0, 1fr)
 cards:
   - type: custom:lcards-button
@@ -1597,6 +1599,4 @@ cards:
         position: center
         font_size: 48
         color: theme:colors.ui.tertiary
-  - type: custom:lcards-button
-    component: radar
 ```

@@ -137,7 +137,8 @@ const FIRST = { grid: buildGrid, volume: buildVolume, sphere: buildSphere, image
  */
 function hostOf(b) {
   // radius read live: a model at its real size knows it once the file is in
-  return { node: b.placeNode ?? b.node, get radius() { return b.radius; }, cellPoint: b.cellPoint, moving: b.spin !== 0 || b.moving === true, ready: b.isReady, partNode: b.partNode, warp: b.warp };
+  // moving read live: a spin that follows an entity can start at 0 and turn later
+  return { node: b.placeNode ?? b.node, get radius() { return b.radius; }, cellPoint: b.cellPoint, get moving() { return b.spin !== 0 || b.moving === true; }, ready: b.isReady, partNode: b.partNode, warp: b.warp };
 }
 
 /**
@@ -338,9 +339,12 @@ export function buildScene(config, ctx, { cssColor = (v, f) => String(v ?? f) } 
   };
   placeSystems();
 
+  // rings first, then registered as hosts: a beam, path or trail to a point on a spinning
+  // ring then knows that point moves (else it is drawn once, where the point started)
+  for (const cfg of cfgs) if (cfg.type === 'ring') add(cfg, (c, x = ctx) => orbitLook(buildRing(c, x)));
+  for (const [id, b] of objects) if (!hosts.has(id)) hosts.set(id, hostOf(b));
   for (const cfg of cfgs) {
-    if (cfg.type === 'ring') add(cfg, (c, x = ctx) => orbitLook(buildRing(c, x)));
-    else if (cfg.type === 'path') add(cfg, (c, x = ctx) => orbitLook(buildPath(c, x, objects)));
+    if (cfg.type === 'path') add(cfg, (c, x = ctx) => orbitLook(buildPath(c, x, objects)));
     else if (cfg.type === 'beam') add(cfg, (c, x = ctx) => buildBeam(c, x));
     else if (cfg.type === 'trail') add(cfg, (c, x = ctx) => buildTrail(c, x));
   }

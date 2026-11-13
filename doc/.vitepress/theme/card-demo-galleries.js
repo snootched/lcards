@@ -382,7 +382,7 @@ ${ASTRO_FLOOR}  - { type: path, from: a, to: b, arc: 20, width: 2, color: var(--
   'sensor-sweep': {
     minWidth: 280,
     tiles: [
-      sweepTile('radar component', 'type: custom:lcards-button\ncomponent: radar\n', '{color: var(--lcars-orange), radius: 40}'),
+      sweepTile('brackets component', 'type: custom:lcards-button\ncomponent: brackets\n', '{color: var(--lcars-orange), radius: 40}'),
       sweepTile('lozenge, narrow wedge', 'type: custom:lcards-button\npreset: lozenge\n', '{color: var(--lcars-orange), angle: 20, duration: 2000}'),
       sweepTile('elbow corner, counter-clockwise', `${BOOT_ELBOW}`, '{center: [45, 12], radius: 70, direction: ccw, color: var(--lcars-blue)}'),
     ],

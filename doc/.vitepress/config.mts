@@ -643,7 +643,7 @@ export default withMermaid(defineConfig({
                 { text: 'Style, Text and Hover', link: '/cards/button/styles' },
                 { text: 'Icons', link: '/cards/button/icons' },
                 { text: 'Textures and Backgrounds', link: '/cards/button/textures' },
-                { text: 'D-pads, Alerts and Scopes', link: '/cards/button/components' },
+                { text: 'D-pads, Alerts and Brackets', link: '/cards/button/components' },
                 { text: 'Custom SVG', link: '/cards/button/custom-svg' },
                 { text: 'Playground', link: '/cards/button/playground' },
               ],

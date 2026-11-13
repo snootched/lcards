@@ -14,7 +14,6 @@ export const COMPONENT_GRID = {
     dpad:         { columns: 6, rows: 5 },
     dpad_voyager: { columns: 6, rows: 6 },
     brackets:     { columns: 6, rows: 5 },
-    radar:        { columns: 6, rows: 5 },
     alert:        { columns: 6, rows: 4 },
 };
 

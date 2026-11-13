@@ -293,14 +293,12 @@ sections:
         layout:
           height: 300px
           grid-gap: 12px
-          grid-template-columns: 300px 300px
+          grid-template-columns: 300px
           grid-template-rows: minmax(0, 1fr)
         cards:
           - type: custom:lcards-button
             component: brackets
             text: {label: {content: '88', show: true, position: center, font_size: 48, color: theme:colors.ui.tertiary}}
-          - type: custom:lcards-button
-            component: radar
         grid_options:
           columns: 24
           rows: 5

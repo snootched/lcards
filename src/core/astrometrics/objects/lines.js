@@ -642,7 +642,8 @@ export function buildPath(cfg, ctx, objects) {
     set(anchoredRuns(node, [run]));
   };
   out.repin = repinner(node, out.update);
-  out.dynamic = refs.some((r) => !!ctx.places?.isDynamic(r)) || (local && !!ctx.places?.isDynamic(cfg.at));
+  // read each frame: a point's host can start moving later (a spin that follows an entity)
+  Object.defineProperty(out, 'dynamic', { get: () => refs.some((r) => !!ctx.places?.isDynamic(r)) || (local && !!ctx.places?.isDynamic(cfg.at)), configurable: true });
   return out;
 }
 
@@ -677,7 +678,8 @@ export function buildBeam(cfg, ctx) {
     lines.forEach((l) => l.setRuns(run));
   };
   out.repin = repinner(node, out.update);
-  out.dynamic = !!(ctx.places?.isDynamic(cfg.from) || ctx.places?.isDynamic(cfg.to));
+  // read each frame: a point's host can start moving later (a spin that follows an entity)
+  Object.defineProperty(out, 'dynamic', { get: () => !!(ctx.places?.isDynamic(cfg.from) || ctx.places?.isDynamic(cfg.to)), configurable: true });
   return out;
 }
 

@@ -1,0 +1,16 @@
+# A beam to a point riding a spinning ring follows the point (the radar scope's sweep): one ring
+# spins at a fixed rate, the other's spin follows an entity and starts at 0
+type: custom:lcards-astrometrics-card
+height: 400
+camera:
+  views:
+    v: { target: [0, 0, 0], tilt: 90, distance: 260 }
+points:
+  - { id: centre, xyz: [0, 0, 0] }
+  - { id: fixed_tip, polar: [80, 0], object: fixed_ring }
+  - { id: bound_tip, polar: [50, 0], object: bound_ring }
+objects:
+  - { type: ring, id: fixed_ring, radius: 80, spin: -90, opacity: 0 }
+  - { type: ring, id: bound_ring, radius: 50, spin: { entity: input_number.lcards_test_power, output: [0, -90], smooth: 0 }, opacity: 0 }
+  - { type: beam, id: fixed_beam, from: centre, to: fixed_tip, width: 2 }
+  - { type: beam, id: bound_beam, from: centre, to: bound_tip, width: 2 }

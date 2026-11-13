@@ -13,7 +13,7 @@ import { COMPONENT_GRID, buttonGridOptions as grid, mergeSegmentLayers, spreadBo
 test('components report the rows they draw to (they collapsed at 1 row in a sections view)', () => {
     assert.deepEqual(
         Object.fromEntries(Object.entries(COMPONENT_GRID).map(([k, v]) => [k, v.rows])),
-        { dpad: 5, dpad_voyager: 6, brackets: 5, radar: 5, alert: 4 },
+        { dpad: 5, dpad_voyager: 6, brackets: 5, alert: 4 },
     );
     assert.deepEqual(grid({ component: 'dpad' }), { columns: 6, rows: 5, min_columns: 2, min_rows: 2 });
     assert.deepEqual(grid({ preset: 'lozenge' }), { columns: 4, rows: 1, min_columns: 1, min_rows: 1 });

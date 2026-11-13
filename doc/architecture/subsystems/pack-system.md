@@ -201,7 +201,7 @@ src/core/packs/
     elbows/index.js                 ← elbowComponents
     sliders/                        ← sliderComponents (default, picard, demo, shaped, ring)
     dpad/, dpad_voyager/            ← dpadComponents, dpadVoyagerComponents (+ .svg)
-    alert/, brackets/, radar/       ← alertComponents, bracketsComponents, radarComponents
+    alert/, brackets/               ← alertComponents, bracketsComponents
     buttons/index.js                ← BUTTON_COMPONENTS (not in components/index.js)
   themes/
     tokens/lcardsDefaultTokens.js   ← token tree of lcards-default

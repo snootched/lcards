@@ -2157,6 +2157,64 @@ backdrop: { stars: { count: 1500 } }
 clock: { date: now, rate: live }
 ```
 
+### Radar scope
+
+A round sensor scope: range rings with their distances, cross hairs, a sweep turning round with a fading afterglow, and contacts placed by distance and bearing. Give a contact polar: { entity } to place it from an entity's distance and bearing attributes, and tilt the camera to see the scope in perspective.
+
+| Setting | Default | Notes |
+|---|---|---|
+| Sweep speed (degrees a second) | `60` |  |
+
+```yaml live collapsed
+type: custom:lcards-astrometrics-card
+height: 400
+points:
+  - { id: centre, xyz: [0, 0, 0] }
+  - { id: sweep_1, polar: [100, -0.0], object: sweep_ring }
+  - { id: sweep_2, polar: [100, -3], object: sweep_ring }
+  - { id: sweep_3, polar: [100, -6], object: sweep_ring }
+  - { id: sweep_4, polar: [100, -9], object: sweep_ring }
+  - { id: sweep_5, polar: [100, -12], object: sweep_ring }
+  - { id: sweep_6, polar: [100, -15], object: sweep_ring }
+  - { id: sweep_7, polar: [100, -18], object: sweep_ring }
+  - { id: sweep_8, polar: [100, -21], object: sweep_ring }
+  - { id: sweep_9, polar: [100, -24], object: sweep_ring }
+  - { id: sweep_10, polar: [100, -27], object: sweep_ring }
+  - { id: range_1, polar: [25, 135], label: '25', style: tiny, overlap: true }
+  - { id: range_2, polar: [50, 135], label: '50', style: tiny, overlap: true }
+  - { id: range_3, polar: [75, 135], label: '75', style: tiny, overlap: true }
+  - { id: range_4, polar: [100, 135], label: '100', style: tiny, overlap: true }
+  - { id: north, polar: [112, 0], label: '000', style: minor, overlap: true }
+  - { id: east, polar: [112, 90], label: '090', style: minor, overlap: true }
+  - { id: south, polar: [112, 180], label: '180', style: minor, overlap: true }
+  - { id: west, polar: [112, 270], label: '270', style: minor, overlap: true }
+  - { id: contact_1, polar: [62, 40], marker: dot, label: CONTACT 1, style: tiny, color: var(--lcars-orange) }
+  - { id: contact_2, polar: [35, 215], marker: dot, label: CONTACT 2, style: tiny, color: var(--lcars-orange) }
+  - { id: contact_3, polar: [85, 300], marker: dot, label: UNKNOWN, style: tiny, color: var(--lcars-red) }
+objects:
+  - { type: grid, id: scope, shape: disc, radius: 100, pattern: polar, line_spacing: 25, spoke_count: 12, opacity: 0.6 }
+  - { type: ring, id: rim, radius: 100, width: 3, color: theme:colors.ui.primary }
+  - { type: beam, id: cross_ns, from: [0, 0, -100], to: [0, 0, 100], width: 1, color: theme:colors.ui.secondary }
+  - { type: beam, id: cross_ew, from: [-100, 0, 0], to: [100, 0, 0], width: 1, color: theme:colors.ui.secondary }
+  - { type: ring, id: sweep_ring, radius: 100, spin: -60, opacity: 0 }
+  - { type: beam, id: sweep_line_1, from: centre, to: sweep_1, width: 3, opacity: 0.9, color: var(--lcars-green) }
+  - { type: beam, id: sweep_line_2, from: centre, to: sweep_2, width: 2, opacity: 0.76, color: var(--lcars-green) }
+  - { type: beam, id: sweep_line_3, from: centre, to: sweep_3, width: 2, opacity: 0.63, color: var(--lcars-green) }
+  - { type: beam, id: sweep_line_4, from: centre, to: sweep_4, width: 2, opacity: 0.51, color: var(--lcars-green) }
+  - { type: beam, id: sweep_line_5, from: centre, to: sweep_5, width: 2, opacity: 0.4, color: var(--lcars-green) }
+  - { type: beam, id: sweep_line_6, from: centre, to: sweep_6, width: 2, opacity: 0.3, color: var(--lcars-green) }
+  - { type: beam, id: sweep_line_7, from: centre, to: sweep_7, width: 2, opacity: 0.21, color: var(--lcars-green) }
+  - { type: beam, id: sweep_line_8, from: centre, to: sweep_8, width: 2, opacity: 0.13, color: var(--lcars-green) }
+  - { type: beam, id: sweep_line_9, from: centre, to: sweep_9, width: 2, opacity: 0.07, color: var(--lcars-green) }
+  - { type: beam, id: sweep_line_10, from: centre, to: sweep_10, width: 2, opacity: 0.02, color: var(--lcars-green) }
+  - { type: glow, at: contact_1, size: 10, color: var(--lcars-orange) }
+  - { type: glow, at: contact_2, size: 10, color: var(--lcars-orange) }
+  - { type: glow, at: contact_3, size: 10, color: var(--lcars-red) }
+camera:
+  view: scope
+  views: { scope: { target: [0, 0, 0], tilt: 90, distance: 330 }, tilted: { target: [0, 0, 0], yaw: 0, tilt: 35, distance: 300 } }
+```
+
 ### Star Trek galaxy
 
 The Milky Way in light years cut into the four quadrants (the Alpha/Beta line runs from Sol to the core), with the Federation, the Klingon, Romulan and Cardassian empires, the Dominion and the Borg, the Bajoran wormhole to the Gamma Quadrant, Voyager's route home from Ocampa and the Great Barrier. Fly in to Sol for Federation space: Vulcan, Andoria and Tellar at their real stars (40 Eridani, Procyon, 61 Cygni), the Klingon, Romulan and Cardassian capitals at the distances the reference charts give. The galaxy view sizes the empires to be seen, so the two scales do not overlay exactly.

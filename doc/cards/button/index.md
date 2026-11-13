@@ -1,5 +1,5 @@
 ---
-description: "Button card: LCARS buttons, labels, panels and bar-label headers from presets, D-pads, alert symbols, bracket and radar displays, and your own interactive SVG."
+description: "Button card: LCARS buttons, labels, panels and bar-label headers from presets, D-pads, alert symbols, bracket displays, and your own interactive SVG."
 moved_anchors:
   common-properties: /cards/button/#card-options
   config-structure: /cards/button/#card-options
@@ -21,7 +21,7 @@ moved_anchors:
   background-animations: /cards/button/textures#background-animation
   component-mode-d-pad: /cards/button/components#dpad
   voyager-d-pad: /cards/button/components#dpad-voyager
-  component-mode-brackets-and-radar: /cards/button/components#brackets-and-radar
+  component-mode-brackets-and-radar: /cards/button/components#brackets
   component-mode-alert: /cards/button/components#alert
   alert-object: /cards/button/components#alert
   ranges-list-state-driven-preset-switching: /cards/button/components#ranges
@@ -35,7 +35,7 @@ moved_anchors:
 
 **The LCARS building block: a toggle button, a label, a panel or a section header, or a D-pad, alert symbol or round display.** Most buttons need only an `entity` and a `preset`.
 
-- A button is drawn one of three ways: a `preset` shape, a `component` (a D-pad, the alert symbol, bracket arcs or a radar scope), or your own `svg`.
+- A button is drawn one of three ways: a `preset` shape, a `component` (a D-pad, the alert symbol or bracket arcs), or your own `svg`.
 - The [Elbow card](../elbow/) is built on the button, so most of these pages apply to elbows too.
 
 ::: tip Try it
@@ -48,7 +48,7 @@ moved_anchors:
 | [Style, Text and Hover](./styles) | Background and border colours, text, hover and cursor, filters |
 | [Icons](./icons) | The icon, its area beside the text, per-state icons, the divider |
 | [Textures and Backgrounds](./textures) | Moving textures inside the shape and animated backgrounds |
-| [D-pads, Alerts and Scopes](./components) | The D-pad, Voyager D-pad, alert symbol, brackets and radar |
+| [D-pads, Alerts and Brackets](./components) | The D-pad, Voyager D-pad, alert symbol and brackets |
 | [Custom SVG](./custom-svg) | Your own SVG with tappable parts |
 | [Playground](./playground) | Edit YAML and see the button live |
 
@@ -171,7 +171,7 @@ hold_action:
 | `type` | string | required | `custom:lcards-button` |
 | `entity` | string | - | The entity the button shows and acts on |
 | `preset` | string | - | The shape: see [Presets](#presets). With `component`, the component's preset |
-| `component` | string | - | `dpad`, `dpad_voyager`, `alert`, `brackets` or `radar`: see [D-pads, Alerts and Scopes](./components) |
+| `component` | string | - | `dpad`, `dpad_voyager`, `alert` or `brackets`: see [D-pads, Alerts and Brackets](./components) |
 | `svg` | object | - | Your own SVG: see [Custom SVG](./custom-svg) |
 | `style` | object | from the preset | Background, border, cursor and text defaults: see [Style, Text and Hover](./styles) |
 | `text` | object | from the preset | Text on the card: see [Text fields](./styles#text-fields) |
@@ -188,8 +188,7 @@ hold_action:
 | `background_animation` | list | - | An animated background: see [background_animation](./textures#background-animation) |
 | `dpad` | object | - | D-pad segments: see [dpad](./components#dpad) |
 | `dpad_voyager` | object | - | Voyager D-pad segments: see [dpad_voyager](./components#dpad-voyager) |
-| `brackets` | object | - | Bracket segments: see [Brackets and Radar](./components#brackets-and-radar) |
-| `radar` | object | - | Radar segments: see [Brackets and Radar](./components#brackets-and-radar) |
+| `brackets` | object | - | Bracket segments: see [Brackets](./components#brackets) |
 | `alert` | object | - | Alert colours and presets: see [alert](./components#alert) |
 | `ranges` | list | - | Switch the component's preset by value: see [ranges](./components#ranges) |
 | `ranges_attribute` | string | the state | The attribute that [range colours](/core/colours/attributes#ranges-attribute) and `ranges` compare |

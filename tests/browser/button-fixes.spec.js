@@ -11,7 +11,7 @@ import { mountCase, expectNoErrors } from './support.js';
 const card = (page) => page.locator('lcards-button').first();
 
 test('button components report the rows they draw to; the user\'s grid_options wins', async ({ page }) => {
-    await mountCase(page, 'button-radar');
+    await mountCase(page, 'button-brackets');
     const grid = () => card(page).evaluate(el => /** @type {any} */ (el).getGridOptions());
     expect(await grid()).toMatchObject({ columns: 6, rows: 5 });
     for (const [component, rows] of [['dpad', 5], ['dpad_voyager', 6], ['brackets', 5], ['alert', 4]]) {

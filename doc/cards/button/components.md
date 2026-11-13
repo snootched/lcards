@@ -1,10 +1,10 @@
 ---
-description: "Button card components: the D-pad and Voyager D-pad with an action per segment, bracket arcs and radar scopes, and the Starfleet alert symbol with condition presets switched by value (ranges)."
+description: "Button card components: the D-pad and Voyager D-pad with an action per segment, bracket arcs round a reading, and the Starfleet alert symbol with condition presets switched by value (ranges)."
 ---
 
-# D-pads, Alerts and Scopes
+# D-pads, Alerts and Brackets
 
-`component` swaps the button's shape for a ready-made drawing whose parts (segments) each take their own colours and actions: a D-pad, the Voyager D-pad, the alert symbol, bracket arcs and a radar scope.
+`component` swaps the button's shape for a ready-made drawing whose parts (segments) each take their own colours and actions: a D-pad, the Voyager D-pad, the alert symbol and bracket arcs.
 
 - A component draws to the height of its grid cell and keeps its proportions. In a sections view it asks for 6 columns and 5 rows (`alert` 4 rows, `dpad_voyager` 6); `grid_options` in your config changes that.
 - Text fields go into the component's zones with `zone` (such as `center`); every component also has a `full` zone covering the whole drawing. See [Zones](/core/text-fields-zones).
@@ -148,12 +148,12 @@ dpad_voyager:
 | `dpad_voyager.segments.default` | object | - | [Segment keys](#segment-keys) for every segment |
 | `dpad_voyager.segments.<id>` | object | the theme's D-pad colours | [Segment keys](#segment-keys) for one segment |
 
-## Brackets and Radar
+## Brackets
 
-**Two decorative round components: `brackets` frames a reading between two arcs, `radar` draws a scope.** Put a number or label in the `center` zone with a text field.
+**A round display: `brackets` frames a reading between two arcs.** Put a number or label in the `center` zone with a text field.
 
 - `brackets` has the segments `left` and `right`, and the zones `center`, `left` and `right`.
-- `radar` has the segments `rim`, `rings`, `inner-ring`, `cross` and `sweep` (the wedge), and the zone `center`. Their colours come from the theme's primary and secondary colours.
+- For a radar scope with a turning sweep and contacts, use the Astrometrics card's [Radar scope starter](/cards/astrometrics/starters#radar-scope).
 
 ```yaml live
 type: custom:lcards-button
@@ -166,25 +166,10 @@ text:
     color: theme:colors.ui.tertiary
 ```
 
-```yaml live
-type: custom:lcards-button
-component: radar
-radar:
-  segments:
-    sweep:
-      style:
-        fill: var(--lcars-orange)
-    rim:
-      style:
-        stroke: var(--lcars-blue)
-```
-
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `brackets.segments.default` | object | - | [Segment keys](#segment-keys) for both arcs |
 | `brackets.segments.<id>` | object | the theme's secondary colour | [Segment keys](#segment-keys) for `left` or `right` |
-| `radar.segments.default` | object | - | [Segment keys](#segment-keys) for every part |
-| `radar.segments.<id>` | object | the theme's colours | [Segment keys](#segment-keys) for `sweep`, `rings`, `inner-ring`, `cross` or `rim` |
 
 ## alert
 

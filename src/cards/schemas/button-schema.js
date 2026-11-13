@@ -125,14 +125,13 @@ export function getButtonSchema(options = {}) {
 
             component: {
                 type: 'string',
-                enum: ['dpad', 'dpad_voyager', 'alert', 'brackets', 'radar'],
+                enum: ['dpad', 'dpad_voyager', 'alert', 'brackets'],
                 description: 'Component type (mutually exclusive with preset)',
                 enumDescriptions: [
                     'D-pad directional control (up/down/left/right/center)',
                     'D-pad directional control, Voyager LCARS ring styling (up/down/left/right/center)',
                     'Alert symbol with animated bar segments (red/blue/green/yellow/grey/black)',
-                    'Bracket arcs ( ) framing a round display; content in the center zone',
-                    'Radar scope: rim, range rings, cross hairs and a sweep wedge'
+                    'Bracket arcs ( ) framing a round display; content in the center zone'
                 ]
             },
 
@@ -1025,12 +1024,11 @@ export function getButtonSchema(options = {}) {
             grid_options: gridOptionsSchema
         }
     };
-    // The Voyager D-pad, bracket and radar components take the same per-segment config as the D-pad.
+    // The Voyager D-pad and bracket components take the same per-segment config as the D-pad.
     const dpad = /** @type {any} */ (schema.properties).dpad;
     for (const [key, ids] of [
         ['dpad_voyager', 'every shape of the artwork, e.g. center, up_arrow, down_arrow, left_arrow, right_arrow, up_left, up_right, down_left, down_right, up_ring, ring_up_1, top_bar_1, accent_1'],
         ['brackets', 'left, right'],
-        ['radar', 'sweep, rings, inner-ring, cross, rim'],
     ]) {
         /** @type {any} */ (schema.properties)[key] = {
             ...dpad,
