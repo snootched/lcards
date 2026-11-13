@@ -12,8 +12,10 @@
  * [low, high] of the entity, `output` [low, high] of the setting. `input`
  * defaults to the entity's `min` / `max` attributes, else 0 to 100; without
  * `output` the value is the entity's number as it is. Values outside `input`
- * hold at the ends of `output` unless `clamp: false`. A state of `off` or
- * `on` (no `attribute`) reads as the low or high end of `input`. A missing or
+ * hold at the ends of `output` unless `clamp: false`. Any other key is a state
+ * with its value (`playing: 1`, `active: 40`, `above:80: 60`), matched first, in
+ * the state colours' order; read by its state alone, an active entity (on,
+ * playing, home) gives the high end of `input` and an inactive one the low end. A missing or
  * non-numeric value (a light that is off has no brightness) gives `default`,
  * the setting's value then, else leaves the key at its own default.
  *
@@ -46,7 +48,7 @@
 import { TemplateDetector } from '../templates/TemplateDetector.js';
 import { templateRefs } from '../templates/template-refs.js';
 import { BINDABLE_FORMS } from './placements.js';
-import { WHOLE_NUMBER_KEYS, LIVE_TYPE_KEYS, objectIds } from './names.js';
+import { WHOLE_NUMBER_KEYS, LIVE_TYPE_KEYS, SETTING_WORDS, objectIds } from './names.js';
 import { stateKeyFor } from '../../utils/state-color-resolver.js';
 import { isColorValue } from '../themes/color-syntax.js';
 
@@ -198,20 +200,54 @@ export function roundedSetting(b, value) {
 export const bindingKey = (b) => `${b.scope}:${b.id}:${b.path.join('.')}`;
 
 /**
- * The number a mapping gives for an entity now: the state (or `attribute`),
- * mapped from `input` to `output` and clamped; a state of `off` or `on` (a
- * light, a switch: no attribute named) reads as the low or high end of
- * `input`; `default`, else null, when there is no number.
+ * The state keys of a binding (`playing: 1`, `active: 40`, `above:80: 60`): every key
+ * that is not one of SETTING_WORDS, with a number.
+ * @param {Record<string, any>} spec
+ * @returns {Record<string, number>}
+ */
+export function stateValues(spec) {
+  /** @type {Record<string, number>} */
+  const out = {};
+  for (const [k, v] of Object.entries(spec ?? {})) {
+    if (!(/** @type {readonly string[]} */ (SETTING_WORDS)).includes(k) && typeof v === 'number' && Number.isFinite(v)) out[k] = v;
+  }
+  return out;
+}
+
+/**
+ * The number a setting that follows an entity gives now, in the order the state
+ * colours use (state-color-resolver.js stateKeyFor): a state key that matches (the
+ * state or `attribute`'s value, `zero`, a range, `non_zero`, then the classified
+ * `active` / `inactive` / `unavailable`); else the state (or `attribute`) as a number
+ * mapped from `input` to `output`; else, with no state keys and read by the state, `active`
+ * as the high end of `input` and `inactive` as the low end (a light, a switch, a player
+ * that is playing); else `default`, else null.
  * @param {Record<string, any>} spec
  * @param {any} entity - a Home Assistant state object
+ * @param {string | null} [classified] - the card's active / inactive / unavailable for it
+ *   (LCARdSCard._classifyEntityState); left out, on is active and off inactive
  * @returns {number | null}
  */
-export function mapEntity(spec, entity) {
+export function mapEntity(spec, entity, classified) {
   if (!entity) return missing(spec);
   const named = typeof spec.attribute === 'string' && spec.attribute;
-  const raw = named ? entity.attributes?.[spec.attribute] : entity.state;
-  if (!named && (raw === 'on' || raw === 'off')) return mapNumber(spec, inputOf(spec, entity.attributes)[raw === 'on' ? 1 : 0], entity.attributes);
-  return mapNumber(spec, raw, entity.attributes);
+  const raw = named ? attributeOf(entity, spec.attribute) : entity.state;
+  const kind = classified ?? (entity.state === 'on' ? 'active' : entity.state === 'off' ? 'inactive' : null);
+  const states = stateValues(spec);
+  if (Object.keys(states).length) {
+    const key = stateKeyFor({
+      actualState: entity.state ?? null,
+      classifiedState: kind,
+      colorConfig: states,
+      ...(named ? { attributeState: raw === null || raw === undefined ? undefined : String(raw), numericState: parseFloat(raw) } : {})
+    });
+    if (key !== null) return states[key];
+  }
+  const n = mapNumber({ ...spec, default: undefined }, raw, entity.attributes);
+  if (n !== null) return n;
+  // a range alone (no state keys: those that do not match give default)
+  if (!named && !Object.keys(states).length && (kind === 'active' || kind === 'inactive')) return mapNumber(spec, inputOf(spec, entity.attributes)[kind === 'active' ? 1 : 0], entity.attributes);
+  return missing(spec);
 }
 
 /**
@@ -232,6 +268,21 @@ export function mapNumber(spec, raw, attributes = {}) {
   const t0 = span === 0 ? 0 : (n - input[0]) / span;
   const t = spec?.clamp === false ? t0 : Math.min(1, Math.max(0, t0));
   return output[0] + t * (output[1] - output[0]);
+}
+
+/**
+ * An entity's attribute, with the virtual `brightness_pct` the other cards read (a light's
+ * brightness as 0 to 100 %, 0 while it is off: LCARdSCard._getNumericStateForRanges)
+ * @param {any} entity
+ * @param {string} name
+ * @returns {any}
+ */
+export function attributeOf(entity, name) {
+  if (name === 'brightness_pct') {
+    const b = entity?.attributes?.brightness;
+    return b === undefined ? undefined : Math.round(Number(b ?? 0) / 2.55);
+  }
+  return entity?.attributes?.[name];
 }
 
 /**
@@ -275,7 +326,7 @@ function pairOf(v) {
 export function entityColor(spec, entity, classified) {
   const { entity: _id, attribute, ...map } = spec;
   const attr = typeof attribute === 'string' && attribute ? attribute : null;
-  const raw = attr ? entity?.attributes?.[attr] : entity?.state;
+  const raw = attr ? attributeOf(entity, attr) : entity?.state;
   const n = attr ? parseFloat(raw) : undefined;
   const key = stateKeyFor({
     actualState: entity?.state ?? null,

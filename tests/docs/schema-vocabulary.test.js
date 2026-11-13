@@ -57,8 +57,9 @@ test('the astrometrics setting binding is the map_range shape', () => {
   let binding = null;
   walk(astro.schema, '', (props) => { if (props.entity && props.input && props.output && props.smooth) binding = props; });
   assert.ok(binding, 'a binding with entity, input, output (and smooth)');
-  // default: the value while the entity has no number (the button card's { template, default } word, 2026-11-13)
-  assert.deepEqual(Object.keys(/** @type {any} */ (binding)).sort(), ['attribute', 'clamp', 'default', 'entity', 'input', 'output', 'smooth']);
+  // default: the value while the entity has no number (the button card's { template, default } word, 2026-11-13);
+  // a value per state: the state colour keys, with numbers (2026-11-13)
+  assert.deepEqual(Object.keys(/** @type {any} */ (binding)).sort(), ['active', 'attribute', 'clamp', 'default', 'entity', 'inactive', 'input', 'non_zero', 'output', 'smooth', 'unavailable', 'zero']);
 });
 
 /**

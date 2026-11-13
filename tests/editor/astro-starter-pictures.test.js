@@ -71,8 +71,9 @@ test('starter params become form fields: numbers, point pickers, dropdowns, text
       const want = p.type === 'number' || p.type === 'setting' ? 'number' : p.type === 'point' ? 'pointRef' : p.options?.length && !p.custom ? 'enum' : 'text';
       assert.equal(kind, want, `${s.id}.${p.key}`);
       assert.equal(schema[p.key]['x-ui-hints'].label, p.label);
-      // a setting: the "Follow an entity" button, and a panel with the entity, attribute and input (no output: the starter writes it)
-      if (p.type === 'setting') assert.deepEqual(Object.keys(bindingBranch(schema[p.key]).properties), ['entity', 'attribute', 'input'], `${s.id}.${p.key}`);
+      // a setting: the "Follow an entity" button, and a panel with the entity, attribute and input, or a value per
+      // state, and default (no output: the starter writes it)
+      if (p.type === 'setting') assert.deepEqual(Object.keys(bindingBranch(schema[p.key]).properties), ['entity', 'attribute', 'input', 'default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero'], `${s.id}.${p.key}`);
     }
   }
   assert.ok(STARTERS.filter((s) => s.params.some((p) => p.key === 'power' && p.type === 'setting')).length === 2, 'both wormhole starters take a power setting');

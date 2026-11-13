@@ -73,8 +73,8 @@ export function bajoranWormhole({ prefix, at, size = 70, power, extra = {}, star
   const label = (/** @type {string} */ name, /** @type {number[]} */ off, /** @type {string} */ text) =>
     pt(name, off, { label: text, style: 'minor', look: 'diagram', tap_action: { action: 'fly-to' } });
   // the regions wobble more as the mouth opens
-  const { bind, fixed } = wormholePower(power);
-  const wobbleAmp = bind ? { ...bind, output: [0, 0.05], default: 0 } : Math.round(30 * (fixed === null ? 1 : fixed / 100)) / 1000;
+  const { bind, fixed, follow } = wormholePower(power);
+  const wobbleAmp = bind ? follow(0, 0.05) : Math.round(30 * (fixed === null ? 1 : fixed / 100)) / 1000;
   const wobble = [{ type: 'wobble', lobes: 0, waves: 2, period: 4, amplitude: wobbleAmp }];
   const lobe = (/** @type {string} */ name, /** @type {string} */ where, /** @type {number[]} */ profile, /** @type {number} */ radius, /** @type {number} */ depth, /** @type {number} */ opacity) => ({
     type: 'grid', id: id(name), shape: 'well', well: { profile }, at: where, face: id('east'), radius: radius * k, depth: depth * k,

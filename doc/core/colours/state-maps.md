@@ -145,6 +145,7 @@ Steps 3 to 5 read the state as a number, or the attribute named by [`ranges_attr
 - **Elbow:** `elbow.segment.color`, each segment's `color` in `elbow.segments`, `symbiont.imprint.background` and `symbiont.imprint.text.color`.
 - **Slider:** `style.gauge.indicator.color` and `.border.color`, `style.gauge.progress_bar.color`, `style.ranges[].color`, `style.shaped.fill.color`, `style.border.<side>.color` and more: see the [Slider Card](/cards/slider-card/styles) pages.
 - **Other cards:** data grid cell `color` and `background` ([Conditional colours](/cards/data-grid/data#conditional-colours)), MSD line and shape `style.color` ([Dynamic styling](/cards/msd/line-overlay#dynamic-styling)), and astrometrics points and objects ([Colours from entities](/cards/astrometrics/data#colours-from-entities)).
+- **Numbers too:** on the astrometrics card the same keys, each with a number instead of a colour, set any number on a point or object by state (`opacity: { entity: media_player.tv, playing: 1, paused: 0.4, default: 0 }`): see [Settings by state](/cards/astrometrics/data#settings-by-state).
 
 The settings of a [background animation](/core/effects/background-animations) and a button's `divider.color` take one colour (or, for a background animation, a template), not a state map.
 

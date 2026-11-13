@@ -54,8 +54,9 @@ export const TYPE_GROUPS = /** @type {const} */ ([
 ]);
 
 /**
- * A starter setting that follows an entity: entity, attribute and input (the starter
- * writes each output itself, so the panel shows no output, clamp or smooth)
+ * A starter setting that follows an entity: entity, attribute and input, or a value per
+ * state, and default (the starter writes each output itself, so the panel shows no output,
+ * clamp or smooth; the values are the setting's own, a wormhole's power 0 to 100)
  */
 const SETTING_BINDING = {
   type: 'object',
@@ -63,8 +64,15 @@ const SETTING_BINDING = {
   properties: {
     entity: { type: 'string' },
     attribute: { type: 'string' },
-    input: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 }
-  }
+    input: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 },
+    default: { type: 'number' },
+    active: { type: 'number' },
+    inactive: { type: 'number' },
+    unavailable: { type: 'number' },
+    zero: { type: 'number' },
+    non_zero: { type: 'number' }
+  },
+  additionalProperties: { type: 'number' }
 };
 
 /** A point id or [x, y, z]: the schema shape the form shows as a point picker */

@@ -29,7 +29,7 @@ import { migrateDataGridConfig } from '../../src/data-grid/data-grid-config-migr
 import { classifyThemePath } from './theme-token-rules.js';
 import { parseAreasString } from '../../src/views/layout-grid-utils.js';
 import { CARD_PLUMBING_KEYS as PLUMBING_KEYS } from '../../src/cards/schemas/card-plumbing.js';
-import { PLACEMENT_FORMS, LABEL_STYLE_NAMES, UNIT_NAMES, SATELLITE_NAMES } from '../../src/core/astrometrics/names.js';
+import { PLACEMENT_FORMS, LABEL_STYLE_NAMES, UNIT_NAMES, SATELLITE_NAMES, SETTING_WORDS } from '../../src/core/astrometrics/names.js';
 import { withNebulaPreset } from '../../src/core/astrometrics/nebula-presets.js';
 import { missingPresetParams } from '../../src/cards/schemas/animation-preset-params-schemas.js';
 import { actionSchema } from '../../src/cards/schemas/common-schemas.js';
@@ -705,6 +705,24 @@ export function astrometricsIssues(node) {
   const warps = node.camera?.warp === true || Object.values(views).some((v) => v?.warp === true)
     || points.some(({ p }) => p?.view?.warp === true) || objects.some(({ o }) => o?.view?.warp === true);
   if (warps && !node.backdrop?.stars && !node.backdrop?.dust) warn('backdrop', 'warp streaks the stars and dust: add backdrop.stars or backdrop.dust');
+  // a number that follows an entity takes any state as a key (playing: 1), so a misspelt
+  // word (smoth: 800) reads as a state: say so
+  const STATE_WORDS = new Set(['active', 'inactive', 'unavailable', 'zero', 'non_zero']);
+  const bindingTypos = (/** @type {any} */ v, /** @type {string} */ at) => {
+    if (!v || typeof v !== 'object') return;
+    if (Array.isArray(v)) { v.forEach((x, i) => bindingTypos(x, `${at}[${i}]`)); return; }
+    if (typeof v.entity === 'string') {
+      for (const [k, x] of Object.entries(v)) {
+        if (typeof x !== 'number' || /** @type {readonly string[]} */ (SETTING_WORDS).includes(k) || STATE_WORDS.has(k) || /^(above|at_least|below|at_most|between|between_exclusive):/.test(k)) continue;
+        const best = closest(k, SETTING_WORDS.filter((w) => w !== 'entity'));
+        if (best) warn(`${at}.${k}`, `"${k}" is read as a state named ${k}: did you mean ${best}?`);
+      }
+      return;
+    }
+    for (const [k, x] of Object.entries(v)) bindingTypos(x, `${at}.${k}`);
+  };
+  points.forEach(({ p, at }) => bindingTypos(p, at));
+  objects.forEach(({ o, at }) => bindingTypos(o, at));
   return out;
 }
 

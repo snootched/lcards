@@ -11,7 +11,7 @@ export default /** @type {import('./index.js').Starter} */ ({
   icon: 'mdi:vector-ellipse',
   params: [
     { key: 'inside', label: 'Inside', type: 'text', default: 'diagram', options: [{ value: 'diagram', label: 'The mouth and the diagram of its inside' }, { value: 'none', label: 'The mouth only' }] },
-    { key: 'power', label: 'Power', type: 'setting', default: 100, helper: 'How open, 0 (closed) to 100, or an entity to follow (the link button). A light or switch opens it when on; its brightness attribute (0 to 255) opens it by steps. Low and high left empty: the entity\'s min and max, else 0 and 100.' }
+    { key: 'power', label: 'Power', type: 'setting', default: 100, helper: 'How open, 0 (closed) to 100, or an entity to follow (the link button). A light or switch opens it when on; its brightness_pct opens it by steps; By state gives each state its power (playing 100, paused 40).' }
   ],
   build: ({ power, inside }) => {
     const all = inside !== 'none';

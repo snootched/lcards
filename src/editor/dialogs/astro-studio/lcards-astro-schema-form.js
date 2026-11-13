@@ -31,8 +31,10 @@ import '../../components/shared/lcards-color-picker.js';
 import '../../components/shared/lcards-color-list.js';
 import '../../components/editors/lcards-font-selector.js';
 import '../../components/editors/lcards-text-field-editor.js';
+import '../../components/editors/lcards-color-section-v2.js';
 import { valueEditor } from './text-adapter.js';
 import { shapePicture } from './starter-gallery.js';
+import { SETTING_WORDS } from '../../../core/astrometrics/names.js';
 import '../../components/shared/lcards-asset-source-picker.js';
 import '../../components/yaml/lcards-yaml-editor.js';
 
@@ -40,10 +42,6 @@ const isObj = (/** @type {any} */ v) => !!v && typeof v === 'object' && !Array.i
 /** Kinds laid out two to a row */
 const SHORT = new Set(['boolean', 'enum', 'choice', 'number', 'text', 'strings', 'numbers', 'font']);
 const COORDS = 'coords';
-/** A colour by state: the keys shown as pickers (the rest of a state map stays YAML) */
-const STATE_COLOR_KEYS = ['default', 'active', 'inactive', 'unavailable'];
-/** @type {Record<string, string>} */
-const STATE_COLOR_LABELS = { default: 'Default (no other match)', active: 'Active (on)', inactive: 'Inactive (off)', unavailable: 'Unavailable' };
 
 /** Whether a schema can only be a list (a colour list that takes no single colour) @param {any} s */
 const hasArrayType = (s) => s?.type === 'array';
@@ -79,6 +77,8 @@ export class LCARdSAstroSchemaForm extends LitElement {
 
   constructor() {
     super();
+    /** A number that follows an entity: shown as a range or by state, by key (before it has state keys) @type {Map<string, 'range' | 'state'>} */
+    this._bindModes = new Map();
     /** @type {any} */
     this.hass = null;
     /** @type {Record<string, any>} */
@@ -407,19 +407,61 @@ export class LCARdSAstroSchemaForm extends LitElement {
       </div>`;
     const color = kind === 'color';
     const back = color ? 'Back to a colour' : kind === 'choice' || kind === 'boolean' ? 'Back to a fixed value' : 'Back to a number';
-    // a colour by state: the usual state keys here, any other state or range (heat, above:80) in YAML
-    const others = color ? Object.keys(value).filter((k) => !['entity', 'attribute', ...STATE_COLOR_KEYS].includes(k)) : [];
+    // by state: the state list the other cards' colours use (lcards-color-section-v2), a colour or
+    // a number per state; it edits the binding's state keys (and default), the rest stays
+    const byState = color || (numeric && !!takes.active);
+    const isState = (/** @type {string} */ k) => (color ? k !== 'entity' && k !== 'attribute'
+      : k === 'default' || !(/** @type {readonly string[]} */ (SETTING_WORDS)).includes(k));
+    // a number shows one way at a time: a range (input to output) or a value per state; the
+    // config's own state keys pick it, else what was last chosen here
+    const hasStates = !color && Object.keys(value).some((k) => k !== 'default' && isState(k));
+    const RANGE_KEYS = ['input', 'output', 'clamp'];
+    const hasRange = RANGE_KEYS.some((k) => value[k] !== undefined);
+    const mode = !byState || color ? 'range' : hasStates ? 'state' : (this._bindModes.get(key) ?? 'range');
+    const setMode = (/** @type {'range' | 'state'} */ m) => {
+      if (m === mode) return;
+      this._bindModes.set(key, m);
+      // the other way's keys go (default, smooth, the entity and attribute stay)
+      const next = Object.fromEntries(Object.entries(value).filter(([k]) => (m === 'state' ? !RANGE_KEYS.includes(k) : !isState(k) || k === 'default')));
+      if (JSON.stringify(next) === JSON.stringify(value)) this.requestUpdate();
+      else put(next);
+    };
+    const modePills = !color && byState ? html`
+      <div class="pills full" data-key=${`${key}~mode`}>
+        <wa-button-group childSelector="ha-button">
+          <ha-button size="s" variant="brand" data-value="range" .appearance=${mode === 'range' ? 'accent' : 'filled'} @click=${() => setMode('range')}>Range</ha-button>
+          <ha-button size="s" variant="brand" data-value="state" .appearance=${mode === 'state' ? 'accent' : 'filled'} @click=${() => setMode('state')}>By state</ha-button>
+        </wa-button-group>
+      </div>` : nothing;
+    const stateList = byState ? html`
+      <lcards-color-section-v2 class="full" data-key=${`${key}~states`}
+        .editor=${{
+          hass: this.hass,
+          config: { entity: value.entity },
+          _getConfigValue: () => Object.fromEntries(Object.entries(value).filter(([k]) => isState(k))),
+          _setConfigValue: (/** @type {string} */ _path, /** @type {Record<string, any>} */ next) =>
+            put({ ...Object.fromEntries(Object.entries(value).filter(([k]) => !isState(k))), ...next })
+        }}
+        basePath="states" .entityId=${value.entity || ''} .valueKind=${color ? 'color' : 'number'}
+        header=${color ? 'Colour by state' : `${label} by state`}
+        description=${color ? 'The first state that matches gives the colour; none: the entity\'s own colour (attribute: rgb_color on a light), else Default.'
+          : `The first state that matches gives the ${label.toLowerCase()}; Default when none does.${hasRange ? ' The range in YAML (input, output) applies when no state matches.' : ''}`}
+        .suggestedStates=${['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero']}
+        ?allowCustomStates=${true} ?expanded=${true}>
+      </lcards-color-section-v2>` : nothing;
     return this._subPanel(key, 'mdi:link-variant', `${label}: follows an entity`, back, html`
       ${this._selector(`${key}~entity`, { entity: {} }, value.entity || undefined, 'Entity', color ? '' : helper, '', (v) => set({ entity: v || '', attribute: undefined }))}
       ${takes.attribute ? this._attribute(key, value, set) : nothing}
-      ${color ? html`
-        ${STATE_COLOR_KEYS.map((k) => this._color(`${key}~${k}`, value[k], STATE_COLOR_LABELS[k], '', (v) => set({ [k]: v })))}
-        <div class="hint full">${others.length ? `Also by state in YAML: ${others.join(', ')}.` : 'Other states ("heat", "above:80", "between:20:80") go in YAML, each with its colour. No key matching: the entity\'s own colour (attribute: rgb_color on a light).'}</div>` : nothing}
-      ${numeric && takes.input ? pair('input', ['Entity low', 'Entity high'], ['Default: its min (else 0)', 'Default: its max (else 100)']) : nothing}
-      ${numeric && takes.output ? pair('output', [`${label} at entity low`, `${label} at entity high`],
-        ['Both empty: the entity\'s own number', 'Held at the ends outside the entity range']) : nothing}
-      ${numeric && takes.default ? this._selector(`${key}~default`, { number: { mode: 'box', step: 'any' } }, value.default, `${label} with no value`, 'While the entity has no number (unavailable, a light that is off). Empty: the setting\'s own default.', '', (v) => set({ default: num(v) })) : nothing}
-      ${numeric && takes.clamp ? this._selector(`${key}~clamp`, { boolean: {} }, value.clamp !== false, 'Clamp', 'Off: values past the entity range carry on past the ends.', '', (v) => set({ clamp: v ? undefined : false })) : nothing}
+      ${color ? stateList : nothing}
+      ${modePills}
+      ${numeric && !color && mode === 'range' ? html`
+        ${takes.input ? pair('input', ['Entity low', 'Entity high'], ['Default: its min (else 0)', 'Default: its max (else 100)']) : nothing}
+        ${takes.output ? pair('output', [`${label} at entity low`, `${label} at entity high`],
+          ['Both empty: the entity\'s own number', 'Held at the ends outside the entity range']) : nothing}
+        ${takes.clamp ? this._selector(`${key}~clamp`, { boolean: {} }, value.clamp !== false, 'Clamp', 'Off: values past the entity range carry on past the ends.', '', (v) => set({ clamp: v ? undefined : false })) : nothing}
+        ${takes.default ? this._selector(`${key}~default`, { number: { mode: 'box', step: 'any' } }, value.default, `${label} with no value`,
+          'While the entity has no number (unavailable). Read by its state alone, on, playing or home is the entity high and off the entity low.', '', (v) => set({ default: num(v) })) : nothing}` : nothing}
+      ${!color && byState && mode === 'state' ? stateList : nothing}
       ${numeric && takes.smooth ? this._selector(`${key}~smooth`, { number: { mode: 'box', min: 0, step: 50 } }, value.smooth, 'Smooth (ms)', 'opacity, radius, size and spin ease over this; default 600, 0 steps.', '', (v) => set({ smooth: num(v) })) : nothing}`, put);
   }
 
@@ -503,6 +545,19 @@ export class LCARdSAstroSchemaForm extends LitElement {
    */
   _attribute(key, value, set) {
     if (!value.entity) return nothing;
+    // a light: its attributes and brightness_pct, the light's brightness as 0 to 100 % (0 while
+    // off), offered next to brightness (0 to 255) as the other cards do
+    if (String(value.entity).startsWith('light.')) {
+      const names = Object.keys(this.hass?.states?.[value.entity]?.attributes ?? {}).sort();
+      if (!names.includes('brightness')) names.push('brightness');
+      const options = [{ value: '', label: '(Use entity state)' }];
+      for (const n of names) {
+        options.push({ value: n, label: n === 'brightness' ? 'brightness (0 to 255)' : n });
+        if (n === 'brightness') options.push({ value: 'brightness_pct', label: 'brightness_pct (0 to 100 %, 0 while off)' });
+      }
+      return this._selector(`${key}~attribute`, { select: { mode: 'dropdown', options, custom_value: true } }, value.attribute ?? '', 'Attribute (optional)',
+        'Leave empty to read the state (on and off). brightness_pct reads the brightness as 0 to 100 %.', '', (v) => set({ attribute: v || undefined }));
+    }
     return this._selector(`${key}~attribute`, { attribute: { entity_id: value.entity } }, value.attribute ?? '', 'Attribute (optional)',
       'Leave empty to read the state.', '', (v) => set({ attribute: v || undefined }));
   }

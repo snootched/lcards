@@ -343,6 +343,13 @@ test('studio: a starter setting that follows an entity (the wormhole power) and 
     await expect(panel.locator('[data-key="power~entity"]')).toHaveCount(1);
     await expect(panel.locator('[data-key="power~input0"]')).toHaveCount(1);
     expect(await panel.locator('[data-key="power~output0"]').count()).toBe(0);
+    // a light: the attribute list offers brightness_pct (0 to 100 %) after brightness
+    await page.evaluate(() => { window.__studio._starterParams = { wormhole: { power: { entity: 'light.demo' } } }; });
+    await expect(panel.locator('[data-key="power~attribute"]')).toHaveCount(1);
+    const attrs = await panel.locator('[data-key="power~attribute"]').evaluate((el) => /** @type {any} */ (el).selector.select.options.map((o) => o.value));
+    expect(attrs.indexOf('brightness_pct')).toBe(attrs.indexOf('brightness') + 1);
+    // Range | By state: the starter's power per state
+    await expect(panel.locator('[data-key="power~mode"]')).toHaveCount(1);
     // a light's brightness, 0 to 255: on every setting the starter writes
     await page.evaluate(() => { window.__studio._starterParams = { wormhole: { power: { entity: 'light.demo', attribute: 'brightness', input: [0, 255] } } }; });
     await expect(dialog.locator('pre.starter-yaml')).toContainText('attribute: brightness');
@@ -541,6 +548,19 @@ test('studio UX1 P2: grouped object sections, sliders, bind panels, the look swi
     expect(await page.evaluate(() => window.__studio._workingConfig.objects[0].opacity)).toEqual({ entity: 'input_number.lcards_test_shields' });
     expect(await page.evaluate(() => window.__find('ha-selector[data-key="opacity~attribute"]')[0].selector))
         .toEqual({ attribute: { entity_id: 'input_number.lcards_test_shields' } });
+    // a number by state: the Range | By state pills, then the same list, a number per state
+    expect(await page.evaluate(() => window.__find('lcards-color-section-v2[data-key="opacity~states"]').length)).toBe(0);
+    expect(await page.evaluate(() => window.__find('[data-key="opacity~input0"]').length)).toBe(1);
+    await page.evaluate(() => window.__find('[data-key="opacity~mode"] ha-button[data-value="state"]')[0].click());
+    await settle();
+    expect(await page.evaluate(() => window.__find('[data-key="opacity~input0"]').length)).toBe(0);
+    await page.evaluate(() => window.__find('lcards-color-section-v2[data-key="opacity~states"]')[0]._addState('playing'));
+    await settle();
+    await page.evaluate(() => window.__find('lcards-color-section-v2[data-key="opacity~states"]')[0]
+        ._handleColorChange('playing', { detail: { value: 0.4 } }));
+    await settle();
+    expect(await page.evaluate(() => window.__find('lcards-color-section-v2[data-key="opacity~states"]')[0].valueKind)).toBe('number');
+    expect(await page.evaluate(() => window.__studio._workingConfig.objects[0].opacity)).toEqual({ entity: 'input_number.lcards_test_shields', playing: 0.4 });
     await page.evaluate(() => window.__find('[data-key="opacity-unbind"]')[0].click());
     await settle();
     expect(await page.evaluate(() => window.__studio._workingConfig.objects[0].opacity)).toBeUndefined();
@@ -555,9 +575,13 @@ test('studio UX1 P2: grouped object sections, sliders, bind panels, the look swi
         .dispatchEvent(new CustomEvent('value-changed', { detail: { value: 'input_boolean.lcards_test_toggle' } })));
     await settle();
     expect(await page.evaluate(() => window.__studio._workingConfig.objects[0].color)).toEqual({ entity: 'input_boolean.lcards_test_toggle' });
-    expect(await page.evaluate(() => window.__own('[data-key^="color~"] lcards-color-picker').length)).toBe(4);
-    await page.evaluate(() => window.__own('[data-key="color~active"] lcards-color-picker')[0]
-        .dispatchEvent(new CustomEvent('value-changed', { detail: { value: 'var(--lcars-orange)' } })));
+    // the state list the other cards' colours use: add a state, pick its colour
+    const list = await page.evaluate(() => { const l = window.__own('lcards-color-section-v2[data-key="color~states"]')[0]; return l ? l.valueKind : null; });
+    expect(list).toBe('color');
+    await page.evaluate(() => window.__own('lcards-color-section-v2[data-key="color~states"]')[0]._addState('active'));
+    await settle();
+    await page.evaluate(() => window.__own('lcards-color-section-v2[data-key="color~states"]')[0]
+        ._handleColorChange('active', { detail: { value: 'var(--lcars-orange)' } }));
     await settle();
     expect(await page.evaluate(() => window.__studio._workingConfig.objects[0].color)).toEqual({ entity: 'input_boolean.lcards_test_toggle', active: 'var(--lcars-orange)' });
     await page.evaluate(() => window.__own('[data-key="color-unbind"]')[0].click());

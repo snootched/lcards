@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  collectBindings, bindingKey, roundedSetting, settingConfig, mapEntity, mapNumber, dateValue, entityColor, templateColor, SKIP, withValues, isTourView, tourStop, easeStep, isBinding, isTemplateValue,
+  collectBindings, bindingKey, roundedSetting, settingConfig, mapEntity, mapNumber, stateValues, dateValue, entityColor, templateColor, SKIP, withValues, isTourView, tourStop, easeStep, isBinding, isTemplateValue,
   DEFAULT_SMOOTH_MS
 } from '../../src/core/astrometrics/bindings.js';
 
@@ -88,6 +88,39 @@ test('mapping (map_range words): input from min / max, else 0 to 100; clamped un
   assert.equal(mapEntity({ ...lamp, default: 'x' }, { state: 'off', attributes: {} }), null, 'a default that is not a number is none');
   // the old R4b words (never released) are not read: the setting gets the entity's number as it is
   assert.equal(mapNumber({ to: [10, 20], range: [0, 200] }, 50), 50);
+});
+
+test('a value per state (the state colour keys, with numbers): a matching state wins, then the range, then default', () => {
+  const tv = { entity: 'media_player.tv', playing: 1, paused: 0.4, default: 0.1 };
+  const st = (state, attributes = {}) => ({ state, attributes });
+  assert.equal(mapEntity(tv, st('playing'), 'active'), 1, 'the exact state');
+  assert.equal(mapEntity(tv, st('paused'), 'active'), 0.4);
+  assert.equal(mapEntity(tv, st('idle'), 'inactive'), 0.1, 'no match, no number: default (not the range ends)');
+  assert.equal(mapEntity({ ...tv, inactive: 0.2 }, st('idle'), 'inactive'), 0.2, 'the classified state');
+  assert.equal(mapEntity({ ...tv, unavailable: 0 }, st('unavailable'), 'unavailable'), 0);
+  // ranges and zero on the state, a number otherwise mapped
+  const cpu = { entity: 'sensor.cpu', 'above:80': 60, zero: 0, output: [5, 20] };
+  assert.equal(mapEntity(cpu, st('90'), 'inactive'), 60, 'a range key');
+  assert.equal(mapEntity(cpu, st('0'), 'inactive'), 0, 'zero');
+  assert.equal(mapEntity(cpu, st('50'), 'inactive'), 12.5, 'no key matches: the range mapping');
+  // against an attribute
+  const lamp = { entity: 'light.desk', attribute: 'brightness', 'below:50': 1, output: [0, 10], input: [0, 255] };
+  assert.equal(mapEntity(lamp, st('on', { brightness: 20 }), 'active'), 1);
+  assert.equal(mapEntity(lamp, st('on', { brightness: 255 }), 'active'), 10);
+  // no state keys, read by the state: the classified state picks the end of input
+  const range = { entity: 'media_player.tv', output: [2, 40], default: 2 };
+  assert.equal(mapEntity(range, st('playing'), 'active'), 40, 'playing is active');
+  assert.equal(mapEntity(range, st('idle'), 'inactive'), 2);
+  assert.equal(mapEntity({ entity: 'person.jay', output: [5, 20] }, st('home'), 'active'), 20, 'home is active');
+  assert.equal(mapEntity(range, st('unavailable'), 'unavailable'), 2, 'unavailable: default');
+  // brightness_pct, the other cards' virtual attribute: 0 to 100 %, 0 while off
+  const pct = { entity: 'light.desk', attribute: 'brightness_pct', output: [0, 10] };
+  assert.equal(mapEntity(pct, st('on', { brightness: 255 }), 'active'), 10);
+  assert.equal(mapEntity(pct, st('on', { brightness: 128 }), 'active'), 5);
+  assert.equal(mapEntity(pct, st('off', { brightness: null }), 'inactive'), 0, 'off: 0 %');
+  assert.equal(mapEntity({ ...pct, output: undefined, 'below:30': 1 }, st('on', { brightness: 51 }), 'active'), 1, 'a range against the percentage');
+  // the state keys a binding has, and only numbers
+  assert.deepEqual(stateValues({ entity: 'x', output: [0, 1], smooth: 4, playing: 1, home: 'x', 'above:80': 2 }), { playing: 1, 'above:80': 2 });
 });
 
 test('dates: an input_datetime state or attribute, a template result; unknown is none', () => {
@@ -269,7 +302,7 @@ test('object colours in the schema: every object colour takes the entity form (o
   const found = [];
   const visit = (s, path) => {
     if (!s || typeof s !== 'object') return;
-    if (Array.isArray(s.anyOf) && s.anyOf.some((b) => b?.required?.includes?.('entity') && b.properties?.active)) found.push(path);
+    if (Array.isArray(s.anyOf) && s.anyOf.some((b) => b?.required?.includes?.('entity') && b.properties?.active && b.properties.active.type !== 'number')) found.push(path);
     for (const [k, v] of Object.entries(s)) if (v && typeof v === 'object') visit(v, `${path}/${k}`);
   };
   const objects = astrometricsSchema.properties.objects;
@@ -278,7 +311,7 @@ test('object colours in the schema: every object colour takes the entity form (o
   const bindings = new Set();
   const collect = (s) => {
     if (!s || typeof s !== 'object') return;
-    if (Array.isArray(s.anyOf)) s.anyOf.forEach((b) => { if (b?.properties?.active) bindings.add(b); });
+    if (Array.isArray(s.anyOf)) s.anyOf.forEach((b) => { if (b?.properties?.active && b.properties.active.type !== 'number') bindings.add(b); });
     for (const v of Object.values(s)) if (v && typeof v === 'object') collect(v);
   };
   collect(objects);

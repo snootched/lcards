@@ -120,8 +120,16 @@ test('power follows an entity with its attribute and input range, or holds a num
   assert.deepEqual(lights[0].opacity.output[0], 0);
   assert.ok(lights.at(-1).opacity.output[0] < 0);
   // an entity id alone: input from the entity (min and max, else 0 to 100)
-  assert.deepEqual(wormholePower('input_number.p'), { bind: { entity: 'input_number.p' }, fixed: null });
-  assert.deepEqual(wormholePower({ entity: '' }), { bind: null, fixed: null });
+  assert.deepEqual(wormholePower('input_number.p').bind, { entity: 'input_number.p' });
+  assert.equal(wormholePower('input_number.p').fixed, null);
+  assert.equal(wormholePower({ entity: '' }).bind, null);
+  assert.equal(wormholePower({ entity: '' }).fixed, null);
+  // by state: each state's power (0 to 100) becomes each setting's own value, default too
+  const tv = wormholeMouth({ prefix: 'm', at: 'a', aim: 'b', radius: 10, depth: 4, power: { entity: 'media_player.tv', playing: 100, paused: 40, default: 0 } });
+  const tvGas = tv.objects.find((o) => o.id === 'm_gas').radius;
+  assert.deepEqual(tvGas, { entity: 'media_player.tv', output: [2.363, 15.75], playing: 15.75, paused: 7.718, default: 2.363, smooth: 1500 });
+  assert.equal(tv.objects.find((o) => o.id === 'm_funnel').well.morph.paused, 0.6);
+  assert.equal(tv.objects.find((o) => o.id === 'm_light_16').opacity.playing, 0.04);
   // a number: where that power puts each setting; 100 and none are fully open
   const half = wormholeMouth({ prefix: 'm', at: 'a', aim: 'b', radius: 10, depth: 4, power: 50 });
   const funnel = half.objects.find((o) => o.id === 'm_funnel');

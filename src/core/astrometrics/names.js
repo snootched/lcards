@@ -243,6 +243,9 @@ export const LIVE_TYPE_KEYS = {
   grid: { keys: ['depth', 'well.morph'] }
 };
 
+/** The words of a number that follows an entity (bindings.js); any other key is a state (or range) and its value */
+export const SETTING_WORDS = /** @type {const} */ (['entity', 'attribute', 'input', 'output', 'clamp', 'default', 'smooth']);
+
 /** Object types built from the effects chunk (`core/astrometrics/effects`) */
 export const EFFECT_TYPES = /** @type {const} */ (['nebula', 'cube']);
 

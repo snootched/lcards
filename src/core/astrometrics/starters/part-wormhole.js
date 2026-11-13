@@ -16,7 +16,7 @@ export default /** @type {import('./index.js').Starter} */ ({
     { key: 'centre', label: 'Mouth', type: 'point', default: [0, 0, 0], helper: 'A point id or x, y, z. The inside runs along +x from here.' },
     { key: 'size', label: 'Length', type: 'number', default: 70, real: 40, fit: true },
     { key: 'inside', label: 'Inside', type: 'text', default: 'diagram', options: [{ value: 'diagram', label: 'The mouth and the diagram of its inside' }, { value: 'none', label: 'The mouth only' }] },
-    { key: 'power', label: 'Power', type: 'setting', default: 100, helper: 'How open, 0 (closed) to 100, or an entity to follow (the link button). A light or switch opens it when on; its brightness attribute (0 to 255) opens it by steps. Low and high left empty: the entity\'s min and max, else 0 and 100.' }
+    { key: 'power', label: 'Power', type: 'setting', default: 100, helper: 'How open, 0 (closed) to 100, or an entity to follow (the link button). A light or switch opens it when on; its brightness_pct opens it by steps; By state gives each state its power (playing 100, paused 40).' }
   ],
   build: ({ centre, size, power, inside }) => {
     const c = centreRef(centre);

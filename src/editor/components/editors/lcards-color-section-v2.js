@@ -13,6 +13,9 @@
  * - Duplicate state functionality
  * - LCARS aesthetic with rounded corners
  *
+ * With `valueKind: 'number'` each state takes a number instead of a colour (a number
+ * that follows an entity by state: the astrometrics settings).
+ *
  * @example
  * <lcards-color-section-v2
  *   .editor=${this}
@@ -55,6 +58,9 @@ export class LCARdSColorSectionV2 extends LitElement {
             // Show color preview bar
             showPreview: { type: Boolean },
 
+            // What each state holds: 'color' (default) or 'number'
+            valueKind: { type: String },
+
             // CSS variable prefixes to scan
             variablePrefixes: { type: Array },
 
@@ -80,6 +86,7 @@ export class LCARdSColorSectionV2 extends LitElement {
         this.suggestedStates = ['default', 'active', 'inactive', 'unavailable', 'zero', 'non_zero', 'hover', 'pressed'];
         this.allowCustomStates = true;
         this.showPreview = true;
+        this.valueKind = 'color';
         this.variablePrefixes = ['--lcards-', '--lcars-', '--cblcars-'];
         this._expandedStates = new Set();
         this._customStateInput = '';
@@ -218,6 +225,7 @@ export class LCARdSColorSectionV2 extends LitElement {
 
                 .custom-state-input {
                     display: flex;
+                    flex-wrap: wrap;
                     gap: 8px;
                     align-items: center;
                     padding-top: 12px;
@@ -307,7 +315,7 @@ export class LCARdSColorSectionV2 extends LitElement {
                 header="${this.header}"
                 description="${this.description}"
                 ?expanded=${this.expanded}
-                icon="mdi:palette"
+                icon=${this.valueKind === 'number' ? 'mdi:numeric' : 'mdi:palette'}
                 outlined>
 
                 <!-- Existing States (List) -->
@@ -349,9 +357,9 @@ export class LCARdSColorSectionV2 extends LitElement {
                         • <strong>between_exclusive:N:M</strong> → N &lt; value &lt; M, e.g. <code>between_exclusive:20:80</code><br>
                         When multiple ranges match, the most specific one wins (narrowest / highest above/at_least / lowest below/at_most).<br>
                         • <strong>non_zero</strong> → any non-zero number, catch-all when no range matched<br>
-                        <br>
+                        ${this.valueKind === 'number' ? '' : html`<br>
                         Interactive element states (if supported by card):<br>
-                        • <strong>hover</strong> · <strong>pressed</strong>
+                        • <strong>hover</strong> · <strong>pressed</strong>`}
                     </div>
                     ` : ''}
                 </div>
@@ -370,8 +378,8 @@ export class LCARdSColorSectionV2 extends LitElement {
     _renderEmptyState() {
         return html`
             <div class="empty-state">
-                <ha-icon icon="mdi:palette"></ha-icon>
-                <div style="font-weight: 500; margin-bottom: 8px;">No color states configured</div>
+                <ha-icon icon=${this.valueKind === 'number' ? 'mdi:numeric' : 'mdi:palette'}></ha-icon>
+                <div style="font-weight: 500; margin-bottom: 8px;">${this.valueKind === 'number' ? 'No states yet' : 'No color states configured'}</div>
                 <div style="font-size: 13px;">
                     Add a suggested state or create a custom state below
                 </div>
@@ -397,10 +405,10 @@ export class LCARdSColorSectionV2 extends LitElement {
                     <!-- State Info -->
                     <div class="editor-item-info">
                         <div class="editor-item-title">${this._formatStateLabel(state)}</div>
-                        <div class="editor-item-subtitle">${color || 'Not set'}</div>
+                        <div class="editor-item-subtitle">${color === '' || color === undefined || color === null ? 'Not set' : String(color)}</div>
 
                         <!-- Color Preview Bar -->
-                        ${color && this.showPreview ? html`
+                        ${color && this.showPreview && this.valueKind !== 'number' ? html`
                             <div class="color-preview-bar"
                                 style="background: ${this._resolveColorForPreview(color)}">
                             </div>
@@ -423,8 +431,18 @@ export class LCARdSColorSectionV2 extends LitElement {
                     </ha-icon>
                 </div>
 
-                <!-- Content (Color Picker) -->
-                ${isExpanded ? html`
+                <!-- Content (a number box, or the Color Picker) -->
+                ${isExpanded && this.valueKind === 'number' ? html`
+                    <div class="editor-item-content">
+                        <ha-selector
+                            .hass=${this.editor.hass}
+                            .label=${'Value'}
+                            .selector=${{ number: { mode: 'box', step: 'any' } }}
+                            .value=${typeof color === 'number' ? color : null}
+                            @value-changed=${(e) => this._handleColorChange(state, e)}>
+                        </ha-selector>
+                    </div>
+                ` : isExpanded ? html`
                     <div class="editor-item-content">
                         <lcards-color-picker
                             .hass=${this.editor.hass}
@@ -478,7 +496,7 @@ export class LCARdSColorSectionV2 extends LitElement {
                 ${this.allowCustomStates ? html`
                     <div class="custom-state-input">
                         <ha-selector
-                            style="flex:1;"
+                            style="flex:1; min-width:160px;"
                             .hass=${this.editor.hass}
                             .label=${'Custom State Name'}
                             .selector=${{ text: {} }}
@@ -600,7 +618,8 @@ export class LCARdSColorSectionV2 extends LitElement {
      */
     _handleColorChange(state, e) {
         const currentStates = this._getCurrentStates();
-        currentStates[state] = e.detail.value;
+        const v = e.detail.value;
+        currentStates[state] = this.valueKind === 'number' ? (v === '' || v === null || v === undefined || !Number.isFinite(Number(v)) ? 0 : Number(v)) : v;
         this.editor._setConfigValue(this.basePath, currentStates);
         lcardsLog.debug('[ColorSectionV2] Color changed', { state, value: e.detail.value });
     }
@@ -762,8 +781,8 @@ export class LCARdSColorSectionV2 extends LitElement {
             return;
         }
 
-        // Add new state with empty value
-        const newStates = { ...currentStates, [state]: '' };
+        // Add new state with empty value (a number starts at 0: a state needs a number)
+        const newStates = { ...currentStates, [state]: this.valueKind === 'number' ? 0 : '' };
         this.editor._setConfigValue(this.basePath, newStates);
 
         // Auto-expand new state for immediate editing

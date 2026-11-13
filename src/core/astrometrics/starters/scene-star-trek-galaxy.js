@@ -1,3 +1,5 @@
+import { SETTING_WORDS } from '../names.js';
+
 /**
  * The Star Trek galaxy (R4c2): the Milky Way in light years (type: galaxy),
  * cut into the four quadrants by two lines through the core, one through
@@ -182,23 +184,45 @@ const r3 = (/** @type {number} */ v) => Math.round(v * 1000) / 1000;
 
 /**
  * A wormhole's power as what its settings are made from: `bind`, the mapping keys each
- * setting that follows it gets (its own `output` added); `fixed`, a number from 0 to 100.
- * Neither: fully open.
+ * setting that follows it gets; `fixed`, a number from 0 to 100; neither, fully open.
+ * `follow(lo, hi)` is one setting from closed (lo) to open (hi) following the entity: its
+ * own `output`, each state's power (0 to 100: `playing: 100`, `paused: 40`) as that
+ * setting's value, and `default` (the power given, else closed).
  * @param {WormholePower} power
- * @returns {{ bind: Record<string, any> | null, fixed: number | null }}
+ * @returns {{ bind: Record<string, any> | null, fixed: number | null,
+ *   follow: (lo: number, hi: number, opts?: { smooth?: number, closed?: number }) => Record<string, any> }}
  */
 export function wormholePower(power) {
-  if (typeof power === 'string' && power.trim()) return { bind: { entity: power.trim() }, fixed: null };
-  if (power && typeof power === 'object' && typeof power.entity === 'string' && power.entity.trim()) {
-    /** @type {Record<string, any>} */
-    const bind = { entity: power.entity.trim() };
+  /** @type {Record<string, any> | null} */
+  let bind = null;
+  /** @type {Record<string, number>} */
+  const states = {};
+  /** @type {number | undefined} */
+  let def;
+  if (typeof power === 'string' && power.trim()) bind = { entity: power.trim() };
+  else if (power && typeof power === 'object' && typeof power.entity === 'string' && power.entity.trim()) {
+    bind = { entity: power.entity.trim() };
     if (typeof power.attribute === 'string' && power.attribute.trim()) bind.attribute = power.attribute.trim();
     if (Array.isArray(power.input) && power.input.length === 2 && power.input.every(Number.isFinite)) bind.input = [...power.input];
     if (power.clamp === false) bind.clamp = false;
-    return { bind, fixed: null };
+    for (const [k, v] of Object.entries(power)) {
+      if (k === 'default') { if (typeof v === 'number' && Number.isFinite(v)) def = v; }
+      else if (!(/** @type {readonly string[]} */ (SETTING_WORDS)).includes(k) && typeof v === 'number' && Number.isFinite(v)) states[k] = v;
+    }
   }
   const n = typeof power === 'number' ? power : Number.NaN;
-  return { bind: null, fixed: Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : null };
+  const fixed = bind || !Number.isFinite(n) ? null : Math.min(100, Math.max(0, n));
+  /** @param {number} lo @param {number} hi @param {{ smooth?: number, closed?: number }} [opts] */
+  const follow = (lo, hi, { smooth, closed } = {}) => {
+    const at = (/** @type {number} */ p) => r3(lo + (hi - lo) * Math.min(1, Math.max(0, p / 100))) || 0;
+    return {
+      ...bind, output: [r3(lo) || 0, r3(hi)],
+      ...Object.fromEntries(Object.entries(states).map(([k, p]) => [k, at(p)])),
+      default: def !== undefined ? at(def) : r3(closed ?? lo) || 0,
+      ...(smooth ? { smooth } : {})
+    };
+  };
+  return { bind, fixed, follow };
 }
 
 /**
@@ -230,7 +254,7 @@ export function wormholePower(power) {
  */
 export function wormholeMouth({ prefix, at, aim, radius: R, depth: D, power, extra = {}, stars = 4000, glow = 5, palette = {}, turn = 1 }) {
   const c = { ...MOUTH_PALETTE, ...palette };
-  const { bind, fixed } = wormholePower(power);
+  const { bind, fixed, follow } = wormholePower(power);
   /** How open, 0 to 1, when it does not follow an entity */
   const t = fixed === null ? 1 : fixed / 100;
   /**
@@ -239,17 +263,17 @@ export function wormholeMouth({ prefix, at, aim, radius: R, depth: D, power, ext
    * @param {number} lo @param {number} hi @param {number} [smooth]
    */
   const opens = (lo, hi, smooth) =>
-    (bind ? { ...bind, output: [r3(lo), r3(hi)], default: r3(lo), ...(smooth ? { smooth } : {}) } : r3(lo + (hi - lo) * t));
+    (bind ? follow(lo, hi, { smooth }) : r3(lo + (hi - lo) * t));
   /** Whether it is ever less than open: then the funnel gets its closed shape */
   const closes = !!bind || t < 1;
   /** A shaft glow's opacity: none below `f` of the power, `a` when open */
   const shaftOpacity = (/** @type {number} */ a, /** @type {number} */ f) => (bind
-    ? { ...bind, output: [r3(-a * f / (1 - f)) || 0, r3(a)], default: 0, smooth: 1500 }
+    ? follow(-a * f / (1 - f), a, { smooth: 1500, closed: 0 })
     : r3(Math.max(0, a * (t - f) / (1 - f))));
   const mouth = `${prefix}_mouth`;
   const shape = { shape: 'well', well: { shape: 'trumpet', throat: 0.1 }, at, face: aim, radius: opens(0.15 * R, R, 1500), depth: D };
   // the funnel wobbles more as it opens
-  const wobbleAmp = bind ? { ...bind, output: [0, 0.1], default: 0 } : r3(0.06 * t);
+  const wobbleAmp = bind ? follow(0, 0.1) : r3(0.06 * t);
   const wobble = { type: 'wobble', lobes: 0, waves: 2, period: 3, amplitude: wobbleAmp };
   // the swirl reaches past the diagram's rim, as the gas does round the mouth
   const S = 1.5 * R;

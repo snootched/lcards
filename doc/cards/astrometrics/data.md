@@ -175,7 +175,8 @@ objects:
 
 **Any number on a point or object can follow an entity instead of holding still: a shield bubble's opacity follows the shields, a glow's size follows the power.** Write the key as `entity` with an `input` range and an `output` range, the same words as `map_range` in [animations](/core/animations) and the rules' `map_range_cond`.
 
-- A light or a switch followed by its state (no `attribute`) reads `off` as the low end of `input` and `on` as the high end, so it opens or closes a setting fully; follow `brightness` for the steps in between.
+- A light's brightness: `attribute: brightness_pct` gives 0 to 100 % (0 while it is off), as in the other cards; `brightness` is 0 to 255.
+- A light, a switch or a player followed by its state (no `attribute`) reads as the high end of `input` while it is active (on, playing, home) and the low end while it is not, so it opens or closes a setting fully; follow `brightness` for the steps in between, or give each state its own value ([Settings by state](#settings-by-state)).
 - A value outside `input` stays at the end of `output`, unless `clamp: false`. No value (unavailable, not a number, a light's brightness while it is off) gives `default`, else the key's own default.
 - Templates work too: `spin: "[[[ return states['input_number.lcards_test_power'].state / 10 ]]]"`, or `{{ }}` and `{entity.state}`.
 - An object's `opacity`, `radius`, `size` and `spin` ease to their new value without rebuilding anything; most other keys rebuild that one object or point, at most four times a second, and step.
@@ -227,12 +228,75 @@ objects:
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `entity` | string | required | The entity to follow |
-| `attribute` | string | - | Read this attribute instead of the state. Without one, a state of `off` or `on` reads as the low or high end of `input` |
+| `attribute` | string | - | Read this attribute instead of the state. `brightness_pct` reads a light's brightness as 0 to 100 % (0 while off; `brightness` itself is 0 to 255). Without one (and without [state keys](#settings-by-state)), an active entity (on, playing, home) reads as the high end of `input` and an inactive one as the low end |
 | `input` | `[low, high]` | the entity's `min` and `max`, else `[0, 100]` | The range of the entity's value. `min` and `max` are an `input_number`'s attributes |
 | `output` | `[low, high]` | - | The range of the setting the input maps to. Left out: the entity's number as it is |
 | `clamp` | boolean | `true` | `false`: a value outside `input` carries on past the ends of `output` |
-| `default` | number | the key's own default | The setting's value while the entity has no number: unavailable, or a light that is off (it has no `brightness`) |
+| `default` | number | the key's own default | The setting's value when no [state key](#settings-by-state) matches and the entity has no number: unavailable, or a light that is off (it has no `brightness`) |
 | `smooth` | number | `600` | How long a change eases, ms, for a key that changes in place. `0` steps |
+
+### Settings by state
+
+**A number can take a value per state instead of a range: a glow wide while a player is playing, a shield bubble clear while the doors are open.** The keys are the [state colour](/core/colours) words, each with a number: `active`, `inactive`, `unavailable`, `zero`, `non_zero`, ranges (`above:80`, `below:20`, `between:20:80`) and any state of the entity (`playing`, `home`, `heat`).
+
+- The first key that matches wins, in the order the state colours use: the exact state (or the `attribute`'s value), `zero`, a range (`above`, `at_least`, `below`, `at_most`, `between`, `between_exclusive`; the narrowest wins), `non_zero`, then `active`, `inactive` or `unavailable`.
+- No key matching, a number is still mapped by `input` and `output` when the binding has them; else `default` applies.
+- The value eases like any other: `smooth` works the same way.
+
+```yaml live controls
+type: custom:lcards-astrometrics-card
+height: 300
+camera:
+  views:
+    v:
+      target: [0, 0, 0]
+      yaw: 20
+      tilt: 20
+      distance: 160
+objects:
+  - type: sphere
+    id: bubble
+    at: [-35, 0, 0]
+    radius: 30
+    fill:
+      color: var(--lcars-blue)
+    # the toggle on: a clear bubble; off: a solid one
+    opacity:
+      entity: input_boolean.lcards_test_toggle
+      active: 0.15
+      inactive: 0.6
+  - type: glow
+    id: beacon
+    at: [40, 0, 0]
+    color: var(--lcars-orange)
+    # a size per mode, 5 for any other state
+    size:
+      entity: input_select.lcards_test_mode
+      alpha: 15
+      beta: 35
+      gamma: 60
+      default: 5
+      smooth: 800
+```
+
+::: details More about settings by state
+- **Active and inactive** follow the card's state classification, the same as the state colours: on, open, playing, home, heat and the other running states are active, anything else is inactive, and unavailable or unknown is `unavailable`. A card's `state_classification` changes them.
+- **With an attribute,** exact keys and ranges match the attribute's value (`attribute: brightness` with `below:50: 1`).
+- **In the Astrometrics Studio,** the panel of a number that follows an entity switches between **Range** (entity low and high, the setting's values there) and **By state**: the state list the other cards use for state colours, with a number per state (quick-add Default, Active, Inactive, Unavailable, Zero and Non zero, type any state of the entity, or add a range condition). Switching drops the other way's keys. A colour that follows an entity uses the same list with a colour per state. For a light the attribute list offers `brightness_pct`.
+- **Misspelt words** read as states: the checker warns about a key close to one of the binding words (`smoth: 800`).
+- **`on` and `off` as keys** need quotes (`"on": 1`): Home Assistant's YAML editor reads them bare as true and false. `active` and `inactive` cover them without quotes, and more states besides.
+:::
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `active` | number | - | The value while the entity is active (on, playing, home, open) |
+| `inactive` | number | - | The value while the entity is inactive (off, idle, not_home, closed) |
+| `unavailable` | number | - | The value while the entity is unavailable or unknown |
+| `zero` | number | - | The value when the entity's value is the number 0 |
+| `non_zero` | number | - | The value when the entity's value is any other number |
+| `above:N`, `at_least:N`, `below:N`, `at_most:N`, `between:A:B`, `between_exclusive:A:B` | number | - | The value when the entity's value is in that range |
+| `<state>` | number | - | The value in that state (`playing`, `home`, `heat`) |
+| `default` | number | the key's own default | The value when nothing else gives one |
 
 ### Colours from entities
 

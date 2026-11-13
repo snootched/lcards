@@ -1041,7 +1041,7 @@ export class LCARdSAstrometricsCard extends LCARdSCard {
                 const entity = this._entityState(b.spec.entity);
                 this._applySetting(b, b.kind === 'date' ? runtime.dateValue(b.spec, entity)
                     : b.kind === 'color' ? runtime.entityColor(b.spec, entity, entity ? this._classifyEntityState(entity) : 'unavailable')
-                        : runtime.mapEntity(b.spec, entity), !changed);
+                        : runtime.mapEntity(b.spec, entity, entity ? this._classifyEntityState(entity) : 'unavailable'), !changed);
                 continue;
             }
             const key = runtime.bindingKey(b);

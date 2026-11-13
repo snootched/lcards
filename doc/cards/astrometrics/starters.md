@@ -516,7 +516,7 @@ The Bajoran wormhole as the station displays draw it: the mouth (a whirlpool of 
 | Setting | Default | Notes |
 |---|---|---|
 | Inside | `diagram` | `diagram`: The mouth and the diagram of its inside; `none`: The mouth only |
-| Power | `100` | How open, 0 (closed) to 100, or an entity to follow (the link button). A light or switch opens it when on; its brightness attribute (0 to 255) opens it by steps. Low and high left empty: the entity's min and max, else 0 and 100. |
+| Power | `100` | How open, 0 (closed) to 100, or an entity to follow (the link button). A light or switch opens it when on; its brightness_pct opens it by steps; By state gives each state its power (playing 100, paused 40). |
 
 ```yaml live collapsed
 type: custom:lcards-astrometrics-card
@@ -3440,7 +3440,7 @@ Its ids start with its name (default `bajoran_`).
 | Mouth | `0, 0, 0` | A point id or x, y, z. The inside runs along +x from here. |
 | Length | `70` |  |
 | Inside | `diagram` | `diagram`: The mouth and the diagram of its inside; `none`: The mouth only |
-| Power | `100` | How open, 0 (closed) to 100, or an entity to follow (the link button). A light or switch opens it when on; its brightness attribute (0 to 255) opens it by steps. Low and high left empty: the entity's min and max, else 0 and 100. |
+| Power | `100` | How open, 0 (closed) to 100, or an entity to follow (the link button). A light or switch opens it when on; its brightness_pct opens it by steps; By state gives each state its power (playing 100, paused 40). |
 
 ```yaml live collapsed
 type: custom:lcards-astrometrics-card

@@ -137,7 +137,7 @@ objects:
 - **On the scene:** tap a point or object to open its row; drag a point to move it (it slides along the object it stands on); **Place a point** in the toolbar adds one where you tap next.
 - **Capture a view:** move the preview's camera where you want it and select **Capture view** in the Camera tab: its target, yaw, tilt and distance become a new named view.
 - **Star systems:** a `system` row in the Objects tab has an **Open** button. The preview flies to it, and the Points, Objects and Starters tabs then edit the system, in its own units.
-- **Following an entity:** a field with a link button can follow an entity instead of holding a number (see [Settings from entities](./data#settings-from-entities)).
+- **Following an entity:** a field with a link button can follow an entity instead of holding a number. Its panel switches between **Range** (the entity's low and high, the setting's values there) and **By state** (the state list the state colours use, a number per state); for a light the attribute list offers `brightness_pct` (0 to 100 %). See [Settings from entities](./data#settings-from-entities) and [Settings by state](./data#settings-by-state).
 - **Measure and units:** the toolbar can measure between two places, and the units of the open scene or system, with a scale bar, sit at the bottom right of the preview.
 - **Prisms:** a prism's outline can be drawn and dragged on the preview.
 :::
@@ -147,7 +147,7 @@ objects:
 **The astrometrics card's own top-level keys.** Each block has its own page; this table links to it.
 
 - The card also takes the keys every LCARdS card takes (`id`, `tags`, `sounds`, `grid_options`, `width`, `min_height`, `max_height` ...): see [Common card properties](../common).
-- Any number on a point or object can follow an entity (`opacity` from a sensor, say): see [Settings from entities](./data#settings-from-entities).
+- Any number on a point or object can follow an entity, by a range (`opacity` from a sensor, say) or a value per state (a glow wide while a player is playing): see [Settings from entities](./data#settings-from-entities) and [Settings by state](./data#settings-by-state).
 - The [config checker](/getting-started/config-checker) also checks what the schema cannot: that each point has exactly one position, and that every id a point, path, ring, beam or view names exists.
 
 ```yaml live
